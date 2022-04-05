@@ -8,6 +8,7 @@ import algosdk, {
     Account,
     Algodv2,
     assignGroupID,
+    bigIntToBytes,
     decodeAddress,
     encodeAddress,
     getApplicationAddress,
@@ -109,17 +110,6 @@ export type TealCompileRsp = {
 };
 
 // Conversion functions
-
-export function numberToUint8Array(n: number) {
-    if (!n) return new Uint8Array(0);
-    const a = [];
-    a.unshift(n & 255);
-    while (n >= 256) {
-        n = n >>> 8;
-        a.unshift(n & 255);
-    }
-    return new Uint8Array(a);
-}
 
 export function textToHexString(name: string): string {
     // const enc: TextEncoder = new TextEncoder();
@@ -328,7 +318,7 @@ export async function attestFromAlgorand(
 
     console.log("make app call txn...");
     let appTxn = makeApplicationCallTxnFromObject({
-        appArgs: [bPgmName, numberToUint8Array(assetId)],
+        appArgs: [bPgmName, bigIntToBytes(assetId, 8)],
         accounts: [
             emitterAddr,
             creatorAddr,
@@ -348,19 +338,25 @@ export async function attestFromAlgorand(
         appTxn.fee *= 2;
     }
     txns.push(appTxn);
-    assignGroupID(txns);
-    // The transactions need to be a group first before signing them
-    let signedTxns: Uint8Array[] = [];
-    txns.forEach((t) => {
-        signedTxns.push(t.signTxn(senderAcct.sk));
-    });
-    console.log("Sending raw txns...", signedTxns.length);
-    const { txId } = await client.sendRawTransaction(signedTxns).do();
-    // wait for transaction to be confirmed
-    console.log("Waiting for confirmation...");
-    const ptx = await waitForConfirmation(client, txId, 1);
+    await simpleSignVAA(client, senderAcct, txns);
+    // assignGroupID(txns);
+    // // The transactions need to be a group first before signing them
+    // let signedTxns: Uint8Array[] = [];
+    // txns.forEach((t) => {
+    //     signedTxns.push(t.signTxn(senderAcct.sk));
+    // });
+    // console.log("Sending raw txns...", signedTxns.length);
+    // const { txId } = await client.sendRawTransaction(signedTxns).do();
+    // // wait for transaction to be confirmed
+    // console.log("Waiting for confirmation...");
+    // const ptx = await waitForConfirmation(
+    //     client,
+    //     txns[txns.length - 1].txID(),
+    //     1
+    // );
 
-    return txId;
+    // return txId;
+    return txns[txns.length - 1].txID();
 }
 
 /**
@@ -916,10 +912,12 @@ export async function simpleSignVAA(
             JSON.stringify(txn.appArgs[0]) ===
                 JSON.stringify(textToUint8Array("verifySigs"))
         ) {
+            console.log("Signing logic sig...");
             const lsa = new LogicSigAccount(ALGO_VERIFY);
             const stxn = signLogicSigTransaction(txn, lsa);
             signedTxns.push(stxn.blob);
         } else {
+            console.log("Signing normal txn...");
             signedTxns.push(txn.signTxn(sender.sk));
         }
     });
@@ -1320,7 +1318,6 @@ export async function transferAsset(
         .getTransactionParams()
         .do();
     let txns: algosdk.Transaction[] = [];
-    let signedTxns = [];
     const msgFee: number = await getMessageFee(client);
     if (msgFee > 0) {
         const payTxn: algosdk.Transaction =
@@ -1331,7 +1328,6 @@ export async function transferAsset(
                 amount: msgFee,
             });
         txns.push(payTxn);
-        signedTxns.push(payTxn.signTxn(sender.sk));
     }
     if (!wormhole) {
         const bNat = Buffer.from("native", "binary").toString("hex");
@@ -1347,25 +1343,21 @@ export async function transferAsset(
                 suggestedParams: params,
             });
         txns.push(payTxn);
-        signedTxns.push(payTxn.signTxn(sender.sk));
         // The tokenid app needs to do the optin since it has signature authority
         const bOptin = Buffer.from("optin", "binary");
         let txn = makeApplicationCallTxnFromObject({
             from: sender.addr,
             appIndex: TOKEN_BRIDGE_ID,
             onComplete: OnApplicationComplete.NoOpOC,
-            appArgs: [bOptin, numberToUint8Array(assetId)],
+            appArgs: [bOptin, bigIntToBytes(assetId, 8)],
             foreignAssets: [assetId],
             accounts: [creator],
             suggestedParams: params,
         });
         txn.fee *= 2;
         txns.push(txn);
-        signedTxns.push(txn.signTxn(sender.sk));
-        const { txId } = await client.sendRawTransaction(signedTxns).do();
-        await waitForConfirmation(client, txId, 4);
+        await simpleSignVAA(client, sender, txns);
         txns = [];
-        signedTxns = [];
     }
     const t = makeApplicationCallTxnFromObject({
         from: sender.addr,
@@ -1375,7 +1367,6 @@ export async function transferAsset(
         suggestedParams: params,
     });
     txns.push(t);
-    signedTxns.push(t.signTxn(sender.sk));
 
     let accounts: string[] = [];
     if (assetId === 0) {
@@ -1386,7 +1377,6 @@ export async function transferAsset(
             suggestedParams: params,
         });
         txns.push(t);
-        signedTxns.push(t.signTxn(sender.sk));
         accounts = [emitterAddr, creator, creator];
     } else {
         const t = makeAssetTransferTxnWithSuggestedParamsFromObject({
@@ -1397,16 +1387,15 @@ export async function transferAsset(
             assetIndex: assetId,
         });
         txns.push(t);
-        signedTxns.push(t.signTxn(sender.sk));
         accounts = [emitterAddr, creator, creatorAcctInfo["address"]];
     }
     let args = [
         textToUint8Array("sendTransfer"),
-        numberToUint8Array(assetId),
-        numberToUint8Array(qty),
+        bigIntToBytes(assetId, 8),
+        bigIntToBytes(qty, 8),
         decodeAddress(receiver.addr).publicKey,
-        numberToUint8Array(chain),
-        numberToUint8Array(fee),
+        bigIntToBytes(chain, 8),
+        bigIntToBytes(fee, 8),
     ];
     let acTxn = makeApplicationCallTxnFromObject({
         from: sender.addr,
@@ -1420,13 +1409,7 @@ export async function transferAsset(
     });
     acTxn.fee *= 2;
     txns.push(acTxn);
-    signedTxns.push(acTxn.signTxn(sender.sk));
-    const { txId } = await client.sendRawTransaction(signedTxns).do();
-    const resp: Record<string, any> = await waitForConfirmation(
-        client,
-        txId,
-        4
-    );
+    const resp: Record<string, any> = await simpleSignVAA(client, sender, txns);
     return parseSeqFromLog(resp);
 }
 
