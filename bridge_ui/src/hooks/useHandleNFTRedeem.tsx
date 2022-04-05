@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_ACALA,
   CHAIN_ID_KARURA,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_SOLANA,
   getClaimAddressSolana,
   hexToUint8Array,
@@ -53,12 +54,15 @@ async function evm(
 ) {
   dispatch(setIsRedeeming(true));
   try {
-    // Karura and Acala need gas params for NFT minting
     const overrides =
+      // Karura and Acala need gas params for NFT minting
       chainId === CHAIN_ID_KARURA
         ? await getKaruraGasParams(KARURA_HOST)
         : chainId === CHAIN_ID_ACALA
         ? await getKaruraGasParams(ACALA_HOST)
+        : // Klaytn requires specifying gasPrice
+        chainId === CHAIN_ID_KLAYTN
+        ? { gasPrice: (await signer.getGasPrice()).toString() }
         : {};
     const receipt = await redeemOnEth(
       getNFTBridgeAddressForChain(chainId),

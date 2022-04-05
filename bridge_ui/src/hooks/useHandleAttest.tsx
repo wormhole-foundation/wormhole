@@ -5,6 +5,7 @@ import {
   attestFromTerra,
   ChainId,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getEmitterAddressAlgorand,
@@ -127,10 +128,16 @@ async function evm(
 ) {
   dispatch(setIsSending(true));
   try {
+    // Klaytn requires specifying gasPrice
+    const overrides =
+      chainId === CHAIN_ID_KLAYTN
+        ? { gasPrice: (await signer.getGasPrice()).toString() }
+        : {};
     const receipt = await attestFromEth(
       getTokenBridgeAddressForChain(chainId),
       signer,
-      sourceAsset
+      sourceAsset,
+      overrides
     );
     dispatch(
       setAttestTx({ id: receipt.transactionHash, block: receipt.blockNumber })

@@ -1,6 +1,7 @@
 import {
   ChainId,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
@@ -102,16 +103,23 @@ async function evm(
 ) {
   dispatch(setIsRedeeming(true));
   try {
+    // Klaytn requires specifying gasPrice
+    const overrides =
+      chainId === CHAIN_ID_KLAYTN
+        ? { gasPrice: (await signer.getGasPrice()).toString() }
+        : {};
     const receipt = isNative
       ? await redeemOnEthNative(
           getTokenBridgeAddressForChain(chainId),
           signer,
-          signedVAA
+          signedVAA,
+          overrides
         )
       : await redeemOnEth(
           getTokenBridgeAddressForChain(chainId),
           signer,
-          signedVAA
+          signedVAA,
+          overrides
         );
     dispatch(
       setRedeemTx({ id: receipt.transactionHash, block: receipt.blockNumber })
