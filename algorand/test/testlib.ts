@@ -21,12 +21,17 @@ const web3EthAbi = require('web3-eth-abi')
 const web3Utils = require('web3-utils')
 const elliptic = require('elliptic')
 
+import {
+    decodeAddress
+} from "algosdk";
 
 class TestLib {
+    zeroBytes: string;
+
     constructor() {
         this.zeroBytes = "0000000000000000000000000000000000000000000000000000000000000000";
     }
-    encoder(type, val) {
+    encoder(type:string, val: any) {
         if (type == 'uint8') 
             return web3EthAbi.encodeParameter('uint8', val).substring(2 + (64 - 2));
         if (type == 'uint16')
@@ -41,11 +46,11 @@ class TestLib {
             return web3EthAbi.encodeParameter(type, val).substring(2 + (64 - 64));
     }
 
-    ord(c) {
+    ord(c:any) {
         return c.charCodeAt(0)
     }
 
-    genGuardianSetUpgrade(signers, guardianSet, targetSet, nonce, seq, guardianKeys) {
+    genGuardianSetUpgrade(signers: any, guardianSet: number, targetSet: number, nonce: number, seq: number, guardianKeys: any[]) {
         const b = [
             "0x",
             this.zeroBytes.slice(0, 28*2),
@@ -67,53 +72,69 @@ class TestLib {
 
         var seconds = Math.floor(new Date().getTime() / 1000.0);
 
-//        console.log(b.join(''));
         return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
     }
 
-    genGSetFee( signers, guardianSet, nonce, seq, amt) {
-//        b  = self.zeroPadBytes[0:(28*2)]
-//        b += self.encoder("uint8", ord("C"))
-//        b += self.encoder("uint8", ord("o"))
-//        b += self.encoder("uint8", ord("r"))
-//        b += self.encoder("uint8", ord("e"))
-//        b += self.encoder("uint8", 3)
-//        b += self.encoder("uint16", 8)
-//        b += self.encoder("uint256", int(amt))  # a whole algo!
-//
-//        emitter = bytes.fromhex(.zeroPadBytes[0:(31*2)] + "04")
-//        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
+    genGSetFee( signers: any, guardianSet:number , nonce:number, seq:number, amt:number) {
+        const b = [
+            "0x",
+            this.zeroBytes.slice(0, 28*2),
+            this.encoder("uint8", this.ord("C")),
+            this.encoder("uint8", this.ord("o")),
+            this.encoder("uint8", this.ord("r")),
+            this.encoder("uint8", this.ord("e")),
+            this.encoder("uint8", 3),
+            this.encoder("uint16", 8),
+            this.encoder("uint256", Math.floor(amt)),
+        ];
+
+        let emitter = "0x" + this.zeroBytes.slice(0, 31*2) + "04"
+
+        var seconds = Math.floor(new Date().getTime() / 1000.0);
+
+        return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
     }
 
-    genGFeePayout( signers, guardianSet, targetSet, nonce, seq, amt, dest) {
-//        b  = self.zeroPadBytes[0:(28*2)]
-//        b += self.encoder("uint8", ord("C"))
-//        b += self.encoder("uint8", ord("o"))
-//        b += self.encoder("uint8", ord("r"))
-//        b += self.encoder("uint8", ord("e"))
-//        b += self.encoder("uint8", 4)
-//        b += self.encoder("uint16", 8)
-//        b += self.encoder("uint256", int(amt * 1000000))
-//        b += decode_address(dest).hex()
-//
-//        emitter = bytes.fromhex(.zeroPadBytes[0:(31*2)] + "04")
-//        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
+    genGFeePayout( signers: any, guardianSet: number, nonce: number, seq: number, amt: number, dest: string) {
+        const b = [
+            "0x",
+            this.zeroBytes.slice(0, 28*2),
+            this.encoder("uint8", this.ord("C")),
+            this.encoder("uint8", this.ord("o")),
+            this.encoder("uint8", this.ord("r")),
+            this.encoder("uint8", this.ord("e")),
+            this.encoder("uint8", 4),
+            this.encoder("uint16", 8),
+            this.encoder("uint256", Math.floor(amt)),
+//            decodeAddress(dest).publicKey.toString("hex")
+        ];
+
+        let emitter = "0x" + this.zeroBytes.slice(0, 31*2) + "04"
+
+        var seconds = Math.floor(new Date().getTime() / 1000.0);
+
+        return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
     }
 
-    getEmitter( chain) {
-//        if chain == 1:
-//            return "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5"
-//        if chain == 2:
-//            return "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"
-//        if chain == 3:
-//            return "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2"
-//        if chain == 4:
-//            return "000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7"
-//        if chain == 5:
-//            return "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde"
+    getEmitter( chain: any) {
+        if (chain == 1) {
+            return "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5";
         }
+        if (chain == 2) {
+            return "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585";
+        }
+        if (chain == 3) {
+            return "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2";
+        }
+        if (chain == 4) {
+            return "000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7";
+        }
+        if (chain == 5) {
+            return "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde";
+        }
+    }
         
-    genRegisterChain( signers, guardianSet, nonce, seq, chain) {
+    genRegisterChain( signers: any, guardianSet: number, nonce: number, seq: number, chain: string) {
 //        b  = self.zeroPadBytes[0:((32 -11)*2)]
 //        b += self.encoder("uint8", ord("T"))
 //        b += self.encoder("uint8", ord("o"))
@@ -135,7 +156,7 @@ class TestLib {
 //        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
     }
 
-    genAssetMeta( signers, guardianSet, nonce, seq, tokenAddress, chain, decimals, symbol, name) {
+//    genAssetMeta( signers, guardianSet, nonce, seq, tokenAddress, chain, decimals, symbol, name) {
 //        b  = self.encoder("uint8", 2)
 //        b += self.zeroPadBytes[0:((32-len(tokenAddress))*2)]
 //        b += tokenAddress.hex()
@@ -147,9 +168,9 @@ class TestLib {
 //        b += self.zeroPadBytes[0:((32-len(name))*2)]
 //        emitter = bytes.fromhex(.getEmitter(chain))
 //        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
-    }
+//    }
 
-    genTransfer( signers, guardianSet, nonce, seq, amount, tokenAddress, tokenChain, toAddress, toChain, fee) {
+//    genTransfer( signers, guardianSet, nonce, seq, amount, tokenAddress, tokenChain, toAddress, toChain, fee) {
 //        b  = self.encoder("uint8", 1)
 //        b += self.encoder("uint256", int(amount * 100000000))
 //
@@ -167,7 +188,7 @@ class TestLib {
 //
 //        emitter = bytes.fromhex(.getEmitter(tokenChain))
 //        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
-    }
+//    }
 
   /**
       * Create a packed and signed VAA for testing.
@@ -183,15 +204,15 @@ class TestLib {
       * @param {*} consistencyLevel  The reported consistency level
       * @param {*} payload This VAA Payload hex string, prefixed with 0x
       */
-    createSignedVAA (guardianSetIndex,
-                     signers,
-                     timestamp,
-                     nonce,
-                     emitterChainId,
-                     emitterAddress,
-                     sequence,
-                     consistencyLevel,
-                     payload) {
+    createSignedVAA (guardianSetIndex: number,
+                     signers: any,
+                     timestamp : number,
+                     nonce: number,
+                     emitterChainId: number,
+                     emitterAddress: string,
+                     sequence: number,
+                     consistencyLevel: number,
+                     payload: string) {
 
         console.log(typeof payload);
 
@@ -237,29 +258,29 @@ class TestLib {
     return vm
   }
 
-  zeroPadBytes (value, length) {
+  zeroPadBytes (value: string, length: number) {
     while (value.length < 2 * length) {
       value = '0' + value
     }
     return value
   }
 
-  shuffle (array) {
-    let currentIndex = array.length; let randomIndex
-
-    // While there remain elements to shuffle...
-    while (currentIndex !== 0) {
-      // Pick a remaining element...
-      randomIndex = Math.floor(Math.random() * currentIndex)
-      currentIndex--;
-
-      // And swap it with the current element.
-      [array[currentIndex], array[randomIndex]] = [
-        array[randomIndex], array[currentIndex]]
-    }
-
-    return array
-  }
+//  shuffle (array) {
+//    let currentIndex = array.length; let randomIndex
+//
+//    // While there remain elements to shuffle...
+//    while (currentIndex !== 0) {
+//      // Pick a remaining element...
+//      randomIndex = Math.floor(Math.random() * currentIndex)
+//      currentIndex--;
+//
+//      // And swap it with the current element.
+//      [array[currentIndex], array[randomIndex]] = [
+//        array[randomIndex], array[currentIndex]]
+//    }
+//
+//    return array
+//  }
 }
 
 module.exports = {
