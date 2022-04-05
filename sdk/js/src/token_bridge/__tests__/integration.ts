@@ -1092,10 +1092,14 @@ describe("Integration Tests", () => {
                     const numAccts: number = tempAccts.length;
                     expect(numAccts).toBeGreaterThan(0);
                     const wallet: Account = tempAccts[0];
+
+                    let accountInfo = await client.accountInformation(wallet.addr).do();
+                    console.log("Account balance: %d microAlgos", accountInfo.amount);
+
                     // await getMessageFee(client);
                     const bi: bigint = BigInt(255);
                     console.log("calling getVAA...");
-                    await getVAA(client, wallet, bi, TOKEN_BRIDGE_ID);
+                    console.log("getVAA returned " + await getVAA(client, wallet, bi, TOKEN_BRIDGE_ID));
                     console.log("Creating fake asset...");
                     const assetIndex: number = await createAsset(wallet);
                     console.log("Newly created asset index =", assetIndex);

@@ -7,6 +7,8 @@ set -e
 
 # python3 admin.py --devnet --genTeal
 
+# (cd ../sdk/js; npm run test -- token_bridge)
+
 PARENT_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 SANDBOX_DIR=$PARENT_DIR/_sandbox
 if [ ! -d "$SANDBOX_DIR" ]; then

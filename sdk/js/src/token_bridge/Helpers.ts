@@ -117,7 +117,7 @@ export async function getTempAccounts(): Promise<Account[]> {
         const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
             from: fundingAcct.addr,
             to: newAcct.addr,
-            amount: 1500000,
+            amount: 15000000,
             suggestedParams: params,
         });
         // Sign the transaction
