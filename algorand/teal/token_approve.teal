@@ -67,6 +67,8 @@ load 74
 btoi
 load 73
 ==
+pushint 217 // 217
+&&
 assert
 txna ApplicationArgs 1
 extract 5 1
@@ -148,6 +150,8 @@ pushbytes 0x04 // 0x04
 concat
 ==
 &&
+pushint 246 // 246
+&&
 assert
 load 68
 pushint 43 // 43
@@ -162,6 +166,8 @@ bzero
 pushbytes 0x546f6b656e427269646765 // 0x546f6b656e427269646765
 concat
 ==
+pushint 250 // 250
+&&
 assert
 load 68
 pushint 32 // 32
@@ -193,6 +199,8 @@ intc_2 // 2
 extract3
 bytec 7 // 0x0008
 ==
+pushint 274 // 274
+&&
 assert
 load 68
 intc_2 // 2
@@ -221,6 +229,8 @@ load 70
 pushint 8 // 8
 ==
 ||
+pushint 260 // 260
+&&
 assert
 load 68
 intc_2 // 2
@@ -246,6 +256,8 @@ concat
 app_global_get
 intc_1 // 0
 ==
+pushint 269 // 269
+&&
 assert
 bytec_2 // "Chain"
 load 71
@@ -266,6 +278,8 @@ btoi
 bytec_3 // "native"
 callsub getsigaddress_14
 ==
+&&
+pushint 798 // 798
 &&
 assert
 itxn_begin
@@ -305,6 +319,8 @@ txna ApplicationArgs 3
 len
 pushint 32 // 32
 <=
+&&
+pushint 662 // 662
 &&
 assert
 txna ApplicationArgs 1
@@ -347,6 +363,8 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
+pushint 696 // 696
+&&
 assert
 load 25
 gtxns AssetAmount
@@ -354,6 +372,8 @@ store 59
 load 67
 load 59
 <=
+pushint 701 // 701
+&&
 assert
 load 59
 load 67
@@ -376,6 +396,8 @@ load 67
 intc_1 // 0
 >=
 &&
+pushint 717 // 717
+&&
 assert
 load 58
 intc_1 // 0
@@ -393,6 +415,8 @@ load 58
 bytec_3 // "native"
 callsub getsigaddress_14
 ==
+pushint 741 // 741
+&&
 assert
 bytec 7 // 0x0008
 store 64
@@ -412,6 +436,8 @@ txna ApplicationArgs 3
 len
 pushint 32 // 32
 <=
+&&
+pushint 752 // 752
 &&
 assert
 txn NumAppArgs
@@ -473,6 +499,8 @@ load 60
 len
 intc 4 // 133
 ==
+pushint 774 // 774
+&&
 assert
 main_l35:
 itxn_begin
@@ -506,6 +534,8 @@ txna ApplicationArgs 6
 len
 +
 ==
+pushint 773 // 773
+&&
 assert
 b main_l35
 main_l37:
@@ -523,6 +553,8 @@ store 61
 txna ApplicationArgs 1
 load 61
 ==
+pushint 730 // 730
+&&
 assert
 intc_2 // 2
 pushint 60 // 60
@@ -540,6 +572,8 @@ btoi
 load 63
 callsub getsigaddress_14
 ==
+pushint 737 // 737
+&&
 assert
 b main_l29
 main_l40:
@@ -578,6 +612,8 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
+pushint 681 // 681
+&&
 assert
 load 25
 gtxns Amount
@@ -585,6 +621,8 @@ store 59
 load 67
 load 59
 <
+pushint 684 // 684
+&&
 assert
 load 59
 load 67
@@ -651,6 +689,8 @@ intc_0 // 1
 txn GroupIndex
 ==
 &&
+pushint 475 // 475
+&&
 assert
 txna ApplicationArgs 1
 extract 5 1
@@ -688,6 +728,8 @@ concat
 app_global_get
 load 47
 ==
+pushint 486 // 486
+&&
 assert
 main_l45:
 load 45
@@ -707,6 +749,8 @@ load 57
 pushint 3 // 3
 ==
 ||
+pushint 493 // 493
+&&
 assert
 txna ApplicationArgs 1
 load 45
@@ -717,6 +761,8 @@ extract3
 load 56
 extract 0 24
 ==
+pushint 495 // 495
+&&
 assert
 txna ApplicationArgs 1
 load 45
@@ -765,6 +811,8 @@ extract3
 load 56
 extract 0 24
 ==
+pushint 503 // 503
+&&
 assert
 txna ApplicationArgs 1
 load 45
@@ -777,10 +825,14 @@ store 53
 load 52
 pushint 8 // 8
 ==
+pushint 507 // 507
+&&
 assert
 load 53
 load 48
 <=
+pushint 509 // 509
+&&
 assert
 load 57
 pushint 3 // 3
@@ -805,6 +857,8 @@ load 50
 load 49
 callsub getsigaddress_14
 ==
+&&
+pushint 568 // 568
 &&
 assert
 main_l48:
@@ -854,6 +908,8 @@ load 54
 bytec_3 // "native"
 callsub getsigaddress_14
 ==
+pushint 516 // 516
+&&
 assert
 load 54
 intc_1 // 0
@@ -914,12 +970,16 @@ main_l57:
 load 51
 txn Sender
 ==
+pushint 511 // 511
+&&
 assert
 b main_l46
 main_l58:
 global CurrentApplicationAddress
 load 47
 ==
+pushint 485 // 485
+&&
 assert
 b main_l45
 main_l59:
@@ -941,6 +1001,8 @@ load 42
 bytec_3 // "native"
 callsub getsigaddress_14
 ==
+pushint 862 // 862
+&&
 assert
 pushint 32 // 32
 bzero
@@ -1004,6 +1066,8 @@ load 37
 len
 pushint 100 // 100
 ==
+pushint 904 // 904
+&&
 assert
 itxn_begin
 callsub sendMfee_10
@@ -1049,6 +1113,8 @@ store 36
 txna ApplicationArgs 1
 load 36
 ==
+pushint 845 // 845
+&&
 assert
 intc_2 // 2
 pushint 60 // 60
@@ -1066,12 +1132,16 @@ load 44
 load 43
 callsub getsigaddress_14
 ==
+pushint 852 // 852
+&&
 assert
 load 42
 callsub extractdecimal_19
 btoi
 pushint 8 // 8
 <=
+pushint 855 // 855
+&&
 assert
 intc_2 // 2
 pushint 8 // 8
@@ -1130,6 +1200,8 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
+pushint 318 // 318
+&&
 assert
 txn GroupIndex
 pushint 3 // 3
@@ -1159,6 +1231,8 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
+pushint 328 // 328
+&&
 assert
 txn GroupIndex
 intc_2 // 2
@@ -1187,6 +1261,8 @@ load 25
 gtxns RekeyTo
 global ZeroAddress
 ==
+&&
+pushint 338 // 338
 &&
 assert
 txn GroupIndex
@@ -1223,6 +1299,8 @@ intc_0 // 1
 txn GroupIndex
 ==
 &&
+pushint 349 // 349
+&&
 assert
 txna ApplicationArgs 1
 extract 5 1
@@ -1254,6 +1332,8 @@ intc_2 // 2
 pushint 32 // 32
 extract3
 ==
+pushint 356 // 356
+&&
 assert
 load 27
 pushint 43 // 43
@@ -1266,6 +1346,8 @@ intc_0 // 1
 extract3
 btoi
 ==
+pushint 360 // 360
+&&
 assert
 txna ApplicationArgs 1
 load 27
@@ -1326,6 +1408,8 @@ load 30
 load 28
 callsub getsigaddress_14
 ==
+pushint 385 // 385
+&&
 assert
 pushint 3 // 3
 intc_1 // 0
@@ -1432,6 +1516,8 @@ log
 load 76
 load 77
 ==
+pushint 988 // 988
+&&
 assert
 bytec 9 // "Program"
 txn ClearStateProgram
@@ -1448,6 +1534,8 @@ log
 load 78
 load 79
 ==
+pushint 994 // 994
+&&
 assert
 intc_0 // 1
 return
@@ -1737,6 +1825,8 @@ app_global_get_ex
 store 81
 store 80
 load 81
+pushint 74 // 74
+&&
 assert
 load 80
 retsub
@@ -1750,6 +1840,8 @@ app_global_get_ex
 store 83
 store 82
 load 83
+pushint 79 // 79
+&&
 assert
 load 82
 retsub
@@ -1788,6 +1880,8 @@ load 25
 gtxns Amount
 load 26
 >=
+&&
+pushint 92 // 92
 &&
 assert
 checkFeePmt_9_l2:
@@ -1949,6 +2043,8 @@ getFactor_13_l12:
 load 90
 pushint 16 // 16
 <
+pushint 165 // 165
+&&
 assert
 intc_0 // 1
 b getFactor_13_l21
@@ -2113,6 +2209,8 @@ extract 0 1
 btoi
 intc_0 // 1
 ==
+pushint 933 // 933
+&&
 assert
 txna ApplicationArgs 1
 extract 5 1
@@ -2144,6 +2242,8 @@ load 115
 load 112
 callsub getsigaddress_14
 ==
+pushint 943 // 943
+&&
 assert
 load 113
 pushint 8 // 8
@@ -2162,6 +2262,8 @@ pushint 8 // 8
 getbit
 intc_1 // 0
 ==
+pushint 950 // 950
+&&
 assert
 intc_0 // 1
 load 115
@@ -2194,6 +2296,8 @@ intc_0 // OptIn
 gtxn 1 ApplicationID
 global CurrentApplicationID
 ==
+&&
+pushint 1019 // 1019
 &&
 assert
 intc_1 // 0

@@ -15,7 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
-
 from typing import List, Tuple, Dict, Any, Optional, Union
 
 from pyteal.ast import *
@@ -28,7 +27,6 @@ from inlineasm import *
 from algosdk.v2client.algod import AlgodClient
 
 from TmplSig import TmplSig
-
 from local_blob import LocalBlob
 
 import pprint
