@@ -240,6 +240,9 @@ export function parseSeqFromLog(txn: any): bigint {
 
 /**
  * <p>Attest an already created asset</p>
+ * If you create a new asset on algorand and want to transfer it elsewhere,
+ * you create an attestation for it on algorand... pass that vaa to the target chain..
+ * submit it.. then you can transfer from algorand to that target chain
  * @param client An Algodv2 client
  * @param senderAcct The account paying fees
  * @param assetId The asset index
@@ -250,14 +253,41 @@ export async function attestFromAlgorand(
     senderAcct: Account,
     assetId: number
 ): Promise<string> {
+    console.log("senderAcct:", senderAcct, "assetId:", assetId);
     const appIndex: number = 0; // appIndex is 0 for attestations
     const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
     const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
     const aa: string = uint8ArrayToHexString(decTbAddr, false);
+    console.log("Getting emitter address...");
     const emitterAddr: string = await optin(client, senderAcct, CORE_ID, 0, aa);
+    console.log("Got emitter address...");
     const acctInfo = await client.accountInformation(senderAcct.addr).do();
-    let creatorAddr = acctInfo["created-assets"]["creator"];
+    console.log("Got sender account info...", acctInfo);
+    const assetKey: string = "index: " + assetId.toString();
+    console.log(
+        assetKey,
+        "assetKey value:",
+        acctInfo["created-assets"][assetKey]
+    );
+    const createdAssets = acctInfo["created-assets"];
+    console.log("createdAssets:", createdAssets);
+    class ca {
+        index: number = 0;
+        params: any;
+    }
+    // let creatorAddr = acctInfo["created-assets"]["creator"];
+    let creatorAddr = "";
+    createdAssets.forEach((a: ca) => {
+        if (a.index === assetId) {
+            // console.log("found asset index", a.index);
+            // console.log(a);
+            creatorAddr = a.params.creator;
+            return;
+        }
+    });
+    console.log("creatorAddr:", creatorAddr);
     const creatorAcctInfo = await client.accountInformation(creatorAddr).do();
+    console.log("Got creator account info...");
     const bPgmName: Uint8Array = textToUint8Array("attestToken");
     const wormhole: boolean = creatorAcctInfo["auth-addr"] === tbAddr;
     if (!wormhole) {
@@ -270,35 +300,33 @@ export async function attestFromAlgorand(
             textToHexString("native")
         );
     }
-    const params: algosdk.SuggestedParams = await client
+    const suggParams: algosdk.SuggestedParams = await client
         .getTransactionParams()
         .do();
 
-    let txns = [];
-    let signedTxns = [];
+    let txns: algosdk.Transaction[] = [];
 
     const firstTxn = makeApplicationCallTxnFromObject({
         from: senderAcct.addr,
         appIndex: TOKEN_BRIDGE_ID,
         onComplete: OnApplicationComplete.NoOpOC,
         appArgs: [textToUint8Array("nop")],
-        suggestedParams: params,
+        suggestedParams: suggParams,
     });
     txns.push(firstTxn);
-    signedTxns.push(firstTxn.signTxn(senderAcct.sk));
 
     const mfee = await getMessageFee(client);
     if (mfee > 0) {
         const feeTxn = makePaymentTxnWithSuggestedParamsFromObject({
             from: senderAcct.addr,
-            suggestedParams: params,
+            suggestedParams: suggParams,
             to: getApplicationAddress(TOKEN_BRIDGE_ID),
             amount: mfee,
         });
         txns.push(feeTxn);
-        signedTxns.push(feeTxn.signTxn(senderAcct.sk));
     }
 
+    console.log("make app call txn...");
     let appTxn = makeApplicationCallTxnFromObject({
         appArgs: [bPgmName, numberToUint8Array(assetId)],
         accounts: [
@@ -312,7 +340,7 @@ export async function attestFromAlgorand(
         foreignAssets: [assetId],
         from: senderAcct.addr,
         onComplete: OnApplicationComplete.NoOpOC,
-        suggestedParams: params,
+        suggestedParams: suggParams,
     });
     if (mfee > 0) {
         appTxn.fee *= 3;
@@ -320,9 +348,16 @@ export async function attestFromAlgorand(
         appTxn.fee *= 2;
     }
     txns.push(appTxn);
-    signedTxns.push(appTxn.signTxn(senderAcct.sk));
+    assignGroupID(txns);
+    // The transactions need to be a group first before signing them
+    let signedTxns: Uint8Array[] = [];
+    txns.forEach((t) => {
+        signedTxns.push(t.signTxn(senderAcct.sk));
+    });
+    console.log("Sending raw txn...");
     const { txId } = await client.sendRawTransaction(signedTxns).do();
     // wait for transaction to be confirmed
+    console.log("Waiting for confirmation...");
     const ptx = await waitForConfirmation(client, txId, 1);
 
     return txId;
