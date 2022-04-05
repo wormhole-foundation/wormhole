@@ -50,8 +50,6 @@ export function makeTransferVaaPayload(
     additionalPayload = "";
   }
 
-  // TODO: fix this
-
   return data + Buffer.from(additionalPayload, "utf8").toString("hex");
 }
 
