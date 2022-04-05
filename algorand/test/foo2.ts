@@ -28,7 +28,7 @@ const PYTH_PAYLOAD = '0x50325748000101230abfe0ec3b460bd55fc4fb363567163299151454
 async function firstTransaction() {
     try {
         // This is a funded account... 
-        let myAccount = algosdk.mnemonicToSecretKey("total prepare learn month artefact friend smile ranch humble peasant trend indoor smile seat short identify vague truly barrel hockey toss boss voyage abandon salt")
+        let myAccount = algosdk.mnemonicToSecretKey("intact frozen tooth wealth syrup elevator list book property census imitate attend draft silly fortune afford injury poem section wait main bench feel absent giraffe")
 
         console.log(myAccount)
 
