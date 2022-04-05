@@ -354,7 +354,7 @@ export async function attestFromAlgorand(
     txns.forEach((t) => {
         signedTxns.push(t.signTxn(senderAcct.sk));
     });
-    console.log("Sending raw txn...");
+    console.log("Sending raw txns...", signedTxns.length);
     const { txId } = await client.sendRawTransaction(signedTxns).do();
     // wait for transaction to be confirmed
     console.log("Waiting for confirmation...");
@@ -463,7 +463,7 @@ export async function optin(
         });
 
         console.log("Assigning group ID...");
-        let txns = [seedTxn, optinTxn, rekeyTxn]
+        let txns = [seedTxn, optinTxn, rekeyTxn];
         assignGroupID(txns);
 
         console.log("Signing seed for optin...");
@@ -622,6 +622,10 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Fee", extract3(vaa, off, 32));
     }
 
+    if (off >= buf.length) {
+        console.log("No payload.");
+        return ret;
+    }
     if (buf.readIntBE(off, 1) === 3) {
         ret.set("Meta", "TokenBridge Transfer With Payload");
         ret.set("Type", buf.readIntBE(off, 1));
