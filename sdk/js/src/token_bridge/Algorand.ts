@@ -463,16 +463,17 @@ export async function optin(
         });
 
         console.log("Assigning group ID...");
-        assignGroupID([seedTxn, optinTxn, rekeyTxn]);
+        let txns = [seedTxn, optinTxn, rekeyTxn]
+        assignGroupID(txns);
 
-        console.log("Signing seed...");
+        console.log("Signing seed for optin...");
         const signedSeedTxn = seedTxn.signTxn(sender.sk);
-        console.log("Signing optin...");
+        console.log("Signing optin for optin...");
         const signedOptinTxn = signLogicSigTransaction(optinTxn, lsa);
-        console.log("Signing rekey...");
+        console.log("Signing rekey for optin...");
         const signedRekeyTxn = signLogicSigTransaction(rekeyTxn, lsa);
 
-        console.log("Sending txns...");
+        console.log("Sending txns for optin...");
         const txnId = await client
             .sendRawTransaction([
                 signedSeedTxn,
@@ -481,10 +482,10 @@ export async function optin(
             ])
             .do();
 
-        console.log("Awaiting confirmation...");
+        console.log("Awaiting confirmation for optin...");
         const confirmedTxns = await algosdk.waitForConfirmation(
             client,
-            txnId,
+            txns[txns.length - 1].txID(),
             1
         );
         console.log("optin confirmation", confirmedTxns);
