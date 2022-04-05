@@ -1096,8 +1096,18 @@ describe("Integration Tests", () => {
                     const bi: bigint = BigInt(255);
                     console.log("calling getVAA...");
                     await getVAA(client, wallet, bi, TOKEN_BRIDGE_ID);
+                    console.log("Creating fake asset...");
+                    const assetIndex: number = await createAsset(wallet);
+                    console.log("Newly created asset index =", assetIndex);
+                    console.log("Testing attestFromAlgorand...");
+                    const txId: string = await attestFromAlgorand(
+                        client,
+                        wallet,
+                        assetIndex
+                    );
+                    console.log("TxId", txId);
                 } catch (e) {
-                    console.error("optin error:", e);
+                    console.error("Unit tests error:", e);
                 }
                 done();
             })();
