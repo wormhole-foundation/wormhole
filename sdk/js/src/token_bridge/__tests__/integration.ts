@@ -950,7 +950,8 @@ describe("Integration Tests", () => {
     });
 
     describe("Algorand tests", () => {
-        test("Test TmplSig populate()", (done) => {
+        test.only("Test TmplSig populate()", (done) => {
+            console.log("Starting TmplSig test...");
             (async () => {
                 // 'contract': '0620010181004880220001000000000000000000000000000000000000000000000000000000000000000448880001433204810312443300102212443300088190943d124433002032031244330009320312443301108106124433011922124433011881df0412443301203203124433021022124433020881001244330220802050b9d5cd33b835f53649f25be3ba6e6b8271b6d16c0af8aa97cc11761e417feb1244330209320312442243',
                 // 'TMPL_ADDR_IDX': 0,
@@ -988,10 +989,12 @@ describe("Integration Tests", () => {
                 } catch (e) {
                     console.error("TmplSig error:", e);
                 }
+                console.log("Finished TmplSig test...");
                 done();
             })();
         });
-        test("Test optin", (done) => {
+        test.only("Test optin", (done) => {
+            console.log("Starting optin test...");
             (async () => {
                 try {
                     const CORE_ID: number = 4;
@@ -1021,7 +1024,7 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test("Test parseVAA", (done) => {
+        test.only("Test parseVAA", (done) => {
             (async () => {
                 try {
                     // This VAA is carrying a Pyth price payload
@@ -1079,9 +1082,10 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test.only("unit tests", (done) => {
+        test.only("Algorand attestation", (done) => {
             (async () => {
                 try {
+                    console.log("Starting attestation...");
                     const CORE_ID: number = 4;
                     const TOKEN_BRIDGE_ID: number = 6;
                     console.log("starting unit tests...");

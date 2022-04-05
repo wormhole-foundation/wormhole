@@ -21,7 +21,7 @@ export function hexStringToUint8Array(hs: string): Uint8Array {
     }
     const buf = Buffer.from(hs, "hex");
     const retval = Uint8Array.from(buf);
-    console.log("input:", hs, ", buf:", buf, ", retval:", retval);
+    // console.log("input:", hs, ", buf:", buf, ", retval:", retval);
     return retval;
 }
 
@@ -75,31 +75,31 @@ export class TmplSig {
             varint
                 .encode(data.addrIdx)
                 .map((n: number) => properHex(n))
-                .join(''),
+                .join(""),
             "4880",
             varint
                 .encode(data.emitterId.length / 2)
                 .map((n: number) => properHex(n))
-                .join(''),
+                .join(""),
             data.emitterId,
             "488800014332048103124433001022124433000881",
             varint
                 .encode(data.seedAmt)
                 .map((n: number) => properHex(n))
-                .join(''),
+                .join(""),
             "124433002032031244330009320312443301108106124433011922124433011881",
             varint
                 .encode(data.appId)
                 .map((n: number) => properHex(n))
-                .join(''),
+                .join(""),
             "1244330120320312443302102212443302088100124433022080",
             varint
                 .encode(data.appAddress.length / 2)
                 .map((n: number) => properHex(n))
-                .join(''),
+                .join(""),
             data.appAddress,
             "1244330209320312442243",
-        ].join('');
+        ].join("");
         this.bytecode = hexStringToUint8Array(byteString);
         console.log(
             "This is the final product:",
