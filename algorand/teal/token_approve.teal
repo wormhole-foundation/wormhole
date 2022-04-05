@@ -1034,7 +1034,8 @@ pushbytes 0x02 // 0x02
 load 38
 extract 0 24
 concat
-txna ApplicationArgs 1
+load 42
+itob
 concat
 bytec 7 // 0x0008
 concat

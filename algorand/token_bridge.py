@@ -885,7 +885,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                            Bytes("base16", "02"),
                            #TokenAddress [32]uint8
                            Extract(zb.load(),Int(0), Int(24)),
-                           Txn.application_args[1],
+                           Itob(aid.load()),
                            #TokenChain uint16
                            Bytes("base16", "0008"),
                            #Decimals uint8
