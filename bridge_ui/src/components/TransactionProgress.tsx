@@ -2,8 +2,10 @@ import {
   ChainId,
   CHAIN_ID_ACALA,
   CHAIN_ID_AURORA,
+  CHAIN_ID_CELO,
   CHAIN_ID_FANTOM,
   CHAIN_ID_KARURA,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
@@ -82,7 +84,9 @@ export default function TransactionProgress({
         chainId === CHAIN_ID_AURORA ||
         chainId === CHAIN_ID_FANTOM ||
         chainId === CHAIN_ID_KARURA ||
-        chainId === CHAIN_ID_ACALA
+        chainId === CHAIN_ID_ACALA ||
+        chainId === CHAIN_ID_KLAYTN ||
+        chainId === CHAIN_ID_CELO
       ? 1 // these chains only require 1 conf
       : chainId === CHAIN_ID_SOLANA
       ? 32

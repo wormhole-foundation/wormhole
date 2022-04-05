@@ -4,9 +4,11 @@ import {
   CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
+  CHAIN_ID_CELO,
   CHAIN_ID_ETH,
   CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_FANTOM,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
@@ -135,6 +137,16 @@ export default function SmartAddress({
     ? `https://${CLUSTER === "testnet" ? "testnet." : ""}ftmscan.com/${
         isAsset ? "token" : "address"
       }/${useableAddress}`
+    : chainId === CHAIN_ID_KLAYTN
+    ? `https://${CLUSTER === "testnet" ? "baobab." : ""}scope.klaytn.com/${
+        isAsset ? "token" : "address"
+      }/${useableAddress}`
+    : chainId === CHAIN_ID_CELO
+    ? `https://${
+        CLUSTER === "testnet"
+          ? "alfajores-blockscout.celo-testnet.org"
+          : "explorer.celo.org"
+      }/address/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"
