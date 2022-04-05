@@ -296,7 +296,7 @@ export async function attestFromAlgorand(
             client,
             senderAcct,
             TOKEN_BRIDGE_ID,
-            appIndex,
+            assetId,
             textToHexString("native")
         );
     }
