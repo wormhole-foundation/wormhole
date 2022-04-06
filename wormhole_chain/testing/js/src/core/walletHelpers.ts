@@ -1,6 +1,5 @@
 import {
   ADDRESS_PREFIX,
-  FAUCET_URL,
   HOLE_DENOM,
   NODE_URL,
   OPERATOR_PREFIX,
@@ -99,13 +98,13 @@ export async function getOperatorAddress(mnemonic: string): Promise<string> {
   );
 }
 
-export async function faucet(denom: string, amount: string, address: string) {
-  await axios.post(FAUCET_URL, {
-    address: address,
-    coins: [amount + denom],
-  });
-  return;
-}
+// export async function faucet(denom: string, amount: string, address: string) {
+//   await axios.post(FAUCET_URL, {
+//     address: address,
+//     coins: [amount + denom],
+//   });
+//   return;
+// }
 
 export async function signSendAndConfirm(
   wallet: DirectSecp256k1HdWallet,

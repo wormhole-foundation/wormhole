@@ -22,4 +22,5 @@ const (
 	ReadinessNeonSyncing       readiness.Component = "neonSyncing"
 	ReadinessTerra2Syncing     readiness.Component = "terra2Syncing"
 	ReadinessInjectiveSyncing  readiness.Component = "injectiveSyncing"
+	ReadinessWormchainSyncing  readiness.Component = "wormchainSyncing"
 )
