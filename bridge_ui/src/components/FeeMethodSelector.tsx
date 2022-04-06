@@ -204,7 +204,6 @@ function FeeMethodSelector() {
           )}
         </div>
       </div>
-      {/* TODO fixed number of decimals on these strings */}
       {acalaRelayerEligible ? (
         <>
           <div></div>

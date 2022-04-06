@@ -449,8 +449,8 @@ const createNativeAcalaParsedTokenAccount = (
             ACA_DECIMALS,
             parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
             balanceInEth.toString(), //This is the actual display field, which has full precision.
-            "KAR", //A white lie for display purposes
-            "KAR", //A white lie for display purposes
+            "ACA", //A white lie for display purposes
+            "ACA", //A white lie for display purposes
             acalaIcon,
             false //isNativeAsset
           );
