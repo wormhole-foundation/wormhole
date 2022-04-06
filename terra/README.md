@@ -39,6 +39,20 @@ wormhole/terra $ cat artifacts/checksums.txt
 
 Once you have verified the Terra contracts are deterministic with a peer, you can now move to the deploy step.
 
+## Run tests
+
+**Disclaimer: Currently the only test that exists is for the token bridge's transfer.**
+
+You can run the integration test suite on the artifacts you built.
+
+```console
+wormhole/terra $ make test
+```
+
+This command deploys your artifacts and performs various interactions with your
+contracts in a LocalTerra node. Any new functionality (including expected errors)
+to the contracts should be added to this test suite.
+
 ## Deploy Contracts
 
 Now that you have built and verified checksums, you can now deploy one or more relevant contracts to the Terra blockchain.
