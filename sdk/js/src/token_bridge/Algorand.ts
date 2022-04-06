@@ -34,12 +34,11 @@ import { TextEncoder, inspect } from "util";
 import { ChainId } from "../utils/consts";
 import IndexerClient from "algosdk/dist/types/src/client/v2/indexer/indexer";
 
-let ALGO_TOKEN =
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-let ALGOD_ADDRESS: string = "http://localhost";
-let ALGOD_PORT: number = 4001;
-let CORE_ID: number = 4;
-let TOKEN_BRIDGE_ID: number = 6;
+export let ALGO_TOKEN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+export let ALGOD_ADDRESS: string = "http://localhost";
+export let ALGOD_PORT: number = 4001;
+export let CORE_ID: number = 4;
+export let TOKEN_BRIDGE_ID: number = 6;
 
 export const SEED_AMT: number = 1002000;
 const ZERO_PAD_BYTES =
@@ -1017,6 +1016,15 @@ export async function submitVAA(
             makeApplicationCallTxnFromObject({
                 appArgs: [textToUint8Array("governance"), vaa],
                 accounts: accts,
+                appIndex: CORE_ID,
+                from: sender.addr,
+                onComplete: OnApplicationComplete.NoOpOC,
+                suggestedParams: params,
+            })
+        );
+        txns.push(
+            makeApplicationCallTxnFromObject({
+                appArgs: [textToUint8Array("nop"), bigIntToBytes(5, 8)],
                 appIndex: CORE_ID,
                 from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,

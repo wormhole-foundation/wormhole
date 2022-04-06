@@ -21,16 +21,31 @@ const web3EthAbi = require('web3-eth-abi')
 const web3Utils = require('web3-utils')
 const elliptic = require('elliptic')
 
-import {
-    decodeAddress
-} from "algosdk";
-
 class TestLib {
     zeroBytes: string;
 
     constructor() {
         this.zeroBytes = "0000000000000000000000000000000000000000000000000000000000000000";
     }
+
+    hexStringToUint8Array(hs: string): Uint8Array {
+        if (hs.length % 2 === 1) {
+            // prepend a 0
+            hs = "0" + hs;
+        }
+        const buf = Buffer.from(hs, "hex");
+        const retval = Uint8Array.from(buf);
+        return retval;
+    }
+
+    uint8ArrayToHexString(arr: Uint8Array, add0x: boolean) {
+        const ret: string = Buffer.from(arr).toString("hex");
+        if (!add0x) {
+            return ret;
+        }
+        return "0x" + ret;
+    }
+
     encoder(type:string, val: any) {
         if (type == 'uint8') 
             return web3EthAbi.encodeParameter('uint8', val).substring(2 + (64 - 2));
@@ -50,7 +65,7 @@ class TestLib {
         return c.charCodeAt(0)
     }
 
-    genGuardianSetUpgrade(signers: any, guardianSet: number, targetSet: number, nonce: number, seq: number, guardianKeys: any[]) {
+    genGuardianSetUpgrade(signers: any, guardianSet: number, targetSet: number, nonce: number, seq: number, guardianKeys:string[]) {
         const b = [
             "0x",
             this.zeroBytes.slice(0, 28*2),
@@ -95,7 +110,7 @@ class TestLib {
         return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
     }
 
-    genGFeePayout( signers: any, guardianSet: number, nonce: number, seq: number, amt: number, dest: string) {
+    genGFeePayout( signers: any, guardianSet: number, nonce: number, seq: number, amt: number, dest: Uint8Array) {
         const b = [
             "0x",
             this.zeroBytes.slice(0, 28*2),
@@ -106,7 +121,7 @@ class TestLib {
             this.encoder("uint8", 4),
             this.encoder("uint16", 8),
             this.encoder("uint256", Math.floor(amt)),
-//            decodeAddress(dest).publicKey.toString("hex")
+            this.uint8ArrayToHexString(dest, false)
         ];
 
         let emitter = "0x" + this.zeroBytes.slice(0, 31*2) + "04"
@@ -284,5 +299,5 @@ class TestLib {
 }
 
 module.exports = {
-  TestLib
+    TestLib
 }

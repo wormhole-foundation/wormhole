@@ -145,8 +145,8 @@ export async function getTempAccounts(): Promise<Account[]> {
         console.log("Confirmation response:", confirmedTxn);
         // let mytxinfo = JSON.stringify(confirmedTxn.txn.txn, undefined, 2);
         // console.log("Transaction information: %o", mytxinfo);
-        let string = new TextDecoder().decode(confirmedTxn.txn.txn.note);
-        console.log("Note field: ", string);
+//        let string = new TextDecoder().decode(confirmedTxn.txn.txn.note);
+//        console.log("Note field: ", string);
         let accountInfo = await algodClient
             .accountInformation(newAcct.addr)
             .do();
