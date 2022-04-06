@@ -150,25 +150,30 @@ class TestLib {
     }
         
     genRegisterChain( signers: any, guardianSet: number, nonce: number, seq: number, chain: string) {
-//        b  = self.zeroPadBytes[0:((32 -11)*2)]
-//        b += self.encoder("uint8", ord("T"))
-//        b += self.encoder("uint8", ord("o"))
-//        b += self.encoder("uint8", ord("k"))
-//        b += self.encoder("uint8", ord("e"))
-//        b += self.encoder("uint8", ord("n"))
-//        b += self.encoder("uint8", ord("B"))
-//        b += self.encoder("uint8", ord("r"))
-//        b += self.encoder("uint8", ord("i"))
-//        b += self.encoder("uint8", ord("d"))
-//        b += self.encoder("uint8", ord("g"))
-//        b += self.encoder("uint8", ord("e"))
-//
-//        b += self.encoder("uint8", 1)  # action
-//        b += self.encoder("uint16", 0) # target chain
-//        b += self.encoder("uint16", chain)
-//        b += self.getEmitter(chain)
-//        emitter = bytes.fromhex(.zeroPadBytes[0:(31*2)] + "04")
-//        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
+        const b = [
+            "0x",
+            this.zeroBytes.slice(0, (32-11)*2),
+            this.encoder("uint8", this.ord("T")),
+            this.encoder("uint8", this.ord("o")),
+            this.encoder("uint8", this.ord("k")),
+            this.encoder("uint8", this.ord("e")),
+            this.encoder("uint8", this.ord("n")),
+            this.encoder("uint8", this.ord("B")),
+            this.encoder("uint8", this.ord("r")),
+            this.encoder("uint8", this.ord("i")),
+            this.encoder("uint8", this.ord("d")),
+            this.encoder("uint8", this.ord("g")),
+            this.encoder("uint8", this.ord("e")),
+            this.encoder("uint8", 1),
+            this.encoder("uint16", 0),
+            this.encoder("uint16", chain),
+            this.getEmitter(chain)
+        ]
+        let emitter = "0x" + this.zeroBytes.slice(0, 31*2) + "04"
+
+        var seconds = Math.floor(new Date().getTime() / 1000.0);
+
+        return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
     }
 
     genAssetMeta( signers:any, guardianSet:number, nonce:number, seq:number, tokenAddress:string, chain:number, decimals:number, symbol:string, name:string) {

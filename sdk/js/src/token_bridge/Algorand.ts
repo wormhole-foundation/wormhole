@@ -410,6 +410,8 @@ export async function optin(
     appIndex: number,
     emitterId: string
 ): Promise<string> {
+   console.log("optin called with ", appIndex, emitterId)
+
     // This is the application address associated with the application ID
     const appAddr: string = getApplicationAddress(appId);
     const decAppAddr: Uint8Array = decodeAddress(appAddr).publicKey;
@@ -428,7 +430,7 @@ export async function optin(
     const sigAddr: string = lsa.address();
 
     // Check to see if we need to create this
-    console.log("Checking to see if account exists...");
+    console.log("Checking to see if account exists...", appIndex, "-", emitterId);
     const retval: boolean = await accountExists(client, appId, sigAddr);
     if (!retval) {
         console.log("Account does not exist.");
@@ -468,7 +470,7 @@ export async function optin(
         console.log("Signing rekey for optin...");
         const signedRekeyTxn = signLogicSigTransaction(rekeyTxn, lsa);
 
-        console.log("Sending txns for optin...");
+        console.log("Sending txns for optin...", appIndex, "-", emitterId, "-", sigAddr);
         const txnId = await client
             .sendRawTransaction([
                 signedSeedTxn,
@@ -477,7 +479,7 @@ export async function optin(
             ])
             .do();
 
-        console.log("Awaiting confirmation for optin...");
+        console.log("Awaiting confirmation for optin...", appIndex, "-", emitterId);
         const confirmedTxns = await algosdk.waitForConfirmation(
             client,
             txns[txns.length - 1].txID(),
@@ -773,7 +775,8 @@ export async function submitVAAHdr(
 ): Promise<SubmitVAAState> {
     // A lot of our logic here depends on parseVAA and knowing what the payload is..
     const parsedVAA: Map<string, any> = parseVAA(vaa);
-    const seq: number = Number(parsedVAA.get("sequence")) / MAX_BITS;
+    console.log(Number(parsedVAA.get("sequence")))
+    const seq: number = Math.floor((Number(parsedVAA.get("sequence"))) / MAX_BITS);
     const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
     const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
     const index: number = parsedVAA.get("index");

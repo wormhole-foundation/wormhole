@@ -42,12 +42,31 @@ class AlgoTests {
         let accounts = await getTempAccounts();
         let player = accounts[0]
 
-        let seq = 2
+
+        let seq = Math.floor(new Date().getTime() / 1000.0);
+
+        console.log("seq = ", seq);
 
         console.log("upgrading the the guardian set using untrusted account...")
         let upgradeVAA = testLib.genGuardianSetUpgrade(guardianPrivKeys, 0, 1, seq, seq, guardianKeys)
         console.log(upgradeVAA)
-        submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
+        await submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
+
+        seq = seq + 1
+
+        console.log("upgrading again...")
+        upgradeVAA = testLib.genGuardianSetUpgrade(guardianPrivKeys, 1, 2, seq, seq, guardianKeys)
+        console.log(upgradeVAA)
+        await submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
+
+        seq = seq + 1
+
+
+//        console.log("registering solana")
+//        let reg = testLib.genRegisterChain(guardianPrivKeys, 1, 1, seq, 1)
+//        console.log(upgradeVAA)
+//        submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
+//        seq++;
     }
 };
 
