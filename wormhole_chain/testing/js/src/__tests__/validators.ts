@@ -9,7 +9,6 @@ import {
 } from "../consts";
 import { getValidators } from "../core/validator";
 import {
-  faucet,
   getAddress,
   getBalance,
   getOperatorAddress,

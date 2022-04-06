@@ -5,7 +5,6 @@ import {
   TEST_WALLET_MNEMONIC_2,
 } from "../consts";
 import {
-  faucet,
   getAddress,
   getBalance,
   getWallet,
@@ -14,7 +13,7 @@ import {
 
 jest.setTimeout(60000);
 
-test("faucet => wallet 1 => wallet 2", async () => {
+test(" wallet 1 => wallet 2", async () => {
   try {
     const DENOM = "utest";
 

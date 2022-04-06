@@ -7,13 +7,13 @@ import {
 } from "../consts";
 import { redeemVaaMsg } from "../core/tokenBridge";
 import {
-  faucet,
   getAddress,
   getBalance,
   getWallet,
   sendTokens,
   signSendAndConfirm,
 } from "../core/walletHelpers";
+import { transferTokens } from "wormhole-chain-sdk";
 
 jest.setTimeout(60000);
 
@@ -40,5 +40,36 @@ describe("Token bridge tests", () => {
     //   expect(true).toBe(false);
     //   console.error(e);
     // }
+  });
+  test("simple transfer out", async () => {
+    try {
+      const wallet2 = await getWallet(TEST_WALLET_MNEMONIC_2);
+      const wallet2Address = await getAddress(wallet2);
+      const wallet2InitialBalance = await getBalance(
+        HOLE_DENOM,
+        wallet2Address
+      );
+      //VAA for 100 hole to this specific wallet
+      const receipt = await transferTokens(
+        wallet2,
+        "uhole",
+        "100",
+        new Uint8Array(32),
+        2,
+        "0"
+      );
+      const wallet2BalanceAfterTransfer = await getBalance(
+        HOLE_DENOM,
+        wallet2Address
+      );
+      console.log("balance before bridge ", wallet2InitialBalance);
+      console.log("balance after bridge ", wallet2BalanceAfterTransfer);
+      expect(
+        parseInt(wallet2InitialBalance) - parseInt(wallet2BalanceAfterTransfer)
+      ).toBe(100);
+    } catch (e) {
+      console.error(e);
+      expect(true).toBe(false);
+    }
   });
 });

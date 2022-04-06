@@ -32,6 +32,10 @@ import {
   txClient,
   queryClient,
 } from "./modules/certusone.wormholechain.wormhole";
+import {
+  txClient as tokenBridgeClient,
+  queryClient as tokenBridgeQueryClient,
+} from "./modules/certusone.wormholechain.tokenbridge";
 import { keccak256 } from "ethers/lib/utils";
 import { MsgRegisterAccountAsGuardian } from "./modules/certusone.wormholechain.wormhole/types/wormhole/tx";
 import { GuardianKey } from "./modules/certusone.wormholechain.wormhole/types/wormhole/guardian_key";
@@ -40,9 +44,9 @@ let elliptic = require("elliptic"); //No TS defs?
 //https://tutorials.cosmos.network/academy/4-my-own-chain/cosmjs.html
 const ADDRESS_PREFIX = "wormhole";
 const OPERATOR_PREFIX = "wormholevaloper";
-export const TENDERMINT_URL = "http://localhost:26657";
+export const TENDERMINT_URL = "http://localhost:26658";
 export const HOLE_DENOM = "uhole";
-export const LCD_URL = "http://localhost:1317";
+export const LCD_URL = "http://localhost:1318";
 
 export async function getStargateQueryClient() {
   const tmClient = await Tendermint34Client.connect(TENDERMINT_URL);
@@ -90,13 +94,38 @@ export async function getAddress(
   return address;
 }
 
+//TODO recipient chain should be chainID
+export async function transferTokens(
+  wallet: DirectSecp256k1HdWallet,
+  denom: string,
+  amount: string,
+  recipientAddress: Uint8Array,
+  recipientChain: number,
+  fee: string
+) {
+  const offline: OfflineSigner = wallet;
+
+  const client = await tokenBridgeClient(offline, { addr: TENDERMINT_URL });
+  const msg = client.msgTransfer({
+    amount: { amount, denom },
+    toChain: recipientChain,
+    fee: fee,
+    toAddress: recipientAddress,
+    creator: await getAddress(wallet),
+  }); //TODO convert type
+
+  const output = await client.signAndBroadcast([msg]);
+
+  return output;
+}
+
 export async function executeGovernanceVAA(
   wallet: DirectSecp256k1HdWallet,
   hexVaa: string
 ) {
   const offline: OfflineSigner = wallet;
 
-  const client = await txClient(offline);
+  const client = await txClient(offline, { addr: TENDERMINT_URL });
   const msg = client.msgExecuteGovernanceVAA({
     vaa: new Uint8Array(),
     signer: await getAddress(wallet),
@@ -190,7 +219,7 @@ export async function registerGuardianValidator(
   };
 
   const offline: OfflineSigner = wallet;
-  const client = await txClient(offline);
+  const client = await txClient(offline, { addr: TENDERMINT_URL });
   const msg = client.msgRegisterAccountAsGuardian(args);
 
   const output = await client.signAndBroadcast([msg]);
