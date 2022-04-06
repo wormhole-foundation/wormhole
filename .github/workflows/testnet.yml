@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - dev.v2
-      - support-acala-relayer
 jobs:
   build-and-deploy:
     concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
