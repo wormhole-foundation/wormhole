@@ -10,7 +10,7 @@ pruning-keep-every = "0"
 pruning-keep-recent = "0"
 
 [api]
-  address = "tcp://localhost:1317"
+  address = "tcp://0.0.0.0:1317"
   enable = true
   enabled-unsafe-cors = true
   max-open-connections = 1000

@@ -38,7 +38,7 @@ function execWrapper(command) {
 execWrapper(`rm -rf ${MODULE_DIRECTORY}`);
 execWrapper(`mkdir -p ${MODULE_DIRECTORY}`);
 execWrapper(`rm -rf ${VUE_DIRECTORY}`);
-execWrapper("starport chain init -p ../");
+execWrapper("starport chain init -p ../ --home ../build");
 //By this time we should have generated all the requisite files in the vue directory.
 
 const certusFiles = fs.readdirSync(CERTUS_DIRECTORY, { withFileTypes: true }); //should only contain directories for the modules

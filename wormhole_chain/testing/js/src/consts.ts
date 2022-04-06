@@ -24,9 +24,9 @@ export const GUARDIAN_VALIDATOR2_PUBLIC_KEY = "";
 //This is a VAA in hex which is for guardian set 2, where Guardian 2 is the only active guardian.
 export const GUARDIAN2_UPGRADE_VAA = "";
 
-export const NODE_URL = "http://localhost:1317"; // TODO kube support
-export const TENDERMINT_URL = "http://localhost:26657";
-export const FAUCET_URL = "http://localhost:4500";
+export const NODE_URL = "http://localhost:1318";
+export const TENDERMINT_URL = "http://localhost:26658";
+//export const FAUCET_URL = "http://localhost:4500";
 
 export const HOLE_DENOM = "uhole";
 export const ADDRESS_PREFIX = "wormhole";

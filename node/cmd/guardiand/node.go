@@ -43,6 +43,7 @@ import (
 	"go.uber.org/zap"
 
 	cosmwasm "github.com/certusone/wormhole/node/pkg/terra"
+	"github.com/certusone/wormhole/node/pkg/wormchain"
 
 	"github.com/certusone/wormhole/node/pkg/algorand"
 	"github.com/certusone/wormhole/node/pkg/near"
@@ -128,6 +129,9 @@ var (
 
 	nearRPC      *string
 	nearContract *string
+
+	wormchainWS  *string
+	wormchainLCD *string
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -245,6 +249,9 @@ func init() {
 
 	nearRPC = NodeCmd.Flags().String("nearRPC", "", "near RPC URL")
 	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
+
+	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormholechaind root for websocket connection")
+	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
@@ -387,6 +394,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *nearRPC != "" {
 		readiness.RegisterComponent(common.ReadinessNearSyncing)
+	}
+	if *wormchainWS != "" {
+		readiness.RegisterComponent(common.ReadinessWormchainSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
@@ -812,6 +822,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDWormchain] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
@@ -1065,6 +1076,15 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		// Start Wormchain watcher only if configured
+		if *wormchainWS != "" && *wormchainLCD != "" {
+			logger.Info("Starting Wormchain watcher")
+			if err := supervisor.Run(ctx, "wormchainwatch",
+				wormchain.NewWatcher(*wormchainWS, *wormchainLCD, lockC, setC, chainObsvReqC[vaa.ChainIDWormchain]).Run); err != nil {
+				return err
+			}
+		}
+
 		if *solanaWsRPC != "" {
 			if err := supervisor.Run(ctx, "solwatch-confirmed",
 				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessSolanaSyncing, vaa.ChainIDSolana).Run); err != nil {
@@ -1110,6 +1130,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			*unsafeDevMode,
 			*devNumGuardians,
 			*ethRPC,
+			*wormchainLCD,
 			attestationEvents,
 			notifier,
 			gov,
