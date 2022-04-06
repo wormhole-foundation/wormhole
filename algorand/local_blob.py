@@ -1,6 +1,7 @@
 from typing import Tuple
 
 from pyteal import (
+    And,
     App,
     Assert,
     Bytes,
@@ -138,6 +139,11 @@ class LocalBlob:
         return Seq(
             App.localPut(acct, Bytes("meta"), val)
         )
+
+    @staticmethod
+    @Subroutine(TealType.none)
+    def checkMeta(acct: Expr, val: Expr):
+        return Seq(Assert(And(App.localGet(acct, Bytes("meta")) == val, Int(145))))
 
     @staticmethod
     @Subroutine(TealType.uint64)

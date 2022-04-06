@@ -365,7 +365,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             return Seq([
                 # We have a guardian set?  We have OUR guardian set?
                 MagicAssert(Txn.accounts[2] == get_sig_address(Btoi(Extract(Txn.application_args[1], Int(1), Int(4))), Bytes("guardian")), Int(367)),
-
+                blob.checkMeta(Int(2), Bytes("guardian")),
                 # Lets grab the total keyset
                 total_guardians.store(blob.get_byte(Int(2), Int(0))),
                 guardian_keys.store(blob.read(Int(2), Int(1), Int(1) + Int(20) * total_guardians.load())),
