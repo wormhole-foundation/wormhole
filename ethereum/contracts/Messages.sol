@@ -40,7 +40,7 @@ contract Messages is Getters {
             return (false, "invalid guardian set");
         }
 
-        /// @dev Checks whether the proposed GuardianSetIndex is expired and if the current GuardianSet is expired. 
+        /// @dev Checks if the VAA guardianSetIndex is not a current guradianSetIndex and is also expired
         if(vm.guardianSetIndex != getCurrentGuardianSetIndex() && guardianSet.expirationTime < block.timestamp){
             return (false, "guardian set has expired");
         }
