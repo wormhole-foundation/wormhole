@@ -438,7 +438,7 @@ contract("Wormhole", function () {
                 from: accounts[0],
                 gasLimit: 1000000
             });
-            asset.fail("governance packet of old guardian set accepted")
+            assert.fail("governance packet of old guardian set accepted")
         } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "not signed by current guardian set")
         }
@@ -512,7 +512,7 @@ contract("Wormhole", function () {
                 from: accounts[0],
                 gasLimit: 1000000
             });
-            asset.fail("governance packet from wrong governance chain accepted")
+            assert.fail("governance packet from wrong governance chain accepted")
         } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "wrong governance chain")
         }
@@ -551,7 +551,7 @@ contract("Wormhole", function () {
                 from: accounts[0],
                 gasLimit: 1000000
             });
-            asset.fail("governance packet from wrong governance contract accepted")
+            assert.fail("governance packet from wrong governance contract accepted")
         } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "wrong governance contract")
         }
@@ -597,7 +597,7 @@ contract("Wormhole", function () {
                 gasLimit: 1000000
             });
 
-            asset.fail("governance packet accepted twice")
+            assert.fail("governance packet accepted twice")
         } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "governance action already consumed")
         }
