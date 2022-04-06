@@ -84,8 +84,7 @@ class TestLib {
         });
 
         let emitter = "0x" + this.zeroBytes.slice(0, 31*2) + "04"
-
-        var seconds = Math.floor(new Date().getTime() / 1000.0);
+        let seconds = Math.floor(new Date().getTime() / 1000.0);
 
         return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
     }
@@ -131,7 +130,7 @@ class TestLib {
         return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
     }
 
-    getEmitter( chain: any) {
+    getEmitter( chain: any) : string {
         if (chain == 1) {
             return "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5";
         }
@@ -147,6 +146,7 @@ class TestLib {
         if (chain == 5) {
             return "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde";
         }
+        return ""
     }
         
     genRegisterChain( signers: any, guardianSet: number, nonce: number, seq: number, chain: string) {
@@ -171,19 +171,24 @@ class TestLib {
 //        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
     }
 
-//    genAssetMeta( signers, guardianSet, nonce, seq, tokenAddress, chain, decimals, symbol, name) {
-//        b  = self.encoder("uint8", 2)
-//        b += self.zeroPadBytes[0:((32-len(tokenAddress))*2)]
-//        b += tokenAddress.hex()
-//        b += self.encoder("uint16", chain)
-//        b += self.encoder("uint8", decimals)
-//        b += symbol.hex()
-//        b += self.zeroPadBytes[0:((32-len(symbol))*2)]
-//        b += name.hex()
-//        b += self.zeroPadBytes[0:((32-len(name))*2)]
-//        emitter = bytes.fromhex(.getEmitter(chain))
-//        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
-//    }
+    genAssetMeta( signers:any, guardianSet:number, nonce:number, seq:number, tokenAddress:string, chain:number, decimals:number, symbol:string, name:string) {
+        const b = [
+            this.encoder("uint8", 2),
+            this.zeroBytes.slice(0, (32 - tokenAddress.length)*2),
+            Buffer.from(tokenAddress).toString("hex"),
+            this.encoder("uint16", chain),
+            this.encoder("uint8", decimals),
+            Buffer.from(symbol).toString("hex"),
+            this.zeroBytes.slice(0, (32 - symbol.length)*2),
+            Buffer.from(name).toString("hex"),
+            this.zeroBytes.slice(0, (32 - name.length)*2)
+        ]
+
+        let emitter = "0x" + this.getEmitter(chain);
+        let seconds = Math.floor(new Date().getTime() / 1000.0);
+
+        return this.createSignedVAA(guardianSet, signers, seconds, nonce, 1, emitter, seq, 32, b.join(''))
+    }
 
 //    genTransfer( signers, guardianSet, nonce, seq, amount, tokenAddress, tokenChain, toAddress, toChain, fee) {
 //        b  = self.encoder("uint8", 1)
