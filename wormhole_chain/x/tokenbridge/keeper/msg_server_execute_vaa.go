@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"math/big"
 	"strings"
 
@@ -87,13 +86,13 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 		identifier := ""
 		var wrapped bool
-		if IsHOLEToken(tokenChain, tokenAddress) {
+		if types.IsHOLEToken(tokenChain, tokenAddress) {
 			identifier = "uhole"
 			// We mint wormhole tokens because they are not native to wormhole chain
 			wrapped = true
 		} else if uint32(tokenChain) != wormholeConfig.ChainId {
 			// Mint new wrapped assets if the coin is from another chain
-			identifier = "b" + GetWrappedCoinIdentifier(tokenChain, tokenAddress)
+			identifier = "b" + types.GetWrappedCoinIdentifier(tokenChain, tokenAddress)
 			wrapped = true
 		} else {
 			// Recover the coin denom from the token address if it's a native coin
@@ -110,12 +109,12 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			}
 		}
 
-		amount, err := NormalizeDenom(identifier, unnormalizedAmount, meta)
+		amount, err := types.Untruncate(unnormalizedAmount, meta)
 		if err != nil {
 			return nil, err
 		}
 
-		fee, err := NormalizeDenom(identifier, unnormalizedFee, meta)
+		fee, err := types.Untruncate(unnormalizedFee, meta)
 		if err != nil {
 			return nil, err
 		}
@@ -191,11 +190,11 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			return nil, types.ErrNativeAssetRegistration
 		}
 
-		if IsHOLEToken(tokenChain, tokenAddress) {
+		if types.IsHOLEToken(tokenChain, tokenAddress) {
 			return nil, types.ErrNativeAssetRegistration
 		}
 
-		identifier := GetWrappedCoinIdentifier(tokenChain, tokenAddress)
+		identifier := types.GetWrappedCoinIdentifier(tokenChain, tokenAddress)
 		rollBackProtection, found := k.GetCoinMetaRollbackProtection(ctx, identifier)
 		if found && rollBackProtection.LastUpdateSequence >= v.Sequence {
 			return nil, types.ErrAssetMetaRollback
@@ -241,38 +240,4 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 	k.SetReplayProtection(ctx, types.ReplayProtection{Index: v.HexDigest()})
 
 	return &types.MsgExecuteVAAResponse{}, nil
-}
-
-func NormalizeDenom(identifier string, amount *big.Int, meta btypes.Metadata) (normalized *big.Int, err error) {
-	// Find the display denom to figure out decimals
-	var displayDenom *btypes.DenomUnit
-	for _, denom := range meta.DenomUnits {
-		if denom.Denom == meta.Display {
-			displayDenom = denom
-			break
-		}
-	}
-	if displayDenom == nil {
-		return new(big.Int), types.ErrDisplayUnitNotFound
-	}
-
-	normalized = new(big.Int)
-
-	// If the original decimals exceed 8 un-truncate the amounts
-	if displayDenom.Exponent > 8 {
-		normalized.Mul(amount, new(big.Int).SetInt64(int64(math.Pow10(int(displayDenom.Exponent-8)))))
-	} else {
-		normalized = amount
-	}
-
-	return normalized, nil
-}
-
-func IsHOLEToken(tokenChain uint16, tokenAddress [32]byte) bool {
-	// TODO: figure out HOLE token address on Solana
-	return tokenChain == 1 && tokenAddress == [32]byte{0x16, 0x58, 0x09, 0x73, 0x92, 0x40, 0xa0, 0xac, 0x03, 0xb9, 0x84, 0x40, 0xfe, 0x89, 0x85, 0x54, 0x8e, 0x3a, 0xa6, 0x83, 0xcd, 0x0d, 0x4d, 0x9d, 0xf5, 0xb5, 0x65, 0x96, 0x69, 0xfa, 0xa3, 0x01}
-}
-
-func GetWrappedCoinIdentifier(tokenChain uint16, tokenAddress [32]byte) string {
-	return fmt.Sprintf("wh/%d/%x", tokenChain, tokenAddress)
 }
