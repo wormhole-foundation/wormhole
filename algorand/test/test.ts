@@ -49,25 +49,24 @@ class AlgoTests {
 
         console.log("seq = ", seq);
 
-        console.log("upgrading the the guardian set using untrusted account...")
+        console.log("XXX upgrading the the guardian set using untrusted account...", seq)
         let upgradeVAA = testLib.genGuardianSetUpgrade(guardianPrivKeys, 0, 1, seq, seq, guardianKeys)
         console.log(upgradeVAA)
         await submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
 
         seq = seq + 1
 
-        console.log("upgrading again...")
+        console.log("XXX upgrading again...", seq)
         upgradeVAA = testLib.genGuardianSetUpgrade(guardianPrivKeys, 1, 2, seq, seq, guardianKeys)
         console.log(upgradeVAA)
         await submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
 
         seq = seq + 1
 
-
-        console.log("registering solana")
+        console.log("XXX registering chain 2", seq)
         let reg = testLib.genRegisterChain(guardianPrivKeys, 2, 1, seq, 2)
         console.log(reg)
-        submitVAA(hexStringToUint8Array(reg), client, player, TOKEN_BRIDGE_ID)
+        await submitVAA(hexStringToUint8Array(reg), client, player, TOKEN_BRIDGE_ID)
 
         seq = seq + 1
 

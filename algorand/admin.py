@@ -1328,7 +1328,9 @@ class PortalCore:
         if args.vaa:
             if self.args.appid == "":
                 raise Exception("You need to specifiy the appid when you are submitting vaas")
-            self.submitVAA(bytes.fromhex(args.vaa), self.client, self.foundation, int(self.args.appid))
+            vaa = bytes.fromhex(args.vaa)
+            pprint.pprint(self.parseVAA(vaa))
+            self.submitVAA(vaa, self.client, self.foundation, int(self.args.appid))
 
 if __name__ == "__main__":
     core = PortalCore()
