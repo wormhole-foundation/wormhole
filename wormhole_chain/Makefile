@@ -1,4 +1,4 @@
-.PHONY: all run
+.PHONY: all run test clean
 
 all: build
 
@@ -8,6 +8,9 @@ build: config.yml
 
 run: build
 	go run cmd/wormhole-chaind/main.go start --home build
+
+test:
+	go test -v ./...
 
 clean:
 	rm -rf build
