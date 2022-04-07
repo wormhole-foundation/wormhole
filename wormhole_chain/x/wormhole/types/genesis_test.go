@@ -29,8 +29,7 @@ func TestGenesisState_Validate(t *testing.T) {
 						Index: 1,
 					},
 				},
-				GuardianSetCount: 2,
-				Config:           &types.Config{},
+				Config: &types.Config{},
 				ReplayProtectionList: []types.ReplayProtection{
 					{
 						Index: "0",
@@ -52,10 +51,12 @@ func TestGenesisState_Validate(t *testing.T) {
 				},
 				GuardianValidatorList: []types.GuardianValidator{
 					{
-						GuardianKey: "0",
+						GuardianKey:   []byte{0},
+						ValidatorAddr: []byte{3},
 					},
 					{
-						GuardianKey: "1",
+						GuardianKey:   []byte{1},
+						ValidatorAddr: []byte{4},
 					},
 				},
 				// this line is used by starport scaffolding # types/genesis/validField
@@ -73,18 +74,6 @@ func TestGenesisState_Validate(t *testing.T) {
 						Index: 0,
 					},
 				},
-			},
-			valid: false,
-		},
-		{
-			desc: "invalid guardianSet count",
-			genState: &types.GenesisState{
-				GuardianSetList: []types.GuardianSet{
-					{
-						Index: 1,
-					},
-				},
-				GuardianSetCount: 0,
 			},
 			valid: false,
 		},
@@ -121,14 +110,16 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				GuardianValidatorList: []types.GuardianValidator{
 					{
-						GuardianKey: "0",
+						GuardianKey:   []byte{0},
+						ValidatorAddr: []byte{10},
 					},
 					{
-						GuardianKey: "0",
+						GuardianKey:   []byte{1},
+						ValidatorAddr: []byte{10},
 					},
 				},
 			},
-			valid: false,
+			valid: true,
 		},
 		// this line is used by starport scaffolding # types/genesis/testcase
 	} {

@@ -44,10 +44,9 @@ func TestGuardianValidatorQuerySingle(t *testing.T) {
 		},
 		{
 			desc: "KeyNotFound",
-			request: &types.QueryGetGuardianValidatorRequest{
-				GuardianKey: strconv.Itoa(100000),
-			},
-			err: status.Error(codes.InvalidArgument, "not found"),
+			request: &types.QueryGetGuardianValidatorRequest{GuardianKey: []byte{0, 3, 4}},
+			response: &types.QueryGetGuardianValidatorResponse{},
+			err:      status.Error(codes.InvalidArgument, "not found"),
 		},
 		{
 			desc: "InvalidRequest",
