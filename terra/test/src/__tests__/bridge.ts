@@ -24,7 +24,7 @@ const CONSISTENCY_LEVEL = 0;
 
 const WASM_WORMHOLE = "../artifacts/wormhole.wasm";
 const WASM_WRAPPED_ASSET = "../artifacts/cw20_wrapped.wasm";
-const WASM_TOKEN_BRIDGE = "../artifacts/token_bridge.wasm";
+const WASM_TOKEN_BRIDGE = "../artifacts/token_bridge_terra.wasm";
 
 // global map of contract addresses for all tests
 const contracts = new Map<string, string>();
