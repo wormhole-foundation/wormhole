@@ -28,7 +28,7 @@ For each test run:
 
 Run `npx ganache-cli --deterministic --time "1970-01-01T00:00:00+00:00"` to start a chain.
 
-Run the all ethereum tests using `npx truffle test`
+Run the all ethereum tests using `make test`
 
 Run a specific test file using `npx truffle test test/wormhole.js`
 
