@@ -110,12 +110,12 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			}
 		}
 
-		amount, err := k.NormalizeDenom(ctx, identifier, unnormalizedAmount, meta)
+		amount, err := NormalizeDenom(identifier, unnormalizedAmount, meta)
 		if err != nil {
 			return nil, err
 		}
 
-		fee, err := k.NormalizeDenom(ctx, identifier, unnormalizedFee, meta)
+		fee, err := NormalizeDenom(identifier, unnormalizedFee, meta)
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +243,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 	return &types.MsgExecuteVAAResponse{}, nil
 }
 
-func (k msgServer) NormalizeDenom(ctx sdk.Context, identifier string, amount *big.Int, meta btypes.Metadata) (normalized *big.Int, err error) {
+func NormalizeDenom(identifier string, amount *big.Int, meta btypes.Metadata) (normalized *big.Int, err error) {
 	// Find the display denom to figure out decimals
 	var displayDenom *btypes.DenomUnit
 	for _, denom := range meta.DenomUnits {

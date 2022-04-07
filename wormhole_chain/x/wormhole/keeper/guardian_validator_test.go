@@ -18,7 +18,7 @@ var _ = strconv.IntSize
 func createNGuardianValidator(keeper *keeper.Keeper, ctx sdk.Context, n int) []types.GuardianValidator {
 	items := make([]types.GuardianValidator, n)
 	for i := range items {
-		items[i].GuardianKey = strconv.Itoa(i)
+		items[i].GuardianKey = []byte(strconv.Itoa(i))
 
 		keeper.SetGuardianValidator(ctx, items[i])
 	}
