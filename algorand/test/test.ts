@@ -38,6 +38,7 @@ class AlgoTests {
     }
 
     async runTests() {
+        console.log("test start");
         let client = getAlgoClient();
 
         let accounts = await getTempAccounts();
@@ -70,6 +71,7 @@ class AlgoTests {
 
         seq = seq + 1
 
+        console.log("test complete");
     }
 };
 

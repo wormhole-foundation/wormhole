@@ -248,7 +248,7 @@ export async function attestFromAlgorand(
     const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
     const aa: string = uint8ArrayToHexString(decTbAddr, false);
     console.log("Getting emitter address...");
-    const emitterAddr: string = await optin(client, senderAcct, CORE_ID, 0, aa);
+    const emitterAddr: string = await optin(client, senderAcct, CORE_ID, 0, aa, "attestFromAlgorand::emitterAddr");
     console.log("Got emitter address...");
     const acctInfo = await client.accountInformation(senderAcct.addr).do();
     console.log("Got sender account info...", acctInfo);
@@ -286,7 +286,8 @@ export async function attestFromAlgorand(
             senderAcct,
             TOKEN_BRIDGE_ID,
             assetId,
-            textToHexString("native")
+            textToHexString("native"),
+            "notWormhole"
         );
     }
     const suggParams: algosdk.SuggestedParams = await client
@@ -408,9 +409,10 @@ export async function optin(
     sender: Account,
     appId: number,
     appIndex: number,
-    emitterId: string
+    emitterId: string,
+    why: string
 ): Promise<string> {
-   console.log("optin called with ", appIndex, emitterId)
+   console.log("optin called with ", appIndex, emitterId, why)
 
     // This is the application address associated with the application ID
     const appAddr: string = getApplicationAddress(appId);
@@ -787,7 +789,8 @@ export async function submitVAAHdr(
         sender,
         appid,
         seq,
-        chainRaw + em
+        chainRaw + em,
+        "seqAddr"
     );
     const guardianPgmName = textToHexString("guardian");
     // And then the signatures to help us verify the vaa_s
@@ -796,7 +799,8 @@ export async function submitVAAHdr(
         sender,
         CORE_ID,
         index,
-        guardianPgmName
+        guardianPgmName,
+        "guardianAddr"
     );
 
     let accts: string[] = [seqAddr, guardianAddr];
@@ -902,7 +906,7 @@ export async function simpleSignVAA(
     sender: Account,
     txns: Array<algosdk.Transaction>
 ) {
-    //    console.log("simpleSignVAA")
+    console.log("simpleSignVAA")
     //    console.log(txns)
     assignGroupID(txns);
     const signedTxns: Uint8Array[] = [];
@@ -929,11 +933,13 @@ export async function simpleSignVAA(
 
     //    console.log("waiting for confirmation", txns[txns.length-1].txID())
     const ret: string[] = [];
+    console.log("waitForConfirmation...")
     const response = await waitForConfirmation(
         client,
         txns[txns.length - 1].txID(),
         1
     );
+    console.log(".. done")
 
     //    console.log("submitVAA confirmation", response);
     if (response["logs"]) {
@@ -974,7 +980,8 @@ export async function submitVAA(
             sender,
             CORE_ID,
             ngsi,
-            guardianPgmName
+            guardianPgmName,
+            "newGuardianAddr"
         );
         accts.push(newGuardianAddr);
     }
@@ -994,7 +1001,8 @@ export async function submitVAA(
                 sender,
                 TOKEN_BRIDGE_ID,
                 parsedVAA.get("FromChain"),
-                parsedVAA.get("Contract")
+                parsedVAA.get("Contract"),
+                "TokenBridge chainAddr"
             );
         } else {
             const contract: Buffer = parsedVAA.get("Contract");
@@ -1004,7 +1012,8 @@ export async function submitVAA(
                 sender,
                 TOKEN_BRIDGE_ID,
                 assetId,
-                textToHexString("native")
+                textToHexString("native"),
+                "TokenBridge native chainAddr"
             );
         }
         accts.push(chainAddr);
@@ -1166,7 +1175,10 @@ export async function submitVAA(
         }
     }
 
-    return await simpleSignVAA(client, sender, txns);
+    console.log("simpleSignVAA start")
+    let ret = await simpleSignVAA(client, sender, txns);
+    console.log("simpleSignVAA done")
+    return ret
 }
 
 export async function getVAA(
@@ -1308,7 +1320,8 @@ export async function transferAsset(
         sender,
         CORE_ID,
         0,
-        applAddr
+        applAddr,
+        "transferAsset"
     );
     const assetInfo: Record<string, any> = await client
         .getAssetByID(assetId)
@@ -1342,7 +1355,7 @@ export async function transferAsset(
     }
     if (!wormhole) {
         const bNat = Buffer.from("native", "binary").toString("hex");
-        creator = await optin(client, sender, TOKEN_BRIDGE_ID, assetId, bNat);
+        creator = await optin(client, sender, TOKEN_BRIDGE_ID, assetId, bNat, "creator");
     }
     if (assetId != 0 && !assetOptinCheck(client, assetId, creator)) {
         // Looks like we need to optin
