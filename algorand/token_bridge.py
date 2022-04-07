@@ -41,6 +41,7 @@ max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
+    #teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
     teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
 
     if genTeal:
@@ -65,8 +66,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
     def MagicAssert(a) -> Expr:
         from inspect import currentframe
-        return Assert(And(a, Int(currentframe().f_back.f_lineno)))
-#        return Assert(a)
+        return Assert(a)
+#        return Assert(And(a, Int(currentframe().f_back.f_lineno)))
 
     @Subroutine(TealType.uint64)
     def governanceSet() -> Expr:
@@ -80,11 +81,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
     def assert_common_checks(e) -> Expr:
         return MagicAssert(And(
-            Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
-            Gtxn[tidx.load()].close_remainder_to() == Global.zero_address(),
-            Gtxn[tidx.load()].asset_close_to() == Global.zero_address()
+            e.rekey_to() == Global.zero_address(),
+            e.close_remainder_to() == Global.zero_address(),
+            e.asset_close_to() == Global.zero_address()
         ))
-        
 
     @Subroutine(TealType.none)
     def checkFeePmt(off : Expr):
@@ -170,7 +170,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             [dec == Int(14), Int(1000000)],
             [dec == Int(15), Int(10000000)],
             [dec == Int(16), Int(100000000)],
-            [dec >  Int(16), Seq([MagicAssert(dec < Int(16)), Int(1)])],
+            [dec >  Int(16), Seq(Reject(), Int(1))],
             [dec < Int(9), Int(1)]
         )
 
