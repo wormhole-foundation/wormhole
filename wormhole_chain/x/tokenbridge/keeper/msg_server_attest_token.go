@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
-	types2 "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"io"
 	"math"
-	"strings"
+
+	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -28,15 +28,14 @@ func (k msgServer) AttestToken(goCtx context.Context, msg *types.MsgAttestToken)
 		return nil, types.ErrNoDenomMetadata
 	}
 
-	// Detect wormhole wrapped assets
-	if strings.Index(meta.Display, "wh/") == 0 {
+	// Don't attest wrapped assets (including uhole)
+	_, _, wrapped := types.GetWrappedCoinMeta(meta.Display)
+	if wrapped {
 		return nil, types.ErrAttestWormholeToken
 	}
 
-	// TODO(csongor): don't attest uhole
-
 	// The display denom should have the most common decimal places
-	var displayDenom *types2.DenomUnit
+	var displayDenom *banktypes.DenomUnit
 	for _, denom := range meta.DenomUnits {
 		if denom.Denom == meta.Display {
 			displayDenom = denom
@@ -49,32 +48,34 @@ func (k msgServer) AttestToken(goCtx context.Context, msg *types.MsgAttestToken)
 	if displayDenom.Exponent > math.MaxUint8 {
 		return nil, types.ErrExponentTooLarge
 	}
+	exponent := uint8(displayDenom.Exponent)
 
 	buf := new(bytes.Buffer)
 	// PayloadID
 	buf.WriteByte(2)
-	// TokenAddress
-	denomBytes, err := PadStringToByte32(meta.Base)
+	tokenChain, tokenAddress, err := types.GetTokenMeta(wormholeConfig, meta.Base)
 	if err != nil {
-		return nil, types.ErrDenomTooLong
+		return nil, err
 	}
-	buf.Write(denomBytes)
+	// TokenAddress
+	buf.Write(tokenAddress[:])
 	// TokenChain
+	MustWrite(buf, binary.BigEndian, tokenChain)
 	MustWrite(buf, binary.BigEndian, uint16(wormholeConfig.ChainId))
 	// Decimals
-	MustWrite(buf, binary.BigEndian, uint8(displayDenom.Exponent))
+	MustWrite(buf, binary.BigEndian, exponent)
 	// Symbol
-	symbolBytes, err := PadStringToByte32(meta.Symbol)
+	symbolBytes, err := types.PadStringToByte32(meta.Symbol)
 	if err != nil {
 		return nil, types.ErrSymbolTooLong
 	}
-	buf.Write(symbolBytes)
+	buf.Write(symbolBytes[:])
 	// Name
-	nameBytes, err := PadStringToByte32(meta.Name)
+	nameBytes, err := types.PadStringToByte32(meta.Name)
 	if err != nil {
 		return nil, types.ErrNameTooLong
 	}
-	buf.Write(nameBytes)
+	buf.Write(nameBytes[:])
 
 	// Post message
 	moduleAddress := k.accountKeeper.GetModuleAddress(types.ModuleName)
@@ -92,16 +93,4 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	if err := binary.Write(w, order, data); err != nil {
 		panic(fmt.Errorf("failed to write binary data: %v", data).Error())
 	}
-}
-
-// PadStringToByte32 left zero pads a string to the ethereum type bytes32
-func PadStringToByte32(s string) ([]byte, error) {
-	if len(s) > 32 {
-		return nil, fmt.Errorf("string is too long; %d > 32", len(s))
-	}
-
-	b := []byte(s)
-
-	left := make([]byte, 32-len(s))
-	return append(left[:], b[:]...), nil
 }
