@@ -69,12 +69,12 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 		keyOrder   []*ecdsa.PrivateKey
 		indexOrder []uint8
 		addrs      []ethcommon.Address
-		err        string
+		errString  string
 	}{
 		{label: "GuardianSetNoKeys", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{}, addrs: []ethcommon.Address{},
-			err: "dropping SignedVAAWithQuorum message since we have a guardian set without keys"},
+			errString: "dropping SignedVAAWithQuorum message since we have a guardian set without keys"},
 		{label: "VAANoSignatures", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
-			err: "received SignedVAAWithQuorum message with no VAA signatures"},
+			errString: "received SignedVAAWithQuorum message with no VAA signatures"},
 		{label: "VAAInvalidSignatures", keyOrder: []*ecdsa.PrivateKey{badPrivateKey1}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
 			err: "received SignedVAAWithQuorum message with invalid VAA signatures"},
 		{label: "DuplicateGoodSignaturesNonMonotonic", keyOrder: []*ecdsa.PrivateKey{goodPrivateKey1, goodPrivateKey1, goodPrivateKey1, goodPrivateKey1}, indexOrder: []uint8{0, 0, 0, 0}, addrs: []ethcommon.Address{goodAddr1},
@@ -118,7 +118,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			// Check to see if we got an error, which we should have
 			assert.Equal(t, 1, observedLogs.Len())
 			firstLog := observedLogs.All()[0]
-			assert.Equal(t, tc.err, firstLog.Message)
+			assert.Equal(t, tc.errString, firstLog.Message)
 		})
 	}
 }
