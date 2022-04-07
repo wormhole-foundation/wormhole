@@ -178,9 +178,10 @@ class TestLib {
 
     genAssetMeta( signers:any, guardianSet:number, nonce:number, seq:number, tokenAddress:string, chain:number, decimals:number, symbol:string, name:string) {
         const b = [
+            "0x",
             this.encoder("uint8", 2),
-            this.zeroBytes.slice(0, (32 - tokenAddress.length)*2),
-            Buffer.from(tokenAddress).toString("hex"),
+            this.zeroBytes.slice(0, 64 - tokenAddress.length),
+            tokenAddress,
             this.encoder("uint16", chain),
             this.encoder("uint8", decimals),
             Buffer.from(symbol).toString("hex"),
@@ -188,6 +189,9 @@ class TestLib {
             Buffer.from(name).toString("hex"),
             this.zeroBytes.slice(0, (32 - name.length)*2)
         ]
+
+//        console.log(b.join())
+//        console.log(b.join('').length)
 
         let emitter = "0x" + this.getEmitter(chain);
         let seconds = Math.floor(new Date().getTime() / 1000.0);

@@ -589,7 +589,11 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 2;
         ret.set("NewGuardianSetIndex", buf.readIntBE(off, 4));
     }
-    if (Buffer.from(vaa, off).length === 100 && buf.readIntBE(off, 1) === 2) {
+
+//    ret.set("len", vaa.slice(off).length)
+//    ret.set("act", buf.readIntBE(off, 1))
+    
+    if (vaa.slice(off).length === 100 && buf.readIntBE(off, 1) === 2) {
         ret.set("Meta", "TokenBridge Attest");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
@@ -604,7 +608,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Name", extract3(vaa, off, 32));
     }
 
-    if (Buffer.from(vaa, off).length === 133 && buf.readIntBE(off, 1) === 1) {
+    if (vaa.slice(off).length === 133 && buf.readIntBE(off, 1) === 1) {
         ret.set("Meta", "TokenBridge Transfer");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
@@ -641,7 +645,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 2;
         ret.set("Fee", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Payload", Buffer.from(vaa, off));
+        ret.set("Payload", vaa.slice(off));
     }
 
     return ret;

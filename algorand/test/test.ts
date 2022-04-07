@@ -38,6 +38,13 @@ class AlgoTests {
     }
 
     async runTests() {
+        let seq = Math.floor(new Date().getTime() / 1000.0);
+
+//        let t = testLib.genAssetMeta(guardianPrivKeys, 2, seq, seq, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 1, 8, "USDC", "CircleCoin")
+//        console.log(t)
+//        console.log(parseVAA(hexStringToUint8Array(t)))
+//        process.exit(0)
+
         console.log("test start");
         let client = getAlgoClient();
 
@@ -45,7 +52,6 @@ class AlgoTests {
         let player = accounts[0]
 
 
-        let seq = Math.floor(new Date().getTime() / 1000.0);
 
         console.log("seq = ", seq);
 
@@ -67,6 +73,13 @@ class AlgoTests {
         let reg = testLib.genRegisterChain(guardianPrivKeys, 2, 1, seq, 2)
         console.log(reg)
         await submitVAA(hexStringToUint8Array(reg), client, player, TOKEN_BRIDGE_ID)
+
+        seq = seq + 1
+
+        console.log("XXX gen asset meta", seq)
+        let a = testLib.genAssetMeta(guardianPrivKeys, 2, seq, seq, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 1, 8, "USDC", "CircleCoin")
+        console.log(a)
+        await submitVAA(hexStringToUint8Array(a), client, player, TOKEN_BRIDGE_ID)
 
         seq = seq + 1
 

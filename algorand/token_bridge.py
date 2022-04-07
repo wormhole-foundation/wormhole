@@ -66,8 +66,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
     def MagicAssert(a) -> Expr:
         from inspect import currentframe
-        return Assert(a)
-#        return Assert(And(a, Int(currentframe().f_back.f_lineno)))
+#       return Assert(a)
+        return Assert(And(a, Int(currentframe().f_back.f_lineno)))
 
     @Subroutine(TealType.uint64)
     def governanceSet() -> Expr:
