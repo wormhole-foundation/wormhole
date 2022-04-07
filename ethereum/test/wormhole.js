@@ -10,6 +10,13 @@ const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
 const testSigner3PK = "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fb";
 
+const core = "0x00000000000000000000000000000000000000000000000000000000436f7265"
+const actionContractUpgrade = "01"
+const actionGuardianSetUpgrade = "02"
+const actionMessageFee = "03"
+const actionTransferFee = "04"
+
+
 const ImplementationFullABI = jsonfile.readFileSync("build/contracts/Implementation.json").abi
 
 // Taken from https://medium.com/fluidity/standing-the-time-of-test-b906fcc374a9
@@ -178,9 +185,9 @@ contract("Wormhole", function () {
 
         data = [
             //Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 3 (Set Message Fee)
-            "03",
+            actionMessageFee,
             // ChainID
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             // Message Fee
@@ -255,9 +262,9 @@ contract("Wormhole", function () {
 
         data = [
             // Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 4 (Transfer Fees)
-            "04",
+            actionTransferFee,
             // ChainID
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             // Amount
@@ -309,9 +316,9 @@ contract("Wormhole", function () {
 
         data = [
             // Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 2 (Guardian Set Upgrade)
-            "02",
+            actionGuardianSetUpgrade,
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             web3.eth.abi.encodeParameter("uint32", oldIndex + 1).substring(2 + (64 - 8)),
             web3.eth.abi.encodeParameter("uint8", 3).substring(2 + (64 - 2)),
@@ -379,9 +386,9 @@ contract("Wormhole", function () {
 
         data = [
             // Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 1 (Contract Upgrade)
-            "01",
+            actionContractUpgrade,
             // ChainID
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             // New Contract Address
@@ -431,9 +438,9 @@ contract("Wormhole", function () {
 
         data = [
             // Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 4 (Transfer Fee)
-            "04",
+            actionTransferFee,
             // ChainID
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             // Amount
@@ -510,7 +517,7 @@ contract("Wormhole", function () {
 
         data = [
             // Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 4 (set fees)
             "04",
             // ChainID
@@ -555,9 +562,9 @@ contract("Wormhole", function () {
 
         data = [
             // Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 4 (Transfer Fee)
-            "04",
+            actionTransferFee,
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             web3.eth.abi.encodeParameter("uint256", 1).substring(2),
             web3.eth.abi.encodeParameter("address", "0x0000000000000000000000000000000000000000").substring(2),
@@ -567,7 +574,7 @@ contract("Wormhole", function () {
             0,
             0,
             testGovernanceChainId,
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             0,
             data,
             [
@@ -597,9 +604,9 @@ contract("Wormhole", function () {
 
         data = [
             // Core
-            "0x00000000000000000000000000000000000000000000000000000000436f7265",
+            core,
             // Action 4 (Transfer Fee)
-            "04",
+            actionTransferFee,
             // ChainID
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             // Amount
