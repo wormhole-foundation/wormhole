@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"math/big"
+
 	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	types2 "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/holiman/uint256"
-	"math"
-	"math/big"
 )
 
 func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*types.MsgTransferResponse, error) {
@@ -31,22 +30,6 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 		return nil, types.ErrNoDenomMetadata
 	}
 
-	// The display denom should have the most common decimal places
-	var displayDenom *types2.DenomUnit
-	for _, denom := range meta.DenomUnits {
-		if denom.Denom == meta.Display {
-			displayDenom = denom
-			break
-		}
-	}
-	if displayDenom == nil {
-		return nil, types.ErrDisplayUnitNotFound
-	}
-	if displayDenom.Exponent > math.MaxUint8 {
-		return nil, types.ErrExponentTooLarge
-	}
-	decimals := uint8(displayDenom.Exponent)
-
 	// Collect coins in module account
 	// TODO: why not burn?
 	err = k.bankKeeper.SendCoins(ctx, userAcc, k.accountKeeper.GetModuleAddress(types.ModuleName), sdk.Coins{msg.Amount})
@@ -61,14 +44,22 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 
 	bridgeBalance := new(big.Int).Set(k.bankKeeper.GetBalance(ctx, k.accountKeeper.GetModuleAddress(types.ModuleName), msg.Amount.Denom).Amount.BigInt())
-	truncAmount := new(big.Int).Set(msg.Amount.Amount.BigInt())
-	truncFees := new(big.Int).Set(feeBig)
+	amount := new(big.Int).Set(msg.Amount.Amount.BigInt())
+	fees := new(big.Int).Set(feeBig)
 
-	// Truncate if local decimals are > 8
-	if decimals > 8 {
-		truncAmount = truncAmount.Div(truncAmount, new(big.Int).SetInt64(int64(math.Pow10(int(decimals-8)))))
-		bridgeBalance = bridgeBalance.Div(bridgeBalance, new(big.Int).SetInt64(int64(math.Pow10(int(decimals-8)))))
-		truncFees = truncFees.Div(truncFees, new(big.Int).SetInt64(int64(math.Pow10(int(decimals-8)))))
+	truncAmount, err := types.Truncate(amount, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	truncFees, err := types.Truncate(fees, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	truncBridgeBalance, err := types.Truncate(bridgeBalance, meta)
+	if err != nil {
+		return nil, err
 	}
 
 	if !truncAmount.IsUint64() || !bridgeBalance.IsUint64() {
@@ -76,7 +67,7 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 
 	// Check that the total outflow of this asset does not exceed u64
-	if !new(big.Int).Add(truncAmount, bridgeBalance).IsUint64() {
+	if !new(big.Int).Add(truncAmount, truncBridgeBalance).IsUint64() {
 		return nil, types.ErrAmountTooHigh
 	}
 
@@ -90,21 +81,17 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 	tokenAmountBytes32 := tokenAmount.Bytes32()
 	buf.Write(tokenAmountBytes32[:])
-	// TokenAddress
-	denomBytes, err := PadStringToByte32(msg.Amount.Denom)
+	tokenChain, tokenAddress, err := types.GetTokenMeta(wormholeConfig, msg.Amount.Denom)
 	if err != nil {
-		return nil, types.ErrDenomTooLong
+		return nil, err
 	}
-	buf.Write(denomBytes)
+	// TokenAddress
+	buf.Write(tokenAddress[:])
 	// TokenChain
-	MustWrite(buf, binary.BigEndian, uint16(wormholeConfig.ChainId))
+	MustWrite(buf, binary.BigEndian, tokenChain)
 	// To
 	buf.Write(msg.ToAddress)
 	// ToChain
-	// TODO(csongor): why? chain id is uint16
-	if msg.ToChain > math.MaxUint8 {
-		return nil, types.ErrChainIDTooLarge
-	}
 	MustWrite(buf, binary.BigEndian, uint16(msg.ToChain))
 	// Fee
 	fee, overflow := uint256.FromBig(truncFees)
