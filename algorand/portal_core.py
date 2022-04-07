@@ -22,6 +22,7 @@ from pyteal import *
 from algosdk.logic import get_application_address
 
 from algosdk.future.transaction import LogicSigAccount
+from inspect import currentframe
 
 import pprint
 
@@ -57,9 +58,9 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
     def vaa_processor_program(seed_amt: int, tmpl_sig: TmplSig):
         blob = LocalBlob()
 
-        def MagicAssert(a, b) -> Expr:
+        def MagicAssert(a) -> Expr:
 #            return Assert(a)
-            return Assert(And(a, b))
+            return Assert(And(a, Int(currentframe().f_back.f_lineno)))
 
 
         @Subroutine(TealType.bytes)
@@ -128,7 +129,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
     
             return Seq(
                 # Make sure its a valid optin
-                MagicAssert(well_formed_optin, Int(131)),
+                MagicAssert(well_formed_optin),
                 # Init by writing to the full space available for the sender (Int(0))
                 blob.zero(Int(0)),
                 # we gucci
@@ -146,7 +147,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
             return Seq([
                 # Lets see if we were handed the correct account to store the sequence number in
-                MagicAssert(Txn.accounts[1] == get_sig_address(Int(0), Txn.sender()), Int(149)),
+                MagicAssert(Txn.accounts[1] == get_sig_address(Int(0), Txn.sender())),
 
                 fee.store(App.globalGet(Bytes("MessageFee"))),
                 If(fee.load() > Int(0), Seq([
@@ -155,7 +156,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                             pmt.amount() >= fee.load(),
                             pmt.receiver() == Global.current_application_address(),
                             pmt.rekey_to() == Global.zero_address()
-                        ), Int(158)),
+                        )),
                 ])),
 
                 # emitter sequence number
@@ -188,24 +189,24 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 set.store(App.globalGet(Bytes("currentGuardianSetIndex"))),
                 If(set.load() != Int(0), Seq([
                         idx.store(Extract(Txn.application_args[1], Int(1), Int(4))),
-                        MagicAssert(Btoi(idx.load()) == set.load(), Int(191)),
+                        MagicAssert(Btoi(idx.load()) == set.load()),
                 ])),
 
                 # The offset of the chain
                 off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), 
                 # Correct source chain? 
-                MagicAssert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001"), Int(197)),
+                MagicAssert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001")),
                 # Correct emitter?
-                MagicAssert(Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000004"), Int(199)),
+                MagicAssert(Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000004")),
                 # Get us to the payload
                 off.store(off.load() + Int(43)),
                 # Is this a governance message?
-                MagicAssert(Extract(Txn.application_args[1], off.load(), Int(32)) == Bytes("base16", "00000000000000000000000000000000000000000000000000000000436f7265"), Int(203)),
+                MagicAssert(Extract(Txn.application_args[1], off.load(), Int(32)) == Bytes("base16", "00000000000000000000000000000000000000000000000000000000436f7265")),
                 off.store(off.load() + Int(32)),
                 # What is the target of this governance message?
                 tchain.store(Extract(Txn.application_args[1], off.load() + Int(1), Int(2))),
                 # Needs to point at us or to all chains
-                MagicAssert(Or(tchain.load() == Bytes("base16", "0008"), tchain.load() == Bytes("base16", "0000")), Int(208)),
+                MagicAssert(Or(tchain.load() == Bytes("base16", "0008"), tchain.load() == Bytes("base16", "0000"))),
 
                 a.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
                 Cond( 
@@ -229,12 +230,12 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         idx.store(Btoi(v.load())),
 
                         # Lets see if the user handed us the correct memory... no hacky hacky
-                        MagicAssert(Txn.accounts[3] == get_sig_address(idx.load(), Bytes("guardian")), Int(232)), 
+                        MagicAssert(Txn.accounts[3] == get_sig_address(idx.load(), Bytes("guardian"))), 
 
                         # Make sure it is different and we can only walk forward
                         If(isBoot == Int(0), Seq(
-                                MagicAssert(Txn.accounts[3] != Txn.accounts[2], Int(236)),
-                                MagicAssert(idx.load() > (set.load()), Int(237))
+                                MagicAssert(Txn.accounts[3] != Txn.accounts[2]),
+                                MagicAssert(idx.load() > (set.load()))
                         )),
 
                         # Write this away till the next time
@@ -245,7 +246,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         len.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
 
                         # Lets not let us get bricked by somebody submitting a stupid guardian set...
-                        MagicAssert(len.load() > Int(0), Int(248)),  
+                        MagicAssert(len.load() > Int(0)),  
 
                         Pop(blob.write(Int(3), Int(0), Extract(Txn.application_args[1], off.load(), Int(1) + (Int(20) * len.load())))),
                         # Make this block expire.. as long as it is
@@ -259,14 +260,14 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     ])],
                     [a.load() == Int(3), Seq([
                         off.store(off.load() + Int(1)),
-                        MagicAssert(tchain.load() == Bytes("base16", "0008"), Int(262)),
+                        MagicAssert(tchain.load() == Bytes("base16", "0008")),
                         off.store(off.load() + Int(2) + Int(24)),
                         fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
                         App.globalPut(Bytes("MessageFee"), fee.load()),
                     ])],
                     [a.load() == Int(4), Seq([
                         off.store(off.load() + Int(1)),
-                        MagicAssert(tchain.load() == Bytes("base16", "0008"), Int(269)),
+                        MagicAssert(tchain.load() == Bytes("base16", "0008")),
                         off.store(off.load() + Int(26)),
                         fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
                         off.store(off.load() + Int(8)),
@@ -293,10 +294,10 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 App.globalPut(Bytes("vphash"), Txn.application_args[2]),
 
                 # You own it, you better never let it go
-                MagicAssert(Txn.sender() == Global.creator_address(), Int(296)),
+                MagicAssert(Txn.sender() == Global.creator_address()),
 
                 # You only get one shot, do not miss your chance to blow
-                MagicAssert(App.globalGet(Bytes("booted")) == Int(0), Int(299)),
+                MagicAssert(App.globalGet(Bytes("booted")) == Int(0)),
                 App.globalPut(Bytes("booted"), Bytes("true")),
 
                 # This opportunity comes once in a lifetime
@@ -322,7 +323,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
             return Seq(
                 # VM only is version 1
-                MagicAssert(Btoi(Extract(Txn.application_args[1], Int(0), Int(1))) == Int(1), Int(325)),
+                MagicAssert(Btoi(Extract(Txn.application_args[1], Int(0), Int(1))) == Int(1)),
 
                 off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), # The offset of the emitter
 
@@ -332,14 +333,14 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                 # They passed us the correct account?  In this case, byte_offset points at the whole block
                 byte_offset.store(sequence.load() / Int(max_bits)),
-                MagicAssert(Txn.accounts[1] == get_sig_address(byte_offset.load(), emitter.load()), Int(335)),
+                MagicAssert(Txn.accounts[1] == get_sig_address(byte_offset.load(), emitter.load())),
 
                 # Now, lets go grab the raw byte
                 byte_offset.store((sequence.load() / Int(8)) % Int(max_bytes)),
                 b.store(blob.get_byte(Int(1), byte_offset.load())),
 
                 # I would hope we've never seen this packet before...   throw an exception if we have
-                MagicAssert(GetBit(b.load(), sequence.load() % Int(8)) == Int(0), Int(342)),
+                MagicAssert(GetBit(b.load(), sequence.load() % Int(8)) == Int(0)),
 
                 # Lets mark this bit so that we never see it again
                 blob.set_byte(Int(1), byte_offset.load(), SetBit(b.load(), sequence.load() % Int(8), Int(1))),
@@ -364,7 +365,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
             return Seq([
                 # We have a guardian set?  We have OUR guardian set?
-                MagicAssert(Txn.accounts[2] == get_sig_address(Btoi(Extract(Txn.application_args[1], Int(1), Int(4))), Bytes("guardian")), Int(367)),
+                MagicAssert(Txn.accounts[2] == get_sig_address(Btoi(Extract(Txn.application_args[1], Int(1), Int(4))), Bytes("guardian"))),
                 blob.checkMeta(Int(2), Bytes("guardian")),
                 # Lets grab the total keyset
                 total_guardians.store(blob.get_byte(Int(2), Int(0))),
@@ -373,7 +374,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # I wonder if this is an expired guardian set
                 s.store(Btoi(blob.read(Int(2), Int(1000), Int(1008)))),
                 If(s.load() != Int(0),
-                   MagicAssert(Txn.first_valid() < s.load(), Int(376))),
+                   MagicAssert(Txn.first_valid() < s.load())),
 
                 hits.store(Bytes("base16", "0x00000000")),
 
@@ -389,7 +390,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     total_guardians.load() > Int(0),
                     num_sigs.load() <= total_guardians.load(),
                     num_sigs.load() > ((total_guardians.load() * Int(2)) / Int(3)),
-                    ), Int(392)),
+                    )),
 
 
                 # Point it at the start of the signatures in the VAA
@@ -405,7 +406,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                 Gtxn[i.load()].application_id() == Txn.application_id(),
                                 Gtxn[i.load()].accounts[1] == Txn.accounts[1],
                                 Gtxn[i.load()].accounts[2] == Txn.accounts[2],
-                            ), Int(408)),
+                            )),
                             a.store(Gtxn[i.load()].application_args[0]),
                             Cond(
                                 [a.load() == Bytes("verifySigs"), Seq([
@@ -416,7 +417,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                                     # Look at the vaa and confirm those were the expected signatures we should have been checking
                                     # at this point in the process
-                                    MagicAssert(Extract(Txn.application_args[1], off.load(), Len(s.load())) == s.load(), Int(419)),
+                                    MagicAssert(Extract(Txn.application_args[1], off.load(), Len(s.load())) == s.load()),
 
                                     # Where is the end pointer...
                                     eoff.store(off.load() + Len(s.load())),
@@ -427,7 +428,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                     While(off.load() < eoff.load()).Do(Seq( [
                                             # Lets see if we ever reuse the same signature more then once (same guardian over and over)
                                             guardian.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
-                                            MagicAssert(GetBit(hits.load(), guardian.load()) == Int(0), Int(430)),
+                                            MagicAssert(GetBit(hits.load(), guardian.load()) == Int(0)),
                                             hits.store(SetBit(hits.load(), guardian.load(), Int(1))),
 
                                             # This extracts out of the keys THIS guardian's public key
@@ -440,7 +441,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                         Gtxn[i.load()].application_args[2] == s.load(),      # Does the keyset passed into the verify routines match what it should be?
                                         Gtxn[i.load()].sender() == STATELESS_LOGIC_HASH,     # Was it signed with our code?
                                         Gtxn[i.load()].application_args[3] == digest.load()  # Was it verifying the same vaa?
-                                    ), Int(443)),
+                                    )),
                                     
                                 ])],
                                 [a.load() == Bytes("nop"), Seq([])],       # if there is a function call not listed here, it will throw an error
@@ -451,7 +452,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 ),
 
                 # Did we verify all the signatures?  If the answer is no, something is sus
-                MagicAssert(off.load() == Int(6) + (num_sigs.load() * Int(66)), Int(454)),
+                MagicAssert(off.load() == Int(6) + (num_sigs.load() * Int(66))),
 
                 Approve(),
             ])
@@ -478,7 +479,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     Gtxn[Txn.group_index() - Int(1)].accounts[0] == Txn.accounts[0],
                     Gtxn[Txn.group_index() - Int(1)].accounts[1] == Txn.accounts[1],
                     Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
-                ), Int(481)),
+                )),
                     
                 hdlGovernance(Int(0)),
                 Approve(),
@@ -516,13 +517,13 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             progSet.store(App.globalGet(Bytes("validUpdateApproveHash"))),
             Log(progHash.load()),
             Log(progSet.load()),
-            MagicAssert(progHash.load() == progSet.load(), Int(519)),
+            MagicAssert(progHash.load() == progSet.load()),
 
             clearHash.store(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
             clearSet.store(App.globalGet(Bytes("validUpdateClearHash"))),
             Log(clearHash.load()),
             Log(clearSet.load()),
-            MagicAssert(clearHash.load() == clearSet.load(), Int(525)),
+            MagicAssert(clearHash.load() == clearSet.load()),
 
             Return(Int(1))
         ] )

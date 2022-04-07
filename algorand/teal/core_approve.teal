@@ -1,5 +1,5 @@
 #pragma version 6
-intcblock 1 0 127 2 1000 197 199 203 208 269 262 232 248 19200 236 237 191 128 255 1002000
+intcblock 1 0 127 2 1000 198 200 204 209 270 263 233 249 19200 237 238 192 128 255 1002000
 bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x766572696679564141 0x767068617368 0x50726f6772616d 0x7075626c6973684d657373616765 0x6e6f70 0x76657269667953696773 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368 0x6d657461
 txn ApplicationID
 intc_1 // 0
@@ -122,7 +122,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 481 // 481
+pushint 464 // 464
 &&
 assert
 bytec_3 // "currentGuardianSetIndex"
@@ -147,7 +147,7 @@ intc_3 // 2
 extract3
 bytec 12 // 0x0001
 ==
-intc 5 // 197
+intc 5 // 198
 &&
 assert
 txna ApplicationArgs 1
@@ -158,7 +158,7 @@ pushint 32 // 32
 extract3
 bytec 13 // 0x0000000000000000000000000000000000000000000000000000000000000004
 ==
-intc 6 // 199
+intc 6 // 200
 &&
 assert
 load 22
@@ -171,7 +171,7 @@ pushint 32 // 32
 extract3
 bytec 14 // 0x00000000000000000000000000000000000000000000000000000000436f7265
 ==
-intc 7 // 203
+intc 7 // 204
 &&
 assert
 load 22
@@ -192,7 +192,7 @@ load 30
 bytec 15 // 0x0000
 ==
 ||
-intc 8 // 208
+intc 8 // 209
 &&
 assert
 txna ApplicationArgs 1
@@ -226,7 +226,7 @@ store 22
 load 30
 bytec_1 // 0x0008
 ==
-intc 9 // 269
+intc 9 // 270
 &&
 assert
 load 22
@@ -271,7 +271,7 @@ store 22
 load 30
 bytec_1 // 0x0008
 ==
-intc 10 // 262
+intc 10 // 263
 &&
 assert
 load 22
@@ -308,7 +308,7 @@ load 26
 bytec_2 // "guardian"
 callsub getsigaddress_9
 ==
-intc 11 // 232
+intc 11 // 233
 &&
 assert
 intc_1 // 0
@@ -332,7 +332,7 @@ store 28
 load 28
 intc_1 // 0
 >
-intc 12 // 248
+intc 12 // 249
 &&
 assert
 pushint 3 // 3
@@ -370,13 +370,13 @@ main_l26:
 txna Accounts 3
 txna Accounts 2
 !=
-intc 14 // 236
+intc 14 // 237
 &&
 assert
 load 26
 load 27
 >
-intc 15 // 237
+intc 15 // 238
 &&
 assert
 b main_l23
@@ -400,7 +400,7 @@ load 26
 btoi
 load 27
 ==
-intc 16 // 191
+intc 16 // 192
 &&
 assert
 b main_l14
@@ -412,7 +412,7 @@ btoi
 bytec_2 // "guardian"
 callsub getsigaddress_9
 ==
-pushint 367 // 367
+pushint 368 // 368
 &&
 assert
 intc_3 // 2
@@ -479,7 +479,7 @@ pushint 3 // 3
 /
 >
 &&
-pushint 392 // 392
+pushint 389 // 389
 &&
 assert
 pushint 6 // 6
@@ -498,7 +498,7 @@ pushint 66 // 66
 *
 +
 ==
-pushint 454 // 454
+pushint 455 // 455
 &&
 assert
 intc_0 // 1
@@ -528,7 +528,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 408 // 408
+pushint 403 // 403
 &&
 assert
 load 11
@@ -571,7 +571,7 @@ len
 extract3
 load 19
 ==
-pushint 419 // 419
+pushint 420 // 420
 &&
 assert
 load 16
@@ -601,7 +601,7 @@ gtxnsa ApplicationArgs 3
 load 17
 ==
 &&
-pushint 443 // 443
+pushint 440 // 440
 &&
 assert
 b main_l39
@@ -617,7 +617,7 @@ load 21
 getbit
 intc_1 // 0
 ==
-pushint 430 // 430
+pushint 431 // 431
 &&
 assert
 load 18
@@ -643,7 +643,7 @@ main_l44:
 txn FirstValid
 load 19
 <
-pushint 376 // 376
+pushint 377 // 377
 &&
 assert
 b main_l30
@@ -657,14 +657,14 @@ app_global_put
 txn Sender
 global CreatorAddress
 ==
-pushint 296 // 296
+pushint 297 // 297
 &&
 assert
 bytec 16 // "booted"
 app_global_get
 intc_1 // 0
 ==
-pushint 299 // 299
+pushint 300 // 300
 &&
 assert
 bytec 16 // "booted"
@@ -693,7 +693,7 @@ intc_3 // 2
 extract3
 bytec 12 // 0x0001
 ==
-intc 5 // 197
+intc 5 // 198
 &&
 assert
 txna ApplicationArgs 1
@@ -704,7 +704,7 @@ pushint 32 // 32
 extract3
 bytec 13 // 0x0000000000000000000000000000000000000000000000000000000000000004
 ==
-intc 6 // 199
+intc 6 // 200
 &&
 assert
 load 2
@@ -717,7 +717,7 @@ pushint 32 // 32
 extract3
 bytec 14 // 0x00000000000000000000000000000000000000000000000000000000436f7265
 ==
-intc 7 // 203
+intc 7 // 204
 &&
 assert
 load 2
@@ -738,7 +738,7 @@ load 10
 bytec 15 // 0x0000
 ==
 ||
-intc 8 // 208
+intc 8 // 209
 &&
 assert
 txna ApplicationArgs 1
@@ -772,7 +772,7 @@ store 2
 load 10
 bytec_1 // 0x0008
 ==
-intc 9 // 269
+intc 9 // 270
 &&
 assert
 load 2
@@ -815,7 +815,7 @@ store 2
 load 10
 bytec_1 // 0x0008
 ==
-intc 10 // 262
+intc 10 // 263
 &&
 assert
 load 2
@@ -852,7 +852,7 @@ load 6
 bytec_2 // "guardian"
 callsub getsigaddress_9
 ==
-intc 11 // 232
+intc 11 // 233
 &&
 assert
 intc_0 // 1
@@ -876,7 +876,7 @@ store 8
 load 8
 intc_1 // 0
 >
-intc 12 // 248
+intc 12 // 249
 &&
 assert
 pushint 3 // 3
@@ -914,13 +914,13 @@ main_l59:
 txna Accounts 3
 txna Accounts 2
 !=
-intc 14 // 236
+intc 14 // 237
 &&
 assert
 load 6
 load 7
 >
-intc 15 // 237
+intc 15 // 238
 &&
 assert
 b main_l56
@@ -944,7 +944,7 @@ load 6
 btoi
 load 7
 ==
-intc 16 // 191
+intc 16 // 192
 &&
 assert
 b main_l47
@@ -957,7 +957,7 @@ intc_1 // 0
 txn Sender
 callsub getsigaddress_9
 ==
-pushint 149 // 149
+pushint 150 // 150
 &&
 assert
 bytec 4 // "MessageFee"
@@ -1017,7 +1017,7 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
-pushint 158 // 158
+pushint 154 // 154
 &&
 assert
 b main_l64
@@ -1043,7 +1043,7 @@ log
 load 31
 load 32
 ==
-pushint 519 // 519
+pushint 520 // 520
 &&
 assert
 bytec 8 // "Program"
@@ -1061,7 +1061,7 @@ log
 load 33
 load 34
 ==
-pushint 525 // 525
+pushint 526 // 526
 &&
 assert
 intc_0 // 1
@@ -1468,7 +1468,7 @@ gtxn 1 ApplicationID
 global CurrentApplicationID
 ==
 &&
-pushint 131 // 131
+pushint 132 // 132
 &&
 assert
 intc_1 // 0
@@ -1483,7 +1483,7 @@ extract 0 1
 btoi
 intc_0 // 1
 ==
-pushint 325 // 325
+pushint 326 // 326
 &&
 assert
 txna ApplicationArgs 1
@@ -1516,7 +1516,7 @@ load 68
 load 65
 callsub getsigaddress_9
 ==
-pushint 335 // 335
+pushint 336 // 336
 &&
 assert
 load 66
@@ -1536,7 +1536,7 @@ pushint 8 // 8
 getbit
 intc_1 // 0
 ==
-pushint 342 // 342
+pushint 343 // 343
 &&
 assert
 intc_0 // 1

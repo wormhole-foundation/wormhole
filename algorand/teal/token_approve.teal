@@ -150,7 +150,7 @@ pushbytes 0x04 // 0x04
 concat
 ==
 &&
-pushint 246 // 246
+pushint 224 // 224
 &&
 assert
 load 68
@@ -279,7 +279,7 @@ bytec_3 // "native"
 callsub getsigaddress_14
 ==
 &&
-pushint 798 // 798
+pushint 795 // 795
 &&
 assert
 itxn_begin
@@ -320,7 +320,7 @@ len
 pushint 32 // 32
 <=
 &&
-pushint 662 // 662
+pushint 655 // 655
 &&
 assert
 txna ApplicationArgs 1
@@ -363,7 +363,7 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
-pushint 696 // 696
+pushint 689 // 689
 &&
 assert
 load 25
@@ -437,7 +437,7 @@ len
 pushint 32 // 32
 <=
 &&
-pushint 752 // 752
+pushint 748 // 748
 &&
 assert
 txn NumAppArgs
@@ -612,7 +612,7 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
-pushint 681 // 681
+pushint 675 // 675
 &&
 assert
 load 25
@@ -689,7 +689,7 @@ intc_0 // 1
 txn GroupIndex
 ==
 &&
-pushint 475 // 475
+pushint 457 // 457
 &&
 assert
 txna ApplicationArgs 1
@@ -858,7 +858,7 @@ load 49
 callsub getsigaddress_14
 ==
 &&
-pushint 568 // 568
+pushint 564 // 564
 &&
 assert
 main_l48:
@@ -1201,7 +1201,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 318 // 318
+pushint 303 // 303
 &&
 assert
 txn GroupIndex
@@ -1232,7 +1232,7 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
-pushint 328 // 328
+pushint 321 // 321
 &&
 assert
 txn GroupIndex
@@ -1263,7 +1263,7 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
-pushint 338 // 338
+pushint 331 // 331
 &&
 assert
 txn GroupIndex
@@ -1300,7 +1300,7 @@ intc_0 // 1
 txn GroupIndex
 ==
 &&
-pushint 349 // 349
+pushint 341 // 341
 &&
 assert
 txna ApplicationArgs 1
@@ -1333,7 +1333,7 @@ intc_2 // 2
 pushint 32 // 32
 extract3
 ==
-pushint 356 // 356
+pushint 355 // 355
 &&
 assert
 load 27
@@ -1882,7 +1882,7 @@ gtxns Amount
 load 26
 >=
 &&
-pushint 92 // 92
+pushint 86 // 86
 &&
 assert
 checkFeePmt_9_l2:
