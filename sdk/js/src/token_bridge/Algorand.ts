@@ -34,7 +34,8 @@ import { TextEncoder, inspect } from "util";
 import { ChainId } from "../utils/consts";
 import IndexerClient from "algosdk/dist/types/src/client/v2/indexer/indexer";
 
-export let ALGO_TOKEN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+export let ALGO_TOKEN =
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 export let ALGOD_ADDRESS: string = "http://localhost";
 export let ALGOD_PORT: number = 4001;
 export let CORE_ID: number = 4;
@@ -248,7 +249,14 @@ export async function attestFromAlgorand(
     const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
     const aa: string = uint8ArrayToHexString(decTbAddr, false);
     console.log("Getting emitter address...");
-    const emitterAddr: string = await optin(client, senderAcct, CORE_ID, 0, aa, "attestFromAlgorand::emitterAddr");
+    const emitterAddr: string = await optin(
+        client,
+        senderAcct,
+        CORE_ID,
+        0,
+        aa,
+        "attestFromAlgorand::emitterAddr"
+    );
     console.log("Got emitter address...");
     const acctInfo = await client.accountInformation(senderAcct.addr).do();
     console.log("Got sender account info...", acctInfo);
@@ -339,23 +347,7 @@ export async function attestFromAlgorand(
     }
     txns.push(appTxn);
     await simpleSignVAA(client, senderAcct, txns);
-    // assignGroupID(txns);
-    // // The transactions need to be a group first before signing them
-    // let signedTxns: Uint8Array[] = [];
-    // txns.forEach((t) => {
-    //     signedTxns.push(t.signTxn(senderAcct.sk));
-    // });
-    // console.log("Sending raw txns...", signedTxns.length);
-    // const { txId } = await client.sendRawTransaction(signedTxns).do();
-    // // wait for transaction to be confirmed
-    // console.log("Waiting for confirmation...");
-    // const ptx = await waitForConfirmation(
-    //     client,
-    //     txns[txns.length - 1].txID(),
-    //     1
-    // );
 
-    // return txId;
     return txns[txns.length - 1].txID();
 }
 
@@ -383,7 +375,6 @@ export async function accountExists(
             acctInfo
         );
         const als: Record<string, any>[] = acctInfo["apps-local-state"];
-        console.log("als:", als);
         if (!als) {
             return ret;
         }
@@ -399,8 +390,7 @@ export async function accountExists(
         console.error("Failed to check for account existence:", e);
     }
 
-    if (ret) console.log("returning true");
-    else console.log("returning false");
+    console.log("returning", ret);
     return ret;
 }
 
@@ -412,7 +402,7 @@ export async function optin(
     emitterId: string,
     why: string
 ): Promise<string> {
-   console.log("optin called with ", appIndex, emitterId, why)
+    console.log("optin called with ", appIndex, emitterId, why);
 
     // This is the application address associated with the application ID
     const appAddr: string = getApplicationAddress(appId);
@@ -432,7 +422,12 @@ export async function optin(
     const sigAddr: string = lsa.address();
 
     // Check to see if we need to create this
-    console.log("Checking to see if account exists...", appIndex, "-", emitterId);
+    console.log(
+        "Checking to see if account exists...",
+        appIndex,
+        "-",
+        emitterId
+    );
     const retval: boolean = await accountExists(client, appId, sigAddr);
     if (!retval) {
         console.log("Account does not exist.");
@@ -472,7 +467,14 @@ export async function optin(
         console.log("Signing rekey for optin...");
         const signedRekeyTxn = signLogicSigTransaction(rekeyTxn, lsa);
 
-        console.log("Sending txns for optin...", appIndex, "-", emitterId, "-", sigAddr);
+        console.log(
+            "Sending txns for optin...",
+            appIndex,
+            "-",
+            emitterId,
+            "-",
+            sigAddr
+        );
         const txnId = await client
             .sendRawTransaction([
                 signedSeedTxn,
@@ -481,7 +483,12 @@ export async function optin(
             ])
             .do();
 
-        console.log("Awaiting confirmation for optin...", appIndex, "-", emitterId);
+        console.log(
+            "Awaiting confirmation for optin...",
+            appIndex,
+            "-",
+            emitterId
+        );
         const confirmedTxns = await algosdk.waitForConfirmation(
             client,
             txns[txns.length - 1].txID(),
@@ -777,8 +784,10 @@ export async function submitVAAHdr(
 ): Promise<SubmitVAAState> {
     // A lot of our logic here depends on parseVAA and knowing what the payload is..
     const parsedVAA: Map<string, any> = parseVAA(vaa);
-    console.log(Number(parsedVAA.get("sequence")))
-    const seq: number = Math.floor((Number(parsedVAA.get("sequence"))) / MAX_BITS);
+    console.log(Number(parsedVAA.get("sequence")));
+    const seq: number = Math.floor(
+        Number(parsedVAA.get("sequence")) / MAX_BITS
+    );
     const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
     const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
     const index: number = parsedVAA.get("index");
@@ -906,7 +915,7 @@ export async function simpleSignVAA(
     sender: Account,
     txns: Array<algosdk.Transaction>
 ) {
-    console.log("simpleSignVAA")
+    console.log("simpleSignVAA");
     //    console.log(txns)
     assignGroupID(txns);
     const signedTxns: Uint8Array[] = [];
@@ -933,18 +942,30 @@ export async function simpleSignVAA(
 
     //    console.log("waiting for confirmation", txns[txns.length-1].txID())
     const ret: string[] = [];
-    console.log("waitForConfirmation...")
+    console.log("waitForConfirmation...");
     const response = await waitForConfirmation(
         client,
         txns[txns.length - 1].txID(),
         1
     );
-    console.log(".. done")
+    console.log(".. done");
 
-    //    console.log("submitVAA confirmation", response);
+    console.log("submitVAA confirmation", response);
     if (response["logs"]) {
         ret.push(response["logs"]);
     }
+    ret.forEach((log) => {
+        console.log("logs:", log);
+    });
+
+    // Testing getIsCompleted hack
+    const isComplete: boolean = await getIsTransferCompletedAlgorand(
+        client,
+        signedTxns[0],
+        TOKEN_BRIDGE_ID,
+        sender
+    );
+    console.log("getIsTransferCompletedAlgorand result =", isComplete);
     return ret;
 }
 
@@ -961,7 +982,7 @@ export async function submitVAA(
     client: Algodv2,
     sender: Account,
     appid: number
-) {
+): Promise<string[]> {
     let sstate = await submitVAAHdr(vaa, client, sender, appid);
 
     let parsedVAA = sstate.vaaMap;
@@ -1175,10 +1196,10 @@ export async function submitVAA(
         }
     }
 
-    console.log("simpleSignVAA start")
+    console.log("simpleSignVAA start");
     let ret = await simpleSignVAA(client, sender, txns);
-    console.log("simpleSignVAA done")
-    return ret
+    console.log("simpleSignVAA done");
+    return ret;
 }
 
 export async function getVAA(
@@ -1355,7 +1376,14 @@ export async function transferAsset(
     }
     if (!wormhole) {
         const bNat = Buffer.from("native", "binary").toString("hex");
-        creator = await optin(client, sender, TOKEN_BRIDGE_ID, assetId, bNat, "creator");
+        creator = await optin(
+            client,
+            sender,
+            TOKEN_BRIDGE_ID,
+            assetId,
+            bNat,
+            "creator"
+        );
     }
     if (assetId != 0 && !assetOptinCheck(client, assetId, creator)) {
         // Looks like we need to optin
@@ -1470,6 +1498,57 @@ export async function redeemOnAlgorand(
     return await submitVAA(vaa, client, acct, tokenId);
 }
 
+/**
+ * <p>This function is used to check if a VAA has been redeemed by looking at a specific bit.<p>
+ * @param client AlgodV2 client
+ * @param appId Application Id
+ * @param addr Some address. TODO:  What is the relationship to the VAA?
+ * @param seq The sequence number of the redemption
+ * @returns true, if the bit was set and VAA was redeemed, false otherwise.
+ */
+async function checkBitsSet(
+    client: Algodv2,
+    appId: number,
+    addr: string,
+    seq: bigint
+): Promise<boolean> {
+    let retval: boolean = false;
+    let appState: any[] = [];
+    const acctInfo = await client.accountInformation(addr).do();
+    const als = acctInfo["apps-local-state"];
+    als.forEach((app: any) => {
+        if (app["id"] === appId) {
+            appState = app["key-value"];
+        }
+    });
+    if (appState.length === 0) {
+        console.log("appState is empty");
+        return retval;
+    }
+
+    const BIG_MAX_BITS: bigint = BigInt(MAX_BITS);
+    const BIG_EIGHT: bigint = BigInt(8);
+    // Start on a MAX_BITS boundary
+    const start: bigint = (seq / BIG_MAX_BITS) * BIG_MAX_BITS;
+    // beg should be in the range [0..MAX_BITS]
+    const beg: number = Number(seq - start);
+    // s should be in the range [0..15]
+    const s: number = Math.floor(beg / BITS_PER_KEY);
+    const b: number = Math.floor((beg - s * BITS_PER_KEY) / 8);
+
+    const key = Buffer.from(bigIntToBytes(s, 8)).toString("base64");
+    console.log("key:", key);
+    appState.forEach((kv) => {
+        if (kv["key"] === key) {
+            const v = Buffer.from(kv["value"]["bytes"], "base64");
+            const bt = 1 << Number(seq % BIG_EIGHT);
+            retval = (v[b] & bt) != 0;
+            return;
+        }
+    });
+    return retval;
+}
+
 /////////// These need to be written
 
 export async function getForeignAssetAlgorand(
@@ -1488,15 +1567,45 @@ export async function getForeignAssetAlgorand(
     return retVal;
 }
 
-export function getIsTransferCompletedAlgorand(
+/**
+ *
+ * @param client AlgodV2 client
+ * @param signedVAA VAA to check
+ * @param appId Most likely the Token bridge ID
+ * @param wallet The account paying the bill for this (it isn't free)
+ * @returns true if VAA has been redeemed, false otherwise
+ */
+export async function getIsTransferCompletedAlgorand(
     client: Algodv2,
     signedVAA: Uint8Array,
-    tokenBridgeAddr: string
-): boolean {
-    let retVal: boolean = false;
-    // TODO:
-    // get txn from the guardian who gets it from the indexer
-    // if (txn.innerTxn.confirmed-round > 0) retval=true;
+    appId: number,
+    wallet: Account
+): Promise<boolean> {
+    const parsedVAA: Map<string, any> = parseVAA(signedVAA);
+    console.log(Number(parsedVAA.get("sequence")));
+    const seq: number = Math.floor(
+        Number(parsedVAA.get("sequence")) / MAX_BITS
+    );
+    const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
+    const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
+    const index: number = parsedVAA.get("index");
+    console.log(parsedVAA);
+
+    const seqAddr: string = await optin(
+        client,
+        wallet,
+        appId,
+        seq,
+        chainRaw + em,
+        "Getting seqAddr from getIsTransferCompletedAlgorand"
+    );
+    console.log("seqAddr:", seqAddr);
+    const retVal: boolean = await checkBitsSet(
+        client,
+        appId,
+        seqAddr,
+        BigInt(seq)
+    );
     return retVal;
 }
 
