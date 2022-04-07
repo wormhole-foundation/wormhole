@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"time"
+
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -259,9 +260,6 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 
 	// Calculate digest for logging
 	digest := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
 	hash := hex.EncodeToString(digest.Bytes())
 
 	if p.gs == nil {
