@@ -10,7 +10,8 @@ import  {
     submitVAAHdr, 
     simpleSignVAA, 
     parseVAA, 
-    CORE_ID
+    CORE_ID,
+    TOKEN_BRIDGE_ID
 } from "../../sdk/js/src/token_bridge/Algorand";
 
 import {
@@ -62,11 +63,13 @@ class AlgoTests {
         seq = seq + 1
 
 
-//        console.log("registering solana")
-//        let reg = testLib.genRegisterChain(guardianPrivKeys, 1, 1, seq, 1)
-//        console.log(upgradeVAA)
-//        submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
-//        seq++;
+        console.log("registering solana")
+        let reg = testLib.genRegisterChain(guardianPrivKeys, 2, 1, seq, 2)
+        console.log(reg)
+        submitVAA(hexStringToUint8Array(reg), client, player, TOKEN_BRIDGE_ID)
+
+        seq = seq + 1
+
     }
 };
 
