@@ -42,6 +42,7 @@ var tokensToSkip = map[string]bool{
 	"0x358aa13c52544eccef6b0add0f801012adad5ee3": true,
 	"0xbe32b7acd03bcc62f25ebabd169a35e69ef17601": true,
 	"0x7ffb3d637014488b63fb9858e279385685afc1e2": true,
+	"0x337dc89ebcc33a337307d58a51888af92cfdc81b": true,
 }
 
 // days to be excluded from the TVL result

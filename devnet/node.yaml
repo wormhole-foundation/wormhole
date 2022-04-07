@@ -85,6 +85,8 @@ spec:
             - ws://eth-devnet:8545
             - --acalaRPC
             - ws://eth-devnet:8545
+            - --klaytnRPC
+            - ws://eth-devnet:8545
             - --terraWS
             - ws://terra-terrad:26657/websocket
             - --terraLCD

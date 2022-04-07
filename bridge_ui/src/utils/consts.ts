@@ -319,13 +319,13 @@ export const KARURA_HOST =
   CLUSTER === "mainnet"
     ? ""
     : CLUSTER === "testnet"
-    ? "http://103.253.145.222:8545"
+    ? "https://karura-dev.aca-dev.network/eth/http"
     : "";
 export const ACALA_HOST =
   CLUSTER === "mainnet"
     ? ""
     : CLUSTER === "testnet"
-    ? "http://157.245.252.103:8545"
+    ? "https://acala-dev.aca-dev.network/eth/http"
     : "";
 export const ETH_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
@@ -767,6 +767,22 @@ export const WFTM_ADDRESS =
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WFTM_DECIMALS = 18;
 
+export const KAR_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000100000000000000000080"
+    : CLUSTER === "testnet"
+    ? "0x0000000000000000000100000000000000000080"
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const KAR_DECIMALS = 12;
+
+export const ACA_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000100000000000000000000"
+    : CLUSTER === "testnet"
+    ? "0x0000000000000000000100000000000000000000"
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const ACA_DECIMALS = 12;
+
 export const WORMHOLE_V1_ETH_ADDRESS =
   CLUSTER === "mainnet"
     ? "0xf92cD566Ea4864356C5491c177A430C222d7e678"
@@ -1131,3 +1147,76 @@ export const getIsTransferDisabled = (
     ? !isSourceChain
     : !!disableTransfers;
 };
+
+export const LUNA_ADDRESS = "uluna";
+export const UST_ADDRESS = "uusd";
+export type RelayAsset = {
+  chain: ChainId;
+  address: string;
+  coinGeckoId: string;
+};
+// export const RELAYER_SUPPORTED_ASSETS: RelayAsset[] =
+//   CLUSTER === "mainnet"
+//     ? [{ chain: CHAIN_ID_SOLANA, address: WSOL_ADDRESS, coinGeckoId: "solana" }]
+//     : CLUSTER === "testnet"
+//     ? [{ chain: CHAIN_ID_SOLANA, address: WSOL_ADDRESS, coinGeckoId: "solana" }]
+//     : [
+//         {
+//           chain: CHAIN_ID_SOLANA,
+//           address: WSOL_ADDRESS,
+//           coinGeckoId: "solana",
+//         },
+//         { chain: CHAIN_ID_ETH, address: WETH_ADDRESS, coinGeckoId: "ethereum" },
+//         {
+//           chain: CHAIN_ID_TERRA,
+//           address: LUNA_ADDRESS,
+//           coinGeckoId: "terra-luna",
+//         },
+//         {
+//           chain: CHAIN_ID_TERRA,
+//           address: UST_ADDRESS,
+//           coinGeckoId: "terrausd",
+//         },
+//         {
+//           chain: CHAIN_ID_BSC,
+//           address: WETH_ADDRESS,
+//           coinGeckoId: "binancecoin",
+//         },
+//       ];
+
+export type RelayerCompareAsset = {
+  [key in ChainId]: string;
+};
+export const RELAYER_COMPARE_ASSET: RelayerCompareAsset = {
+  [CHAIN_ID_SOLANA]: "solana",
+  [CHAIN_ID_ETH]: "ethereum",
+  [CHAIN_ID_TERRA]: "terra-luna",
+  [CHAIN_ID_BSC]: "binancecoin",
+  [CHAIN_ID_POLYGON]: "matic-network",
+  [CHAIN_ID_AVAX]: "avalanche-2",
+  [CHAIN_ID_OASIS]: "oasis-network",
+  [CHAIN_ID_FANTOM]: "fantom",
+} as RelayerCompareAsset;
+export const getCoinGeckoURL = (coinGeckoId: string) =>
+  `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`;
+
+export const RELAYER_INFO_URL =
+  CLUSTER === "mainnet"
+    ? "https://raw.githubusercontent.com/certusone/wormhole-relayer-list/main/relayer.json"
+    : CLUSTER === "testnet"
+    ? ""
+    : "/relayerExample.json";
+
+export const RELAY_URL_EXTENSION = "/relayvaa/";
+
+// also for karura
+export const ACALA_RELAYER_URL =
+  CLUSTER === "mainnet"
+    ? ""
+    : CLUSTER === "testnet"
+    ? "https://karura-dev.aca-dev.network/eth/relayer"
+    : // ? "http://localhost:3111"
+      "";
+
+export const ACALA_RELAY_URL = `${ACALA_RELAYER_URL}/relay`;
+export const ACALA_SHOULD_RELAY_URL = `${ACALA_RELAYER_URL}/shouldRelay`;

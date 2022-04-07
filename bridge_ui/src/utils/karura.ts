@@ -11,7 +11,12 @@ export async function getKaruraGasParams(rpc: string): Promise<{
       id: 0,
       jsonrpc: "2.0",
       method: "eth_getEthGas",
-      params: [gasLimit, storageLimit],
+      params: [
+        {
+          gasLimit,
+          storageLimit,
+        },
+      ],
     })
   ).data.result;
 

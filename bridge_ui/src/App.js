@@ -38,6 +38,7 @@ import Recovery from "./components/Recovery";
 import Stats from "./components/Stats";
 import TokenOriginVerifier from "./components/TokenOriginVerifier";
 import Transfer from "./components/Transfer";
+import UnwrapNative from "./components/UnwrapNative";
 import WithdrawTokensTerra from "./components/WithdrawTokensTerra";
 import { useBetaContext } from "./contexts/BetaContext";
 import Portal from "./icons/portal_logo.svg";
@@ -365,6 +366,9 @@ function App() {
           </Route>
           <Route exact path="/withdraw-tokens-terra">
             <WithdrawTokensTerra />
+          </Route>
+          <Route exact path="/unwrap-native">
+            <UnwrapNative />
           </Route>
           <Route>
             <Redirect to="/transfer" />

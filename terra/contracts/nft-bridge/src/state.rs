@@ -122,8 +122,7 @@ pub struct TokenBridgeMessage {
 }
 
 impl TokenBridgeMessage {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let action = data.get_u8(0);
         let payload = &data[1..];
 
@@ -166,6 +165,11 @@ impl<T, const N: usize> BoundedVec<T, N> {
     pub fn len(&self) -> usize {
         self.vec.len()
     }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -181,8 +185,7 @@ pub struct TransferInfo {
 }
 
 impl TransferInfo {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let mut offset: usize = 0; // offset into data in bytes
         let nft_address = data.get_const_bytes::<32>(offset);
         offset += 32;
@@ -250,16 +253,14 @@ pub struct RegisterChain {
 }
 
 impl UpgradeContract {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let new_contract = data.get_u64(24);
         Ok(UpgradeContract { new_contract })
     }
 }
 
 impl RegisterChain {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let chain_id = data.get_u16(0);
         let chain_address = data[2..].to_vec();
 

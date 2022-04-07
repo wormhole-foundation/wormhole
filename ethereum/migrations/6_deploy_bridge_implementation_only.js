@@ -7,6 +7,7 @@
 // e.g. Polygon
 // MNEMONIC="" npm run deploy-bridge-implementation-only -- --network polygon
 const BridgeImplementation = artifacts.require("BridgeImplementation");
-module.exports = async function(deployer) {
+module.exports = async function(deployer, network) {
+  if (network === "test") return;
   await deployer.deploy(BridgeImplementation);
 };

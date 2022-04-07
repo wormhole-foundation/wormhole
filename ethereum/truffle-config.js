@@ -8,6 +8,12 @@ module.exports = {
       port: 8545,
       network_id: "*",
     },
+    // test network is the same as development but allows us to omit certain migrations
+    test: {
+      host: "127.0.0.1",
+      port: 8545,
+      network_id: "*",
+    },
     mainnet: {
       provider: () =>
         new HDWalletProvider(
@@ -56,10 +62,11 @@ module.exports = {
       gasPrice: 8000000000,
     },
     binance_testnet: {
-      provider: () => new HDWalletProvider(
-        process.env.MNEMONIC,
-        "https://data-seed-prebsc-1-s1.binance.org:8545/"
-      ),
+      provider: () =>
+        new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://data-seed-prebsc-1-s1.binance.org:8545/"
+        ),
       network_id: "97",
       gas: 70000000,
       gasPrice: 8000000000,
@@ -79,7 +86,8 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY)
+          "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY
+        );
       },
       network_id: "80001",
     },
@@ -95,10 +103,11 @@ module.exports = {
       gasPrice: 26000000000,
     },
     fuji: {
-      provider: () => new HDWalletProvider(
-        process.env.MNEMONIC,
-        "https://api.avax-test.network/ext/bc/C/rpc"
-      ),
+      provider: () =>
+        new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://api.avax-test.network/ext/bc/C/rpc"
+        ),
       network_id: "43113",
     },
     oasis: {
@@ -126,7 +135,7 @@ module.exports = {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://testnet.aurora.dev"
-        )
+        );
       },
       network_id: 0x4e454153,
       gas: 10000000,
@@ -137,7 +146,7 @@ module.exports = {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://rpc.ftm.tools/"
-        )
+        );
       },
       network_id: 250,
       gas: 8000000,
@@ -149,7 +158,7 @@ module.exports = {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://rpc.testnet.fantom.network/"
-        )
+        );
       },
       network_id: 0xfa2,
       gas: 4465030,
@@ -178,6 +187,17 @@ module.exports = {
       gasPrice: 202184721385,
       gasLimit: 213192000,
       gas: 213192000,
+    },
+    klaytn_testnet: { // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://api.baobab.klaytn.net:8651/"
+        );
+      },
+      network_id: '1001',
+      gas: '8500000',
+      gasPrice: null
     },
   },
 

@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { useHandleNFTRedeem } from "../../hooks/useHandleNFTRedeem";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import { selectNFTTargetChain } from "../../store/selectors";
+import { CLUSTER } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import SolanaTPSWarning from "../SolanaTPSWarning";
@@ -21,7 +22,9 @@ function Redeem() {
       {targetChain === CHAIN_ID_TERRA && (
         <TerraFeeDenomPicker disabled={disabled} />
       )}
-      {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+      {targetChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+        <SolanaTPSWarning />
+      )}
       <ButtonWithLoader
         disabled={!isReady || disabled}
         onClick={handleClick}

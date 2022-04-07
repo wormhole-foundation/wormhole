@@ -1,8 +1,10 @@
 import { makeStyles, Typography } from "@material-ui/core";
+import numeral from "numeral";
 import { useSelector } from "react-redux";
 import {
   selectSourceWalletAddress,
   selectTransferAmount,
+  selectTransferRelayerFee,
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccount,
 } from "../../store/selectors";
@@ -23,11 +25,17 @@ export default function SourcePreview() {
   );
   const sourceWalletAddress = useSelector(selectSourceWalletAddress);
   const sourceAmount = useSelector(selectTransferAmount);
+  const relayerFee = useSelector(selectTransferRelayerFee);
 
   const explainerContent =
     sourceChain && sourceParsedTokenAccount ? (
       <>
-        <span>You will transfer {sourceAmount}</span>
+        <span>
+          You will transfer {sourceAmount}{" "}
+          {relayerFee
+            ? `(+~${numeral(relayerFee).format("0.00")} relayer fee)`
+            : ""}
+        </span>
         <SmartAddress
           chainId={sourceChain}
           parsedTokenAccount={sourceParsedTokenAccount}
