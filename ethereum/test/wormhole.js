@@ -10,7 +10,7 @@ const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
 const testSigner3PK = "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fb";
 
-const core = "0x00000000000000000000000000000000000000000000000000000000436f7265"
+const core = '0x' + Buffer.from("Core").toString("hex").padStart(64,0)
 const actionContractUpgrade = "01"
 const actionGuardianSetUpgrade = "02"
 const actionMessageFee = "03"
