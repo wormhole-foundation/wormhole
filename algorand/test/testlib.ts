@@ -146,7 +146,7 @@ export class TestLib {
         nonce: number,
         seq: number,
         guardianKeys: string[]
-    ) {
+    ): string {
         const b = [
             "0x",
             this.zeroBytes.slice(0, 28 * 2),
@@ -374,10 +374,10 @@ export class TestLib {
             this.zeroBytes.slice(0, (32 - name.length) * 2),
         ];
 
-//        console.log(b.join())
-//        console.log(b.join('').length)
+        //        console.log(b.join())
+        //        console.log(b.join('').length)
 
-        let emitter = "0x" + this.getEmitter(chain);
+        let emitter = "0x" + this.getTokenEmitter(chain);
         let seconds = Math.floor(new Date().getTime() / 1000.0);
 
         return this.createSignedVAA(
