@@ -60,7 +60,7 @@ func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.Guardian
 
 func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
-	consensusGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
+	consensusGuardianSetIndex, found := k.GetConsensusGuardianSetIndex(ctx)
 	if !found {
 		return types.ErrGuardianSetNotFound
 	}
@@ -89,7 +89,7 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 	quorum := CalculateQuorum(len(latestGuardianSet.Keys))
 	if registered >= quorum {
 		// we have enough, set consensus set to the latest one. Guardian set upgrade complete.
-		k.SetActiveGuardianSetIndex(ctx, types.ActiveGuardianSetIndex{
+		k.SetConsensusGuardianSetIndex(ctx, types.ConsensusGuardianSetIndex{
 			Index: latestGuardianSetIndex,
 		})
 	}
@@ -166,7 +166,7 @@ func (k Keeper) GetGuardianSet(ctx sdk.Context, id uint32) (val types.GuardianSe
 // to validators. We could rewrite that method instead to loop through the
 // guardian keys instead, which might be more efficient.
 func (k Keeper) IsConsensusGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
-	consensusGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
+	consensusGuardianSetIndex, found := k.GetConsensusGuardianSetIndex(ctx)
 	if !found {
 		return false, types.ErrGuardianSetNotFound
 	}

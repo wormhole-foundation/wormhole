@@ -14,7 +14,7 @@ func DefaultGenesis() *GenesisState {
 		Config:                    nil,
 		ReplayProtectionList:      []ReplayProtection{},
 		SequenceCounterList:       []SequenceCounter{},
-		ActiveGuardianSetIndex:    nil,
+		ConsensusGuardianSetIndex:    nil,
 		GuardianValidatorList:     []GuardianValidator{},
 		// this line is used by starport scaffolding # genesis/types/default
 	}

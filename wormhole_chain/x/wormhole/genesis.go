@@ -29,8 +29,8 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 		k.SetSequenceCounter(ctx, elem)
 	}
 	// Set if defined
-	if genState.ActiveGuardianSetIndex != nil {
-		k.SetActiveGuardianSetIndex(ctx, *genState.ActiveGuardianSetIndex)
+	if genState.ConsensusGuardianSetIndex != nil {
+		k.SetConsensusGuardianSetIndex(ctx, *genState.ConsensusGuardianSetIndex)
 	}
 	// Set all the guardianValidator
 	for _, elem := range genState.GuardianValidatorList {
@@ -52,10 +52,10 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	}
 	genesis.ReplayProtectionList = k.GetAllReplayProtection(ctx)
 	genesis.SequenceCounterList = k.GetAllSequenceCounter(ctx)
-	// Get all activeGuardianSetIndex
-	activeGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
+	// Get all consensusGuardianSetIndex
+	consensusGuardianSetIndex, found := k.GetConsensusGuardianSetIndex(ctx)
 	if found {
-		genesis.ActiveGuardianSetIndex = &activeGuardianSetIndex
+		genesis.ConsensusGuardianSetIndex = &consensusGuardianSetIndex
 	}
 	genesis.GuardianValidatorList = k.GetAllGuardianValidator(ctx)
 	// this line is used by starport scaffolding # genesis/module/export

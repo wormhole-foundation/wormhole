@@ -4,15 +4,15 @@ import { Writer, Reader } from "protobufjs/minimal";
 
 export const protobufPackage = "certusone.wormholechain.wormhole";
 
-export interface ActiveGuardianSetIndex {
+export interface ConsensusGuardianSetIndex {
   index: number;
 }
 
-const baseActiveGuardianSetIndex: object = { index: 0 };
+const baseConsensusGuardianSetIndex: object = { index: 0 };
 
-export const ActiveGuardianSetIndex = {
+export const ConsensusGuardianSetIndex = {
   encode(
-    message: ActiveGuardianSetIndex,
+    message: ConsensusGuardianSetIndex,
     writer: Writer = Writer.create()
   ): Writer {
     if (message.index !== 0) {
@@ -21,10 +21,10 @@ export const ActiveGuardianSetIndex = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): ActiveGuardianSetIndex {
+  decode(input: Reader | Uint8Array, length?: number): ConsensusGuardianSetIndex {
     const reader = input instanceof Uint8Array ? new Reader(input) : input;
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseActiveGuardianSetIndex } as ActiveGuardianSetIndex;
+    const message = { ...baseConsensusGuardianSetIndex } as ConsensusGuardianSetIndex;
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -39,8 +39,8 @@ export const ActiveGuardianSetIndex = {
     return message;
   },
 
-  fromJSON(object: any): ActiveGuardianSetIndex {
-    const message = { ...baseActiveGuardianSetIndex } as ActiveGuardianSetIndex;
+  fromJSON(object: any): ConsensusGuardianSetIndex {
+    const message = { ...baseConsensusGuardianSetIndex } as ConsensusGuardianSetIndex;
     if (object.index !== undefined && object.index !== null) {
       message.index = Number(object.index);
     } else {
@@ -49,16 +49,16 @@ export const ActiveGuardianSetIndex = {
     return message;
   },
 
-  toJSON(message: ActiveGuardianSetIndex): unknown {
+  toJSON(message: ConsensusGuardianSetIndex): unknown {
     const obj: any = {};
     message.index !== undefined && (obj.index = message.index);
     return obj;
   },
 
   fromPartial(
-    object: DeepPartial<ActiveGuardianSetIndex>
-  ): ActiveGuardianSetIndex {
-    const message = { ...baseActiveGuardianSetIndex } as ActiveGuardianSetIndex;
+    object: DeepPartial<ConsensusGuardianSetIndex>
+  ): ConsensusGuardianSetIndex {
+    const message = { ...baseConsensusGuardianSetIndex } as ConsensusGuardianSetIndex;
     if (object.index !== undefined && object.index !== null) {
       message.index = object.index;
     } else {

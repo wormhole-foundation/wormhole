@@ -5,7 +5,7 @@ import { PageRequest, PageResponse } from "../cosmos/base/query/v1beta1/paginati
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
-import { ActiveGuardianSetIndex } from "../wormhole/active_guardian_set_index";
+import { ConsensusGuardianSetIndex } from "../wormhole/consensus_guardian_set_index";
 import { GuardianValidator } from "../wormhole/guardian_validator";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
 export interface QueryGetGuardianSetRequest {
@@ -52,10 +52,10 @@ export interface QueryAllSequenceCounterResponse {
     sequenceCounter: SequenceCounter[];
     pagination: PageResponse | undefined;
 }
-export interface QueryGetActiveGuardianSetIndexRequest {
+export interface QueryGetConsensusGuardianSetIndexRequest {
 }
-export interface QueryGetActiveGuardianSetIndexResponse {
-    ActiveGuardianSetIndex: ActiveGuardianSetIndex | undefined;
+export interface QueryGetConsensusGuardianSetIndexResponse {
+    ConsensusGuardianSetIndex: ConsensusGuardianSetIndex | undefined;
 }
 export interface QueryGetGuardianValidatorRequest {
     guardianKey: Uint8Array;
@@ -168,19 +168,19 @@ export declare const QueryAllSequenceCounterResponse: {
     toJSON(message: QueryAllSequenceCounterResponse): unknown;
     fromPartial(object: DeepPartial<QueryAllSequenceCounterResponse>): QueryAllSequenceCounterResponse;
 };
-export declare const QueryGetActiveGuardianSetIndexRequest: {
-    encode(_: QueryGetActiveGuardianSetIndexRequest, writer?: Writer): Writer;
-    decode(input: Reader | Uint8Array, length?: number): QueryGetActiveGuardianSetIndexRequest;
-    fromJSON(_: any): QueryGetActiveGuardianSetIndexRequest;
-    toJSON(_: QueryGetActiveGuardianSetIndexRequest): unknown;
-    fromPartial(_: DeepPartial<QueryGetActiveGuardianSetIndexRequest>): QueryGetActiveGuardianSetIndexRequest;
+export declare const QueryGetConsensusGuardianSetIndexRequest: {
+    encode(_: QueryGetConsensusGuardianSetIndexRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetConsensusGuardianSetIndexRequest;
+    fromJSON(_: any): QueryGetConsensusGuardianSetIndexRequest;
+    toJSON(_: QueryGetConsensusGuardianSetIndexRequest): unknown;
+    fromPartial(_: DeepPartial<QueryGetConsensusGuardianSetIndexRequest>): QueryGetConsensusGuardianSetIndexRequest;
 };
-export declare const QueryGetActiveGuardianSetIndexResponse: {
-    encode(message: QueryGetActiveGuardianSetIndexResponse, writer?: Writer): Writer;
-    decode(input: Reader | Uint8Array, length?: number): QueryGetActiveGuardianSetIndexResponse;
-    fromJSON(object: any): QueryGetActiveGuardianSetIndexResponse;
-    toJSON(message: QueryGetActiveGuardianSetIndexResponse): unknown;
-    fromPartial(object: DeepPartial<QueryGetActiveGuardianSetIndexResponse>): QueryGetActiveGuardianSetIndexResponse;
+export declare const QueryGetConsensusGuardianSetIndexResponse: {
+    encode(message: QueryGetConsensusGuardianSetIndexResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetConsensusGuardianSetIndexResponse;
+    fromJSON(object: any): QueryGetConsensusGuardianSetIndexResponse;
+    toJSON(message: QueryGetConsensusGuardianSetIndexResponse): unknown;
+    fromPartial(object: DeepPartial<QueryGetConsensusGuardianSetIndexResponse>): QueryGetConsensusGuardianSetIndexResponse;
 };
 export declare const QueryGetGuardianValidatorRequest: {
     encode(message: QueryGetGuardianValidatorRequest, writer?: Writer): Writer;
@@ -226,8 +226,8 @@ export interface Query {
     SequenceCounter(request: QueryGetSequenceCounterRequest): Promise<QueryGetSequenceCounterResponse>;
     /** Queries a list of sequenceCounter items. */
     SequenceCounterAll(request: QueryAllSequenceCounterRequest): Promise<QueryAllSequenceCounterResponse>;
-    /** Queries a ActiveGuardianSetIndex by index. */
-    ActiveGuardianSetIndex(request: QueryGetActiveGuardianSetIndexRequest): Promise<QueryGetActiveGuardianSetIndexResponse>;
+    /** Queries a ConsensusGuardianSetIndex by index. */
+    ConsensusGuardianSetIndex(request: QueryGetConsensusGuardianSetIndexRequest): Promise<QueryGetConsensusGuardianSetIndexResponse>;
     /** Queries a GuardianValidator by index. */
     GuardianValidator(request: QueryGetGuardianValidatorRequest): Promise<QueryGetGuardianValidatorResponse>;
     /** Queries a list of GuardianValidator items. */
@@ -243,7 +243,7 @@ export declare class QueryClientImpl implements Query {
     ReplayProtectionAll(request: QueryAllReplayProtectionRequest): Promise<QueryAllReplayProtectionResponse>;
     SequenceCounter(request: QueryGetSequenceCounterRequest): Promise<QueryGetSequenceCounterResponse>;
     SequenceCounterAll(request: QueryAllSequenceCounterRequest): Promise<QueryAllSequenceCounterResponse>;
-    ActiveGuardianSetIndex(request: QueryGetActiveGuardianSetIndexRequest): Promise<QueryGetActiveGuardianSetIndexResponse>;
+    ConsensusGuardianSetIndex(request: QueryGetConsensusGuardianSetIndexRequest): Promise<QueryGetConsensusGuardianSetIndexResponse>;
     GuardianValidator(request: QueryGetGuardianValidatorRequest): Promise<QueryGetGuardianValidatorResponse>;
     GuardianValidatorAll(request: QueryAllGuardianValidatorRequest): Promise<QueryAllGuardianValidatorResponse>;
 }

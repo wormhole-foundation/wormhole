@@ -4,7 +4,7 @@ import { GuardianSet } from "../wormhole/guardian_set";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
-import { ActiveGuardianSetIndex } from "../wormhole/active_guardian_set_index";
+import { ConsensusGuardianSetIndex } from "../wormhole/consensus_guardian_set_index";
 import { GuardianValidator } from "../wormhole/guardian_validator";
 import { Writer, Reader } from "protobufjs/minimal";
 
@@ -16,7 +16,7 @@ export interface GenesisState {
   config: Config | undefined;
   replayProtectionList: ReplayProtection[];
   sequenceCounterList: SequenceCounter[];
-  activeGuardianSetIndex: ActiveGuardianSetIndex | undefined;
+  consensusGuardianSetIndex: ConsensusGuardianSetIndex | undefined;
   /** this line is used by starport scaffolding # genesis/proto/state */
   guardianValidatorList: GuardianValidator[];
 }
@@ -37,9 +37,9 @@ export const GenesisState = {
     for (const v of message.sequenceCounterList) {
       SequenceCounter.encode(v!, writer.uint32(34).fork()).ldelim();
     }
-    if (message.activeGuardianSetIndex !== undefined) {
-      ActiveGuardianSetIndex.encode(
-        message.activeGuardianSetIndex,
+    if (message.consensusGuardianSetIndex !== undefined) {
+      ConsensusGuardianSetIndex.encode(
+        message.consensusGuardianSetIndex,
         writer.uint32(42).fork()
       ).ldelim();
     }
@@ -79,7 +79,7 @@ export const GenesisState = {
           );
           break;
         case 5:
-          message.activeGuardianSetIndex = ActiveGuardianSetIndex.decode(
+          message.consensusGuardianSetIndex = ConsensusGuardianSetIndex.decode(
             reader,
             reader.uint32()
           );
@@ -133,14 +133,14 @@ export const GenesisState = {
       }
     }
     if (
-      object.activeGuardianSetIndex !== undefined &&
-      object.activeGuardianSetIndex !== null
+      object.consensusGuardianSetIndex !== undefined &&
+      object.consensusGuardianSetIndex !== null
     ) {
-      message.activeGuardianSetIndex = ActiveGuardianSetIndex.fromJSON(
-        object.activeGuardianSetIndex
+      message.consensusGuardianSetIndex = ConsensusGuardianSetIndex.fromJSON(
+        object.consensusGuardianSetIndex
       );
     } else {
-      message.activeGuardianSetIndex = undefined;
+      message.consensusGuardianSetIndex = undefined;
     }
     if (
       object.guardianValidatorList !== undefined &&
@@ -178,9 +178,9 @@ export const GenesisState = {
     } else {
       obj.sequenceCounterList = [];
     }
-    message.activeGuardianSetIndex !== undefined &&
-      (obj.activeGuardianSetIndex = message.activeGuardianSetIndex
-        ? ActiveGuardianSetIndex.toJSON(message.activeGuardianSetIndex)
+    message.consensusGuardianSetIndex !== undefined &&
+      (obj.consensusGuardianSetIndex = message.consensusGuardianSetIndex
+        ? ConsensusGuardianSetIndex.toJSON(message.consensusGuardianSetIndex)
         : undefined);
     if (message.guardianValidatorList) {
       obj.guardianValidatorList = message.guardianValidatorList.map((e) =>
@@ -228,14 +228,14 @@ export const GenesisState = {
       }
     }
     if (
-      object.activeGuardianSetIndex !== undefined &&
-      object.activeGuardianSetIndex !== null
+      object.consensusGuardianSetIndex !== undefined &&
+      object.consensusGuardianSetIndex !== null
     ) {
-      message.activeGuardianSetIndex = ActiveGuardianSetIndex.fromPartial(
-        object.activeGuardianSetIndex
+      message.consensusGuardianSetIndex = ConsensusGuardianSetIndex.fromPartial(
+        object.consensusGuardianSetIndex
       );
     } else {
-      message.activeGuardianSetIndex = undefined;
+      message.consensusGuardianSetIndex = undefined;
     }
     if (
       object.guardianValidatorList !== undefined &&

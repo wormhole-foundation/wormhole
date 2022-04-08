@@ -9,7 +9,7 @@ import {
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
-import { ActiveGuardianSetIndex } from "../wormhole/active_guardian_set_index";
+import { ConsensusGuardianSetIndex } from "../wormhole/consensus_guardian_set_index";
 import { GuardianValidator } from "../wormhole/guardian_validator";
 
 export const protobufPackage = "certusone.wormholechain.wormhole";
@@ -71,10 +71,10 @@ export interface QueryAllSequenceCounterResponse {
   pagination: PageResponse | undefined;
 }
 
-export interface QueryGetActiveGuardianSetIndexRequest {}
+export interface QueryGetConsensusGuardianSetIndexRequest {}
 
-export interface QueryGetActiveGuardianSetIndexResponse {
-  ActiveGuardianSetIndex: ActiveGuardianSetIndex | undefined;
+export interface QueryGetConsensusGuardianSetIndexResponse {
+  ConsensusGuardianSetIndex: ConsensusGuardianSetIndex | undefined;
 }
 
 export interface QueryGetGuardianValidatorRequest {
@@ -1186,11 +1186,11 @@ export const QueryAllSequenceCounterResponse = {
   },
 };
 
-const baseQueryGetActiveGuardianSetIndexRequest: object = {};
+const baseQueryGetConsensusGuardianSetIndexRequest: object = {};
 
-export const QueryGetActiveGuardianSetIndexRequest = {
+export const QueryGetConsensusGuardianSetIndexRequest = {
   encode(
-    _: QueryGetActiveGuardianSetIndexRequest,
+    _: QueryGetConsensusGuardianSetIndexRequest,
     writer: Writer = Writer.create()
   ): Writer {
     return writer;
@@ -1199,12 +1199,12 @@ export const QueryGetActiveGuardianSetIndexRequest = {
   decode(
     input: Reader | Uint8Array,
     length?: number
-  ): QueryGetActiveGuardianSetIndexRequest {
+  ): QueryGetConsensusGuardianSetIndexRequest {
     const reader = input instanceof Uint8Array ? new Reader(input) : input;
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = {
-      ...baseQueryGetActiveGuardianSetIndexRequest,
-    } as QueryGetActiveGuardianSetIndexRequest;
+      ...baseQueryGetConsensusGuardianSetIndexRequest,
+    } as QueryGetConsensusGuardianSetIndexRequest;
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1216,38 +1216,38 @@ export const QueryGetActiveGuardianSetIndexRequest = {
     return message;
   },
 
-  fromJSON(_: any): QueryGetActiveGuardianSetIndexRequest {
+  fromJSON(_: any): QueryGetConsensusGuardianSetIndexRequest {
     const message = {
-      ...baseQueryGetActiveGuardianSetIndexRequest,
-    } as QueryGetActiveGuardianSetIndexRequest;
+      ...baseQueryGetConsensusGuardianSetIndexRequest,
+    } as QueryGetConsensusGuardianSetIndexRequest;
     return message;
   },
 
-  toJSON(_: QueryGetActiveGuardianSetIndexRequest): unknown {
+  toJSON(_: QueryGetConsensusGuardianSetIndexRequest): unknown {
     const obj: any = {};
     return obj;
   },
 
   fromPartial(
-    _: DeepPartial<QueryGetActiveGuardianSetIndexRequest>
-  ): QueryGetActiveGuardianSetIndexRequest {
+    _: DeepPartial<QueryGetConsensusGuardianSetIndexRequest>
+  ): QueryGetConsensusGuardianSetIndexRequest {
     const message = {
-      ...baseQueryGetActiveGuardianSetIndexRequest,
-    } as QueryGetActiveGuardianSetIndexRequest;
+      ...baseQueryGetConsensusGuardianSetIndexRequest,
+    } as QueryGetConsensusGuardianSetIndexRequest;
     return message;
   },
 };
 
-const baseQueryGetActiveGuardianSetIndexResponse: object = {};
+const baseQueryGetConsensusGuardianSetIndexResponse: object = {};
 
-export const QueryGetActiveGuardianSetIndexResponse = {
+export const QueryGetConsensusGuardianSetIndexResponse = {
   encode(
-    message: QueryGetActiveGuardianSetIndexResponse,
+    message: QueryGetConsensusGuardianSetIndexResponse,
     writer: Writer = Writer.create()
   ): Writer {
-    if (message.ActiveGuardianSetIndex !== undefined) {
-      ActiveGuardianSetIndex.encode(
-        message.ActiveGuardianSetIndex,
+    if (message.ConsensusGuardianSetIndex !== undefined) {
+      ConsensusGuardianSetIndex.encode(
+        message.ConsensusGuardianSetIndex,
         writer.uint32(10).fork()
       ).ldelim();
     }
@@ -1257,17 +1257,17 @@ export const QueryGetActiveGuardianSetIndexResponse = {
   decode(
     input: Reader | Uint8Array,
     length?: number
-  ): QueryGetActiveGuardianSetIndexResponse {
+  ): QueryGetConsensusGuardianSetIndexResponse {
     const reader = input instanceof Uint8Array ? new Reader(input) : input;
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = {
-      ...baseQueryGetActiveGuardianSetIndexResponse,
-    } as QueryGetActiveGuardianSetIndexResponse;
+      ...baseQueryGetConsensusGuardianSetIndexResponse,
+    } as QueryGetConsensusGuardianSetIndexResponse;
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.ActiveGuardianSetIndex = ActiveGuardianSetIndex.decode(
+          message.ConsensusGuardianSetIndex = ConsensusGuardianSetIndex.decode(
             reader,
             reader.uint32()
           );
@@ -1280,47 +1280,47 @@ export const QueryGetActiveGuardianSetIndexResponse = {
     return message;
   },
 
-  fromJSON(object: any): QueryGetActiveGuardianSetIndexResponse {
+  fromJSON(object: any): QueryGetConsensusGuardianSetIndexResponse {
     const message = {
-      ...baseQueryGetActiveGuardianSetIndexResponse,
-    } as QueryGetActiveGuardianSetIndexResponse;
+      ...baseQueryGetConsensusGuardianSetIndexResponse,
+    } as QueryGetConsensusGuardianSetIndexResponse;
     if (
-      object.ActiveGuardianSetIndex !== undefined &&
-      object.ActiveGuardianSetIndex !== null
+      object.ConsensusGuardianSetIndex !== undefined &&
+      object.ConsensusGuardianSetIndex !== null
     ) {
-      message.ActiveGuardianSetIndex = ActiveGuardianSetIndex.fromJSON(
-        object.ActiveGuardianSetIndex
+      message.ConsensusGuardianSetIndex = ConsensusGuardianSetIndex.fromJSON(
+        object.ConsensusGuardianSetIndex
       );
     } else {
-      message.ActiveGuardianSetIndex = undefined;
+      message.ConsensusGuardianSetIndex = undefined;
     }
     return message;
   },
 
-  toJSON(message: QueryGetActiveGuardianSetIndexResponse): unknown {
+  toJSON(message: QueryGetConsensusGuardianSetIndexResponse): unknown {
     const obj: any = {};
-    message.ActiveGuardianSetIndex !== undefined &&
-      (obj.ActiveGuardianSetIndex = message.ActiveGuardianSetIndex
-        ? ActiveGuardianSetIndex.toJSON(message.ActiveGuardianSetIndex)
+    message.ConsensusGuardianSetIndex !== undefined &&
+      (obj.ConsensusGuardianSetIndex = message.ConsensusGuardianSetIndex
+        ? ConsensusGuardianSetIndex.toJSON(message.ConsensusGuardianSetIndex)
         : undefined);
     return obj;
   },
 
   fromPartial(
-    object: DeepPartial<QueryGetActiveGuardianSetIndexResponse>
-  ): QueryGetActiveGuardianSetIndexResponse {
+    object: DeepPartial<QueryGetConsensusGuardianSetIndexResponse>
+  ): QueryGetConsensusGuardianSetIndexResponse {
     const message = {
-      ...baseQueryGetActiveGuardianSetIndexResponse,
-    } as QueryGetActiveGuardianSetIndexResponse;
+      ...baseQueryGetConsensusGuardianSetIndexResponse,
+    } as QueryGetConsensusGuardianSetIndexResponse;
     if (
-      object.ActiveGuardianSetIndex !== undefined &&
-      object.ActiveGuardianSetIndex !== null
+      object.ConsensusGuardianSetIndex !== undefined &&
+      object.ConsensusGuardianSetIndex !== null
     ) {
-      message.ActiveGuardianSetIndex = ActiveGuardianSetIndex.fromPartial(
-        object.ActiveGuardianSetIndex
+      message.ConsensusGuardianSetIndex = ConsensusGuardianSetIndex.fromPartial(
+        object.ConsensusGuardianSetIndex
       );
     } else {
-      message.ActiveGuardianSetIndex = undefined;
+      message.ConsensusGuardianSetIndex = undefined;
     }
     return message;
   },
@@ -1695,10 +1695,10 @@ export interface Query {
   SequenceCounterAll(
     request: QueryAllSequenceCounterRequest
   ): Promise<QueryAllSequenceCounterResponse>;
-  /** Queries a ActiveGuardianSetIndex by index. */
-  ActiveGuardianSetIndex(
-    request: QueryGetActiveGuardianSetIndexRequest
-  ): Promise<QueryGetActiveGuardianSetIndexResponse>;
+  /** Queries a ConsensusGuardianSetIndex by index. */
+  ConsensusGuardianSetIndex(
+    request: QueryGetConsensusGuardianSetIndexRequest
+  ): Promise<QueryGetConsensusGuardianSetIndexResponse>;
   /** Queries a GuardianValidator by index. */
   GuardianValidator(
     request: QueryGetGuardianValidatorRequest
@@ -1810,17 +1810,17 @@ export class QueryClientImpl implements Query {
     );
   }
 
-  ActiveGuardianSetIndex(
-    request: QueryGetActiveGuardianSetIndexRequest
-  ): Promise<QueryGetActiveGuardianSetIndexResponse> {
-    const data = QueryGetActiveGuardianSetIndexRequest.encode(request).finish();
+  ConsensusGuardianSetIndex(
+    request: QueryGetConsensusGuardianSetIndexRequest
+  ): Promise<QueryGetConsensusGuardianSetIndexResponse> {
+    const data = QueryGetConsensusGuardianSetIndexRequest.encode(request).finish();
     const promise = this.rpc.request(
       "certusone.wormholechain.wormhole.Query",
-      "ActiveGuardianSetIndex",
+      "ConsensusGuardianSetIndex",
       data
     );
     return promise.then((data) =>
-      QueryGetActiveGuardianSetIndexResponse.decode(new Reader(data))
+      QueryGetConsensusGuardianSetIndexResponse.decode(new Reader(data))
     );
   }
 

@@ -31,5 +31,5 @@ const (
 )
 
 const (
-	ActiveGuardianSetIndexKey = "ActiveGuardianSetIndex-value-"
+	ConsensusGuardianSetIndexKey = "ConsensusGuardianSetIndex-value-"
 )
