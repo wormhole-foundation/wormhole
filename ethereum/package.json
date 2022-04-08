@@ -6,10 +6,10 @@
   "devDependencies": {
     "@chainsafe/truffle-plugin-abigen": "0.0.1",
     "@openzeppelin/cli": "^2.8.2",
-    "@openzeppelin/contracts": "^4.3.1",
+    "@openzeppelin/contracts": "^4.3.2",
     "@openzeppelin/test-environment": "^0.1.6",
     "@openzeppelin/test-helpers": "^0.5.9",
-    "@poanet/solidity-flattener": "^3.0.6",
+    "@poanet/solidity-flattener": "^3.0.7",
     "@truffle/hdwallet-provider": "^1.7.0",
     "chai": "^4.2.0",
     "mocha": "^8.2.1",
