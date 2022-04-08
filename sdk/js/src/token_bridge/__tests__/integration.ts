@@ -891,7 +891,7 @@ describe("Integration Tests", () => {
     });
   });
   describe("Terra deposit and transfer tokens", () => {
-    test("Tokens transferred can't exceed tokens deposited", (done) => {
+    test.only("Tokens transferred can't exceed tokens deposited", (done) => {
       (async () => {
         try {
           const lcd = new LCDClient({
@@ -1031,7 +1031,7 @@ describe("Integration Tests", () => {
     });
   });
   describe("Post VAA with retry", () => {
-    test("postVAA with retry, no failures", (done) => {
+    test.only("postVAA with retry, no failures", (done) => {
       (async () => {
         try {
           // create a keypair for Solana
@@ -1102,7 +1102,7 @@ describe("Integration Tests", () => {
         }
       })();
     });
-    test("Reject on signature failure", (done) => {
+    test.only("Reject on signature failure", (done) => {
       (async () => {
         try {
           // create a keypair for Solana
