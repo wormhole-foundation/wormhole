@@ -9,17 +9,12 @@ use byteorder::{
     WriteBytesExt,
 };
 use hex_literal::hex;
-use secp256k1::{
+use libsecp256k1::{
     Message as Secp256k1Message,
     PublicKey,
     SecretKey,
 };
 use sha3::Digest;
-use solana_client::{
-    client_error::ClientError,
-    rpc_client::RpcClient,
-    rpc_config::RpcSendTransactionConfig,
-};
 use solana_program::{
     borsh::try_from_slice_unchecked,
     hash,
@@ -36,8 +31,13 @@ use solana_program::{
     system_program,
     sysvar,
 };
+use solana_program_test::{
+    BanksClient,
+    ProgramTest,
+};
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
+    commitment_config::CommitmentLevel,
+    hash::Hash,
     secp256k1_instruction::new_secp256k1_instruction,
     signature::{
         read_keypair_file,
@@ -45,7 +45,9 @@ use solana_sdk::{
         Signature,
         Signer,
     },
+    signers::Signers,
     transaction::Transaction,
+    transport::TransportError,
 };
 use std::{
     convert::TryInto,
@@ -62,6 +64,7 @@ use std::{
 
 use bridge::{
     accounts::{
+        Bridge,
         BridgeConfig,
         FeeCollector,
         GuardianSet,
@@ -86,70 +89,86 @@ use bridge::{
 
 use solitaire::{
     processors::seeded::Seeded,
+    AccountSize,
     AccountState,
 };
 
 pub use helpers::*;
 
 /// Simple API wrapper for quickly preparing and sending transactions.
-pub fn execute(
-    client: &RpcClient,
+pub async fn execute<T: Signers>(
+    client: &mut BanksClient,
     payer: &Keypair,
-    signers: &[&Keypair],
+    signers: &T,
     instructions: &[Instruction],
-    commitment_level: CommitmentConfig,
-) -> Result<Signature, ClientError> {
+    commitment_level: CommitmentLevel,
+) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
-    let recent_blockhash = client.get_recent_blockhash().unwrap().0;
-    transaction.sign(&signers.to_vec(), recent_blockhash);
-    client.send_and_confirm_transaction_with_spinner_and_config(
-        &transaction,
-        commitment_level,
-        RpcSendTransactionConfig {
-            skip_preflight: true,
-            preflight_commitment: None,
-            encoding: None,
-        },
-    )
+    let recent_blockhash = client.get_latest_blockhash().await?;
+    transaction.sign(signers, recent_blockhash);
+
+    client
+        .process_transaction_with_commitment(transaction, commitment_level)
+        .await
 }
 
 mod helpers {
+    use bridge::{
+        BridgeData,
+        GuardianSetData,
+    };
+    use solana_program::rent::Rent;
+    use solana_program_test::{
+        processor,
+        ProgramTestContext,
+    };
+    use solana_sdk::account::Account;
+    use solitaire::{
+        CreationLamports,
+        Derive,
+    };
+
     use super::*;
 
     /// Initialize the test environment, spins up a solana-test-validator in the background so that
     /// each test has a fresh environment to work within.
-    pub fn setup() -> (Keypair, RpcClient, Pubkey) {
-        let payer = env::var("BRIDGE_PAYER").unwrap_or("./payer.json".to_string());
-        let rpc_address = env::var("BRIDGE_RPC").unwrap_or("http://127.0.0.1:8899".to_string());
-        let payer = read_keypair_file(payer).unwrap();
-        let rpc = RpcClient::new(rpc_address);
+    pub async fn setup() -> (BanksClient, Keypair, Pubkey) {
         let program = env::var("BRIDGE_PROGRAM")
             .unwrap_or("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o".to_string())
             .parse::<Pubkey>()
             .unwrap();
-        (payer, rpc, program)
+        let mut builder = ProgramTest::new(
+            "bridge",
+            program,
+            processor!(instruction::solitaire),
+        );
+
+        let (client, payer, _) = builder.start().await;
+
+        (client, payer, program)
     }
 
     /// Wait for a single transaction to fully finalize, guaranteeing chain state has been
     /// confirmed. Useful for consistently fetching data during state checks.
-    pub fn sync(client: &RpcClient, payer: &Keypair) {
+    pub async fn sync(client: &mut BanksClient, payer: &Keypair) {
+        let payer_key = payer.pubkey();
         execute(
             client,
             payer,
             &[payer],
-            &[system_instruction::transfer(
-                &payer.pubkey(),
-                &payer.pubkey(),
-                1,
-            )],
-            CommitmentConfig::finalized(),
+            &[system_instruction::transfer(&payer_key, &payer_key, 1)],
+            CommitmentLevel::Finalized,
         )
+        .await
         .unwrap();
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
-    pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> T {
-        let account = client.get_account(account).unwrap();
+    pub async fn get_account_data<T: BorshDeserialize>(
+        client: &mut BanksClient,
+        account: Pubkey,
+    ) -> T {
+        let account = client.get_account(account).await.unwrap().unwrap();
         T::try_from_slice(&account.data).unwrap()
     }
 
@@ -238,53 +257,55 @@ mod helpers {
         (vaa, body, body_hash)
     }
 
-    pub fn transfer(
-        client: &RpcClient,
+    pub async fn transfer(
+        client: &mut BanksClient,
         from: &Keypair,
         to: &Pubkey,
         lamports: u64,
-    ) -> Result<Signature, ClientError> {
+    ) -> Result<(), TransportError> {
         execute(
             client,
             from,
             &[from],
             &[system_instruction::transfer(&from.pubkey(), to, lamports)],
-            CommitmentConfig::processed(),
+            CommitmentLevel::Processed,
         )
+        .await
     }
 
-    pub fn initialize(
-        client: &RpcClient,
-        program: &Pubkey,
+    pub async fn initialize(
+        client: &mut BanksClient,
+        program: Pubkey,
         payer: &Keypair,
         initial_guardians: &[[u8; 20]],
         fee: u64,
-    ) -> Result<Signature, ClientError> {
+    ) -> Result<(), TransportError> {
         execute(
             client,
             payer,
             &[payer],
             &[instructions::initialize(
-                *program,
+                program,
                 payer.pubkey(),
                 fee,
                 2_000_000_000,
                 initial_guardians,
             )
             .unwrap()],
-            CommitmentConfig::processed(),
+            CommitmentLevel::Processed,
         )
+        .await
     }
 
-    pub fn post_message(
-        client: &RpcClient,
+    pub async fn post_message(
+        client: &mut BanksClient,
         program: &Pubkey,
         payer: &Keypair,
         emitter: &Keypair,
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
-    ) -> Result<Pubkey, ClientError> {
+    ) -> Result<Pubkey, TransportError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
@@ -310,22 +331,23 @@ mod helpers {
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,
             ],
-            CommitmentConfig::processed(),
-        )?;
+            CommitmentLevel::Processed,
+        )
+        .await?;
 
         Ok(message.pubkey())
     }
 
-    pub fn verify_signatures(
-        client: &RpcClient,
+    pub async fn verify_signatures(
+        client: &mut BanksClient,
         program: &Pubkey,
         payer: &Keypair,
         body: [u8; 32],
         secret_keys: &[SecretKey],
         guardian_set_version: u32,
-    ) -> Result<Pubkey, ClientError> {
+    ) -> Result<Pubkey, TransportError> {
         let signature_set = Keypair::new();
-        let tx_signers = &[payer, &signature_set];
+        let tx_signers = [payer, &signature_set];
         // Push Secp256k1 instructions for each signature we want to verify.
         for (i, key) in secret_keys.iter().enumerate() {
             // Set this signers signature position as present at 0.
@@ -335,9 +357,9 @@ mod helpers {
             execute(
                 client,
                 payer,
-                tx_signers,
-                &vec![
-                    new_secp256k1_instruction(&key, &body),
+                &tx_signers,
+                &[
+                    new_secp256k1_instruction(key, &body),
                     instructions::verify_signatures(
                         *program,
                         payer.pubkey(),
@@ -347,19 +369,21 @@ mod helpers {
                     )
                     .unwrap(),
                 ],
-                CommitmentConfig::processed(),
-            )?;
+                CommitmentLevel::Processed,
+            )
+            .await?;
         }
+
         Ok(signature_set.pubkey())
     }
 
-    pub fn post_vaa(
-        client: &RpcClient,
+    pub async fn post_vaa(
+        client: &mut BanksClient,
         program: &Pubkey,
         payer: &Keypair,
         signature_set: Pubkey,
         vaa: PostVAAData,
-    ) -> Result<Signature, ClientError> {
+    ) -> Result<(), TransportError> {
         execute(
             client,
             payer,
@@ -370,12 +394,13 @@ mod helpers {
                 signature_set,
                 vaa,
             )],
-            CommitmentConfig::processed(),
+            CommitmentLevel::Processed,
         )
+        .await
     }
 
-    pub fn upgrade_guardian_set(
-        client: &RpcClient,
+    pub async fn upgrade_guardian_set(
+        client: &mut BanksClient,
         program: &Pubkey,
         payer: &Keypair,
         payload_message: Pubkey,
@@ -383,7 +408,7 @@ mod helpers {
         old_index: u32,
         new_index: u32,
         sequence: u64,
-    ) -> Result<Signature, ClientError> {
+    ) -> Result<(), TransportError> {
         execute(
             client,
             payer,
@@ -397,12 +422,13 @@ mod helpers {
                 new_index,
                 sequence,
             )],
-            CommitmentConfig::processed(),
+            CommitmentLevel::Processed,
         )
+        .await
     }
 
-    pub fn upgrade_contract(
-        client: &RpcClient,
+    pub async fn upgrade_contract(
+        client: &mut BanksClient,
         program: &Pubkey,
         payer: &Keypair,
         payload_message: Pubkey,
@@ -410,7 +436,7 @@ mod helpers {
         new_contract: Pubkey,
         spill: Pubkey,
         sequence: u64,
-    ) -> Result<Signature, ClientError> {
+    ) -> Result<(), TransportError> {
         execute(
             client,
             payer,
@@ -424,18 +450,19 @@ mod helpers {
                 spill,
                 sequence,
             )],
-            CommitmentConfig::processed(),
+            CommitmentLevel::Processed,
         )
+        .await
     }
 
-    pub fn set_fees(
-        client: &RpcClient,
+    pub async fn set_fees(
+        client: &mut BanksClient,
         program: &Pubkey,
         payer: &Keypair,
         message: Pubkey,
         emitter: Pubkey,
         sequence: u64,
-    ) -> Result<Signature, ClientError> {
+    ) -> Result<(), TransportError> {
         execute(
             client,
             payer,
@@ -447,19 +474,20 @@ mod helpers {
                 emitter,
                 sequence,
             )],
-            CommitmentConfig::processed(),
+            CommitmentLevel::Processed,
         )
+        .await
     }
 
-    pub fn transfer_fees(
-        client: &RpcClient,
+    pub async fn transfer_fees(
+        client: &mut BanksClient,
         program: &Pubkey,
         payer: &Keypair,
         message: Pubkey,
         emitter: Pubkey,
         recipient: Pubkey,
         sequence: u64,
-    ) -> Result<Signature, ClientError> {
+    ) -> Result<(), TransportError> {
         execute(
             client,
             payer,
@@ -472,7 +500,8 @@ mod helpers {
                 sequence,
                 recipient,
             )],
-            CommitmentConfig::processed(),
+            CommitmentLevel::Processed,
         )
+        .await
     }
 }

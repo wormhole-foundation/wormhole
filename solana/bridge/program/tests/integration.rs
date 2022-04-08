@@ -6,14 +6,13 @@ use byteorder::{
     WriteBytesExt,
 };
 use hex_literal::hex;
-use rand::Rng;
-use secp256k1::{
+use libsecp256k1::{
     Message as Secp256k1Message,
     PublicKey,
     SecretKey,
 };
+use rand::Rng;
 use sha3::Digest;
-use solana_client::rpc_client::RpcClient;
 use solana_program::{
     borsh::try_from_slice_unchecked,
     hash,
@@ -30,7 +29,12 @@ use solana_program::{
     system_program,
     sysvar,
 };
+use solana_program_test::{
+    tokio,
+    BanksClient,
+};
 use solana_sdk::{
+    commitment_config::CommitmentLevel,
     signature::{
         read_keypair_file,
         Keypair,
@@ -72,7 +76,7 @@ use bridge::{
         SignatureSetData,
     },
     instruction,
-    instructions::hash_vaa,
+    instructions,
     types::{
         ConsistencyLevel,
         GovernancePayloadGuardianSetChange,
@@ -91,6 +95,9 @@ use solana_sdk::hash::hashv;
 
 mod common;
 
+// The pubkey corresponding to this key is "CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr" and needs
+// to be exported as the `EMITTER_ADDRESS` environment variable when building the program bpf in
+// order for the governance related tests to pass.
 const GOVERNANCE_KEY: [u8; 64] = [
     240, 133, 120, 113, 30, 67, 38, 184, 197, 72, 234, 99, 241, 21, 58, 225, 41, 157, 171, 44, 196,
     163, 134, 236, 92, 148, 110, 68, 127, 114, 177, 0, 173, 253, 199, 9, 242, 142, 201, 174, 108,
@@ -122,8 +129,7 @@ impl Sequencer {
     }
 }
 
-#[test]
-fn run_integration_tests() {
+async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
     let (public_keys, secret_keys) = common::generate_keys(6);
     let mut context = Context {
         public: public_keys,
@@ -132,29 +138,7 @@ fn run_integration_tests() {
             sequences: std::collections::HashMap::new(),
         },
     };
-
-    // Initialize the bridge and verify the bridges state.
-    test_initialize(&mut context);
-
-    // Tests are currently unhygienic as It's difficult to wrap `solana-test-validator` within the
-    // integration tests so for now we work around it by simply chain-calling our tests.
-    test_bridge_messages(&mut context);
-    test_foreign_bridge_messages(&mut context);
-    test_invalid_emitter(&mut context);
-    test_duplicate_messages_fail(&mut context);
-    test_guardian_set_change(&mut context);
-    test_guardian_set_change_fails(&mut context);
-    test_set_fees(&mut context);
-    test_set_fees_fails(&mut context);
-    test_free_fees(&mut context);
-    test_transfer_fees(&mut context);
-    test_transfer_fees_fails(&mut context);
-    test_transfer_too_much(&mut context);
-    test_transfer_total_fails(&mut context);
-}
-
-fn test_initialize(context: &mut Context) {
-    let (ref payer, ref client, ref program) = common::setup();
+    let (mut client, payer, program) = common::setup().await;
 
     // Use a timestamp from a few seconds earlier for testing to simulate thread::sleep();
     let now = std::time::SystemTime::now()
@@ -163,8 +147,10 @@ fn test_initialize(context: &mut Context) {
         .as_secs()
         - 10;
 
-    common::initialize(client, program, payer, &*context.public.clone(), 500);
-    common::sync(client, payer);
+    common::initialize(&mut client, program, &payer, &context.public, 500)
+        .await
+        .unwrap();
+    common::sync(&mut client, &payer).await;
 
     // Verify the initial bridge state is as expected.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
@@ -174,8 +160,9 @@ fn test_initialize(context: &mut Context) {
     );
 
     // Fetch account states.
-    let bridge: BridgeData = common::get_account_data(client, &bridge_key);
-    let guardian_set: GuardianSetData = common::get_account_data(client, &guardian_set_key);
+    let bridge: BridgeData = common::get_account_data(&mut client, bridge_key).await;
+    let guardian_set: GuardianSetData =
+        common::get_account_data(&mut client, guardian_set_key).await;
 
     // Bridge Config should be as expected.
     assert_eq!(bridge.guardian_set_index, 0);
@@ -186,10 +173,13 @@ fn test_initialize(context: &mut Context) {
     assert_eq!(guardian_set.index, 0);
     assert_eq!(guardian_set.keys, context.public);
     assert!(guardian_set.creation_time as u64 > now);
+
+    (context, client, payer, program)
 }
 
-fn test_bridge_messages(context: &mut Context) {
-    let (ref payer, ref client, ref program) = common::setup();
+#[tokio::test]
+async fn bridge_messages() {
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // Data/Nonce used for emitting a message we want to prove exists. Run this twice to make sure
     // that duplicate data does not clash.
@@ -198,9 +188,9 @@ fn test_bridge_messages(context: &mut Context) {
 
     for _ in 0..2 {
         let nonce = rand::thread_rng().gen();
-        let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
         // Post the message, publishing the data for guardian consumption.
+        let sequence = context.seq.next(emitter.pubkey().to_bytes());
         let message_key = common::post_message(
             client,
             program,
@@ -210,25 +200,59 @@ fn test_bridge_messages(context: &mut Context) {
             message.clone(),
             10_000,
         )
+        .await
         .unwrap();
 
-        // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-        let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-        let signature_set =
-            common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
-        common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
-        common::sync(client, payer);
-
-        // Fetch chain accounts to verify state.
-        let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
-        let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
-
-        // Verify on chain Message
+        let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
         assert_eq!(posted_message.0.vaa_version, 0);
-        assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+        assert_eq!(posted_message.0.consistency_level, 1);
         assert_eq!(posted_message.0.nonce, nonce);
         assert_eq!(posted_message.0.sequence, sequence);
         assert_eq!(posted_message.0.emitter_chain, 1);
+        assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
+        assert_eq!(posted_message.0.payload, message);
+        assert_eq!(
+            posted_message.0.emitter_address,
+            emitter.pubkey().to_bytes()
+        );
+
+        // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
+        let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+        let vaa_time = vaa.timestamp;
+
+        let signature_set =
+            common::verify_signatures(client, program, payer, body, &context.secret, 0)
+                .await
+                .unwrap();
+
+        // Derive where we expect the posted VAA to be stored.
+        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+            &PostedVAADerivationData {
+                payload_hash: instructions::hash_vaa(&vaa).to_vec(),
+            },
+            &program,
+        );
+        common::post_vaa(client, program, payer, signature_set, vaa)
+            .await
+            .unwrap();
+        common::sync(client, payer).await;
+
+        // Fetch chain accounts to verify state.
+        let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+        let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
+
+        // Verify on chain Message
+        assert_eq!(posted_message.0.vaa_version, 0);
+        assert_eq!(
+            posted_message.0.consistency_level,
+            ConsistencyLevel::Confirmed as u8
+        );
+        assert_eq!(posted_message.0.vaa_time, vaa_time);
+        assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+        assert_eq!(posted_message.0.nonce, nonce);
+        assert_eq!(posted_message.0.sequence, 0);
+        assert_eq!(posted_message.0.emitter_chain, 1);
+        assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
         assert_eq!(posted_message.0.payload, message);
         assert_eq!(
             posted_message.0.emitter_address,
@@ -247,9 +271,9 @@ fn test_bridge_messages(context: &mut Context) {
     // Prepare another message with no data in its message to confirm it succeeds.
     let nonce = rand::thread_rng().gen();
     let message = b"".to_vec();
-    let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Post the message, publishing the data for guardian consumption.
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let message_key = common::post_message(
         client,
         program,
@@ -259,25 +283,57 @@ fn test_bridge_messages(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
-    common::sync(client, payer);
-
-    // Fetch chain accounts to verify state.
-    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
-    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
-
-    // Verify on chain Message
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
     assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.0.consistency_level, 1);
     assert_eq!(posted_message.0.nonce, nonce);
     assert_eq!(posted_message.0.sequence, sequence);
     assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
+
+    // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let vaa_time = vaa.timestamp;
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+
+    // Derive where we expect the posted VAA to be stored.
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: instructions::hash_vaa(&vaa).to_vec(),
+        },
+        &program,
+    );
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+    common::sync(client, payer).await;
+
+    // Fetch chain accounts to verify state.
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+    let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
+
+    // Verify on chain Message
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(
+        posted_message.0.consistency_level,
+        ConsistencyLevel::Confirmed as u8
+    );
+    assert_eq!(posted_message.0.vaa_time, vaa_time);
+    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, 0);
+    assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
     assert_eq!(posted_message.0.payload, message);
     assert_eq!(
         posted_message.0.emitter_address,
@@ -293,8 +349,9 @@ fn test_bridge_messages(context: &mut Context) {
     }
 }
 
-fn test_invalid_emitter(context: &mut Context) {
-    let (ref payer, ref client, ref program) = common::setup();
+#[tokio::test]
+async fn invalid_emitter() {
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // Generate a message we want to persist.
     let message = [0u8; 32].to_vec();
@@ -325,53 +382,91 @@ fn test_invalid_emitter(context: &mut Context) {
     assert!(common::execute(
         client,
         payer,
-        &[payer],
+        &[payer, &msg_account],
         &[
             system_instruction::transfer(&payer.pubkey(), &fee_collector, 10_000),
             instruction,
         ],
-        solana_sdk::commitment_config::CommitmentConfig::processed(),
+        solana_sdk::commitment_config::CommitmentLevel::Processed,
     )
+    .await
     .is_err());
 }
 
-fn test_duplicate_messages_fail(context: &mut Context) {
-    let (ref payer, ref client, ref program) = common::setup();
+#[tokio::test]
+async fn duplicate_messages_fail() {
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // We'll use the following nonce/message/emitter/sequence twice.
     let nonce = rand::thread_rng().gen();
-    let message = [0u8; 32].to_vec();
+    let data = [0u8; 32].to_vec();
     let emitter = Keypair::new();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
+    let fee = 10_000;
 
-    // Post the message, publishing the data for guardian consumption.
-    let message_key = common::post_message(
-        client,
-        program,
-        payer,
-        &emitter,
+    // `common::post_message` creates a new message account every time so we need to manually invoke
+    // the instruction here. Otherwise the account derivation for the second call will be different
+    // and will not fail.
+
+    let fee_collector = FeeCollector::<'_>::key(None, program);
+    let message = Keypair::new();
+    let instruction = instructions::post_message(
+        *program,
+        payer.pubkey(),
+        emitter.pubkey(),
+        message.pubkey(),
         nonce,
-        message.clone(),
-        10_000,
+        data.clone(),
+        ConsistencyLevel::Confirmed,
     )
     .unwrap();
 
-    // Second should fail due to duplicate derivations.
-    assert!(common::post_message(
+    // Post the message, publishing the data for guardian consumption.
+    common::execute(
         client,
-        program,
         payer,
-        &emitter,
-        nonce,
-        message.clone(),
-        10_000,
+        &[payer, &emitter, &message],
+        &[
+            system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
+            instruction.clone(),
+        ],
+        CommitmentLevel::Processed,
     )
+    .await
+    .unwrap();
+
+    let posted_message: PostedVAAData = common::get_account_data(client, message.pubkey()).await;
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.0.consistency_level, 1);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.0.payload, data);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
+
+    // Second should fail due to duplicate derivations.
+    assert!(common::execute(
+        client,
+        payer,
+        &[payer, &emitter, &message],
+        &[
+            system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
+            instruction,
+        ],
+        CommitmentLevel::Processed,
+    )
+    .await
     .is_err());
 }
 
-fn test_guardian_set_change(context: &mut Context) {
+#[tokio::test]
+async fn guardian_set_change() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // Use a timestamp from a few seconds earlier for testing to simulate thread::sleep();
     let now = std::time::SystemTime::now()
@@ -385,7 +480,6 @@ fn test_guardian_set_change(context: &mut Context) {
 
     let nonce = rand::thread_rng().gen();
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
-    println!("{}", emitter.pubkey().to_string());
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let message = GovernancePayloadGuardianSetChange {
         new_guardian_set_index: 1,
@@ -403,12 +497,36 @@ fn test_guardian_set_change(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.0.consistency_level, 1);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
+
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let vaa_time = vaa.timestamp;
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: instructions::hash_vaa(&vaa).to_vec(),
+        },
+        &program,
+    );
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
     common::upgrade_guardian_set(
         client,
         program,
@@ -419,8 +537,9 @@ fn test_guardian_set_change(context: &mut Context) {
         1,
         sequence,
     )
+    .await
     .unwrap();
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 
     // Derive keys for accounts we want to check.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
@@ -430,8 +549,27 @@ fn test_guardian_set_change(context: &mut Context) {
     );
 
     // Fetch account states.
-    let bridge: BridgeData = common::get_account_data(client, &bridge_key);
-    let guardian_set: GuardianSetData = common::get_account_data(client, &guardian_set_key);
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+    let bridge: BridgeData = common::get_account_data(client, bridge_key).await;
+    let guardian_set: GuardianSetData = common::get_account_data(client, guardian_set_key).await;
+
+    // Verify on chain Message
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(
+        posted_message.0.consistency_level,
+        ConsistencyLevel::Confirmed as u8
+    );
+    assert_eq!(posted_message.0.vaa_time, vaa_time);
+    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, 0);
+    assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
 
     // Confirm the bridge now has a new guardian set, and no other fields have shifted.
     assert_eq!(bridge.guardian_set_index, 1);
@@ -454,28 +592,43 @@ fn test_guardian_set_change(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
     context.public = new_public_keys;
     context.secret = new_secret_keys;
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
-    common::sync(client, payer);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 1)
+        .await
+        .unwrap();
+    let vaa_time = vaa.timestamp;
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: instructions::hash_vaa(&vaa).to_vec(),
+        },
+        &program,
+    );
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+    common::sync(client, payer).await;
 
     // Fetch chain accounts to verify state.
-    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
-    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+    let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
     assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(
+        posted_message.0.consistency_level,
+        ConsistencyLevel::Confirmed as u8
+    );
+    assert_eq!(posted_message.0.vaa_time, vaa_time);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.sequence, 0);
     assert_eq!(posted_message.0.emitter_chain, 1);
     assert_eq!(posted_message.0.payload, message);
     assert_eq!(
@@ -492,9 +645,10 @@ fn test_guardian_set_change(context: &mut Context) {
     }
 }
 
-fn test_guardian_set_change_fails(context: &mut Context) {
+#[tokio::test]
+async fn guardian_set_change_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // Use a random emitter key to confirm the bridge rejects transactions from non-governance key.
     let emitter = Keypair::new();
@@ -519,8 +673,9 @@ fn test_guardian_set_change_fails(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
 
     assert!(common::upgrade_guardian_set(
         client,
@@ -532,18 +687,20 @@ fn test_guardian_set_change_fails(context: &mut Context) {
         2,
         sequence,
     )
+    .await
     .is_err());
 }
 
-fn test_set_fees(context: &mut Context) {
+#[tokio::test]
+async fn set_fees() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
-        fee: U256::from(100),
+        fee: U256::from(100u128),
     }
     .try_to_vec()
     .unwrap();
@@ -557,12 +714,16 @@ fn test_set_fees(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
     common::set_fees(
         client,
         program,
@@ -571,27 +732,40 @@ fn test_set_fees(context: &mut Context) {
         emitter.pubkey(),
         sequence,
     )
+    .await
     .unwrap();
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 
     // Fetch Bridge to check on-state value.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
     let fee_collector = FeeCollector::key(None, &program);
-    let bridge: BridgeData = common::get_account_data(client, &bridge_key);
+    let bridge: BridgeData = common::get_account_data(client, bridge_key).await;
     assert_eq!(bridge.config.fee, 100);
 
     // Check that posting a new message fails with too small a fee.
-    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+    let account_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
     let emitter = Keypair::new();
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
     assert!(
-        common::post_message(client, program, payer, &emitter, nonce, message.clone(), 50).is_err()
+        common::post_message(client, program, payer, &emitter, nonce, message.clone(), 50)
+            .await
+            .is_err()
     );
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 
     assert_eq!(
-        client.get_account(&fee_collector).unwrap().lamports,
+        client
+            .get_account(fee_collector)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports,
         account_balance,
     );
 
@@ -609,30 +783,52 @@ fn test_set_fees(context: &mut Context) {
         message.clone(),
         100,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
-    common::sync(client, payer);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    let vaa_time = vaa.timestamp;
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: instructions::hash_vaa(&vaa).to_vec(),
+        },
+        &program,
+    );
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+    common::sync(client, payer).await;
 
     // Verify that the fee collector was paid.
     assert_eq!(
-        client.get_account(&fee_collector).unwrap().lamports,
+        client
+            .get_account(fee_collector)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports,
         account_balance + 100,
     );
 
     // And that the new message is on chain.
-    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
-    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+    let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
     assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(
+        posted_message.0.consistency_level,
+        ConsistencyLevel::Confirmed as u8
+    );
+    assert_eq!(posted_message.0.vaa_time, vaa_time);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.sequence, 0);
     assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
     assert_eq!(posted_message.0.payload, message);
     assert_eq!(
         posted_message.0.emitter_address,
@@ -641,16 +837,17 @@ fn test_set_fees(context: &mut Context) {
 
     // Verify on chain Signatures
     assert_eq!(signatures.hash, body);
-    assert_eq!(signatures.guardian_set_index, 1);
+    assert_eq!(signatures.guardian_set_index, 0);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         assert_eq!(*signature, true);
     }
 }
 
-fn test_set_fees_fails(context: &mut Context) {
+#[tokio::test]
+async fn set_fees_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // Use a random key to confirm only the governance key is respected.
     let emitter = Keypair::new();
@@ -658,7 +855,7 @@ fn test_set_fees_fails(context: &mut Context) {
 
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
-        fee: U256::from(100),
+        fee: U256::from(100u128),
     }
     .try_to_vec()
     .unwrap();
@@ -672,12 +869,16 @@ fn test_set_fees_fails(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
     assert!(common::set_fees(
         client,
         program,
@@ -686,21 +887,25 @@ fn test_set_fees_fails(context: &mut Context) {
         emitter.pubkey(),
         sequence,
     )
+    .await
     .is_err());
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 }
 
-fn test_free_fees(context: &mut Context) {
+#[tokio::test]
+async fn free_fees() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Set Fees to 0.
     let nonce = rand::thread_rng().gen();
-    let message = GovernancePayloadSetMessageFee { fee: U256::from(0) }
-        .try_to_vec()
-        .unwrap();
+    let message = GovernancePayloadSetMessageFee {
+        fee: U256::from(0u128),
+    }
+    .try_to_vec()
+    .unwrap();
 
     let message_key = common::post_message(
         client,
@@ -711,12 +916,16 @@ fn test_free_fees(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
     common::set_fees(
         client,
         program,
@@ -725,46 +934,75 @@ fn test_free_fees(context: &mut Context) {
         emitter.pubkey(),
         sequence,
     )
+    .await
     .unwrap();
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 
     // Fetch Bridge to check on-state value.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
     let fee_collector = FeeCollector::key(None, &program);
-    let bridge: BridgeData = common::get_account_data(client, &bridge_key);
+    let bridge: BridgeData = common::get_account_data(client, bridge_key).await;
     assert_eq!(bridge.config.fee, 0);
 
     // Check that posting a new message is free.
-    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+    let account_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
     let emitter = Keypair::new();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
     let message_key =
-        common::post_message(client, program, payer, &emitter, nonce, message.clone(), 0).unwrap();
+        common::post_message(client, program, payer, &emitter, nonce, message.clone(), 0)
+            .await
+            .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
-    common::sync(client, payer);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    let vaa_time = vaa.timestamp;
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: instructions::hash_vaa(&vaa).to_vec(),
+        },
+        &program,
+    );
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+    common::sync(client, payer).await;
 
     // Verify that the fee collector was paid.
     assert_eq!(
-        client.get_account(&fee_collector).unwrap().lamports,
+        client
+            .get_account(fee_collector)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports,
         account_balance,
     );
 
     // And that the new message is on chain.
-    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
-    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+    let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
     assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(
+        posted_message.0.consistency_level,
+        ConsistencyLevel::Confirmed as u8
+    );
+    assert_eq!(posted_message.0.vaa_time, vaa_time);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.sequence, 0);
     assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
     assert_eq!(posted_message.0.payload, message);
     assert_eq!(
         posted_message.0.emitter_address,
@@ -773,23 +1011,24 @@ fn test_free_fees(context: &mut Context) {
 
     // Verify on chain Signatures
     assert_eq!(signatures.hash, body);
-    assert_eq!(signatures.guardian_set_index, 1);
+    assert_eq!(signatures.guardian_set_index, 0);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         assert_eq!(*signature, true);
     }
 }
 
-fn test_transfer_fees(context: &mut Context) {
+#[tokio::test]
+async fn transfer_fees() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     let recipient = Keypair::new();
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
-        amount: 100.into(),
+        amount: 100u128.into(),
         to: payer.pubkey().to_bytes(),
     }
     .try_to_vec()
@@ -797,7 +1036,12 @@ fn test_transfer_fees(context: &mut Context) {
 
     // Fetch accounts for chain state checking.
     let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+    let account_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     let message_key = common::post_message(
         client,
@@ -808,12 +1052,24 @@ fn test_transfer_fees(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+
+    let previous_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
     common::transfer_fees(
         client,
         program,
@@ -823,13 +1079,24 @@ fn test_transfer_fees(context: &mut Context) {
         payer.pubkey(),
         sequence,
     )
+    .await
     .unwrap();
-    common::sync(client, payer);
+    common::sync(client, payer).await;
+    assert_eq!(
+        client
+            .get_account(fee_collector)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports,
+        previous_balance - 100
+    );
 }
 
-fn test_transfer_fees_fails(context: &mut Context) {
+#[tokio::test]
+async fn transfer_fees_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // Use an invalid emitter.
     let emitter = Keypair::new();
@@ -838,7 +1105,7 @@ fn test_transfer_fees_fails(context: &mut Context) {
     let recipient = Keypair::new();
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
-        amount: 100.into(),
+        amount: 100u128.into(),
         to: payer.pubkey().to_bytes(),
     }
     .try_to_vec()
@@ -846,7 +1113,12 @@ fn test_transfer_fees_fails(context: &mut Context) {
 
     // Fetch accounts for chain state checking.
     let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+    let account_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     let message_key = common::post_message(
         client,
@@ -857,12 +1129,23 @@ fn test_transfer_fees_fails(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+
+    let previous_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     assert!(common::transfer_fees(
         client,
@@ -873,12 +1156,24 @@ fn test_transfer_fees_fails(context: &mut Context) {
         payer.pubkey(),
         sequence,
     )
+    .await
     .is_err());
+    common::sync(client, payer).await;
+    assert_eq!(
+        client
+            .get_account(fee_collector)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports,
+        previous_balance
+    );
 }
 
-fn test_transfer_too_much(context: &mut Context) {
+#[tokio::test]
+async fn transfer_too_much() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
@@ -893,7 +1188,12 @@ fn test_transfer_too_much(context: &mut Context) {
 
     // Fetch accounts for chain state checking.
     let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+    let account_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     let message_key = common::post_message(
         client,
@@ -904,12 +1204,23 @@ fn test_transfer_too_much(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+
+    let previous_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     // Should fail to transfer.
     assert!(common::transfer_fees(
@@ -921,12 +1232,24 @@ fn test_transfer_too_much(context: &mut Context) {
         payer.pubkey(),
         sequence,
     )
+    .await
     .is_err());
+    common::sync(client, payer).await;
+    assert_eq!(
+        client
+            .get_account(fee_collector)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports,
+        previous_balance
+    );
 }
 
-fn test_foreign_bridge_messages(context: &mut Context) {
+#[tokio::test]
+async fn foreign_bridge_messages() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
     let emitter = Keypair::new();
@@ -938,19 +1261,22 @@ fn test_foreign_bridge_messages(context: &mut Context) {
     // Derive where we expect created accounts to be.
     let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
         &PostedVAADerivationData {
-            payload_hash: hash_vaa(&vaa).to_vec(),
+            payload_hash: instructions::hash_vaa(&vaa).to_vec(),
         },
         &program,
     );
 
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
-    common::sync(client, payer);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+    common::sync(client, payer).await;
 
     // Fetch chain accounts to verify state.
-    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
-    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+    let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+    let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     assert_eq!(posted_message.0.vaa_version, 0);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
@@ -972,17 +1298,23 @@ fn test_foreign_bridge_messages(context: &mut Context) {
     }
 }
 
-fn test_transfer_total_fails(context: &mut Context) {
+#[tokio::test]
+async fn transfer_total_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Be sure any previous tests have fully committed.
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 
     let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+    let account_balance = client
+        .get_account(fee_collector)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     // Prepare to remove total balance, adding 10_000 to include the fee we're about to pay.
     let recipient = Keypair::new();
@@ -1003,12 +1335,16 @@ fn test_transfer_total_fails(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
 
     // Transferring total fees should fail, to prevent the account being de-allocated.
     assert!(common::transfer_fees(
@@ -1020,26 +1356,39 @@ fn test_transfer_total_fails(context: &mut Context) {
         payer.pubkey(),
         sequence,
     )
+    .await
     .is_err());
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 
     // The fee should have been paid, but other than that the balance should be exactly the same,
     // I.E non-zero.
     assert_eq!(
-        client.get_account(&fee_collector).unwrap().lamports,
+        client
+            .get_account(fee_collector)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports,
         account_balance + 10_000
     );
 }
 
-fn test_upgrade_contract(context: &mut Context) {
+// `solana-program-test` doesn't use an upgradeable loader so it's not currently possible to test
+// the contract upgrade logic this way. See https://github.com/solana-labs/solana/issues/22950 for
+// more details. This test is here mainly as a reference in case the issue above gets fixed, at
+// which point this test can be re-enabled.
+#[tokio::test]
+#[ignore]
+async fn upgrade_contract() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref payer, ref client, ref program) = common::setup();
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
     // Upgrade the guardian set with a new set of guardians.
     let (new_public_keys, new_secret_keys) = common::generate_keys(1);
 
     // New Contract Address
-    let new_contract = Pubkey::new_unique();
+    // let new_contract = Pubkey::new_unique();
+    let new_contract = *program;
 
     let nonce = rand::thread_rng().gen();
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
@@ -1059,12 +1408,16 @@ fn test_upgrade_contract(context: &mut Context) {
         message.clone(),
         10_000,
     )
+    .await
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    let signature_set =
-        common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
-    common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
     common::upgrade_contract(
         client,
         program,
@@ -1075,6 +1428,7 @@ fn test_upgrade_contract(context: &mut Context) {
         Pubkey::new_unique(),
         sequence,
     )
+    .await
     .unwrap();
-    common::sync(client, payer);
+    common::sync(client, payer).await;
 }

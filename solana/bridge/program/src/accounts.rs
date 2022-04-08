@@ -7,7 +7,7 @@ pub mod posted_vaa;
 pub mod sequence;
 pub mod signature_set;
 
-pub use bridge::*;
+pub use self::bridge::*;
 pub use claim::*;
 pub use fee_collector::*;
 pub use guardian_set::*;
