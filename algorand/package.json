@@ -8,5 +8,8 @@
   },
   "devDependencies": {
     "@types/node": "^17.0.23"
+  },
+  "scripts": {
+    "test": "ts-node test/test.ts"
   }
 }
