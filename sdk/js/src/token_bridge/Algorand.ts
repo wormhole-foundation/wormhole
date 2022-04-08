@@ -2,8 +2,6 @@
 
 import { id, keccak256 } from "ethers/lib/utils";
 
-import * as fs from "fs";
-
 import algosdk, {
     Account,
     Algodv2,
@@ -32,7 +30,6 @@ import {
 
 import { TextEncoder, inspect } from "util";
 import { ChainId } from "../utils/consts";
-import IndexerClient from "algosdk/dist/types/src/client/v2/indexer/indexer";
 
 export let ALGO_TOKEN =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -597,9 +594,9 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("NewGuardianSetIndex", buf.readIntBE(off, 4));
     }
 
-//    ret.set("len", vaa.slice(off).length)
-//    ret.set("act", buf.readIntBE(off, 1))
-    
+    //    ret.set("len", vaa.slice(off).length)
+    //    ret.set("act", buf.readIntBE(off, 1))
+
     if (vaa.slice(off).length === 100 && buf.readIntBE(off, 1) === 2) {
         ret.set("Meta", "TokenBridge Attest");
         ret.set("Type", buf.readIntBE(off, 1));
@@ -875,7 +872,7 @@ export async function submitVAAHdr(
             keySet.set(key, i * 20);
         }
 
-        console.log("xxx", keySet);
+        console.log("keySet:", keySet);
 
         const appTxn = makeApplicationCallTxnFromObject({
             appArgs: [
@@ -918,7 +915,7 @@ export async function simpleSignVAA(
     client: Algodv2,
     sender: Account,
     txns: Array<algosdk.Transaction>
-) {
+): Promise<string[]> {
     console.log("simpleSignVAA");
     //    console.log(txns)
     assignGroupID(txns);
@@ -962,14 +959,6 @@ export async function simpleSignVAA(
         console.log("logs:", log);
     });
 
-    // Testing getIsCompleted hack
-    const isComplete: boolean = await getIsTransferCompletedAlgorand(
-        client,
-        signedTxns[0],
-        TOKEN_BRIDGE_ID,
-        sender
-    );
-    console.log("getIsTransferCompletedAlgorand result =", isComplete);
     return ret;
 }
 
@@ -1202,7 +1191,7 @@ export async function submitVAA(
 
     console.log("simpleSignVAA start");
     let ret = await simpleSignVAA(client, sender, txns);
-    console.log("simpleSignVAA done");
+    console.log("simpleSignVAA done", ret);
     return ret;
 }
 
@@ -1506,7 +1495,7 @@ export async function redeemOnAlgorand(
  * <p>This function is used to check if a VAA has been redeemed by looking at a specific bit.<p>
  * @param client AlgodV2 client
  * @param appId Application Id
- * @param addr Some address. TODO:  What is the relationship to the VAA?
+ * @param addr Wallet address. Someone has to pay for this.
  * @param seq The sequence number of the redemption
  * @returns true, if the bit was set and VAA was redeemed, false otherwise.
  */
@@ -1586,12 +1575,11 @@ export async function getIsTransferCompletedAlgorand(
     wallet: Account
 ): Promise<boolean> {
     const parsedVAA: Map<string, any> = parseVAA(signedVAA);
-    console.log(Number(parsedVAA.get("sequence")));
-    const seq: number = Math.floor(
-        Number(parsedVAA.get("sequence")) / MAX_BITS
-    );
-    const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
-    const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
+    const seq: number = Number(parsedVAA.get("sequence"));
+    console.log("seq:", seq);
+    const chainRaw: string = parsedVAA.get("chainRaw"); // this needs to be a hex string
+    const em: string = parsedVAA.get("emitter"); // this needs to be a hex string
+    console.log("chainRaw:", chainRaw, "em:", em);
     const index: number = parsedVAA.get("index");
     console.log(parsedVAA);
 
@@ -1599,7 +1587,8 @@ export async function getIsTransferCompletedAlgorand(
         client,
         wallet,
         appId,
-        seq,
+        index,
+        // em,
         chainRaw + em,
         "Getting seqAddr from getIsTransferCompletedAlgorand"
     );
