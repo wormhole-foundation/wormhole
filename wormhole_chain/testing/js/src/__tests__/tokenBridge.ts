@@ -54,7 +54,7 @@ describe("Token bridge tests", () => {
       //VAA for 100 hole to this specific wallet
       const client = await getWormchainSigningClient(TENDERMINT_URL, wallet2);
 
-      const msg = client.msgTransfer({
+      const msg = client.tokenbridge.msgTransfer({
         creator: wallet2Address,
         amount: { amount: "100", denom: "uhole" },
         toChain: 2,
