@@ -12,6 +12,7 @@ import {
   CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_FANTOM,
   CHAIN_ID_KARURA,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
@@ -29,7 +30,8 @@ export const isEVMChain = (chainId: ChainId) => {
     chainId === CHAIN_ID_AURORA ||
     chainId === CHAIN_ID_FANTOM ||
     chainId === CHAIN_ID_KARURA ||
-    chainId === CHAIN_ID_ACALA
+    chainId === CHAIN_ID_ACALA ||
+    chainId === CHAIN_ID_KLAYTN
   );
 };
 

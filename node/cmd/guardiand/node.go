@@ -93,6 +93,9 @@ var (
 	acalaRPC      *string
 	acalaContract *string
 
+	klaytnRPC      *string
+	klaytnContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
@@ -178,6 +181,9 @@ func init() {
 
 	acalaRPC = NodeCmd.Flags().String("acalaRPC", "", "Acala RPC URL")
 	acalaContract = NodeCmd.Flags().String("acalaContract", "", "Acala contract address")
+
+	klaytnRPC = NodeCmd.Flags().String("klaytnRPC", "", "Klaytn RPC URL")
+	klaytnContract = NodeCmd.Flags().String("klaytnContract", "", "Klaytn contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -310,6 +316,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 		readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 		readiness.RegisterComponent(common.ReadinessAcalaSyncing)
+		readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -357,6 +364,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*fantomContract = devnet.GanacheWormholeContractAddress.Hex()
 		*karuraContract = devnet.GanacheWormholeContractAddress.Hex()
 		*acalaContract = devnet.GanacheWormholeContractAddress.Hex()
+		*klaytnContract = devnet.GanacheWormholeContractAddress.Hex()
 	}
 
 	// Verify flags
@@ -428,6 +436,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *acalaContract == "" {
 			logger.Fatal("Please specify --acalaContract")
 		}
+		if *klaytnRPC == "" {
+			logger.Fatal("Please specify --klaytnRPC")
+		}
+		if *klaytnContract == "" {
+			logger.Fatal("Please specify --klaytnContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -452,6 +466,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *acalaContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --acalaContract")
+		}
+		if *klaytnRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --klaytnRPC")
+		}
+		if *klaytnContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --klaytnContract")
 		}
 	}
 	if *nodeName == "" {
@@ -541,6 +561,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	fantomContractAddr := eth_common.HexToAddress(*fantomContract)
 	karuraContractAddr := eth_common.HexToAddress(*karuraContract)
 	acalaContractAddr := eth_common.HexToAddress(*acalaContract)
+	klaytnContractAddr := eth_common.HexToAddress(*klaytnContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -624,10 +645,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode {
-		chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 	}
 
@@ -786,6 +809,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 			if err := supervisor.Run(ctx, "acalawatch",
 				ethereum.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", common.ReadinessAcalaSyncing, vaa.ChainIDAcala, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAcala]).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "klaytnwatch",
+				ethereum.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", common.ReadinessKlaytnSyncing, vaa.ChainIDKlaytn, lockC, nil, 1, chainObsvReqC[vaa.ChainIDKlaytn]).Run); err != nil {
 				return err
 			}
 		}

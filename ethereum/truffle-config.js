@@ -188,6 +188,17 @@ module.exports = {
       gasLimit: 213192000,
       gas: 213192000,
     },
+    klaytn_testnet: { // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://api.baobab.klaytn.net:8651/"
+        );
+      },
+      network_id: '1001',
+      gas: '8500000',
+      gasPrice: null
+    },
   },
 
   compilers: {

@@ -48,9 +48,14 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "polygon", output: ChainIDPolygon},
 		{input: "avalanche", output: ChainIDAvalanche},
 		{input: "oasis", output: ChainIDOasis},
-		{input: "fantom", output: ChainIDFantom},
 		{input: "algorand", output: ChainIDAlgorand},
+		{input: "aurora", output: ChainIDAurora},
+		{input: "fantom", output: ChainIDFantom},
+		{input: "karura", output: ChainIDKarura},
+		{input: "acala", output: ChainIDAcala},
+		{input: "klaytn", output: ChainIDKlaytn},
 		{input: "ethereum-ropsten", output: ChainIDEthereumRopsten},
+
 		{input: "Solana", output: ChainIDSolana},
 		{input: "Ethereum", output: ChainIDEthereum},
 		{input: "Terra", output: ChainIDTerra},
@@ -58,10 +63,13 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Polygon", output: ChainIDPolygon},
 		{input: "Avalanche", output: ChainIDAvalanche},
 		{input: "Oasis", output: ChainIDOasis},
-		{input: "Fantom", output: ChainIDFantom},
 		{input: "Algorand", output: ChainIDAlgorand},
+		{input: "Aurora", output: ChainIDAurora},
+		{input: "Fantom", output: ChainIDFantom},
 		{input: "Karura", output: ChainIDKarura},
 		{input: "Acala", output: ChainIDAcala},
+		{input: "Klaytn", output: ChainIDKlaytn},
+		{input: "Ethereum-ropsten", output: ChainIDEthereumRopsten},
 	}
 
 	// Negative Test Cases
@@ -136,11 +144,13 @@ func TestChainId_String(t *testing.T) {
 		{input: 5, output: "polygon"},
 		{input: 6, output: "avalanche"},
 		{input: 7, output: "oasis"},
-		{input: 10, output: "fantom"},
 		{input: 8, output: "algorand"},
-		{input: 10001, output: "ethereum-ropsten"},
+		{input: 9, output: "aurora"},
+		{input: 10, output: "fantom"},
 		{input: 11, output: "karura"},
 		{input: 12, output: "acala"},
+		{input: 13, output: "klaytn"},
+		{input: 10001, output: "ethereum-ropsten"},
 	}
 
 	for _, tc := range tests {
