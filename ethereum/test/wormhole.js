@@ -519,7 +519,7 @@ contract("Wormhole", function () {
             // Core
             core,
             // Action 4 (set fees)
-            "04",
+            actionTransferFee,
             // ChainID
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             // Amount
