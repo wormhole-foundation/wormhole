@@ -64,6 +64,11 @@ service Query {
 		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardian_validator";
 	}
 
+// Queries a list of LatestGuardianSetIndex items.
+	rpc LatestGuardianSetIndex(QueryLatestGuardianSetIndexRequest) returns (QueryLatestGuardianSetIndexResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/latest_guardian_set_index";
+	}
+
 // this line is used by starport scaffolding # 2
 }
 
@@ -146,6 +151,13 @@ message QueryAllGuardianValidatorRequest {
 message QueryAllGuardianValidatorResponse {
 	repeated GuardianValidator guardianValidator = 1 [(gogoproto.nullable) = false];
 	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryLatestGuardianSetIndexRequest {
+}
+
+message QueryLatestGuardianSetIndexResponse {
+  uint32 latestGuardianSetIndex = 1;
 }
 
 // this line is used by starport scaffolding # 3

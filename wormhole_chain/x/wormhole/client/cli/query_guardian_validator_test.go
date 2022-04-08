@@ -29,7 +29,8 @@ func networkWithGuardianValidatorObjects(t *testing.T, n int) (*network.Network,
 
 	for i := 0; i < n; i++ {
 		guardianValidator := types.GuardianValidator{
-			GuardianKey: strconv.Itoa(i),
+			GuardianKey:   []byte(strconv.Itoa(i)),
+			ValidatorAddr: []byte(strconv.Itoa(i)),
 		}
 		nullify.Fill(&guardianValidator)
 		state.GuardianValidatorList = append(state.GuardianValidatorList, guardianValidator)
@@ -57,7 +58,7 @@ func TestShowGuardianValidator(t *testing.T) {
 	}{
 		{
 			desc:          "found",
-			idGuardianKey: objs[0].GuardianKey,
+			idGuardianKey: string(objs[0].GuardianKey),
 
 			args: common,
 			obj:  objs[0],
