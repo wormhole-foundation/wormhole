@@ -1,6 +1,7 @@
 import { describe, jest, test, expect } from "@jest/globals";
 import {
   HOLE_DENOM,
+  TENDERMINT_URL,
   TEST_TRANSFER_VAA,
   TEST_WALLET_MNEMONIC_1,
   TEST_WALLET_MNEMONIC_2,
@@ -10,10 +11,11 @@ import {
   getAddress,
   getBalance,
   getWallet,
+  getZeroFee,
   sendTokens,
   signSendAndConfirm,
 } from "../core/walletHelpers";
-import { transferTokens } from "wormhole-chain-sdk";
+import { getWormchainSigningClient } from "wormhole-chain-sdk";
 
 jest.setTimeout(60000);
 
@@ -50,14 +52,23 @@ describe("Token bridge tests", () => {
         wallet2Address
       );
       //VAA for 100 hole to this specific wallet
-      const receipt = await transferTokens(
-        wallet2,
-        "uhole",
-        "100",
-        new Uint8Array(32),
-        2,
-        "0"
+      const client = await getWormchainSigningClient(TENDERMINT_URL, wallet2);
+
+      const msg = client.msgTransfer({
+        creator: wallet2Address,
+        amount: { amount: "100", denom: "uhole" },
+        toChain: 2,
+        toAddress: new Uint8Array(32),
+        fee: "0",
+      });
+
+      //@ts-ignore
+      const receipt = await client.signAndBroadcast(
+        wallet2Address,
+        [msg],
+        getZeroFee()
       );
+
       const wallet2BalanceAfterTransfer = await getBalance(
         HOLE_DENOM,
         wallet2Address

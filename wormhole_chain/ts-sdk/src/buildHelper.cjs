@@ -10,15 +10,6 @@ const CERTUS_DIRECTORY = "../vue/src/store/generated/certusone/wormhole-chain/";
 const MODULE_DIRECTORY = "../ts-sdk/src/modules/";
 const VUE_DIRECTORY = "../vue";
 
-function allFilesRecursive(directory) {
-  const output = [];
-  fs.readdirSync(directory).forEach((file) => {
-    const absolute = Path.join(Directory, file);
-    if (fs.statSync(absolute).isDirectory()) return allFilesRecursive(absolute);
-    else return output.push(absolute);
-  });
-}
-
 function execWrapper(command) {
   execSync(command, (error, stdout, stderr) => {
     if (error) {

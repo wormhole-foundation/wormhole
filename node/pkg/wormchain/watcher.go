@@ -166,6 +166,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		}
 	}()
 
+	//TODO verify that this needs no changes
 	go func() {
 		for {
 			select {
@@ -240,8 +241,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			// Received a message from the blockchain
 			json := string(message)
-			//TODO remove
-			logger.Warn("saw a wormchain message", zap.String("payload", json))
 			
 			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
 			if !txHashRaw.Exists() {
