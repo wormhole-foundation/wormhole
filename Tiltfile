@@ -74,7 +74,7 @@ ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
-secondNode = cfg.get("secondWormchain", False)
+secondWormchain = cfg.get("secondWormchain", False)
 
 bridge_ui_hot = not ci
 
@@ -755,8 +755,8 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-if secondNode:
-    k8s_yaml_with_ns("validators/kubernetes/wormchain-validator2-devnet.yaml")
+if secondWormchain:
+    k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-validator2-devnet.yaml")
 
     k8s_resource(
         "second-validator",
