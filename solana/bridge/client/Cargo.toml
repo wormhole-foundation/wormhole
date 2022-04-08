@@ -1,5 +1,5 @@
 [package]
-name = "client"
+name = "bridge_client"
 version = "0.1.0"
 authors = ["Stan Drozd <stan@nexantic.com>"]
 edition = "2018"
