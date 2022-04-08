@@ -35,6 +35,7 @@ use crate::{
         PayloadTransferWithPayload,
     },
     CompleteNativeWithPayloadData,
+    CompleteWrappedWithPayloadData,
     TransferNativeWithPayloadData,
     TransferWrappedWithPayloadData,
 };
@@ -285,7 +286,7 @@ pub fn complete_wrapped_with_payload(
     to: Pubkey,
     to_owner: Pubkey,
     fee_recipient: Option<Pubkey>,
-    data: CompleteWrappedData,
+    data: CompleteWrappedWithPayloadData,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
@@ -334,7 +335,7 @@ pub fn complete_wrapped_with_payload(
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
-        data: (crate::instruction::Instruction::CompleteWrapped, data).try_to_vec()?,
+        data: (crate::instruction::Instruction::CompleteWrappedWithPayload, data).try_to_vec()?,
     })
 }
 
