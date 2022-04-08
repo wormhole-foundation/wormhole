@@ -438,7 +438,7 @@ describe("Integration Tests", () => {
       })();
     });
     // TODO: it is attested
-    test("Send Solana SPL to Ethereum", (done) => {
+    test.only("Send Solana SPL to Ethereum", (done) => {
       (async () => {
         try {
           // create a signer for Eth
@@ -614,7 +614,7 @@ describe("Integration Tests", () => {
     });
   });
   describe("Ethereum to Terra", () => {
-    test("Attest Ethereum ERC-20 to Terra", (done) => {
+    test.only("Attest Ethereum ERC-20 to Terra", (done) => {
       (async () => {
         try {
           // create a signer for Eth
@@ -690,7 +690,7 @@ describe("Integration Tests", () => {
       })();
     });
     // TODO: it is attested
-    test("Send Ethereum ERC-20 to Terra", (done) => {
+    test.only("Send Ethereum ERC-20 to Terra", (done) => {
       (async () => {
         try {
           // create a signer for Eth
