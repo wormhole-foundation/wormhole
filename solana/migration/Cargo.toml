@@ -32,10 +32,7 @@ rand = { version = "0.7.3", optional = true }
 [dev-dependencies]
 hex = "*"
 hex-literal = "0.3.1"
-libsecp256k1 = { version = "0.3.5", features = [] }
+libsecp256k1 = { version = "0.6.0", features = [] }
 solana-client = "=1.9.4"
 solana-sdk = "=1.9.4"
 spl-token = { version = "=3.2.0", features = ["no-entrypoint"] }
-
-[patch.crates-io]
-memmap2 = { path = "../bridge/memmap2-rs" }

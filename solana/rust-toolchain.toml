@@ -1,0 +1,5 @@
+# This version should be kept up to date with the value in ci/rust-version.sh in
+# the branch of the solana repo that corresponds with the version we're using.
+[toolchain]
+channel = "nightly-2021-12-03"
+profile = "minimal"

@@ -33,42 +33,42 @@ ARG SED_REMOVE_INVALID_REFERENCE="/^\s*wasm.__wbg_systeminstruction_free(ptr);$/
 
 # Compile Wormhole
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=bridge/target \
+	--mount=type=cache,target=target \
     cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
     cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE bridge_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=bridge/target \
+	--mount=type=cache,target=target \
     cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
 
 # Compile Token Bridge
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=modules/token_bridge/target \
+	--mount=type=cache,target=target \
     cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
     cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE token_bridge_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=modules/token_bridge/target \
+	--mount=type=cache,target=target \
     cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
 
 # Compile Migration
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=migration/target \
+	--mount=type=cache,target=target \
     cd migration && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
     cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE wormhole_migration_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=migration/target \
+	--mount=type=cache,target=target \
     cd migration && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
 
 # Compile NFT Bridge
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=modules/nft_bridge/target \
+	--mount=type=cache,target=target \
     cd modules/nft_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
     cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE nft_bridge_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=modules/nft_bridge/target \
+	--mount=type=cache,target=target \
     cd modules/nft_bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
 
 FROM scratch AS export
