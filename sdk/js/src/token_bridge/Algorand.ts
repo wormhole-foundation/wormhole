@@ -217,7 +217,7 @@ export async function getMessageFee(client: Algodv2): Promise<number> {
  * @returns The sequence number found in the supplied transaction
  */
 export function parseSeqFromLog(txn: any): bigint {
-    const innerTxns = txn.innerTxns[-1];
+    const innerTxns = txn.innerTxns[txn.innerTxns-1];
     const logs = innerTxns["logs"];
     const seqNum = logs[0];
     const bufSN = Buffer.from(seqNum, "base64");
@@ -414,6 +414,8 @@ export async function optin(
         seedAmt: SEED_AMT,
     };
 
+    console.log("YYY", JSON.stringify(data))
+
     const ts: TmplSig = new TmplSig(client);
     const lsa: LogicSigAccount = await ts.populate(data);
     const sigAddr: string = lsa.address();
@@ -601,7 +603,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Meta", "TokenBridge Attest");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
-        ret.set("Contract", extract3(vaa, off, 32));
+        ret.set("Contract", uint8ArrayToHexString(extract3(vaa, off, 32), false));
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
@@ -618,7 +620,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 1;
         ret.set("Amount", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Contract", extract3(vaa, off, 32));
+        ret.set("Contract", uint8ArrayToHexString(extract3(vaa, off, 32), false));
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
@@ -639,7 +641,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 1;
         ret.set("Amount", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Contract", extract3(vaa, off, 32));
+        ret.set("Contract", uint8ArrayToHexString(extract3(vaa, off, 32), false));
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
@@ -1106,6 +1108,7 @@ export async function submitVAA(
             })
         );
 
+        buf = new Uint8Array(1);
         buf[0] = 0x02;
         txns.push(
             makeApplicationCallTxnFromObject({
@@ -1128,7 +1131,7 @@ export async function submitVAA(
                 suggestedParams: params,
             })
         );
-        txns[-1].fee = txns[-1].fee * 2;
+        txns[txns.length-1].fee = txns[txns.length-1].fee * 2;
     }
 
     if (
@@ -1183,9 +1186,9 @@ export async function submitVAA(
 
         // We need to cover the inner transactions
         if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
-            txns[-1].fee = txns[-1].fee * 3;
+            txns[txns.length-1].fee = txns[txns.length-1].fee * 3;
         } else {
-            txns[-1].fee = txns[-1].fee * 2;
+            txns[txns.length-1].fee = txns[txns.length-1].fee * 2;
         }
     }
 
