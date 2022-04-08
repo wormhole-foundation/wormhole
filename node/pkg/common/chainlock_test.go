@@ -30,38 +30,6 @@ func getTestMP() MessagePublication {
 	}
 }
 
-// Base test to ensure the basic struct I/O
-func TestMessagePublication(t *testing.T) {
-	txHash := common.HexToHash("80d6a81b73b3cebba81fba2a330bcfaa25ce93e52e6bd65a02c7c13932a8c1a5")
-	timeStamp := time.Now()
-	nonce := uint32(1)
-	sequence := uint64(1)
-	consistencyLevel := uint8(1)
-	emitterChain := vaa.ChainIDEthereum
-	emitterAddress := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-	payload := []byte{97, 97, 97, 97, 97, 97}
-
-	mp := MessagePublication{
-		TxHash:           txHash,
-		Timestamp:        timeStamp,
-		Nonce:            nonce,
-		Sequence:         sequence,
-		ConsistencyLevel: consistencyLevel,
-		EmitterChain:     emitterChain,
-		EmitterAddress:   emitterAddress,
-		Payload:          payload,
-	}
-
-	assert.Equal(t, txHash, mp.TxHash)
-	assert.Equal(t, timeStamp, mp.Timestamp)
-	assert.Equal(t, nonce, mp.Nonce)
-	assert.Equal(t, sequence, mp.Sequence)
-	assert.Equal(t, consistencyLevel, mp.ConsistencyLevel)
-	assert.Equal(t, emitterChain, mp.EmitterChain)
-	assert.Equal(t, emitterAddress, mp.EmitterAddress)
-	assert.Equal(t, payload, mp.Payload)
-}
-
 // This is a known limitation of Go 1.x, it lacks over/underflow safety
 // Ref:
 //   - https://github.com/golang/go/issues/31500
