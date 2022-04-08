@@ -6,7 +6,7 @@
   "devDependencies": {
     "@chainsafe/truffle-plugin-abigen": "0.0.1",
     "@openzeppelin/cli": "^2.8.2",
-    "@openzeppelin/contracts": "^4.3.2",
+    "@openzeppelin/contracts": "^4.4.2",
     "@openzeppelin/test-environment": "^0.1.6",
     "@openzeppelin/test-helpers": "^0.5.9",
     "@poanet/solidity-flattener": "^3.0.7",
