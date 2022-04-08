@@ -266,8 +266,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 
 			// Query and report guardian set status
-			// TODO(csongor): update this URL to latest guardian set (when that endpoint is exposed)
-			requestURL := fmt.Sprintf("%s/certusone/wormholechain/wormhole/consensus_guardian_set_index", e.urlLCD)
+			requestURL := fmt.Sprintf("%s/certusone/wormholechain/wormhole/latest_guardian_set_index", e.urlLCD)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 			if err != nil {
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
@@ -288,7 +287,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			//TODO change this field name once the active set gets refactored to latest set
 			body, err := ioutil.ReadAll(resp.Body)
-			queryLatency.WithLabelValues("ConsensusGuardianSetIndex").Observe(time.Since(msm).Seconds())
+			queryLatency.WithLabelValues("LatestGuardianSetIndex").Observe(time.Since(msm).Seconds())
 			if err != nil {
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
 				logger.Error("query guardian set error", zap.Error(err))
@@ -298,7 +297,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 
 			json = string(body)
-			guardianSetIndex := gjson.Get(json, "ConsensusGuardianSetIndex.index")
+			guardianSetIndex := gjson.Get(json, "LatestGuardianSetIndex.index")
 			//TODO do we also need to retrieve the addresses via a second webcall, or can this be omitted?
 			//addresses := gjson.Get(json, "result.addresses.#.bytes")
 

@@ -19,7 +19,7 @@ func TestGenesis(t *testing.T) {
 				Index: 1,
 			},
 		},
-		Config:           &types.Config{},
+		Config: &types.Config{},
 		ReplayProtectionList: []types.ReplayProtection{
 			{
 				Index: "0",

@@ -18,6 +18,12 @@ starport generate proto-go
 starport scaffold message register-account-as-guardian guardian-pubkey:GuardianKey address-bech32:string signature:string --desc "Register a guardian public key with a wormhole chain address." --module wormhole --signer signer
 ```
 
+Scaffold a query:
+```shell
+starport scaffold query latest_guardian_set_index --response LatestGuardianSetIndex --module wormhole
+```
+(then modify "wormhole_chain/x/wormhole/types/query.pb.go" to change the response type)
+
 ## Iterating on the chain quickly
 
 First initialise the chain using starport:
