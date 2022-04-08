@@ -8,6 +8,8 @@ target
 /mutagen.sh
 venv
 .env
+.env.hex
+.env.0x
 bigtable-admin.json
 bigtable-writer.json
 **/cert.pem

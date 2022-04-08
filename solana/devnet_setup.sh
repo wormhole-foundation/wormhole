@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # This script configures the devnet for test transfers with hardcoded addresses.
-set -x
+set -xu
 
 # Configure CLI (works the same as upstream Solana CLI)
 mkdir -p ~/.config/solana/cli
@@ -35,8 +35,6 @@ chain_id_ethereum=2
 
 # load the .env file with the devent init data
 source .env
-# remove brackets and double quotes, transform json list of strings to CSV with no quotes.
-guardians=$(echo $INIT_SIGNERS | sed -r 's/(\[|\]|\")//g')
 
 retry () {
   while ! $@; do
@@ -87,7 +85,7 @@ token-bridge-client create-meta "$nft" "Not a PUNK 2🎸" "PUNK2🎸" "https://w
 
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
-retry client create-bridge "$bridge_address" "$guardians" 86400 100
+retry client create-bridge "$bridge_address" "$INIT_SIGNERS_CSV" 86400 100
 
 # Initialize the token bridge
 retry token-bridge-client create-bridge "$token_bridge_address" "$bridge_address"
