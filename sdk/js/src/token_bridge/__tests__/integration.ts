@@ -1405,7 +1405,7 @@ describe("Integration Tests", () => {
         done();
       })();
     });
-    test.only("Transfer wrapped luna back to Terra", (done) => {
+    test("Transfer wrapped luna back to Terra", (done) => {
       (async () => {
         try {
           // Get initial wallet balances
