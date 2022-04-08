@@ -1153,7 +1153,7 @@ describe("Integration Tests", () => {
     });
   });
   describe("Terra to Ethereum", () => {
-    test.only("Attestation from Terra to ETH", (done) => {
+    test("Attestation from Terra to ETH", (done) => {
       (async () => {
         try {
           const lcd = new LCDClient({
