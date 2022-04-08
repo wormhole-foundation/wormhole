@@ -1153,7 +1153,7 @@ describe("Integration Tests", () => {
     });
   });
   describe("Terra to Ethereum", () => {
-    test("Attestation from Terra to ETH", (done) => {
+    test.only("Attestation from Terra to ETH", (done) => {
       (async () => {
         try {
           const lcd = new LCDClient({
@@ -1246,7 +1246,7 @@ describe("Integration Tests", () => {
         done();
       })();
     });
-    test("Transfer from Terra", (done) => {
+    test.only("Transfer from Terra", (done) => {
       (async () => {
         try {
           const lcd = new LCDClient({
@@ -1405,7 +1405,7 @@ describe("Integration Tests", () => {
         done();
       })();
     });
-    test("Transfer wrapped luna back to Terra", (done) => {
+    test.only("Transfer wrapped luna back to Terra", (done) => {
       (async () => {
         try {
           // Get initial wallet balances
