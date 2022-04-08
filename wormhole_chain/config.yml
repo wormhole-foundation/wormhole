@@ -86,7 +86,7 @@ genesis:
           keys:
             - "vvpCnVfNGLf4pNkaLamrSvBdD74="
           expirationTime: 0
-      activeGuardianSetIndex:
+      consensusGuardianSetIndex:
         index: 0
       guardianValidatorList:
         - validatorAddr: "wQggmD8zRWznvrOgRvWoP6NPAn0=" # base64(fromBech32("wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8"))

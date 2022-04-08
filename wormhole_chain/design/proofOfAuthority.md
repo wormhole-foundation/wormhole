@@ -2,6 +2,7 @@
 
 The Wormhole Chain is intended to operate via the same PoA mechanism as the rest of the Wormhole ecosystem. This entails the following:
 
+TODO(chase): revise active vs consensus in this document
 - Two thirds of the Active Guardian Set are required for consensus. (In this case, block production.)
 - Guardian Sets are upgraded via processing Guardian Set Upgrade Governance VAAs.
 

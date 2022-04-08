@@ -80,7 +80,7 @@ export interface V1Beta1PageResponse {
   total?: string;
 }
 
-export interface WormholeActiveGuardianSetIndex {
+export interface WormholeConsensusGuardianSetIndex {
   /** @format int64 */
   index?: number;
 }
@@ -185,8 +185,8 @@ export interface WormholeQueryAllSequenceCounterResponse {
   pagination?: V1Beta1PageResponse;
 }
 
-export interface WormholeQueryGetActiveGuardianSetIndexResponse {
-  ActiveGuardianSetIndex?: WormholeActiveGuardianSetIndex;
+export interface WormholeQueryGetConsensusGuardianSetIndexResponse {
+  ConsensusGuardianSetIndex?: WormholeConsensusGuardianSetIndex;
 }
 
 export interface WormholeQueryGetConfigResponse {
@@ -412,7 +412,7 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title wormhole/active_guardian_set_index.proto
+ * @title wormhole/consensus_guardian_set_index.proto
  * @version version not set
  */
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
@@ -420,13 +420,13 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * No description
    *
    * @tags Query
-   * @name QueryActiveGuardianSetIndex
-   * @summary Queries a ActiveGuardianSetIndex by index.
-   * @request GET:/certusone/wormholechain/wormhole/active_guardian_set_index
+   * @name QueryConsensusGuardianSetIndex
+   * @summary Queries a ConsensusGuardianSetIndex by index.
+   * @request GET:/certusone/wormholechain/wormhole/consensus_guardian_set_index
    */
-  queryActiveGuardianSetIndex = (params: RequestParams = {}) =>
-    this.request<WormholeQueryGetActiveGuardianSetIndexResponse, RpcStatus>({
-      path: `/certusone/wormholechain/wormhole/active_guardian_set_index`,
+  queryConsensusGuardianSetIndex = (params: RequestParams = {}) =>
+    this.request<WormholeQueryGetConsensusGuardianSetIndexResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/consensus_guardian_set_index`,
       method: "GET",
       format: "json",
       ...params,

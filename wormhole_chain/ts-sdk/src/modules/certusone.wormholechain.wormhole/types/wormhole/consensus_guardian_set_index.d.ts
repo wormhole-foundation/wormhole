@@ -1,15 +1,15 @@
 //@ts-nocheck
 import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
-export interface ActiveGuardianSetIndex {
+export interface ConsensusGuardianSetIndex {
     index: number;
 }
-export declare const ActiveGuardianSetIndex: {
-    encode(message: ActiveGuardianSetIndex, writer?: Writer): Writer;
-    decode(input: Reader | Uint8Array, length?: number): ActiveGuardianSetIndex;
-    fromJSON(object: any): ActiveGuardianSetIndex;
-    toJSON(message: ActiveGuardianSetIndex): unknown;
-    fromPartial(object: DeepPartial<ActiveGuardianSetIndex>): ActiveGuardianSetIndex;
+export declare const ConsensusGuardianSetIndex: {
+    encode(message: ConsensusGuardianSetIndex, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): ConsensusGuardianSetIndex;
+    fromJSON(object: any): ConsensusGuardianSetIndex;
+    toJSON(message: ConsensusGuardianSetIndex): unknown;
+    fromPartial(object: DeepPartial<ConsensusGuardianSetIndex>): ConsensusGuardianSetIndex;
 };
 declare type Builtin = Date | Function | Uint8Array | string | number | undefined;
 export declare type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {

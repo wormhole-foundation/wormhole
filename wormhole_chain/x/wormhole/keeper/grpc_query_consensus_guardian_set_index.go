@@ -9,16 +9,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (k Keeper) ActiveGuardianSetIndex(c context.Context, req *types.QueryGetActiveGuardianSetIndexRequest) (*types.QueryGetActiveGuardianSetIndexResponse, error) {
+func (k Keeper) ConsensusGuardianSetIndex(c context.Context, req *types.QueryGetConsensusGuardianSetIndexRequest) (*types.QueryGetConsensusGuardianSetIndexResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
 	ctx := sdk.UnwrapSDKContext(c)
 
-	val, found := k.GetActiveGuardianSetIndex(ctx)
+	val, found := k.GetConsensusGuardianSetIndex(ctx)
 	if !found {
 		return nil, status.Error(codes.InvalidArgument, "not found")
 	}
 
-	return &types.QueryGetActiveGuardianSetIndexResponse{ActiveGuardianSetIndex: val}, nil
+	return &types.QueryGetConsensusGuardianSetIndexResponse{ConsensusGuardianSetIndex: val}, nil
 }

@@ -3,7 +3,7 @@ import { GuardianSet } from "../wormhole/guardian_set";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
-import { ActiveGuardianSetIndex } from "../wormhole/active_guardian_set_index";
+import { ConsensusGuardianSetIndex } from "../wormhole/consensus_guardian_set_index";
 import { GuardianValidator } from "../wormhole/guardian_validator";
 import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
@@ -13,7 +13,7 @@ export interface GenesisState {
     config: Config | undefined;
     replayProtectionList: ReplayProtection[];
     sequenceCounterList: SequenceCounter[];
-    activeGuardianSetIndex: ActiveGuardianSetIndex | undefined;
+    consensusGuardianSetIndex: ConsensusGuardianSetIndex | undefined;
     /** this line is used by starport scaffolding # genesis/proto/state */
     guardianValidatorList: GuardianValidator[];
 }

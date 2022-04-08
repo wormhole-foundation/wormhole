@@ -15,23 +15,23 @@ import (
 	"github.com/certusone/wormhole-chain/x/wormhole/types"
 )
 
-func networkWithActiveGuardianSetIndexObjects(t *testing.T) (*network.Network, types.ActiveGuardianSetIndex) {
+func networkWithConsensusGuardianSetIndexObjects(t *testing.T) (*network.Network, types.ConsensusGuardianSetIndex) {
 	t.Helper()
 	cfg := network.DefaultConfig()
 	state := types.GenesisState{}
 	require.NoError(t, cfg.Codec.UnmarshalJSON(cfg.GenesisState[types.ModuleName], &state))
 
-	activeGuardianSetIndex := &types.ActiveGuardianSetIndex{}
-	nullify.Fill(&activeGuardianSetIndex)
-	state.ActiveGuardianSetIndex = activeGuardianSetIndex
+	consensusGuardianSetIndex := &types.ConsensusGuardianSetIndex{}
+	nullify.Fill(&consensusGuardianSetIndex)
+	state.ConsensusGuardianSetIndex = consensusGuardianSetIndex
 	buf, err := cfg.Codec.MarshalJSON(&state)
 	require.NoError(t, err)
 	cfg.GenesisState[types.ModuleName] = buf
-	return network.New(t, cfg), *state.ActiveGuardianSetIndex
+	return network.New(t, cfg), *state.ConsensusGuardianSetIndex
 }
 
-func TestShowActiveGuardianSetIndex(t *testing.T) {
-	net, obj := networkWithActiveGuardianSetIndexObjects(t)
+func TestShowConsensusGuardianSetIndex(t *testing.T) {
+	net, obj := networkWithConsensusGuardianSetIndexObjects(t)
 
 	ctx := net.Validators[0].ClientCtx
 	common := []string{
@@ -41,7 +41,7 @@ func TestShowActiveGuardianSetIndex(t *testing.T) {
 		desc string
 		args []string
 		err  error
-		obj  types.ActiveGuardianSetIndex
+		obj  types.ConsensusGuardianSetIndex
 	}{
 		{
 			desc: "get",
@@ -53,19 +53,19 @@ func TestShowActiveGuardianSetIndex(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			var args []string
 			args = append(args, tc.args...)
-			out, err := clitestutil.ExecTestCLICmd(ctx, cli.CmdShowActiveGuardianSetIndex(), args)
+			out, err := clitestutil.ExecTestCLICmd(ctx, cli.CmdShowConsensusGuardianSetIndex(), args)
 			if tc.err != nil {
 				stat, ok := status.FromError(tc.err)
 				require.True(t, ok)
 				require.ErrorIs(t, stat.Err(), tc.err)
 			} else {
 				require.NoError(t, err)
-				var resp types.QueryGetActiveGuardianSetIndexResponse
+				var resp types.QueryGetConsensusGuardianSetIndexResponse
 				require.NoError(t, net.Config.Codec.UnmarshalJSON(out.Bytes(), &resp))
-				require.NotNil(t, resp.ActiveGuardianSetIndex)
+				require.NotNil(t, resp.ConsensusGuardianSetIndex)
 				require.Equal(t,
 					nullify.Fill(&tc.obj),
-					nullify.Fill(&resp.ActiveGuardianSetIndex),
+					nullify.Fill(&resp.ConsensusGuardianSetIndex),
 				)
 			}
 		})

@@ -13,20 +13,20 @@ import (
 	"github.com/certusone/wormhole-chain/x/wormhole/types"
 )
 
-func TestActiveGuardianSetIndexQuery(t *testing.T) {
+func TestConsensusGuardianSetIndexQuery(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
 	wctx := sdk.WrapSDKContext(ctx)
-	item := createTestActiveGuardianSetIndex(keeper, ctx)
+	item := createTestConsensusGuardianSetIndex(keeper, ctx)
 	for _, tc := range []struct {
 		desc     string
-		request  *types.QueryGetActiveGuardianSetIndexRequest
-		response *types.QueryGetActiveGuardianSetIndexResponse
+		request  *types.QueryGetConsensusGuardianSetIndexRequest
+		response *types.QueryGetConsensusGuardianSetIndexResponse
 		err      error
 	}{
 		{
 			desc:     "First",
-			request:  &types.QueryGetActiveGuardianSetIndexRequest{},
-			response: &types.QueryGetActiveGuardianSetIndexResponse{ActiveGuardianSetIndex: item},
+			request:  &types.QueryGetConsensusGuardianSetIndexRequest{},
+			response: &types.QueryGetConsensusGuardianSetIndexResponse{ConsensusGuardianSetIndex: item},
 		},
 		{
 			desc: "InvalidRequest",
@@ -34,7 +34,7 @@ func TestActiveGuardianSetIndexQuery(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			response, err := keeper.ActiveGuardianSetIndex(wctx, tc.request)
+			response, err := keeper.ConsensusGuardianSetIndex(wctx, tc.request)
 			if tc.err != nil {
 				require.ErrorIs(t, err, tc.err)
 			} else {
