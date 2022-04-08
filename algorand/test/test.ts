@@ -40,9 +40,9 @@ class AlgoTests {
     async runTests() {
         let seq = Math.floor(new Date().getTime() / 1000.0);
 
-//        let t = testLib.genAssetMeta(guardianPrivKeys, 2, seq, seq, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 1, 8, "USDC", "CircleCoin")
-//        console.log(t)
-//        console.log(parseVAA(hexStringToUint8Array(t)))
+//        let t = "01000000000100bc942f5b6da266078844b26cb01bb541e0b5963da5bae9aadfe717ed5376efa711224796fc9e893dbf6f19ef6472a62f9af9241ece016e42da8a076bbf1ffe3c006250770b625077090001000000000000000000000000000000000000000000000000000000000000000400000000625077092000000000000000000000000000000000000000000000000000000000436f72650200000000000101beFA429d57cD18b7F8A4d91A29AB4AF05d0FBe"
+//       console.log(t)
+//       console.log(parseVAA(hexStringToUint8Array(t)))
 //        process.exit(0)
 
         console.log("test start");
@@ -51,13 +51,12 @@ class AlgoTests {
         let accounts = await getTempAccounts();
         let player = accounts[0]
 
-
-
         console.log("seq = ", seq);
 
         console.log("XXX upgrading the the guardian set using untrusted account...", seq)
         let upgradeVAA = testLib.genGuardianSetUpgrade(guardianPrivKeys, 0, 1, seq, seq, guardianKeys)
         console.log(upgradeVAA)
+        console.log(parseVAA(hexStringToUint8Array(upgradeVAA))) 
         await submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
 
         seq = seq + 1
