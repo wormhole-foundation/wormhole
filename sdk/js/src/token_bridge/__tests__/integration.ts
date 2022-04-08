@@ -373,7 +373,7 @@ describe("Integration Tests", () => {
     });
   });
   describe("Solana to Ethereum", () => {
-    test("Attest Solana SPL to Ethereum", (done) => {
+    test.only("Attest Solana SPL to Ethereum", (done) => {
       (async () => {
         try {
           // create a keypair for Solana
