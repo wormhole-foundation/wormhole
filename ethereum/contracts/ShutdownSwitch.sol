@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
+pragma experimental ABIEncoderV2;
 
 /**
  * @dev Abstract contract module that provides a bridge contract with the ability to temporarily suspend transfers.
@@ -18,8 +19,16 @@ pragma solidity ^0.8.0;
  * if transfers are enabled is a simple boolean check.
  *
  * The shutdown status is only updated when a vote is cast. When that happens, this contract gets the current guardian set.
- * It validates that the voter (message sender) is an active guardian. If so, it updates their vote, counts the number of
+ * It validates that the vote is for an active guardian. If so, it updates their vote, counts the number of
  * votes to disable, and updates the shutdown status.
+ *
+ * Votes are cast using an authorization proof that is unique to each guardian and the wallet public key used to generate
+ * the proof. That wallet should be different from the guardian's private key. When a guardian casts a vote, it must be sent
+ * from that wallet.
+ *
+ * The authorization proof is generated using the wallet public key and the guardian private key. When a vote is cast,
+ * the code uses the authorization proof and the message sender (wallet public key) to recover the guardian public key.
+ * That is compared to the current list of active guardians, and if a match is found, then the vote is valid.
  *
  * NOTE: The status is updated when any active guardian casts a vote, whether it changes anything or not. This means that,
  * after a guardian set update, the shutdown status can be updated by casting an enable vote when you are already enabled.
@@ -28,9 +37,12 @@ pragma solidity ^0.8.0;
  * or the shutdown status changes.
  */
 
+import "./libraries/external/BytesLib.sol";
 import "./interfaces/IWormhole.sol";
 
 abstract contract ShutdownSwitch {
+    using BytesLib for bytes;
+
     /// @dev A map of all guardians that have active votes to disable. If a guardian is removed from the guardian set while they
     /// have an active vote to disable, they would get left in the map. The current assumption is that this will have minimal impact,
     /// because they would never be referenced again anyway.
@@ -91,18 +103,21 @@ abstract contract ShutdownSwitch {
     }
 
     /// @dev This is the function that allows guardians to vote, and determines the resulting shutdown status.
-    function castShutdownVote(bool _enabled) public {
+    function castShutdownVote(bytes memory authProof, bool _enabled) public {
+        // Extract the guardian public key from the authProof.
+        address voter = decodeVoter(msg.sender, authProof);
+
         // We always use the current guardian set.
         Structs.GuardianSet memory gs = getCurrentGuardianSet();
 
         // Only currently active guardians are allowed to vote.
-        require(isRegisteredVoter(msg.sender, gs), "you are not a registered voter");
+        require(isRegisteredVoter(voter, gs), "you are not a registered voter");
 
         // Only votes to disable are maintained in the map.
         if (_enabled) {
-            delete shutdownVotes[msg.sender];
+            delete shutdownVotes[voter];
         } else {
-            shutdownVotes[msg.sender] = true;
+            shutdownVotes[voter] = true;
         }
 
         // Update the number of votes to disable.
@@ -110,12 +125,29 @@ abstract contract ShutdownSwitch {
 
         // Determine the new shutdown status and generate the appropriate events.
         bool newEnabledFlag = (votesToShutdown < computeRequiredVotesToShutdown(gs.keys.length));
-        emit ShutdownSwitch.ShutdownVoteCast(msg.sender, _enabled, votesToShutdown, newEnabledFlag);
+        emit ShutdownSwitch.ShutdownVoteCast(voter, _enabled, votesToShutdown, newEnabledFlag);
 
         if (newEnabledFlag != enabled) {
             enabled = newEnabledFlag;
             emit ShutdownSwitch.ShutdownStatusChanged(newEnabledFlag, votesToShutdown);
         }
+    }
+    
+    /// @dev Extract the guardian key from the authProof.
+    function decodeVoter(address sender, bytes memory authProof) public pure returns (address) {
+        // The autoProof is made up as follows:
+        //    r: bytes32
+        //    s: bytes32
+        //    v: uint8
+
+        require((authProof.length == 65), "invalid auth proof");
+
+        bytes32 r = authProof.toBytes32(0);
+		bytes32 s = authProof.toBytes32(32);
+		uint8 v = authProof.toUint8(64) + 27; // Adding 27 is required, see here for details: https://github.com/ethereum/go-ethereum/issues/19751#issuecomment-504900739
+
+        bytes32 digest = keccak256(abi.encodePacked(sender));
+        return ecrecover(digest, v, r, s);
     }
 
     /// @dev Determines if a voter is a current guardian.
