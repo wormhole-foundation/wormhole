@@ -12,17 +12,17 @@ import  {
     parseVAA, 
     CORE_ID,
     TOKEN_BRIDGE_ID
-} from "../../sdk/js/src/token_bridge/Algorand";
+} from "@certusone/wormhole-sdk/lib/cjs/token_bridge/Algorand";
 
 import {
     hexStringToUint8Array,
     uint8ArrayToHexString,
-} from "../../sdk/js/src/token_bridge/TmplSig";
+} from "@certusone/wormhole-sdk/lib/cjs/token_bridge/TmplSig";
 
 
 import {
     getTempAccounts,
-} from "../../sdk/js/src/token_bridge/Helpers";
+} from "@certusone/wormhole-sdk/lib/cjs/token_bridge/Helpers";
 
 
 const guardianKeys = [
