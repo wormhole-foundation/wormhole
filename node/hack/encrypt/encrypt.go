@@ -1,11 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"os"
 
 	"github.com/certusone/wormhole/node/pkg/common"
