@@ -60,7 +60,7 @@ export interface V1Beta1PageResponse {
     /** @format uint64 */
     total?: string;
 }
-export interface WormholeActiveGuardianSetIndex {
+export interface WormholeConsensusGuardianSetIndex {
     /** @format int64 */
     index?: number;
 }
@@ -145,8 +145,8 @@ export interface WormholeQueryAllSequenceCounterResponse {
      */
     pagination?: V1Beta1PageResponse;
 }
-export interface WormholeQueryGetActiveGuardianSetIndexResponse {
-    ActiveGuardianSetIndex?: WormholeActiveGuardianSetIndex;
+export interface WormholeQueryGetConsensusGuardianSetIndexResponse {
+    ConsensusGuardianSetIndex?: WormholeConsensusGuardianSetIndex;
 }
 export interface WormholeQueryGetConfigResponse {
     Config?: WormholeConfig;
@@ -225,7 +225,7 @@ export declare class HttpClient<SecurityDataType = unknown> {
     request: <T = any, E = any>({ body, secure, path, type, query, format, baseUrl, cancelToken, ...params }: FullRequestParams) => Promise<HttpResponse<T, E>>;
 }
 /**
- * @title wormhole/active_guardian_set_index.proto
+ * @title wormhole/consensus_guardian_set_index.proto
  * @version version not set
  */
 export declare class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
@@ -233,11 +233,11 @@ export declare class Api<SecurityDataType extends unknown> extends HttpClient<Se
      * No description
      *
      * @tags Query
-     * @name QueryActiveGuardianSetIndex
-     * @summary Queries a ActiveGuardianSetIndex by index.
-     * @request GET:/certusone/wormholechain/wormhole/active_guardian_set_index
+     * @name QueryConsensusGuardianSetIndex
+     * @summary Queries a ConsensusGuardianSetIndex by index.
+     * @request GET:/certusone/wormholechain/wormhole/consensus_guardian_set_index
      */
-    queryActiveGuardianSetIndex: (params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetActiveGuardianSetIndexResponse, RpcStatus>>;
+    queryConsensusGuardianSetIndex: (params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetConsensusGuardianSetIndexResponse, RpcStatus>>;
     /**
      * No description
      *

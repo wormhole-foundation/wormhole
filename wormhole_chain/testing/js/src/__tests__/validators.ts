@@ -100,10 +100,10 @@ test("Register guardian to validator", async () => {
 });
 
 test("Full bootstrap test", async () => {
-  //verify that guardian 1 is the only active guardian.
+  //verify that guardian 1 is the only consensus guardian.
   //verify that guardian 1 is registered to test wallet 1.
   //verify that guardian 1 is bonded.
-  //verify that guardian 2 is not active
+  //verify that guardian 2 is not consensus
   //verify that guardian 2 does not have any registrations
   //verify that guardian 2 is not bonded.
   //verify that the guardian set is 1
@@ -111,14 +111,14 @@ test("Full bootstrap test", async () => {
   //register guardian 2 to wallet 2.
   //verify that guardian 2 is registered to wallet 2.
   //verify that guardian 2 is not bonded
-  //verify that guardian 2 is not active
+  //verify that guardian 2 is not consensus
   //process upgrade vaa
   //verify that the guardian set is 2
   //verify that the only guardian public key is guardian public key 2.
   //verify that guardian 2 is bonded
-  //verify that guardain 2 is active
+  //verify that guardain 2 is consensus
   //verify that guardian 1 is not bonded
-  //verify that guardian 1 is not active
+  //verify that guardian 1 is not consensus
 });
 
 //TODO delegator tests

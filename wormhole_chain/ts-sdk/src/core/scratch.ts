@@ -178,9 +178,9 @@ export async function getGuardianSets() {
   return await unpackHttpReponse(response);
 }
 
-export async function getActiveGuardianSet() {
+export async function getConsensusGuardianSet() {
   const client = await queryClient({ addr: LCD_URL });
-  const response = client.queryActiveGuardianSetIndex();
+  const response = client.queryConsensusGuardianSetIndex();
 
   return await unpackHttpReponse(response);
 }

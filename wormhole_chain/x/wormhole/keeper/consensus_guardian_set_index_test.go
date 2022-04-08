@@ -12,16 +12,16 @@ import (
 	"github.com/certusone/wormhole-chain/x/wormhole/types"
 )
 
-func createTestActiveGuardianSetIndex(keeper *keeper.Keeper, ctx sdk.Context) types.ActiveGuardianSetIndex {
-	item := types.ActiveGuardianSetIndex{}
-	keeper.SetActiveGuardianSetIndex(ctx, item)
+func createTestConsensusGuardianSetIndex(keeper *keeper.Keeper, ctx sdk.Context) types.ConsensusGuardianSetIndex {
+	item := types.ConsensusGuardianSetIndex{}
+	keeper.SetConsensusGuardianSetIndex(ctx, item)
 	return item
 }
 
-func TestActiveGuardianSetIndexGet(t *testing.T) {
+func TestConsensusGuardianSetIndexGet(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	item := createTestActiveGuardianSetIndex(keeper, ctx)
-	rst, found := keeper.GetActiveGuardianSetIndex(ctx)
+	item := createTestConsensusGuardianSetIndex(keeper, ctx)
+	rst, found := keeper.GetConsensusGuardianSetIndex(ctx)
 	require.True(t, found)
 	require.Equal(t,
 		nullify.Fill(&item),
@@ -29,10 +29,10 @@ func TestActiveGuardianSetIndexGet(t *testing.T) {
 	)
 }
 
-func TestActiveGuardianSetIndexRemove(t *testing.T) {
+func TestConsensusGuardianSetIndexRemove(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	createTestActiveGuardianSetIndex(keeper, ctx)
-	keeper.RemoveActiveGuardianSetIndex(ctx)
-	_, found := keeper.GetActiveGuardianSetIndex(ctx)
+	createTestConsensusGuardianSetIndex(keeper, ctx)
+	keeper.RemoveConsensusGuardianSetIndex(ctx)
+	_, found := keeper.GetConsensusGuardianSetIndex(ctx)
 	require.False(t, found)
 }

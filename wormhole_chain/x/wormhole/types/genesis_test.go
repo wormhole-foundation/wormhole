@@ -46,7 +46,7 @@ func TestGenesisState_Validate(t *testing.T) {
 						Index: "1",
 					},
 				},
-				ActiveGuardianSetIndex: &types.ActiveGuardianSetIndex{
+				ConsensusGuardianSetIndex: &types.ConsensusGuardianSetIndex{
 					Index: 14,
 				},
 				GuardianValidatorList: []types.GuardianValidator{
