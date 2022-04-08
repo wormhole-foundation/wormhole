@@ -1677,6 +1677,8 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
+    });
+    describe("Terra <=> Ethereum roundtrip", () => {
         test.only("Transfer CW20 token from Terra to Ethereum and back again", (done) => {
             (async () => {
                 try {
