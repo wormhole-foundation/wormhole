@@ -1246,7 +1246,7 @@ describe("Integration Tests", () => {
         done();
       })();
     });
-    test.only("Transfer from Terra", (done) => {
+    test("Transfer from Terra", (done) => {
       (async () => {
         try {
           const lcd = new LCDClient({
