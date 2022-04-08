@@ -43,8 +43,8 @@ func TestGuardianValidatorQuerySingle(t *testing.T) {
 			response: &types.QueryGetGuardianValidatorResponse{GuardianValidator: msgs[1]},
 		},
 		{
-			desc: "KeyNotFound",
-			request: &types.QueryGetGuardianValidatorRequest{GuardianKey: []byte{0, 3, 4}},
+			desc:     "KeyNotFound",
+			request:  &types.QueryGetGuardianValidatorRequest{GuardianKey: []byte{0, 3, 4}},
 			response: &types.QueryGetGuardianValidatorResponse{},
 			err:      status.Error(codes.InvalidArgument, "not found"),
 		},

@@ -15,7 +15,6 @@ import (
 
 type GovernanceAction uint8
 
-
 // TokenBridgeModule is the identifier of the TokenBridge module (which is used for governance messages)
 // TODO(csongor): where's the best place to put this? CoreModule is in the node code, why is TokenBridgeModule not?
 var TokenBridgeModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65}
