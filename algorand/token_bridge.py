@@ -474,11 +474,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 # We all opted into the same accounts?
                 Gtxn[tidx.load()].accounts[0] == Txn.accounts[0],
                 Gtxn[tidx.load()].accounts[1] == Txn.accounts[1],
-                Gtxn[tidx.load()].accounts[2] == Txn.accounts[2],
-
-                (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
+                Gtxn[tidx.load()].accounts[2] == Txn.accounts[2]
             )),
             assert_common_checks(Gtxn[tidx.load()]),
+            assert_common_checks(Txn),
 
             off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(6) + Int(8)), # The offset of the chain
 

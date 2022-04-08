@@ -1015,7 +1015,8 @@ describe("Integration Tests", () => {
                         wallet,
                         CORE_ID,
                         0,
-                        aa
+                        aa,
+                        "emitterAddr"
                     );
                     console.log("emitter address:", emitterAddr);
                 } catch (e) {
