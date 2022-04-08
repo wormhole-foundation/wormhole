@@ -3,9 +3,9 @@ package db
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/ethereum/go-ethereum/crypto"
+	"os"
 
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -39,7 +39,6 @@ func TestVaaIDFromString(t *testing.T) {
 	assert.Equal(t, vaa.ChainIDSolana, vaaID.EmitterChain)
 	assert.Equal(t, expectAddr, vaaID.EmitterAddress)
 	assert.Equal(t, uint64(1), vaaID.Sequence)
-
 }
 
 func TestVaaIDFromVAA(t *testing.T) {
@@ -75,6 +74,7 @@ func TestStoreSignedVAAUnsigned(t *testing.T) {
 		t.Error("failed to open database")
 	}
 	defer db.Close()
+	defer os.Remove(dbPath)
 
 	testVaa := getVAA()
 
@@ -89,6 +89,7 @@ func TestStoreSignedVAASigned(t *testing.T) {
 		t.Error("failed to open database")
 	}
 	defer db.Close()
+	defer os.Remove(dbPath)
 
 	testVaa := getVAA()
 
@@ -107,6 +108,7 @@ func TestGetSignedVAABytes(t *testing.T) {
 		t.Error("failed to open database")
 	}
 	defer db.Close()
+	defer os.Remove(dbPath)
 
 	testVaa := getVAA()
 
@@ -117,14 +119,14 @@ func TestGetSignedVAABytes(t *testing.T) {
 
 	// Store full VAA
 	err2 := db.StoreSignedVAA(&testVaa)
-	assert.Nil(t, err2)
+	assert.NoError(t, err2)
 
 	// Retrieve it using vaaID
 	vaaBytes, err2 := db.GetSignedVAABytes(*vaaID)
-	assert.Nil(t, err2)
+	assert.NoError(t, err2)
 
 	testVaaBytes, err3 := testVaa.Marshal()
-	assert.Nil(t, err3)
+	assert.NoError(t, err3)
 
 	assert.Equal(t, testVaaBytes, vaaBytes)
 }
@@ -136,6 +138,7 @@ func TestFindEmitterSequenceGap(t *testing.T) {
 		t.Error("failed to open database")
 	}
 	defer db.Close()
+	defer os.Remove(dbPath)
 
 	testVaa := getVAA()
 
@@ -146,12 +149,12 @@ func TestFindEmitterSequenceGap(t *testing.T) {
 
 	// Store full VAA
 	err2 := db.StoreSignedVAA(&testVaa)
-	assert.Nil(t, err2)
+	assert.NoError(t, err2)
 
 	resp, firstSeq, lastSeq, err := db.FindEmitterSequenceGap(*vaaID)
 
 	assert.Equal(t, []uint64{0x0}, resp)
 	assert.Equal(t, uint64(0x0), firstSeq)
 	assert.Equal(t, uint64(0x1), lastSeq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
