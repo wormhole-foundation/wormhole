@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "algosdk": "^1.14.0",
-    "node": "^17.7.1",
     "ts-node": "^10.7.0",
     "typescript": "^4.6.2",
     "varint": "^6.0.0",
