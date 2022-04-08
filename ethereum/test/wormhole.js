@@ -9,6 +9,8 @@ const Implementation = artifacts.require("Implementation");
 const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
 const testSigner3PK = "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fb";
+const testBadSigner1PK = "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fc";
+
 
 const core = '0x' + Buffer.from("Core").toString("hex").padStart(64,0)
 const actionContractUpgrade = "01"
@@ -173,6 +175,124 @@ contract("Wormhole", function () {
 
         assert.equal(result.reason, "");
     })
+
+
+    it("should fail quorum on VMs with no signers", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = 11;
+        const emitterAddress = "0x0000000000000000000000000000000000000000000000000000000000000eee"
+        const data = "0xaaaaaa";
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            1337,
+            data,
+            [], // no valid signers present
+            0,
+            2
+        );
+
+        let result = await initialized.methods.parseAndVerifyVM("0x" + vm).call();
+        assert.equal(result[1], false)
+        assert.equal(result[2], "no quorum")
+    })
+
+
+    it("should fail to verify on VMs with bad signer", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = 11;
+        const emitterAddress = "0x0000000000000000000000000000000000000000000000000000000000000eee"
+        const data = "0xaaaaaa";
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            1337,
+            data,
+            [
+                testBadSigner1PK, // not a valid signer
+            ],
+            0,
+            2
+        );
+
+        let result = await initialized.methods.parseAndVerifyVM("0x" + vm).call();
+        assert.equal(result[1], false)
+        assert.equal(result[2], "VM signature invalid")
+    })
+
+    it("should error on VMs with invalid guardian set index", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = 11;
+        const emitterAddress = "0x0000000000000000000000000000000000000000000000000000000000000eee"
+        const data = "0xaaaaaa";
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            1337,
+            data,
+            [
+                testSigner1PK,
+            ],
+            200,
+            2
+        );
+
+        let result = await initialized.methods.parseAndVerifyVM("0x" + vm).call();
+        assert.equal(result[1], false)
+        assert.equal(result[2], "invalid guardian set")
+    })
+
+    it("should revert on VMs with duplicate non-monotonic signature indexes", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = 11;
+        const emitterAddress = "0x0000000000000000000000000000000000000000000000000000000000000eee"
+        const data = "0xaaaaaa";
+
+        const vm = await signAndEncodeVMFixedIndex(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            1337,
+            data,
+            [
+                testSigner1PK,
+                testSigner1PK,
+                testSigner1PK,
+            ],
+            0,
+            2
+        );
+
+        try {
+            await initialized.methods.parseAndVerifyVM("0x" + vm).call();
+            assert.fail("accepted signature indexes being the same in a VM");
+        } catch (e) {
+            assert.equal(e.data[Object.keys(e.data)[0]].reason, 'signature indices must be ascending')
+        }
+    })
+
 
     it("should set and enforce fees", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
@@ -703,6 +823,60 @@ const signAndEncodeVM = async function (
 
     return vm
 }
+
+const signAndEncodeVMFixedIndex = async function (
+    timestamp,
+    nonce,
+    emitterChainId,
+    emitterAddress,
+    sequence,
+    data,
+    signers,
+    guardianSetIndex,
+    consistencyLevel
+) {
+    const body = [
+        web3.eth.abi.encodeParameter("uint32", timestamp).substring(2 + (64 - 8)),
+        web3.eth.abi.encodeParameter("uint32", nonce).substring(2 + (64 - 8)),
+        web3.eth.abi.encodeParameter("uint16", emitterChainId).substring(2 + (64 - 4)),
+        web3.eth.abi.encodeParameter("bytes32", emitterAddress).substring(2),
+        web3.eth.abi.encodeParameter("uint64", sequence).substring(2 + (64 - 16)),
+        web3.eth.abi.encodeParameter("uint8", consistencyLevel).substring(2 + (64 - 2)),
+        data.substr(2)
+    ]
+
+    const hash = web3.utils.soliditySha3(web3.utils.soliditySha3("0x" + body.join("")))
+
+    let signatures = "";
+
+    for (let i in signers) {
+        const ec = new elliptic.ec("secp256k1");
+        const key = ec.keyFromPrivate(signers[i]);
+        const signature = key.sign(hash.substr(2), {canonical: true});
+
+        const packSig = [
+            // Fixing the index to be zero to product a non-monotonic VM
+            web3.eth.abi.encodeParameter("uint8", 0).substring(2 + (64 - 2)),
+            zeroPadBytes(signature.r.toString(16), 32),
+            zeroPadBytes(signature.s.toString(16), 32),
+            web3.eth.abi.encodeParameter("uint8", signature.recoveryParam).substr(2 + (64 - 2)),
+        ]
+
+        signatures += packSig.join("")
+    }
+
+    const vm = [
+        web3.eth.abi.encodeParameter("uint8", 1).substring(2 + (64 - 2)),
+        web3.eth.abi.encodeParameter("uint32", guardianSetIndex).substring(2 + (64 - 8)),
+        web3.eth.abi.encodeParameter("uint8", signers.length).substring(2 + (64 - 2)),
+
+        signatures,
+        body.join("")
+    ].join("");
+
+    return vm
+}
+
 
 function zeroPadBytes(value, length) {
     while (value.length < 2 * length) {
