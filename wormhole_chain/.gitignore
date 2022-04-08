@@ -6,6 +6,7 @@ release/
 testing/js/node_modules
 .vscode/
 build/
+build.tmp/
 ts-sdk/node_modules
 ts-sdk/lib
 

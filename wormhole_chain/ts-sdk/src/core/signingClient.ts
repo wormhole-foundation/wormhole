@@ -3,6 +3,7 @@ import {
   defaultRegistryTypes,
   SigningStargateClient,
   SigningStargateClientOptions,
+  StargateClient,
 } from "@cosmjs/stargate";
 import * as tokenBridgeModule from "../modules/certusone.wormholechain.tokenbridge";
 import * as coreModule from "../modules/certusone.wormholechain.wormhole";
@@ -47,28 +48,32 @@ export const getWormchainSigningClient = async (
     }
   );
 
-  //We have to declare signAndBroadcast as undefined here, because it uses a type which the typescript compiler can't resolve.
-  //It's unused, so this is fine.
-  const wormholeFunctions = {
+  //The signAndBroadcast function needs to be undefined here because it uses and interface which can't be
+  //resolved by typescript.
+  const coreShell = {
     ...coreClient,
+    signAndBroadcast: undefined,
+  };
+  delete coreShell.signAndBroadcast;
+
+  const tokenBridgeShell = {
     ...tokenBridgeClient,
     signAndBroadcast: undefined,
   };
+  delete tokenBridgeShell.signAndBroadcast;
 
-  const fields = Object.keys(wormholeFunctions);
-  fields.forEach((key) => {
-    //We do not want to overwrite signAndBroadcast from the main client.
-    if (key !== "signAndBroadcast") {
-      //@ts-ignore
-      client[key] = wormholeFunctions[key];
-    }
-  });
+  type CoreType = Omit<typeof coreShell, "signAndBroadcast">;
+  type TokenBridgeType = Omit<typeof tokenBridgeShell, "signAndBroadcast">;
+  type WormholeFunctions = {
+    core: CoreType;
+    tokenbridge: TokenBridgeType;
+  };
+  type WormholeSigningClient = SigningStargateClient & WormholeFunctions;
 
-  //We have to put together the output type, as typescript will not be able to interpolate it.
-  //The Wormholefunction signAndBroadcast is now an undefined, so we want the stargate signer's type to override it.
-  type WormholeFunction = Omit<typeof wormholeFunctions, "signAndBroadcast">;
-  type WormholeSigningClient = WormholeFunction & SigningStargateClient;
-  const combinedClient: WormholeSigningClient = client as WormholeSigningClient;
+  //@ts-ignore
+  client.core = coreShell;
+  //@ts-ignore
+  client.tokenbridge = tokenBridgeShell;
 
-  return combinedClient;
+  return client as WormholeSigningClient;
 };
