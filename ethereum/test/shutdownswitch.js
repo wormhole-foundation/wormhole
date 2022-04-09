@@ -17,48 +17,44 @@ const WormholeImplementationFullABI = jsonfile.readFileSync("build/contracts/Imp
 const BridgeImplementationFullABI = jsonfile.readFileSync("build/contracts/BridgeImplementation.json").abi
 const TokenImplementationFullABI = jsonfile.readFileSync("build/contracts/TokenImplementation.json").abi
 
+// The guardian public keys come from docs/devnet.md, and the auth proof were generated as follows:
+// go run main.go template shutdown-auth-proof --shutdownPubKey 0xC65c6Ea16d510a45f54c7CD6333BA1304e92D3E8 --shutdownGuardianKey c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e
+const EthPublicKey = "0xC65c6Ea16d510a45f54c7CD6333BA1304e92D3E8" // This is accounts[9], but it needs to be hardcoded because it was used to generate the auth proofs.
+
+const GuardianPublicKey0 = "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
+const GuardianPublicKey1 = "0x88D7D8B32a9105d228100E72dFFe2Fae0705D31c"
+const GuardianPublicKey2 = "0x58076F561CC62A47087B567C86f986426dFCD000"
+const GuardianPublicKey3 = "0xBd6e9833490F8fA87c733A183CD076a6cBD29074"
+const GuardianPublicKey9 = "0x647ec26ae49b14060660504f4DA1c2059E1C5Ab6"
+
+const GuardianAuthProof0 = "0x" + "41be56d0dea134a77bee5f3081c4bc45cde341d75fa258247c3cc80ef2c19e2279437c8828cd9fab4acced7da3abc9e1db2a59e8de9e7b73230fcc3e500e86cf00"
+const GuardianAuthProof1 = "0x" + "018f86af0e73a7eea01f926cbbeb700f63b49bf8b9eed0f7d8fbae91d89678cb2eeea1eba6043ce0c8566b6517bad5f1bbf64a6808f11cb6192461b317a7265701"
+const GuardianAuthProof2 = "0x" + "d4180a518db560d1812e4fa47247fbcb42910a647d0db58a0fb9f7770457e71971e04cfbd055de355680ee4c6461a73c1c783d55d946ba79488228a8eed758bc01"
+const GuardianAuthProof3 = "0x" + "fe66ea64b02218041bf9eca224ac5e0cacc92710876d24889f763a8ce92583ed6f9925113d991ffe180db4e21fed8a8bd0776a7e13aa2857288167cbcabfbd9700"
+const GuardianAuthProof9 = "0x" + "a0b245b2b0268de4fbe856c6b5e601bcac27bab300a5da267c08fbd0dfae1cd852414a957f64ee5ae0f4b8906d8c9a77a89d82fcb249b1b9909dfcba3d4daf2101"
+
 contract("ShutdownSwitch", function () {
     const testChainId = "2";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
 
-    it("should start out with transfers enabled", async function () {
-        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-
-        assert.equal((await initialized.methods.enabledFlag().call()), true)
-        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
-
-        // Since we start out with only one guardian, the required votes should be one.
-        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 1)
-    })
-
-    it("should block non-guardians from casting a shutdown vote", async function () {
+    it("ganache config should be what we expect", async function () {
         const accounts = await web3.eth.getAccounts();
-        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-
-        // Cast a vote using the wrong key, and it should fail.
-        let voteFailed = false;
-        try {
-            await initialized.methods.castShutdownVote(false).send({
-                value: 0,
-                from: accounts[0],
-                gasLimit: 2000000
-            });
-        } catch (error) {
-            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert you are not a registered voter")
-            voteFailed = true
-        }
-
-        assert.ok(voteFailed)
-        assert.equal((await initialized.methods.enabledFlag().call()), true)
-        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
-        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 1)
+        assert.equal(accounts[9], EthPublicKey)
     })
 
+    it("should correctly decode our auth proofs", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        assert.equal((await initialized.methods.decodeVoter(EthPublicKey, GuardianAuthProof0).call()), GuardianPublicKey0)
+        assert.equal((await initialized.methods.decodeVoter(EthPublicKey, GuardianAuthProof1).call()), GuardianPublicKey1)
+        assert.equal((await initialized.methods.decodeVoter(EthPublicKey, GuardianAuthProof2).call()), GuardianPublicKey2)
+        assert.equal((await initialized.methods.decodeVoter(EthPublicKey, GuardianAuthProof3).call()), GuardianPublicKey3)
+        assert.equal((await initialized.methods.decodeVoter(EthPublicKey, GuardianAuthProof9).call()), GuardianPublicKey9)
+    }) 
+    
     // Set up to have four guardians for all of our tests.
     it("should upgrade to four guardians", async function () {
-        const accounts = await web3.eth.getAccounts();
-
         // Create a guardian set of four, which will require two disable votes to suspend transfers.
         const wormhole = new web3.eth.Contract(WormholeImplementationFullABI, Wormhole.address);
 
@@ -73,10 +69,10 @@ contract("ShutdownSwitch", function () {
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             web3.eth.abi.encodeParameter("uint32", oldIndex + 1).substring(2 + (64 - 8)),
             web3.eth.abi.encodeParameter("uint8", 4).substring(2 + (64 - 2)),
-            web3.eth.abi.encodeParameter("address", accounts[0]).substring(2 + (64 - 40)),
-            web3.eth.abi.encodeParameter("address", accounts[1]).substring(2 + (64 - 40)),
-            web3.eth.abi.encodeParameter("address", accounts[2]).substring(2 + (64 - 40)),
-            web3.eth.abi.encodeParameter("address", accounts[3]).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", GuardianPublicKey0).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", GuardianPublicKey1).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", GuardianPublicKey2).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", GuardianPublicKey3).substring(2 + (64 - 40)),
         ].join('')
 
         const vm = await signAndEncodeVM(
@@ -95,69 +91,93 @@ contract("ShutdownSwitch", function () {
 
         let set = await wormhole.methods.submitNewGuardianSet("0x" + vm).send({
             value: 0,
-            from: accounts[0],
+            from: EthPublicKey,
             gasLimit: 1000000
         });
     })
-
+    
     //////////////// NOTE: Every test after this assumes four guardians! ///////////////////////////////
+    
+    it("should start out with transfers enabled", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
+
+        // Since we start out with only one guardian, the required votes should be one.
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+    })
+    
+    it("should reject a vote from a guardian that is not active", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        // Cast a vote using a valid auth proof but for a non-active guardian, and it should fail.
+        let voteFailed = false;
+        try {
+            await initialized.methods.castShutdownVote(GuardianAuthProof9, false).send({ from: EthPublicKey });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert you are not a registered voter")
+            voteFailed = true
+        }
+
+        assert.ok(voteFailed)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+    })
+        
+    it("should reject a vote cast using the wrong wallet", async function () {
+        const accounts = await web3.eth.getAccounts();
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        // Cast a vote using a valid auth proof but for a non-active guardian, and it should fail.
+        let voteFailed = false;
+        try {
+            await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: accounts[0] });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert you are not a registered voter")
+            voteFailed = true
+        }
+
+        assert.ok(voteFailed)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+    })
 
     it("should take three guardian votes to disable transfers", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        await clearAllVotes(initialized, accounts);
+        await clearAllVotes(initialized);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // This first vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
-
-        // This first vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // A duplicate vote should change nothing.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // The second vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[1],
-            gasLimit: 2000000
-        });
+        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // But a third vote should suspend transfers.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[2],
-            gasLimit: 2000000
-        });
+        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -169,7 +189,7 @@ contract("ShutdownSwitch", function () {
     it("should reject transfers when they are disabled", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        await clearAllVotes(initialized, accounts);
+        await clearAllVotes(initialized);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // Set up, mint and approve tokens.
@@ -226,29 +246,37 @@ contract("ShutdownSwitch", function () {
         vaa = log.payload.substr(2);
 
         // Cast three votes to disable transfers.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
+
+        // This first vote should succeed, but we should still be enabled.
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[1],
-            gasLimit: 2000000
-        });
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
 
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[2],
-            gasLimit: 2000000
-        });
+        // A duplicate vote should change nothing.
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
 
-        // Make sure transfers are now disabled.
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        // The second vote should succeed, but we should still be enabled.
+        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
+
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        // But a third vote should suspend transfers.
+        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
+
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // This transfer should be blocked.
@@ -284,11 +312,7 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // Change one vote to enabled and our status should change back to enabled.
-        await initialized.methods.castShutdownVote(true).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, true).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
@@ -314,7 +338,7 @@ contract("ShutdownSwitch", function () {
 
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        await clearAllVotes(initialized, accounts);
+        await clearAllVotes(initialized);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // Redeem of this transfer should not be blocked by shutdown switch. It will instead fail with
@@ -330,32 +354,37 @@ contract("ShutdownSwitch", function () {
         }
 
         // Cast three votes to disable transfers.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
+        
+        // This first vote should succeed, but we should still be enabled.
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[1],
-            gasLimit: 2000000
-        });
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        // A duplicate vote should change nothing.
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        // The second vote should succeed, but we should still be enabled.
+        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[2],
-            gasLimit: 2000000
-        });
+        // But a third vote should suspend transfers.
+        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
 
-        // Make sure transfers are now disabled.
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // This redeem should be blocked by shutdown switch rather than "no quorum".
@@ -380,11 +409,7 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // Change one vote to enabled and our status should change back to enabled.
-        await initialized.methods.castShutdownVote(true).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, true).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
@@ -407,51 +432,32 @@ contract("ShutdownSwitch", function () {
 
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        await clearAllVotes(initialized, accounts);
+        await clearAllVotes(initialized);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // Cast three votes to disable transfers.
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[0],
-            gasLimit: 2000000
-        });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
 
-        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
-        assert.equal((await initialized.methods.enabledFlag().call()), true)
-
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[1],
-            gasLimit: 2000000
-        });
-
-        assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
-        assert.equal((await initialized.methods.enabledFlag().call()), true)
-
-        await initialized.methods.castShutdownVote(false).send({
-            value: 0,
-            from: accounts[2],
-            gasLimit: 2000000
-        });
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         let voters = await initialized.methods.currentVotesToShutdown().call();
 
         assert.equal(voters.length, 3);
 
-        assert.equal(voters[0], accounts[0]);
-        assert.equal(voters[1], accounts[1]);
-        assert.equal(voters[2], accounts[2]);
+        assert.equal(voters[0], GuardianPublicKey0);
+        assert.equal(voters[1], GuardianPublicKey1);
+        assert.equal(voters[2], GuardianPublicKey2);
     })
 
-    async function clearAllVotes(initialized, accounts) {
-        for (let idx = 0; (idx < 4); ++idx) {
-            await initialized.methods.castShutdownVote(true).send({
-                value: 0,
-                from: accounts[idx],
-                gasLimit: 2000000
-            });
-        }
+    async function clearAllVotes(initialized) {
+        await initialized.methods.castShutdownVote(GuardianAuthProof0, true).send({ from: EthPublicKey })
+        await initialized.methods.castShutdownVote(GuardianAuthProof1, true).send({ from: EthPublicKey })
+        await initialized.methods.castShutdownVote(GuardianAuthProof2, true).send({ from: EthPublicKey })
+        await initialized.methods.castShutdownVote(GuardianAuthProof3, true).send({ from: EthPublicKey })
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
