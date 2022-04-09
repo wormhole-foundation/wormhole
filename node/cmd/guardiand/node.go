@@ -309,11 +309,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 	readiness.RegisterComponent(common.ReadinessOasisSyncing)
+	readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 	readiness.RegisterComponent(common.ReadinessFantomSyncing)
 
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
-		readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 		readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 		readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 		readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
@@ -411,18 +411,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *fantomContract == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --fantomContract")
 	}
+	if *auroraRPC == "" {
+		logger.Fatal("Please specify --auroraRPC")
+	}
+	if *auroraContract == "" && !*unsafeDevMode {
+		logger.Fatal("Please specify --auroraContract")
+	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
 			logger.Fatal("Please specify --ethRopstenRPC")
 		}
 		if *ethRopstenContract == "" {
 			logger.Fatal("Please specify --ethRopstenContract")
-		}
-		if *auroraRPC == "" {
-			logger.Fatal("Please specify --auroraRPC")
-		}
-		if *auroraContract == "" {
-			logger.Fatal("Please specify --auroraContract")
 		}
 		if *karuraRPC == "" {
 			logger.Fatal("Please specify --karuraRPC")
@@ -448,12 +448,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
-		}
-		if *auroraRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --auroraRPC")
-		}
-		if *auroraContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --auroraContract")
 		}
 		if *karuraRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --karuraRPC")
@@ -645,9 +639,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode {
-		chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
@@ -789,6 +783,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, 1, chainObsvReqC[vaa.ChainIDOasis]).Run); err != nil {
 			return err
 		}
+		if err := supervisor.Run(ctx, "aurorawatch",
+			ethereum.NewEthWatcher(*auroraRPC, auroraContractAddr, "aurora", common.ReadinessAuroraSyncing, vaa.ChainIDAurora, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAurora]).Run); err != nil {
+			return err
+		}
 		if err := supervisor.Run(ctx, "fantomwatch",
 			ethereum.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", common.ReadinessFantomSyncing, vaa.ChainIDFantom, lockC, nil, 1, chainObsvReqC[vaa.ChainIDFantom]).Run); err != nil {
 			return err
@@ -797,10 +795,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
 				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, nil, 1, chainObsvReqC[vaa.ChainIDEthereumRopsten]).Run); err != nil {
-				return err
-			}
-			if err := supervisor.Run(ctx, "aurorawatch",
-				ethereum.NewEthWatcher(*auroraRPC, auroraContractAddr, "aurora", common.ReadinessAuroraSyncing, vaa.ChainIDAurora, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAurora]).Run); err != nil {
 				return err
 			}
 			if err := supervisor.Run(ctx, "karurawatch",
