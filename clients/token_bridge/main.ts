@@ -1,6 +1,6 @@
 import yargs from "yargs";
 
-const {hideBin} = require('yargs/helpers')
+import { hideBin } from 'yargs/helpers';
 
 import * as elliptic from "elliptic";
 import * as ethers from "ethers";
@@ -9,7 +9,7 @@ import * as web3s from '@solana/web3.js';
 import {fromUint8Array} from "js-base64";
 import {LCDClient, MnemonicKey} from '@terra-money/terra.js';
 import {MsgExecuteContract} from "@terra-money/terra.js";
-import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
+import {PublicKey, TransactionInstruction, Keypair, Connection} from "@solana/web3.js";
 import {base58, solidityKeccak256} from "ethers/lib/utils";
 
 import {setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
@@ -99,7 +99,7 @@ yargs(hideBin(process.argv))
             "01",
             "0000",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -141,7 +141,7 @@ yargs(hideBin(process.argv))
             "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
             "02",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -311,7 +311,7 @@ yargs(hideBin(process.argv))
         );
         console.log('SIGNATURE', signature);
     })
-    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
+    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on evm', (yargs) => {
         return yargs
             .positional('vaa', {
                 describe: 'vaa to post',
@@ -425,6 +425,11 @@ function setupConnection(argv: yargs.Arguments): web3s.Connection {
         argv.rpc as string,
         'confirmed',
     );
+}
+
+function fmtAddress(addr: string) : string {
+    let address = (addr.search("0x") == 0) ? addr.substring(2) : addr;
+    return "0x" + zeroPadBytes(address, 32);
 }
 
 interface BridgeState {

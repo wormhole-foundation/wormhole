@@ -6,6 +6,7 @@ import {
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { StateSafeWormholeWrappedInfo } from "../hooks/useCheckIfWormholeWrapped";
 import { ForeignAssetInfo } from "../hooks/useFetchForeignAsset";
+import { AcalaRelayerInfo } from "../hooks/useAcalaRelayerInfo";
 import {
   DataWrapper,
   errorDataWrapper,
@@ -57,6 +58,10 @@ export interface TransferState {
   redeemTx: Transaction | undefined;
   isApproving: boolean;
   isRecovery: boolean;
+  gasPrice: number | undefined;
+  useRelayer: boolean;
+  relayerFee: string | undefined;
+  acalaRelayerInfo: DataWrapper<AcalaRelayerInfo>;
 }
 
 const initialState: TransferState = {
@@ -80,6 +85,10 @@ const initialState: TransferState = {
   redeemTx: undefined,
   isApproving: false,
   isRecovery: false,
+  gasPrice: undefined,
+  useRelayer: false,
+  relayerFee: undefined,
+  acalaRelayerInfo: getEmptyDataWrapper(),
 };
 
 export const transferSlice = createSlice({
@@ -229,6 +238,7 @@ export const transferSlice = createSlice({
       state,
       action: PayloadAction<{
         vaa: any;
+        useRelayer: boolean;
         parsedPayload: {
           targetChain: ChainId;
           targetAddress: string;
@@ -256,6 +266,41 @@ export const transferSlice = createSlice({
       state.amount = action.payload.parsedPayload.amount;
       state.activeStep = 3;
       state.isRecovery = true;
+      state.useRelayer = action.payload.useRelayer;
+    },
+    setGasPrice: (state, action: PayloadAction<number | undefined>) => {
+      state.gasPrice = action.payload;
+    },
+    setUseRelayer: (state, action: PayloadAction<boolean | undefined>) => {
+      state.useRelayer = !!action.payload;
+    },
+    setRelayerFee: (state, action: PayloadAction<string | undefined>) => {
+      state.relayerFee = action.payload;
+    },
+    setAcalaRelayerInfo: (
+      state,
+      action: PayloadAction<AcalaRelayerInfo | undefined>
+    ) => {
+      state.acalaRelayerInfo = action.payload
+        ? receiveDataWrapper(action.payload)
+        : getEmptyDataWrapper();
+    },
+    fetchAcalaRelayerInfo: (state) => {
+      state.acalaRelayerInfo = fetchDataWrapper();
+    },
+    errorAcalaRelayerInfo: (
+      state,
+      action: PayloadAction<string | undefined>
+    ) => {
+      state.acalaRelayerInfo = errorDataWrapper(
+        action.payload || "An unknown error occurred."
+      );
+    },
+    receiveAcalaRelayerInfo: (
+      state,
+      action: PayloadAction<AcalaRelayerInfo>
+    ) => {
+      state.acalaRelayerInfo = receiveDataWrapper(action.payload);
     },
   },
 });
@@ -285,6 +330,13 @@ export const {
   setIsApproving,
   reset,
   setRecoveryVaa,
+  setGasPrice,
+  setUseRelayer,
+  setRelayerFee,
+  setAcalaRelayerInfo,
+  fetchAcalaRelayerInfo,
+  errorAcalaRelayerInfo,
+  receiveAcalaRelayerInfo,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;

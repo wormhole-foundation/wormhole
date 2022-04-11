@@ -1,11 +1,11 @@
 import { Box } from "@mui/material";
-import * as React from "react";
+import React, { useEffect } from "react";
 import { PageProps } from 'gatsby'
 import GridWithCards from "../components/GridWithCards";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import { SEO } from "../components/SEO";
-import atlas from "../images/apps/atlas.png";
+import atlas from "../images/apps/atlas.svg";
 import bridgesplit from "../images/apps/bridgesplit.png";
 import faraway from "../images/apps/faraway.png";
 import lido from "../images/apps/lido.png";
@@ -14,10 +14,35 @@ import orion from "../images/apps/orion.png";
 import pyth from "../images/apps/pyth.png";
 import swim from "../images/apps/swim.png";
 import tiexo from "../images/apps/tiexo.png";
-import shape1 from "../images/index/shape1.svg";
+import shape1 from "../images/index/shape2.svg";
 import shape from "../images/shape.png";
 
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { paralaxGsap, animateSwirl } from "../utils/animations";
+
 const AppsPage = ({ location }: PageProps) => {
+
+  const headerImage = React.useRef<HTMLCanvasElement>(null);
+  const gradient1 = React.useRef<HTMLCanvasElement>(null);
+  const gradient2 = React.useRef<HTMLCanvasElement>(null);
+  const shapeLeft = React.useRef<HTMLCanvasElement>(null);
+  const shapeRight = React.useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+
+    gsap.registerPlugin(ScrollTrigger);
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewportWidth > 992) {
+      animateSwirl(headerImage);
+      paralaxGsap(gradient1, 1000, "-50% 100%");
+      paralaxGsap(gradient2, 1000, "-50% 100%");
+      paralaxGsap(shapeLeft, 200, "20% 100%");
+      paralaxGsap(shapeRight, 200, "20% 100%");
+    }
+    
+  }, [])
+
   return (
     <Layout>
       <SEO
@@ -41,10 +66,11 @@ const AppsPage = ({ location }: PageProps) => {
           }}
         />
         <Box
+          ref={headerImage}
           sx={{
             position: "absolute",
             zIndex: -1,
-            transform: "translate(0px, -25%) scaleX(-1)",
+            transform: "translate(0px, -25%)",
             background: `url(${shape1})`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "top -540px center",
@@ -67,6 +93,7 @@ const AppsPage = ({ location }: PageProps) => {
       </Box>
       <Box sx={{ position: 'relative' }}>
         <Box
+          ref={gradient1}
           sx={{
             position: "absolute",
             zIndex: -2,
@@ -81,6 +108,7 @@ const AppsPage = ({ location }: PageProps) => {
           }}
         />
         <Box
+          ref={gradient2}
           sx={{
             position: "absolute",
             zIndex: -2,
@@ -95,6 +123,7 @@ const AppsPage = ({ location }: PageProps) => {
           }}
         />
         <Box
+          ref={shapeLeft}
           sx={{
             position: "absolute",
             zIndex: -1,
@@ -109,6 +138,7 @@ const AppsPage = ({ location }: PageProps) => {
           }}
         />
         <Box
+          ref={shapeRight}
           sx={{
             position: "absolute",
             zIndex: -1,
@@ -151,7 +181,7 @@ const AppsPage = ({ location }: PageProps) => {
               },
               {
                 src: atlas,
-                header: "Atlas Dex",
+                header: "Atlas DEX",
                 href: "https://atlasdex.finance/",
                 size: 114,
                 description:

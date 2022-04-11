@@ -14,10 +14,15 @@ import FeaturedMarkets from "./FeaturedMarkets";
 const useStyles = makeStyles((theme) => ({
   description: {
     textAlign: "center",
+    marginBottom: theme.spacing(2),
   },
 }));
 
-export default function RedeemPreview() {
+export default function RedeemPreview({
+  overrideExplainerString,
+}: {
+  overrideExplainerString?: string;
+}) {
   const classes = useStyles();
   const dispatch = useDispatch();
   const targetChain = useSelector(selectTransferTargetChain);
@@ -27,13 +32,14 @@ export default function RedeemPreview() {
   }, [dispatch]);
 
   const explainerString =
+    overrideExplainerString ||
     "Success! The redeem transaction was submitted. The tokens will become available once the transaction confirms.";
 
   return (
     <>
       <Typography
         component="div"
-        variant="subtitle2"
+        variant="subtitle1"
         className={classes.description}
       >
         {explainerString}

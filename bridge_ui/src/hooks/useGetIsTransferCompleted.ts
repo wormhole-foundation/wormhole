@@ -29,7 +29,10 @@ import useIsWalletReady from "./useIsWalletReady";
 /**
  * @param recoveryOnly Only fire when in recovery mode
  */
-export default function useGetIsTransferCompleted(recoveryOnly: boolean): {
+export default function useGetIsTransferCompleted(
+  recoveryOnly: boolean,
+  pollFrequency?: number
+): {
   isTransferCompletedLoading: boolean;
   isTransferCompleted: boolean;
 } {
@@ -46,6 +49,27 @@ export default function useGetIsTransferCompleted(recoveryOnly: boolean): {
 
   const hasCorrectEvmNetwork = evmChainId === getEvmChainId(targetChain);
   const shouldFire = !recoveryOnly || isRecovery;
+  const [pollState, setPollState] = useState(pollFrequency);
+
+  console.log(
+    "Executing get transfer completed",
+    isTransferCompleted,
+    pollState
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (pollFrequency && !isLoading && !isTransferCompleted) {
+      setTimeout(() => {
+        if (!cancelled) {
+          setPollState((prevState) => (prevState || 0) + 1);
+        }
+      }, pollFrequency);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [pollFrequency, isLoading, isTransferCompleted]);
 
   useEffect(() => {
     if (!shouldFire) {
@@ -122,6 +146,7 @@ export default function useGetIsTransferCompleted(recoveryOnly: boolean): {
     signedVAA,
     isReady,
     provider,
+    pollState,
   ]);
 
   return { isTransferCompletedLoading: isLoading, isTransferCompleted };

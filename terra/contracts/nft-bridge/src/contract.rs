@@ -114,7 +114,7 @@ pub fn instantiate(
 pub fn parse_vaa(deps: DepsMut, block_time: u64, data: &Binary) -> StdResult<ParsedVAA> {
     let cfg = config_read(deps.storage).load()?;
     let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: cfg.wormhole_contract.clone(),
+        contract_addr: cfg.wormhole_contract,
         msg: to_binary(&WormholeQueryMsg::VerifyVAA {
             vaa: data.clone(),
             block_time,
@@ -144,7 +144,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ),
         ExecuteMsg::SubmitVaa { data } => submit_vaa(deps, env, info, &data),
         ExecuteMsg::RegisterAssetHook { asset_id } => {
-            handle_register_asset(deps, env, info, &asset_id.as_slice())
+            handle_register_asset(deps, env, info, asset_id.as_slice())
         }
     }
 }
@@ -185,8 +185,8 @@ fn submit_vaa(
     }
 }
 
-fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
-    let gov_packet = GovernancePacket::deserialize(&data)?;
+fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Response> {
+    let gov_packet = GovernancePacket::deserialize(data)?;
     let module = get_string_from_32(&gov_packet.module);
 
     if module != "NFTBridge" {
@@ -280,7 +280,7 @@ fn handle_complete_transfer(
 
     let recipient = deps
         .api
-        .addr_humanize(&target_address)
+        .addr_humanize(target_address)
         .or_else(|_| ContractError::WrongTargetAddressFormat.std_err())?;
 
     let contract_addr;
@@ -298,7 +298,7 @@ fn handle_complete_transfer(
         let asset_id = build_asset_id(token_chain, &asset_address);
 
         let token_uri = String::from_utf8(transfer_info.uri.to_vec())
-            .or_else(|_| Err(StdError::generic_err("could not parse uri string")))?;
+            .map_err(|_| StdError::generic_err("could not parse uri string"))?;
 
         let mint_msg = cw721_base::msg::MintMsg {
             token_id,
@@ -308,7 +308,7 @@ fn handle_complete_transfer(
         };
 
         // Check if this asset is already deployed
-        if let Some(wrapped_addr) = wrapped_asset_read(deps.storage).load(&asset_id).ok() {
+        if let Ok(wrapped_addr) = wrapped_asset_read(deps.storage).load(&asset_id) {
             contract_addr = wrapped_addr;
             // Asset already deployed, just mint
 
@@ -335,8 +335,8 @@ fn handle_complete_transfer(
                 )
             } else {
                 (
-                    get_string_from_32(&transfer_info.name.to_vec()),
-                    get_string_from_32(&transfer_info.symbol.to_vec()),
+                    get_string_from_32(&transfer_info.name),
+                    get_string_from_32(&transfer_info.symbol),
                 )
             };
             messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -383,6 +383,7 @@ fn handle_complete_transfer(
         .add_attribute("contract", contract_addr))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_initiate_transfer(
     deps: DepsMut,
     env: Env,
@@ -405,7 +406,7 @@ fn handle_initiate_transfer(
 
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    if let Ok(_) = wrapped_asset_address_read(deps.storage).load(asset_canonical.as_slice()) {
+    if wrapped_asset_address_read(deps.storage).load(asset_canonical.as_slice()).is_ok() {
         // This is a deployed wrapped asset, burn it
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: asset.clone(),
@@ -466,7 +467,7 @@ fn handle_initiate_transfer(
     let cw721::NftInfoResponse::<Option<Empty>> { token_uri, .. } =
         deps.querier
             .custom_query(&QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
-                contract_addr: asset.clone(),
+                contract_addr: asset,
                 msg: to_binary(&cw721_base::msg::QueryMsg::NftInfo {
                     token_id: token_id.clone(),
                 })?,
@@ -506,7 +507,7 @@ fn handle_initiate_transfer(
         .add_attribute(
             "transfer.sender",
             hex::encode(extend_address_to_32(
-                &deps.api.addr_canonicalize(&info.sender.as_str())?,
+                &deps.api.addr_canonicalize(info.sender.as_str())?,
             )),
         )
         .add_attribute("transfer.recipient_chain", recipient_chain.to_string())
@@ -538,13 +539,13 @@ fn handle_register_asset(
     let result = bucket
         .load(asset_id)
         .map_err(|_| ContractError::RegistrationForbidden.std())?;
-    if result != HumanAddr::from(WRAPPED_ASSET_UPDATING) {
+    if result != WRAPPED_ASSET_UPDATING {
         return ContractError::AssetAlreadyRegistered.std_err();
     }
 
     bucket.save(asset_id, &info.sender.to_string())?;
 
-    let contract_address: CanonicalAddr = deps.api.addr_canonicalize(&info.sender.as_str())?;
+    let contract_address: CanonicalAddr = deps.api.addr_canonicalize(info.sender.as_str())?;
     wrapped_asset_address(deps.storage).save(contract_address.as_slice(), &asset_id.to_vec())?;
 
     Ok(Response::new()

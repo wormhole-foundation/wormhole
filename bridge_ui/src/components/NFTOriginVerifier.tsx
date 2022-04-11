@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
@@ -341,6 +342,17 @@ export default function NFTOriginVerifier() {
                     variant="outlined"
                   >
                     View on Snowtrace
+                  </Button>
+                ) : originInfo.chainId === CHAIN_ID_AURORA ? (
+                  <Button
+                    href={`https://aurorascan.dev/token/${readableAddress}?a=${originInfo.tokenId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    startIcon={<Launch />}
+                    className={classes.viewButton}
+                    variant="outlined"
+                  >
+                    View on Explorer
                   </Button>
                 ) : originInfo.chainId === CHAIN_ID_FANTOM ? (
                   <Button

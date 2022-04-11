@@ -31,6 +31,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDAvalanche: "https://api.snowtrace.io/api",
 	vaa.ChainIDPolygon:   "https://api.polygonscan.com/api",
 	vaa.ChainIDOasis:     "https://explorer.emerald.oasis.dev/api",
+	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -39,6 +40,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDAvalanche: "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c",
 	vaa.ChainIDPolygon:   "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
 	vaa.ChainIDOasis:     "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
+	vaa.ChainIDAurora:    "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
 }
 
 var (
@@ -102,7 +104,8 @@ type logResponse struct {
 func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string) (uint64, error) {
 	var req *http.Request
 	var err error
-	if chainId == vaa.ChainIDOasis {
+	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+		// This is the BlockScout based explorer leg
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
 	} else {
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
@@ -132,8 +135,8 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string) ([]*logEntry, error) {
 	var req *http.Request
 	var err error
-	if chainId == vaa.ChainIDOasis {
-		// This is the Oasis leg
+	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+		// This is the BlockScout based explorer leg
 		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 			"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&topic0=%s",
 			api, from, to, topic0), nil)
@@ -170,9 +173,9 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 		return nil, fmt.Errorf("failed to unmarshal log entry: %w", err)
 	}
 
-	if chainId == vaa.ChainIDOasis {
-		// Because of a bug in BlockScout we need to check the address
-		// in the log to see if it is the Oasis core bridge
+	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+		// Because of a bug in BlockScout based explorers we need to check the address
+		// in the log to see if it is the core bridge
 		var filtered []*logEntry
 		for _, logLine := range logs {
 			// Check value of address in log
@@ -194,7 +197,8 @@ func main() {
 	}
 
 	if *etherscanKey == "" {
-		if chainID != vaa.ChainIDOasis {
+		// BlockScout based explorers don't require an ether scan key
+		if chainID != vaa.ChainIDOasis && chainID != vaa.ChainIDAurora {
 			log.Fatal("Etherscan API Key is required")
 		}
 	}

@@ -11,3 +11,6 @@ venv
 bigtable-admin.json
 bigtable-writer.json
 **/cert.pem
+**/payer-mainnet.json
+**/payer-testnet.json
+**/payer-devnet.json
