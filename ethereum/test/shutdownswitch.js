@@ -1,3 +1,7 @@
+// NOTE: If you are running these tests from the command line, you should start up ganache with the deterministic flag as follows:
+//       npx ganache-cli --deterministic
+// This is because the auth proof keys are hand generated using a particular account public key.
+
 const jsonfile = require('jsonfile');
 const elliptic = require('elliptic');
 const BigNumber = require('bignumber.js');
@@ -18,8 +22,8 @@ const BridgeImplementationFullABI = jsonfile.readFileSync("build/contracts/Bridg
 const TokenImplementationFullABI = jsonfile.readFileSync("build/contracts/TokenImplementation.json").abi
 
 // The guardian public keys come from docs/devnet.md, and the auth proof were generated as follows:
-// go run main.go template shutdown-auth-proof --shutdownPubKey 0xC65c6Ea16d510a45f54c7CD6333BA1304e92D3E8 --shutdownGuardianKey c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e
-const EthPublicKey = "0xC65c6Ea16d510a45f54c7CD6333BA1304e92D3E8" // This is accounts[9], but it needs to be hardcoded because it was used to generate the auth proofs.
+// go run main.go template shutdown-auth-proof --shutdownPubKey 0x1dF62f291b2E969fB0849d99D9Ce41e2F137006e --shutdownGuardianKey c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e
+const EthPublicKey = "0x1dF62f291b2E969fB0849d99D9Ce41e2F137006e" // This is accounts[9], but it needs to be hardcoded because it was used to generate the auth proofs.
 
 const GuardianPublicKey0 = "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
 const GuardianPublicKey1 = "0x88D7D8B32a9105d228100E72dFFe2Fae0705D31c"
@@ -27,11 +31,11 @@ const GuardianPublicKey2 = "0x58076F561CC62A47087B567C86f986426dFCD000"
 const GuardianPublicKey3 = "0xBd6e9833490F8fA87c733A183CD076a6cBD29074"
 const GuardianPublicKey9 = "0x647ec26ae49b14060660504f4DA1c2059E1C5Ab6"
 
-const GuardianAuthProof0 = "0x" + "41be56d0dea134a77bee5f3081c4bc45cde341d75fa258247c3cc80ef2c19e2279437c8828cd9fab4acced7da3abc9e1db2a59e8de9e7b73230fcc3e500e86cf00"
-const GuardianAuthProof1 = "0x" + "018f86af0e73a7eea01f926cbbeb700f63b49bf8b9eed0f7d8fbae91d89678cb2eeea1eba6043ce0c8566b6517bad5f1bbf64a6808f11cb6192461b317a7265701"
-const GuardianAuthProof2 = "0x" + "d4180a518db560d1812e4fa47247fbcb42910a647d0db58a0fb9f7770457e71971e04cfbd055de355680ee4c6461a73c1c783d55d946ba79488228a8eed758bc01"
-const GuardianAuthProof3 = "0x" + "fe66ea64b02218041bf9eca224ac5e0cacc92710876d24889f763a8ce92583ed6f9925113d991ffe180db4e21fed8a8bd0776a7e13aa2857288167cbcabfbd9700"
-const GuardianAuthProof9 = "0x" + "a0b245b2b0268de4fbe856c6b5e601bcac27bab300a5da267c08fbd0dfae1cd852414a957f64ee5ae0f4b8906d8c9a77a89d82fcb249b1b9909dfcba3d4daf2101"
+const GuardianAuthProof0 = "0x" + "4d0b0f9b02e55f90c7809cf0dd91f5fc03e36363521d7481d4c849d5485e5ab91bd06edbd942703950f1acf0124fda1b9a47745d244ddbae42a1ea9c87700e1d01"
+const GuardianAuthProof1 = "0x" + "028458d2f2cb4274ca124cf26db7b5388ec0c7a65fc7049bb01b10c217191ffc176dfd294755ed2903e454b1aa150ee995f4844cf5f9723b8425d6a46d62e5e200"
+const GuardianAuthProof2 = "0x" + "c4c6d66cc2686fc12ed14056b33068e7718b9a04187beea04201ce8f5854c4d95c2c4ec193e6674eb7836ec3040c940abc18c77b0b967df10a78f331bcfad21701"
+const GuardianAuthProof3 = "0x" + "e809f9e38bef0d177cb84b2a8e105c44c55bfe2762c0b1a1c424cbf5c7c15bd97830d70bbe04f152d2949d6ede2f67528aba6bdf94b88f66fa6b4384863bd6b200"
+const GuardianAuthProof9 = "0x" + "880f4db743c1daf39dd878dd459bc2e3354f4ac4faf860deec65540f51404d692fffdf13d593acbe7333f4897fc6736e4dfdcd7b3b1e732001ad974235cd763200"
 
 contract("ShutdownSwitch", function () {
     const testChainId = "2";
