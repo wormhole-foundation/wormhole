@@ -152,17 +152,19 @@ upsert_env_file $envFile $bscTokenBridge $bscTokenBridgeVAA
 
 # 7) copy the local .env file to the solana & terra dirs, if the script is running on the host machine
 # chain dirs will not exist if running in docker for Tilt, only if running locally. check before copying.
+# copy ethFile to ethereum
 if [[ -d ./ethereum ]]; then
     echo "copying $ethFile to /etherum/.env"
     cp $ethFile ./ethereum/.env
 fi
-if [[ -d ./solana ]]; then
-    echo "copying $envFile to /solana.env"
-    cp $envFile ./solana/.env
-fi
-if [[ -d ./terra/tools ]]; then
-    echo "copying $envFile to /terra/tools/.env"
-    cp $envFile ./terra/tools/.env
-fi
+
+# copy the hex envFile to each of the non-EVM chains
+for envDest in ./solana/.env ./terra/tools/.env; do
+    dirname=$(dirname $envDest)
+    if [[ -d "$dirname" ]]; then
+        echo "copying $envFile to $envDest"
+        cp $envFile $envDest
+    fi
+done
 
 echo "guardian set init complete!"
