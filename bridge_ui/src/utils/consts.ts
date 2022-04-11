@@ -1220,7 +1220,7 @@ export const ACALA_RELAYER_URL =
   CLUSTER === "mainnet"
     ? ""
     : CLUSTER === "testnet"
-    ? "https://karura-dev.aca-dev.network/eth/relayer"
+    ? "https://relayer.aca-dev.network"
     : // ? "http://localhost:3111"
       "";
 
