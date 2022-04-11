@@ -710,11 +710,9 @@ export async function assetOptinCheck(
 ): Promise<boolean> {
     const acctInfo = await client.accountInformation(receiver).do();
     const assets: Array<any> = acctInfo.assets;
-    console.log("assets", assets);
     let ret = false;
-    assets.forEach(function (asset) {
-        console.log("inside foreach", asset);
-        const assetId = asset["asset-id"];
+    assets.forEach(a => {
+        const assetId = a["asset-id"];
         if (assetId === asset) {
             ret = true;
             return;
@@ -750,11 +748,12 @@ export async function assetOptin(
     const txId: string = await client.sendRawTransaction(signedOptinTxn).do();
 
     // Wait for response
-    const confirmedTxn = await waitForConfirmation(client, txId, 4);
+    const confirmedTxn = await waitForConfirmation(client, optinTxn.txID(), 1);
+
     console.log("assetOptin confirmation:", asset, receiver, confirmedTxn);
 
     // Double check the result
-    if (!assetOptinCheck(client, asset, receiver)) {
+    if (!await assetOptinCheck(client, asset, receiver)) {
         throw new Error("assetOptin() failed ");
     }
 }
@@ -1178,12 +1177,15 @@ export async function submitVAA(
 
         if (a != 0) {
             foreignAssets.push(a);
-            assetOptin(client, sender, foreignAssets[0], addr);
+            console.log("inside assetOptin", a, addr);
+            await assetOptin(client, sender, foreignAssets[0], addr);
             // And this is how the relayer gets paid...
             if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
-                assetOptin(client, sender, foreignAssets[0], sender.addr);
+                await assetOptin(client, sender, foreignAssets[0], sender.addr);
             }
+            console.log("done assetOptin", a, addr);
         }
+        console.log("after assetOptin", a, addr);
         accts.push(addr);
         txns.push(
             makeApplicationCallTxnFromObject({
@@ -1394,7 +1396,7 @@ export async function transferAsset(
             "creator"
         );
     }
-    if (assetId != 0 && !assetOptinCheck(client, assetId, creator)) {
+    if (assetId != 0 && !await assetOptinCheck(client, assetId, creator)) {
         // Looks like we need to optin
         const payTxn: algosdk.Transaction =
             makePaymentTxnWithSuggestedParamsFromObject({
