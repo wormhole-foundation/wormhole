@@ -14,26 +14,6 @@ import (
 	"time"
 )
 
-func getVAA() *VAA {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
-
-	return vaa
-}
-
 func TestChainIDFromString(t *testing.T) {
 	type test struct {
 		input  string
