@@ -375,7 +375,7 @@ export class TestLib {
       signers,
       seconds,
       nonce,
-      1,
+      chain,
       emitter,
       seq,
       32,

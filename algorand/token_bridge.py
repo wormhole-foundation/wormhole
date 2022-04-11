@@ -65,8 +65,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     mfee = ScratchVar()
 
     def MagicAssert(a) -> Expr:
-        from inspect import currentframe
 #       return Assert(a)
+        from inspect import currentframe
         return Assert(And(a, Int(currentframe().f_back.f_lineno)))
 
     @Subroutine(TealType.uint64)
@@ -252,13 +252,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             assert_common_checks(verifyVAA),
             assert_common_checks(Txn),
 
-            off.store(off.load() + Int(43)),
             # correct module?
-            MagicAssert(Extract(Txn.application_args[1], off.load(), Int(32)) == Concat(BytesZero(Int(21)), Bytes("base16", "546f6b656e427269646765"))),
-
-            off.store(off.load() + Int(32)),
-            a.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
-            off.store(off.load() + Int(1)),
+            MagicAssert(Extract(Txn.application_args[1], off.load() + Int(43), Int(32)) == Concat(BytesZero(Int(21)), Bytes("base16", "546f6b656e427269646765"))),
+            a.store(Btoi(Extract(Txn.application_args[1], off.load() + Int(75), Int(1)))),
+            off.store(off.load() + Int(76)),
 
             Cond( 
                 [a.load() == Int(1), Seq([
@@ -266,11 +263,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
                     MagicAssert(Or((targetChain.load() == Int(0)), (targetChain.load() == Int(8)))),
 
-                    off.store(off.load() + Int(2)),
-                    chain.store(Extract(Txn.application_args[1], off.load(), Int(2))),
-
-                    off.store(off.load() + Int(2)),
-                    emitter.store(Extract(Txn.application_args[1], off.load(), Int(32))),
+                    chain.store(Extract(Txn.application_args[1], off.load() + Int(2), Int(2))),
+                    emitter.store(Extract(Txn.application_args[1], off.load() + Int(4), Int(32))),
 
                     # Can I only register once?  Rumor says yes
                     MagicAssert(App.globalGet(Concat(Bytes("Chain"), chain.load())) == Int(0)),
@@ -279,8 +273,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 ])],
                 [a.load() == Int(2), Seq([
                     MagicAssert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0008")),
-                    off.store(off.load() + Int(2)),
-                    App.globalPut(Bytes("validUpdateApproveHash"), Extract(Txn.application_args[1], off.load(), Int(32)))
+                    App.globalPut(Bytes("validUpdateApproveHash"), Extract(Txn.application_args[1], off.load() + Int(2), Int(32)))
                 ])]
             ),
 
@@ -657,16 +650,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             zb.store(BytesZero(Int(32))),
 
             aid.store(Btoi(Txn.application_args[1])),
-            MagicAssert(And(
-                # We dont know what we don't know.   Is it readonable
-                # to be so restrictive in a wormhole asset transfer?
-                # to not let you put more crap in the same txn block?
-                Txn.group_index() == Int(2),
-                Global.group_size() == Int(3),
-                Len(Txn.application_args[3]) <= Int(32)
-            )),
-
-            aid.store(Btoi(Txn.application_args[1])),
 
             # what should we pass as a fee...
             fee.store(Btoi(Txn.application_args[5])),
@@ -976,23 +959,11 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         Return(Int(1))
     ])
 
-    progHash = ScratchVar()
-    progSet = ScratchVar()
-    clearHash = ScratchVar()
-    clearSet = ScratchVar()
-    
     on_update = Seq( [
-        progHash.store(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
-        progSet.store(App.globalGet(Bytes("validUpdateApproveHash"))),
-        MagicAssert(progHash.load() == progSet.load()),
-
-        clearHash.store(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
-        clearSet.store(App.globalGet(Bytes("validUpdateClearHash"))),
-        MagicAssert(clearHash.load() == clearSet.load()),
-
+        MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
+        MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
         Return(Int(1))
     ] )
-
 
     @Subroutine(TealType.uint64)
     def optin():
@@ -1006,9 +977,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             algo_seed.amount() == Int(seed_amt),
             # Check that its an opt in to us
             optin.type_enum() == TxnType.ApplicationCall,
-            optin.on_completion() == OnComplete.OptIn,
-            # Not strictly necessary since we wouldn't be seeing this unless it was us, but...
-            optin.application_id() == Global.current_application_id(),
+            optin.on_completion() == OnComplete.OptIn
         )
 
         return Seq(

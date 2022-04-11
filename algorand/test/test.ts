@@ -76,7 +76,7 @@ class AlgoTests {
         seq = seq + 1
 
         console.log("XXX gen asset meta", seq)
-        let a = testLib.genAssetMeta(guardianPrivKeys, 2, seq, seq, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 1, 8, "USDC", "CircleCoin")
+        let a = testLib.genAssetMeta(guardianPrivKeys, 2, seq, seq, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 2, 8, "USDC", "CircleCoin")
         console.log(a)
         await submitVAA(hexStringToUint8Array(a), client, player, TOKEN_BRIDGE_ID)
 
