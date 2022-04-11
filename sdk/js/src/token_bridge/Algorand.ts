@@ -671,26 +671,33 @@ export async function decodeLocalState(
         }
     }
 
+    console.log("decodeLocalState", JSON.stringify(app_state))
+
     let ret = Buffer.alloc(0);
+    let empty = Buffer.alloc(0);
     if (app_state) {
         const e = Buffer.alloc(127);
         const m = Buffer.from("meta");
 
-        const vals: Map<number, Buffer> = new Map<number, Buffer>();
+        let sk : string[] = [];
+        let vals: Map<string, Buffer> = new Map<string, Buffer>();
         for (const kv of app_state) {
             const k = Buffer.from(kv["key"], "base64");
+            const key: number = k.readInt8();
             if (!Buffer.compare(k, m)) {
                 continue;
             }
-            const key: number = k.readInt8();
             const v: Buffer = Buffer.from(kv["value"]["bytes"], "base64");
             if (Buffer.compare(v, e)) {
-                vals.set(key, v);
-            }
+                vals.set(key.toString(), v);
+                sk.push(key.toString());
+            } 
         }
 
-        vals.forEach((v) => {
-            ret = Buffer.concat([ret, v]);
+        sk.sort((a,b) => a.localeCompare(b, 'en', {numeric: true}));
+
+        sk.forEach((v) => {
+            ret = Buffer.concat([ret, vals.get(v) || empty]);
         });
     }
     return new Uint8Array(ret);
@@ -744,7 +751,7 @@ export async function assetOptin(
 
     // Wait for response
     const confirmedTxn = await waitForConfirmation(client, txId, 4);
-    console.log("assetOptin confirmation:", confirmedTxn);
+    console.log("assetOptin confirmation:", asset, receiver, confirmedTxn);
 
     // Double check the result
     if (!assetOptinCheck(client, asset, receiver)) {
@@ -1146,9 +1153,13 @@ export async function submitVAA(
                 TOKEN_BRIDGE_ID,
                 chainAddr
             );
+
+            console.log("bilbo", chainAddr, asset);
+
             if (asset.length > 8) {
                 const tmp = Buffer.from(asset.slice(0, 8));
                 a = Number(tmp.readBigUInt64BE(0));
+                console.log("a", a)
             }
         } else {
             const tmp = Buffer.from(
@@ -1163,6 +1174,8 @@ export async function submitVAA(
             hexStringToUint8Array(parsedVAA.get("ToAddress"))
         );
 
+        console.log("before assetOptin", a, addr);
+
         if (a != 0) {
             foreignAssets.push(a);
             assetOptin(client, sender, foreignAssets[0], addr);
@@ -1175,7 +1188,7 @@ export async function submitVAA(
         txns.push(
             makeApplicationCallTxnFromObject({
                 accounts: accts,
-                appArgs: [textToUint8Array("receiveTransfer"), vaa],
+                appArgs: [textToUint8Array("completeTransfer"), vaa],
                 appIndex: TOKEN_BRIDGE_ID,
                 foreignAssets: foreignAssets,
                 from: sender.addr,
