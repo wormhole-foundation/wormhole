@@ -92,7 +92,7 @@ jest.setTimeout(60000);
 
 describe("Integration Tests", () => {
     describe("Ethereum to Solana", () => {
-        test.only("Attest Ethereum ERC-20 to Solana", (done) => {
+        test("Attest Ethereum ERC-20 to Solana", (done) => {
             (async () => {
                 try {
                     // create a signer for Eth
@@ -168,7 +168,7 @@ describe("Integration Tests", () => {
             })();
         });
         // TODO: it is attested
-        test.only("Send Ethereum ERC-20 to Solana", (done) => {
+        test("Send Ethereum ERC-20 to Solana", (done) => {
             (async () => {
                 try {
                     const DECIMALS: number = 18;
@@ -394,7 +394,7 @@ describe("Integration Tests", () => {
         });
     });
     describe("Solana to Ethereum", () => {
-        test.only("Attest Solana SPL to Ethereum", (done) => {
+        test("Attest Solana SPL to Ethereum", (done) => {
             (async () => {
                 try {
                     // create a keypair for Solana
@@ -461,7 +461,7 @@ describe("Integration Tests", () => {
             })();
         });
         // TODO: it is attested
-        test.only("Send Solana SPL to Ethereum", (done) => {
+        test("Send Solana SPL to Ethereum", (done) => {
             (async () => {
                 try {
                     // create a signer for Eth
@@ -652,7 +652,7 @@ describe("Integration Tests", () => {
         });
     });
     describe("Ethereum to Terra", () => {
-        test.only("Attest Ethereum ERC-20 to Terra", (done) => {
+        test("Attest Ethereum ERC-20 to Terra", (done) => {
             (async () => {
                 try {
                     // create a signer for Eth
@@ -732,7 +732,7 @@ describe("Integration Tests", () => {
             })();
         });
         // TODO: it is attested
-        test.only("Send Ethereum ERC-20 to Terra", (done) => {
+        test("Send Ethereum ERC-20 to Terra", (done) => {
             (async () => {
                 try {
                     // create a signer for Eth
@@ -950,7 +950,7 @@ describe("Integration Tests", () => {
         });
     });
     describe("Terra deposit and transfer tokens", () => {
-        test.only("Tokens transferred can't exceed tokens deposited", (done) => {
+        test("Tokens transferred can't exceed tokens deposited", (done) => {
             (async () => {
                 try {
                     const lcd = new LCDClient({
@@ -1098,7 +1098,7 @@ describe("Integration Tests", () => {
         });
     });
     describe("Post VAA with retry", () => {
-        test.only("postVAA with retry, no failures", (done) => {
+        test("postVAA with retry, no failures", (done) => {
             (async () => {
                 try {
                     // create a keypair for Solana
@@ -1171,7 +1171,7 @@ describe("Integration Tests", () => {
                 }
             })();
         });
-        test.only("Reject on signature failure", (done) => {
+        test("Reject on signature failure", (done) => {
             (async () => {
                 try {
                     // create a keypair for Solana
