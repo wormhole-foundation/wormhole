@@ -270,6 +270,25 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 
+	// Check if guardianSet doesn't have any keys
+	if len(p.gs.Keys) == 0 {
+		p.logger.Warn("dropping SignedVAAWithQuorum message since we have a guardian set without keys",
+			zap.String("digest", hash),
+			zap.Any("message", m),
+		)
+		return
+	}
+
+	// Check if VAA doesn't have any signatures
+	if len(v.Signatures) == 0 {
+		p.logger.Warn("received SignedVAAWithQuorum message with no VAA signatures",
+			zap.String("digest", hash),
+			zap.Any("message", m),
+			zap.Any("vaa", v),
+		)
+		return
+	}
+
 	// Verify VAA signature to prevent a DoS attack on our local store.
 	if !v.VerifySignatures(p.gs.Keys) {
 		p.logger.Warn("received SignedVAAWithQuorum message with invalid VAA signatures",
