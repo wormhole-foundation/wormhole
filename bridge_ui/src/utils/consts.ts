@@ -45,6 +45,11 @@ export const CHAINS: ChainInfo[] =
   CLUSTER === "mainnet"
     ? [
         {
+          id: CHAIN_ID_AURORA,
+          name: "Aurora",
+          logo: auroraIcon,
+        },
+        {
           id: CHAIN_ID_AVAX,
           name: "Avalanche",
           logo: avaxIcon,
@@ -170,7 +175,8 @@ export const CHAINS: ChainInfo[] =
           logo: terraIcon,
         },
       ];
-export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
+export const BETA_CHAINS: ChainId[] =
+  CLUSTER === "mainnet" ? [CHAIN_ID_AURORA] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -753,7 +759,7 @@ export const WROSE_DECIMALS = 18;
 
 export const WETH_AURORA_ADDRESS =
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xC9BdeEd33CD01541e1eeD10f90519d2C06Fe3feB"
     : CLUSTER === "testnet"
     ? "0x9D29f395524B3C817ed86e2987A14c1897aFF849"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
