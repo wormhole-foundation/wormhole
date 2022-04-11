@@ -76,11 +76,11 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 		{label: "VAANoSignatures", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
 			errString: "received SignedVAAWithQuorum message with no VAA signatures"},
 		{label: "VAAInvalidSignatures", keyOrder: []*ecdsa.PrivateKey{badPrivateKey1}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
-			err: "received SignedVAAWithQuorum message with invalid VAA signatures"},
+			errString: "received SignedVAAWithQuorum message with invalid VAA signatures"},
 		{label: "DuplicateGoodSignaturesNonMonotonic", keyOrder: []*ecdsa.PrivateKey{goodPrivateKey1, goodPrivateKey1, goodPrivateKey1, goodPrivateKey1}, indexOrder: []uint8{0, 0, 0, 0}, addrs: []ethcommon.Address{goodAddr1},
-			err: "received SignedVAAWithQuorum message with invalid VAA signatures"},
+			errString: "received SignedVAAWithQuorum message with invalid VAA signatures"},
 		{label: "DuplicateGoodSignaturesMonotonic", keyOrder: []*ecdsa.PrivateKey{goodPrivateKey1, goodPrivateKey1, goodPrivateKey1, goodPrivateKey1}, indexOrder: []uint8{0, 1, 2, 3}, addrs: []ethcommon.Address{goodAddr1},
-			err: "received SignedVAAWithQuorum message with invalid VAA signatures"},
+			errString: "received SignedVAAWithQuorum message with invalid VAA signatures"},
 	}
 
 	for _, tc := range tests {
