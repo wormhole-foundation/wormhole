@@ -1,6 +1,6 @@
 import yargs from "yargs";
 
-const {hideBin} = require('yargs/helpers')
+import { hideBin } from 'yargs/helpers';
 
 import * as elliptic from "elliptic";
 import * as ethers from "ethers";
@@ -9,7 +9,7 @@ import * as web3s from '@solana/web3.js';
 import {fromUint8Array} from "js-base64";
 import {LCDClient, MnemonicKey} from '@terra-money/terra.js';
 import {MsgExecuteContract} from "@terra-money/terra.js";
-import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
+import {PublicKey, TransactionInstruction, Keypair, Connection} from "@solana/web3.js";
 import {base58, solidityKeccak256} from "ethers/lib/utils";
 
 import {setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
