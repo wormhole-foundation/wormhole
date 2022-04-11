@@ -183,6 +183,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to request guardian set: %v", err)
 	}
 
+	errC := make(chan error)
+
 	// Poll for guardian set.
 	go func() {
 		t := time.NewTicker(15 * time.Second)
@@ -193,8 +195,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return
 			case <-t.C:
 				if err := e.fetchAndUpdateGuardianSet(logger, ctx, caller); err != nil {
-					logger.Error("failed updating guardian set",
-						zap.Error(err), zap.String("eth_network", e.networkName))
+					errC <- fmt.Errorf("failed to request guardian set: %v", err)
+					return
 				}
 			}
 		}
@@ -287,7 +289,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 		}
 	}()
 
-	errC := make(chan error)
 	go func() {
 		for {
 			select {

@@ -91,7 +91,7 @@ yargs(hideBin(process.argv))
             "01",
             "0000",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -133,7 +133,7 @@ yargs(hideBin(process.argv))
             "00000000000000000000000000000000000000000000004e4654427269646765", // NFT Bridge header
             "02",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -151,7 +151,7 @@ yargs(hideBin(process.argv))
         );
 
         console.log(vm)
-    })      
+    })
     .command('solana execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
         return yargs
             .positional('vaa', {
@@ -233,7 +233,7 @@ yargs(hideBin(process.argv))
         );
         console.log('SIGNATURE', signature);
     })
-    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
+    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on evm', (yargs) => {
         return yargs
             .positional('vaa', {
                 describe: 'vaa to post',
@@ -346,6 +346,11 @@ function setupConnection(argv: yargs.Arguments): web3s.Connection {
         argv.rpc as string,
         'confirmed',
     );
+}
+
+function fmtAddress(addr: string) : string {
+    let address = (addr.search("0x") == 0) ? addr.substring(2) : addr;
+    return "0x" + zeroPadBytes(address, 32);
 }
 
 interface BridgeState {

@@ -23,7 +23,7 @@ contract("Bridge", function () {
     const testChainId = "2";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
-    let WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+    let WETH = process.env.BRIDGE_INIT_WETH;;
     const testForeignChainId = "1";
     const testForeignBridgeContract = "0x000000000000000000000000000000000000000000000000000000000000ffff";
     const testBridgedAssetChain = "0001";

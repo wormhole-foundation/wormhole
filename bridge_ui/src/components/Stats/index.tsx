@@ -243,7 +243,7 @@ const StatsRoot: React.FC<any> = () => {
         {!tvl.isFetching ? (
           <MuiReactTable
             columns={tvlColumns}
-            data={tvl.data}
+            data={tvl.data || []}
             skipPageReset={false}
             initialState={{ sortBy: [{ id: "totalValue", desc: true }] }}
           />

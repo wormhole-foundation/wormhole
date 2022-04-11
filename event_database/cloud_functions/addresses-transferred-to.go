@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,7 +80,8 @@ func fetchAddressRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix
 				t.DestinationAddress = transformHexAddressToNative(chainIdStringToType(t.DestinationChain), t.DestinationAddress)
 			}
 
-			t.LeavingChain = row.Key()[:1]
+			keyParts := strings.Split(row.Key(), ":")
+			t.LeavingChain = keyParts[0]
 
 			rows = append(rows, *t)
 		}

@@ -10,7 +10,7 @@ import {
   selectNFTTransferTx,
   selectNFTIsSendComplete,
 } from "../../store/selectors";
-import { CHAINS_BY_ID } from "../../utils/consts";
+import { CHAINS_BY_ID, CLUSTER } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import ShowTx from "../ShowTx";
@@ -53,7 +53,9 @@ function Send() {
         completing Step 4, you will have to perform the recovery workflow to
         complete the transfer.
       </Alert>
-      {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+      {sourceChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+        <SolanaTPSWarning />
+      )}
       <ButtonWithLoader
         disabled={isDisabled}
         onClick={handleClick}

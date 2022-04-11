@@ -2,7 +2,7 @@ import { CHAIN_ID_SOLANA, isEVMChain } from "@certusone/wormhole-sdk";
 import { Button, makeStyles } from "@material-ui/core";
 import { VerifiedUser } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -14,7 +14,11 @@ import {
   selectNFTSourceChain,
   selectNFTSourceError,
 } from "../../store/selectors";
-import { CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
+import {
+  CHAINS_WITH_NFT_SUPPORT,
+  CLUSTER,
+  getIsTransferDisabled,
+} from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
@@ -22,6 +26,7 @@ import LowBalanceWarning from "../LowBalanceWarning";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
+import ChainWarningMessage from "../ChainWarningMessage";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -47,6 +52,9 @@ function Source() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
+  const isTransferDisabled = useMemo(() => {
+    return getIsTransferDisabled(sourceChain, true);
+  }, [sourceChain]);
   return (
     <>
       <StepDescription>
@@ -92,9 +100,12 @@ function Source() {
         </div>
       ) : null}
       <LowBalanceWarning chainId={sourceChain} />
-      {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+      {sourceChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+        <SolanaTPSWarning />
+      )}
+      <ChainWarningMessage chainId={sourceChain} />
       <ButtonWithLoader
-        disabled={!isSourceComplete}
+        disabled={!isSourceComplete || isTransferDisabled}
         onClick={handleNextClick}
         showLoader={false}
         error={statusMessage || error}

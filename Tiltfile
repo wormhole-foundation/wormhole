@@ -42,6 +42,7 @@ config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
+config.define_bool("spy_relayer", False, "Enable spy relayer")
 config.define_bool("e2e", False, "Enable E2E testing stack")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("bridge_ui_hot", False, "Enable hot loading bridge_ui")
@@ -58,6 +59,7 @@ solana = cfg.get("solana", True)
 ci = cfg.get("ci", False)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
+spy_relayer = cfg.get("spy_relayer", ci)
 e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
@@ -208,6 +210,16 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
+if num_guardians >= 2:
+    local_resource(
+        name = "guardian-set-update",
+        resource_deps = guardian_resource_deps + ["guardian"],
+        deps = ["scripts/send-vaa.sh", "clients/eth"],
+        cmd = './scripts/update-guardian-set.sh %s %s' % (num_guardians, webHost),
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
+
 # spy
 k8s_yaml_with_ns("devnet/spy.yaml")
 
@@ -276,6 +288,60 @@ docker_build(
         sync("./ethereum/src", "/home/node/app/src"),
     ],
 )
+
+if spy_relayer:
+    docker_build(
+        ref = "redis",
+        context = ".",
+        only = ["./third_party"],
+        dockerfile = "third_party/redis/Dockerfile",
+    )
+
+    k8s_yaml_with_ns("devnet/redis.yaml")
+
+    k8s_resource(
+        "redis",
+        port_forwards = [
+            port_forward(6379, name = "Redis Default [:6379]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    docker_build(
+        ref = "spy-relay-image",
+        context = ".",
+        only = ["./relayer/spy_relayer"],
+        dockerfile = "relayer/spy_relayer/Dockerfile",
+        live_update = []
+    )
+
+    k8s_yaml_with_ns("devnet/spy-listener.yaml")
+
+    k8s_resource(
+        "spy-listener",
+        resource_deps = ["proto-gen", "guardian", "redis"],
+        port_forwards = [
+            port_forward(6062, container_port = 6060, name = "Debug/Status Server [:6062]", host = webHost),
+            port_forward(4201, name = "REST [:4201]", host = webHost),
+            port_forward(8082, name = "Prometheus [:8082]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_yaml_with_ns("devnet/spy-relayer.yaml")
+
+    k8s_resource(
+        "spy-relayer",
+        resource_deps = ["proto-gen", "guardian", "redis"],
+        port_forwards = [
+            port_forward(6063, container_port = 6060, name = "Debug/Status Server [:6063]", host = webHost),
+            port_forward(8083, name = "Prometheus [:8083]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
@@ -399,7 +465,7 @@ if explorer:
 
     k8s_resource(
         "bigtable-emulator",
-        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]", host = webHost)],
+        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]")],
         labels = ["explorer"],
         trigger_mode = trigger_mode,
     )
@@ -421,7 +487,7 @@ if explorer:
     k8s_resource(
         "cloud-functions",
         resource_deps = ["proto-gen", "bigtable-emulator", "pubsub-emulator"],
-        port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]")],
+        port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]", host = webHost)],
         labels = ["explorer"],
         trigger_mode = trigger_mode,
     )

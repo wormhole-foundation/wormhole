@@ -6,8 +6,8 @@ use cosmwasm_std::{
 };
 
 use sha3::{
-    Digest,
-    Keccak256,
+    digest::{consts::U32, generic_array::GenericArray},
+    Digest, Keccak256,
 };
 use wormhole::byte_utils::ByteUtils;
 
@@ -66,10 +66,10 @@ pub fn from_external_token_id(
     }
 }
 
-fn hash(token_id: &String) -> Vec<u8> {
+fn hash(token_id: &str) -> GenericArray<u8, U32> {
     let mut hasher = Keccak256::new();
     hasher.update(token_id);
-    hasher.finalize().to_vec()
+    hasher.finalize()
 }
 
 pub fn to_external_token_id(

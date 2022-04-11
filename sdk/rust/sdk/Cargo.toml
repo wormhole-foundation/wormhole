@@ -55,7 +55,7 @@ features = [ "no-entrypoint" ]
 path     = "../../../terra/contracts/wormhole"
 version  = "0.1.0"
 optional = true
-
+features = [ "library" ]
 
 [dev-dependencies]
 byteorder      = "*"
