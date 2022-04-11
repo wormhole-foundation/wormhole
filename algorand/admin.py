@@ -896,7 +896,7 @@ class PortalCore:
                 sender=sender.getAddress(),
                 index=self.tokenid,
                 on_complete=transaction.OnComplete.NoOpOC,
-                app_args=[b"createWrapped", vaa],
+                app_args=[b"receiveAttest", vaa],
                 accounts=accts,
                 foreign_assets = foreign_assets,
                 sp=sp

@@ -28,7 +28,7 @@ bytec 5 // "nop"
 ==
 bnz main_l75
 txna ApplicationArgs 0
-pushbytes 0x63726561746557726170706564 // "createWrapped"
+pushbytes 0x72656365697665417474657374 // "receiveAttest"
 ==
 bnz main_l68
 txna ApplicationArgs 0
@@ -48,15 +48,20 @@ pushbytes 0x6f7074696e // "optin"
 ==
 bnz main_l22
 txna ApplicationArgs 0
-pushbytes 0x7472616e73666572576974685061796c6f6164 // "transferWithPayload"
-==
-bnz main_l21
-txna ApplicationArgs 0
 pushbytes 0x676f7665726e616e6365 // "governance"
+==
+bnz main_l16
+intc_0 // 1
+intc_0 // 1
 ==
 bnz main_l15
 err
 main_l15:
+txna ApplicationArgs 0
+log
+intc_0 // 1
+return
+main_l16:
 callsub checkForDuplicate_20
 callsub governanceSet_7
 store 73
@@ -208,13 +213,13 @@ store 68
 load 69
 intc_0 // 1
 ==
-bnz main_l20
+bnz main_l21
 load 69
 intc_2 // 2
 ==
-bnz main_l18
+bnz main_l19
 err
-main_l18:
+main_l19:
 txna ApplicationArgs 1
 load 68
 intc_2 // 2
@@ -234,10 +239,10 @@ load 68
 pushint 32 // 32
 extract3
 app_global_put
-main_l19:
+main_l20:
 intc_0 // 1
 return
-main_l20:
+main_l21:
 txna ApplicationArgs 1
 load 68
 intc_2 // 2
@@ -286,10 +291,7 @@ load 71
 concat
 load 72
 app_global_put
-b main_l19
-main_l21:
-intc_0 // 1
-return
+b main_l20
 main_l22:
 txna Accounts 1
 txna ApplicationArgs 1
@@ -1077,7 +1079,7 @@ load 42
 bytec_3 // "native"
 callsub getsigaddress_14
 ==
-pushint 867 // 867
+pushint 864 // 864
 &&
 assert
 pushint 32 // 32
@@ -1143,7 +1145,7 @@ load 37
 len
 pushint 100 // 100
 ==
-pushint 909 // 909
+pushint 906 // 906
 &&
 assert
 itxn_begin
@@ -1190,7 +1192,7 @@ store 36
 txna ApplicationArgs 1
 load 36
 ==
-pushint 850 // 850
+pushint 847 // 847
 &&
 assert
 intc_2 // 2
@@ -1209,7 +1211,7 @@ load 44
 load 43
 callsub getsigaddress_14
 ==
-pushint 857 // 857
+pushint 854 // 854
 &&
 assert
 load 42
@@ -1217,7 +1219,7 @@ callsub extractdecimal_19
 btoi
 pushint 8 // 8
 <=
-pushint 860 // 860
+pushint 857 // 857
 &&
 assert
 intc_2 // 2
@@ -2333,7 +2335,7 @@ extract 0 1
 btoi
 intc_0 // 1
 ==
-pushint 938 // 938
+pushint 935 // 935
 &&
 assert
 txna ApplicationArgs 1
@@ -2366,7 +2368,7 @@ load 115
 load 112
 callsub getsigaddress_14
 ==
-pushint 948 // 948
+pushint 945 // 945
 &&
 assert
 load 113
@@ -2386,7 +2388,7 @@ pushint 8 // 8
 getbit
 intc_1 // 0
 ==
-pushint 955 // 955
+pushint 952 // 952
 &&
 assert
 intc_0 // 1

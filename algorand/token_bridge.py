@@ -287,7 +287,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             Approve()
         ])
     
-    def createWrapped():
+    def receiveAttest():
         me = Global.current_application_address()
         off = ScratchVar()
         
@@ -818,9 +818,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             Approve()
         ])
 
-    def transferWithPayload():
-        return Seq([Approve()])
-
     # This is for attesting
     def attestToken():
         asset = ScratchVar()
@@ -963,13 +960,12 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
     router = Cond(
         [METHOD == Bytes("nop"), nop()],
-        [METHOD == Bytes("createWrapped"), createWrapped()],
+        [METHOD == Bytes("receiveAttest"), receiveAttest()],
         [METHOD == Bytes("attestToken"), attestToken()],
         [METHOD == Bytes("completeTransfer"), completeTransfer()],
         [METHOD == Bytes("sendTransfer"), sendTransfer()],
         [METHOD == Bytes("optin"), do_optin()],
-        [METHOD == Bytes("transferWithPayload"), transferWithPayload()],
-        [METHOD == Bytes("governance"), governance()],
+        [METHOD == Bytes("governance"), governance()]
     )
 
     on_create = Seq( [

@@ -944,7 +944,7 @@ export async function simpleSignVAA(
     const resp = await client.sendRawTransaction(signedTxns).do();
 
     //    console.log("waiting for confirmation", txns[txns.length-1].txID())
-    const ret: string[] = [];
+    let ret: string[] = [];
     console.log("waitForConfirmation...");
     const response = await waitForConfirmation(
         client,
@@ -955,10 +955,10 @@ export async function simpleSignVAA(
 
     console.log("submitVAA confirmation", response);
     if (response["logs"]) {
-        ret.push(response["logs"]);
+        ret = response["logs"]
     }
     ret.forEach((log) => {
-        console.log("logs:", log);
+        console.log("logs:", new TextDecoder().decode(Buffer.from(log)));
     });
 
     return ret;
