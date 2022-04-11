@@ -50,12 +50,12 @@ abstract contract ShutdownSwitch {
 
     bool private enabled = true;
 
-    /// @dev Returns the number of votes required to disable transfers.
+    /// @dev Returns the threshold of the number of votes required to disable transfers.
     function requiredVotesToShutdown() public view returns (uint16) {
         return computeRequiredVotesToShutdown(getCurrentGuardianSet().keys.length);
     }
 
-    /// @dev Returns the current number of votes to disable transfers.
+    /// @dev Returns the current number of votes to disable transfers. When this value reaches requiredVotesToShutdown(), then transfers will be disabled.
     function numVotesToShutdown() public view returns (uint16) {
         return computeNumVotesShutdown(getCurrentGuardianSet());
     }
@@ -135,7 +135,7 @@ abstract contract ShutdownSwitch {
     
     /// @dev Extract the guardian key from the authProof.
     function decodeVoter(address sender, bytes memory authProof) public pure returns (address) {
-        // The autoProof is made up as follows:
+        // The authProof is made up as follows:
         //    r: bytes32
         //    s: bytes32
         //    v: uint8
@@ -143,8 +143,8 @@ abstract contract ShutdownSwitch {
         require((authProof.length == 65), "invalid auth proof");
 
         bytes32 r = authProof.toBytes32(0);
-		bytes32 s = authProof.toBytes32(32);
-		uint8 v = authProof.toUint8(64) + 27; // Adding 27 is required, see here for details: https://github.com/ethereum/go-ethereum/issues/19751#issuecomment-504900739
+        bytes32 s = authProof.toBytes32(32);
+        uint8 v = authProof.toUint8(64) + 27; // Adding 27 is required, see here for details: https://github.com/ethereum/go-ethereum/issues/19751#issuecomment-504900739
 
         bytes32 digest = keccak256(abi.encodePacked(sender));
         return ecrecover(digest, v, r, s);

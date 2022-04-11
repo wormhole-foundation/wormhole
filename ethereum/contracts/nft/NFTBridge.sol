@@ -97,7 +97,7 @@ contract NFTBridge is NFTBridgeGovernance {
         }(nonce, encoded, 15);
     }
 
-    function completeTransfer(bytes memory encodedVm) public isEnabled {     
+    function completeTransfer(bytes memory encodedVm) public isEnabled {
         _completeTransfer(encodedVm);
     }
 
