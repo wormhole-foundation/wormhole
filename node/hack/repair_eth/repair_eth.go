@@ -105,6 +105,7 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	var req *http.Request
 	var err error
 	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+		// This is the BlockScout based explorer leg
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
 	} else {
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
@@ -174,7 +175,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 
 	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
 		// Because of a bug in BlockScout based explorers we need to check the address
-		// in the log to see if it is the Oasis core bridge
+		// in the log to see if it is the core bridge
 		var filtered []*logEntry
 		for _, logLine := range logs {
 			// Check value of address in log
