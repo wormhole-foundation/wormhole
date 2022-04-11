@@ -135,7 +135,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 	var req *http.Request
 	var err error
 	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
-		// This is the Oasis leg
+		// This is the BlockScout based explorer leg
 		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 			"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&topic0=%s",
 			api, from, to, topic0), nil)
@@ -173,7 +173,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 	}
 
 	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
-		// Because of a bug in BlockScout we need to check the address
+		// Because of a bug in BlockScout based explorers we need to check the address
 		// in the log to see if it is the Oasis core bridge
 		var filtered []*logEntry
 		for _, logLine := range logs {
@@ -196,6 +196,7 @@ func main() {
 	}
 
 	if *etherscanKey == "" {
+		// BlockScout based explorers don't require an ether scan key
 		if chainID != vaa.ChainIDOasis && chainID != vaa.ChainIDAurora {
 			log.Fatal("Etherscan API Key is required")
 		}
