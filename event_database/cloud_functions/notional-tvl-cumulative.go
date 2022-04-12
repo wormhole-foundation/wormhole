@@ -225,10 +225,12 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	var numDays string
+	var totalsOnly string
 	switch r.Method {
 	case http.MethodGet:
 		queryParams := r.URL.Query()
 		numDays = queryParams.Get("numDays")
+		totalsOnly = queryParams.Get("totalsOnly")
 	}
 
 	var queryDays int
@@ -295,12 +297,15 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 				}
 
 				asset.Notional = roundToTwoDecimalPlaces(notional)
-				// create a new LockAsset in order to exclude TokenPrice and Amount
-				dailyTvl[date][chain][symbol] = LockedAsset{
-					Symbol:      asset.Symbol,
-					Address:     asset.Address,
-					CoinGeckoId: asset.CoinGeckoId,
-					Notional:    asset.Notional,
+
+				if totalsOnly == "" {
+					// create a new LockAsset in order to exclude TokenPrice and Amount
+					dailyTvl[date][chain][symbol] = LockedAsset{
+						Symbol:      asset.Symbol,
+						Address:     asset.Address,
+						CoinGeckoId: asset.CoinGeckoId,
+						Notional:    asset.Notional,
+					}
 				}
 
 				// add this asset's notional to the date/chain/*
