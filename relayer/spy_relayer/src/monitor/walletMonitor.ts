@@ -26,7 +26,7 @@ import { getMetaplexData, sleep } from "../helpers/utils";
 import { getEthereumToken } from "../utils/ethereum";
 import { getMultipleAccountsRPC } from "../utils/solana";
 import { formatNativeDenom } from "../utils/terra";
-import { newProvider } from "./evm";
+import { newProvider } from "../relayer/evm";
 
 let env: RelayerEnvironment;
 const logger = getScopedLogger(["walletMonitor"]);

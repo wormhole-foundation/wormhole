@@ -19,7 +19,6 @@ import {
 } from "../helpers/redisHelper";
 import { sleep } from "../helpers/utils";
 import { relay } from "./relay";
-import { collectWallets } from "./walletMonitor";
 
 const WORKER_THREAD_RESTART_MS = 10 * 1000;
 const AUDITOR_THREAD_RESTART_MS = 10 * 1000;
@@ -249,11 +248,6 @@ export async function run(ph: PromHelper) {
   let workerArray: WorkerInfo[] = createWorkerInfos(metrics);
 
   spawnWorkerThreads(workerArray);
-  try {
-    collectWallets(metrics);
-  } catch (e) {
-    logger.error("Failed to kick off collectWallets: " + e);
-  }
   try {
     monitorRedis(metrics);
   } catch (e) {

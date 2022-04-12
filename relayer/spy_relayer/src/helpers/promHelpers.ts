@@ -1,7 +1,7 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 import http = require("http");
 import client = require("prom-client");
-import { WalletBalance } from "../relayer/walletMonitor";
+import { WalletBalance } from "../monitor/walletMonitor";
 import { chainIDStrings } from "../utils/wormhole";
 import { getScopedLogger } from "./logHelper";
 import { RedisTables } from "./redisHelper";
@@ -15,7 +15,8 @@ const logger = getScopedLogger(["prometheusHelpers"]);
 export enum PromMode {
   Listen,
   Relay,
-  Both,
+  WalletMonitor,
+  All,
 }
 
 export class PromHelper {
@@ -93,17 +94,12 @@ export class PromHelper {
     } else if (
       req.url === "/metrics" ||
       req.url === "/relayer" ||
-      req.url === "/listener"
+      req.url === "/listener" ||
+      req.url === "/wallet-monitor"
     ) {
       // Return all metrics in the Prometheus exposition format
-      if (this._mode === PromMode.Listen || this._mode == PromMode.Both) {
-        res.setHeader("Content-Type", this._register.contentType);
-        res.end(await this._register.metrics());
-      }
-      if (this._mode === PromMode.Relay || this._mode == PromMode.Both) {
-        res.setHeader("Content-Type", this._register.contentType);
-        res.end(await this._register.metrics());
-      }
+      res.setHeader("Content-Type", this._register.contentType);
+      res.end(await this._register.metrics());
     } else {
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.write("404 Not Found - " + req.url + "\n");
@@ -118,8 +114,10 @@ export class PromHelper {
       mode_name = "listener";
     } else if (mode === PromMode.Relay) {
       mode_name = "relayer";
-    } else if (mode === PromMode.Both) {
-      mode_name = "both";
+    } else if (mode === PromMode.WalletMonitor) {
+      mode_name = "wallet-monitor";
+    } else if (mode === PromMode.All) {
+      mode_name = "all";
     }
 
     this._register.setDefaultLabels({
@@ -131,16 +129,18 @@ export class PromHelper {
 
     this._mode = mode;
     // Register each metric
-    if (this._mode === PromMode.Listen || this._mode == PromMode.Both) {
+    if (this._mode === PromMode.Listen || this._mode === PromMode.All) {
       this._register.registerMetric(this.listenCounter);
     }
-    if (this._mode === PromMode.Relay || this._mode == PromMode.Both) {
+    if (this._mode === PromMode.Relay || this._mode === PromMode.All) {
       this._register.registerMetric(this.successCounter);
       this._register.registerMetric(this.confirmedCounter);
       this._register.registerMetric(this.failureCounter);
       this._register.registerMetric(this.rollbackCounter);
       this._register.registerMetric(this.alreadyExecutedCounter);
       this._register.registerMetric(this.redisQueue);
+    }
+    if (this._mode === PromMode.WalletMonitor || this._mode === PromMode.All) {
       this._register.registerMetric(this.walletBalance);
     }
     // End registering metric

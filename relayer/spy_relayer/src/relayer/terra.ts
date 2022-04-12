@@ -42,7 +42,7 @@ export async function relayTerra(
   const wallet = lcd.wallet(mk);
 
   logger.info(
-    "terraChainId: %s, tokenBridgeAddress: %s, accAddress: %s, signedVAA: $s",
+    "terraChainId: %s, tokenBridgeAddress: %s, accAddress: %s, signedVAA: %s",
     chainConfigInfo.terraChainId,
     chainConfigInfo.tokenBridgeAddress,
     wallet.key.accAddress,
