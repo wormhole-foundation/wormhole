@@ -25,7 +25,14 @@ func TestStringToUInt(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.label, func(t *testing.T) {
-			num, _ := stringToUint(tc.str)
+			num, err := stringToUint(tc.str)
+
+			if tc.willError == true {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+
 			assert.Equal(t, tc.num, num)
 
 		})
