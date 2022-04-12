@@ -4,11 +4,9 @@
     1.  [Bootstrap chain](#org819971b)
     2.  [Onboarding guardians](#org60d7dc9)
 
-
 <a id="org155bf00"></a>
 
 # Inbox
-
 
 <a id="org819971b"></a>
 
@@ -31,22 +29,21 @@ be in place simultaneously: block validation and guardian set election will
 still use PoA, with each guardian having a singular vote. All other governance
 votes will reach consensus with DPoS by staking $HOLE tokens.
 
-
 <a id="org60d7dc9"></a>
 
 ## TODO Onboarding guardians
 
 The validators of wormhole chain are going to be the 19 guardians. We need a
 way to connect their existing guardian public keys with their wormhole chain
-addresses. We will have a registration module where an account can register a
-guardian public key with their wormhole chain address. This will entail
+addresses. We will have a registration process where a validator can register a
+guardian public key to their validator address. This will entail
 signing their wormhole address with their guardian private key, and sending
 that signature from their wormhole address. At this point, if the signature
 matches, the wormhole address becomes associated with the guardian public key.
 
 After this, the guardian is eligible to become a validator.
 
-Wormhole chain the ECDSA secp256k1 signature scheme, which is the same as what
+Wormhole chain uses the ECDSA secp256k1 signature scheme, which is the same as what
 the guardian signatures use, so we could directly derive a wormhole account for
 them, but we choose not to do this in order to allow guardian key rotation.
 
@@ -55,14 +52,14 @@ them, but we choose not to do this in order to allow guardian key rotation.
 
 In theory it is possible to have multiple active guardian sets simultaneously
 (e.g. during the expiration period of the previous set). We only want one set of
-guardians to be able to produce blocks, so we store the active validator set
-(which should typicall by a pointer to the most recent guardian set). We have to
+guardians to be able to produce blocks, so we store the latest validator set
+(which should typically by a pointer to the most recent guardian set). We have to
 be careful here, because if we update the guardian set to a new set where a
-superminority of guardians are not online yet, they won&rsquo;t be able to register
+superminority of guardians are not online yet, they won't be able to register
 themselves after the switch, since block production will come to a halt, and the
 chain becomes deadlocked.
 
-Thus we must only accept a guardian set update if a supermajority of guardians
+Thus we must only change over block production due to a guardian set update if a supermajority of guardians
 in the new guardian set are already registered.
 
 At present, Guardian Set upgrade VAAs are signed by the Guardians off-chain. This can stay off-chain for as long as needed, but should eventually be moved on-chain.
@@ -71,7 +68,6 @@ At present, Guardian Set upgrade VAAs are signed by the Guardians off-chain. Thi
 
 At time of writing, the Guardian Network is currently at Guardian Set 2, but will possibly be at set 3 or 4 by the time of launch.
 
-It is likely not feasible to launch the chain with all 19 Guardians of the network hardcoded in the genesis block, as this would require the Guardians to determine their addresses off-chain, and somehow be connected to the network for the first block. 
+It is likely not feasible to launch the chain with all 19 Guardians of the network hardcoded in the genesis block, as this would require the Guardians to determine their addresses off-chain, and have their information encoded in the genesis block.
 
 As such, it is likely simpler to launch Wormhole Chain with a single validator (The guardian from Guardian Set 1), then have all the other Guardians perform real on-chain registrations for themselves, and then perform a Guardian Set upgrade directly to the current Guardian set.
-
