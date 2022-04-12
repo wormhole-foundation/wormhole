@@ -20,7 +20,6 @@ func TestStringToUInt(t *testing.T) {
 		{label: "max range", str: "18446744073709551615", num: 18446744073709551615, willError: false},
 		{label: "negative number", str: "-1", num: 0, willError: true},
 		{label: "max range plus one", str: "18446744073709551616", num: 0, willError: true},
-		// TODO: Ask Chase whether the above cases capture the expected set of expected strings
 	}
 
 	for _, tc := range tests {
@@ -50,7 +49,6 @@ func TestSecondDecode(t *testing.T) {
 		{label: "corrupted", str: "XXXXXaGVsbG8=", bytes: []byte(nil), willError: true},
 		{label: "address", str: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ=", bytes: []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4}, willError: false},
 		{label: "address", str: "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ=\"", bytes: []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4}, willError: false},
-		// TODO: Ask Chase whether the above cases capture the expected set of expected strings
 	}
 
 	for _, tc := range tests {
@@ -76,7 +74,6 @@ func TestStringToAddress(t *testing.T) {
 		willError bool
 	}{
 		{label: "simple", str: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ=", addr: vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}, willError: false},
-		// TODO: Ask Chase whether the above cases capture the expected set of expected strings
 	}
 
 	for _, tc := range tests {
@@ -102,7 +99,6 @@ func TestStringToHash(t *testing.T) {
 		willError bool
 	}{
 		{label: "simple", str: "4fae136bb1fd782fe1b5180ba735cdc83bcece3f9b7fd0e5e35300a61c8acd8f", hash: eth_common.HexToHash("4fae136bb1fd782fe1b5180ba735cdc83bcece3f9b7fd0e5e35300a61c8acd8f"), willError: false},
-		// TODO: Ask Chase whether the above cases capture the expected set of expected strings
 	}
 
 	for _, tc := range tests {
