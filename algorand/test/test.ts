@@ -10,6 +10,7 @@ import  {
     submitVAA, 
     submitVAAHdr, 
     simpleSignVAA, 
+    getIsTransferCompletedAlgorand,
     parseVAA, 
     CORE_ID,
     TOKEN_BRIDGE_ID
@@ -63,7 +64,22 @@ class AlgoTests {
         let upgradeVAA = testLib.genGuardianSetUpgrade(guardianPrivKeys, 0, 1, seq, seq, guardianKeys)
         console.log(upgradeVAA)
         console.log(parseVAA(hexStringToUint8Array(upgradeVAA))) 
-        await submitVAA(hexStringToUint8Array(upgradeVAA), client, player, CORE_ID)
+
+        let vaa = hexStringToUint8Array(upgradeVAA);
+        
+        if (await getIsTransferCompletedAlgorand(client, vaa, CORE_ID, player) != false) {
+            console.log("assert failed 1");
+            process.exit(-1);
+        }
+
+        await submitVAA(vaa, client, player, CORE_ID)
+
+        if (await getIsTransferCompletedAlgorand(client, vaa, CORE_ID, player) != true) {
+            console.log("assert failed 2");
+            process.exit(-1);
+        }
+
+        process.exit(0)
 
         seq = seq + 1
 
