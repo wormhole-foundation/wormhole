@@ -217,7 +217,7 @@ export async function getMessageFee(client: Algodv2): Promise<number> {
  * @returns The sequence number found in the supplied transaction
  */
 export function parseSeqFromLog(txn: any): bigint {
-    const innerTxns = txn.innerTxns[txn.innerTxns-1];
+    const innerTxns = txn.innerTxns[txn.innerTxns - 1];
     const logs = innerTxns["logs"];
     const seqNum = logs[0];
     const bufSN = Buffer.from(seqNum, "base64");
@@ -414,7 +414,7 @@ export async function optin(
         seedAmt: SEED_AMT,
     };
 
-    console.log("YYY", JSON.stringify(data))
+    console.log("YYY", JSON.stringify(data));
 
     const ts: TmplSig = new TmplSig(client);
     const lsa: LogicSigAccount = await ts.populate(data);
@@ -603,7 +603,10 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Meta", "TokenBridge Attest");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
-        ret.set("Contract", uint8ArrayToHexString(extract3(vaa, off, 32), false));
+        ret.set(
+            "Contract",
+            uint8ArrayToHexString(extract3(vaa, off, 32), false)
+        );
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
@@ -620,7 +623,10 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 1;
         ret.set("Amount", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Contract", uint8ArrayToHexString(extract3(vaa, off, 32), false));
+        ret.set(
+            "Contract",
+            uint8ArrayToHexString(extract3(vaa, off, 32), false)
+        );
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
@@ -641,7 +647,10 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 1;
         ret.set("Amount", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Contract", uint8ArrayToHexString(extract3(vaa, off, 32), false));
+        ret.set(
+            "Contract",
+            uint8ArrayToHexString(extract3(vaa, off, 32), false)
+        );
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
@@ -673,7 +682,7 @@ export async function decodeLocalState(
         }
     }
 
-    console.log("decodeLocalState", JSON.stringify(app_state))
+    console.log("decodeLocalState", JSON.stringify(app_state));
 
     let ret = Buffer.alloc(0);
     let empty = Buffer.alloc(0);
@@ -681,7 +690,7 @@ export async function decodeLocalState(
         const e = Buffer.alloc(127);
         const m = Buffer.from("meta");
 
-        let sk : string[] = [];
+        let sk: string[] = [];
         let vals: Map<string, Buffer> = new Map<string, Buffer>();
         for (const kv of app_state) {
             const k = Buffer.from(kv["key"], "base64");
@@ -693,10 +702,10 @@ export async function decodeLocalState(
             if (Buffer.compare(v, e)) {
                 vals.set(key.toString(), v);
                 sk.push(key.toString());
-            } 
+            }
         }
 
-        sk.sort((a,b) => a.localeCompare(b, 'en', {numeric: true}));
+        sk.sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 
         sk.forEach((v) => {
             ret = Buffer.concat([ret, vals.get(v) || empty]);
@@ -713,7 +722,7 @@ export async function assetOptinCheck(
     const acctInfo = await client.accountInformation(receiver).do();
     const assets: Array<any> = acctInfo.assets;
     let ret = false;
-    assets.forEach(a => {
+    assets.forEach((a) => {
         const assetId = a["asset-id"];
         if (assetId === asset) {
             ret = true;
@@ -755,7 +764,7 @@ export async function assetOptin(
     console.log("assetOptin confirmation:", asset, receiver, confirmedTxn);
 
     // Double check the result
-    if (!await assetOptinCheck(client, asset, receiver)) {
+    if (!(await assetOptinCheck(client, asset, receiver))) {
         throw new Error("assetOptin() failed ");
     }
 }
@@ -948,10 +957,10 @@ export async function simpleSignVAA(
         }
     });
 
-    //    console.log("sendRawTransaction", signedTxns)
+    console.log("sendRawTransaction", signedTxns);
     const resp = await client.sendRawTransaction(signedTxns).do();
 
-    //    console.log("waiting for confirmation", txns[txns.length-1].txID())
+    console.log("waiting for confirmation", txns[txns.length - 1].txID());
     let ret: string[] = [];
     console.log("waitForConfirmation...");
     const response = await waitForConfirmation(
@@ -963,7 +972,7 @@ export async function simpleSignVAA(
 
     console.log("submitVAA confirmation", response);
     if (response["logs"]) {
-        ret = response["logs"]
+        ret = response["logs"];
     }
     ret.forEach((log) => {
         console.log("logs:", new TextDecoder().decode(Buffer.from(log)));
@@ -1139,7 +1148,7 @@ export async function submitVAA(
                 suggestedParams: params,
             })
         );
-        txns[txns.length-1].fee = txns[txns.length-1].fee * 2;
+        txns[txns.length - 1].fee = txns[txns.length - 1].fee * 2;
     }
 
     if (
@@ -1160,7 +1169,7 @@ export async function submitVAA(
             if (asset.length > 8) {
                 const tmp = Buffer.from(asset.slice(0, 8));
                 a = Number(tmp.readBigUInt64BE(0));
-                console.log("a", a)
+                console.log("a", a);
             }
         } else {
             const tmp = Buffer.from(
@@ -1201,16 +1210,15 @@ export async function submitVAA(
             })
         );
 
-
         // We need to cover the inner transactions
         if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
-            txns[txns.length-1].fee = txns[txns.length-1].fee * 3;
+            txns[txns.length - 1].fee = txns[txns.length - 1].fee * 3;
         } else {
-            txns[txns.length-1].fee = txns[txns.length-1].fee * 2;
+            txns[txns.length - 1].fee = txns[txns.length - 1].fee * 2;
         }
 
         if (meta === "TokenBridge Transfer With Payload") {
-            txns[txns.length-1].appForeignApps = [parsedVAA.get("appid")]
+            txns[txns.length - 1].appForeignApps = [parsedVAA.get("appid")];
 
             txns.push(
                 makeApplicationCallTxnFromObject({
@@ -1414,7 +1422,7 @@ export async function transferAsset(
             "creator"
         );
     }
-    if (assetId != 0 && !await assetOptinCheck(client, assetId, creator)) {
+    if (assetId != 0 && !(await assetOptinCheck(client, assetId, creator))) {
         // Looks like we need to optin
         const payTxn: algosdk.Transaction =
             makePaymentTxnWithSuggestedParamsFromObject({
@@ -1494,20 +1502,20 @@ export async function transferAsset(
     return parseSeqFromLog(resp);
 }
 
-export function createWrappedOnAlgorand(
+export async function createWrappedOnAlgorand(
     client: algosdk.Algodv2,
     sender: Account,
     attestVAA: Uint8Array
 ) {
-    submitVAA(attestVAA, client, sender, TOKEN_BRIDGE_ID);
+    await submitVAA(attestVAA, client, sender, TOKEN_BRIDGE_ID);
 }
 
-export function updateWrappedOnAlgorand(
+export async function updateWrappedOnAlgorand(
     client: algosdk.Algodv2,
     sender: Account,
     vaa: Uint8Array
 ) {
-    submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
+    await submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
 }
 
 /**
@@ -1623,7 +1631,8 @@ export async function getIsTransferCompletedAlgorand(
         client,
         wallet,
         appId,
-        index,
+        // index,
+        Math.floor(Number(parsedVAA.get("sequence")) / MAX_BITS),
         // em,
         chainRaw + em,
         "Getting seqAddr from getIsTransferCompletedAlgorand"
