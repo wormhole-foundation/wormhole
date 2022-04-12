@@ -652,6 +652,8 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Fee", extract3(vaa, off, 32));
         off += 32;
         ret.set("Payload", vaa.slice(off));
+        ret.set("appid", buf.readIntBE(off, 8));
+        ret.set("body", uint8ArrayToHexString(vaa.slice(off + 8), false));
     }
 
     return ret;
@@ -1199,11 +1201,27 @@ export async function submitVAA(
             })
         );
 
+
         // We need to cover the inner transactions
         if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
             txns[txns.length-1].fee = txns[txns.length-1].fee * 3;
         } else {
             txns[txns.length-1].fee = txns[txns.length-1].fee * 2;
+        }
+
+        if (meta === "TokenBridge Transfer With Payload") {
+            txns[txns.length-1].appForeignApps = [parsedVAA.get("appid")]
+
+            txns.push(
+                makeApplicationCallTxnFromObject({
+                    appArgs: [textToUint8Array("completeTransfer"), vaa],
+                    appIndex: parsedVAA.get("appid"),
+                    foreignAssets: foreignAssets,
+                    from: sender.addr,
+                    onComplete: OnApplicationComplete.NoOpOC,
+                    suggestedParams: params,
+                })
+            );
         }
     }
 

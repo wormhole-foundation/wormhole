@@ -936,11 +936,24 @@ class PortalCore:
                 sp=sp
             ))
 
+            if "appid" in p:
+                txns[-1].foreign_apps = [p["appid"]]
+
             # We need to cover the inner transactions
             if p["Fee"] != self.zeroPadBytes:
                 txns[-1].fee = txns[-1].fee * 3
             else:
                 txns[-1].fee = txns[-1].fee * 2
+
+            if p["Meta"] == "TokenBridge Transfer With Payload":
+                txns.append(transaction.ApplicationCallTxn(
+                    sender=sender.getAddress(),
+                    index=p["appid"],
+                    on_complete=transaction.OnComplete.NoOpOC,
+                    app_args=[b"completeTransfer", vaa],
+                    foreign_assets = foreign_assets,
+                    sp=sp
+                ))
 
         transaction.assign_group_id(txns)
 
@@ -1069,6 +1082,8 @@ class PortalCore:
             ret["Fee"] = vaa[off:(off + 32)].hex()
             off += 32
             ret["Payload"] = vaa[off:].hex()
+            ret["appid"] = int.from_bytes(vaa[off:(off + 8)], "big")
+            ret["body"] = vaa[off + 8:].hex()
         
         return ret
 

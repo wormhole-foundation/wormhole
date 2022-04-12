@@ -41,7 +41,7 @@ max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
-    #teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
+#    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
     teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
 
     if genTeal:
@@ -77,6 +77,11 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     @Subroutine(TealType.uint64)
     def getMessageFee() -> Expr:
         maybe = App.globalGetEx(App.globalGet(Bytes("coreid")), Bytes("MessageFee"))
+        return Seq(maybe, MagicAssert(maybe.hasValue()), maybe.value())
+
+    @Subroutine(TealType.bytes)
+    def getNextAddress() -> Expr:
+        maybe = AppParam.address(Gtxn[Txn.group_index() + Int(1)].application_id())
         return Seq(maybe, MagicAssert(maybe.hasValue()), maybe.value())
 
     def assert_common_checks(e) -> Expr:
@@ -506,7 +511,15 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
             MagicAssert(Fee.load() <= Amount.load()),
 
-            If (action.load() == Int(3), MagicAssert(Destination.load() == Txn.sender())),
+            If (action.load() == Int(3), Seq([
+                    tidx.store(Txn.group_index() + Int(1)),
+                    MagicAssert(And(
+                        Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                        Gtxn[tidx.load()].application_args[0] == Txn.application_args[0],
+                        Gtxn[tidx.load()].application_args[1] == Txn.application_args[1]
+                    )),
+                    MagicAssert(getNextAddress() == Destination.load())
+            ])),
 
             If(OriginChain.load() == Int(8),
                Seq([

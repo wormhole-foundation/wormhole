@@ -482,9 +482,9 @@ class AlgoTest(PortalCore):
 #        sys.exit(0)
 
 
-        vaa = self.parseVAA(bytes.fromhex("01000000010100e1232697de3681d67ca0c46fbbc9ea5d282c473daae8fda2b23145e7b7167f9a35888acf80ed9d091af3069108c25324a22d8665241db884dda53ca53a8212d100625436600000000100020000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585000000000000000120010000000000000000000000000000000000000000000000000000000005f5e1000000000000000000000000000000000000000000000000004523c3F29447d1f32AEa95BEBD00383c4640F1b400020000000000000000000000000000000000000000000000000000aabbcc00080000000000000000000000000000000000000000000000000000000000000000"))
-        pprint.pprint(vaa)
-        sys.exit(0)
+#        vaa = self.parseVAA(bytes.fromhex("01000000010100e1232697de3681d67ca0c46fbbc9ea5d282c473daae8fda2b23145e7b7167f9a35888acf80ed9d091af3069108c25324a22d8665241db884dda53ca53a8212d100625436600000000100020000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585000000000000000120010000000000000000000000000000000000000000000000000000000005f5e1000000000000000000000000000000000000000000000000004523c3F29447d1f32AEa95BEBD00383c4640F1b400020000000000000000000000000000000000000000000000000000aabbcc00080000000000000000000000000000000000000000000000000000000000000000"))
+#        pprint.pprint(vaa)
+#        sys.exit(0)
 
         gt = GenTest(True)
         self.gt = gt
@@ -709,18 +709,16 @@ class AlgoTest(PortalCore):
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
         print("How about a payload3")
-        sid = self.transferAsset(client, player2, 0, 100, player3.getAddress(), 8, 0, b'hi mom')
+        sid = self.transferAsset(client, player2, 0, 100, get_application_address(self.testid), 8, 0, self.testid.to_bytes(8, "big")+b'hi mom')
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
 
-        print(".. and lets pass that to the wrong account")
-        try:
-            self.submitVAA(bytes.fromhex(vaa), client, emptyAccount, self.tokenid)
-        except:
-            print("Exception thrown... nice")
+        print("testid balance before = ", self.getBalances(client, get_application_address(self.testid)))
 
-        print(".. and lets pass that to the right account")
+        print(".. Lets let player3 relay it for us")
         self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
+
+        print("testid balance after = ", self.getBalances(client, get_application_address(self.testid)))
 
         print(".. Ok, now it is time to up the message fees")
 

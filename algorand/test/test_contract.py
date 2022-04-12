@@ -99,6 +99,11 @@ def approve_app():
             Approve()
         ])
 
+    def completeTransfer():
+        return Seq([
+            Approve()
+        ])
+
     def mint():
         return Seq([
             InnerTxnBuilder.Begin(),
@@ -124,6 +129,7 @@ def approve_app():
         [METHOD == Bytes("test1"), test1()],
         [METHOD == Bytes("setup"), setup()],
         [METHOD == Bytes("mint"), mint()],
+        [METHOD == Bytes("completeTransfer"), completeTransfer()],
     )
 
     on_create = Seq( [
