@@ -161,19 +161,36 @@ func (k Keeper) GetGuardianSet(ctx sdk.Context, id uint32) (val types.GuardianSe
 	return val, true
 }
 
-// TODO(csongor): Should we keep this function? It's linear in the size of the
-// guardian set and it's executed on each endblocker when assigning voting power
-// to validators. We could rewrite that method instead to loop through the
-// guardian keys instead, which might be more efficient.
+// Returns true when the given validator address is registered as a guardian and
+// that guardian is a member of the consensus guardian set.
+//
+// Note that this function is linear in the size of the consensus guardian set,
+// and it's eecuted on each endblocker when assigning voting power to validators.
 func (k Keeper) IsConsensusGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
+	// If there are no guardian sets, return true
+	// This is useful for testing, but the code path is never encountered when
+	// the chain is bootstrapped with a non-empty guardian set at gensis.
+	guardianSetCount := k.GetGuardianSetCount(ctx)
+	if guardianSetCount == 0 {
+		return true, nil
+	}
+
 	consensusGuardianSetIndex, found := k.GetConsensusGuardianSetIndex(ctx)
+	if !found {
+		return false, types.ErrConsensusSetUndefined
+	}
+
+	consensusGuardianSet, found := k.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
+
 	if !found {
 		return false, types.ErrGuardianSetNotFound
 	}
 
-	consensusGuardianSet, found := k.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
-	if !found {
-		return false, types.ErrGuardianSetNotFound
+	// If the consensus guardian set is empty, return true.
+	// This is useful for testing, but the code path is never encountered when
+	// the chain is bootstrapped with a non-empty guardian set at gensis.
+	if len(consensusGuardianSet.Keys) == 0 {
+		return true, nil
 	}
 
 	isConsensusGuardian := false

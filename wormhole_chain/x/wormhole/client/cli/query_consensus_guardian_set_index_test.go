@@ -21,9 +21,20 @@ func networkWithConsensusGuardianSetIndexObjects(t *testing.T) (*network.Network
 	state := types.GenesisState{}
 	require.NoError(t, cfg.Codec.UnmarshalJSON(cfg.GenesisState[types.ModuleName], &state))
 
-	consensusGuardianSetIndex := &types.ConsensusGuardianSetIndex{}
+	consensusGuardianSetIndex := &types.ConsensusGuardianSetIndex{
+		Index: 0,
+	}
 	nullify.Fill(&consensusGuardianSetIndex)
 	state.ConsensusGuardianSetIndex = consensusGuardianSetIndex
+
+	guardianSetList := []types.GuardianSet{{
+		Index:          0,
+		Keys:           [][]byte{},
+		ExpirationTime: 0,
+	}}
+	nullify.Fill(&guardianSetList)
+	state.GuardianSetList = guardianSetList
+
 	buf, err := cfg.Codec.MarshalJSON(&state)
 	require.NoError(t, err)
 	cfg.GenesisState[types.ModuleName] = buf
