@@ -1573,7 +1573,7 @@ async function checkBitsSet(
     const s: number = Math.floor(beg / BITS_PER_KEY);
     const b: number = Math.floor((beg - s * BITS_PER_KEY) / 8);
 
-    const key = Buffer.from(bigIntToBytes(s, 8)).toString("base64");
+    const key = Buffer.from(bigIntToBytes(s, 1)).toString("base64");
     console.log("key:", key);
     appState.forEach((kv) => {
         if (kv["key"] === key) {
