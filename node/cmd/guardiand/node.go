@@ -100,8 +100,6 @@ var (
 	terraLCD      *string
 	terraContract *string
 
-	algorandRPC      *string
-	algorandToken    *string
 	algorandIndexerRPC   *string
 	algorandIndexerToken *string
 	algorandAppID *uint64
@@ -191,8 +189,6 @@ func init() {
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 
-	algorandRPC = NodeCmd.Flags().String("algorandRPC", "", "Algorand RPC URL")
-	algorandToken = NodeCmd.Flags().String("algorandToken", "", "Algorand access token")
 	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL")
 	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
 	algorandAppID = NodeCmd.Flags().Uint64("algorandAppID", 0, "Algorand contract")
@@ -494,18 +490,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
-	}
-
-	if *unsafeDevMode {
-		if *algorandRPC == "" {
-			logger.Fatal("Please specify --algorandRPC")
-		}
-		if *algorandIndexerRPC == "" {
-			logger.Fatal("Please specify --algorandIndexerRPC")
-		}
-		if *algorandAppID == 0 {
-			logger.Fatal("Please specify --algorandAppID")
-		}
 	}
 
 	if *bigTablePersistenceEnabled {
@@ -824,10 +808,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		if *unsafeDevMode {
+		if (*algorandAppID != 0) && *unsafeDevMode {
 			if err := supervisor.Run(ctx, "algorandwatch",
 
-				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
+				algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
 				return err
 			}
 		}

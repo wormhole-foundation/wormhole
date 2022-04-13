@@ -26,8 +26,6 @@ import (
 type (
 	// Watcher is responsible for looking over Algorand blockchain and reporting new transactions to the appid
 	Watcher struct {
-		urlRPC       string
-		urlToken     string
 		indexerRPC   string
 		indexerToken string
 		appid        uint64
@@ -57,8 +55,6 @@ var (
 
 // NewWatcher creates a new Algorand appid watcher
 func NewWatcher(
-	urlRPC      string,
-	urlToken     string,
 	indexerRPC   string,
 	indexerToken string,
 	appid        uint64,
@@ -67,8 +63,6 @@ func NewWatcher(
 	obsvReqC     chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
-		urlRPC:       urlRPC,
-		urlToken:     urlToken,
 		indexerRPC:   indexerRPC,
 		indexerToken: indexerToken,
 		appid:        appid,
