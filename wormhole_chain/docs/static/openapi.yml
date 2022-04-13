@@ -961,7 +961,8 @@ paths:
             type: object
             properties:
               latestGuardianSetIndex:
-                type: string
+                type: integer
+                format: int64
         default:
           description: An unexpected error response.
           schema:
@@ -14679,7 +14680,8 @@ definitions:
     type: object
     properties:
       latestGuardianSetIndex:
-        type: string
+        type: integer
+        format: int64
   certusone.wormholechain.wormhole.ReplayProtection:
     type: object
     properties:
