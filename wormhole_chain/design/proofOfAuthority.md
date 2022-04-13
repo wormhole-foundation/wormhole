@@ -37,7 +37,7 @@ A Guardian Public Key may only be registered to a single validator at a time. If
 Guardian Set upgrades are the trickiest operation to handle. When processing the Guardian Set Upgrade, the following steps happen:
 
 - The Latest Guardian Set is changed to the new Guardian Set.
-- If at least two-thirds of Guardian Keys in the new Latest Guardian Set are registered, the Latest Guardian Set automatically becomes the new Consensus Guardian Set. Otherwise, the Latest Guardian Set will not become the Consensus Guardian Set until this threshold is met.
+- If all Guardian Keys in the new Latest Guardian Set are registered, the Latest Guardian Set automatically becomes the new Consensus Guardian Set. Otherwise, the Latest Guardian Set will not become the Consensus Guardian Set until this threshold is met.
 
 ## Benefits of this implementation:
 
