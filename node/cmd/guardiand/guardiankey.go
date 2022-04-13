@@ -12,7 +12,7 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/node/pkg/devnet"
