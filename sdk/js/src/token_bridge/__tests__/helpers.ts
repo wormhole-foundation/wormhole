@@ -134,7 +134,6 @@ export async function getSignedVAABySequence(
   emitterAddress: string
 ): Promise<Uint8Array> {
   //Note, if handed a sequence which doesn't exist or was skipped for consensus this will retry until the timeout.
-  // console.log("about to do signed vaa with retry");
   const { vaaBytes } = await getSignedVAAWithRetry(
     WORMHOLE_RPC_HOSTS,
     chainId,
@@ -162,7 +161,6 @@ export async function queryBalanceOnTerra(asset: string): Promise<number> {
 
   let balance: number = NaN;
   try {
-    // console.log("querying wallet balance");
     let coins: any;
     let pagnation: any;
     [coins, pagnation] = await lcd.bank.balance(wallet.key.accAddress);

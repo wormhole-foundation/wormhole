@@ -227,10 +227,6 @@ describe("Integration Tests", () => {
             initialErc20BalOnEth._hex,
             DECIMALS
           );
-          // console.log(
-          //   "ERC20 balance on Eth before transfer = ",
-          //   initialErc20BalOnEthFormatted
-          // );
 
           // Get the initial balance on Solana
           const tokenFilter: TokenAccountsFilter = {
@@ -245,12 +241,10 @@ describe("Integration Tests", () => {
             const tokenInfo = item.account.data.parsed.info;
             const address = tokenInfo.mint;
             const amount = tokenInfo.tokenAmount.uiAmount;
-            // console.log("results:", tokenInfo, address, amount);
             if (tokenInfo.mint === SolanaForeignAsset) {
               initialSolanaBalance = amount;
             }
           }
-          // console.log("Initial Solana balance:", initialSolanaBalance);
 
           // approve the bridge to spend tokens
           await approveEth(
@@ -334,10 +328,6 @@ describe("Integration Tests", () => {
             finalErc20BalOnEth._hex,
             DECIMALS
           );
-          // console.log(
-          //   "ERC20 balance on Eth after transfer = ",
-          //   finalErc20BalOnEthFormatted
-          // );
           expect(
             parseInt(initialErc20BalOnEthFormatted) -
               parseInt(finalErc20BalOnEthFormatted) ===
@@ -354,12 +344,10 @@ describe("Integration Tests", () => {
             const tokenInfo = item.account.data.parsed.info;
             const address = tokenInfo.mint;
             const amount = tokenInfo.tokenAmount.uiAmount;
-            // console.log("results:", tokenInfo, address, amount);
             if (tokenInfo.mint === SolanaForeignAsset) {
               finalSolanaBalance = amount;
             }
           }
-          // console.log("Final Solana balance:", finalSolanaBalance);
           expect(finalSolanaBalance - initialSolanaBalance === 1).toBe(true);
           provider.destroy();
           done();
@@ -473,12 +461,10 @@ describe("Integration Tests", () => {
             const tokenInfo = item.account.data.parsed.info;
             const address = tokenInfo.mint;
             const amount = tokenInfo.tokenAmount.uiAmount;
-            // console.log("results:", tokenInfo, address, amount);
             if (tokenInfo.mint === TEST_SOLANA_TOKEN) {
               initialSolanaBalance = amount;
             }
           }
-          // console.log("Initial Solana balance:", initialSolanaBalance);
 
           // Get the initial wallet balance on Eth
           const ETH_TEST_WALLET_PUBLIC_KEY =
@@ -507,10 +493,6 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const initialBalOnEthFormatted = formatUnits(initialBalOnEth._hex, 9);
-          // console.log(
-          //   "Balance on Eth before transfer = ",
-          //   initialBalOnEthFormatted
-          // );
 
           // transfer the test token
           const amount = parseUnits("1", 9).toBigInt();
@@ -580,12 +562,10 @@ describe("Integration Tests", () => {
             const tokenInfo = item.account.data.parsed.info;
             const address = tokenInfo.mint;
             const amount = tokenInfo.tokenAmount.uiAmount;
-            // console.log("results:", tokenInfo, address, amount);
             if (tokenInfo.mint === TEST_SOLANA_TOKEN) {
               finalSolanaBalance = amount;
             }
           }
-          // console.log("Final Solana balance:", finalSolanaBalance);
           expect(initialSolanaBalance - finalSolanaBalance).toBeCloseTo(1);
 
           // Get the final balance on Eth
@@ -593,10 +573,6 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const finalBalOnEthFormatted = formatUnits(finalBalOnEth._hex, 9);
-          // console.log(
-          //   "Balance on Eth before transfer = ",
-          //   finalBalOnEthFormatted
-          // );
           expect(
             parseInt(finalBalOnEthFormatted) -
               parseInt(initialBalOnEthFormatted) ===
@@ -717,7 +693,6 @@ describe("Integration Tests", () => {
           const initialBalOnEth = await token.balanceOf(
             ETH_TEST_WALLET_PUBLIC_KEY
           );
-          // let initialBalOnEthInt = parseInt(initialBalOnEth._hex);
           let initialBalOnEthStr = ethers.utils.formatUnits(
             initialBalOnEth,
             18
@@ -1214,7 +1189,6 @@ describe("Integration Tests", () => {
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-          // let contractReceipt: ethers.ContractReceipt;
           let success: boolean = true;
           try {
             const cr = await createWrappedOnEth(
@@ -1222,7 +1196,6 @@ describe("Integration Tests", () => {
               signer,
               signedVaa
             );
-            // console.log("cr = ", cr);
           } catch (e) {
             console.log(
               "createWrappedOnEth() failed.  Trying updateWrappedOnEth()..."
@@ -1235,10 +1208,8 @@ describe("Integration Tests", () => {
               signer,
               signedVaa
             );
-            // console.log("cr = ", cr);
             success = true;
           }
-          // console.log("Created wrapped token on ETH");
         } catch (e) {
           console.error("Attestation failure: ", e);
         }
@@ -1274,8 +1245,6 @@ describe("Integration Tests", () => {
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-          // const beforeEthBalance = await signer.getBalance();
-          // console.log("ETH balance before = ", beforeEthBalance.toString());
           const originAssetHex = nativeToHexString(Asset, CHAIN_ID_TERRA);
           if (!originAssetHex) {
             throw new Error("originAssetHex is null");
@@ -1762,7 +1731,6 @@ describe("Integration Tests", () => {
             signer,
             signedVaa
           );
-          // console.log("Finished redeeming on ETH.", roe);
           expect(
             await getIsTransferCompletedEth(
               ETH_TOKEN_BRIDGE_ADDRESS,
