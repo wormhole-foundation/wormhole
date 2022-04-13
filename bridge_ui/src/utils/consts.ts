@@ -1156,39 +1156,6 @@ export const getIsTransferDisabled = (
 
 export const LUNA_ADDRESS = "uluna";
 export const UST_ADDRESS = "uusd";
-export type RelayAsset = {
-  chain: ChainId;
-  address: string;
-  coinGeckoId: string;
-};
-// export const RELAYER_SUPPORTED_ASSETS: RelayAsset[] =
-//   CLUSTER === "mainnet"
-//     ? [{ chain: CHAIN_ID_SOLANA, address: WSOL_ADDRESS, coinGeckoId: "solana" }]
-//     : CLUSTER === "testnet"
-//     ? [{ chain: CHAIN_ID_SOLANA, address: WSOL_ADDRESS, coinGeckoId: "solana" }]
-//     : [
-//         {
-//           chain: CHAIN_ID_SOLANA,
-//           address: WSOL_ADDRESS,
-//           coinGeckoId: "solana",
-//         },
-//         { chain: CHAIN_ID_ETH, address: WETH_ADDRESS, coinGeckoId: "ethereum" },
-//         {
-//           chain: CHAIN_ID_TERRA,
-//           address: LUNA_ADDRESS,
-//           coinGeckoId: "terra-luna",
-//         },
-//         {
-//           chain: CHAIN_ID_TERRA,
-//           address: UST_ADDRESS,
-//           coinGeckoId: "terrausd",
-//         },
-//         {
-//           chain: CHAIN_ID_BSC,
-//           address: WETH_ADDRESS,
-//           coinGeckoId: "binancecoin",
-//         },
-//       ];
 
 export type RelayerCompareAsset = {
   [key in ChainId]: string;
@@ -1202,6 +1169,7 @@ export const RELAYER_COMPARE_ASSET: RelayerCompareAsset = {
   [CHAIN_ID_AVAX]: "avalanche-2",
   [CHAIN_ID_OASIS]: "oasis-network",
   [CHAIN_ID_FANTOM]: "fantom",
+  // [CHAIN_ID_AURORA]: "ethereum", // Aurora uses bridged ether
 } as RelayerCompareAsset;
 export const getCoinGeckoURL = (coinGeckoId: string) =>
   `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`;
