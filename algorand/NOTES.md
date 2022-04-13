@@ -1,4 +1,8 @@
 
+put into dev/node.yaml
+
+            - --algorandAppID
+            - "4"
 
 Install the algorand requirements
 
