@@ -1,10 +1,11 @@
 import yargs from "yargs";
 
-const {hideBin} = require('yargs/helpers')
+import { hideBin } from 'yargs/helpers';
 import * as web3 from '@solana/web3.js';
-import {PublicKey, Transaction, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
+import { PublicKey, TransactionInstruction, Keypair, Connection } from "@solana/web3.js";
+import { base58 } from "ethers/lib/utils";
 
-import {setDefaultWasm, importCoreWasm, ixFromRust} from '@certusone/wormhole-sdk'
+import { setDefaultWasm, importCoreWasm, ixFromRust } from '@certusone/wormhole-sdk'
 setDefaultWasm("node")
 
 yargs(hideBin(process.argv))
@@ -41,7 +42,7 @@ yargs(hideBin(process.argv))
         );
         await connection.confirmTransaction(airdropSignature);
 
-        let fee_acc = await bridge.fee_collector_address(bridge_id.toString());
+        let fee_acc = bridge.fee_collector_address(bridge_id.toString());
         let bridge_state = await get_bridge_state(connection, bridge_id);
         let transferIx = web3.SystemProgram.transfer({
             fromPubkey: from.publicKey,
@@ -103,13 +104,17 @@ yargs(hideBin(process.argv))
         let connection = setupConnection(argv);
         let bridge_id = new PublicKey(argv.bridge);
 
-        // Generate a new random public key
-        let from = web3.Keypair.generate();
-        let airdropSignature = await connection.requestAirdrop(
-            from.publicKey,
-            web3.LAMPORTS_PER_SOL,
-        );
-        await connection.confirmTransaction(airdropSignature);
+        var from: web3.Keypair;
+        if (argv.key) {
+            from = web3.Keypair.fromSecretKey(base58.decode(argv.key));
+        } else {
+            from = web3.Keypair.generate();
+            let airdropSignature = await connection.requestAirdrop(
+                from.publicKey,
+                web3.LAMPORTS_PER_SOL,
+            );
+            await connection.confirmTransaction(airdropSignature);
+        }
 
         let vaa = Buffer.from(argv.vaa, "hex");
         await post_vaa(connection, bridge_id, from, vaa);
@@ -160,6 +165,12 @@ yargs(hideBin(process.argv))
         type: 'string',
         description: 'Bridge address',
         default: "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+    })
+    .option('key', {
+        alias: 'k',
+        type: 'string',
+        description: 'Private key of the wallet',
+        required: false
     })
     .argv;
 

@@ -32,6 +32,7 @@ use solana_clap_utils::{
         keypair_of,
         pubkey_of,
         value_of,
+        values_of,
     },
     input_validators::{
         is_keypair,
@@ -256,7 +257,8 @@ fn main() {
                         .takes_value(true)
                         .index(2)
                         .required(true)
-                        .help("Address of the initial guardian"),
+                        .require_delimiter(true)
+                        .help("Addresses of the initial guardians, comma delimited."),
                 )
                 .arg(
                     Arg::with_name("guardian_set_expiration")
@@ -357,21 +359,24 @@ fn main() {
     let _ = match matches.subcommand() {
         ("create-bridge", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
-            let initial_guardian: String = value_of(arg_matches, "guardian").unwrap();
-            let initial_data = hex::decode(initial_guardian).unwrap();
+            let initial_guardians = values_of::<String>(arg_matches, "guardian").unwrap();
+            let initial_data: Vec<Vec<u8>> = initial_guardians
+                .into_iter()
+                .map(|key| hex::decode(key).unwrap())
+                .collect::<Vec<Vec<u8>>>();
+            let guardians: Vec<[u8; 20]> = initial_data
+                .into_iter()
+                .map(|key| {
+                    let mut guardian = [0u8; 20];
+                    guardian.copy_from_slice(&key);
+                    guardian
+                })
+                .collect::<Vec<[u8; 20]>>();
             let guardian_expiration: u32 =
                 value_of(arg_matches, "guardian_set_expiration").unwrap();
             let msg_fee: u64 = value_of(arg_matches, "message_fee").unwrap();
 
-            let mut guardian = [0u8; 20];
-            guardian.copy_from_slice(&initial_data);
-            command_deploy_bridge(
-                &config,
-                &bridge,
-                vec![guardian],
-                guardian_expiration,
-                msg_fee,
-            )
+            command_deploy_bridge(&config, &bridge, guardians, guardian_expiration, msg_fee)
         }
         ("upgrade-authority", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();

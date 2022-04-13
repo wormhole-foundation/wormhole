@@ -9,6 +9,8 @@ PREFIX ?= /usr/local
 OUT = build
 BIN = $(OUT)/bin
 
+-include Makefile.help
+
 VERSION = $(shell git describe --tags --dirty)
 
 .PHONY: dirs
@@ -16,6 +18,7 @@ dirs: Makefile
 	@mkdir -p $(BIN)
 
 .PHONY: install
+## Install guardiand binary
 install:
 	install -m 775 $(BIN)/* $(PREFIX)/bin
 	setcap cap_ipc_lock=+ep $(PREFIX)/bin/guardiand
@@ -28,6 +31,7 @@ generate: dirs
 	tools/bin/buf generate
 
 .PHONY: node
+## Build guardiand binary
 node: $(BIN)/guardiand
 
 .PHONY: $(BIN)/guardiand

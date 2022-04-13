@@ -1,6 +1,6 @@
 --- node_modules/truffle-plugin-verify/contants-old.js	2022-01-28 12:44:53.140709519 +0000
 +++ node_modules/truffle-plugin-verify/constants.js	2022-01-28 12:45:16.800710171 +0000
-@@ -3,13 +3,23 @@
+@@ -3,13 +3,25 @@
    3: 'https://api-ropsten.etherscan.io/api',
    4: 'https://api-rinkeby.etherscan.io/api',
    5: 'https://api-goerli.etherscan.io/api',
@@ -21,10 +21,12 @@
 +  43113: 'https://api-testnet.snowtrace.io/api',
 +  43114: 'https://api.snowtrace.io/api',
 +  421611: 'https://api-testnet.arbiscan.io/api',
++  1313161554: 'https://api.aurorascan.dev/api',
++  1313161555: 'https://api-testnet.aurorascan.dev/api',
    80001: 'https://api-testnet.polygonscan.com/api'
  }
  
-@@ -18,16 +28,25 @@
+@@ -18,16 +28,27 @@
    3: 'https://ropsten.etherscan.io/address',
    4: 'https://rinkeby.etherscan.io/address',
    5: 'https://goerli.etherscan.io/address',
@@ -45,6 +47,8 @@
 +  43113: 'https://testnet.snowtrace.io/address',
 +  43114: 'https://snowtrace.io/address',
 +  421611: 'https://testnet.arbiscan.io/address',
++  1313161554: 'https://aurorascan.dev/address',
++  1313161555: 'https://testnet.aurorascan.dev/address',
    80001: 'https://mumbai.polygonscan.com/address'
  }
 -

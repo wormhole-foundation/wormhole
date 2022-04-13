@@ -8,6 +8,7 @@ use crate::{
         InvalidGovernanceChain,
         InvalidGovernanceModule,
         VAAAlreadyExecuted,
+        VAAInvalid,
     },
     Claim,
     ClaimDerivationData,
@@ -23,7 +24,10 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use solana_program::pubkey::Pubkey;
+use solana_program::{
+    account_info::AccountInfo,
+    pubkey::Pubkey,
+};
 use solitaire::{
     processors::seeded::Seeded,
     trace,
@@ -142,6 +146,10 @@ impl<'b, T: DeserializePayload> Deref for PayloadMessage<'b, T> {
 impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
     pub fn meta(&self) -> &PostedVAAData {
         &self.0
+    }
+
+    pub fn info(&self) -> AccountInfo<'b> {
+        self.0.info().clone()
     }
 }
 

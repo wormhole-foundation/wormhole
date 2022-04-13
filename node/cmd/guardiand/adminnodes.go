@@ -102,12 +102,12 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Polygon", vaa.ChainIDPolygon},
 		{"Avalanche", vaa.ChainIDAvalanche},
 		{"Oasis", vaa.ChainIDOasis},
+		{"Aurora", vaa.ChainIDAurora},
 		{"Fantom", vaa.ChainIDFantom},
 	}
 
 	if isTestnet {
 		networks = append(networks, network{"Ropsten", vaa.ChainIDEthereumRopsten})
-		networks = append(networks, network{"Aurora", vaa.ChainIDAurora})
 		networks = append(networks, network{"Karura", vaa.ChainIDKarura})
 		networks = append(networks, network{"Acala", vaa.ChainIDAcala})
 		networks = append(networks, network{"Klaytn", vaa.ChainIDKlaytn})

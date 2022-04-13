@@ -22,6 +22,7 @@ use crate::{
         GuardianSetMismatch,
         PostVAAConsensusFailed,
         PostVAAGuardianSetExpired,
+        VAAInvalid,
     },
 };
 use byteorder::{
@@ -33,7 +34,10 @@ use serde::{
     Serialize,
 };
 use sha3::Digest;
-use solana_program::program_error::ProgramError;
+use solana_program::{
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
@@ -174,6 +178,26 @@ fn check_active<'r>(
     Ok(())
 }
 
+// Static list of invalid signature accounts that are not allowed to post VAAs.
+static INVALID_SIGNATURES: &'static [&'static str; 16] = &[
+    "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ",
+    "2g6NCUUPaD6AxdHPQMVLpjpAvBfKMek6dDiGUe2A6T33",
+    "3hYV5968hNzbqUfcvnQ6v9D5h32hEwGJn19c47N3unNj",
+    "76eEyhaEKs4mesjiQiu8bghvwDHNxJW3EfcpbNC78y1z",
+    "7PdcxSn7xk2UN5VYmKnJ2Q64PdBhbBQFf4RwHqhQCMgv",
+    "94wXN3z3Pph2vMVaviZSouo7oCDqt4fekvqT3FYJSrWA",
+    "AXe9VXd9jjXkBxSdvgj4bHSZNeqxY73sSQEsp1tnekY4",
+    "B2hS49B8n4Ad6cxZLoAjz7Hux7Kf17D5xUX3neDPHpug",
+    "BTXnYYjnfXByqJprarqzp65Yha2XwQVmg8V8KWBhr6aA",
+    "Bzb5G4Y8QcaMVMQq3r8q1SuKSxtgnWSFdKCEisJCbcBP",
+    "CJfRUQxyonG6B5mnztsNUqxknbFT89DJdrdrzV9F96mU",
+    "CK1j9TxWP1T5w1QzFu4vPDAbUR34mfVqvk5wziE8TzST",
+    "E8qKJMwzBCiHCHUmBEcL631kN5CjfsHNx24osFLfHg69",
+    "EtMw1nQ4AQaH53RjYz3pRk12rrqWjcYjPDETphYJzmCX",
+    "EVNwqfgkUnJoMqBqiHgDfa3TLZPQocX1hpcbAXbpcSLv",
+    "FixSiDfTxvoy5Zgjp5KdFU8U23ChwCxPWY3WTkmMW2fU",
+];
+
 /// The signatures in this instruction must be from the right guardian set.
 #[inline(always)]
 fn check_valid_sigs<'r>(
@@ -183,6 +207,12 @@ fn check_valid_sigs<'r>(
     if signatures.guardian_set_index != guardian_set.index {
         return Err(GuardianSetMismatch.into());
     }
+
+    // Reject blacklisted signature accounts.
+    if INVALID_SIGNATURES.contains(&&*signatures.info().key.to_string()) {
+        return Err(VAAInvalid.into());
+    }
+
     Ok(())
 }
 

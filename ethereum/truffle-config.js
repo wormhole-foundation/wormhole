@@ -128,7 +128,8 @@ module.exports = {
           "https://mainnet.aurora.dev"
         );
       },
-      network_id: 1313161554,
+      network_id: 0x4e454152,
+      from: "DEPLOYER_PUBLIC_KEY_HERE",
     },
     aurora_testnet: {
       provider: () => {

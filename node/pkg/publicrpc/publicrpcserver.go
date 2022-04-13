@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -59,15 +60,16 @@ func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv
 }
 
 func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.GetSignedVAARequest) (*publicrpcv1.GetSignedVAAResponse, error) {
+	if req.MessageId == nil {
+		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
+	}
+
 	address, err := hex.DecodeString(req.MessageId.EmitterAddress)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode address: %v", err))
 	}
 	if len(address) != 32 {
 		return nil, status.Error(codes.InvalidArgument, "address must be 32 bytes")
-	}
-	if req.MessageId == nil {
-		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
 	}
 
 	addr := vaa.Address{}

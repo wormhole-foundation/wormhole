@@ -60,12 +60,12 @@ func MessageEventsForTransaction(
 
 	// Extract logs
 	for _, l := range receipt.Logs {
-		// SECURITY: Skip logs not produced by our contract.
-		if l.Address != contract {
+		if l == nil {
 			continue
 		}
 
-		if l == nil {
+		// SECURITY: Skip logs not produced by our contract.
+		if l.Address != contract {
 			continue
 		}
 

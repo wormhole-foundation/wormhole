@@ -104,6 +104,15 @@ local_resource(
     trigger_mode = trigger_mode,
 )
 
+local_resource(
+    name = "const-gen",
+    deps = ["scripts", "clients", "ethereum/.env.test"],
+    cmd = 'tilt docker build -- --target const-export -f Dockerfile.const -o type=local,dest=. --build-arg num_guardians=%s .' % (num_guardians),
+    env = {"DOCKER_BUILDKIT": "1"},
+    allow_parallel = True,
+    trigger_mode = trigger_mode,
+)
+
 # wasm
 
 if solana:
@@ -199,12 +208,13 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-if num_guardians >= 2:
+# guardian set update - triggered by "tilt args" changes
+if num_guardians >= 2 and ci == False:
     local_resource(
         name = "guardian-set-update",
         resource_deps = guardian_resource_deps + ["guardian"],
         deps = ["scripts/send-vaa.sh", "clients/eth"],
-        cmd = './scripts/update-guardian-set.sh %s %s' % (num_guardians, webHost),
+        cmd = './scripts/update-guardian-set.sh %s %s %s' % (num_guardians, webHost, namespace),
         labels = ["guardian"],
         trigger_mode = trigger_mode,
     )
@@ -241,6 +251,8 @@ if solana:
         ref = "solana-contract",
         context = "solana",
         dockerfile = "solana/Dockerfile",
+        target = "builder",
+        build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
     )
 
     # solana local devnet
@@ -254,6 +266,7 @@ if solana:
             port_forward(8900, name = "Solana WS [:8900]", host = webHost),
             port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
         ],
+        resource_deps = ["const-gen"],
         labels = ["solana"],
         trigger_mode = trigger_mode,
     )
@@ -339,6 +352,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
     ],
+    resource_deps = ["const-gen"],
     labels = ["evm"],
     trigger_mode = trigger_mode,
 )
@@ -348,6 +362,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
     ],
+    resource_deps = ["const-gen"],
     labels = ["evm"],
     trigger_mode = trigger_mode,
 )
@@ -505,6 +520,7 @@ k8s_resource(
         port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
         port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
     ],
+    resource_deps = ["const-gen"],
     labels = ["terra"],
     trigger_mode = trigger_mode,
 )

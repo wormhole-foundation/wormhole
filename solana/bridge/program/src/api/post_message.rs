@@ -11,6 +11,7 @@ use crate::{
         MathOverflow,
     },
     types::ConsistencyLevel,
+    IsSigned::*,
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
@@ -57,8 +58,7 @@ pub struct PostMessage<'b> {
     pub clock: Sysvar<'b, Clock>,
 }
 
-impl<'b> InstructionContext<'b> for PostMessage<'b> {
-}
+impl<'b> InstructionContext<'b> for PostMessage<'b> {}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct PostMessageData {
@@ -129,14 +129,15 @@ pub fn post_message(
 
     // Create message account
     let size = accs.message.size();
-    let ix = solana_program::system_instruction::create_account(
+    create_account(
+        ctx,
+        accs.message.info(),
         accs.payer.key,
-        accs.message.info().key,
-        Exempt.amount(size),
-        size as u64,
+        Exempt,
+        size,
         ctx.program_id,
-    );
-    solana_program::program::invoke(&ix, ctx.accounts)?;
+        NotSigned,
+    )?;
 
     // Bump sequence number
     trace!("New Sequence: {}", accs.sequence.sequence + 1);

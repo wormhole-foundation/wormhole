@@ -1,18 +1,18 @@
 import yargs from "yargs";
 
-const {hideBin} = require('yargs/helpers')
+import { hideBin } from 'yargs/helpers';
 
 import * as elliptic from "elliptic";
 import * as ethers from "ethers";
 import * as web3s from '@solana/web3.js';
 
-import {fromUint8Array} from "js-base64";
-import {LCDClient, MnemonicKey} from '@terra-money/terra.js';
-import {MsgExecuteContract} from "@terra-money/terra.js";
-import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
-import {base58, solidityKeccak256} from "ethers/lib/utils";
+import { fromUint8Array } from "js-base64";
+import { LCDClient, MnemonicKey } from '@terra-money/terra.js';
+import { MsgExecuteContract } from "@terra-money/terra.js";
+import { PublicKey, TransactionInstruction, Keypair, Connection } from "@solana/web3.js";
+import { base58, solidityKeccak256 } from "ethers/lib/utils";
 
-import {setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
+import { setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory } from '@certusone/wormhole-sdk'
 setDefaultWasm("node")
 
 const signAndEncodeVM = function (
@@ -43,7 +43,7 @@ const signAndEncodeVM = function (
     for (let i in signers) {
         const ec = new elliptic.ec("secp256k1");
         const key = ec.keyFromPrivate(signers[i]);
-        const signature = key.sign(Buffer.from(hash.substr(2), "hex"), {canonical: true});
+        const signature = key.sign(Buffer.from(hash.substr(2), "hex"), { canonical: true });
 
         const packSig = [
             ethers.utils.defaultAbiCoder.encode(["uint8"], [i]).substring(2 + (64 - 2)),
@@ -88,18 +88,18 @@ yargs(hideBin(process.argv))
                 required: true
             })
             .option('guardian_secret', {
-                describe: 'Guardian\'s secret key',
+                describe: 'Guardian\'s secret key, CSV allowed',
                 type: "string",
                 default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         let data = [
             "0x",
             "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
             "01",
             "0000",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(String(argv.contract_address))]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -109,9 +109,7 @@ yargs(hideBin(process.argv))
             "0x0000000000000000000000000000000000000000000000000000000000000004",
             Math.floor(Math.random() * 100000000),
             data,
-            [
-                argv.guardian_secret
-            ],
+            argv.guardian_secret.split(','),
             0,
             0
         );
@@ -131,17 +129,17 @@ yargs(hideBin(process.argv))
                 required: true
             })
             .option('guardian_secret', {
-                describe: 'Guardian\'s secret key',
+                describe: 'Guardian\'s secret key, CSV allowed',
                 type: "string",
                 default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         let data = [
             "0x",
             "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
             "02",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(String(argv.contract_address))]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -151,9 +149,7 @@ yargs(hideBin(process.argv))
             "0x0000000000000000000000000000000000000000000000000000000000000004",
             Math.floor(Math.random() * 100000000),
             data,
-            [
-               argv.guardian_secret
-            ],
+            argv.guardian_secret.split(','),
             0,
             0
         );
@@ -196,7 +192,7 @@ yargs(hideBin(process.argv))
                 description: 'Wallet Mnemonic',
                 default: 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius',
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         const terra = new LCDClient({
             URL: argv.rpc,
             chainID: argv.chain_id,
@@ -207,7 +203,7 @@ yargs(hideBin(process.argv))
         }));
 
         // create a simple message that moves coin balances
-        const vaa = Buffer.from(argv.vaa, "hex");
+        const vaa = Buffer.from(String(argv.vaa), "hex");
         const transaction = new MsgExecuteContract(
             wallet.key.accAddress,
             argv.token_bridge,
@@ -216,7 +212,7 @@ yargs(hideBin(process.argv))
                     data: fromUint8Array(vaa)
                 },
             },
-            {uluna: 1000}
+            { uluna: 1000 }
         );
 
         wallet
@@ -261,7 +257,7 @@ yargs(hideBin(process.argv))
                 description: 'Private key of the wallet',
                 required: false
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         const bridge = await importCoreWasm()
         const token_bridge = await importTokenWasm()
 
@@ -281,7 +277,7 @@ yargs(hideBin(process.argv))
             await connection.confirmTransaction(airdropSignature);
         }
 
-        let vaa = Buffer.from(argv.vaa, "hex");
+        let vaa = Buffer.from(String(argv.vaa), "hex");
         await post_vaa(connection, bridge_id, from, vaa);
 
         let parsed_vaa = await bridge.parse_vaa(vaa);
@@ -336,7 +332,7 @@ yargs(hideBin(process.argv))
                 description: 'Private key of the wallet',
                 default: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         const bridge = await importCoreWasm()
 
         let provider = new ethers.providers.JsonRpcProvider(argv.rpc)
@@ -344,7 +340,7 @@ yargs(hideBin(process.argv))
         let t = new BridgeImplementation__factory(signer);
         let tb = t.attach(argv.token_bridge);
 
-        let vaa = Buffer.from(argv.vaa, "hex");
+        let vaa = Buffer.from(String(argv.vaa), "hex");
         let parsed_vaa = await bridge.parse_vaa(vaa);
 
         switch (parsed_vaa.payload[32]) {
@@ -427,7 +423,7 @@ function setupConnection(argv: yargs.Arguments): web3s.Connection {
     );
 }
 
-function fmtAddress(addr: string) : string {
+function fmtAddress(addr: string): string {
     let address = (addr.search("0x") == 0) ? addr.substring(2) : addr;
     return "0x" + zeroPadBytes(address, 32);
 }

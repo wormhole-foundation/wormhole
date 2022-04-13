@@ -16,7 +16,9 @@ use crate::{
     TokenBridgeError::{
         InvalidChain,
         InvalidMetadata,
+        InvalidVAA,
     },
+    INVALID_VAAS,
 };
 use bridge::{
     vaa::ClaimableVAA,
@@ -126,6 +128,10 @@ pub fn create_wrapped(
     let derivation_data: EndpointDerivationData = (&*accs).into();
     accs.chain_registration
         .verify_derivation(ctx.program_id, &derivation_data)?;
+
+    if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
+        return Err(InvalidVAA.into());
+    }
 
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;

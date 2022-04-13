@@ -1,5 +1,6 @@
 use super::keyed::Keyed;
 use crate::{
+    create_account,
     system_instruction,
     AccountInfo,
     AccountState,
@@ -10,6 +11,7 @@ use crate::{
     ExecutionContext,
     FromAccounts,
     Info,
+    IsSigned::*,
     Peel,
     Result,
     Signer,
@@ -138,15 +140,15 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
         let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
         let mut seed_slice = s.as_slice();
 
-        let ix = system_instruction::create_account(
+        create_account(
+            ctx,
+            self.info(),
             payer,
-            self.info().key,
-            lamports.amount(size),
-            size as u64,
+            lamports,
+            size,
             &self.owner_pubkey(ctx.program_id)?,
-        );
-
-        Ok(invoke_signed(&ix, ctx.accounts, &[seed_slice])?)
+            SignedWithSeeds(&[seed_slice]),
+        )
     }
 }
 

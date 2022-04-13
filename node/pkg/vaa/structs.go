@@ -291,20 +291,39 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 
 	h := v.SigningMsg()
 
+	last_index := -1
+	signing_addresses := []common.Address{}
+
 	for _, sig := range v.Signatures {
 		if int(sig.Index) >= len(addresses) {
 			return false
 		}
 
+		// Ensure increasing indexes
+		if int(sig.Index) <= last_index {
+			return false
+		}
+		last_index = int(sig.Index)
+
+		// Get pubKey to determine who signers address
 		pubKey, err := crypto.Ecrecover(h.Bytes(), sig.Signature[:])
 		if err != nil {
 			return false
 		}
 		addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
 
+		// Ensure this signer is at the correct positional index
 		if addr != addresses[sig.Index] {
 			return false
 		}
+
+		// Ensure we never see the same signer twice
+		for _, signing_address := range signing_addresses {
+			if signing_address == addr {
+				return false
+			}
+		}
+		signing_addresses = append(signing_addresses, addr)
 	}
 
 	return true
