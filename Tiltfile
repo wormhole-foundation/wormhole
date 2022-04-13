@@ -54,7 +54,7 @@ namespace = cfg.get("namespace", "wormhole")
 gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 webHost = cfg.get("webHost", "localhost")
-algorand = cfg.get("algorand", False)
+algorand = cfg.get("algorand", True)
 solana = cfg.get("solana", True)
 ci = cfg.get("ci", False)
 explorer = cfg.get("explorer", ci)
@@ -539,8 +539,20 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-docker_compose("./algorand/sandbox-algorand/tilt-compose.yml")
+if algorand:
+    docker_compose("./algorand/sandbox-algorand/tilt-compose.yml")
 
-dc_resource('algo-algod', labels=["algorand"])
-dc_resource('algo-indexer', labels=["algorand"])
-dc_resource('algo-indexer-db', labels=["algorand"])
+    dc_resource('algo-algod', labels=["algorand"])
+    dc_resource('algo-indexer', labels=["algorand"])
+    dc_resource('algo-indexer-db', labels=["algorand"])
+
+    local_resource(
+        name = "deploy-algo",
+        deps = ["algo-algod"],
+        dir = "algorand",
+        cmd = "tilt docker build -- --target algorand-export -f Dockerfile -o type=local,dest=. .",
+        env = {"DOCKER_BUILDKIT": "1"},
+        labels = ["algorand"],
+        allow_parallel = True,
+        trigger_mode = trigger_mode,
+    )
