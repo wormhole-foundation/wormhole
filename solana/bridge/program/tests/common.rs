@@ -116,12 +116,7 @@ mod helpers {
 
     /// Fetch account balance
     pub async fn get_account_balance(client: &mut BanksClient, account: Pubkey) -> u64 {
-        client
-            .get_account(account)
-            .await
-            .unwrap()
-            .unwrap()
-            .lamports
+        client.get_account(account).await.unwrap().unwrap().lamports
     }
 
     /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key
@@ -270,6 +265,44 @@ mod helpers {
         .await?;
 
         Ok(message.pubkey())
+    }
+
+    pub async fn post_message_unreliable(
+        client: &mut BanksClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        emitter: &Keypair,
+        message: &Keypair,
+        nonce: u32,
+        data: Vec<u8>,
+        fee: u64,
+    ) -> Result<(), TransportError> {
+        // Transfer money into the fee collector as it needs a balance/must exist.
+        let fee_collector = FeeCollector::<'_>::key(None, program);
+
+        // Capture the resulting message, later functions will need this.
+        let instruction = instructions::post_message_unreliable(
+            *program,
+            payer.pubkey(),
+            emitter.pubkey(),
+            message.pubkey(),
+            nonce,
+            data,
+            ConsistencyLevel::Confirmed,
+        )
+        .unwrap();
+
+        execute(
+            client,
+            payer,
+            &[payer, emitter, &message],
+            &[
+                system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
+                instruction,
+            ],
+            CommitmentLevel::Processed,
+        )
+        .await
     }
 
     pub async fn verify_signatures(
