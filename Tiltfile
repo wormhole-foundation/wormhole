@@ -410,6 +410,17 @@ if bridge_ui:
     )
 
 if ci_tests:
+    local_resource(
+        name = "solana-tests",
+        deps = ["solana"],
+        dir = "solana",
+        cmd = "tilt docker build -- -f Dockerfile --target ci_tests .",
+        env = {"DOCKER_BUILDKIT": "1"},
+        labels = ["ci"],
+        allow_parallel = True,
+        trigger_mode = trigger_mode,
+    )
+
     docker_build(
         ref = "tests-image",
         context = ".",
