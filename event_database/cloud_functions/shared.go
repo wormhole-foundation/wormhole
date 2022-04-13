@@ -39,6 +39,23 @@ var solanaTokens = map[string]SolanaToken{}
 
 var releaseDay = time.Date(2021, 9, 13, 0, 0, 0, 0, time.UTC)
 
+// token addresses blacklisted from TVL calculation
+var tokensToSkip = map[string]bool{
+	"0x04132bf45511d03a58afd4f1d36a29d229ccc574": true,
+	"0xa79bd679ce21a2418be9e6f88b2186c9986bbe7d": true,
+	"0x931c3987040c90b6db09981c7c91ba155d3fa31f": true,
+	"0x8fb1a59ca2d57b51e5971a85277efe72c4492983": true,
+	"0xd52d9ba6fcbadb1fe1e3aca52cbb72c4d9bbb4ec": true,
+	"0x1353c55fd2beebd976d7acc4a7083b0618d94689": true,
+	"0xf0fbdb8a402ec0fc626db974b8d019c902deb486": true,
+	"0x1fd4a95f4335cf36cac85730289579c104544328": true,
+	"0x358aa13c52544eccef6b0add0f801012adad5ee3": true,
+	"0xbe32b7acd03bcc62f25ebabd169a35e69ef17601": true,
+	"0x7ffb3d637014488b63fb9858e279385685afc1e2": true,
+	"0x337dc89ebcc33a337307d58a51888af92cfdc81b": true,
+	"0x5Cb89Ac06F34f73B1A6b8000CEb0AfBc97d58B6b": true,
+}
+
 // init runs during cloud function initialization. So, this will only run during an
 // an instance's cold start.
 // https://cloud.google.com/functions/docs/bestpractices/networking#accessing_google_apis
@@ -83,6 +100,11 @@ func init() {
 			log.Fatalf("Failed to create storage client: %v", err)
 		}
 		cacheBucket = storageClient.Bucket(cacheBucketName)
+	}
+
+	// ensure blacklisted tokens are lowercase
+	for k := range tokensToSkip {
+		tokensToSkip[strings.ToLower(k)] = true
 	}
 
 }
