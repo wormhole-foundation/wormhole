@@ -16,5 +16,10 @@ message EventPostedMessage{
   bytes payload = 5;
 }
 
+message EventGuardianRegistered{
+  bytes guardian_key = 1;
+  bytes validator_key = 2;
+}
+
 
 // TODO(csongor): add guardian registration event here
