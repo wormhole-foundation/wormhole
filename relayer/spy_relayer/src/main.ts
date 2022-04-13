@@ -63,7 +63,7 @@ for (let idx = 0; idx < process.argv.length; ++idx) {
       break;
     }
 
-    logger.info("spy_relay is running in relay only mode");
+    logger.info("spy_relay is running in wallet monitor only mode");
     runListen = false;
     runRest = false;
     runWorker = false;
