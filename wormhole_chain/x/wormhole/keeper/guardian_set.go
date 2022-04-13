@@ -62,7 +62,7 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
 	consensusGuardianSetIndex, found := k.GetConsensusGuardianSetIndex(ctx)
 	if !found {
-		return types.ErrGuardianSetNotFound
+		return types.ErrConsensusSetUndefined
 	}
 
 	// nothing to do if the latest set is already the consensus set
@@ -84,9 +84,17 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 		}
 	}
 
+	oldConsensusGuardianSetIndex := consensusGuardianSetIndex.Index
+	newConsensusGuardianSetIndex := latestGuardianSetIndex
+
 	// everyone's registered, set consensus set to the latest one. Guardian set upgrade complete.
 	k.SetConsensusGuardianSetIndex(ctx, types.ConsensusGuardianSetIndex{
-		Index: latestGuardianSetIndex,
+		Index: newConsensusGuardianSetIndex,
+	})
+
+	ctx.EventManager().EmitTypedEvent(&types.EventConsensusSetUpdate{
+		OldIndex: oldConsensusGuardianSetIndex,
+		NewIndex: newConsensusGuardianSetIndex,
 	})
 
 	return nil

@@ -21,5 +21,7 @@ message EventGuardianRegistered{
   bytes validator_key = 2;
 }
 
-
-// TODO(csongor): add guardian registration event here
+message EventConsensusSetUpdate{
+  uint32 old_index = 1;
+  uint32 new_index = 2;
+}
