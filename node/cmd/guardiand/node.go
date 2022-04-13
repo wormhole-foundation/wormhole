@@ -302,7 +302,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	if *unsafeDevMode {
+	if (*algorandAppID != 0) && *unsafeDevMode {
 		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
