@@ -332,6 +332,45 @@ mod helpers {
         Ok(message.pubkey())
     }
 
+    pub fn post_message_unreliable(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        emitter: &Keypair,
+        message: &Keypair,
+        nonce: u32,
+        data: Vec<u8>,
+        fee: u64,
+    ) -> Result<(), ClientError> {
+        // Transfer money into the fee collector as it needs a balance/must exist.
+        let fee_collector = FeeCollector::<'_>::key(None, program);
+
+        // Capture the resulting message, later functions will need this.
+        let instruction = instructions::post_message_unreliable(
+            *program,
+            payer.pubkey(),
+            emitter.pubkey(),
+            message.pubkey(),
+            nonce,
+            data,
+            ConsistencyLevel::Confirmed,
+        )
+        .unwrap();
+
+        execute(
+            client,
+            payer,
+            &[payer, emitter, &message],
+            &[
+                system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
+                instruction,
+            ],
+            CommitmentConfig::processed(),
+        )?;
+
+        Ok(())
+    }
+
     pub fn verify_signatures(
         client: &RpcClient,
         program: &Pubkey,

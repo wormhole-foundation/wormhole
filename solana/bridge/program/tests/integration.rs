@@ -142,6 +142,7 @@ fn run_integration_tests() {
     // Tests are currently unhygienic as It's difficult to wrap `solana-test-validator` within the
     // integration tests so for now we work around it by simply chain-calling our tests.
     test_bridge_messages(&mut context);
+    test_bridge_messages_unreliable(&mut context);
     test_bridge_message_prefunded_account(&mut context);
     test_foreign_bridge_messages(&mut context);
     test_invalid_emitter(&mut context);
@@ -319,6 +320,84 @@ fn test_bridge_messages(context: &mut Context) {
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         assert_eq!(*signature, true);
+    }
+}
+
+fn test_bridge_messages_unreliable(context: &mut Context) {
+    let (ref payer, ref client, ref program) = common::setup();
+
+    // Data/Nonce used for emitting a message we want to prove exists. Run this twice to make sure
+    // that duplicate data does not clash.
+    let emitter = Keypair::new();
+    let message_key = Keypair::new();
+
+    for _ in 0..2 {
+        let nonce = rand::thread_rng().gen();
+        let message: [u8; 32] = rand::thread_rng().gen();
+        let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+        // Post the message, publishing the data for guardian consumption.
+        common::post_message_unreliable(
+            client,
+            program,
+            payer,
+            &emitter,
+            &message_key,
+            nonce,
+            message.to_vec(),
+            10_000,
+        )
+        .unwrap();
+
+        // Verify on chain Message
+        let posted_message: PostedVAAData = common::get_account_data(client, &message_key.pubkey());
+        assert_eq!(posted_message.0.vaa_version, 0);
+        assert_eq!(posted_message.0.nonce, nonce);
+        assert_eq!(posted_message.0.sequence, sequence);
+        assert_eq!(posted_message.0.emitter_chain, 1);
+        assert_eq!(posted_message.0.payload, message);
+        assert_eq!(
+            posted_message.0.emitter_address,
+            emitter.pubkey().to_bytes()
+        );
+
+        // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
+        let (vaa, body, body_hash) =
+            common::generate_vaa(&emitter, message.to_vec(), nonce, sequence, 0, 1);
+        let signature_set =
+            common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
+        common::post_vaa(client, program, payer, signature_set, vaa).unwrap();
+        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+            &PostedVAADerivationData {
+                payload_hash: body.to_vec(),
+            },
+            program,
+        );
+        common::sync(client, payer);
+
+        // Fetch chain accounts to verify state.
+        let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
+        let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+
+        // Verify on chain vaa
+        assert_eq!(posted_message.0.vaa_version, 0);
+        assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+        assert_eq!(posted_message.0.nonce, nonce);
+        assert_eq!(posted_message.0.sequence, sequence);
+        assert_eq!(posted_message.0.emitter_chain, 1);
+        assert_eq!(posted_message.0.payload, message);
+        assert_eq!(
+            posted_message.0.emitter_address,
+            emitter.pubkey().to_bytes()
+        );
+
+        // Verify on chain Signatures
+        assert_eq!(signatures.hash, body);
+        assert_eq!(signatures.guardian_set_index, 0);
+
+        for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+            assert_eq!(*signature, true);
+        }
     }
 }
 

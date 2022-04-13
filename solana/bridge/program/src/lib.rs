@@ -1,4 +1,3 @@
-
 #![feature(adt_const_params)]
 #![allow(non_upper_case_globals)]
 #![allow(incomplete_features)]
@@ -20,32 +19,35 @@ extern crate wasm_bindgen;
 pub mod wasm;
 
 pub mod accounts;
+
 pub use accounts::{
     BridgeConfig,
     BridgeData,
     Claim,
     ClaimData,
-    ClaimDerivationData, 
+    ClaimDerivationData,
     FeeCollector,
     GuardianSet,
     GuardianSetData,
     GuardianSetDerivationData,
+    MessageData,
     PostedMessage,
     PostedMessageData,
-    MessageData,
     PostedVAA,
     PostedVAAData,
     Sequence,
-    SequenceTracker,
     SequenceDerivationData,
+    SequenceTracker,
     SignatureSet,
     SignatureSetData,
 };
 
 pub mod api;
+
 pub use api::{
     initialize,
     post_message,
+    post_message_unreliable,
     post_vaa,
     set_fees,
     transfer_fees,
@@ -56,6 +58,7 @@ pub use api::{
     InitializeData,
     PostMessage,
     PostMessageData,
+    PostMessageUnreliable,
     PostVAA,
     PostVAAData,
     SetFees,
@@ -93,4 +96,5 @@ solitaire! {
     UpgradeContract    => upgrade_contract,
     UpgradeGuardianSet => upgrade_guardian_set,
     VerifySignatures   => verify_signatures,
+    PostMessageUnreliable        => post_message_unreliable,
 }
