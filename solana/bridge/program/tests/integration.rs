@@ -352,6 +352,127 @@ async fn bridge_messages() {
     }
 }
 
+// Make sure that posting messages with account reuse works and only accepts messages with the same
+// length.
+#[tokio::test]
+async fn test_bridge_messages_unreliable() {
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+
+    // Data/Nonce used for emitting a message we want to prove exists. Run this twice to make sure
+    // that duplicate data does not clash.
+    let emitter = Keypair::new();
+    let message_key = Keypair::new();
+
+    for _ in 0..2 {
+        let nonce = rand::thread_rng().gen();
+        let message: [u8; 32] = rand::thread_rng().gen();
+        let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+        // Post the message, publishing the data for guardian consumption.
+        common::post_message_unreliable(
+            client,
+            program,
+            payer,
+            &emitter,
+            &message_key,
+            nonce,
+            message.to_vec(),
+            10_000,
+        )
+        .await
+        .unwrap();
+
+        // Verify on chain Message
+        let posted_message: PostedVAAData =
+            common::get_account_data(client, message_key.pubkey()).await;
+        assert_eq!(posted_message.0.vaa_version, 0);
+        assert_eq!(posted_message.0.nonce, nonce);
+        assert_eq!(posted_message.0.sequence, sequence);
+        assert_eq!(posted_message.0.emitter_chain, 1);
+        assert_eq!(posted_message.0.payload, message);
+        assert_eq!(
+            posted_message.0.emitter_address,
+            emitter.pubkey().to_bytes()
+        );
+
+        // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
+        let (vaa, body, body_hash) =
+            common::generate_vaa(&emitter, message.to_vec(), nonce, sequence, 0, 1);
+        let signature_set =
+            common::verify_signatures(client, program, payer, body, &context.secret, 0)
+                .await
+                .unwrap();
+        common::post_vaa(client, program, payer, signature_set, vaa)
+            .await
+            .unwrap();
+        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+            &PostedVAADerivationData {
+                payload_hash: body.to_vec(),
+            },
+            program,
+        );
+        common::sync(client, payer).await;
+
+        // Fetch chain accounts to verify state.
+        let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+        let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
+
+        // Verify on chain vaa
+        assert_eq!(posted_message.0.vaa_version, 0);
+        assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+        assert_eq!(posted_message.0.nonce, nonce);
+        assert_eq!(posted_message.0.sequence, sequence);
+        assert_eq!(posted_message.0.emitter_chain, 1);
+        assert_eq!(posted_message.0.payload, message);
+        assert_eq!(
+            posted_message.0.emitter_address,
+            emitter.pubkey().to_bytes()
+        );
+
+        // Verify on chain Signatures
+        assert_eq!(signatures.hash, body);
+        assert_eq!(signatures.guardian_set_index, 0);
+
+        for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+            assert_eq!(*signature, true);
+        }
+    }
+
+    // Make sure that posting a message with a different length fails (<len)
+    let nonce = rand::thread_rng().gen();
+    let message: [u8; 16] = rand::thread_rng().gen();
+
+    assert!(common::post_message_unreliable(
+        client,
+        program,
+        payer,
+        &emitter,
+        &message_key,
+        nonce,
+        message.to_vec(),
+        10_000,
+    )
+    .await
+    .is_err());
+
+    // Make sure that posting a message with a different length fails (>len)
+    let nonce = rand::thread_rng().gen();
+    let message: [u8; 128] = [0u8; 128];
+
+    assert!(common::post_message_unreliable(
+        client,
+        program,
+        payer,
+        &emitter,
+        &message_key,
+        nonce,
+        message.to_vec(),
+        10_000,
+    )
+    .await
+    .is_err());
+}
+
 // Make sure that solitaire can claim accounts that already hold lamports so the protocol can't be
 // DoSd by someone funding derived accounts making CreateAccount fail.
 #[tokio::test]
