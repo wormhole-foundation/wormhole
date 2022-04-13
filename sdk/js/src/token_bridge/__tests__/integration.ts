@@ -91,6 +91,7 @@ import {
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import { TestLib } from "../testlib";
+import { CHAIN_ID_ALGORAND } from "../../utils";
 
 setDefaultWasm("node");
 
@@ -957,7 +958,7 @@ describe("Integration Tests", () => {
     });
 
     describe("Algorand tests", () => {
-        test.only("Test TmplSig populate()", (done) => {
+        test("Test TmplSig populate()", (done) => {
             console.log("Starting TmplSig test...");
             (async () => {
                 // 'contract': '0620010181004880220001000000000000000000000000000000000000000000000000000000000000000448880001433204810312443300102212443300088190943d124433002032031244330009320312443301108106124433011922124433011881df0412443301203203124433021022124433020881001244330220802050b9d5cd33b835f53649f25be3ba6e6b8271b6d16c0af8aa97cc11761e417feb1244330209320312442243',
@@ -1000,7 +1001,7 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test.only("Test optin", (done) => {
+        test("Test optin", (done) => {
             console.log("Starting optin test...");
             (async () => {
                 try {
@@ -1032,7 +1033,7 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test.only("Test parseVAA", (done) => {
+        test("Test parseVAA", (done) => {
             (async () => {
                 try {
                     // This VAA is carrying a Pyth price payload
@@ -1091,7 +1092,7 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test.only("Account exists", (done) => {
+        test("Account exists", (done) => {
             (async () => {
                 try {
                     console.log("Starting account exists...");
@@ -1127,7 +1128,7 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test.only("Create and submit VAA", (done) => {
+        test("Create and submit VAA", (done) => {
             (async () => {
                 try {
                     console.log("Create and submit VAA starting...");
@@ -1136,34 +1137,42 @@ describe("Integration Tests", () => {
                     const d = new Date();
                     const secs = Math.floor(d.getTime() / 1000);
                     const nonce: number = 1;
-                    const myTestLib: TestLib = new TestLib();
-                    const upVaa = myTestLib.genGuardianSetUpgrade(
-                        myTestLib.singleGuardianPrivKey,
-                        0,
-                        1,
-                        nonce,
-                        secs,
-                        myTestLib.singleGuardianKey
-                    );
-                    console.log("upVAA:", upVaa);
-                    const vaa: Uint8Array = hexStringToUint8Array(upVaa);
-                    const resp = await submitVAA(
-                        vaa,
-                        client,
-                        tempAccts[0],
-                        CORE_ID
-                    );
-                    console.log("resp:", resp);
-                    const isComplete: boolean =
-                        await getIsTransferCompletedAlgorand(
-                            client,
-                            vaa,
-                            CORE_ID,
-                            tempAccts[0]
-                        );
-                    expect(isComplete).toBe(true);
+                    // const myTestLib: TestLib = new TestLib();
+                    // const upVaa = myTestLib.genGuardianSetUpgrade(
+                    //     myTestLib.singleGuardianPrivKey,
+                    //     0,
+                    //     1,
+                    //     nonce,
+                    //     secs,
+                    //     myTestLib.singleGuardianKey
+                    // );
+                    // console.log("upVAA:", upVaa);
+                    // const vaa: Uint8Array = hexStringToUint8Array(upVaa);
+                    // let isComplete: boolean =
+                    //     await getIsTransferCompletedAlgorand(
+                    //         client,
+                    //         vaa,
+                    //         CORE_ID,
+                    //         tempAccts[0]
+                    //     );
+                    // expect(isComplete).toBe(false);
+                    // const resp = await submitVAA(
+                    //     vaa,
+                    //     client,
+                    //     tempAccts[0],
+                    //     CORE_ID
+                    // );
+                    // console.log("resp:", resp);
+                    // isComplete = await getIsTransferCompletedAlgorand(
+                    //     client,
+                    //     vaa,
+                    //     CORE_ID,
+                    //     tempAccts[0]
+                    // );
+                    // expect(isComplete).toBe(true);
                 } catch (e) {
                     console.error("Create and submit VAA error:", e);
+                    done();
                     expect(false).toBe(true);
                 }
                 done();
@@ -1189,13 +1198,6 @@ describe("Integration Tests", () => {
                         accountInfo.amount
                     );
 
-                    // await getMessageFee(client);
-                    const bi: bigint = BigInt(255);
-                    console.log("calling getVAA...");
-                    console.log(
-                        "getVAA returned " +
-                            (await getVAA(client, wallet, bi, TOKEN_BRIDGE_ID))
-                    );
                     console.log("Creating fake asset...");
                     const assetIndex: number = await createAsset(wallet);
                     console.log("Newly created asset index =", assetIndex);
@@ -1206,35 +1208,41 @@ describe("Integration Tests", () => {
                         assetIndex
                     );
                     console.log("TxId", txId);
+                    console.log("Getting emitter address...");
+                    const tbAddr: string =
+                        getApplicationAddress(TOKEN_BRIDGE_ID);
+                    const decTbAddr: Uint8Array =
+                        decodeAddress(tbAddr).publicKey;
+                    const aa: string = uint8ArrayToHexString(decTbAddr, false);
+                    const emitterAddr: string = await optin(
+                        client,
+                        wallet,
+                        CORE_ID,
+                        0,
+                        aa,
+                        "Algorand attestation test::emitterAddr"
+                    );
+                    const { vaaBytes } = await getSignedVAAWithRetry(
+                        WORMHOLE_RPC_HOSTS,
+                        CHAIN_ID_ALGORAND,
+                        emitterAddr,
+                        "1"
+                    );
                 } catch (e) {
                     console.error("Algorand attestation error:", e);
+                    done();
                     expect(false).toBe(true);
                 }
                 done();
             })();
         });
-        test("Algorand redemption", (done) => {
+        test("Algorand getVAA from guardian", (done) => {
             (async () => {
                 try {
-                    console.log("Algorand redemption starting...");
-                    //  redeemOnAlgorand VAA:
-                    const redeemVAA: string =
-                        "01000000011300d3f66cd953524cd3dd33396bdd24a6e5deb3df3c0404be778b4b939579212e1c66f479a85a3a00c812c775e58ca34878931d955d1939877e2a5e3c4419cd11960101c47a513100d6540304c245f310b6832eaf2477afce3bf2909ea5447732e6bcb651746141998c1de50306ee94eb65b711888c65a43a42528cee0be005151716360002c124c4012062c9b1cbf5f31ca551f50c553f7a97bbd0b1a50fe9e5d5589a7f101ca550bda30503b1b3bb4c092ef9a605ddfc0be08c3634c4b292399a54d63e4200032263333ae6daa49f05ec9deca9122755c9206bd72dfdac3d9c8dcdfb2db284b0265c77f9ee1b1c00e4f298869b1c492bff805045c0d0eef8fc3c0fdfbb82f01b0104a40415447bfadfffaf7d9bca8492dfc7c94dcc15e7ae3cc4f20cb34531ed17977e7711284010d71c868b69a87547b6faa09685aff8048cfc6fffc839d0be0b6a0105dfc1b0de5216abb57b524ce51f336060c3d1625ed28b55c5cd5cf1632c38f9c062f168f3d0f0838daf9c13a4ef48a8c159207045c3cb8e43d4a76baf591223c2000686180a55def6a45e8ea71595df89a69583c671a83e9e89bc5b73c55ed88c49fc5e32c47b8abdf1552bfc311d2dac988811f40c74eef3eb9437cf35b52d30239a0007b082d16d31d8e06d8ad494834b18d3b3d316a399b4d36bfb426e5b60ff81fd2e632da3466d2fa68fc0ec7bb0964cf969cd125966873ce52a1e846d4d8f0495440108487ff6b4956cea68fc8aa225ce47f93a15477f66db4362d0602d62a5b790428578253062d34b8c61665a6637572b095da9037025f426274f3ef40e7ecc493b5b0009b39dbed5560d5de7075fb43496e52b061313c6eb591ece2cde513de818881c30672e4fc180f6e3fbabf6a94813adb0d66a99b38ee27dfc71ad3fc4058c3c976e000a0bfd12ece2d2c845dc13293380784695e98e8ae598c3053426baaf65c9c962960271c8a69e52458f385be5617dde1b571d341a82112fe9aef1468140faebca00000bc0a81d0a8e9278011a0a4e0257401f35bcec9d98222ae2e9f44a39b6899d54551482f68c89040b60315a806c1f7cf18cb65bed3e18c8cf1059999e5107e720f2000c1939897f4dc63ec9ef38844ceb665caabab1f758a8543feff43b4bdd151dc6a56b93ff56d25fc4c0fe0c78d01df793fb4e3bdc2dea55f18694a40bc43dadc654010d1f41f8d5067eccdbf047180de85521ed3bbffd91ec2f157833e9514444d39e8c65c9f9897dcefc5e44469b080021e1715d85688369d24ae89b4858eaf2c89faf000e3310037efb7a37917725a6575f471427686d56e641bd4aa21394f8202f3f52db2f45fcb718ab4550a468bceed0c13ee8040c0da173caf87a7a5c1908f7270811000f6673460a92bce84565571f2b398f1692eb393adbf47b70bc60ca7755208aaf771010726fd66f2953a33fb472dbdcd91fb78b2993b279050d2d15b3b37c347c6e01108421b71f1568cf2f12d25bfbf2755561772c661a6f2cdeae02bbe8204fa8a53632536c4e580af27551a3304f2c87bff489b516e1d9570c1e203c8e0eea8c86520011186b2e2f0a42f554c604679085aeb7226ec2a9807d867ce51f40af5d58ce6a433981cd00f843b5223ebd764026c8a729c32ae92013dd27a8bed271d85a09733600127765a06677c2a9b060e15b361917eeefda093f3951fef93cb9787b05230dad9207635fee6f987a50202cbe3613da1f1e9c51ef09b885004d763da72403a231bd0062319c3e000000010001ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5000000000000000120010000000000000000000000000000000000000000000000000000000005f5e1000000000000000000000000004523c3f29447d1f32aea95bebd00383c4640f1b40001e6b2b620e5c346848e30a40310ef30a359b466148ab5c04f96e024e40de143ac00080000000000000000000000000000000000000000000000000000000000000000";
-                    const hexRedVAA: Uint8Array =
-                        hexStringToUint8Array(redeemVAA);
-                    const client: Algodv2 = getAlgoClient();
-                    const tempAccts: Account[] = await getTempAccounts();
-                    console.log("Calling getIsTransferCompletedAlgorand...");
-                    const isRedeemed: boolean =
-                        await getIsTransferCompletedAlgorand(
-                            client,
-                            hexRedVAA,
-                            TOKEN_BRIDGE_ID,
-                            tempAccts[0]
-                        );
-                    expect(isRedeemed).toBe(true);
+                    console.log("Algorand getVAA from guardian starting...");
                 } catch (e) {
-                    console.error("Algorand redemption error:", e);
+                    console.error("Algorand getVAA error:", e);
+                    done();
                     expect(false).toBe(true);
                 }
                 done();
