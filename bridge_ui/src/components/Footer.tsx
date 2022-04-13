@@ -17,17 +17,11 @@ const useStyles = makeStyles((theme) => ({
     zIndex: -1,
     background: `url(${footerImg})`,
     backgroundRepeat: "no-repeat",
-    backgroundPosition: "center center",
+    backgroundPosition: "center 250px",
     backgroundSize: "cover",
     width: "100%",
     height: "100%",
     opacity: 0.25,
-    [theme.breakpoints.up("md")]: {
-      backgroundSize: "auto",
-      opacity: 1,
-      height: 444,
-      backgroundPosition: "right bottom -326px",
-    },
   },
   container: {
     maxWidth: 1100,
@@ -137,10 +131,6 @@ const useStyles = makeStyles((theme) => ({
     flexBasis: "100%",
     paddingTop: theme.spacing(0),
     textAlign: "center",
-    [theme.breakpoints.up("md")]: {
-      paddingTop: theme.spacing(0),
-      textAlign: "left",
-    },
   },
 }));
 
@@ -248,10 +238,32 @@ export default function Footer() {
             </IconButton>
           </div>
           <div className={classes.copyWrapper}>
-            <Typography variant="body2">
+            <Typography variant="body2" gutterBottom>
               2022 &copy; Wormhole. All Rights Reserved.
             </Typography>
           </div>
+          <Typography variant="body2">
+            This Interface is an open source software portal to Wormhole, a
+            cross chain messaging protocol. THIS INTERFACE AND THE WORMHOLE
+            PROTOCOL ARE PROVIDED "AS IS", AT YOUR OWN RISK, AND WITHOUT
+            WARRANTIES OF ANY KIND. By using or accessing this Interface or
+            Wormhole, you agree that no developer or entity involved in
+            creating, deploying, maintaining, operating this Interface or
+            Wormhole, or causing or supporting any of the foregoing, will be
+            liable in any manner for any claims or damages whatsoever associated
+            with your use, inability to use, or your interaction with other
+            users of, this Interface or Wormhole, or this Interface or Wormhole
+            themselves, including any direct, indirect, incidental, special,
+            exemplary, punitive or consequential damages, or loss of profits,
+            cryptocurrencies, tokens, or anything else of value. By using or
+            accessing this Interface, you represent that you are not subject to
+            sanctions or otherwise designated on any list of prohibited or
+            restricted parties or excluded or denied persons, including but not
+            limited to the lists maintained by the United States' Department of
+            Treasury's Office of Foreign Assets Control, the United Nations
+            Security Council, the European Union or its Member States, or any
+            other government authority.
+          </Typography>
         </div>
       </div>
     </footer>
