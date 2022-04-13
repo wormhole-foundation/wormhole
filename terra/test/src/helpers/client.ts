@@ -1,16 +1,23 @@
 import {
   BlockTxBroadcastResult,
+  Int,
   LCDClient,
   MnemonicKey,
   Msg,
   Wallet,
 } from "@terra-money/terra.js";
 
+export const GAS_PRICE = 0.2; // uusd
+
 export async function makeProviderAndWallet(): Promise<[LCDClient, Wallet]> {
   // provider
   const client = new LCDClient({
     URL: "http://localhost:1317",
     chainID: "localterra",
+    gasAdjustment: "2",
+    gasPrices: {
+      uusd: GAS_PRICE,
+    },
   });
 
   // wallet
@@ -47,4 +54,17 @@ export async function transactWithoutMemo(
   msgs: Msg[]
 ): Promise<BlockTxBroadcastResult> {
   return transact(client, wallet, msgs, "");
+}
+
+export async function getNativeBalance(
+  client: LCDClient,
+  address: string,
+  denom: string
+): Promise<Int> {
+  const [balance] = await client.bank.balance(address);
+  const coin = balance.get(denom);
+  if (coin === undefined) {
+    return new Int(0);
+  }
+  return new Int(coin.amount);
 }
