@@ -71,6 +71,10 @@ deploy/nft_bridge: nft_bridge-buffer-$(NETWORK).txt
 	@echo Deployed nft bridge contract at:
 	@cat $<
 
+test:
+	@echo "Running integration tests"
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile --target ci_tests .
+
 clean:
 	rm -rf artifacts-mainnet artifacts-testnet artifacts-devnet *-buffer-*.txt
 
