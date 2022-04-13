@@ -1,14 +1,4 @@
-import {
-  ChainId,
-  CHAIN_ID_AVAX,
-  CHAIN_ID_BSC,
-  CHAIN_ID_ETH,
-  CHAIN_ID_FANTOM,
-  CHAIN_ID_OASIS,
-  CHAIN_ID_POLYGON,
-  CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
-} from "@certusone/wormhole-sdk";
+import { ChainId, CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 import { hexToNativeString } from "@certusone/wormhole-sdk/lib/esm/utils";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
@@ -19,8 +9,11 @@ import {
   selectTransferSourceParsedTokenAccount,
 } from "../store/selectors";
 import { getCoinGeckoURL, RELAYER_COMPARE_ASSET } from "../utils/consts";
-import useRelayersAvailable, { RelayerTokenInfo } from "./useRelayersAvailable";
-import { evmEstimatesByContract } from "./useTransactionFees";
+import useRelayersAvailable, {
+  FeeScheduleEntryFlat,
+  FeeScheduleEntryPercent,
+  RelayerTokenInfo,
+} from "./useRelayersAvailable";
 
 export function getRelayAssetInfo(
   originChain: ChainId,
@@ -59,8 +52,6 @@ function isRelayable(
   );
 }
 
-const ETH_SAFETY_TOLERANCE = 1.25;
-
 export type RelayerInfo = {
   isRelayable: boolean;
   isRelayingAvailable: boolean;
@@ -70,37 +61,32 @@ export type RelayerInfo = {
 };
 
 function calculateFeeUsd(
+  info: RelayerTokenInfo,
   comparisonAssetPrice: number,
   targetChain: ChainId,
   gasPrice?: number
 ) {
   let feeUsd = 0;
 
-  if (targetChain === CHAIN_ID_SOLANA) {
-    feeUsd = 2;
-  } else if (targetChain === CHAIN_ID_ETH) {
-    if (!gasPrice) {
-      feeUsd = 0; //catch this error elsewhere
-    } else {
-      // Number should be safe as long as we don't modify highGasEstimate to be in the BigInt range
-      feeUsd =
-        ((Number(evmEstimatesByContract.transfer.highGasEstimate) * gasPrice) /
-          1000000000) *
-        comparisonAssetPrice *
-        ETH_SAFETY_TOLERANCE;
+  if (info?.feeSchedule) {
+    try {
+      if (info.feeSchedule[targetChain]?.type === "flat") {
+        feeUsd = (info.feeSchedule[targetChain] as FeeScheduleEntryFlat).feeUsd;
+      } else if (info.feeSchedule[targetChain]?.type === "percent") {
+        const entry = info.feeSchedule[targetChain] as FeeScheduleEntryPercent;
+        if (!gasPrice) {
+          feeUsd = 0; //catch this error elsewhere
+        } else {
+          // Number should be safe as long as we don't modify highGasEstimate to be in the BigInt range
+          feeUsd =
+            ((Number(entry.gasEstimate) * gasPrice) / 1000000000) *
+            comparisonAssetPrice *
+            entry.feePercent;
+        }
+      }
+    } catch (e) {
+      console.error("Error determining relayer fee");
     }
-  } else if (targetChain === CHAIN_ID_TERRA) {
-    feeUsd = 2;
-  } else if (targetChain === CHAIN_ID_BSC) {
-    feeUsd = 2;
-  } else if (targetChain === CHAIN_ID_POLYGON) {
-    feeUsd = 0.5;
-  } else if (targetChain === CHAIN_ID_AVAX) {
-    feeUsd = 2;
-  } else if (targetChain === CHAIN_ID_OASIS) {
-    feeUsd = 0.5;
-  } else if (targetChain === CHAIN_ID_FANTOM) {
-    feeUsd = 0.5;
   }
 
   return feeUsd;
@@ -291,6 +277,7 @@ function useRelayerInfo(
         relayerInfo.data
       );
       const feeUsd = calculateFeeUsd(
+        relayerInfo.data,
         comparisonAssetPrice,
         targetChain,
         gasPrice
@@ -306,7 +293,7 @@ function useRelayerInfo(
         isFetching: false,
         receivedAt: null,
         data: {
-          isRelayable: relayable,
+          isRelayable: relayable && feeUsd > 0,
           isRelayingAvailable: true,
           feeUsd: usdString,
           feeFormatted: feeFormatted,
