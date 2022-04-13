@@ -211,7 +211,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			case <-timer.C:
 				var nextToken = ""
-				for true {
+				for {
 					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(e.next_round).NextToken(nextToken).Do(context.Background())
 					if err != nil {
 						logger.Info(err.Error())
