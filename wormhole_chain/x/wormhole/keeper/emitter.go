@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"encoding/hex"
+
 	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -16,10 +17,14 @@ func (k Keeper) PostMessage(ctx sdk.Context, emitter types.EmitterAddress, nonce
 		}
 	}
 
+	// Retrieve the number of seconds since the unix epoch from the block header
+	time := ctx.BlockTime().Unix()
+
 	err := ctx.EventManager().EmitTypedEvent(&types.EventPostedMessage{
 		Emitter:  emitter.Bytes(),
 		Sequence: sequence.Sequence,
 		Nonce:    nonce,
+		Time:     uint64(time),
 		Payload:  data,
 	})
 	if err != nil {
