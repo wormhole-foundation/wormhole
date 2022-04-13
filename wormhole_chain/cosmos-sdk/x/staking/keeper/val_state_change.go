@@ -117,10 +117,6 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 	totalPower := sdk.ZeroInt()
 	amtFromBondedToNotBonded, amtFromNotBondedToBonded := sdk.ZeroInt(), sdk.ZeroInt()
 
-	// TODO(csongor): add new guardians that were not here before (from gov)
-	// TODO(csongor): total voting power should be size of the guardian set.
-	// I'll just rewrite this whole function
-
 	// Retrieve the last validator set.
 	// The persistent set is updated later in this function.
 	// (see LastValidatorPowerKey).
