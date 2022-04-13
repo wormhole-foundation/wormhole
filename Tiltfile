@@ -538,3 +538,9 @@ k8s_resource(
     labels = ["terra"],
     trigger_mode = trigger_mode,
 )
+
+docker_compose("./algorand/sandbox-algorand/tilt-compose.yml")
+
+dc_resource('algo-algod', labels=["algorand"])
+dc_resource('algo-indexer', labels=["algorand"])
+dc_resource('algo-indexer-db', labels=["algorand"])

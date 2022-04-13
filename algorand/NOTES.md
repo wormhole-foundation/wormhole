@@ -33,7 +33,7 @@ index 9e224c2..f1714ea 100755
   ./sandbox up dev
 
 
-docker_compose("./algorand/sandbox/tilt-compose.yml")
+docker_compose("./algorand/sandbox-algorand/tilt-compose.yml")
 
 dc_resource('algo-algod', labels=["algorand"])
 dc_resource('algo-indexer', labels=["algorand"])
