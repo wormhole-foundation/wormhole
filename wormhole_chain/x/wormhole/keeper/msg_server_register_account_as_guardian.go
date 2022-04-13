@@ -19,6 +19,9 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	// strictly be necessary (can just use the signer directly), but since it's
 	// this key that gets signed, it's easier to report here if there's a
 	// mistake.
+	// TODO(csongor): I think it would actually be better if this wasn't an
+	// explicit parameter. What are the possible mistakes? A guardian submits
+	// the registration tx from the wrong machine?
 	claimedSigner, err := sdk.ValAddressFromBech32(msg.AddressBech32)
 	if err != nil {
 		return nil, err
@@ -59,21 +62,20 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 		return nil, types.ErrGuardianNotFound
 	}
 
-	// TODO(csongor): implement k.GetValidatorByGuardianAddr/SetValidatorByGuardianAddr
-
 	// register validator in store for guardian
 	k.Keeper.SetGuardianValidator(ctx, types.GuardianValidator{
 		GuardianKey:   guardianKey,
 		ValidatorAddr: claimedSigner,
 	})
 
-	// call the after-registration hook
-	// TODO(csongor): k.AfterGuardianRegistered(ctx, ...)
+	err = ctx.EventManager().EmitTypedEvent(&types.EventGuardianRegistered{
+		GuardianKey:  guardianKey,
+		ValidatorKey: claimedSigner.Bytes(),
+	})
 
-	// TODO(csongor): register guardian in store
-	_ = ctx
-
-	// TODO(csongor): emit event about guardian registration
+	if err != nil {
+		return nil, err
+	}
 
 	k.Keeper.TrySwitchToNewConsensusGuardianSet(ctx)
 
