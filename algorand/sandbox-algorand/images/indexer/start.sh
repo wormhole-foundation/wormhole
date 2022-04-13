@@ -11,7 +11,7 @@
 #   ALGOD_ADDR        - host:port to connect to for algod.
 #   ALGOD_TOKEN       - token to use when connecting to algod.
 set -e
-
+set -x
 start_with_algod() {
   echo "Starting indexer against algod."
 
@@ -29,11 +29,12 @@ start_with_algod() {
   /tmp/algorand-indexer daemon \
     --dev-mode \
     --server ":$PORT" \
+    --enable-all-parameters \
     -P "$CONNECTION_STRING" \
     --algod-net "${ALGOD_ADDR}" \
     --algod-token "${ALGOD_TOKEN}" \
     --genesis "genesis.json" \
-    --logfile "/tmp/indexer-log.txt" >> /tmp/command.txt
+    --logfile "/dev/stdout" >> /tmp/command.txt
 }
 
 import_and_start_readonly() {
@@ -62,12 +63,12 @@ disabled() {
   go run /tmp/disabled.go -port "$PORT" -code 400 -message "Indexer disabled for this configuration."
 }
 
-if [ ! -z "$DISABLED" ]; then
-  disabled
-elif [ -z "${SNAPSHOT}" ]; then
-  start_with_algod
-else
-  import_and_start_readonly
-fi
+#if [ ! -z "$DISABLED" ]; then
+#  disabled
+#elif [ -z "${SNAPSHOT}" ]; then
+#  start_with_algod
+#else
+#  import_and_start_readonly
+#fi
 
 sleep infinity
