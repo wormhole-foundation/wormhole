@@ -35,6 +35,14 @@ Send 100 utest out
 
 --------------------------------------------------------------------------------
 
+Devnet guardian #2 keypair:
+
+λ> toHexString (Crypto.exportKey devnetGuardianSecret')
+"bfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+
+λ> deriveEthPubkey devnetGuardianSecret'
+a75a14f140c22d691bb0b19b4a51fae5b77f9d89
+
 Create new
 
 λ> myGuardianSetUpgrade
