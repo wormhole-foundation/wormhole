@@ -175,8 +175,7 @@ export const CHAINS: ChainInfo[] =
           logo: terraIcon,
         },
       ];
-export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_AURORA] : [];
+export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -1169,7 +1168,7 @@ export const RELAYER_COMPARE_ASSET: RelayerCompareAsset = {
   [CHAIN_ID_AVAX]: "avalanche-2",
   [CHAIN_ID_OASIS]: "oasis-network",
   [CHAIN_ID_FANTOM]: "fantom",
-  // [CHAIN_ID_AURORA]: "ethereum", // Aurora uses bridged ether
+  [CHAIN_ID_AURORA]: "ethereum", // Aurora uses bridged ether
 } as RelayerCompareAsset;
 export const getCoinGeckoURL = (coinGeckoId: string) =>
   `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`;
