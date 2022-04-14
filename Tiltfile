@@ -540,19 +540,28 @@ k8s_resource(
 )
 
 if algorand:
-    docker_compose("./algorand/sandbox-algorand/tilt-compose.yml")
+    k8s_yaml_with_ns("devnet/algorand-devnet.yaml")
+  
+    docker_build(
+        ref = "algorand-algod",
+        context = "algorand/sandbox-algorand",
+        dockerfile = "algorand/sandbox-algorand/images/algod/Dockerfile"
+    )
 
-    dc_resource('algo-algod', labels=["algorand"])
-    dc_resource('algo-indexer', labels=["algorand"])
-    dc_resource('algo-indexer-db', labels=["algorand"])
+    docker_build(
+        ref = "algorand-indexer",
+        context = "algorand/sandbox-algorand",
+        dockerfile = "algorand/sandbox-algorand/images/indexer/Dockerfile"
+    )
 
-    local_resource(
-        name = "deploy-algo",
-        deps = ["algo-algod"],
-        dir = "algorand",
-        cmd = "tilt docker build -- --target algorand-export -f Dockerfile -o type=local,dest=. .",
-        env = {"DOCKER_BUILDKIT": "1"},
+    k8s_resource(
+        "algorand",
+        port_forwards = [
+            port_forward(4001, name = "Algod [:4001]", host = webHost),
+            port_forward(4002, name = "KMD [:4002]", host = webHost),
+            port_forward(8980, name = "Indexer [:8980]", host = webHost),
+        ],
         labels = ["algorand"],
-        allow_parallel = True,
         trigger_mode = trigger_mode,
     )
+    

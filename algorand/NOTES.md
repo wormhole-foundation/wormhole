@@ -1,3 +1,6 @@
+kubectl exec -it algorand-0 -c algorand-algod -- /bin/bash
+
+docker exec -it algorand-tilt-indexer /bin/bash
 
 put into dev/node.yaml
 

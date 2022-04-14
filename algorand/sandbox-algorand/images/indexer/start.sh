@@ -10,6 +10,13 @@
 #   PORT              - port to start indexer on.
 #   ALGOD_ADDR        - host:port to connect to for algod.
 #   ALGOD_TOKEN       - token to use when connecting to algod.
+
+
+export PORT="8980"
+export CONNECTION_STRING="host=localhost port=5432 user=algorand password=algorand dbname=indexer_db sslmode=disable"
+export ALGOD_ADDR="localhost:4001"
+export ALGOD_TOKEN="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 set -e
 set -x
 start_with_algod() {
@@ -25,6 +32,12 @@ start_with_algod() {
     echo "Failed to create genesis file!"
     exit 1
   fi
+
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand --dbname=indexer_db -c "DROP DATABASE IF EXISTS postgres"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand --dbname=indexer_db -c "DROP DATABASE IF EXISTS template0"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand --dbname=indexer_db -c "DROP DATABASE IF EXISTS template1"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand -c "DROP DATABASE IF EXISTS indexer_db"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand -c "CREATE DATABASE indexer_db"
 
   /tmp/algorand-indexer daemon \
     --dev-mode \
@@ -63,12 +76,12 @@ disabled() {
   go run /tmp/disabled.go -port "$PORT" -code 400 -message "Indexer disabled for this configuration."
 }
 
-#if [ ! -z "$DISABLED" ]; then
-#  disabled
-#elif [ -z "${SNAPSHOT}" ]; then
-#  start_with_algod
-#else
-#  import_and_start_readonly
-#fi
+if [ ! -z "$DISABLED" ]; then
+  disabled
+elif [ -z "${SNAPSHOT}" ]; then
+  start_with_algod
+else
+  import_and_start_readonly
+fi
 
 sleep infinity
