@@ -1,4 +1,5 @@
 import {
+  Bridge__factory,
   CHAIN_ID_POLYGON,
   getIsTransferCompletedEth,
   hexToUint8Array,
@@ -69,7 +70,7 @@ export async function relayEVM(
 
   logger.debug("Redeeming.");
   // look, there's something janky with Polygon + ethers + EIP-1559
-  let overrides;
+  let overrides = {};
   if (chainConfigInfo.chainId === CHAIN_ID_POLYGON) {
     let feeData = await provider.getFeeData();
     overrides = {
@@ -77,19 +78,16 @@ export async function relayEVM(
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
   }
-  const receipt = unwrapNative
-    ? await redeemOnEthNative(
-        chainConfigInfo.tokenBridgeAddress,
-        signer,
-        signedVaaArray,
-        overrides
-      )
-    : await redeemOnEth(
-        chainConfigInfo.tokenBridgeAddress,
-        signer,
-        signedVaaArray,
-        overrides
-      );
+  const bridge = Bridge__factory.connect(
+    chainConfigInfo.tokenBridgeAddress,
+    signer
+  );
+  const contractMethod = unwrapNative
+    ? bridge.completeTransferAndUnwrapETH
+    : bridge.completeTransfer;
+  const tx = await contractMethod(signedVaaArray, overrides);
+  logger.info("waiting for tx hash: %s", tx.hash);
+  const receipt = await tx.wait();
 
   // Checking getIsTransferCompletedEth can be problematic if we get
   // load balanced to a node that is behind the block of our accepted tx
