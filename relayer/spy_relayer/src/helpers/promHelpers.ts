@@ -65,7 +65,7 @@ export class PromHelper {
   private redisQueue = new client.Gauge({
     name: "spy_relay_redis_queue_length",
     help: "number of items in the pending queue.",
-    labelNames: ["queue"],
+    labelNames: ["queue", "source_chain_name", "target_chain_name"],
   });
 
   // Wallet metrics
@@ -182,9 +182,18 @@ export class PromHelper {
   handleListenerMemqueue(size: number) {
     this.listenerMemqueue.set(size);
   }
-  setRedisQueue(queue: RedisTables, size: number) {
+  setRedisQueue(
+    queue: RedisTables,
+    sourceChainId: ChainId,
+    targetChainId: ChainId,
+    size: number
+  ) {
     this.redisQueue
-      .labels({ queue: RedisTables[queue].toLowerCase() })
+      .labels({
+        queue: RedisTables[queue].toLowerCase(),
+        source_chain_name: chainIDStrings[sourceChainId],
+        target_chain_name: chainIDStrings[targetChainId],
+      })
       .set(size);
   }
 
