@@ -302,9 +302,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	if (*algorandAppID != 0) && *unsafeDevMode {
-		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
-	}
+	readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
@@ -808,12 +806,9 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		if (*algorandAppID != 0) && *unsafeDevMode {
-			if err := supervisor.Run(ctx, "algorandwatch",
-
-				algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
-				return err
-			}
+		if err := supervisor.Run(ctx, "algorandwatch",
+			algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
+			return err
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
