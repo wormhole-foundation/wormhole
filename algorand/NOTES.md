@@ -2,6 +2,11 @@ kubectl exec -it algorand-0 -c algorand-algod -- /bin/bash
 
 docker exec -it algorand-tilt-indexer /bin/bash
 
+to switch to sandbox, change devnet/node.yaml
+
+-            - http://algorand:8980
++            - http://host.minikube.internal:8980
+
 put into dev/node.yaml
 
             - --algorandAppID
