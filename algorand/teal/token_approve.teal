@@ -137,7 +137,7 @@ pushbytes 0x04 // 0x04
 concat
 ==
 &&
-pushint 237 // 237
+pushint 254 // 254
 &&
 assert
 load 75
@@ -154,7 +154,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txn RekeyTo
@@ -168,7 +168,7 @@ txn AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txna ApplicationArgs 1
@@ -294,7 +294,7 @@ txn AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 itxn_begin
@@ -355,7 +355,7 @@ gtxns AssetReceiver
 txna Accounts 2
 ==
 &&
-pushint 691 // 691
+pushint 696 // 696
 &&
 assert
 load 25
@@ -372,7 +372,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 load 25
@@ -446,7 +446,7 @@ len
 pushint 32 // 32
 <=
 &&
-pushint 751 // 751
+pushint 754 // 754
 &&
 assert
 txn NumAppArgs
@@ -616,7 +616,7 @@ gtxns Receiver
 txna Accounts 2
 ==
 &&
-pushint 676 // 676
+pushint 680 // 680
 &&
 assert
 load 25
@@ -633,7 +633,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 load 25
@@ -699,7 +699,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 462 // 462
+pushint 475 // 475
 &&
 assert
 load 25
@@ -716,7 +716,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txn RekeyTo
@@ -730,7 +730,7 @@ txn AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txna ApplicationArgs 1
@@ -899,7 +899,7 @@ load 49
 callsub getsigaddress_15
 ==
 &&
-pushint 575 // 575
+pushint 577 // 577
 &&
 assert
 main_l46:
@@ -1026,7 +1026,7 @@ gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
 &&
-pushint 516 // 516
+pushint 519 // 519
 &&
 assert
 callsub getNextAddress_9
@@ -1258,7 +1258,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 308 // 308
+pushint 321 // 321
 &&
 assert
 load 25
@@ -1275,7 +1275,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txn GroupIndex
@@ -1301,7 +1301,7 @@ gtxns Receiver
 txna Accounts 3
 ==
 &&
-pushint 326 // 326
+pushint 331 // 331
 &&
 assert
 load 25
@@ -1318,7 +1318,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txn GroupIndex
@@ -1344,7 +1344,7 @@ gtxns Sender
 txn Sender
 ==
 &&
-pushint 336 // 336
+pushint 341 // 341
 &&
 assert
 load 25
@@ -1361,7 +1361,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txn GroupIndex
@@ -1393,7 +1393,7 @@ intc_0 // 1
 txn GroupIndex
 ==
 &&
-pushint 346 // 346
+pushint 352 // 352
 &&
 assert
 load 25
@@ -1410,7 +1410,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 txna ApplicationArgs 1
@@ -1443,7 +1443,7 @@ intc_2 // 2
 pushint 32 // 32
 extract3
 ==
-pushint 360 // 360
+pushint 361 // 361
 &&
 assert
 load 27
@@ -1987,7 +1987,7 @@ gtxns Amount
 load 26
 >=
 &&
-pushint 99 // 99
+pushint 103 // 103
 &&
 assert
 load 25
@@ -2004,7 +2004,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 88 // 88
+pushint 91 // 91
 &&
 assert
 checkFeePmt_10_l2:

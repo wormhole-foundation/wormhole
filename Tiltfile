@@ -554,6 +554,12 @@ if algorand:
         dockerfile = "algorand/sandbox-algorand/images/indexer/Dockerfile"
     )
 
+    docker_build(
+        ref = "algorand-contracts",
+        context = "algorand",
+        dockerfile = "algorand/Dockerfile"
+    )
+
     k8s_resource(
         "algorand",
         port_forwards = [

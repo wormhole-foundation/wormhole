@@ -80,4 +80,18 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 8980
+        - name: algorand-contracts
+          image: algorand-contracts
+          command:
+            - /bin/sh
+            - -c
+            - "sh deploy.sh && touch success && sleep infinity"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
       restartPolicy: Always

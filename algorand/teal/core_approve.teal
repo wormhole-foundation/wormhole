@@ -122,7 +122,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 464 // 464
+pushint 481 // 481
 &&
 assert
 bytec_3 // "currentGuardianSetIndex"
@@ -479,7 +479,7 @@ pushint 3 // 3
 /
 >
 &&
-pushint 389 // 389
+pushint 392 // 392
 &&
 assert
 pushint 6 // 6
@@ -528,7 +528,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 403 // 403
+pushint 408 // 408
 &&
 assert
 load 11
@@ -601,7 +601,7 @@ gtxnsa ApplicationArgs 3
 load 17
 ==
 &&
-pushint 440 // 440
+pushint 443 // 443
 &&
 assert
 b main_l39
@@ -1017,7 +1017,7 @@ gtxns RekeyTo
 global ZeroAddress
 ==
 &&
-pushint 154 // 154
+pushint 158 // 158
 &&
 assert
 b main_l64
