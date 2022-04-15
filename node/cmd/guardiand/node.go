@@ -489,7 +489,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
 	}
-
+	if *algorandIndexerRPC == "" {
+		logger.Fatal("Please specify --algorandIndexerRPC")
+	}
+	if *algorandAppID == 0 {
+		logger.Fatal("Please specify --algorandAppID")
+	}
 	if *bigTablePersistenceEnabled {
 		if *bigTableGCPProject == "" {
 			logger.Fatal("Please specify --bigTableGCPProject")
