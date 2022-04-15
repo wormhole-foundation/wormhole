@@ -10,8 +10,15 @@
 #   PORT              - port to start indexer on.
 #   ALGOD_ADDR        - host:port to connect to for algod.
 #   ALGOD_TOKEN       - token to use when connecting to algod.
-set -e
 
+
+export PORT="8980"
+export CONNECTION_STRING="host=localhost port=5432 user=algorand password=algorand dbname=indexer_db sslmode=disable"
+export ALGOD_ADDR="localhost:4001"
+export ALGOD_TOKEN="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+set -e
+set -x
 start_with_algod() {
   echo "Starting indexer against algod."
 
@@ -26,14 +33,21 @@ start_with_algod() {
     exit 1
   fi
 
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand --dbname=indexer_db -c "DROP DATABASE IF EXISTS postgres"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand --dbname=indexer_db -c "DROP DATABASE IF EXISTS template0"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand --dbname=indexer_db -c "DROP DATABASE IF EXISTS template1"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand -c "DROP DATABASE IF EXISTS indexer_db"
+#  PGPASSWORD=algorand psql --host=algo-indexer-db --port=5432 --username=algorand -c "CREATE DATABASE indexer_db"
+
   /tmp/algorand-indexer daemon \
     --dev-mode \
     --server ":$PORT" \
+    --enable-all-parameters \
     -P "$CONNECTION_STRING" \
     --algod-net "${ALGOD_ADDR}" \
     --algod-token "${ALGOD_TOKEN}" \
     --genesis "genesis.json" \
-    --logfile "/tmp/indexer-log.txt" >> /tmp/command.txt
+    --logfile "/dev/stdout" >> /tmp/command.txt
 }
 
 import_and_start_readonly() {

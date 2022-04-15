@@ -1,9 +1,9 @@
 ARG GO_VERSION=1.17.5
-FROM golang:$GO_VERSION
+FROM golang:$GO_VERSION as algorand-algod
 
-ARG CHANNEL=nightly
-ARG URL=
-ARG BRANCH=
+ARG CHANNEL=master
+ARG URL="https://github.com/algorand/go-algorand"
+ARG BRANCH=master
 ARG SHA=
 
 # When these are set attempt to connect to a network.
@@ -11,15 +11,14 @@ ARG GENESIS_FILE=""
 ARG BOOTSTRAP_URL=""
 
 # Options for algod config
-ARG ALGOD_PORT=""
-ARG KMD_PORT=""
-ARG TOKEN=""
-ARG TEMPLATE=""
+ARG ALGOD_PORT="4001"
+ARG KMD_PORT="4002"
+ARG TOKEN="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+ARG TEMPLATE="images/algod/DevModeNetwork.json"
 
 RUN echo "Installing from source. ${URL} -- ${BRANCH}"
 ENV BIN_DIR="$HOME/node"
 ENV ALGORAND_DATA="/opt/data"
-
 
 # Basic dependencies.
 ENV HOME /opt
@@ -32,10 +31,9 @@ COPY . /tmp
 # Install algod binaries.
 RUN /tmp/images/algod/install.sh \
     -d "${BIN_DIR}" \
-    -c "${CHANNEL}" \
-    -u "${URL}" \
-    -b "${BRANCH}" \
-    -s "${SHA}"
+    -u "https://github.com/algorand/go-algorand" \
+    -b "master" \
+    -s ""
 
 # Configure network
 RUN /tmp/images/algod/setup.py \
@@ -43,12 +41,13 @@ RUN /tmp/images/algod/setup.py \
  --data-dir "/opt/data" \
  --start-script "/opt/start_algod.sh" \
  --network-dir "/opt/testnetwork" \
- --network-template "//tmp/${TEMPLATE}" \
- --network-token "${TOKEN}" \
- --algod-port "${ALGOD_PORT}" \
- --kmd-port "${KMD_PORT}" \
+ --network-template "//tmp/images/algod/DevModeNetwork.json" \
+ --network-token "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+ --algod-port "4001" \
+ --kmd-port "4002" \
  --bootstrap-url "${BOOTSTRAP_URL}" \
  --genesis-file "/tmp/${GENESIS_FILE}"
+
 
 ENV PATH="$BIN_DIR:${PATH}"
 WORKDIR /opt/data

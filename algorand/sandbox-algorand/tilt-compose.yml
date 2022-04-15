@@ -39,8 +39,8 @@ services:
       DISABLED: ""
       PORT: "8980"
       SNAPSHOT: ""
-      CONNECTION_STRING: "host=indexer-db port=5432 user=algorand password=algorand dbname=indexer_db sslmode=disable"
-      ALGOD_ADDR: "algod:4001"
+      CONNECTION_STRING: "host=algo-indexer-db port=5432 user=algorand password=algorand dbname=indexer_db sslmode=disable"
+      ALGOD_ADDR: "algo-algod:4001"
       ALGOD_TOKEN: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     depends_on:
       - algo-indexer-db
