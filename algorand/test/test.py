@@ -94,7 +94,6 @@ class AlgoTest(PortalCore):
         try:
             return int.from_bytes(b64decode(txn.innerTxns[-1]["logs"][0]), "big")
         except Exception as err:
-            print(f"Unexpected {err=}, {type(err)=}")
             pprint.pprint(txn.__dict__)
             raise
 
