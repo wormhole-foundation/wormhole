@@ -65,7 +65,7 @@ abstract contract ShutdownSwitch {
         return enabled;
     }
 
-    /// @dev Returns the number of votes required to disable transfers.
+    /// @dev Returns the current number of votes to disable transfers.
     function currentVotesToShutdown() public view returns (address[] memory) {
         Structs.GuardianSet memory gs = getCurrentGuardianSet();
         address[] memory ret = new address[](computeNumVotesShutdown(gs));
