@@ -27,6 +27,7 @@ import {
     parseVAA,
     submitVAA,
     TOKEN_BRIDGE_ID,
+    transferAsset,
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import { TestLib } from "../testlib";
@@ -291,6 +292,7 @@ describe("Integration Tests", () => {
                         assetIndex
                     );
                     console.log("TxId", txId);
+                    // await transferAsset(client, wallet, )
                     console.log("Getting emitter address...");
                     const tbAddr: string =
                         getApplicationAddress(TOKEN_BRIDGE_ID);
@@ -311,6 +313,7 @@ describe("Integration Tests", () => {
                         emitterAddr,
                         "1"
                     );
+                    console.log("vaaBytes", vaaBytes);
                 } catch (e) {
                     console.error("Algorand attestation error:", e);
                     done();

@@ -385,7 +385,7 @@ export class TestLib {
             signers,
             seconds,
             nonce,
-            1,
+            chain,
             emitter,
             seq,
             32,
@@ -393,25 +393,46 @@ export class TestLib {
         );
     }
 
-    //    genTransfer( signers, guardianSet, nonce, seq, amount, tokenAddress, tokenChain, toAddress, toChain, fee) {
-    //        b  = self.encoder("uint8", 1)
-    //        b += self.encoder("uint256", int(amount * 100000000))
-    //
-    //        b += self.zeroPadBytes[0:((32-len(tokenAddress))*2)]
-    //        b += tokenAddress.hex()
-    //
-    //        b += self.encoder("uint16", tokenChain)
-    //
-    //        b += self.zeroPadBytes[0:((32-len(toAddress))*2)]
-    //        b += toAddress.hex()
-    //
-    //        b += self.encoder("uint16", toChain)
-    //
-    //        b += self.encoder("uint256", int(fee * 100000000))
-    //
-    //        emitter = bytes.fromhex(.getEmitter(tokenChain))
-    //        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
-    //    }
+    genTransfer(
+        signers: any,
+        guardianSet: number,
+        nonce: number,
+        seq: number,
+        amount: number,
+        tokenAddress: string,
+        tokenChain: number,
+        toAddress: string,
+        toChain: number,
+        fee: number
+    ) {
+        const b = [
+            "0x",
+            this.encoder("uint8", 1),
+            this.encoder("uint256", Math.floor(amount * 100000000)),
+            this.zeroBytes.slice(0, 64 - tokenAddress.length),
+            tokenAddress,
+            this.encoder("uint16", tokenChain),
+            this.zeroBytes.slice(0, 64 - toAddress.length),
+            toAddress,
+            this.encoder("uint16", toChain),
+            this.encoder("uint256", Math.floor(fee * 100000000)),
+        ];
+
+        let emitter = "0x" + this.getTokenEmitter(tokenChain);
+        let seconds = Math.floor(new Date().getTime() / 1000.0);
+
+        return this.createSignedVAA(
+            guardianSet,
+            signers,
+            seconds,
+            nonce,
+            tokenChain,
+            emitter,
+            seq,
+            32,
+            b.join("")
+        );
+    }
 
     /**
      * Create a packed and signed VAA for testing.

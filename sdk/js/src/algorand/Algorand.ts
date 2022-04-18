@@ -216,12 +216,20 @@ export async function getMessageFee(client: Algodv2): Promise<number> {
  * @param txn The transaction containing a sequence number
  * @returns The sequence number found in the supplied transaction
  */
-export function parseSeqFromLog(txn: any): bigint {
+export function parseSeqFromTxn(txn: any): bigint {
     const innerTxns = txn.innerTxns[txn.innerTxns - 1];
     const logs = innerTxns["logs"];
     const seqNum = logs[0];
     const bufSN = Buffer.from(seqNum, "base64");
     const sn = bufSN.readBigUInt64BE();
+    return sn;
+}
+
+export function parseSeqFromLog(log: Buffer[]): bigint {
+    console.log("parseSeqFromLog input:", log);
+    console.log("parseSeqFromLog input:", log[0]);
+    // const bufSN = Buffer.from(log[-1], "base64");
+    const sn = log[0].readBigUInt64BE();
     return sn;
 }
 
@@ -343,7 +351,15 @@ export async function attestFromAlgorand(
         appTxn.fee *= 2;
     }
     txns.push(appTxn);
-    await simpleSignVAA(client, senderAcct, txns);
+    const resp: Buffer[] = await simpleSignVAA(client, senderAcct, txns);
+    console.log("resp:", resp);
+    let seq: bigint = BigInt(0);
+    try {
+        seq = parseSeqFromLog(resp);
+    } catch (pErr) {
+        console.error("parseSeqFromTxn Failed:", pErr);
+    }
+    console.log("attestFromAlgorand seq:", seq);
 
     return txns[txns.length - 1].txID();
 }
@@ -928,19 +944,19 @@ export async function submitVAAHdr(
  * @param client AlgodV2 client
  * @param sender Sending account
  * @param txns One or more transactions to send
- * @returns Confirmation log
+ * @returns Confirmation log(s)
  */
 export async function simpleSignVAA(
     client: Algodv2,
     sender: Account,
     txns: Array<algosdk.Transaction>
-): Promise<string[]> {
+): Promise<Buffer[]> {
     console.log("simpleSignVAA");
     //    console.log(txns)
     assignGroupID(txns);
     const signedTxns: Uint8Array[] = [];
     txns.forEach((txn) => {
-        console.log(txn);
+        // console.log(txn);
         if (
             txn.appArgs &&
             txn.appArgs?.length > 0 &&
@@ -961,19 +977,61 @@ export async function simpleSignVAA(
     const resp = await client.sendRawTransaction(signedTxns).do();
 
     console.log("waiting for confirmation", txns[txns.length - 1].txID());
-    let ret: string[] = [];
-    console.log("waitForConfirmation...");
-    const response = await waitForConfirmation(
-        client,
-        txns[txns.length - 1].txID(),
-        1
-    );
+    let ret: Buffer[] = [];
+    console.log("waitForConfirmation on", txns.length, "transactions...");
+    // const response = await waitForConfirmation(
+    //     client,
+    //     txns[txns.length - 1].txID(),
+    //     1
+    // );
+    let response: Record<string, any>;
+    for (let i: number = 0; i < txns.length; i++) {
+        response = await waitForConfirmation(client, txns[i].txID(), 1);
+        console.log("txn loop resp", response);
+        if (response["inner-txns"]) {
+            console.log("Got inner txns.  Looking for logs...");
+            const innerTxns: [] = response["inner-txns"];
+            console.log("innerTxns:", innerTxns);
+            class iTxn {
+                "local-state-delta": [[Object]];
+                logs: Buffer[] | undefined;
+                "pool-eror": string;
+                txn: { txn: [Object] } | undefined;
+            }
+            innerTxns.forEach((txn: iTxn) => {
+                console.log("txn:", txn.logs);
+                if (txn.logs) {
+                    txn.logs.forEach((l) => {
+                        ret.push(l);
+                    });
+                    const seq = parseSeqFromLog(txn.logs);
+                    console.log("sequence:", seq);
+                }
+            });
+        }
+    }
     console.log(".. done");
 
-    console.log("submitVAA confirmation", response);
-    if (response["logs"]) {
-        ret = response["logs"];
-    }
+    // console.log("submitVAA confirmation", response);
+    // const innerTxns: [] = response["inner-txns"];
+    // console.log("innerTxns:", innerTxns);
+    // class iTxn {
+    //     "local-state-delta": [[Object]];
+    //     logs: Buffer[] | undefined;
+    //     "pool-eror": string;
+    //     txn: { txn: [Object] } | undefined;
+    // }
+    // innerTxns.forEach((txn: iTxn) => {
+    //     console.log("txn:", txn.logs);
+    //     if (txn.logs) {
+    //         const seq = parseSeqFromLog(txn.logs);
+    //         console.log("sequence:", seq);
+    //     }
+    // });
+    // if (response["inner-txns"]["logs"]) {
+    //     ret = response["inner-txns"]["logs"];
+    //     console.log("submitVAA logs:", ret);
+    // }
     ret.forEach((log) => {
         console.log("logs:", new TextDecoder().decode(Buffer.from(log)));
     });
@@ -994,7 +1052,7 @@ export async function submitVAA(
     client: Algodv2,
     sender: Account,
     appid: number
-): Promise<string[]> {
+): Promise<Buffer[]> {
     let sstate = await submitVAAHdr(vaa, client, sender, appid);
 
     let parsedVAA = sstate.vaaMap;
@@ -1319,7 +1377,7 @@ export async function getVAA(
                 ) {
                     return;
                 }
-                const seq = parseSeqFromLog(element);
+                const seq = parseSeqFromTxn(element);
                 if (seq != sid) return;
                 if (el["sender"] != sAddr) return;
                 const emitter = decodeAddress(el["sender"]);
@@ -1499,7 +1557,7 @@ export async function transferAsset(
     acTxn.fee *= 2;
     txns.push(acTxn);
     const resp: Record<string, any> = await simpleSignVAA(client, sender, txns);
-    return parseSeqFromLog(resp);
+    return parseSeqFromTxn(resp);
 }
 
 export async function createWrappedOnAlgorand(
@@ -1531,7 +1589,7 @@ export async function redeemOnAlgorand(
     client: Algodv2,
     acct: Account,
     tokenId: number
-): Promise<string[]> {
+): Promise<Buffer[]> {
     return await submitVAA(vaa, client, acct, tokenId);
 }
 
