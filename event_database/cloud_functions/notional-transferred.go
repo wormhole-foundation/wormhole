@@ -98,6 +98,10 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 
 			// iterate through the rows and increment the amounts
 			for _, row := range queryResult {
+				if _, ok := tokensToSkip[row.TokenAddress]; ok {
+					// skip blacklisted token
+					continue
+				}
 				if _, ok := results[dateStr][row.LeavingChain]; !ok {
 					results[dateStr][row.LeavingChain] = map[string]map[string]float64{"*": {"*": 0}}
 				}
@@ -250,6 +254,10 @@ func transfersForInterval(tbl *bigtable.Table, ctx context.Context, prefix strin
 
 	// iterate through the rows and increment the count for each index
 	for _, row := range queryResults {
+		if _, ok := tokensToSkip[row.TokenAddress]; ok {
+			// skip blacklisted token
+			continue
+		}
 		if _, ok := result[row.LeavingChain]; !ok {
 			result[row.LeavingChain] = map[string]map[string]float64{"*": {"*": 0}}
 		}
