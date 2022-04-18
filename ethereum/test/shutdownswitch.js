@@ -118,7 +118,7 @@ contract("ShutdownSwitch", function () {
         // Cast a vote using a valid auth proof but for a non-active guardian, and it should fail.
         let voteFailed = false;
         try {
-            await initialized.methods.castShutdownVote(GuardianAuthProof9, false).send({ from: EthPublicKey });
+            await initialized.methods.castShutdownVote(GuardianAuthProof9).send({ from: EthPublicKey });
         } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert you are not a registered voter")
             voteFailed = true
@@ -137,7 +137,7 @@ contract("ShutdownSwitch", function () {
         // Cast a vote using a valid auth proof but for a non-active guardian, and it should fail.
         let voteFailed = false;
         try {
-            await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: accounts[0] });
+            await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: accounts[0] });
         } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert you are not a registered voter")
             voteFailed = true
@@ -156,7 +156,7 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // This first vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -167,21 +167,21 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // A duplicate vote should change nothing.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // The second vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof1).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // But a third vote should suspend transfers.
-        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof2).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -252,7 +252,7 @@ contract("ShutdownSwitch", function () {
         // Cast three votes to disable transfers.
 
         // This first vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -263,21 +263,21 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // A duplicate vote should change nothing.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // The second vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof1).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // But a third vote should suspend transfers.
-        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof2).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -316,7 +316,7 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // Change one vote to enabled and our status should change back to enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, true).send({ from: EthPublicKey });
+        await initialized.methods.castStartupVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
@@ -360,7 +360,7 @@ contract("ShutdownSwitch", function () {
         // Cast three votes to disable transfers.
         
         // This first vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -371,21 +371,21 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // A duplicate vote should change nothing.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // The second vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof1).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // But a third vote should suspend transfers.
-        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof2).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -413,7 +413,7 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // Change one vote to enabled and our status should change back to enabled.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, true).send({ from: EthPublicKey });
+        await initialized.methods.castStartupVote(GuardianAuthProof0).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
@@ -440,9 +440,9 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // Cast three votes to disable transfers.
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, false).send({ from: EthPublicKey });
-        await initialized.methods.castShutdownVote(GuardianAuthProof1, false).send({ from: EthPublicKey });
-        await initialized.methods.castShutdownVote(GuardianAuthProof2, false).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof1).send({ from: EthPublicKey });
+        await initialized.methods.castShutdownVote(GuardianAuthProof2).send({ from: EthPublicKey });
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -458,10 +458,10 @@ contract("ShutdownSwitch", function () {
     })
 
     async function clearAllVotes(initialized) {
-        await initialized.methods.castShutdownVote(GuardianAuthProof0, true).send({ from: EthPublicKey })
-        await initialized.methods.castShutdownVote(GuardianAuthProof1, true).send({ from: EthPublicKey })
-        await initialized.methods.castShutdownVote(GuardianAuthProof2, true).send({ from: EthPublicKey })
-        await initialized.methods.castShutdownVote(GuardianAuthProof3, true).send({ from: EthPublicKey })
+        await initialized.methods.castStartupVote(GuardianAuthProof0).send({ from: EthPublicKey })
+        await initialized.methods.castStartupVote(GuardianAuthProof1).send({ from: EthPublicKey })
+        await initialized.methods.castStartupVote(GuardianAuthProof2).send({ from: EthPublicKey })
+        await initialized.methods.castStartupVote(GuardianAuthProof3).send({ from: EthPublicKey })
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
