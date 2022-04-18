@@ -102,8 +102,16 @@ abstract contract ShutdownSwitch {
         _;
     }
 
+    function castShutdownVote(bytes memory authProof) public {
+        _castVote(authProof, false);
+    }
+    
+    function castStartupVote(bytes memory authProof) public {
+        _castVote(authProof, true);
+    }
+
     /// @dev This is the function that allows guardians to vote, and determines the resulting shutdown status.
-    function castShutdownVote(bytes memory authProof, bool _enabled) public {
+    function _castVote(bytes memory authProof, bool _enabled) private {
         // Extract the guardian public key from the authProof.
         address voter = decodeVoter(msg.sender, authProof);
 
