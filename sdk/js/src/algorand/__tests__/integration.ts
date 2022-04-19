@@ -13,6 +13,9 @@ import algosdk, {
     Algodv2,
     decodeAddress,
     getApplicationAddress,
+    makeApplicationCallTxnFromObject,
+    OnApplicationComplete,
+    waitForConfirmation,
 } from "algosdk";
 import {
     accountExists,
@@ -25,13 +28,17 @@ import {
     getVAA,
     optin,
     parseVAA,
+    simpleSignVAA,
     submitVAA,
+    textToUint8Array,
     TOKEN_BRIDGE_ID,
     transferAsset,
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import { TestLib } from "../testlib";
 import { CHAIN_ID_ALGORAND } from "../../utils";
+import { getSignedVAA } from "../../rpc";
+import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 
 setDefaultWasm("node");
 
@@ -212,57 +219,57 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test("Create and submit VAA", (done) => {
-            (async () => {
-                try {
-                    console.log("Create and submit VAA starting...");
-                    const client: algosdk.Algodv2 = getAlgoClient();
-                    const tempAccts: Account[] = await getTempAccounts();
-                    const d = new Date();
-                    const secs = Math.floor(d.getTime() / 1000);
-                    const nonce: number = 1;
-                    const myTestLib: TestLib = new TestLib();
-                    const upVaa = myTestLib.genGuardianSetUpgrade(
-                        myTestLib.singleGuardianPrivKey,
-                        0,
-                        1,
-                        nonce,
-                        secs,
-                        myTestLib.singleGuardianKey
-                    );
-                    console.log("upVAA:", upVaa);
-                    const vaa: Uint8Array = hexStringToUint8Array(upVaa);
-                    let isComplete: boolean =
-                        await getIsTransferCompletedAlgorand(
-                            client,
-                            vaa,
-                            CORE_ID,
-                            tempAccts[0]
-                        );
-                    expect(isComplete).toBe(false);
-                    const resp = await submitVAA(
-                        vaa,
-                        client,
-                        tempAccts[0],
-                        CORE_ID
-                    );
-                    console.log("resp:", resp);
-                    isComplete = await getIsTransferCompletedAlgorand(
-                        client,
-                        vaa,
-                        CORE_ID,
-                        tempAccts[0]
-                    );
-                    expect(isComplete).toBe(true);
-                } catch (e) {
-                    console.error("Create and submit VAA error:", e);
-                    done();
-                    expect(false).toBe(true);
-                }
-                done();
-            })();
-        });
-        test("Algorand attestation", (done) => {
+        // test("Create and submit VAA", (done) => {
+        //     (async () => {
+        //         try {
+        //             console.log("Create and submit VAA starting...");
+        //             const client: algosdk.Algodv2 = getAlgoClient();
+        //             const tempAccts: Account[] = await getTempAccounts();
+        //             const d = new Date();
+        //             const secs = Math.floor(d.getTime() / 1000);
+        //             const nonce: number = 1;
+        //             const myTestLib: TestLib = new TestLib();
+        //             const upVaa = myTestLib.genGuardianSetUpgrade(
+        //                 myTestLib.singleGuardianPrivKey,
+        //                 0,
+        //                 1,
+        //                 nonce,
+        //                 secs,
+        //                 myTestLib.singleGuardianKey
+        //             );
+        //             console.log("upVAA:", upVaa);
+        //             const vaa: Uint8Array = hexStringToUint8Array(upVaa);
+        //             let isComplete: boolean =
+        //                 await getIsTransferCompletedAlgorand(
+        //                     client,
+        //                     vaa,
+        //                     CORE_ID,
+        //                     tempAccts[0]
+        //                 );
+        //             expect(isComplete).toBe(false);
+        //             const resp = await submitVAA(
+        //                 vaa,
+        //                 client,
+        //                 tempAccts[0],
+        //                 CORE_ID
+        //             );
+        //             console.log("resp:", resp);
+        //             isComplete = await getIsTransferCompletedAlgorand(
+        //                 client,
+        //                 vaa,
+        //                 CORE_ID,
+        //                 tempAccts[0]
+        //             );
+        //             expect(isComplete).toBe(true);
+        //         } catch (e) {
+        //             console.error("Create and submit VAA error:", e);
+        //             done();
+        //             expect(false).toBe(true);
+        //         }
+        //         done();
+        //     })();
+        // });
+        test.only("Algorand attestation", (done) => {
             (async () => {
                 try {
                     console.log("Starting attestation...");
@@ -286,13 +293,35 @@ describe("Integration Tests", () => {
                     const assetIndex: number = await createAsset(wallet);
                     console.log("Newly created asset index =", assetIndex);
                     console.log("Testing attestFromAlgorand...");
-                    const txId: string = await attestFromAlgorand(
+                    const sn: BigInt = await attestFromAlgorand(
                         client,
                         wallet,
                         assetIndex
                     );
-                    console.log("TxId", txId);
-                    // await transferAsset(client, wallet, )
+                    console.log("sn", sn);
+
+                    // Now, try to send a NOP
+                    console.log("Start of NOP...");
+                    const suggParams: algosdk.SuggestedParams = await client
+                        .getTransactionParams()
+                        .do();
+                    console.log("NOP1");
+                    const nopTxn = makeApplicationCallTxnFromObject({
+                        from: wallet.addr,
+                        appIndex: TOKEN_BRIDGE_ID,
+                        onComplete: OnApplicationComplete.NoOpOC,
+                        appArgs: [textToUint8Array("nop")],
+                        suggestedParams: suggParams,
+                    });
+                    console.log("NOP2");
+                    const resp = await client
+                        .sendRawTransaction(nopTxn.signTxn(wallet.sk))
+                        .do();
+                    console.log("NOP3");
+                    const response = await waitForConfirmation(client, resp, 1);
+                    console.log("End of NOP");
+                    // End of NOP
+
                     console.log("Getting emitter address...");
                     const tbAddr: string =
                         getApplicationAddress(TOKEN_BRIDGE_ID);
@@ -307,27 +336,37 @@ describe("Integration Tests", () => {
                         aa,
                         "Algorand attestation test::emitterAddr"
                     );
-                    const { vaaBytes } = await getSignedVAAWithRetry(
-                        WORMHOLE_RPC_HOSTS,
-                        CHAIN_ID_ALGORAND,
+                    console.log(
+                        "getSignedVAAWithRetry starting with emitterAddr:",
                         emitterAddr,
-                        "1"
+                        ", sn:",
+                        sn.toString()
                     );
-                    console.log("vaaBytes", vaaBytes);
+                    let vaaBytes;
+                    try {
+                        vaaBytes = await getSignedVAAWithRetry(
+                            WORMHOLE_RPC_HOSTS,
+                            CHAIN_ID_ALGORAND,
+                            emitterAddr,
+                            sn.toString(),
+                            {},
+                            1000,
+                            10
+                        );
+                    } catch (e) {
+                        console.error("getSignedVAAWithRetry() error", e);
+                        expect(true).toBe(false);
+                    }
+                    // const { vaaBytes } = await getSignedVAA(
+                    //     WORMHOLE_RPC_HOSTS[0],
+                    //     CHAIN_ID_ALGORAND,
+                    //     emitterAddr,
+                    //     sn.toString()
+                    // { transport: NodeHttpTransport() }
+                    // );
+                    // console.log("vaaBytes", vaaBytes);
                 } catch (e) {
                     console.error("Algorand attestation error:", e);
-                    done();
-                    expect(false).toBe(true);
-                }
-                done();
-            })();
-        });
-        test("Algorand getVAA from guardian", (done) => {
-            (async () => {
-                try {
-                    console.log("Algorand getVAA from guardian starting...");
-                } catch (e) {
-                    console.error("Algorand getVAA error:", e);
                     done();
                     expect(false).toBe(true);
                 }

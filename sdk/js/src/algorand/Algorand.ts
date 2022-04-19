@@ -247,7 +247,7 @@ export async function attestFromAlgorand(
     client: Algodv2,
     senderAcct: Account,
     assetId: number
-): Promise<string> {
+): Promise<BigInt> {
     console.log("senderAcct:", senderAcct, "assetId:", assetId);
     const appIndex: number = 0; // appIndex is 0 for attestations
     const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
@@ -351,6 +351,7 @@ export async function attestFromAlgorand(
         appTxn.fee *= 2;
     }
     txns.push(appTxn);
+
     const resp: Buffer[] = await simpleSignVAA(client, senderAcct, txns);
     console.log("resp:", resp);
     let seq: bigint = BigInt(0);
@@ -361,7 +362,8 @@ export async function attestFromAlgorand(
     }
     console.log("attestFromAlgorand seq:", seq);
 
-    return txns[txns.length - 1].txID();
+    return seq;
+    // return txns[txns.length - 1].txID();
 }
 
 /**
@@ -1689,9 +1691,7 @@ export async function getIsTransferCompletedAlgorand(
         client,
         wallet,
         appId,
-        // index,
         Math.floor(Number(parsedVAA.get("sequence")) / MAX_BITS),
-        // em,
         chainRaw + em,
         "Getting seqAddr from getIsTransferCompletedAlgorand"
     );
