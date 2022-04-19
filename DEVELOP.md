@@ -4,7 +4,7 @@
 
 The following dependencies are required for local development:
 
-- [Go](https://golang.org/dl/) >= 1.17.5
+- [Go](https://golang.org/dl/) >= 1.18.1
 - [Tilt](http://tilt.dev/) >= 0.20.8
 - Any of the local Kubernetes clusters supported by Tilt.
   We strongly recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= 

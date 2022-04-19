@@ -19,7 +19,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/libp2p/go-libp2p"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/protocol"
@@ -69,7 +68,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
-		h, err := libp2p.New(ctx,
+		h, err := libp2p.New(
 			// Use the keypair we generated
 			libp2p.Identity(priv),
 
@@ -87,13 +86,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 			// Enable QUIC transport as the only transport.
 			libp2p.Transport(libp2pquic.NewTransport),
 
-			// Let's prevent our peer from having too many
-			// connections by attaching a connection manager.
-			libp2p.ConnectionManager(connmgr.NewConnManager(
-				100,         // Lowwater
-				400,         // HighWater,
-				time.Minute, // GracePeriod
-			)),
+			// TODO: reinstate libp2p.ConnectionManager
 
 			// Let this host use the DHT to find other hosts
 			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
