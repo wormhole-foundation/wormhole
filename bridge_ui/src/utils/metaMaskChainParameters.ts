@@ -75,19 +75,17 @@ export const METAMASK_CHAIN_PARAMETERS: {
   },
   686: {
     chainId: "0x2ae",
-    chainName: "Karura Network",
+    chainName: "Karura Testnet",
     nativeCurrency: { name: "Karura Token", symbol: "KAR", decimals: 18 },
-    // TODO: add rpcUrl
-    rpcUrls: [],
-    blockExplorerUrls: ["https://karura.subscan.io"],
+    rpcUrls: ["https://karura-dev.aca-dev.network/eth/http"],
+    blockExplorerUrls: ["https://blockscout.karura-dev.aca-dev.network"],
   },
   787: {
     chainId: "0x313",
-    chainName: "Acala Network",
+    chainName: "Acala Testnet",
     nativeCurrency: { name: "Acala Token", symbol: "ACA", decimals: 18 },
-    // TODO: add rpcUrl
-    rpcUrls: [],
-    blockExplorerUrls: ["https://acala.subscan.io"],
+    rpcUrls: ["https://acala-dev.aca-dev.network/eth/http"],
+    blockExplorerUrls: ["https://blockscout.acala-dev.aca-dev.network"],
   },
   4002: {
     chainId: "0xfa2",
