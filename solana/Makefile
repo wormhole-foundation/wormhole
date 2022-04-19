@@ -73,7 +73,7 @@ deploy/nft_bridge: nft_bridge-buffer-$(NETWORK).txt
 
 test:
 	@echo "Running integration tests"
-	DOCKER_BUILDKIT=1 docker build -f Dockerfile --target ci_tests .
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile --target ci_tests --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_devnet} .
 
 clean:
 	rm -rf artifacts-mainnet artifacts-testnet artifacts-devnet *-buffer-*.txt
