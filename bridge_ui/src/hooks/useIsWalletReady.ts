@@ -10,6 +10,7 @@ import { useCallback, useMemo } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { CLUSTER, getEvmChainId } from "../utils/consts";
+import { METAMASK_CHAIN_PARAMETERS } from "../utils/metaMaskChainParameters";
 
 const createWalletStatus = (
   isReady: boolean,
@@ -46,16 +47,31 @@ function useIsWalletReady(
   const correctEvmNetwork = getEvmChainId(chainId);
   const hasCorrectEvmNetwork = evmChainId === correctEvmNetwork;
 
-  const forceNetworkSwitch = useCallback(() => {
+  const forceNetworkSwitch = useCallback(async () => {
     if (provider && correctEvmNetwork) {
       if (!isEVMChain(chainId)) {
         return;
       }
       try {
-        provider.send("wallet_switchEthereumChain", [
+        await provider.send("wallet_switchEthereumChain", [
           { chainId: hexStripZeros(hexlify(correctEvmNetwork)) },
         ]);
-      } catch (e) {}
+      } catch (switchError: any) {
+        // This error code indicates that the chain has not been added to MetaMask.
+        if (switchError.code === 4902) {
+          const addChainParameter =
+            METAMASK_CHAIN_PARAMETERS[correctEvmNetwork];
+          if (addChainParameter !== undefined) {
+            try {
+              await provider.send("wallet_addEthereumChain", [
+                addChainParameter,
+              ]);
+            } catch (addError) {
+              console.error(addError);
+            }
+          }
+        }
+      }
     }
   }, [provider, correctEvmNetwork, chainId]);
 
