@@ -113,17 +113,6 @@ local_resource(
     trigger_mode = trigger_mode,
 )
 
-if algorand:
-    local_resource(
-        name = "teal-gen",
-        deps = ["staging/algorand/teal"],
-        cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
-        env = {"DOCKER_BUILDKIT": "1"},
-        labels = ["algorand"],
-        allow_parallel = True,
-        trigger_mode = trigger_mode,
-    )
-
 # wasm
 
 if solana:
@@ -432,27 +421,6 @@ if ci_tests:
         trigger_mode = trigger_mode,
     )
 
-# algorand
-if algorand:
-    k8s_yaml_with_ns("devnet/algorand.yaml")
-
-    docker_build(
-        ref = "algorand",
-        context = "third_party/algorand",
-        dockerfile = "third_party/algorand/Dockerfile",
-    )
-
-    k8s_resource(
-        "algorand",
-        resource_deps = ["teal-gen"],
-        port_forwards = [
-            port_forward(4001, name = "Algorand RPC [:4001]", host = webHost),
-            port_forward(4002, name = "Algorand KMD [:4002]", host = webHost),
-        ],
-        labels = ["algorand"],
-        trigger_mode = trigger_mode,
-    )
-
 # e2e
 if e2e:
     k8s_yaml_with_ns("devnet/e2e.yaml")
@@ -570,3 +538,36 @@ k8s_resource(
     labels = ["terra"],
     trigger_mode = trigger_mode,
 )
+
+if algorand:
+    k8s_yaml_with_ns("devnet/algorand-devnet.yaml")
+  
+    docker_build(
+        ref = "algorand-algod",
+        context = "algorand/sandbox-algorand",
+        dockerfile = "algorand/sandbox-algorand/images/algod/Dockerfile"
+    )
+
+    docker_build(
+        ref = "algorand-indexer",
+        context = "algorand/sandbox-algorand",
+        dockerfile = "algorand/sandbox-algorand/images/indexer/Dockerfile"
+    )
+
+    docker_build(
+        ref = "algorand-contracts",
+        context = "algorand",
+        dockerfile = "algorand/Dockerfile"
+    )
+
+    k8s_resource(
+        "algorand",
+        port_forwards = [
+            port_forward(4001, name = "Algod [:4001]", host = webHost),
+            port_forward(4002, name = "KMD [:4002]", host = webHost),
+            port_forward(8980, name = "Indexer [:8980]", host = webHost),
+        ],
+        labels = ["algorand"],
+        trigger_mode = trigger_mode,
+    )
+    

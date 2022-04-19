@@ -1,0 +1,88 @@
+#pragma version 6
+txn RekeyTo
+global ZeroAddress
+==
+assert
+txn Fee
+int 0
+==
+assert
+txn TypeEnum
+int appl
+==
+assert
+txna ApplicationArgs 1
+txna ApplicationArgs 3
+txna ApplicationArgs 2
+callsub sigcheck_0
+assert
+int 1
+return
+
+// sig_check
+sigcheck_0:
+store 2
+store 1
+store 0
+byte ""
+store 240
+byte ""
+store 241
+load 0
+len
+store 5
+int 0
+store 3
+int 0
+store 4
+sigcheck_0_l1:
+load 3
+load 5
+<
+bz sigcheck_0_l3
+load 1
+load 0
+load 3
+int 65
++
+int 1
+extract3
+btoi
+load 0
+load 3
+int 1
++
+int 32
+extract3
+load 0
+load 3
+int 33
++
+int 32
+extract3
+ecdsa_pk_recover Secp256k1
+store 241
+store 240
+load 2
+load 4
+int 20
+extract3
+load 240
+load 241
+concat
+keccak256
+extract 12 20
+==
+assert
+load 3
+int 66
++
+store 3
+load 4
+int 20
++
+store 4
+b sigcheck_0_l1
+sigcheck_0_l3:
+int 1
+retsub
