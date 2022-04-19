@@ -414,7 +414,7 @@ if ci_tests:
         name = "solana-tests",
         deps = ["solana"],
         dir = "solana",
-        cmd = "tilt docker build -- -f Dockerfile --target ci_tests .",
+        cmd = "tilt docker build -- -f Dockerfile --target ci_tests --build-arg BRIDGE_ADDRESS=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o .",
         env = {"DOCKER_BUILDKIT": "1"},
         labels = ["ci"],
         allow_parallel = True,
