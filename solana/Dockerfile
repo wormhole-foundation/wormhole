@@ -70,10 +70,23 @@ FROM solana AS ci_tests
 # This emitter address is necessary for the governance tests.
 ENV EMITTER_ADDRESS="CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr"
 
+ARG BRIDGE_ADDRESS
+RUN [ -n "${BRIDGE_ADDRESS}" ]
+
+# This is a pre-built contract.
+RUN --mount=type=cache,target=target,id=test \
+    mkdir -p target/deploy && \
+    cp modules/token_bridge/token-metadata/spl_token_metadata.so target/deploy/
+
 RUN --mount=type=cache,target=target,id=test \
     cargo test-bpf \
         --manifest-path bridge/program/Cargo.toml \
         --features trace,instructions
+
+RUN --mount=type=cache,target=target,id=test \
+    cargo test-bpf \
+    --manifest-path modules/token_bridge/program/Cargo.toml \
+    --features trace,instructions
 
 FROM scratch AS export-stage
 COPY --from=builder /opt/solana/deps /
