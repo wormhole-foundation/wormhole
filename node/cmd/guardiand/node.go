@@ -100,9 +100,9 @@ var (
 	terraLCD      *string
 	terraContract *string
 
-	algorandRPC      *string
-	algorandToken    *string
-	algorandContract *string
+	algorandIndexerRPC   *string
+	algorandIndexerToken *string
+	algorandAppID *uint64
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -189,9 +189,9 @@ func init() {
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 
-	algorandRPC = NodeCmd.Flags().String("algorandRPC", "", "Algorand RPC URL")
-	algorandToken = NodeCmd.Flags().String("algorandToken", "", "Algorand access token")
-	algorandContract = NodeCmd.Flags().String("algorandContract", "", "Algorand contract")
+	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL")
+	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
+	algorandAppID = NodeCmd.Flags().Uint64("algorandAppID", 0, "Algorand contract")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
@@ -302,9 +302,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	if *unsafeDevMode {
-		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
-	}
+	readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
@@ -491,19 +489,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
 	}
-
-	if *unsafeDevMode {
-		if *algorandRPC == "" {
-			logger.Fatal("Please specify --algorandRPC")
-		}
-		if *algorandToken == "" {
-			logger.Fatal("Please specify --algorandToken")
-		}
-		if *algorandContract == "" {
-			logger.Fatal("Please specify --algorandContract")
-		}
+	if *algorandIndexerRPC == "" {
+		logger.Fatal("Please specify --algorandIndexerRPC")
 	}
-
+	if *algorandAppID == 0 {
+		logger.Fatal("Please specify --algorandAppID")
+	}
 	if *bigTablePersistenceEnabled {
 		if *bigTableGCPProject == "" {
 			logger.Fatal("Please specify --bigTableGCPProject")
@@ -639,8 +630,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
+
 	if *testnetMode {
 		chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
@@ -818,11 +811,9 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		if *unsafeDevMode {
-			if err := supervisor.Run(ctx, "algorandwatch",
-				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandContract, lockC, setC).Run); err != nil {
-				return err
-			}
+		if err := supervisor.Run(ctx, "algorandwatch",
+			algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
+			return err
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
