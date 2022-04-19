@@ -9,12 +9,13 @@ crate-type = ["cdylib", "lib"]
 name = "token_bridge"
 
 [features]
-no-entrypoint = ["solitaire/no-entrypoint", "rand"]
+no-entrypoint = ["solitaire/no-entrypoint", "instructions", "rand"]
 trace = ["solitaire/trace"]
 wasm = ["no-entrypoint", "wasm-bindgen"]
 client = ["solitaire-client", "solitaire/client", "no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
+instructions = []
 
 [dependencies]
 wormhole-bridge-solana = { path = "../../../bridge/program", features = ["no-entrypoint", "cpi"] }
@@ -37,7 +38,8 @@ rand = { version = "0.7.3", optional = true }
 hex = "*"
 hex-literal = "0.3.1"
 libsecp256k1 = { version = "0.6.0", features = [] }
-solana-client = "=1.9.4"
+rand = "0.7.3"
+solana-program-test = "=1.9.4"
 solana-sdk = "=1.9.4"
 spl-token = { version = "=3.2.0", features = ["no-entrypoint"] }
 spl-token-metadata = { path = "../token-metadata" }
