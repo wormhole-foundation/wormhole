@@ -1,19 +1,48 @@
 #![allow(warnings)]
 
 use borsh::BorshSerialize;
+use bridge::{
+    accounts::{
+        Bridge,
+        FeeCollector,
+        GuardianSet,
+        GuardianSetDerivationData,
+        PostedVAA,
+        PostedVAADerivationData,
+        SignatureSet,
+    },
+    instruction,
+    types::{
+        GovernancePayloadGuardianSetChange,
+        GovernancePayloadSetMessageFee,
+        GovernancePayloadTransferFees,
+    },
+    BridgeConfig,
+    BridgeData,
+    GuardianSetData,
+    Initialize,
+    MessageData,
+    PostVAA,
+    PostVAAData,
+    PostedVAAData,
+    SequenceTracker,
+    SerializePayload,
+    Signature,
+    SignatureSet as SignatureSetData,
+};
 use byteorder::{
     BigEndian,
     WriteBytesExt,
 };
 use hex_literal::hex;
-use rand::Rng;
-use secp256k1::{
+use libsecp256k1::{
     Message as Secp256k1Message,
     PublicKey,
     SecretKey,
 };
+use primitive_types::U256;
+use rand::Rng;
 use sha3::Digest;
-use solana_client::rpc_client::RpcClient;
 use solana_program::{
     borsh::try_from_slice_unchecked,
     hash,
@@ -30,14 +59,19 @@ use solana_program::{
     system_program,
     sysvar,
 };
+use solana_program_test::{
+    tokio,
+    BanksClient,
+};
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
+    commitment_config::CommitmentLevel,
     signature::{
         read_keypair_file,
         Keypair,
         Signer,
     },
     transaction::Transaction,
+    transport::TransportError,
 };
 use solitaire::{
     processors::seeded::Seeded,
@@ -45,54 +79,22 @@ use solitaire::{
 };
 use spl_token::state::Mint;
 use std::{
+    collections::HashMap,
     convert::TryInto,
     io::{
         Cursor,
         Write,
     },
+    str::FromStr,
     time::{
         Duration,
         SystemTime,
+        UNIX_EPOCH,
     },
-};
-
-use bridge::{
-    accounts::{
-        Bridge,
-        FeeCollector,
-        GuardianSet,
-        GuardianSetDerivationData,
-        PostedVAA,
-        PostedVAADerivationData,
-        SignatureSet,
-    },
-    instruction,
-    types::{
-        BridgeConfig,
-        BridgeData,
-        GovernancePayloadGuardianSetChange,
-        GovernancePayloadSetMessageFee,
-        GovernancePayloadTransferFees,
-        GuardianSetData,
-        MessageData,
-        PostedVAAData,
-        SequenceTracker,
-        SignatureSet as SignatureSetData,
-    },
-    Initialize,
-    PostVAA,
-    PostVAAData,
-    SerializePayload,
-    Signature,
-};
-use primitive_types::U256;
-use std::{
-    collections::HashMap,
-    str::FromStr,
-    time::UNIX_EPOCH,
 };
 use token_bridge::{
     accounts::{
+        ConfigAccount,
         EmitterAccount,
         WrappedDerivationData,
         WrappedMint,
@@ -102,7 +104,10 @@ use token_bridge::{
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
     },
-    types::Address,
+    types::{
+        Address,
+        Config,
+    },
 };
 
 mod common;
@@ -115,11 +120,17 @@ const GOVERNANCE_KEY: [u8; 64] = [
 ];
 
 struct Context {
+    /// Guardian public keys.
+    guardians: Vec<[u8; 20]>,
+
+    /// Guardian secret keys.
+    guardian_keys: Vec<SecretKey>,
+
     /// Address of the core bridge contract.
     bridge: Pubkey,
 
     /// Shared RPC client for tests to make transactions with.
-    client: RpcClient,
+    client: BanksClient,
 
     /// Payer key with a ton of lamports to ease testing with.
     payer: Keypair,
@@ -159,13 +170,13 @@ impl Sequencer {
     }
 }
 
-#[test]
-fn run_integration_tests() {
-    let (payer, client, bridge, token_bridge) = common::setup();
+async fn set_up() -> Result<Context, TransportError> {
+    let (guardians, guardian_keys) = common::generate_keys(6);
+
+    let (mut client, payer, bridge, token_bridge) = common::setup().await;
 
     // Setup a Bridge to test against.
-    println!("Bridge: {}", bridge);
-    common::initialize_bridge(&client, &bridge, &payer);
+    common::initialize_bridge(&mut client, bridge, &payer, &guardians).await?;
 
     // Context for test environment.
     let mint = Keypair::new();
@@ -194,6 +205,8 @@ fn run_integration_tests() {
     );
 
     let mut context = Context {
+        guardians,
+        guardian_keys,
         seq: Sequencer {
             sequences: HashMap::new(),
         },
@@ -211,353 +224,58 @@ fn run_integration_tests() {
 
     // Create a mint for use within tests.
     common::create_mint(
-        &context.client,
+        &mut context.client,
         &context.payer,
         &context.mint_authority.pubkey(),
         &context.mint,
     )
-    .unwrap();
+    .await?;
 
     // Create Token accounts for use within tests.
     common::create_token_account(
-        &context.client,
+        &mut context.client,
         &context.payer,
         &context.token_account,
-        context.token_authority.pubkey(),
-        context.mint.pubkey(),
+        &context.token_authority.pubkey(),
+        &context.mint.pubkey(),
     )
-    .unwrap();
+    .await?;
 
     // Mint tokens
     common::mint_tokens(
-        &context.client,
+        &mut context.client,
         &context.payer,
         &context.mint_authority,
         &context.mint,
         &context.token_account.pubkey(),
         1000,
     )
-    .unwrap();
+    .await?;
 
-    // Initialize the bridge and verify the bridges state.
-    test_initialize(&mut context);
-    test_transfer_native(&mut context);
-    test_attest(&mut context);
-    test_register_chain(&mut context);
-    test_transfer_native_in(&mut context);
-
-    // Create an SPL Metadata account to test attestations for wrapped tokens.
-    common::create_spl_metadata(
-        &context.client,
+    // Initialize the token bridge.
+    common::initialize(
+        &mut context.client,
+        context.token_bridge,
         &context.payer,
-        &context.metadata_account,
-        &context.mint_authority,
-        &context.mint,
-        &context.payer.pubkey(),
-        "BTC".to_string(),
-        "Bitcoin".to_string(),
+        context.bridge,
     )
+    .await
     .unwrap();
 
-    let wrapped = test_create_wrapped(&mut context);
-    let wrapped_acc = Keypair::new();
-    common::create_token_account(
-        &context.client,
-        &context.payer,
-        &wrapped_acc,
-        context.token_authority.pubkey(),
-        wrapped,
-    )
-    .unwrap();
-    test_transfer_wrapped_in(&mut context, wrapped_acc.pubkey());
-    test_transfer_wrapped(&mut context, wrapped_acc.pubkey());
+    // Verify Token Bridge State
+    let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &token_bridge);
+    let config: Config = common::get_account_data(&mut context.client, config_key)
+        .await
+        .unwrap();
+    assert_eq!(config.wormhole_bridge, bridge);
+
+    Ok(context)
 }
 
-fn test_attest(context: &mut Context) -> () {
-    println!("Attest");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
-
+async fn create_wrapped(context: &mut Context) -> Pubkey {
     let Context {
         ref payer,
-        ref client,
-        ref bridge,
-        ref token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref metadata_account,
-        ..
-    } = context;
-
-    let message = &Keypair::new();
-
-    common::attest(
-        client,
-        token_bridge,
-        bridge,
-        payer,
-        message,
-        mint.pubkey(),
-        0,
-    )
-    .unwrap();
-
-    let emitter_key = EmitterAccount::key(None, &token_bridge);
-    let mint_data = Mint::unpack(
-        &client
-            .get_account_with_commitment(&mint.pubkey(), CommitmentConfig::processed())
-            .unwrap()
-            .value
-            .unwrap()
-            .data,
-    )
-    .unwrap();
-    let payload = PayloadAssetMeta {
-        token_address: mint.pubkey().to_bytes(),
-        token_chain: 1,
-        decimals: mint_data.decimals,
-        symbol: "USD".to_string(),
-        name: "Bitcoin".to_string(),
-    };
-    let payload = payload.try_to_vec().unwrap();
-}
-
-fn test_transfer_native(context: &mut Context) -> () {
-    println!("Transfer Native");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
-
-    let Context {
-        ref payer,
-        ref client,
-        ref bridge,
-        ref token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_account,
-        ref token_authority,
-        ..
-    } = context;
-
-    let message = &Keypair::new();
-
-    common::transfer_native(
-        client,
-        token_bridge,
-        bridge,
-        payer,
-        message,
-        token_account,
-        token_authority,
-        mint.pubkey(),
-        100,
-    )
-    .unwrap();
-}
-
-fn test_transfer_wrapped(context: &mut Context, token_account: Pubkey) -> () {
-    println!("TransferWrapped");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
-
-    let Context {
-        ref payer,
-        ref client,
-        ref bridge,
-        ref token_bridge,
-        ref mint_authority,
-        ref token_authority,
-        ..
-    } = context;
-
-    let message = &Keypair::new();
-
-    common::transfer_wrapped(
-        client,
-        token_bridge,
-        bridge,
-        payer,
-        message,
-        token_account,
-        token_authority,
-        2,
-        [1u8; 32],
-        10000000,
-    )
-    .unwrap();
-}
-
-fn test_register_chain(context: &mut Context) -> () {
-    println!("Register Chain");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
-
-    let Context {
-        ref payer,
-        ref client,
-        ref bridge,
-        ref token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_account,
-        ref token_authority,
-        ..
-    } = context;
-
-    let nonce = rand::thread_rng().gen();
-    let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
-    let payload = PayloadGovernanceRegisterChain {
-        chain: 2,
-        endpoint_address: [0u8; 32],
-    };
-    let message = payload.try_to_vec().unwrap();
-
-    let (vaa, _, _) = common::generate_vaa(emitter.pubkey().to_bytes(), 1, message, nonce, 0);
-    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
-
-    let mut msg_derivation_data = &PostedVAADerivationData {
-        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
-    };
-    let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
-
-    common::register_chain(
-        client,
-        token_bridge,
-        bridge,
-        &message_key,
-        vaa,
-        payload,
-        payer,
-    )
-    .unwrap();
-}
-
-fn test_transfer_native_in(context: &mut Context) -> () {
-    println!("TransferNativeIn");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
-
-    let Context {
-        ref payer,
-        ref client,
-        ref bridge,
-        ref token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_account,
-        ref token_authority,
-        ..
-    } = context;
-
-    let nonce = rand::thread_rng().gen();
-
-    let payload = PayloadTransfer {
-        amount: U256::from(100),
-        token_address: mint.pubkey().to_bytes(),
-        token_chain: 1,
-        to: token_account.pubkey().to_bytes(),
-        to_chain: 1,
-        fee: U256::from(0),
-    };
-    let message = payload.try_to_vec().unwrap();
-
-    let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 1);
-    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
-    let mut msg_derivation_data = &PostedVAADerivationData {
-        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
-    };
-    let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
-
-    common::complete_native(
-        client,
-        token_bridge,
-        bridge,
-        &message_key,
-        vaa,
-        payload,
-        payer,
-    )
-    .unwrap();
-}
-
-fn test_transfer_wrapped_in(context: &mut Context, to: Pubkey) -> () {
-    println!("TransferWrappedIn");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
-
-    let Context {
-        ref payer,
-        ref client,
-        ref bridge,
-        ref token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_account,
-        ref token_authority,
-        ..
-    } = context;
-
-    let nonce = rand::thread_rng().gen();
-
-    let payload = PayloadTransfer {
-        amount: U256::from(100000000),
-        token_address: [1u8; 32],
-        token_chain: 2,
-        to: to.to_bytes(),
-        to_chain: 1,
-        fee: U256::from(0),
-    };
-    let message = payload.try_to_vec().unwrap();
-
-    let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, rand::thread_rng().gen());
-    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
-    let mut msg_derivation_data = &PostedVAADerivationData {
-        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
-    };
-    let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
-
-    common::complete_transfer_wrapped(
-        client,
-        token_bridge,
-        bridge,
-        &message_key,
-        vaa,
-        payload,
-        payer,
-    )
-    .unwrap();
-}
-
-fn test_create_wrapped(context: &mut Context) -> (Pubkey) {
-    println!("CreateWrapped");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
-
-    let Context {
-        ref payer,
-        ref client,
+        ref mut client,
         ref bridge,
         ref token_bridge,
         ref mint_authority,
@@ -579,53 +297,339 @@ fn test_create_wrapped(context: &mut Context) -> (Pubkey) {
     };
     let message = payload.try_to_vec().unwrap();
 
-    let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 2);
-    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    let (vaa, body, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 2);
+    let signature_set =
+        common::verify_signatures(client, bridge, payer, body, &context.guardian_keys, 0)
+            .await
+            .unwrap();
+    common::post_vaa(client, *bridge, payer, signature_set, vaa.clone())
+        .await
+        .unwrap();
     let mut msg_derivation_data = &PostedVAADerivationData {
-        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+        payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, bridge);
 
     common::create_wrapped(
         client,
-        token_bridge,
-        bridge,
-        &message_key,
+        *token_bridge,
+        *bridge,
+        message_key,
         vaa,
         payload,
         payer,
     )
+    .await
     .unwrap();
 
-    return WrappedMint::<'_, { AccountState::Initialized }>::key(
+    WrappedMint::<'_, { AccountState::Initialized }>::key(
         &WrappedDerivationData {
             token_chain: 2,
             token_address: [1u8; 32],
         },
-        token_bridge,
-    );
+        &token_bridge,
+    )
 }
 
-fn test_initialize(context: &mut Context) {
-    println!("Initialize");
-    use token_bridge::{
-        accounts::ConfigAccount,
-        types::Config,
-    };
+// Create an SPL Metadata account to test attestations for wrapped tokens.
+async fn create_wrapped_account(context: &mut Context) -> Result<Pubkey, TransportError> {
+    common::create_spl_metadata(
+        &mut context.client,
+        &context.payer,
+        context.metadata_account,
+        &context.mint_authority,
+        &context.mint,
+        context.payer.pubkey(),
+        "BTC".to_string(),
+        "Bitcoin".to_string(),
+    )
+    .await?;
 
+    let wrapped = create_wrapped(context).await;
+    let wrapped_acc = Keypair::new();
+    common::create_token_account(
+        &mut context.client,
+        &context.payer,
+        &wrapped_acc,
+        &context.token_authority.pubkey(),
+        &wrapped,
+    )
+    .await?;
+
+    Ok(wrapped_acc.pubkey())
+}
+
+#[tokio::test]
+async fn attest() {
     let Context {
         ref payer,
-        ref client,
+        ref mut client,
+        bridge,
+        token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref metadata_account,
+        ..
+    } = set_up().await.unwrap();
+
+    let message = &Keypair::new();
+
+    common::attest(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        message,
+        mint.pubkey(),
+        0,
+    )
+    .await
+    .unwrap();
+
+    let emitter_key = EmitterAccount::key(None, &token_bridge);
+    let account = client
+        .get_account_with_commitment(mint.pubkey(), CommitmentLevel::Processed)
+        .await
+        .unwrap()
+        .unwrap();
+    let mint_data = Mint::unpack(&account.data).unwrap();
+    let payload = PayloadAssetMeta {
+        token_address: mint.pubkey().to_bytes(),
+        token_chain: 1,
+        decimals: mint_data.decimals,
+        symbol: "USD".to_string(),
+        name: "Bitcoin".to_string(),
+    };
+    let payload = payload.try_to_vec().unwrap();
+}
+
+#[tokio::test]
+async fn transfer_native() {
+    let Context {
+        ref payer,
+        ref mut client,
+        bridge,
+        token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref token_account,
+        ref token_authority,
+        ..
+    } = set_up().await.unwrap();
+
+    let message = &Keypair::new();
+
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        message,
+        token_account,
+        token_authority,
+        mint.pubkey(),
+        100,
+    )
+    .await
+    .unwrap();
+}
+
+async fn register_chain(context: &mut Context) {
+    let Context {
+        ref payer,
+        ref mut client,
         ref bridge,
         ref token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref token_authority,
+        ref guardian_keys,
         ..
     } = context;
 
-    common::initialize(client, token_bridge, payer, &bridge).unwrap();
+    let nonce = rand::thread_rng().gen();
+    let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
+    let payload = PayloadGovernanceRegisterChain {
+        chain: 2,
+        endpoint_address: [0u8; 32],
+    };
+    let message = payload.try_to_vec().unwrap();
 
-    // Verify Token Bridge State
-    let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &token_bridge);
-    let config: Config = common::get_account_data(client, &config_key).unwrap();
-    assert_eq!(config.wormhole_bridge, *bridge);
+    let (vaa, body, _) = common::generate_vaa(emitter.pubkey().to_bytes(), 1, message, nonce, 0);
+    let signature_set = common::verify_signatures(client, &bridge, payer, body, guardian_keys, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, *bridge, payer, signature_set, vaa.clone())
+        .await
+        .unwrap();
+
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: body.to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, bridge);
+
+    common::register_chain(
+        client,
+        *token_bridge,
+        *bridge,
+        message_key,
+        vaa,
+        payload,
+        payer,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn transfer_native_in() {
+    let mut context = set_up().await.unwrap();
+    register_chain(&mut context).await;
+    let Context {
+        ref payer,
+        ref mut client,
+        bridge,
+        token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref token_account,
+        ref token_authority,
+        ref guardian_keys,
+        ..
+    } = context;
+
+    // Do an initial transfer so that the bridge account has some native tokens. This also creates
+    // the custody account.
+    let message = &Keypair::new();
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        message,
+        token_account,
+        token_authority,
+        mint.pubkey(),
+        100,
+    )
+    .await
+    .unwrap();
+
+    let nonce = rand::thread_rng().gen();
+
+    let payload = PayloadTransfer {
+        amount: U256::from(100u128),
+        token_address: mint.pubkey().to_bytes(),
+        token_chain: 1,
+        to: token_account.pubkey().to_bytes(),
+        to_chain: 1,
+        fee: U256::from(0u128),
+    };
+    let message = payload.try_to_vec().unwrap();
+
+    let (vaa, body, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 1);
+    let signature_set = common::verify_signatures(client, &bridge, payer, body, guardian_keys, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, bridge, payer, signature_set, vaa.clone())
+        .await
+        .unwrap();
+    let msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: body.to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+
+    common::complete_native(
+        client,
+        token_bridge,
+        bridge,
+        message_key,
+        vaa,
+        payload,
+        payer,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn transfer_wrapped() {
+    let mut context = set_up().await.unwrap();
+    register_chain(&mut context).await;
+    let to = create_wrapped_account(&mut context).await.unwrap();
+    let Context {
+        ref payer,
+        ref mut client,
+        bridge,
+        token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref token_account,
+        ref token_authority,
+        ref guardian_keys,
+        ..
+    } = context;
+
+    let nonce = rand::thread_rng().gen();
+
+    let payload = PayloadTransfer {
+        amount: U256::from(100000000),
+        token_address: [1u8; 32],
+        token_chain: 2,
+        to: to.to_bytes(),
+        to_chain: 1,
+        fee: U256::from(0),
+    };
+    let message = payload.try_to_vec().unwrap();
+
+    let (vaa, body, _) =
+        common::generate_vaa([0u8; 32], 2, message, nonce, rand::thread_rng().gen());
+    let signature_set = common::verify_signatures(client, &bridge, payer, body, guardian_keys, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, bridge, payer, signature_set, vaa.clone())
+        .await
+        .unwrap();
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: body.to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+
+    common::complete_transfer_wrapped(
+        client,
+        token_bridge,
+        bridge,
+        message_key,
+        vaa,
+        payload,
+        payer,
+    )
+    .await
+    .unwrap();
+
+    // Now transfer the wrapped tokens back, which will burn them.
+    let message = &Keypair::new();
+    common::transfer_wrapped(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        message,
+        to,
+        token_authority,
+        2,
+        [1u8; 32],
+        10000000,
+    )
+    .await
+    .unwrap();
 }
