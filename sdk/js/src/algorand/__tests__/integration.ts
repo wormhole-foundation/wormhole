@@ -318,7 +318,7 @@ describe("Integration Tests", () => {
                         .sendRawTransaction(nopTxn.signTxn(wallet.sk))
                         .do();
                     console.log("NOP3");
-                    const response = await waitForConfirmation(client, resp, 1);
+                    // const response = await waitForConfirmation(client, resp, 1);
                     console.log("End of NOP");
                     // End of NOP
 
