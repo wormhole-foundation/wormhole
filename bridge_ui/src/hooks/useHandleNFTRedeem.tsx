@@ -5,7 +5,6 @@ import {
   hexToUint8Array,
   isEVMChain,
   parseNFTPayload,
-  postVaaSolanaWithRetry,
 } from "@certusone/wormhole-sdk";
 import {
   createMetaOnSolana,
@@ -35,6 +34,7 @@ import {
 } from "../utils/consts";
 import { getMetadataAddress } from "../utils/metaplex";
 import parseError from "../utils/parseError";
+import { postVaaWithRetry } from "../utils/postVaa";
 import { signSendAndConfirm } from "../utils/solana";
 import useNFTSignedVAA from "./useNFTSignedVAA";
 
@@ -86,7 +86,7 @@ async function solana(
     const claimInfo = await connection.getAccountInfo(claimAddress);
     let txid;
     if (!claimInfo) {
-      await postVaaSolanaWithRetry(
+      await postVaaWithRetry(
         connection,
         wallet.signTransaction,
         SOL_BRIDGE_ADDRESS,

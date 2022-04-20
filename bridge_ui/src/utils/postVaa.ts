@@ -1,3 +1,5 @@
+import { chunks, importCoreWasm, ixFromRust } from "@certusone/wormhole-sdk";
+import { sendAndConfirmTransactionsWithRetry } from "@certusone/wormhole-sdk/lib/esm/utils/solana";
 import {
   Connection,
   Keypair,
@@ -5,10 +7,6 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { chunks } from "..";
-import { sendAndConfirmTransactionsWithRetry } from "../utils/solana";
-import { ixFromRust } from "./rust";
-import { importCoreWasm } from "./wasm";
 
 export async function postVaaWithRetry(
   connection: Connection,
@@ -80,9 +78,9 @@ export async function postVaaWithRetry(
 }
 
 /*
-This returns an array of instructions required to verify the signatures of a VAA, and upload it to the blockchain.
-signature_set should be a new keypair, and also needs to partial sign the transaction when these instructions are submitted.
-*/
+  This returns an array of instructions required to verify the signatures of a VAA, and upload it to the blockchain.
+  signature_set should be a new keypair, and also needs to partial sign the transaction when these instructions are submitted.
+  */
 export async function createVerifySignaturesInstructions(
   connection: Connection,
   bridge_id: string,
@@ -126,10 +124,10 @@ export async function createVerifySignaturesInstructions(
 }
 
 /*
-This will return the postVaaInstruction. This should only be executed after the verifySignaturesInstructions have been executed.
-signatureSetKeypair should be the same keypair used for verifySignaturesInstructions, but does not need to partialSign the transaction
-when this instruction is submitted.
-*/
+  This will return the postVaaInstruction. This should only be executed after the verifySignaturesInstructions have been executed.
+  signatureSetKeypair should be the same keypair used for verifySignaturesInstructions, but does not need to partialSign the transaction
+  when this instruction is submitted.
+  */
 export async function createPostVaaInstruction(
   bridge_id: string,
   payer: string,
@@ -143,11 +141,11 @@ export async function createPostVaaInstruction(
 }
 
 /*
-  @deprecated
-  Instead, either use postVaaWithRetry or create, sign, and send the verifySignaturesInstructions & postVaaInstruction yourself.
-  
-  This function is equivalent to a postVaaWithRetry with a maxRetries of 0.
-*/
+    @deprecated
+    Instead, either use postVaaWithRetry or create, sign, and send the verifySignaturesInstructions & postVaaInstruction yourself.
+    
+    This function is equivalent to a postVaaWithRetry with a maxRetries of 0.
+  */
 export async function postVaa(
   connection: Connection,
   signTransaction: (transaction: Transaction) => Promise<Transaction>,
