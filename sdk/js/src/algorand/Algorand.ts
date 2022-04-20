@@ -262,15 +262,15 @@ export async function attestFromAlgorand(
         aa,
         "attestFromAlgorand::emitterAddr"
     );
-    console.log("Got emitter address...");
+    console.log("Got emitter address...", emitterAddr);
     const acctInfo = await client.accountInformation(senderAcct.addr).do();
     console.log("Got sender account info...", acctInfo);
     const assetKey: string = "index: " + assetId.toString();
-    console.log(
-        assetKey,
-        "assetKey value:",
-        acctInfo["created-assets"][assetKey]
-    );
+    // console.log(
+    //     assetKey,
+    //     "assetKey value:",
+    //     acctInfo["created-assets"][assetKey]
+    // );
     const createdAssets = acctInfo["created-assets"];
     console.log("createdAssets:", createdAssets);
     class ca {
@@ -289,7 +289,7 @@ export async function attestFromAlgorand(
     });
     console.log("creatorAddr:", creatorAddr);
     const creatorAcctInfo = await client.accountInformation(creatorAddr).do();
-    console.log("Got creator account info...");
+    // console.log("Got creator account info...");
     const bPgmName: Uint8Array = textToUint8Array("attestToken");
     const wormhole: boolean = creatorAcctInfo["auth-addr"] === tbAddr;
     if (!wormhole) {
@@ -320,6 +320,7 @@ export async function attestFromAlgorand(
 
     const mfee = await getMessageFee(client);
     if (mfee > 0) {
+        console.log("Need to add payment txn...");
         const feeTxn = makePaymentTxnWithSuggestedParamsFromObject({
             from: senderAcct.addr,
             suggestedParams: suggParams,
@@ -439,32 +440,32 @@ export async function optin(
     const sigAddr: string = lsa.address();
 
     // Check to see if we need to create this
-    console.log(
-        "Checking to see if account exists...",
-        appIndex,
-        "-",
-        emitterId
-    );
+    // console.log(
+    //     "Checking to see if account exists...",
+    //     appIndex,
+    //     "-",
+    //     emitterId
+    // );
     const retval: boolean = await accountExists(client, appId, sigAddr);
     if (!retval) {
-        console.log("Account does not exist.");
+        // console.log("Account does not exist.");
         // These are the suggested params from the system
-        console.log("Getting parms...");
+        // console.log("Getting parms...");
         const params = await client.getTransactionParams().do();
-        console.log("Creating payment txn...");
+        // console.log("Creating payment txn...");
         const seedTxn = makePaymentTxnWithSuggestedParamsFromObject({
             from: sender.addr,
             to: sigAddr,
             amount: SEED_AMT,
             suggestedParams: params,
         });
-        console.log("Creating optin txn...");
+        // console.log("Creating optin txn...");
         const optinTxn = makeApplicationOptInTxnFromObject({
             from: sigAddr,
             suggestedParams: params,
             appIndex: appId,
         });
-        console.log("Creating rekey txn...");
+        // console.log("Creating rekey txn...");
         const rekeyTxn = makePaymentTxnWithSuggestedParamsFromObject({
             from: sigAddr,
             to: sigAddr,
@@ -473,25 +474,25 @@ export async function optin(
             rekeyTo: appAddr,
         });
 
-        console.log("Assigning group ID...");
+        // console.log("Assigning group ID...");
         let txns = [seedTxn, optinTxn, rekeyTxn];
         assignGroupID(txns);
 
-        console.log("Signing seed for optin...");
+        // console.log("Signing seed for optin...");
         const signedSeedTxn = seedTxn.signTxn(sender.sk);
-        console.log("Signing optin for optin...");
+        // console.log("Signing optin for optin...");
         const signedOptinTxn = signLogicSigTransaction(optinTxn, lsa);
-        console.log("Signing rekey for optin...");
+        // console.log("Signing rekey for optin...");
         const signedRekeyTxn = signLogicSigTransaction(rekeyTxn, lsa);
 
-        console.log(
-            "Sending txns for optin...",
-            appIndex,
-            "-",
-            emitterId,
-            "-",
-            sigAddr
-        );
+        // console.log(
+        //     "Sending txns for optin...",
+        //     appIndex,
+        //     "-",
+        //     emitterId,
+        //     "-",
+        //     sigAddr
+        // );
         const txnId = await client
             .sendRawTransaction([
                 signedSeedTxn,
@@ -500,12 +501,12 @@ export async function optin(
             ])
             .do();
 
-        console.log(
-            "Awaiting confirmation for optin...",
-            appIndex,
-            "-",
-            emitterId
-        );
+        // console.log(
+        //     "Awaiting confirmation for optin...",
+        //     appIndex,
+        //     "-",
+        //     emitterId
+        // );
         const confirmedTxns = await algosdk.waitForConfirmation(
             client,
             txns[txns.length - 1].txID(),
@@ -978,14 +979,14 @@ export async function simpleSignVAA(
     console.log("sendRawTransaction", signedTxns);
     const resp = await client.sendRawTransaction(signedTxns).do();
 
-    console.log("waiting for confirmation", txns[txns.length - 1].txID());
-    let ret: Buffer[] = [];
-    console.log("waitForConfirmation on", txns.length, "transactions...");
+    // console.log("waiting for confirmation", txns[txns.length - 1].txID());
     // const response = await waitForConfirmation(
     //     client,
     //     txns[txns.length - 1].txID(),
     //     1
     // );
+    let ret: Buffer[] = [];
+    console.log("waitForConfirmation on", txns.length, "transactions...");
     let response: Record<string, any>;
     for (let i: number = 0; i < txns.length; i++) {
         response = await waitForConfirmation(client, txns[i].txID(), 1);

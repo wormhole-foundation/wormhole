@@ -7,7 +7,12 @@ import {
 } from "../TmplSig";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
 import { setDefaultWasm } from "../../solana/wasm";
-import { WORMHOLE_RPC_HOSTS } from "../../token_bridge/__tests__/consts";
+import {
+    ETH_NODE_URL,
+    ETH_PRIVATE_KEY,
+    ETH_TOKEN_BRIDGE_ADDRESS,
+    WORMHOLE_RPC_HOSTS,
+} from "../../token_bridge/__tests__/consts";
 import algosdk, {
     Account,
     Algodv2,
@@ -39,6 +44,8 @@ import { TestLib } from "../testlib";
 import { CHAIN_ID_ALGORAND } from "../../utils";
 import { getSignedVAA } from "../../rpc";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
+import { ethers } from "ethers";
+import { createWrappedOnEth, updateWrappedOnEth } from "../../token_bridge";
 
 setDefaultWasm("node");
 
@@ -317,9 +324,13 @@ describe("Integration Tests", () => {
                     const resp = await client
                         .sendRawTransaction(nopTxn.signTxn(wallet.sk))
                         .do();
-                    console.log("resp", resp)
+                    console.log("resp", resp);
                     console.log("NOP3");
-                    const response = await waitForConfirmation(client, resp.txId, 1);
+                    const response = await waitForConfirmation(
+                        client,
+                        resp.txId,
+                        1
+                    );
                     console.log("End of NOP");
                     // End of NOP
 
@@ -347,27 +358,38 @@ describe("Integration Tests", () => {
                         ", sn:",
                         sn.toString()
                     );
-                    let vaaBytes;
+                    const { vaaBytes } = await getSignedVAAWithRetry(
+                        WORMHOLE_RPC_HOSTS,
+                        CHAIN_ID_ALGORAND,
+                        aa,
+                        sn.toString(),
+                        { transport: NodeHttpTransport() }
+                    );
+                    const provider = new ethers.providers.WebSocketProvider(
+                        ETH_NODE_URL
+                    ) as any;
+                    const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+                    let success: boolean = true;
                     try {
-                        vaaBytes = await getSignedVAAWithRetry(
-                            WORMHOLE_RPC_HOSTS,
-                            CHAIN_ID_ALGORAND,
-                            aa,
-                            sn.toString(),
-                            {transport: NodeHttpTransport()},
+                        const cr = await createWrappedOnEth(
+                            ETH_TOKEN_BRIDGE_ADDRESS,
+                            signer,
+                            vaaBytes
                         );
                     } catch (e) {
-                        console.error("getSignedVAAWithRetry() error", e);
-                        expect(true).toBe(false);
+                        console.log(
+                            "createWrappedOnEth() failed.  Trying updateWrappedOnEth()..."
+                        );
+                        success = false;
                     }
-                    // const { vaaBytes } = await getSignedVAA(
-                    //     WORMHOLE_RPC_HOSTS[0],
-                    //     CHAIN_ID_ALGORAND,
-                    //     emitterAddr,
-                    //     sn.toString()
-                    // { transport: NodeHttpTransport() }
-                    // );
-                    // console.log("vaaBytes", vaaBytes);
+                    if (!success) {
+                        const cr = await updateWrappedOnEth(
+                            ETH_TOKEN_BRIDGE_ADDRESS,
+                            signer,
+                            vaaBytes
+                        );
+                        success = true;
+                    }
                 } catch (e) {
                     console.error("Algorand attestation error:", e);
                     done();
