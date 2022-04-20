@@ -1,37 +1,33 @@
-static WASM: &[u8] =
-    include_bytes!("../../../target/wasm32-unknown-unknown/release/cw20_wrapped.wasm");
-
 use cosmwasm_std::{
     from_slice,
-    Binary,
-    Env,
-    HandleResponse,
-    HandleResult,
-    HumanAddr,
-    InitResponse,
-    Uint128,
-};
-use cosmwasm_storage::to_length_prefixed;
-use cosmwasm_vm::{
     testing::{
-        handle,
-        init,
+        mock_dependencies,
         mock_env,
-        mock_instance,
-        query,
+        mock_info,
         MockApi,
         MockQuerier,
         MockStorage,
     },
+    Addr,
     Api,
-    Instance,
+    OwnedDeps,
+    Response,
     Storage,
+    Uint128,
 };
+use cosmwasm_storage::to_length_prefixed;
+use cw20::TokenInfoResponse;
 use cw20_wrapped::{
+    contract::{
+        execute,
+        instantiate,
+        query,
+    },
     msg::{
-        HandleMsg,
-        InitMsg,
+        ExecuteMsg,
+        InstantiateMsg,
         QueryMsg,
+        WrappedAssetInfoResponse,
     },
     state::{
         WrappedAssetInfo,
@@ -40,109 +36,88 @@ use cw20_wrapped::{
     ContractError,
 };
 
-enum TestAddress {
-    INITIALIZER,
-    RECIPIENT,
-    SENDER,
-}
-
-impl TestAddress {
-    fn value(&self) -> HumanAddr {
-        match self {
-            TestAddress::INITIALIZER => HumanAddr::from("addr0000"),
-            TestAddress::RECIPIENT => HumanAddr::from("addr2222"),
-            TestAddress::SENDER => HumanAddr::from("addr3333"),
-        }
-    }
-}
-
-fn mock_env_height(signer: &HumanAddr, height: u64, time: u64) -> Env {
-    let mut env = mock_env(signer, &[]);
-    env.block.height = height;
-    env.block.time = time;
-    env
-}
+static INITIALIZER: &str = "addr0000";
+static RECIPIENT: &str = "addr2222";
+static SENDER: &str = "addr3333";
 
 fn get_wrapped_asset_info<S: Storage>(storage: &S) -> WrappedAssetInfo {
     let key = to_length_prefixed(KEY_WRAPPED_ASSET);
     let data = storage
         .get(&key)
-        .0
-        .expect("error getting data")
         .expect("data should exist");
     from_slice(&data).expect("invalid data")
 }
 
-fn do_init(height: u64) -> Instance<MockStorage, MockApi, MockQuerier> {
-    let mut deps = mock_instance(WASM, &[]);
-    let init_msg = InitMsg {
+fn do_init() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
+    let mut deps = mock_dependencies(&[]);
+    let init_msg = InstantiateMsg {
+        name: "Integers".into(),
+        symbol: "INT".into(),
         asset_chain: 1,
         asset_address: vec![1; 32].into(),
         decimals: 10,
         mint: None,
         init_hook: None,
     };
-    let env = mock_env_height(&TestAddress::INITIALIZER.value(), height, 0);
-    let res: InitResponse = init(&mut deps, env, init_msg).unwrap();
+    let env = mock_env();
+    let info = mock_info(INITIALIZER, &[]);
+    let res: Response = instantiate(deps.as_mut(), env, info, init_msg).unwrap();
     assert_eq!(0, res.messages.len());
 
     // query the store directly
-    let api = deps.api;
-    deps.with_storage(|storage| {
-        assert_eq!(
-            get_wrapped_asset_info(storage),
-            WrappedAssetInfo {
-                asset_chain: 1,
-                asset_address: vec![1; 32].into(),
-                bridge: api.canonical_address(&TestAddress::INITIALIZER.value()).0?,
-            }
-        );
-        Ok(())
-    })
-    .unwrap();
+    let bridge = deps.api.addr_canonicalize(INITIALIZER).unwrap();
+    assert_eq!(
+        get_wrapped_asset_info(&deps.storage),
+        WrappedAssetInfo {
+            asset_chain: 1,
+            asset_address: vec![1; 32].into(),
+            bridge,
+        }
+    );
+
     deps
 }
 
 fn do_mint(
-    deps: &mut Instance<MockStorage, MockApi, MockQuerier>,
-    height: u64,
-    recipient: &HumanAddr,
+    deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
+    recipient: &Addr,
     amount: &Uint128,
 ) {
-    let mint_msg = HandleMsg::Mint {
-        recipient: recipient.clone(),
+    let mint_msg = ExecuteMsg::Mint {
+        recipient: recipient.to_string(),
         amount: amount.clone(),
     };
-    let env = mock_env_height(&TestAddress::INITIALIZER.value(), height, 0);
-    let handle_response: HandleResponse = handle(deps, env, mint_msg).unwrap();
+    let info = mock_info(INITIALIZER, &[]);
+    let handle_response: Response = execute(deps.as_mut(), mock_env(), info, mint_msg).unwrap();
     assert_eq!(0, handle_response.messages.len());
 }
 
 fn do_transfer(
-    deps: &mut Instance<MockStorage, MockApi, MockQuerier>,
-    height: u64,
-    sender: &HumanAddr,
-    recipient: &HumanAddr,
+    deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
+    sender: &Addr,
+    recipient: &Addr,
     amount: &Uint128,
 ) {
-    let transfer_msg = HandleMsg::Transfer {
-        recipient: recipient.clone(),
+    let transfer_msg = ExecuteMsg::Transfer {
+        recipient: recipient.to_string(),
         amount: amount.clone(),
     };
-    let env = mock_env_height(sender, height, 0);
-    let handle_response: HandleResponse = handle(deps, env, transfer_msg).unwrap();
+    let env = mock_env();
+    let info = mock_info(sender.as_str(), &[]);
+    let handle_response: Response = execute(deps.as_mut(), env, info, transfer_msg).unwrap();
     assert_eq!(0, handle_response.messages.len());
 }
 
 fn check_balance(
-    deps: &mut Instance<MockStorage, MockApi, MockQuerier>,
-    address: &HumanAddr,
+    deps: &OwnedDeps<MockStorage, MockApi, MockQuerier>,
+    address: &Addr,
     amount: &Uint128,
 ) {
     let query_response = query(
-        deps,
+        deps.as_ref(),
+        mock_env(),
         QueryMsg::Balance {
-            address: address.clone(),
+            address: address.to_string(),
         },
     )
     .unwrap();
@@ -152,74 +127,62 @@ fn check_balance(
     );
 }
 
-fn check_token_details(deps: &mut Instance<MockStorage, MockApi, MockQuerier>, supply: &Uint128) {
-    let query_response = query(deps, QueryMsg::TokenInfo {}).unwrap();
+fn check_token_details(deps: &OwnedDeps<MockStorage, MockApi, MockQuerier>, supply: Uint128) {
+    let query_response = query(deps.as_ref(), mock_env(), QueryMsg::TokenInfo {}).unwrap();
     assert_eq!(
-        query_response.as_slice(),
-        format!(
-            "{{\"name\":\"Wormhole Wrapped\",\
-        \"symbol\":\"WWT\",\
-        \"decimals\":10,\
-        \"total_supply\":\"{}\"}}",
-            supply.u128()
-        )
-        .as_bytes()
+        from_slice::<TokenInfoResponse>(query_response.as_slice()).unwrap(),
+        TokenInfoResponse {
+            name: "Integers (Wormhole)".into(),
+            symbol: "INT".into(),
+            decimals: 10,
+            total_supply: supply,
+        }
     );
 }
 
 #[test]
 fn init_works() {
-    let mut deps = do_init(111);
-    check_token_details(&mut deps, &Uint128(0));
+    let mut deps = do_init();
+    check_token_details(&mut deps, Uint128::new(0));
 }
 
 #[test]
 fn query_works() {
-    let mut deps = do_init(111);
+    let deps = do_init();
 
-    let query_response = query(&mut deps, QueryMsg::WrappedAssetInfo {}).unwrap();
+    let query_response = query(deps.as_ref(), mock_env(), QueryMsg::WrappedAssetInfo {}).unwrap();
     assert_eq!(
-        query_response.as_slice(),
-        format!(
-            "{{\"asset_chain\":1,\
-        \"asset_address\":\"{}\",\
-        \"bridge\":\"{}\"}}",
-            Binary::from(vec![1; 32]).to_base64(),
-            TestAddress::INITIALIZER.value().as_str()
-        )
-        .as_bytes()
+        from_slice::<WrappedAssetInfoResponse>(&query_response.as_slice()).unwrap(),
+        WrappedAssetInfoResponse {
+            asset_chain: 1,
+            asset_address: vec![1; 32].into(),
+            bridge: Addr::unchecked(INITIALIZER),
+        }
     );
 }
 
 #[test]
 fn mint_works() {
-    let mut deps = do_init(111);
+    let mut deps = do_init();
 
-    do_mint(
-        &mut deps,
-        112,
-        &TestAddress::RECIPIENT.value(),
-        &Uint128(123_123_123),
-    );
+    let recipient = Addr::unchecked(RECIPIENT);
+    do_mint(&mut deps, &recipient, &Uint128::new(123_123_123));
 
-    check_balance(
-        &mut deps,
-        &TestAddress::RECIPIENT.value(),
-        &Uint128(123_123_123),
-    );
-    check_token_details(&mut deps, &Uint128(123_123_123));
+    check_balance(&deps, &recipient, &Uint128::new(123_123_123));
+    check_token_details(&deps, Uint128::new(123_123_123));
 }
 
 #[test]
 fn others_cannot_mint() {
-    let mut deps = do_init(111);
+    let mut deps = do_init();
 
-    let mint_msg = HandleMsg::Mint {
-        recipient: TestAddress::RECIPIENT.value(),
-        amount: Uint128(123_123_123),
+    let mint_msg = ExecuteMsg::Mint {
+        recipient: RECIPIENT.into(),
+        amount: Uint128::new(123_123_123),
     };
-    let env = mock_env_height(&TestAddress::RECIPIENT.value(), 112, 0);
-    let handle_result: HandleResult<HandleResponse> = handle(&mut deps, env, mint_msg);
+    let env = mock_env();
+    let info = mock_info(RECIPIENT, &[]);
+    let handle_result = execute(deps.as_mut(), env, info, mint_msg);
     assert_eq!(
         format!("{}", handle_result.unwrap_err()),
         format!("{}", ContractError::Unauthorized {})
@@ -228,26 +191,13 @@ fn others_cannot_mint() {
 
 #[test]
 fn transfer_works() {
-    let mut deps = do_init(111);
+    let mut deps = do_init();
 
-    do_mint(
-        &mut deps,
-        112,
-        &TestAddress::SENDER.value(),
-        &Uint128(123_123_123),
-    );
-    do_transfer(
-        &mut deps,
-        113,
-        &TestAddress::SENDER.value(),
-        &TestAddress::RECIPIENT.value(),
-        &Uint128(123_123_000),
-    );
+    let sender = Addr::unchecked(SENDER);
+    let recipient = Addr::unchecked(RECIPIENT);
+    do_mint(&mut deps, &sender, &Uint128::new(123_123_123));
+    do_transfer(&mut deps, &sender, &recipient, &Uint128::new(123_123_000));
 
-    check_balance(&mut deps, &TestAddress::SENDER.value(), &Uint128(123));
-    check_balance(
-        &mut deps,
-        &TestAddress::RECIPIENT.value(),
-        &Uint128(123_123_000),
-    );
+    check_balance(&mut deps, &sender, &Uint128::new(123));
+    check_balance(&mut deps, &recipient, &Uint128::new(123_123_000));
 }

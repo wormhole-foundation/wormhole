@@ -10,15 +10,16 @@ func TestCreateGovernanceVAA(t *testing.T) {
 	var sequence uint64 = 1
 	var guardianSetIndex uint32 = 1
 	var payload = []byte{97, 97, 97, 97, 97, 97}
+	var timestamp = time.Unix(1000, 0)
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
-	got_vaa := CreateGovernanceVAA(nonce, sequence, guardianSetIndex, payload)
+	got_vaa := CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, payload)
 	
 	want_vaa := &VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
+		Timestamp:        timestamp,
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		ConsistencyLevel: uint8(32),

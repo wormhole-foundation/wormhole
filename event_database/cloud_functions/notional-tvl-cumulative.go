@@ -29,22 +29,6 @@ var tvlUpToYesterday = map[string]map[string]map[string]map[string]float64{}
 var muTvlUpToYesterday sync.RWMutex
 var tvlUpToYesterdayFilePath = "tvl-up-to-yesterday-cache.json"
 
-// token addresses blacklisted from TVL calculation
-var tokensToSkip = map[string]bool{
-	"0x04132bf45511d03a58afd4f1d36a29d229ccc574": true,
-	"0xa79bd679ce21a2418be9e6f88b2186c9986bbe7d": true,
-	"0x931c3987040c90b6db09981c7c91ba155d3fa31f": true,
-	"0x8fb1a59ca2d57b51e5971a85277efe72c4492983": true,
-	"0xd52d9ba6fcbadb1fe1e3aca52cbb72c4d9bbb4ec": true,
-	"0x1353c55fd2beebd976d7acc4a7083b0618d94689": true,
-	"0xf0fbdb8a402ec0fc626db974b8d019c902deb486": true,
-	"0x1fd4a95f4335cf36cac85730289579c104544328": true,
-	"0x358aa13c52544eccef6b0add0f801012adad5ee3": true,
-	"0xbe32b7acd03bcc62f25ebabd169a35e69ef17601": true,
-	"0x7ffb3d637014488b63fb9858e279385685afc1e2": true,
-	"0x337dc89ebcc33a337307d58a51888af92cfdc81b": true,
-}
-
 // days to be excluded from the TVL result
 var skipDays = map[string]bool{
 	// for example:
@@ -241,10 +225,12 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	var numDays string
+	var totalsOnly string
 	switch r.Method {
 	case http.MethodGet:
 		queryParams := r.URL.Query()
 		numDays = queryParams.Get("numDays")
+		totalsOnly = queryParams.Get("totalsOnly")
 	}
 
 	var queryDays int
@@ -311,12 +297,15 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 				}
 
 				asset.Notional = roundToTwoDecimalPlaces(notional)
-				// create a new LockAsset in order to exclude TokenPrice and Amount
-				dailyTvl[date][chain][symbol] = LockedAsset{
-					Symbol:      asset.Symbol,
-					Address:     asset.Address,
-					CoinGeckoId: asset.CoinGeckoId,
-					Notional:    asset.Notional,
+
+				if totalsOnly == "" {
+					// create a new LockAsset in order to exclude TokenPrice and Amount
+					dailyTvl[date][chain][symbol] = LockedAsset{
+						Symbol:      asset.Symbol,
+						Address:     asset.Address,
+						CoinGeckoId: asset.CoinGeckoId,
+						Notional:    asset.Notional,
+					}
 				}
 
 				// add this asset's notional to the date/chain/*

@@ -3,9 +3,11 @@ package guardiand
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"io/ioutil"
 	"log"
+	"time"
+
+	"github.com/certusone/wormhole/node/pkg/vaa"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
@@ -29,25 +31,27 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to read file: %v", err)
 	}
 
-	var msg nodev1.InjectGovernanceVAARequest
-	err = prototext.Unmarshal(b, &msg)
+	var req nodev1.InjectGovernanceVAARequest
+	err = prototext.Unmarshal(b, &req)
 	if err != nil {
 		log.Fatalf("failed to deserialize: %v", err)
 	}
 
-	for _, message := range msg.Messages {
+	timestamp := time.Unix(int64(req.Timestamp), 0)
+
+	for _, message := range req.Messages {
 		var (
 			v *vaa.VAA
 		)
 		switch payload := message.Payload.(type) {
 		case *nodev1.GovernanceMessage_GuardianSet:
-			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_ContractUpgrade:
-			v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+			v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_BridgeRegisterChain:
-			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
-			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}
