@@ -7,19 +7,17 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/celo"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
 	"github.com/certusone/wormhole/node/pkg/readiness"
@@ -100,6 +98,9 @@ type (
 
 		// Minimum number of confirmations to accept, regardless of what the contract specifies.
 		minConfirmations uint64
+
+		// Interface to the chain specific ethereum library.
+		ethIntf common.Ethish
 	}
 
 	pendingKey struct {
@@ -125,6 +126,14 @@ func NewEthWatcher(
 	setEvents chan *common.GuardianSet,
 	minConfirmations uint64,
 	obsvReqC chan *gossipv1.ObservationRequest) *Watcher {
+
+	var ethIntf common.Ethish
+	if chainID == vaa.ChainIDCelo {
+		ethIntf = &celo.CeloImpl{NetworkName: networkName}
+	} else {
+		ethIntf = &EthImpl{NetworkName: networkName}
+	}
+
 	return &Watcher{
 		url:              url,
 		contract:         contract,
@@ -135,11 +144,13 @@ func NewEthWatcher(
 		msgChan:          messageEvents,
 		setChan:          setEvents,
 		obsvReqC:         obsvReqC,
-		pending:          map[pendingKey]*pendingMessage{}}
+		pending:          map[pendingKey]*pendingMessage{},
+		ethIntf:          ethIntf}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
+	e.ethIntf.SetLogger(logger)
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
@@ -148,19 +159,19 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	c, err := ethclient.DialContext(timeout, e.url)
+	err := e.ethIntf.DialContext(timeout, e.url)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "dial_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		return fmt.Errorf("dialing eth client failed: %w", err)
 	}
 
-	f, err := abi.NewAbiFilterer(e.contract, c)
+	err = e.ethIntf.NewAbiFilterer(e.contract)
 	if err != nil {
 		return fmt.Errorf("could not create wormhole contract filter: %w", err)
 	}
 
-	caller, err := abi.NewAbiCaller(e.contract, c)
+	err = e.ethIntf.NewAbiCaller(e.contract)
 	if err != nil {
 		panic(err)
 	}
@@ -171,7 +182,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	// Subscribe to new message publications
 	messageC := make(chan *abi.AbiLogMessagePublished, 2)
-	messageSub, err := f.WatchLogMessagePublished(&bind.WatchOpts{Context: timeout}, messageC, nil)
+	messageSub, err := e.ethIntf.WatchLogMessagePublished(ctx, timeout, messageC)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "subscribe_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
@@ -179,7 +190,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 
 	// Fetch initial guardian set
-	if err := e.fetchAndUpdateGuardianSet(logger, ctx, caller); err != nil {
+	if err := e.fetchAndUpdateGuardianSet(logger, ctx, e.ethIntf); err != nil {
 		return fmt.Errorf("failed to request guardian set: %v", err)
 	}
 
@@ -194,7 +205,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				if err := e.fetchAndUpdateGuardianSet(logger, ctx, caller); err != nil {
+				if err := e.fetchAndUpdateGuardianSet(logger, ctx, e.ethIntf); err != nil {
 					errC <- fmt.Errorf("failed to request guardian set: %v", err)
 					return
 				}
@@ -238,7 +249,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-				blockNumber, msgs, err := MessageEventsForTransaction(timeout, c, e.contract, e.chainID, tx)
+				blockNumber, msgs, err := MessageEventsForTransaction(timeout, e.ethIntf, e.contract, e.chainID, tx)
 				cancel()
 
 				if err != nil {
@@ -303,7 +314,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				// Request timestamp for block
 				msm := time.Now()
 				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-				b, err := c.BlockByNumber(timeout, big.NewInt(int64(ev.Raw.BlockNumber)))
+				blockTime, err := e.ethIntf.TimeOfBlockByHash(timeout, ev.Raw.BlockHash)
 				cancel()
 				queryLatency.WithLabelValues(e.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
 
@@ -316,7 +327,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				message := &common.MessagePublication{
 					TxHash:           ev.Raw.TxHash,
-					Timestamp:        time.Unix(int64(b.Time()), 0),
+					Timestamp:        time.Unix(int64(blockTime), 0),
 					Nonce:            ev.Nonce,
 					Sequence:         ev.Sequence,
 					EmitterChain:     e.chainID,
@@ -352,7 +363,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	// Watch headers
 	headSink := make(chan *types.Header, 2)
-	headerSubscription, err := c.SubscribeNewHead(ctx, headSink)
+	headerSubscription, err := e.ethIntf.SubscribeNewHead(ctx, headSink)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "header_subscribe_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
@@ -418,7 +429,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					// Transaction is now ready
 					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						tx, err := c.TransactionReceipt(timeout, pLock.message.TxHash)
+						tx, err := e.ethIntf.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
 
 						// This should never happen - if we got this far, it means that logs were emitted,
@@ -528,13 +539,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 func (e *Watcher) fetchAndUpdateGuardianSet(
 	logger *zap.Logger,
 	ctx context.Context,
-	caller *abi.AbiCaller,
+	ethIntf common.Ethish,
 ) error {
 	msm := time.Now()
 	logger.Info("fetching guardian set")
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	idx, gs, err := fetchCurrentGuardianSet(timeout, caller)
+	idx, gs, err := fetchCurrentGuardianSet(timeout, ethIntf)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "guardian_set_fetch_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
@@ -564,15 +575,13 @@ func (e *Watcher) fetchAndUpdateGuardianSet(
 }
 
 // Fetch the current guardian set ID and guardian set from the chain.
-func fetchCurrentGuardianSet(ctx context.Context, caller *abi.AbiCaller) (uint32, *abi.StructsGuardianSet, error) {
-	opts := &bind.CallOpts{Context: ctx}
-
-	currentIndex, err := caller.GetCurrentGuardianSetIndex(opts)
+func fetchCurrentGuardianSet(ctx context.Context, ethIntf common.Ethish) (uint32, *abi.StructsGuardianSet, error) {
+	currentIndex, err := ethIntf.GetCurrentGuardianSetIndex(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("error requesting current guardian set index: %w", err)
 	}
 
-	gs, err := caller.GetGuardianSet(opts, currentIndex)
+	gs, err := ethIntf.GetGuardianSet(ctx, currentIndex)
 	if err != nil {
 		return 0, nil, fmt.Errorf("error requesting current guardian set value: %w", err)
 	}

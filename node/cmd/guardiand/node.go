@@ -22,7 +22,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/certusone/wormhole/node/pkg/celo"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/ethereum"
@@ -833,7 +832,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 			if err := supervisor.Run(ctx, "celowatch",
-				celo.NewCeloWatcher(*celoRPC, celoContractAddr.Bytes(), "celo", common.ReadinessCeloSyncing, vaa.ChainIDCelo, lockC, nil, 1, chainObsvReqC[vaa.ChainIDCelo]).Run); err != nil {
+				ethereum.NewEthWatcher(*celoRPC, celoContractAddr, "celo", common.ReadinessCeloSyncing, vaa.ChainIDCelo, lockC, nil, 1, chainObsvReqC[vaa.ChainIDCelo]).Run); err != nil {
 				return err
 			}
 		}
