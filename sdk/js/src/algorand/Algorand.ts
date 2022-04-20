@@ -1434,6 +1434,7 @@ export async function transferAsset(
 ) {
     const tokenAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
     const applAddr: string = appIdToAppAddr(TOKEN_BRIDGE_ID);
+    console.log("Getting emitter addr for core...");
     const emitterAddr: string = await optin(
         client,
         sender,
@@ -1442,6 +1443,7 @@ export async function transferAsset(
         applAddr,
         "transferAsset"
     );
+    console.log("Getting assetInfo...");
     const assetInfo: Record<string, any> = await client
         .getAssetByID(assetId)
         .do();
@@ -1452,6 +1454,7 @@ export async function transferAsset(
     //  asset_id 0 is ALGO
     if (assetId != 0) {
         creator = assetInfo["params"]["creator"];
+        console.log("creator", creator);
         creatorAcctInfo = await client.accountInformation(creator).do();
         if (authAddr === tokenAddr) {
             wormhole = true;
@@ -1473,6 +1476,7 @@ export async function transferAsset(
         txns.push(payTxn);
     }
     if (!wormhole) {
+        console.log("Not wormhole...");
         const bNat = Buffer.from("native", "binary").toString("hex");
         creator = await optin(
             client,
@@ -1483,8 +1487,10 @@ export async function transferAsset(
             "creator"
         );
     }
+    console.log("AssetOptinCheck...");
     if (assetId != 0 && !(await assetOptinCheck(client, assetId, creator))) {
         // Looks like we need to optin
+        console.log("Creating payTxn...");
         const payTxn: algosdk.Transaction =
             makePaymentTxnWithSuggestedParamsFromObject({
                 from: sender.addr,
@@ -1494,7 +1500,8 @@ export async function transferAsset(
             });
         txns.push(payTxn);
         // The tokenid app needs to do the optin since it has signature authority
-        const bOptin = Buffer.from("optin", "binary");
+        console.log("Creating call Txn...");
+        const bOptin: Uint8Array = textToUint8Array("optin");
         let txn = makeApplicationCallTxnFromObject({
             from: sender.addr,
             appIndex: TOKEN_BRIDGE_ID,
@@ -1506,9 +1513,11 @@ export async function transferAsset(
         });
         txn.fee *= 2;
         txns.push(txn);
+        console.log("Calling simpleSignVAA...");
         await simpleSignVAA(client, sender, txns);
         txns = [];
     }
+    console.log("Creating NOP...");
     const t = makeApplicationCallTxnFromObject({
         from: sender.addr,
         appIndex: TOKEN_BRIDGE_ID,
@@ -1520,6 +1529,7 @@ export async function transferAsset(
 
     let accounts: string[] = [];
     if (assetId === 0) {
+        console.log("Algo asset");
         const t = makePaymentTxnWithSuggestedParamsFromObject({
             from: sender.addr,
             to: creator,
@@ -1529,6 +1539,12 @@ export async function transferAsset(
         txns.push(t);
         accounts = [emitterAddr, creator, creator];
     } else {
+        console.log(
+            "non Algo asset. sender:",
+            sender.addr,
+            "creator:",
+            creator
+        );
         const t = makeAssetTransferTxnWithSuggestedParamsFromObject({
             from: sender.addr,
             to: creator,
@@ -1547,6 +1563,7 @@ export async function transferAsset(
         bigIntToBytes(chain, 8),
         bigIntToBytes(fee, 8),
     ];
+    console.log("creating transfer txn...");
     let acTxn = makeApplicationCallTxnFromObject({
         from: sender.addr,
         appIndex: TOKEN_BRIDGE_ID,
@@ -1750,9 +1767,9 @@ export async function transferFromAlgorand(
         fee
     );
     // print("... track down the generated VAA")
-    const vaa = await getVAA(client, sender, sid, TOKEN_BRIDGE_ID);
+    // const vaa = await getVAA(client, sender, sid, TOKEN_BRIDGE_ID);
     // print(".. and lets pass that to player3")
     // vaaLogs.append(["transferFromAlgorand", vaa])
     // #pprint.pprint(vaaLogs)
-    submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
+    // submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
 }
