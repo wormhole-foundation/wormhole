@@ -53,10 +53,12 @@ import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport"
 import { ethers } from "ethers";
 import {
     createWrappedOnEth,
+    getForeignAssetEth,
     getIsTransferCompletedEth,
     redeemOnEth,
     updateWrappedOnEth,
 } from "../../token_bridge";
+import { TokenImplementation__factory } from "../../ethers-contracts";
 
 setDefaultWasm("node");
 
@@ -323,7 +325,6 @@ describe("Integration Tests", () => {
                     const suggParams: algosdk.SuggestedParams = await client
                         .getTransactionParams()
                         .do();
-                    console.log("NOP1");
                     const nopTxn = makeApplicationCallTxnFromObject({
                         from: wallet.addr,
                         appIndex: TOKEN_BRIDGE_ID,
@@ -331,12 +332,10 @@ describe("Integration Tests", () => {
                         appArgs: [textToUint8Array("nop")],
                         suggestedParams: suggParams,
                     });
-                    console.log("NOP2");
                     const resp = await client
                         .sendRawTransaction(nopTxn.signTxn(wallet.sk))
                         .do();
                     console.log("resp", resp);
-                    console.log("NOP3");
                     const response = await waitForConfirmation(
                         client,
                         resp.txId,
@@ -380,6 +379,40 @@ describe("Integration Tests", () => {
                         ETH_NODE_URL
                     ) as any;
                     const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+                    // TODO:  Check wallet
+                    // TODO:  First, need to implement some helpers...
+                    // const originAssetHex = nativeToHexString(
+                    //     "norium",
+                    //     CHAIN_ID_ALGORAND
+                    // );
+                    // if (!originAssetHex) {
+                    //     throw new Error("originAssetHex is null");
+                    // }
+                    // const foreignAsset = await getForeignAssetEth(
+                    //     ETH_TOKEN_BRIDGE_ADDRESS,
+                    //     provider,
+                    //     CHAIN_ID_ALGORAND,
+                    //     hexToUint8Array(originAssetHex)
+                    // );
+                    // if (!foreignAsset) {
+                    //     throw new Error("foreignAsset is null");
+                    // }
+                    // let token = TokenImplementation__factory.connect(
+                    //     foreignAsset,
+                    //     signer
+                    // );
+
+                    // Get initial balance on ethereum
+                    const ETH_TEST_WALLET_PUBLIC_KEY =
+                        "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
+                    // const initialBalOnEth = await token.balanceOf(
+                    //     ETH_TEST_WALLET_PUBLIC_KEY
+                    // );
+                    // const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
+                    // console.log(
+                    //     "Balance on Eth before transfer = ",
+                    //     initialBalOnEthInt
+                    // );
                     let success: boolean = true;
                     try {
                         const cr = await createWrappedOnEth(
@@ -404,8 +437,6 @@ describe("Integration Tests", () => {
                     console.log("Attestation is complete...");
                     console.log("Starting transfer to Eth...");
                     // Start transfer from Algorand to Ethereum
-                    const ETH_TEST_WALLET_PUBLIC_KEY =
-                        "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
                     const hexStr = nativeToHexString(
                         ETH_TEST_WALLET_PUBLIC_KEY,
                         CHAIN_ID_ETH
@@ -413,13 +444,13 @@ describe("Integration Tests", () => {
                     if (!hexStr) {
                         throw new Error("Failed to convert to hexStr");
                     }
+                    console.log("hexStr", hexStr);
                     let ethAcct: Account = {
                         addr: hexStr,
                         sk: hexStringToUint8Array("empty"),
                     };
-                    ethAcct.addr = hexStr;
-                    const AmountToTransfer: number = 1;
-                    const Fee: number = 1;
+                    const AmountToTransfer: number = 100;
+                    const Fee: number = 0;
                     console.log("Calling transferAsset...");
                     const txSid: bigint = await transferAsset(
                         client,
@@ -435,14 +466,20 @@ describe("Integration Tests", () => {
                         WORMHOLE_RPC_HOSTS,
                         CHAIN_ID_ALGORAND,
                         aa,
-                        sn.toString(),
+                        txSid.toString(),
                         { transport: NodeHttpTransport() }
+                    );
+                    console.log("About to redeemOnEth...");
+                    console.log(
+                        "vaa",
+                        uint8ArrayToHexString(signedVaa.vaaBytes, false)
                     );
                     const roe = await redeemOnEth(
                         ETH_TOKEN_BRIDGE_ADDRESS,
                         signer,
                         signedVaa.vaaBytes
                     );
+                    console.log("Check if transfer is complete...");
                     expect(
                         await getIsTransferCompletedEth(
                             ETH_TOKEN_BRIDGE_ADDRESS,
@@ -450,6 +487,14 @@ describe("Integration Tests", () => {
                             signedVaa.vaaBytes
                         )
                     ).toBe(true);
+                    // const balOnEthAfter = await token.balanceOf(
+                    //     ETH_TEST_WALLET_PUBLIC_KEY
+                    // );
+                    // const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
+                    // console.log(
+                    //     "Balance on Eth after transfer = ",
+                    //     balOnEthAfterInt
+                    // );
 
                     // Test finished.  Check wallet balances
                 } catch (e) {
