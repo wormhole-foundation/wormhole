@@ -354,7 +354,7 @@ describe("Integration Tests", () => {
                             CHAIN_ID_ALGORAND,
                             aa,
                             sn.toString(),
-                            {},
+                            {transport: NodeHttpTransport()},
                             1000,
                             10
                         );
