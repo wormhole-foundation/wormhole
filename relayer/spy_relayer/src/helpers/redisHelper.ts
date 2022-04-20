@@ -1,8 +1,15 @@
-import { ChainId, uint8ArrayToHex } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  hexToUint8Array,
+  importCoreWasm,
+  parseTransferPayload,
+  uint8ArrayToHex,
+} from "@certusone/wormhole-sdk";
 import { Mutex } from "async-mutex";
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 import { getCommonEnvironment } from "../configureEnv";
 import { ParsedTransferPayload, ParsedVaa } from "../listener/validation";
+import { chainIDStrings } from "../utils/wormhole";
 import { getScopedLogger } from "./logHelper";
 import { PromHelper } from "./promHelpers";
 import { sleep } from "./utils";
@@ -224,6 +231,10 @@ export function storePayloadFromJson(json: string): StorePayload {
   return JSON.parse(json);
 }
 
+export function resetPayload(storePayload: StorePayload): StorePayload {
+  return initPayloadWithVAA(storePayload.vaa_bytes);
+}
+
 export async function pushVaaToRedis(
   parsedVAA: ParsedVaa<ParsedTransferPayload>,
   hexVaa: string
@@ -299,18 +310,67 @@ export async function demoteWorkingRedis() {
     await redisClient.select(RedisTables.INCOMING);
     await redisClient.set(
       si_key,
-      storePayloadToJson(
-        initPayloadWithVAA(storePayloadFromJson(si_value).vaa_bytes)
-      )
+      storePayloadToJson(resetPayload(storePayloadFromJson(si_value)))
     );
     await redisClient.select(RedisTables.WORKING);
   }
   redisClient.quit();
 }
 
+type SourceToTargetMap = {
+  [key in ChainId]: {
+    [key in ChainId]: number;
+  };
+};
+
+export function createSourceToTargetMap(
+  knownChainIds: ChainId[]
+): SourceToTargetMap {
+  const sourceToTargetMap: SourceToTargetMap = {} as SourceToTargetMap;
+  for (const sourceKey of knownChainIds) {
+    sourceToTargetMap[sourceKey] = {} as { [key in ChainId]: number };
+    for (const targetKey of knownChainIds) {
+      sourceToTargetMap[sourceKey][targetKey] = 0;
+    }
+  }
+  return sourceToTargetMap;
+}
+
+export async function incrementSourceToTargetMap(
+  key: string,
+  redisClient: RedisClientType<any>,
+  parse_vaa: Function,
+  sourceToTargetMap: SourceToTargetMap
+): Promise<void> {
+  const parsedKey = storeKeyFromJson(key);
+  const si_value = await redisClient.get(key);
+  if (!si_value) {
+    return;
+  }
+  const parsedPayload = parseTransferPayload(
+    Buffer.from(
+      parse_vaa(hexToUint8Array(storePayloadFromJson(si_value).vaa_bytes))
+        .payload
+    )
+  );
+  if (
+    sourceToTargetMap[parsedKey.chain_id as ChainId]?.[
+      parsedPayload.targetChain
+    ] !== undefined
+  ) {
+    sourceToTargetMap[parsedKey.chain_id as ChainId][
+      parsedPayload.targetChain
+    ]++;
+  }
+}
+
 export async function monitorRedis(metrics: PromHelper) {
   const scopedLogger = getScopedLogger(["monitorRedis"], logger);
   const TEN_SECONDS: number = 10000;
+  const { parse_vaa } = await importCoreWasm();
+  const knownChainIds = Object.keys(chainIDStrings).map(
+    (c) => Number(c) as ChainId
+  );
   while (true) {
     const redisClient = await connectToRedis();
     if (!redisClient) {
@@ -318,9 +378,46 @@ export async function monitorRedis(metrics: PromHelper) {
     } else {
       try {
         await redisClient.select(RedisTables.INCOMING);
-        metrics.setRedisQueue(RedisTables.INCOMING, await redisClient.dbSize());
+        const incomingSourceToTargetMap =
+          createSourceToTargetMap(knownChainIds);
+        for await (const si_key of redisClient.scanIterator()) {
+          incrementSourceToTargetMap(
+            si_key,
+            redisClient,
+            parse_vaa,
+            incomingSourceToTargetMap
+          );
+        }
+        for (const sourceKey of knownChainIds) {
+          for (const targetKey of knownChainIds) {
+            metrics.setRedisQueue(
+              RedisTables.INCOMING,
+              sourceKey,
+              targetKey,
+              incomingSourceToTargetMap[sourceKey][targetKey]
+            );
+          }
+        }
         await redisClient.select(RedisTables.WORKING);
-        metrics.setRedisQueue(RedisTables.WORKING, await redisClient.dbSize());
+        const workingSourceToTargetMap = createSourceToTargetMap(knownChainIds);
+        for await (const si_key of redisClient.scanIterator()) {
+          incrementSourceToTargetMap(
+            si_key,
+            redisClient,
+            parse_vaa,
+            workingSourceToTargetMap
+          );
+        }
+        for (const sourceKey of knownChainIds) {
+          for (const targetKey of knownChainIds) {
+            metrics.setRedisQueue(
+              RedisTables.WORKING,
+              sourceKey,
+              targetKey,
+              workingSourceToTargetMap[sourceKey][targetKey]
+            );
+          }
+        }
       } catch (e) {
         scopedLogger.error("Failed to get dbSize and set metrics!");
       }

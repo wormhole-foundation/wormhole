@@ -1,4 +1,5 @@
 import {
+  Bridge__factory,
   CHAIN_ID_POLYGON,
   getIsTransferCompletedEth,
   hexToUint8Array,
@@ -9,6 +10,7 @@ import { Signer } from "@ethersproject/abstract-signer";
 import { ethers } from "ethers";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { PromHelper } from "../helpers/promHelpers";
 
 export function newProvider(
   url: string,
@@ -31,7 +33,8 @@ export async function relayEVM(
   unwrapNative: boolean,
   checkOnly: boolean,
   walletPrivateKey: string,
-  relayLogger: ScopedLogger
+  relayLogger: ScopedLogger,
+  metrics: PromHelper
 ) {
   const logger = getScopedLogger(
     ["evm", chainConfigInfo.chainName],
@@ -40,15 +43,6 @@ export async function relayEVM(
   const signedVaaArray = hexToUint8Array(signedVAA);
   let provider = newProvider(chainConfigInfo.nodeUrl);
   const signer: Signer = new ethers.Wallet(walletPrivateKey, provider);
-
-  if (unwrapNative) {
-    logger.info(
-      "Will redeem and unwrap using pubkey: %s",
-      await signer.getAddress()
-    );
-  } else {
-    logger.info("Will redeem using pubkey: %s", await signer.getAddress());
-  }
 
   logger.debug("Checking to see if vaa has already been redeemed.");
   const alreadyRedeemed = await getIsTransferCompletedEth(
@@ -65,9 +59,18 @@ export async function relayEVM(
     return { redeemed: false, result: "not redeemed" };
   }
 
+  if (unwrapNative) {
+    logger.info(
+      "Will redeem and unwrap using pubkey: %s",
+      await signer.getAddress()
+    );
+  } else {
+    logger.info("Will redeem using pubkey: %s", await signer.getAddress());
+  }
+
   logger.debug("Redeeming.");
   // look, there's something janky with Polygon + ethers + EIP-1559
-  let overrides;
+  let overrides = {};
   if (chainConfigInfo.chainId === CHAIN_ID_POLYGON) {
     let feeData = await provider.getFeeData();
     overrides = {
@@ -75,32 +78,27 @@ export async function relayEVM(
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
   }
-  const receipt = unwrapNative
-    ? await redeemOnEthNative(
-        chainConfigInfo.tokenBridgeAddress,
-        signer,
-        signedVaaArray,
-        overrides
-      )
-    : await redeemOnEth(
-        chainConfigInfo.tokenBridgeAddress,
-        signer,
-        signedVaaArray,
-        overrides
-      );
-
-  logger.debug("Checking to see if the transaction is complete.");
-
-  const success = await getIsTransferCompletedEth(
+  const bridge = Bridge__factory.connect(
     chainConfigInfo.tokenBridgeAddress,
-    provider,
-    signedVaaArray
+    signer
   );
+  const contractMethod = unwrapNative
+    ? bridge.completeTransferAndUnwrapETH
+    : bridge.completeTransfer;
+  const tx = await contractMethod(signedVaaArray, overrides);
+  logger.info("waiting for tx hash: %s", tx.hash);
+  const receipt = await tx.wait();
+
+  // Checking getIsTransferCompletedEth can be problematic if we get
+  // load balanced to a node that is behind the block of our accepted tx
+  // The auditor worker should confirm that our tx was successful
+  const success = true;
 
   if (provider instanceof ethers.providers.WebSocketProvider) {
     await provider.destroy();
   }
 
   logger.info("success: %s tx hash: %s", success, receipt.transactionHash);
+  metrics.incSuccesses(chainConfigInfo.chainId);
   return { redeemed: success, result: receipt };
 }
