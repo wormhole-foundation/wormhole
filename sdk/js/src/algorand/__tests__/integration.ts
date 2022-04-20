@@ -355,8 +355,6 @@ describe("Integration Tests", () => {
                             aa,
                             sn.toString(),
                             {transport: NodeHttpTransport()},
-                            1000,
-                            10
                         );
                     } catch (e) {
                         console.error("getSignedVAAWithRetry() error", e);
