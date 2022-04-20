@@ -317,8 +317,9 @@ describe("Integration Tests", () => {
                     const resp = await client
                         .sendRawTransaction(nopTxn.signTxn(wallet.sk))
                         .do();
+                    console.log("resp", resp)
                     console.log("NOP3");
-                    // const response = await waitForConfirmation(client, resp, 1);
+                    const response = await waitForConfirmation(client, resp.txId, 1);
                     console.log("End of NOP");
                     // End of NOP
 
@@ -338,7 +339,11 @@ describe("Integration Tests", () => {
                     );
                     console.log(
                         "getSignedVAAWithRetry starting with emitterAddr:",
-                        emitterAddr,
+                        tbAddr,
+                        ", decTbAddr",
+                        decTbAddr,
+                        ", aa",
+                        aa,
                         ", sn:",
                         sn.toString()
                     );
@@ -347,7 +352,7 @@ describe("Integration Tests", () => {
                         vaaBytes = await getSignedVAAWithRetry(
                             WORMHOLE_RPC_HOSTS,
                             CHAIN_ID_ALGORAND,
-                            emitterAddr,
+                            aa,
                             sn.toString(),
                             {},
                             1000,
