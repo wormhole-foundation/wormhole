@@ -145,8 +145,8 @@ export async function getTempAccounts(): Promise<Account[]> {
         console.log("Confirmation response:", confirmedTxn);
         // let mytxinfo = JSON.stringify(confirmedTxn.txn.txn, undefined, 2);
         // console.log("Transaction information: %o", mytxinfo);
-//        let string = new TextDecoder().decode(confirmedTxn.txn.txn.note);
-//        console.log("Note field: ", string);
+        //        let string = new TextDecoder().decode(confirmedTxn.txn.txn.note);
+        //        console.log("Note field: ", string);
         let accountInfo = await algodClient
             .accountInformation(newAcct.addr)
             .do();
@@ -288,9 +288,9 @@ export async function createAsset(account: Account): Promise<any> {
     // Whether user accounts will need to be unfrozen before transacting
     const defaultFrozen = false;
     // integer number of decimals for asset unit calculation
-    const decimals = 0;
+    const decimals = 10;
     // total number of this asset available for circulation
-    const totalIssuance = 1000;
+    const totalIssuance = 1000000;
     // Used to display asset units to user
     const unitName = "NORIUM";
     // Friendly name of the asset

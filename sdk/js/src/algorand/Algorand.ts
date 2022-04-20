@@ -1555,11 +1555,13 @@ export async function transferAsset(
         txns.push(t);
         accounts = [emitterAddr, creator, creatorAcctInfo["address"]];
     }
+    console.log("receiver.addr", receiver.addr);
     let args = [
         textToUint8Array("sendTransfer"),
         bigIntToBytes(assetId, 8),
         bigIntToBytes(qty, 8),
-        decodeAddress(receiver.addr).publicKey,
+        // decodeAddress(receiver.addr).publicKey,
+        hexStringToUint8Array(receiver.addr),
         bigIntToBytes(chain, 8),
         bigIntToBytes(fee, 8),
     ];
@@ -1576,8 +1578,17 @@ export async function transferAsset(
     });
     acTxn.fee *= 2;
     txns.push(acTxn);
-    const resp: Record<string, any> = await simpleSignVAA(client, sender, txns);
-    return parseSeqFromTxn(resp);
+    console.log("calling simpleSignVAA...");
+    const resp: Buffer[] = await simpleSignVAA(client, sender, txns);
+    console.log("about to parse seq from txn...");
+    let seq: bigint = BigInt(0);
+    try {
+        seq = parseSeqFromLog(resp);
+    } catch (pErr) {
+        console.error("parseSeqFromLog Failed:", pErr);
+    }
+    console.log("transferAsset seq:", seq);
+    return seq;
 }
 
 export async function createWrappedOnAlgorand(
