@@ -1102,10 +1102,6 @@ class PortalCore:
 
         if self.devnet or self.args.testnet:
             if exists(".env"):
-                print("bootstrapping the chain registrationst...")
-                bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-                self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
-    
                 if self.gt == None:
                     self.gt = GenTest(False)
 
@@ -1114,20 +1110,20 @@ class PortalCore:
                         e = line.rstrip('\n').split("=")
                         print(e)
                         if "TOKEN_BRIDGE" in e[0]:
-                            self.submitVAA(bytes.fromhex(e[1]), self.client, self.foundation, self.tokenid)
+                            v = bytes.fromhex(e[1])
+                            self.submitVAA(v, self.client, self.foundation, self.tokenid)
                         if "INIT_SIGNERS_CSV" in e[0]:
                             self.gt.guardianKeys = e[1].split(",")
                         if "INIT_SIGNERS_KEYS_CSV" in e[0]:
                             print("bootstrapping the guardian set...")
                             self.gt.guardianPrivKeys = e[1].split(",")
-                            bootVAA = bytes.fromhex(self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, 1, 1, 1, 1))
-#                            self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
+                            bootVAA = self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, 0, 0, 1, 1)
+                            self.bootGuardians(bytes.fromhex(bootVAA), self.client, self.foundation, self.coreid)
 
             else:
                 print("bootstrapping the guardian set...")
                 bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
                 self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
-        
         
                 vaas = [
                     # Solana
