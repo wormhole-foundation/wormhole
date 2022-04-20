@@ -38,14 +38,25 @@ import {
     textToUint8Array,
     TOKEN_BRIDGE_ID,
     transferAsset,
+    transferFromAlgorand,
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import { TestLib } from "../testlib";
-import { CHAIN_ID_ALGORAND } from "../../utils";
+import {
+    CHAIN_ID_ALGORAND,
+    CHAIN_ID_ETH,
+    hexToUint8Array,
+    nativeToHexString,
+} from "../../utils";
 import { getSignedVAA } from "../../rpc";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { ethers } from "ethers";
-import { createWrappedOnEth, updateWrappedOnEth } from "../../token_bridge";
+import {
+    createWrappedOnEth,
+    getIsTransferCompletedEth,
+    redeemOnEth,
+    updateWrappedOnEth,
+} from "../../token_bridge";
 
 setDefaultWasm("node");
 
@@ -390,6 +401,57 @@ describe("Integration Tests", () => {
                         );
                         success = true;
                     }
+                    console.log("Attestation is complete...");
+                    console.log("Starting transfer to Eth...");
+                    // Start transfer from Algorand to Ethereum
+                    const ETH_TEST_WALLET_PUBLIC_KEY =
+                        "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
+                    const hexStr = nativeToHexString(
+                        ETH_TEST_WALLET_PUBLIC_KEY,
+                        CHAIN_ID_ETH
+                    );
+                    if (!hexStr) {
+                        throw new Error("Failed to convert to hexStr");
+                    }
+                    let ethAcct: Account = {
+                        addr: hexStr,
+                        sk: hexStringToUint8Array("empty"),
+                    };
+                    ethAcct.addr = hexStr;
+                    const AmountToTransfer: number = 1;
+                    const Fee: number = 1;
+                    console.log("Calling transferAsset...");
+                    const txSid: bigint = await transferAsset(
+                        client,
+                        wallet,
+                        assetIndex,
+                        AmountToTransfer,
+                        ethAcct,
+                        CHAIN_ID_ETH,
+                        Fee
+                    );
+                    console.log("Getting signed VAA...");
+                    const signedVaa = await getSignedVAAWithRetry(
+                        WORMHOLE_RPC_HOSTS,
+                        CHAIN_ID_ALGORAND,
+                        aa,
+                        sn.toString(),
+                        { transport: NodeHttpTransport() }
+                    );
+                    const roe = await redeemOnEth(
+                        ETH_TOKEN_BRIDGE_ADDRESS,
+                        signer,
+                        signedVaa.vaaBytes
+                    );
+                    expect(
+                        await getIsTransferCompletedEth(
+                            ETH_TOKEN_BRIDGE_ADDRESS,
+                            provider,
+                            signedVaa.vaaBytes
+                        )
+                    ).toBe(true);
+
+                    // Test finished.  Check wallet balances
                 } catch (e) {
                     console.error("Algorand attestation error:", e);
                     done();
