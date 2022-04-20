@@ -89,13 +89,17 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 		}
 
 		if e.debug {
-			JSON, _ := json.Marshal(it)
-			logger.Info(string(JSON))
+			JSON, err := json.Marshal(it)
+			if err != nil {
+				logger.Info("Cannot JSON marshal transaction", zap.Error(err))
+			} else {
+				logger.Info(string(JSON))
+			}
 		}
 
 		emitter, err := types.DecodeAddress(it.Sender)
 		if err != nil {
-			logger.Info("Issue deoding address", zap.Error(err))
+			logger.Info("DecodeAddress", zap.Error(err))
 			continue;
 		}
 
@@ -108,7 +112,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 
 		id, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(t.Id)
 		if err != nil {
-			logger.Info("Issue deoding id", zap.Error(err))
+			logger.Info("Base32 DecodeString", zap.Error(err))
 			continue;
 		}
 
@@ -126,7 +130,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 			EmitterChain:     vaa.ChainIDAlgorand,
 			EmitterAddress:   a,
 			Payload:          at.ApplicationArgs[1],
-			ConsistencyLevel: 32,   // What SHOULD this be?
+			ConsistencyLevel: 0,
 		}
 		
 		algorandMessagesConfirmed.Inc()
