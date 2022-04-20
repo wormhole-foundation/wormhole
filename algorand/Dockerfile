@@ -27,5 +27,6 @@ COPY portal_core.py portal_core.py
 COPY token_bridge.py token_bridge.py
 COPY vaa_verify.py vaa_verify.py
 COPY deploy.sh deploy.sh 
+COPY .env .env
 
 

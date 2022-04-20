@@ -567,6 +567,7 @@ if algorand:
             port_forward(4002, name = "KMD [:4002]", host = webHost),
             port_forward(8980, name = "Indexer [:8980]", host = webHost),
         ],
+        resource_deps = ["const-gen"],
         labels = ["algorand"],
         trigger_mode = trigger_mode,
     )

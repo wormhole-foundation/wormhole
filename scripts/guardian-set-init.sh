@@ -166,7 +166,7 @@ if [[ -d ./ethereum ]]; then
 fi
 
 # copy the hex envFile to each of the non-EVM chains
-for envDest in ./solana/.env ./terra/tools/.env; do
+for envDest in ./solana/.env ./terra/tools/.env ./algorand/.env; do
     dirname=$(dirname $envDest)
     if [[ -d "$dirname" ]]; then
         echo "copying $envFile to $envDest"
