@@ -70,6 +70,11 @@ export interface QueryAllGuardianValidatorResponse {
     guardianValidator: GuardianValidator[];
     pagination: PageResponse | undefined;
 }
+export interface QueryLatestGuardianSetIndexRequest {
+}
+export interface QueryLatestGuardianSetIndexResponse {
+    latestGuardianSetIndex: number;
+}
 export declare const QueryGetGuardianSetRequest: {
     encode(message: QueryGetGuardianSetRequest, writer?: Writer): Writer;
     decode(input: Reader | Uint8Array, length?: number): QueryGetGuardianSetRequest;
@@ -210,6 +215,20 @@ export declare const QueryAllGuardianValidatorResponse: {
     toJSON(message: QueryAllGuardianValidatorResponse): unknown;
     fromPartial(object: DeepPartial<QueryAllGuardianValidatorResponse>): QueryAllGuardianValidatorResponse;
 };
+export declare const QueryLatestGuardianSetIndexRequest: {
+    encode(_: QueryLatestGuardianSetIndexRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryLatestGuardianSetIndexRequest;
+    fromJSON(_: any): QueryLatestGuardianSetIndexRequest;
+    toJSON(_: QueryLatestGuardianSetIndexRequest): unknown;
+    fromPartial(_: DeepPartial<QueryLatestGuardianSetIndexRequest>): QueryLatestGuardianSetIndexRequest;
+};
+export declare const QueryLatestGuardianSetIndexResponse: {
+    encode(message: QueryLatestGuardianSetIndexResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryLatestGuardianSetIndexResponse;
+    fromJSON(object: any): QueryLatestGuardianSetIndexResponse;
+    toJSON(message: QueryLatestGuardianSetIndexResponse): unknown;
+    fromPartial(object: DeepPartial<QueryLatestGuardianSetIndexResponse>): QueryLatestGuardianSetIndexResponse;
+};
 /** Query defines the gRPC querier service. */
 export interface Query {
     /** Queries a guardianSet by index. */
@@ -232,6 +251,8 @@ export interface Query {
     GuardianValidator(request: QueryGetGuardianValidatorRequest): Promise<QueryGetGuardianValidatorResponse>;
     /** Queries a list of GuardianValidator items. */
     GuardianValidatorAll(request: QueryAllGuardianValidatorRequest): Promise<QueryAllGuardianValidatorResponse>;
+    /** Queries a list of LatestGuardianSetIndex items. */
+    LatestGuardianSetIndex(request: QueryLatestGuardianSetIndexRequest): Promise<QueryLatestGuardianSetIndexResponse>;
 }
 export declare class QueryClientImpl implements Query {
     private readonly rpc;
@@ -246,6 +267,7 @@ export declare class QueryClientImpl implements Query {
     ConsensusGuardianSetIndex(request: QueryGetConsensusGuardianSetIndexRequest): Promise<QueryGetConsensusGuardianSetIndexResponse>;
     GuardianValidator(request: QueryGetGuardianValidatorRequest): Promise<QueryGetGuardianValidatorResponse>;
     GuardianValidatorAll(request: QueryAllGuardianValidatorRequest): Promise<QueryAllGuardianValidatorResponse>;
+    LatestGuardianSetIndex(request: QueryLatestGuardianSetIndexRequest): Promise<QueryLatestGuardianSetIndexResponse>;
 }
 interface Rpc {
     request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;

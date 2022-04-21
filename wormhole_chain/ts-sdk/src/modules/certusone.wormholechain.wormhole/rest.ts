@@ -80,11 +80,6 @@ export interface V1Beta1PageResponse {
   total?: string;
 }
 
-export interface WormholeConsensusGuardianSetIndex {
-  /** @format int64 */
-  index?: number;
-}
-
 export interface WormholeConfig {
   /** @format uint64 */
   guardianSetExpiration?: string;
@@ -97,6 +92,11 @@ export interface WormholeConfig {
 
   /** @format int64 */
   chainId?: number;
+}
+
+export interface WormholeConsensusGuardianSetIndex {
+  /** @format int64 */
+  index?: number;
 }
 
 export interface WormholeGuardianKey {
@@ -185,12 +185,12 @@ export interface WormholeQueryAllSequenceCounterResponse {
   pagination?: V1Beta1PageResponse;
 }
 
-export interface WormholeQueryGetConsensusGuardianSetIndexResponse {
-  ConsensusGuardianSetIndex?: WormholeConsensusGuardianSetIndex;
-}
-
 export interface WormholeQueryGetConfigResponse {
   Config?: WormholeConfig;
+}
+
+export interface WormholeQueryGetConsensusGuardianSetIndexResponse {
+  ConsensusGuardianSetIndex?: WormholeConsensusGuardianSetIndex;
 }
 
 export interface WormholeQueryGetGuardianSetResponse {
@@ -207,6 +207,11 @@ export interface WormholeQueryGetReplayProtectionResponse {
 
 export interface WormholeQueryGetSequenceCounterResponse {
   sequenceCounter?: WormholeSequenceCounter;
+}
+
+export interface WormholeQueryLatestGuardianSetIndexResponse {
+  /** @format int64 */
+  latestGuardianSetIndex?: number;
 }
 
 export interface WormholeReplayProtection {
@@ -412,26 +417,10 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title wormhole/consensus_guardian_set_index.proto
+ * @title wormhole/config.proto
  * @version version not set
  */
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
-  /**
-   * No description
-   *
-   * @tags Query
-   * @name QueryConsensusGuardianSetIndex
-   * @summary Queries a ConsensusGuardianSetIndex by index.
-   * @request GET:/certusone/wormholechain/wormhole/consensus_guardian_set_index
-   */
-  queryConsensusGuardianSetIndex = (params: RequestParams = {}) =>
-    this.request<WormholeQueryGetConsensusGuardianSetIndexResponse, RpcStatus>({
-      path: `/certusone/wormholechain/wormhole/consensus_guardian_set_index`,
-      method: "GET",
-      format: "json",
-      ...params,
-    });
-
   /**
    * No description
    *
@@ -443,6 +432,22 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
   queryConfig = (params: RequestParams = {}) =>
     this.request<WormholeQueryGetConfigResponse, RpcStatus>({
       path: `/certusone/wormholechain/wormhole/config`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryConsensusGuardianSetIndex
+   * @summary Queries a ConsensusGuardianSetIndex by index.
+   * @request GET:/certusone/wormholechain/wormhole/consensus_guardian_set_index
+   */
+  queryConsensusGuardianSetIndex = (params: RequestParams = {}) =>
+    this.request<WormholeQueryGetConsensusGuardianSetIndexResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/consensus_guardian_set_index`,
       method: "GET",
       format: "json",
       ...params,
@@ -527,6 +532,22 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
   queryGuardianValidator = (guardianKey: string, params: RequestParams = {}) =>
     this.request<WormholeQueryGetGuardianValidatorResponse, RpcStatus>({
       path: `/certusone/wormholechain/wormhole/guardian_validator/${guardianKey}`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryLatestGuardianSetIndex
+   * @summary Queries a list of LatestGuardianSetIndex items.
+   * @request GET:/certusone/wormholechain/wormhole/latest_guardian_set_index
+   */
+  queryLatestGuardianSetIndex = (params: RequestParams = {}) =>
+    this.request<WormholeQueryLatestGuardianSetIndexResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/latest_guardian_set_index`,
       method: "GET",
       format: "json",
       ...params,

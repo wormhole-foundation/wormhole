@@ -36,6 +36,7 @@ import {
 } from "@cosmjs/stargate";
 import { Decimal } from "@cosmjs/math";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
+let elliptic = require("elliptic"); //No TS defs?
 
 //https://www.npmjs.com/package/@cosmjs/stargate
 //https://gist.github.com/webmaster128/8444d42a7eceeda2544c8a59fbd7e1d9
@@ -158,4 +159,11 @@ export async function getBalance(denom: string, address: string) {
   const coin = await client.bank.balance(address, denom);
 
   return coin.amount;
+}
+
+export function signValidatorAddress(valAddr: string, privKey: string) {
+  const ec = new elliptic.ec("secp256k1");
+  const key = ec.keyFromPrivate(privKey);
+  const signature = key.sign(valAddr, { canonical: true });
+  return signature as Uint8Array; //TODO determine if this is correct
 }

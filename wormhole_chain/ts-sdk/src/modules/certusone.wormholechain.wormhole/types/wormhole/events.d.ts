@@ -9,7 +9,16 @@ export interface EventPostedMessage {
     emitter: Uint8Array;
     sequence: number;
     nonce: number;
+    time: number;
     payload: Uint8Array;
+}
+export interface EventGuardianRegistered {
+    guardianKey: Uint8Array;
+    validatorKey: Uint8Array;
+}
+export interface EventConsensusSetUpdate {
+    oldIndex: number;
+    newIndex: number;
 }
 export declare const EventGuardianSetUpdate: {
     encode(message: EventGuardianSetUpdate, writer?: Writer): Writer;
@@ -24,6 +33,20 @@ export declare const EventPostedMessage: {
     fromJSON(object: any): EventPostedMessage;
     toJSON(message: EventPostedMessage): unknown;
     fromPartial(object: DeepPartial<EventPostedMessage>): EventPostedMessage;
+};
+export declare const EventGuardianRegistered: {
+    encode(message: EventGuardianRegistered, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): EventGuardianRegistered;
+    fromJSON(object: any): EventGuardianRegistered;
+    toJSON(message: EventGuardianRegistered): unknown;
+    fromPartial(object: DeepPartial<EventGuardianRegistered>): EventGuardianRegistered;
+};
+export declare const EventConsensusSetUpdate: {
+    encode(message: EventConsensusSetUpdate, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): EventConsensusSetUpdate;
+    fromJSON(object: any): EventConsensusSetUpdate;
+    toJSON(message: EventConsensusSetUpdate): unknown;
+    fromPartial(object: DeepPartial<EventConsensusSetUpdate>): EventConsensusSetUpdate;
 };
 declare type Builtin = Date | Function | Uint8Array | string | number | undefined;
 export declare type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {

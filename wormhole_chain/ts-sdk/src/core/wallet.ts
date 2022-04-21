@@ -8,8 +8,8 @@ export async function getWallet(
   mnemonic: string,
   options?: DirectSecp256k1HdWalletOptions
 ): Promise<DirectSecp256k1HdWallet> {
+  console.log("wallet");
   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
-    ...options,
     prefix: ADDRESS_PREFIX,
   });
   return wallet;
@@ -20,7 +20,6 @@ export async function getOperatorWallet(
   options?: DirectSecp256k1HdWalletOptions
 ): Promise<DirectSecp256k1HdWallet> {
   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
-    ...options,
     prefix: OPERATOR_PREFIX,
   });
   return wallet;
