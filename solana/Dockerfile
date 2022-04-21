@@ -85,8 +85,13 @@ RUN --mount=type=cache,target=target,id=test \
 
 RUN --mount=type=cache,target=target,id=test \
     cargo test-bpf \
-    --manifest-path modules/token_bridge/program/Cargo.toml \
-    --features trace,instructions
+        --manifest-path modules/token_bridge/program/Cargo.toml \
+        --features trace,instructions
+
+RUN --mount=type=cache,target=target,id=test \
+    cargo test-bpf \
+        --manifest-path modules/nft_bridge/program/Cargo.toml \
+        --features trace,instructions
 
 FROM scratch AS export-stage
 COPY --from=builder /opt/solana/deps /
