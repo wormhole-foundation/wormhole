@@ -1236,10 +1236,7 @@ export async function submitVAA(
                 console.log("a", a);
             }
         } else {
-            const tmp = Buffer.from(
-                hexStringToUint8Array(parsedVAA.get("Contract"))
-            );
-            a = Number(tmp.readBigUInt64BE(0));
+            a = parseInt(parsedVAA.get("Contract"), 16)
         }
 
         // The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
