@@ -36,6 +36,9 @@ message InjectGovernanceVAARequest {
 
   // List of governance VAA messages to inject.
   repeated GovernanceMessage messages = 2;
+
+  // UNIX wall time in seconds
+  uint32 timestamp = 3;
 }
 
 message GovernanceMessage {

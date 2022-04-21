@@ -1,7 +1,7 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 import http = require("http");
 import client = require("prom-client");
-import { WalletBalance } from "../relayer/walletMonitor";
+import { WalletBalance } from "../monitor/walletMonitor";
 import { chainIDStrings } from "../utils/wormhole";
 import { getScopedLogger } from "./logHelper";
 import { RedisTables } from "./redisHelper";
@@ -15,7 +15,8 @@ const logger = getScopedLogger(["prometheusHelpers"]);
 export enum PromMode {
   Listen,
   Relay,
-  Both,
+  WalletMonitor,
+  All,
 }
 
 export class PromHelper {
@@ -29,9 +30,19 @@ export class PromHelper {
     help: "number of successful relays",
     labelNames: ["chain_name"],
   });
+  private confirmedCounter = new client.Counter({
+    name: "spy_relay_confirmed_successes",
+    help: "number of confirmed successful relays",
+    labelNames: ["chain_name"],
+  });
   private failureCounter = new client.Counter({
     name: "spy_relay_failures",
     help: "number of failed relays",
+    labelNames: ["chain_name"],
+  });
+  private rollbackCounter = new client.Counter({
+    name: "spy_relay_rollback",
+    help: "number of rolled back relays",
     labelNames: ["chain_name"],
   });
   private completeTime = new client.Histogram({
@@ -54,7 +65,7 @@ export class PromHelper {
   private redisQueue = new client.Gauge({
     name: "spy_relay_redis_queue_length",
     help: "number of items in the pending queue.",
-    labelNames: ["queue"],
+    labelNames: ["queue", "source_chain_name", "target_chain_name"],
   });
 
   // Wallet metrics
@@ -83,17 +94,12 @@ export class PromHelper {
     } else if (
       req.url === "/metrics" ||
       req.url === "/relayer" ||
-      req.url === "/listener"
+      req.url === "/listener" ||
+      req.url === "/wallet-monitor"
     ) {
       // Return all metrics in the Prometheus exposition format
-      if (this._mode === PromMode.Listen || this._mode == PromMode.Both) {
-        res.setHeader("Content-Type", this._register.contentType);
-        res.end(await this._register.metrics());
-      }
-      if (this._mode === PromMode.Relay || this._mode == PromMode.Both) {
-        res.setHeader("Content-Type", this._register.contentType);
-        res.end(await this._register.metrics());
-      }
+      res.setHeader("Content-Type", this._register.contentType);
+      res.end(await this._register.metrics());
     } else {
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.write("404 Not Found - " + req.url + "\n");
@@ -108,8 +114,10 @@ export class PromHelper {
       mode_name = "listener";
     } else if (mode === PromMode.Relay) {
       mode_name = "relayer";
-    } else if (mode === PromMode.Both) {
-      mode_name = "both";
+    } else if (mode === PromMode.WalletMonitor) {
+      mode_name = "wallet-monitor";
+    } else if (mode === PromMode.All) {
+      mode_name = "all";
     }
 
     this._register.setDefaultLabels({
@@ -121,14 +129,18 @@ export class PromHelper {
 
     this._mode = mode;
     // Register each metric
-    if (this._mode === PromMode.Listen || this._mode == PromMode.Both) {
+    if (this._mode === PromMode.Listen || this._mode === PromMode.All) {
       this._register.registerMetric(this.listenCounter);
     }
-    if (this._mode === PromMode.Relay || this._mode == PromMode.Both) {
+    if (this._mode === PromMode.Relay || this._mode === PromMode.All) {
       this._register.registerMetric(this.successCounter);
+      this._register.registerMetric(this.confirmedCounter);
       this._register.registerMetric(this.failureCounter);
+      this._register.registerMetric(this.rollbackCounter);
       this._register.registerMetric(this.alreadyExecutedCounter);
       this._register.registerMetric(this.redisQueue);
+    }
+    if (this._mode === PromMode.WalletMonitor || this._mode === PromMode.All) {
       this._register.registerMetric(this.walletBalance);
     }
     // End registering metric
@@ -137,15 +149,25 @@ export class PromHelper {
   }
 
   // These are the accessor methods for the metrics
-  incSuccesses(chainId: ChainId) {
+  incSuccesses(chainId: ChainId, value?: number) {
     this.successCounter
       .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
-      .inc();
+      .inc(value);
   }
-  incFailures(chainId: ChainId) {
+  incConfirmed(chainId: ChainId, value?: number) {
+    this.confirmedCounter
+      .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
+      .inc(value);
+  }
+  incFailures(chainId: ChainId, value?: number) {
     this.failureCounter
       .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
-      .inc();
+      .inc(value);
+  }
+  incRollback(chainId: ChainId, value?: number) {
+    this.rollbackCounter
+      .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
+      .inc(value);
   }
   addCompleteTime(val: number) {
     this.completeTime.observe(val);
@@ -160,9 +182,18 @@ export class PromHelper {
   handleListenerMemqueue(size: number) {
     this.listenerMemqueue.set(size);
   }
-  setRedisQueue(queue: RedisTables, size: number) {
+  setRedisQueue(
+    queue: RedisTables,
+    sourceChainId: ChainId,
+    targetChainId: ChainId,
+    size: number
+  ) {
     this.redisQueue
-      .labels({ queue: RedisTables[queue].toLowerCase() })
+      .labels({
+        queue: RedisTables[queue].toLowerCase(),
+        source_chain_name: chainIDStrings[sourceChainId],
+        target_chain_name: chainIDStrings[targetChainId],
+      })
       .set(size);
   }
 

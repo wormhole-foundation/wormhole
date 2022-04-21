@@ -10,6 +10,7 @@ import {
   monitorRedis,
   RedisTables,
   RelayResult,
+  resetPayload,
   Status,
   StorePayload,
   storePayloadFromJson,
@@ -18,7 +19,6 @@ import {
 } from "../helpers/redisHelper";
 import { sleep } from "../helpers/utils";
 import { relay } from "./relay";
-import { collectWallets } from "./walletMonitor";
 
 const WORKER_THREAD_RESTART_MS = 10 * 1000;
 const AUDITOR_THREAD_RESTART_MS = 10 * 1000;
@@ -51,10 +51,15 @@ export function init(runWorker: boolean): boolean {
   return true;
 }
 
-function createWorkerInfos() {
+function createWorkerInfos(metrics: PromHelper) {
   let workerArray: WorkerInfo[] = new Array();
   let index = 0;
   relayerEnv.supportedChains.forEach((chain) => {
+    // initialize per chain metrics
+    metrics.incSuccesses(chain.chainId, 0);
+    metrics.incConfirmed(chain.chainId, 0);
+    metrics.incFailures(chain.chainId, 0);
+    metrics.incRollback(chain.chainId, 0);
     chain.walletPrivateKey?.forEach((key) => {
       workerArray.push({
         walletPrivateKey: key,
@@ -188,15 +193,22 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
               storePayload.vaa_bytes,
               true,
               workerInfo.walletPrivateKey,
-              auditLogger
+              auditLogger,
+              metrics
             );
 
             await redisClient.del(si_key);
-            if (rr.status !== Status.Completed) {
+            if (rr.status === Status.Completed) {
+              metrics.incConfirmed(workerInfo.targetChainId);
+            } else {
               auditLogger.info("Detected a rollback on " + si_key);
+              metrics.incRollback(workerInfo.targetChainId);
               // Remove this item from the WORKING table and move it to INCOMING
               await redisClient.select(RedisTables.INCOMING);
-              await redisClient.set(si_key, si_value);
+              await redisClient.set(
+                si_key,
+                storePayloadToJson(resetPayload(storePayloadFromJson(si_value)))
+              );
               await redisClient.select(RedisTables.WORKING);
             }
           } else if (storePayload.status === Status.Error) {
@@ -233,14 +245,9 @@ export async function run(ph: PromHelper) {
     logger.info("NOT clearing REDIS.");
   }
 
-  let workerArray: WorkerInfo[] = createWorkerInfos();
+  let workerArray: WorkerInfo[] = createWorkerInfos(metrics);
 
   spawnWorkerThreads(workerArray);
-  try {
-    collectWallets(metrics);
-  } catch (e) {
-    logger.error("Failed to kick off collectWallets: " + e);
-  }
   try {
     monitorRedis(metrics);
   } catch (e) {
@@ -285,7 +292,13 @@ async function processRequest(
       } else {
         logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
       }
-      relayResult = await relay(payload.vaa_bytes, false, myPrivateKey, logger);
+      relayResult = await relay(
+        payload.vaa_bytes,
+        false,
+        myPrivateKey,
+        logger,
+        metrics
+      );
       logger.info("Relay returned: %o", Status[relayResult.status]);
     } catch (e: any) {
       if (e.message) {
@@ -314,9 +327,7 @@ async function processRequest(
       targetChain = transferPayload.targetChain;
     } catch (e) {}
     let retry: boolean = false;
-    if (relayResult.status === Status.Completed) {
-      metrics.incSuccesses(targetChain);
-    } else {
+    if (relayResult.status !== Status.Completed) {
       metrics.incFailures(targetChain);
       if (payload.retries >= MAX_RETRIES) {
         relayResult.status = Status.FatalError;

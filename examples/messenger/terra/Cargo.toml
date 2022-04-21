@@ -20,5 +20,4 @@ wormhole-sdk              = { path = "../../../sdk/rust/sdk", features = ["devne
 wormhole-messenger-common = { path = "../common" }
 
 [dev-dependencies]
-cosmwasm-vm = { version = "0.16.0", default-features = false }
 serde_json  = "1.0"
