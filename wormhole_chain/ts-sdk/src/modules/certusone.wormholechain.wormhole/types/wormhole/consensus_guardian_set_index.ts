@@ -21,10 +21,15 @@ export const ConsensusGuardianSetIndex = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): ConsensusGuardianSetIndex {
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): ConsensusGuardianSetIndex {
     const reader = input instanceof Uint8Array ? new Reader(input) : input;
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseConsensusGuardianSetIndex } as ConsensusGuardianSetIndex;
+    const message = {
+      ...baseConsensusGuardianSetIndex,
+    } as ConsensusGuardianSetIndex;
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -40,7 +45,9 @@ export const ConsensusGuardianSetIndex = {
   },
 
   fromJSON(object: any): ConsensusGuardianSetIndex {
-    const message = { ...baseConsensusGuardianSetIndex } as ConsensusGuardianSetIndex;
+    const message = {
+      ...baseConsensusGuardianSetIndex,
+    } as ConsensusGuardianSetIndex;
     if (object.index !== undefined && object.index !== null) {
       message.index = Number(object.index);
     } else {
@@ -58,7 +65,9 @@ export const ConsensusGuardianSetIndex = {
   fromPartial(
     object: DeepPartial<ConsensusGuardianSetIndex>
   ): ConsensusGuardianSetIndex {
-    const message = { ...baseConsensusGuardianSetIndex } as ConsensusGuardianSetIndex;
+    const message = {
+      ...baseConsensusGuardianSetIndex,
+    } as ConsensusGuardianSetIndex;
     if (object.index !== undefined && object.index !== null) {
       message.index = object.index;
     } else {

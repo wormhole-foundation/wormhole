@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 const CERTUS_DIRECTORY = "../vue/src/store/generated/certusone/wormhole-chain/";
+const COSMOS_DIRECTORY = "../vue/src/store/generated/cosmos/cosmos-sdk/";
 const MODULE_DIRECTORY = "../ts-sdk/src/modules/";
 const VUE_DIRECTORY = "../vue";
 const STARPORT_BUILD_DIRECTORY = "../build.tmp";
@@ -31,15 +32,25 @@ execWrapper(`rm -rf ${MODULE_DIRECTORY}`);
 execWrapper(`mkdir -p ${MODULE_DIRECTORY}`);
 execWrapper(`rm -rf ${VUE_DIRECTORY}`);
 execWrapper(`starport chain init -p ../ --home ${STARPORT_BUILD_DIRECTORY}`);
+execWrapper(`starport generate vuex --proto-all-modules`);
 //By this time we should have generated all the requisite files in the vue directory.
 
 const certusFiles = fs.readdirSync(CERTUS_DIRECTORY, { withFileTypes: true }); //should only contain directories for the modules
-console.log("Detected modules: " + certusFiles);
+const cosmosFiles = fs.readdirSync(COSMOS_DIRECTORY, { withFileTypes: true });
 
 certusFiles.forEach((directory) => {
   execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
   execWrapper(
     `cp -R ${CERTUS_DIRECTORY + directory.name}/module/* ${
+      MODULE_DIRECTORY + directory.name
+    }/`
+  ); //move all the files from the vue module into the sdk
+});
+
+cosmosFiles.forEach((directory) => {
+  execWrapper(`mkdir -p ${MODULE_DIRECTORY + directory.name}/`);
+  execWrapper(
+    `cp -R ${COSMOS_DIRECTORY + directory.name}/module/* ${
       MODULE_DIRECTORY + directory.name
     }/`
   ); //move all the files from the vue module into the sdk
