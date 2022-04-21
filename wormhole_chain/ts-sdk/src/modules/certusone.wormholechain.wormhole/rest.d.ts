@@ -60,10 +60,6 @@ export interface V1Beta1PageResponse {
     /** @format uint64 */
     total?: string;
 }
-export interface WormholeConsensusGuardianSetIndex {
-    /** @format int64 */
-    index?: number;
-}
 export interface WormholeConfig {
     /** @format uint64 */
     guardianSetExpiration?: string;
@@ -73,6 +69,10 @@ export interface WormholeConfig {
     governanceChain?: number;
     /** @format int64 */
     chainId?: number;
+}
+export interface WormholeConsensusGuardianSetIndex {
+    /** @format int64 */
+    index?: number;
 }
 export interface WormholeGuardianKey {
     /** @format byte */
@@ -145,11 +145,11 @@ export interface WormholeQueryAllSequenceCounterResponse {
      */
     pagination?: V1Beta1PageResponse;
 }
-export interface WormholeQueryGetConsensusGuardianSetIndexResponse {
-    ConsensusGuardianSetIndex?: WormholeConsensusGuardianSetIndex;
-}
 export interface WormholeQueryGetConfigResponse {
     Config?: WormholeConfig;
+}
+export interface WormholeQueryGetConsensusGuardianSetIndexResponse {
+    ConsensusGuardianSetIndex?: WormholeConsensusGuardianSetIndex;
 }
 export interface WormholeQueryGetGuardianSetResponse {
     GuardianSet?: WormholeGuardianSet;
@@ -162,6 +162,10 @@ export interface WormholeQueryGetReplayProtectionResponse {
 }
 export interface WormholeQueryGetSequenceCounterResponse {
     sequenceCounter?: WormholeSequenceCounter;
+}
+export interface WormholeQueryLatestGuardianSetIndexResponse {
+    /** @format int64 */
+    latestGuardianSetIndex?: number;
 }
 export interface WormholeReplayProtection {
     index?: string;
@@ -225,19 +229,10 @@ export declare class HttpClient<SecurityDataType = unknown> {
     request: <T = any, E = any>({ body, secure, path, type, query, format, baseUrl, cancelToken, ...params }: FullRequestParams) => Promise<HttpResponse<T, E>>;
 }
 /**
- * @title wormhole/consensus_guardian_set_index.proto
+ * @title wormhole/config.proto
  * @version version not set
  */
 export declare class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
-    /**
-     * No description
-     *
-     * @tags Query
-     * @name QueryConsensusGuardianSetIndex
-     * @summary Queries a ConsensusGuardianSetIndex by index.
-     * @request GET:/certusone/wormholechain/wormhole/consensus_guardian_set_index
-     */
-    queryConsensusGuardianSetIndex: (params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetConsensusGuardianSetIndexResponse, RpcStatus>>;
     /**
      * No description
      *
@@ -247,6 +242,15 @@ export declare class Api<SecurityDataType extends unknown> extends HttpClient<Se
      * @request GET:/certusone/wormholechain/wormhole/config
      */
     queryConfig: (params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetConfigResponse, RpcStatus>>;
+    /**
+     * No description
+     *
+     * @tags Query
+     * @name QueryConsensusGuardianSetIndex
+     * @summary Queries a ConsensusGuardianSetIndex by index.
+     * @request GET:/certusone/wormholechain/wormhole/consensus_guardian_set_index
+     */
+    queryConsensusGuardianSetIndex: (params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetConsensusGuardianSetIndexResponse, RpcStatus>>;
     /**
      * No description
      *
@@ -295,6 +299,15 @@ export declare class Api<SecurityDataType extends unknown> extends HttpClient<Se
      * @request GET:/certusone/wormholechain/wormhole/guardian_validator/{guardianKey}
      */
     queryGuardianValidator: (guardianKey: string, params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetGuardianValidatorResponse, RpcStatus>>;
+    /**
+     * No description
+     *
+     * @tags Query
+     * @name QueryLatestGuardianSetIndex
+     * @summary Queries a list of LatestGuardianSetIndex items.
+     * @request GET:/certusone/wormholechain/wormhole/latest_guardian_set_index
+     */
+    queryLatestGuardianSetIndex: (params?: RequestParams) => Promise<HttpResponse<WormholeQueryLatestGuardianSetIndexResponse, RpcStatus>>;
     /**
      * No description
      *

@@ -1,15 +1,11 @@
 import { describe, jest, test, expect, it } from "@jest/globals";
+import { getAddress } from "wormhole-chain-sdk";
 import {
   HOLE_DENOM,
   TEST_WALLET_MNEMONIC_1,
   TEST_WALLET_MNEMONIC_2,
 } from "../consts";
-import {
-  getAddress,
-  getBalance,
-  getWallet,
-  sendTokens,
-} from "../core/walletHelpers";
+import { getBalance, getWallet, sendTokens } from "../core/walletHelpers";
 
 jest.setTimeout(60000);
 

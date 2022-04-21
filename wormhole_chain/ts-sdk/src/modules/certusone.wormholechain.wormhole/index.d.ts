@@ -2,8 +2,8 @@
 import { StdFee } from "@cosmjs/launchpad";
 import { Registry, OfflineSigner, EncodeObject } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
-import { MsgExecuteGovernanceVAA } from "./types/wormhole/tx";
 import { MsgRegisterAccountAsGuardian } from "./types/wormhole/tx";
+import { MsgExecuteGovernanceVAA } from "./types/wormhole/tx";
 export declare const MissingWalletError: Error;
 export declare const registry: Registry;
 interface TxClientOptions {
@@ -15,8 +15,8 @@ interface SignAndBroadcastOptions {
 }
 declare const txClient: (wallet: OfflineSigner, { addr: addr }?: TxClientOptions) => Promise<{
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }?: SignAndBroadcastOptions) => any;
-    msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA) => EncodeObject;
     msgRegisterAccountAsGuardian: (data: MsgRegisterAccountAsGuardian) => EncodeObject;
+    msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA) => EncodeObject;
 }>;
 interface QueryClientOptions {
     addr: string;

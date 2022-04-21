@@ -2,7 +2,6 @@ import { describe, jest, test, expect } from "@jest/globals";
 import {
   HOLE_DENOM,
   TENDERMINT_URL,
-  TEST_TRANSFER_VAA,
   TEST_WALLET_MNEMONIC_1,
   TEST_WALLET_MNEMONIC_2,
 } from "../consts";

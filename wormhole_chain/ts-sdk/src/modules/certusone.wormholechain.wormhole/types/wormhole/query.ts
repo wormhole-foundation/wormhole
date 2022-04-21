@@ -94,6 +94,12 @@ export interface QueryAllGuardianValidatorResponse {
   pagination: PageResponse | undefined;
 }
 
+export interface QueryLatestGuardianSetIndexRequest {}
+
+export interface QueryLatestGuardianSetIndexResponse {
+  latestGuardianSetIndex: number;
+}
+
 const baseQueryGetGuardianSetRequest: object = { index: 0 };
 
 export const QueryGetGuardianSetRequest = {
@@ -1667,6 +1673,136 @@ export const QueryAllGuardianValidatorResponse = {
   },
 };
 
+const baseQueryLatestGuardianSetIndexRequest: object = {};
+
+export const QueryLatestGuardianSetIndexRequest = {
+  encode(
+    _: QueryLatestGuardianSetIndexRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryLatestGuardianSetIndexRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryLatestGuardianSetIndexRequest,
+    } as QueryLatestGuardianSetIndexRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(_: any): QueryLatestGuardianSetIndexRequest {
+    const message = {
+      ...baseQueryLatestGuardianSetIndexRequest,
+    } as QueryLatestGuardianSetIndexRequest;
+    return message;
+  },
+
+  toJSON(_: QueryLatestGuardianSetIndexRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  fromPartial(
+    _: DeepPartial<QueryLatestGuardianSetIndexRequest>
+  ): QueryLatestGuardianSetIndexRequest {
+    const message = {
+      ...baseQueryLatestGuardianSetIndexRequest,
+    } as QueryLatestGuardianSetIndexRequest;
+    return message;
+  },
+};
+
+const baseQueryLatestGuardianSetIndexResponse: object = {
+  latestGuardianSetIndex: 0,
+};
+
+export const QueryLatestGuardianSetIndexResponse = {
+  encode(
+    message: QueryLatestGuardianSetIndexResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.latestGuardianSetIndex !== 0) {
+      writer.uint32(8).uint32(message.latestGuardianSetIndex);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryLatestGuardianSetIndexResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryLatestGuardianSetIndexResponse,
+    } as QueryLatestGuardianSetIndexResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.latestGuardianSetIndex = reader.uint32();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryLatestGuardianSetIndexResponse {
+    const message = {
+      ...baseQueryLatestGuardianSetIndexResponse,
+    } as QueryLatestGuardianSetIndexResponse;
+    if (
+      object.latestGuardianSetIndex !== undefined &&
+      object.latestGuardianSetIndex !== null
+    ) {
+      message.latestGuardianSetIndex = Number(object.latestGuardianSetIndex);
+    } else {
+      message.latestGuardianSetIndex = 0;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryLatestGuardianSetIndexResponse): unknown {
+    const obj: any = {};
+    message.latestGuardianSetIndex !== undefined &&
+      (obj.latestGuardianSetIndex = message.latestGuardianSetIndex);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryLatestGuardianSetIndexResponse>
+  ): QueryLatestGuardianSetIndexResponse {
+    const message = {
+      ...baseQueryLatestGuardianSetIndexResponse,
+    } as QueryLatestGuardianSetIndexResponse;
+    if (
+      object.latestGuardianSetIndex !== undefined &&
+      object.latestGuardianSetIndex !== null
+    ) {
+      message.latestGuardianSetIndex = object.latestGuardianSetIndex;
+    } else {
+      message.latestGuardianSetIndex = 0;
+    }
+    return message;
+  },
+};
+
 /** Query defines the gRPC querier service. */
 export interface Query {
   /** Queries a guardianSet by index. */
@@ -1707,6 +1843,10 @@ export interface Query {
   GuardianValidatorAll(
     request: QueryAllGuardianValidatorRequest
   ): Promise<QueryAllGuardianValidatorResponse>;
+  /** Queries a list of LatestGuardianSetIndex items. */
+  LatestGuardianSetIndex(
+    request: QueryLatestGuardianSetIndexRequest
+  ): Promise<QueryLatestGuardianSetIndexResponse>;
 }
 
 export class QueryClientImpl implements Query {
@@ -1813,7 +1953,9 @@ export class QueryClientImpl implements Query {
   ConsensusGuardianSetIndex(
     request: QueryGetConsensusGuardianSetIndexRequest
   ): Promise<QueryGetConsensusGuardianSetIndexResponse> {
-    const data = QueryGetConsensusGuardianSetIndexRequest.encode(request).finish();
+    const data = QueryGetConsensusGuardianSetIndexRequest.encode(
+      request
+    ).finish();
     const promise = this.rpc.request(
       "certusone.wormholechain.wormhole.Query",
       "ConsensusGuardianSetIndex",
@@ -1849,6 +1991,20 @@ export class QueryClientImpl implements Query {
     );
     return promise.then((data) =>
       QueryAllGuardianValidatorResponse.decode(new Reader(data))
+    );
+  }
+
+  LatestGuardianSetIndex(
+    request: QueryLatestGuardianSetIndexRequest
+  ): Promise<QueryLatestGuardianSetIndexResponse> {
+    const data = QueryLatestGuardianSetIndexRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "LatestGuardianSetIndex",
+      data
+    );
+    return promise.then((data) =>
+      QueryLatestGuardianSetIndexResponse.decode(new Reader(data))
     );
   }
 }

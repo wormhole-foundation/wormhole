@@ -8,7 +8,6 @@
     "build": "npm run genTypes && tsc",
     "genTypes": "node src/buildHelper.cjs"
   },
-  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/certusone/wormhole-chain.git"
