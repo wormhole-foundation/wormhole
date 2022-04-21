@@ -33,22 +33,19 @@ func (e *CeloImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
 }
 
-func (e *CeloImpl) DialContext(ctx context.Context, rawurl string) error {
-	var err error
+func (e *CeloImpl) DialContext(ctx context.Context, rawurl string) (err error) {
 	e.client, err = celoClient.DialContext(ctx, rawurl)
-	return err
+	return
 }
 
-func (e *CeloImpl) NewAbiFilterer(address ethCommon.Address) error {
-	var err error
+func (e *CeloImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
 	e.filterer, err = celoAbi.NewAbiFilterer(celoCommon.BytesToAddress(address.Bytes()), e.client)
-	return err
+	return
 }
 
-func (e *CeloImpl) NewAbiCaller(address ethCommon.Address) error {
-	var err error
+func (e *CeloImpl) NewAbiCaller(address ethCommon.Address) (err error) {
 	e.caller, err = celoAbi.NewAbiCaller(celoCommon.BytesToAddress(address.Bytes()), e.client)
-	return err
+	return
 }
 
 func (e *CeloImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
@@ -67,6 +64,9 @@ func (e *CeloImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.Str
 
 	opts := &celoBind.CallOpts{Context: ctx}
 	celoGs, err := e.caller.GetGuardianSet(opts, index)
+	if err != nil {
+		return ethAbi.StructsGuardianSet{}, err
+	}
 
 	ethKeys := make([]ethCommon.Address, len(celoGs.Keys))
 	for n, k := range celoGs.Keys {
@@ -90,7 +90,7 @@ func (e *CeloImpl) WatchLogMessagePublished(ctx, timeout context.Context, sink c
 		return messageSub, err
 	}
 
-	// The purpose of this is to map events from the Celo log message channel to Eth log message channel.
+	// The purpose of this is to map events from the Celo log message channel to the Eth log message channel.
 	go func() {
 		for {
 			select {
@@ -155,7 +155,7 @@ func (e *CeloImpl) SubscribeNewHead(ctx context.Context, sink chan<- *ethTypes.H
 		return headerSubscription, err
 	}
 
-	// The purpose of this is to map events from the Celo event channel to Eth event channel.
+	// The purpose of this is to map events from the Celo event channel to the Eth event channel.
 	go func() {
 		for {
 			select {

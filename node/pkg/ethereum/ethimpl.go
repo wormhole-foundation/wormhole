@@ -26,22 +26,19 @@ type EthImpl struct {
 
 func (e *EthImpl) SetLogger(_l *zap.Logger) {}
 
-func (e *EthImpl) DialContext(ctx context.Context, rawurl string) error {
-	var err error
+func (e *EthImpl) DialContext(ctx context.Context, rawurl string) (err error) {
 	e.client, err = ethClient.DialContext(ctx, rawurl)
-	return err
+	return
 }
 
-func (e *EthImpl) NewAbiFilterer(address ethCommon.Address) error {
-	var err error
+func (e *EthImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
 	e.filterer, err = ethAbi.NewAbiFilterer(address, e.client)
-	return err
+	return
 }
 
-func (e *EthImpl) NewAbiCaller(address ethCommon.Address) error {
-	var err error
+func (e *EthImpl) NewAbiCaller(address ethCommon.Address) (err error) {
 	e.caller, err = ethAbi.NewAbiCaller(address, e.client)
-	return err
+	return
 }
 
 func (e *EthImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
