@@ -246,16 +246,16 @@ export class TestLib {
 
   getTokenEmitter(chain: number): string {
     if (chain === CHAIN_ID_SOLANA) {
-      return "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5";
+      return "c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f";
     }
     if (chain === CHAIN_ID_ETH) {
-      return "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585";
+      return "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16";
     }
     if (chain === CHAIN_ID_TERRA) {
-      return "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2";
+      return "000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d";
     }
     if (chain === CHAIN_ID_BSC) {
-      return "000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7";
+      return "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16";
     }
     if (chain === CHAIN_ID_POLYGON) {
       return "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde";

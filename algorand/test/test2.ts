@@ -53,10 +53,23 @@ class AlgoTests {
         let accounts = await getTempAccounts();
         let player = accounts[0]
 
-//        let t = testLib.genTransfer(guardianPrivKeys, 1, 1, 1, 1, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 2, uint8ArrayToHexString(algosdk.decodeAddress(player.addr).publicKey, false), 8, 0)
-//        console.log(t)
-//        console.log(parseVAA(hexStringToUint8Array(t)))
-//        process.exit(0)
+        let t = testLib.genAssetMeta(guardianPrivKeys, 0, seq, seq, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 1, 8, "USDC", "CircleCoin")
+        console.log(t)
+        console.log(parseVAA(hexStringToUint8Array(t)))
+
+        await submitVAA(hexStringToUint8Array(t), client, player, TOKEN_BRIDGE_ID)
+
+        process.exit(0)
+
+//        vaaLogs.append(["createWrappedOnAlgorand", attestVAA.hex()])
+//        self.submitVAA(attestVAA, client, player, self.tokenid)
+
+
+        t = testLib.genTransfer(guardianPrivKeys, 1, 1, 1, 1, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 2, uint8ArrayToHexString(algosdk.decodeAddress(player.addr).publicKey, false), 8, 0)
+        console.log(t)
+        console.log(parseVAA(hexStringToUint8Array(t)))
+
+        process.exit(0)
 
         console.log("seq = ", seq);
 
