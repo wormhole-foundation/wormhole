@@ -5,6 +5,7 @@ import { canonicalAddress, humanAddress, isNativeDenom } from "../terra";
 import {
   ChainId,
   CHAIN_ID_ACALA,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
@@ -82,6 +83,13 @@ export const nativeToHexString = (
     } else {
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
+  } else if (chain === CHAIN_ID_ALGORAND) {
+    const a = parseInt(address);
+    const b = (
+      "0000000000000000000000000000000000000000000000000000000000000000" +
+      a.toString(16)
+    ).slice(-64);
+    return b;
   } else {
     return null;
   }
