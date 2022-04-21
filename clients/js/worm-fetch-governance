@@ -1,0 +1,29 @@
+#!/bin/bash
+
+usage="Usage:
+  $(basename "$0") [sequence]
+
+Fetch a governance VAA by sequence number, and print it as hex."
+
+sequence=$1
+if [ -z "$sequence" ]; then
+	echo "$usage"
+	exit 1
+fi
+mkdir -p "$TMPDIR/vaa"
+cached="$TMPDIR/vaa/$sequence"
+
+# We cache the result once it's ready, so we don't keep making requests if the
+# VAA has already been pulled
+if [ ! -f "$cached" ]; then
+	result=$(curl -s "https://wormhole-v2-mainnet-api.certus.one/v1/signed_vaa/1/0000000000000000000000000000000000000000000000000000000000000004/$sequence" | jq '.vaaBytes' -r)
+	# The 'vaaBytes' field is set once quorum has been reached. Otherwise, 'jq'
+	# returns "null", in which case we just exit 1
+	if [ "$result" == "null" ]; then
+		exit 1
+	fi
+	# vaaBytes is base64, we convert it to hex and write it to cache
+	echo "$result" | base64 -d | hexdump -v -e '/1 "%02x" ' > "$cached"
+fi
+
+cat "$cached"
