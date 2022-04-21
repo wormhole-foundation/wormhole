@@ -1099,8 +1099,10 @@ export async function submitVAA(
                 "TokenBridge chainAddr"
             );
         } else {
-            const contract: Buffer = parsedVAA.get("Contract");
-            const assetId = contract.readIntBE(0, 4);
+            console.log(parsedVAA);
+            console.log(parsedVAA.get("Contract"));
+            const contract: string = parsedVAA.get("Contract");
+            const assetId = Buffer.from(contract).readIntBE(0, 4);
             chainAddr = await optin(
                 client,
                 sender,
