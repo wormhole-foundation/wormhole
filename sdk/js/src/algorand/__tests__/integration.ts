@@ -12,6 +12,10 @@ import {
     ETH_NODE_URL,
     ETH_PRIVATE_KEY,
     ETH_TOKEN_BRIDGE_ADDRESS,
+    TERRA_CHAIN_ID,
+    TERRA_NODE_URL,
+    TERRA_PRIVATE_KEY,
+    TERRA_TOKEN_BRIDGE_ADDRESS,
     WORMHOLE_RPC_HOSTS,
 } from "../../token_bridge/__tests__/consts";
 import algosdk, {
@@ -27,6 +31,7 @@ import {
     accountExists,
     attestFromAlgorand,
     CORE_ID,
+    createWrappedOnAlgorand,
     getAlgoClient,
     getBalances,
     getIsTransferCompletedAlgorand,
@@ -41,12 +46,14 @@ import {
     TOKEN_BRIDGE_ID,
     transferAsset,
     transferFromAlgorand,
+    updateWrappedOnAlgorand,
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import { TestLib } from "../testlib";
 import {
     CHAIN_ID_ALGORAND,
     CHAIN_ID_ETH,
+    CHAIN_ID_TERRA,
     hexToUint8Array,
     nativeToHexString,
 } from "../../utils";
@@ -55,16 +62,27 @@ import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport"
 import { ethers } from "ethers";
 import {
     approveEth,
+    attestFromTerra,
     createWrappedOnEth,
     getForeignAssetEth,
     getIsTransferCompletedEth,
     redeemOnEth,
     transferFromEth,
+    transferFromTerra,
     updateWrappedOnEth,
 } from "../../token_bridge";
 import { TokenImplementation__factory } from "../../ethers-contracts";
-import { parseSequenceFromLogEth } from "../../bridge/parseSequenceFromLog";
-import { getEmitterAddressEth } from "../../bridge";
+import {
+    parseSequenceFromLogEth,
+    parseSequenceFromLogTerra,
+} from "../../bridge/parseSequenceFromLog";
+import { getEmitterAddressEth, getEmitterAddressTerra } from "../../bridge";
+import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
+import {
+    getSignedVAABySequence,
+    queryBalanceOnTerra,
+    waitForTerraExecution,
+} from "../../token_bridge/__tests__/helpers";
 
 setDefaultWasm("node");
 
@@ -295,7 +313,7 @@ describe("Integration Tests", () => {
         //         done();
         //     })();
         // });
-        test.only("Algorand attestation", (done) => {
+        test("Algorand attestation", (done) => {
             (async () => {
                 try {
                     console.log("Starting attestation...");
@@ -521,7 +539,8 @@ describe("Integration Tests", () => {
                         "Balance on Eth after transfer = ",
                         balOnEthAfterInt
                     );
-                    expect(balOnEthAfterInt).toEqual(AmountToTransfer / 100);
+                    const FinalAmt: number = AmountToTransfer / 100;
+                    expect(balOnEthAfterInt).toEqual(FinalAmt);
 
                     // Attempt to transfer from Eth back to Algorand
                     const Amount: string = "100";
@@ -589,8 +608,396 @@ describe("Integration Tests", () => {
                             TOKEN_BRIDGE_ID,
                             wallet
                         );
+                    console.log("Checking wallets...");
+                    const newBal = await token.balanceOf(
+                        ETH_TEST_WALLET_PUBLIC_KEY
+                    );
+                    const newBalInt = parseInt(newBal._hex);
+                    console.log("newBalInt", newBalInt);
+                    expect(newBalInt).toBe(FinalAmt - parseInt(Amount));
                 } catch (e) {
                     console.error("Algorand attestation error:", e);
+                    done();
+                    expect(false).toBe(true);
+                }
+                done();
+            })();
+        });
+        test.only("Transfer wrapped Luna from Terra to Algorand and back again", (done) => {
+            (async () => {
+                try {
+                    console.log("Starting attestation...");
+                    const CORE_ID: number = 4;
+                    const TOKEN_BRIDGE_ID: number = 6;
+                    const client: algosdk.Algodv2 = getAlgoClient();
+                    const tempAccts: Account[] = await getTempAccounts();
+                    const numAccts: number = tempAccts.length;
+                    expect(numAccts).toBeGreaterThan(0);
+                    const algoWallet: Account = tempAccts[0];
+                    const lcd = new LCDClient({
+                        URL: TERRA_NODE_URL,
+                        chainID: TERRA_CHAIN_ID,
+                    });
+                    const mk = new MnemonicKey({
+                        mnemonic: TERRA_PRIVATE_KEY,
+                    });
+                    const terraWallet = lcd.wallet(mk);
+                    const Asset: string = "uluna";
+                    const FeeAsset: string = "uusd";
+                    const Amount: string = "1000000";
+                    const TerraWalletAddress: string =
+                        "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
+                    const msg = await attestFromTerra(
+                        TERRA_TOKEN_BRIDGE_ADDRESS,
+                        TerraWalletAddress,
+                        Asset
+                    );
+                    const gasPrices = lcd.config.gasPrices;
+                    const feeEstimate = await lcd.tx.estimateFee(
+                        [
+                            {
+                                sequenceNumber: await terraWallet.sequence(),
+                                publicKey: terraWallet.key.publicKey,
+                            },
+                        ],
+                        {
+                            msgs: [msg],
+                            memo: "localhost",
+                            feeDenoms: [FeeAsset],
+                            gasPrices,
+                        }
+                    );
+                    const executeAttest = await terraWallet.createAndSignTx({
+                        msgs: [msg],
+                        memo: "Testing...",
+                        feeDenoms: ["uusd"],
+                        gasPrices,
+                        fee: feeEstimate,
+                    });
+                    const attestResult = await lcd.tx.broadcast(executeAttest);
+                    const attestInfo = await waitForTerraExecution(
+                        attestResult.txhash
+                    );
+                    if (!attestInfo) {
+                        throw new Error("info not found");
+                    }
+                    const sequence = parseSequenceFromLogTerra(attestInfo);
+                    if (!sequence) {
+                        throw new Error("Sequence not found");
+                    }
+                    const emitterAddress = await getEmitterAddressTerra(
+                        TERRA_TOKEN_BRIDGE_ADDRESS
+                    );
+                    const signedVaa = await getSignedVAABySequence(
+                        CHAIN_ID_TERRA,
+                        sequence,
+                        emitterAddress
+                    );
+                    console.log("About to createWrappedOnAlgorand...");
+                    const cr = await createWrappedOnAlgorand(
+                        client,
+                        algoWallet,
+                        signedVaa
+                    );
+                    console.log("cr:", cr);
+
+                    // Start of transfer from Terra to Algorand
+                    // Get initial balance of luna on Terra
+                    const initialTerraBalance: number =
+                        await queryBalanceOnTerra(Asset);
+                    console.log(
+                        "Initial Terra balance of",
+                        Asset,
+                        initialTerraBalance
+                    );
+
+                    // Get initial balance of uusd on Terra
+                    const initialFeeBalance: number = await queryBalanceOnTerra(
+                        FeeAsset
+                    );
+                    console.log(
+                        "Initial Terra balance of",
+                        FeeAsset,
+                        initialFeeBalance
+                    );
+
+                    // Get initial balance of wrapped luna on Algorand
+                    const originAssetHex = nativeToHexString(
+                        Asset,
+                        CHAIN_ID_TERRA
+                    );
+                    if (!originAssetHex) {
+                        throw new Error("originAssetHex is null");
+                    }
+                    // TODO:  Get wallet balance on Algorand
+
+                    // Get Balances
+                    const tbBals: Map<number, number> = await getBalances(
+                        client,
+                        "TPFKQBOR7RJ475XW6XMOZMSMBCZH6WNGFQNT7CM7NL2UMBCMBIU5PVBGPM"
+                    );
+                    console.log("bals:", tbBals);
+
+                    // Start transfer from Terra to Ethereum
+                    // const hexStr = nativeToHexString(
+                    //     ETH_TEST_WALLET_PUBLIC_KEY,
+                    //     CHAIN_ID_ETH
+                    // );
+                    // if (!hexStr) {
+                    //     throw new Error("Failed to convert to hexStr");
+                    // }
+                    // const wallet = lcd.wallet(mk);
+                    const txMsgs = await transferFromTerra(
+                        terraWallet.key.accAddress,
+                        TERRA_TOKEN_BRIDGE_ADDRESS,
+                        Asset,
+                        Amount,
+                        CHAIN_ID_ETH,
+                        decodeAddress(algoWallet.addr).publicKey // This needs to be Algorand wallet
+                    );
+                    const executeTx = await terraWallet.createAndSignTx({
+                        msgs: txMsgs,
+                        memo: "Testing transfer...",
+                        feeDenoms: [FeeAsset],
+                        gasPrices,
+                        fee: feeEstimate,
+                    });
+                    const txResult = await lcd.tx.broadcast(executeTx);
+                    console.log("Transfer gas used: ", txResult.gas_used);
+                    const txInfo = await waitForTerraExecution(txResult.txhash);
+                    if (!txInfo) {
+                        throw new Error("info not found");
+                    }
+
+                    // Get VAA in order to do redemption step
+                    const txSn = parseSequenceFromLogTerra(txInfo);
+                    if (!txSn) {
+                        throw new Error("Sequence not found");
+                    }
+                    const txSignedVaa = await getSignedVAABySequence(
+                        CHAIN_ID_TERRA,
+                        txSn,
+                        emitterAddress
+                    );
+                    const roe = await redeemOnAlgorand(
+                        signedVaa,
+                        client,
+                        algoWallet,
+                        TOKEN_BRIDGE_ID
+                    );
+                    expect(
+                        await getIsTransferCompletedAlgorand(
+                            client,
+                            signedVaa,
+                            TOKEN_BRIDGE_ID,
+                            algoWallet
+                        )
+                    ).toBe(true);
+                    // Get Balances
+                    const bals: Map<number, number> = await getBalances(
+                        client,
+                        algoWallet.addr
+                    );
+                    console.log("bals:", bals);
+
+                    // Test finished.  Check wallet balances
+                    // Get final balance of uluna on Terra
+                    // const finalTerraBalance = await queryBalanceOnTerra(Asset);
+                    // console.log(
+                    //     "Final Terra balance of",
+                    //     Asset,
+                    //     finalTerraBalance
+                    // );
+
+                    // // Get final balance of uusd on Terra
+                    // const finalFeeBalance: number = await queryBalanceOnTerra(
+                    //     FeeAsset
+                    // );
+                    // console.log(
+                    //     "Final Terra balance of",
+                    //     FeeAsset,
+                    //     finalFeeBalance
+                    // );
+                    // expect(
+                    //     initialTerraBalance - 1e6 === finalTerraBalance
+                    // ).toBe(true);
+                    // const lunaBalOnEthAfter = await token.balanceOf(
+                    //     ETH_TEST_WALLET_PUBLIC_KEY
+                    // );
+                    // const lunaBalOnEthAfterInt = parseInt(
+                    //     lunaBalOnEthAfter._hex
+                    // );
+                    // console.log(
+                    //     "Luna balance on Eth after transfer = ",
+                    //     lunaBalOnEthAfterInt
+                    // );
+                    // expect(
+                    //     initialLunaBalOnEthInt + 1e6 === lunaBalOnEthAfterInt
+                    // ).toBe(true);
+
+                    // Start of transfer back to Terra
+                    // Get initial wallet balances
+                    // const lcd = new LCDClient({
+                    //     URL: TERRA_NODE_URL,
+                    //     chainID: TERRA_CHAIN_ID,
+                    // });
+                    // const mk = new MnemonicKey({
+                    //     mnemonic: TERRA_PRIVATE_KEY,
+                    // });
+                    // const Asset: string = "uluna";
+                    // const initialTerraBalance: number =
+                    //     await queryBalanceOnTerra(Asset);
+                    // console.log(
+                    //     "Terra balance before transfer = ",
+                    //     initialTerraBalance
+                    // );
+                    // const ETH_TEST_WALLET_PUBLIC_KEY =
+                    //     "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
+                    // const provider = new ethers.providers.WebSocketProvider(
+                    //     ETH_NODE_URL
+                    // ) as any;
+                    // const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+                    // const originAssetHex = nativeToHexString(
+                    //     Asset,
+                    //     CHAIN_ID_TERRA
+                    // );
+                    // if (!originAssetHex) {
+                    //     throw new Error("originAssetHex is null");
+                    // }
+                    // const foreignAsset = await getForeignAssetEth(
+                    //     ETH_TOKEN_BRIDGE_ADDRESS,
+                    //     provider,
+                    //     CHAIN_ID_TERRA,
+                    //     hexToUint8Array(originAssetHex)
+                    // );
+                    // if (!foreignAsset) {
+                    //     throw new Error("foreignAsset is null");
+                    // }
+                    // let token = TokenImplementation__factory.connect(
+                    //     foreignAsset,
+                    //     signer
+                    // );
+                    // const initialLunaBalOnEth = await token.balanceOf(
+                    //     ETH_TEST_WALLET_PUBLIC_KEY
+                    // );
+                    // const initialLunaBalOnEthInt = parseInt(
+                    //     initialLunaBalOnEth._hex
+                    // );
+                    // console.log(
+                    //     "Luna balance on Eth before transfer = ",
+                    //     initialLunaBalOnEthInt
+                    // );
+                    // const Amount: string = "1000000";
+
+                    // approve the bridge to spend tokens
+                    // await approveEth(
+                    //     ETH_TOKEN_BRIDGE_ADDRESS,
+                    //     foreignAsset,
+                    //     signer,
+                    //     Amount
+                    // );
+
+                    // // transfer wrapped luna from Ethereum to Terra
+                    // const wallet = lcd.wallet(mk);
+                    // const receipt = await transferFromEth(
+                    //     ETH_TOKEN_BRIDGE_ADDRESS,
+                    //     signer,
+                    //     foreignAsset,
+                    //     Amount,
+                    //     CHAIN_ID_TERRA,
+                    //     hexToUint8Array(
+                    //         nativeToHexString(
+                    //             wallet.key.accAddress,
+                    //             CHAIN_ID_TERRA
+                    //         ) || ""
+                    //     )
+                    // );
+                    // console.log("Transfer gas used: ", receipt.gasUsed);
+
+                    // // get the sequence from the logs (needed to fetch the vaa)
+                    // const sequence = parseSequenceFromLogEth(
+                    //     receipt,
+                    //     ETH_CORE_BRIDGE_ADDRESS
+                    // );
+                    // const emitterAddress = getEmitterAddressEth(
+                    //     ETH_TOKEN_BRIDGE_ADDRESS
+                    // );
+
+                    // // poll until the guardian(s) witness and sign the vaa
+                    // const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+                    //     WORMHOLE_RPC_HOSTS,
+                    //     CHAIN_ID_ETH,
+                    //     emitterAddress,
+                    //     sequence,
+                    //     {
+                    //         transport: NodeHttpTransport(),
+                    //     }
+                    // );
+                    // const msg = await redeemOnTerra(
+                    //     TERRA_TOKEN_BRIDGE_ADDRESS,
+                    //     wallet.key.accAddress,
+                    //     signedVAA
+                    // );
+                    // const gasPrices = await axios
+                    //     .get(TERRA_GAS_PRICES_URL)
+                    //     .then((result) => result.data);
+                    // const feeEstimate = await lcd.tx.estimateFee(
+                    //     [
+                    //         {
+                    //             sequenceNumber: await wallet.sequence(),
+                    //             publicKey: wallet.key.publicKey,
+                    //         },
+                    //     ],
+                    //     {
+                    //         msgs: [msg],
+                    //         memo: "localhost",
+                    //         feeDenoms: ["uusd"],
+                    //         gasPrices,
+                    //     }
+                    // );
+                    // const tx = await wallet.createAndSignTx({
+                    //     msgs: [msg],
+                    //     memo: "localhost",
+                    //     feeDenoms: ["uusd"],
+                    //     gasPrices,
+                    //     fee: feeEstimate,
+                    // });
+                    // await lcd.tx.broadcast(tx);
+                    // expect(
+                    //     await getIsTransferCompletedTerra(
+                    //         TERRA_TOKEN_BRIDGE_ADDRESS,
+                    //         signedVAA,
+                    //         lcd,
+                    //         TERRA_GAS_PRICES_URL
+                    //     )
+                    // ).toBe(true);
+
+                    // Check wallet balances after
+                    // const finalTerraBalance = await queryBalanceOnTerra(Asset);
+                    // console.log(
+                    //     "Terra balance after transfer = ",
+                    //     finalTerraBalance
+                    // );
+                    // expect(
+                    //     initialTerraBalance + 1e6 === finalTerraBalance
+                    // ).toBe(true);
+                    // const finalLunaBalOnEth = await token.balanceOf(
+                    //     ETH_TEST_WALLET_PUBLIC_KEY
+                    // );
+                    // const finalLunaBalOnEthInt = parseInt(
+                    //     finalLunaBalOnEth._hex
+                    // );
+                    // console.log(
+                    //     "Luna balance on Eth after transfer = ",
+                    //     finalLunaBalOnEthInt
+                    // );
+                    // expect(
+                    //     initialLunaBalOnEthInt - 1e6 === finalLunaBalOnEthInt
+                    // ).toBe(true);
+                    // const uusdBal = await queryBalanceOnTerra("uusd");
+                    // console.log("uusdBal = ", uusdBal);
+                } catch (e) {
+                    console.error("Terra <=> Algorand error:", e);
                     done();
                     expect(false).toBe(true);
                 }

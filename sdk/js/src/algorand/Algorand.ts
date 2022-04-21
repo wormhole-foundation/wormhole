@@ -1102,7 +1102,7 @@ export async function submitVAA(
             console.log("nativeAssetOptin::parseVAA", parsedVAA);
             console.log(parsedVAA.get("Contract"));
             const contract: string = parsedVAA.get("Contract");
-            const assetId = parseInt(contract, 16)
+            const assetId = parseInt(contract, 16);
             console.log("nativeAssetOptin::assetId", assetId);
             chainAddr = await optin(
                 client,
@@ -1236,7 +1236,7 @@ export async function submitVAA(
                 console.log("a", a);
             }
         } else {
-            a = parseInt(parsedVAA.get("Contract"), 16)
+            a = parseInt(parsedVAA.get("Contract"), 16);
         }
 
         // The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
@@ -1595,8 +1595,8 @@ export async function createWrappedOnAlgorand(
     client: algosdk.Algodv2,
     sender: Account,
     attestVAA: Uint8Array
-) {
-    await submitVAA(attestVAA, client, sender, TOKEN_BRIDGE_ID);
+): Promise<Buffer[]> {
+    return await submitVAA(attestVAA, client, sender, TOKEN_BRIDGE_ID);
 }
 
 export async function updateWrappedOnAlgorand(
@@ -1622,12 +1622,12 @@ export async function redeemOnAlgorand(
     vaa: Uint8Array,
     client: Algodv2,
     acct: Account,
-    tokenId: number
+    tokenBridgeId: number
 ): Promise<Buffer[]> {
     const parsedVAA: Map<string, any> = parseVAA(vaa);
     console.log("redeemOnAlgorand::parseVAA", parsedVAA);
 
-    return await submitVAA(vaa, client, acct, tokenId);
+    return await submitVAA(vaa, client, acct, tokenBridgeId);
 }
 
 /**
