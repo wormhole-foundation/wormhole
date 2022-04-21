@@ -681,23 +681,23 @@ describe("Integration Tests", () => {
                     if (!attestInfo) {
                         throw new Error("info not found");
                     }
-                    const sequence = parseSequenceFromLogTerra(attestInfo);
-                    if (!sequence) {
+                    const attestSn = parseSequenceFromLogTerra(attestInfo);
+                    if (!attestSn) {
                         throw new Error("Sequence not found");
                     }
                     const emitterAddress = await getEmitterAddressTerra(
                         TERRA_TOKEN_BRIDGE_ADDRESS
                     );
-                    const signedVaa = await getSignedVAABySequence(
+                    const attestSignedVaa = await getSignedVAABySequence(
                         CHAIN_ID_TERRA,
-                        sequence,
+                        attestSn,
                         emitterAddress
                     );
                     console.log("About to createWrappedOnAlgorand...");
                     const cr = await createWrappedOnAlgorand(
                         client,
                         algoWallet,
-                        signedVaa
+                        attestSignedVaa
                     );
                     console.log("cr:", cr);
 
@@ -752,7 +752,7 @@ describe("Integration Tests", () => {
                         TERRA_TOKEN_BRIDGE_ADDRESS,
                         Asset,
                         Amount,
-                        CHAIN_ID_ETH,
+                        CHAIN_ID_ALGORAND,
                         decodeAddress(algoWallet.addr).publicKey // This needs to be Algorand wallet
                     );
                     const executeTx = await terraWallet.createAndSignTx({
@@ -780,7 +780,7 @@ describe("Integration Tests", () => {
                         emitterAddress
                     );
                     const roe = await redeemOnAlgorand(
-                        signedVaa,
+                        txSignedVaa,
                         client,
                         algoWallet,
                         TOKEN_BRIDGE_ID
@@ -788,7 +788,7 @@ describe("Integration Tests", () => {
                     expect(
                         await getIsTransferCompletedAlgorand(
                             client,
-                            signedVaa,
+                            txSignedVaa,
                             TOKEN_BRIDGE_ID,
                             algoWallet
                         )
@@ -798,29 +798,29 @@ describe("Integration Tests", () => {
                         client,
                         algoWallet.addr
                     );
-                    console.log("bals:", bals);
+                    console.log("algoWallet bals:", bals);
 
                     // Test finished.  Check wallet balances
                     // Get final balance of uluna on Terra
-                    // const finalTerraBalance = await queryBalanceOnTerra(Asset);
-                    // console.log(
-                    //     "Final Terra balance of",
-                    //     Asset,
-                    //     finalTerraBalance
-                    // );
+                    const finalTerraBalance = await queryBalanceOnTerra(Asset);
+                    console.log(
+                        "Final Terra balance of",
+                        Asset,
+                        finalTerraBalance
+                    );
 
-                    // // Get final balance of uusd on Terra
-                    // const finalFeeBalance: number = await queryBalanceOnTerra(
-                    //     FeeAsset
-                    // );
-                    // console.log(
-                    //     "Final Terra balance of",
-                    //     FeeAsset,
-                    //     finalFeeBalance
-                    // );
-                    // expect(
-                    //     initialTerraBalance - 1e6 === finalTerraBalance
-                    // ).toBe(true);
+                    // Get final balance of uusd on Terra
+                    const finalFeeBalance: number = await queryBalanceOnTerra(
+                        FeeAsset
+                    );
+                    console.log(
+                        "Final Terra balance of",
+                        FeeAsset,
+                        finalFeeBalance
+                    );
+                    expect(
+                        initialTerraBalance - 1e6 === finalTerraBalance
+                    ).toBe(true);
                     // const lunaBalOnEthAfter = await token.balanceOf(
                     //     ETH_TEST_WALLET_PUBLIC_KEY
                     // );
