@@ -1099,10 +1099,11 @@ export async function submitVAA(
                 "TokenBridge chainAddr"
             );
         } else {
-            console.log(parsedVAA);
+            console.log("nativeAssetOptin::parseVAA", parsedVAA);
             console.log(parsedVAA.get("Contract"));
             const contract: string = parsedVAA.get("Contract");
-            const assetId = Buffer.from(contract).readIntBE(0, 4);
+            const assetId = parseInt(contract, 16)
+            console.log("nativeAssetOptin::assetId", assetId);
             chainAddr = await optin(
                 client,
                 sender,
@@ -1606,6 +1607,9 @@ export async function updateWrappedOnAlgorand(
     sender: Account,
     vaa: Uint8Array
 ) {
+    const parsedVAA: Map<string, any> = parseVAA(vaa);
+    console.log("updateWrappedOnAlgorand::parseVAA", parsedVAA);
+
     await submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
 }
 
@@ -1623,6 +1627,9 @@ export async function redeemOnAlgorand(
     acct: Account,
     tokenId: number
 ): Promise<Buffer[]> {
+    const parsedVAA: Map<string, any> = parseVAA(vaa);
+    console.log("redeemOnAlgorand::parseVAA", parsedVAA);
+
     return await submitVAA(vaa, client, acct, tokenId);
 }
 
