@@ -8,6 +8,7 @@ import {
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
 import { setDefaultWasm } from "../../solana/wasm";
 import {
+    ETH_CORE_BRIDGE_ADDRESS,
     ETH_NODE_URL,
     ETH_PRIVATE_KEY,
     ETH_TOKEN_BRIDGE_ADDRESS,
@@ -33,6 +34,7 @@ import {
     getVAA,
     optin,
     parseVAA,
+    redeemOnAlgorand,
     simpleSignVAA,
     submitVAA,
     textToUint8Array,
@@ -52,13 +54,17 @@ import { getSignedVAA } from "../../rpc";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { ethers } from "ethers";
 import {
+    approveEth,
     createWrappedOnEth,
     getForeignAssetEth,
     getIsTransferCompletedEth,
     redeemOnEth,
+    transferFromEth,
     updateWrappedOnEth,
 } from "../../token_bridge";
 import { TokenImplementation__factory } from "../../ethers-contracts";
+import { parseSequenceFromLogEth } from "../../bridge/parseSequenceFromLog";
+import { getEmitterAddressEth } from "../../bridge";
 
 setDefaultWasm("node");
 
@@ -311,6 +317,7 @@ describe("Integration Tests", () => {
 
                     console.log("Creating fake asset...");
                     const assetIndex: number = await createAsset(wallet);
+                    // const assetIndex: number = 0;
                     console.log("Newly created asset index =", assetIndex);
                     console.log("Testing attestFromAlgorand...");
                     const sn: BigInt = await attestFromAlgorand(
@@ -379,40 +386,6 @@ describe("Integration Tests", () => {
                         ETH_NODE_URL
                     ) as any;
                     const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-                    // TODO:  Check wallet
-                    // TODO:  First, need to implement some helpers...
-                    // const originAssetHex = nativeToHexString(
-                    //     "norium",
-                    //     CHAIN_ID_ALGORAND
-                    // );
-                    // if (!originAssetHex) {
-                    //     throw new Error("originAssetHex is null");
-                    // }
-                    // const foreignAsset = await getForeignAssetEth(
-                    //     ETH_TOKEN_BRIDGE_ADDRESS,
-                    //     provider,
-                    //     CHAIN_ID_ALGORAND,
-                    //     hexToUint8Array(originAssetHex)
-                    // );
-                    // if (!foreignAsset) {
-                    //     throw new Error("foreignAsset is null");
-                    // }
-                    // let token = TokenImplementation__factory.connect(
-                    //     foreignAsset,
-                    //     signer
-                    // );
-
-                    // Get initial balance on ethereum
-                    const ETH_TEST_WALLET_PUBLIC_KEY =
-                        "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
-                    // const initialBalOnEth = await token.balanceOf(
-                    //     ETH_TEST_WALLET_PUBLIC_KEY
-                    // );
-                    // const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
-                    // console.log(
-                    //     "Balance on Eth before transfer = ",
-                    //     initialBalOnEthInt
-                    // );
                     let success: boolean = true;
                     try {
                         const cr = await createWrappedOnEth(
@@ -436,6 +409,58 @@ describe("Integration Tests", () => {
                     }
                     console.log("Attestation is complete...");
                     console.log("Starting transfer to Eth...");
+                    // Check wallet
+                    console.log(
+                        "convert:",
+                        assetIndex,
+                        assetIndex.toString(16)
+                    );
+                    const originAssetHex = nativeToHexString(
+                        assetIndex.toString(),
+                        CHAIN_ID_ALGORAND
+                    );
+                    if (!originAssetHex) {
+                        throw new Error("originAssetHex is null");
+                    }
+                    console.log(
+                        "assetIndex: ",
+                        assetIndex,
+                        ", originAssetHex:",
+                        originAssetHex
+                    );
+                    console.log(
+                        "calling getForeignAssetEth",
+                        ETH_TOKEN_BRIDGE_ADDRESS,
+                        provider,
+                        CHAIN_ID_ALGORAND,
+                        originAssetHex
+                    );
+                    const foreignAsset = await getForeignAssetEth(
+                        ETH_TOKEN_BRIDGE_ADDRESS,
+                        provider,
+                        CHAIN_ID_ALGORAND,
+                        hexToUint8Array(originAssetHex)
+                    );
+                    if (!foreignAsset) {
+                        throw new Error("foreignAsset is null");
+                    }
+                    console.log("foreignAsset", foreignAsset);
+                    let token = TokenImplementation__factory.connect(
+                        foreignAsset,
+                        signer
+                    );
+
+                    // Get initial balance on ethereum
+                    const ETH_TEST_WALLET_PUBLIC_KEY =
+                        "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
+                    const initialBalOnEth = await token.balanceOf(
+                        ETH_TEST_WALLET_PUBLIC_KEY
+                    );
+                    const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
+                    console.log(
+                        "Balance on Eth before transfer = ",
+                        initialBalOnEthInt
+                    );
                     // Start transfer from Algorand to Ethereum
                     const hexStr = nativeToHexString(
                         ETH_TEST_WALLET_PUBLIC_KEY,
@@ -449,7 +474,7 @@ describe("Integration Tests", () => {
                         addr: hexStr,
                         sk: hexStringToUint8Array("empty"),
                     };
-                    const AmountToTransfer: number = 100;
+                    const AmountToTransfer: number = 12300;
                     const Fee: number = 0;
                     console.log("Calling transferAsset...");
                     const txSid: bigint = await transferAsset(
@@ -487,16 +512,83 @@ describe("Integration Tests", () => {
                             signedVaa.vaaBytes
                         )
                     ).toBe(true);
-                    // const balOnEthAfter = await token.balanceOf(
-                    //     ETH_TEST_WALLET_PUBLIC_KEY
-                    // );
-                    // const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
-                    // console.log(
-                    //     "Balance on Eth after transfer = ",
-                    //     balOnEthAfterInt
-                    // );
-
                     // Test finished.  Check wallet balances
+                    const balOnEthAfter = await token.balanceOf(
+                        ETH_TEST_WALLET_PUBLIC_KEY
+                    );
+                    const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
+                    console.log(
+                        "Balance on Eth after transfer = ",
+                        balOnEthAfterInt
+                    );
+                    expect(balOnEthAfterInt).toEqual(AmountToTransfer / 100);
+
+                    // Attempt to transfer from Eth back to Algorand
+                    const Amount: string = "100";
+
+                    // approve the bridge to spend tokens
+                    console.log("About to approveEth...");
+                    await approveEth(
+                        ETH_TOKEN_BRIDGE_ADDRESS,
+                        foreignAsset,
+                        signer,
+                        Amount
+                    );
+                    console.log(
+                        "About to transferFromEth...",
+                        ETH_TOKEN_BRIDGE_ADDRESS,
+                        signer,
+                        foreignAsset,
+                        Amount,
+                        CHAIN_ID_ALGORAND,
+                        wallet.addr,
+                        decodeAddress(wallet.addr)
+                    );
+                    const receipt = await transferFromEth(
+                        ETH_TOKEN_BRIDGE_ADDRESS,
+                        signer,
+                        foreignAsset,
+                        Amount,
+                        CHAIN_ID_ALGORAND,
+                        decodeAddress(wallet.addr).publicKey
+                    );
+                    console.log("receipt", receipt);
+                    // get the sequence from the logs (needed to fetch the vaa)
+                    console.log("About to parseSeq...");
+                    const sequence = parseSequenceFromLogEth(
+                        receipt,
+                        ETH_CORE_BRIDGE_ADDRESS
+                    );
+                    const emitterAddress = getEmitterAddressEth(
+                        ETH_TOKEN_BRIDGE_ADDRESS
+                    );
+
+                    // poll until the guardian(s) witness and sign the vaa
+                    console.log("About to getSignedVAA...");
+                    const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+                        WORMHOLE_RPC_HOSTS,
+                        CHAIN_ID_ETH,
+                        emitterAddress,
+                        sequence,
+                        {
+                            transport: NodeHttpTransport(),
+                        }
+                    );
+                    console.log("About to redeemOnAlgorand...");
+                    const redeemed: Buffer[] = await redeemOnAlgorand(
+                        vaaBytes,
+                        client,
+                        wallet,
+                        TOKEN_BRIDGE_ID
+                    );
+                    console.log("About to getIsTransferComplete...");
+                    const completed: boolean =
+                        await getIsTransferCompletedAlgorand(
+                            client,
+                            vaaBytes,
+                            TOKEN_BRIDGE_ID,
+                            wallet
+                        );
                 } catch (e) {
                     console.error("Algorand attestation error:", e);
                     done();
