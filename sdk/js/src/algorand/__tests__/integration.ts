@@ -576,7 +576,7 @@ describe("Integration Tests", () => {
                     );
                     console.log("About to redeemOnAlgorand...");
                     const redeemed: Buffer[] = await redeemOnAlgorand(
-                        vaaBytes,
+                        signedVAA,
                         client,
                         wallet,
                         TOKEN_BRIDGE_ID
@@ -585,7 +585,7 @@ describe("Integration Tests", () => {
                     const completed: boolean =
                         await getIsTransferCompletedAlgorand(
                             client,
-                            vaaBytes,
+                            signedVAA,
                             TOKEN_BRIDGE_ID,
                             wallet
                         );
