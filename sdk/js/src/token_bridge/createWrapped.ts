@@ -11,7 +11,7 @@ export async function createWrappedOnEth(
   signer: ethers.Signer,
   signedVAA: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
-) {
+): Promise<ethers.ContractReceipt> {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.createWrapped(signedVAA, overrides);
   const receipt = await v.wait();
@@ -22,7 +22,7 @@ export async function createWrappedOnTerra(
   tokenBridgeAddress: string,
   walletAddress: string,
   signedVAA: Uint8Array
-) {
+): Promise<MsgExecuteContract> {
   return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
     submit_vaa: {
       data: fromUint8Array(signedVAA),
@@ -36,7 +36,7 @@ export async function createWrappedOnSolana(
   tokenBridgeAddress: string,
   payerAddress: string,
   signedVAA: Uint8Array
-) {
+): Promise<Transaction> {
   const { create_wrapped_ix } = await importTokenWasm();
   const ix = ixFromRust(
     create_wrapped_ix(

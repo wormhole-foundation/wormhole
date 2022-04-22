@@ -19,7 +19,7 @@ export async function getForeignAssetEth(
   provider: ethers.Signer | ethers.providers.Provider,
   originChain: ChainId,
   originAsset: Uint8Array
-) {
+): Promise<string | null> {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
   try {
     return await tokenBridge.wrappedAsset(originChain, originAsset);
@@ -33,7 +33,7 @@ export async function getForeignAssetTerra(
   client: LCDClient,
   originChain: ChainId,
   originAsset: Uint8Array
-) {
+): Promise<string | null> {
   try {
     const result: { address: string } = await client.wasm.contractQuery(
       tokenBridgeAddress,
@@ -63,7 +63,7 @@ export async function getForeignAssetSolana(
   tokenBridgeAddress: string,
   originChain: ChainId,
   originAsset: Uint8Array
-) {
+): Promise<string | null> {
   const { wrapped_address } = await importTokenWasm();
   const wrappedAddress = wrapped_address(
     tokenBridgeAddress,

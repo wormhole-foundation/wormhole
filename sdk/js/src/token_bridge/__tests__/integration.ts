@@ -505,7 +505,7 @@ describe("Integration Tests", () => {
             TEST_SOLANA_TOKEN,
             amount,
             hexToUint8Array(
-              nativeToHexString(targetAddress, CHAIN_ID_ETH) || ""
+              nativeToHexString(targetAddress, CHAIN_ID_ETH)
             ),
             CHAIN_ID_ETH
           );
@@ -760,9 +760,7 @@ describe("Integration Tests", () => {
             TEST_ERC20,
             amount,
             CHAIN_ID_TERRA,
-            hexToUint8Array(
-              nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA) || ""
-            )
+            hexToUint8Array(nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA))
           );
           // get the sequence from the logs (needed to fetch the vaa)
           const sequence = parseSequenceFromLogEth(

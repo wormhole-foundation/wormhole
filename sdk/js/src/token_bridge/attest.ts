@@ -12,7 +12,7 @@ export async function attestFromEth(
   signer: ethers.Signer,
   tokenAddress: string,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {}
-) {
+): Promise<ethers.ContractReceipt> {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.attestToken(tokenAddress, createNonce(), overrides);
   const receipt = await v.wait();
@@ -23,7 +23,7 @@ export async function attestFromTerra(
   tokenBridgeAddress: string,
   walletAddress: string,
   asset: string
-) {
+): Promise<MsgExecuteContract> {
   const nonce = Math.round(Math.random() * 100000);
   const isNativeAsset = isNativeDenom(asset);
   return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
@@ -48,7 +48,7 @@ export async function attestFromSolana(
   tokenBridgeAddress: string,
   payerAddress: string,
   mintAddress: string
-) {
+): Promise<Transaction> {
   const nonce = createNonce().readUInt32LE(0);
   const transferIx = await getBridgeFeeIx(
     connection,
