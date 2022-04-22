@@ -1,69 +1,157 @@
-export type ChainId =
-  | 1
-  | 2
-  | 3
-  | 4
-  | 5
-  | 6
-  | 7
-  | 8
-  | 9
-  | 10
-  | 11
-  | 12
-  | 13
-  | 14
-  | 15
-  | 10001;
+export const CHAINS = {
+  solana: 1,
+  ethereum: 2,
+  terra: 3,
+  bsc: 4,
+  polygon: 5,
+  avalanche: 6,
+  oasis: 7,
+  algorand: 8,
+  aurora: 9,
+  fantom: 10,
+  karura: 11,
+  acala: 12,
+  klaytn: 13,
+  celo: 14,
+  near: 15,
+  ropsten: 10001,
+} as const;
+
+export type ChainName = keyof typeof CHAINS;
+export type ChainId = typeof CHAINS[ChainName];
+
+/**
+ *
+ * All the EVM-based chain names that Wormhole supports
+ */
+export type EVMChainName =
+  | "ethereum"
+  | "bsc"
+  | "polygon"
+  | "avalanche"
+  | "oasis"
+  | "aurora"
+  | "fantom"
+  | "karura"
+  | "acala"
+  | "klaytn"
+  | "celo"
+  | "ropsten";
 
 // We don't specify the types of the below consts to be [[ChainId]]. This way,
 // the inferred type will be a singleton (or literal) type, which is more precise and allows
 // typescript to perform context-sensitive narrowing when checking against them.
 // See the [[isEVMChain]] for an example.
+export const CHAIN_ID_SOLANA = CHAINS["solana"];
+export const CHAIN_ID_ETH = CHAINS["ethereum"];
+export const CHAIN_ID_TERRA = CHAINS["terra"];
+export const CHAIN_ID_BSC = CHAINS["bsc"];
+export const CHAIN_ID_POLYGON = CHAINS["polygon"];
+export const CHAIN_ID_AVAX = CHAINS["avalanche"];
+export const CHAIN_ID_OASIS = CHAINS["oasis"];
+export const CHAIN_ID_ALGORAND = CHAINS["algorand"];
+export const CHAIN_ID_AURORA = CHAINS["aurora"];
+export const CHAIN_ID_FANTOM = CHAINS["fantom"];
+export const CHAIN_ID_KARURA = CHAINS["karura"];
+export const CHAIN_ID_ACALA = CHAINS["acala"];
+export const CHAIN_ID_KLAYTN = CHAINS["klaytn"];
+export const CHAIN_ID_CELO = CHAINS["celo"];
+export const CHAIN_ID_NEAR = CHAINS["near"];
+export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
-export const CHAIN_ID_SOLANA = 1;
-export const CHAIN_ID_ETH = 2;
-export const CHAIN_ID_TERRA = 3;
-export const CHAIN_ID_BSC = 4;
-export const CHAIN_ID_POLYGON = 5;
-export const CHAIN_ID_AVAX = 6;
-export const CHAIN_ID_OASIS = 7;
-export const CHAIN_ID_ALGORAND = 8;
-export const CHAIN_ID_AURORA = 9;
-export const CHAIN_ID_FANTOM = 10;
-export const CHAIN_ID_KARURA = 11;
-export const CHAIN_ID_ACALA = 12;
-export const CHAIN_ID_KLAYTN = 13;
-export const CHAIN_ID_CELO = 14;
-export const CHAIN_ID_NEAR = 15;
-export const CHAIN_ID_ETHEREUM_ROPSTEN = 10001;
-
-/**
- * EVM-based chains behave in much the same way for most intents and purposes,
- * so it's useful to define their own type.
- */
-export type EVMChainId =
-  | typeof CHAIN_ID_ETH
-  | typeof CHAIN_ID_BSC
-  | typeof CHAIN_ID_POLYGON
-  | typeof CHAIN_ID_AVAX
-  | typeof CHAIN_ID_OASIS
-  | typeof CHAIN_ID_AURORA
-  | typeof CHAIN_ID_FANTOM
-  | typeof CHAIN_ID_KARURA
-  | typeof CHAIN_ID_ACALA
-  | typeof CHAIN_ID_KLAYTN
-  | typeof CHAIN_ID_CELO
-  | typeof CHAIN_ID_ETHEREUM_ROPSTEN;
+// This inverts the [[CHAINS]] object so that we can look up a chain by id
+export type ChainIdToName = {
+  -readonly [key in keyof typeof CHAINS as typeof CHAINS[key]]: key;
+};
+export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
+  (obj, [name, id]) => {
+    obj[id] = name;
+    return obj;
+  },
+  {} as any
+) as ChainIdToName;
 
 /**
  *
- * Returns true when called with an [[EVMChainId]], and false otherwise.
- * Importantly, after running this check, the chainId's type will be narrowed to
+ * All the EVM-based chain ids that Wormhole supports
+ */
+export type EVMChainId = typeof CHAINS[EVMChainName];
+
+/**
+ *
+ * Returns true when called with a valid chain, and narrows the type in the
+ * "true" branch to [[ChainId]] or [[ChainName]] thanks to the type predicate in
+ * the return type.
+ *
+ * A typical use-case might look like
+ * ```typescript
+ * foo = isChain(c) ? doSomethingWithChainId(c) : handleInvalidCase()
+ * ```
+ */
+export function isChain(chain: number | string): chain is ChainId | ChainName {
+  if (typeof chain === "number") {
+    return chain in CHAIN_ID_TO_NAME;
+  } else {
+    return chain in CHAINS;
+  }
+}
+
+/**
+ *
+ * Asserts that the given number or string is a valid chain, and throws otherwise.
+ * After calling this function, the type of chain will be narrowed to
+ * [[ChainId]] or [[ChainName]] thanks to the type assertion in the return type.
+ *
+ * A typical use-case might look like
+ * ```typescript
+ * // c has type 'string'
+ * assertChain(c)
+ * // c now has type 'ChainName'
+ * ```
+ */
+export function assertChain(
+  chain: number | string
+): asserts chain is ChainId | ChainName {
+  if (!isChain(chain)) {
+    if (typeof chain === "number") {
+      throw Error(`Unknown chain id: ${chain}`);
+    } else {
+      throw Error(`Unknown chain: ${chain}`);
+    }
+  }
+}
+
+export function toChainId(chainName: ChainName): ChainId {
+  return CHAINS[chainName];
+}
+
+export function toChainName(chainId: ChainId): ChainName {
+  return CHAIN_ID_TO_NAME[chainId];
+}
+
+export function coalesceChainId(chain: ChainId | ChainName): ChainId {
+  // this is written in a way that for invalid inputs (coming from vanilla
+  // javascript or someone doing type casting) it will always return undefined.
+  return typeof chain === "number" && isChain(chain) ? chain : toChainId(chain);
+}
+
+export function coalesceChainName(chain: ChainId | ChainName): ChainName {
+  // this is written in a way that for invalid inputs (coming from vanilla
+  // javascript or someone doing type casting) it will always return undefined.
+  return toChainName(coalesceChainId(chain));
+}
+
+/**
+ *
+ * Returns true when called with an [[EVMChainId]] or [[EVMChainName]], and false otherwise.
+ * Importantly, after running this check, the chain's type will be narrowed to
  * either the EVM subset, or the non-EVM subset thanks to the type predicate in
  * the return type.
  */
-export function isEVMChain(chainId: ChainId): chainId is EVMChainId {
+export function isEVMChain(
+  chain: ChainId | ChainName
+): chain is EVMChainId | EVMChainName {
+  let chainId = coalesceChainId(chain);
   if (
     chainId === CHAIN_ID_ETH ||
     chainId === CHAIN_ID_BSC ||
@@ -81,6 +169,21 @@ export function isEVMChain(chainId: ChainId): chainId is EVMChainId {
     return isEVM(chainId);
   } else {
     return notEVM(chainId);
+  }
+}
+
+/**
+ *
+ * Asserts that the given chain id or chain name is an EVM chain, and throws otherwise.
+ * After calling this function, the type of chain will be narrowed to
+ * [[EVMChainId]] or [[EVMChainName]] thanks to the type assertion in the return type.
+ *
+ */
+export function assertEVMChain(
+  chain: ChainId | ChainName
+): asserts chain is EVMChainId | EVMChainName {
+  if (!isEVMChain(chain)) {
+    throw Error(`Expected an EVM chain, but ${chain} is not`);
   }
 }
 
@@ -120,18 +223,18 @@ export const TERRA_REDEEMED_CHECK_WALLET_ADDRESS =
 
 /**
  *
- * Returns true when called with an [[EVMChainId]], and fails to compile
+ * Returns true when called with an [[EVMChainId]] or [[EVMChainName]], and fails to compile
  * otherwise
  */
-function isEVM(_: EVMChainId): true {
+function isEVM(_: EVMChainId | EVMChainName): true {
   return true;
 }
 
 /**
  *
- * Returns false when called with an non-[[EVMChainId]], and fails to compile
- * otherwise
+ * Returns false when called with a non-[[EVMChainId]] and non-[[EVMChainName]]
+ * argument, and fails to compile otherwise
  */
-function notEVM<T>(_: T extends EVMChainId ? never : T): false {
+function notEVM<T>(_: T extends EVMChainId | EVMChainName ? never : T): false {
   return false;
 }

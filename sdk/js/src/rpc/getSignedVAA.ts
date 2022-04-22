@@ -1,4 +1,4 @@
-import { ChainId } from "../utils/consts";
+import { ChainId, ChainName, coalesceChainId } from "../utils/consts";
 import {
   GrpcWebImpl,
   PublicRPCServiceClientImpl,
@@ -6,7 +6,7 @@ import {
 
 export async function getSignedVAA(
   host: string,
-  emitterChain: ChainId,
+  emitterChain: ChainId | ChainName,
   emitterAddress: string,
   sequence: string,
   extraGrpcOpts = {}
@@ -15,7 +15,7 @@ export async function getSignedVAA(
   const api = new PublicRPCServiceClientImpl(rpc);
   return await api.GetSignedVAA({
     messageId: {
-      emitterChain,
+      emitterChain: coalesceChainId(emitterChain),
       emitterAddress,
       sequence,
     },

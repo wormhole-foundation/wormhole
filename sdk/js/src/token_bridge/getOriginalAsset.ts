@@ -9,9 +9,11 @@ import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId, canonicalAddress, isNativeDenom } from "../terra";
 import {
   ChainId,
+  ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  coalesceChainId,
   hexToUint8Array,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
@@ -37,7 +39,7 @@ export async function getOriginalAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
   wrappedAddress: string,
-  lookupChainId: ChainId
+  lookupChain: ChainId | ChainName
 ): Promise<WormholeWrappedInfo> {
   const isWrapped = await getIsWrappedAssetEth(
     tokenBridgeAddress,
@@ -59,7 +61,7 @@ export async function getOriginalAssetEth(
   }
   return {
     isWrapped: false,
-    chainId: lookupChainId,
+    chainId: coalesceChainId(lookupChain),
     assetAddress: zeroPad(arrayify(wrappedAddress), 32),
   };
 }
