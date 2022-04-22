@@ -1,6 +1,13 @@
 ARG GO_VERSION=1.17.5
 FROM golang:$GO_VERSION as algorand-algod
 
+# Support additional root CAs
+COPY config.dev cert.pem* /certs/
+# Debian
+RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
+# git
+RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
+
 ARG CHANNEL=master
 ARG URL="https://github.com/algorand/go-algorand"
 ARG BRANCH=master
