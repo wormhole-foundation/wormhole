@@ -1098,6 +1098,7 @@ export async function submitVAA(
     let sstate = await submitVAAHdr(vaa, client, sender, appid);
 
     let parsedVAA = sstate.vaaMap;
+    console.log("submitVAA:", parsedVAA);
     let accts = sstate.accounts;
     let txns = sstate.txns;
 
