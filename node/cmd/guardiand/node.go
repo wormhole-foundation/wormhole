@@ -317,10 +317,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessOasisSyncing)
 	readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 	readiness.RegisterComponent(common.ReadinessFantomSyncing)
+	readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
-		readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 		readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 		readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 		readiness.RegisterComponent(common.ReadinessCeloSyncing)
@@ -425,18 +425,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *auroraContract == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --auroraContract")
 	}
+	if *karuraRPC == "" {
+		logger.Fatal("Please specify --karuraRPC")
+	}
+	if *karuraContract == "" && !*unsafeDevMode {
+		logger.Fatal("Please specify --karuraContract")
+	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
 			logger.Fatal("Please specify --ethRopstenRPC")
 		}
 		if *ethRopstenContract == "" {
 			logger.Fatal("Please specify --ethRopstenContract")
-		}
-		if *karuraRPC == "" {
-			logger.Fatal("Please specify --karuraRPC")
-		}
-		if *karuraContract == "" {
-			logger.Fatal("Please specify --karuraContract")
 		}
 		if *acalaRPC == "" {
 			logger.Fatal("Please specify --acalaRPC")
@@ -462,12 +462,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
-		}
-		if *karuraRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --karuraRPC")
-		}
-		if *karuraContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --karuraContract")
 		}
 		if *acalaRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --acalaRPC")
@@ -663,9 +657,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
-
+	chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode {
-		chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest)
@@ -815,14 +808,14 @@ func runNode(cmd *cobra.Command, args []string) {
 			ethereum.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", common.ReadinessFantomSyncing, vaa.ChainIDFantom, lockC, nil, 1, chainObsvReqC[vaa.ChainIDFantom], *unsafeDevMode).Run); err != nil {
 			return err
 		}
+		if err := supervisor.Run(ctx, "karurawatch",
+			ethereum.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", common.ReadinessKaruraSyncing, vaa.ChainIDKarura, lockC, nil, 1, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run); err != nil {
+			return err
+		}
 
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
 				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, nil, 1, chainObsvReqC[vaa.ChainIDEthereumRopsten], *unsafeDevMode).Run); err != nil {
-				return err
-			}
-			if err := supervisor.Run(ctx, "karurawatch",
-				ethereum.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", common.ReadinessKaruraSyncing, vaa.ChainIDKarura, lockC, nil, 1, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run); err != nil {
 				return err
 			}
 			if err := supervisor.Run(ctx, "acalawatch",
