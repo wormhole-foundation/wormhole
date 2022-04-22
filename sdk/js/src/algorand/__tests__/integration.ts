@@ -46,6 +46,8 @@ import {
     TOKEN_BRIDGE_ID,
     transferFromAlgorand,
     updateWrappedOnAlgorand,
+    getForeignAssetAlgo,
+    getForeignAssetFromVaaAlgo
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import { TestLib } from "../testlib";
@@ -705,6 +707,9 @@ describe("Integration Tests", () => {
                     );
                     console.log("cr:", cr);
 
+                    let assetIdCreated = await getForeignAssetFromVaaAlgo(client, algoWallet, attestSignedVaa)
+                    console.log("assetIdCreated", assetIdCreated);
+
                     // Start of transfer from Terra to Algorand
                     // Get initial balance of luna on Terra
                     const initialTerraBalance: number =
@@ -867,7 +872,7 @@ describe("Integration Tests", () => {
                     const txSid: bigint = await transferFromAlgorand(
                         client,
                         algoWallet,
-                        222,
+                        assetIdCreated,
                         TransferBackAmount,
                         terraAcct,
                         CHAIN_ID_TERRA,

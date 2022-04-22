@@ -1042,6 +1042,45 @@ export async function simpleSignVAA(
     return ret;
 }
 
+export async function getForeignAssetAlgo(
+    client: Algodv2,
+    sender: Account,
+    chain: number,
+    contract: string
+) : Promise<number> {
+    if (chain == 8) {
+        return parseInt(contract, 16);
+    } else {
+        let chainAddr = await optin(
+            client,
+            sender,
+            TOKEN_BRIDGE_ID,
+            chain,
+            contract,
+            "getForeignAssetAlgo"
+        );
+        let asset: Uint8Array = await decodeLocalState(
+            client,
+            TOKEN_BRIDGE_ID,
+            chainAddr
+        );
+        if (asset.length > 8) {
+            const tmp = Buffer.from(asset.slice(0, 8));
+            return Number(tmp.readBigUInt64BE(0));
+        } else
+            throw new Error("unknownForeignAsset");
+    }
+}
+
+export async function getForeignAssetFromVaaAlgo(
+    client: Algodv2,
+    sender: Account,
+    vaa: Uint8Array,
+) : Promise<number> {
+    const parsedVAA: Map<string, any> = parseVAA(vaa);
+    return await getForeignAssetAlgo(client, sender, parsedVAA.get("FromChain"), parsedVAA.get("Contract"));
+}
+    
 /**
  * </p>Submits the VAA to the application
  * @param vaa The VAA to be submitted
