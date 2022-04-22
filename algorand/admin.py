@@ -482,7 +482,7 @@ class PortalCore:
 
         if sig_addr not in self.cache and not self.account_exists(client, app_id, sig_addr):
             if doCreate:
-                pprint.pprint(("Creating", app_id, idx, emitter, sig_addr))
+#                pprint.pprint(("Creating", app_id, idx, emitter, sig_addr))
 
                 # Create it
                 sp = client.suggested_params()
@@ -1093,19 +1093,18 @@ class PortalCore:
 
         print("Creating the PortalCore app")
         self.coreid = self.createPortalCoreApp(client=self.client, sender=self.foundation)
-        print("coreid = " + str(self.coreid))
+        print(["core", str(self.coreid), " address", get_application_address(self.coreid), " emitterAddress", decode_address(get_application_address(self.coreid)).hex()])
 
         print("Create the token bridge")
         self.tokenid = self.createTokenBridgeApp(self.client, self.foundation)
-        print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
-
+        print(["token bridge", str(self.tokenid), " address", get_application_address(self.tokenid), " emitterAddress", decode_address(get_application_address(self.tokenid)).hex()])
 
         if self.devnet or self.args.testnet:
-            if exists(".env"):
+            if exists(self.args.env):
                 if self.gt == None:
                     self.gt = GenTest(False)
 
-                with open(".env", encoding = 'utf-8') as f:
+                with open(self.args.env, encoding = 'utf-8') as f:
                     for line in f:
                         e = line.rstrip('\n').split("=")
                         print(e)
@@ -1119,22 +1118,6 @@ class PortalCore:
                             self.gt.guardianPrivKeys = e[1].split(",")
                             bootVAA = self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, 0, 0, 1, 1)
                             self.bootGuardians(bytes.fromhex(bootVAA), self.client, self.foundation, self.coreid)
-
-            else:
-                print("bootstrapping the guardian set...")
-                bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-                self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
-        
-                vaas = [
-                    # Solana
-                    "01000000000100c9f4230109e378f7efc0605fb40f0e1869f2d82fda5b1dfad8a5a2dafee85e033d155c18641165a77a2db6a7afbf2745b458616cb59347e89ae0c7aa3e7cc2d400000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000546f6b656e4272696467650100000001c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
-                ]
-        
-                print("Registering chains")
-        
-                for v in vaas:
-                    print("Submitting: " + v)
-                    self.submitVAA(bytes.fromhex(v), self.client, self.foundation, self.tokenid)
 
     def updateCore(self) -> None:
         print("Updating the core contracts")
@@ -1254,6 +1237,7 @@ class PortalCore:
         parser.add_argument('--boot', action='store_true', help='bootstrap')
         parser.add_argument('--upgradePayload', action='store_true', help='gen the upgrade payload for the guardians to sign')
         parser.add_argument('--vaa', type=str, help='Submit the supplied VAA', default="")
+        parser.add_argument('--env', type=str, help='deploying using the supplied .env file', default=".env")
         parser.add_argument('--appid', type=str, help='The appid that the vaa submit is applied to', default="")
         parser.add_argument('--submit', action='store_true', help='submit the synthetic vaas')
         parser.add_argument('--updateCore', action='store_true', help='update the Core contracts')
