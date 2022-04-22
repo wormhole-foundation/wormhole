@@ -1444,22 +1444,19 @@ export async function transferFromAlgorand(
         "transferAsset"
     );
     console.log("Getting assetInfo...");
-    const assetInfo: Record<string, any> = await client
-        .getAssetByID(assetId)
-        .do();
-    const authAddr: string = assetInfo["auth-addr"];
-    let wormhole: boolean = false;
     let creator;
     let creatorAcctInfo: any;
-    //  asset_id 0 is ALGO
+    let wormhole: boolean = false;
     if (assetId != 0) {
+        const assetInfo: Record<string, any> = await client.getAssetByID(assetId).do();
         creator = assetInfo["params"]["creator"];
-        console.log("creator", creator);
         creatorAcctInfo = await client.accountInformation(creator).do();
+        const authAddr: string = creatorAcctInfo["auth-addr"];
         if (authAddr === tokenAddr) {
             wormhole = true;
         }
     }
+
     const params: algosdk.SuggestedParams = await client
         .getTransactionParams()
         .do();
