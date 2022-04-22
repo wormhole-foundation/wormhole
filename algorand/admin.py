@@ -1116,8 +1116,16 @@ class PortalCore:
                         if "INIT_SIGNERS_KEYS_CSV" in e[0]:
                             print("bootstrapping the guardian set...")
                             self.gt.guardianPrivKeys = e[1].split(",")
-                            bootVAA = self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, self.args.guardianSet, self.args.guardianSet, 1, 1)
+                            seq = int(random.random() * (2**31))
+                            bootVAA = self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, self.args.guardianSet, self.args.guardianSet, seq, seq)
                             self.bootGuardians(bytes.fromhex(bootVAA), self.client, self.foundation, self.coreid)
+                seq = int(random.random() * (2**31))
+                regChain = self.gt.genRegisterChain(self.gt.guardianPrivKeys, self.args.guardianSet, seq, seq, 8, decode_address(get_application_address(self.tokenid)).hex())
+                print("ALGO_TOKEN_BRIDGE_VAA=" + regChain)
+#                if self.args.env != ".env":
+#                    v = bytes.fromhex(regChain)
+#                    self.submitVAA(v, self.client, self.foundation, self.tokenid)
+#                    print("We submitted it!")
 
     def updateCore(self) -> None:
         print("Updating the core contracts")
