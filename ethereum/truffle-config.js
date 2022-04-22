@@ -200,6 +200,15 @@ module.exports = {
       gas: '8500000',
       gasPrice: null
     },
+    celo: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://forno.celo.org"
+        )
+      },
+      network_id: 42220,
+    },    
     celo_alfajores_testnet: {
       provider: () => {
         return new HDWalletProvider(
