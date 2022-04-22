@@ -2,6 +2,7 @@ import { arrayify, zeroPad } from "@ethersproject/bytes";
 import { PublicKey } from "@solana/web3.js";
 import { hexValue, hexZeroPad, stripZeros } from "ethers/lib/utils";
 import { canonicalAddress, humanAddress, isNativeDenom } from "../terra";
+import { hexToNativeStringAlgo, nativeStringToHexAlgo } from "../algorand";
 import {
   ChainId,
   CHAIN_ID_ACALA,
@@ -55,6 +56,8 @@ export const hexToNativeString = (h: string | undefined, c: ChainId) => {
       ? isHexNativeTerra(h)
         ? nativeTerraHexToDenom(h)
         : humanAddress(hexToUint8Array(h.substr(24))) // terra expects 20 bytes, not 32
+      : c === CHAIN_ID_ALGORAND
+      ? hexToNativeStringAlgo(h)
       : h;
   } catch (e) {}
   return undefined;
@@ -84,12 +87,7 @@ export const nativeToHexString = (
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
   } else if (chain === CHAIN_ID_ALGORAND) {
-    const a = parseInt(address);
-    const b = (
-      "0000000000000000000000000000000000000000000000000000000000000000" +
-      a.toString(16)
-    ).slice(-64);
-    return b;
+      return nativeStringToHexAlgo(address);
   } else {
     return null;
   }

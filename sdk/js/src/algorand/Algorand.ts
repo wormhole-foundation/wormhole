@@ -1780,12 +1780,10 @@ export function getIsWrappedAssetAlgorand() {
     // TODO:
 }
 
-export function hexToNativeString() {
-    // TODO:
-    // Add the algorand case to sdk/js/src/utils/array.ts
+export function hexToNativeStringAlgo(s: string) : string {
+    return encodeAddress(hexStringToUint8Array(s));
 }
 
-export function nativeToHexString() {
-    // TODO:
-    // Add the algorand case to sdk/js/src/utils/array.ts
+export function nativeStringToHexAlgo(s: string) :string  {
+    return uint8ArrayToHexString(decodeAddress(s).publicKey, false);
 }

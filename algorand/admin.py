@@ -349,7 +349,7 @@ class PortalCore:
 
         ret = [b]
 
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         b  = self.zeroPadBytes[0:((32 -11)*2)]
         b += self.encoder("uint8", ord("T"))
@@ -377,7 +377,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=40)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
@@ -415,7 +415,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         if len(b64decode(approval["result"])) > 4060:
             print("token bridge contract is too large... This might prevent updates later")
@@ -1165,9 +1165,9 @@ class PortalCore:
         print("complete")
 
     def genTeal(self) -> None:
-        approval, clear = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
         print("Generating the teal for the core contracts")
-        approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
         print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
 
     def testnet(self):

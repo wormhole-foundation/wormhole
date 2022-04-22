@@ -1,8 +1,8 @@
 #pragma version 6
-intcblock 1 0 2 127 133 100000 128 255 1002000
-bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d657373616765 0x6e6f70 0x766572696679564141 0x0008 0x76616c6964557064617465417070726f766548617368 0x50726f6772616d 0x414c474f 0x76616c6964557064617465436c65617248617368 0x636f726541646472
+intcblock 0 1 2 127 133 100000 128 255 1002000
+bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d657373616765 0x6e6f70 0x766572696679564141 0x0008 0x76616c6964557064617465417070726f766548617368 0x414c474f 0x636f726541646472
 txn ApplicationID
-intc_1 // 0
+intc_0 // 0
 ==
 bnz main_l77
 txn OnCompletion
@@ -14,11 +14,11 @@ pushint 5 // DeleteApplication
 ==
 bnz main_l75
 txn OnCompletion
-intc_0 // OptIn
+intc_1 // OptIn
 ==
 bnz main_l74
 txn OnCompletion
-intc_1 // NoOp
+intc_0 // NoOp
 ==
 bnz main_l6
 err
@@ -63,7 +63,7 @@ load 74
 btoi
 load 73
 ==
-pushint 230 // 230
+pushint 232 // 232
 &&
 assert
 txna ApplicationArgs 1
@@ -75,7 +75,7 @@ pushint 14 // 14
 +
 store 68
 txn GroupIndex
-intc_0 // 1
+intc_1 // 1
 -
 store 75
 load 75
@@ -137,7 +137,7 @@ pushbytes 0x04 // 0x04
 concat
 ==
 &&
-pushint 254 // 254
+pushint 256 // 256
 &&
 assert
 load 75
@@ -154,7 +154,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txn RekeyTo
@@ -168,7 +168,7 @@ txn AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txna ApplicationArgs 1
@@ -182,14 +182,14 @@ bzero
 pushbytes 0x546f6b656e427269646765 // 0x546f6b656e427269646765
 concat
 ==
-pushint 261 // 261
+pushint 263 // 263
 &&
 assert
 txna ApplicationArgs 1
 load 68
 pushint 75 // 75
 +
-intc_0 // 1
+intc_1 // 1
 extract3
 btoi
 store 69
@@ -198,7 +198,7 @@ pushint 76 // 76
 +
 store 68
 load 69
-intc_0 // 1
+intc_1 // 1
 ==
 bnz main_l19
 load 69
@@ -213,7 +213,7 @@ intc_2 // 2
 extract3
 bytec 7 // 0x0008
 ==
-pushint 280 // 280
+pushint 282 // 282
 &&
 assert
 bytec 8 // "validUpdateApproveHash"
@@ -225,7 +225,7 @@ pushint 32 // 32
 extract3
 app_global_put
 main_l18:
-intc_0 // 1
+intc_1 // 1
 return
 main_l19:
 txna ApplicationArgs 1
@@ -235,13 +235,13 @@ extract3
 btoi
 store 70
 load 70
-intc_1 // 0
+intc_0 // 0
 ==
 load 70
 pushint 8 // 8
 ==
 ||
-pushint 269 // 269
+pushint 271 // 271
 &&
 assert
 txna ApplicationArgs 1
@@ -262,9 +262,9 @@ bytec_2 // "Chain"
 load 71
 concat
 app_global_get
-intc_1 // 0
+intc_0 // 0
 ==
-pushint 275 // 275
+pushint 277 // 277
 &&
 assert
 bytec_2 // "Chain"
@@ -280,7 +280,7 @@ btoi
 bytec_3 // "native"
 callsub getsigaddress_15
 ==
-pushint 798 // 798
+pushint 800 // 800
 &&
 assert
 txn RekeyTo
@@ -294,7 +294,7 @@ txn AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 itxn_begin
@@ -305,14 +305,14 @@ itxn_field TypeEnum
 txna ApplicationArgs 1
 btoi
 itxn_field XferAsset
-intc_1 // 0
+intc_0 // 0
 itxn_field AssetAmount
 txna Accounts 1
 itxn_field AssetReceiver
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 itxn_submit
-intc_0 // 1
+intc_1 // 1
 return
 main_l21:
 callsub getMessageFee_8
@@ -329,11 +329,11 @@ store 67
 intc_2 // 2
 callsub checkFeePmt_10
 txn GroupIndex
-intc_0 // 1
+intc_1 // 1
 -
 store 25
 load 58
-intc_1 // 0
+intc_0 // 0
 ==
 bnz main_l40
 load 25
@@ -355,7 +355,7 @@ gtxns AssetReceiver
 txna Accounts 2
 ==
 &&
-pushint 696 // 696
+pushint 698 // 698
 &&
 assert
 load 25
@@ -372,7 +372,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 load 25
@@ -381,7 +381,7 @@ store 59
 load 67
 load 59
 <=
-pushint 704 // 704
+pushint 706 // 706
 &&
 assert
 load 59
@@ -394,22 +394,22 @@ btoi
 callsub getFactor_14
 store 66
 load 66
-intc_0 // 1
+intc_1 // 1
 !=
 bnz main_l39
 main_l23:
 load 59
-intc_1 // 0
+intc_0 // 0
 >
 load 67
-intc_1 // 0
+intc_0 // 0
 >=
 &&
-pushint 720 // 720
+pushint 722 // 722
 &&
 assert
 load 58
-intc_1 // 0
+intc_0 // 0
 !=
 bnz main_l38
 bytec_0 // ""
@@ -424,7 +424,7 @@ load 58
 bytec_3 // "native"
 callsub getsigaddress_15
 ==
-pushint 744 // 744
+pushint 746 // 746
 &&
 assert
 bytec 7 // 0x0008
@@ -446,7 +446,7 @@ len
 pushint 32 // 32
 <=
 &&
-pushint 754 // 754
+pushint 756 // 756
 &&
 assert
 txn NumAppArgs
@@ -462,7 +462,7 @@ load 59
 itob
 concat
 load 65
-intc_1 // 0
+intc_0 // 0
 pushint 32 // 32
 load 63
 len
@@ -474,7 +474,7 @@ concat
 load 64
 concat
 load 65
-intc_1 // 0
+intc_0 // 0
 pushint 32 // 32
 txna ApplicationArgs 3
 len
@@ -508,7 +508,7 @@ load 60
 len
 intc 4 // 133
 ==
-pushint 777 // 777
+pushint 779 // 779
 &&
 assert
 main_l33:
@@ -523,17 +523,17 @@ bytec 4 // "publishMessage"
 itxn_field ApplicationArgs
 load 60
 itxn_field ApplicationArgs
-intc_1 // 0
+intc_0 // 0
 itob
 itxn_field ApplicationArgs
 txna Accounts 1
 itxn_field Accounts
 bytec 4 // "publishMessage"
 itxn_field Note
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 itxn_submit
-intc_0 // 1
+intc_1 // 1
 return
 main_l34:
 load 60
@@ -543,7 +543,7 @@ txna ApplicationArgs 6
 len
 +
 ==
-pushint 776 // 776
+pushint 778 // 778
 &&
 assert
 b main_l33
@@ -555,14 +555,14 @@ pushbytes 0x01 // 0x01
 b main_l29
 main_l37:
 intc_2 // 2
-intc_1 // 0
+intc_0 // 0
 pushint 8 // 8
 callsub read_4
 store 61
 txna ApplicationArgs 1
 load 61
 ==
-pushint 733 // 733
+pushint 735 // 735
 &&
 assert
 intc_2 // 2
@@ -581,7 +581,7 @@ btoi
 load 63
 callsub getsigaddress_15
 ==
-pushint 740 // 740
+pushint 742 // 742
 &&
 assert
 b main_l27
@@ -604,7 +604,7 @@ b main_l23
 main_l40:
 load 25
 gtxns TypeEnum
-intc_0 // pay
+intc_1 // pay
 ==
 load 25
 gtxns Sender
@@ -616,7 +616,7 @@ gtxns Receiver
 txna Accounts 2
 ==
 &&
-pushint 680 // 680
+pushint 682 // 682
 &&
 assert
 load 25
@@ -633,7 +633,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 load 25
@@ -642,7 +642,7 @@ store 59
 load 67
 load 59
 <
-pushint 686 // 686
+pushint 688 // 688
 &&
 assert
 load 59
@@ -656,7 +656,7 @@ pushint 32 // 32
 bzero
 store 56
 txn GroupIndex
-intc_0 // 1
+intc_1 // 1
 -
 store 25
 load 25
@@ -699,7 +699,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 475 // 475
+pushint 477 // 477
 &&
 assert
 load 25
@@ -716,7 +716,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txn RekeyTo
@@ -730,7 +730,7 @@ txn AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txna ApplicationArgs 1
@@ -769,7 +769,7 @@ concat
 app_global_get
 load 47
 ==
-pushint 489 // 489
+pushint 491 // 491
 &&
 assert
 main_l43:
@@ -779,30 +779,30 @@ pushint 43 // 43
 store 45
 txna ApplicationArgs 1
 load 45
-intc_0 // 1
+intc_1 // 1
 extract3
 btoi
 store 57
 load 57
-intc_0 // 1
+intc_1 // 1
 ==
 load 57
 pushint 3 // 3
 ==
 ||
-pushint 496 // 496
+pushint 498 // 498
 &&
 assert
 txna ApplicationArgs 1
 load 45
-intc_0 // 1
+intc_1 // 1
 +
 pushint 24 // 24
 extract3
 load 56
 extract 0 24
 ==
-pushint 498 // 498
+pushint 500 // 500
 &&
 assert
 txna ApplicationArgs 1
@@ -852,7 +852,7 @@ extract3
 load 56
 extract 0 24
 ==
-pushint 506 // 506
+pushint 508 // 508
 &&
 assert
 txna ApplicationArgs 1
@@ -866,13 +866,13 @@ store 53
 load 52
 pushint 8 // 8
 ==
-pushint 510 // 510
+pushint 512 // 512
 &&
 assert
 load 53
 load 48
 <=
-pushint 512 // 512
+pushint 514 // 514
 &&
 assert
 load 57
@@ -885,13 +885,13 @@ pushint 8 // 8
 ==
 bnz main_l49
 pushint 3 // 3
-intc_1 // 0
+intc_0 // 0
 pushint 8 // 8
 callsub read_4
 btoi
 store 54
 load 54
-intc_1 // 0
+intc_0 // 0
 !=
 txna Accounts 3
 load 50
@@ -899,7 +899,7 @@ load 49
 callsub getsigaddress_15
 ==
 &&
-pushint 577 // 577
+pushint 579 // 579
 &&
 assert
 main_l46:
@@ -914,15 +914,15 @@ load 48
 itxn_field AssetAmount
 load 51
 itxn_field AssetReceiver
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 load 53
-intc_1 // 0
+intc_0 // 0
 >
 bnz main_l48
 main_l47:
 itxn_submit
-intc_0 // 1
+intc_1 // 1
 return
 main_l48:
 itxn_next
@@ -936,7 +936,7 @@ load 53
 itxn_field AssetAmount
 txn Sender
 itxn_field AssetReceiver
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 b main_l47
 main_l49:
@@ -949,11 +949,11 @@ load 54
 bytec_3 // "native"
 callsub getsigaddress_15
 ==
-pushint 527 // 527
+pushint 529 // 529
 &&
 assert
 load 54
-intc_1 // 0
+intc_0 // 0
 ==
 bnz main_l52
 load 54
@@ -962,7 +962,7 @@ btoi
 callsub getFactor_14
 store 55
 load 55
-intc_0 // 1
+intc_1 // 1
 !=
 bz main_l46
 load 48
@@ -978,38 +978,38 @@ main_l52:
 itxn_begin
 txna Accounts 3
 itxn_field Sender
-intc_0 // pay
+intc_1 // pay
 itxn_field TypeEnum
 load 51
 itxn_field Receiver
 load 48
 itxn_field Amount
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 load 53
-intc_1 // 0
+intc_0 // 0
 >
 bnz main_l54
 main_l53:
 itxn_submit
-intc_0 // 1
+intc_1 // 1
 return
 main_l54:
 itxn_next
 txna Accounts 3
 itxn_field Sender
-intc_0 // pay
+intc_1 // pay
 itxn_field TypeEnum
 txn Sender
 itxn_field Receiver
 load 53
 itxn_field Amount
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 b main_l53
 main_l55:
 txn GroupIndex
-intc_0 // 1
+intc_1 // 1
 +
 store 25
 load 25
@@ -1026,13 +1026,13 @@ gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
 &&
-pushint 519 // 519
+pushint 521 // 521
 &&
 assert
 callsub getNextAddress_9
 load 51
 ==
-pushint 521 // 521
+pushint 523 // 523
 &&
 assert
 b main_l44
@@ -1040,14 +1040,14 @@ main_l56:
 global CurrentApplicationAddress
 load 47
 ==
-pushint 488 // 488
+pushint 490 // 490
 &&
 assert
 b main_l43
 main_l57:
 callsub getMessageFee_8
 store 26
-intc_0 // 1
+intc_1 // 1
 callsub checkFeePmt_10
 txna ApplicationArgs 1
 btoi
@@ -1063,7 +1063,7 @@ load 42
 bytec_3 // "native"
 callsub getsigaddress_15
 ==
-pushint 860 // 860
+pushint 862 // 862
 &&
 assert
 pushint 32 // 32
@@ -1073,7 +1073,7 @@ txna ApplicationArgs 1
 btoi
 store 42
 load 42
-intc_1 // 0
+intc_0 // 0
 ==
 bnz main_l64
 load 42
@@ -1106,7 +1106,7 @@ concat
 load 40
 concat
 load 38
-intc_1 // 0
+intc_0 // 0
 pushint 32 // 32
 load 40
 len
@@ -1116,7 +1116,7 @@ concat
 load 41
 concat
 load 38
-intc_1 // 0
+intc_0 // 0
 pushint 32 // 32
 load 41
 len
@@ -1129,7 +1129,7 @@ load 37
 len
 pushint 100 // 100
 ==
-pushint 902 // 902
+pushint 904 // 904
 &&
 assert
 itxn_begin
@@ -1143,17 +1143,17 @@ bytec 4 // "publishMessage"
 itxn_field ApplicationArgs
 load 37
 itxn_field ApplicationArgs
-intc_1 // 0
+intc_0 // 0
 itob
 itxn_field ApplicationArgs
 txna Accounts 1
 itxn_field Accounts
 bytec 4 // "publishMessage"
 itxn_field Note
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 itxn_submit
-intc_0 // 1
+intc_1 // 1
 return
 main_l63:
 pushbytes 0x08 // 0x08
@@ -1162,21 +1162,21 @@ b main_l60
 main_l64:
 pushbytes 0x06 // 0x06
 store 39
-bytec 10 // "ALGO"
+bytec 9 // "ALGO"
 store 40
-bytec 10 // "ALGO"
+bytec 9 // "ALGO"
 store 41
 b main_l61
 main_l65:
 intc_2 // 2
-intc_1 // 0
+intc_0 // 0
 pushint 8 // 8
 callsub read_4
 store 36
 txna ApplicationArgs 1
 load 36
 ==
-pushint 843 // 843
+pushint 845 // 845
 &&
 assert
 intc_2 // 2
@@ -1195,7 +1195,7 @@ load 44
 load 43
 callsub getsigaddress_15
 ==
-pushint 850 // 850
+pushint 852 // 852
 &&
 assert
 load 42
@@ -1203,7 +1203,7 @@ callsub extractdecimal_20
 btoi
 pushint 8 // 8
 <=
-pushint 853 // 853
+pushint 855 // 855
 &&
 assert
 intc_2 // 2
@@ -1258,7 +1258,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 321 // 321
+pushint 323 // 323
 &&
 assert
 load 25
@@ -1275,7 +1275,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txn GroupIndex
@@ -1284,7 +1284,7 @@ pushint 3 // 3
 store 25
 load 25
 gtxns TypeEnum
-intc_0 // pay
+intc_1 // pay
 ==
 load 25
 gtxns Amount
@@ -1301,7 +1301,7 @@ gtxns Receiver
 txna Accounts 3
 ==
 &&
-pushint 331 // 331
+pushint 333 // 333
 &&
 assert
 load 25
@@ -1318,7 +1318,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txn GroupIndex
@@ -1344,7 +1344,7 @@ gtxns Sender
 txn Sender
 ==
 &&
-pushint 341 // 341
+pushint 343 // 343
 &&
 assert
 load 25
@@ -1361,11 +1361,11 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txn GroupIndex
-intc_0 // 1
+intc_1 // 1
 -
 store 25
 load 25
@@ -1388,12 +1388,12 @@ txn Sender
 ==
 &&
 global GroupSize
-intc_0 // 1
+intc_1 // 1
 -
 txn GroupIndex
 ==
 &&
-pushint 352 // 352
+pushint 354 // 354
 &&
 assert
 load 25
@@ -1410,7 +1410,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 txna ApplicationArgs 1
@@ -1443,7 +1443,7 @@ intc_2 // 2
 pushint 32 // 32
 extract3
 ==
-pushint 361 // 361
+pushint 363 // 363
 &&
 assert
 load 27
@@ -1453,16 +1453,16 @@ store 27
 intc_2 // 2
 txna ApplicationArgs 1
 load 27
-intc_0 // 1
+intc_1 // 1
 extract3
 btoi
 ==
-pushint 365 // 365
+pushint 367 // 367
 &&
 assert
 txna ApplicationArgs 1
 load 27
-intc_0 // 1
+intc_1 // 1
 +
 pushint 32 // 32
 extract3
@@ -1479,7 +1479,7 @@ txna ApplicationArgs 1
 load 27
 pushint 35 // 35
 +
-intc_0 // 1
+intc_1 // 1
 extract3
 btoi
 store 31
@@ -1519,11 +1519,11 @@ load 30
 load 28
 callsub getsigaddress_15
 ==
-pushint 390 // 390
+pushint 392 // 392
 &&
 assert
 pushint 3 // 3
-intc_1 // 0
+intc_0 // 0
 pushint 8 // 8
 callsub read_4
 store 34
@@ -1536,7 +1536,7 @@ pushint 6 // 6
 +
 store 27
 load 34
-intc_1 // 0
+intc_0 // 0
 itob
 ==
 bnz main_l70
@@ -1554,7 +1554,7 @@ load 27
 extract3
 callsub write_6
 pop
-intc_0 // 1
+intc_1 // 1
 return
 main_l70:
 itxn_begin
@@ -1578,14 +1578,14 @@ global ZeroAddress
 itxn_field ConfigAssetFreeze
 global ZeroAddress
 itxn_field ConfigAssetClawback
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 itxn_submit
 itxn CreatedAssetID
 itob
 store 34
 pushint 3 // 3
-intc_1 // 0
+intc_0 // 0
 load 34
 callsub write_6
 pop
@@ -1603,52 +1603,34 @@ extract 0 7
 store 32
 b main_l67
 main_l73:
-intc_0 // 1
+intc_1 // 1
 return
 main_l74:
 callsub optin_22
 return
 main_l75:
-intc_1 // 0
+intc_0 // 0
 return
 main_l76:
-bytec 9 // "Program"
-txn ApprovalProgram
-concat
-sha512_256
-bytec 8 // "validUpdateApproveHash"
-app_global_get
+txn Sender
+global CreatorAddress
 ==
-pushint 976 // 976
-&&
-assert
-bytec 9 // "Program"
-txn ClearStateProgram
-concat
-sha512_256
-bytec 11 // "validUpdateClearHash"
-app_global_get
-==
-pushint 977 // 977
-&&
-assert
-intc_0 // 1
 return
 main_l77:
 bytec_1 // "coreid"
 txna ApplicationArgs 0
 btoi
 app_global_put
-bytec 12 // "coreAddr"
+bytec 10 // "coreAddr"
 txna ApplicationArgs 1
 app_global_put
 bytec 8 // "validUpdateApproveHash"
 bytec_0 // ""
 app_global_put
-bytec 11 // "validUpdateClearHash"
+pushbytes 0x76616c6964557064617465436c65617248617368 // "validUpdateClearHash"
 pushbytes 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f // 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f
 app_global_put
-intc_0 // 1
+intc_1 // 1
 return
 
 // intkey
@@ -1662,7 +1644,7 @@ retsub
 // zero
 zero_1:
 store 20
-intc_1 // 0
+intc_0 // 0
 store 21
 zero_1_l1:
 load 21
@@ -1676,7 +1658,7 @@ intc_3 // 127
 bzero
 app_local_put
 load 21
-intc_0 // 1
+intc_1 // 1
 +
 store 21
 b zero_1_l1
@@ -1747,7 +1729,7 @@ intc_3 // 127
 /
 ==
 bnz read_4_l8
-intc_1 // 0
+intc_0 // 0
 read_4_l4:
 store 8
 load 6
@@ -1770,7 +1752,7 @@ substring3
 concat
 store 7
 load 6
-intc_0 // 1
+intc_1 // 1
 +
 store 6
 b read_4_l1
@@ -1803,7 +1785,7 @@ write_6:
 store 14
 store 13
 store 12
-intc_1 // 0
+intc_0 // 0
 store 18
 load 13
 intc_3 // 127
@@ -1825,7 +1807,7 @@ intc_3 // 127
 /
 ==
 bnz write_6_l11
-intc_1 // 0
+intc_0 // 0
 write_6_l4:
 store 16
 load 15
@@ -1847,7 +1829,7 @@ load 17
 intc_3 // 127
 !=
 load 16
-intc_1 // 0
+intc_0 // 0
 !=
 ||
 bnz write_6_l9
@@ -1864,7 +1846,7 @@ load 19
 +
 store 18
 load 15
-intc_0 // 1
+intc_1 // 1
 +
 store 15
 b write_6_l1
@@ -1877,7 +1859,7 @@ load 12
 load 15
 callsub intkey_0
 app_local_get
-intc_1 // 0
+intc_0 // 0
 load 16
 substring3
 load 14
@@ -1920,7 +1902,7 @@ app_global_get_ex
 store 77
 store 76
 load 77
-pushint 75 // 75
+pushint 77 // 77
 &&
 assert
 load 76
@@ -1935,7 +1917,7 @@ app_global_get_ex
 store 79
 store 78
 load 79
-pushint 80 // 80
+pushint 82 // 82
 &&
 assert
 load 78
@@ -1944,14 +1926,14 @@ retsub
 // getNextAddress
 getNextAddress_9:
 txn GroupIndex
-intc_0 // 1
+intc_1 // 1
 +
 gtxns ApplicationID
 app_params_get AppAddress
 store 81
 store 80
 load 81
-pushint 85 // 85
+pushint 87 // 87
 &&
 assert
 load 80
@@ -1961,7 +1943,7 @@ retsub
 checkFeePmt_10:
 store 82
 load 26
-intc_1 // 0
+intc_0 // 0
 >
 bz checkFeePmt_10_l2
 txn GroupIndex
@@ -1970,7 +1952,7 @@ load 82
 store 25
 load 25
 gtxns TypeEnum
-intc_0 // pay
+intc_1 // pay
 ==
 load 25
 gtxns Sender
@@ -1987,7 +1969,7 @@ gtxns Amount
 load 26
 >=
 &&
-pushint 103 // 103
+pushint 105 // 105
 &&
 assert
 load 25
@@ -2004,7 +1986,7 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
-pushint 91 // 91
+pushint 93 // 93
 &&
 assert
 checkFeePmt_10_l2:
@@ -2013,17 +1995,17 @@ retsub
 // sendMfee
 sendMfee_11:
 load 26
-intc_1 // 0
+intc_0 // 0
 >
 bz sendMfee_11_l2
-intc_0 // pay
+intc_1 // pay
 itxn_field TypeEnum
-bytec 12 // "coreAddr"
+bytec 10 // "coreAddr"
 app_global_get
 itxn_field Receiver
 load 26
 itxn_field Amount
-intc_1 // 0
+intc_0 // 0
 itxn_field Fee
 itxn_next
 sendMfee_11_l2:
@@ -2079,10 +2061,10 @@ store 87
 load 87
 len
 store 84
-intc_0 // 1
+intc_1 // 1
 bzero
 store 86
-intc_1 // 0
+intc_0 // 0
 store 85
 trimbytes_13_l1:
 load 85
@@ -2091,20 +2073,20 @@ load 84
 bz trimbytes_13_l5
 load 87
 load 85
-intc_0 // 1
+intc_1 // 1
 extract3
 load 86
 ==
 bnz trimbytes_13_l4
 trimbytes_13_l3:
 load 85
-intc_0 // 1
+intc_1 // 1
 +
 store 85
 b trimbytes_13_l1
 trimbytes_13_l4:
 load 87
-intc_1 // 0
+intc_0 // 0
 load 85
 extract3
 store 87
@@ -2160,12 +2142,12 @@ pushint 9 // 9
 bnz getFactor_14_l11
 err
 getFactor_14_l11:
-intc_0 // 1
+intc_1 // 1
 b getFactor_14_l21
 getFactor_14_l12:
-intc_1 // 0
+intc_0 // 0
 return
-intc_0 // 1
+intc_1 // 1
 getFactor_14_l13:
 pushint 100000000 // 100000000
 b getFactor_14_l21
@@ -2196,7 +2178,7 @@ retsub
 getsigaddress_15:
 store 90
 store 89
-bytec 9 // "Program"
+pushbytes 0x50726f6772616d // "Program"
 pushbytes 0x0620010181 // 0x0620010181
 concat
 load 89
@@ -2325,9 +2307,9 @@ checkForDuplicate_21:
 txna ApplicationArgs 1
 extract 0 1
 btoi
-intc_0 // 1
+intc_1 // 1
 ==
-pushint 931 // 931
+pushint 933 // 933
 &&
 assert
 txna ApplicationArgs 1
@@ -2360,7 +2342,7 @@ load 113
 load 110
 callsub getsigaddress_15
 ==
-pushint 941 // 941
+pushint 943 // 943
 &&
 assert
 load 111
@@ -2369,7 +2351,7 @@ pushint 8 // 8
 pushint 1905 // 1905
 %
 store 113
-intc_0 // 1
+intc_1 // 1
 load 113
 callsub getbyte_2
 store 112
@@ -2378,18 +2360,18 @@ load 111
 pushint 8 // 8
 %
 getbit
-intc_1 // 0
+intc_0 // 0
 ==
-pushint 948 // 948
+pushint 950 // 950
 &&
 assert
-intc_0 // 1
+intc_1 // 1
 load 113
 load 112
 load 111
 pushint 8 // 8
 %
-intc_0 // 1
+intc_1 // 1
 setbit
 callsub setbyte_3
 retsub
@@ -2397,7 +2379,7 @@ retsub
 // optin
 optin_22:
 gtxn 0 TypeEnum
-intc_0 // pay
+intc_1 // pay
 ==
 gtxn 0 Amount
 intc 8 // 1002000
@@ -2408,13 +2390,13 @@ pushint 6 // appl
 ==
 &&
 gtxn 1 OnCompletion
-intc_0 // OptIn
+intc_1 // OptIn
 ==
 &&
-pushint 998 // 998
+pushint 1008 // 1008
 &&
 assert
-intc_1 // 0
+intc_0 // 0
 callsub zero_1
-intc_0 // 1
+intc_1 // 1
 retsub

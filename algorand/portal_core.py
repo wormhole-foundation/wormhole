@@ -51,17 +51,19 @@ def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> 
 
 def getCoreContracts(   genTeal, approve_name, clear_name,
                         client: AlgodClient,
-                        seed_amt: int = 0,
-                        tmpl_sig: TmplSig = None,
+                        seed_amt: int,
+                        tmpl_sig: TmplSig,
+                        devMode: bool
                         ) -> Tuple[bytes, bytes]:
 
     def vaa_processor_program(seed_amt: int, tmpl_sig: TmplSig):
         blob = LocalBlob()
 
         def MagicAssert(a) -> Expr:
-#            return Assert(a)
-            return Assert(And(a, Int(currentframe().f_back.f_lineno)))
-
+            if devMode:
+                return Assert(And(a, Int(currentframe().f_back.f_lineno)))
+            else:
+                assert(a)
 
         @Subroutine(TealType.bytes)
         def encode_uvarint(val: Expr, b: Expr):
@@ -511,23 +513,21 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
         progSet = ScratchVar()
         clearHash = ScratchVar()
         clearSet = ScratchVar()
+
+        def getOnUpdate():
+            if devMode:
+                return Seq( [
+                    Return(Txn.sender() == Global.creator_address()),
+                ])
+            else:
+                return Seq( [
+                    MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
+                    MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
+                    Return(Int(1))
+                ] )
+
+        on_update = getOnUpdate()
         
-        on_update = Seq( [
-            progHash.store(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
-            progSet.store(App.globalGet(Bytes("validUpdateApproveHash"))),
-            Log(progHash.load()),
-            Log(progSet.load()),
-            MagicAssert(progHash.load() == progSet.load()),
-
-            clearHash.store(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
-            clearSet.store(App.globalGet(Bytes("validUpdateClearHash"))),
-            Log(clearHash.load()),
-            Log(clearSet.load()),
-            MagicAssert(clearHash.load() == clearSet.load()),
-
-            Return(Int(1))
-        ] )
-
         on_optin = Seq( [
             Return(optin())
         ])
