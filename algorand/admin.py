@@ -1116,7 +1116,7 @@ class PortalCore:
                         if "INIT_SIGNERS_KEYS_CSV" in e[0]:
                             print("bootstrapping the guardian set...")
                             self.gt.guardianPrivKeys = e[1].split(",")
-                            bootVAA = self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, 0, 0, 1, 1)
+                            bootVAA = self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, self.args.guardianSet, self.args.guardianSet, 1, 1)
                             self.bootGuardians(bytes.fromhex(bootVAA), self.client, self.foundation, self.coreid)
 
     def updateCore(self) -> None:
@@ -1238,6 +1238,7 @@ class PortalCore:
         parser.add_argument('--upgradePayload', action='store_true', help='gen the upgrade payload for the guardians to sign')
         parser.add_argument('--vaa', type=str, help='Submit the supplied VAA', default="")
         parser.add_argument('--env', type=str, help='deploying using the supplied .env file', default=".env")
+        parser.add_argument('--guardianSet', type=int, help='What guardianSet should I syntheticly create if needed', default=0)
         parser.add_argument('--appid', type=str, help='The appid that the vaa submit is applied to', default="")
         parser.add_argument('--submit', action='store_true', help='submit the synthetic vaas')
         parser.add_argument('--updateCore', action='store_true', help='update the Core contracts')
