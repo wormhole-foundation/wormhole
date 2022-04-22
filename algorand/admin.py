@@ -335,7 +335,7 @@ class PortalCore:
         return -1
 
     def genUpgradePayload(self):
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         b  = self.zeroPadBytes[0:(28*2)]
         b += self.encoder("uint8", ord("C"))
@@ -350,6 +350,7 @@ class PortalCore:
         ret = [b]
 
         approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+
 
         b  = self.zeroPadBytes[0:((32 -11)*2)]
         b += self.encoder("uint8", ord("T"))
@@ -1129,7 +1130,7 @@ class PortalCore:
 
     def updateCore(self) -> None:
         print("Updating the core contracts")
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
 #        print(decode_address(clear["hash"]).hex())
 #        sys.exit(0)
@@ -1152,7 +1153,7 @@ class PortalCore:
         print("complete")
 
     def updateToken(self) -> None:
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
         print("Updating the token contracts: " + str(len(b64decode(approval["result"]))))
 
         txn = transaction.ApplicationUpdateTxn(
@@ -1181,34 +1182,8 @@ class PortalCore:
     def testnet(self):
         self.ALGOD_ADDRESS = self.args.algod_address = "https://testnet-api.algonode.cloud"
         self.INDEXER_ADDRESS = self.args.algod_address = "https://testnet-idx.algonode.cloud"
-        self.args.coreid = self.coreid = 78818623
-        self.args.tokenid = self.tokenid = 78818649
-
-# pk:        qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA==
-# address:   KJVROXQ23N7ZHD5F2YMDCEDTLTMOAKYJI5DWLYMPKSBOL6RLJQWBN7375Y
-# mnemonic:  vocal invest unit ethics share van wood notable hollow heavy inhale brick drastic total valve margin dose diesel derive camp fossil flash spike abstract arm
-
-# pk:        WwDSdDQciVV4XkeycP25oyEUqjKLO83yZqfT1RSRYQim9yXQuxgcGJbTQpt7LkiXvfhqaamXJnHwG+lNaKkaFw==
-# address:   U33SLUF3DAOBRFWTIKNXWLSIS667Q2TJVGLSM4PQDPUU22FJDILZ6CRM4A
-# mnemonic:  arena elite denial select banana betray video elder bind volume table boss choose pride flower describe fluid orange squirrel frog claim gold drink abandon fire
-
-# pk:        UiQYU0pfeVPcqfttpXDw8unh8NE27rpsClcv1V+CYi9XP6Iz1CWwxYHpR06gvUAMfXBZ+E1Q+gL2RqICY6/SXQ==
-# address:   K472EM6UEWYMLAPJI5HKBPKABR6XAWPYJVIPUAXWI2RAEY5P2JO23SQJFY
-# mnemonic:  medal gauge civil visa verify below exclude wing pumpkin secret join palace sense label repair until nuclear claim process fancy sausage party kitchen ability weasel
-#
-# pk:        bNIbVmqBU1+p1+aQDh+kffylRrrK7RTBy66Dla6nzQvIrx46tPocZw4WysJlhbm0UyOku67feBGTZlxIUa7aZQ==
-# address:   ZCXR4OVU7IOGODQWZLBGLBNZWRJSHJF3V3PXQEMTMZOEQUNO3JS4CUVLHE
-# mnemonic:  eternal hungry climb birth poem fit run traffic spirit label spirit sick episode museum fiction universe card congress student flag frog hazard fury abandon mom
-#
-# pk:        SOBbyqME9O2I6RM7gdnh4S1khAVfzvPxG66FfFLCVECsB0J2MMGrEaI6cl8Rp3AjoK/oLcrdxXDNC2b04a/RrQ==
-# address:   VQDUE5RQYGVRDIR2OJPRDJ3QEOQK72BNZLO4K4GNBNTPJYNP2GWW7QEK4I
-# mnemonic:  animal hurdle topple enforce trend derive era become cherry gravity valley task sign genre wealth soft dinosaur hurt strike sign pilot correct actor able firm
-
-        self.accountList.append(Account("qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA=="))
-        self.accountList.append(Account("WwDSdDQciVV4XkeycP25oyEUqjKLO83yZqfT1RSRYQim9yXQuxgcGJbTQpt7LkiXvfhqaamXJnHwG+lNaKkaFw=="))
-        self.accountList.append(Account("UiQYU0pfeVPcqfttpXDw8unh8NE27rpsClcv1V+CYi9XP6Iz1CWwxYHpR06gvUAMfXBZ+E1Q+gL2RqICY6/SXQ=="))
-        self.accountList.append(Account("bNIbVmqBU1+p1+aQDh+kffylRrrK7RTBy66Dla6nzQvIrx46tPocZw4WysJlhbm0UyOku67feBGTZlxIUa7aZQ=="))
-        self.accountList.append(Account("SOBbyqME9O2I6RM7gdnh4S1khAVfzvPxG66FfFLCVECsB0J2MMGrEaI6cl8Rp3AjoK/oLcrdxXDNC2b04a/RrQ=="))
+        self.coreid = self.args.coreid
+        self.tokenid = self.args.tokenid
 
     def mainnet(self):
         self.ALGOD_ADDRESS = self.args.algod_address = "https://mainnet-api.algonode.cloud"
