@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.8
+
+### Added
+
+Added `tryNativeToHexString`
+
+Added `tryNativeToUint8Array`
+
+Added `tryHexToNativeString`
+
+Added `tryUint8ArrayToNative`
+
+### Changed
+
+Deprecated `nativeToHexString`
+
+Deprecated `hexToNativeString`
+
+`isEVMChain` now performs type narrowing
+
+`CHAIN_ID_*` constants now have literal types
+
 ## 0.2.7
 
 ### Added

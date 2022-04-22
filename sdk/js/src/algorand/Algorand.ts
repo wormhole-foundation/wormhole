@@ -882,8 +882,12 @@ export async function _submitVAAAlgorand(
   return txs;
 }
 
+export function uint8ArrayToNativeStringAlgorand(a: Uint8Array): string {
+  return encodeAddress(a);
+}
+
 export function hexToNativeStringAlgorand(s: string): string {
-  return encodeAddress(hexToUint8Array(s));
+  return uint8ArrayToNativeStringAlgorand(hexToUint8Array(s));
 }
 
 export function nativeStringToHexAlgorand(s: string): string {

@@ -18,8 +18,6 @@ import {
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressTerra,
-  hexToUint8Array,
-  nativeToHexString,
   parseSequenceFromLogEth,
   parseSequenceFromLogTerra,
   nft_bridge,
@@ -29,7 +27,7 @@ import {
   parseNFTPayload
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
-import { importCoreWasm, importNftWasm, setDefaultWasm } from "../../solana/wasm";
+import { importCoreWasm, setDefaultWasm } from "../../solana/wasm";
 import {
   ETH_CORE_BRIDGE_ADDRESS,
   ETH_NODE_URL,
@@ -55,6 +53,7 @@ import {
 import sha3 from "js-sha3";
 import { Connection, Keypair, PublicKey, TransactionResponse } from "@solana/web3.js";
 import { postVaaSolanaWithRetry } from "../../solana";
+import { tryNativeToUint8Array } from "../../utils";
 const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
 
 setDefaultWasm("node");
@@ -111,9 +110,8 @@ describe("Integration Tests", () => {
 
         // Check we have the wrapped NFT contract
         const terra_addr = await nft_bridge.getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
-          hexToUint8Array(
-            nativeToHexString(erc721.address, CHAIN_ID_ETH) || ""
-          ));
+          tryNativeToUint8Array(erc721.address, CHAIN_ID_ETH)
+        );
         if (!terra_addr) {
           throw new Error("Terra address is null");
         }
@@ -174,9 +172,8 @@ describe("Integration Tests", () => {
 
         // Check we have the wrapped NFT contract
         const eth_addr = await nft_bridge.getForeignAssetEth(ETH_NFT_BRIDGE_ADDRESS, provider, CHAIN_ID_TERRA,
-          hexToUint8Array(
-            nativeToHexString(cw721, CHAIN_ID_TERRA) || ""
-          ));
+          tryNativeToUint8Array(cw721, CHAIN_ID_TERRA)
+        );
         if (!eth_addr) {
           throw new Error("Ethereum address is null");
         }
@@ -239,9 +236,8 @@ describe("Integration Tests", () => {
 
         await _redeemOnTerra(signedVAA);
         const terra_addr = await nft_bridge.getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_SOLANA,
-          hexToUint8Array(
-            nativeToHexString(TEST_SOLANA_TOKEN, CHAIN_ID_SOLANA) || ""
-          ));
+          tryNativeToUint8Array(TEST_SOLANA_TOKEN, CHAIN_ID_SOLANA)
+        );
         if (!terra_addr) {
           throw new Error("Terra address is null");
         }
@@ -251,9 +247,8 @@ describe("Integration Tests", () => {
 
         await _redeemOnEth(signedVAA);
         const eth_addr = await nft_bridge.getForeignAssetEth(ETH_NFT_BRIDGE_ADDRESS, provider, CHAIN_ID_SOLANA,
-          hexToUint8Array(
-            nativeToHexString(TEST_SOLANA_TOKEN, CHAIN_ID_SOLANA) || ""
-          ));
+          tryNativeToUint8Array(TEST_SOLANA_TOKEN, CHAIN_ID_SOLANA)
+        );
         if (!eth_addr) {
           throw new Error("Ethereum address is null");
         }
@@ -291,9 +286,8 @@ describe("Integration Tests", () => {
       let signedVAA = await waitUntilEthTxObserved(transaction);
       await _redeemOnTerra(signedVAA);
       const terra_addr = await nft_bridge.getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
-        hexToUint8Array(
-          nativeToHexString(erc721.address, CHAIN_ID_ETH) || ""
-        ));
+        tryNativeToUint8Array(erc721.address, CHAIN_ID_ETH)
+      );
       if (!terra_addr) {
         throw new Error("Terra address is null");
       }
@@ -371,8 +365,8 @@ async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<Fe
   const feeEstimate = await lcd.tx.estimateFee(
     [
       {
-        sequenceNumber: await terraWallet.sequence(), 
-        publicKey: terraWallet.key.publicKey 
+        sequenceNumber: await terraWallet.sequence(),
+        publicKey: terraWallet.key.publicKey
       }
     ],
     {
@@ -514,9 +508,8 @@ async function _transferFromEth(erc721: string, token_id: BigNumberish, address:
     erc721,
     token_id,
     chain,
-    hexToUint8Array(
-      nativeToHexString(address, chain) || ""
-    ));
+    tryNativeToUint8Array(address, chain)
+  );
 }
 
 async function _transferFromTerra(terra_addr: string, token_id: string, address: string, chain: ChainId): Promise<BlockTxBroadcastResult> {
@@ -527,7 +520,7 @@ async function _transferFromTerra(terra_addr: string, token_id: string, address:
     terra_addr,
     token_id,
     chain,
-    hexToUint8Array(nativeToHexString(address, chain) || ""));
+    tryNativeToUint8Array(address, chain))
   const tx = await terraWallet.createAndSignTx({
     msgs: msgs,
     memo: "test",
@@ -546,9 +539,7 @@ async function _transferFromSolana(fromAddress: PublicKey, targetAddress: string
     payerAddress,
     fromAddress.toString(),
     TEST_SOLANA_TOKEN,
-    hexToUint8Array(
-      nativeToHexString(targetAddress, chain) || ""
-    ),
+    tryNativeToUint8Array(targetAddress, chain),
     chain
   );
   // sign, send, and confirm transaction
