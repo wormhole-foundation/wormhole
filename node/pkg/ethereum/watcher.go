@@ -125,10 +125,11 @@ func NewEthWatcher(
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet,
 	minConfirmations uint64,
-	obsvReqC chan *gossipv1.ObservationRequest) *Watcher {
+	obsvReqC chan *gossipv1.ObservationRequest,
+	unsafeDevMode bool) *Watcher {
 
 	var ethIntf common.Ethish
-	if chainID == vaa.ChainIDCelo {
+	if chainID == vaa.ChainIDCelo && ! unsafeDevMode {
 		ethIntf = &celo.CeloImpl{NetworkName: networkName}
 	} else {
 		ethIntf = &EthImpl{NetworkName: networkName}

@@ -31,6 +31,7 @@ type CeloImpl struct {
 
 func (e *CeloImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
+	e.logger.Info("using celo specific ethereum library", zap.String("eth_network", e.NetworkName))
 }
 
 func (e *CeloImpl) DialContext(ctx context.Context, rawurl string) (err error) {
