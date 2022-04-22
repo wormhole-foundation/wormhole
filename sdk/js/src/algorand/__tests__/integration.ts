@@ -44,7 +44,6 @@ import {
     submitVAA,
     textToUint8Array,
     TOKEN_BRIDGE_ID,
-    transferAsset,
     transferFromAlgorand,
     updateWrappedOnAlgorand,
 } from "../Algorand";
@@ -494,8 +493,8 @@ describe("Integration Tests", () => {
                     };
                     const AmountToTransfer: number = 12300;
                     const Fee: number = 0;
-                    console.log("Calling transferAsset...");
-                    const txSid: bigint = await transferAsset(
+                    console.log("Calling transferFromAlgorand...");
+                    const txSid: bigint = await transferFromAlgorand(
                         client,
                         wallet,
                         assetIndex,
@@ -864,8 +863,8 @@ describe("Integration Tests", () => {
                         sk: hexStringToUint8Array("empty"),
                     };
                     const Fee: number = 0;
-                    console.log("Calling transferAsset...");
-                    const txSid: bigint = await transferAsset(
+                    console.log("Calling transferFromAlgorand...");
+                    const txSid: bigint = await transferFromAlgorand(
                         client,
                         algoWallet,
                         222,

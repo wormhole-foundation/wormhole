@@ -1423,7 +1423,7 @@ export async function getVAA(
  * @param fee Transfer fee
  * @returns Sequence number of confirmation
  */
-export async function transferAsset(
+export async function transferFromAlgorand(
     client: Algodv2,
     sender: Account,
     assetId: number,
@@ -1752,41 +1752,4 @@ export function hexToNativeString() {
 export function nativeToHexString() {
     // TODO:
     // Add the algorand case to sdk/js/src/utils/array.ts
-}
-
-/**
- * <p>Transfer the amount of an asset from Algorand to a different chain</p>
- * @param client AlgodV2 client
- * @param sender Holder of the asset
- * @param assetId Asset index on Algorand
- * @param quantity Amount to be transferred
- * @param receiver Receiving account
- * @param chain Receiving chain ID
- * @param fee Message fee to be paid
- */
-export async function transferFromAlgorand(
-    client: algosdk.Algodv2,
-    sender: Account,
-    assetId: number,
-    quantity: number,
-    receiver: Account,
-    chain: number,
-    fee: number
-) {
-    // TODO:
-    const sid: bigint = await transferAsset(
-        client,
-        sender,
-        assetId,
-        quantity,
-        receiver,
-        chain,
-        fee
-    );
-    // print("... track down the generated VAA")
-    // const vaa = await getVAA(client, sender, sid, TOKEN_BRIDGE_ID);
-    // print(".. and lets pass that to player3")
-    // vaaLogs.append(["transferFromAlgorand", vaa])
-    // #pprint.pprint(vaaLogs)
-    // submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
 }
