@@ -5,12 +5,12 @@ import { arrayify, zeroPad } from "ethers/lib/utils";
 import { canonicalAddress, WormholeWrappedInfo } from "..";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importNftWasm } from "../solana/wasm";
-import { ChainId, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
+import { ChainId, ChainName, CHAIN_ID_SOLANA, CHAIN_ID_TERRA, coalesceChainId } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
 export interface WormholeWrappedNFTInfo {
   isWrapped: boolean;
-  chainId: ChainId;
+  chainId: number;
   assetAddress: Uint8Array;
   tokenId?: string;
 }
@@ -27,7 +27,7 @@ export async function getOriginalAssetEth(
   provider: ethers.Signer | ethers.providers.Provider,
   wrappedAddress: string,
   tokenId: string,
-  lookupChainId: ChainId
+  lookupChain: ChainId | ChainName
 ): Promise<WormholeWrappedNFTInfo> {
   const isWrapped = await getIsWrappedAssetEth(
     tokenBridgeAddress,
@@ -39,7 +39,7 @@ export async function getOriginalAssetEth(
       wrappedAddress,
       provider
     );
-    const chainId = (await token.chainId()) as ChainId; // origin chain
+    const chainId = await token.chainId(); // origin chain
     const assetAddress = await token.nativeContract(); // origin address
     return {
       isWrapped: true,
@@ -53,7 +53,7 @@ export async function getOriginalAssetEth(
   }
   return {
     isWrapped: false,
-    chainId: lookupChainId,
+    chainId: coalesceChainId(lookupChain),
     assetAddress: zeroPad(arrayify(wrappedAddress), 32),
     tokenId,
   };

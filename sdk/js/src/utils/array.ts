@@ -4,9 +4,11 @@ import { hexZeroPad, stripZeros } from "ethers/lib/utils";
 import { canonicalAddress, humanAddress, isNativeDenom } from "../terra";
 import {
   ChainId,
+  ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  coalesceChainId,
   isEVMChain,
 } from "./consts";
 
@@ -47,10 +49,12 @@ export const hexToUint8Array = (h: string): Uint8Array =>
  *
  * @throws if address is not the right length for the given chain
  */
+
 export const tryUint8ArrayToNative = (
   a: Uint8Array,
-  chainId: ChainId
+  chain: ChainId | ChainName
 ): string => {
+  const chainId = coalesceChainId(chain)
   if (isEVMChain(chainId)) {
     return hexZeroPad(a, 20)
   } else if (chainId === CHAIN_ID_SOLANA) {
@@ -80,7 +84,7 @@ export const tryUint8ArrayToNative = (
  */
 export const tryHexToNativeString = (
   h: string,
-  c: ChainId
+  c: ChainId | ChainName
 ): string =>
   tryUint8ArrayToNative(hexToUint8Array(h), c)
 
@@ -91,7 +95,7 @@ export const tryHexToNativeString = (
  *
  * @deprecated since 0.3.0, use [[tryHexToNativeString]] instead.
  */
-export const hexToNativeString = (h: string | undefined, c: ChainId): string | undefined => {
+export const hexToNativeString = (h: string | undefined, c: ChainId | ChainName): string | undefined => {
   if (!h) {
     return undefined
   }
@@ -112,13 +116,14 @@ export const hexToNativeString = (h: string | undefined, c: ChainId): string | u
  */
 export const tryNativeToHexString = (
   address: string,
-  chain: ChainId
+  chain: ChainId | ChainName
 ): string => {
-  if (isEVMChain(chain)) {
+  const chainId = coalesceChainId(chain)
+  if (isEVMChain(chainId)) {
     return uint8ArrayToHex(zeroPad(arrayify(address), 32));
-  } else if (chain === CHAIN_ID_SOLANA) {
+  } else if (chainId === CHAIN_ID_SOLANA) {
     return uint8ArrayToHex(zeroPad(new PublicKey(address).toBytes(), 32));
-  } else if (chain === CHAIN_ID_TERRA) {
+  } else if (chainId === CHAIN_ID_TERRA) {
     if (isNativeDenom(address)) {
       return (
         "01" +
@@ -129,14 +134,14 @@ export const tryNativeToHexString = (
     } else {
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
-  } else if (chain === CHAIN_ID_ALGORAND) {
+  } else if (chainId === CHAIN_ID_ALGORAND) {
     // TODO: handle algorand
     throw Error("hexToNativeString: Algorand not supported yet.")
   }
   else {
     // If this case is reached
-    const _: never = chain
-    throw Error("Don't know how to convert address from chain " + chain);
+    const _: never = chainId
+    throw Error("Don't know how to convert address from chain " + chainId);
   }
 };
 
@@ -150,7 +155,7 @@ export const tryNativeToHexString = (
  */
 export const nativeToHexString = (
   address: string | undefined,
-  chain: ChainId
+  chain: ChainId | ChainName
 ): string | null => {
   if (!address) {
     return null
@@ -165,7 +170,8 @@ export const nativeToHexString = (
  *
  * @throws if address is a malformed string for the given chain id
  */
-export function tryNativeToUint8Array(address: string, chainId: ChainId): Uint8Array {
+export function tryNativeToUint8Array(address: string, chain: ChainId | ChainName): Uint8Array {
+  const chainId = coalesceChainId(chain)
   return hexToUint8Array(tryNativeToHexString(address, chainId))
 }
 

@@ -5,7 +5,7 @@ import { arrayify, zeroPad } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId, canonicalAddress, isNativeDenom } from "../terra";
-import { ChainId, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
+import { ChainId, ChainName, CHAIN_ID_SOLANA, CHAIN_ID_TERRA, coalesceChainId } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
 export interface WormholeWrappedInfo {
@@ -25,7 +25,7 @@ export async function getOriginalAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
   wrappedAddress: string,
-  lookupChainId: ChainId
+  lookupChain: ChainId | ChainName
 ): Promise<WormholeWrappedInfo> {
   const isWrapped = await getIsWrappedAssetEth(
     tokenBridgeAddress,
@@ -47,7 +47,7 @@ export async function getOriginalAssetEth(
   }
   return {
     isWrapped: false,
-    chainId: lookupChainId,
+    chainId: coalesceChainId(lookupChain),
     assetAddress: zeroPad(arrayify(wrappedAddress), 32),
   };
 }

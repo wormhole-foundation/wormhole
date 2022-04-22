@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
-import { ChainId } from "../utils";
+import { ChainId, ChainName, coalesceChainId } from "../utils";
 import { LCDClient } from "@terra-money/terra.js";
 import { fromUint8Array } from "js-base64";
 import { importTokenWasm } from "../solana/wasm";
@@ -17,12 +17,12 @@ import { importTokenWasm } from "../solana/wasm";
 export async function getForeignAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
-  originChain: ChainId,
+  originChain: ChainId | ChainName,
   originAsset: Uint8Array
 ): Promise<string | null> {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
   try {
-    return await tokenBridge.wrappedAsset(originChain, originAsset);
+    return await tokenBridge.wrappedAsset(coalesceChainId(originChain), originAsset);
   } catch (e) {
     return null;
   }
@@ -31,7 +31,7 @@ export async function getForeignAssetEth(
 export async function getForeignAssetTerra(
   tokenBridgeAddress: string,
   client: LCDClient,
-  originChain: ChainId,
+  originChain: ChainId | ChainName,
   originAsset: Uint8Array
 ): Promise<string | null> {
   try {
@@ -39,7 +39,7 @@ export async function getForeignAssetTerra(
       tokenBridgeAddress,
       {
         wrapped_registry: {
-          chain: originChain,
+          chain: coalesceChainId(originChain),
           address: fromUint8Array(originAsset),
         },
       }
@@ -61,14 +61,14 @@ export async function getForeignAssetTerra(
 export async function getForeignAssetSolana(
   connection: Connection,
   tokenBridgeAddress: string,
-  originChain: ChainId,
+  originChain: ChainId | ChainName,
   originAsset: Uint8Array
 ): Promise<string | null> {
   const { wrapped_address } = await importTokenWasm();
   const wrappedAddress = wrapped_address(
     tokenBridgeAddress,
     originAsset,
-    originChain
+    coalesceChainId(originChain)
   );
   const wrappedAddressPK = new PublicKey(wrappedAddress);
   const wrappedAssetAccountInfo = await connection.getAccountInfo(
