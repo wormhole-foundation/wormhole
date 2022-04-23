@@ -132,7 +132,7 @@ function useRelayerInfo(
   const sourceAssetDecimals = sourceParsedTokenAccount?.decimals;
   const gasPrice = useSelector(selectTransferGasPrice);
   const relayerInfo = useRelayersAvailable(true);
-  console.log("relayerInfo", relayerInfo);
+  // console.log("relayerInfo", relayerInfo);
 
   const originAssetNative =
     originAsset && originChain

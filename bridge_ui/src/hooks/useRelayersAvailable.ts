@@ -44,7 +44,7 @@ const useRelayersAvailable = (
   shouldFire: boolean
 ): DataWrapper<RelayerTokenInfo> => {
   const relayerTokenInfo = useSelector(selectRelayerTokenInfo);
-  console.log("relayerTokenInfo", relayerTokenInfo);
+  // console.log("relayerTokenInfo", relayerTokenInfo);
   const dispatch = useDispatch();
   const internalShouldFire =
     shouldFire &&

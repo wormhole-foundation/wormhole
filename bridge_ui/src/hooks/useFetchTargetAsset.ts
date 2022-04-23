@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getForeignAssetEth,
@@ -9,6 +10,18 @@ import {
   hexToUint8Array,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
+import {
+  accountExists,
+  decodeLocalState,
+  SEED_AMT,
+} from "@certusone/wormhole-sdk/lib/esm/algorand/Algorand";
+import {
+  PopulateData,
+  TmplSig,
+  uint8ArrayToHexString,
+} from "@certusone/wormhole-sdk/lib/esm/algorand/TmplSig";
+import MyAlgoConnect from "@randlabs/myalgo-connect";
+import algosdk from "algosdk";
 import {
   getForeignAssetEth as getForeignAssetEthNFT,
   getForeignAssetSol as getForeignAssetSolNFT,
@@ -20,6 +33,7 @@ import { LCDClient } from "@terra-money/terra.js";
 import { ethers } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import {
   errorDataWrapper,
@@ -40,6 +54,8 @@ import {
 } from "../store/selectors";
 import { setTargetAsset as setTransferTargetAsset } from "../store/transferSlice";
 import {
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getEvmChainId,
   getNFTBridgeAddressForChain,
   getTokenBridgeAddressForChain,
@@ -49,6 +65,139 @@ import {
   TERRA_HOST,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+
+export async function optin(
+  client: algosdk.Algodv2,
+  senderAddr: string,
+  appId: number,
+  appIndex: number,
+  emitterId: string,
+  why: string
+): Promise<string> {
+  console.log("optin called with ", appIndex, emitterId, why);
+
+  // This is the application address associated with the application ID
+  const appAddr: string = algosdk.getApplicationAddress(appId);
+  const decAppAddr: Uint8Array = algosdk.decodeAddress(appAddr).publicKey;
+  const aa: string = uint8ArrayToHexString(decAppAddr, false);
+
+  let data: PopulateData = {
+    addrIdx: appIndex,
+    appAddress: aa,
+    appId: appId,
+    emitterId: emitterId,
+    seedAmt: SEED_AMT,
+  };
+
+  console.log("YYY", JSON.stringify(data));
+
+  const ts: TmplSig = new TmplSig(client);
+  const lsa: algosdk.LogicSigAccount = await ts.populate(data);
+  const sigAddr: string = lsa.address();
+
+  // Check to see if we need to create this
+  console.log("Checking to see if account exists...", appIndex, "-", emitterId);
+  const retval: boolean = await accountExists(client, appId, sigAddr);
+  if (!retval) {
+    // console.log("Account does not exist.");
+    // These are the suggested params from the system
+    // console.log("Getting parms...");
+    const params = await client.getTransactionParams().do();
+    // console.log("Creating payment txn...");
+    const seedTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      from: senderAddr,
+      to: sigAddr,
+      amount: SEED_AMT,
+      suggestedParams: params,
+    });
+    // console.log("Creating optin txn...");
+    const optinTxn = algosdk.makeApplicationOptInTxnFromObject({
+      from: sigAddr,
+      suggestedParams: params,
+      appIndex: appId,
+    });
+    // console.log("Creating rekey txn...");
+    const rekeyTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      from: sigAddr,
+      to: sigAddr,
+      amount: 0,
+      suggestedParams: params,
+      rekeyTo: appAddr,
+    });
+
+    // console.log("Assigning group ID...");
+    let txns = [seedTxn, optinTxn, rekeyTxn];
+    algosdk.assignGroupID(txns);
+
+    // console.log("Signing seed for optin...");
+    const myAlgoConnect = new MyAlgoConnect();
+    const signedSeedTxn = await myAlgoConnect.signTransaction(seedTxn.toByte());
+    // console.log("Signing optin for optin...");
+    const signedOptinTxn = algosdk.signLogicSigTransaction(optinTxn, lsa);
+    // console.log("Signing rekey for optin...");
+    const signedRekeyTxn = algosdk.signLogicSigTransaction(rekeyTxn, lsa);
+
+    // console.log(
+    //     "Sending txns for optin...",
+    //     appIndex,
+    //     "-",
+    //     emitterId,
+    //     "-",
+    //     sigAddr
+    // );
+    await client
+      .sendRawTransaction([
+        signedSeedTxn.blob,
+        signedOptinTxn.blob,
+        signedRekeyTxn.blob,
+      ])
+      .do();
+
+    // console.log(
+    //     "Awaiting confirmation for optin...",
+    //     appIndex,
+    //     "-",
+    //     emitterId
+    // );
+    const confirmedTxns = await algosdk.waitForConfirmation(
+      client,
+      txns[txns.length - 1].txID(),
+      1
+    );
+    console.log("optin confirmation", confirmedTxns);
+  }
+  return sigAddr;
+}
+
+// TODO: make this usable in sdk
+export async function getForeignAssetAlgo(
+  client: algosdk.Algodv2,
+  senderAddr: string,
+  chain: number,
+  contract: string
+): Promise<number> {
+  if (chain === 8) {
+    return parseInt(contract, 16);
+  } else {
+    let chainAddr = await optin(
+      client,
+      senderAddr,
+      ALGORAND_TOKEN_BRIDGE_ID,
+      chain,
+      contract,
+      "getForeignAssetAlgo"
+    );
+    let asset: Uint8Array = await decodeLocalState(
+      client,
+      ALGORAND_TOKEN_BRIDGE_ID,
+      chainAddr
+    );
+    if (asset.length > 8) {
+      const tmp = Buffer.from(asset.slice(0, 8));
+      return Number(tmp.readBigUInt64BE(0));
+    } else throw new Error("unknownForeignAsset");
+  }
+}
 
 function useFetchTargetAsset(nft?: boolean) {
   const dispatch = useDispatch();
@@ -72,6 +221,7 @@ function useFetchTargetAsset(nft?: boolean) {
   const { provider, chainId: evmChainId } = useEthereumProvider();
   const correctEvmNetwork = getEvmChainId(targetChain);
   const hasCorrectEvmNetwork = evmChainId === correctEvmNetwork;
+  const { accounts: algorandAccounts } = useAlgorandContext();
   const [lastSuccessfulArgs, setLastSuccessfulArgs] = useState<{
     isSourceAssetWormholeWrapped: boolean | undefined;
     originChain: ChainId | undefined;
@@ -239,6 +389,50 @@ function useFetchTargetAsset(nft?: boolean) {
           }
         }
       }
+      if (
+        targetChain === CHAIN_ID_ALGORAND &&
+        originChain &&
+        originAsset &&
+        algorandAccounts[0]
+      ) {
+        dispatch(setTargetAsset(fetchDataWrapper()));
+        try {
+          const algodClient = new algosdk.Algodv2(
+            ALGORAND_HOST.algodToken,
+            ALGORAND_HOST.algodServer,
+            ALGORAND_HOST.algodPort
+          );
+          const asset = await getForeignAssetAlgo(
+            algodClient,
+            algorandAccounts[0].address,
+            originChain,
+            originAsset
+          );
+          console.log("foreign asset algo:", asset);
+          if (!cancelled) {
+            dispatch(
+              setTargetAsset(
+                receiveDataWrapper({
+                  doesExist: !!asset,
+                  address: asset.toString(),
+                })
+              )
+            );
+            setArgs();
+          }
+        } catch (e) {
+          console.error(e);
+          if (!cancelled) {
+            dispatch(
+              setTargetAsset(
+                errorDataWrapper(
+                  "Unable to determine existence of wrapped asset"
+                )
+              )
+            );
+          }
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -256,6 +450,7 @@ function useFetchTargetAsset(nft?: boolean) {
     hasCorrectEvmNetwork,
     argsMatchLastSuccess,
     setArgs,
+    algorandAccounts,
   ]);
 }
 

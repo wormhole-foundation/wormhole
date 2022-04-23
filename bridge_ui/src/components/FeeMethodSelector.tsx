@@ -113,7 +113,7 @@ function FeeMethodSelector() {
   const dispatch = useDispatch();
   const relayerSelected = !!useSelector(selectTransferUseRelayer);
 
-  console.log("relayer info in fee method selector", relayerInfo);
+  // console.log("relayer info in fee method selector", relayerInfo);
 
   const relayerEligible =
     relayerInfo.data &&
