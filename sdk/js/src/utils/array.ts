@@ -14,6 +14,7 @@ import {
   CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CHAIN_ID_UNSET,
   coalesceChainId,
   isEVMChain,
 } from "./consts";
@@ -72,6 +73,10 @@ export const tryUint8ArrayToNative = (
     }
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);
+  } else if (chainId === CHAIN_ID_NEAR) {
+    throw Error("uint8ArrayToNative: Near not supported yet.");
+  } else if (chainId === CHAIN_ID_UNSET) {
+    throw Error("uint8ArrayToNative: Chain id unset");
   } else {
     // This case is never reached
     const _: never = chainId;
@@ -174,11 +179,12 @@ export const tryNativeToHexString = (
     } else {
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
-  } else if (chain === CHAIN_ID_ALGORAND) {
+  } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);
   } else if (chainId === CHAIN_ID_NEAR) {
-    // TODO: handle algorand
     throw Error("hexToNativeString: Near not supported yet.");
+  } else if (chainId === CHAIN_ID_UNSET) {
+    throw Error("hexToNativeString: Chain id unset");
   } else {
     // If this case is reached
     const _: never = chainId;

@@ -14,6 +14,8 @@ Added `tryUint8ArrayToNative`
 
 Added support for passing in chain names wherever a chain is expected
 
+Added chain id 0 (unset)
+
 ### Changed
 
 Deprecated `nativeToHexString`

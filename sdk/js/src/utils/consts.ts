@@ -1,4 +1,5 @@
 export const CHAINS = {
+  unset: 0,
   solana: 1,
   ethereum: 2,
   terra: 3,
@@ -42,6 +43,7 @@ export type EVMChainName =
 // the inferred type will be a singleton (or literal) type, which is more precise and allows
 // typescript to perform context-sensitive narrowing when checking against them.
 // See the [[isEVMChain]] for an example.
+export const CHAIN_ID_UNSET = CHAINS["unset"];
 export const CHAIN_ID_SOLANA = CHAINS["solana"];
 export const CHAIN_ID_ETH = CHAINS["ethereum"];
 export const CHAIN_ID_TERRA = CHAINS["terra"];
