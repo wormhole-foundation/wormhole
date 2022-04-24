@@ -8,6 +8,7 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CHAIN_ID_UNSET,
   coalesceChainId,
   isEVMChain,
 } from "./consts";
@@ -68,6 +69,8 @@ export const tryUint8ArrayToNative = (
   } else if (chainId === CHAIN_ID_ALGORAND) {
     // TODO: handle algorand
     throw Error("uint8ArrayToNative: Algorand not supported yet")
+  } else if (chainId === CHAIN_ID_UNSET) {
+    throw Error("uint8ArrayToNative: Chain id unset")
   } else {
     // This case is never reached
     const _: never = chainId
@@ -137,6 +140,8 @@ export const tryNativeToHexString = (
   } else if (chainId === CHAIN_ID_ALGORAND) {
     // TODO: handle algorand
     throw Error("hexToNativeString: Algorand not supported yet.")
+  } else if (chainId === CHAIN_ID_UNSET) {
+    throw Error("hexToNativeString: Chain id unset")
   }
   else {
     // If this case is reached
