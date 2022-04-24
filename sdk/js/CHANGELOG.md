@@ -16,6 +16,8 @@ Added support for passing in chain names wherever a chain is expected
 
 Added chain id 0 (unset)
 
+Added contract addresses to the `consts` module
+
 ### Changed
 
 Deprecated `nativeToHexString`
