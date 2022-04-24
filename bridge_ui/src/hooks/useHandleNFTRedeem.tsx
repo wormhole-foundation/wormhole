@@ -1,5 +1,7 @@
 import {
   ChainId,
+  CHAIN_ID_ACALA,
+  CHAIN_ID_KARURA,
   CHAIN_ID_SOLANA,
   getClaimAddressSolana,
   hexToUint8Array,
@@ -26,12 +28,15 @@ import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { setIsRedeeming, setRedeemTx } from "../store/nftSlice";
 import { selectNFTIsRedeeming, selectNFTTargetChain } from "../store/selectors";
 import {
+  ACALA_HOST,
   getNFTBridgeAddressForChain,
+  KARURA_HOST,
   MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { getKaruraGasParams } from "../utils/karura";
 import { getMetadataAddress } from "../utils/metaplex";
 import parseError from "../utils/parseError";
 import { postVaaWithRetry } from "../utils/postVaa";
@@ -47,10 +52,18 @@ async function evm(
 ) {
   dispatch(setIsRedeeming(true));
   try {
+    // Karura and Acala need gas params for NFT minting
+    const overrides =
+      chainId === CHAIN_ID_KARURA
+        ? await getKaruraGasParams(KARURA_HOST)
+        : chainId === CHAIN_ID_ACALA
+        ? await getKaruraGasParams(ACALA_HOST)
+        : {};
     const receipt = await redeemOnEth(
       getNFTBridgeAddressForChain(chainId),
       signer,
-      signedVAA
+      signedVAA,
+      overrides
     );
     dispatch(
       setRedeemTx({ id: receipt.transactionHash, block: receipt.blockNumber })
