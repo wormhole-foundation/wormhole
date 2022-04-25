@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.8
+## 0.3.0
 
 ### Added
 
@@ -23,6 +23,8 @@ Added contract addresses to the `consts` module
 Deprecated `nativeToHexString`
 
 Deprecated `hexToNativeString`
+
+Deprecated `hexToNativeAssetString`
 
 `isEVMChain` now performs type narrowing
 

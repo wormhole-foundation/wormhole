@@ -102,7 +102,7 @@ export const tryHexToNativeAssetString = (h: string, c: ChainId): string =>
  * Convert an address in a wormhole's 32-byte hex representation into a chain's native
  * string representation.
  *
- * @deprecated since 0.2.8, use [[tryHexToNativeString]] instead.
+ * @deprecated since 0.3.0, use [[tryHexToNativeString]] instead.
  */
 export const hexToNativeAssetString = (
   h: string | undefined,
@@ -135,7 +135,7 @@ export const tryHexToNativeString = (
  * Convert an address in a wormhole's 32-byte hex representation into a chain's native
  * string representation.
  *
- * @deprecated since 0.2.8, use [[tryHexToNativeString]] instead.
+ * @deprecated since 0.3.0, use [[tryHexToNativeString]] instead.
  */
 export const hexToNativeString = (
   h: string | undefined,
@@ -197,7 +197,7 @@ export const tryNativeToHexString = (
  * Convert an address in a chain's native representation into a 32-byte hex string
  * understood by wormhole.
  *
- * @deprecated since 0.2.8, use [[tryNativeToHexString]] instead.
+ * @deprecated since 0.3.0, use [[tryNativeToHexString]] instead.
  * @throws if address is a malformed string for the given chain id
  */
 export const nativeToHexString = (
