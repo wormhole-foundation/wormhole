@@ -23,6 +23,8 @@ var warmTvlCache = map[string]map[string]map[string]LockedAsset{}
 var muWarmTvlCache sync.RWMutex
 var warmTvlFilePath = "tvl-cache.json"
 
+var notionalTvlResultPath = "notional-tvl.json"
+
 type LockedAsset struct {
 	Symbol      string
 	Name        string
@@ -289,7 +291,7 @@ func tvlForInterval(tbl *bigtable.Table, ctx context.Context, start, end time.Ti
 }
 
 // calculates the value locked
-func TVL(w http.ResponseWriter, r *http.Request) {
+func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -301,40 +303,6 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 	}
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	var last24Hours string
-
-	// allow GET requests with querystring params, or POST requests with json body.
-	switch r.Method {
-	case http.MethodGet:
-		queryParams := r.URL.Query()
-		last24Hours = queryParams.Get("last24Hours")
-
-	case http.MethodPost:
-		// declare request body properties
-		var d struct {
-			Last24Hours string `json:"last24Hours"`
-		}
-
-		// deserialize request body
-		if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-			switch err {
-			case io.EOF:
-				// do nothing, empty body is ok
-			default:
-				log.Printf("json.NewDecoder: %v", err)
-				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-				return
-			}
-		}
-
-		last24Hours = d.Last24Hours
-
-	default:
-		http.Error(w, "405 - Method Not Allowed", http.StatusMethodNotAllowed)
-		log.Println("Method Not Allowed")
-		return
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -420,17 +388,15 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 
 	// delta of last 24 hours
 	last24HourDelta := map[string]map[string]LockedAsset{}
-	if last24Hours != "" {
-		wg.Add(1)
-		go func() {
-			last24HourInterval := -time.Duration(24) * time.Hour
-			now := time.Now().UTC()
-			start := now.Add(last24HourInterval)
-			defer wg.Done()
-			transfers := tvlForInterval(tbl, ctx, start, now)
-			last24HourDelta = getNotionalAmounts(ctx, transfers)
-		}()
-	}
+	wg.Add(1)
+	go func() {
+		last24HourInterval := -time.Duration(24) * time.Hour
+		now := time.Now().UTC()
+		start := now.Add(last24HourInterval)
+		defer wg.Done()
+		transfers := tvlForInterval(tbl, ctx, start, now)
+		last24HourDelta = getNotionalAmounts(ctx, transfers)
+	}()
 
 	// total since release
 	allTimeLocked := map[string]map[string]LockedAsset{}
@@ -447,6 +413,83 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 	result := &tvlResult{
 		Last24HoursChange: last24HourDelta,
 		AllTime:           allTimeLocked,
+	}
+
+	persistInterfaceToJson(ctx, notionalTvlResultPath, &muWarmTvlCache, result)
+
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		log.Println(err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonBytes)
+}
+
+func TVL(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers for the preflight request
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Max-Age", "3600")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	// Set CORS headers for the main request.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	var last24Hours string
+
+	// allow GET requests with querystring params, or POST requests with json body.
+	switch r.Method {
+	case http.MethodGet:
+		queryParams := r.URL.Query()
+		last24Hours = queryParams.Get("last24Hours")
+
+	case http.MethodPost:
+		// declare request body properties
+		var d struct {
+			Last24Hours string `json:"last24Hours"`
+		}
+
+		// deserialize request body
+		if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
+			switch err {
+			case io.EOF:
+				// do nothing, empty body is ok
+			default:
+				log.Printf("json.NewDecoder: %v", err)
+				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+				return
+			}
+		}
+
+		last24Hours = d.Last24Hours
+
+	default:
+		http.Error(w, "405 - Method Not Allowed", http.StatusMethodNotAllowed)
+		log.Println("Method Not Allowed")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	var cachedResult tvlResult
+	loadJsonToInterface(ctx, notionalTvlResultPath, &muWarmTvlCache, &cachedResult)
+
+	// delta of last 24 hours
+	var last24HourDelta = map[string]map[string]LockedAsset{}
+	if last24Hours != "" {
+		last24HourDelta = cachedResult.Last24HoursChange
+	}
+
+	result := &tvlResult{
+		Last24HoursChange: last24HourDelta,
+		AllTime:           cachedResult.AllTime,
 	}
 
 	jsonBytes, err := json.Marshal(result)
