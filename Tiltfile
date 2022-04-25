@@ -338,19 +338,8 @@ if spy_relayer:
         "spy-relayer",
         resource_deps = ["proto-gen", "guardian", "redis"],
         port_forwards = [
+            port_forward(6063, container_port = 6060, name = "Debug/Status Server [:6063]", host = webHost),
             port_forward(8083, name = "Prometheus [:8083]", host = webHost),
-        ],
-        labels = ["spy-relayer"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_yaml_with_ns("devnet/spy-wallet-monitor.yaml")
-
-    k8s_resource(
-        "spy-wallet-monitor",
-        resource_deps = ["proto-gen", "guardian", "redis"],
-        port_forwards = [
-            port_forward(8084, name = "Prometheus [:8084]", host = webHost),
         ],
         labels = ["spy-relayer"],
         trigger_mode = trigger_mode,
