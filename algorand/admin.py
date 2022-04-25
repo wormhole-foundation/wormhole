@@ -134,6 +134,19 @@ class PortalCore:
         self.coreid = args.coreid
         self.tokenid = args.tokenid
 
+        if exists(self.args.env):
+            if self.gt == None:
+                self.gt = GenTest(False)
+
+            with open(self.args.env, encoding = 'utf-8') as f:
+                for line in f:
+                    e = line.rstrip('\n').split("=")
+                    if "INIT_SIGNERS_CSV" in e[0]:
+                        self.gt.guardianKeys = e[1].split(",")
+                    if "INIT_SIGNERS_KEYS_CSV" in e[0]:
+                        self.gt.guardianPrivKeys = e[1].split(",")
+                        print("guardianPrivKeys=" + str(self.gt.guardianPrivKeys))
+
     def waitForTransaction(
             self, client: AlgodClient, txID: str, timeout: int = 10
     ) -> PendingTxnResponse:
@@ -307,6 +320,9 @@ class PortalCore:
         emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
 
         guardianSet = self.getGovSet()
+
+        print("guardianSet: " + str(guardianSet))
+
         nonce = int(random.random() * 20000)
         ret = [
             self.gt.createSignedVAA(guardianSet, self.gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[0]),
@@ -783,6 +799,7 @@ class PortalCore:
             accts.append(chain_addr)
 
         keys = self.decodeLocalState(client, sender, self.coreid, guardian_addr)
+        print("keys: " + keys.hex())
 
         sp = client.suggested_params()
 

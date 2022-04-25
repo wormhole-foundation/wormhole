@@ -82,6 +82,7 @@ class GenTest:
         raise Exception("you suck")
 
     def createSignedVAA(self, guardianSetIndex, signers, ts, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, target, payload):
+        print("createSignedVAA: " + str(signers))
         b = ""
 
         b += self.encoder("uint32", ts)
