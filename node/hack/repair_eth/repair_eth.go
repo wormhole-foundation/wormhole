@@ -32,6 +32,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDPolygon:   "https://api.polygonscan.com/api",
 	vaa.ChainIDOasis:     "https://explorer.emerald.oasis.dev/api",
 	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
+	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -41,6 +42,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDPolygon:   "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
 	vaa.ChainIDOasis:     "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
 	vaa.ChainIDAurora:    "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
+	vaa.ChainIDFantom:    strings.ToLower("0x126783A6Cb203a3E35344528B26ca3a0489a1485"),
 }
 
 var (
