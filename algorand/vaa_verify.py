@@ -48,6 +48,19 @@ SLOTID_RECOVERED_PK_Y = 241
 
 @Subroutine(TealType.uint64)
 def sig_check(signatures, dhash, keys):
+    """
+    Verifies some signatures of a VAA. Due to computation budget limitations,
+    this can't verify all signatures in one go. Instead, it just makes sure that
+    whatever signatures it's given correspond to the given keys.
+
+    In addition, none of the arguments are validated here beyond the fact that
+    the signatures are valid given the keys and the message hash. In particular,
+    the message hash is also not validated here. Thus, the proper way to use
+    this function is by calling it (by the client) before the token bridge
+    program.  Then the token bridge program verify each input + that the right
+    program was called. If it failed to verify any of these, then signature
+    verification could be bypaseed.
+    """
     si = ScratchVar(TealType.uint64)  # signature index (zero-based)
     ki = ScratchVar(TealType.uint64)  # key index
     slen = ScratchVar(TealType.uint64)  # signature length

@@ -98,6 +98,7 @@ pushd /usr/src/clients/token_bridge
 node main.js solana execute_governance_vaa "$REGISTER_ETH_TOKEN_BRIDGE_VAA"
 node main.js solana execute_governance_vaa "$REGISTER_TERRA_TOKEN_BRIDGE_VAA"
 node main.js solana execute_governance_vaa "$REGISTER_BSC_TOKEN_BRIDGE_VAA"
+node main.js solana execute_governance_vaa "$REGISTER_ALGO_TOKEN_BRIDGE_VAA"
 popd
 
 pushd /usr/src/clients/nft_bridge

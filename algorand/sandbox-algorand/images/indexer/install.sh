@@ -14,10 +14,11 @@ if [ -z "${BRANCH}" ] || [ -z "${URL}" ]; then
   exit 0
 fi
 
-git clone --single-branch --branch "${BRANCH}" "${URL}" /opt/indexer
+git clone --single-branch --branch "${BRANCH}" "${URL}" indexer-git
 if [ "${SHA}" != "" ]; then
   echo "Checking out ${SHA}"
   git checkout "${SHA}";
 fi
+cd indexer-git
 make
 cp cmd/algorand-indexer/algorand-indexer /tmp
