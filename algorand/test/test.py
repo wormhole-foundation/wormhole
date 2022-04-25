@@ -262,9 +262,13 @@ class AlgoTest(PortalCore):
         aa = decode_address(taddr).hex()
         emitter_addr = self.optin(client, sender, self.coreid, 0, aa)
 
-        creator = self.getCreator(client, sender, asset_id)
-        c = client.account_info(creator)
-        wormhole = c.get("auth-addr") == taddr
+        if asset_id != 0:
+            creator = self.getCreator(client, sender, asset_id)
+            c = client.account_info(creator)
+            wormhole = c.get("auth-addr") == taddr
+        else:
+            c = None
+            wormhole = False
 
         if not wormhole:
             creator = self.optin(client, sender, self.tokenid, asset_id, b"native".hex())
@@ -284,6 +288,10 @@ class AlgoTest(PortalCore):
         if (mfee > 0):
             txns.append(transaction.PaymentTxn(sender = sender.getAddress(), sp = sp, receiver = get_application_address(self.tokenid), amt = mfee))
 
+        accts = [emitter_addr, creator, get_application_address(self.coreid)]
+        if c != None:
+            accts.append(c["address"])
+
         a = transaction.ApplicationCallTxn(
             sender=sender.getAddress(),
             index=self.tokenid,
@@ -291,7 +299,7 @@ class AlgoTest(PortalCore):
             app_args=[b"attestToken", asset_id],
             foreign_apps = [self.coreid],
             foreign_assets = [asset_id],
-            accounts=[emitter_addr, creator, c["address"], get_application_address(self.coreid)],
+            accounts=accts,
             sp=sp
         )
 
@@ -481,11 +489,11 @@ class AlgoTest(PortalCore):
 #        sys.exit(0)
 
 
-        vaa = self.parseVAA(bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"))
-        pprint.pprint(vaa)
-        vaa = self.parseVAA(bytes.fromhex("01000000010100c22ce0a3c995fca993cb0e91af74d745b6ec1a04b3adf0bb3e432746b3e2ab5e635b65d34d5148726cac10e84bf5932a7f21b9545c362bd512617aa980e0fbf40062607566000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000101beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"))
-        pprint.pprint(vaa)
-        sys.exit(0)
+#        vaa = self.parseVAA(bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"))
+#        pprint.pprint(vaa)
+#        vaa = self.parseVAA(bytes.fromhex("01000000010100c22ce0a3c995fca993cb0e91af74d745b6ec1a04b3adf0bb3e432746b3e2ab5e635b65d34d5148726cac10e84bf5932a7f21b9545c362bd512617aa980e0fbf40062607566000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000101beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"))
+#        pprint.pprint(vaa)
+#        sys.exit(0)
 
         gt = GenTest(True)
         self.gt = gt
@@ -600,7 +608,7 @@ class AlgoTest(PortalCore):
         seq += 1
 
         aid = client.account_info(player.getAddress())["assets"][0]["asset-id"]
-        print("generate an attest of the asset we just received")
+        print("generate an attest of the asset we just received: " + str(aid))
         # paul - attestFromAlgorand
         self.testAttest(client, player, aid)
 
@@ -620,8 +628,13 @@ class AlgoTest(PortalCore):
 
         print("Lets create a brand new non-wormhole asset and try to attest and send it out")
         self.testasset = self.createTestAsset(client, player2)
-        
         print("test asset id: " + str(self.testasset))
+        
+        print("Now lets create an attest of ALGO")
+        sid = self.testAttest(client, player2, 0)
+        vaa = self.getVAA(client, player, sid, self.tokenid)
+        v = self.parseVAA(bytes.fromhex(vaa))
+        print("We got a " + v["Meta"])
 
         print("Lets try to create an attest for a non-wormhole thing with a huge number of decimals")
         # paul - attestFromAlgorand

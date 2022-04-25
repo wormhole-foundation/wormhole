@@ -249,7 +249,6 @@ export async function attestFromAlgorand(
     assetId: number
 ): Promise<BigInt> {
     console.log("senderAcct:", senderAcct, "assetId:", assetId);
-    const appIndex: number = 0; // appIndex is 0 for attestations
     const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
     const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
     const aa: string = uint8ArrayToHexString(decTbAddr, false);
@@ -258,40 +257,48 @@ export async function attestFromAlgorand(
         client,
         senderAcct,
         CORE_ID,
-        appIndex,
+        0,
         aa,
         "attestFromAlgorand::emitterAddr"
     );
     console.log("Got emitter address...", emitterAddr);
-    const acctInfo = await client.accountInformation(senderAcct.addr).do();
-    console.log("Got sender account info...", acctInfo);
-    const assetKey: string = "index: " + assetId.toString();
-    // console.log(
-    //     assetKey,
-    //     "assetKey value:",
-    //     acctInfo["created-assets"][assetKey]
-    // );
-    const createdAssets = acctInfo["created-assets"];
-    console.log("createdAssets:", createdAssets);
-    class ca {
-        index: number = 0;
-        params: any;
-    }
-    // let creatorAddr = acctInfo["created-assets"]["creator"];
+    let wormhole: boolean = false;
+    let creatorAcctInfo: any = false;
     let creatorAddr = "";
-    createdAssets.forEach((a: ca) => {
-        if (a.index === assetId) {
-            // console.log("found asset index", a.index);
-            // console.log(a);
-            creatorAddr = a.params.creator;
-            return;
-        }
-    });
-    console.log("creatorAddr:", creatorAddr);
-    const creatorAcctInfo = await client.accountInformation(creatorAddr).do();
-    // console.log("Got creator account info...");
     const bPgmName: Uint8Array = textToUint8Array("attestToken");
-    const wormhole: boolean = creatorAcctInfo["auth-addr"] === tbAddr;
+
+    if (assetId != 0) {
+        const acctInfo = await client.accountInformation(senderAcct.addr).do();
+        console.log("Got sender account info...", acctInfo);
+        const assetKey: string = "index: " + assetId.toString();
+        // console.log(
+        //     assetKey,
+        //     "assetKey value:",
+        //     acctInfo["created-assets"][assetKey]
+        // );
+        const createdAssets = acctInfo["created-assets"];
+        console.log("createdAssets:", createdAssets);
+        class ca {
+            index: number = 0;
+            params: any;
+        }
+        // let creatorAddr = acctInfo["created-assets"]["creator"];
+        createdAssets.forEach((a: ca) => {
+            if (a.index === assetId) {
+                // console.log("found asset index", a.index);
+                // console.log(a);
+                creatorAddr = a.params.creator;
+                return;
+            }
+        });
+        console.log("creatorAddr:", creatorAddr);
+        creatorAcctInfo = await client.accountInformation(creatorAddr).do();
+        // console.log("Got creator account info...");
+        wormhole = creatorAcctInfo["auth-addr"] === tbAddr;
+    } else {
+        wormhole = false
+    }
+
     if (!wormhole) {
         console.log("Not wormhole.  Need to optin...");
         creatorAddr = await optin(
@@ -331,14 +338,20 @@ export async function attestFromAlgorand(
     }
 
     console.log("make app call txn...");
+
+    let accts: string[] = [
+        emitterAddr,
+        creatorAddr,
+        getApplicationAddress(CORE_ID),
+    ];
+
+    if (creatorAcctInfo) {
+        accts.push(creatorAcctInfo["address"]);
+    }
+    
     let appTxn = makeApplicationCallTxnFromObject({
         appArgs: [bPgmName, bigIntToBytes(assetId, 8)],
-        accounts: [
-            emitterAddr,
-            creatorAddr,
-            creatorAcctInfo["address"],
-            getApplicationAddress(CORE_ID),
-        ],
+        accounts: accts,
         appIndex: TOKEN_BRIDGE_ID,
         foreignApps: [CORE_ID],
         foreignAssets: [assetId],

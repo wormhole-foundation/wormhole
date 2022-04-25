@@ -836,7 +836,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
 
             aid.store(Btoi(Txn.application_args[1])),
             # Is the authorizing signature of the creator of the asset the address of the token_bridge app itself?
-            If(auth_addr(extract_creator(aid.load())) == Global.current_application_address(),
+            If(If(aid.load() != Int(0), auth_addr(extract_creator(aid.load())) == Global.current_application_address(), Int(0)),
                Seq([
 #                   Log(Bytes("Wormhole wrapped")),
                    # Wormhole wrapped asset

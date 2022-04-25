@@ -13,7 +13,8 @@ import  {
     getIsTransferCompletedAlgorand,
     parseVAA, 
     CORE_ID,
-    TOKEN_BRIDGE_ID
+    TOKEN_BRIDGE_ID,
+    attestFromAlgorand
 } from "@certusone/wormhole-sdk/lib/cjs/algorand/Algorand";
 
 import {
@@ -52,6 +53,10 @@ class AlgoTests {
 
         let accounts = await getTempAccounts();
         let player = accounts[0]
+
+        console.log("attesting some ALGO");
+        console.log(await attestFromAlgorand(client, player, 0))
+        process.exit(0);
 
 //        let t = testLib.genTransfer(guardianPrivKeys, 1, 1, 1, 1, "4523c3F29447d1f32AEa95BEBD00383c4640F1b4", 2, uint8ArrayToHexString(algosdk.decodeAddress(player.addr).publicKey, false), 8, 0)
 //        console.log(t)

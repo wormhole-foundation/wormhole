@@ -63,7 +63,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             if devMode:
                 return Assert(And(a, Int(currentframe().f_back.f_lineno)))
             else:
-                Assert(a)
+                return Assert(a)
 
         @Subroutine(TealType.bytes)
         def encode_uvarint(val: Expr, b: Expr):

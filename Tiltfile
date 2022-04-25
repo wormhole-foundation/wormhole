@@ -568,7 +568,8 @@ if algorand:
     docker_build(
         ref = "algorand-contracts",
         context = "algorand",
-        dockerfile = "algorand/Dockerfile"
+        dockerfile = "algorand/Dockerfile",
+        ignore = ["algorand/test/*.*"]
     )
 
     k8s_resource(
