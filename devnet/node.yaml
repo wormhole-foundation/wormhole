@@ -97,6 +97,8 @@ spec:
             - "4"
             - --algorandIndexerRPC
             - http://algorand:8980
+            - --algorandIndexerToken
+            - "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             - --solanaContract
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - --solanaWS
@@ -114,7 +116,7 @@ spec:
             - /tmp/admin.sock
             - --dataDir
             - /tmp/data
-#            - --logLevel=debug
+          #            - --logLevel=debug
           securityContext:
             capabilities:
               add:
