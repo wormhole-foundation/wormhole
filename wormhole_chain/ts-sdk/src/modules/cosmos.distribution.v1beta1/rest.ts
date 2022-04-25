@@ -48,7 +48,7 @@ export interface V1Beta1DecCoin {
 of a delegator's delegation reward.
 */
 export interface V1Beta1DelegationDelegatorReward {
-  validatorAddress?: string;
+  validator_address?: string;
   reward?: V1Beta1DecCoin[];
 }
 
@@ -108,7 +108,7 @@ export interface V1Beta1PageRequest {
    * count_total is only respected when offset is used. It is ignored when key
    * is set.
    */
-  countTotal?: boolean;
+  count_total?: boolean;
 
   /** reverse is set to true if results are to be returned in the descending order. */
   reverse?: boolean;
@@ -125,7 +125,7 @@ corresponding request message has used PageRequest.
 */
 export interface V1Beta1PageResponse {
   /** @format byte */
-  nextKey?: string;
+  next_key?: string;
 
   /** @format uint64 */
   total?: string;
@@ -135,10 +135,10 @@ export interface V1Beta1PageResponse {
  * Params defines the set of params for the distribution module.
  */
 export interface V1Beta1Params {
-  communityTax?: string;
-  baseProposerReward?: string;
-  bonusProposerReward?: string;
-  withdrawAddrEnabled?: boolean;
+  community_tax?: string;
+  base_proposer_reward?: string;
+  bonus_proposer_reward?: string;
+  withdraw_addr_enabled?: boolean;
 }
 
 /**
@@ -186,7 +186,7 @@ Query/DelegatorWithdrawAddress RPC method.
 */
 export interface V1Beta1QueryDelegatorWithdrawAddressResponse {
   /** withdraw_address defines the delegator address to query for. */
-  withdrawAddress?: string;
+  withdraw_address?: string;
 }
 
 /**
@@ -250,7 +250,7 @@ for delegations which are withdrawn after a slash has occurred.
 */
 export interface V1Beta1ValidatorSlashEvent {
   /** @format uint64 */
-  validatorPeriod?: string;
+  validator_period?: string;
   fraction?: string;
 }
 
@@ -473,11 +473,11 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
  * @name QueryDelegationTotalRewards
  * @summary DelegationTotalRewards queries the total rewards accrued by a each
 validator.
- * @request GET:/cosmos/distribution/v1beta1/delegators/{delegatorAddress}/rewards
+ * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards
  */
-  queryDelegationTotalRewards = (delegatorAddress: string, params: RequestParams = {}) =>
+  queryDelegationTotalRewards = (delegator_address: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegationTotalRewardsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/rewards`,
       method: "GET",
       format: "json",
       ...params,
@@ -489,11 +489,11 @@ validator.
    * @tags Query
    * @name QueryDelegationRewards
    * @summary DelegationRewards queries the total rewards accrued by a delegation.
-   * @request GET:/cosmos/distribution/v1beta1/delegators/{delegatorAddress}/rewards/{validatorAddress}
+   * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards/{validator_address}
    */
-  queryDelegationRewards = (delegatorAddress: string, validatorAddress: string, params: RequestParams = {}) =>
+  queryDelegationRewards = (delegator_address: string, validator_address: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegationRewardsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards/${validatorAddress}`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/rewards/${validator_address}`,
       method: "GET",
       format: "json",
       ...params,
@@ -505,11 +505,11 @@ validator.
    * @tags Query
    * @name QueryDelegatorValidators
    * @summary DelegatorValidators queries the validators of a delegator.
-   * @request GET:/cosmos/distribution/v1beta1/delegators/{delegatorAddress}/validators
+   * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/validators
    */
-  queryDelegatorValidators = (delegatorAddress: string, params: RequestParams = {}) =>
+  queryDelegatorValidators = (delegator_address: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegatorValidatorsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/validators`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/validators`,
       method: "GET",
       format: "json",
       ...params,
@@ -521,11 +521,11 @@ validator.
    * @tags Query
    * @name QueryDelegatorWithdrawAddress
    * @summary DelegatorWithdrawAddress queries withdraw address of a delegator.
-   * @request GET:/cosmos/distribution/v1beta1/delegators/{delegatorAddress}/withdraw_address
+   * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/withdraw_address
    */
-  queryDelegatorWithdrawAddress = (delegatorAddress: string, params: RequestParams = {}) =>
+  queryDelegatorWithdrawAddress = (delegator_address: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegatorWithdrawAddressResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/withdraw_address`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/withdraw_address`,
       method: "GET",
       format: "json",
       ...params,
@@ -553,11 +553,11 @@ validator.
    * @tags Query
    * @name QueryValidatorCommission
    * @summary ValidatorCommission queries accumulated commission for a validator.
-   * @request GET:/cosmos/distribution/v1beta1/validators/{validatorAddress}/commission
+   * @request GET:/cosmos/distribution/v1beta1/validators/{validator_address}/commission
    */
-  queryValidatorCommission = (validatorAddress: string, params: RequestParams = {}) =>
+  queryValidatorCommission = (validator_address: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryValidatorCommissionResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/validators/${validatorAddress}/commission`,
+      path: `/cosmos/distribution/v1beta1/validators/${validator_address}/commission`,
       method: "GET",
       format: "json",
       ...params,
@@ -569,11 +569,11 @@ validator.
    * @tags Query
    * @name QueryValidatorOutstandingRewards
    * @summary ValidatorOutstandingRewards queries rewards of a validator address.
-   * @request GET:/cosmos/distribution/v1beta1/validators/{validatorAddress}/outstanding_rewards
+   * @request GET:/cosmos/distribution/v1beta1/validators/{validator_address}/outstanding_rewards
    */
-  queryValidatorOutstandingRewards = (validatorAddress: string, params: RequestParams = {}) =>
+  queryValidatorOutstandingRewards = (validator_address: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryValidatorOutstandingRewardsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/validators/${validatorAddress}/outstanding_rewards`,
+      path: `/cosmos/distribution/v1beta1/validators/${validator_address}/outstanding_rewards`,
       method: "GET",
       format: "json",
       ...params,
@@ -585,23 +585,23 @@ validator.
    * @tags Query
    * @name QueryValidatorSlashes
    * @summary ValidatorSlashes queries slash events of a validator.
-   * @request GET:/cosmos/distribution/v1beta1/validators/{validatorAddress}/slashes
+   * @request GET:/cosmos/distribution/v1beta1/validators/{validator_address}/slashes
    */
   queryValidatorSlashes = (
-    validatorAddress: string,
+    validator_address: string,
     query?: {
-      startingHeight?: string;
-      endingHeight?: string;
+      starting_height?: string;
+      ending_height?: string;
       "pagination.key"?: string;
       "pagination.offset"?: string;
       "pagination.limit"?: string;
-      "pagination.countTotal"?: boolean;
+      "pagination.count_total"?: boolean;
       "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryValidatorSlashesResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/validators/${validatorAddress}/slashes`,
+      path: `/cosmos/distribution/v1beta1/validators/${validator_address}/slashes`,
       method: "GET",
       query: query,
       format: "json",

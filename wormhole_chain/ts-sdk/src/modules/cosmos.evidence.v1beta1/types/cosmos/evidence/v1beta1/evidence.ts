@@ -14,10 +14,10 @@ export interface Equivocation {
   height: number;
   time: Date | undefined;
   power: number;
-  consensusAddress: string;
+  consensus_address: string;
 }
 
-const baseEquivocation: object = { height: 0, power: 0, consensusAddress: "" };
+const baseEquivocation: object = { height: 0, power: 0, consensus_address: "" };
 
 export const Equivocation = {
   encode(message: Equivocation, writer: Writer = Writer.create()): Writer {
@@ -33,8 +33,8 @@ export const Equivocation = {
     if (message.power !== 0) {
       writer.uint32(24).int64(message.power);
     }
-    if (message.consensusAddress !== "") {
-      writer.uint32(34).string(message.consensusAddress);
+    if (message.consensus_address !== "") {
+      writer.uint32(34).string(message.consensus_address);
     }
     return writer;
   },
@@ -58,7 +58,7 @@ export const Equivocation = {
           message.power = longToNumber(reader.int64() as Long);
           break;
         case 4:
-          message.consensusAddress = reader.string();
+          message.consensus_address = reader.string();
           break;
         default:
           reader.skipType(tag & 7);
@@ -86,12 +86,12 @@ export const Equivocation = {
       message.power = 0;
     }
     if (
-      object.consensusAddress !== undefined &&
-      object.consensusAddress !== null
+      object.consensus_address !== undefined &&
+      object.consensus_address !== null
     ) {
-      message.consensusAddress = String(object.consensusAddress);
+      message.consensus_address = String(object.consensus_address);
     } else {
-      message.consensusAddress = "";
+      message.consensus_address = "";
     }
     return message;
   },
@@ -103,8 +103,8 @@ export const Equivocation = {
       (obj.time =
         message.time !== undefined ? message.time.toISOString() : null);
     message.power !== undefined && (obj.power = message.power);
-    message.consensusAddress !== undefined &&
-      (obj.consensusAddress = message.consensusAddress);
+    message.consensus_address !== undefined &&
+      (obj.consensus_address = message.consensus_address);
     return obj;
   },
 
@@ -126,12 +126,12 @@ export const Equivocation = {
       message.power = 0;
     }
     if (
-      object.consensusAddress !== undefined &&
-      object.consensusAddress !== null
+      object.consensus_address !== undefined &&
+      object.consensus_address !== null
     ) {
-      message.consensusAddress = object.consensusAddress;
+      message.consensus_address = object.consensus_address;
     } else {
-      message.consensusAddress = "";
+      message.consensus_address = "";
     }
     return message;
   },
