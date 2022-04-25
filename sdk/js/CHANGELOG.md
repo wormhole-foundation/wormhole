@@ -24,6 +24,10 @@ Deprecated `hexToNativeString`
 
 `CHAIN_ID_*` constants now have literal types
 
+`parseNFTPayload` and `parseTransferPayload` now return the chain id as a
+`number` instead of `ChainId` (since this was not validated anyway, resulting in
+unsafe code)
+
 ## 0.2.5
 
 ### Changed
