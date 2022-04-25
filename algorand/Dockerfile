@@ -6,14 +6,27 @@ COPY README.md cert.pem* /certs/
 # Fedora
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/pki/tls/certs/ca-bundle.crt; fi
 
-RUN dnf -y install python3-pip netcat wget
+RUN dnf -y groupinstall "Development Tools" "Development Libraries" 
+RUN dnf -y install netcat wget curl
+RUN curl -O https://www.python.org/ftp/python/3.10.4/Python-3.10.4.tgz
+RUN tar -xvzf Python-3.10.4.tgz
+WORKDIR Python-3.10.4
+RUN ./configure
+RUN make
+RUN make install
 
-RUN dnf -y groupinstall "Development Tools" "Development Libraries"
+RUN curl -O https://bootstrap.pypa.io/get-pip.py
+
+RUN /usr/local/bin/python3 get-pip.py
+
+RUN /usr/local/bin/python3 -m pip install virtualenv
+
+WORKDIR ..
 
 COPY Pipfile.lock Pipfile.lock
 COPY Pipfile Pipfile
 
-RUN pip install pipenv
+RUN /usr/local/bin/python3 -m pip install pipenv
 RUN pipenv install
 RUN mkdir teal
 

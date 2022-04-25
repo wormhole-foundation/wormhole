@@ -41,8 +41,7 @@ max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
-#    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
-    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
+    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
 
     if genTeal:
         with open(name, "w") as f:
