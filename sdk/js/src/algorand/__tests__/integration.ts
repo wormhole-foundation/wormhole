@@ -43,6 +43,7 @@ import {
   transferFromAlgorand,
   getForeignAssetFromVaaAlgo,
   appIdToAppAddr,
+  AccountToSigner,
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import {
@@ -149,7 +150,7 @@ describe("Integration Tests", () => {
           const aa: string = uint8ArrayToHexString(decTbAddr, false);
           const emitterAddr: string = await optin(
             client,
-            wallet,
+            AccountToSigner(wallet),
             CORE_ID,
             0,
             aa,
@@ -248,7 +249,7 @@ describe("Integration Tests", () => {
         done();
       })();
     });
-    test.only("Algorand transfer native ALGO to Eth and back again", (done) => {
+    test("Algorand transfer native ALGO to Eth and back again", (done) => {
       (async () => {
         try {
           console.log("Starting attestation...");
@@ -268,7 +269,7 @@ describe("Integration Tests", () => {
           console.log("Testing attestFromAlgorand...");
           const sn: BigInt = await attestFromAlgorand(
             client,
-            wallet,
+            AccountToSigner(wallet),
             AlgoIndex
           );
           console.log("sn", sn);
@@ -297,7 +298,7 @@ describe("Integration Tests", () => {
           const tbAddr: string = appIdToAppAddr(TOKEN_BRIDGE_ID);
           const emitterAddr: string = await optin(
             client,
-            wallet,
+            AccountToSigner(wallet),
             CORE_ID,
             0,
             tbAddr,
@@ -408,19 +409,15 @@ describe("Integration Tests", () => {
             throw new Error("Failed to convert to hexStr");
           }
           console.log("hexStr", hexStr);
-          let ethAcct: Account = {
-            addr: hexStr,
-            sk: hexStringToUint8Array("empty"),
-          };
           const AmountToTransfer: number = 12300;
           const Fee: number = 0;
           console.log("Calling transferFromAlgorand...");
           const txSid: bigint = await transferFromAlgorand(
             client,
-            wallet,
+            AccountToSigner(wallet),
             AlgoIndex,
             AmountToTransfer,
-            ethAcct,
+            hexStr,
             CHAIN_ID_ETH,
             Fee
           );
@@ -519,7 +516,7 @@ describe("Integration Tests", () => {
           const redeemed: Buffer[] = await redeemOnAlgorand(
             signedVAA,
             client,
-            wallet,
+            AccountToSigner(wallet),
             TOKEN_BRIDGE_ID
           );
           console.log("About to getIsTransferComplete...");
@@ -527,7 +524,7 @@ describe("Integration Tests", () => {
             client,
             signedVAA,
             TOKEN_BRIDGE_ID,
-            wallet
+            AccountToSigner(wallet)
           );
           console.log("Checking wallets...");
           const newBal = await token.balanceOf(ETH_TEST_WALLET_PUBLIC_KEY);
@@ -575,7 +572,7 @@ describe("Integration Tests", () => {
           console.log("Testing attestFromAlgorand...");
           const sn: BigInt = await attestFromAlgorand(
             client,
-            wallet,
+            AccountToSigner(wallet),
             assetIndex
           );
           console.log("sn", sn);
@@ -606,7 +603,7 @@ describe("Integration Tests", () => {
           const aa: string = uint8ArrayToHexString(decTbAddr, false);
           const emitterAddr: string = await optin(
             client,
-            wallet,
+            AccountToSigner(wallet),
             CORE_ID,
             0,
             aa,
@@ -732,19 +729,15 @@ describe("Integration Tests", () => {
             throw new Error("Failed to convert to hexStr");
           }
           console.log("hexStr", hexStr);
-          let ethAcct: Account = {
-            addr: hexStr,
-            sk: hexStringToUint8Array("empty"),
-          };
           const AmountToTransfer: number = 12300;
           const Fee: number = 0;
           console.log("Calling transferFromAlgorand...");
           const txSid: bigint = await transferFromAlgorand(
             client,
-            wallet,
+            AccountToSigner(wallet),
             assetIndex,
             AmountToTransfer,
-            ethAcct,
+            hexStr,
             CHAIN_ID_ETH,
             Fee
           );
@@ -843,7 +836,7 @@ describe("Integration Tests", () => {
           const redeemed: Buffer[] = await redeemOnAlgorand(
             signedVAA,
             client,
-            wallet,
+            AccountToSigner(wallet),
             TOKEN_BRIDGE_ID
           );
           console.log("About to getIsTransferComplete...");
@@ -851,7 +844,7 @@ describe("Integration Tests", () => {
             client,
             signedVAA,
             TOKEN_BRIDGE_ID,
-            wallet
+            AccountToSigner(wallet)
           );
           console.log("Checking wallets...");
           const newBal = await token.balanceOf(ETH_TEST_WALLET_PUBLIC_KEY);
@@ -878,7 +871,7 @@ describe("Integration Tests", () => {
         done();
       })();
     });
-    test("Transfer wrapped Luna from Terra to Algorand and back again", (done) => {
+    test.only("Transfer wrapped Luna from Terra to Algorand and back again", (done) => {
       (async () => {
         try {
           console.log("Starting attestation...");
@@ -952,14 +945,13 @@ describe("Integration Tests", () => {
           console.log("About to createWrappedOnAlgorand...");
           const cr = await createWrappedOnAlgorand(
             client,
-            algoWallet,
+            AccountToSigner(algoWallet),
             attestSignedVaa
           );
           console.log("cr:", cr);
 
           let assetIdCreated = await getForeignAssetFromVaaAlgo(
             client,
-            algoWallet,
             attestSignedVaa
           );
           console.log("assetIdCreated", assetIdCreated);
@@ -1031,7 +1023,7 @@ describe("Integration Tests", () => {
           const roe = await redeemOnAlgorand(
             txSignedVaa,
             client,
-            algoWallet,
+            AccountToSigner(algoWallet),
             TOKEN_BRIDGE_ID
           );
           expect(
@@ -1039,7 +1031,7 @@ describe("Integration Tests", () => {
               client,
               txSignedVaa,
               TOKEN_BRIDGE_ID,
-              algoWallet
+              AccountToSigner(algoWallet)
             )
           ).toBe(true);
 
@@ -1080,18 +1072,14 @@ describe("Integration Tests", () => {
           if (!terraHexStr) {
             throw new Error("Failed to convert to hexStr");
           }
-          let terraAcct: Account = {
-            addr: terraHexStr,
-            sk: hexStringToUint8Array("empty"),
-          };
           const Fee: number = 0;
           console.log("Calling transferFromAlgorand...");
           const txSid: bigint = await transferFromAlgorand(
             client,
-            algoWallet,
+            AccountToSigner(algoWallet),
             assetIdCreated,
             TransferBackAmount,
-            terraAcct,
+            terraHexStr,
             CHAIN_ID_TERRA,
             Fee
           );

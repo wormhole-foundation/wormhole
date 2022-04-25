@@ -1,7 +1,5 @@
 // Algorand.ts
 
-import { id, keccak256 } from "ethers/lib/utils";
-
 import algosdk, {
     Account,
     Algodv2,
@@ -9,9 +7,7 @@ import algosdk, {
     bigIntToBytes,
     decodeAddress,
     encodeAddress,
-    getApplicationAddress,
-    Indexer,
-    LogicSigAccount,
+    getApplicationAddress, LogicSigAccount,
     makeApplicationCallTxnFromObject,
     makeApplicationOptInTxnFromObject,
     makeAssetTransferTxnWithSuggestedParamsFromObject,
@@ -19,17 +15,17 @@ import algosdk, {
     OnApplicationComplete,
     signLogicSigTransaction,
     Transaction,
-    waitForConfirmation,
+    waitForConfirmation
 } from "algosdk";
+import { keccak256 } from "ethers/lib/utils";
 import {
     hexStringToUint8Array,
     PopulateData,
     TmplSig,
-    uint8ArrayToHexString,
+    uint8ArrayToHexString
 } from "./TmplSig";
 
-import { TextEncoder, inspect } from "util";
-import { ChainId } from "../utils/consts";
+
 
 export let ALGO_TOKEN =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -74,23 +70,15 @@ const ALGO_VERIFY = new Uint8Array([
     34, 137,
 ]);
 
-// Globals?
-class IndexerInfo {
-    private static instance: IndexerInfo;
-    client: Indexer;
-    round: number = 0;
-
-    private constructor() {
-        this.round = 0;
-        this.client = new Indexer(INDEXER_TOKEN, INDEXER_ADDRESS, INDEXER_PORT);
-    }
-    public static getInstance(): IndexerInfo {
-        if (!IndexerInfo.instance) {
-            IndexerInfo.instance = new IndexerInfo();
-        }
-        return IndexerInfo.instance;
-    }
+export type Signer = {
+    addr: string
+    signTxn(txn: Transaction): Promise<Uint8Array>
 }
+
+export const AccountToSigner = (account: Account): Signer => ({
+    addr: account.addr,
+    signTxn: (txn) => Promise.resolve(txn.signTxn(account.sk))
+})
 
 /**
  * <p> Creates a new Algodv2 client using local file consts</p>
@@ -109,17 +97,11 @@ export type TealCompileRsp = {
 // Conversion functions
 
 export function textToHexString(name: string): string {
-    // const enc: TextEncoder = new TextEncoder();
-    // const bName: Uint8Array = enc.encode(name);
-    // const sName: string = uint8ArrayToHexString(bName, false);
-    // return sName;
     return Buffer.from(name, "binary").toString("hex");
 }
 
 export function textToUint8Array(name: string): Uint8Array {
-    const enc: TextEncoder = new TextEncoder();
-    const bName: Uint8Array = enc.encode(name);
-    return bName;
+    return new Uint8Array(Buffer.from(name, "binary"));
 }
 
 export function appIdToAppAddr(appId: number): string {
@@ -245,7 +227,7 @@ export function parseSeqFromLog(log: Buffer[]): bigint {
  */
 export async function attestFromAlgorand(
     client: Algodv2,
-    senderAcct: Account,
+    senderAcct: Signer,
     assetId: number
 ): Promise<BigInt> {
     console.log("senderAcct:", senderAcct, "assetId:", assetId);
@@ -423,44 +405,51 @@ export async function accountExists(
     return ret;
 }
 
+export type LogicSigAccountInfo = {
+    lsa: LogicSigAccount
+    doesExist: boolean
+}
+
+export async function calcLogicSigAccount(
+    client: algosdk.Algodv2,
+    appId: number,
+    appIndex: number,
+    emitterId: string,
+): Promise<LogicSigAccountInfo> {
+    let data: PopulateData = {
+        addrIdx: appIndex,
+        appAddress: appIdToAppAddr(appId),
+        appId: appId,
+        emitterId: emitterId,
+        seedAmt: SEED_AMT,
+    };
+
+    const ts: TmplSig = new TmplSig(client);
+    const lsa: LogicSigAccount = await ts.populate(data);
+    const sigAddr: string = lsa.address();
+
+    const doesExist: boolean = await accountExists(client, appId, sigAddr);
+    return {
+        lsa,
+        doesExist
+    }
+}
+
 export async function optin(
     client: algosdk.Algodv2,
-    sender: Account,
+    sender: Signer,
     appId: number,
     appIndex: number,
     emitterId: string,
     why: string
 ): Promise<string> {
     console.log("optin called with ", appIndex, emitterId, why);
-
-    // This is the application address associated with the application ID
     const appAddr: string = getApplicationAddress(appId);
-    const decAppAddr: Uint8Array = decodeAddress(appAddr).publicKey;
-    const aa: string = uint8ArrayToHexString(decAppAddr, false);
-
-    let data: PopulateData = {
-        addrIdx: appIndex,
-        appAddress: aa,
-        appId: appId,
-        emitterId: emitterId,
-        seedAmt: SEED_AMT,
-    };
-
-    console.log("YYY", JSON.stringify(data));
-
-    const ts: TmplSig = new TmplSig(client);
-    const lsa: LogicSigAccount = await ts.populate(data);
-    const sigAddr: string = lsa.address();
-
+    
     // Check to see if we need to create this
-    // console.log(
-    //     "Checking to see if account exists...",
-    //     appIndex,
-    //     "-",
-    //     emitterId
-    // );
-    const retval: boolean = await accountExists(client, appId, sigAddr);
-    if (!retval) {
+    const {doesExist, lsa} = await calcLogicSigAccount(client, appId, appIndex, emitterId)
+    const sigAddr: string = lsa.address();
+    if (!doesExist) {
         // console.log("Account does not exist.");
         // These are the suggested params from the system
         // console.log("Getting parms...");
@@ -492,7 +481,7 @@ export async function optin(
         assignGroupID(txns);
 
         // console.log("Signing seed for optin...");
-        const signedSeedTxn = seedTxn.signTxn(sender.sk);
+        const signedSeedTxn = await sender.signTxn(seedTxn);
         // console.log("Signing optin for optin...");
         const signedOptinTxn = signLogicSigTransaction(optinTxn, lsa);
         // console.log("Signing rekey for optin...");
@@ -714,7 +703,7 @@ export async function decodeLocalState(
         }
     }
 
-    console.log("decodeLocalState", JSON.stringify(app_state));
+    // console.log("decodeLocalState", JSON.stringify(app_state));
 
     let ret = Buffer.alloc(0);
     let empty = Buffer.alloc(0);
@@ -766,7 +755,7 @@ export async function assetOptinCheck(
 
 export async function assetOptin(
     client: Algodv2,
-    sender: Account,
+    sender: Signer,
     asset: number,
     receiver: string
 ) {
@@ -785,7 +774,7 @@ export async function assetOptin(
         });
 
     // Sign transaction
-    const signedOptinTxn: Uint8Array = optinTxn.signTxn(sender.sk);
+    const signedOptinTxn: Uint8Array = await sender.signTxn(optinTxn)
 
     // Send transaction
     const txId: string = await client.sendRawTransaction(signedOptinTxn).do();
@@ -831,7 +820,7 @@ class SubmitVAAState {
 export async function submitVAAHdr(
     vaa: Uint8Array,
     client: Algodv2,
-    sender: Account,
+    sender: Signer,
     appid: number
 ): Promise<SubmitVAAState> {
     // A lot of our logic here depends on parseVAA and knowing what the payload is..
@@ -964,13 +953,13 @@ export async function submitVAAHdr(
  */
 export async function simpleSignVAA(
     client: Algodv2,
-    sender: Account,
+    sender: Signer,
     txns: Array<algosdk.Transaction>
 ): Promise<Buffer[]> {
     console.log("simpleSignVAA");
     //    console.log(txns)
     assignGroupID(txns);
-    const signedTxns: Uint8Array[] = [];
+    const signedTxnsPromises: Promise<Uint8Array>[] = [];
     txns.forEach((txn) => {
         // console.log(txn);
         if (
@@ -982,12 +971,13 @@ export async function simpleSignVAA(
             console.log("Signing logic sig...");
             const lsa = new LogicSigAccount(ALGO_VERIFY);
             const stxn = signLogicSigTransaction(txn, lsa);
-            signedTxns.push(stxn.blob);
+            signedTxnsPromises.push(Promise.resolve(stxn.blob));
         } else {
             console.log("Signing normal txn...");
-            signedTxns.push(txn.signTxn(sender.sk));
+            signedTxnsPromises.push(sender.signTxn(txn));
         }
     });
+    const signedTxns = await Promise.all(signedTxnsPromises)
 
     console.log("sendRawTransaction", signedTxns);
     const resp = await client.sendRawTransaction(signedTxns).do();
@@ -1057,41 +1047,40 @@ export async function simpleSignVAA(
 
 export async function getForeignAssetAlgo(
     client: Algodv2,
-    sender: Account,
     chain: number,
     contract: string
-) : Promise<number> {
+) : Promise<number | null> {
     if (chain == 8) {
         return parseInt(contract, 16);
     } else {
-        let chainAddr = await optin(
+        let {lsa, doesExist} = await calcLogicSigAccount(
             client,
-            sender,
             TOKEN_BRIDGE_ID,
             chain,
             contract,
-            "getForeignAssetAlgo"
         );
+        if (!doesExist) {
+            return null
+        }
         let asset: Uint8Array = await decodeLocalState(
             client,
             TOKEN_BRIDGE_ID,
-            chainAddr
+            lsa.address()
         );
         if (asset.length > 8) {
             const tmp = Buffer.from(asset.slice(0, 8));
             return Number(tmp.readBigUInt64BE(0));
         } else
-            throw new Error("unknownForeignAsset");
+            return null
     }
 }
 
 export async function getForeignAssetFromVaaAlgo(
     client: Algodv2,
-    sender: Account,
     vaa: Uint8Array,
-) : Promise<number> {
+) : Promise<number | null> {
     const parsedVAA: Map<string, any> = parseVAA(vaa);
-    return await getForeignAssetAlgo(client, sender, parsedVAA.get("FromChain"), parsedVAA.get("Contract"));
+    return await getForeignAssetAlgo(client, parsedVAA.get("FromChain"), parsedVAA.get("Contract"));
 }
     
 /**
@@ -1105,7 +1094,7 @@ export async function getForeignAssetFromVaaAlgo(
 export async function submitVAA(
     vaa: Uint8Array,
     client: Algodv2,
-    sender: Account,
+    sender: Signer,
     appid: number
 ): Promise<Buffer[]> {
     let sstate = await submitVAAHdr(vaa, client, sender, appid);
@@ -1353,118 +1342,6 @@ export async function submitVAA(
     return ret;
 }
 
-export async function getVAA(
-    client: Algodv2,
-    sender: Account,
-    sid: bigint,
-    app: number
-): Promise<Uint8Array> {
-    if (!sid) {
-        throw new Error("getVAA called with a sid of None");
-    }
-    const sAddr: string = getApplicationAddress(app);
-    const params: algosdk.SuggestedParams = await client
-        .getTransactionParams()
-        .do();
-
-    // SOOO, we send a nop txn through to push the block forward one
-
-    // This is ONLY needed on a local net...  the indexer will sit
-    // on the last block for 30 to 60 seconds... we don't want this
-    // log in prod since it is wasteful of gas
-
-    if (IndexerInfo.getInstance().round > 512) {
-        // until they fix it
-        console.log(
-            "indexer is broken in local net... stop/clean/restart the sandbox"
-        );
-        throw new Error("Indexer > 512");
-    }
-
-    console.log("getVAA");
-    let txns = [];
-    let signedTxns = [];
-
-    let txn = makeApplicationCallTxnFromObject({
-        from: sender.addr,
-        appIndex: TOKEN_BRIDGE_ID,
-        onComplete: OnApplicationComplete.NoOpOC,
-        appArgs: [textToUint8Array("nop")],
-        suggestedParams: params,
-    });
-    txns.push(txn);
-    signedTxns.push(txn.signTxn(sender.sk));
-    const { txId } = await client.sendRawTransaction(signedTxns).do();
-
-    let retVal: Uint8Array = new Uint8Array();
-    let nextToken: string = "";
-    let done: boolean = false;
-    while (true) {
-        const response: Record<string, any> = await IndexerInfo.getInstance()
-            .client.searchForTransactions()
-            .nextToken(nextToken)
-            .minRound(1)
-            .notePrefix(textToUint8Array("publishMessage"))
-            .do();
-        // console.log("getVAA() - response:", response);
-        let transactions = response["transactions"];
-        console.log("outer transaction:", transactions);
-        transactions.forEach((element: any) => {
-            // console.log("transaction element:", element);
-            let innerTxns = element["inner-txns"];
-            console.log("innerTxns:", innerTxns);
-            innerTxns.forEach((el: any) => {
-                const at = el["application-transaction"];
-                // console.log("checking at:", at);
-                if (!at) return;
-                // console.log("checking app id:", at["application-id"]);
-                // if (at["application-id"] != CORE_ID) return;
-                const logs = at["logs"];
-                if (!logs || logs.length == 0) return;
-                console.log("checking logs:", at["logs"]);
-                const args = at["application-args"];
-                if (args) {
-                    console.log("checking args:", at["application-args"]);
-                }
-                if (args.length < 2) return;
-                if (
-                    Buffer.from(args[0], "base64").toString("hex") !=
-                    textToHexString("publishMessage")
-                ) {
-                    return;
-                }
-                const seq = parseSeqFromTxn(element);
-                if (seq != sid) return;
-                if (el["sender"] != sAddr) return;
-                const emitter = decodeAddress(el["sender"]);
-                const payload = Buffer.from(args[1], "base64");
-                // pprint.pprint([seq, y["sender"], payload.hex()])
-                // retVal = self.gt.genVaa(emitter, seq, payload);
-                done = true;
-                return;
-            });
-            if (done) return;
-        });
-        if (done) break;
-        let numTransactions = transactions.length;
-        console.log(
-            "numTransactions",
-            numTransactions,
-            "next-token",
-            nextToken
-        );
-        if (response["next-token"]) {
-            nextToken = response["next-token"];
-            console.log("setting nextToken to", nextToken);
-        } else {
-            IndexerInfo.getInstance().round = response["current-round"] + 1;
-            console.log("publishMessage = ", textToHexString("publishMessage"));
-            break;
-        }
-    }
-    return retVal;
-}
-
 /**
  * <p>Transfers an asset from Algorand to a receiver on another chain</p>
  * @param client AlgodV2 client
@@ -1478,10 +1355,10 @@ export async function getVAA(
  */
 export async function transferFromAlgorand(
     client: Algodv2,
-    sender: Account,
+    sender: Signer,
     assetId: number,
     qty: number,
-    receiver: Account,
+    receiver: string,
     chain: number,
     fee: number
 ) {
@@ -1605,13 +1482,13 @@ export async function transferFromAlgorand(
         txns.push(t);
         accounts = [emitterAddr, creator, creatorAcctInfo["address"]];
     }
-    console.log("receiver.addr", receiver.addr);
+    console.log("receiver", receiver);
     let args = [
         textToUint8Array("sendTransfer"),
         bigIntToBytes(assetId, 8),
         bigIntToBytes(qty, 8),
         // decodeAddress(receiver.addr).publicKey,
-        hexStringToUint8Array(receiver.addr),
+        hexStringToUint8Array(receiver),
         bigIntToBytes(chain, 8),
         bigIntToBytes(fee, 8),
     ];
@@ -1643,7 +1520,7 @@ export async function transferFromAlgorand(
 
 export async function createWrappedOnAlgorand(
     client: algosdk.Algodv2,
-    sender: Account,
+    sender: Signer,
     attestVAA: Uint8Array
 ): Promise<Buffer[]> {
     return await submitVAA(attestVAA, client, sender, TOKEN_BRIDGE_ID);
@@ -1651,7 +1528,7 @@ export async function createWrappedOnAlgorand(
 
 export async function updateWrappedOnAlgorand(
     client: algosdk.Algodv2,
-    sender: Account,
+    sender: Signer,
     vaa: Uint8Array
 ) {
     const parsedVAA: Map<string, any> = parseVAA(vaa);
@@ -1671,7 +1548,7 @@ export async function updateWrappedOnAlgorand(
 export async function redeemOnAlgorand(
     vaa: Uint8Array,
     client: Algodv2,
-    acct: Account,
+    acct: Signer,
     tokenBridgeId: number
 ): Promise<Buffer[]> {
     const parsedVAA: Map<string, any> = parseVAA(vaa);
@@ -1733,22 +1610,6 @@ async function checkBitsSet(
 
 /////////// These need to be written
 
-export async function getForeignAssetAlgorand(
-    client: Algodv2,
-    algoTokenBridgeAddress: string,
-    orginChain: ChainId,
-    originAsset: Uint8Array
-): Promise<string> {
-    // TODO:
-    // Somehow check if it is a wrapped asset against the
-    // token bridge address
-    let assetInfo = await IndexerInfo.getInstance()
-        .client.searchForAssets()
-        .do();
-    let retVal: string = "";
-    return retVal;
-}
-
 /**
  *
  * @param client AlgodV2 client
@@ -1761,7 +1622,7 @@ export async function getIsTransferCompletedAlgorand(
     client: Algodv2,
     signedVAA: Uint8Array,
     appId: number,
-    wallet: Account
+    wallet: Signer
 ): Promise<boolean> {
     const parsedVAA: Map<string, any> = parseVAA(signedVAA);
     const seq: number = Number(parsedVAA.get("sequence"));

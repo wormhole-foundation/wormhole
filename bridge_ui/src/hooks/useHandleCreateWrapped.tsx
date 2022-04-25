@@ -1,6 +1,7 @@
 import {
   ChainId,
   CHAIN_ID_ACALA,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_KARURA,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -23,6 +24,7 @@ import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { setCreateTx, setIsCreating } from "../store/attestSlice";
@@ -33,6 +35,7 @@ import {
 } from "../store/selectors";
 import {
   ACALA_HOST,
+  ALGORAND_HOST,
   getTokenBridgeAddressForChain,
   KARURA_HOST,
   MAX_VAA_UPLOAD_RETRIES_SOLANA,
@@ -47,6 +50,47 @@ import { postVaaWithRetry } from "../utils/postVaa";
 import { signSendAndConfirm } from "../utils/solana";
 import { postWithFees } from "../utils/terra";
 import useAttestSignedVAA from "./useAttestSignedVAA";
+import MyAlgoConnect from "@randlabs/myalgo-connect";
+import algosdk from "algosdk";
+import { createWrappedOnAlgorand } from "@certusone/wormhole-sdk/lib/esm/algorand/Algorand";
+
+async function algo(
+  dispatch: any,
+  enqueueSnackbar: any,
+  senderAddr: string,
+  signedVAA: Uint8Array
+) {
+  dispatch(setIsCreating(true));
+  try {
+    const algodClient = new algosdk.Algodv2(
+      ALGORAND_HOST.algodToken,
+      ALGORAND_HOST.algodServer,
+      ALGORAND_HOST.algodPort
+    );
+    const myAlgoConnect = new MyAlgoConnect();
+    const cr = await createWrappedOnAlgorand(
+      algodClient,
+      {
+        addr: senderAddr,
+        signTxn: async (txn) =>
+          (
+            await myAlgoConnect.signTransaction(txn.toByte())
+          ).blob,
+      },
+      signedVAA
+    );
+    // TODO: fill these out correctly
+    dispatch(setCreateTx({ id: "1", block: 1 }));
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
+  } catch (e) {
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    dispatch(setIsCreating(false));
+  }
+}
 
 async function evm(
   dispatch: any,
@@ -195,6 +239,7 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
+  const { accounts: algorandAccounts } = useAlgorandContext();
   const handleCreateClick = useCallback(() => {
     if (isEVMChain(targetChain) && !!signer && !!signedVAA) {
       evm(
@@ -228,6 +273,12 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
         shouldUpdate,
         terraFeeDenom
       );
+    } else if (
+      targetChain === CHAIN_ID_ALGORAND &&
+      algorandAccounts[0] &&
+      !!signedVAA
+    ) {
+      algo(dispatch, enqueueSnackbar, algorandAccounts[0]?.address, signedVAA);
     } else {
       // enqueueSnackbar(
       //   "Creating wrapped tokens on this chain is not yet supported",
@@ -247,6 +298,7 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
     signer,
     shouldUpdate,
     terraFeeDenom,
+    algorandAccounts,
   ]);
   return useMemo(
     () => ({
