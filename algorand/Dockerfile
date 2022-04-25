@@ -8,6 +8,9 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/pki/tls/certs/ca-bun
 
 RUN python3 -m pip install virtualenv
 
+RUN apt-get update
+RUN apt-get -y install netcat
+
 COPY Pipfile.lock Pipfile.lock
 COPY Pipfile Pipfile
 
@@ -15,20 +18,6 @@ RUN python3 -m pip install pipenv
 RUN pipenv install
 RUN mkdir teal
 
-COPY TmplSig.py TmplSig.py
-COPY admin.py admin.py
-COPY gentest.py gentest.py
-COPY globals.py globals.py
-COPY inlineasm.py inlineasm.py
-COPY local_blob.py local_blob.py
-COPY portal_core.py portal_core.py
-COPY token_bridge.py token_bridge.py
-COPY vaa_verify.py vaa_verify.py
+COPY *.py .
 COPY deploy.sh deploy.sh 
 COPY .env .env
-
-RUN apt-get update
-RUN apt-get -y install netcat
-
-
-
