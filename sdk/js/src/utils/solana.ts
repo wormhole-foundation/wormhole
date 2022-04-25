@@ -7,7 +7,7 @@ import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 export async function sendAndConfirmTransactionsWithRetry(
   connection: Connection,
   signTransaction: (transaction: Transaction) => Promise<Transaction>,
-  payer: string,
+  payer: PublicKey | string,
   unsignedTransactions: Transaction[],
   maxRetries: number = 0
 ) {
@@ -26,7 +26,11 @@ export async function sendAndConfirmTransactionsWithRetry(
     try {
       const { blockhash } = await connection.getRecentBlockhash();
       transaction.recentBlockhash = blockhash;
-      transaction.feePayer = new PublicKey(payer);
+      if (payer instanceof PublicKey) {
+        transaction.feePayer = payer
+      } else {
+        transaction.feePayer = new PublicKey(payer);
+      }
     } catch (e) {
       console.error(e);
       currentRetries++;

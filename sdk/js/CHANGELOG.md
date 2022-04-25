@@ -30,7 +30,10 @@ Deprecated `hexToNativeString`
 
 `parseNFTPayload` and `parseTransferPayload` now return the chain id as a
 `number` instead of `ChainId` (since this was not validated anyway, resulting in
-unsafe code)
+
+`createVerifySignaturesInstructions` no longer takes a keypair for the signature set account, only the public key
+
+`createPostVaaInstruction` no longer takes a keypair for the signature set account, only the public key
 
 ## 0.2.5
 
