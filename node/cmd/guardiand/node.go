@@ -302,7 +302,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
+	if *testnetMode || *unsafeDevMode {
+		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
+	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
@@ -489,14 +491,16 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
 	}
-	if *algorandIndexerRPC == "" {
-		logger.Fatal("Please specify --algorandIndexerRPC")
-	}
-	if *algorandIndexerToken == "" {
-		logger.Fatal("Please specify --algorandIndexerToken")
-	}
-	if *algorandAppID == 0 {
-		logger.Fatal("Please specify --algorandAppID")
+	if *testnetMode || *unsafeDevMode {
+		if *algorandIndexerRPC == "" {
+			logger.Fatal("Please specify --algorandIndexerRPC")
+		}
+		if *algorandIndexerToken == "" {
+			logger.Fatal("Please specify --algorandIndexerToken")
+		}
+		if *algorandAppID == 0 {
+			logger.Fatal("Please specify --algorandAppID")
+		}
 	}
 	if *bigTablePersistenceEnabled {
 		if *bigTableGCPProject == "" {
@@ -633,7 +637,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
-	chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
+	if *testnetMode || *unsafeDevMode {
+		chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
+	}
 	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
 
@@ -814,9 +820,11 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "algorandwatch",
-			algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
-			return err
+		if *testnetMode || *unsafeDevMode {
+			if err := supervisor.Run(ctx, "algorandwatch",
+				algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
+				return err
+			}
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
