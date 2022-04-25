@@ -9,10 +9,9 @@ import { getBalance, getWallet, sendTokens } from "../core/walletHelpers";
 
 jest.setTimeout(60000);
 
-test(" wallet 1 => wallet 2", async () => {
+test("basicTransfer", async () => {
   try {
     const DENOM = "utest";
-
     const wallet1 = await getWallet(TEST_WALLET_MNEMONIC_1);
     console.log("wallet 1", wallet1);
     const wallet2 = await getWallet(TEST_WALLET_MNEMONIC_2);

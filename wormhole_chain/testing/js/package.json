@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "jest --config jestconfig.json --verbose",
-    "bootstrap": "tsc && node lib/bootstrap.js"
+    "bootstrap": "tsc && node lib/bootstrap.js",
+    "basicTransfer": "npm run test -- -t 'basicTransfer'"
   },
   "repository": {
     "type": "git",

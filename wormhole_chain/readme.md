@@ -2,6 +2,8 @@
 
 **wormholechain** is a blockchain built using Cosmos SDK and Tendermint and created with [Starport](https://github.com/tendermint/starport).
 
+curl https://get.starport.network/starport@v0.19.5! | sudo bash
+
 ## Get started
 
 ```
