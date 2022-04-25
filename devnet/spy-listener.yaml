@@ -9,6 +9,10 @@ spec:
   clusterIP: None
   selector:
     app: spy-listener
+  ports:
+    - port: 8082
+      name: prometheus
+      protocol: TCP
 ---
 apiVersion: apps/v1
 kind: StatefulSet

@@ -26,7 +26,7 @@ import { getMetaplexData, sleep } from "../helpers/utils";
 import { getEthereumToken } from "../utils/ethereum";
 import { getMultipleAccountsRPC } from "../utils/solana";
 import { formatNativeDenom } from "../utils/terra";
-import { newProvider } from "./evm";
+import { newProvider } from "../relayer/evm";
 
 let env: RelayerEnvironment;
 const logger = getScopedLogger(["walletMonitor"]);
@@ -55,8 +55,6 @@ function init() {
 
 async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
   //TODO loop through all the chain configs, calc the public keys, pull their balances, and push to a combo of the loggers and prmometheus
-
-  logger.debug("pulling balances...");
   if (!env) {
     logger.error("pullBalances() - no env");
     return [];
@@ -67,63 +65,50 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
   }
   const balancePromises: Promise<WalletBalance[]>[] = [];
   for (const chainInfo of env.supportedChains) {
-    if (!chainInfo) break;
-    for (const privateKey of chainInfo.walletPrivateKey || []) {
-      try {
-        if (!privateKey) break;
-        logger.debug(
-          "Attempting to pull native balance for chainId: " + chainInfo.chainId
-        );
-        if (isEVMChain(chainInfo.chainId)) {
-          logger.info("Attempting to pull EVM native balance...");
+    if (!chainInfo) continue;
+    try {
+      if (chainInfo.chainId === CHAIN_ID_SOLANA) {
+        for (const solanaPrivateKey of chainInfo.solanaPrivateKey || []) {
+          try {
+            balancePromises.push(
+              pullSolanaNativeBalance(chainInfo, solanaPrivateKey)
+            );
+            balancePromises.push(
+              pullSolanaTokenBalances(chainInfo, solanaPrivateKey)
+            );
+          } catch (e: any) {
+            logger.error(
+              "pulling balances failed failed for chain: " + chainInfo.chainName
+            );
+            if (e && e.stack) {
+              logger.error(e.stack);
+            }
+          }
+        }
+      } else if (isEVMChain(chainInfo.chainId)) {
+        for (const privateKey of chainInfo.walletPrivateKey || []) {
           try {
             balancePromises.push(pullEVMNativeBalance(chainInfo, privateKey));
           } catch (e) {
             logger.error("pullEVMNativeBalance() failed: " + e);
           }
-          logger.info("Attempting to pull EVM non-native balance...");
-          pullAllEVMTokens(env.supportedTokens, chainInfo, metrics);
-        } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
-          logger.info("Attempting to pull TERRA native balance...");
-          balancePromises.push(pullTerraNativeBalance(chainInfo, privateKey));
-          logger.info("Attempting to pull TERRA non-native balance...");
-          balancePromises.push(
-            pullAllTerraTokens(env.supportedTokens, chainInfo)
-          );
-        } else {
-          logger.error(
-            "Invalid chain ID in wallet monitor " + chainInfo.chainId
-          );
         }
-      } catch (e: any) {
-        logger.error(
-          "pulling balances failed failed for chain: " + chainInfo.chainName
-        );
-        if (e && e.stack) {
-          logger.error(e.stack);
-        }
+        // TODO one day this will spin up independent watchers that time themselves
+        // purposefully not awaited
+        pullAllEVMTokens(env.supportedTokens, chainInfo, metrics);
+      } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
+        // TODO one day this will spin up independent watchers that time themselves
+        // purposefully not awaited
+        pullAllTerraBalances(env.supportedTokens, chainInfo, metrics);
+      } else {
+        logger.error("Invalid chain ID in wallet monitor " + chainInfo.chainId);
       }
-    }
-
-    for (const solanaPrivateKey of chainInfo.solanaPrivateKey || []) {
-      try {
-        if (chainInfo.chainId === CHAIN_ID_SOLANA) {
-          logger.info("pullBalances() - calling pullSolanaNativeBalance...");
-          balancePromises.push(
-            pullSolanaNativeBalance(chainInfo, solanaPrivateKey)
-          );
-          logger.info("pullBalances() - calling pullSolanaTokenBalances...");
-          balancePromises.push(
-            pullSolanaTokenBalances(chainInfo, solanaPrivateKey)
-          );
-        }
-      } catch (e: any) {
-        logger.error(
-          "pulling balances failed failed for chain: " + chainInfo.chainName
-        );
-        if (e && e.stack) {
-          logger.error(e.stack);
-        }
+    } catch (e: any) {
+      logger.error(
+        "pulling balances failed failed for chain: " + chainInfo.chainName
+      );
+      if (e && e.stack) {
+        logger.error(e.stack);
       }
     }
   }
@@ -137,83 +122,40 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
   return balances;
 }
 
-export async function pullEVMBalance(
-  chainInfo: ChainConfigInfo,
-  publicAddress: string,
-  tokenAddress: string
-): Promise<WalletBalance> {
-  let provider = newProvider(chainInfo.nodeUrl);
-
-  const token = await getEthereumToken(tokenAddress, provider);
-  const decimals = await token.decimals();
-  const balance = await token.balanceOf(publicAddress);
-  const symbol = await token.symbol();
-  const balanceFormatted = formatUnits(balance, decimals);
-
-  return {
-    chainId: chainInfo.chainId,
-    balanceAbs: balance.toString(),
-    balanceFormatted: balanceFormatted,
-    currencyName: symbol,
-    currencyAddressNative: tokenAddress,
-    isNative: false,
-    walletAddress: publicAddress,
-  };
-}
-
-async function pullTerraBalance(
-  chainInfo: ChainConfigInfo,
-  walletPrivateKey: string,
+export async function pullTerraBalance(
+  lcd: LCDClient,
+  walletAddress: string,
   tokenAddress: string
 ): Promise<WalletBalance | undefined> {
-  if (
-    !(
-      chainInfo.terraChainId &&
-      chainInfo.terraCoin &&
-      chainInfo.terraGasPriceUrl &&
-      chainInfo.terraName
-    )
-  ) {
-    logger.error("Terra relay was called without proper instantiation.");
-    throw new Error("Terra relay was called without proper instantiation.");
+  try {
+    const tokenInfo: any = await lcd.wasm.contractQuery(tokenAddress, {
+      token_info: {},
+    });
+    const balanceInfo: any = await lcd.wasm.contractQuery(tokenAddress, {
+      balance: {
+        address: walletAddress,
+      },
+    });
+
+    if (!tokenInfo || !balanceInfo) {
+      return undefined;
+    }
+
+    return {
+      chainId: CHAIN_ID_TERRA,
+      balanceAbs: balanceInfo?.balance?.toString() || "0",
+      balanceFormatted: formatUnits(
+        balanceInfo?.balance?.toString() || "0",
+        tokenInfo.decimals
+      ),
+      currencyName: tokenInfo.symbol,
+      currencyAddressNative: tokenAddress,
+      isNative: false,
+      walletAddress: walletAddress,
+    };
+  } catch (e) {
+    logger.error("Failed to fetch terra balance for %s", tokenAddress);
   }
-  const lcdConfig = {
-    URL: chainInfo.nodeUrl,
-    chainID: chainInfo.terraChainId,
-    name: chainInfo.terraName,
-  };
-  const lcd = new LCDClient(lcdConfig);
-  const mk = new MnemonicKey({
-    mnemonic: walletPrivateKey,
-  });
-  const wallet = lcd.wallet(mk);
-  const walletAddress = wallet.key.accAddress;
-
-  const tokenInfo: any = await lcd.wasm.contractQuery(tokenAddress, {
-    token_info: {},
-  });
-  const balanceInfo: any = lcd.wasm.contractQuery(tokenAddress, {
-    balance: {
-      address: walletAddress,
-    },
-  });
-
-  if (!tokenInfo || !balanceInfo) {
-    return undefined;
-  }
-
-  return {
-    chainId: CHAIN_ID_TERRA,
-    balanceAbs: balanceInfo?.balance?.toString() || "0",
-    balanceFormatted: formatUnits(
-      balanceInfo?.balance?.toString() || "0",
-      tokenInfo.decimals
-    ),
-    currencyName: tokenInfo.symbol,
-    currencyAddressNative: tokenAddress,
-    isNative: false,
-    walletAddress: walletAddress,
-  };
 }
 
 async function pullSolanaTokenBalances(
@@ -294,56 +236,38 @@ async function pullEVMNativeBalance(
 }
 
 async function pullTerraNativeBalance(
+  lcd: LCDClient,
   chainInfo: ChainConfigInfo,
-  privateKey: string
+  walletAddress: string
 ): Promise<WalletBalance[]> {
-  const output: WalletBalance[] = [];
-  if (
-    !(
-      chainInfo.terraChainId &&
-      chainInfo.terraCoin &&
-      chainInfo.terraGasPriceUrl &&
-      chainInfo.terraName
-    )
-  ) {
-    logger.error(
-      "Terra wallet balance was called without proper instantiation."
-    );
-    throw new Error(
-      "Terra wallet balance was called without proper instantiation."
-    );
-  }
-  const lcdConfig = {
-    URL: chainInfo.nodeUrl,
-    chainID: chainInfo.terraChainId,
-    name: chainInfo.terraName,
-  };
-  const lcd = new LCDClient(lcdConfig);
-  const mk = new MnemonicKey({
-    mnemonic: privateKey,
-  });
-  const wallet = lcd.wallet(mk);
-  const walletAddress = wallet.key.accAddress;
-
-  const [coins] = await lcd.bank.balance(walletAddress);
-  // coins doesn't support reduce
-  const balancePairs = coins.map(({ amount, denom }) => [denom, amount]);
-  const balance = balancePairs.reduce((obj, current) => {
-    obj[current[0].toString()] = current[1].toString();
-    return obj;
-  }, {} as TerraNativeBalances);
-  Object.keys(balance).forEach((key) => {
-    output.push({
-      chainId: chainInfo.chainId,
-      balanceAbs: balance[key],
-      balanceFormatted: formatUnits(balance[key], 6).toString(),
-      currencyName: formatNativeDenom(key),
-      currencyAddressNative: key,
-      isNative: true,
-      walletAddress: walletAddress,
+  try {
+    const output: WalletBalance[] = [];
+    const [coins] = await lcd.bank.balance(walletAddress);
+    // coins doesn't support reduce
+    const balancePairs = coins.map(({ amount, denom }) => [denom, amount]);
+    const balance = balancePairs.reduce((obj, current) => {
+      obj[current[0].toString()] = current[1].toString();
+      return obj;
+    }, {} as TerraNativeBalances);
+    Object.keys(balance).forEach((key) => {
+      output.push({
+        chainId: chainInfo.chainId,
+        balanceAbs: balance[key],
+        balanceFormatted: formatUnits(balance[key], 6).toString(),
+        currencyName: formatNativeDenom(key),
+        currencyAddressNative: key,
+        isNative: true,
+        walletAddress: walletAddress,
+      });
     });
-  });
-  return output;
+    return output;
+  } catch (e) {
+    logger.error(
+      "Failed to fetch terra native balances for wallet %s",
+      walletAddress
+    );
+    return [];
+  }
 }
 
 async function pullSolanaNativeBalance(
@@ -450,32 +374,11 @@ async function calcLocalAddressesEVM(
   );
 }
 
-async function calcLocalAddressesTerra(
+export async function calcLocalAddressesTerra(
+  lcd: LCDClient,
   supportedTokens: SupportedToken[],
   chainConfigInfo: ChainConfigInfo
 ) {
-  if (
-    !(
-      chainConfigInfo.terraChainId &&
-      chainConfigInfo.terraCoin &&
-      chainConfigInfo.terraGasPriceUrl &&
-      chainConfigInfo.terraName
-    )
-  ) {
-    logger.error(
-      "Terra wallet balance was called without proper instantiation."
-    );
-    throw new Error(
-      "Terra wallet balance was called without proper instantiation."
-    );
-  }
-  const lcdConfig = {
-    URL: chainConfigInfo.nodeUrl,
-    chainID: chainConfigInfo.terraChainId,
-    name: chainConfigInfo.terraName,
-  };
-  const lcd = new LCDClient(lcdConfig);
-
   const output: string[] = [];
   for (const supportedToken of supportedTokens) {
     if (supportedToken.chainId === chainConfigInfo.chainId) {
@@ -519,79 +422,115 @@ async function pullAllEVMTokens(
   chainConfig: ChainConfigInfo,
   metrics: PromHelper
 ) {
-  let provider = newProvider(
-    chainConfig.nodeUrl,
-    true
-  ) as ethers.providers.JsonRpcBatchProvider;
-  const localAddresses = await calcLocalAddressesEVM(
-    provider,
-    supportedTokens,
-    chainConfig
-  );
-  if (!chainConfig.walletPrivateKey) {
-    return;
-  }
-  for (const privateKey of chainConfig.walletPrivateKey) {
-    try {
-      const publicAddress = await new ethers.Wallet(privateKey).getAddress();
-      const tokens = await Promise.all(
-        localAddresses.map((tokenAddress) =>
-          getEthereumToken(tokenAddress, provider)
-        )
-      );
-      const tokenInfos = await Promise.all(
-        tokens.map((token) =>
-          Promise.all([
-            token.decimals(),
-            token.balanceOf(publicAddress),
-            token.symbol(),
-          ])
-        )
-      );
-      const balances = tokenInfos.map(([decimals, balance, symbol], idx) => ({
-        chainId: chainConfig.chainId,
-        balanceAbs: balance.toString(),
-        balanceFormatted: formatUnits(balance, decimals),
-        currencyName: symbol,
-        currencyAddressNative: localAddresses[idx],
-        isNative: false,
-        walletAddress: publicAddress,
-      }));
-      metrics.handleWalletBalances(balances);
-    } catch (e) {
-      logger.error(
-        "pollEVMBalance failed: for tokens " +
-          JSON.stringify(localAddresses) +
-          " on chain " +
-          chainConfig.chainId +
-          ", error: " +
-          e
-      );
+  try {
+    let provider = newProvider(
+      chainConfig.nodeUrl,
+      true
+    ) as ethers.providers.JsonRpcBatchProvider;
+    const localAddresses = await calcLocalAddressesEVM(
+      provider,
+      supportedTokens,
+      chainConfig
+    );
+    if (!chainConfig.walletPrivateKey) {
+      return;
     }
+    for (const privateKey of chainConfig.walletPrivateKey) {
+      try {
+        const publicAddress = await new ethers.Wallet(privateKey).getAddress();
+        const tokens = await Promise.all(
+          localAddresses.map((tokenAddress) =>
+            getEthereumToken(tokenAddress, provider)
+          )
+        );
+        const tokenInfos = await Promise.all(
+          tokens.map((token) =>
+            Promise.all([
+              token.decimals(),
+              token.balanceOf(publicAddress),
+              token.symbol(),
+            ])
+          )
+        );
+        const balances = tokenInfos.map(([decimals, balance, symbol], idx) => ({
+          chainId: chainConfig.chainId,
+          balanceAbs: balance.toString(),
+          balanceFormatted: formatUnits(balance, decimals),
+          currencyName: symbol,
+          currencyAddressNative: localAddresses[idx],
+          isNative: false,
+          walletAddress: publicAddress,
+        }));
+        metrics.handleWalletBalances(balances);
+      } catch (e) {
+        logger.error(
+          "pullAllEVMTokens failed: for tokens " +
+            JSON.stringify(localAddresses) +
+            " on chain " +
+            chainConfig.chainId +
+            ", error: " +
+            e
+        );
+      }
+    }
+  } catch (e) {
+    logger.error(
+      "pullAllEVMTokens failed: for chain " +
+        chainConfig.chainId +
+        ", error: " +
+        e
+    );
   }
 }
 
-async function pullAllTerraTokens(
+async function pullAllTerraBalances(
   supportedTokens: SupportedToken[],
-  chainConfig: ChainConfigInfo
+  chainConfig: ChainConfigInfo,
+  metrics: PromHelper
 ) {
+  let balances: WalletBalance[] = [];
+  if (!chainConfig.walletPrivateKey) {
+    return balances;
+  }
+  if (
+    !(
+      chainConfig.terraChainId &&
+      chainConfig.terraCoin &&
+      chainConfig.terraGasPriceUrl &&
+      chainConfig.terraName
+    )
+  ) {
+    logger.error("Terra relay was called without proper instantiation.");
+    throw new Error("Terra relay was called without proper instantiation.");
+  }
+  const lcdConfig = {
+    URL: chainConfig.nodeUrl,
+    chainID: chainConfig.terraChainId,
+    name: chainConfig.terraName,
+  };
+  const lcd = new LCDClient(lcdConfig);
   const localAddresses = await calcLocalAddressesTerra(
+    lcd,
     supportedTokens,
     chainConfig
   );
-  const output: WalletBalance[] = [];
-  if (!chainConfig.walletPrivateKey) {
-    return output;
-  }
   for (const privateKey of chainConfig.walletPrivateKey) {
+    const mk = new MnemonicKey({
+      mnemonic: privateKey,
+    });
+    const wallet = lcd.wallet(mk);
+    const walletAddress = wallet.key.accAddress;
+    balances = [
+      ...balances,
+      ...(await pullTerraNativeBalance(lcd, chainConfig, walletAddress)),
+    ];
     for (const address of localAddresses) {
-      const balance = await pullTerraBalance(chainConfig, privateKey, address);
+      const balance = await pullTerraBalance(lcd, walletAddress, address);
       if (balance) {
-        output.push(balance);
+        balances.push(balance);
       }
     }
   }
-  // logger.debug("pullAllTerraTokens() - returning %o", output);
 
-  return output;
+  metrics.handleWalletBalances(balances);
 }

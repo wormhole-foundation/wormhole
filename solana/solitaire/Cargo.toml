@@ -1,2 +1,0 @@
-[workspace]
-members = ["rocksalt", "program", "client"]

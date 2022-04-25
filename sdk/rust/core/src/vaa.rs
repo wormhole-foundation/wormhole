@@ -31,7 +31,6 @@ use nom::{
     IResult,
 };
 use std::convert::TryFrom;
-use std::str::FromStr; // Remove in 2021
 
 use crate::WormholeError::{
     InvalidGovernanceAction,
@@ -279,11 +278,6 @@ mod testing {
 
     #[test]
     fn test_valid_gov_header() {
-        let signers = hex::decode("00b072505b5b999c1d08905c02e2b6b2832ef72c0ba6c8db4f77fe457ef2b3d053410b1e92a9194d9210df24d987ac83d7b6f0c21ce90f8bc1869de0898bda7e9801").unwrap();
-        let payload = hex::decode("000000000000000000000000000000000000000000546f6b656e42726964676501000000013b26409f8aaded3f5ddca184695aa6a0fa829b0c85caf84856324896d214ca98").unwrap();
-        let emitter =
-            hex::decode("0000000000000000000000000000000000000000000000000000000000000004")
-                .unwrap();
         let module =
             hex::decode("000000000000000000000000000000000000000000546f6b656e427269646765")
                 .unwrap();

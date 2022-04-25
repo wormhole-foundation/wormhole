@@ -17,6 +17,7 @@ import {
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { PromHelper } from "../helpers/promHelpers";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
@@ -25,7 +26,8 @@ export async function relaySolana(
   signedVAAString: string,
   checkOnly: boolean,
   walletPrivateKey: Uint8Array,
-  relayLogger: ScopedLogger
+  relayLogger: ScopedLogger,
+  metrics: PromHelper
 ) {
   const logger = getScopedLogger(["solana"], relayLogger);
   //TODO native transfer & create associated token account
@@ -164,5 +166,6 @@ export async function relaySolana(
   );
 
   logger.info("success: %s, tx hash: %s", success, txid);
+  metrics.incSuccesses(chainConfigInfo.chainId);
   return { redeemed: success, result: txid };
 }

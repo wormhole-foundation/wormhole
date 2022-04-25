@@ -4,6 +4,7 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  hexToNativeString,
   hexToUint8Array,
   isEVMChain,
   parseTransferPayload,
@@ -15,6 +16,7 @@ import { relayTerra } from "./terra";
 import { getRelayerEnvironment } from "../configureEnv";
 import { RelayResult, Status } from "../helpers/redisHelper";
 import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { PromHelper } from "../helpers/promHelpers";
 
 const logger = getLogger();
 
@@ -27,7 +29,8 @@ export async function relay(
   signedVAA: string,
   checkOnly: boolean,
   walletPrivateKey: any,
-  relayLogger: ScopedLogger
+  relayLogger: ScopedLogger,
+  metrics: PromHelper
 ): Promise<RelayResult> {
   const logger = getScopedLogger(["relay"], relayLogger);
   const { parse_vaa } = await importCoreWasm();
@@ -51,8 +54,11 @@ export async function relay(
 
     if (isEVMChain(transferPayload.targetChain)) {
       const unwrapNative =
-        transferPayload.originAddress.toLowerCase() ===
-        chainConfigInfo.wrappedAsset?.toLowerCase();
+        transferPayload.originChain === transferPayload.targetChain &&
+        hexToNativeString(
+          transferPayload.originAddress,
+          transferPayload.originChain
+        )?.toLowerCase() === chainConfigInfo.wrappedAsset?.toLowerCase();
       logger.debug(
         "isEVMChain: originAddress: [" +
           transferPayload.originAddress +
@@ -67,7 +73,8 @@ export async function relay(
         unwrapNative,
         checkOnly,
         walletPrivateKey,
-        logger
+        logger,
+        metrics
       );
       return {
         status: evmResult.redeemed ? Status.Completed : Status.Error,
@@ -82,7 +89,8 @@ export async function relay(
         signedVAA,
         checkOnly,
         walletPrivateKey,
-        logger
+        logger,
+        metrics
       );
       if (retVal.redeemed) {
         rResult.status = Status.Completed;
@@ -98,7 +106,8 @@ export async function relay(
         signedVAA,
         checkOnly,
         walletPrivateKey,
-        logger
+        logger,
+        metrics
       );
       if (retVal.redeemed) {
         rResult.status = Status.Completed;

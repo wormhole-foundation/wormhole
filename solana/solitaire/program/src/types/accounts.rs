@@ -107,10 +107,10 @@ impl<'r, T: Owned + Default, const IsInitialized: AccountState> DerefMut
     }
 }
 
-impl<'r, T: Owned + Default, const IsInitialized: AccountState> Data<'r, T, IsInitialized> {
+impl<'r, T: Owned + Default> Data<'r, T, { AccountState::MaybeInitialized }> {
     /// Is the account already initialized / created
     pub fn is_initialized(&self) -> bool {
-        **self.0.lamports.borrow() != 0
+        !self.0.data.borrow().is_empty()
     }
 }
 

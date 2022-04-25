@@ -13,7 +13,6 @@ use cosmwasm_std::{
     Empty,
     Env,
     MessageInfo,
-    Order,
     QueryRequest,
     Reply,
     Response,
@@ -1173,7 +1172,6 @@ fn build_native_id(denom: &str) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{
-        to_binary,
         Binary,
         StdResult,
     };
