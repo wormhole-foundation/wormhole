@@ -56,7 +56,8 @@ cosmosFiles.forEach((directory) => {
   ); //move all the files from the vue module into the sdk
 });
 
-execWrapper(`find ${MODULE_DIRECTORY} -name "*.js" | xargs rm `); //delete all javascript files, so they can be cleanly created based on our tsconfig
+//As of 19.5 javascript isn't emitted
+//execWrapper(`find ${MODULE_DIRECTORY} -name "*.js" | xargs rm `); //delete all javascript files, so they can be cleanly created based on our tsconfig
 
 function getFilesRecursively(directory) {
   const filesInDirectory = fs.readdirSync(directory);

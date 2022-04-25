@@ -6,8 +6,8 @@ import { util, configure, Writer, Reader } from "protobufjs/minimal";
 export const protobufPackage = "certusone.wormholechain.wormhole";
 
 export interface EventGuardianSetUpdate {
-  oldIndex: number;
-  newIndex: number;
+  old_index: number;
+  new_index: number;
 }
 
 export interface EventPostedMessage {
@@ -19,27 +19,27 @@ export interface EventPostedMessage {
 }
 
 export interface EventGuardianRegistered {
-  guardianKey: Uint8Array;
-  validatorKey: Uint8Array;
+  guardian_key: Uint8Array;
+  validator_key: Uint8Array;
 }
 
 export interface EventConsensusSetUpdate {
-  oldIndex: number;
-  newIndex: number;
+  old_index: number;
+  new_index: number;
 }
 
-const baseEventGuardianSetUpdate: object = { oldIndex: 0, newIndex: 0 };
+const baseEventGuardianSetUpdate: object = { old_index: 0, new_index: 0 };
 
 export const EventGuardianSetUpdate = {
   encode(
     message: EventGuardianSetUpdate,
     writer: Writer = Writer.create()
   ): Writer {
-    if (message.oldIndex !== 0) {
-      writer.uint32(8).uint32(message.oldIndex);
+    if (message.old_index !== 0) {
+      writer.uint32(8).uint32(message.old_index);
     }
-    if (message.newIndex !== 0) {
-      writer.uint32(16).uint32(message.newIndex);
+    if (message.new_index !== 0) {
+      writer.uint32(16).uint32(message.new_index);
     }
     return writer;
   },
@@ -52,10 +52,10 @@ export const EventGuardianSetUpdate = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.oldIndex = reader.uint32();
+          message.old_index = reader.uint32();
           break;
         case 2:
-          message.newIndex = reader.uint32();
+          message.new_index = reader.uint32();
           break;
         default:
           reader.skipType(tag & 7);
@@ -67,23 +67,23 @@ export const EventGuardianSetUpdate = {
 
   fromJSON(object: any): EventGuardianSetUpdate {
     const message = { ...baseEventGuardianSetUpdate } as EventGuardianSetUpdate;
-    if (object.oldIndex !== undefined && object.oldIndex !== null) {
-      message.oldIndex = Number(object.oldIndex);
+    if (object.old_index !== undefined && object.old_index !== null) {
+      message.old_index = Number(object.old_index);
     } else {
-      message.oldIndex = 0;
+      message.old_index = 0;
     }
-    if (object.newIndex !== undefined && object.newIndex !== null) {
-      message.newIndex = Number(object.newIndex);
+    if (object.new_index !== undefined && object.new_index !== null) {
+      message.new_index = Number(object.new_index);
     } else {
-      message.newIndex = 0;
+      message.new_index = 0;
     }
     return message;
   },
 
   toJSON(message: EventGuardianSetUpdate): unknown {
     const obj: any = {};
-    message.oldIndex !== undefined && (obj.oldIndex = message.oldIndex);
-    message.newIndex !== undefined && (obj.newIndex = message.newIndex);
+    message.old_index !== undefined && (obj.old_index = message.old_index);
+    message.new_index !== undefined && (obj.new_index = message.new_index);
     return obj;
   },
 
@@ -91,15 +91,15 @@ export const EventGuardianSetUpdate = {
     object: DeepPartial<EventGuardianSetUpdate>
   ): EventGuardianSetUpdate {
     const message = { ...baseEventGuardianSetUpdate } as EventGuardianSetUpdate;
-    if (object.oldIndex !== undefined && object.oldIndex !== null) {
-      message.oldIndex = object.oldIndex;
+    if (object.old_index !== undefined && object.old_index !== null) {
+      message.old_index = object.old_index;
     } else {
-      message.oldIndex = 0;
+      message.old_index = 0;
     }
-    if (object.newIndex !== undefined && object.newIndex !== null) {
-      message.newIndex = object.newIndex;
+    if (object.new_index !== undefined && object.new_index !== null) {
+      message.new_index = object.new_index;
     } else {
-      message.newIndex = 0;
+      message.new_index = 0;
     }
     return message;
   },
@@ -240,11 +240,11 @@ export const EventGuardianRegistered = {
     message: EventGuardianRegistered,
     writer: Writer = Writer.create()
   ): Writer {
-    if (message.guardianKey.length !== 0) {
-      writer.uint32(10).bytes(message.guardianKey);
+    if (message.guardian_key.length !== 0) {
+      writer.uint32(10).bytes(message.guardian_key);
     }
-    if (message.validatorKey.length !== 0) {
-      writer.uint32(18).bytes(message.validatorKey);
+    if (message.validator_key.length !== 0) {
+      writer.uint32(18).bytes(message.validator_key);
     }
     return writer;
   },
@@ -259,10 +259,10 @@ export const EventGuardianRegistered = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.guardianKey = reader.bytes();
+          message.guardian_key = reader.bytes();
           break;
         case 2:
-          message.validatorKey = reader.bytes();
+          message.validator_key = reader.bytes();
           break;
         default:
           reader.skipType(tag & 7);
@@ -276,27 +276,27 @@ export const EventGuardianRegistered = {
     const message = {
       ...baseEventGuardianRegistered,
     } as EventGuardianRegistered;
-    if (object.guardianKey !== undefined && object.guardianKey !== null) {
-      message.guardianKey = bytesFromBase64(object.guardianKey);
+    if (object.guardian_key !== undefined && object.guardian_key !== null) {
+      message.guardian_key = bytesFromBase64(object.guardian_key);
     }
-    if (object.validatorKey !== undefined && object.validatorKey !== null) {
-      message.validatorKey = bytesFromBase64(object.validatorKey);
+    if (object.validator_key !== undefined && object.validator_key !== null) {
+      message.validator_key = bytesFromBase64(object.validator_key);
     }
     return message;
   },
 
   toJSON(message: EventGuardianRegistered): unknown {
     const obj: any = {};
-    message.guardianKey !== undefined &&
-      (obj.guardianKey = base64FromBytes(
-        message.guardianKey !== undefined
-          ? message.guardianKey
+    message.guardian_key !== undefined &&
+      (obj.guardian_key = base64FromBytes(
+        message.guardian_key !== undefined
+          ? message.guardian_key
           : new Uint8Array()
       ));
-    message.validatorKey !== undefined &&
-      (obj.validatorKey = base64FromBytes(
-        message.validatorKey !== undefined
-          ? message.validatorKey
+    message.validator_key !== undefined &&
+      (obj.validator_key = base64FromBytes(
+        message.validator_key !== undefined
+          ? message.validator_key
           : new Uint8Array()
       ));
     return obj;
@@ -308,32 +308,32 @@ export const EventGuardianRegistered = {
     const message = {
       ...baseEventGuardianRegistered,
     } as EventGuardianRegistered;
-    if (object.guardianKey !== undefined && object.guardianKey !== null) {
-      message.guardianKey = object.guardianKey;
+    if (object.guardian_key !== undefined && object.guardian_key !== null) {
+      message.guardian_key = object.guardian_key;
     } else {
-      message.guardianKey = new Uint8Array();
+      message.guardian_key = new Uint8Array();
     }
-    if (object.validatorKey !== undefined && object.validatorKey !== null) {
-      message.validatorKey = object.validatorKey;
+    if (object.validator_key !== undefined && object.validator_key !== null) {
+      message.validator_key = object.validator_key;
     } else {
-      message.validatorKey = new Uint8Array();
+      message.validator_key = new Uint8Array();
     }
     return message;
   },
 };
 
-const baseEventConsensusSetUpdate: object = { oldIndex: 0, newIndex: 0 };
+const baseEventConsensusSetUpdate: object = { old_index: 0, new_index: 0 };
 
 export const EventConsensusSetUpdate = {
   encode(
     message: EventConsensusSetUpdate,
     writer: Writer = Writer.create()
   ): Writer {
-    if (message.oldIndex !== 0) {
-      writer.uint32(8).uint32(message.oldIndex);
+    if (message.old_index !== 0) {
+      writer.uint32(8).uint32(message.old_index);
     }
-    if (message.newIndex !== 0) {
-      writer.uint32(16).uint32(message.newIndex);
+    if (message.new_index !== 0) {
+      writer.uint32(16).uint32(message.new_index);
     }
     return writer;
   },
@@ -348,10 +348,10 @@ export const EventConsensusSetUpdate = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.oldIndex = reader.uint32();
+          message.old_index = reader.uint32();
           break;
         case 2:
-          message.newIndex = reader.uint32();
+          message.new_index = reader.uint32();
           break;
         default:
           reader.skipType(tag & 7);
@@ -365,23 +365,23 @@ export const EventConsensusSetUpdate = {
     const message = {
       ...baseEventConsensusSetUpdate,
     } as EventConsensusSetUpdate;
-    if (object.oldIndex !== undefined && object.oldIndex !== null) {
-      message.oldIndex = Number(object.oldIndex);
+    if (object.old_index !== undefined && object.old_index !== null) {
+      message.old_index = Number(object.old_index);
     } else {
-      message.oldIndex = 0;
+      message.old_index = 0;
     }
-    if (object.newIndex !== undefined && object.newIndex !== null) {
-      message.newIndex = Number(object.newIndex);
+    if (object.new_index !== undefined && object.new_index !== null) {
+      message.new_index = Number(object.new_index);
     } else {
-      message.newIndex = 0;
+      message.new_index = 0;
     }
     return message;
   },
 
   toJSON(message: EventConsensusSetUpdate): unknown {
     const obj: any = {};
-    message.oldIndex !== undefined && (obj.oldIndex = message.oldIndex);
-    message.newIndex !== undefined && (obj.newIndex = message.newIndex);
+    message.old_index !== undefined && (obj.old_index = message.old_index);
+    message.new_index !== undefined && (obj.new_index = message.new_index);
     return obj;
   },
 
@@ -391,15 +391,15 @@ export const EventConsensusSetUpdate = {
     const message = {
       ...baseEventConsensusSetUpdate,
     } as EventConsensusSetUpdate;
-    if (object.oldIndex !== undefined && object.oldIndex !== null) {
-      message.oldIndex = object.oldIndex;
+    if (object.old_index !== undefined && object.old_index !== null) {
+      message.old_index = object.old_index;
     } else {
-      message.oldIndex = 0;
+      message.old_index = 0;
     }
-    if (object.newIndex !== undefined && object.newIndex !== null) {
-      message.newIndex = object.newIndex;
+    if (object.new_index !== undefined && object.new_index !== null) {
+      message.new_index = object.new_index;
     } else {
-      message.newIndex = 0;
+      message.new_index = 0;
     }
     return message;
   },

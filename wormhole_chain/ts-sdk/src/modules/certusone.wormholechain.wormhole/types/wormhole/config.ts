@@ -6,31 +6,31 @@ import { util, configure, Writer, Reader } from "protobufjs/minimal";
 export const protobufPackage = "certusone.wormholechain.wormhole";
 
 export interface Config {
-  guardianSetExpiration: number;
-  governanceEmitter: Uint8Array;
-  governanceChain: number;
-  chainId: number;
+  guardian_set_expiration: number;
+  governance_emitter: Uint8Array;
+  governance_chain: number;
+  chain_id: number;
 }
 
 const baseConfig: object = {
-  guardianSetExpiration: 0,
-  governanceChain: 0,
-  chainId: 0,
+  guardian_set_expiration: 0,
+  governance_chain: 0,
+  chain_id: 0,
 };
 
 export const Config = {
   encode(message: Config, writer: Writer = Writer.create()): Writer {
-    if (message.guardianSetExpiration !== 0) {
-      writer.uint32(8).uint64(message.guardianSetExpiration);
+    if (message.guardian_set_expiration !== 0) {
+      writer.uint32(8).uint64(message.guardian_set_expiration);
     }
-    if (message.governanceEmitter.length !== 0) {
-      writer.uint32(18).bytes(message.governanceEmitter);
+    if (message.governance_emitter.length !== 0) {
+      writer.uint32(18).bytes(message.governance_emitter);
     }
-    if (message.governanceChain !== 0) {
-      writer.uint32(24).uint32(message.governanceChain);
+    if (message.governance_chain !== 0) {
+      writer.uint32(24).uint32(message.governance_chain);
     }
-    if (message.chainId !== 0) {
-      writer.uint32(32).uint32(message.chainId);
+    if (message.chain_id !== 0) {
+      writer.uint32(32).uint32(message.chain_id);
     }
     return writer;
   },
@@ -43,16 +43,18 @@ export const Config = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.guardianSetExpiration = longToNumber(reader.uint64() as Long);
+          message.guardian_set_expiration = longToNumber(
+            reader.uint64() as Long
+          );
           break;
         case 2:
-          message.governanceEmitter = reader.bytes();
+          message.governance_emitter = reader.bytes();
           break;
         case 3:
-          message.governanceChain = reader.uint32();
+          message.governance_chain = reader.uint32();
           break;
         case 4:
-          message.chainId = reader.uint32();
+          message.chain_id = reader.uint32();
           break;
         default:
           reader.skipType(tag & 7);
@@ -65,81 +67,81 @@ export const Config = {
   fromJSON(object: any): Config {
     const message = { ...baseConfig } as Config;
     if (
-      object.guardianSetExpiration !== undefined &&
-      object.guardianSetExpiration !== null
+      object.guardian_set_expiration !== undefined &&
+      object.guardian_set_expiration !== null
     ) {
-      message.guardianSetExpiration = Number(object.guardianSetExpiration);
+      message.guardian_set_expiration = Number(object.guardian_set_expiration);
     } else {
-      message.guardianSetExpiration = 0;
+      message.guardian_set_expiration = 0;
     }
     if (
-      object.governanceEmitter !== undefined &&
-      object.governanceEmitter !== null
+      object.governance_emitter !== undefined &&
+      object.governance_emitter !== null
     ) {
-      message.governanceEmitter = bytesFromBase64(object.governanceEmitter);
+      message.governance_emitter = bytesFromBase64(object.governance_emitter);
     }
     if (
-      object.governanceChain !== undefined &&
-      object.governanceChain !== null
+      object.governance_chain !== undefined &&
+      object.governance_chain !== null
     ) {
-      message.governanceChain = Number(object.governanceChain);
+      message.governance_chain = Number(object.governance_chain);
     } else {
-      message.governanceChain = 0;
+      message.governance_chain = 0;
     }
-    if (object.chainId !== undefined && object.chainId !== null) {
-      message.chainId = Number(object.chainId);
+    if (object.chain_id !== undefined && object.chain_id !== null) {
+      message.chain_id = Number(object.chain_id);
     } else {
-      message.chainId = 0;
+      message.chain_id = 0;
     }
     return message;
   },
 
   toJSON(message: Config): unknown {
     const obj: any = {};
-    message.guardianSetExpiration !== undefined &&
-      (obj.guardianSetExpiration = message.guardianSetExpiration);
-    message.governanceEmitter !== undefined &&
-      (obj.governanceEmitter = base64FromBytes(
-        message.governanceEmitter !== undefined
-          ? message.governanceEmitter
+    message.guardian_set_expiration !== undefined &&
+      (obj.guardian_set_expiration = message.guardian_set_expiration);
+    message.governance_emitter !== undefined &&
+      (obj.governance_emitter = base64FromBytes(
+        message.governance_emitter !== undefined
+          ? message.governance_emitter
           : new Uint8Array()
       ));
-    message.governanceChain !== undefined &&
-      (obj.governanceChain = message.governanceChain);
-    message.chainId !== undefined && (obj.chainId = message.chainId);
+    message.governance_chain !== undefined &&
+      (obj.governance_chain = message.governance_chain);
+    message.chain_id !== undefined && (obj.chain_id = message.chain_id);
     return obj;
   },
 
   fromPartial(object: DeepPartial<Config>): Config {
     const message = { ...baseConfig } as Config;
     if (
-      object.guardianSetExpiration !== undefined &&
-      object.guardianSetExpiration !== null
+      object.guardian_set_expiration !== undefined &&
+      object.guardian_set_expiration !== null
     ) {
-      message.guardianSetExpiration = object.guardianSetExpiration;
+      message.guardian_set_expiration = object.guardian_set_expiration;
     } else {
-      message.guardianSetExpiration = 0;
+      message.guardian_set_expiration = 0;
     }
     if (
-      object.governanceEmitter !== undefined &&
-      object.governanceEmitter !== null
+      object.governance_emitter !== undefined &&
+      object.governance_emitter !== null
     ) {
-      message.governanceEmitter = object.governanceEmitter;
+      message.governance_emitter = object.governance_emitter;
     } else {
-      message.governanceEmitter = new Uint8Array();
+      message.governance_emitter = new Uint8Array();
     }
     if (
-      object.governanceChain !== undefined &&
-      object.governanceChain !== null
+      object.governance_chain !== undefined &&
+      object.governance_chain !== null
     ) {
-      message.governanceChain = object.governanceChain;
+      message.governance_chain = object.governance_chain;
     } else {
-      message.governanceChain = 0;
+      message.governance_chain = 0;
     }
-    if (object.chainId !== undefined && object.chainId !== null) {
-      message.chainId = object.chainId;
+    if (object.chain_id !== undefined && object.chain_id !== null) {
+      message.chain_id = object.chain_id;
     } else {
-      message.chainId = 0;
+      message.chain_id = 0;
     }
     return message;
   },
