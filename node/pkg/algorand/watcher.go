@@ -91,7 +91,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 		if e.debug {
 			JSON, err := json.Marshal(it)
 			if err != nil {
-				logger.Info("Cannot JSON marshal transaction", zap.Error(err))
+				logger.Error("Cannot JSON marshal transaction", zap.Error(err))
 			} else {
 				logger.Info(string(JSON))
 			}
@@ -99,7 +99,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 
 		emitter, err := types.DecodeAddress(it.Sender)
 		if err != nil {
-			logger.Info("DecodeAddress", zap.Error(err))
+			logger.Error("DecodeAddress", zap.Error(err))
 			continue;
 		}
 
@@ -107,12 +107,12 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 		copy(a[:], emitter[:]) // 32 bytes = 8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2
                                                              
 		if e.debug {
-			logger.Info("emitter: " + hex.EncodeToString(emitter[:]))
+			logger.Error("emitter: " + hex.EncodeToString(emitter[:]))
 		}
 
 		id, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(t.Id)
 		if err != nil {
-			logger.Info("Base32 DecodeString", zap.Error(err))
+			logger.Error("Base32 DecodeString", zap.Error(err))
 			continue;
 		}
 
@@ -166,7 +166,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		indexerClient, err := indexer.MakeClient(e.indexerRPC, e.indexerToken)
 		if err != nil {
-			logger.Info("indexer make client", zap.Error(err))
+			logger.Error("indexer make client", zap.Error(err))
 			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 			errC <- err
 			return
@@ -179,7 +179,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			// What is the latest round...
 			result, err := indexerClient.SearchForTransactions().Limit(0).Do(context.Background())
 			if err != nil {
-				logger.Info("SearchForTransaction", zap.Error(err))
+				logger.Error("SearchForTransaction", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 				errC <- err
 				return
@@ -203,7 +203,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)).Do(context.Background())
 				if err != nil {
-					logger.Info("SearchForTransactions", zap.Error(err))
+					logger.Error("SearchForTransactions", zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 					errC <- err
 					return
@@ -218,7 +218,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				for {
 					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(e.next_round).NextToken(nextToken).Do(context.Background())
 					if err != nil {
-						logger.Info("SearchForTransaction", zap.Error(err))
+						logger.Error("SearchForTransaction", zap.Error(err))
 						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 						errC <- err
 						return
