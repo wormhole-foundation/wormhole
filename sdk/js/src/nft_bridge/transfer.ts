@@ -72,7 +72,7 @@ export async function transferFromSolana(
   let messageKey = Keypair.generate();
   const isSolanaNative =
     originChain === undefined || originChain === CHAIN_ID_SOLANA;
-  if (!isSolanaNative && !originAddress && !originTokenId) {
+  if (!isSolanaNative && (!originAddress || !originTokenId)) {
     throw new Error(
       "originAddress and originTokenId are required when specifying originChain"
     );
