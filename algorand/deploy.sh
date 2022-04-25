@@ -3,7 +3,7 @@
 # need netcat 
 
 # Wait for node to start
-while ! /bin/netcat -z localhost 4001; do
+while ! netcat -z localhost 4001; do
   sleep 1
 done
 

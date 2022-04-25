@@ -338,8 +338,19 @@ if spy_relayer:
         "spy-relayer",
         resource_deps = ["proto-gen", "guardian", "redis"],
         port_forwards = [
-            port_forward(6063, container_port = 6060, name = "Debug/Status Server [:6063]", host = webHost),
             port_forward(8083, name = "Prometheus [:8083]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_yaml_with_ns("devnet/spy-wallet-monitor.yaml")
+
+    k8s_resource(
+        "spy-wallet-monitor",
+        resource_deps = ["proto-gen", "guardian", "redis"],
+        port_forwards = [
+            port_forward(8084, name = "Prometheus [:8084]", host = webHost),
         ],
         labels = ["spy-relayer"],
         trigger_mode = trigger_mode,
@@ -557,7 +568,8 @@ if algorand:
     docker_build(
         ref = "algorand-contracts",
         context = "algorand",
-        dockerfile = "algorand/Dockerfile"
+        dockerfile = "algorand/Dockerfile",
+        ignore = ["algorand/test/*.*"]
     )
 
     k8s_resource(
@@ -567,6 +579,7 @@ if algorand:
             port_forward(4002, name = "KMD [:4002]", host = webHost),
             port_forward(8980, name = "Indexer [:8980]", host = webHost),
         ],
+        resource_deps = ["const-gen"],
         labels = ["algorand"],
         trigger_mode = trigger_mode,
     )

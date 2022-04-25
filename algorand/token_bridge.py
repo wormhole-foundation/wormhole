@@ -41,8 +41,7 @@ max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
-#    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
-    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
+    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
 
     if genTeal:
         with open(name, "w") as f:
@@ -59,15 +58,17 @@ def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> 
 def clear_token_bridge():
     return Int(1)
 
-def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
+def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
     blob = LocalBlob()
     tidx = ScratchVar()
     mfee = ScratchVar()
 
     def MagicAssert(a) -> Expr:
-#       return Assert(a)
-        from inspect import currentframe
-        return Assert(And(a, Int(currentframe().f_back.f_lineno)))
+        if devMode:
+            from inspect import currentframe
+            return Assert(And(a, Int(currentframe().f_back.f_lineno)))
+        else:
+            return Assert(a)
 
     @Subroutine(TealType.uint64)
     def governanceSet() -> Expr:
@@ -834,7 +835,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
             aid.store(Btoi(Txn.application_args[1])),
             # Is the authorizing signature of the creator of the asset the address of the token_bridge app itself?
-            If(auth_addr(extract_creator(aid.load())) == Global.current_application_address(),
+            If(If(aid.load() != Int(0), auth_addr(extract_creator(aid.load())) == Global.current_application_address(), Int(0)),
                Seq([
 #                   Log(Bytes("Wormhole wrapped")),
                    # Wormhole wrapped asset
@@ -972,11 +973,19 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         Return(Int(1))
     ])
 
-    on_update = Seq( [
-        MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
-        MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
-        Return(Int(1))
-    ] )
+    def getOnUpdate():
+        if devMode:
+            return Seq( [
+                Return(Txn.sender() == Global.creator_address()),
+            ])
+        else:
+            return Seq( [
+                MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
+                MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
+                Return(Int(1))
+            ] )
+
+    on_update = getOnUpdate()
 
     @Subroutine(TealType.uint64)
     def optin():
@@ -1014,8 +1023,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         [Txn.on_completion() == OnComplete.NoOp, router]
     )
 
-def get_token_bridge(genTeal, approve_name, clear_name, client: AlgodClient, seed_amt: int = 0, tmpl_sig: TmplSig = None) -> Tuple[bytes, bytes]:
-    APPROVAL_PROGRAM = fullyCompileContract(genTeal, client, approve_token_bridge(seed_amt, tmpl_sig), approve_name)
+def get_token_bridge(genTeal, approve_name, clear_name, client: AlgodClient, seed_amt: int, tmpl_sig: TmplSig, devMode: bool) -> Tuple[bytes, bytes]:
+    APPROVAL_PROGRAM = fullyCompileContract(genTeal, client, approve_token_bridge(seed_amt, tmpl_sig, devMode), approve_name)
     CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, client, clear_token_bridge(), clear_name)
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM

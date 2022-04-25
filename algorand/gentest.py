@@ -82,6 +82,7 @@ class GenTest:
         raise Exception("you suck")
 
     def createSignedVAA(self, guardianSetIndex, signers, ts, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, target, payload):
+        print("createSignedVAA: " + str(signers))
         b = ""
 
         b += self.encoder("uint32", ts)
@@ -168,7 +169,7 @@ class GenTest:
             return "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde"
         raise Exception("you suck")
         
-    def genRegisterChain(self, signers, guardianSet, nonce, seq, chain):
+    def genRegisterChain(self, signers, guardianSet, nonce, seq, chain, addr = None):
         b  = self.zeroPadBytes[0:((32 -11)*2)]
         b += self.encoder("uint8", ord("T"))
         b += self.encoder("uint8", ord("o"))
@@ -185,7 +186,10 @@ class GenTest:
         b += self.encoder("uint8", 1)  # action
         b += self.encoder("uint16", 0) # target chain
         b += self.encoder("uint16", chain)
-        b += self.getEmitter(chain)
+        if addr == None:
+            b += self.getEmitter(chain)
+        else:
+            b += addr
         emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
         return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
 

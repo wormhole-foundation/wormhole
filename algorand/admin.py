@@ -1,5 +1,6 @@
 # python3 -m pip install pycryptodomex uvarint pyteal web3 coincurve
 
+from os.path import exists
 from time import time, sleep
 from eth_abi import encode_single, encode_abi
 from typing import List, Tuple, Dict, Any, Optional, Union
@@ -132,6 +133,19 @@ class PortalCore:
         self.TARGET_ACCOUNT = args.mnemonic
         self.coreid = args.coreid
         self.tokenid = args.tokenid
+
+        if exists(self.args.env):
+            if self.gt == None:
+                self.gt = GenTest(False)
+
+            with open(self.args.env, encoding = 'utf-8') as f:
+                for line in f:
+                    e = line.rstrip('\n').split("=")
+                    if "INIT_SIGNERS_CSV" in e[0]:
+                        self.gt.guardianKeys = e[1].split(",")
+                    if "INIT_SIGNERS_KEYS_CSV" in e[0]:
+                        self.gt.guardianPrivKeys = e[1].split(",")
+                        print("guardianPrivKeys=" + str(self.gt.guardianPrivKeys))
 
     def waitForTransaction(
             self, client: AlgodClient, txID: str, timeout: int = 10
@@ -306,6 +320,9 @@ class PortalCore:
         emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
 
         guardianSet = self.getGovSet()
+
+        print("guardianSet: " + str(guardianSet))
+
         nonce = int(random.random() * 20000)
         ret = [
             self.gt.createSignedVAA(guardianSet, self.gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[0]),
@@ -334,7 +351,7 @@ class PortalCore:
         return -1
 
     def genUpgradePayload(self):
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         b  = self.zeroPadBytes[0:(28*2)]
         b += self.encoder("uint8", ord("C"))
@@ -348,7 +365,8 @@ class PortalCore:
 
         ret = [b]
 
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+
 
         b  = self.zeroPadBytes[0:((32 -11)*2)]
         b += self.encoder("uint8", ord("T"))
@@ -376,7 +394,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=40)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
@@ -414,7 +432,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
         if len(b64decode(approval["result"])) > 4060:
             print("token bridge contract is too large... This might prevent updates later")
@@ -481,7 +499,7 @@ class PortalCore:
 
         if sig_addr not in self.cache and not self.account_exists(client, app_id, sig_addr):
             if doCreate:
-                pprint.pprint(("Creating", app_id, idx, emitter, sig_addr))
+#                pprint.pprint(("Creating", app_id, idx, emitter, sig_addr))
 
                 # Create it
                 sp = client.suggested_params()
@@ -781,6 +799,7 @@ class PortalCore:
             accts.append(chain_addr)
 
         keys = self.decodeLocalState(client, sender, self.coreid, guardian_addr)
+        print("keys: " + keys.hex())
 
         sp = client.suggested_params()
 
@@ -1092,34 +1111,43 @@ class PortalCore:
 
         print("Creating the PortalCore app")
         self.coreid = self.createPortalCoreApp(client=self.client, sender=self.foundation)
-        print("coreid = " + str(self.coreid))
+        print(["core", str(self.coreid), " address", get_application_address(self.coreid), " emitterAddress", decode_address(get_application_address(self.coreid)).hex()])
 
         print("Create the token bridge")
         self.tokenid = self.createTokenBridgeApp(self.client, self.foundation)
-        print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
-
+        print(["token bridge", str(self.tokenid), " address", get_application_address(self.tokenid), " emitterAddress", decode_address(get_application_address(self.tokenid)).hex()])
 
         if self.devnet or self.args.testnet:
-            print("bootstrapping the guardian set...")
-            bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-            self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
-    
-            print("bootstrapping the chain registrationst...")
-    
-            vaas = [
-                # Solana
-                "01000000000100c9f4230109e378f7efc0605fb40f0e1869f2d82fda5b1dfad8a5a2dafee85e033d155c18641165a77a2db6a7afbf2745b458616cb59347e89ae0c7aa3e7cc2d400000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000546f6b656e4272696467650100000001c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
-            ]
-    
-            print("Registering chains")
-    
-            for v in vaas:
-                print("Submitting: " + v)
-                self.submitVAA(bytes.fromhex(v), self.client, self.foundation, self.tokenid)
+            if exists(self.args.env):
+                if self.gt == None:
+                    self.gt = GenTest(False)
+
+                with open(self.args.env, encoding = 'utf-8') as f:
+                    for line in f:
+                        e = line.rstrip('\n').split("=")
+                        print(e)
+                        if "TOKEN_BRIDGE" in e[0]:
+                            v = bytes.fromhex(e[1])
+                            self.submitVAA(v, self.client, self.foundation, self.tokenid)
+                        if "INIT_SIGNERS_CSV" in e[0]:
+                            self.gt.guardianKeys = e[1].split(",")
+                        if "INIT_SIGNERS_KEYS_CSV" in e[0]:
+                            print("bootstrapping the guardian set...")
+                            self.gt.guardianPrivKeys = e[1].split(",")
+                            seq = int(random.random() * (2**31))
+                            bootVAA = self.gt.genGuardianSetUpgrade(self.gt.guardianPrivKeys, self.args.guardianSet, self.args.guardianSet, seq, seq)
+                            self.bootGuardians(bytes.fromhex(bootVAA), self.client, self.foundation, self.coreid)
+                seq = int(random.random() * (2**31))
+                regChain = self.gt.genRegisterChain(self.gt.guardianPrivKeys, self.args.guardianSet, seq, seq, 8, decode_address(get_application_address(self.tokenid)).hex())
+                print("ALGO_TOKEN_BRIDGE_VAA=" + regChain)
+#                if self.args.env != ".env":
+#                    v = bytes.fromhex(regChain)
+#                    self.submitVAA(v, self.client, self.foundation, self.tokenid)
+#                    print("We submitted it!")
 
     def updateCore(self) -> None:
         print("Updating the core contracts")
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
 #        print(decode_address(clear["hash"]).hex())
 #        sys.exit(0)
@@ -1142,7 +1170,7 @@ class PortalCore:
         print("complete")
 
     def updateToken(self) -> None:
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
         print("Updating the token contracts: " + str(len(b64decode(approval["result"]))))
 
         txn = transaction.ApplicationUpdateTxn(
@@ -1163,42 +1191,17 @@ class PortalCore:
         print("complete")
 
     def genTeal(self) -> None:
-        approval, clear = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        print((True, self.args.core_approve, self.args.core_clear, self.client, self.seed_amt, self.tsig, self.devnet or self.args.testnet))
+        approval, clear = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
         print("Generating the teal for the core contracts")
-        approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
         print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
 
     def testnet(self):
         self.ALGOD_ADDRESS = self.args.algod_address = "https://testnet-api.algonode.cloud"
         self.INDEXER_ADDRESS = self.args.algod_address = "https://testnet-idx.algonode.cloud"
-        self.args.coreid = self.coreid = 78818623
-        self.args.tokenid = self.tokenid = 78818649
-
-# pk:        qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA==
-# address:   KJVROXQ23N7ZHD5F2YMDCEDTLTMOAKYJI5DWLYMPKSBOL6RLJQWBN7375Y
-# mnemonic:  vocal invest unit ethics share van wood notable hollow heavy inhale brick drastic total valve margin dose diesel derive camp fossil flash spike abstract arm
-
-# pk:        WwDSdDQciVV4XkeycP25oyEUqjKLO83yZqfT1RSRYQim9yXQuxgcGJbTQpt7LkiXvfhqaamXJnHwG+lNaKkaFw==
-# address:   U33SLUF3DAOBRFWTIKNXWLSIS667Q2TJVGLSM4PQDPUU22FJDILZ6CRM4A
-# mnemonic:  arena elite denial select banana betray video elder bind volume table boss choose pride flower describe fluid orange squirrel frog claim gold drink abandon fire
-
-# pk:        UiQYU0pfeVPcqfttpXDw8unh8NE27rpsClcv1V+CYi9XP6Iz1CWwxYHpR06gvUAMfXBZ+E1Q+gL2RqICY6/SXQ==
-# address:   K472EM6UEWYMLAPJI5HKBPKABR6XAWPYJVIPUAXWI2RAEY5P2JO23SQJFY
-# mnemonic:  medal gauge civil visa verify below exclude wing pumpkin secret join palace sense label repair until nuclear claim process fancy sausage party kitchen ability weasel
-#
-# pk:        bNIbVmqBU1+p1+aQDh+kffylRrrK7RTBy66Dla6nzQvIrx46tPocZw4WysJlhbm0UyOku67feBGTZlxIUa7aZQ==
-# address:   ZCXR4OVU7IOGODQWZLBGLBNZWRJSHJF3V3PXQEMTMZOEQUNO3JS4CUVLHE
-# mnemonic:  eternal hungry climb birth poem fit run traffic spirit label spirit sick episode museum fiction universe card congress student flag frog hazard fury abandon mom
-#
-# pk:        SOBbyqME9O2I6RM7gdnh4S1khAVfzvPxG66FfFLCVECsB0J2MMGrEaI6cl8Rp3AjoK/oLcrdxXDNC2b04a/RrQ==
-# address:   VQDUE5RQYGVRDIR2OJPRDJ3QEOQK72BNZLO4K4GNBNTPJYNP2GWW7QEK4I
-# mnemonic:  animal hurdle topple enforce trend derive era become cherry gravity valley task sign genre wealth soft dinosaur hurt strike sign pilot correct actor able firm
-
-        self.accountList.append(Account("qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA=="))
-        self.accountList.append(Account("WwDSdDQciVV4XkeycP25oyEUqjKLO83yZqfT1RSRYQim9yXQuxgcGJbTQpt7LkiXvfhqaamXJnHwG+lNaKkaFw=="))
-        self.accountList.append(Account("UiQYU0pfeVPcqfttpXDw8unh8NE27rpsClcv1V+CYi9XP6Iz1CWwxYHpR06gvUAMfXBZ+E1Q+gL2RqICY6/SXQ=="))
-        self.accountList.append(Account("bNIbVmqBU1+p1+aQDh+kffylRrrK7RTBy66Dla6nzQvIrx46tPocZw4WysJlhbm0UyOku67feBGTZlxIUa7aZQ=="))
-        self.accountList.append(Account("SOBbyqME9O2I6RM7gdnh4S1khAVfzvPxG66FfFLCVECsB0J2MMGrEaI6cl8Rp3AjoK/oLcrdxXDNC2b04a/RrQ=="))
+        self.coreid = self.args.coreid
+        self.tokenid = self.args.tokenid
 
     def mainnet(self):
         self.ALGOD_ADDRESS = self.args.algod_address = "https://mainnet-api.algonode.cloud"
@@ -1235,6 +1238,8 @@ class PortalCore:
         parser.add_argument('--boot', action='store_true', help='bootstrap')
         parser.add_argument('--upgradePayload', action='store_true', help='gen the upgrade payload for the guardians to sign')
         parser.add_argument('--vaa', type=str, help='Submit the supplied VAA', default="")
+        parser.add_argument('--env', type=str, help='deploying using the supplied .env file', default=".env")
+        parser.add_argument('--guardianSet', type=int, help='What guardianSet should I syntheticly create if needed', default=0)
         parser.add_argument('--appid', type=str, help='The appid that the vaa submit is applied to', default="")
         parser.add_argument('--submit', action='store_true', help='submit the synthetic vaas')
         parser.add_argument('--updateCore', action='store_true', help='update the Core contracts')
