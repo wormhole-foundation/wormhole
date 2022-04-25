@@ -1,5 +1,4 @@
 import { BigNumber } from "@ethersproject/bignumber";
-import { ChainId } from "./consts";
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
 
@@ -15,7 +14,7 @@ export const METADATA_REPLACE = new RegExp("\u0000", "g");
 //     ?   u16      recipient_chain
 export const parseNFTPayload = (arr: Buffer) => {
   const originAddress = arr.slice(1, 1 + 32).toString("hex");
-  const originChain = arr.readUInt16BE(33) as ChainId;
+  const originChain = arr.readUInt16BE(33);
   const symbol = Buffer.from(arr.slice(35, 35 + 32))
     .toString("utf8")
     .replace(METADATA_REPLACE, "");
@@ -31,7 +30,7 @@ export const parseNFTPayload = (arr: Buffer) => {
   const targetAddress = arr
     .slice(target_offset, target_offset + 32)
     .toString("hex");
-  const targetChain = arr.readUInt16BE(target_offset + 32) as ChainId;
+  const targetChain = arr.readUInt16BE(target_offset + 32);
   return {
     originAddress,
     originChain,
@@ -53,9 +52,9 @@ export const parseNFTPayload = (arr: Buffer) => {
 export const parseTransferPayload = (arr: Buffer) => ({
   amount: BigNumber.from(arr.slice(1, 1 + 32)).toBigInt(),
   originAddress: arr.slice(33, 33 + 32).toString("hex"),
-  originChain: arr.readUInt16BE(65) as ChainId,
+  originChain: arr.readUInt16BE(65),
   targetAddress: arr.slice(67, 67 + 32).toString("hex"),
-  targetChain: arr.readUInt16BE(99) as ChainId,
+  targetChain: arr.readUInt16BE(99),
   fee: BigNumber.from(arr.slice(101, 101 + 32)).toBigInt(),
 });
 
