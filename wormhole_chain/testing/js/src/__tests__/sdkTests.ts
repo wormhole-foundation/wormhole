@@ -1,36 +1,75 @@
 import { describe, jest, test, expect } from "@jest/globals";
-import { TEST_WALLET_MNEMONIC_1 } from "../consts";
-import { hexToNativeAddress, nativeToHexAddress } from "../core/utils";
-import { getAddress, getWallet } from "../core/walletHelpers";
+import {
+  fromAccAddress,
+  fromBase64,
+  fromValAddress,
+  getAddress,
+  getOperatorWallet,
+  getWallet,
+  toAccAddress,
+  toBase64,
+  toValAddress,
+} from "wormhole-chain-sdk";
+import {
+  GUARDIAN_VALIDATOR_BASE64_VALADDR,
+  GUARDIAN_VALIDATOR_VALADDR,
+  TEST_WALLET_ADDRESS_1,
+  TEST_WALLET_MNEMONIC_1,
+} from "../consts";
 
 jest.setTimeout(60000);
 
 describe("SDK tests", () => {
   test("Address manipulation", (done) => {
-    const nativeTestAddress = "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq";
+    const accountAddress = TEST_WALLET_ADDRESS_1;
+    const validatorAddress = GUARDIAN_VALIDATOR_VALADDR;
+    const validatorAddr64 = GUARDIAN_VALIDATOR_BASE64_VALADDR;
 
-    console.log("nativeTestAddress", nativeTestAddress);
-    const hexFormat: string = nativeToHexAddress(nativeTestAddress);
-    console.log("Hex", hexFormat);
-    const nativeFormat2 = hexToNativeAddress(hexFormat);
-    console.log("nativeFormat2", nativeFormat2);
+    //checking invertibility
+    expect(
+      accountAddress === toAccAddress(fromAccAddress(accountAddress))
+    ).toBe(true);
+    expect(
+      validatorAddress === toValAddress(fromValAddress(validatorAddress))
+    ).toBe(true);
+    expect(validatorAddr64 === toBase64(fromBase64(validatorAddr64))).toBe(
+      true
+    );
 
-    console.log("hex format length", hexFormat.length);
+    //fromBase64
+    expect(accountAddress === toAccAddress(fromBase64(validatorAddr64))).toBe(
+      true
+    );
+    expect(validatorAddress === toValAddress(fromBase64(validatorAddr64))).toBe(
+      true
+    );
 
-    expect(hexFormat.length === 64).toBe(true);
-    expect(nativeFormat2 === nativeTestAddress).toBe(true);
+    //fromAcc
+    //expect(something === toBase64(fromAccAddress(accountAddress))).toBe(true); //TODO don't have this string
+    expect(
+      validatorAddress === toValAddress(fromAccAddress(accountAddress))
+    ).toBe(true);
 
+    //fromValAddr
+    expect(
+      accountAddress === toAccAddress(fromValAddress(validatorAddress))
+    ).toBe(true);
+    expect(validatorAddr64 === toBase64(fromValAddress(validatorAddress))).toBe(
+      true
+    );
+
+    //todo conversion tests
     done();
   });
   test("Wallet instantiation", (done) => {
     (async () => {
       const wallet = await getWallet(TEST_WALLET_MNEMONIC_1);
+      const operWallet = await getOperatorWallet(TEST_WALLET_MNEMONIC_1);
       const address = await getAddress(wallet);
-      console.log("wallet address", address);
+      const valAddr = await getAddress(operWallet);
 
-      expect(
-        address === "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq"
-      ).toBe(true);
+      expect(address === TEST_WALLET_ADDRESS_1).toBe(true);
+      expect(valAddr === GUARDIAN_VALIDATOR_VALADDR).toBe(true);
 
       done();
     })();
