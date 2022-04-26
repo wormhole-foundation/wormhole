@@ -961,8 +961,8 @@ export async function simpleSignVAA(
     console.log("simpleSignVAA");
     //    console.log(txns)
     assignGroupID(txns);
-    const signedTxnsPromises: Promise<Uint8Array>[] = [];
-    txns.forEach((txn) => {
+    const signedTxns: Uint8Array[] = [];
+    for (const txn of txns) {
         // console.log(txn);
         if (
             txn.appArgs &&
@@ -973,13 +973,12 @@ export async function simpleSignVAA(
             console.log("Signing logic sig...");
             const lsa = new LogicSigAccount(ALGO_VERIFY);
             const stxn = signLogicSigTransaction(txn, lsa);
-            signedTxnsPromises.push(Promise.resolve(stxn.blob));
+            signedTxns.push(stxn.blob);
         } else {
             console.log("Signing normal txn...");
-            signedTxnsPromises.push(sender.signTxn(txn));
+            signedTxns.push(await sender.signTxn(txn));
         }
-    });
-    const signedTxns = await Promise.all(signedTxnsPromises)
+    };
 
     console.log("sendRawTransaction", signedTxns);
     const resp = await client.sendRawTransaction(signedTxns).do();

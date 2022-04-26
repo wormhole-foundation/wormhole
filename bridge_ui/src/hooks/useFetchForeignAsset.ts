@@ -1,5 +1,7 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
+  CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getForeignAssetEth,
   getForeignAssetSolana,
@@ -8,6 +10,7 @@ import {
   isEVMChain,
   nativeToHexString,
 } from "@certusone/wormhole-sdk";
+import { getForeignAssetAlgo } from "@certusone/wormhole-sdk/lib/esm/algorand/Algorand";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { ethers } from "ethers";
@@ -15,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { DataWrapper } from "../store/helpers";
 import {
+  ALGORAND_HOST,
   getEvmChainId,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
@@ -23,6 +27,7 @@ import {
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import useIsWalletReady from "./useIsWalletReady";
+import { Algodv2 } from "algosdk";
 
 export type ForeignAssetInfo = {
   doesExist: boolean;
@@ -99,7 +104,9 @@ function useFetchForeignAsset(
     let cancelled = false;
     setIsLoading(true);
     try {
-      const getterFunc: () => Promise<string | null> = isEVMChain(foreignChain)
+      const getterFunc: () => Promise<string | number | null> = isEVMChain(
+        foreignChain
+      )
         ? () =>
             getForeignAssetEth(
               getTokenBridgeAddressForChain(foreignChain),
@@ -117,7 +124,8 @@ function useFetchForeignAsset(
               hexToUint8Array(originAssetHex)
             );
           }
-        : () => {
+        : foreignChain === CHAIN_ID_SOLANA
+        ? () => {
             const connection = new Connection(SOLANA_HOST, "confirmed");
             return getForeignAssetSolana(
               connection,
@@ -125,7 +133,17 @@ function useFetchForeignAsset(
               originChain,
               hexToUint8Array(originAssetHex)
             );
-          };
+          }
+        : foreignChain === CHAIN_ID_ALGORAND
+        ? () => {
+            const algodClient = new Algodv2(
+              ALGORAND_HOST.algodToken,
+              ALGORAND_HOST.algodServer,
+              ALGORAND_HOST.algodPort
+            );
+            return getForeignAssetAlgo(algodClient, originChain, originAsset);
+          }
+        : () => Promise.resolve(null);
 
       getterFunc()
         .then((result) => {
@@ -140,7 +158,7 @@ function useFetchForeignAsset(
               setArgs();
               setDoesExist(true);
               setIsLoading(false);
-              setAssetAddress(result);
+              setAssetAddress(result.toString());
             } else {
               setArgs();
               setDoesExist(false);
