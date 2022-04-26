@@ -1586,8 +1586,6 @@ async function checkBitsSet(
   return retval;
 }
 
-/////////// These need to be written
-
 /**
  *
  * @param client AlgodV2 client
@@ -1629,8 +1627,55 @@ export async function getIsTransferCompletedAlgorand(
   return retVal;
 }
 
-export function getIsWrappedAssetAlgorand() {
+/////////// These need to be written
+
+export function getOriginalAssetAlgorand() {
   // TODO:
+}
+
+export async function getIsWrappedAssetAlgorand(
+  client: Algodv2,
+  senderAcct: Signer,
+  assetId: number
+): Promise<boolean> {
+  console.log("senderAcct:", senderAcct, "assetId:", assetId);
+  if (assetId === 0) {
+    return false;
+  }
+  const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
+  const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
+  const aa: string = uint8ArrayToHexString(decTbAddr, false);
+  console.log("Getting emitter address...");
+  const emitterAddr: string = await optin(
+    client,
+    senderAcct,
+    CORE_ID,
+    0,
+    aa,
+    "getIsWrappedAssetAlgorand::emitterAddr"
+  );
+  let creatorAddr = "";
+  const bPgmName: Uint8Array = textToUint8Array("attestToken");
+
+  const acctInfo = await client.accountInformation(senderAcct.addr).do();
+  console.log("Got sender account info...", acctInfo);
+  const assetKey: string = "index: " + assetId.toString();
+  const createdAssets = acctInfo["created-assets"];
+  console.log("createdAssets:", createdAssets);
+  class ca {
+    index: number = 0;
+    params: any;
+  }
+  createdAssets.forEach((a: ca) => {
+    if (a.index === assetId) {
+      creatorAddr = a.params.creator;
+      return;
+    }
+  });
+  console.log("creatorAddr:", creatorAddr);
+  const creatorAcctInfo = await client.accountInformation(creatorAddr).do();
+  const wormhole: boolean = creatorAcctInfo["auth-addr"] === tbAddr;
+  return wormhole;
 }
 
 export function hexToNativeStringAlgo(s: string): string {
