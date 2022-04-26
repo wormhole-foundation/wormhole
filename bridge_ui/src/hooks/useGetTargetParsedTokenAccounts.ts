@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
@@ -11,6 +12,7 @@ import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { formatUnits } from "ethers/lib/utils";
 import { useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import {
@@ -18,10 +20,17 @@ import {
   selectTransferTargetChain,
 } from "../store/selectors";
 import { setTargetParsedTokenAccount } from "../store/transferSlice";
-import { getEvmChainId, SOLANA_HOST, TERRA_HOST } from "../utils/consts";
+import {
+  ALGORAND_HOST,
+  getEvmChainId,
+  SOLANA_HOST,
+  TERRA_HOST,
+} from "../utils/consts";
 import { NATIVE_TERRA_DECIMALS } from "../utils/terra";
 import { createParsedTokenAccount } from "./useGetSourceParsedTokenAccounts";
 import useMetadata from "./useMetadata";
+import { Algodv2 } from "algosdk";
+import { getBalance } from "@certusone/wormhole-sdk/lib/esm/algorand/Algorand";
 
 function useGetTargetParsedTokenAccounts() {
   const dispatch = useDispatch();
@@ -38,6 +47,8 @@ function useGetTargetParsedTokenAccounts() {
     (targetAsset && metadata.data?.get(targetAsset)?.symbol) || undefined;
   const logo =
     (targetAsset && metadata.data?.get(targetAsset)?.logo) || undefined;
+  const decimals =
+    (targetAsset && metadata.data?.get(targetAsset)?.decimals) || undefined;
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
@@ -47,6 +58,7 @@ function useGetTargetParsedTokenAccounts() {
     chainId: evmChainId,
   } = useEthereumProvider();
   const hasCorrectEvmNetwork = evmChainId === getEvmChainId(targetChain);
+  const { accounts: algoAccounts } = useAlgorandContext();
   const hasResolvedMetadata = metadata.data || metadata.error;
   useEffect(() => {
     // targetParsedTokenAccount is cleared on setTargetAsset, but we need to clear it on wallet changes too
@@ -202,6 +214,47 @@ function useGetTargetParsedTokenAccounts() {
           }
         });
     }
+    if (
+      targetChain === CHAIN_ID_ALGORAND &&
+      algoAccounts[0] &&
+      decimals !== undefined
+    ) {
+      const algodClient = new Algodv2(
+        ALGORAND_HOST.algodToken,
+        ALGORAND_HOST.algodServer,
+        ALGORAND_HOST.algodPort
+      );
+      try {
+        const tokenId = Number(targetAsset);
+        getBalance(algodClient, algoAccounts[0].address, tokenId)
+          .then((n) => {
+            dispatch(
+              setTargetParsedTokenAccount(
+                createParsedTokenAccount(
+                  algoAccounts[0].address,
+                  targetAsset,
+                  n.toString(),
+                  decimals,
+                  Number(formatUnits(n, decimals)),
+                  formatUnits(n, decimals),
+                  symbol,
+                  tokenName,
+                  logo
+                )
+              )
+            );
+          })
+          .catch((e) => {
+            if (!cancelled) {
+              // TODO: error state
+            }
+          });
+      } catch (e) {
+        if (!cancelled) {
+          // TODO: error state
+        }
+      }
+    }
     return () => {
       cancelled = true;
     };
@@ -219,6 +272,8 @@ function useGetTargetParsedTokenAccounts() {
     symbol,
     tokenName,
     logo,
+    algoAccounts,
+    decimals,
   ]);
 }
 

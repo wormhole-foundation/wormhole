@@ -68,7 +68,7 @@ async function algo(
       ALGORAND_HOST.algodPort
     );
     const myAlgoConnect = new MyAlgoConnect();
-    const cr = await createWrappedOnAlgorand(
+    await createWrappedOnAlgorand(
       algodClient,
       {
         addr: senderAddr,
@@ -239,7 +239,7 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
-  const { accounts: algorandAccounts } = useAlgorandContext();
+  const { accounts: algoAccounts } = useAlgorandContext();
   const handleCreateClick = useCallback(() => {
     if (isEVMChain(targetChain) && !!signer && !!signedVAA) {
       evm(
@@ -275,10 +275,10 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
       );
     } else if (
       targetChain === CHAIN_ID_ALGORAND &&
-      algorandAccounts[0] &&
+      algoAccounts[0] &&
       !!signedVAA
     ) {
-      algo(dispatch, enqueueSnackbar, algorandAccounts[0]?.address, signedVAA);
+      algo(dispatch, enqueueSnackbar, algoAccounts[0]?.address, signedVAA);
     } else {
       // enqueueSnackbar(
       //   "Creating wrapped tokens on this chain is not yet supported",
@@ -298,7 +298,7 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
     signer,
     shouldUpdate,
     terraFeeDenom,
-    algorandAccounts,
+    algoAccounts,
   ]);
   return useMemo(
     () => ({

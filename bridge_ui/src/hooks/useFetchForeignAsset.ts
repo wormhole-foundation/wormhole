@@ -141,7 +141,11 @@ function useFetchForeignAsset(
               ALGORAND_HOST.algodServer,
               ALGORAND_HOST.algodPort
             );
-            return getForeignAssetAlgo(algodClient, originChain, originAsset);
+            return getForeignAssetAlgo(
+              algodClient,
+              originChain,
+              originAssetHex
+            );
           }
         : () => Promise.resolve(null);
 
