@@ -24,6 +24,13 @@ import * as txModule from "../modules/cosmos.tx.v1beta1";
 import * as upgradeModule from "../modules/cosmos.upgrade.v1beta1";
 import * as vestingModule from "../modules/cosmos.vesting.v1beta1";
 
+//protobuf isn't guaranteed to have long support, which is used by the stargate signing client,
+//so we're going to use an independent long module and shove it into the globals of protobuf
+var Long = require("long");
+var protobuf = require("protobufjs");
+protobuf.util.Long = Long;
+protobuf.configure();
+
 //Rip the types out of their modules. These are private fields on the module.
 //@ts-ignore
 const coreTypes = coreModule.registry.types;
@@ -61,7 +68,6 @@ const upgradeTypes = upgradeModule.registry.types;
 const vestingTypes = vestingModule.registry.types;
 
 const aggregateTypes = [
-  ...defaultRegistryTypes, //There are no interface-level changes to the default modules at this time
   ...coreTypes,
   ...tokenBridgeTypes,
   ...authTypes,
@@ -79,6 +85,7 @@ const aggregateTypes = [
   ...txTypes,
   ...upgradeTypes,
   ...vestingTypes,
+  ...defaultRegistryTypes, //There are no interface-level changes to the default modules at this time
 ];
 
 export const MissingWalletError = new Error("wallet is required");
