@@ -141,6 +141,10 @@ func NewEthWatcher(
 func (e *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
+	if err := e.checkForSafeMode(ctx); err != nil {
+		return err
+	}
+
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.contract.Hex(),
@@ -578,4 +582,25 @@ func fetchCurrentGuardianSet(ctx context.Context, caller *abi.AbiCaller) (uint32
 	}
 
 	return currentIndex, &gs, nil
+}
+
+func (e *Watcher) checkForSafeMode(ctx context.Context) error {
+	if e.chainID == vaa.ChainIDKarura || e.chainID == vaa.ChainIDAcala {
+		c, err := rpc.DialContext(ctx, e.url)
+		if err != nil {
+			return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", e.url, err)
+		}
+
+		var safe bool
+		err = c.CallContext(ctx, &safe, "net_isSafeMode")
+		if err != nil {
+			return fmt.Errorf("check for safe mode for url %s failed: %w", e.url, err)
+		}
+
+		if !safe {
+			return fmt.Errorf("url %s is not using safe mode", e.url)
+		}
+	}
+
+	return nil
 }
