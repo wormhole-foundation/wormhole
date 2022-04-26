@@ -1118,6 +1118,29 @@ class PortalCore:
         print(["token bridge", str(self.tokenid), " address", get_application_address(self.tokenid), " emitterAddress", decode_address(get_application_address(self.tokenid)).hex()])
 
         if self.devnet or self.args.testnet:
+            if self.devnet:
+                suggestedParams = self.client.suggested_params()
+                fundingAccount = self.getGenesisAccounts()[0]
+
+                txns: List[transaction.Transaction] = []
+                wallet = "castle sing ice patrol mixture artist violin someone what access slow wrestle clap hero sausage oyster boost tone receive rapid bike announce pepper absent involve"
+                a = Account.FromMnemonic(wallet)
+                txns.append(
+                    transaction.PaymentTxn(
+                        sender=fundingAccount.getAddress(),
+                        receiver=a.getAddress(),
+                        amt=self.FUNDING_AMOUNT,
+                        sp=suggestedParams,
+                    )
+                )
+                txns = transaction.assign_group_id(txns)
+                signedTxns = [
+                    txn.sign(fundingAccount.getPrivateKey()) for i, txn in enumerate(txns)
+                ]
+    
+                self.client.send_transactions(signedTxns)
+                print("Sent some ALGO to: " + wallet)
+                
             if exists(self.args.env):
                 if self.gt == None:
                     self.gt = GenTest(False)
