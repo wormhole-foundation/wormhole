@@ -107,8 +107,6 @@ contract("ShutdownSwitch", function () {
 
         assert.equal((await initialized.methods.enabledFlag().call()), true)
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
-
-        // Since we start out with only one guardian, the required votes should be one.
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
     })
     
@@ -157,10 +155,6 @@ contract("ShutdownSwitch", function () {
 
         // This first vote should succeed, but we should still be enabled.
         await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
-
-        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
-        assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -253,10 +247,6 @@ contract("ShutdownSwitch", function () {
 
         // This first vote should succeed, but we should still be enabled.
         await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
-
-        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
-        assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
@@ -361,10 +351,6 @@ contract("ShutdownSwitch", function () {
         
         // This first vote should succeed, but we should still be enabled.
         await initialized.methods.castShutdownVote(GuardianAuthProof0).send({ from: EthPublicKey });
-
-        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
-        assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
