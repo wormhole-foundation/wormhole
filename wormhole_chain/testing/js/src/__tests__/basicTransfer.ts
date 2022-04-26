@@ -1,11 +1,7 @@
-import { describe, jest, test, expect, it } from "@jest/globals";
-import { getAddress } from "wormhole-chain-sdk";
-import {
-  HOLE_DENOM,
-  TEST_WALLET_MNEMONIC_1,
-  TEST_WALLET_MNEMONIC_2,
-} from "../consts";
-import { getBalance, getWallet, sendTokens } from "../core/walletHelpers";
+import { expect, jest, test } from "@jest/globals";
+import { getAddress, getWallet } from "wormhole-chain-sdk";
+import { TEST_WALLET_MNEMONIC_1, TEST_WALLET_MNEMONIC_2 } from "../consts";
+import { getBalance, sendTokens } from "../utils/walletHelpers";
 
 jest.setTimeout(60000);
 
@@ -21,35 +17,22 @@ test("basicTransfer", async () => {
     const wallet2Address = await getAddress(wallet2);
     console.log("wallet 2 address", wallet2Address);
     const wallet1InitialBalance = parseInt(
-      await getBalance(DENOM, wallet1Address)
+      await getBalance(wallet1Address, DENOM)
     );
     console.log("wallet 1 init", wallet1InitialBalance);
     const wallet2InitialBalance = parseInt(
-      await getBalance(DENOM, wallet2Address)
+      await getBalance(wallet2Address, DENOM)
     );
     console.log("wallet 2 init", wallet2InitialBalance);
 
-    // console.log("calling faucet");
-
-    // await faucet(HOLE_DENOM, "100", wallet1Address);
-
-    // const wallet1BalanceAfterFaucet = await getBalance(
-    //   'utest',
-    //   wallet1Address
-    // );
-
-    // console.log("wallet 1 after faucet", wallet1BalanceAfterFaucet);
-
-    //expect(wallet1BalanceAfterFaucet - wallet1InitialBalance).toBe(100);
-
-    await sendTokens(wallet1, DENOM, "100", wallet2Address);
+    await sendTokens(wallet1, wallet2Address, "100", DENOM);
 
     const wallet1BalanceAfterTransfer = parseInt(
-      await getBalance(DENOM, wallet1Address)
+      await getBalance(wallet1Address, DENOM)
     );
     console.log("wallet 1 afer", wallet1BalanceAfterTransfer);
     const wallet2BalanceAfterTransfer = parseInt(
-      await getBalance(DENOM, wallet2Address)
+      await getBalance(wallet2Address, DENOM)
     );
     console.log("wallet 2 after", wallet2BalanceAfterTransfer);
 

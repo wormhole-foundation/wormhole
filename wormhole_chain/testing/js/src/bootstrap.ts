@@ -31,6 +31,7 @@ const {
 } = sdk;
 //@ts-ignore
 import * as elliptic from "elliptic";
+import { fromValAddress, toBase64 } from "wormhole-chain-sdk";
 
 let done = false;
 let err: string | null = null;
@@ -75,7 +76,9 @@ async function fullBootstrapProcess() {
     }
     if (
       !validators.data.validators?.find(
-        (x) => x.operator_address === GUARDIAN_VALIDATOR_VALADDR
+        (x) =>
+          x.operator_address ===
+          toBase64(fromValAddress(GUARDIAN_VALIDATOR2_VALADDR))
       )
     ) {
       eject(
@@ -99,7 +102,9 @@ async function fullBootstrapProcess() {
     }
     if (
       !validatorSet.find(
-        (sig: any) => sig.validator_address === GUARDIAN_VALIDATOR_VALADDR
+        (sig: any) =>
+          sig.validator_address ===
+          toBase64(fromValAddress(GUARDIAN_VALIDATOR2_VALADDR))
       )
     ) {
       eject(
@@ -126,8 +131,9 @@ async function fullBootstrapProcess() {
     if (
       !guardianValidators.find(
         (x) =>
-          x.guardianKey === TILTNET_GUARDIAN_PUBKEY &&
-          x.validatorAddr === GUARDIAN_VALIDATOR_VALADDR
+          x.guardianKey === stringToBase64(TILTNET_GUARDIAN_PUBKEY) &&
+          x.validatorAddr ===
+            toBase64(fromValAddress(GUARDIAN_VALIDATOR2_VALADDR))
       )
     ) {
       eject(
@@ -420,7 +426,9 @@ async function fullBootstrapProcess() {
     }
     if (
       !validatorSet.find(
-        (sig: any) => sig.validator_address === GUARDIAN_VALIDATOR2_VALADDR
+        (sig: any) =>
+          sig.validator_address ===
+          toBase64(fromValAddress(GUARDIAN_VALIDATOR2_VALADDR))
       )
     ) {
       eject(
@@ -480,5 +488,7 @@ const wait = async () => {
   await fullBootstrapProcess();
 };
 wait();
+
+const stringToBase64 = (item: string) => Buffer.from(item).toString("base64");
 
 export default {};

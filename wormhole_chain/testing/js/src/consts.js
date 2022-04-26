@@ -22,11 +22,13 @@ export const GUARDIAN_VALIDATOR_VALADDR =
   "wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8";
 export const GUARDIAN_VALIDATOR2_VALADDR = "";
 
+export const GUARDIAN_VALIDATOR_BASE64_VALADDR = "wQggmD8zRWznvrOgRvWoP6NPAn0=";
+
 //This is a VAA in hex which is for guardian set 2, where Guardian 2 is the only active guardian.
 export const GUARDIAN2_UPGRADE_VAA = "";
 
-export const NODE_URL = "http://localhost:1318";
-export const TENDERMINT_URL = "http://localhost:26658";
+export const NODE_URL = "http://localhost:1317";
+export const TENDERMINT_URL = "http://localhost:26657";
 //export const FAUCET_URL = "http://localhost:4500";
 
 export const HOLE_DENOM = "uhole";

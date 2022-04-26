@@ -1,20 +1,11 @@
-import { describe, jest, test, expect } from "@jest/globals";
-import {
-  HOLE_DENOM,
-  TENDERMINT_URL,
-  TEST_WALLET_MNEMONIC_1,
-  TEST_WALLET_MNEMONIC_2,
-} from "../consts";
-import { redeemVaaMsg } from "../core/tokenBridge";
+import { describe, expect, jest, test } from "@jest/globals";
 import {
   getAddress,
-  getBalance,
   getWallet,
-  getZeroFee,
-  sendTokens,
-  signSendAndConfirm,
-} from "../core/walletHelpers";
-import { getWormchainSigningClient } from "wormhole-chain-sdk";
+  getWormchainSigningClient,
+} from "wormhole-chain-sdk";
+import { HOLE_DENOM, TENDERMINT_URL, TEST_WALLET_MNEMONIC_2 } from "../consts";
+import { getBalance, getZeroFee } from "../utils/walletHelpers";
 
 jest.setTimeout(60000);
 
@@ -47,15 +38,15 @@ describe("Token bridge tests", () => {
       const wallet2 = await getWallet(TEST_WALLET_MNEMONIC_2);
       const wallet2Address = await getAddress(wallet2);
       const wallet2InitialBalance = await getBalance(
-        HOLE_DENOM,
-        wallet2Address
+        wallet2Address,
+        HOLE_DENOM
       );
       //VAA for 100 hole to this specific wallet
       const client = await getWormchainSigningClient(TENDERMINT_URL, wallet2);
 
       const msg = client.tokenbridge.msgTransfer({
         creator: wallet2Address,
-        amount: { amount: "100", denom: "uhole" },
+        amount: { amount: "100", denom: HOLE_DENOM },
         toChain: 2,
         toAddress: new Uint8Array(32),
         fee: "0",
@@ -69,8 +60,8 @@ describe("Token bridge tests", () => {
       );
 
       const wallet2BalanceAfterTransfer = await getBalance(
-        HOLE_DENOM,
-        wallet2Address
+        wallet2Address,
+        HOLE_DENOM
       );
       console.log("balance before bridge ", wallet2InitialBalance);
       console.log("balance after bridge ", wallet2BalanceAfterTransfer);
