@@ -6,14 +6,14 @@ import { ALGORAND_HOST } from "../utils/consts";
 export type AlgoMetadata = {
   symbol?: string;
   tokenName?: string;
-  decimals?: number;
+  decimals: number;
 };
 
-const fetchSingleMetadata = async (
+export const fetchSingleMetadata = async (
   address: string,
   algodClient: Algodv2
 ): Promise<AlgoMetadata> => {
-  const assetId = Number(address);
+  const assetId = parseInt(address);
   const assetInfo = await algodClient.getAssetByID(assetId).do();
   return {
     tokenName: assetInfo.params.name,

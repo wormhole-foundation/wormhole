@@ -225,7 +225,7 @@ function useGetTargetParsedTokenAccounts() {
         ALGORAND_HOST.algodPort
       );
       try {
-        const tokenId = Number(targetAsset);
+        const tokenId = parseInt(targetAsset);
         getBalance(algodClient, algoAccounts[0].address, tokenId)
           .then((n) => {
             dispatch(
