@@ -487,7 +487,6 @@ class PortalCore:
 
         lsa = self.tsig.populate(
             {
-                "TMPL_SEED_AMT": self.seed_amt,
                 "TMPL_APP_ID": app_id,
                 "TMPL_APP_ADDRESS": aa,
                 "TMPL_ADDR_IDX": idx,

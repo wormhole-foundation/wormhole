@@ -94,21 +94,22 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # ADDR_IDX aka sequence start
                 tmpl_sig.get_bytecode_chunk(0),
                 encode_uvarint(acct_seq_start, Bytes("")),
+
                 # EMMITTER_ID
                 tmpl_sig.get_bytecode_chunk(1),
                 encode_uvarint(Len(emitter), Bytes("")),
                 emitter,
-                # SEED_AMT
+
+                # TMPL_APP_ADDRESS
                 tmpl_sig.get_bytecode_chunk(2),
-                encode_uvarint(Int(seed_amt), Bytes("")),
+                encode_uvarint(Len(Global.current_application_address()), Bytes("")),
+                Global.current_application_address(),
+
                 # APP_ID
                 tmpl_sig.get_bytecode_chunk(3),
                 encode_uvarint(Global.current_application_id(), Bytes("")),
-                # TMPL_APP_ADDRESS
+
                 tmpl_sig.get_bytecode_chunk(4),
-                encode_uvarint(Len(Global.current_application_address()), Bytes("")),
-                Global.current_application_address(),
-                tmpl_sig.get_bytecode_chunk(5),
                 )
             )
     

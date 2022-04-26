@@ -35,26 +35,19 @@ class TmplSig:
 #        with open("{}.json".format(name)) as f:
 #            self.map = json.loads(f.read())
 
+
         self.map = {
-            'bytecode': 'BiABAYEASIAASIgAAUMyBIEDEkQzABAiEkQzAAiBABJEMwAgMgMSRDMACTIDEkQzARCBBhJEMwEZIhJEMwEYgQASRDMBIDIDEkQzAhAiEkQzAgiBABJEMwIggAASRDMCCTIDEkQiQw==',
-            'label_map': {'init_0': 9},
-            'name': 'sig.teal',
-            'template_labels': {'TMPL_ADDR_IDX': {'bytes': False,
-                                                  'position': 5,
-                                                  'source_line': 3},
-                                'TMPL_APP_ADDRESS': {'bytes': True,
-                                                     'position': 91,
-                                                     'source_line': 57},
-                                'TMPL_APP_ID': {'bytes': False,
-                                                'position': 64,
-                                                'source_line': 41},
-                                'TMPL_EMITTER_ID': {'bytes': True,
-                                                    'position': 8,
-                                                    'source_line': 5},
-                                'TMPL_SEED_AMT': {'bytes': False,
-                                                  'position': 30,
-                                                  'source_line': 21}},
-            'version': 6}
+            "name":"lsig.teal",
+            "version":6,
+            "source":"",
+            "bytecode":"BiABAYEASIAASDEQgQYSQAAaMRAiEjEIgQASEDEggAASEDEJMgMSEERCAAwxGIEAEjEgMgMSEEQiQw==",
+            "template_labels":{
+                "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":False},
+                "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":True},
+                "TMPL_APP_ADDRESS":{"source_line":19,"position":31,"bytes":True},
+                "TMPL_APP_ID":{"source_line":30,"position":47,"bytes":False}
+            }
+        }
 
         self.src = base64.b64decode(self.map["bytecode"])
         self.sorted = dict(
@@ -89,7 +82,7 @@ class TmplSig:
 
         # Create a new LogicSigAccount given the populated bytecode,
 
-#        pprint.pprint({"values": values, "contract": bytes(contract).hex()})
+        pprint.pprint({"values": values, "contract": bytes(contract).hex()})
 
         return LogicSigAccount(bytes(contract))
 
@@ -124,40 +117,26 @@ class TmplSig:
             # for the template variables
             admin_app_id = Tmpl.Int("TMPL_APP_ID")
             admin_address = Tmpl.Bytes("TMPL_APP_ADDRESS")
-            seed_amt = Tmpl.Int("TMPL_SEED_AMT")
-        
-            @Subroutine(TealType.uint64)
-            def init():
-                algo_seed = Gtxn[0]
-                optin = Gtxn[1]
-                rekey = Gtxn[2]
-
-                return Seq([
-                    Assert(Global.group_size() == Int(3)),
-        
-                    Assert(algo_seed.type_enum() == TxnType.Payment),
-                    Assert(algo_seed.amount() == seed_amt),
-                    Assert(algo_seed.rekey_to() == Global.zero_address()),
-                    Assert(algo_seed.close_remainder_to() == Global.zero_address()),
-        
-                    Assert(optin.type_enum() == TxnType.ApplicationCall),
-                    Assert(optin.on_completion() == OnComplete.OptIn),
-                    Assert(optin.application_id() == admin_app_id),
-                    Assert(optin.rekey_to() == Global.zero_address()),
-        
-                    Assert(rekey.type_enum() == TxnType.Payment),
-                    Assert(rekey.amount() == Int(0)),
-                    Assert(rekey.rekey_to() == admin_address),
-                    Assert(rekey.close_remainder_to() == Global.zero_address()),
-                    Approve()
-                ])
         
             return Seq(
                 # Just putting adding this as a tmpl var to make the address unique and deterministic
                 # We don't actually care what the value is, pop it
                 Pop(Tmpl.Int("TMPL_ADDR_IDX")),
                 Pop(Tmpl.Bytes("TMPL_EMITTER_ID")),
-                init(),
+                If(Txn.on_completion() == OnComplete.OptIn,
+                       Assert(And(
+                           Txn.type_enum() == TxnType.ApplicationCall,
+                           Txn.application_id() == admin_app_id,
+                           Txn.rekey_to() == Global.zero_address()
+                       )),
+                       Assert(And(
+                           Txn.type_enum() == TxnType.Payment,
+                           Txn.amount() == Int(0),
+                           Txn.rekey_to() == admin_address,
+                           Txn.close_remainder_to() == Global.zero_address()
+                       ))
+                ),
+                Approve()
             )
         
         return compileTeal(sig_tmpl(), mode=Mode.Signature, version=6, assembleConstants=True)
