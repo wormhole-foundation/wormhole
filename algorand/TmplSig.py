@@ -40,13 +40,13 @@ class TmplSig:
             "name":"lsig.teal",
             "version":6,
             "source":"",
-            "bytecode":"BiABAYEASIAASDEQgQYSQAAaMRAiEjEIgQASEDEggAASEDEJMgMSEERCAAwxGIEAEjEgMgMSEEQiQw==",
+            "bytecode":"BiABAYEASIAASDEZIhJAABoxECISMQiBABIQMSCAABIQMQkyAxIQREIAEjEQgQYSMRiBABIQMSAyAxIQRCI=",
             "template_labels":{
-                "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":False},
-                "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":True},
-                "TMPL_APP_ADDRESS":{"source_line":19,"position":31,"bytes":True},
-                "TMPL_APP_ID":{"source_line":30,"position":47,"bytes":False}
-            }
+                "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":false},
+                "TMPL_APP_ADDRESS":{"source_line":19,"position":30,"bytes":true},
+                "TMPL_APP_ID":{"source_line":33,"position":51,"bytes":false},
+                "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":true}},
+            "label_map":{"main_l2":13,"main_l3":39},"line_map":[0,1,4,6,7,9,10,12,13,14,17,19,20,21,23,25,26,27,29,31,32,33,35,37,38,39,40,0,43,45,47,48,50,52,53,54,56,58,59,60,0,61]
         }
 
         self.src = base64.b64decode(self.map["bytecode"])
