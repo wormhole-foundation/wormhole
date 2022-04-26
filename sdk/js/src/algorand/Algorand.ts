@@ -70,6 +70,8 @@ const ALGO_VERIFY = new Uint8Array([
     34, 137,
 ]);
 
+let accountExistsCache = new Set();
+
 export type Signer = {
     addr: string
     signTxn(txn: Transaction): Promise<Uint8Array>
@@ -374,6 +376,9 @@ export async function accountExists(
     appId: number,
     acctAddr: string
 ): Promise<boolean> {
+    if (accountExistsCache.has([appId, acctAddr]))
+        return true;
+
     let ret = false;
     try {
         const acctInfo = await client.accountInformation(acctAddr).do();
@@ -393,6 +398,7 @@ export async function accountExists(
             console.log("Inside for loop");
 
             if (app["id"] === appId) {
+                accountExistsCache.add([appId, acctAddr]);
                 ret = true;
                 return;
             }
@@ -515,6 +521,8 @@ export async function optin(
             1
         );
         console.log("optin confirmation", confirmedTxns);
+
+        accountExistsCache.add([appId, lsa.address()]);
     }
     return sigAddr;
 }
