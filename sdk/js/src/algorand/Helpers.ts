@@ -7,8 +7,6 @@ import algosdk, {
 } from "algosdk";
 import {
     getAlgoClient,
-    TESTNET_ACCOUNT_ADDRESS,
-    TESTNET_ACCOUNT_MN,
 } from "./Algorand";
 
 let KMD_TOKEN =
@@ -197,73 +195,6 @@ export async function getBalances(
         balances.set(assetId, amount);
     });
     return balances;
-}
-
-export async function firstAlgoTransaction() {
-    try {
-        // Create an Account
-        // const myAccount = createAccount();
-        // if (!myAccount) {
-        //     throw new Error("Failed to createAccount");
-        // }
-        // console.log("account:", myAccount);
-
-        // Connect client
-        const algodClient = getAlgoClient();
-        const mySecretKey = algosdk.mnemonicToSecretKey(TESTNET_ACCOUNT_MN);
-
-        // Check your balance
-        const accountInfo = await algodClient
-            // .accountInformation(myAccount.addr)
-            .accountInformation(TESTNET_ACCOUNT_ADDRESS)
-            .do();
-        console.log("Account balance: %d microAlgos", accountInfo.amount);
-        console.log("accountInfo:", accountInfo);
-
-        // Construct the transaction
-        let params = await algodClient.getTransactionParams().do();
-        console.log("params:", params);
-        // comment out the next two lines to use suggested fee
-        // params.fee = algosdk.ALGORAND_MIN_TX_FEE;
-        // params.flatFee = true;
-
-        // receiver defined as TestNet faucet address
-        // const receiver = "HZ57J3K46JIJXILONBBZOHX6BKPXEM2VVXNRFSUED6DKFD5ZD24PMJ3MVA";
-        // const enc = new TextEncoder();
-        // const note = enc.encode("Hello World");
-        // let amount = 1000000;
-        // let sender = TESTNET_ACCOUNT_ADDRESS;
-        // let txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        //     from: sender,
-        //     to: receiver,
-        //     amount: amount,
-        //     note: note,
-        //     suggestedParams: params
-        // });
-
-        // Sign the transaction
-        // let signedTxn = txn.signTxn(myAccount.sk);
-        // let txId = txn.txID().toString();
-        // console.log("Signed transaction with txID: %s", txId);
-
-        // // Submit the transaction
-        // await algodClient.sendRawTransaction(signedTxn).do();
-
-        // // Wait for confirmation
-        // let confirmedTxn = await waitForConfirmation(algodClient, txId, 4);
-        // //Get the completed Transaction
-        // console.log("Transaction " + txId + " confirmed in round " + confirmedTxn["confirmed-round"]);
-        // var string = new TextDecoder().decode(confirmedTxn.txn.txn.note);
-        // console.log("Note field: ", string);
-        // accountInfo = await algodClient.accountInformation(myAccount.addr).do();
-        // console.log("Transaction Amount: %d microAlgos", confirmedTxn.txn.txn.amt);
-        // console.log("Transaction Fee: %d microAlgos", confirmedTxn.txn.txn.fee);
-
-        // console.log("Account balance: %d microAlgos", accountInfo.amount);
-    } catch (err) {
-        console.log("err", err);
-    }
-    // process.exit();
 }
 
 export async function testFn() {

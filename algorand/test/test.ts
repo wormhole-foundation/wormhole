@@ -14,7 +14,8 @@ import  {
     parseVAA, 
     CORE_ID,
     TOKEN_BRIDGE_ID,
-    attestFromAlgorand
+    attestFromAlgorand,
+    AccountToSigner
 } from "@certusone/wormhole-sdk/lib/cjs/algorand/Algorand";
 
 import {
@@ -52,7 +53,7 @@ class AlgoTests {
         let client = getAlgoClient();
 
         let accounts = await getTempAccounts();
-        let player = accounts[0]
+        let player = AccountToSigner(accounts[0])
 
         console.log("attesting some ALGO");
         console.log(await attestFromAlgorand(client, player, 0))

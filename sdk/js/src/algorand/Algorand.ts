@@ -51,12 +51,6 @@ const INDEXER_TOKEN: string =
 const INDEXER_ADDRESS: string = "http://localhost";
 const INDEXER_PORT: number = 8980;
 
-// Generated Testnet wallet
-export const TESTNET_ACCOUNT_ADDRESS =
-    "RWVYXYLSV32QIHFUMBEBW4BQZR7FDVJGKTVZIVYECMQWU7CZUAK5Q4WMP4";
-export const TESTNET_ACCOUNT_MN =
-    "enforce sail meat library retreat rain praise run floor drastic flat end true olympic boy dune dust regular feed allow top universe borrow able ginger";
-
 const ALGO_VERIFY_HASH =
     "EZATROXX2HISIRZDRGXW4LRQ46Z6IUJYYIHU3PJGP7P5IQDPKVX42N767A";
 const ALGO_VERIFY = new Uint8Array([
