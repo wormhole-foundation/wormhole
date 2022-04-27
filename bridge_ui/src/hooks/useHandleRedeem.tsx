@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
@@ -31,6 +32,8 @@ import {
 import { setIsRedeeming, setRedeemTx } from "../store/transferSlice";
 import {
   ACALA_RELAY_URL,
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getTokenBridgeAddressForChain,
   MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
@@ -44,6 +47,49 @@ import { Alert } from "@material-ui/lab";
 import { postWithFees } from "../utils/terra";
 import axios from "axios";
 import { postVaaWithRetry } from "../utils/postVaa";
+import algosdk from "algosdk";
+import MyAlgoConnect from "@randlabs/myalgo-connect";
+import { redeemOnAlgorand } from "@certusone/wormhole-sdk/lib/esm/algorand/Algorand";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
+
+async function algo(
+  dispatch: any,
+  enqueueSnackbar: any,
+  senderAddr: string,
+  signedVAA: Uint8Array
+) {
+  dispatch(setIsRedeeming(true));
+  try {
+    const algodClient = new algosdk.Algodv2(
+      ALGORAND_HOST.algodToken,
+      ALGORAND_HOST.algodServer,
+      ALGORAND_HOST.algodPort
+    );
+    const myAlgoConnect = new MyAlgoConnect();
+    await redeemOnAlgorand(
+      signedVAA,
+      algodClient,
+      {
+        addr: senderAddr,
+        signTxn: async (txn) =>
+          (
+            await myAlgoConnect.signTransaction(txn.toByte())
+          ).blob,
+      },
+      ALGORAND_TOKEN_BRIDGE_ID
+    );
+    // TODO: fill these out correctly
+    dispatch(setRedeemTx({ id: "1", block: 1 }));
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
+  } catch (e) {
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    dispatch(setIsRedeeming(false));
+  }
+}
 
 async function evm(
   dispatch: any,
@@ -175,6 +221,7 @@ export function useHandleRedeem() {
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
+  const { accounts: algoAccounts } = useAlgorandContext();
   const signedVAA = useTransferSignedVAA();
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
@@ -196,6 +243,12 @@ export function useHandleRedeem() {
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
       terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom);
+    } else if (
+      targetChain === CHAIN_ID_ALGORAND &&
+      algoAccounts[0] &&
+      !!signedVAA
+    ) {
+      algo(dispatch, enqueueSnackbar, algoAccounts[0]?.address, signedVAA);
     } else {
     }
   }, [
@@ -208,6 +261,7 @@ export function useHandleRedeem() {
     solPK,
     terraWallet,
     terraFeeDenom,
+    algoAccounts,
   ]);
 
   const handleRedeemNativeClick = useCallback(() => {
@@ -229,6 +283,12 @@ export function useHandleRedeem() {
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
       terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom); //TODO isNative = true
+    } else if (
+      targetChain === CHAIN_ID_ALGORAND &&
+      algoAccounts[0] &&
+      !!signedVAA
+    ) {
+      algo(dispatch, enqueueSnackbar, algoAccounts[0]?.address, signedVAA);
     } else {
     }
   }, [
@@ -241,6 +301,7 @@ export function useHandleRedeem() {
     solPK,
     terraWallet,
     terraFeeDenom,
+    algoAccounts,
   ]);
 
   const handleAcalaRelayerRedeemClick = useCallback(async () => {
