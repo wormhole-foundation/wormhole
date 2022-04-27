@@ -39,14 +39,10 @@ class TmplSig:
         self.map = {
             "name":"lsig.teal",
             "version":6,"source":"",
-            "bytecode":"BiABAYEASIAASIEANQCAADUBMRkiEkAAGjEQIhIxCIEAEhAxIDQBEhAxCTIDEhBEQgASMRCBBhIxGDQAEhAxIDIDEhBEIg==",
-            "template_labels":{
-                "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":False},
-                "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":True},
-                "TMPL_APP_ID":{"source_line":7,"position":11,"bytes":False},
-                "TMPL_APP_ADDRESS":{"source_line":9,"position":15,"bytes":True}
-            },
-            "label_map":{"main_l2":21,"main_l3":47},"line_map":[0,1,4,6,7,9,10,12,14,16,18,20,21,22,25,27,28,29,31,33,34,35,37,39,40,41,43,45,46,47,48,0,51,53,55,56,58,60,61,62,64,66,67,68,0,69]}
+            "bytecode":"BiABAYEASIAASIEANQCAADUBMRkiEkAADTEWIgk1AjEWNQNCAAoxFjUCMRYiCDUDNAI4EIEGEkQ0AjgZIhJENAI4GDQAEkQ0AjggMgMSRDQDOBAiEkQ0AzgIgQASRDQDOCA0ARJENAM4CTIDEkQiQw==",
+            "template_labels":{"TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":false},"TMPL_APP_ADDRESS":{"source_line":9,"position":15,"bytes":true},"TMPL_APP_ID":{"source_line":7,"position":11,"bytes":false},"TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":true}},
+            "label_map":{"main_l2":21,"main_l3":34},"line_map":[0,1,4,6,7,9,10,12,14,16,18,20,21,22,25,27,28,29,31,33,35,0,38,40,42,44,45,46,0,48,50,52,54,55,56,58,60,61,62,63,65,67,69,70,71,73,75,77,78,79,81,83,84,85,86,88,90,92,93,94,96,98,100,101,102,104,106,108,109,110,111]
+        }
 
         self.src = base64.b64decode(self.map["bytecode"])
         self.sorted = dict(
