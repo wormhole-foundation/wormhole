@@ -1,22 +1,22 @@
 #pragma version 6
 intcblock 1 0 127 2 1000 19200 128 255
-bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x766572696679564141 0x767068617368 0x50726f6772616d 0x7075626c6973684d657373616765 0x6e6f70 0x76657269667953696773 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368 0x6d657461
+bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x6e6f70 0x76657269667953696773 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x766572696679564141 0x767068617368 0x50726f6772616d 0x7075626c6973684d657373616765 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368 0x6d657461
 txn ApplicationID
 intc_1 // 0
 ==
-bnz main_l69
+bnz main_l73
 txn OnCompletion
 pushint 4 // UpdateApplication
 ==
-bnz main_l68
+bnz main_l72
 txn OnCompletion
 pushint 5 // DeleteApplication
 ==
-bnz main_l67
+bnz main_l71
 txn OnCompletion
 intc_0 // OptIn
 ==
-bnz main_l66
+bnz main_l70
 txn OnCompletion
 intc_1 // NoOp
 ==
@@ -24,23 +24,23 @@ bnz main_l6
 err
 main_l6:
 txna ApplicationArgs 0
-bytec 9 // "publishMessage"
+bytec 11 // "publishMessage"
 ==
-bnz main_l63
+bnz main_l67
 txna ApplicationArgs 0
-bytec 10 // "nop"
+bytec 4 // "nop"
 ==
-bnz main_l62
+bnz main_l66
 txna ApplicationArgs 0
 pushbytes 0x696e6974 // "init"
 ==
-bnz main_l46
+bnz main_l50
 txna ApplicationArgs 0
-bytec 11 // "verifySigs"
+bytec 5 // "verifySigs"
 ==
-bnz main_l45
+bnz main_l49
 txna ApplicationArgs 0
-bytec 6 // "verifyVAA"
+bytec 8 // "verifyVAA"
 ==
 bnz main_l29
 txna ApplicationArgs 0
@@ -67,7 +67,7 @@ txn GroupIndex
 intc_0 // 1
 -
 gtxnsa ApplicationArgs 0
-bytec 6 // "verifyVAA"
+bytec 8 // "verifyVAA"
 ==
 &&
 txn GroupIndex
@@ -272,7 +272,7 @@ pushint 8 // 8
 extract3
 btoi
 store 24
-bytec 4 // "MessageFee"
+bytec 6 // "MessageFee"
 load 24
 app_global_put
 b main_l20
@@ -361,7 +361,7 @@ load 21
 pushint 3 // 3
 +
 store 21
-bytec 5 // "validUpdateApproveHash"
+bytec 7 // "validUpdateApproveHash"
 txna ApplicationArgs 1
 load 21
 pushint 32 // 32
@@ -412,7 +412,7 @@ store 18
 load 18
 intc_1 // 0
 !=
-bnz main_l44
+bnz main_l48
 main_l30:
 pushbytes 0x00000000 // 0x00000000
 store 17
@@ -454,13 +454,43 @@ pushint 3 // 3
 assert
 pushint 6 // 6
 store 15
+txn GroupIndex
 intc_1 // 0
+>
+assert
+txn GroupIndex
+intc_0 // 1
+-
 store 10
+load 10
+gtxnsa ApplicationArgs 0
+store 11
 main_l31:
+load 10
+intc_1 // 0
+>
+load 11
+bytec 5 // "verifySigs"
+==
+load 11
+bytec 4 // "nop"
+==
+||
+&&
+bnz main_l47
+load 11
+bytec 5 // "verifySigs"
+!=
+load 11
+bytec 4 // "nop"
+!=
+&&
+bnz main_l46
+main_l33:
 load 10
 txn GroupIndex
 <=
-bnz main_l33
+bnz main_l35
 load 15
 pushint 6 // 6
 load 14
@@ -471,7 +501,7 @@ pushint 66 // 66
 assert
 intc_0 // 1
 return
-main_l33:
+main_l35:
 load 10
 gtxns TypeEnum
 pushint 6 // appl
@@ -501,32 +531,32 @@ load 10
 gtxnsa ApplicationArgs 0
 store 11
 load 11
-bytec 11 // "verifySigs"
+bytec 5 // "verifySigs"
+==
+bnz main_l42
+load 11
+bytec 4 // "nop"
+==
+bnz main_l41
+load 11
+bytec 8 // "verifyVAA"
+==
+bnz main_l41
+intc_0 // 1
+intc_0 // 1
 ==
 bnz main_l40
-load 11
-bytec 10 // "nop"
-==
-bnz main_l39
-load 11
-bytec 6 // "verifyVAA"
-==
-bnz main_l39
-intc_0 // 1
-intc_0 // 1
-==
-bnz main_l38
 err
-main_l38:
+main_l40:
 intc_1 // 0
 return
-main_l39:
+main_l41:
 load 10
 intc_0 // 1
 +
 store 10
-b main_l31
-main_l40:
+b main_l33
+main_l42:
 load 10
 gtxnsa ApplicationArgs 1
 store 18
@@ -545,18 +575,18 @@ len
 store 19
 bytec_0 // ""
 store 18
-main_l41:
+main_l43:
 load 15
 load 19
 <
-bnz main_l43
+bnz main_l45
 load 10
 gtxnsa ApplicationArgs 2
 load 18
 ==
 load 10
 gtxns Sender
-bytec 7 // "vphash"
+bytec 9 // "vphash"
 app_global_get
 ==
 &&
@@ -566,8 +596,8 @@ load 16
 ==
 &&
 assert
-b main_l39
-main_l43:
+b main_l41
+main_l45:
 txna ApplicationArgs 1
 load 15
 intc_0 // 1
@@ -598,18 +628,33 @@ load 15
 pushint 66 // 66
 +
 store 15
-b main_l41
-main_l44:
+b main_l43
+main_l46:
+load 10
+intc_0 // 1
++
+store 10
+b main_l33
+main_l47:
+load 10
+intc_0 // 1
+-
+store 10
+load 10
+gtxnsa ApplicationArgs 0
+store 11
+b main_l31
+main_l48:
 txn FirstValid
 load 18
 <
 assert
 b main_l30
-main_l45:
+main_l49:
 intc_0 // 1
 return
-main_l46:
-bytec 7 // "vphash"
+main_l50:
+bytec 9 // "vphash"
 txna ApplicationArgs 2
 app_global_put
 txn Sender
@@ -631,8 +676,8 @@ store 7
 load 7
 intc_1 // 0
 !=
-bnz main_l61
-main_l47:
+bnz main_l65
+main_l51:
 txna ApplicationArgs 1
 extract 5 1
 btoi
@@ -696,21 +741,21 @@ store 3
 load 3
 intc_0 // 1
 ==
-bnz main_l60
+bnz main_l64
 load 3
 intc_3 // 2
 ==
-bnz main_l55
+bnz main_l59
 load 3
 pushint 3 // 3
 ==
-bnz main_l54
+bnz main_l58
 load 3
 pushint 4 // 4
 ==
-bnz main_l52
+bnz main_l56
 err
-main_l52:
+main_l56:
 load 2
 intc_0 // 1
 +
@@ -748,10 +793,10 @@ itxn_field Amount
 intc_1 // 0
 itxn_field Fee
 itxn_submit
-main_l53:
+main_l57:
 intc_0 // 1
 return
-main_l54:
+main_l58:
 load 2
 intc_0 // 1
 +
@@ -772,11 +817,11 @@ pushint 8 // 8
 extract3
 btoi
 store 5
-bytec 4 // "MessageFee"
+bytec 6 // "MessageFee"
 load 5
 app_global_put
-b main_l53
-main_l55:
+b main_l57
+main_l59:
 load 2
 pushint 3 // 3
 +
@@ -796,8 +841,8 @@ assert
 intc_0 // 1
 intc_1 // 0
 ==
-bnz main_l59
-main_l56:
+bnz main_l63
+main_l60:
 bytec_3 // "currentGuardianSetIndex"
 load 6
 app_global_put
@@ -830,13 +875,13 @@ pop
 txna Accounts 3
 txna Accounts 2
 !=
-bnz main_l58
-main_l57:
+bnz main_l62
+main_l61:
 pushint 3 // 3
 bytec_2 // "guardian"
 callsub meta_5
-b main_l53
-main_l58:
+b main_l57
+main_l62:
 intc_3 // 2
 intc 4 // 1000
 txn FirstValid
@@ -845,8 +890,8 @@ intc 5 // 19200
 itob
 callsub write_7
 pop
-b main_l57
-main_l59:
+b main_l61
+main_l63:
 txna Accounts 3
 txna Accounts 2
 !=
@@ -855,20 +900,20 @@ load 6
 load 7
 >
 assert
-b main_l56
-main_l60:
+b main_l60
+main_l64:
 load 2
 pushint 3 // 3
 +
 store 2
-bytec 5 // "validUpdateApproveHash"
+bytec 7 // "validUpdateApproveHash"
 txna ApplicationArgs 1
 load 2
 pushint 32 // 32
 extract3
 app_global_put
-b main_l53
-main_l61:
+b main_l57
+main_l65:
 txna ApplicationArgs 1
 extract 1 4
 store 6
@@ -877,25 +922,25 @@ btoi
 load 7
 ==
 assert
-b main_l47
-main_l62:
+b main_l51
+main_l66:
 intc_0 // 1
 return
-main_l63:
+main_l67:
 txna Accounts 1
 intc_1 // 0
 txn Sender
 callsub getsigaddress_9
 ==
 assert
-bytec 4 // "MessageFee"
+bytec 6 // "MessageFee"
 app_global_get
 store 1
 load 1
 intc_1 // 0
 >
-bnz main_l65
-main_l64:
+bnz main_l69
+main_l68:
 intc_0 // 1
 intc_1 // 0
 pushint 8 // 8
@@ -913,11 +958,11 @@ pop
 load 0
 log
 intc_0 // 1
-bytec 9 // "publishMessage"
+bytec 11 // "publishMessage"
 callsub meta_5
 intc_0 // 1
 return
-main_l65:
+main_l69:
 txn GroupIndex
 intc_0 // 1
 -
@@ -946,23 +991,23 @@ global ZeroAddress
 ==
 &&
 assert
-b main_l64
-main_l66:
+b main_l68
+main_l70:
 callsub optin_10
 return
-main_l67:
+main_l71:
 intc_1 // 0
 return
-main_l68:
-bytec 8 // "Program"
+main_l72:
+bytec 10 // "Program"
 txn ApprovalProgram
 concat
 sha512_256
-bytec 5 // "validUpdateApproveHash"
+bytec 7 // "validUpdateApproveHash"
 app_global_get
 ==
 assert
-bytec 8 // "Program"
+bytec 10 // "Program"
 txn ClearStateProgram
 concat
 sha512_256
@@ -972,17 +1017,17 @@ app_global_get
 assert
 intc_0 // 1
 return
-main_l69:
-bytec 4 // "MessageFee"
+main_l73:
+bytec 6 // "MessageFee"
 intc_1 // 0
 app_global_put
-bytec 7 // "vphash"
+bytec 9 // "vphash"
 bytec_0 // ""
 app_global_put
 bytec_3 // "currentGuardianSetIndex"
 intc_1 // 0
 app_global_put
-bytec 5 // "validUpdateApproveHash"
+bytec 7 // "validUpdateApproveHash"
 bytec_0 // ""
 app_global_put
 bytec 17 // "validUpdateClearHash"
@@ -1299,7 +1344,7 @@ retsub
 getsigaddress_9:
 store 48
 store 47
-bytec 8 // "Program"
+bytec 10 // "Program"
 pushbytes 0x0620010181 // 0x0620010181
 concat
 load 47
