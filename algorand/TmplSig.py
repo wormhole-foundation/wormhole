@@ -38,17 +38,15 @@ class TmplSig:
 
         self.map = {
             "name":"lsig.teal",
-            "version":6,
-            "source":"",
-            "bytecode":"BiABAYEASIAASDEZIhJAABoxECISMQiBABIQMSCAABIQMQkyAxIQREIAEjEQgQYSMRiBABIQMSAyAxIQRCI=",
+            "version":6,"source":"",
+            "bytecode":"BiABAYEASIAASIEANQCAADUBMRkiEkAAGjEQIhIxCIEAEhAxIDQBEhAxCTIDEhBEQgASMRCBBhIxGDQAEhAxIDIDEhBEIg==",
             "template_labels":{
                 "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":False},
                 "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":True},
-                "TMPL_APP_ADDRESS":{"source_line":19,"position":30,"bytes":True},
-                "TMPL_APP_ID":{"source_line":33,"position":51,"bytes":False}
+                "TMPL_APP_ID":{"source_line":7,"position":11,"bytes":False},
+                "TMPL_APP_ADDRESS":{"source_line":9,"position":15,"bytes":True}
             },
-            "label_map":{"main_l2":13,"main_l3":39},"line_map":[0,1,4,6,7,9,10,12,13,14,17,19,20,21,23,25,26,27,29,31,32,33,35,37,38,39,40,0,43,45,47,48,50,52,53,54,56,58,59,60,0,61]
-        }
+            "label_map":{"main_l2":21,"main_l3":47},"line_map":[0,1,4,6,7,9,10,12,14,16,18,20,21,22,25,27,28,29,31,33,34,35,37,39,40,41,43,45,46,47,48,0,51,53,55,56,58,60,61,62,64,66,67,68,0,69]}
 
         self.src = base64.b64decode(self.map["bytecode"])
         self.sorted = dict(
@@ -113,27 +111,27 @@ class TmplSig:
 
     def get_sig_tmpl(self):
         def sig_tmpl():
-            # We encode the app id as an 8 byte integer to ensure its a known size
-            # Otherwise the uvarint encoding may produce a different byte offset
-            # for the template variables
-            admin_app_id = Tmpl.Int("TMPL_APP_ID")
-            admin_address = Tmpl.Bytes("TMPL_APP_ADDRESS")
-        
+            admin_app_id = ScratchVar()
+            admin_address= ScratchVar()
+
             return Seq(
                 # Just putting adding this as a tmpl var to make the address unique and deterministic
                 # We don't actually care what the value is, pop it
                 Pop(Tmpl.Int("TMPL_ADDR_IDX")),
                 Pop(Tmpl.Bytes("TMPL_EMITTER_ID")),
+                admin_app_id.store(Tmpl.Int("TMPL_APP_ID")),
+                admin_address.store(Tmpl.Bytes("TMPL_APP_ADDRESS")),
+                
                 If(Txn.on_completion() == OnComplete.OptIn,
                        Assert(And(
                            Txn.type_enum() == TxnType.ApplicationCall,
-                           Txn.application_id() == admin_app_id,
+                           Txn.application_id() == admin_app_id.load(),
                            Txn.rekey_to() == Global.zero_address()
                        )),
                        Assert(And(
                            Txn.type_enum() == TxnType.Payment,
                            Txn.amount() == Int(0),
-                           Txn.rekey_to() == admin_address,
+                           Txn.rekey_to() == admin_address.load(),
                            Txn.close_remainder_to() == Global.zero_address()
                        ))
                 ),

@@ -197,14 +197,14 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                 encode_uvarint(Len(emitter), Bytes("")),
                 emitter,
 
-                # TMPL_APP_ADDRESS
+                # APP_ID
                 tmpl_sig.get_bytecode_chunk(2),
+                encode_uvarint(Global.current_application_id(), Bytes("")),
+
+                # TMPL_APP_ADDRESS
+                tmpl_sig.get_bytecode_chunk(3),
                 encode_uvarint(Len(Global.current_application_address()), Bytes("")),
                 Global.current_application_address(),
-
-                # APP_ID
-                tmpl_sig.get_bytecode_chunk(3),
-                encode_uvarint(Global.current_application_id(), Bytes("")),
 
                 tmpl_sig.get_bytecode_chunk(4),
             )
