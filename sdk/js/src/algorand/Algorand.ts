@@ -20,6 +20,7 @@ import algosdk, {
 } from "algosdk";
 import { keccak256 } from "ethers/lib/utils";
 import { WormholeWrappedInfo } from "../token_bridge";
+import { ChainId } from "../utils";
 import {
   hexStringToUint8Array,
   PopulateData,
@@ -1641,15 +1642,19 @@ export async function getOriginalAssetAlgorand(
   const assetInfo = await client.getAssetByID(assetId).do();
   console.log("assetInfo", assetInfo);
   const assetName = assetInfo.params.name;
-  retVal.assetAddress = hexStringToUint8Array(nativeStringToHexAlgo(assetName));
+  console.log("assetName", assetName);
   const lsa = assetInfo.params.creator;
   const aInfo = await client.accountInformation(lsa).do();
   console.log("aInfo", aInfo);
   console.log(aInfo["apps-local-state"]);
   const dls = await decodeLocalState(client, TOKEN_BRIDGE_ID, lsa);
   console.log(dls);
+  const cid2 = Buffer.from(dls).readInt16BE(92);
+  console.log("chainId", cid2);
+  retVal.chainId = cid2 as ChainId;
+  retVal.assetAddress = new Uint8Array(Buffer.from(dls).slice(60, 60 + 32));
 
-  // TODO:  Get origin chain id
+  console.log(retVal);
   return retVal;
 }
 
