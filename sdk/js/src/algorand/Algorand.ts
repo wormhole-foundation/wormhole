@@ -18,6 +18,7 @@ import algosdk, {
   Transaction,
   waitForConfirmation,
 } from "algosdk";
+import { BigNumber } from "ethers";
 import { keccak256 } from "ethers/lib/utils";
 import { WormholeWrappedInfo } from "../token_bridge";
 import { ChainId } from "../utils";
@@ -204,11 +205,11 @@ export function parseSeqFromTxn(txn: any): bigint {
   return sn;
 }
 
-export function parseSeqFromLog(log: Buffer[]): bigint {
+export function parseSeqFromLog(log: Buffer[]): string {
   console.log("parseSeqFromLog input:", log);
   console.log("parseSeqFromLog input:", log[0]);
   // const bufSN = Buffer.from(log[-1], "base64");
-  const sn = log[0].readBigUInt64BE();
+  const sn = BigNumber.from(log[0].slice(0, 8)).toString();
   return sn;
 }
 
@@ -226,7 +227,7 @@ export async function attestFromAlgorand(
   client: Algodv2,
   senderAcct: Signer,
   assetId: number
-): Promise<BigInt> {
+): Promise<string> {
   console.log("senderAcct:", senderAcct, "assetId:", assetId);
   const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
   const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
@@ -347,7 +348,7 @@ export async function attestFromAlgorand(
 
   const resp: Buffer[] = await simpleSignVAA(client, senderAcct, txns);
   console.log("resp:", resp);
-  let seq: bigint = BigInt(0);
+  let seq = "";
   try {
     seq = parseSeqFromLog(resp);
   } catch (pErr) {
@@ -943,8 +944,8 @@ export async function simpleSignVAA(
   console.log("simpleSignVAA");
   //    console.log(txns)
   assignGroupID(txns);
-  const signedTxnsPromises: Promise<Uint8Array>[] = [];
-  txns.forEach((txn) => {
+  const signedTxns: Uint8Array[] = [];
+  for (const txn of txns) {
     // console.log(txn);
     if (
       txn.appArgs &&
@@ -955,14 +956,12 @@ export async function simpleSignVAA(
       console.log("Signing logic sig...");
       const lsa = new LogicSigAccount(ALGO_VERIFY);
       const stxn = signLogicSigTransaction(txn, lsa);
-      signedTxnsPromises.push(Promise.resolve(stxn.blob));
+      signedTxns.push(stxn.blob);
     } else {
       console.log("Signing normal txn...");
-      signedTxnsPromises.push(sender.signTxn(txn));
+      signedTxns.push(await sender.signTxn(txn));
     }
-  });
-  const signedTxns = await Promise.all(signedTxnsPromises);
-
+  }
   console.log("sendRawTransaction", signedTxns);
   const resp = await client.sendRawTransaction(signedTxns).do();
 
@@ -1344,7 +1343,7 @@ export async function transferFromAlgorand(
   receiver: string,
   chain: number,
   fee: number
-) {
+): Promise<string> {
   const tokenAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
   const applAddr: string = appIdToAppAddr(TOKEN_BRIDGE_ID);
   console.log("Getting emitter addr for core...");
@@ -1488,7 +1487,7 @@ export async function transferFromAlgorand(
   console.log("calling simpleSignVAA...");
   const resp: Buffer[] = await simpleSignVAA(client, sender, txns);
   console.log("about to parse seq from txn...");
-  let seq: bigint = BigInt(0);
+  let seq = "";
   try {
     seq = parseSeqFromLog(resp);
   } catch (pErr) {

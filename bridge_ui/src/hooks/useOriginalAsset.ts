@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getOriginalAssetEth,
@@ -10,6 +11,7 @@ import {
   uint8ArrayToHex,
   uint8ArrayToNative,
 } from "@certusone/wormhole-sdk";
+import { getOriginalAssetAlgorand } from "@certusone/wormhole-sdk/lib/esm/algorand/Algorand";
 import {
   getOriginalAssetEth as getOriginalAssetEthNFT,
   getOriginalAssetSol as getOriginalAssetSolNFT,
@@ -26,6 +28,7 @@ import {
 } from "../contexts/EthereumProviderContext";
 import { DataWrapper } from "../store/helpers";
 import {
+  ALGORAND_HOST,
   getNFTBridgeAddressForChain,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
@@ -35,6 +38,7 @@ import {
   TERRA_HOST,
 } from "../utils/consts";
 import useIsWalletReady from "./useIsWalletReady";
+import { Algodv2 } from "algosdk";
 
 export type OriginalAssetInfo = {
   originChain: ChainId | null;
@@ -66,6 +70,16 @@ export async function getOriginalAssetToken(
     } else if (foreignChain === CHAIN_ID_TERRA) {
       const lcd = new LCDClient(TERRA_HOST);
       promise = await getOriginalAssetTerra(lcd, foreignNativeStringAddress);
+    } else if (foreignChain === CHAIN_ID_ALGORAND) {
+      const algodClient = new Algodv2(
+        ALGORAND_HOST.algodToken,
+        ALGORAND_HOST.algodServer,
+        ALGORAND_HOST.algodPort
+      );
+      promise = await getOriginalAssetAlgorand(
+        algodClient,
+        parseInt(foreignNativeStringAddress)
+      );
     }
   } catch (e) {
     promise = Promise.reject("Invalid foreign arguments.");
