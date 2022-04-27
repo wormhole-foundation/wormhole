@@ -270,7 +270,7 @@ describe("Integration Tests", () => {
           console.log("Testing attestFromAlgorand...");
           const b = await getBalances(client, wallet.addr);
           console.log("balances", b);
-          const sn: BigInt = await attestFromAlgorand(
+          const sn = await attestFromAlgorand(
             client,
             AccountToSigner(wallet),
             AlgoIndex
@@ -313,13 +313,13 @@ describe("Integration Tests", () => {
             ", tbAddr",
             tbAddr,
             ", sn:",
-            sn.toString()
+            sn
           );
           const { vaaBytes } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
             tbAddr,
-            sn.toString(),
+            sn,
             { transport: NodeHttpTransport() }
           );
           const pvaa = parseVAA(vaaBytes);
@@ -416,7 +416,7 @@ describe("Integration Tests", () => {
           const AmountToTransfer: number = 12300;
           const Fee: number = 0;
           console.log("Calling transferFromAlgorand...");
-          const txSid: bigint = await transferFromAlgorand(
+          const txSid = await transferFromAlgorand(
             client,
             AccountToSigner(wallet),
             AlgoIndex,
@@ -430,7 +430,7 @@ describe("Integration Tests", () => {
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
             tbAddr,
-            txSid.toString(),
+            txSid,
             { transport: NodeHttpTransport() }
           );
           console.log("About to redeemOnEth...");
@@ -599,7 +599,7 @@ describe("Integration Tests", () => {
           const assetIndex: number = await createAsset(wallet);
           console.log("Newly created asset index =", assetIndex);
           console.log("Testing attestFromAlgorand...");
-          const attestSn: BigInt = await attestFromAlgorand(
+          const attestSn = await attestFromAlgorand(
             client,
             AccountToSigner(wallet),
             assetIndex
@@ -646,13 +646,13 @@ describe("Integration Tests", () => {
             ", aa",
             aa,
             ", attestSn:",
-            attestSn.toString()
+            attestSn
           );
           const { vaaBytes } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
             aa,
-            attestSn.toString(),
+            attestSn,
             { transport: NodeHttpTransport() }
           );
           console.log("Parsed VAA:", parseVAA(vaaBytes));
@@ -756,7 +756,7 @@ describe("Integration Tests", () => {
           const AmountToTransfer: number = 12300;
           const Fee: number = 0;
           console.log("Calling transferFromAlgorand...");
-          const txSid: bigint = await transferFromAlgorand(
+          const txSid = await transferFromAlgorand(
             client,
             AccountToSigner(wallet),
             assetIndex,
@@ -770,7 +770,7 @@ describe("Integration Tests", () => {
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
             aa,
-            txSid.toString(),
+            txSid,
             { transport: NodeHttpTransport() }
           );
           console.log("About to redeemOnEth...");
@@ -1103,7 +1103,7 @@ describe("Integration Tests", () => {
           }
           const Fee: number = 0;
           console.log("Calling transferFromAlgorand...");
-          const txSid: bigint = await transferFromAlgorand(
+          const txSid = await transferFromAlgorand(
             client,
             AccountToSigner(algoWallet),
             assetIdCreated,
@@ -1117,7 +1117,7 @@ describe("Integration Tests", () => {
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
             aa,
-            txSid.toString(),
+            txSid,
             { transport: NodeHttpTransport() }
           );
           console.log("vaa", uint8ArrayToHexString(signedVaa.vaaBytes, false));

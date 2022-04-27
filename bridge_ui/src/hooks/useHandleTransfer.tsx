@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
@@ -51,6 +52,8 @@ import {
   setTransferTx,
 } from "../store/transferSlice";
 import {
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getBridgeAddressForChain,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
@@ -63,6 +66,78 @@ import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { postWithFees, waitForTerraExecution } from "../utils/terra";
 import useTransferTargetAddressHex from "./useTransferTargetAddress";
+import algosdk from "algosdk";
+import MyAlgoConnect from "@randlabs/myalgo-connect";
+import {
+  appIdToAppAddr,
+  transferFromAlgorand,
+} from "@certusone/wormhole-sdk/lib/esm/algorand/Algorand";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
+
+async function algo(
+  dispatch: any,
+  enqueueSnackbar: any,
+  senderAddr: string,
+  tokenAddress: string,
+  decimals: number,
+  amount: string,
+  recipientChain: ChainId,
+  recipientAddress: Uint8Array,
+  chainId: ChainId,
+  relayerFee?: string
+) {
+  dispatch(setIsSending(true));
+  try {
+    const baseAmountParsed = parseUnits(amount, decimals);
+    const feeParsed = parseUnits(relayerFee || "0", decimals);
+    const transferAmountParsed = baseAmountParsed.add(feeParsed);
+    const algodClient = new algosdk.Algodv2(
+      ALGORAND_HOST.algodToken,
+      ALGORAND_HOST.algodServer,
+      ALGORAND_HOST.algodPort
+    );
+    const myAlgoConnect = new MyAlgoConnect();
+    const sequence = await transferFromAlgorand(
+      algodClient,
+      {
+        addr: senderAddr,
+        signTxn: async (txn) =>
+          (
+            await myAlgoConnect.signTransaction(txn.toByte())
+          ).blob,
+      },
+      parseInt(tokenAddress),
+      transferAmountParsed.toNumber(), // change this in the SDK
+      uint8ArrayToHex(recipientAddress),
+      recipientChain,
+      feeParsed.toNumber() // change this in the SDK
+    );
+    // TODO: fill these out correctly
+    dispatch(setTransferTx({ id: "1", block: 1 }));
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
+    const emitterAddress = appIdToAppAddr(ALGORAND_TOKEN_BRIDGE_ID);
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
+    const { vaaBytes } = await getSignedVAAWithRetry(
+      chainId,
+      emitterAddress,
+      sequence
+    );
+    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
+  } catch (e) {
+    console.error(e);
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    dispatch(setIsSending(false));
+  }
+}
 
 async function evm(
   dispatch: any,
@@ -313,6 +388,7 @@ export function useHandleTransfer() {
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
+  const { accounts: algoAccounts } = useAlgorandContext();
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
   const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
@@ -391,6 +467,25 @@ export function useHandleTransfer() {
         terraFeeDenom,
         relayerFee
       );
+    } else if (
+      sourceChain === CHAIN_ID_ALGORAND &&
+      algoAccounts[0] &&
+      !!sourceAsset &&
+      decimals !== undefined &&
+      !!targetAddress
+    ) {
+      algo(
+        dispatch,
+        enqueueSnackbar,
+        algoAccounts[0].address,
+        sourceAsset,
+        decimals,
+        amount,
+        targetChain,
+        targetAddress,
+        sourceChain,
+        relayerFee
+      );
     } else {
     }
   }, [
@@ -412,6 +507,7 @@ export function useHandleTransfer() {
     originChain,
     isNative,
     terraFeeDenom,
+    algoAccounts,
   ]);
   return useMemo(
     () => ({
