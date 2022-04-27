@@ -113,6 +113,11 @@ class TmplSig:
         def sig_tmpl():
             admin_app_id = ScratchVar()
             admin_address= ScratchVar()
+            optinIdx = ScratchVar()
+            rekeyIdx = ScratchVar()
+            optin = Gtxn[optinIdx.load()]
+            rekey = Gtxn[rekeyIdx.load()]
+
 
             return Seq(
                 # Just putting adding this as a tmpl var to make the address unique and deterministic
@@ -123,18 +128,25 @@ class TmplSig:
                 admin_address.store(Tmpl.Bytes("TMPL_APP_ADDRESS")),
                 
                 If(Txn.on_completion() == OnComplete.OptIn,
-                       Assert(And(
-                           Txn.type_enum() == TxnType.ApplicationCall,
-                           Txn.application_id() == admin_app_id.load(),
-                           Txn.rekey_to() == Global.zero_address()
-                       )),
-                       Assert(And(
-                           Txn.type_enum() == TxnType.Payment,
-                           Txn.amount() == Int(0),
-                           Txn.rekey_to() == admin_address.load(),
-                           Txn.close_remainder_to() == Global.zero_address()
-                       ))
-                ),
+                   Seq([
+                       optinIdx.store(Txn.group_index()),
+                       rekeyIdx.store(Txn.group_index() + Int(1)),
+                   ]),
+                   Seq([
+                       optinIdx.store(Txn.group_index() - Int(1)),
+                       rekeyIdx.store(Txn.group_index()),
+                   ])),
+
+                Assert(optin.type_enum() == TxnType.ApplicationCall),
+                Assert(optin.on_completion() == OnComplete.OptIn),
+                Assert(optin.application_id() == admin_app_id.load()),
+                Assert(optin.rekey_to() == Global.zero_address()),
+                
+                Assert(rekey.type_enum() == TxnType.Payment),
+                Assert(rekey.amount() == Int(0)),
+                Assert(rekey.rekey_to() == admin_address.load()),
+                Assert(rekey.close_remainder_to() == Global.zero_address()),
+
                 Approve()
             )
         
