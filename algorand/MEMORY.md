@@ -377,7 +377,7 @@ def get_sig_address(acct_seq_start: Expr, emitter: Expr):
         )
     )
 ```
-[/algorand/portal/core.py#L78-L105](https://github.com/certusone/wormhole/blob/90f6187fbf9b1293ae445242c153ac07ee4d17c8/algorand/portal_core.py#L78-L105)
+[/algorand/portal/core.py#L78-L105](https://github.com/certusone/wormhole/blob/90f6187fbf9b1293ae445242c153ac07ee4d17c8/algorand/wormhole_core.py#L78-L105)
 
 It writes the string “Program” first. That’s because program addresses are derived by hashing the string “Program” appended to the program’s bytecode. The `get_sig_address` function generates exactly this hash. Notice that the arguments it takes are both of type `Expr`. That’s again because `get_sig_address` is a python program that operates on TEAL expressions to construct a TEAL expression. The bytecode chunks are constructed at compile time, but the concatenation happens at runtime (since the template variables are TEAL expressions, whose values are only available at runtime). This works similarly to the off-chain typescript code.
 

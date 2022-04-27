@@ -3,8 +3,8 @@ FROM docker.io/python:3.10
 
 # Support additional root CAs
 COPY README.md cert.pem* /certs/
-# Fedora
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/pki/tls/certs/ca-bundle.crt; fi
+# Debian
+RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 
 RUN python3 -m pip install virtualenv
 

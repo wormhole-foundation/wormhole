@@ -94,21 +94,23 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # ADDR_IDX aka sequence start
                 tmpl_sig.get_bytecode_chunk(0),
                 encode_uvarint(acct_seq_start, Bytes("")),
+
                 # EMMITTER_ID
                 tmpl_sig.get_bytecode_chunk(1),
                 encode_uvarint(Len(emitter), Bytes("")),
                 emitter,
-                # SEED_AMT
-                tmpl_sig.get_bytecode_chunk(2),
-                encode_uvarint(Int(seed_amt), Bytes("")),
+
                 # APP_ID
-                tmpl_sig.get_bytecode_chunk(3),
+                tmpl_sig.get_bytecode_chunk(2),
                 encode_uvarint(Global.current_application_id(), Bytes("")),
+
                 # TMPL_APP_ADDRESS
-                tmpl_sig.get_bytecode_chunk(4),
+                tmpl_sig.get_bytecode_chunk(3),
                 encode_uvarint(Len(Global.current_application_address()), Bytes("")),
                 Global.current_application_address(),
-                tmpl_sig.get_bytecode_chunk(5),
+
+
+                tmpl_sig.get_bytecode_chunk(4),
                 )
             )
     
@@ -398,10 +400,18 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # Point it at the start of the signatures in the VAA
                 off.store(Int(6)),
 
-                For(
-                        i.store(Int(0)),
-                        i.load() <= Txn.group_index(),
-                        i.store(i.load() + Int(1))).Do(Seq([
+                MagicAssert(Txn.group_index() > Int(0)),
+                i.store(Txn.group_index() - Int(1)),
+                a.store(Gtxn[i.load()].application_args[0]),
+
+                While (And(i.load() > Int(0), Or(a.load() == Bytes("verifySigs"), a.load() == Bytes("nop")))).Do(Seq([
+                        i.store(i.load() - Int(1)),
+                        a.store(Gtxn[i.load()].application_args[0])
+                ])),
+
+                If(And(a.load() != Bytes("verifySigs"), a.load() != Bytes("nop")), i.store(i.load() + Int(1))),
+
+                While(i.load() <= Txn.group_index()).Do(Seq([
                             MagicAssert(And(
                                 Gtxn[i.load()].type_enum() == TxnType.ApplicationCall,
                                 Gtxn[i.load()].rekey_to() == Global.zero_address(),
@@ -449,7 +459,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                 [a.load() == Bytes("nop"), Seq([])],       # if there is a function call not listed here, it will throw an error
                                 [a.load() == Bytes("verifyVAA"), Seq([])],
                                 [Int(1) == Int(1), Seq([Reject()])]   # Nothing should get snuck in between...
-                            )
+                            ),
+                            i.store(i.load() + Int(1))
                         ])
                 ),
 
