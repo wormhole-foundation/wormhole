@@ -1316,8 +1316,7 @@ class PortalCore:
                 self.tsig.get_bytecode_raw(1).hex(),
                 self.tsig.get_bytecode_raw(2).hex(),
                 self.tsig.get_bytecode_raw(3).hex(),
-                self.tsig.get_bytecode_raw(4).hex(),
-                self.tsig.get_bytecode_raw(5).hex()
+                self.tsig.get_bytecode_raw(4).hex()
             ]
 
             pprint.pprint(parts)
