@@ -8,6 +8,17 @@ target
 /mutagen.sh
 venv
 .env
+.env.hex
+.env.0x
 bigtable-admin.json
 bigtable-writer.json
 **/cert.pem
+**/payer-mainnet.json
+**/payer-testnet.json
+**/payer-devnet.json
+/solana/artifacts/
+/terra/artifacts/
+!/terra/artifacts/cw20_base.wasm
+/solana/artifacts-testnet/
+/solana/artifacts-devnet/
+/solana/artifacts-mainnet/

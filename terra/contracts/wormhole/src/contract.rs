@@ -1,5 +1,4 @@
 use cosmwasm_std::{
-    entry_point,
     has_coins,
     to_binary,
     BankMsg,
@@ -16,6 +15,9 @@ use cosmwasm_std::{
     Storage,
     WasmMsg,
 };
+
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
 
 use crate::{
     byte_utils::{
@@ -117,7 +119,7 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::PostMessage { message, nonce } => {
-            handle_post_message(deps, env, info, &message.as_slice(), nonce)
+            handle_post_message(deps, env, info, message.as_slice(), nonce)
         }
         ExecuteMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, info, vaa.as_slice()),
     }
@@ -147,8 +149,8 @@ fn handle_submit_vaa(
     ContractError::InvalidVAAAction.std_err()
 }
 
-fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
-    let gov_packet = GovernancePacket::deserialize(&data)?;
+fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Response> {
+    let gov_packet = GovernancePacket::deserialize(data)?;
 
     let module = String::from_utf8(gov_packet.module).unwrap();
     let module: String = module.chars().filter(|c| c != &'\0').collect();
@@ -243,7 +245,7 @@ fn parse_and_verify_vaa(
     Ok(vaa)
 }
 
-fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
+fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Response> {
     /* Payload format
     0   uint32 new_index
     4   uint8 len(keys)
@@ -255,7 +257,7 @@ fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult
     let GuardianSetUpgrade {
         new_guardian_set_index,
         new_guardian_set,
-    } = GuardianSetUpgrade::deserialize(&data)?;
+    } = GuardianSetUpgrade::deserialize(data)?;
 
     if new_guardian_set_index != state.guardian_set_index + 1 {
         return ContractError::GuardianSetIndexIncreaseError.std_err();
@@ -279,12 +281,12 @@ fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult
         .add_attribute("new", state.guardian_set_index.to_string()))
 }
 
-fn vaa_update_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
+fn vaa_update_contract(_deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Response> {
     /* Payload format
     0   [][32]uint8 new_contract
     */
 
-    let ContractUpgrade { new_contract } = ContractUpgrade::deserialize(&data)?;
+    let ContractUpgrade { new_contract } = ContractUpgrade::deserialize(data)?;
 
     Ok(Response::new()
         .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
@@ -295,8 +297,8 @@ fn vaa_update_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Re
         .add_attribute("action", "contract_upgrade"))
 }
 
-pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<Response> {
-    let set_fee_msg = SetFee::deserialize(&data)?;
+pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
+    let set_fee_msg = SetFee::deserialize(data)?;
 
     // Save new fees
     let mut state = config_read(deps.storage).load()?;
@@ -305,12 +307,12 @@ pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<Res
 
     Ok(Response::new()
         .add_attribute("action", "fee_change")
-        .add_attribute("new_fee.amount", state.fee.amount.to_string())
-        .add_attribute("new_fee.denom", state.fee.denom.to_string()))
+        .add_attribute("new_fee.amount", state.fee.amount)
+        .add_attribute("new_fee.denom", state.fee.denom))
 }
 
-pub fn handle_transfer_fee(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<Response> {
-    let transfer_msg = TransferFee::deserialize(&data)?;
+pub fn handle_transfer_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
+    let transfer_msg = TransferFee::deserialize(data)?;
 
     Ok(Response::new().add_message(CosmosMsg::Bank(BankMsg::Send {
         to_address: deps.api.addr_humanize(&transfer_msg.recipient)?.to_string(),
@@ -333,7 +335,7 @@ fn handle_post_message(
         return ContractError::FeeTooLow.std_err();
     }
 
-    let emitter = extend_address_to_32(&deps.api.addr_canonicalize(&info.sender.as_str())?);
+    let emitter = extend_address_to_32(&deps.api.addr_canonicalize(info.sender.as_str())?);
     let sequence = sequence_read(deps.storage, emitter.as_slice());
     sequence_set(deps.storage, emitter.as_slice(), sequence + 1)?;
 
@@ -352,7 +354,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GuardianSetInfo {} => to_binary(&query_guardian_set_info(deps)?),
         QueryMsg::VerifyVAA { vaa, block_time } => to_binary(&query_parse_and_verify_vaa(
             deps,
-            &vaa.as_slice(),
+            vaa.as_slice(),
             block_time,
         )?),
         QueryMsg::GetState {} => to_binary(&query_state(deps)?),
@@ -381,7 +383,7 @@ pub fn query_parse_and_verify_vaa(
 // returns the hex of the 32 byte address we use for some address on this chain
 pub fn query_address_hex(deps: Deps, address: &HumanAddr) -> StdResult<GetAddressHexResponse> {
     Ok(GetAddressHexResponse {
-        hex: hex::encode(extend_address_to_32(&deps.api.addr_canonicalize(&address)?)),
+        hex: hex::encode(extend_address_to_32(&deps.api.addr_canonicalize(address)?)),
     })
 }
 
@@ -394,12 +396,11 @@ pub fn query_state(deps: Deps) -> StdResult<GetStateResponse> {
 fn keys_equal(a: &VerifyingKey, b: &GuardianAddress) -> bool {
     let mut hasher = Keccak256::new();
 
-    let point: EncodedPoint = EncodedPoint::from(a);
-    let point = point.decompress();
-    if bool::from(point.is_none()) {
+    let point = if let Some(p) = EncodedPoint::from(a).decompress() {
+        p
+    } else {
         return false;
-    }
-    let point = point.unwrap();
+    };
 
     hasher.update(&point.as_bytes()[1..]);
     let a = &hasher.finalize()[12..];

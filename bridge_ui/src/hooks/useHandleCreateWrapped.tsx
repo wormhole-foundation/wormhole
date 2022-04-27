@@ -8,7 +8,6 @@ import {
   createWrappedOnSolana,
   createWrappedOnTerra,
   isEVMChain,
-  postVaaSolanaWithRetry,
   updateWrappedOnEth,
   updateWrappedOnSolana,
   updateWrappedOnTerra,
@@ -44,6 +43,7 @@ import {
 } from "../utils/consts";
 import { getKaruraGasParams } from "../utils/karura";
 import parseError from "../utils/parseError";
+import { postVaaWithRetry } from "../utils/postVaa";
 import { signSendAndConfirm } from "../utils/solana";
 import { postWithFees } from "../utils/terra";
 import useAttestSignedVAA from "./useAttestSignedVAA";
@@ -106,7 +106,7 @@ async function solana(
       throw new Error("wallet.signTransaction is undefined");
     }
     const connection = new Connection(SOLANA_HOST, "confirmed");
-    await postVaaSolanaWithRetry(
+    await postVaaWithRetry(
       connection,
       wallet.signTransaction,
       SOL_BRIDGE_ADDRESS,

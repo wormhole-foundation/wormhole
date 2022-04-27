@@ -28,7 +28,7 @@ jobs:
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
 
-      - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=1
+      - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=2
         timeout-minutes: 60
 
       # Clean up k8s resources
@@ -45,6 +45,24 @@ jobs:
           go-version: '1.17.5'
       - run: make node
 
+  ethereum:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - run: cd ethereum && make test
+
+  terra:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - run: cd terra && make test
+
   # Run linters, Go tests and other outside-of-Tilt things.
   lint-and-tests:
     # The linter is slow enough that we want to run it on the self-hosted runner
@@ -59,3 +77,34 @@ jobs:
           go-version: '1.17.5'
       - run: make generate && ./lint.sh
       - run: cd node && go test -v ./...
+
+  # Run rust lints and tests
+  rust-lint-and-tests:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        manifest:
+          - terra/Cargo.toml
+          - sdk/rust/Cargo.toml
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v2
+
+      - name: Install stable rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          default: true
+
+      - name: Run `cargo check`
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --manifest-path ${{ matrix.manifest }}
+
+      - name: Run `cargo test`
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --manifest-path ${{ matrix.manifest }}

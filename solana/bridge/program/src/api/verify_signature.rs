@@ -9,6 +9,7 @@ use crate::{
     },
     GuardianSet,
     GuardianSetDerivationData,
+    IsSigned::*,
     SignatureSet,
     MAX_LEN_GUARDIAN_KEYS,
 };
@@ -89,9 +90,8 @@ pub fn verify_signatures(
         })
         .collect();
 
-    let current_instruction = solana_program::sysvar::instructions::load_current_index_checked(
-        &accs.instruction_acc,
-    )?;
+    let current_instruction =
+        solana_program::sysvar::instructions::load_current_index_checked(&accs.instruction_acc)?;
     if current_instruction == 0 {
         return Err(InstructionAtWrongIndex.into());
     }
@@ -176,14 +176,15 @@ pub fn verify_signatures(
         accs.signature_set.hash = msg_hash;
 
         let size = accs.signature_set.size();
-        let ix = solana_program::system_instruction::create_account(
+        create_account(
+            ctx,
+            accs.signature_set.info(),
             accs.payer.key,
-            accs.signature_set.info().key,
-            Exempt.amount(size),
-            size as u64,
+            Exempt,
+            size,
             ctx.program_id,
-        );
-        solana_program::program::invoke(&ix, ctx.accounts)?;
+            NotSigned,
+        )?;
     } else {
         // If the account already existed, check that the parameters match
         if accs.signature_set.guardian_set_index != accs.guardian_set.index {

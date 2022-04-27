@@ -18,6 +18,7 @@ const BridgeImplementationFullABI = jsonfile.readFileSync("build/contracts/Bridg
 // needs to run on a mainnet fork
 
 contract("Update Bridge", function (accounts) {
+    if (config.network === "test") return;
     const testChainId = "2";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";

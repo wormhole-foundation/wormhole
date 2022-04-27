@@ -1,5 +1,4 @@
 use cosmwasm_std::{
-    entry_point,
     to_binary,
     Binary,
     CosmosMsg,
@@ -13,6 +12,9 @@ use cosmwasm_std::{
     Uint128,
     WasmMsg,
 };
+
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
 
 use cw2::set_contract_version;
 use cw20_legacy::{
@@ -78,7 +80,7 @@ pub fn instantiate(
         total_supply: Uint128::new(0),
         // set creator as minter
         mint: Some(MinterData {
-            minter: deps.api.addr_canonicalize(&info.sender.as_str())?,
+            minter: deps.api.addr_canonicalize(info.sender.as_str())?,
             cap: None,
         }),
     };
@@ -88,7 +90,7 @@ pub fn instantiate(
     let data = WrappedAssetInfo {
         asset_chain: msg.asset_chain,
         asset_address: msg.asset_address,
-        bridge: deps.api.addr_canonicalize(&info.sender.as_str())?,
+        bridge: deps.api.addr_canonicalize(info.sender.as_str())?,
     };
     wrapped_asset_info(deps.storage).save(&data)?;
 
@@ -120,16 +122,14 @@ pub fn execute(
     match msg {
         // these all come from cw20-base to implement the cw20 standard
         ExecuteMsg::Transfer { recipient, amount } => {
-            Ok(execute_transfer(deps, env, info, recipient, amount)?)
+            execute_transfer(deps, env, info, recipient, amount)
         }
-        ExecuteMsg::Burn { account, amount } => {
-            Ok(execute_burn_from(deps, env, info, account, amount)?)
-        }
+        ExecuteMsg::Burn { account, amount } => execute_burn_from(deps, env, info, account, amount),
         ExecuteMsg::Send {
             contract,
             amount,
             msg,
-        } => Ok(execute_send(deps, env, info, contract, amount, msg)?),
+        } => execute_send(deps, env, info, contract, amount, msg),
         ExecuteMsg::Mint { recipient, amount } => {
             execute_mint_wrapped(deps, env, info, recipient, amount)
         }
@@ -137,36 +137,26 @@ pub fn execute(
             spender,
             amount,
             expires,
-        } => Ok(execute_increase_allowance(
-            deps, env, info, spender, amount, expires,
-        )?),
+        } => execute_increase_allowance(deps, env, info, spender, amount, expires),
         ExecuteMsg::DecreaseAllowance {
             spender,
             amount,
             expires,
-        } => Ok(execute_decrease_allowance(
-            deps, env, info, spender, amount, expires,
-        )?),
+        } => execute_decrease_allowance(deps, env, info, spender, amount, expires),
         ExecuteMsg::TransferFrom {
             owner,
             recipient,
             amount,
-        } => Ok(execute_transfer_from(
-            deps, env, info, owner, recipient, amount,
-        )?),
-        ExecuteMsg::BurnFrom { owner, amount } => {
-            Ok(execute_burn_from(deps, env, info, owner, amount)?)
-        }
+        } => execute_transfer_from(deps, env, info, owner, recipient, amount),
+        ExecuteMsg::BurnFrom { owner, amount } => execute_burn_from(deps, env, info, owner, amount),
         ExecuteMsg::SendFrom {
             owner,
             contract,
             amount,
             msg,
-        } => Ok(execute_send_from(
-            deps, env, info, owner, contract, amount, msg,
-        )?),
+        } => execute_send_from(deps, env, info, owner, contract, amount, msg),
         ExecuteMsg::UpdateMetadata { name, symbol } => {
-            Ok(execute_update_metadata(deps, env, info, name, symbol)?)
+            execute_update_metadata(deps, env, info, name, symbol)
         }
     }
 }
@@ -180,11 +170,11 @@ fn execute_mint_wrapped(
 ) -> Result<Response, ContractError> {
     // Only bridge can mint
     let wrapped_info = wrapped_asset_info_read(deps.storage).load()?;
-    if wrapped_info.bridge != deps.api.addr_canonicalize(&info.sender.as_str())? {
+    if wrapped_info.bridge != deps.api.addr_canonicalize(info.sender.as_str())? {
         return Err(ContractError::Unauthorized {});
     }
 
-    Ok(execute_mint(deps, env, info, recipient, amount)?)
+    execute_mint(deps, env, info, recipient, amount)
 }
 
 fn execute_update_metadata(
@@ -196,7 +186,7 @@ fn execute_update_metadata(
 ) -> Result<Response, ContractError> {
     // Only bridge can update.
     let wrapped_info = wrapped_asset_info_read(deps.storage).load()?;
-    if wrapped_info.bridge != deps.api.addr_canonicalize(&info.sender.as_str())? {
+    if wrapped_info.bridge != deps.api.addr_canonicalize(info.sender.as_str())? {
         return Err(ContractError::Unauthorized {});
     }
 
@@ -221,7 +211,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::new())
 }
 
@@ -254,8 +244,6 @@ mod tests {
     };
     use cw20::TokenInfoResponse;
 
-    const CANONICAL_LENGTH: usize = 20;
-
     fn get_balance(deps: Deps, address: HumanAddr) -> Uint128 {
         query_balance(deps, address.into()).unwrap().balance
     }
@@ -272,14 +260,14 @@ mod tests {
         };
         let env = mock_env();
         let info = mock_info(creator, &[]);
-        let res = instantiate(deps, env, info, init_msg).unwrap();
+        let res = instantiate(deps.branch(), env, info, init_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         assert_eq!(
             query_token_info(deps.as_ref()).unwrap(),
             TokenInfoResponse {
-                name: "Wormhole Wrapped".to_string(),
-                symbol: "WWT".to_string(),
+                name: "Integers (Wormhole)".to_string(),
+                symbol: "INT".to_string(),
                 decimals: 10,
                 total_supply: Uint128::from(0u128),
             }
@@ -301,7 +289,7 @@ mod tests {
         mint_to: &HumanAddr,
         amount: Uint128,
     ) {
-        do_init(deps, creator);
+        do_init(deps.branch(), creator);
 
         let msg = ExecuteMsg::Mint {
             recipient: mint_to.clone(),
@@ -310,15 +298,15 @@ mod tests {
 
         let env = mock_env();
         let info = mock_info(creator, &[]);
-        let res = execute(deps.as_mut(), env, info, msg.clone()).unwrap();
+        let res = execute(deps.branch(), env, info, msg.clone()).unwrap();
         assert_eq!(0, res.messages.len());
         assert_eq!(get_balance(deps.as_ref(), mint_to.clone(),), amount);
 
         assert_eq!(
             query_token_info(deps.as_ref()).unwrap(),
             TokenInfoResponse {
-                name: "Wormhole Wrapped".to_string(),
-                symbol: "WWT".to_string(),
+                name: "Integers (Wormhole)".to_string(),
+                symbol: "INT".to_string(),
                 decimals: 10,
                 total_supply: amount,
             }

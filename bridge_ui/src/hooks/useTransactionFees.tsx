@@ -20,6 +20,8 @@ import { getMultipleAccountsRPC } from "../utils/solana";
 import { NATIVE_TERRA_DECIMALS } from "../utils/terra";
 import useIsWalletReady from "./useIsWalletReady";
 import { LCDClient } from "@terra-money/terra.js";
+import { setGasPrice } from "../store/transferSlice";
+import { useDispatch } from "react-redux";
 
 export type GasEstimate = {
   currentGasPrice: string;
@@ -232,19 +234,27 @@ export function useEthereumGasPrice(contract: MethodType, chainId: ChainId) {
   const [estimateResults, setEstimateResults] = useState<GasEstimate | null>(
     null
   );
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (provider && isReady && !estimateResults) {
       getGasEstimates(provider, contract).then(
         (results) => {
           setEstimateResults(results);
+          if (results?.currentGasPrice) {
+            const gasPrice =
+              (results?.currentGasPrice &&
+                parseFloat(results.currentGasPrice)) ||
+              undefined;
+            dispatch(setGasPrice(gasPrice)); //This is so the relayer hook can pull this from the state rather than remount this hook.
+          }
         },
         (error) => {
           console.log(error);
         }
       );
     }
-  }, [provider, isReady, estimateResults, contract]);
+  }, [provider, isReady, estimateResults, contract, dispatch]);
 
   const results = useMemo(() => estimateResults, [estimateResults]);
   return results;
@@ -253,14 +263,22 @@ export function useEthereumGasPrice(contract: MethodType, chainId: ChainId) {
 function EthGasEstimateSummary({
   methodType,
   chainId,
+  priceQuote,
 }: {
   methodType: MethodType;
   chainId: ChainId;
+  priceQuote?: number;
 }) {
   const estimate = useEthereumGasPrice(methodType, chainId);
   if (!estimate) {
     return null;
   }
+  const lowUsd = priceQuote
+    ? (priceQuote * parseFloat(estimate.lowEstimate)).toFixed(2)
+    : null;
+  const highUsd = priceQuote
+    ? (priceQuote * parseFloat(estimate.highEstimate)).toFixed(2)
+    : null;
 
   return (
     <Typography
@@ -272,14 +290,14 @@ function EthGasEstimateSummary({
         flexWrap: "wrap",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", marginRight: 32 }}>
         <LocalGasStation fontSize="inherit" />
         &nbsp;{estimate.currentGasPrice}
       </div>
-      <div>&nbsp;&nbsp;&nbsp;</div>
       <div>
         Est. Fees: {estimate.lowEstimate} - {estimate.highEstimate}{" "}
         {getDefaultNativeCurrencySymbol(chainId)}
+        {priceQuote ? <div>{`($${lowUsd} - $${highUsd})`}</div> : null}
       </div>
     </Typography>
   );
@@ -292,10 +310,10 @@ const terraEstimatesByContract = {
   },
 };
 
-const evmEstimatesByContract = {
+export const evmEstimatesByContract = {
   transfer: {
-    lowGasEstimate: BigInt(80000),
-    highGasEstimate: BigInt(130000),
+    lowGasEstimate: BigInt(250000),
+    highGasEstimate: BigInt(280000),
   },
   nft: {
     lowGasEstimate: BigInt(350000),
@@ -327,7 +345,8 @@ export async function getGasEstimates(
       highEstimate = parseFloat(
         formatUnits(highEstimateGasAmount * priceInWei.toBigInt(), "ether")
       ).toFixed(4);
-      currentGasPrice = parseFloat(formatUnits(priceInWei, "gwei")).toFixed(0);
+      const gasPriceNum = parseFloat(formatUnits(priceInWei, "gwei"));
+      currentGasPrice = gasPriceNum.toFixed(0);
     }
   }
 
@@ -377,12 +396,20 @@ function TerraGasEstimateSummary({ methodType }: { methodType: MethodType }) {
 export function GasEstimateSummary({
   methodType,
   chainId,
+  priceQuote, //this is a hack, should refactor to unify the fee selector and this file
 }: {
   methodType: MethodType;
   chainId: ChainId;
+  priceQuote?: number;
 }) {
   if (isEVMChain(chainId)) {
-    return <EthGasEstimateSummary chainId={chainId} methodType={methodType} />;
+    return (
+      <EthGasEstimateSummary
+        chainId={chainId}
+        methodType={methodType}
+        priceQuote={priceQuote}
+      />
+    );
   } else if (chainId === CHAIN_ID_TERRA) {
     return <TerraGasEstimateSummary methodType={methodType} />;
   } else {

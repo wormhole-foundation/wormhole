@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "main.ts generate-register-chain-vaa",
+            "type": "node",
+            "request": "launch",
+            "args": [
+                "${workspaceFolder}/main.ts",
+                "generate_register_chain_vaa",
+                "1",
+                "0x0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
+                "--guardian_secret",
+                "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0,c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e,9f790d3f08bc4b5cd910d4278f3deb406e57bb5e924906ccd52052bb078ccd47,b20cc49d6f2c82a5e6519015fc18aa3e562867f85f872c58f1277cfbd2a0c8e4",
+            ],
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "${workspaceRoot}/node_modules/ts-node/register"
+            ],
+            "sourceMaps": true,
+            "cwd": "${workspaceRoot}",
+            "protocol": "inspector",
+        },
+
+    ]
+}

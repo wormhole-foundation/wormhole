@@ -21,7 +21,7 @@ import blob from "../images/index/blob.svg";
 import cross from "../images/index/cross.svg";
 import cube from "../images/index/cube.svg";
 import portal from "../images/index/portal.png";
-import protocols from "../images/index/protocol_new.png";
+import protocols from "../images/index/protocol2.png";
 import shape1 from "../images/index/shape1.svg";
 import shape from "../images/shape.png";
 import shape2 from "../images/shape2.png";

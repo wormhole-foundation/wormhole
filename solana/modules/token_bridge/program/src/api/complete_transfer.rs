@@ -15,6 +15,7 @@ use crate::{
     messages::PayloadTransfer,
     types::*,
     TokenBridgeError::*,
+    INVALID_VAAS,
 };
 use bridge::{
     vaa::ClaimableVAA,
@@ -123,6 +124,9 @@ pub fn complete_native(
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {
         return Err(InvalidRecipient.into());
+    }
+    if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
+        return Err(InvalidVAA.into());
     }
 
     // Prevent vaa double signing
@@ -242,6 +246,9 @@ pub fn complete_wrapped(
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {
         return Err(InvalidRecipient.into());
+    }
+    if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
+        return Err(InvalidVAA.into());
     }
 
     accs.vaa.verify(ctx.program_id)?;

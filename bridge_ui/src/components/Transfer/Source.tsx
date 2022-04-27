@@ -30,6 +30,7 @@ import {
 import {
   BSC_MIGRATION_ASSET_MAP,
   CHAINS,
+  CLUSTER,
   ETH_MIGRATION_ASSET_MAP,
   getIsTransferDisabled,
   MIGRATION_ASSET_MAP,
@@ -222,7 +223,9 @@ function Source() {
       ) : (
         <>
           <LowBalanceWarning chainId={sourceChain} />
-          {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+          {sourceChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+            <SolanaTPSWarning />
+          )}
           <SourceAssetWarning
             sourceChain={sourceChain}
             sourceAsset={parsedTokenAccount?.mintKey}

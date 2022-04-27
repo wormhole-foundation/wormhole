@@ -17,11 +17,11 @@ use solana_program::{
 use std::marker::PhantomData;
 
 use crate::{
-    trace,
     processors::seeded::{
         AccountOwner,
         Owned,
     },
+    trace,
     types::*,
     AccountState::MaybeInitialized,
     Context,
@@ -45,26 +45,32 @@ pub trait Peel<'a, 'b: 'a, 'c> {
 /// Peel a nullable value (0-account means None)
 impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Option<T> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-	// Check for 0-account
-	if ctx.info().key == &Pubkey::new_from_array([0u8; 32]) {
-	    trace!(&format!("Peeled {} is None, returning", std::any::type_name::<Option<T>>()));
-	    Ok(None)
-	} else {
-	    Ok(Some(T::peel(ctx)?))
-	}
+        // Check for 0-account
+        if ctx.info().key == &Pubkey::new_from_array([0u8; 32]) {
+            trace!(&format!(
+                "Peeled {} is None, returning",
+                std::any::type_name::<Option<T>>()
+            ));
+            Ok(None)
+        } else {
+            Ok(Some(T::peel(ctx)?))
+        }
     }
 
     fn deps() -> Vec<Pubkey> {
-	T::deps()
+        T::deps()
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
-	if let Some(s) = self.as_ref() {
+        if let Some(s) = self.as_ref() {
             T::persist(s, program_id)
-	} else {
-	    trace!(&format!("Peeled {} is None, not persisting", std::any::type_name::<Option<T>>()));
-	    Ok(())
-	}
+        } else {
+            trace!(&format!(
+                "Peeled {} is None, not persisting",
+                std::any::type_name::<Option<T>>()
+            ));
+            Ok(())
+        }
     }
 }
 
@@ -226,7 +232,7 @@ impl<
         // If we're initializing the type, we should emit system/rent as deps.
         let (initialized, data): (bool, T) = match IsInitialized {
             AccountState::Uninitialized => {
-                if **ctx.info().lamports.borrow() != 0 {
+                if !ctx.info().data.borrow().is_empty() {
                     return Err(SolitaireError::AlreadyInitialized(*ctx.info().key));
                 }
                 (false, T::default())
@@ -235,7 +241,7 @@ impl<
                 (true, T::try_from_slice(&mut *ctx.info().data.borrow_mut())?)
             }
             AccountState::MaybeInitialized => {
-                if **ctx.info().lamports.borrow() == 0 {
+                if ctx.info().data.borrow().is_empty() {
                     (false, T::default())
                 } else {
                     (true, T::try_from_slice(&mut *ctx.info().data.borrow_mut())?)

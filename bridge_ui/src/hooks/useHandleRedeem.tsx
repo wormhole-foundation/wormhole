@@ -3,12 +3,12 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
-  postVaaSolanaWithRetry,
   redeemAndUnwrapOnSolana,
   redeemOnEth,
   redeemOnEthNative,
   redeemOnSolana,
   redeemOnTerra,
+  uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
@@ -30,6 +30,7 @@ import {
 } from "../store/selectors";
 import { setIsRedeeming, setRedeemTx } from "../store/transferSlice";
 import {
+  ACALA_RELAY_URL,
   getTokenBridgeAddressForChain,
   MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
@@ -41,6 +42,8 @@ import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { Alert } from "@material-ui/lab";
 import { postWithFees } from "../utils/terra";
+import axios from "axios";
+import { postVaaWithRetry } from "../utils/postVaa";
 
 async function evm(
   dispatch: any,
@@ -91,7 +94,7 @@ async function solana(
       throw new Error("wallet.signTransaction is undefined");
     }
     const connection = new Connection(SOLANA_HOST, "confirmed");
-    await postVaaSolanaWithRetry(
+    await postVaaWithRetry(
       connection,
       wallet.signTransaction,
       SOL_BRIDGE_ADDRESS,
@@ -240,13 +243,47 @@ export function useHandleRedeem() {
     terraFeeDenom,
   ]);
 
+  const handleAcalaRelayerRedeemClick = useCallback(async () => {
+    if (!signedVAA) return;
+
+    dispatch(setIsRedeeming(true));
+
+    try {
+      const res = await axios.post(ACALA_RELAY_URL, {
+        targetChain,
+        signedVAA: uint8ArrayToHex(signedVAA),
+      });
+
+      dispatch(
+        setRedeemTx({
+          id: res.data.transactionHash,
+          block: res.data.blockNumber,
+        })
+      );
+      enqueueSnackbar(null, {
+        content: <Alert severity="success">Transaction confirmed</Alert>,
+      });
+    } catch (e) {
+      enqueueSnackbar(null, {
+        content: <Alert severity="error">{parseError(e)}</Alert>,
+      });
+      dispatch(setIsRedeeming(false));
+    }
+  }, [targetChain, signedVAA, enqueueSnackbar, dispatch]);
+
   return useMemo(
     () => ({
       handleNativeClick: handleRedeemNativeClick,
       handleClick: handleRedeemClick,
+      handleAcalaRelayerRedeemClick,
       disabled: !!isRedeeming,
       showLoader: !!isRedeeming,
     }),
-    [handleRedeemClick, isRedeeming, handleRedeemNativeClick]
+    [
+      handleRedeemClick,
+      isRedeeming,
+      handleRedeemNativeClick,
+      handleAcalaRelayerRedeemClick,
+    ]
   );
 }

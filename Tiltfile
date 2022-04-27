@@ -42,6 +42,7 @@ config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
+config.define_bool("spy_relayer", False, "Enable spy relayer")
 config.define_bool("e2e", False, "Enable E2E testing stack")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("bridge_ui_hot", False, "Enable hot loading bridge_ui")
@@ -58,6 +59,7 @@ solana = cfg.get("solana", True)
 ci = cfg.get("ci", False)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
+spy_relayer = cfg.get("spy_relayer", ci)
 e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
@@ -98,6 +100,15 @@ local_resource(
     cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
     labels = ["protobuf"],
+    allow_parallel = True,
+    trigger_mode = trigger_mode,
+)
+
+local_resource(
+    name = "const-gen",
+    deps = ["scripts", "clients", "ethereum/.env.test"],
+    cmd = 'tilt docker build -- --target const-export -f Dockerfile.const -o type=local,dest=. --build-arg num_guardians=%s .' % (num_guardians),
+    env = {"DOCKER_BUILDKIT": "1"},
     allow_parallel = True,
     trigger_mode = trigger_mode,
 )
@@ -208,12 +219,13 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-if num_guardians >= 2:
+# guardian set update - triggered by "tilt args" changes
+if num_guardians >= 2 and ci == False:
     local_resource(
         name = "guardian-set-update",
         resource_deps = guardian_resource_deps + ["guardian"],
         deps = ["scripts/send-vaa.sh", "clients/eth"],
-        cmd = './scripts/update-guardian-set.sh %s %s' % (num_guardians, webHost),
+        cmd = './scripts/update-guardian-set.sh %s %s %s' % (num_guardians, webHost, namespace),
         labels = ["guardian"],
         trigger_mode = trigger_mode,
     )
@@ -250,6 +262,8 @@ if solana:
         ref = "solana-contract",
         context = "solana",
         dockerfile = "solana/Dockerfile",
+        target = "builder",
+        build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
     )
 
     # solana local devnet
@@ -263,6 +277,7 @@ if solana:
             port_forward(8900, name = "Solana WS [:8900]", host = webHost),
             port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
         ],
+        resource_deps = ["const-gen"],
         labels = ["solana"],
         trigger_mode = trigger_mode,
     )
@@ -287,6 +302,71 @@ docker_build(
     ],
 )
 
+if spy_relayer:
+    docker_build(
+        ref = "redis",
+        context = ".",
+        only = ["./third_party"],
+        dockerfile = "third_party/redis/Dockerfile",
+    )
+
+    k8s_yaml_with_ns("devnet/redis.yaml")
+
+    k8s_resource(
+        "redis",
+        port_forwards = [
+            port_forward(6379, name = "Redis Default [:6379]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    docker_build(
+        ref = "spy-relay-image",
+        context = ".",
+        only = ["./relayer/spy_relayer"],
+        dockerfile = "relayer/spy_relayer/Dockerfile",
+        live_update = []
+    )
+
+    k8s_yaml_with_ns("devnet/spy-listener.yaml")
+
+    k8s_resource(
+        "spy-listener",
+        resource_deps = ["proto-gen", "guardian", "redis"],
+        port_forwards = [
+            port_forward(6062, container_port = 6060, name = "Debug/Status Server [:6062]", host = webHost),
+            port_forward(4201, name = "REST [:4201]", host = webHost),
+            port_forward(8082, name = "Prometheus [:8082]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_yaml_with_ns("devnet/spy-relayer.yaml")
+
+    k8s_resource(
+        "spy-relayer",
+        resource_deps = ["proto-gen", "guardian", "redis"],
+        port_forwards = [
+            port_forward(8083, name = "Prometheus [:8083]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_yaml_with_ns("devnet/spy-wallet-monitor.yaml")
+
+    k8s_resource(
+        "spy-wallet-monitor",
+        resource_deps = ["proto-gen", "guardian", "redis"],
+        port_forwards = [
+            port_forward(8084, name = "Prometheus [:8084]", host = webHost),
+        ],
+        labels = ["spy-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
 k8s_resource(
@@ -294,6 +374,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
     ],
+    resource_deps = ["const-gen"],
     labels = ["evm"],
     trigger_mode = trigger_mode,
 )
@@ -303,6 +384,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
     ],
+    resource_deps = ["const-gen"],
     labels = ["evm"],
     trigger_mode = trigger_mode,
 )
@@ -481,6 +563,7 @@ k8s_resource(
         port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
         port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
     ],
+    resource_deps = ["const-gen"],
     labels = ["terra"],
     trigger_mode = trigger_mode,
 )

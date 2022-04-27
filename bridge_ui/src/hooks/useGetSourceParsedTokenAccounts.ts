@@ -1,16 +1,19 @@
 import {
   ChainId,
+  CHAIN_ID_ACALA,
   CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_FANTOM,
+  CHAIN_ID_KARURA,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
+  TokenImplementation__factory,
   WSOL_ADDRESS,
   WSOL_DECIMALS,
 } from "@certusone/wormhole-sdk";
@@ -32,10 +35,13 @@ import {
   useEthereumProvider,
 } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
+import acalaIcon from "../icons/acala.svg";
+import auroraIcon from "../icons/aurora.svg";
 import avaxIcon from "../icons/avax.svg";
 import bnbIcon from "../icons/bnb.svg";
 import ethIcon from "../icons/eth.svg";
 import fantomIcon from "../icons/fantom.svg";
+import karuraIcon from "../icons/karura.svg";
 import oasisIcon from "../icons/oasis-network-rose-logo.svg";
 import polygonIcon from "../icons/polygon.svg";
 import {
@@ -66,7 +72,11 @@ import {
   setSourceWalletAddress,
 } from "../store/transferSlice";
 import {
+  ACA_ADDRESS,
+  ACA_DECIMALS,
   COVALENT_GET_TOKENS_URL,
+  KAR_ADDRESS,
+  KAR_DECIMALS,
   logoOverrides,
   ROPSTEN_WETH_ADDRESS,
   ROPSTEN_WETH_DECIMALS,
@@ -368,7 +378,7 @@ const createNativeAuroraParsedTokenAccount = (
           balanceInEth.toString(), //This is the actual display field, which has full precision.
           "ETH", //A white lie for display purposes
           "Aurora ETH", //A white lie for display purposes
-          fantomIcon,
+          auroraIcon,
           true //isNativeAsset
         );
       });
@@ -395,6 +405,56 @@ const createNativeFantomParsedTokenAccount = (
           true //isNativeAsset
         );
       });
+};
+
+const createNativeKaruraParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : TokenImplementation__factory.connect(KAR_ADDRESS, provider)
+        .balanceOf(signerAddress)
+        .then((balance) => {
+          const balanceInEth = ethers.utils.formatUnits(balance, KAR_DECIMALS);
+          return createParsedTokenAccount(
+            signerAddress, //public key
+            KAR_ADDRESS, //Mint key, On the other side this will be wavax, so this is hopefully a white lie.
+            balance.toString(), //amount, in wei
+            KAR_DECIMALS,
+            parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+            balanceInEth.toString(), //This is the actual display field, which has full precision.
+            "KAR", //A white lie for display purposes
+            "KAR", //A white lie for display purposes
+            karuraIcon,
+            false //isNativeAsset
+          );
+        });
+};
+
+const createNativeAcalaParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : TokenImplementation__factory.connect(ACA_ADDRESS, provider)
+        .balanceOf(signerAddress)
+        .then((balance) => {
+          const balanceInEth = ethers.utils.formatUnits(balance, ACA_DECIMALS);
+          return createParsedTokenAccount(
+            signerAddress, //public key
+            ACA_ADDRESS, //Mint key, On the other side this will be wavax, so this is hopefully a white lie.
+            balance.toString(), //amount, in wei
+            ACA_DECIMALS,
+            parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+            balanceInEth.toString(), //This is the actual display field, which has full precision.
+            "ACA", //A white lie for display purposes
+            "ACA", //A white lie for display purposes
+            acalaIcon,
+            false //isNativeAsset
+          );
+        });
 };
 
 const createNFTParsedTokenAccountFromCovalent = (
@@ -968,6 +1028,72 @@ function useGetAvailableTokens(nft: boolean = false) {
             setEthNativeAccount(undefined);
             setEthNativeAccountLoading(false);
             setEthNativeAccountError("Unable to retrieve your Fantom balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_KARURA &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeKaruraParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your Karura balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_ACALA &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeAcalaParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your Acala balance.");
           }
         }
       );

@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -10,6 +11,7 @@ func TestCalculateQuorum(t *testing.T) {
 		have int
 		want int
 	}{
+		{have: 0, want: 1},
 		{have: 1, want: 1},
 		{have: 2, want: 2},
 		{have: 3, want: 3},
@@ -26,11 +28,9 @@ func TestCalculateQuorum(t *testing.T) {
 		{have: 25, want: 17},
 		{have: 100, want: 67},
 	}
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%d have", tt.have), func(t *testing.T) {
-			if got := CalculateQuorum(tt.have); got != tt.want {
-				t.Errorf("CalculateQuorum(%d) = %v, want %v", tt.have, got, tt.want)
-			}
+	for _, tc := range tests {
+		t.Run(fmt.Sprint(tc.have), func(t *testing.T) {
+			assert.Equal(t, tc.want, CalculateQuorum(tc.have))
 		})
 	}
 }

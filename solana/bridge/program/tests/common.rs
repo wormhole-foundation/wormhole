@@ -9,7 +9,7 @@ use byteorder::{
     WriteBytesExt,
 };
 use hex_literal::hex;
-use secp256k1::{
+use libsecp256k1::{
     Message as Secp256k1Message,
     PublicKey,
     SecretKey,
@@ -109,6 +109,7 @@ pub fn execute(
             skip_preflight: true,
             preflight_commitment: None,
             encoding: None,
+            max_retries: None,
         },
     )
 }
@@ -142,15 +143,29 @@ mod helpers {
                 &payer.pubkey(),
                 1,
             )],
-            CommitmentConfig::finalized(),
+            CommitmentConfig::confirmed(),
         )
         .unwrap();
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
     pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> T {
-        let account = client.get_account(account).unwrap();
+        let account = client
+            .get_account_with_commitment(account, CommitmentConfig::confirmed())
+            .unwrap()
+            .value
+            .unwrap();
         T::try_from_slice(&account.data).unwrap()
+    }
+
+    /// Fetch account balance
+    pub fn get_account_balance(client: &RpcClient, account: &Pubkey) -> u64 {
+        client
+            .get_account_with_commitment(account, CommitmentConfig::confirmed())
+            .unwrap()
+            .value
+            .unwrap()
+            .lamports
     }
 
     /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key
@@ -188,6 +203,7 @@ mod helpers {
         emitter: &Keypair,
         data: Vec<u8>,
         nonce: u32,
+        sequence: u64,
         guardian_set_index: u32,
         emitter_chain: u16,
     ) -> (PostVAAData, [u8; 32], [u8; 32]) {
@@ -198,7 +214,7 @@ mod helpers {
             // Body part
             emitter_chain,
             emitter_address: emitter.pubkey().to_bytes(),
-            sequence: 0,
+            sequence,
             payload: data,
             timestamp: SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
@@ -337,7 +353,7 @@ mod helpers {
                 payer,
                 tx_signers,
                 &vec![
-                    new_secp256k1_instruction(&key, &body),
+                    new_secp256k1_instruction(key, &body),
                     instructions::verify_signatures(
                         *program,
                         payer.pubkey(),

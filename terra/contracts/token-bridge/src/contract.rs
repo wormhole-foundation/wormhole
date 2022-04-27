@@ -13,7 +13,6 @@ use cosmwasm_std::{
     Empty,
     Env,
     MessageInfo,
-    Order,
     QueryRequest,
     Reply,
     Response,
@@ -754,7 +753,7 @@ fn handle_complete_transfer_token(
 fn handle_complete_transfer_token_native(
     mut deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     emitter_chain: u16,
     emitter_address: Vec<u8>,
     data: &Vec<u8>,
@@ -809,7 +808,7 @@ fn handle_complete_transfer_token_native(
 
     if fee != 0 {
         messages.push(CosmosMsg::Bank(BankMsg::Send {
-            to_address: recipient.to_string(),
+            to_address: info.sender.to_string(),
             amount: coins_after_tax(deps, vec![coin(fee, &denom)])?,
         }));
     }
@@ -1173,7 +1172,6 @@ fn build_native_id(denom: &str) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{
-        to_binary,
         Binary,
         StdResult,
     };

@@ -56,6 +56,7 @@ export const parseTransferPayload = (arr: Buffer) => ({
   originChain: arr.readUInt16BE(65) as ChainId,
   targetAddress: arr.slice(67, 67 + 32).toString("hex"),
   targetChain: arr.readUInt16BE(99) as ChainId,
+  fee: BigNumber.from(arr.slice(101, 101 + 32)).toBigInt(),
 });
 
 //This returns a corrected amount, which accounts for the difference between the VAA
