@@ -21,7 +21,6 @@ import {
 } from "../../token_bridge/__tests__/consts";
 import algosdk, {
   Account,
-  Algodv2,
   decodeAddress,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
@@ -44,6 +43,8 @@ import {
   getForeignAssetFromVaaAlgo,
   appIdToAppAddr,
   AccountToSigner,
+  decodeLocalState,
+  getOriginalAssetAlgorand,
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 import {
@@ -80,7 +81,6 @@ import {
   queryBalanceOnTerra,
   waitForTerraExecution,
 } from "../../token_bridge/__tests__/helpers";
-import { assert } from "console";
 
 setDefaultWasm("node");
 
@@ -382,7 +382,6 @@ describe("Integration Tests", () => {
             foreignAsset,
             signer
           );
-          console.log("here");
 
           // Get initial balance on ethereum
           const ETH_TEST_WALLET_PUBLIC_KEY =
@@ -457,7 +456,6 @@ describe("Integration Tests", () => {
           );
           const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
           console.log("Balance on Eth after transfer = ", balOnEthAfterInt);
-          // const FinalAmt: number = AmountToTransfer / 100;
           expect(balOnEthAfterInt - initialBalOnEthInt).toEqual(
             AmountToTransfer
           );
@@ -970,7 +968,7 @@ describe("Integration Tests", () => {
             attestSn,
             emitterAddress
           );
-          console.log("About to createWrappedOnAlgorand...");
+          console.log("About to createWrappedOnAlgorand...", attestSignedVaa);
           const cr = await createWrappedOnAlgorand(
             client,
             AccountToSigner(algoWallet),
@@ -1190,9 +1188,29 @@ describe("Integration Tests", () => {
           expect(assetIdCreatedEndBal - assetIdCreatedFinBal).toBe(
             TransferBackAmount
           );
+          console.log("TESTING getOriginalAssetAlgorand....");
+          await getOriginalAssetAlgorand(client, assetIdCreated);
         } catch (e) {
           console.error("Terra <=> Algorand error:", e);
           done("Terra <=> Algorand error");
+        }
+        done();
+      })();
+    });
+    test("Testing isWrappedAsset", (done) => {
+      (async () => {
+        try {
+          console.log("Starting isWrappedAsseet...");
+          const TOKEN_BRIDGE_ID: number = 6;
+          const client: algosdk.Algodv2 = getAlgoClient();
+          // need the token bridge address/account to look at the acctInfo
+          let tba = getApplicationAddress(TOKEN_BRIDGE_ID);
+          let accountInfo = await client.accountInformation(tba).do();
+          console.log("Account info", accountInfo);
+        } catch (e) {
+          console.error("isWrappedAsseet error:", e);
+          done("isWrappedAsset error");
+          return;
         }
         done();
       })();
