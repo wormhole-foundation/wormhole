@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"strconv"
 	"strings"
 	"time"
@@ -217,7 +218,14 @@ func main() {
 
 	ctx := context.Background()
 
-	currentHeight, err := getCurrentHeight(chainID, ctx, http.DefaultClient, etherscanAPI, *etherscanKey)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Fatalf("Error creating http cookiejar: %v", err)
+	}
+	httpClient := &http.Client{
+		Jar: jar,
+	}
+	currentHeight, err := getCurrentHeight(chainID, ctx, httpClient, etherscanAPI, *etherscanKey)
 	if err != nil {
 		log.Fatalf("Failed to get current height: %v", err)
 	}
@@ -290,7 +298,10 @@ func main() {
 
 	limiter := rate.NewLimiter(rate.Every(1*time.Second), 1)
 
-	c := &http.Client{Timeout: 5 * time.Second}
+	c := &http.Client{
+		Jar:     jar,
+		Timeout: 5 * time.Second,
+	}
 
 	ethAbi, err := abi2.JSON(strings.NewReader(abi.AbiABI))
 	if err != nil {
