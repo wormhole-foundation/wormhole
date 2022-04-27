@@ -81,7 +81,7 @@ class TmplSig:
 
         # Create a new LogicSigAccount given the populated bytecode,
 
-        pprint.pprint({"values": values, "contract": bytes(contract).hex()})
+        #pprint.pprint({"values": values, "contract": bytes(contract).hex()})
 
         return LogicSigAccount(bytes(contract))
 
