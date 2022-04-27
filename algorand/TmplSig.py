@@ -36,19 +36,16 @@ class TmplSig:
 #            self.map = json.loads(f.read())
 
 
-        self.map = {
-            "name":"lsig.teal",
-            "version":6,"source":"",
-            "bytecode":"BiABAYEASIAASIEANQCAADUBMRkiEkAADTEWIgk1AjEWNQNCAAoxFjUCMRYiCDUDNAI4EIEGEkQ0AjgZIhJENAI4GDQAEkQ0AjggMgMSRDQDOBAiEkQ0AzgIgQASRDQDOCA0ARJENAM4CTIDEkQiQw==",
-            "template_labels":{
-                "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":False},
-                "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":True},
-                "TMPL_APP_ID":{"source_line":7,"position":11,"bytes":False},
-                "TMPL_APP_ADDRESS":{"source_line":9,"position":15,"bytes":True}
-            },
-            "label_map":{"main_l2":21,"main_l3":34},
-            "line_map":[0,1,4,6,7,9,10,12,14,16,18,20,21,22,25,27,28,29,31,33,35,0,38,40,42,44,45,46,0,48,50,52,54,55,56,58,60,61,62,63,65,67,69,70,71,73,75,77,78,79,81,83,84,85,86,88,90,92,93,94,96,98,100,101,102,104,106,108,109,110,111]
+        self.map = {"name":"lsig.teal","version":6,"source":"","bytecode":"BiABAYEASIAASDEQgQYSRDEZIhJEMRiBABJEMSCAABJEMQGBABJEMQkyAxJEMRUyAxJEIg==",
+                    "template_labels":{
+                        "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":False},
+                        "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":True},
+                        "TMPL_APP_ID":{"source_line":16,"position":24,"bytes":False},
+                        "TMPL_APP_ADDRESS":{"source_line":20,"position":30,"bytes":True}
+                    },
+                    "label_map":{},"line_map":[0,1,4,6,7,9,10,12,14,15,16,18,19,20,21,23,25,26,27,29,31,32,33,35,37,38,39,41,43,44,45,47,49,50,51]
         }
+
 
         self.src = base64.b64decode(self.map["bytecode"])
         self.sorted = dict(
@@ -115,40 +112,22 @@ class TmplSig:
         def sig_tmpl():
             admin_app_id = ScratchVar()
             admin_address= ScratchVar()
-            optinIdx = ScratchVar()
-            rekeyIdx = ScratchVar()
-            optin = Gtxn[optinIdx.load()]
-            rekey = Gtxn[rekeyIdx.load()]
-
 
             return Seq(
                 # Just putting adding this as a tmpl var to make the address unique and deterministic
                 # We don't actually care what the value is, pop it
                 Pop(Tmpl.Int("TMPL_ADDR_IDX")),
                 Pop(Tmpl.Bytes("TMPL_EMITTER_ID")),
-                admin_app_id.store(Tmpl.Int("TMPL_APP_ID")),
-                admin_address.store(Tmpl.Bytes("TMPL_APP_ADDRESS")),
                 
-                If(Txn.on_completion() == OnComplete.OptIn,
-                   Seq([
-                       optinIdx.store(Txn.group_index()),
-                       rekeyIdx.store(Txn.group_index() + Int(1)),
-                   ]),
-                   Seq([
-                       optinIdx.store(Txn.group_index() - Int(1)),
-                       rekeyIdx.store(Txn.group_index()),
-                   ])),
+                Assert(Txn.type_enum() == TxnType.ApplicationCall),
+                Assert(Txn.on_completion() == OnComplete.OptIn),
+                Assert(Txn.application_id() == Tmpl.Int("TMPL_APP_ID")),
+                Assert(Txn.rekey_to() == Tmpl.Bytes("TMPL_APP_ADDRESS")),
 
-                Assert(optin.type_enum() == TxnType.ApplicationCall),
-                Assert(optin.on_completion() == OnComplete.OptIn),
-                Assert(optin.application_id() == admin_app_id.load()),
-                Assert(optin.rekey_to() == Global.zero_address()),
+                Assert(Txn.fee() == Int(0)),
+                Assert(Txn.close_remainder_to() == Global.zero_address()),
+                Assert(Txn.asset_close_to() == Global.zero_address()),
                 
-                Assert(rekey.type_enum() == TxnType.Payment),
-                Assert(rekey.amount() == Int(0)),
-                Assert(rekey.rekey_to() == admin_address.load()),
-                Assert(rekey.close_remainder_to() == Global.zero_address()),
-
                 Approve()
             )
         
