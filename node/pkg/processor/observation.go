@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	node_common "github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/db"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -318,12 +319,24 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	//  - enough signatures are present for the VAA to reach quorum
 
 	// Check if we already store this VAA
-	_, err = p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v))
+	b, err := p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v))
 	if err == nil {
-		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already store",
-			zap.String("digest", hash),
-		)
-		return
+		existing, err := vaa.Unmarshal(b)
+		if err != nil {
+			// Undefined state: This can't happen unless the DB is corrupted.
+			panic(fmt.Sprintf("failed to unmarshal VAA: %v", err))
+		}
+
+		// Accept new VAA if the new one has a different guardian set index.
+		//
+		// This allows messages re-signed by a different guardian set to be persisted by nodes
+		// even on nodes that failed to re-observe the message.
+		if existing.GuardianSetIndex == v.GuardianSetIndex {
+			p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already store",
+				zap.String("digest", hash),
+			)
+			return
+		}
 	} else if err != db.ErrVAANotFound {
 		p.logger.Error("failed to look up VAA in database",
 			zap.String("digest", hash),

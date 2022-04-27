@@ -3,9 +3,11 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+	"time"
+
+	"github.com/mr-tron/base58"
 
 	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/mr-tron/base58"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -92,11 +94,11 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		return
 	}
 
-	// Ignore incoming observations when our database already has a quorum VAA for it.
-	// This can occur when we're receiving late observations due to node catchup, and
+	// Ignore incoming messages when our database already has a quorum VAA for it.
+	// This can occur when we're observing old messages due to node catchup, and
 	// processing those won't do us any good.
 	//
-	// Exception: if an observation is made within the settlement time (30s), we'll
+	// Exception: if a message is observed within the settlement time (30s), we'll
 	// process it so other nodes won't consider it a miss.
 	if vb, err := p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v)); err == nil {
 		// unmarshal vaa
@@ -105,7 +107,11 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 			panic("failed to unmarshal VAA from db")
 		}
 
-		if k.Timestamp.Sub(existing.Timestamp) > settlementTime {
+		if time.Now().Sub(existing.Timestamp) > settlementTime &&
+			// Allow overriding quorum VAA if the guardian set has changed.
+			// This allows a new guardian set to re-sign old VAAs.
+			existing.GuardianSetIndex == p.gs.Index {
+
 			p.logger.Info("ignoring observation since we already have a quorum VAA for it",
 				zap.Stringer("emitter_chain", k.EmitterChain),
 				zap.Stringer("emitter_address", k.EmitterAddress),
@@ -115,7 +121,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 				zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
 				zap.Time("timestamp", k.Timestamp),
 				zap.String("message_id", v.MessageID()),
-				zap.Duration("settlement_time", settlementTime),
+				zap.Duration("time_elapsed", time.Now().Sub(existing.Timestamp)),
 			)
 			return
 		}
