@@ -14,7 +14,7 @@ import sys
 import json
 import uvarint
 from local_blob import LocalBlob
-from portal_core import getCoreContracts
+from wormhole_core import getCoreContracts
 from TmplSig import TmplSig
 import argparse
 from gentest import GenTest

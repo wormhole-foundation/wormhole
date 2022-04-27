@@ -8,7 +8,7 @@ This directory contains the components needed to support full Wormhole functiona
 
 This system is comprised of the following main components:
 
-* **Core contract (`portal_core.py`)**: Algorand stateful contract with entrypoints for publishing messages (VAAs), verification of VAA signatures, and triggering of governance chores. This will be referred as _CoreContract_ in this document.
+* **Core contract (`wormhole_core.py`)**: Algorand stateful contract with entrypoints for publishing messages (VAAs), verification of VAA signatures, and triggering of governance chores. This will be referred as _CoreContract_ in this document.
 
 * **Token bridge contract (`token_bridge.py`)**: Algorand stateful contract supporting cross-chain bridging, exposing entrypoints for exchanging  attestations, native tokens and ASAs, and triggering of governance. This will be referred as _TokenBridge_ in this document.
 
