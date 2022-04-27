@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -52,6 +53,7 @@ var (
 	chain        = flag.String("chain", "ethereum", "Eth Chain name")
 	dryRun       = flag.Bool("dryRun", true, "Dry run")
 	step         = flag.Uint64("step", 10000, "Step")
+	showError    = flag.Bool("showError", false, "On http error, show the response body")
 )
 
 var (
@@ -104,7 +106,7 @@ type logResponse struct {
 	Result json.RawMessage `json:"result"`
 }
 
-func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string) (uint64, error) {
+func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string, showErr bool) (uint64, error) {
 	var req *http.Request
 	var err error
 	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
@@ -127,15 +129,23 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	var r struct {
 		Result string `json:"result"`
 	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read response body: %w", err)
+	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+	if resp.StatusCode != http.StatusOK && showErr {
+		fmt.Println(string(body))
+	}
+
+	if err := json.Unmarshal(body, &r); err != nil {
 		return 0, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return hexutil.DecodeUint64(r.Result)
 }
 
-func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string) ([]*logEntry, error) {
+func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string, showErr bool) ([]*logEntry, error) {
 	var req *http.Request
 	var err error
 	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
@@ -161,7 +171,16 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 
 	var r logResponse
 
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && showErr {
+		fmt.Println(string(body))
+	}
+
+	if err := json.Unmarshal(body, &r); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -225,7 +244,7 @@ func main() {
 	httpClient := &http.Client{
 		Jar: jar,
 	}
-	currentHeight, err := getCurrentHeight(chainID, ctx, httpClient, etherscanAPI, *etherscanKey)
+	currentHeight, err := getCurrentHeight(chainID, ctx, httpClient, etherscanAPI, *etherscanKey, *showError)
 	if err != nil {
 		log.Fatalf("Failed to get current height: %v", err)
 	}
@@ -328,7 +347,7 @@ func main() {
 
 		log.Printf("Requesting logs from block %s to %s", from, to)
 
-		logs, err := getLogs(chainID, ctx, c, etherscanAPI, *etherscanKey, coreContract, tokenLockupTopic.Hex(), from, to)
+		logs, err := getLogs(chainID, ctx, c, etherscanAPI, *etherscanKey, coreContract, tokenLockupTopic.Hex(), from, to, *showError)
 		if err != nil {
 			log.Fatalf("failed to get logs: %v", err)
 		}
