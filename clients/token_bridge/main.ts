@@ -12,8 +12,6 @@ import { MsgExecuteContract } from "@terra-money/terra.js";
 import { PublicKey, TransactionInstruction, Keypair, Connection } from "@solana/web3.js";
 import { base58, solidityKeccak256 } from "ethers/lib/utils";
 
-//import * as celo from "@celo-tools/celo-ethers-wrapper";
-
 import { setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory } from '@certusone/wormhole-sdk'
 setDefaultWasm("node")
 
@@ -336,10 +334,6 @@ yargs(hideBin(process.argv))
             })
     }, async (argv) => {
         const bridge = await importCoreWasm()
-
-        // let provider= new celo.CeloProvider(argv.rpc)
-        // await provider.ready
-        // let signer = new celo.CeloWallet(argv.key, provider)
 
         let provider = new ethers.providers.JsonRpcProvider(argv.rpc)
         let signer = new ethers.Wallet(argv.key, provider)

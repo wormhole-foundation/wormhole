@@ -20,4 +20,3 @@ function gen() {
 }
 
 gen Implementation abi
-#gen ERC20 erc20

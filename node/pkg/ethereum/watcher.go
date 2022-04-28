@@ -130,6 +130,8 @@ func NewEthWatcher(
 
 	var ethIntf common.Ethish
 	if chainID == vaa.ChainIDCelo && ! unsafeDevMode {
+		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
+		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
 		ethIntf = &celo.CeloImpl{NetworkName: networkName}
 	} else {
 		ethIntf = &EthImpl{NetworkName: networkName}
