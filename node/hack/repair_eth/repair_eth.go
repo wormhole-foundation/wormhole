@@ -250,7 +250,6 @@ func main() {
 	if !ok {
 		panic("no core contract")
 	}
-
 	ctx := context.Background()
 
 	jar, err := cookiejar.New(nil)
@@ -273,6 +272,14 @@ func main() {
 	defer conn.Close()
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
+	}
+
+	// A polygon VAA that was not reobserved before the blocks aged out of guardian rpc nodes
+	ignoreAddress, _ := vaa.StringToAddress("0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde")
+	polygonIgnoredVaa := db.VAAID{
+		Sequence:       6840,
+		EmitterChain:   vaa.ChainIDPolygon,
+		EmitterAddress: ignoreAddress,
 	}
 
 	for _, emitter := range common.KnownEmitters {
@@ -301,6 +308,11 @@ func main() {
 			vId, err := db.VaaIDFromString(id)
 			if err != nil {
 				log.Fatalf("failed to parse VAAID: %v", err)
+			}
+			if *vId == polygonIgnoredVaa {
+				log.Printf("Ignored message: %+v", &polygonIgnoredVaa)
+				msgs = append(msgs[:i], msgs[i+1:]...)
+				continue
 			}
 			msgs[i] = vId
 		}
