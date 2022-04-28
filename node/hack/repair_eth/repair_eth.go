@@ -56,11 +56,23 @@ var (
 	dryRun       = flag.Bool("dryRun", true, "Dry run")
 	step         = flag.Uint64("step", 10000, "Step")
 	showError    = flag.Bool("showError", false, "On http error, show the response body")
+	sleepTime    = flag.Int("sleepTime", 0, "Time to sleep between loops when getting logs")
 )
 
 var (
 	tokenLockupTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
+
+// Add a browser User-Agent to make cloudflare more happy
+func addUserAgent(req *http.Request) *http.Request {
+	if req == nil {
+		return nil
+	}
+	req.Header.Set(
+		"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36",
+	)
+	return req
+}
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
@@ -120,6 +132,7 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	if err != nil {
 		panic(err)
 	}
+	req = addUserAgent(req)
 
 	resp, err := c.Do(req.WithContext(ctx))
 	if err != nil {
@@ -163,6 +176,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 	if err != nil {
 		panic(err)
 	}
+	req = addUserAgent(req)
 
 	resp, err := c.Do(req)
 	if err != nil {
@@ -444,6 +458,7 @@ func main() {
 				if err != nil {
 					panic(err)
 				}
+				req = addUserAgent(req)
 				resp, err := c.Do(req)
 				if err != nil {
 					log.Fatalf("verify: %v", err)
@@ -470,6 +485,10 @@ func main() {
 		if total == 0 {
 			log.Printf("No missing messages left")
 			break
+		}
+		// Allow sleeping between loops for chains that have aggressive blocking in the explorers
+		if sleepTime != nil {
+			time.Sleep(time.Duration(*sleepTime) * time.Second)
 		}
 	}
 }
