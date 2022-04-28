@@ -11,7 +11,7 @@ import "./Setters.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 /**
- * @dev `Governance` defines a means to enacting changes to contracts,
+ * @dev `Governance` defines a means to enacting changes to the core bridge contract,
  * guardianSets, message fees, and transfer fees
  */
 abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
@@ -170,12 +170,12 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
             return (false, "not signed by current guardian set");
         }
 
-        // Verify the VAA is for this chain
+        // Verify the VAA is for the governance chain (Solana)
         if (uint16(vm.emitterChainId) != governanceChainId()) {
             return (false, "wrong governance chain");
         }
 
-        // Verify the VAA is for this contract
+        // Verify the emitter contract is the governance contract (0x4 left padded)
         if (vm.emitterAddress != governanceContract()) {
             return (false, "wrong governance contract");
         }
