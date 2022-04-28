@@ -229,7 +229,7 @@ export default function Footer() {
               <img src={Telegram} alt="Telegram" />
             </IconButton>
             <IconButton
-              href="https://twitter.com/wormholecrypto"
+              href="https://twitter.com/portalbridge_"
               target="_blank"
               rel="noopener noreferrer"
               className={classes.socialIcon}
