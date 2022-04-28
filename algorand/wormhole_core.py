@@ -400,11 +400,33 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # Point it at the start of the signatures in the VAA
                 off.store(Int(6)),
 
+                # We'll check that the preceding transactions properly verify
+                # all of the signatures. Due to size limitations, there will be
+                # multiple 'verifySigs' calls to achieve this. First we walk
+                # backwards from the current instruction to find all the
+                # 'verifySigs' calls. We do it this way because it's possible
+                # that the VAA transactions are composed with some other
+                # contracts calls, so we do not rely in absolute transaction
+                # indices.
+                #
+                # | | ...            |
+                # | | something else |
+                # | |----------------|
+                # | | verifySigs     |
+                # | | verifySigs     |
+                # | | verifySigs     |
+                # | | verifyVAA      | <- we are here now
+                # | |----------------|
+                # v | ...            |
+
                 MagicAssert(Txn.group_index() > Int(0)),
+                # the first 'verifySigs' tx is the one before us
                 i.store(Txn.group_index() - Int(1)),
                 MagicAssert(Gtxn[i.load()].application_args.length() > Int(0)),
                 a.store(Gtxn[i.load()].application_args[0]),
 
+                # Go back until we hit 'something else' or run out of
+                # transactions (we allow nops too)
                 While (And(i.load() > Int(0), Or(a.load() == Bytes("verifySigs"), a.load() == Bytes("nop")))).Do(Seq([
                         i.store(i.load() - Int(1)),
                         If (Gtxn[i.load()].application_args.length() > Int(0),
@@ -417,6 +439,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                 If(And(a.load() != Bytes("verifySigs"), a.load() != Bytes("nop")), i.store(i.load() + Int(1))),
 
+                # Now look through the whole group of 'verifySigs'
                 While(i.load() <= Txn.group_index()).Do(Seq([
                             MagicAssert(And(
                                 Gtxn[i.load()].type_enum() == TxnType.ApplicationCall,
