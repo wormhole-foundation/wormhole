@@ -244,8 +244,6 @@ mod tests {
     };
     use cw20::TokenInfoResponse;
 
-    const CANONICAL_LENGTH: usize = 20;
-
     fn get_balance(deps: Deps, address: HumanAddr) -> Uint128 {
         query_balance(deps, address.into()).unwrap().balance
     }
@@ -262,14 +260,14 @@ mod tests {
         };
         let env = mock_env();
         let info = mock_info(creator, &[]);
-        let res = instantiate(deps, env, info, init_msg).unwrap();
+        let res = instantiate(deps.branch(), env, info, init_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         assert_eq!(
             query_token_info(deps.as_ref()).unwrap(),
             TokenInfoResponse {
-                name: "Wormhole Wrapped".to_string(),
-                symbol: "WWT".to_string(),
+                name: "Integers (Wormhole)".to_string(),
+                symbol: "INT".to_string(),
                 decimals: 10,
                 total_supply: Uint128::from(0u128),
             }
@@ -291,7 +289,7 @@ mod tests {
         mint_to: &HumanAddr,
         amount: Uint128,
     ) {
-        do_init(deps, creator);
+        do_init(deps.branch(), creator);
 
         let msg = ExecuteMsg::Mint {
             recipient: mint_to.clone(),
@@ -300,15 +298,15 @@ mod tests {
 
         let env = mock_env();
         let info = mock_info(creator, &[]);
-        let res = execute(deps.as_mut(), env, info, msg.clone()).unwrap();
+        let res = execute(deps.branch(), env, info, msg.clone()).unwrap();
         assert_eq!(0, res.messages.len());
         assert_eq!(get_balance(deps.as_ref(), mint_to.clone(),), amount);
 
         assert_eq!(
             query_token_info(deps.as_ref()).unwrap(),
             TokenInfoResponse {
-                name: "Wormhole Wrapped".to_string(),
-                symbol: "WWT".to_string(),
+                name: "Integers (Wormhole)".to_string(),
+                symbol: "INT".to_string(),
                 decimals: 10,
                 total_supply: amount,
             }

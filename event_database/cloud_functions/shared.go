@@ -54,6 +54,9 @@ var tokensToSkip = map[string]bool{
 	"0x7ffb3d637014488b63fb9858e279385685afc1e2": true,
 	"0x337dc89ebcc33a337307d58a51888af92cfdc81b": true,
 	"0x5Cb89Ac06F34f73B1A6b8000CEb0AfBc97d58B6b": true,
+	"0xd9F0446AedadCf16A12692E02FA26C617FA4D217": true,
+	"0xD7b41531456b636641F7e867eC77120441D1E1E8": true,
+	"0x9f607027b69f6e123bc3bd56a686b735fa75f30a": true,
 }
 
 // init runs during cloud function initialization. So, this will only run during an

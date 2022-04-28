@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.5
+
+### Changed
+
+postVaa uses guardian_set_index from the vaa
+
 ## 0.2.4
 
 ### Added

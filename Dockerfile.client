@@ -40,10 +40,9 @@ ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
 RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=cache,target=bridge/target \
-    --mount=type=cache,target=modules/token_bridge/target \
+    --mount=type=cache,target=target \
 	set -xe && \
-    cargo build --manifest-path ./bridge/Cargo.toml --package client --release --locked && \
-    cargo build --manifest-path ./modules/token_bridge/Cargo.toml --package client --release --locked && \
-    cp bridge/target/release/client /usr/local/bin && \
-    cp modules/token_bridge/target/release/client /usr/local/bin/token-bridge-client
+    cargo build --manifest-path ./Cargo.toml --package bridge_client --release --locked && \
+    cargo build --manifest-path ./Cargo.toml --package token_bridge_client --release --locked && \
+    cp target/release/bridge_client /usr/local/bin/client && \
+    cp target/release/token_bridge_client /usr/local/bin/token-bridge-client

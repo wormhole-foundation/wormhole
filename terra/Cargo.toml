@@ -11,6 +11,3 @@ codegen-units = 1
 panic = 'abort'
 incremental = false
 overflow-checks = true
-
-[patch.crates-io]
-memmap2 = { git = "https://github.com/certusone/wormhole", package = "memmap2" }

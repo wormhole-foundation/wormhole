@@ -9,12 +9,13 @@ import * as redisHelper from "./helpers/redisHelper";
 import * as restListener from "./listener/rest_listen";
 import * as spyListener from "./listener/spy_listen";
 import * as relayWorker from "./relayer/relay_worker";
+import * as walletMonitor from "./monitor";
 
-export enum ProcessType {
-  LISTEN_ONLY = "--listen_only",
-  RELAY_ONLY = "--relay_only",
-  SPY_AND_RELAY = "spy and relay",
-}
+const ARG_LISTEN_ONLY = "--listen_only";
+const ARG_RELAY_ONLY = "--relay_only";
+const ARG_WALLET_MONITOR_ONLY = "--wallet_monitor_only";
+const ONLY_ONE_ARG_ERROR_MSG = `May only specify one of ${ARG_LISTEN_ONLY}, ${ARG_RELAY_ONLY}, or ${ARG_WALLET_MONITOR_ONLY}`;
+const ONLY_ONE_ARG_ERROR_RESULT = `Multiple args found of ${ARG_LISTEN_ONLY}, ${ARG_RELAY_ONLY}, ${ARG_WALLET_MONITOR_ONLY}`;
 
 setDefaultWasm("node");
 const logger = getLogger();
@@ -23,34 +24,49 @@ const logger = getLogger();
 let runListen: boolean = true;
 let runWorker: boolean = true;
 let runRest: boolean = true;
+let runWalletMonitor: boolean = true;
 let foundOne: boolean = false;
 let error: string = "";
 
 for (let idx = 0; idx < process.argv.length; ++idx) {
-  if (process.argv[idx] === "--listen_only") {
+  if (process.argv[idx] === ARG_LISTEN_ONLY) {
     if (foundOne) {
-      logger.error('May only specify one of "--listen_only" or "--relay_only"');
-      error = "Multiple args found of --listen_only and --relay_only";
+      logger.error(ONLY_ONE_ARG_ERROR_MSG);
+      error = ONLY_ONE_ARG_ERROR_RESULT;
       break;
     }
 
     logger.info("spy_relay is running in listen only mode");
     runWorker = false;
+    runWalletMonitor = false;
     foundOne = true;
   }
 
-  if (process.argv[idx] === "--relay_only") {
+  if (process.argv[idx] === ARG_RELAY_ONLY) {
     if (foundOne) {
-      logger.error(
-        'May only specify one of "--listen_only", "--relay_only" or "--rest_only"'
-      );
-      error = "Multiple args found of --listen_only and --relay_only";
+      logger.error(ONLY_ONE_ARG_ERROR_MSG);
+      error = ONLY_ONE_ARG_ERROR_RESULT;
       break;
     }
 
     logger.info("spy_relay is running in relay only mode");
     runListen = false;
     runRest = false;
+    runWalletMonitor = false;
+    foundOne = true;
+  }
+
+  if (process.argv[idx] === ARG_WALLET_MONITOR_ONLY) {
+    if (foundOne) {
+      logger.error(ONLY_ONE_ARG_ERROR_MSG);
+      error = ONLY_ONE_ARG_ERROR_RESULT;
+      break;
+    }
+
+    logger.info("spy_relay is running in wallet monitor only mode");
+    runListen = false;
+    runRest = false;
+    runWorker = false;
     foundOne = true;
   }
 }
@@ -63,22 +79,25 @@ if (
   !error &&
   spyListener.init(runListen) &&
   relayWorker.init(runWorker) &&
-  restListener.init(runRest)
+  restListener.init(runRest) &&
+  walletMonitor.init(runWalletMonitor)
 ) {
   const commonEnv = getCommonEnvironment();
   const { promPort, readinessPort } = commonEnv;
   logger.info("prometheus client listening on port " + promPort);
   let promClient: PromHelper;
-  const runBoth: boolean = runListen && runWorker;
-  if (runBoth) {
-    promClient = new PromHelper("spy_relay", promPort, PromMode.Both);
+  const runAll: boolean = runListen && runWorker && runWalletMonitor;
+  if (runAll) {
+    promClient = new PromHelper("spy_relay", promPort, PromMode.All);
   } else if (runListen) {
     promClient = new PromHelper("spy_relay", promPort, PromMode.Listen);
   } else if (runWorker) {
     promClient = new PromHelper("spy_relay", promPort, PromMode.Relay);
+  } else if (runWalletMonitor) {
+    promClient = new PromHelper("spy_relay", promPort, PromMode.WalletMonitor);
   } else {
     logger.error("Invalid run mode for Prometheus");
-    promClient = new PromHelper("spy_relay", promPort, PromMode.Both);
+    promClient = new PromHelper("spy_relay", promPort, PromMode.All);
   }
 
   redisHelper.init(promClient);
@@ -86,6 +105,7 @@ if (
   if (runListen) spyListener.run(promClient);
   if (runWorker) relayWorker.run(promClient);
   if (runRest) restListener.run();
+  if (runWalletMonitor) walletMonitor.run(promClient);
 
   if (readinessPort) {
     const Net = require("net");
