@@ -222,6 +222,9 @@ func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
 	if resErr != nil {
 		log.Fatalf("failed get coins response, err: %v\n", resErr)
 	}
+	if res.StatusCode >= 400 {
+		log.Fatal("failed to get CoinGecko prices. Status", res.Status)
+	}
 
 	defer res.Body.Close()
 	body, bodyErr := ioutil.ReadAll(res.Body)
@@ -270,9 +273,7 @@ func fetchCoinGeckoPrices(coinIds []string) (map[string]float64, error) {
 	if cgApiKey != "" {
 		baseUrl = cgProBaseUrl
 	}
-	log.Println("len(coinIds) ", len(coinIds))
 	url := fmt.Sprintf("%vsimple/price?ids=%v&vs_currencies=usd", baseUrl, strings.Join(coinIds, ","))
-	log.Println(url)
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		log.Fatalf("failed coins request, err: %v\n", reqErr)
@@ -284,6 +285,9 @@ func fetchCoinGeckoPrices(coinIds []string) (map[string]float64, error) {
 	res, resErr := http.DefaultClient.Do(req)
 	if resErr != nil {
 		log.Fatalf("failed get coins response, err: %v\n", resErr)
+	}
+	if res.StatusCode >= 400 {
+		log.Fatal("failed to get CoinGecko prices. Status", res.Status)
 	}
 
 	defer res.Body.Close()
@@ -305,7 +309,6 @@ func fetchCoinGeckoPrices(coinIds []string) (map[string]float64, error) {
 	priceMap := map[string]float64{}
 	for coinId, price := range parsed {
 		price := price.USD
-		log.Printf("found a price of $%f for %v!\n", price, coinId)
 		priceMap[coinId] = price
 
 	}
@@ -326,7 +329,6 @@ func fetchTokenPrices(ctx context.Context, coinIds []string) map[string]float64 
 			j = len(coinIds)
 		}
 
-		fmt.Println(coinIds[i:j]) // Process the batch.
 		prices, err := fetchCoinGeckoPrices(coinIds[i:j])
 		if err != nil {
 			log.Fatalf("failed to get price for coinIds. err %v", err)
