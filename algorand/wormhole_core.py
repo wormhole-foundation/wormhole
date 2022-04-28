@@ -402,11 +402,17 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                 MagicAssert(Txn.group_index() > Int(0)),
                 i.store(Txn.group_index() - Int(1)),
+                MagicAssert(Gtxn[i.load()].application_args.length() > Int(0)),
                 a.store(Gtxn[i.load()].application_args[0]),
 
                 While (And(i.load() > Int(0), Or(a.load() == Bytes("verifySigs"), a.load() == Bytes("nop")))).Do(Seq([
                         i.store(i.load() - Int(1)),
-                        a.store(Gtxn[i.load()].application_args[0])
+                        If (Gtxn[i.load()].application_args.length() > Int(0),
+                            a.store(Gtxn[i.load()].application_args[0]),
+                            Seq([
+                                a.store(Bytes("")),
+                                Break()
+                            ]))
                 ])),
 
                 If(And(a.load() != Bytes("verifySigs"), a.load() != Bytes("nop")), i.store(i.load() + Int(1))),
