@@ -56,7 +56,6 @@
     "web3": "^1.6.1"
   },
   "dependencies": {
-    "@celo-tools/celo-ethers-wrapper": "^0.1.0",
     "@improbable-eng/grpc-web": "^0.14.0",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
