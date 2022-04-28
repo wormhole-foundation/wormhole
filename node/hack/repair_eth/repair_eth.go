@@ -35,6 +35,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDOasis:     "https://explorer.emerald.oasis.dev/api",
 	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
 	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
+	vaa.ChainIDCelo:      "https://explorer.celo.org//api",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -45,6 +46,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDOasis:     "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
 	vaa.ChainIDAurora:    "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
 	vaa.ChainIDFantom:    strings.ToLower("0x126783A6Cb203a3E35344528B26ca3a0489a1485"),
+	vaa.ChainIDCelo:      strings.ToLower("0x88505117ca88e7dd2eC6ea1e13f0948db2d50d56"), // This needs to be the mainnet wormhole address
 }
 
 var (
@@ -109,7 +111,7 @@ type logResponse struct {
 func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string, showErr bool) (uint64, error) {
 	var req *http.Request
 	var err error
-	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDCelo {
 		// This is the BlockScout based explorer leg
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
 	} else {
@@ -148,7 +150,7 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string, showErr bool) ([]*logEntry, error) {
 	var req *http.Request
 	var err error
-	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDCelo {
 		// This is the BlockScout based explorer leg
 		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 			"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&topic0=%s",
@@ -195,7 +197,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 		return nil, fmt.Errorf("failed to unmarshal log entry: %w", err)
 	}
 
-	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDCelo {
 		// Because of a bug in BlockScout based explorers we need to check the address
 		// in the log to see if it is the core bridge
 		var filtered []*logEntry
@@ -220,7 +222,7 @@ func main() {
 
 	if *etherscanKey == "" {
 		// BlockScout based explorers don't require an ether scan key
-		if chainID != vaa.ChainIDOasis && chainID != vaa.ChainIDAurora {
+		if chainID != vaa.ChainIDOasis && chainID != vaa.ChainIDAurora && chainID != vaa.ChainIDCelo {
 			log.Fatal("Etherscan API Key is required")
 		}
 	}
