@@ -5,10 +5,11 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/common"
 	"io/ioutil"
 	"log"
 	"os"
+
+	"github.com/certusone/wormhole/node/pkg/common"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
@@ -145,5 +146,5 @@ func generateDevnetGuardianKey() (*ecdsa.PrivateKey, error) {
 	}
 
 	// Generate guardian key
-	return devnet.DeterministicEcdsaKeyByIndex(ethcrypto.S256(), uint64(idx)), nil
+	return devnet.InsecureDeterministicEcdsaKeyByIndex(ethcrypto.S256(), uint64(idx)), nil
 }
