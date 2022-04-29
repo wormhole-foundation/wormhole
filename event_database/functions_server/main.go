@@ -62,6 +62,7 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/notionaltvl", p.TVL)
 	mux.HandleFunc("/computenotionaltvl", p.ComputeTVL)
 	mux.HandleFunc("/notionaltvlcumulative", p.TvlCumulative)
+	mux.HandleFunc("/computenotionaltvlcumulative", p.ComputeTvlCumulative)
 	mux.HandleFunc("/addressestransferredto", p.AddressesTransferredTo)
 	mux.HandleFunc("/addressestransferredtocumulative", p.AddressesTransferredToCumulative)
 	mux.HandleFunc("/totals", p.Totals)
