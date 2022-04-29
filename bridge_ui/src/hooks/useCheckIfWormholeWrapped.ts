@@ -1,7 +1,9 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  getOriginalAssetAlgorand,
   getOriginalAssetEth,
   getOriginalAssetSol,
   getOriginalAssetTerra,
@@ -30,6 +32,8 @@ import {
 } from "../store/selectors";
 import { setSourceWormholeWrappedInfo as setTransferSourceWormholeWrappedInfo } from "../store/transferSlice";
 import {
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getNFTBridgeAddressForChain,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
@@ -37,6 +41,7 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
 } from "../utils/consts";
+import { Algodv2 } from "algosdk";
 
 export interface StateSafeWormholeWrappedInfo {
   isWrapped: boolean;
@@ -128,6 +133,25 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
           const lcd = new LCDClient(TERRA_HOST);
           const wrappedInfo = makeStateSafe(
             await getOriginalAssetTerra(lcd, sourceAsset)
+          );
+          if (!cancelled) {
+            dispatch(setSourceWormholeWrappedInfo(wrappedInfo));
+          }
+        } catch (e) {}
+      }
+      if (sourceChain === CHAIN_ID_ALGORAND && sourceAsset) {
+        try {
+          const algodClient = new Algodv2(
+            ALGORAND_HOST.algodToken,
+            ALGORAND_HOST.algodServer,
+            ALGORAND_HOST.algodPort
+          );
+          const wrappedInfo = makeStateSafe(
+            await getOriginalAssetAlgorand(
+              algodClient,
+              ALGORAND_TOKEN_BRIDGE_ID,
+              BigInt(sourceAsset)
+            )
           );
           if (!cancelled) {
             dispatch(setSourceWormholeWrappedInfo(wrappedInfo));

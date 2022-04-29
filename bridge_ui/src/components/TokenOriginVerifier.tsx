@@ -92,6 +92,7 @@ function PrimaryAssetInfomation({
               chainId={originChain}
               symbol={metadata.data?.get(originAsset)?.symbol}
               tokenName={metadata.data?.get(originAsset)?.tokenName}
+              isAsset
             />
           </Typography>
         </div>
@@ -137,6 +138,7 @@ function SecondaryAssetInformation({
             metadata.data?.get(originAssetInfo.originAddress || "")
               ?.tokenName || undefined
           }
+          isAsset
         />
       </div>
     </div>
@@ -169,6 +171,7 @@ function SecondaryAssetInformation({
             metadata.data?.get(foreignAssetInfo.address || "")?.tokenName ||
             undefined
           }
+          isAsset
         />
       </div>
     </div>

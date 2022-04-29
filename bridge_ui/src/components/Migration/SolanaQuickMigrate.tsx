@@ -133,6 +133,7 @@ function SolanaMigrationLineItem({
           <SmartAddress
             chainId={CHAIN_ID_SOLANA}
             address={migratorInfo.fromMintKey}
+            isAsset
           />
         </div>
       </div>

@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
@@ -87,6 +88,10 @@ export default function ShowTx({
             ? "bombay-12"
             : "columbus-5"
         }/tx/${tx?.id}`
+      : chainId === CHAIN_ID_ALGORAND
+      ? `https://${CLUSTER === "testnet" ? "testnet." : ""}algoexplorer.io/tx/${
+          tx?.id
+        }`
       : undefined;
   const explorerName = getExplorerName(chainId);
 

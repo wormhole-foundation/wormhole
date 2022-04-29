@@ -88,6 +88,7 @@ const TVLTable = ({
               address={value.row?.original?.assetAddress}
               symbol={value.row?.original?.symbol}
               tokenName={value.row?.original?.name}
+              isAsset
             />
           </div>
         ),

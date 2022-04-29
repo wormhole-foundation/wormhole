@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
@@ -7,6 +8,7 @@ import {
 import { hexlify, hexStripZeros } from "@ethersproject/bytes";
 import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { useCallback, useMemo } from "react";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { CLUSTER, getEvmChainId } from "../utils/consts";
@@ -46,6 +48,8 @@ function useIsWalletReady(
   const hasEthInfo = !!provider && !!signerAddress;
   const correctEvmNetwork = getEvmChainId(chainId);
   const hasCorrectEvmNetwork = evmChainId === correctEvmNetwork;
+  const { accounts: algorandAccounts } = useAlgorandContext();
+  const algoPK = algorandAccounts[0]?.address;
 
   const forceNetworkSwitch = useCallback(async () => {
     if (provider && correctEvmNetwork) {
@@ -97,6 +101,9 @@ function useIsWalletReady(
         solPK.toString()
       );
     }
+    if (chainId === CHAIN_ID_ALGORAND && algoPK) {
+      return createWalletStatus(true, undefined, forceNetworkSwitch, algoPK);
+    }
     if (isEVMChain(chainId) && hasEthInfo && signerAddress) {
       if (hasCorrectEvmNetwork) {
         return createWalletStatus(
@@ -136,6 +143,7 @@ function useIsWalletReady(
     provider,
     signerAddress,
     terraWallet,
+    algoPK,
   ]);
 }
 

@@ -1,14 +1,18 @@
 import {
+  attestFromAlgorand,
   attestFromEth,
   attestFromSolana,
   attestFromTerra,
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  getEmitterAddressAlgorand,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
   isEVMChain,
+  parseSequenceFromLogAlgorand,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
@@ -21,10 +25,12 @@ import {
   ConnectedWallet,
   useConnectedWallet,
 } from "@terra-money/wallet-provider";
+import algosdk from "algosdk";
 import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import {
@@ -40,7 +46,11 @@ import {
   selectAttestSourceChain,
   selectTerraFeeDenom,
 } from "../store/selectors";
+import { signSendAndConfirmAlgorand } from "../utils/algorand";
 import {
+  ALGORAND_BRIDGE_ID,
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getBridgeAddressForChain,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
@@ -52,6 +62,61 @@ import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { postWithFees, waitForTerraExecution } from "../utils/terra";
+
+async function algo(
+  dispatch: any,
+  enqueueSnackbar: any,
+  senderAddr: string,
+  sourceAsset: string
+) {
+  dispatch(setIsSending(true));
+  try {
+    console.log("ALGO", sourceAsset);
+    const algodClient = new algosdk.Algodv2(
+      ALGORAND_HOST.algodToken,
+      ALGORAND_HOST.algodServer,
+      ALGORAND_HOST.algodPort
+    );
+    const txs = await attestFromAlgorand(
+      algodClient,
+      ALGORAND_TOKEN_BRIDGE_ID,
+      ALGORAND_BRIDGE_ID,
+      senderAddr,
+      BigInt(sourceAsset)
+    );
+    const result = await signSendAndConfirmAlgorand(algodClient, txs);
+    const sequence = parseSequenceFromLogAlgorand(result);
+    // TODO: fill these out correctly
+    dispatch(
+      setAttestTx({
+        id: txs[txs.length - 1].tx.txID(),
+        block: result["confirmed-round"],
+      })
+    );
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
+    const emitterAddress = getEmitterAddressAlgorand(ALGORAND_TOKEN_BRIDGE_ID);
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
+    const { vaaBytes } = await getSignedVAAWithRetry(
+      CHAIN_ID_ALGORAND,
+      emitterAddress,
+      sequence
+    );
+    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
+  } catch (e) {
+    console.error(e);
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    dispatch(setIsSending(false));
+  }
+}
 
 async function evm(
   dispatch: any,
@@ -216,6 +281,7 @@ export function useHandleAttest() {
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
+  const { accounts: algoAccounts } = useAlgorandContext();
   const disabled = !isTargetComplete || isSending || isSendComplete;
   const handleAttestClick = useCallback(() => {
     if (isEVMChain(sourceChain) && !!signer) {
@@ -224,6 +290,8 @@ export function useHandleAttest() {
       solana(dispatch, enqueueSnackbar, solPK, sourceAsset, solanaWallet);
     } else if (sourceChain === CHAIN_ID_TERRA && !!terraWallet) {
       terra(dispatch, enqueueSnackbar, terraWallet, sourceAsset, terraFeeDenom);
+    } else if (sourceChain === CHAIN_ID_ALGORAND && algoAccounts[0]) {
+      algo(dispatch, enqueueSnackbar, algoAccounts[0].address, sourceAsset);
     } else {
     }
   }, [
@@ -236,6 +304,7 @@ export function useHandleAttest() {
     terraWallet,
     sourceAsset,
     terraFeeDenom,
+    algoAccounts,
   ]);
   return useMemo(
     () => ({

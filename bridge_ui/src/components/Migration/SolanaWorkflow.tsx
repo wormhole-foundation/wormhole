@@ -387,6 +387,7 @@ export default function Workflow({
       address={toMint}
       symbol={toMetadata?.symbol}
       tokenName={toMetadata?.name}
+      isAsset
     />
   );
   const fromMintPretty = (
@@ -395,6 +396,7 @@ export default function Workflow({
       address={fromMint}
       symbol={fromMetadata?.symbol}
       tokenName={fromMetadata?.name}
+      isAsset
     />
   );
 

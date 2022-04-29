@@ -94,6 +94,7 @@ function SendConfirmationContent({
               variant="h6"
               chainId={sourceChain}
               parsedTokenAccount={sourceParsedTokenAccount}
+              isAsset
             />
             <div>
               <Typography variant="caption">
@@ -110,6 +111,7 @@ function SendConfirmationContent({
               symbol={symbol}
               tokenName={tokenName}
               logo={logo}
+              isAsset
             />
             <div>
               <Typography variant="caption">

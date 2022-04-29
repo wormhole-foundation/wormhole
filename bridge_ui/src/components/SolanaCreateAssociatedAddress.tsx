@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   getForeignAssetSolana,
+  hexToNativeAssetString,
   hexToNativeString,
   hexToUint8Array,
 } from "@certusone/wormhole-sdk";
@@ -175,7 +176,7 @@ export function SolanaCreateAssociatedAddressAlternate() {
     [addressHex]
   );
   const base58OriginAddress = useMemo(
-    () => hexToNativeString(originAsset, CHAIN_ID_SOLANA) || "",
+    () => hexToNativeAssetString(originAsset, CHAIN_ID_SOLANA) || "",
     [originAsset]
   );
   const connection = useMemo(() => new Connection(SOLANA_HOST), []);

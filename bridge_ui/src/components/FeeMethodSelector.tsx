@@ -2,7 +2,7 @@ import {
   CHAIN_ID_ACALA,
   CHAIN_ID_KARURA,
   CHAIN_ID_TERRA,
-  hexToNativeString,
+  hexToNativeAssetString,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import {
@@ -107,13 +107,13 @@ function FeeMethodSelector() {
   const acalaRelayerInfo = useAcalaRelayerInfo(
     targetChain,
     vaaNormalizedAmount,
-    originChain ? hexToNativeString(originAsset, originChain) : undefined
+    originChain ? hexToNativeAssetString(originAsset, originChain) : undefined
   );
   const sourceChain = useSelector(selectTransferSourceChain);
   const dispatch = useDispatch();
   const relayerSelected = !!useSelector(selectTransferUseRelayer);
 
-  console.log("relayer info in fee method selector", relayerInfo);
+  // console.log("relayer info in fee method selector", relayerInfo);
 
   const relayerEligible =
     relayerInfo.data &&
@@ -268,6 +268,7 @@ function FeeMethodSelector() {
               <SmartAddress
                 chainId={sourceChain}
                 parsedTokenAccount={sourceParsedTokenAccount}
+                isAsset
               />
             </div>{" "}
             <Typography>{`($ ${relayerInfo.data?.feeUsd})`}</Typography>

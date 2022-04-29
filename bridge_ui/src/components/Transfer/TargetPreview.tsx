@@ -32,6 +32,7 @@ export default function TargetPreview() {
               symbol={symbol}
               tokenName={tokenName}
               logo={logo}
+              isAsset
             />
           </>
         ) : null}
