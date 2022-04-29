@@ -1,0 +1,3 @@
+#pragma version 6
+pushint 1 // 1
+return

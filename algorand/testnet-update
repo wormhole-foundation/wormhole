@@ -1,0 +1,10 @@
+#!/bin/bash -f
+set -x
+
+#./sandbox down; ./sandbox clean; ./sandbox up dev; python3 admin.py --devnet --boot
+
+python3 admin.py --testnet --genTeal --upgradeVAA --submit --mnemonic="$1"
+python3 admin.py --testnet --updateCore  --mnemonic="$1"
+python3 admin.py --testnet --updateToken  --mnemonic="$1"
+
+# python3 admin.py --devnet --upgradeVAA --submit --updateToken

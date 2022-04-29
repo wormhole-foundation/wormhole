@@ -197,6 +197,11 @@
                 "nftBridgeEmitterAddress": "00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec",
                 "nftBridgeAddress": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
             }
+        },
+        "8": {
+            "contracts": {
+                "tokenBridgeEmitterAddress": "8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2"
+            }
         }
     },
     "gancheDefaults": [
