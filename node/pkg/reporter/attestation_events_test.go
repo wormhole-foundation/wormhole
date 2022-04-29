@@ -3,19 +3,35 @@ package reporter
 import (
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetUniqueClientId(t *testing.T) {
-	var almostFullMap = make(map[int]*lifecycleEventChannels)
-	limit := 500000
+	/*
+		Rationale:
+		Pro: This test does not have false positives. It is guaranteed to fail if the magic value for the maximum client ID changes.
+		Con: It takes ca. 0.463s to run this test
+	*/
 
-	for i := 0; i < 500000; i++ {
+	var maxClientId int = 1e6 // need to adjust this if magic value in getUniqueClientId changes
+	var almostFullMap = make(map[int]*lifecycleEventChannels, maxClientId)
+
+	firstExpectedValue := 0
+	secondExpectedValue := 1
+
+	// build a full map
+	for i := 0; i < maxClientId; i++ {
 		almostFullMap[i] = nil
 	}
 
+	// Test that we can find the empty slot in the map
+	delete(almostFullMap, firstExpectedValue)
 	re := AttestationEventReporter{sync.RWMutex{}, nil, almostFullMap}
+	assert.Equal(t, re.getUniqueClientId(), firstExpectedValue)
 
-	if re.getUniqueClientId() < limit {
-		t.Error("getUniqueClientId() did not return a unique Id.")
-	}
+	// Test that we can find a different empty slot in the map
+	almostFullMap[firstExpectedValue] = nil
+	delete(almostFullMap, secondExpectedValue)
+	assert.Equal(t, re.getUniqueClientId(), secondExpectedValue)
 }
