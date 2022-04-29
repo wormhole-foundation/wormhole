@@ -11,12 +11,12 @@ node_modules: package-lock.json
 dependencies: node_modules
 
 .PHONY: build
-build: build/main.js
+build: build/clients/js/main.js
 
 build/%.js: node_modules %.ts
 	npm run build
 
-install: build/main.js
+install: build/clients/js/main.js
 	chmod +x $<
 	npm link
 

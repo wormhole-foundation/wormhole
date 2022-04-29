@@ -16,11 +16,11 @@
     "yargs": "^17.0.1"
   },
   "bin": {
-    "worm": "./build/main.js",
+    "worm": "./build/clients/js/main.js",
     "worm-fetch-governance": "./worm-fetch-governance"
   },
   "scripts": {
-    "start": "tsc && node build/main.js",
+    "start": "tsc && node build/clients/js/main.js",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "main": "ts-node main.ts"
