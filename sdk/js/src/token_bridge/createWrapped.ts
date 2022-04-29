@@ -1,7 +1,9 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { Algodv2 } from "algosdk";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
+import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
@@ -51,4 +53,20 @@ export async function createWrappedOnSolana(
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
+}
+
+export async function createWrappedOnAlgorand(
+  client: Algodv2,
+  tokenBridgeId: bigint,
+  bridgeId: bigint,
+  senderAddr: string,
+  attestVAA: Uint8Array
+): Promise<TransactionSignerPair[]> {
+  return await _submitVAAAlgorand(
+    client,
+    tokenBridgeId,
+    bridgeId,
+    attestVAA,
+    senderAddr
+  );
 }

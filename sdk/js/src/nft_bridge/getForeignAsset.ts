@@ -38,7 +38,6 @@ export async function getForeignAssetEth(
   }
 }
 
-
 /**
  * Returns a foreign asset address on Terra for a provided native chain and asset address
  * @param tokenBridgeAddress
@@ -51,11 +50,13 @@ export async function getForeignAssetTerra(
   tokenBridgeAddress: string,
   client: LCDClient,
   originChain: ChainId,
-  originAsset: Uint8Array,
+  originAsset: Uint8Array
 ): Promise<string | null> {
   try {
     const address =
-      originChain == CHAIN_ID_SOLANA ? "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=" : fromUint8Array(originAsset);
+      originChain == CHAIN_ID_SOLANA
+        ? "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+        : fromUint8Array(originAsset);
     const result: { address: string } = await client.wasm.contractQuery(
       tokenBridgeAddress,
       {

@@ -1,6 +1,6 @@
 import { TransactionResponse } from "@solana/web3.js";
 import { TxInfo } from "@terra-money/terra.js";
-import { ContractReceipt } from "ethers";
+import { BigNumber, ContractReceipt } from "ethers";
 import { Implementation__factory } from "../ethers-contracts";
 
 export function parseSequenceFromLogEth(
@@ -85,4 +85,30 @@ export function parseSequencesFromLogSolana(info: TransactionResponse) {
   return info.meta?.logMessages
     ?.filter((msg) => msg.startsWith(SOLANA_SEQ_LOG))
     .map((msg) => msg.replace(SOLANA_SEQ_LOG, ""));
+}
+
+export function parseSequenceFromLogAlgorand(
+  result: Record<string, any>
+): string {
+  let sequence = "";
+  console.log(result);
+  if (result["inner-txns"]) {
+    console.log("Got inner txns.  Looking for logs...");
+    const innerTxns: [] = result["inner-txns"];
+    console.log("innerTxns:", innerTxns);
+    class iTxn {
+      "local-state-delta": [[Object]];
+      logs: Buffer[] | undefined;
+      "pool-eror": string;
+      txn: { txn: [Object] } | undefined;
+    }
+    innerTxns.forEach((txn: iTxn) => {
+      console.log("txn:", txn.logs);
+      if (txn.logs) {
+        sequence = BigNumber.from(txn.logs[0].slice(0, 8)).toString();
+        console.log("sequence:", sequence);
+      }
+    });
+  }
+  return sequence;
 }

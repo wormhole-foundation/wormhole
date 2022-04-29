@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormholenetwork.com",
   "main": "./lib/cjs/index.js",
@@ -60,6 +60,7 @@
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
     "@terra-money/terra.js": "^3.0.7",
+    "algosdk": "^1.15.0",
     "axios": "^0.24.0",
     "bech32": "^2.0.0",
     "js-base64": "^3.6.1",

@@ -4,18 +4,44 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
-  Transaction,
+  Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import {
+  Algodv2,
+  bigIntToBytes,
+  getApplicationAddress,
+  makeApplicationCallTxnFromObject,
+  makeAssetTransferTxnWithSuggestedParamsFromObject,
+  makePaymentTxnWithSuggestedParamsFromObject,
+  OnApplicationComplete,
+  SuggestedParams,
+  Transaction as AlgorandTransaction,
+} from "algosdk";
 import { BigNumber, ethers, Overrides, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
+import {
+  assetOptinCheck,
+  getMessageFee,
+  optin,
+  TransactionSignerPair,
+} from "../algorand";
+import { getEmitterAddressAlgorand } from "../bridge";
 import {
   Bridge__factory,
   TokenImplementation__factory,
 } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
-import { ChainId, CHAIN_ID_SOLANA, createNonce, WSOL_ADDRESS } from "../utils";
+import {
+  ChainId,
+  CHAIN_ID_SOLANA,
+  createNonce,
+  hexToUint8Array,
+  textToUint8Array,
+  WSOL_ADDRESS,
+} from "../utils";
+import { safeBigIntToNumber } from "../utils/bigint";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -256,7 +282,7 @@ export async function transferNativeSol(
   );
 
   const { blockhash } = await connection.getRecentBlockhash();
-  const transaction = new Transaction();
+  const transaction = new SolanaTransaction();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   transaction.add(createAncillaryAccountIx);
@@ -340,10 +366,166 @@ export async function transferFromSolana(
           targetChain
         )
   );
-  const transaction = new Transaction().add(transferIx, approvalIx, ix);
+  const transaction = new SolanaTransaction().add(transferIx, approvalIx, ix);
   const { blockhash } = await connection.getRecentBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   transaction.partialSign(messageKey);
   return transaction;
+}
+
+/**
+ * Transfers an asset from Algorand to a receiver on another chain
+ * @param client AlgodV2 client
+ * @param tokenBridgeId Application ID of the token bridge
+ * @param bridgeId Application ID of the core bridge
+ * @param sender Sending account
+ * @param assetId Asset index
+ * @param qty Quantity to transfer
+ * @param receiver Receiving account
+ * @param chain Reeiving chain
+ * @param fee Transfer fee
+ * @returns Sequence number of confirmation
+ */
+export async function transferFromAlgorand(
+  client: Algodv2,
+  tokenBridgeId: bigint,
+  bridgeId: bigint,
+  senderAddr: string,
+  assetId: bigint,
+  qty: bigint,
+  receiver: string,
+  chain: ChainId,
+  fee: bigint
+): Promise<TransactionSignerPair[]> {
+  const tokenAddr: string = getApplicationAddress(tokenBridgeId);
+  const applAddr: string = getEmitterAddressAlgorand(tokenBridgeId);
+  const txs: TransactionSignerPair[] = [];
+  // "transferAsset"
+  const { addr: emitterAddr, txs: emitterOptInTxs } = await optin(
+    client,
+    senderAddr,
+    bridgeId,
+    BigInt(0),
+    applAddr
+  );
+  txs.push(...emitterOptInTxs);
+  let creator;
+  let creatorAcctInfo: any;
+  let wormhole: boolean = false;
+  if (assetId !== BigInt(0)) {
+    const assetInfo: Record<string, any> = await client
+      .getAssetByID(safeBigIntToNumber(assetId))
+      .do();
+    creator = assetInfo["params"]["creator"];
+    creatorAcctInfo = await client.accountInformation(creator).do();
+    const authAddr: string = creatorAcctInfo["auth-addr"];
+    if (authAddr === tokenAddr) {
+      wormhole = true;
+    }
+  }
+
+  const params: SuggestedParams = await client.getTransactionParams().do();
+  const msgFee: bigint = await getMessageFee(client, bridgeId);
+  if (msgFee > 0) {
+    const payTxn: AlgorandTransaction =
+      makePaymentTxnWithSuggestedParamsFromObject({
+        from: senderAddr,
+        suggestedParams: params,
+        to: getApplicationAddress(tokenBridgeId),
+        amount: msgFee,
+      });
+    txs.push({ tx: payTxn, signer: null });
+  }
+  if (!wormhole) {
+    const bNat = Buffer.from("native", "binary").toString("hex");
+    // "creator"
+    const result = await optin(
+      client,
+      senderAddr,
+      tokenBridgeId,
+      assetId,
+      bNat
+    );
+    creator = result.addr;
+    txs.push(...result.txs);
+  }
+  if (
+    assetId !== BigInt(0) &&
+    !(await assetOptinCheck(client, assetId, creator))
+  ) {
+    // Looks like we need to optin
+    const payTxn: AlgorandTransaction =
+      makePaymentTxnWithSuggestedParamsFromObject({
+        from: senderAddr,
+        to: creator,
+        amount: 100000,
+        suggestedParams: params,
+      });
+    txs.push({ tx: payTxn, signer: null });
+    // The tokenid app needs to do the optin since it has signature authority
+    const bOptin: Uint8Array = textToUint8Array("optin");
+    let txn = makeApplicationCallTxnFromObject({
+      from: senderAddr,
+      appIndex: safeBigIntToNumber(tokenBridgeId),
+      onComplete: OnApplicationComplete.NoOpOC,
+      appArgs: [bOptin, bigIntToBytes(assetId, 8)],
+      foreignAssets: [safeBigIntToNumber(assetId)],
+      accounts: [creator],
+      suggestedParams: params,
+    });
+    txn.fee *= 2;
+    txs.push({ tx: txn, signer: null });
+  }
+  const t = makeApplicationCallTxnFromObject({
+    from: senderAddr,
+    appIndex: safeBigIntToNumber(tokenBridgeId),
+    onComplete: OnApplicationComplete.NoOpOC,
+    appArgs: [textToUint8Array("nop")],
+    suggestedParams: params,
+  });
+  txs.push({ tx: t, signer: null });
+
+  let accounts: string[] = [];
+  if (assetId === BigInt(0)) {
+    const t = makePaymentTxnWithSuggestedParamsFromObject({
+      from: senderAddr,
+      to: creator,
+      amount: qty,
+      suggestedParams: params,
+    });
+    txs.push({ tx: t, signer: null });
+    accounts = [emitterAddr, creator, creator];
+  } else {
+    const t = makeAssetTransferTxnWithSuggestedParamsFromObject({
+      from: senderAddr,
+      to: creator,
+      suggestedParams: params,
+      amount: qty,
+      assetIndex: safeBigIntToNumber(assetId),
+    });
+    txs.push({ tx: t, signer: null });
+    accounts = [emitterAddr, creator, creatorAcctInfo["address"]];
+  }
+  let args = [
+    textToUint8Array("sendTransfer"),
+    bigIntToBytes(assetId, 8),
+    bigIntToBytes(qty, 8),
+    hexToUint8Array(receiver),
+    bigIntToBytes(chain, 8),
+    bigIntToBytes(fee, 8),
+  ];
+  let acTxn = makeApplicationCallTxnFromObject({
+    from: senderAddr,
+    appIndex: safeBigIntToNumber(tokenBridgeId),
+    onComplete: OnApplicationComplete.NoOpOC,
+    appArgs: args,
+    foreignApps: [safeBigIntToNumber(bridgeId)],
+    foreignAssets: [safeBigIntToNumber(assetId)],
+    accounts: accounts,
+    suggestedParams: params,
+  });
+  acTxn.fee *= 2;
+  txs.push({ tx: acTxn, signer: null });
+  return txs;
 }

@@ -1,12 +1,20 @@
-import { ethers } from "ethers";
-import { Bridge__factory } from "../ethers-contracts";
-import { getSignedVAAHash } from "../bridge";
-import { importCoreWasm } from "../solana/wasm";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { Algodv2, bigIntToBytes } from "algosdk";
 import axios from "axios";
+import { ethers } from "ethers";
 import { redeemOnTerra } from ".";
 import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
+import {
+  BITS_PER_KEY,
+  calcLogicSigAccount,
+  MAX_BITS,
+  _parseVAAAlgorand,
+} from "../algorand";
+import { getSignedVAAHash } from "../bridge";
+import { Bridge__factory } from "../ethers-contracts";
+import { importCoreWasm } from "../solana/wasm";
+import { safeBigIntToNumber } from "../utils/bigint";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
@@ -49,7 +57,7 @@ export async function getIsTransferCompletedTerra(
         gasPrices,
       }
     );
-  } catch (e) {
+  } catch (e: any) {
     // redeemed if the VAA was already executed
     return e.response.data.message.includes("VaaAlreadyExecuted");
   }
@@ -68,4 +76,86 @@ export async function getIsTransferCompletedSolana(
     "confirmed"
   );
   return !!claimInfo;
+}
+
+// Algorand
+
+/**
+ * This function is used to check if a VAA has been redeemed by looking at a specific bit.
+ * @param client AlgodV2 client
+ * @param appId Application Id
+ * @param addr Wallet address. Someone has to pay for this.
+ * @param seq The sequence number of the redemption
+ * @returns true, if the bit was set and VAA was redeemed, false otherwise.
+ */
+async function checkBitsSet(
+  client: Algodv2,
+  appId: bigint,
+  addr: string,
+  seq: bigint
+): Promise<boolean> {
+  let retval: boolean = false;
+  let appState: any[] = [];
+  const acctInfo = await client.accountInformation(addr).do();
+  const als = acctInfo["apps-local-state"];
+  als.forEach((app: any) => {
+    if (BigInt(app["id"]) === appId) {
+      appState = app["key-value"];
+    }
+  });
+  if (appState.length === 0) {
+    return retval;
+  }
+
+  const BIG_MAX_BITS: bigint = BigInt(MAX_BITS);
+  const BIG_EIGHT: bigint = BigInt(8);
+  // Start on a MAX_BITS boundary
+  const start: bigint = (seq / BIG_MAX_BITS) * BIG_MAX_BITS;
+  // beg should be in the range [0..MAX_BITS]
+  const beg: number = safeBigIntToNumber(seq - start);
+  // s should be in the range [0..15]
+  const s: number = Math.floor(beg / BITS_PER_KEY);
+  const b: number = Math.floor((beg - s * BITS_PER_KEY) / 8);
+
+  const key = Buffer.from(bigIntToBytes(s, 1)).toString("base64");
+  appState.forEach((kv) => {
+    if (kv["key"] === key) {
+      const v = Buffer.from(kv["value"]["bytes"], "base64");
+      const bt = 1 << safeBigIntToNumber(seq % BIG_EIGHT);
+      retval = (v[b] & bt) != 0;
+      return;
+    }
+  });
+  return retval;
+}
+
+/**
+ * <p>Returns true if this transfer was completed on Algorand</p>
+ * @param client AlgodV2 client
+ * @param appId Most likely the Token bridge ID
+ * @param signedVAA VAA to check
+ * @param wallet The account paying the bill for this (it isn't free)
+ * @returns true if VAA has been redeemed, false otherwise
+ */
+export async function getIsTransferCompletedAlgorand(
+  client: Algodv2,
+  appId: bigint,
+  signedVAA: Uint8Array
+): Promise<boolean> {
+  const parsedVAA: Map<string, any> = _parseVAAAlgorand(signedVAA);
+  const seq: bigint = parsedVAA.get("sequence");
+  const chainRaw: string = parsedVAA.get("chainRaw"); // this needs to be a hex string
+  const em: string = parsedVAA.get("emitter"); // this needs to be a hex string
+  const { doesExist, lsa } = await calcLogicSigAccount(
+    client,
+    appId,
+    seq / BigInt(MAX_BITS),
+    chainRaw + em
+  );
+  if (!doesExist) {
+    return false;
+  }
+  const seqAddr = lsa.address();
+  const retVal: boolean = await checkBitsSet(client, appId, seqAddr, seq);
+  return retVal;
 }
