@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.6
+
+### Added
+
+Algorand support
+
+Celo support
+
 ## 0.2.5
 
 ### Changed

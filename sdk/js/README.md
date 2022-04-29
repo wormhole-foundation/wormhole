@@ -4,12 +4,7 @@
 
 ## What is Wormhole?
 
-[Wormhole](https://wormholenetwork.com/) allows for the transmission of arbitrary data across multiple blockchains. Wormhole currently supports the following platforms:
-
-- Solana
-- Ethereum
-- Terra
-- Binance Smart Chain
+[Wormhole](https://wormholenetwork.com/) allows for the transmission of arbitrary data across multiple blockchains. For the currently supported chains and contracts visit [the docs](https://docs.wormholenetwork.com/wormhole/contracts)
 
 Wormhole is, at its base layer, a very simple protocol. A Wormhole smart contract has been deployed on each of the supported blockchains, and users can emit messages in the Wormhole Network by submitting data to the smart contracts. These messages are quite simple and only have the following six fields.
 
