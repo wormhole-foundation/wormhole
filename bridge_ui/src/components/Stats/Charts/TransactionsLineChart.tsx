@@ -36,7 +36,7 @@ const TransactionsLineChart = ({
   const isXSmall = useMediaQuery(theme.breakpoints.down("xs"));
 
   return (
-    <ResponsiveContainer height={768}>
+    <ResponsiveContainer height={452}>
       <LineChart data={transactionData}>
         <XAxis
           dataKey="date"

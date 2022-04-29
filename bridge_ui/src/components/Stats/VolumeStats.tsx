@@ -21,8 +21,8 @@ import { COLORS } from "../../muiTheme";
 import { CHAINS_BY_ID } from "../../utils/consts";
 import { TIME_FRAMES } from "./Charts/TimeFrame";
 import {
-  createCumulativeTransferChartData,
-  createCumulativeTransactionData,
+  createTransferChartData,
+  createTransactionData,
   formatTransactionCount,
 } from "./Charts/utils";
 import VolumeAreaChart from "./Charts/VolumeAreaChart";
@@ -98,43 +98,37 @@ const VolumeStats = () => {
 
   const notionalTransferred = useNotionalTransferred();
 
-  const transferData = useMemo(() => {
-    return notionalTransferred.data
-      ? createCumulativeTransferChartData(
+  const [transferData, transferredAllTime] = useMemo(() => {
+    const transferData = notionalTransferred.data
+      ? createTransferChartData(
           notionalTransferred.data,
           TIME_FRAMES[timeFrame]
         )
       : [];
+    const transferredAllTime = transferData.reduce((sum, value) => {
+      return sum + value.totalTransferred;
+    }, 0);
+    const transferredAllTimeString = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(transferredAllTime);
+    return [transferData, transferredAllTimeString];
   }, [notionalTransferred, timeFrame]);
-
-  const transferredAllTime = useMemo(() => {
-    return notionalTransferred.data
-      ? new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-          maximumFractionDigits: 0,
-        }).format(notionalTransferred.data.Total || 0)
-      : "";
-  }, [notionalTransferred]);
 
   const transactionTotals = useTransactionTotals();
 
-  const transactionData = useMemo(() => {
-    return transactionTotals.data
-      ? createCumulativeTransactionData(
-          transactionTotals.data,
-          TIME_FRAMES[timeFrame]
-        )
+  const [transactionData, transactionsAllTime] = useMemo(() => {
+    const transactionData = transactionTotals.data
+      ? createTransactionData(transactionTotals.data, TIME_FRAMES[timeFrame])
       : [];
+    const transactionsAllTime = formatTransactionCount(
+      transactionData.reduce((sum, value) => {
+        return sum + value.totalTransactions;
+      }, 0)
+    );
+    return [transactionData, transactionsAllTime];
   }, [transactionTotals, timeFrame]);
-
-  const transactionsAllTime = useMemo(() => {
-    const totalTransactions =
-      transactionData[transactionData.length - 1]?.totalTransactions;
-    return totalTransactions !== undefined
-      ? formatTransactionCount(totalTransactions)
-      : "";
-  }, [transactionData]);
 
   const availableChains = useMemo(() => {
     const chainIds = notionalTransferred.data

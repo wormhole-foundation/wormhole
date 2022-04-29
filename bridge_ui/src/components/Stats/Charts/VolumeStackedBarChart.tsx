@@ -22,7 +22,12 @@ import {
   getChainShortName,
 } from "../../../utils/consts";
 import { TimeFrame } from "./TimeFrame";
-import { formatDate, TransferChartData, formatTVL, renderLegendText } from "./utils";
+import {
+  formatDate,
+  TransferChartData,
+  formatTVL,
+  renderLegendText,
+} from "./utils";
 
 const useStyles = makeStyles(() => ({
   tooltipContainer: {
@@ -149,7 +154,7 @@ const VolumeStackedBarChart = ({
   const isXSmall = useMediaQuery(theme.breakpoints.down("xs"));
 
   return (
-    <ResponsiveContainer height={768}>
+    <ResponsiveContainer height={452}>
       <BarChart data={barData}>
         <XAxis
           dataKey="date"
