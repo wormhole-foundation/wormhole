@@ -1,0 +1,44 @@
+{
+    "Genesis": {
+        "ConsensusProtocol": "future",
+        "NetworkName": "devmodenet",
+        "Wallets": [
+            {
+                "Name": "Wallet1",
+                "Stake": 40,
+                "Online": true
+            },
+            {
+                "Name": "Wallet2",
+                "Stake": 40,
+                "Online": true
+            },
+            {
+                "Name": "Wallet3",
+                "Stake": 20,
+                "Online": true
+            }
+        ],
+        "DevMode": true
+    },
+    "Nodes": [
+        {
+            "Name": "Node",
+            "IsRelay": false,
+            "Wallets": [
+                { 
+                    "Name": "Wallet1", 
+                    "ParticipationOnly": false 
+                },
+                { 
+                    "Name": "Wallet2", 
+                    "ParticipationOnly": false 
+                },
+                { 
+                    "Name": "Wallet3", 
+                    "ParticipationOnly": false 
+                }
+            ]
+        }
+    ]
+}

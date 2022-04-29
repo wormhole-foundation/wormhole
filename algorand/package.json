@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@certusone/wormhole-sdk": "file:../sdk/js",
+    "algosdk": "^1.14.0",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.2",
+    "varint": "^6.0.0",
+    "web3-eth-abi": "^1.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.23"
+  },
+  "scripts": {
+    "test": "npm run --prefix=../sdk/js build-lib && ts-node test/test.ts"
+  }
+}
