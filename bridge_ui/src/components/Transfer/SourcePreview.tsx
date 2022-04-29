@@ -39,6 +39,7 @@ export default function SourcePreview() {
         <SmartAddress
           chainId={sourceChain}
           parsedTokenAccount={sourceParsedTokenAccount}
+          isAsset
         />
         {sourceWalletAddress ? (
           <>

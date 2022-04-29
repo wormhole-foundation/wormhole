@@ -141,6 +141,7 @@ function Target() {
                   tokenName={tokenName}
                   logo={logo}
                   variant="h6"
+                  isAsset
                 />
                 {`(Amount: ${transferAmount})`}
               </Typography>

@@ -1,11 +1,13 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  getOriginalAssetAlgorand,
   getOriginalAssetEth,
   getOriginalAssetSol,
   getOriginalAssetTerra,
-  hexToNativeString,
+  hexToNativeAssetString,
   isEVMChain,
   uint8ArrayToHex,
   uint8ArrayToNative,
@@ -16,9 +18,10 @@ import {
   WormholeWrappedNFTInfo,
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { Web3Provider } from "@ethersproject/providers";
-import { ethers } from "ethers";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { Algodv2 } from "algosdk";
+import { ethers } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Provider,
@@ -26,6 +29,8 @@ import {
 } from "../contexts/EthereumProviderContext";
 import { DataWrapper } from "../store/helpers";
 import {
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getNFTBridgeAddressForChain,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
@@ -66,6 +71,17 @@ export async function getOriginalAssetToken(
     } else if (foreignChain === CHAIN_ID_TERRA) {
       const lcd = new LCDClient(TERRA_HOST);
       promise = await getOriginalAssetTerra(lcd, foreignNativeStringAddress);
+    } else if (foreignChain === CHAIN_ID_ALGORAND) {
+      const algodClient = new Algodv2(
+        ALGORAND_HOST.algodToken,
+        ALGORAND_HOST.algodServer,
+        ALGORAND_HOST.algodPort
+      );
+      promise = await getOriginalAssetAlgorand(
+        algodClient,
+        ALGORAND_TOKEN_BRIDGE_ID,
+        BigInt(foreignNativeStringAddress)
+      );
     }
   } catch (e) {
     promise = Promise.reject("Invalid foreign arguments.");
@@ -209,7 +225,7 @@ function useOriginalAsset(
           setIsLoading(false);
           setArgs();
           setOriginAddress(
-            hexToNativeString(
+            hexToNativeAssetString(
               uint8ArrayToHex(result.assetAddress),
               result.chainId
             ) || null

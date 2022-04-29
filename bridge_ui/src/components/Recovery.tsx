@@ -1,16 +1,21 @@
 import {
   ChainId,
   CHAIN_ID_ACALA,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_KARURA,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  getEmitterAddressAlgorand,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
+  hexToNativeAssetString,
   hexToNativeString,
   hexToUint8Array,
+  importCoreWasm,
   isEVMChain,
   parseNFTPayload,
+  parseSequenceFromLogAlgorand,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
@@ -35,6 +40,7 @@ import { ExpandMore } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import algosdk from "algosdk";
 import axios from "axios";
 import { ethers } from "ethers";
 import { useSnackbar } from "notistack";
@@ -49,6 +55,8 @@ import { COLORS } from "../muiTheme";
 import { setRecoveryVaa as setRecoveryNFTVaa } from "../store/nftSlice";
 import { setRecoveryVaa } from "../store/transferSlice";
 import {
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   CHAINS,
   CHAINS_BY_ID,
   CHAINS_WITH_NFT_SUPPORT,
@@ -86,6 +94,51 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 }));
+
+async function algo(tx: string, enqueueSnackbar: any) {
+  try {
+    const algodClient = new algosdk.Algodv2(
+      ALGORAND_HOST.algodToken,
+      ALGORAND_HOST.algodServer,
+      ALGORAND_HOST.algodPort
+    );
+    const pendingInfo = await algodClient
+      .pendingTransactionInformation(tx)
+      .do();
+    let confirmedTxInfo: Record<string, any> | undefined = undefined;
+    // This is the code from waitForConfirmation
+    if (pendingInfo !== undefined) {
+      if (
+        pendingInfo["confirmed-round"] !== null &&
+        pendingInfo["confirmed-round"] > 0
+      ) {
+        //Got the completed Transaction
+        confirmedTxInfo = pendingInfo;
+      }
+    }
+    if (!confirmedTxInfo) {
+      throw new Error("Transaction not found or not confirmed");
+    }
+    const sequence = parseSequenceFromLogAlgorand(confirmedTxInfo);
+    if (!sequence) {
+      throw new Error("Sequence not found");
+    }
+    const emitterAddress = getEmitterAddressAlgorand(ALGORAND_TOKEN_BRIDGE_ID);
+    const { vaaBytes } = await getSignedVAAWithRetry(
+      CHAIN_ID_ALGORAND,
+      emitterAddress,
+      sequence,
+      WORMHOLE_RPC_HOSTS.length
+    );
+    return { vaa: uint8ArrayToHex(vaaBytes), error: null };
+  } catch (e) {
+    console.error(e);
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    return { vaa: null, error: parseError(e) };
+  }
+}
 
 async function evm(
   provider: ethers.providers.Web3Provider,
@@ -293,7 +346,7 @@ function AcalaRelayerRecovery({
   const acalaRelayerInfo = useAcalaRelayerInfo(
     targetChain,
     amount,
-    hexToNativeString(originAsset, originChain),
+    hexToNativeAssetString(originAsset, originChain),
     false
   );
   const enabled = shouldCheck && acalaRelayerInfo.data?.shouldRelay;
@@ -429,6 +482,21 @@ export default function Recovery() {
             }
           }
         })();
+      } else if (recoverySourceChain === CHAIN_ID_ALGORAND) {
+        setRecoverySourceTxError("");
+        setRecoverySourceTxIsLoading(true);
+        (async () => {
+          const { vaa, error } = await algo(recoverySourceTx, enqueueSnackbar);
+          if (!cancelled) {
+            setRecoverySourceTxIsLoading(false);
+            if (vaa) {
+              setRecoverySignedVAA(vaa);
+            }
+            if (error) {
+              setRecoverySourceTxError(error);
+            }
+          }
+        })();
       }
       return () => {
         cancelled = true;
@@ -466,9 +534,7 @@ export default function Recovery() {
     if (recoverySignedVAA) {
       (async () => {
         try {
-          const { parse_vaa } = await import(
-            "@certusone/wormhole-sdk/lib/esm/solana/core/bridge"
-          );
+          const { parse_vaa } = await importCoreWasm();
           const parsedVAA = parse_vaa(hexToUint8Array(recoverySignedVAA));
           if (!cancelled) {
             setRecoveryParsedVAA(parsedVAA);
@@ -712,7 +778,7 @@ export default function Recovery() {
                   disabled
                   value={
                     (parsedPayload &&
-                      hexToNativeString(
+                      hexToNativeAssetString(
                         parsedPayload.originAddress,
                         parsedPayload.originChain
                       )) ||

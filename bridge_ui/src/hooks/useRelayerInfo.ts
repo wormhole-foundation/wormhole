@@ -1,5 +1,8 @@
-import { ChainId, CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
-import { hexToNativeString } from "@certusone/wormhole-sdk/lib/esm/utils";
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  hexToNativeAssetString,
+} from "@certusone/wormhole-sdk";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
@@ -132,11 +135,11 @@ function useRelayerInfo(
   const sourceAssetDecimals = sourceParsedTokenAccount?.decimals;
   const gasPrice = useSelector(selectTransferGasPrice);
   const relayerInfo = useRelayersAvailable(true);
-  console.log("relayerInfo", relayerInfo);
+  // console.log("relayerInfo", relayerInfo);
 
   const originAssetNative =
     originAsset && originChain
-      ? hexToNativeString(originAsset, originChain)
+      ? hexToNativeAssetString(originAsset, originChain)
       : null;
 
   useEffect(() => {

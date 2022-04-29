@@ -1,36 +1,45 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
   redeemAndUnwrapOnSolana,
+  redeemOnAlgorand,
   redeemOnEth,
   redeemOnEthNative,
   redeemOnSolana,
   redeemOnTerra,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
+import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
 import {
   ConnectedWallet,
   useConnectedWallet,
 } from "@terra-money/wallet-provider";
+import algosdk from "algosdk";
+import axios from "axios";
 import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import useTransferSignedVAA from "./useTransferSignedVAA";
 import {
   selectTerraFeeDenom,
   selectTransferIsRedeeming,
   selectTransferTargetChain,
 } from "../store/selectors";
 import { setIsRedeeming, setRedeemTx } from "../store/transferSlice";
+import { signSendAndConfirmAlgorand } from "../utils/algorand";
 import {
   ACALA_RELAY_URL,
+  ALGORAND_BRIDGE_ID,
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getTokenBridgeAddressForChain,
   MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
@@ -39,11 +48,49 @@ import {
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import parseError from "../utils/parseError";
-import { signSendAndConfirm } from "../utils/solana";
-import { Alert } from "@material-ui/lab";
-import { postWithFees } from "../utils/terra";
-import axios from "axios";
 import { postVaaWithRetry } from "../utils/postVaa";
+import { signSendAndConfirm } from "../utils/solana";
+import { postWithFees } from "../utils/terra";
+import useTransferSignedVAA from "./useTransferSignedVAA";
+
+async function algo(
+  dispatch: any,
+  enqueueSnackbar: any,
+  senderAddr: string,
+  signedVAA: Uint8Array
+) {
+  dispatch(setIsRedeeming(true));
+  try {
+    const algodClient = new algosdk.Algodv2(
+      ALGORAND_HOST.algodToken,
+      ALGORAND_HOST.algodServer,
+      ALGORAND_HOST.algodPort
+    );
+    const txs = await redeemOnAlgorand(
+      algodClient,
+      ALGORAND_TOKEN_BRIDGE_ID,
+      ALGORAND_BRIDGE_ID,
+      signedVAA,
+      senderAddr
+    );
+    const result = await signSendAndConfirmAlgorand(algodClient, txs);
+    // TODO: fill these out correctly
+    dispatch(
+      setRedeemTx({
+        id: txs[txs.length - 1].tx.txID(),
+        block: result["confirmed-round"],
+      })
+    );
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
+  } catch (e) {
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    dispatch(setIsRedeeming(false));
+  }
+}
 
 async function evm(
   dispatch: any,
@@ -175,6 +222,7 @@ export function useHandleRedeem() {
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
+  const { accounts: algoAccounts } = useAlgorandContext();
   const signedVAA = useTransferSignedVAA();
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
@@ -196,6 +244,12 @@ export function useHandleRedeem() {
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
       terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom);
+    } else if (
+      targetChain === CHAIN_ID_ALGORAND &&
+      algoAccounts[0] &&
+      !!signedVAA
+    ) {
+      algo(dispatch, enqueueSnackbar, algoAccounts[0]?.address, signedVAA);
     } else {
     }
   }, [
@@ -208,6 +262,7 @@ export function useHandleRedeem() {
     solPK,
     terraWallet,
     terraFeeDenom,
+    algoAccounts,
   ]);
 
   const handleRedeemNativeClick = useCallback(() => {
@@ -229,6 +284,12 @@ export function useHandleRedeem() {
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
       terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom); //TODO isNative = true
+    } else if (
+      targetChain === CHAIN_ID_ALGORAND &&
+      algoAccounts[0] &&
+      !!signedVAA
+    ) {
+      algo(dispatch, enqueueSnackbar, algoAccounts[0]?.address, signedVAA);
     } else {
     }
   }, [
@@ -241,6 +302,7 @@ export function useHandleRedeem() {
     solPK,
     terraWallet,
     terraFeeDenom,
+    algoAccounts,
   ]);
 
   const handleAcalaRelayerRedeemClick = useCallback(async () => {

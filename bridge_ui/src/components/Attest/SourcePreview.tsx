@@ -22,7 +22,7 @@ export default function SourcePreview() {
     sourceChain && sourceAsset ? (
       <>
         <span>You will attest</span>
-        <SmartAddress chainId={sourceChain} address={sourceAsset} />
+        <SmartAddress chainId={sourceChain} address={sourceAsset} isAsset />
         <span>on {CHAINS_BY_ID[sourceChain].name}</span>
       </>
     ) : (
