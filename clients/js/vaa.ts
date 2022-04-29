@@ -370,6 +370,7 @@ function portalRegisterChainParser<Module extends "NFTBridge" | "TokenBridge">(m
         .endianess("big")
         .string("module", {
             length: 32,
+            encoding: "hex",
             assert: Buffer.from(module).toString("hex").padStart(64, "0"),
             formatter: (_str) => module
         })
@@ -387,7 +388,8 @@ function portalRegisterChainParser<Module extends "NFTBridge" | "TokenBridge">(m
         .string("end", {
             greedy: true,
             assert: str => str === ""
-        }))
+        })
+)
 }
 
 function serialisePortalRegisterChain<Module extends "NFTBridge" | "TokenBridge">(payload: PortalRegisterChain<Module>): string {
