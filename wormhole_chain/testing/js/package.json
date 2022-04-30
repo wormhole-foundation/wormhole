@@ -10,7 +10,8 @@
   "scripts": {
     "test": "jest --config jestconfig.json --verbose",
     "bootstrap": "tsc && node lib/bootstrap.js",
-    "basicTransfer": "npm run test -- -t 'basicTransfer'"
+    "basicTransfer": "npm run test -- -t 'basicTransfer'",
+    "registerGuardianValidator": "npm run test -- -t 'registerGuardianValidator'"
   },
   "repository": {
     "type": "git",
