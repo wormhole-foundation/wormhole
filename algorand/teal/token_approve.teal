@@ -1514,6 +1514,8 @@ bnz main_l75
 main_l70:
 load 30
 callsub trimbytes_13
+pushbytes 0x2028576f726d686f6c6529 // " (Wormhole)"
+concat
 store 30
 load 28
 pushint 8 // 8

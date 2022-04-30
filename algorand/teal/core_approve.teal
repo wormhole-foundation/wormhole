@@ -122,7 +122,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 483 // 483
+pushint 506 // 506
 &&
 assert
 bytec_3 // "currentGuardianSetIndex"
@@ -485,7 +485,7 @@ store 15
 txn GroupIndex
 intc_1 // 0
 >
-pushint 403 // 403
+pushint 422 // 422
 &&
 assert
 txn GroupIndex
@@ -496,7 +496,7 @@ load 10
 gtxns NumAppArgs
 intc_1 // 0
 >
-pushint 405 // 405
+pushint 425 // 425
 &&
 assert
 load 10
@@ -536,7 +536,7 @@ pushint 66 // 66
 *
 +
 ==
-pushint 474 // 474
+pushint 497 // 497
 &&
 assert
 intc_0 // 1
@@ -566,7 +566,7 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-pushint 421 // 421
+pushint 444 // 444
 &&
 assert
 load 10
@@ -609,7 +609,7 @@ len
 extract3
 load 18
 ==
-pushint 438 // 438
+pushint 461 // 461
 &&
 assert
 load 15
@@ -639,7 +639,7 @@ gtxnsa ApplicationArgs 3
 load 16
 ==
 &&
-pushint 458 // 458
+pushint 481 // 481
 &&
 assert
 b main_l41
@@ -655,7 +655,7 @@ load 20
 getbit
 intc_1 // 0
 ==
-pushint 449 // 449
+pushint 472 // 472
 &&
 assert
 load 17
