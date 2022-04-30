@@ -2,6 +2,7 @@ import { coins } from "@cosmjs/proto-signing";
 import { OfflineSigner } from "@cosmjs/proto-signing";
 import { StdFee } from "@cosmjs/stargate";
 import {
+  fromValAddress,
   getAddress,
   getWallet,
   getWormchainSigningClient,
@@ -14,6 +15,9 @@ import {
   TEST_WALLET_ADDRESS_1,
   TEST_WALLET_MNEMONIC_1,
 } from "../consts";
+//@ts-ignore
+import * as elliptic from "elliptic";
+import keccak256 from "keccak256";
 
 export async function getQueryClient() {
   return getWormholeQueryClient(NODE_URL, true);
@@ -61,4 +65,16 @@ export function getZeroFee(): StdFee {
     amount: coins(0, HOLE_DENOM),
     gas: "180000", // 180k",
   };
+}
+
+export function signValidatorAddress(valAddr: string, privKey: string) {
+  const EC = elliptic.default.ec;
+  const ec = new EC("secp256k1");
+  const key = ec.keyFromPrivate(privKey);
+  const valAddrHash = keccak256(
+    Buffer.from(fromValAddress(valAddr).bytes)
+  ).toString("hex");
+  const signature = key.sign(valAddrHash, { canonical: true });
+  const hexString = signature.r + signature.s + "1";
+  return Buffer.from(hexString, "hex");
 }
