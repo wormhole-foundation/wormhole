@@ -82,7 +82,7 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		}
 		var keys [][]byte
 		for i := 0; i < numGuardians; i++ {
-			keys = append(keys, payload[5+i*20:6+i*20+20])
+			keys = append(keys, payload[5+i*20:5+i*20+20])
 		}
 
 		err := k.UpdateGuardianSet(ctx, types.GuardianSet{
