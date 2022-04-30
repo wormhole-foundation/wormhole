@@ -2,8 +2,6 @@ import { coins } from "@cosmjs/proto-signing";
 import { StdFee } from "@cosmjs/stargate";
 import axios from "axios";
 //@ts-ignore
-import * as elliptic from "elliptic";
-import keccak256 from "keccak256";
 import pkg from "protobufjs";
 const { Field, Type } = pkg;
 import * as sdk from "wormhole-chain-sdk";
@@ -13,7 +11,6 @@ import {
   toBase64,
   toValAddress,
 } from "wormhole-chain-sdk";
-import { Any } from "wormhole-chain-sdk/lib/modules/cosmos.evidence.v1beta1/types/google/protobuf/any";
 import {
   DEVNET_GUARDIAN2_PRIVATE_KEY,
   DEVNET_GUARDIAN2_PUBLIC_KEY,
@@ -29,6 +26,7 @@ import {
   UPGRADE_GUARDIAN_SET_VAA,
   VALIDATOR2_TENDERMINT_KEY,
 } from "./consts.js";
+import { signValidatorAddress } from "./utils/walletHelpers";
 
 const {
   getAddress,
@@ -492,18 +490,6 @@ function eject(error: string) {
 }
 
 function fromHex(hexString: string) {
-  return Buffer.from(hexString, "hex");
-}
-
-export function signValidatorAddress(valAddr: string, privKey: string) {
-  const EC = elliptic.default.ec;
-  const ec = new EC("secp256k1");
-  const key = ec.keyFromPrivate(privKey);
-  const valAddrHash = keccak256(
-    Buffer.from(fromValAddress(valAddr).bytes)
-  ).toString("hex");
-  const signature = key.sign(valAddrHash, { canonical: true });
-  const hexString = signature.r + signature.s + "1";
   return Buffer.from(hexString, "hex");
 }
 
