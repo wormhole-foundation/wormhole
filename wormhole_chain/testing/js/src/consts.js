@@ -9,11 +9,11 @@ export const TEST_WALLET_ADDRESS_2 =
   "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr";
 
 export const DEVNET_GUARDIAN_PUBLIC_KEY =
-  "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
+  "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
 export const DEVNET_GUARDIAN_PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 export const DEVNET_GUARDIAN2_PUBLIC_KEY =
-  "0xa75a14f140c22d691bb0b19b4a51fae5b77f9d89";
+  "a75a14f140c22d691bb0b19b4a51fae5b77f9d89";
 export const DEVNET_GUARDIAN2_PRIVATE_KEY =
   "bfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 
@@ -25,10 +25,8 @@ export const GUARDIAN_VALIDATOR2_VALADDR = "";
 export const GUARDIAN_VALIDATOR_BASE64_VALADDR = "wQggmD8zRWznvrOgRvWoP6NPAn0=";
 
 //This is a VAA in hex which is for guardian set 2, where Guardian 2 is the only active guardian.
-export const GUARDIAN2_UPGRADE_VAA = "";
-
-export const NODE_URL = "http://localhost:1317";
-export const TENDERMINT_URL = "http://localhost:26657";
+export const NODE_URL = "http://localhost:1318";
+export const TENDERMINT_URL = "http://localhost:26658";
 //export const FAUCET_URL = "http://localhost:4500";
 
 export const HOLE_DENOM = "uhole";

@@ -85,7 +85,6 @@ const aggregateTypes = [
   ...txTypes,
   ...upgradeTypes,
   ...vestingTypes,
-  ...defaultRegistryTypes, //There are no interface-level changes to the default modules at this time
 ];
 
 export const MissingWalletError = new Error("wallet is required");
