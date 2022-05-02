@@ -1213,202 +1213,202 @@ describe("Integration Tests", () => {
         done();
       })();
     });
-    // test("Testing relay type redeem", (done) => {
-    //   (async () => {
-    //     try {
-    //       console.log("Starting new test of transferring ETH to algorand.");
-    //       const client: algosdk.Algodv2 = getAlgoClient();
-    //       const tempAccts: Account[] = await getTempAccounts();
-    //       const numAccts: number = tempAccts.length;
-    //       expect(numAccts).toBeGreaterThan(0);
-    //       const algoWallet: Account = tempAccts[0];
-    //       const algoWalletBalance = await getBalance(
-    //         client,
-    //         algoWallet.addr,
-    //         BigInt(0)
-    //       );
-    //       expect(algoWalletBalance).toBeGreaterThan(0);
-    //       const relayerWallet: Account = tempAccts[1];
-    //       const relayerWalletBalance = await getBalance(
-    //         client,
-    //         relayerWallet.addr,
-    //         BigInt(0)
-    //       );
-    //       expect(relayerWalletBalance).toBeGreaterThan(0);
-    //       console.log("algoWallet", algoWallet.addr, algoWalletBalance);
-    //       console.log(
-    //         "relayerWallet",
-    //         relayerWallet.addr,
-    //         relayerWalletBalance
-    //       );
-    //       // ETH setup to transfer LUNA to Algorand
+    test("Testing relay type redeem", (done) => {
+      (async () => {
+        try {
+          console.log("Starting new test of transferring ETH to algorand.");
+          const client: algosdk.Algodv2 = getAlgoClient();
+          const tempAccts: Account[] = await getTempAccounts();
+          const numAccts: number = tempAccts.length;
+          expect(numAccts).toBeGreaterThan(0);
+          const algoWallet: Account = tempAccts[0];
+          const algoWalletBalance = await getBalance(
+            client,
+            algoWallet.addr,
+            BigInt(0)
+          );
+          expect(algoWalletBalance).toBeGreaterThan(0);
+          const relayerWallet: Account = tempAccts[1];
+          const relayerWalletBalance = await getBalance(
+            client,
+            relayerWallet.addr,
+            BigInt(0)
+          );
+          expect(relayerWalletBalance).toBeGreaterThan(0);
+          console.log("algoWallet", algoWallet.addr, algoWalletBalance);
+          console.log(
+            "relayerWallet",
+            relayerWallet.addr,
+            relayerWalletBalance
+          );
+          // ETH setup to transfer LUNA to Algorand
 
-    //       // create a signer for Eth
-    //       const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-    //       const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-    //       // attest the test token
-    //       const receipt = await attestFromEth(
-    //         ETH_TOKEN_BRIDGE_ADDRESS,
-    //         signer,
-    //         TEST_ERC20
-    //       );
-    //       // get the sequence from the logs (needed to fetch the vaa)
-    //       const sequence = parseSequenceFromLogEth(
-    //         receipt,
-    //         ETH_CORE_BRIDGE_ADDRESS
-    //       );
-    //       const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
-    //       // poll until the guardian(s) witness and sign the vaa
-    //       const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
-    //         WORMHOLE_RPC_HOSTS,
-    //         CHAIN_ID_ETH,
-    //         emitterAddress,
-    //         sequence,
-    //         {
-    //           transport: NodeHttpTransport(),
-    //         }
-    //       );
-    //       console.log("About to createWrappedOnAlgorand...");
-    //       const createWrappedTxs = await createWrappedOnAlgorand(
-    //         client,
-    //         TOKEN_BRIDGE_ID,
-    //         CORE_ID,
-    //         algoWallet.addr,
-    //         signedVAA
-    //       );
-    //       await signSendAndConfirmAlgorand(
-    //         client,
-    //         createWrappedTxs,
-    //         algoWallet
-    //       );
+          // create a signer for Eth
+          const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+          const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+          // attest the test token
+          const receipt = await attestFromEth(
+            ETH_TOKEN_BRIDGE_ADDRESS,
+            signer,
+            TEST_ERC20
+          );
+          // get the sequence from the logs (needed to fetch the vaa)
+          const sequence = parseSequenceFromLogEth(
+            receipt,
+            ETH_CORE_BRIDGE_ADDRESS
+          );
+          const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+          // poll until the guardian(s) witness and sign the vaa
+          const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+            WORMHOLE_RPC_HOSTS,
+            CHAIN_ID_ETH,
+            emitterAddress,
+            sequence,
+            {
+              transport: NodeHttpTransport(),
+            }
+          );
+          console.log("About to createWrappedOnAlgorand...");
+          const createWrappedTxs = await createWrappedOnAlgorand(
+            client,
+            TOKEN_BRIDGE_ID,
+            CORE_ID,
+            algoWallet.addr,
+            signedVAA
+          );
+          await signSendAndConfirmAlgorand(
+            client,
+            createWrappedTxs,
+            algoWallet
+          );
 
-    //       let assetIdCreated = await getForeignAssetFromVaaAlgorand(
-    //         client,
-    //         TOKEN_BRIDGE_ID,
-    //         signedVAA
-    //       );
-    //       if (!assetIdCreated) {
-    //         throw new Error("Failed to create asset");
-    //       }
-    //       console.log("assetIdCreated", assetIdCreated);
-    //       console.log(
-    //         "algoWallet balance:",
-    //         await getBalance(client, algoWallet.addr, assetIdCreated)
-    //       );
-    //       console.log(
-    //         "relayerWallet balance:",
-    //         await getBalance(client, relayerWallet.addr, assetIdCreated)
-    //       );
+          let assetIdCreated = await getForeignAssetFromVaaAlgorand(
+            client,
+            TOKEN_BRIDGE_ID,
+            signedVAA
+          );
+          if (!assetIdCreated) {
+            throw new Error("Failed to create asset");
+          }
+          console.log("assetIdCreated", assetIdCreated);
+          console.log(
+            "algoWallet balance:",
+            await getBalance(client, algoWallet.addr, assetIdCreated)
+          );
+          console.log(
+            "relayerWallet balance:",
+            await getBalance(client, relayerWallet.addr, assetIdCreated)
+          );
 
-    //       // Start of transfer from ETH to Algorand
-    //       // approve the bridge to spend tokens
-    //       const amount = parseUnits("2", 18);
-    //       const halfAmount = parseUnits("1", 18);
-    //       await approveEth(
-    //         ETH_TOKEN_BRIDGE_ADDRESS,
-    //         TEST_ERC20,
-    //         signer,
-    //         amount
-    //       );
-    //       // transfer half the tokens directly
-    //       const firstHalfReceipt = await transferFromEth(
-    //         ETH_TOKEN_BRIDGE_ADDRESS,
-    //         signer,
-    //         TEST_ERC20,
-    //         halfAmount,
-    //         CHAIN_ID_ALGORAND,
-    //         decodeAddress(algoWallet.addr).publicKey // This needs to be Algorand wallet
-    //       );
-    //       // get the sequence from the logs (needed to fetch the vaa)
-    //       const firstHalfSn = parseSequenceFromLogEth(
-    //         firstHalfReceipt,
-    //         ETH_CORE_BRIDGE_ADDRESS
-    //       );
-    //       const ethEmitterAddress = getEmitterAddressEth(
-    //         ETH_TOKEN_BRIDGE_ADDRESS
-    //       );
-    //       // poll until the guardian(s) witness and sign the vaa
-    //       const { vaaBytes: firstHalfVaa } = await getSignedVAAWithRetry(
-    //         WORMHOLE_RPC_HOSTS,
-    //         CHAIN_ID_ETH,
-    //         ethEmitterAddress,
-    //         firstHalfSn,
-    //         {
-    //           transport: NodeHttpTransport(),
-    //         }
-    //       );
+          // Start of transfer from ETH to Algorand
+          // approve the bridge to spend tokens
+          const amount = parseUnits("2", 18);
+          const halfAmount = parseUnits("1", 18);
+          await approveEth(
+            ETH_TOKEN_BRIDGE_ADDRESS,
+            TEST_ERC20,
+            signer,
+            amount
+          );
+          // transfer half the tokens directly
+          const firstHalfReceipt = await transferFromEth(
+            ETH_TOKEN_BRIDGE_ADDRESS,
+            signer,
+            TEST_ERC20,
+            halfAmount,
+            CHAIN_ID_ALGORAND,
+            decodeAddress(algoWallet.addr).publicKey // This needs to be Algorand wallet
+          );
+          // get the sequence from the logs (needed to fetch the vaa)
+          const firstHalfSn = parseSequenceFromLogEth(
+            firstHalfReceipt,
+            ETH_CORE_BRIDGE_ADDRESS
+          );
+          const ethEmitterAddress = getEmitterAddressEth(
+            ETH_TOKEN_BRIDGE_ADDRESS
+          );
+          // poll until the guardian(s) witness and sign the vaa
+          const { vaaBytes: firstHalfVaa } = await getSignedVAAWithRetry(
+            WORMHOLE_RPC_HOSTS,
+            CHAIN_ID_ETH,
+            ethEmitterAddress,
+            firstHalfSn,
+            {
+              transport: NodeHttpTransport(),
+            }
+          );
 
-    //       console.log("about to redeemOnAlgorand...");
-    //       // Redeem half the amount on Algorand
-    //       const firstHalfRedeemTxs = await redeemOnAlgorand(
-    //         client,
-    //         TOKEN_BRIDGE_ID,
-    //         CORE_ID,
-    //         firstHalfVaa,
-    //         algoWallet.addr
-    //       );
-    //       await signSendAndConfirmAlgorand(
-    //         client,
-    //         firstHalfRedeemTxs,
-    //         algoWallet
-    //       );
-    //       expect(
-    //         await getIsTransferCompletedAlgorand(
-    //           client,
-    //           TOKEN_BRIDGE_ID,
-    //           firstHalfVaa
-    //         )
-    //       ).toBe(true);
-    //       // transfer second half of tokens via relayer
-    //       const secondHalfReceipt = await transferFromEth(
-    //         ETH_TOKEN_BRIDGE_ADDRESS,
-    //         signer,
-    //         TEST_ERC20,
-    //         halfAmount,
-    //         CHAIN_ID_ALGORAND,
-    //         decodeAddress(algoWallet.addr).publicKey // This needs to be Algorand wallet
-    //       );
-    //       // get the sequence from the logs (needed to fetch the vaa)
-    //       const secondHalfSn = parseSequenceFromLogEth(
-    //         secondHalfReceipt,
-    //         ETH_CORE_BRIDGE_ADDRESS
-    //       );
-    //       // poll until the guardian(s) witness and sign the vaa
-    //       const { vaaBytes: secondHalfVaa } = await getSignedVAAWithRetry(
-    //         WORMHOLE_RPC_HOSTS,
-    //         CHAIN_ID_ETH,
-    //         ethEmitterAddress,
-    //         secondHalfSn,
-    //         {
-    //           transport: NodeHttpTransport(),
-    //         }
-    //       );
+          console.log("about to redeemOnAlgorand...");
+          // Redeem half the amount on Algorand
+          const firstHalfRedeemTxs = await redeemOnAlgorand(
+            client,
+            TOKEN_BRIDGE_ID,
+            CORE_ID,
+            firstHalfVaa,
+            algoWallet.addr
+          );
+          await signSendAndConfirmAlgorand(
+            client,
+            firstHalfRedeemTxs,
+            algoWallet
+          );
+          expect(
+            await getIsTransferCompletedAlgorand(
+              client,
+              TOKEN_BRIDGE_ID,
+              firstHalfVaa
+            )
+          ).toBe(true);
+          // transfer second half of tokens via relayer
+          const secondHalfReceipt = await transferFromEth(
+            ETH_TOKEN_BRIDGE_ADDRESS,
+            signer,
+            TEST_ERC20,
+            halfAmount,
+            CHAIN_ID_ALGORAND,
+            decodeAddress(algoWallet.addr).publicKey // This needs to be Algorand wallet
+          );
+          // get the sequence from the logs (needed to fetch the vaa)
+          const secondHalfSn = parseSequenceFromLogEth(
+            secondHalfReceipt,
+            ETH_CORE_BRIDGE_ADDRESS
+          );
+          // poll until the guardian(s) witness and sign the vaa
+          const { vaaBytes: secondHalfVaa } = await getSignedVAAWithRetry(
+            WORMHOLE_RPC_HOSTS,
+            CHAIN_ID_ETH,
+            ethEmitterAddress,
+            secondHalfSn,
+            {
+              transport: NodeHttpTransport(),
+            }
+          );
 
-    //       console.log("about to redeemOnAlgorand second half...");
-    //       // Redeem second half the amount on Algorand
-    //       const redeemTxs = await redeemOnAlgorand(
-    //         client,
-    //         TOKEN_BRIDGE_ID,
-    //         CORE_ID,
-    //         secondHalfVaa,
-    //         relayerWallet.addr
-    //       );
-    //       await signSendAndConfirmAlgorand(client, redeemTxs, relayerWallet);
-    //       expect(
-    //         await getIsTransferCompletedAlgorand(
-    //           client,
-    //           TOKEN_BRIDGE_ID,
-    //           secondHalfVaa
-    //         )
-    //       ).toBe(true);
-    //       provider.destroy();
-    //     } catch (e) {
-    //       console.error("new test error:", e);
-    //       done("new test error");
-    //       return;
-    //     }
-    //     done();
-    //   })();
-    // });
+          console.log("about to redeemOnAlgorand second half...");
+          // Redeem second half the amount on Algorand
+          const redeemTxs = await redeemOnAlgorand(
+            client,
+            TOKEN_BRIDGE_ID,
+            CORE_ID,
+            secondHalfVaa,
+            relayerWallet.addr
+          );
+          await signSendAndConfirmAlgorand(client, redeemTxs, relayerWallet);
+          expect(
+            await getIsTransferCompletedAlgorand(
+              client,
+              TOKEN_BRIDGE_ID,
+              secondHalfVaa
+            )
+          ).toBe(true);
+          provider.destroy();
+        } catch (e) {
+          console.error("new test error:", e);
+          done("new test error");
+          return;
+        }
+        done();
+      })();
+    });
   });
 });
