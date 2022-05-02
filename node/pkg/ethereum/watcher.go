@@ -598,7 +598,10 @@ func fetchCurrentGuardianSet(ctx context.Context, ethIntf common.Ethish) (uint32
 
 func (e *Watcher) checkForSafeMode(ctx context.Context) error {
 	if e.chainID == vaa.ChainIDKarura || e.chainID == vaa.ChainIDAcala {
-		c, err := rpc.DialContext(ctx, e.url)
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+	
+		c, err := rpc.DialContext(timeout, e.url)
 		if err != nil {
 			return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", e.url, err)
 		}
