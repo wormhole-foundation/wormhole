@@ -486,7 +486,7 @@ class SubmitVAAState {
  * @param appid Application ID
  * @returns Current VAA state
  */
-async function submitVAAHdr(
+export async function submitVAAHeader(
   client: Algodv2,
   bridgeId: bigint,
   vaa: Uint8Array,
@@ -623,7 +623,7 @@ export async function _submitVAAAlgorand(
   vaa: Uint8Array,
   senderAddr: string
 ): Promise<TransactionSignerPair[]> {
-  let sstate = await submitVAAHdr(
+  let sstate = await submitVAAHeader(
     client,
     bridgeId,
     vaa,
