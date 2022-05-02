@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.7
+
+### Added
+
+safeBigIntToNumber() utility function
+
 ## 0.2.6
 
 ### Added
