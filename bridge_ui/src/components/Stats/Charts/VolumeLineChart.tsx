@@ -27,7 +27,7 @@ const VolumeLineChart = ({
   const isXSmall = useMediaQuery(theme.breakpoints.down("xs"));
 
   return (
-    <ResponsiveContainer height={768}>
+    <ResponsiveContainer height={452}>
       <LineChart data={transferData}>
         <XAxis
           dataKey="date"

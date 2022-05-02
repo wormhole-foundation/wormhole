@@ -111,7 +111,7 @@ export interface TransferChartData {
   };
 }
 
-export const createCumulativeTransferChartData = (
+export const createTransferChartData = (
   notionalTransferredFrom: NotionalTransferredFrom,
   timeFrame: TimeFrame
 ) => {
@@ -127,12 +127,9 @@ export const createCumulativeTransferChartData = (
       };
       Object.entries(transferFromData).forEach(([chainId, amount]) => {
         if (chainId === "*") {
-          data.totalTransferred =
-            (chartData[chartData.length - 1]?.totalTransferred || 0) + amount;
+          data.totalTransferred = amount;
         } else {
-          data.transferredByChain[chainId] =
-            (chartData[chartData.length - 1]?.transferredByChain[chainId] ||
-              0) + amount;
+          data.transferredByChain[chainId] = amount;
         }
       });
       chartData.push(data);
@@ -149,19 +146,15 @@ export interface TransactionData {
   };
 }
 
-export const createCumulativeTransactionData = (
-  totals: Totals,
-  timeFrame: TimeFrame
-) => {
+export const createTransactionData = (totals: Totals, timeFrame: TimeFrame) => {
   const startDate = getStartDate(timeFrame);
   return Object.keys(totals.DailyTotals)
     .sort()
     .reduce<TransactionData[]>((chartData, dateString) => {
       const groupByKeys = totals.DailyTotals[dateString];
-      const prevData = chartData[chartData.length - 1];
       const data: TransactionData = {
         date: new Date(dateString),
-        totalTransactions: prevData?.totalTransactions || 0,
+        totalTransactions: 0,
         transactionsByChain: {},
       };
       VAA_EMITTER_ADDRESSES.forEach((address) => {
@@ -169,8 +162,7 @@ export const createCumulativeTransactionData = (
         data.totalTransactions += count;
         const chainId = address.slice(0, address.indexOf(":"));
         if (data.transactionsByChain[chainId] === undefined) {
-          data.transactionsByChain[chainId] =
-            prevData?.transactionsByChain[chainId] || 0;
+          data.transactionsByChain[chainId] = 0;
         }
         data.transactionsByChain[chainId] += count;
       });

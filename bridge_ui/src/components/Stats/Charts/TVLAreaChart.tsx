@@ -28,7 +28,7 @@ const TVLAreaChart = ({
   const isXSmall = useMediaQuery(theme.breakpoints.down("xs"));
 
   return (
-    <ResponsiveContainer height={768}>
+    <ResponsiveContainer height={452}>
       <AreaChart data={data}>
         <XAxis
           dataKey="date"
