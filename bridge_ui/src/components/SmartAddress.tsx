@@ -9,6 +9,7 @@ import {
   CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_FANTOM,
   CHAIN_ID_KLAYTN,
+  CHAIN_ID_KARURA,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
@@ -147,6 +148,12 @@ export default function SmartAddress({
           ? "alfajores-blockscout.celo-testnet.org"
           : "explorer.celo.org"
       }/address/${useableAddress}`
+    : chainId === CHAIN_ID_KARURA
+    ? `https://${
+        CLUSTER === "testnet"
+          ? "blockscout.karura-dev.aca-dev.network"
+          : "blockscout.karura.network"
+      }/${isAsset ? "token" : "address"}/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"

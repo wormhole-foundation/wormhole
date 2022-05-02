@@ -76,6 +76,11 @@ export const CHAINS: ChainInfo[] =
           logo: fantomIcon,
         },
         {
+          id: CHAIN_ID_KARURA,
+          name: "Karura",
+          logo: karuraIcon,
+        },
+        {
           id: CHAIN_ID_OASIS,
           name: "Oasis",
           logo: oasisIcon,
@@ -201,7 +206,8 @@ export const CHAINS: ChainInfo[] =
           logo: terraIcon,
         },
       ];
-export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
+export const BETA_CHAINS: ChainId[] =
+  CLUSTER === "mainnet" ? [CHAIN_ID_KARURA] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -387,7 +393,7 @@ export const ALGORAND_HOST =
       };
 export const KARURA_HOST =
   CLUSTER === "mainnet"
-    ? ""
+    ? "https://eth-rpc-karura.aca-api.network/"
     : CLUSTER === "testnet"
     ? "https://karura-dev.aca-dev.network/eth/http"
     : "";
@@ -546,21 +552,21 @@ export const FANTOM_TOKEN_BRIDGE_ADDRESS = getAddress(
 );
 export const KARURA_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xa321448d90d4e5b0A732867c18eA198e75CAC48E"
     : CLUSTER === "testnet"
     ? "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const KARURA_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xb91e3638F82A1fACb28690b37e3aAE45d2c33808"
     : CLUSTER === "testnet"
     ? "0x0A693c2D594292B6Eb89Cb50EFe4B0b63Dd2760D"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const KARURA_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xae9d7fe007b3327AA64A32824Aaac52C42a6E624"
     : CLUSTER === "testnet"
     ? "0xd11De1f930eA1F7Dd0290Fe3a2e35b9C91AEFb37"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
