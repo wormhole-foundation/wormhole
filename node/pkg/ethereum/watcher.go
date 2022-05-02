@@ -100,7 +100,8 @@ type (
 		minConfirmations uint64
 
 		// Interface to the chain specific ethereum library.
-		ethIntf common.Ethish
+		ethIntf             common.Ethish
+		shouldCheckSafeMode bool
 	}
 
 	pendingKey struct {
@@ -138,25 +139,28 @@ func NewEthWatcher(
 	}
 
 	return &Watcher{
-		url:              url,
-		contract:         contract,
-		networkName:      networkName,
-		readiness:        readiness,
-		minConfirmations: minConfirmations,
-		chainID:          chainID,
-		msgChan:          messageEvents,
-		setChan:          setEvents,
-		obsvReqC:         obsvReqC,
-		pending:          map[pendingKey]*pendingMessage{},
-		ethIntf:          ethIntf}
+		url:                 url,
+		contract:            contract,
+		networkName:         networkName,
+		readiness:           readiness,
+		minConfirmations:    minConfirmations,
+		chainID:             chainID,
+		msgChan:             messageEvents,
+		setChan:             setEvents,
+		obsvReqC:            obsvReqC,
+		pending:             map[pendingKey]*pendingMessage{},
+		ethIntf:             ethIntf,
+		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode)}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 	e.ethIntf.SetLogger(logger)
 
-	if err := e.checkForSafeMode(ctx); err != nil {
-		return err
+	if e.shouldCheckSafeMode {
+		if err := e.checkForSafeMode(ctx); err != nil {
+			return err
+		}
 	}
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
@@ -597,21 +601,22 @@ func fetchCurrentGuardianSet(ctx context.Context, ethIntf common.Ethish) (uint32
 }
 
 func (e *Watcher) checkForSafeMode(ctx context.Context) error {
-	if e.chainID == vaa.ChainIDKarura || e.chainID == vaa.ChainIDAcala {
-		c, err := rpc.DialContext(ctx, e.url)
-		if err != nil {
-			return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", e.url, err)
-		}
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 
-		var safe bool
-		err = c.CallContext(ctx, &safe, "net_isSafeMode")
-		if err != nil {
-			return fmt.Errorf("check for safe mode for url %s failed: %w", e.url, err)
-		}
+	c, err := rpc.DialContext(timeout, e.url)
+	if err != nil {
+		return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", e.url, err)
+	}
 
-		if !safe {
-			return fmt.Errorf("url %s is not using safe mode", e.url)
-		}
+	var safe bool
+	err = c.CallContext(ctx, &safe, "net_isSafeMode")
+	if err != nil {
+		return fmt.Errorf("check for safe mode for url %s failed: %w", e.url, err)
+	}
+
+	if !safe {
+		return fmt.Errorf("url %s is not using safe mode", e.url)
 	}
 
 	return nil

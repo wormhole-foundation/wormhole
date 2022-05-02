@@ -165,6 +165,20 @@ module.exports = {
       gas: 4465030,
       gasPrice: 300000000000,
     },
+    karura: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          // To use this local host, needed to run this: ENDPOINT_URL=wss://karura-rpc-1.aca-api.network npx @acala-network/eth-rpc-adapter@latest
+          "http://localhost:8545"
+          //"https://eth-rpc-karura.aca-api.network/"
+        );
+      },
+      network_id: 686,
+      gasPrice: "0x2f7e8803ea",
+      gasLimit: "0x329b140",
+      gas: "0x329b140",
+    },   
     karura_testnet: {
       provider: () => {
         return new HDWalletProvider(
