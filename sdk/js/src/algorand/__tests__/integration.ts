@@ -95,7 +95,7 @@ const TOKEN_BRIDGE_ID = BigInt(6);
 
 setDefaultWasm("node");
 
-jest.setTimeout(60000);
+jest.setTimeout(120000);
 
 // TODO: setup keypair and provider/signer before, destroy provider after
 // TODO: make the repeatable (can't attest an already attested token)
@@ -1245,19 +1245,24 @@ describe("Integration Tests", () => {
 
           // create a signer for Eth
           const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+          console.log("here");
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+          console.log("here");
           // attest the test token
           const receipt = await attestFromEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             signer,
             TEST_ERC20
           );
+          console.log("here");
           // get the sequence from the logs (needed to fetch the vaa)
           const sequence = parseSequenceFromLogEth(
             receipt,
             ETH_CORE_BRIDGE_ADDRESS
           );
+          console.log("here");
           const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+          console.log("here");
           // poll until the guardian(s) witness and sign the vaa
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -1401,6 +1406,7 @@ describe("Integration Tests", () => {
               secondHalfVaa
             )
           ).toBe(true);
+          console.log("Destroying the provider...");
           provider.destroy();
         } catch (e) {
           console.error("new test error:", e);
