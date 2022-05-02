@@ -169,14 +169,16 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "http://103.253.145.222:8545" // This is wrong.
+          // To use this local host, needed to run this: ENDPOINT_URL=wss://karura-rpc-1.aca-api.network npx @acala-network/eth-rpc-adapter@latest
+          "http://localhost:8545"
+          //"https://eth-rpc-karura.aca-api.network/"
         );
       },
-      network_id: 686, // Need to validate this.
-      gasPrice: 202184721385, // Need to regenerate these values.
-      gasLimit: 117096000,
-      gas: 117096000,
-    },    
+      network_id: 686,
+      gasPrice: "0x2f7e8803ea",
+      gasLimit: "0x329b140",
+      gas: "0x329b140",
+    },   
     karura_testnet: {
       provider: () => {
         return new HDWalletProvider(

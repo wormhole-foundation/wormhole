@@ -36,7 +36,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
 	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
 	vaa.ChainIDKarura:    "https://blockscout.karura.network/api",
-	vaa.ChainIDCelo:      "https://explorer.celo.org//api",
+	vaa.ChainIDCelo:      "https://explorer.celo.org/api",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
