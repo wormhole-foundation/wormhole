@@ -26,6 +26,8 @@ Deprecated `hexToNativeString`
 
 Deprecated `hexToNativeAssetString`
 
+Deprecated `uint8ArrayToNative`
+
 `isEVMChain` now performs type narrowing
 
 `CHAIN_ID_*` constants now have literal types
