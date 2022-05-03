@@ -66,7 +66,7 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   karura: {
-    rpc: undefined,
+    rpc: "https://eth-rpc-karura.aca-api.network/",
     key: get_env_var("ETH_KEY"),
   },
   acala: {

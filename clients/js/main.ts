@@ -162,6 +162,8 @@ yargs(hideBin(process.argv))
       throw Error("Couldn't parse VAA payload")
     }
 
+    console.log(parsed_vaa.payload)
+
     const network = argv.network.toUpperCase()
     if (network !== 'MAINNET' && network !== 'TESTNET') {
       throw Error(`Unknown network: ${network}`)

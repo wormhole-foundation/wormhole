@@ -3,6 +3,7 @@ import { ethers } from "ethers"
 import { NETWORKS } from "./networks"
 import { impossible, Payload } from "./vaa"
 import { Contracts, CONTRACTS, EVMChainName } from "../../sdk/js/src/utils/consts"
+import axios from "axios";
 
 export async function execute_governance_evm(
   payload: Payload,
@@ -20,6 +21,11 @@ export async function execute_governance_evm(
   let rpc: string = n.rpc
   let key: string = n.key
 
+  let overrides: any = {}
+  if (chain === "karura") {
+    overrides = await getKaruraGasParams(n.rpc)
+  }
+
   let contracts: Contracts = CONTRACTS[network][chain]
 
   let provider = new ethers.providers.JsonRpcProvider(rpc)
@@ -35,11 +41,11 @@ export async function execute_governance_evm(
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set")
-          console.log("Hash: " + (await cb.submitNewGuardianSet(vaa)).hash)
+          console.log("Hash: " + (await cb.submitNewGuardianSet(vaa, overrides)).hash)
           break
         case "ContractUpgrade":
           console.log("Upgrading core contract")
-          console.log("Hash: " + (await cb.submitContractUpgrade(vaa)).hash)
+          console.log("Hash: " + (await cb.submitContractUpgrade(vaa, overrides)).hash)
           break
         default:
           impossible(payload)
@@ -54,12 +60,12 @@ export async function execute_governance_evm(
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
-          console.log("Hash: " + (await nb.upgrade(vaa)).hash)
+          console.log("Hash: " + (await nb.upgrade(vaa, overrides)).hash)
           console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
           break
         case "RegisterChain":
           console.log("Registering chain")
-          console.log("Hash: " + (await nb.registerChain(vaa)).hash)
+          console.log("Hash: " + (await nb.registerChain(vaa, overrides)).hash)
           break
         default:
           impossible(payload)
@@ -75,12 +81,12 @@ export async function execute_governance_evm(
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
-          console.log("Hash: " + (await tb.upgrade(vaa)).hash)
+          console.log("Hash: " + (await tb.upgrade(vaa, overrides)).hash)
           console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
           break
         case "RegisterChain":
           console.log("Registering chain")
-          console.log("Hash: " + (await tb.registerChain(vaa)).hash)
+          console.log("Hash: " + (await tb.registerChain(vaa, overrides)).hash)
           break
         default:
           impossible(payload)
@@ -90,4 +96,30 @@ export async function execute_governance_evm(
     default:
       impossible(payload)
   }
+}
+
+export async function getKaruraGasParams(rpc: string): Promise<{
+  gasPrice: number;
+  gasLimit: number;
+}> {
+  const gasLimit = 21000000;
+  const storageLimit = 64001;
+  const res = (
+    await axios.post(rpc, {
+      id: 0,
+      jsonrpc: "2.0",
+      method: "eth_getEthGas",
+      params: [
+        {
+          gasLimit,
+          storageLimit,
+        },
+      ],
+    })
+  ).data.result;
+
+  return {
+    gasLimit: parseInt(res.gasLimit, 16),
+    gasPrice: parseInt(res.gasPrice, 16),
+  };
 }
