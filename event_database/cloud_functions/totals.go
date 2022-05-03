@@ -153,14 +153,15 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 				results[dateStr][countBy] = results[dateStr][countBy] + 1
 			}
 
-			if cacheData, ok := warmTotalsCache[dateStr][cachePrefix]; !ok || len(cacheData) <= 1 {
-				// set the result in the cache
+			if daysAgo >= 1 {
 				muWarmTotalsCache.Lock()
-				warmTotalsCache[dateStr][cachePrefix] = results[dateStr]
+				if cacheData, ok := warmTotalsCache[dateStr][cachePrefix]; !ok || len(cacheData) <= 1 || !useCache(dateStr) {
+					// set the result in the cache
+					warmTotalsCache[dateStr][cachePrefix] = results[dateStr]
+					cacheNeedsUpdate = true
+				}
 				muWarmTotalsCache.Unlock()
-				cacheNeedsUpdate = true
 			}
-
 		}(tbl, ctx, prefix, daysAgo)
 	}
 
