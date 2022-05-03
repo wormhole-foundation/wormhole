@@ -122,14 +122,7 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 						intervalsWG.Done()
 						return
 					}
-				} else {
-					// no cache for this query
-					warmTotalsCache[dateStr][cachePrefix] = map[string]int{}
 				}
-			} else {
-				// no cache for this date, initialize the map
-				warmTotalsCache[dateStr] = map[string]map[string]int{}
-				warmTotalsCache[dateStr][cachePrefix] = map[string]int{}
 			}
 			muWarmTotalsCache.Unlock()
 
@@ -155,7 +148,13 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 
 			if daysAgo >= 1 {
 				muWarmTotalsCache.Lock()
-				if cacheData, ok := warmTotalsCache[dateStr][cachePrefix]; !ok || len(cacheData) <= 1 || !useCache(dateStr) {
+				if _, ok := warmTotalsCache[dateStr]; !ok {
+					warmTotalsCache[dateStr] = map[string]map[string]int{}
+				}
+				if _, ok := warmTotalsCache[dateStr][cachePrefix]; !ok {
+					warmTotalsCache[dateStr][cachePrefix] = map[string]int{}
+				}
+				if len(warmTotalsCache[dateStr][cachePrefix]) <= 1 || !useCache(dateStr) {
 					// set the result in the cache
 					warmTotalsCache[dateStr][cachePrefix] = results[dateStr]
 					cacheNeedsUpdate = true
