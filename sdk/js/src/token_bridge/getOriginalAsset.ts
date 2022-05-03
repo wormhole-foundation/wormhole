@@ -22,9 +22,10 @@ import {
   getIsWrappedAssetEth,
 } from "./getIsWrappedAsset";
 
+// TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
   isWrapped: boolean;
-  chainId: number;
+  chainId: ChainId;
   assetAddress: Uint8Array;
 }
 
@@ -51,7 +52,7 @@ export async function getOriginalAssetEth(
       wrappedAddress,
       provider
     );
-    const chainId = await token.chainId(); // origin chain
+    const chainId = (await token.chainId()) as ChainId; // origin chain
     const assetAddress = await token.nativeContract(); // origin address
     return {
       isWrapped: true,
@@ -80,7 +81,7 @@ export async function getOriginalAssetTerra(
   try {
     const result: {
       asset_address: string;
-      asset_chain: number;
+      asset_chain: ChainId;
       bridge: string;
     } = await client.wasm.contractQuery(wrappedAddress, {
       wrapped_asset_info: {},

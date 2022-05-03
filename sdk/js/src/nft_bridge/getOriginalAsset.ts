@@ -5,12 +5,19 @@ import { arrayify, zeroPad } from "ethers/lib/utils";
 import { canonicalAddress, WormholeWrappedInfo } from "..";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importNftWasm } from "../solana/wasm";
-import { ChainId, ChainName, CHAIN_ID_SOLANA, CHAIN_ID_TERRA, coalesceChainId } from "../utils";
+import {
+  ChainId,
+  ChainName,
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+  coalesceChainId,
+} from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
+// TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedNFTInfo {
   isWrapped: boolean;
-  chainId: number;
+  chainId: ChainId;
   assetAddress: Uint8Array;
   tokenId?: string;
 }
@@ -39,7 +46,7 @@ export async function getOriginalAssetEth(
       wrappedAddress,
       provider
     );
-    const chainId = await token.chainId(); // origin chain
+    const chainId = (await token.chainId()) as ChainId; // origin chain
     const assetAddress = await token.nativeContract(); // origin address
     return {
       isWrapped: true,
