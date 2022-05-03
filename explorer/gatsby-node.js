@@ -28,6 +28,7 @@ exports.onCreateWebpackConfig = function addPathMapping({
         fs: false,
         path: false,
         stream: require.resolve("stream-browserify"),
+        crypto: require.resolve("crypto-browserify"),
       },
     },
   });
