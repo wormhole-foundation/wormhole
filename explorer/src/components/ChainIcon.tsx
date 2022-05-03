@@ -8,6 +8,7 @@ import avalancheIcon from "../images/avalanche.svg";
 import oasisIcon from "../images/oasis.svg";
 import fantomIcon from "../images/fantom.svg";
 import auroraIcon from "../images/aurora.svg";
+import karuraIcon from "../images/karura.svg"
 import {
   ChainId,
   CHAIN_ID_AVAX,
@@ -19,6 +20,7 @@ import {
   CHAIN_ID_TERRA,
   CHAIN_ID_FANTOM,
   CHAIN_ID_AURORA,
+  CHAIN_ID_KARURA,
 } from "@certusone/wormhole-sdk";
 import { chainEnums } from "../utils/consts";
 import { Box } from "@mui/material";
@@ -33,6 +35,7 @@ const chainIdToSrc = {
   [CHAIN_ID_OASIS]: oasisIcon,
   [CHAIN_ID_FANTOM]: fantomIcon,
   [CHAIN_ID_AURORA]: auroraIcon,
+  [CHAIN_ID_KARURA]: karuraIcon,
 };
 
 const ChainIcon = ({ chainId }: { chainId: ChainId }) =>
