@@ -761,6 +761,14 @@ export default function Recovery() {
                   fullWidth
                   margin="normal"
                 />
+                <TextField
+                  variant="outlined"
+                  label="Guardian Set"
+                  disabled
+                  value={recoveryParsedVAA?.guardian_set_index || ""}
+                  fullWidth
+                  margin="normal"
+                />
                 <Box my={4}>
                   <Divider />
                 </Box>
