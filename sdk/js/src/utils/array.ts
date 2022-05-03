@@ -225,6 +225,17 @@ export function tryNativeToUint8Array(
   return hexToUint8Array(tryNativeToHexString(address, chainId));
 }
 
+/**
+ *
+ * Convert an address in a chain's native representation into a 32-byte hex string
+ * understood by wormhole.
+ *
+ * @deprecated since 0.2.8, use [[tryUint8ArrayToNative]] instead.
+ * @throws if address is a malformed string for the given chain id
+ */
+export const uint8ArrayToNative = (a: Uint8Array, chainId: ChainId) =>
+  hexToNativeString(uint8ArrayToHex(a), chainId);
+
 export function chunks<T>(array: T[], size: number): T[][] {
   return Array.apply<number, T[], T[][]>(
     0,

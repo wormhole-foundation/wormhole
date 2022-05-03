@@ -95,20 +95,20 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  fantom: {
-    core: "0x126783A6Cb203a3E35344528B26ca3a0489a1485",
-    token_bridge: "0x7C9Fc5741288cDFdD83CeB07f3ea7e22618D79D2",
-    nft_bridge: "0xA9c7119aBDa80d4a4E0C06C8F4d8cF5893234535",
-  },
   aurora: {
     core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
     token_bridge: "0x51b5123a7b0F9b2bA265f9c4C8de7D78D52f510F",
     nft_bridge: "0x6dcC0484472523ed9Cdc017F711Bcbf909789284",
   },
+  fantom: {
+    core: "0x126783A6Cb203a3E35344528B26ca3a0489a1485",
+    token_bridge: "0x7C9Fc5741288cDFdD83CeB07f3ea7e22618D79D2",
+    nft_bridge: "0xA9c7119aBDa80d4a4E0C06C8F4d8cF5893234535",
+  },
   karura: {
-    core: undefined,
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
+    token_bridge: "0xae9d7fe007b3327AA64A32824Aaac52C42a6E624",
+    nft_bridge: "0xb91e3638F82A1fACb28690b37e3aAE45d2c33808",
   },
   acala: {
     core: undefined,
@@ -116,6 +116,16 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   klaytn: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  celo: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  near: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -169,19 +179,19 @@ const TESTNET = {
     nft_bridge: "0xC5c25B41AB0b797571620F5204Afa116A44c0ebA",
   },
   algorand: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "86525623",
+    token_bridge: "86525641",
     nft_bridge: undefined,
-  },
-  fantom: {
-    core: "0x1BB3B4119b7BA9dfad76B0545fb3F531383c3bB7",
-    token_bridge: "0x599CEa2204B4FaECd584Ab1F2b6aCA137a0afbE8",
-    nft_bridge: "0x63eD9318628D26BdCB15df58B53BB27231D1B227",
   },
   aurora: {
     core: "0xBd07292de7b505a4E803CEe286184f7Acf908F5e",
     token_bridge: "0xD05eD3ad637b890D68a854d607eEAF11aF456fba",
     nft_bridge: "0x8F399607E9BA2405D87F5f3e1B78D950b44b2e24",
+  },
+  fantom: {
+    core: "0x1BB3B4119b7BA9dfad76B0545fb3F531383c3bB7",
+    token_bridge: "0x599CEa2204B4FaECd584Ab1F2b6aCA137a0afbE8",
+    nft_bridge: "0x63eD9318628D26BdCB15df58B53BB27231D1B227",
   },
   karura: {
     core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
@@ -197,6 +207,104 @@ const TESTNET = {
     core: "0x1830CC6eE66c84D2F177B94D544967c774E624cA",
     token_bridge: "0xC7A13BE098720840dEa132D860fDfa030884b09A",
     nft_bridge: "0x94c994fC51c13101062958b567e743f1a04432dE",
+  },
+  celo: {
+    core: "0x88505117CA88e7dd2eC6EA1E13f0948db2D50D56",
+    token_bridge: "0x05ca6037eC51F8b712eD2E6Fa72219FEaE74E153",
+    nft_bridge: "0xaCD8190F647a31E56A656748bC30F69259f245Db",
+  },
+  near: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  ropsten: {
+    core: "0x210c5F5e2AF958B4defFe715Dc621b7a3BA888c5",
+    token_bridge: "0xF174F9A837536C449321df1Ca093Bb96948D5386",
+    nft_bridge: "0x2b048Da40f69c8dc386a56705915f8E966fe1eba",
+  },
+};
+
+const DEVNET = {
+  unset: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  solana: {
+    core: "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
+    token_bridge: "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE",
+    nft_bridge: "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA",
+  },
+  terra: {
+    core: "terra1pd65m0q9tl3v8znnz5f5ltsfegyzah7g42cx5v",
+    token_bridge: "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a",
+    nft_bridge: undefined,
+  },
+  ethereum: {
+    core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+    token_bridge: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+    nft_bridge: "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",
+  },
+  bsc: {
+    core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+    token_bridge: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+    nft_bridge: "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",
+  },
+  polygon: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  avalanche: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  oasis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  algorand: {
+    core: "4",
+    token_bridge: "6",
+    nft_bridge: undefined,
+  },
+  aurora: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  fantom: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  karura: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  acala: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  klaytn: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  celo: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  near: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
   },
   ropsten: {
     core: undefined,
@@ -229,9 +337,15 @@ const isMainnetContracts: ChainContracts = MAINNET;
 
 /**
  *
+ * See [[isTestnetContracts]]
+ */
+const isDevnetContracts: ChainContracts = DEVNET;
+
+/**
+ *
  * Contracts addresses on testnet and mainnet
  */
-export const CONTRACTS = { MAINNET, TESTNET };
+export const CONTRACTS = { MAINNET, TESTNET, DEVNET };
 
 // We don't specify the types of the below consts to be [[ChainId]]. This way,
 // the inferred type will be a singleton (or literal) type, which is more precise and allows
