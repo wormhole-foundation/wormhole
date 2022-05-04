@@ -77,7 +77,7 @@ export async function execute_governance_solana(
       tx.partialSign(from)
       return transaction
     },
-    bridge_id, from.publicKey, vaa, 5)
+    bridge_id.toString(), from.publicKey.toString(), vaa, 5)
 
   // Then do the actual thing
   let transaction = new web3s.Transaction().add(ixFromRust(ix))

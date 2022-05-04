@@ -211,6 +211,8 @@ yargs(hideBin(process.argv))
       await execute_governance_solana(parsed_vaa, buf, network)
     } else if (chain === "algorand") {
       throw Error("Algorand is not supported yet")
+    } else if (chain === "near") {
+      throw Error("NEAR is not supported yet")
     } else {
       // If you get a type error here, hover over `chain`'s type and it tells you
       // which cases are not handled

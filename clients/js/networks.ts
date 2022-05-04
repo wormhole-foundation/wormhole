@@ -77,6 +77,14 @@ const MAINNET = {
     rpc: undefined,
     key: get_env_var("ETH_KEY"),
   },
+  celo: {
+    rpc: undefined,
+    key: get_env_var("ETH_KEY"),
+  },
+  near: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
     key: get_env_var("ETH_KEY")
@@ -140,6 +148,14 @@ const TESTNET = {
   klaytn: {
     rpc: "https://api.baobab.klaytn.net:8651",
     key: get_env_var("ETH_KEY"),
+  },
+  celo: {
+    rpc: undefined,
+    key: get_env_var("ETH_KEY"),
+  },
+  near: {
+    rpc: undefined,
+    key: undefined,
   },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
