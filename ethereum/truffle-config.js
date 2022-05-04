@@ -232,6 +232,17 @@ module.exports = {
       },
       network_id: 44787,
     },
+    moonbeam_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.api.moonbase.moonbeam.network"
+        );
+      },
+      network_id: 1287,
+      gasPrice: 3000000000, // 3.0 gwei
+      timeoutBlocks: 15000,
+    },    
   },
 
   compilers: {
