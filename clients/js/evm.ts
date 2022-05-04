@@ -21,15 +21,24 @@ export async function execute_governance_evm(
   let rpc: string = n.rpc
   let key: string = n.key
 
-  let overrides: any = {}
-  if (chain === "karura") {
-    overrides = await getKaruraGasParams(n.rpc)
-  }
-
   let contracts: Contracts = CONTRACTS[network][chain]
 
   let provider = new ethers.providers.JsonRpcProvider(rpc)
   let signer = new ethers.Wallet(key, provider)
+
+  // Here we apply a set of chain-specific overrides.
+  // NOTE: some of these might have only been tested on mainnet. If it fails in
+  // testnet (or devnet), they might require additional guards
+  let overrides: ethers.Overrides = {}
+  if (chain === "karura") {
+    overrides = await getKaruraGasParams(n.rpc)
+  } else if (chain === "polygon") {
+    let feeData = await provider.getFeeData();
+    overrides = {
+      maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
+    };
+  }
 
   switch (payload.module) {
     case "Core":
