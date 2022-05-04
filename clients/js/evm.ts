@@ -2,7 +2,7 @@ import { BridgeImplementation__factory, Implementation__factory, NFTBridgeImplem
 import { ethers } from "ethers"
 import { NETWORKS } from "./networks"
 import { impossible, Payload } from "./vaa"
-import { Contracts, CONTRACTS, EVMChainName } from "../../sdk/js/src/utils/consts"
+import { Contracts, CONTRACTS, EVMChainName } from "@certusone/wormhole-sdk"
 import axios from "axios";
 
 export async function execute_governance_evm(

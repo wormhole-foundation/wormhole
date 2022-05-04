@@ -2,25 +2,27 @@
   "name": "wormhole-client",
   "version": "1.0.0",
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.2.0",
+    "@certusone/wormhole-sdk": "file:../../sdk/js",
     "@solana/web3.js": "^1.22.0",
     "@terra-money/terra.js": "^1.8.9",
+    "binary-parser": "^2.0.2",
     "bn.js": "^5.2.0",
     "bs58": "^4.0.1",
     "buffer-layout": "^1.2.2",
-    "binary-parser": "^2.0.2",
     "ethers": "^5.4.1",
     "js-base64": "^3.6.1",
     "npm": "^7.20.0",
     "web3": "^1.5.0",
-    "yargs": "^17.0.1"
+    "yargs": "^17.0.1",
+    "axios": "^0.24.0",
+    "dotenv": "^10.0.0"
   },
   "bin": {
-    "worm": "./build/clients/js/main.js",
+    "worm": "./build/main.js",
     "worm-fetch-governance": "./worm-fetch-governance"
   },
   "scripts": {
-    "start": "tsc && node build/clients/js/main.js",
+    "start": "tsc && node build/main.js",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "main": "ts-node main.ts"

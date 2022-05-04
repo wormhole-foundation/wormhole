@@ -9,7 +9,7 @@ import { execute_governance_evm } from "./evm"
 import { execute_governance_terra } from "./terra"
 import * as vaa from "./vaa"
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa"
-import { assertChain, ChainName, CHAINS, toChainName, isEVMChain, toChainId } from "../../sdk/js/src/utils/consts"
+import { assertChain, ChainName, CHAINS, toChainName, isEVMChain, toChainId } from "@certusone/wormhole-sdk"
 
 setDefaultWasm("node")
 

@@ -3,8 +3,8 @@ import { NETWORKS } from "./networks";
 import { impossible, Payload, VAA } from "./vaa";
 import base58 from "bs58";
 import { importCoreWasm, importNftWasm, importTokenWasm, ixFromRust } from "@certusone/wormhole-sdk";
-import { CONTRACTS } from "../../sdk/js/src/utils/consts"
-import { postVaaWithRetry } from "../../sdk/js/src/solana/postVaa"
+import { CONTRACTS } from "@certusone/wormhole-sdk"
+import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk"
 
 export async function execute_governance_solana(
   v: VAA<Payload>,
@@ -72,7 +72,7 @@ export async function execute_governance_solana(
   }
 
   // First upload the VAA
-  await postVaaWithRetry(connection,
+  await postVaaSolanaWithRetry(connection,
     async (tx) => {
       tx.partialSign(from)
       return transaction
