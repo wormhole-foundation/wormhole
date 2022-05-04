@@ -4,3 +4,8 @@ export function createNonce() {
   nonceBuffer.writeUInt32LE(nonceConst, 0);
   return nonceBuffer;
 }
+
+export function createNonceAsInt() {
+  const nonceConst = Math.trunc(Math.random() * 100000);
+  return nonceConst;
+}

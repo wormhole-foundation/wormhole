@@ -16,6 +16,8 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
+  CHAIN_ID_BTC,
+  CHAIN_ID_HEDERA,
   CHAIN_ID_INJECTIVE,
   CHAIN_ID_NEAR,
   CHAIN_ID_OSMOSIS,
@@ -25,12 +27,11 @@ import {
   CHAIN_ID_TERRA,
   CHAIN_ID_TERRA2,
   CHAIN_ID_WORMCHAIN,
+  CHAIN_ID_XPLA,
   CHAIN_ID_UNSET,
   coalesceChainId,
   isEVMChain,
   isTerraChain,
-  CHAIN_ID_XPLA,
-  CHAIN_ID_BTC,
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
@@ -111,6 +112,8 @@ export const tryUint8ArrayToNative = (
     throw Error("uint8ArrayToNative: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
     throw Error("uint8ArrayToNative: Aptos not supported yet.");
+  } else if (chainId === CHAIN_ID_HEDERA) {
+    return hexZeroPad(hexValue(a), 20);
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("uint8ArrayToNative: Chain id unset");
   } else if (chainId === CHAIN_ID_BTC) {

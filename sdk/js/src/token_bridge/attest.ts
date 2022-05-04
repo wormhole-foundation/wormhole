@@ -6,6 +6,12 @@ import {
   PublicKeyInitData,
   Transaction,
 } from "@solana/web3.js";
+import {
+  Client,
+  ContractExecuteTransaction,
+  ContractFunctionParameters,
+  TransactionReceipt,
+} from "@hashgraph/sdk";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
@@ -42,6 +48,7 @@ import { FunctionCallOptions } from "near-api-js/lib/account";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Types } from "aptos";
 import { attestToken as attestTokenAptos } from "../aptos";
+import { createNonce, createNonceAsInt } from "../utils/createNonce";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -52,6 +59,43 @@ export async function attestFromEth(
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.attestToken(tokenAddress, createNonce(), overrides);
   const receipt = await v.wait();
+  return receipt;
+}
+
+/**
+ *
+ * @param tokenBridgeAddress TokenBridge Contract as Hedera ContractId type
+ * @param client  Hedera client
+ * @param tokenAddress Contract address in solidity format (20 bytes, '0x' is optional)
+ * @returns TransactionReceipt type (But the txHash is in the txResponse)
+ */
+export async function attestFromHedera(
+  tokenBridgeAddress: string,
+  client: Client,
+  tokenAddress: string
+): Promise<TransactionReceipt> {
+  const cfp = new ContractFunctionParameters();
+
+  // Create the execution parameters
+  cfp.addAddress(tokenAddress);
+  cfp.addUint32(createNonceAsInt());
+
+  //Create the transaction
+  const transaction = new ContractExecuteTransaction()
+    .setContractId(tokenBridgeAddress)
+    .setGas(1_000_000)
+    .setFunction("attest_token", cfp);
+
+  //Sign with the client operator private key to pay for the transaction and submit the query to a Hedera network
+  const txResponse = await transaction.execute(client);
+
+  //Request the receipt of the transaction
+  const receipt = await txResponse.getReceipt(client);
+
+  //Get the transaction consensus status
+  const transactionStatus = receipt.status;
+  console.log("The transaction consensus status is " + transactionStatus);
+
   return receipt;
 }
 

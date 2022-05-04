@@ -26,6 +26,7 @@ export const CHAINS = {
   optimism: 24,
   gnosis: 25,
   pythnet: 26,
+  hedera: 27,
   xpla: 28,
   btc: 29,
   wormchain: 3104,
@@ -216,6 +217,11 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  hedera: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   xpla: {
     core: "xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w",
     token_bridge:
@@ -369,6 +375,11 @@ const TESTNET = {
   },
   pythnet: {
     core: "EUrRARh92Cdc54xrDn6qzaqjA77NRrCcfbr8kPwoTL4z",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  hedera: {
+    core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -528,6 +539,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  hedera: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },  
   xpla: {
     core: undefined,
     token_bridge: undefined,
@@ -610,6 +626,7 @@ export const CHAIN_ID_ARBITRUM = CHAINS["arbitrum"];
 export const CHAIN_ID_OPTIMISM = CHAINS["optimism"];
 export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
 export const CHAIN_ID_PYTHNET = CHAINS["pythnet"];
+export const CHAIN_ID_HEDERA = CHAINS["hedera"];
 export const CHAIN_ID_XPLA = CHAINS["xpla"];
 export const CHAIN_ID_BTC = CHAINS["btc"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
