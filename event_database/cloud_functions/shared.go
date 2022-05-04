@@ -61,6 +61,12 @@ var tokensToSkip = map[string]bool{
 	"0x053c070f0923a5b770cc59d7bf74ecff991cd0b8": true,
 	"0xA18036c8ecb3235087d990c886c242546D1E560f": true,
 	"0x6B3105826942071E7B6346cbE9867d37Ed7f98Eb": true,
+	"0x0749902ae8ed9c6a508271bad18f185dba7185d4": true, // fake WETH on poly
+	"0x4411146b7714f5dc7aa4445fcb44e3ca120c8a1e": true, // testWETH on poly
+	"0xE389Ac691BD2b0228DAFFfF548fbcE38470373E8": true, // fake WMATIC on poly
+	"0x7e347498dfef39a88099e3e343140ae17cde260e": true, // fake wAVAX on bsc
+	"0x685629e5e99e3959254c4d23cd9097fbaef01fb2": true, // amWeth
+	
 	
 }
 
