@@ -3,6 +3,8 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts/utils/StorageSlot.sol";
+
 /**
  * @dev Abstract contract module that provides a bridge contract with the ability to temporarily suspend transfers.
  *
@@ -43,13 +45,6 @@ import "./interfaces/IWormhole.sol";
 abstract contract ShutdownSwitch {
     using BytesLib for bytes;
 
-    /// @dev A map of all guardians that have active votes to disable. If a guardian is removed from the guardian set while they
-    /// have an active vote to disable, they would get left in the map. The current assumption is that this will have minimal impact,
-    /// because they would never be referenced again anyway.
-    mapping(address => bool) private shutdownVotes;
-
-    bool private enabled = true;
-
     /// @dev Returns the threshold of the number of votes required to disable transfers.
     function requiredVotesToShutdown() public view returns (uint16) {
         return computeRequiredVotesToShutdown(getCurrentGuardianSet().keys.length);
@@ -62,7 +57,7 @@ abstract contract ShutdownSwitch {
 
     /// @dev returns the current shutdown status, where true means transfers are enabled.
     function enabledFlag() public view returns (bool) {
-        return enabled;
+        return _getState().enabled;
     }
 
     /// @dev Returns the current number of votes to disable transfers.
@@ -71,7 +66,7 @@ abstract contract ShutdownSwitch {
         address[] memory ret = new address[](computeNumVotesShutdown(gs));
         uint retIdx = 0;
         for (uint idx = 0; (idx < gs.keys.length); idx++) {
-            if (shutdownVotes[gs.keys[idx]]) {
+            if (_getShutdownVote(gs.keys[idx])) {
                 ret[retIdx++] = gs.keys[idx];
             }
         }
@@ -90,10 +85,14 @@ abstract contract ShutdownSwitch {
 
     /// @dev The number of disable votes required to disable transfers (assuming there are at least that many guardians).
     uint16 constant REQUIRED_NO_VOTES = 3;
+   
+    constructor() {
+        setUpShutdownSwitch();
+    }
 
     /// @dev Function that should be called from setup() on new contract deployments, or initialize() on the initial upgrade to deploy this feature.
     function setUpShutdownSwitch() internal {
-        enabled = true;
+        _setEnabled(true);
     }
 
     /// @dev modifier used to block transfers when shutdown.
@@ -121,12 +120,8 @@ abstract contract ShutdownSwitch {
         // Only currently active guardians are allowed to vote.
         require(isRegisteredVoter(voter, gs), "you are not a registered voter");
 
-        // Only votes to disable are maintained in the map.
-        if (_enabled) {
-            delete shutdownVotes[voter];
-        } else {
-            shutdownVotes[voter] = true;
-        }
+        // Update the status of this voter.
+        _updateShutdownVote(voter, _enabled);
 
         // Update the number of votes to disable.
         uint16 votesToShutdown = computeNumVotesShutdown(gs);
@@ -135,8 +130,8 @@ abstract contract ShutdownSwitch {
         bool newEnabledFlag = (votesToShutdown < computeRequiredVotesToShutdown(gs.keys.length));
         emit ShutdownSwitch.ShutdownVoteCast(voter, _enabled, votesToShutdown, newEnabledFlag);
 
-        if (newEnabledFlag != enabled) {
-            enabled = newEnabledFlag;
+        if (newEnabledFlag != enabledFlag()) {
+            _setEnabled(newEnabledFlag);
             emit ShutdownSwitch.ShutdownStatusChanged(newEnabledFlag, votesToShutdown);
         }
     }
@@ -179,11 +174,54 @@ abstract contract ShutdownSwitch {
     function computeNumVotesShutdown(Structs.GuardianSet memory gs) private view returns (uint16) {
         uint16 votesToShutdown = 0;
         for (uint idx = 0; (idx < gs.keys.length); idx++) {
-            if (shutdownVotes[gs.keys[idx]]) {
+            if (_getShutdownVote(gs.keys[idx])) {
                 votesToShutdown++;
             }
         }
 
         return votesToShutdown;
+    }
+    
+    /// @dev Since other contracts will inherit from this one, it cannot have any of its own local state.
+    /// This is because that would affect the layout of local state in the inheriting contracts. To prevent this,
+    /// we use the storage slot library to put our state in deterministic storage.
+
+    bytes32 private constant _STATE_SLOT = keccak256('ShutdownSwitch.state');
+    struct ShutdownSwitchState {
+        /// @dev A map of all guardians that have active votes to disable. If a guardian is removed from the guardian set while they
+        /// have an active vote to disable, they would get left in the map. The current assumption is that this will have minimal impact,
+        /// because they would never be referenced again anyway.
+        mapping(address => bool) shutdownVotes;
+
+        /// @dev the current shutdown state, where true means transfers are enabled, and false means they are blocked.
+        bool enabled;
+    }
+
+    /// @dev Accesses our deterministic storage.
+    function _getState() private pure returns (ShutdownSwitchState storage r) {
+        bytes32 slot = _STATE_SLOT;
+        assembly {
+            r.slot := slot
+        }
+    }
+    
+    /// @dev Updates the enabled flag in deterministic storage.
+    function _setEnabled(bool val) private {
+        _getState().enabled = val;
+    }
+
+    /// @dev Gets the shutdown state for a given address from our deterministic storage. 
+    function _getShutdownVote(address voter) private view returns (bool) {
+        return _getState().shutdownVotes[voter];
+    }
+
+    /// @dev Updates the voter map in deterministic storage.
+    function _updateShutdownVote(address voter, bool enabled) private {
+        // Only votes to disable are maintained in the map.
+        if (enabled) {
+            delete _getState().shutdownVotes[voter];
+        } else {
+            _getState().shutdownVotes[voter] = true;
+        }
     }
 }
