@@ -75,7 +75,7 @@ export async function execute_governance_solana(
   await postVaaSolanaWithRetry(connection,
     async (tx) => {
       tx.partialSign(from)
-      return transaction
+      return tx
     },
     bridge_id.toString(), from.publicKey.toString(), vaa, 5)
 
