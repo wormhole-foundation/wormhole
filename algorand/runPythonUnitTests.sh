@@ -9,7 +9,8 @@ if [ "`grep enable-all-parameters _sandbox/images/indexer/start.sh | wc -l`" == 
   echo delete all the existing docker images
   ./sandbox clean
 fi
-./sandbox up dev
+./sandbox clean
+./sandbox up -v dev
 echo "run the tests"
 cd test
 python3 test.py
