@@ -14,7 +14,7 @@ import {
   TENDERMINT_URL,
   TEST_WALLET_ADDRESS_1,
   TEST_WALLET_MNEMONIC_1,
-} from "../consts";
+} from "../consts.js";
 //@ts-ignore
 import * as elliptic from "elliptic";
 import keccak256 from "keccak256";
@@ -75,6 +75,6 @@ export function signValidatorAddress(valAddr: string, privKey: string) {
     Buffer.from(fromValAddress(valAddr).bytes)
   ).toString("hex");
   const signature = key.sign(valAddrHash, { canonical: true });
-  const hexString = signature.r + signature.s + "1";
+  const hexString = signature.r + signature.s + signature.recoveryParam;
   return Buffer.from(hexString, "hex");
 }
