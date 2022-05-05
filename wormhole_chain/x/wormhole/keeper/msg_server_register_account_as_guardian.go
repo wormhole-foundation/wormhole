@@ -40,6 +40,10 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	signerHash := crypto.Keccak256Hash(signer)
 	guardianKey, err := crypto.Ecrecover(signerHash.Bytes(), msg.Signature)
 
+	if err != nil {
+		return nil, err
+	}
+
 	guardianKeyAddrFromSignature := common.BytesToAddress(crypto.Keccak256(guardianKey[1:])[12:])
 	guardianKeyAddr := common.BytesToAddress(crypto.Keccak256(msg.GuardianPubkey.Key[1:])[12:])
 
