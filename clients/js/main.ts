@@ -197,13 +197,15 @@ yargs(hideBin(process.argv))
           required: true,
         })
         .option("chain", {
+          alias: "c",
           describe: "chain name",
           type: "string",
           choices: Object.keys(CHAINS),
           required: false,
         })
         .option("network", {
-          describe: "vaa",
+          alias: "n",
+          describe: "network",
           type: "string",
           choices: ["mainnet", "testnet", "devnet"],
           required: true,
