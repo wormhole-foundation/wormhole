@@ -27,14 +27,14 @@ export const METAMASK_CHAIN_PARAMETERS: {
     chainId: "0x3",
     chainName: "Ropsten",
     nativeCurrency: { name: "Ropsten Ether", symbol: "ROP", decimals: 18 },
-    rpcUrls: ["https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"],
+    rpcUrls: ["https://rpc.ankr.com/eth_ropsten"],
     blockExplorerUrls: ["https://ropsten.etherscan.io"],
   },
   5: {
     chainId: "0x5",
     chainName: "Görli",
     nativeCurrency: { name: "Görli Ether", symbol: "GOR", decimals: 18 },
-    rpcUrls: ["https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"],
+    rpcUrls: ["https://rpc.ankr.com/eth_goerli"],
     blockExplorerUrls: ["https://goerli.etherscan.io"],
   },
   56: {
@@ -172,3 +172,17 @@ export const METAMASK_CHAIN_PARAMETERS: {
     blockExplorerUrls: ["https://testnet.aurorascan.dev"],
   },
 };
+
+export interface EvmRpcMap {
+  [chainId: string]: string;
+}
+
+export const EVM_RPC_MAP = Object.entries(METAMASK_CHAIN_PARAMETERS).reduce(
+  (evmRpcMap, [evmChainId, { rpcUrls }]) => {
+    if (rpcUrls.length > 0) {
+      evmRpcMap[evmChainId] = rpcUrls[0];
+    }
+    return evmRpcMap;
+  },
+  {} as EvmRpcMap
+);

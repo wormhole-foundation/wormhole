@@ -231,7 +231,7 @@ export default function EvmWorkflow({
 
   return (
     <div className={classes.containerDiv}>
-      <EthereumSignerKey />
+      <EthereumSignerKey chainId={chainId} />
       {!isReady ? (
         <Typography variant="body1">Please connect your wallet.</Typography>
       ) : poolInfo.isLoading ? (
