@@ -19,6 +19,7 @@
     "@solana/wallet-adapter-wallets": "^0.15.3",
     "@solana/web3.js": "^1.35.1",
     "@terra-money/wallet-provider": "^3.8.0",
+    "@walletconnect/web3-provider": "^1.7.8",
     "algosdk": "^1.15.0",
     "axios": "^0.21.1",
     "bech32": "^1.1.4",

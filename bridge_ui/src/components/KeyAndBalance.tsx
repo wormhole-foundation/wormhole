@@ -12,7 +12,7 @@ import TerraWalletKey from "./TerraWalletKey";
 
 function KeyAndBalance({ chainId }: { chainId: ChainId }) {
   if (isEVMChain(chainId)) {
-    return <EthereumSignerKey />;
+    return <EthereumSignerKey chainId={chainId} />;
   }
   if (chainId === CHAIN_ID_SOLANA) {
     return <SolanaWalletKey />;
