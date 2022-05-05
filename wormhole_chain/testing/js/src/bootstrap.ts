@@ -26,7 +26,7 @@ import {
   UPGRADE_GUARDIAN_SET_VAA,
   VALIDATOR2_TENDERMINT_KEY,
 } from "./consts.js";
-import { signValidatorAddress } from "./utils/walletHelpers";
+import { signValidatorAddress } from "./utils/walletHelpers.js";
 
 const {
   getAddress,
@@ -249,10 +249,10 @@ async function fullBootstrapProcess() {
     //verify consensus guardian set is 0
     console.log("Pulling consensus guardian set after upgrade");
     const response6 = await queryClient.core.queryConsensusGuardianSetIndex();
-    let index6 = response6.data.ConsensusGuardianSetIndex?.index || null;
+    let index6 = response6.data.ConsensusGuardianSetIndex?.index;
     console.log("Current consensus guardian set index: " + index6);
-    if (index5 !== 1) {
-      eject("Latest Guardian set index was not 1 after upgrade.");
+    if (index6 !== 0) {
+      eject("Consensus Guardian set index was not 0 after upgrade.");
     }
     newline();
 
@@ -352,6 +352,29 @@ async function fullBootstrapProcess() {
     ) {
       eject(
         "Failed to find second_validator in the second set of bonded validators."
+      );
+    }
+    newline();
+
+    console.log("Logging block signatures after second validator was bonded: ");
+    let latestBlock3 = await getLatestBlock();
+    let validatorSet3 = latestBlock3.block.last_commit.signatures;
+    validatorSet3.forEach((sig: any) => {
+      console.log("Signature: " + sig.validator_address);
+    });
+    if (!(validatorSet3 && validatorSet3.length === 1)) {
+      eject(
+        "Unexpected length of signing validators on initial block: " +
+          validatorSet3?.length
+      );
+    }
+    if (
+      !validatorSet3.find(
+        (sig: any) => sig.validator_address === Guardian1ValidatorAddress
+      )
+    ) {
+      eject(
+        "Failed to find first_validator in the signature set after the guardian upgrade"
       );
     }
     newline();
