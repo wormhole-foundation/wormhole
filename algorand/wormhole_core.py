@@ -34,9 +34,12 @@ bits_per_key = max_bytes_per_key * bits_per_byte
 max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
-def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
+def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name, devmode) -> bytes:
     if genTeal:
-        teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
+        if devmode:
+            teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
+        else:
+            teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True, optimize=OptimizeOptions(scratch_slots=True))
 
         with open(name, "w") as f:
             print("Writing " + name)
@@ -585,8 +588,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
     if not devMode:
         client = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
-    APPROVAL_PROGRAM = fullyCompileContract(genTeal, client, vaa_processor_program(seed_amt, tmpl_sig), approve_name)
-    CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, client, clear_state_program(), clear_name)
+    APPROVAL_PROGRAM = fullyCompileContract(genTeal, client, vaa_processor_program(seed_amt, tmpl_sig), approve_name, devMode)
+    CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, client, clear_state_program(), clear_name, devMode)
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM
 
