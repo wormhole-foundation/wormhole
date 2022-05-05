@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+python3 -m pip install -r algorand/requirements.txt
 if [ ! -d _sandbox ]; then
   echo We need to create it...
   git clone https://github.com/algorand/sandbox.git _sandbox
