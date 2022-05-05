@@ -345,7 +345,7 @@ export default function EvmQuickMigrate({ chainId }: { chainId: ChainId }) {
         } into
         Wormhole V2 tokens.`}
       </Typography>
-      <EthereumSignerKey />
+      <EthereumSignerKey chainId={chainId} />
       {!isReady ? (
         <Typography variant="body1">Please connect your wallet.</Typography>
       ) : migratorsError ? (

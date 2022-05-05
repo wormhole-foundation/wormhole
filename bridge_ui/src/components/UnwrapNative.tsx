@@ -218,7 +218,7 @@ function UnwrapNative() {
           Unwrap (withdraw) native tokens from their wrapped form (e.g. WETH
           &rarr; ETH)
         </Typography>
-        <EthereumSignerKey />
+        <EthereumSignerKey chainId={selectedChainId} />
         <TextField
           select
           value={selectedChainId}
