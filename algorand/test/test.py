@@ -502,6 +502,8 @@ class AlgoTest(PortalCore):
 
         if self.args.testnet:
             self.testnet()
+        else:
+            self.devnet = True
 
         client = self.client = self.getAlgodClient()
 
