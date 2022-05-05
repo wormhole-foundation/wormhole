@@ -35,7 +35,9 @@ import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
 import {
   ChainId,
+  ChainName,
   CHAIN_ID_SOLANA,
+  coalesceChainId,
   createNonce,
   hexToUint8Array,
   textToUint8Array,
@@ -73,16 +75,17 @@ export async function transferFromEth(
   signer: ethers.Signer,
   tokenAddress: string,
   amount: ethers.BigNumberish,
-  recipientChain: ChainId,
+  recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array,
   relayerFee: ethers.BigNumberish = 0,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {}
 ) {
+  const recipientChainId = coalesceChainId(recipientChain);
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.transferTokens(
     tokenAddress,
     amount,
-    recipientChain,
+    recipientChainId,
     recipientAddress,
     relayerFee,
     createNonce(),
@@ -96,14 +99,15 @@ export async function transferFromEthNative(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
   amount: ethers.BigNumberish,
-  recipientChain: ChainId,
+  recipientChain: ChainId | ChainId,
   recipientAddress: Uint8Array,
   relayerFee: ethers.BigNumberish = 0,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {}
 ) {
+  const recipientChainId = coalesceChainId(recipientChain);
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.wrapAndTransferETH(
-    recipientChain,
+    recipientChainId,
     recipientAddress,
     relayerFee,
     createNonce(),
@@ -121,10 +125,11 @@ export async function transferFromTerra(
   tokenBridgeAddress: string,
   tokenAddress: string,
   amount: string,
-  recipientChain: ChainId,
+  recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array,
   relayerFee: string = "0"
 ) {
+  const recipientChainId = coalesceChainId(recipientChain);
   const nonce = Math.round(Math.random() * 100000);
   const isNativeAsset = isNativeDenom(tokenAddress);
   return isNativeAsset
@@ -150,7 +155,7 @@ export async function transferFromTerra(
                   },
                 },
               },
-              recipient_chain: recipientChain,
+              recipient_chain: recipientChainId,
               recipient: Buffer.from(recipientAddress).toString("base64"),
               fee: relayerFee,
               nonce: nonce,
@@ -187,7 +192,7 @@ export async function transferFromTerra(
                   },
                 },
               },
-              recipient_chain: recipientChain,
+              recipient_chain: recipientChainId,
               recipient: Buffer.from(recipientAddress).toString("base64"),
               fee: relayerFee,
               nonce: nonce,
@@ -205,7 +210,7 @@ export async function transferNativeSol(
   payerAddress: string,
   amount: BigInt,
   targetAddress: Uint8Array,
-  targetChain: ChainId,
+  targetChain: ChainId | ChainName,
   relayerFee: BigInt = BigInt(0)
 ) {
   //https://github.com/solana-labs/solana-program-library/blob/master/token/js/client/token.js
@@ -268,7 +273,7 @@ export async function transferNativeSol(
       amount,
       relayerFee,
       targetAddress,
-      targetChain
+      coalesceChainId(targetChain)
     )
   );
 
@@ -304,12 +309,15 @@ export async function transferFromSolana(
   mintAddress: string,
   amount: BigInt,
   targetAddress: Uint8Array,
-  targetChain: ChainId,
+  targetChain: ChainId | ChainName,
   originAddress?: Uint8Array,
-  originChain?: ChainId,
+  originChain?: ChainId | ChainName,
   fromOwnerAddress?: string,
   relayerFee: BigInt = BigInt(0)
 ) {
+  const originChainId: ChainId | undefined = originChain
+    ? coalesceChainId(originChain)
+    : undefined;
   const nonce = createNonce().readUInt32LE(0);
   const transferIx = await getBridgeFeeIx(
     connection,
@@ -331,7 +339,7 @@ export async function transferFromSolana(
   );
   let messageKey = Keypair.generate();
   const isSolanaNative =
-    originChain === undefined || originChain === CHAIN_ID_SOLANA;
+    originChainId === undefined || originChainId === CHAIN_ID_SOLANA;
   if (!isSolanaNative && !originAddress) {
     throw new Error("originAddress is required when specifying originChain");
   }
@@ -348,7 +356,7 @@ export async function transferFromSolana(
           amount,
           relayerFee,
           targetAddress,
-          targetChain
+          coalesceChainId(targetChain)
         )
       : transfer_wrapped_ix(
           tokenBridgeAddress,
@@ -357,13 +365,13 @@ export async function transferFromSolana(
           messageKey.publicKey.toString(),
           fromAddress,
           fromOwnerAddress || payerAddress,
-          originChain as number, // checked by isSolanaNative
+          originChainId as number, // checked by isSolanaNative
           originAddress as Uint8Array, // checked by throw
           nonce,
           amount,
           relayerFee,
           targetAddress,
-          targetChain
+          coalesceChainId(targetChain)
         )
   );
   const transaction = new SolanaTransaction().add(transferIx, approvalIx, ix);
@@ -395,9 +403,10 @@ export async function transferFromAlgorand(
   assetId: bigint,
   qty: bigint,
   receiver: string,
-  chain: ChainId,
+  chain: ChainId | ChainName,
   fee: bigint
 ): Promise<TransactionSignerPair[]> {
+  const recipientChainId = coalesceChainId(chain);
   const tokenAddr: string = getApplicationAddress(tokenBridgeId);
   const applAddr: string = getEmitterAddressAlgorand(tokenBridgeId);
   const txs: TransactionSignerPair[] = [];
@@ -512,7 +521,7 @@ export async function transferFromAlgorand(
     bigIntToBytes(assetId, 8),
     bigIntToBytes(qty, 8),
     hexToUint8Array(receiver),
-    bigIntToBytes(chain, 8),
+    bigIntToBytes(recipientChainId, 8),
     bigIntToBytes(fee, 8),
   ];
   let acTxn = makeApplicationCallTxnFromObject({

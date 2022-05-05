@@ -3,6 +3,8 @@ import { ChainId } from "./consts";
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
 
+// TODO: remove `as ChainId` in next minor version as we can't ensure it will match our type definition
+
 // note: actual first byte is message type
 //     0   [u8; 32] token_address
 //     32  u16      token_chain

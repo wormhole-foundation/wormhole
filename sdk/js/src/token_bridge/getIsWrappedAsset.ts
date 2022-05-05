@@ -17,17 +17,18 @@ export async function getIsWrappedAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
   assetAddress: string
-) {
+): Promise<boolean> {
   if (!assetAddress) return false;
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
   return await tokenBridge.isWrappedAsset(assetAddress);
 }
 
+// TODO: this doesn't seem right
 export async function getIsWrappedAssetTerra(
   tokenBridgeAddress: string,
   client: LCDClient,
   assetAddress: string
-) {
+): Promise<boolean> {
   return false;
 }
 
@@ -42,7 +43,7 @@ export async function getIsWrappedAssetSol(
   connection: Connection,
   tokenBridgeAddress: string,
   mintAddress: string
-) {
+): Promise<boolean> {
   if (!mintAddress) return false;
   const { wrapped_meta_address } = await importTokenWasm();
   const wrappedMetaAddress = wrapped_meta_address(

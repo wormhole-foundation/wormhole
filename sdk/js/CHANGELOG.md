@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.3.0
+
+### Added
+
+Added `tryNativeToHexString`
+
+Added `tryNativeToUint8Array`
+
+Added `tryHexToNativeString`
+
+Added `tryUint8ArrayToNative`
+
+Added support for passing in chain names wherever a chain is expected
+
+Added chain id 0 (unset)
+
+Added contract addresses to the `consts` module
+
+### Changed
+
+Deprecated `nativeToHexString`
+
+Deprecated `hexToNativeString`
+
+Deprecated `hexToNativeAssetString`
+
+Deprecated `uint8ArrayToNative`
+
+`isEVMChain` now performs type narrowing
+
+`CHAIN_ID_*` constants now have literal types
+
 ## 0.2.7
 
 ### Added

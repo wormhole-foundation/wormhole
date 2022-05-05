@@ -1,8 +1,9 @@
-import { ChainId, getSignedVAA } from "..";
+import { ChainId, ChainName, getSignedVAA } from "..";
+import { coalesceChainId } from "../utils";
 
 export async function getSignedVAAWithRetry(
   hosts: string[],
-  emitterChain: ChainId,
+  emitterChain: ChainId | ChainName,
   emitterAddress: string,
   sequence: string,
   extraGrpcOpts = {},
@@ -19,7 +20,7 @@ export async function getSignedVAAWithRetry(
     try {
       result = await getSignedVAA(
         hosts[getNextRpcHost()],
-        emitterChain,
+        coalesceChainId(emitterChain),
         emitterAddress,
         sequence,
         extraGrpcOpts

@@ -8,17 +8,18 @@ import {
 } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { importNftWasm } from "../solana/wasm";
-import { ChainId, CHAIN_ID_SOLANA, createNonce } from "../utils";
+import { ChainId, ChainName, CHAIN_ID_SOLANA, coalesceChainId, createNonce } from "../utils";
 
 export async function transferFromEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
   tokenAddress: string,
   tokenID: ethers.BigNumberish,
-  recipientChain: ChainId,
+  recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
+  const recipientChainId = coalesceChainId(recipientChain)
   //TODO: should we check if token attestation exists on the target chain
   const token = NFTImplementation__factory.connect(tokenAddress, signer);
   await (await token.approve(tokenBridgeAddress, tokenID, overrides)).wait();
@@ -26,7 +27,7 @@ export async function transferFromEth(
   const v = await bridge.transferNFT(
     tokenAddress,
     tokenID,
-    recipientChain,
+    recipientChainId,
     recipientAddress,
     createNonce(),
     overrides
@@ -43,11 +44,12 @@ export async function transferFromSolana(
   fromAddress: string,
   mintAddress: string,
   targetAddress: Uint8Array,
-  targetChain: ChainId,
+  targetChain: ChainId | ChainName,
   originAddress?: Uint8Array,
-  originChain?: ChainId,
+  originChain?: ChainId | ChainName,
   originTokenId?: Uint8Array
 ): Promise<Transaction> {
+  const originChainId: ChainId | undefined = originChain ? coalesceChainId(originChain) : undefined
   const nonce = createNonce().readUInt32LE(0);
   const transferIx = await getBridgeFeeIx(
     connection,
@@ -70,7 +72,7 @@ export async function transferFromSolana(
   let messageKey = Keypair.generate();
   const isSolanaNative =
     originChain === undefined || originChain === CHAIN_ID_SOLANA;
-  if (!isSolanaNative && !originAddress && !originTokenId) {
+  if (!isSolanaNative && (!originAddress || !originTokenId)) {
     throw new Error(
       "originAddress and originTokenId are required when specifying originChain"
     );
@@ -86,7 +88,7 @@ export async function transferFromSolana(
           mintAddress,
           nonce,
           targetAddress,
-          targetChain
+          coalesceChainId(targetChain)
         )
       : transfer_wrapped_ix(
           tokenBridgeAddress,
@@ -95,12 +97,12 @@ export async function transferFromSolana(
           messageKey.publicKey.toString(),
           fromAddress,
           payerAddress,
-          originChain as number, // checked by isSolanaNative
+          originChainId as number, // checked by isSolanaNative
           originAddress as Uint8Array, // checked by throw
           originTokenId as Uint8Array, // checked by throw
           nonce,
           targetAddress,
-          targetChain
+          coalesceChainId(targetChain)
         )
   );
   const transaction = new Transaction().add(transferIx, approvalIx, ix);
@@ -116,9 +118,10 @@ export async function transferFromTerra(
   tokenBridgeAddress: string,
   tokenAddress: string,
   tokenID: string,
-  recipientChain: ChainId,
+  recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array
 ): Promise<MsgExecuteContract[]> {
+  const recipientChainId = coalesceChainId(recipientChain)
   const nonce = Math.round(Math.random() * 100000);
   return [
     new MsgExecuteContract(
@@ -139,7 +142,7 @@ export async function transferFromTerra(
         initiate_transfer: {
           contract_addr: tokenAddress,
           token_id: tokenID,
-          recipient_chain: recipientChain,
+          recipient_chain: recipientChainId,
           recipient: Buffer.from(recipientAddress).toString("base64"),
           nonce: nonce,
         },
