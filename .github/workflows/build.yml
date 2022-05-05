@@ -42,8 +42,17 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: '1.17.5'
+          go-version: "1.17.5"
       - run: make node
+
+  algorand:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+      - run: cd algorand && make test
 
   ethereum:
     runs-on: ubuntu-20.04
@@ -51,7 +60,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: '16'
+          node-version: "16"
       - run: cd ethereum && make test
 
   terra:
@@ -60,7 +69,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: '16'
+          node-version: "16"
       - run: cd terra && make test
 
   # Run linters, Go tests and other outside-of-Tilt things.
@@ -74,7 +83,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: '1.17.5'
+          go-version: "1.17.5"
       - run: make generate && ./lint.sh
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - run: cd node && go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
