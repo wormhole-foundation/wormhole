@@ -195,8 +195,8 @@ export function sign(signers: string[], vaa: VAA<Payload>): Signature[] {
         const key = ec.keyFromPrivate(signer)
         const signature = key.sign(Buffer.from(hash.substr(2), "hex"), { canonical: true })
         const packed = [
-            signature.r.toString("hex").padStart(32, "0"),
-            signature.s.toString("hex").padStart(32, "0"),
+            signature.r.toString("hex").padStart(64, "0"),
+            signature.s.toString("hex").padStart(64, "0"),
             encode("uint8", signature.recoveryParam)
         ].join("")
         return {

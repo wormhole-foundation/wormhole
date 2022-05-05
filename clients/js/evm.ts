@@ -8,7 +8,7 @@ import axios from "axios";
 export async function execute_governance_evm(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET",
+  network: "MAINNET" | "TESTNET" | "DEVNET",
   chain: EVMChainName
 ) {
   let n = NETWORKS[network][chain]

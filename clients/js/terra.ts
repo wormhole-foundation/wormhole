@@ -7,7 +7,7 @@ import { CONTRACTS } from "@certusone/wormhole-sdk"
 export async function execute_governance_terra(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET"
+  network: "MAINNET" | "TESTNET" | "DEVNET"
 ) {
 
   let n = NETWORKS[network]['terra']

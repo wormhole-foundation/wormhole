@@ -9,7 +9,7 @@ import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk"
 export async function execute_governance_solana(
   v: VAA<Payload>,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET"
+  network: "MAINNET" | "TESTNET" | "DEVNET"
 ) {
   let ix: web3s.TransactionInstruction
   let connection = setupConnection(NETWORKS[network].solana.rpc)

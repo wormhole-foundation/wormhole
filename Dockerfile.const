@@ -20,21 +20,13 @@ ENV NODE_OPTIONS=--use-openssl-ca
 RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
 
 # install token_bridge deps & build
-WORKDIR /clients/token_bridge
+WORKDIR /clients/js
 # copy package.json & package-lock.json by themselves to create a cache layer
-COPY clients/token_bridge/package.json clients/token_bridge/package-lock.json ./
+COPY clients/js/package.json clients/js/package-lock.json ./
 # mount the buildkit cache on npm's cache dir, install dependencies
 RUN --mount=type=cache,target=/root/.npm npm ci
 # copy the rest of the source files, as a layer on top of the deps
-COPY clients/token_bridge ./
-RUN npm run build
-
-# install nft_bridge deps & build
-WORKDIR /clients/nft_bridge
-COPY clients/nft_bridge/package.json clients/nft_bridge/package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci
-COPY clients/nft_bridge ./
-RUN npm run build
+COPY clients/js ./
 
 WORKDIR /
 
