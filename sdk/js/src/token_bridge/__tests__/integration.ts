@@ -71,6 +71,8 @@ import {
   transferFromEth,
   transferFromSolana,
   transferFromTerra,
+  tryNativeToHexString,
+  tryNativeToUint8Array,
   uint8ArrayToHex,
   updateWrappedOnEth,
   WormholeWrappedInfo,
@@ -211,7 +213,7 @@ describe("Integration Tests", () => {
             connection,
             SOLANA_TOKEN_BRIDGE_ADDRESS,
             CHAIN_ID_ETH,
-            hexToUint8Array(nativeToHexString(TEST_ERC20, CHAIN_ID_ETH) || "")
+            tryNativeToUint8Array(TEST_ERC20, CHAIN_ID_ETH)
           );
           const solanaMintKey = new PublicKey(SolanaForeignAsset || "");
           const recipient = await Token.getAssociatedTokenAddress(
@@ -294,9 +296,7 @@ describe("Integration Tests", () => {
             TEST_ERC20,
             amount,
             CHAIN_ID_SOLANA,
-            hexToUint8Array(
-              nativeToHexString(recipient.toString(), CHAIN_ID_SOLANA) || ""
-            )
+            tryNativeToUint8Array(recipient.toString(), CHAIN_ID_SOLANA)
           );
           // get the sequence from the logs (needed to fetch the vaa)
           const sequence = parseSequenceFromLogEth(
@@ -503,7 +503,7 @@ describe("Integration Tests", () => {
           // Get the initial wallet balance on Eth
           const ETH_TEST_WALLET_PUBLIC_KEY =
             "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
-          const originAssetHex = nativeToHexString(
+          const originAssetHex = tryNativeToHexString(
             TEST_SOLANA_TOKEN,
             CHAIN_ID_SOLANA
           );
@@ -538,9 +538,7 @@ describe("Integration Tests", () => {
             fromAddress,
             TEST_SOLANA_TOKEN,
             amount,
-            hexToUint8Array(
-              nativeToHexString(targetAddress, CHAIN_ID_ETH) || ""
-            ),
+            tryNativeToUint8Array(targetAddress, CHAIN_ID_ETH),
             CHAIN_ID_ETH
           );
           // sign, send, and confirm transaction
@@ -737,7 +735,7 @@ describe("Integration Tests", () => {
           );
 
           // Get initial balance of ERC20 on Terra
-          const originAssetHex = nativeToHexString(ERC20, CHAIN_ID_ETH);
+          const originAssetHex = tryNativeToHexString(ERC20, CHAIN_ID_ETH);
           if (!originAssetHex) {
             throw new Error("originAssetHex is null");
           }
@@ -794,9 +792,7 @@ describe("Integration Tests", () => {
             TEST_ERC20,
             amount,
             CHAIN_ID_TERRA,
-            hexToUint8Array(
-              nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA) || ""
-            )
+            tryNativeToUint8Array(wallet.key.accAddress, CHAIN_ID_TERRA)
           );
           // get the sequence from the logs (needed to fetch the vaa)
           const sequence = parseSequenceFromLogEth(
@@ -1279,7 +1275,7 @@ describe("Integration Tests", () => {
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-          const originAssetHex = nativeToHexString(Asset, CHAIN_ID_TERRA);
+          const originAssetHex = tryNativeToHexString(Asset, CHAIN_ID_TERRA);
           if (!originAssetHex) {
             throw new Error("originAssetHex is null");
           }
@@ -1308,7 +1304,7 @@ describe("Integration Tests", () => {
           );
 
           // Start transfer from Terra to Ethereum
-          const hexStr = nativeToHexString(
+          const hexStr = tryNativeToHexString(
             ETH_TEST_WALLET_PUBLIC_KEY,
             CHAIN_ID_ETH
           );
@@ -1427,7 +1423,7 @@ describe("Integration Tests", () => {
             ETH_NODE_URL
           ) as any;
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-          const originAssetHex = nativeToHexString(Asset, CHAIN_ID_TERRA);
+          const originAssetHex = tryNativeToHexString(Asset, CHAIN_ID_TERRA);
           if (!originAssetHex) {
             throw new Error("originAssetHex is null");
           }
@@ -1470,9 +1466,7 @@ describe("Integration Tests", () => {
             foreignAsset,
             Amount,
             CHAIN_ID_TERRA,
-            hexToUint8Array(
-              nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA) || ""
-            )
+            tryNativeToUint8Array(wallet.key.accAddress, CHAIN_ID_TERRA)
           );
           console.log("Transfer gas used: ", receipt.gasUsed);
 
@@ -1659,7 +1653,7 @@ describe("Integration Tests", () => {
           console.log("Initial Terra balance of", FeeAsset, initialFeeBalance);
 
           // Get wallet on eth
-          const originAssetHex = nativeToHexString(CW20, CHAIN_ID_TERRA);
+          const originAssetHex = tryNativeToHexString(CW20, CHAIN_ID_TERRA);
           console.log("CW20 originAssetHex: ", originAssetHex);
           if (!originAssetHex) {
             throw new Error("originAssetHex is null");
@@ -1706,7 +1700,7 @@ describe("Integration Tests", () => {
             "CW20 balance on Terra before transfer = ",
             initialCW20BalOnTerra
           );
-          const hexStr = nativeToHexString(
+          const hexStr = tryNativeToHexString(
             ETH_TEST_WALLET_PUBLIC_KEY,
             CHAIN_ID_ETH
           );
@@ -1831,9 +1825,7 @@ describe("Integration Tests", () => {
             foreignAsset,
             Amount,
             CHAIN_ID_TERRA,
-            hexToUint8Array(
-              nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA) || ""
-            )
+            tryNativeToUint8Array(wallet.key.accAddress, CHAIN_ID_TERRA)
           );
           console.log("Transfer gas used: ", receipt.gasUsed);
 

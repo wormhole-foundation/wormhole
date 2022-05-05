@@ -20,7 +20,7 @@ export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
   signedVAA: Uint8Array
-) {
+): Promise<boolean> {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
   const signedVAAHash = await getSignedVAAHash(signedVAA);
   return await tokenBridge.isTransferCompleted(signedVAAHash);
@@ -31,7 +31,7 @@ export async function getIsTransferCompletedTerra(
   signedVAA: Uint8Array,
   client: LCDClient,
   gasPriceUrl: string
-) {
+): Promise<boolean> {
   const msg = await redeemOnTerra(
     tokenBridgeAddress,
     TERRA_REDEEMED_CHECK_WALLET_ADDRESS,
@@ -68,7 +68,7 @@ export async function getIsTransferCompletedSolana(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
   connection: Connection
-) {
+): Promise<boolean> {
   const { claim_address } = await importCoreWasm();
   const claimAddress = await claim_address(tokenBridgeAddress, signedVAA);
   const claimInfo = await connection.getAccountInfo(
