@@ -9,10 +9,16 @@ import { hexlify, hexStripZeros } from "@ethersproject/bytes";
 import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { useCallback, useMemo } from "react";
 import { useAlgorandContext } from "../contexts/AlgorandWalletContext";
-import { useEthereumProvider } from "../contexts/EthereumProviderContext";
+import {
+  ConnectType,
+  useEthereumProvider,
+} from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { CLUSTER, getEvmChainId } from "../utils/consts";
-import { METAMASK_CHAIN_PARAMETERS } from "../utils/metaMaskChainParameters";
+import {
+  EVM_RPC_MAP,
+  METAMASK_CHAIN_PARAMETERS,
+} from "../utils/metaMaskChainParameters";
 
 const createWalletStatus = (
   isReady: boolean,
@@ -44,6 +50,8 @@ function useIsWalletReady(
     provider,
     signerAddress,
     chainId: evmChainId,
+    connectType,
+    disconnect,
   } = useEthereumProvider();
   const hasEthInfo = !!provider && !!signerAddress;
   const correctEvmNetwork = getEvmChainId(chainId);
@@ -56,6 +64,16 @@ function useIsWalletReady(
       if (!isEVMChain(chainId)) {
         return;
       }
+      if (
+        connectType === ConnectType.WALLETCONNECT &&
+        EVM_RPC_MAP[correctEvmNetwork] === undefined
+      ) {
+        // WalletConnect requires a rpc url for this chain
+        // Force user to switch connect type
+        disconnect();
+        return;
+      }
+
       try {
         await provider.send("wallet_switchEthereumChain", [
           { chainId: hexStripZeros(hexlify(correctEvmNetwork)) },
@@ -77,7 +95,7 @@ function useIsWalletReady(
         }
       }
     }
-  }, [provider, correctEvmNetwork, chainId]);
+  }, [provider, correctEvmNetwork, chainId, connectType, disconnect]);
 
   return useMemo(() => {
     if (
