@@ -8,7 +8,7 @@ WORKDIR /app
 
 COPY ./wormhole_chain .
 
-RUN curl https://get.starport.network/starport! | bash
+RUN curl https://get.starport.network/starport@v0.19.5! | bash
 
 EXPOSE 26657
 EXPOSE 26656
