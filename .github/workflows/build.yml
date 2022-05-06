@@ -49,14 +49,11 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v2
+      - uses: actions/setup-python@v2
         with:
           python-version: "3.10"
-      - name: Install dependencies
-        run: pip install -r algorand/requirements.txt
-      - name: Run Unit Tests
-	      run: cd algorand && make test
+      - run: pip install -r algorand/requirements.txt
+	    - run: cd algorand && make test
 
   ethereum:
     runs-on: ubuntu-20.04
