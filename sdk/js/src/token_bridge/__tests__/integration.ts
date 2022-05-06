@@ -27,7 +27,7 @@ import algosdk, {
   waitForConfirmation,
 } from "algosdk";
 import axios from "axios";
-import { ethers } from "ethers";
+import { BigNumber, utils, ethers } from "ethers";
 import {
   approveEth,
   attestFromAlgorand,
@@ -3077,6 +3077,99 @@ describe("Integration Tests", () => {
           ).toBe(true);
           console.log("Destroying the provider...");
           provider.destroy();
+        } catch (e) {
+          console.error("new test error:", e);
+          done("new test error");
+          return;
+        }
+        done();
+      })();
+    });
+
+    test("testing algorand payload3", (done) => {
+      (async () => {
+        try {
+          console.log("Starting new test of transferring ETH to algorand.");
+          const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
+          const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
+          const aa: string = uint8ArrayToHex(decTbAddr);
+
+          const client: algosdk.Algodv2 = getAlgoClient();
+          const tempAccts: Account[] = await getTempAccounts();
+          const numAccts: number = tempAccts.length;
+          expect(numAccts).toBeGreaterThan(0);
+          const algoWallet: Account = tempAccts[0];
+
+          const Fee: number = 0;
+          var testapp: number = 8;
+          var dest = utils.hexZeroPad(BigNumber.from(testapp).toHexString(), 32).substring(2);
+          console.log("Dest address: ", dest);
+
+          const transferTxs = await transferFromAlgorand(
+            client,
+            TOKEN_BRIDGE_ID,
+            CORE_ID,
+            algoWallet.addr,
+            BigInt(0),
+            BigInt(100),
+            dest,
+            CHAIN_ID_ALGORAND,
+            BigInt(Fee),
+            hexToUint8Array("ff")
+          );
+
+          const transferResult = await signSendAndConfirmAlgorand(
+            client,
+            transferTxs,
+            algoWallet
+          );
+          const txSid = parseSequenceFromLogAlgorand(transferResult);
+          console.log("Getting signed VAA...");
+          const signedVaa = await getSignedVAAWithRetry(
+            WORMHOLE_RPC_HOSTS,
+            CHAIN_ID_ALGORAND,
+            aa,
+            txSid,
+            { transport: NodeHttpTransport() }
+          );
+          console.log("payload3 vaa", uint8ArrayToHex(signedVaa.vaaBytes));
+          console.log("About to send back into algorand...");
+
+          const txns = await redeemOnAlgorand(
+            client,
+            TOKEN_BRIDGE_ID,
+            CORE_ID,
+            signedVaa.vaaBytes,
+            algoWallet.addr
+          );
+          console.log("signSendAndConfirm...");
+          
+          const wbefore = await getBalance(client, getApplicationAddress(testapp), BigInt(0));
+          console.log(
+            "test app wallet before:",
+              wbefore
+          );
+
+          await signSendAndConfirmAlgorand(
+            client,
+            txns,
+            algoWallet
+          );
+          expect(
+            await getIsTransferCompletedAlgorand(
+              client,
+              TOKEN_BRIDGE_ID,
+              signedVaa.vaaBytes
+            )
+          ).toBe(true);
+          const wafter = await getBalance(client, getApplicationAddress(testapp), BigInt(0));
+          console.log(
+            "test app wallet after:",
+            wafter
+          );
+
+          expect(BigInt(wafter - wbefore) == BigInt(100));
+          console.log("payload3 sent...");
         } catch (e) {
           console.error("new test error:", e);
           done("new test error");
