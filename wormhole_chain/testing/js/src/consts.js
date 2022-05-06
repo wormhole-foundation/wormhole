@@ -20,7 +20,7 @@ export const DEVNET_GUARDIAN2_PRIVATE_KEY =
 //This assume guardian 1 uses test wallet 1.
 export const GUARDIAN_VALIDATOR_VALADDR =
   "wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8";
-export const GUARDIAN_VALIDATOR2_VALADDR = "";
+// export const GUARDIAN_VALIDATOR2_VALADDR = "";
 
 export const GUARDIAN_VALIDATOR_BASE64_VALADDR = "wQggmD8zRWznvrOgRvWoP6NPAn0=";
 
