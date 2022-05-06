@@ -375,8 +375,6 @@ export function _parseVAAAlgorand(vaa: Uint8Array): Map<string, any> {
     ret.set("Fee", extract3(vaa, off, 32));
     off += 32;
     ret.set("Payload", vaa.slice(off));
-    ret.set("appid", buf.readIntBE(off, 8));
-    ret.set("body", uint8ArrayToHex(vaa.slice(off + 8)));
   }
 
   return ret;
@@ -815,7 +813,15 @@ export async function _submitVAAAlgorand(
 
     // The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
 
-    const addr = encodeAddress(hexToUint8Array(parsedVAA.get("ToAddress")));
+    let aid = 0;
+    let addr;
+
+    if ((parsedVAA.get("ToChain") == 8) && (parsedVAA.get("Type") == 3)) {
+      aid = Number(hexToNativeAssetBigIntAlgorand(parsedVAA.get("ToAddress")));
+      addr = getApplicationAddress(aid);
+    } else {
+      addr = encodeAddress(hexToUint8Array(parsedVAA.get("ToAddress")));
+    }
 
     if (a !== 0) {
       foreignAssets.push(a);
@@ -863,12 +869,12 @@ export async function _submitVAAAlgorand(
     else txs[txs.length - 1].tx.fee = txs[txs.length - 1].tx.fee * 3;
 
     if (meta === "TokenBridge Transfer With Payload") {
-      txs[txs.length - 1].tx.appForeignApps = [parsedVAA.get("appid")];
+      txs[txs.length - 1].tx.appForeignApps = [aid];
 
       txs.push({
         tx: makeApplicationCallTxnFromObject({
           appArgs: [textToUint8Array("completeTransfer"), vaa],
-          appIndex: parsedVAA.get("appid"),
+          appIndex: aid,
           foreignAssets: foreignAssets,
           from: senderAddr,
           onComplete: OnApplicationComplete.NoOpOC,

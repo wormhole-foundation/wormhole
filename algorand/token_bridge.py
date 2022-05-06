@@ -84,8 +84,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
         return Seq(maybe, MagicAssert(maybe.hasValue()), maybe.value())
 
     @Subroutine(TealType.bytes)
-    def getNextAddress() -> Expr:
-        maybe = AppParam.address(Gtxn[Txn.group_index() + Int(1)].application_id())
+    def getAppAddress(appid : Expr) -> Expr:
+        maybe = AppParam.address(appid)
         return Seq(maybe, MagicAssert(maybe.hasValue()), maybe.value())
 
     def assert_common_checks(e) -> Expr:
@@ -456,6 +456,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
         d = ScratchVar()
         zb = ScratchVar()
         action = ScratchVar()
+        aid = ScratchVar()
         
         return Seq([
             checkForDuplicate(),
@@ -517,13 +518,15 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             MagicAssert(Fee.load() <= Amount.load()),
 
             If (action.load() == Int(3), Seq([
+                    aid.store(Btoi(Extract(Destination.load(), Int(24), Int(8)))), # The destination is the appid in a payload3
                     tidx.store(Txn.group_index() + Int(1)),
                     MagicAssert(And(
                         Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
                         Gtxn[tidx.load()].application_args[0] == Txn.application_args[0],
-                        Gtxn[tidx.load()].application_args[1] == Txn.application_args[1]
+                        Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
+                        Gtxn[tidx.load()].application_id() == aid.load()
                     )),
-                    MagicAssert(getNextAddress() == Destination.load())
+                    Destination.store(getAppAddress(aid.load()))
             ])),
 
             If(OriginChain.load() == Int(8),

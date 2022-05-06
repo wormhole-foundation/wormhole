@@ -408,7 +408,7 @@ class AlgoTest(PortalCore):
                 ))
             accounts=[emitter_addr, creator, c["address"]]
 
-        args = [b"sendTransfer", asset_id, quantity, decode_address(receiver), chain, fee]
+        args = [b"sendTransfer", asset_id, quantity, receiver, chain, fee]
         if None != payload:
             args.append(payload)
 
@@ -484,6 +484,11 @@ class AlgoTest(PortalCore):
         print("woah! optin succeeded")
 
     def simple_test(self):
+
+        vaa = self.parseVAA(bytes.fromhex("01000000000100ddc6993585b909c3e861830244122e0daf45101663942484aa56ee2b51fa3ff016411102f993935d428a5aa0c3ace74facd60822435893b74b24fadde0fbad49006277c3fe0000000000088edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be200000000000000060003000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000800080000000000000000000000000000000000000000000000000000000000000000ff"))
+        pprint.pprint(vaa)
+        sys.exit(0)
+
 #        q = bytes.fromhex(gt.genAssetMeta(gt.guardianPrivKeys, 1, 1, 1, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, 8, b"USDC", b"CircleCoin"))
 #        pprint.pprint(self.parseVAA(q))
 #        sys.exit(0)
@@ -652,7 +657,7 @@ class AlgoTest(PortalCore):
 
         print("Lets transfer that asset to one of our other accounts... first lets create the vaa")
         # paul - transferFromAlgorand
-        sid = self.transferFromAlgorand(client, player2, self.testasset, 100, player3.getAddress(), 8, 0)
+        sid = self.transferFromAlgorand(client, player2, self.testasset, 100, decode_address(player3.getAddress()), 8, 0)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3")
@@ -666,7 +671,7 @@ class AlgoTest(PortalCore):
 
         # Lets split it into two parts... the payload and the fee
         print("Lets split it into two parts... the payload and the fee (400 should go to player, 600 should go to player3)")
-        sid = self.transferFromAlgorand(client, player2, self.testasset, 1000, player3.getAddress(), 8, 400)
+        sid = self.transferFromAlgorand(client, player2, self.testasset, 1000, decode_address(player3.getAddress()), 8, 400)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
 #        pprint.pprint(self.parseVAA(bytes.fromhex(vaa)))
@@ -688,7 +693,7 @@ class AlgoTest(PortalCore):
 
         # paul - transferFromAlgorand
         print("Lets transfer algo this time.... first lets create the vaa")
-        sid = self.transferFromAlgorand(client, player2, 0, 1000000, emptyAccount.getAddress(), 8, 0)
+        sid = self.transferFromAlgorand(client, player2, 0, 1000000, decode_address(emptyAccount.getAddress()), 8, 0)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
 #        pprint.pprint(vaa)
@@ -709,7 +714,7 @@ class AlgoTest(PortalCore):
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
         print("Lets transfer more algo.. split 40/60 with the relayer.. going to player3")
-        sid = self.transferFromAlgorand(client, player2, 0, 1000000, player3.getAddress(), 8, 400000)
+        sid = self.transferFromAlgorand(client, player2, 0, 1000000, decode_address(player3.getAddress()), 8, 400000)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3.. but use the previously empty account to relay it")
@@ -724,17 +729,22 @@ class AlgoTest(PortalCore):
         print("How much is in the player3 account now?")
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
-        print("How about a payload3")
-        sid = self.transferFromAlgorand(client, player2, 0, 100, get_application_address(self.testid), 8, 0, self.testid.to_bytes(8, "big")+b'hi mom')
+        print("How about a payload3: " + self.testid.to_bytes(32, "big").hex())
+        sid = self.transferFromAlgorand(client, player2, 0, 100, self.testid.to_bytes(32, "big"), 8, 0, b'hi mom')
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
+
+        pprint.pprint(self.parseVAA(bytes.fromhex(vaa)))
 
         print("testid balance before = ", self.getBalances(client, get_application_address(self.testid)))
 
         print(".. Lets let player3 relay it for us")
         self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
+
         print("testid balance after = ", self.getBalances(client, get_application_address(self.testid)))
+
+#        sys.exit(0)
 
         print(".. Ok, now it is time to up the message fees")
 
