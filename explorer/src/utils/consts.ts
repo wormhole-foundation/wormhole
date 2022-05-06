@@ -35,7 +35,7 @@ export const chainIDs: ChainIDs = {
   oasis: 7,
   // chains without mainnet contract addresses commented out
   // algorand: 8,
-  // aurora: 9,
+  aurora: 9,
   fantom: 10,
   // kurura: 11,
   // acala: 12,
