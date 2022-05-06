@@ -11,10 +11,18 @@ if [ "`grep enable-all-parameters _sandbox/images/indexer/start.sh | wc -l`" == 
   ./sandbox clean
 fi
 ./sandbox clean
-./sandbox up -v dev
-echo "run the tests"
+./sandbox up dev
+if [ $? -ne 0 ]; then
+	echo failed to bring up the sandbox
+	exit 1
+fi
+echo running the tests...
 cd test
 python3 test.py
-echo "bring the sandbox down"
+if [ $? -ne 0 ]; then
+	echo tests in test.py failed
+	exit 1
+fi
+echo bringing the sandbox down...
 cd ..
 ./sandbox down
