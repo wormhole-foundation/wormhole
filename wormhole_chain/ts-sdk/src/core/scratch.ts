@@ -7,7 +7,6 @@ import {
   coins,
   DirectSecp256k1HdWallet,
   EncodeObject,
-  OfflineDirectSigner,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
 import {
@@ -28,14 +27,12 @@ import {
   RpcStatus,
   HttpResponse,
 } from "../modules/certusone.wormholechain.tokenbridge/rest";
-import { ChainRegistration } from "../modules/certusone.wormholechain.tokenbridge/types/tokenbridge/chain_registration";
 import {
   txClient,
   queryClient,
 } from "../modules/certusone.wormholechain.wormhole";
 import {
   txClient as tokenBridgeClient,
-  queryClient as tokenBridgeQueryClient,
 } from "../modules/certusone.wormholechain.tokenbridge";
 import { keccak256 } from "ethers/lib/utils";
 import { MsgRegisterAccountAsGuardian } from "../modules/certusone.wormholechain.wormhole/types/wormhole/tx";
@@ -229,7 +226,6 @@ export async function registerGuardianValidator(
   const args: MsgRegisterAccountAsGuardian = {
     signer: await getAddress(wallet),
     guardianPubkey: GuardianKey.fromJSON(guardianPubkeyBase64), //TODO fix this type, it's bad
-    addressBech32: valAddress, //this should be val address, not address bech32. The name is wrong
     signature: signature,
   };
 

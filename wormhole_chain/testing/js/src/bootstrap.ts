@@ -1,7 +1,6 @@
 import { coins } from "@cosmjs/proto-signing";
 import { StdFee } from "@cosmjs/stargate";
 import axios from "axios";
-//@ts-ignore
 import pkg from "protobufjs";
 const { Field, Type } = pkg;
 import * as sdk from "wormhole-chain-sdk";
@@ -19,7 +18,6 @@ import {
   NODE_URL,
   TENDERMINT_URL,
   TEST_TRANSFER_VAA_1,
-  TEST_WALLET_ADDRESS_1,
   TEST_WALLET_ADDRESS_2,
   TEST_WALLET_MNEMONIC_2,
   TILTNET_GUARDIAN_PUBKEY,
@@ -35,7 +33,6 @@ const {
   getWormholeQueryClient,
 } = sdk;
 
-let done = false;
 let err: string | null = null;
 
 //This test is split out into a global script file because it is not composeable with the other tests.
@@ -385,7 +382,6 @@ async function fullBootstrapProcess() {
       "Attempting to register the second validator as a guardian validator."
     );
     const registerMsg = signingClient.core.msgRegisterAccountAsGuardian({
-      addressBech32: toValAddress(fromAccAddress(TEST_WALLET_ADDRESS_2)),
       guardianPubkey: { key: Buffer.from(DEVNET_GUARDIAN2_PUBLIC_KEY, "hex") },
       signer: TEST_WALLET_ADDRESS_2,
       signature: signValidatorAddress(
@@ -489,9 +485,7 @@ async function fullBootstrapProcess() {
   } catch (e) {
     console.error(e);
     console.log("Hit a critical error, process will terminate.");
-    done = true;
   } finally {
-    done = true;
     if (err) {
       newline();
       console.log("ERROR: " + err);
@@ -511,7 +505,6 @@ function newline() {
 }
 
 function eject(error: string) {
-  done = true;
   err = error;
   throw new Error();
 }
