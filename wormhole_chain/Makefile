@@ -42,6 +42,10 @@ run: build/wormhole-chaind
 test: build
 	go test -v ./...
 
+.PHONY: bootstrap
+bootstrap:
+	npm run bootstrap --prefix testing/js
+
 .PHONY: clean
 clean:
 	rm -rf build vue
