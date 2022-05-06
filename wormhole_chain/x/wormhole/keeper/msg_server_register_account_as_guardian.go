@@ -74,12 +74,12 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 
 	// register validator in store for guardian
 	k.Keeper.SetGuardianValidator(ctx, types.GuardianValidator{
-		GuardianKey:   guardianKey,
+		GuardianKey:   guardianKeyAddr.Bytes(),
 		ValidatorAddr: claimedSigner,
 	})
 
 	err = ctx.EventManager().EmitTypedEvent(&types.EventGuardianRegistered{
-		GuardianKey:  guardianKey,
+		GuardianKey:  guardianKeyAddr.Bytes(),
 		ValidatorKey: claimedSigner.Bytes(),
 	})
 
