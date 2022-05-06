@@ -24,8 +24,7 @@ message MsgExecuteGovernanceVAAResponse {
 message MsgRegisterAccountAsGuardian {
   string signer = 1;
   GuardianKey guardianPubkey = 2;
-  string addressBech32 = 3;
-  bytes signature = 4;
+  bytes signature = 3;
 }
 
 message MsgRegisterAccountAsGuardianResponse {

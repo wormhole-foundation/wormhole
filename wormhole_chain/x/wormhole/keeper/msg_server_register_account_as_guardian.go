@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"bytes"
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,25 +14,9 @@ import (
 func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.MsgRegisterAccountAsGuardian) (*types.MsgRegisterAccountAsGuardianResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	// verify that the signer provided their own public key.  This wouldn't
-	// strictly be necessary (can just use the signer directly), but since it's
-	// this key that gets signed, it's easier to report here if there's a
-	// mistake.
-	// TODO(csongor): I think it would actually be better if this wasn't an
-	// explicit parameter. What are the possible mistakes? A guardian submits
-	// the registration tx from the wrong machine?
-	claimedSigner, err := sdk.ValAddressFromBech32(msg.AddressBech32)
-	if err != nil {
-		return nil, err
-	}
-
 	signer, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return nil, err
-	}
-
-	if !bytes.Equal(claimedSigner, signer) {
-		return nil, types.ErrSignerMismatch
 	}
 
 	// recover guardian key from signature
@@ -75,12 +58,12 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	// register validator in store for guardian
 	k.Keeper.SetGuardianValidator(ctx, types.GuardianValidator{
 		GuardianKey:   guardianKeyAddr.Bytes(),
-		ValidatorAddr: claimedSigner,
+		ValidatorAddr: signer,
 	})
 
 	err = ctx.EventManager().EmitTypedEvent(&types.EventGuardianRegistered{
 		GuardianKey:  guardianKeyAddr.Bytes(),
-		ValidatorKey: claimedSigner.Bytes(),
+		ValidatorKey: signer,
 	})
 
 	if err != nil {

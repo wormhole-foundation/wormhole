@@ -34,7 +34,6 @@ test("RegisterGuardianValidator", async () => {
   const wallet = await getWallet(TEST_WALLET_MNEMONIC_2);
   const signingClient = await getWormchainSigningClient(TENDERMINT_URL, wallet);
   const registerMsg = signingClient.core.msgRegisterAccountAsGuardian({
-    addressBech32: toValAddress(fromAccAddress(TEST_WALLET_ADDRESS_2)),
     guardianPubkey: { key: Buffer.from(DEVNET_GUARDIAN_PUBLIC_KEY, "hex") },
     signer: TEST_WALLET_ADDRESS_2,
     signature: signValidatorAddress(

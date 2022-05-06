@@ -15,7 +15,6 @@ export interface MsgExecuteGovernanceVAAResponse {}
 export interface MsgRegisterAccountAsGuardian {
   signer: string;
   guardianPubkey: GuardianKey | undefined;
-  addressBech32: string;
   signature: Uint8Array;
 }
 
@@ -157,10 +156,7 @@ export const MsgExecuteGovernanceVAAResponse = {
   },
 };
 
-const baseMsgRegisterAccountAsGuardian: object = {
-  signer: "",
-  addressBech32: "",
-};
+const baseMsgRegisterAccountAsGuardian: object = { signer: "" };
 
 export const MsgRegisterAccountAsGuardian = {
   encode(
@@ -176,11 +172,8 @@ export const MsgRegisterAccountAsGuardian = {
         writer.uint32(18).fork()
       ).ldelim();
     }
-    if (message.addressBech32 !== "") {
-      writer.uint32(26).string(message.addressBech32);
-    }
     if (message.signature.length !== 0) {
-      writer.uint32(34).bytes(message.signature);
+      writer.uint32(26).bytes(message.signature);
     }
     return writer;
   },
@@ -204,9 +197,6 @@ export const MsgRegisterAccountAsGuardian = {
           message.guardianPubkey = GuardianKey.decode(reader, reader.uint32());
           break;
         case 3:
-          message.addressBech32 = reader.string();
-          break;
-        case 4:
           message.signature = reader.bytes();
           break;
         default:
@@ -231,11 +221,6 @@ export const MsgRegisterAccountAsGuardian = {
     } else {
       message.guardianPubkey = undefined;
     }
-    if (object.addressBech32 !== undefined && object.addressBech32 !== null) {
-      message.addressBech32 = String(object.addressBech32);
-    } else {
-      message.addressBech32 = "";
-    }
     if (object.signature !== undefined && object.signature !== null) {
       message.signature = bytesFromBase64(object.signature);
     }
@@ -249,8 +234,6 @@ export const MsgRegisterAccountAsGuardian = {
       (obj.guardianPubkey = message.guardianPubkey
         ? GuardianKey.toJSON(message.guardianPubkey)
         : undefined);
-    message.addressBech32 !== undefined &&
-      (obj.addressBech32 = message.addressBech32);
     message.signature !== undefined &&
       (obj.signature = base64FromBytes(
         message.signature !== undefined ? message.signature : new Uint8Array()
@@ -273,11 +256,6 @@ export const MsgRegisterAccountAsGuardian = {
       message.guardianPubkey = GuardianKey.fromPartial(object.guardianPubkey);
     } else {
       message.guardianPubkey = undefined;
-    }
-    if (object.addressBech32 !== undefined && object.addressBech32 !== null) {
-      message.addressBech32 = object.addressBech32;
-    } else {
-      message.addressBech32 = "";
     }
     if (object.signature !== undefined && object.signature !== null) {
       message.signature = object.signature;
