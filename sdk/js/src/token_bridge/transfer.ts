@@ -393,6 +393,7 @@ export async function transferFromSolana(
  * @param receiver Receiving account
  * @param chain Reeiving chain
  * @param fee Transfer fee
+ * @param payload payload for payload3 transfers
  * @returns Sequence number of confirmation
  */
 export async function transferFromAlgorand(
@@ -404,7 +405,8 @@ export async function transferFromAlgorand(
   qty: bigint,
   receiver: string,
   chain: ChainId | ChainName,
-  fee: bigint
+  fee: bigint,
+  payload : Uint8Array | null = null
 ): Promise<TransactionSignerPair[]> {
   const recipientChainId = coalesceChainId(chain);
   const tokenAddr: string = getApplicationAddress(tokenBridgeId);
@@ -524,6 +526,9 @@ export async function transferFromAlgorand(
     bigIntToBytes(recipientChainId, 8),
     bigIntToBytes(fee, 8),
   ];
+  if (payload != null) {
+      args.push(payload);
+  }
   let acTxn = makeApplicationCallTxnFromObject({
     from: senderAddr,
     appIndex: safeBigIntToNumber(tokenBridgeId),

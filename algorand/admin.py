@@ -35,6 +35,8 @@ from algosdk.future.transaction import LogicSig
 
 from token_bridge import get_token_bridge
 
+from test_contract import get_test_app
+
 from algosdk.v2client import indexer
 
 import pprint
@@ -460,6 +462,40 @@ class PortalCore:
     
         response = self.waitForTransaction(client, signedTxn.get_txid())
         #pprint.pprint(response.__dict__)
+        assert response.applicationIndex is not None and response.applicationIndex > 0
+
+        # Lets give it a bit of money so that it is not a "ghost" account
+        txn = transaction.PaymentTxn(sender = sender.getAddress(), sp = client.suggested_params(), receiver = get_application_address(response.applicationIndex), amt = 100000)
+        signedTxn = txn.sign(sender.getPrivateKey())
+        client.send_transaction(signedTxn)
+
+        return response.applicationIndex
+
+    def createTestApp(
+        self,
+        client: AlgodClient,
+        sender: Account,
+    ) -> int:
+        approval, clear = get_test_app(client)
+
+        globalSchema = transaction.StateSchema(num_uints=4, num_byte_slices=30)
+        localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
+    
+        txn = transaction.ApplicationCreateTxn(
+            sender=sender.getAddress(),
+            on_complete=transaction.OnComplete.NoOpOC,
+            approval_program=b64decode(approval["result"]),
+            clear_program=b64decode(clear["result"]),
+            global_schema=globalSchema,
+            local_schema=localSchema,
+            sp=client.suggested_params(),
+        )
+    
+        signedTxn = txn.sign(sender.getPrivateKey())
+    
+        client.send_transaction(signedTxn)
+    
+        response = self.waitForTransaction(client, signedTxn.get_txid())
         assert response.applicationIndex is not None and response.applicationIndex > 0
 
         # Lets give it a bit of money so that it is not a "ghost" account
@@ -933,7 +969,13 @@ class PortalCore:
 
             # The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
 
-            addr = encode_address(bytes.fromhex(p["ToAddress"]))
+            aid = 0
+
+            if p["ToChain"] == 8 and p["Type"] == 3:
+                aid = int.from_bytes(bytes.fromhex(p["ToAddress"]), "big")
+                addr = get_application_address(aid)
+            else:
+                addr = encode_address(bytes.fromhex(p["ToAddress"]))
 
             if a != 0:
                 foreign_assets.append(a)
@@ -954,8 +996,8 @@ class PortalCore:
                 sp=sp
             ))
 
-            if "appid" in p:
-                txns[-1].foreign_apps = [p["appid"]]
+            if aid != 0:
+                txns[-1].foreign_apps = [aid]
 
             # We need to cover the inner transactions
             if p["Fee"] != self.zeroPadBytes:
@@ -966,7 +1008,7 @@ class PortalCore:
             if p["Meta"] == "TokenBridge Transfer With Payload":
                 txns.append(transaction.ApplicationCallTxn(
                     sender=sender.getAddress(),
-                    index=p["appid"],
+                    index=int.from_bytes(bytes.fromhex(p["ToAddress"]), "big"),
                     on_complete=transaction.OnComplete.NoOpOC,
                     app_args=[b"completeTransfer", vaa],
                     foreign_assets = foreign_assets,
@@ -1100,8 +1142,7 @@ class PortalCore:
             ret["Fee"] = vaa[off:(off + 32)].hex()
             off += 32
             ret["Payload"] = vaa[off:].hex()
-            ret["appid"] = int.from_bytes(vaa[off:(off + 8)], "big")
-            ret["body"] = vaa[off + 8:].hex()
+            ret["body"] = ret["Payload"]
         
         return ret
 
@@ -1117,7 +1158,12 @@ class PortalCore:
         pprint.pprint({"token bridge": str(self.tokenid), "address": get_application_address(self.tokenid), "emitterAddress": decode_address(get_application_address(self.tokenid)).hex()})
 
         if self.devnet or self.args.testnet:
+
             if self.devnet:
+                print("Create test app")
+                self.testid = self.createTestApp(self.client, self.foundation)
+                pprint.pprint({"testapp": str(self.testid)})
+
                 suggestedParams = self.client.suggested_params()
                 fundingAccount = self.getGenesisAccounts()[0]
 
