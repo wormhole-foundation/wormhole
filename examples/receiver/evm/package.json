@@ -1,0 +1,16 @@
+{
+  "name": "wormhole-receiver",
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {
+    "build": "truffle compile",
+    "migrate": "truffle migrate"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.6.0",
+    "@truffle/hdwallet-provider": "^2.0.8",
+    "ganache-cli": "^6.12.2",
+    "solc": "^0.8.4",
+    "truffle": "^5.5.13"
+  }
+}
