@@ -2,11 +2,15 @@
 
 ## Bug Bounty Program
 
-We operate a **[bug bounty program](https://immunefi.com/bounty/wormhole/)** to  incentivize independant researchers to find and responsibly disclose security issues in Wormhole. If you find a security bug in wormhole, we ask that you immediately **[report the bug](https://immunefi.com/bounty/wormhole/)** for a financial reward.
+We operate a **[bug bounty program](https://immunefi.com/bounty/wormhole/)** to  financially incentivize independant researchers (with up to $10,000,000 USDC) to find and responsibly disclose security issues in Wormhole.
 
-## 3rd Party Audits
+If you find a security issue in wormhole, we ask that you immediately **[report the bug](https://immunefi.com/bounty/wormhole/)** to our security team.
 
-We engage an number of 3rd party audit firms to provide independant assessments of Wormhole.  As audits are completed and any issues found are safely mitigated, we  provide public access to those reports.
+## 3rd Party Security Audits
+
+We engage an number of 3rd party audit firms to provide independant security audits of Wormhole.  At any given time, we likely have a multiple active 3rd party security audit streams in progress.
+
+As these 3rd party audits are completed and issues are sufficiently accepted or mitigated, we make those audit reports public.
 
 - **[January, 10, 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2021-01-10_neodyme.pdf)**
     - **Scopes**: *Solitaire, Solana Contracts, Ethereum Contracts, Terra Contracts, and Guardian*
