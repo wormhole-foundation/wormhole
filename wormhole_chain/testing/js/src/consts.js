@@ -25,7 +25,7 @@ export const GUARDIAN_VALIDATOR_VALADDR =
 export const GUARDIAN_VALIDATOR_BASE64_VALADDR = "wQggmD8zRWznvrOgRvWoP6NPAn0=";
 
 //This is a VAA in hex which is for guardian set 2, where Guardian 2 is the only active guardian.
-export const NODE_URL = "http://localhost:1318";
+export const NODE_URL = "http://0.0.0.0:1318";
 export const TENDERMINT_URL = "http://localhost:26658";
 //export const FAUCET_URL = "http://localhost:4500";
 
