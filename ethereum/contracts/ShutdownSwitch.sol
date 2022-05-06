@@ -3,8 +3,6 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/utils/StorageSlot.sol";
-
 /**
  * @dev Abstract contract module that provides a bridge contract with the ability to temporarily suspend transfers.
  *
@@ -184,7 +182,7 @@ abstract contract ShutdownSwitch {
     
     /// @dev Since other contracts will inherit from this one, it cannot have any of its own local state.
     /// This is because that would affect the layout of local state in the inheriting contracts. To prevent this,
-    /// we use the storage slot library to put our state in deterministic storage.
+    /// we put our state in deterministic storage.
 
     bytes32 private constant _STATE_SLOT = keccak256('ShutdownSwitch.state');
     struct ShutdownSwitchState {
