@@ -11,7 +11,7 @@ if [ "`grep enable-all-parameters _sandbox/images/indexer/start.sh | wc -l`" == 
   ./sandbox clean
 fi
 ./sandbox clean
-./sandbox up dev
+./sandbox up -v dev
 if [ $? -ne 0 ]; then
 	echo failed to bring up the sandbox
 	exit 1
