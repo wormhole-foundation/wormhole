@@ -14,12 +14,12 @@ import {
 import {
   DEVNET_GUARDIAN2_PRIVATE_KEY,
   DEVNET_GUARDIAN2_PUBLIC_KEY,
-  GUARDIAN_VALIDATOR2_VALADDR,
   GUARDIAN_VALIDATOR_VALADDR,
   HOLE_DENOM,
   NODE_URL,
   TENDERMINT_URL,
   TEST_TRANSFER_VAA_1,
+  TEST_WALLET_ADDRESS_1,
   TEST_WALLET_ADDRESS_2,
   TEST_WALLET_MNEMONIC_2,
   TILTNET_GUARDIAN_PUBKEY,
@@ -425,7 +425,8 @@ async function fullBootstrapProcess() {
       !guardianValidators2.find(
         (x) =>
           x.guardianKey === TILTNET_GUARDIAN_PUBKEY &&
-          x.validatorAddr === GUARDIAN_VALIDATOR_VALADDR
+          x.validatorAddr ===
+            toBase64(fromValAddress(GUARDIAN_VALIDATOR_VALADDR))
       )
     ) {
       eject(
@@ -435,8 +436,11 @@ async function fullBootstrapProcess() {
     if (
       !guardianValidators2.find(
         (x) =>
-          x.guardianKey === DEVNET_GUARDIAN2_PUBLIC_KEY &&
-          x.validatorAddr === GUARDIAN_VALIDATOR2_VALADDR
+          x.guardianKey ===
+            Buffer.from(DEVNET_GUARDIAN2_PUBLIC_KEY, "hex").toString(
+              "base64"
+            ) &&
+          x.validatorAddr === toBase64(fromAccAddress(TEST_WALLET_ADDRESS_2))
       )
     ) {
       eject(
@@ -450,12 +454,14 @@ async function fullBootstrapProcess() {
     const conResponse = await queryClient.core.queryConsensusGuardianSetIndex();
     index = conResponse.data.ConsensusGuardianSetIndex?.index;
     console.log("Current guardian set index: " + index);
-    if (index !== 0) {
+    if (index !== 1) {
       eject("Latest Guardian set index was not 1 after update.");
     }
     newline();
 
     //confirm blocks are only signed by validator2
+    const validator2SigAddress = "PHAguNGImGmXTyoTUyA9YRuCRSU=";
+    await new Promise((resolve) => setTimeout(resolve, 4000));
     console.log("Logging final block signatures: ");
     latestBlock = await getLatestBlock();
     validatorSet = latestBlock.block.last_commit.signatures;
@@ -470,9 +476,7 @@ async function fullBootstrapProcess() {
     }
     if (
       !validatorSet.find(
-        (sig: any) =>
-          sig.validator_address ===
-          toBase64(fromValAddress(GUARDIAN_VALIDATOR2_VALADDR))
+        (sig: any) => sig.validator_address === validator2SigAddress
       )
     ) {
       eject(
