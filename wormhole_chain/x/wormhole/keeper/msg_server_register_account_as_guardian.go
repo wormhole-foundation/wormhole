@@ -44,8 +44,14 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 		return nil, err
 	}
 
+	// ecrecover gave us a 65-byte public key, which we first need to
+	// convert to a 20 byte ethereum-style address. The first byte of the
+	// public key is just the prefix byte '0x04' which we drop first. Then
+	// hash the public key, and take the last 20 bytes of the hash
+	// (according to
+	// https://ethereum.org/en/developers/docs/accounts/#account-creation)
 	guardianKeyAddrFromSignature := common.BytesToAddress(crypto.Keccak256(guardianKey[1:])[12:])
-	guardianKeyAddr := common.BytesToAddress(crypto.Keccak256(msg.GuardianPubkey.Key[1:])[12:])
+	guardianKeyAddr := common.BytesToAddress(msg.GuardianPubkey.Key)
 
 	// check the recovered guardian key matches the one in the message
 	if guardianKeyAddrFromSignature != guardianKeyAddr {
