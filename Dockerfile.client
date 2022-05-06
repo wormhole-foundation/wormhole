@@ -14,19 +14,11 @@ RUN --mount=type=cache,target=/root/.cache \
 ENV SOLANA_BIN_PATH="/root/.local/share/solana/install/active_release/bin"
 ENV PATH="$SOLANA_BIN_PATH:$PATH"
 
-WORKDIR /usr/src/clients/token_bridge
-COPY clients/token_bridge/package.json clients/token_bridge/package-lock.json ./
+WORKDIR /usr/src/clients/js
+COPY clients/js/package.json clients/js/package-lock.json ./
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci
-COPY clients/token_bridge ./
-RUN npm run build
-
-WORKDIR /usr/src/clients/nft_bridge
-COPY clients/nft_bridge/package.json clients/nft_bridge/package-lock.json ./
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-    npm ci
-COPY clients/nft_bridge ./
-RUN npm run build
+COPY clients/js ./
 
 ADD solana /usr/src/solana
 ADD proto /usr/src/proto
