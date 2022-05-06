@@ -8,7 +8,7 @@ If you find a security issue in wormhole, we ask that you immediately **[report 
 
 ## 3rd Party Security Audits
 
-We engage an number of 3rd party audit firms to provide independant security audits of Wormhole.  At any given time, we likely have a multiple active 3rd party security audit streams in progress.
+We engage an number of 3rd party audit firms to provide independant security audits of Wormhole.  At any given time, we likely have multiple active 3rd party security audit streams in progress.
 
 As these 3rd party audits are completed and issues are sufficiently accepted or mitigated, we make those audit reports public.
 
