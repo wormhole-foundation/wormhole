@@ -157,6 +157,9 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 					Amount: sdk.NewIntFromBigInt(fee),
 				},
 			})
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		err = ctx.EventManager().EmitTypedEvent(&types.EventTransferReceived{
