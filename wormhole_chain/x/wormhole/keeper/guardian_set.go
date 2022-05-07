@@ -92,12 +92,12 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 		Index: newConsensusGuardianSetIndex,
 	})
 
-	ctx.EventManager().EmitTypedEvent(&types.EventConsensusSetUpdate{
+	err := ctx.EventManager().EmitTypedEvent(&types.EventConsensusSetUpdate{
 		OldIndex: oldConsensusGuardianSetIndex,
 		NewIndex: newConsensusGuardianSetIndex,
 	})
 
-	return nil
+	return err
 }
 
 // GetGuardianSetCount get the total number of guardianSet
