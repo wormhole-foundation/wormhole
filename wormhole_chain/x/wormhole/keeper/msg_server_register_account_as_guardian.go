@@ -70,7 +70,11 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 		return nil, err
 	}
 
-	k.Keeper.TrySwitchToNewConsensusGuardianSet(ctx)
+	err = k.Keeper.TrySwitchToNewConsensusGuardianSet(ctx)
+
+	if err != nil {
+		return nil, err
+	}
 
 	return &types.MsgRegisterAccountAsGuardianResponse{}, nil
 }
