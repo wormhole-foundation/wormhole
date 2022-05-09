@@ -29,7 +29,7 @@ export const NODE_URL = "http://0.0.0.0:1318";
 export const TENDERMINT_URL = "http://localhost:26658";
 //export const FAUCET_URL = "http://localhost:4500";
 
-export const HOLE_DENOM = "uhole";
+export const WORM_DENOM = "uworm";
 export const ADDRESS_PREFIX = "wormhole";
 export const OPERATOR_PREFIX = "wormholevaloper";
 

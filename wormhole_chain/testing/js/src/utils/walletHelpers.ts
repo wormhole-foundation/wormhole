@@ -9,7 +9,7 @@ import {
   getWormholeQueryClient,
 } from "wormhole-chain-sdk";
 import {
-  HOLE_DENOM,
+  WORM_DENOM,
   NODE_URL,
   TENDERMINT_URL,
   TEST_WALLET_ADDRESS_1,
@@ -62,7 +62,7 @@ export async function sendTokens(
 
 export function getZeroFee(): StdFee {
   return {
-    amount: coins(0, HOLE_DENOM),
+    amount: coins(0, WORM_DENOM),
     gas: "180000", // 180k",
   };
 }

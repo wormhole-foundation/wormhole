@@ -14,7 +14,7 @@ import {
   DEVNET_GUARDIAN2_PRIVATE_KEY,
   DEVNET_GUARDIAN2_PUBLIC_KEY,
   GUARDIAN_VALIDATOR_VALADDR,
-  HOLE_DENOM,
+  WORM_DENOM,
   NODE_URL,
   TENDERMINT_URL,
   TEST_TRANSFER_VAA_1,
@@ -176,7 +176,7 @@ async function fullBootstrapProcess() {
     }
     newline();
 
-    //bridge in uhole tokens to wallet 2
+    //bridge in uworm tokens to wallet 2
     console.log("Bridging in tokens to wallet 2");
     const transferMsg1 = signingClient.tokenbridge.msgExecuteVAA({
       creator: wallet2Address,
@@ -306,7 +306,7 @@ async function fullBootstrapProcess() {
         value: pubkey,
       },
       validator_address: toValAddress(fromAccAddress(TEST_WALLET_ADDRESS_2)),
-      value: { denom: "uhole", amount: "0" },
+      value: { denom: "uworm", amount: "0" },
     });
     const createValidatorReceipt = await signingClient.signAndBroadcast(
       wallet2Address,
@@ -515,7 +515,7 @@ function fromHex(hexString: string) {
 
 export function getZeroFee(): StdFee {
   return {
-    amount: coins(0, HOLE_DENOM),
+    amount: coins(0, WORM_DENOM),
     gas: "180000", // 180k",
   };
 }

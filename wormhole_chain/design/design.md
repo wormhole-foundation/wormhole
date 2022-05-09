@@ -12,22 +12,22 @@
 
 ## TODO Bootstrap chain
 
-The native token of the Wormhole chain is $HOLE. This token is used both for
+The native token of the Wormhole chain is $WORM. This token is used both for
 staking (governance) and fees. These tokens are already minted on Solana, and
 they won't be available initially at the genesis of the chain. This presents
 a number of difficulties around bootstrapping.
 
 At genesis, the blockchain will be set up in the following way
 
-1.  The staking denom is set to the $HOLE token (of which 0 exist on this chain at this moment)
+1.  The staking denom is set to the $WORM token (of which 0 exist on this chain at this moment)
 2.  Producing blocks uses Proof of Authority (PoA) consensus (i.e. no tokens are required to produce blocks)
 3.  Fees are set to 0
 
-Then, the $HOLE tokens can be transferred over from Solana, and staking (with
+Then, the $WORM tokens can be transferred over from Solana, and staking (with
 delegation) can be done. At this stage, two different consensus mechanisms will
 be in place simultaneously: block validation and guardian set election will
 still use PoA, with each guardian having a singular vote. All other governance
-votes will reach consensus with DPoS by staking $HOLE tokens.
+votes will reach consensus with DPoS by staking $WORM tokens.
 
 <a id="org60d7dc9"></a>
 

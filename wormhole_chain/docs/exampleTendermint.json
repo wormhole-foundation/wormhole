@@ -34,7 +34,7 @@
                         "key": "receiver",
                         "value": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
                       },
-                      { "key": "amount", "value": "100uhole" }
+                      { "key": "amount", "value": "100uworm" }
                     ]
                   },
                   {
@@ -44,7 +44,7 @@
                         "key": "spender",
                         "value": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"
                       },
-                      { "key": "amount", "value": "100uhole" }
+                      { "key": "amount", "value": "100uworm" }
                     ]
                   },
                   {
@@ -68,7 +68,7 @@
                         "key": "sender",
                         "value": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"
                       },
-                      { "key": "amount", "value": "100uhole" }
+                      { "key": "amount", "value": "100uworm" }
                     ]
                   }
                 ]
@@ -209,8 +209,8 @@
     },
     "events": {
       "coin_spent.spender": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"],
-      "coin_received.amount": ["100uhole"],
-      "transfer.amount": ["100uhole"],
+      "coin_received.amount": ["100uworm"],
+      "transfer.amount": ["100uworm"],
       "tx.acc_seq": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr/13"],
       "message.action": ["Transfer"],
       "certusone.wormholechain.wormhole.EventPostedMessage.nonce": ["0"],
@@ -228,7 +228,7 @@
       "tx.signature": [
         "7S2taziRjKoisL0iSt1wq6VJixB+t+9YMOOD1F5lm/hvG1uxOOxM90c+QNWpwIq3O4FwyjG6IrodNN+uNOIX0A=="
       ],
-      "coin_spent.amount": ["100uhole"],
+      "coin_spent.amount": ["100uworm"],
       "certusone.wormholechain.wormhole.EventPostedMessage.payload": [
         "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdWhvbGUMIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
       ],

@@ -69,7 +69,7 @@ There is also the option to move the current gossip network by which the guardia
 ## Governance
 While block production will initially be PoA, the governance mechanism is intended to launch with on-chain voting in a PoS system. 
 
-In order to vote, users will have to transfer and stake $HOLE tokens from another chain. The on-chain voting process should otherwise be quite similar to other Cosmos chains.
+In order to vote, users will have to transfer and stake $WORM tokens from another chain. The on-chain voting process should otherwise be quite similar to other Cosmos chains.
 
 ## New Cross-Chain Functionality
 
