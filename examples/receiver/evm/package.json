@@ -4,13 +4,20 @@
   "description": "",
   "scripts": {
     "build": "truffle compile",
-    "migrate": "truffle migrate"
+    "migrate": "truffle migrate",
+    "test": "truffle test --network test"
   },
   "devDependencies": {
     "@openzeppelin/contracts": "^4.6.0",
     "@truffle/hdwallet-provider": "^2.0.8",
+    "dotenv": "^16.0.0",
     "ganache-cli": "^6.12.2",
     "solc": "^0.8.4",
-    "truffle": "^5.5.13"
+    "truffle": "^5.3.14"
+  },
+  "dependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^8.2.1",
+    "truffle-assertions": "^0.9.2"
   }
 }

@@ -26,7 +26,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         GovernanceStructs.GuardianSetUpgrade memory upgrade = parseGuardianSetUpgrade(vm.payload);
 
         require(upgrade.module == module, "invalid Module");
-        require(upgrade.chain == 0, "invalid Chain");
 
         require(upgrade.newGuardianSet.keys.length > 0, "new guardian set is empty");
         require(upgrade.newGuardianSetIndex == getCurrentGuardianSetIndex() + 1, "index must increase in steps of 1");
