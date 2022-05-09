@@ -525,7 +525,7 @@ class AlgoTest(PortalCore):
 
         if self.foundation == None:
             print("We dont have a account?  ")
-            sys.exit(0)
+            sys.exit(1)
 
         foundation = self.foundation
 
@@ -744,7 +744,8 @@ class AlgoTest(PortalCore):
 
         seq += 1
         v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 2000000)
-        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
+        #self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
+        self.submitVAA(bytes.fromhex(v), 0, player, self.coreid)
         seq += 1
 
         print("core contract now has a MessageFee set to " + str(self.getMessageFee()))
