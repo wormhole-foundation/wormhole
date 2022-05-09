@@ -2,13 +2,13 @@
 
 ## Bug Bounty Program
 
-We operate a **[bug bounty program](https://immunefi.com/bounty/wormhole/)** to  financially incentivize independant researchers (with up to $10,000,000 USDC) to find and responsibly disclose security issues in Wormhole.
+We operate a **[bug bounty program](https://immunefi.com/bounty/wormhole/)** to  financially incentivize independent researchers (with up to $10,000,000 USDC) to find and responsibly disclose security issues in Wormhole.
 
 If you find a security issue in wormhole, we ask that you immediately **[report the bug](https://immunefi.com/bounty/wormhole/)** to our security team.
 
 ## 3rd Party Security Audits
 
-We engage an number of 3rd party audit firms to provide independant security audits of Wormhole.  At any given time, we likely have multiple active 3rd party security audit streams in progress.
+We engage 3rd party audit firms to provide independent security audits of Wormhole.  At any given time, we likely have multiple audit streams in progress.
 
 As these 3rd party audits are completed and issues are sufficiently accepted or mitigated, we make those audit reports public.
 
