@@ -155,7 +155,7 @@ const TESTNET = {
     key: get_env_var("ETH_KEY"),
   },
   near: {
-    rpc: "undefined",
+    rpc: undefined,
     key: undefined,
   },
   moonbeam: {
