@@ -26,4 +26,6 @@ var (
 	ErrSignerMismatch                 = sdkerrors.Register(ModuleName, 1115, "transaction signer doesn't match validator key")
 	ErrGuardianNotFound               = sdkerrors.Register(ModuleName, 1116, "guardian not found in guardian set")
 	ErrConsensusSetUndefined          = sdkerrors.Register(ModuleName, 1117, "no consensus set defined")
+	ErrGuardianSetExpired             = sdkerrors.Register(ModuleName, 1118, "guardian set expired")
+	ErrNewGuardianSetHasExpiry        = sdkerrors.Register(ModuleName, 1119, "new guardian set should not have expiry time")
 )
