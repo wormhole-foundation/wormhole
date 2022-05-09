@@ -86,8 +86,8 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 		identifier := ""
 		var wrapped bool
-		if types.IsHOLEToken(tokenChain, tokenAddress) {
-			identifier = "uhole"
+		if types.IsWORMToken(tokenChain, tokenAddress) {
+			identifier = "uworm"
 			// We mint wormhole tokens because they are not native to wormhole chain
 			wrapped = true
 		} else if uint32(tokenChain) != wormholeConfig.ChainId {
@@ -193,7 +193,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			return nil, types.ErrNativeAssetRegistration
 		}
 
-		if types.IsHOLEToken(tokenChain, tokenAddress) {
+		if types.IsWORMToken(tokenChain, tokenAddress) {
 			return nil, types.ErrNativeAssetRegistration
 		}
 

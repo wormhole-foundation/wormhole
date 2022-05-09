@@ -28,7 +28,7 @@ func (k msgServer) AttestToken(goCtx context.Context, msg *types.MsgAttestToken)
 		return nil, types.ErrNoDenomMetadata
 	}
 
-	// Don't attest wrapped assets (including uhole)
+	// Don't attest wrapped assets (including uworm)
 	_, _, wrapped := types.GetWrappedCoinMeta(meta.Display)
 	if wrapped {
 		return nil, types.ErrAttestWormholeToken
