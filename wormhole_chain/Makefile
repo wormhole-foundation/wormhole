@@ -8,9 +8,19 @@ ifneq ("$(STARPORT_ACTUAL_VERSION)", "$(STARPORT_EXPECTED_VERSION)")
 endif
 
 .PHONY: all
-all: build/wormhole-chaind vue
+all: build/wormhole-chaind vue validators
+
+validators: build
+	# These files change when the genesis file changes, so we need to make
+	# sure to copy them over
+	touch -m validators
+	cp build/config/gentx/*.json validators/first_validator/genesis/gentx.json
+	cp build/keyring-test/* validators/first_validator/keyring-test/
+	cp build/keyring-test/* validators/second_validator/keyring-test/
+	cp build/keyring-test/* validators/guardian_validator/keyring-test/
 
 build: config.yml
+	touch -m build
 	starport chain init --home $@
 	cp client.toml $@/config/client.toml
 	touch proto
