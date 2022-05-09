@@ -28,12 +28,12 @@ func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.Guardian
 		return types.ErrGuardianSetNotSequential
 	}
 
+        if newGuardianSet.ExpirationTime != 0 {
+		return types.ErrNewGuardianSetHasExpiry
+        }
+
 	// Create new set
-	_, err := k.AppendGuardianSet(ctx, types.GuardianSet{
-		Keys:           newGuardianSet.Keys,
-		Index:          newGuardianSet.Index,
-		ExpirationTime: 0,
-	})
+	_, err := k.AppendGuardianSet(ctx, newGuardianSet)
 	if err != nil {
 		return err
 	}
