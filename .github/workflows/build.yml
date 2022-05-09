@@ -45,6 +45,15 @@ jobs:
           go-version: "1.17.5"
       - run: make node
 
+  ethereum:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+      - run: cd ethereum && make test
+
   algorand:
     runs-on: ubuntu-20.04
     steps:
@@ -54,15 +63,6 @@ jobs:
           python-version: "3.10"
 #      - run: pip install -r algorand/requirements.txt
 	    - run: cd algorand && make test
-
-  ethereum:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "16"
-      - run: cd ethereum && make test
 
   terra:
     runs-on: ubuntu-20.04
