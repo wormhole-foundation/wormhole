@@ -744,8 +744,7 @@ class AlgoTest(PortalCore):
 
         seq += 1
         v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 2000000)
-        #self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
-        self.submitVAA(bytes.fromhex(v), 0, player, self.coreid)
+        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
         seq += 1
 
         print("core contract now has a MessageFee set to " + str(self.getMessageFee()))
