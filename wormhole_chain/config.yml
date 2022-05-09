@@ -5,14 +5,14 @@ host:
   api: ":1317"
 accounts:
   - name: tiltGuardian
-    coins: ["20000utest", "0uhole"]
+    coins: ["20000utest", "0uworm"]
     mnemonic: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
   - name: secondValidator
-    coins: ["10000utest", "10000uhole"]
+    coins: ["10000utest", "10000uworm"]
     mnemonic: "maple pudding enjoy pole real rabbit soft make square city wrestle area aisle dwarf spike voice over still post lend genius bitter exit shoot"
 validator:
   name: tiltGuardian
-  staked: "0uhole"
+  staked: "0uworm"
 client:
   openapi:
     path: "docs/static/openapi.yml"
@@ -20,13 +20,13 @@ client:
     path: "vue/src/store"
 faucet:
   name: secondValidator
-  coins: ["5utest", "0uhole"]
+  coins: ["5utest", "0uworm"]
   host: ":4500"
 genesis:
   app_state:
     staking:
       params:
-        bond_denom: "uhole"
+        bond_denom: "uworm"
         max_validators: 1
     bank:
       denom_metadata:
@@ -40,15 +40,15 @@ genesis:
               exponent: 0
             - denom: "test"
               exponent: 6
-        - base: "uhole"
-          display: "hole"
-          name: "Hole Coin"
-          symbol: "HOLE"
+        - base: "uworm"
+          display: "worm"
+          name: "Worm Coin"
+          symbol: "WORM"
           description: "Wormholechain's native staking asset"
           denom_units:
-            - denom: "uhole"
+            - denom: "uworm"
               exponent: 0
-            - denom: "hole"
+            - denom: "worm"
               exponent: 6
     mint:
       minter:
@@ -60,19 +60,19 @@ genesis:
         inflation_max: "0.0"
         inflation_min: "0.0"
         inflation_rate_change: "0.0"
-        mint_denom: "uhole"
+        mint_denom: "uworm"
     crisis:
       #TODO assess what the best course of action is here
       #TODO this can't handle 0 tokens
       constant_fee:
         amount: "1000"
-        denom: "hole"
+        denom: "worm"
     gov:
       deposit_params:
         max_deposit_period: "172800s"
         min_deposit:
           - amount: "1000000"
-            denom: "uhole"
+            denom: "uworm"
       voting_params:
         voting_period: "50s"
     wormhole:

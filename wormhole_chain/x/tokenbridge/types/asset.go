@@ -59,13 +59,13 @@ func truncFactor(meta btypes.Metadata) (factor *big.Int, err error) {
 	}
 }
 
-var uholeChain uint16 = 1
-var uholeAddress = [32]byte{0x16, 0x58, 0x09, 0x73, 0x92, 0x40, 0xa0, 0xac, 0x03, 0xb9, 0x84, 0x40, 0xfe, 0x89, 0x85, 0x54, 0x8e, 0x3a, 0xa6, 0x83, 0xcd, 0x0d, 0x4d, 0x9d, 0xf5, 0xb5, 0x65, 0x96, 0x69, 0xfa, 0xa3, 0x01}
+var uwormChain uint16 = 1
+var uwormAddress = [32]byte{0x16, 0x58, 0x09, 0x73, 0x92, 0x40, 0xa0, 0xac, 0x03, 0xb9, 0x84, 0x40, 0xfe, 0x89, 0x85, 0x54, 0x8e, 0x3a, 0xa6, 0x83, 0xcd, 0x0d, 0x4d, 0x9d, 0xf5, 0xb5, 0x65, 0x96, 0x69, 0xfa, 0xa3, 0x01}
 
-func IsHOLEToken(tokenChain uint16, tokenAddress [32]byte) bool {
-	// TODO(csongor): figure out HOLE token address on Solana
+func IsWORMToken(tokenChain uint16, tokenAddress [32]byte) bool {
+	// TODO(csongor): figure out WORM token address on Solana
 	// TODO(csongor): this should be configurable in the genesis
-	return tokenChain == uholeChain && tokenAddress == uholeAddress
+	return tokenChain == uwormChain && tokenAddress == uwormAddress
 }
 
 // Derive the name of a wrapped token based on its origin chain and token address
@@ -79,11 +79,11 @@ func IsHOLEToken(tokenChain uint16, tokenAddress [32]byte) bool {
 //
 // For the special case of the wormhole token it returns
 //
-// 		"uhole"
+// 		"uworm"
 //
 func GetWrappedCoinIdentifier(tokenChain uint16, tokenAddress [32]byte) string {
-	if IsHOLEToken(tokenChain, tokenAddress) {
-		return "uhole"
+	if IsWORMToken(tokenChain, tokenAddress) {
+		return "uworm"
 	} else {
 		// log10(2^16) = 5, so we print token chain in 5 decimals
 		return fmt.Sprintf("wh/%05d/%064x", tokenChain, tokenAddress)
@@ -93,8 +93,8 @@ func GetWrappedCoinIdentifier(tokenChain uint16, tokenAddress [32]byte) string {
 // From a given wrapped token identifier, return the token chain and the token
 // address.
 func GetWrappedCoinMeta(identifier string) (tokenChain uint16, tokenAddress [32]byte, wrapped bool) {
-	if identifier == "uhole" {
-		return uholeChain, uholeAddress, true
+	if identifier == "uworm" {
+		return uwormChain, uwormAddress, true
 	}
 
 	parts := strings.Split(identifier, "/")

@@ -43,7 +43,7 @@ let elliptic = require("elliptic"); //No TS defs?
 const ADDRESS_PREFIX = "wormhole";
 const OPERATOR_PREFIX = "wormholevaloper";
 export const TENDERMINT_URL = "http://localhost:26658";
-export const HOLE_DENOM = "uhole";
+export const WORM_DENOM = "uworm";
 export const LCD_URL = "http://localhost:1318";
 
 export async function getStargateQueryClient() {
@@ -69,7 +69,7 @@ export async function getStargateClient() {
 
 export function getZeroFee(): StdFee {
   return {
-    amount: coins(0, HOLE_DENOM),
+    amount: coins(0, WORM_DENOM),
     gas: "180000", // 180k",
   };
 }
@@ -117,7 +117,7 @@ export async function transferTokens(
   const signingClient = await SigningStargateClient.connectWithSigner(
     TENDERMINT_URL,
     wallet
-    //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uhole" } }
+    //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uworm" } }
   );
 
   //TODO investigate signing with the stargate client, as the module txClients can't do 100% of the operations
@@ -146,7 +146,7 @@ export async function executeGovernanceVAA(
   const signingClient = await SigningStargateClient.connectWithSigner(
     TENDERMINT_URL,
     wallet
-    //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uhole" } }
+    //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uworm" } }
   );
 
   //TODO investigate signing with the stargate client, as the module txClients can't do 100% of the operations
