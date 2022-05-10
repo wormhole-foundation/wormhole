@@ -82,6 +82,10 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
   },
+  moonbeam: {
+    rpc: undefined,
+    key: undefined,
+  },  
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
     key: get_env_var("ETH_KEY"),
@@ -147,13 +151,17 @@ const TESTNET = {
     key: get_env_var("ETH_KEY"),
   },
   celo: {
-    rpc: undefined,
+    rpc: "https://alfajores-forno.celo-testnet.org",
     key: get_env_var("ETH_KEY"),
   },
   near: {
     rpc: undefined,
     key: undefined,
   },
+  moonbeam: {
+    rpc: "https://rpc.api.moonbase.moonbeam.network",
+    key: get_env_var("ETH_KEY"),
+  },  
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
     key: get_env_var("ETH_KEY"),
@@ -226,6 +234,10 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
   },
+  moonbeam: {
+    rpc: undefined,
+    key: undefined,
+  },  
   ropsten: {
     rpc: undefined,
     key: undefined,

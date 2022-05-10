@@ -4,6 +4,7 @@ import { NETWORKS } from "./networks"
 import { impossible, Payload } from "./vaa"
 import { Contracts, CONTRACTS, EVMChainName } from "@certusone/wormhole-sdk"
 import axios from "axios";
+import * as celo from "@celo-tools/celo-ethers-wrapper";
 
 export async function execute_governance_evm(
   payload: Payload,
@@ -23,8 +24,16 @@ export async function execute_governance_evm(
 
   let contracts: Contracts = CONTRACTS[network][chain]
 
-  let provider = new ethers.providers.JsonRpcProvider(rpc)
-  let signer = new ethers.Wallet(key, provider)
+  let provider = undefined
+  let signer = undefined
+  if (chain === "celo") {
+    provider = new celo.CeloProvider(rpc)
+    await provider.ready
+    signer = new celo.CeloWallet(key, provider)
+  } else {
+    provider = new ethers.providers.JsonRpcProvider(rpc)
+    signer = new ethers.Wallet(key, provider)
+  } 
 
   // Here we apply a set of chain-specific overrides.
   // NOTE: some of these might have only been tested on mainnet. If it fails in
@@ -38,6 +47,8 @@ export async function execute_governance_evm(
       maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
+  } else if (chain === "klaytn") {
+    overrides = { gasPrice: (await signer.getGasPrice()).toString() }
   }
 
   switch (payload.module) {
