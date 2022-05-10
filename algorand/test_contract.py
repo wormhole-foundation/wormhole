@@ -99,8 +99,13 @@ def approve_app():
             Approve()
         ])
 
+
     def completeTransfer():
+        off = ScratchVar()
+
         return Seq([
+            off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(190)), 
+            Log(Extract(Txn.application_args[1], off.load(), Len(Txn.application_args[1]) - off.load())),
             Approve()
         ])
 

@@ -7,20 +7,22 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/algorand/go-algorand-sdk/client/v2/common/models"
+	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
+	"github.com/algorand/go-algorand-sdk/crypto"
 	"github.com/algorand/go-algorand-sdk/types"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
+	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
+	"strings"
 	"time"
-	eth_common "github.com/ethereum/go-ethereum/common"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 )
 
 type (
@@ -28,14 +30,16 @@ type (
 	Watcher struct {
 		indexerRPC   string
 		indexerToken string
+		algodRPC     string
+		algodToken   string
 		appid        uint64
 
 		msgChan  chan *common.MessagePublication
 		setChan  chan *common.GuardianSet
 		obsvReqC chan *gossipv1.ObservationRequest
 
-		next_round   uint64
-		debug        bool
+		next_round uint64
+		debug      bool
 	}
 )
 
@@ -52,19 +56,22 @@ var (
 		})
 )
 
-
 // NewWatcher creates a new Algorand appid watcher
 func NewWatcher(
-	indexerRPC   string,
+	indexerRPC string,
 	indexerToken string,
-	appid        uint64,
-	lockEvents   chan *common.MessagePublication,
-	setEvents    chan *common.GuardianSet,
-	obsvReqC     chan *gossipv1.ObservationRequest,
+	algodRPC string,
+	algodToken string,
+	appid uint64,
+	lockEvents chan *common.MessagePublication,
+	setEvents chan *common.GuardianSet,
+	obsvReqC chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
 		indexerRPC:   indexerRPC,
 		indexerToken: indexerToken,
+		algodRPC:     algodRPC,
+		algodToken:   algodToken,
 		appid:        appid,
 		msgChan:      lockEvents,
 		setChan:      setEvents,
@@ -74,18 +81,22 @@ func NewWatcher(
 	}
 }
 
-func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
-	for q := 0; q < len(t.InnerTxns); q++ {
-		var it = t.InnerTxns[q]
-		var at = it.ApplicationTransaction
+func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger) {
+	for q := 0; q < len(t.EvalDelta.InnerTxns); q++ {
+		var it = t.EvalDelta.InnerTxns[q]
+		var at = it.Txn
 
-		if (len(at.ApplicationArgs) != 3) || (at.ApplicationId != e.appid) || (len(it.Logs) == 0) {
+		if (len(at.ApplicationArgs) != 3) || (uint64(at.ApplicationID) != e.appid) {
 			continue
 		}
 
 		if string(at.ApplicationArgs[0]) != "publishMessage" {
 			continue
+		}
 
+		var ed = it.EvalDelta
+		if len(ed.Logs) == 0 {
+			continue
 		}
 
 		if e.debug {
@@ -97,42 +108,42 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 			}
 		}
 
-		emitter, err := types.DecodeAddress(it.Sender)
-		if err != nil {
-			logger.Error("DecodeAddress", zap.Error(err))
-			continue;
-		}
+		emitter := at.Sender
 
 		var a vaa.Address
 		copy(a[:], emitter[:]) // 32 bytes = 8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2
-                                                             
+
 		if e.debug {
 			logger.Error("emitter: " + hex.EncodeToString(emitter[:]))
 		}
 
-		id, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(t.Id)
+		t.Txn.GenesisID = b.GenesisID
+		t.Txn.GenesisHash = b.GenesisHash
+		Id := crypto.GetTxID(t.Txn)
+
+		id, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(Id)
 		if err != nil {
 			logger.Error("Base32 DecodeString", zap.Error(err))
-			continue;
+			continue
 		}
 
 		if e.debug {
-			logger.Info("id: " + hex.EncodeToString(id) + " " + t.Id)
+			logger.Info("id: " + hex.EncodeToString(id) + " " + Id)
 		}
 
-		var txHash = eth_common.BytesToHash(id)   // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
+		var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
 
 		observation := &common.MessagePublication{
 			TxHash:           txHash,
-			Timestamp:        time.Unix(int64(it.RoundTime), 0),
+			Timestamp:        time.Unix(int64(b.TimeStamp), 0),
 			Nonce:            uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),
-			Sequence:         binary.BigEndian.Uint64(it.Logs[0]),
+			Sequence:         binary.BigEndian.Uint64([]byte(ed.Logs[0])),
 			EmitterChain:     vaa.ChainIDAlgorand,
 			EmitterAddress:   a,
 			Payload:          at.ApplicationArgs[1],
 			ConsistencyLevel: 0,
 		}
-		
+
 		algorandMessagesConfirmed.Inc()
 
 		logger.Info("message observed",
@@ -150,7 +161,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	// an odd thing to broadcast... 
+	// an odd thing to broadcast...
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
 		ContractAddress: fmt.Sprintf("%d", e.appid),
 	})
@@ -158,7 +169,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 	errC := make(chan error)
 
-	logger.Info("Algorand watcher connecting", zap.String("url", e.indexerRPC))
+	logger.Info("Algorand watcher connecting to indexer  ", zap.String("url", e.indexerRPC))
+	logger.Info("Algorand watcher connecting to RPC node ", zap.String("url", e.algodRPC))
 
 	go func() {
 		timer := time.NewTicker(time.Second * 1)
@@ -172,20 +184,24 @@ func (e *Watcher) Run(ctx context.Context) error {
 			return
 		}
 
-		// Parameters
-		var notePrefix = "publishMessage"
+		algodClient, err := algod.MakeClient(e.algodRPC, e.algodToken)
+		if err != nil {
+			logger.Error("algod client", zap.Error(err))
+			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+			errC <- err
+			return
+		}
 
 		if e.next_round == 0 {
-			// What is the latest round...
-			result, err := indexerClient.SearchForTransactions().Limit(0).Do(context.Background())
+			status, err := algodClient.StatusAfterBlock(0).Do(context.Background())
 			if err != nil {
-				logger.Error("SearchForTransaction", zap.Error(err))
+				logger.Error("StatusAfterBlock", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 				errC <- err
 				return
 			}
-			e.next_round = result.CurrentRound + 1
-			logger.Info(fmt.Sprintf("Algorand next_round set to %d", e.next_round))
+
+			e.next_round = status.NextVersionRound
 		}
 
 		for {
@@ -210,31 +226,44 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 				for i := 0; i < len(result.Transactions); i++ {
 					var t = result.Transactions[i]
-					lookAtTxn(e, t, logger)
-				}
+					r := t.ConfirmedRound
 
-			case <-timer.C:
-				var nextToken = ""
-				for {
-					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(e.next_round).NextToken(nextToken).Do(context.Background())
+					block, err := algodClient.Block(r).Do(context.Background())
 					if err != nil {
-						logger.Error("SearchForTransaction", zap.Error(err))
+						logger.Error("SearchForTransactions", zap.Error(err))
 						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 						errC <- err
 						return
 					}
 
-					for i := 0; i < len(result.Transactions); i++ {
-						var t = result.Transactions[i]
-						lookAtTxn(e, t, logger)
+					for _, element := range block.Payset {
+						lookAtTxn(e, element, block, logger)
+					}
+				}
+
+			case <-timer.C:
+				for {
+					logger.Info(fmt.Sprintf("Algorand next_round set to %d", e.next_round))
+					block, err := algodClient.Block(e.next_round).Do(context.Background())
+					if err != nil {
+						if strings.Contains(err.Error(), "ledger does not have entry") {
+							break
+						}
+						logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
+
+						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+						errC <- err
+						return
 					}
 
-					if result.NextToken != "" {
-						nextToken = result.NextToken
-					} else {
-						e.next_round = result.CurrentRound + 1
+					if block.Round == 0 {
 						break
 					}
+
+					for _, element := range block.Payset {
+						lookAtTxn(e, element, block, logger)
+					}
+					e.next_round = e.next_round + 1
 				}
 				readiness.SetReady(common.ReadinessAlgorandSyncing)
 				currentAlgorandHeight.Set(float64(e.next_round - 1))
