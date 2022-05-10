@@ -1,3 +1,5 @@
+import base32 from 'hi-base32';
+
 import { formatUnits, parseUnits } from "@ethersproject/units";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
@@ -1943,7 +1945,12 @@ describe("Integration Tests", () => {
             wallet.addr,
             AlgoIndex
           );
+
+
           const result = await signSendAndConfirmAlgorand(client, txs, wallet);
+
+          console.log("txid of attest", txs[txs.length - 1].tx.txID(), Buffer.from(base32.decode.asBytes(txs[txs.length - 1].tx.txID())).toString("hex"));
+
           const sn = parseSequenceFromLogAlgorand(result);
 
           // Now, try to send a NOP
