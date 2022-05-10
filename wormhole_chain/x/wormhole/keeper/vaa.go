@@ -33,18 +33,16 @@ func (k Keeper) VerifyVAA(ctx sdk.Context, vaa *vaa.VAA) error {
 		return types.ErrGuardianSetExpired
 	}
 
+	// Verify quorum
+	quorum := CalculateQuorum(len(guardianSet.Keys))
+	if len(vaa.Signatures) < quorum {
+		return types.ErrNoQuorum
+	}
+
 	// Verify signatures
 	ok := vaa.VerifySignatures(guardianSet.KeysAsAddresses())
 	if !ok {
 		return types.ErrSignaturesInvalid
-	}
-
-	// Verify Quorum
-	// TODO(csongor): maybe this check should happen before signature
-	// verification as it's cheaper
-	quorum := CalculateQuorum(len(guardianSet.Keys))
-	if len(vaa.Signatures) < quorum {
-		return types.ErrNoQuorum
 	}
 
 	return nil
