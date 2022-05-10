@@ -1,5 +1,4 @@
 import { ChainId } from "@certusone/wormhole-sdk";
-import { BigNumber } from "@ethersproject/bignumber";
 import {
   Button,
   CircularProgress,
