@@ -51,7 +51,7 @@ contract Messages is Getters {
         *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and 
         *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
         */
-        if vm.signatures.length > quorum(guardianSet.keys.length){
+        if (vm.signatures.length > quorum(guardianSet.keys.length)){
             return (false, "no quorum");
         }
 
