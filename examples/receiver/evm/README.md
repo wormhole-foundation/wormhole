@@ -1,5 +1,7 @@
 # Wormhole Receiver
 
+This contract can be used to receive Wormhole messages on chains that don't have a [core bridge contract](https://docs.wormholenetwork.com/wormhole/contracts#core-bridge) deployed.
+
 ## Deploy
 
 ```bash

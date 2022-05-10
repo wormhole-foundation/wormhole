@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
-    event GuardianSetAdded(uint32 indexed index);
+    event OwnershipTransfered(address indexed oldOwner, address indexed newOwner);
 
     // "Core" (left padded)
     bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
@@ -37,18 +37,18 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         updateGuardianSetIndex(upgrade.newGuardianSetIndex);
     }
 
-    // function upgradeImplementation(address newImplementation) internal {
-    //     address currentImplementation = _getImplementation();
+    function upgradeImplementation(address newImplementation) public onlyOwner {
+        address currentImplementation = _getImplementation();
 
-    //     _upgradeTo(newImplementation);
+        _upgradeTo(newImplementation);
 
-    //     // Call initialize function of the new implementation
-    //     (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
+        // Call initialize function of the new implementation
+        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
 
-    //     require(success, string(reason));
+        require(success, string(reason));
 
-    //     emit ContractUpgraded(currentImplementation, newImplementation);
-    // }
+        emit ContractUpgraded(currentImplementation, newImplementation);
+    }
 
     function verifyGovernanceVM(Structs.VM memory vm) internal view returns (bool, string memory){
         // validate vm
@@ -76,5 +76,20 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         }
 
         return (true, "");
+    }
+
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "new owner cannot be the zero address");
+
+        address currentOwner = owner();
+        
+        setOwner(newOwner);
+
+        emit OwnershipTransfered(currentOwner, newOwner);
+    }
+
+    modifier onlyOwner() {
+        require(owner() == msg.sender, "caller is not the owner");
+        _;
     }
 }

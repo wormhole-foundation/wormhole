@@ -6,6 +6,10 @@ pragma solidity ^0.8.0;
 import "./State.sol";
 
 contract Setters is State {
+    function setOwner(address owner_) internal {
+        _state.owner = owner_;
+    }
+    
     function updateGuardianSetIndex(uint32 newIndex) internal {
         _state.guardianSetIndex = newIndex;
     }

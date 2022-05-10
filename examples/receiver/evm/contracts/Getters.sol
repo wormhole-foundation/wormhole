@@ -6,6 +6,10 @@ pragma solidity ^0.8.0;
 import "./State.sol";
 
 contract Getters is State {
+    function owner() public view returns (address) {
+        return _state.owner;
+    } 
+    
     function getGuardianSet(uint32 index) public view returns (Structs.GuardianSet memory) {
         return _state.guardianSets[index];
     }

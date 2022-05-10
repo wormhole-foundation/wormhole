@@ -22,6 +22,9 @@ contract Storage {
     struct WormholeState {
         Structs.Provider provider;
 
+        // contract deployer
+        address owner;
+
         // Mapping of guardian_set_index => guardian set
         mapping(uint32 => Structs.GuardianSet) guardianSets;
 

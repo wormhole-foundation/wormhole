@@ -17,6 +17,8 @@ contract Setup is Setters, ERC1967Upgrade {
     ) public {
         require(initialGuardians.length > 0, "no guardians specified");
 
+        setOwner(msg.sender);
+
         Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
             keys : initialGuardians,
             expirationTime : 0
