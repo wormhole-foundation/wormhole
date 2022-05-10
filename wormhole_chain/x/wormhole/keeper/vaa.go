@@ -29,9 +29,9 @@ func (k Keeper) VerifyVAA(ctx sdk.Context, vaa *vaa.VAA) error {
 		return types.ErrGuardianSetNotFound
 	}
 
-        if 0 < guardianSet.ExpirationTime && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
+	if 0 < guardianSet.ExpirationTime && guardianSet.ExpirationTime < uint64(ctx.BlockTime().Unix()) {
 		return types.ErrGuardianSetExpired
-        }
+	}
 
 	// Verify signatures
 	ok := vaa.VerifySignatures(guardianSet.KeysAsAddresses())
