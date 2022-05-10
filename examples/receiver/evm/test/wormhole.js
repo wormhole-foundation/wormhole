@@ -382,6 +382,24 @@ contract("WormholeReceiver", function () {
 
     assert.equal(before.toLowerCase(), Implementation.address.toLowerCase());
 
+    // attempt to upgrade the implementation from non-owner account
+    let failed = false;
+    try {
+      await initialized.methods.upgradeImplementation(mock.address).send({
+        value: 0,
+        from: accounts[1],
+        gasLimit: 1000000,
+      });
+    } catch (e) {
+      assert.equal(
+        e.message,
+        "Returned error: VM Exception while processing transaction: revert caller is not the owner"
+      );
+      failed = true;
+    }
+
+    assert.ok(failed);
+
     let set = await initialized.methods
       .upgradeImplementation(mock.address)
       .send({
@@ -407,6 +425,59 @@ contract("WormholeReceiver", function () {
       .call();
 
     assert.ok(isUpgraded);
+  });
+
+  it("should allow the owner to transfer ownership", async function () {
+    const accounts = await web3.eth.getAccounts();
+    const currentOwner = accounts[0];
+    const newOwner = accounts[1];
+
+    const initialized = new web3.eth.Contract(
+      ImplementationFullABI,
+      WormholeReceiver.address
+    );
+
+    // transfer ownership
+    await initialized.methods.transferOwnership(newOwner).send({
+      value: "0",
+      from: currentOwner,
+      gasLimit: 1000000,
+    });
+
+    // check getters after the action
+    let contractOwner = await initialized.methods.owner().call();
+
+    assert.equal(contractOwner, newOwner);
+
+    // make sure only the owner can transfer ownership
+    let failed = false;
+    try {
+      await initialized.methods.transferOwnership(newOwner).send({
+        value: "0",
+        from: currentOwner, // no longer the current owner
+        gasLimit: 1000000,
+      });
+    } catch (e) {
+      assert.equal(
+        e.message,
+        "Returned error: VM Exception while processing transaction: revert caller is not the owner"
+      );
+      failed = true;
+    }
+
+    assert.ok(failed);
+
+    // revert ownership back to currentOwner
+    await initialized.methods.transferOwnership(currentOwner).send({
+      value: "0",
+      from: newOwner,
+      gasLimit: 1000000,
+    });
+
+    // check getters before the action
+    contractOwner = await initialized.methods.owner().call();
+
+    assert.equal(contractOwner, currentOwner);
   });
 
   it("should revert governance packets from old guardian set", async function () {
