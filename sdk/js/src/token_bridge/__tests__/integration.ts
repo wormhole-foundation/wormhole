@@ -3168,7 +3168,7 @@ describe("Integration Tests", () => {
             wafter
           );
 
-          expect(BigInt(wafter - wbefore) == BigInt(100));
+          expect(BigInt(wafter - wbefore) === BigInt(100));
           console.log("payload3 sent...");
         } catch (e) {
           console.error("new test error:", e);
