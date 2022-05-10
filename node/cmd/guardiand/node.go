@@ -99,13 +99,16 @@ var (
 	celoRPC      *string
 	celoContract *string
 
+	moonbeamRPC      *string
+	moonbeamContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
 
 	algorandIndexerRPC   *string
 	algorandIndexerToken *string
-	algorandAppID *uint64
+	algorandAppID        *uint64
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -190,6 +193,9 @@ func init() {
 
 	celoRPC = NodeCmd.Flags().String("celoRPC", "", "Celo RPC URL")
 	celoContract = NodeCmd.Flags().String("celoContract", "", "Celo contract address")
+
+	moonbeamRPC = NodeCmd.Flags().String("moonbeamRPC", "", "Moonbeam RPC URL")
+	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -324,6 +330,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 		readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 		readiness.RegisterComponent(common.ReadinessCeloSyncing)
+		readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -373,6 +380,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*acalaContract = devnet.GanacheWormholeContractAddress.Hex()
 		*klaytnContract = devnet.GanacheWormholeContractAddress.Hex()
 		*celoContract = devnet.GanacheWormholeContractAddress.Hex()
+		*moonbeamContract = devnet.GanacheWormholeContractAddress.Hex()
 	}
 
 	// Verify flags
@@ -456,6 +464,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *celoContract == "" {
 			logger.Fatal("Please specify --celoContract")
 		}
+		if *moonbeamRPC == "" {
+			logger.Fatal("Please specify --moonbeamRPC")
+		}
+		if *moonbeamContract == "" {
+			logger.Fatal("Please specify --moonbeamContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -480,6 +494,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *celoContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --celoContract")
+		}
+		if *moonbeamRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --moonbeamRPC")
+		}
+		if *moonbeamContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --moonbeamContract")
 		}
 	}
 	if *nodeName == "" {
@@ -569,6 +589,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	acalaContractAddr := eth_common.HexToAddress(*acalaContract)
 	klaytnContractAddr := eth_common.HexToAddress(*klaytnContract)
 	celoContractAddr := eth_common.HexToAddress(*celoContract)
+	moonbeamContractAddr := eth_common.HexToAddress(*moonbeamContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -662,6 +683,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 	}
 
@@ -828,6 +850,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 			if err := supervisor.Run(ctx, "celowatch",
 				ethereum.NewEthWatcher(*celoRPC, celoContractAddr, "celo", common.ReadinessCeloSyncing, vaa.ChainIDCelo, lockC, nil, 1, chainObsvReqC[vaa.ChainIDCelo], *unsafeDevMode).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "moonbeamwatch",
+				ethereum.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", common.ReadinessMoonbeamSyncing, vaa.ChainIDMoonbeam, lockC, nil, 1, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run); err != nil {
 				return err
 			}
 		}
