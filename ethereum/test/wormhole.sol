@@ -11,7 +11,7 @@ contract TestMessages {
     // A struct to define our test cases
     struct TestCase {
         uint numGuardians;
-        uint numRequiredForQuorum;
+        uint numSignaturesRequiredForQuorum;
     }
 
     // Define all the testCases and add them to array
@@ -36,7 +36,7 @@ contract TestMessages {
     uint testCaseLength = testCases.length;
     for (uint i=0; i<testCaseLength; i++) {
         testCase = testCases[i]
-        Assert.equal(quorum(testCase.numGuardians), testCase.numRequiredForQuorum, "it should return the right quorum expectation");
+        Assert.equal(quorum(testCase.numGuardians), testCase.numSignaturesRequiredForQuorum, "it should return the right number of signatures for quorum");
     }
   }
 }
