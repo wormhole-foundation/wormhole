@@ -51,7 +51,7 @@ contract Messages is Getters {
         *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and 
         *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
         */
-        if !quorum(vm.signatures, guardianSet){
+        if vm.signatures.length > quorum(guardianSet.keys.length){
             return (false, "no quorum");
         }
 
@@ -146,7 +146,10 @@ contract Messages is Getters {
         vm.payload = encodedVM.slice(index, encodedVM.length - index);
     }
 
-    function quorum(Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) public pure virtual returns (bool valid) {
-        return (((guardianSet.keys.length * 10 / 3) * 2) / 10 + 1 > vm.signatures.length)
+    /**
+     * @dev quorum serves solely to determine the number of signatures required to acheive quorum
+     */
+    function quorum(uint guardianSetKeyLength) public pure virtual returns (uint numRequiredForQuorum) {
+        return ((guardianSetKeyLength * 10 / 3) * 2) / 10 + 1
     }
 }
