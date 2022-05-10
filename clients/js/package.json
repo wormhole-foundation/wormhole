@@ -2,7 +2,8 @@
   "name": "wormhole-client",
   "version": "1.0.0",
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.3.0",
+    "@celo-tools/celo-ethers-wrapper": "^0.1.0",
+    "@certusone/wormhole-sdk": "^0.3.1",
     "@solana/web3.js": "^1.22.0",
     "@terra-money/terra.js": "^1.8.9",
     "axios": "^0.24.0",
