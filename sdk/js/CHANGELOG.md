@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+### Added
+
+Moonbeam support
+
 ## 0.3.0
 
 ### Added
