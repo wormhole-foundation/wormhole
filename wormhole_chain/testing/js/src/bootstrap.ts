@@ -1,5 +1,5 @@
 import { coins } from "@cosmjs/proto-signing";
-import { StdFee } from "@cosmjs/stargate";
+import { DeliverTxResponse, StdFee } from "@cosmjs/stargate";
 import axios from "axios";
 import pkg from "protobufjs";
 const { Field, Type } = pkg;
@@ -26,6 +26,8 @@ import {
 } from "./consts.js";
 import { signValidatorAddress } from "./utils/walletHelpers.js";
 
+import fs from 'fs';
+
 const {
   getAddress,
   getWallet,
@@ -45,139 +47,51 @@ let err: string | null = null;
 async function fullBootstrapProcess() {
   try {
     console.log("Starting wormchain bootstrap test process");
-    newline();
 
     //construct the clients we will use for the test
-    console.log("instantiating query client.");
     const queryClient = getWormholeQueryClient(NODE_URL, true);
-    console.log("instantiating wallet2.");
     const wallet2Signer = await getWallet(TEST_WALLET_MNEMONIC_2);
-    console.log("get wallet address.");
     const wallet2Address = await getAddress(wallet2Signer);
-    console.log("instantiating signing client.");
     const signingClient = await getWormchainSigningClient(
       TENDERMINT_URL,
       wallet2Signer
     );
 
     //verify that guardian 1 is the only bonded validator
-    console.log("Logging initial bonded validators:");
     const validators = await queryClient.staking.queryValidators({});
-    validators.data.validators?.forEach((item) => {
-      console.log("Validator: " + item.operator_address);
-    });
-    if (!(validators.data.validators?.length === 1)) {
-      eject(
-        "Unexpected amount of initial validators: " +
-          validators.data.validators?.length
-      );
-    }
-    if (
-      !validators.data.validators?.find(
-        (x) => x.operator_address === GUARDIAN_VALIDATOR_VALADDR
-      )
-    ) {
-      eject(
-        "Failed to find first_validator in the initial set of bonded validators."
-      );
-    }
-    newline();
+    expectEqual("Initial bonded validators", validators.data.validators?.map((x) => x.operator_address), [GUARDIAN_VALIDATOR_VALADDR])
 
-    //TODO figure out how to calculate this and why the evidence field on the latest block is always an empty array.
-    const Guardian1ValidatorAddress = "h/2mNkBThr9oY0FEKsyf3s+aI5Y=";
+    const Guardian1ValidatorAddress: string = getValidatorAddressBase64('../../validators/first_validator/config/priv_validator_key.json')
+    const Guardian2ValidatorAddress: string = getValidatorAddressBase64('../../validators/second_validator/config/priv_validator_key.json')
 
     //verify that guardian 1 is producing blocks
-    console.log("Logging initial block signatures: ");
     let latestBlock = await getLatestBlock();
     let validatorSet = latestBlock.block.last_commit.signatures;
-    validatorSet.forEach((sig: any) => {
-      console.log("Signature: " + sig.validator_address);
-    });
-    if (!(validatorSet && validatorSet.length === 1)) {
-      eject(
-        "Unexpected length of signing validators on initial block: " +
-          validatorSet?.length
-      );
-    }
-    if (
-      !validatorSet.find(
-        (sig: any) => sig.validator_address === Guardian1ValidatorAddress
-      )
-    ) {
-      eject(
-        "Failed to find first_validator in the signature set of the initial block"
-      );
-    }
-    newline();
+
+    expectEqual("Signers on first block", validatorSet.map((sig: any) => sig.validator_address), [Guardian1ValidatorAddress])
 
     //verify that guardian 1 is registered to test wallet 1.
-    console.log("Logging initial guardian validators: ");
     let response = await queryClient.core.queryGuardianValidatorAll();
     const guardianValidators = response.data.guardianValidator || [];
-    guardianValidators.forEach((item) => {
-      console.log(
-        "guardianKey: " + item.guardianKey + ", valAddr: " + item.validatorAddr
-      );
-    });
-    if (!(guardianValidators.length === 1)) {
-      eject(
-        "Unexpected length of initial guardian validators: " +
-          guardianValidators.length
-      );
-    }
-    if (
-      !guardianValidators.find(
-        (x) =>
-          x.guardianKey === TILTNET_GUARDIAN_PUBKEY &&
-          x.validatorAddr ===
-            toBase64(fromValAddress(GUARDIAN_VALIDATOR_VALADDR))
-      )
-    ) {
-      eject(
-        "Failed to find first_validator registered against the tilt guardian pubkey in the initial guardian validator set."
-      );
-    }
-    newline();
+    const tiltnetGuardian = {guardianKey: TILTNET_GUARDIAN_PUBKEY, validatorAddr: toBase64(fromValAddress(GUARDIAN_VALIDATOR_VALADDR))}
+    expectEqual("Initial guardian validators", guardianValidators.map((x) => ({guardianKey: x.guardianKey, validatorAddr: x.validatorAddr})), [tiltnetGuardian] )
 
     //verify that the latest guardian set is 1
-    console.log("Pulling initial latest guardian set");
     const response2 = await queryClient.core.queryLatestGuardianSetIndex();
     let index = response2.data.latestGuardianSetIndex;
-    console.log("Current guardian set index: " + index);
-    if (index !== 0) {
-      eject("Latest Guardian set index was not 0 at initialization.");
-    }
-    newline();
+    expectEqual("Initial \"latest\" guardian set", index, 0)
 
     //verify that the consensus guardian set is 1
-    console.log("Pulling initial consensus guardian set");
     const response3 = await queryClient.core.queryConsensusGuardianSetIndex();
     index = response3.data.ConsensusGuardianSetIndex?.index;
-    console.log("Current guardian set index: " + index);
-    if (index !== 0) {
-      eject("Latest Guardian set index was not 0 at initialization.");
-    }
-    newline();
+    expectEqual("Initial consensus guardian set", index, 0)
 
     //verify that the only guardian public key is guardian public key 1.
-    console.log("Pulling Guardian Set 0");
     const response4 = await queryClient.core.queryGuardianSet(0);
     const guardianSet = response4.data || null;
-    console.log("Guardian set obj: " + JSON.stringify(guardianSet));
-    if (guardianSet.GuardianSet?.keys?.length !== 1) {
-      eject("Unexpected length of guardian set 1.");
-    }
-    if (
-      !guardianSet.GuardianSet?.keys?.find((x) => {
-        return x === TILTNET_GUARDIAN_PUBKEY;
-      })
-    ) {
-      eject("Failed to find the tiltnet guardian in guardian set 0.");
-    }
-    newline();
+    expectEqual("Guardian set 0", guardianSet.GuardianSet?.keys, [TILTNET_GUARDIAN_PUBKEY])
 
     //bridge in uworm tokens to wallet 2
-    console.log("Bridging in tokens to wallet 2");
     const transferMsg1 = signingClient.tokenbridge.msgExecuteVAA({
       creator: wallet2Address,
       vaa: fromHex(TEST_TRANSFER_VAA_1),
@@ -187,14 +101,9 @@ async function fullBootstrapProcess() {
       [transferMsg1],
       getZeroFee()
     );
-    console.log("transaction hash: " + transferreceipt.transactionHash);
-    if (transferreceipt.code !== 0) {
-      eject("Initial bridge redeem token VAA transaction failed.");
-    }
-    newline();
+    expectTxSuccess("initial bridge redeem VAA", transferreceipt)
 
     //process upgrade VAA
-    console.log("Submitting upgrade guardian set VAA");
     const msg = signingClient.core.msgExecuteGovernanceVAA({
       signer: await getAddress(wallet2Signer),
       vaa: fromHex(UPGRADE_GUARDIAN_SET_VAA),
@@ -204,78 +113,32 @@ async function fullBootstrapProcess() {
       [msg],
       getZeroFee()
     );
-    console.log("transaction hash: " + receipt.transactionHash);
-    if (receipt.code !== 0) {
-      eject("Failed to upgrade the guardian set.");
-    }
-    newline();
+    expectTxSuccess("guardian set upgrade VAA", receipt)
 
     const guardianKey2base64 = Buffer.from(
       DEVNET_GUARDIAN2_PUBLIC_KEY,
       "hex"
     ).toString("base64");
-    console.log("guardian 2 base 64", guardianKey2base64);
 
     //verify only guardian 2 is in guardian set 1.
-    console.log("Pulling Guardian Set 1");
     const response7 = await queryClient.core.queryGuardianSet(1);
     const guardianSet7 = response7.data || null;
-    console.log("Guardian set obj: " + JSON.stringify(guardianSet7));
-    if (guardianSet7.GuardianSet?.keys?.length !== 1) {
-      eject("Unexpected length of guardian set 1.");
-    }
-    if (
-      !guardianSet7.GuardianSet?.keys?.find((x) => {
-        return x === guardianKey2base64;
-      })
-    ) {
-      eject("Failed to find the tiltnet guardian 2 in guardian set 1.");
-    }
-    newline();
+    expectEqual("Guardian set 1", guardianSet7.GuardianSet?.keys, [guardianKey2base64])
 
     //verify latest guardian set is 1
-    console.log("Pulling latest guardian set after upgrade");
     const response5 = await queryClient.core.queryLatestGuardianSetIndex();
     let index5 = response5.data.latestGuardianSetIndex || null;
-    console.log("Current latest guardian set index: " + index5);
-    if (index5 !== 1) {
-      eject("Latest Guardian set index was not 1 after upgrade.");
-    }
-    newline();
+    expectEqual("Latest guardian set after upgrade", index5, 1)
 
     //verify consensus guardian set is 0
-    console.log("Pulling consensus guardian set after upgrade");
     const response6 = await queryClient.core.queryConsensusGuardianSetIndex();
     let index6 = response6.data.ConsensusGuardianSetIndex?.index;
-    console.log("Current consensus guardian set index: " + index6);
-    if (index6 !== 0) {
-      eject("Consensus Guardian set index was not 0 after upgrade.");
-    }
-    newline();
+    expectEqual("Consensus guardian set after upgrade", index6, 0)
 
     //verify guardian 1 is still producing blocks
-    console.log("Logging block signatures after upgrade: ");
     let latestBlock2 = await getLatestBlock();
     let validatorSet2 = latestBlock2.block.last_commit.signatures;
-    validatorSet2.forEach((sig: any) => {
-      console.log("Signature: " + sig.validator_address);
-    });
-    if (!(validatorSet2 && validatorSet2.length === 1)) {
-      eject(
-        "Unexpected length of signing validators on initial block: " +
-          validatorSet2?.length
-      );
-    }
-    if (
-      !validatorSet2.find(
-        (sig: any) => sig.validator_address === Guardian1ValidatorAddress
-      )
-    ) {
-      eject(
-        "Failed to find first_validator in the signature set after the guardian upgrade"
-      );
-    }
-    newline();
+    expectEqual("Validators after upgrade", validatorSet2.map((sig: any) => sig.validator_address), [Guardian1ValidatorAddress])
 
     //TODO attempt to register guardian2 to validator2, exception because validator2 is not bonded.
 
@@ -289,7 +152,6 @@ async function fullBootstrapProcess() {
     }).finish();
 
     //bond validator2
-    console.log("Attempting to bond the second validator.");
     const bondMsg = signingClient.staking.msgCreateValidator({
       commission: { rate: "0", max_change_rate: "0", max_rate: "0" },
       description: {
@@ -313,74 +175,18 @@ async function fullBootstrapProcess() {
       [bondMsg],
       getZeroFee()
     );
-    console.log("transaction hash: " + createValidatorReceipt.transactionHash);
-    if (createValidatorReceipt.code !== 0) {
-      eject("Registering second validator failed.");
-    }
-    newline();
+    expectTxSuccess("second validator registration", createValidatorReceipt)
 
     //confirm validator2 is bonded
-    console.log("Logging validators after second bond");
     const validators2 = await queryClient.staking.queryValidators({});
-    validators2.data.validators?.forEach((item) => {
-      console.log("Validator: " + item.operator_address);
-    });
-    if (!(validators2.data.validators?.length === 2)) {
-      eject(
-        "Unexpected amount of second validators: " +
-          validators2.data.validators?.length
-      );
-    }
-    if (
-      !validators2.data.validators?.find((x) => {
-        return x.operator_address === GUARDIAN_VALIDATOR_VALADDR;
-      })
-    ) {
-      eject(
-        "Failed to find first_validator in the second set of bonded validators."
-      );
-    }
-    if (
-      !validators2.data.validators?.find(
-        (x) =>
-          x.operator_address ===
-          toValAddress(fromAccAddress(TEST_WALLET_ADDRESS_2))
-      )
-    ) {
-      eject(
-        "Failed to find second_validator in the second set of bonded validators."
-      );
-    }
-    newline();
+    expectEqual("Second bonded validators", validators2.data.validators?.map((x) => x.operator_address).sort(), [GUARDIAN_VALIDATOR_VALADDR, toValAddress(fromAccAddress(TEST_WALLET_ADDRESS_2))].sort())
 
-    console.log("Logging block signatures after second validator was bonded: ");
     let latestBlock3 = await getLatestBlock();
     let validatorSet3 = latestBlock3.block.last_commit.signatures;
-    validatorSet3.forEach((sig: any) => {
-      console.log("Signature: " + sig.validator_address);
-    });
-    if (!(validatorSet3 && validatorSet3.length === 1)) {
-      eject(
-        "Unexpected length of signing validators on initial block: " +
-          validatorSet3?.length
-      );
-    }
-    if (
-      !validatorSet3.find(
-        (sig: any) => sig.validator_address === Guardian1ValidatorAddress
-      )
-    ) {
-      eject(
-        "Failed to find first_validator in the signature set after the guardian upgrade"
-      );
-    }
-    newline();
+    expectEqual("Signers after second validator bonded", validatorSet3.map((sig: any) => sig.validator_address), [Guardian1ValidatorAddress])
 
     //attempt to register guardian2 to validator2
     //TODO what encoding for the guardian key & how to sign the validator address?
-    console.log(
-      "Attempting to register the second validator as a guardian validator."
-    );
     const registerMsg = signingClient.core.msgRegisterAccountAsGuardian({
       guardianPubkey: { key: Buffer.from(DEVNET_GUARDIAN2_PUBLIC_KEY, "hex") },
       signer: TEST_WALLET_ADDRESS_2,
@@ -394,101 +200,38 @@ async function fullBootstrapProcess() {
       [registerMsg],
       getZeroFee()
     );
-    console.log("transaction hash: " + registerMsgReceipe.transactionHash);
-    if (registerMsgReceipe.code !== 0) {
-      eject("Registering second validator as guardian validator failed.");
-    }
-    newline();
+    expectTxSuccess("second guardian registration", registerMsgReceipe)
 
     //confirm validator2 is also now registered as a guardian validator
-    console.log("Logging guardian validators after the second register: ");
     let guardianValResponse =
       await queryClient.core.queryGuardianValidatorAll();
     const guardianValidators2 =
       guardianValResponse.data.guardianValidator || [];
-    guardianValidators2.forEach((item) => {
-      console.log(
-        "guardianKey: " + item.guardianKey + ", valAddr: " + item.validatorAddr
-      );
-    });
-    if (!(guardianValidators2.length === 2)) {
-      eject(
-        "Unexpected length of updated guardian validators: " +
-          guardianValidators2.length
-      );
-    }
-    if (
-      !guardianValidators2.find(
-        (x) =>
-          x.guardianKey === TILTNET_GUARDIAN_PUBKEY &&
-          x.validatorAddr ===
-            toBase64(fromValAddress(GUARDIAN_VALIDATOR_VALADDR))
-      )
-    ) {
-      eject(
-        "Failed to find first_validator registered against the tilt guardian pubkey in the updated guardian validator set."
-      );
-    }
-    if (
-      !guardianValidators2.find(
-        (x) =>
-          x.guardianKey ===
-            Buffer.from(DEVNET_GUARDIAN2_PUBLIC_KEY, "hex").toString(
-              "base64"
-            ) &&
-          x.validatorAddr === toBase64(fromAccAddress(TEST_WALLET_ADDRESS_2))
-      )
-    ) {
-      eject(
-        "Failed to find second_validator registered against the tilt guardian pubkey in the updated guardian validator set."
-      );
-    }
-    newline();
+    const secondGuardian = {guardianKey: Buffer.from(DEVNET_GUARDIAN2_PUBLIC_KEY, "hex").toString( "base64"), validatorAddr: toBase64(fromAccAddress(TEST_WALLET_ADDRESS_2))}
+    expectEqual("Updated guardian validators", guardianValidators2.map((x) => ({guardianKey: x.guardianKey, validatorAddr: x.validatorAddr})).sort(), [secondGuardian, tiltnetGuardian].sort())
 
     //confirm consensus guardian set is now 2
-    console.log("Pulling updated consensus guardian set");
     const conResponse = await queryClient.core.queryConsensusGuardianSetIndex();
     index = conResponse.data.ConsensusGuardianSetIndex?.index;
-    console.log("Current guardian set index: " + index);
-    if (index !== 1) {
-      eject("Latest Guardian set index was not 1 after update.");
-    }
-    newline();
+    expectEqual("Updated consensus guardian set", index, 1)
 
     //confirm blocks are only signed by validator2
-    const validator2SigAddress = "PHAguNGImGmXTyoTUyA9YRuCRSU=";
+    console.log("Waiting 4 seconds for latest block...")
     await new Promise((resolve) => setTimeout(resolve, 4000));
-    console.log("Logging final block signatures: ");
     latestBlock = await getLatestBlock();
     validatorSet = latestBlock.block.last_commit.signatures;
-    validatorSet.forEach((sig: any) => {
-      console.log("Signature: " + sig.validator_address);
-    });
-    if (!(validatorSet && validatorSet.length === 1)) {
-      eject(
-        "Unexpected length of signing validators on final block: " +
-          validatorSet?.length
-      );
-    }
-    if (
-      !validatorSet.find(
-        (sig: any) => sig.validator_address === validator2SigAddress
-      )
-    ) {
-      eject(
-        "Failed to find second_validator in the signature set of the final block"
-      );
-    }
-    newline();
+    expectEqual("Signing validators on final block", validatorSet.map((sig: any) => sig.validator_address), [Guardian2ValidatorAddress])
 
     console.log("Successfully completed bootstrap process.");
   } catch (e) {
-    console.error(e);
-    console.log("Hit a critical error, process will terminate.");
+    if (!err) {
+      // if err is set, it means we ejected, so it's a test failure, not an ordinary exception
+      console.error(e);
+      console.log("Hit a critical error, process will terminate.");
+    }
   } finally {
     if (err) {
-      newline();
-      console.log("ERROR: " + err);
+      console.log(red("ERROR: ") + err);
     }
   }
 }
@@ -498,10 +241,6 @@ async function getLatestBlock() {
   return await (
     await axios.get(NODE_URL + "/cosmos/base/tendermint/v1beta1/blocks/latest")
   ).data;
-}
-
-function newline() {
-  console.log("");
 }
 
 function eject(error: string) {
@@ -525,6 +264,53 @@ const wait = async () => {
 };
 wait();
 
-const stringToBase64 = (item: string) => Buffer.from(item).toString("base64");
+function getValidatorAddressBase64(file: string): string {
+  const validator_key_file = fs.readFileSync(file)
+  return Buffer.from(JSON.parse(validator_key_file.toString()).address, "hex").toString("base64")
+}
+
+function equal<T>(actual: T, expected: T): boolean {
+  if (Array.isArray(actual) && Array.isArray(expected)) {
+    return actual.length === expected.length && actual.every((val, index) => equal(val, expected[index]));
+  } else if (typeof actual === "object" && typeof expected === "object") {
+    return JSON.stringify(actual) === JSON.stringify(expected)
+  } else {
+    return actual === expected
+  }
+}
+
+function expectEqual<T>(msg: string, actual: T, expected: T): void {
+  if (!equal(actual, expected)) {
+      eject(msg + ":\nExpected: " + green(stringify(expected)) + ", got: " + red(stringify(actual)))
+  } else {
+    console.log(msg + ": " + green("PASS"))
+  }
+}
+
+function expectTxSuccess(msg: string, receipt: DeliverTxResponse): void {
+  if (receipt.code !== 0) {
+    eject("Transaction " + msg + " failed. Transaction hash: " + red(receipt.transactionHash))
+  }
+
+  console.log("Transaction " + msg + ": " + green("PASS") + " (" + receipt.transactionHash + ")")
+}
+
+function stringify<T>(x: T): string {
+  if (Array.isArray(x)) {
+    return "["+ x.map((x) => stringify(x)) + "]"
+  } else if (typeof x === "object") {
+    return JSON.stringify(x)
+  } else {
+    return "" + x
+  }
+}
+
+function red(str: string): string {
+  return '\x1b[31m' + str + '\x1b[0m'
+}
+
+function green(str: string): string {
+  return '\x1b[32m' + str + '\x1b[0m'
+}
 
 export default {};
