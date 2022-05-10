@@ -47,7 +47,6 @@ export function parseSequenceFromLogTerra(info: TxInfo): string {
       });
     });
   });
-  console.log("Terra Sequence: ", sequence);
   return sequence.toString();
 }
 
@@ -91,11 +90,8 @@ export function parseSequenceFromLogAlgorand(
   result: Record<string, any>
 ): string {
   let sequence = "";
-  console.log(result);
   if (result["inner-txns"]) {
-    console.log("Got inner txns.  Looking for logs...");
     const innerTxns: [] = result["inner-txns"];
-    console.log("innerTxns:", innerTxns);
     class iTxn {
       "local-state-delta": [[Object]];
       logs: Buffer[] | undefined;
@@ -103,10 +99,8 @@ export function parseSequenceFromLogAlgorand(
       txn: { txn: [Object] } | undefined;
     }
     innerTxns.forEach((txn: iTxn) => {
-      console.log("txn:", txn.logs);
       if (txn.logs) {
         sequence = BigNumber.from(txn.logs[0].slice(0, 8)).toString();
-        console.log("sequence:", sequence);
       }
     });
   }
