@@ -9,11 +9,11 @@ contract TestMessages {
     type[] testCases;
 
     // A struct to define our test cases
-	struct TestCase {
-		Signature[] signatures;
+    struct TestCase {
+        Signature[] signatures;
         GuardianSet guardianSet;
         bool result;
-	}
+    }
 
     // All our test cases to the array
     // TODO: figure out how to build up these test cases in Solidity
