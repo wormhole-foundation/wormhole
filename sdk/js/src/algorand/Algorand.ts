@@ -816,7 +816,7 @@ export async function _submitVAAAlgorand(
     let aid = 0;
     let addr;
 
-    if ((parsedVAA.get("ToChain") == 8) && (parsedVAA.get("Type") == 3)) {
+    if ((parsedVAA.get("ToChain") === 8) && (parsedVAA.get("Type") === 3)) {
       aid = Number(hexToNativeAssetBigIntAlgorand(parsedVAA.get("ToAddress")));
       addr = getApplicationAddress(aid);
     } else {
