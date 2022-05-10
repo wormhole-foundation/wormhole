@@ -5,38 +5,29 @@ import "../contracts/Messages.sol";
 
 contract TestMessages {
   function testQuorum() { 
-
-    // A struct to define our test cases
-    struct TestCase {
-        uint numGuardians;
-        uint numSignaturesRequiredForQuorum;
-    }
-
-    // An array to store each TestCase
-    TestCase[] testCases;
+    // An array to hold our test cases
+    uint[2][] testCases;
 
     // Define all the testCases and add them to array
-    testCases.push(TestCase(0, 1));
-    testCases.push(TestCase(1, 1));
-    testCases.push(TestCase(2, 2));
-    testCases.push(TestCase(3, 3));
-    testCases.push(TestCase(4, 3));
-    testCases.push(TestCase(5, 4));
-    testCases.push(TestCase(6, 5));
-    testCases.push(TestCase(7, 5));
-    testCases.push(TestCase(8, 6));
-    testCases.push(TestCase(9, 7));
-    testCases.push(TestCase(10, 7));
-    testCases.push(TestCase(11, 8));
-    testCases.push(TestCase(12, 9));
-    testCases.push(TestCase(20, 14));
-    testCases.push(TestCase(25, 17));
-    testCases.push(TestCase(100, 76));
+    testCases.push([0, 1]);
+    testCases.push([1, 1]);
+    testCases.push([2, 2]);
+    testCases.push([3, 3]);
+    testCases.push([4, 3]);
+    testCases.push([5, 4]);
+    testCases.push([6, 5]);
+    testCases.push([7, 5]);
+    testCases.push([8, 6]);
+    testCases.push([9, 7]);
+    testCases.push([10, 7]);
+    testCases.push([11, 8]);
+    testCases.push([12, 9]);
+    testCases.push([20, 14]);
+    testCases.push([25, 17]);
 
     // Loop through our testCases array and assert that our expectations are met
     for (uint i=0; i<testCases.length; i++) {
-        testCase = testCases[i]
-        Assert.equal(quorum(testCase.numGuardians), testCase.numSignaturesRequiredForQuorum, "it should return the right number of signatures for quorum");
+        Assert.equal(quorum(testCases[i][0]), testCases[i][1], "it should return the right number of signatures for quorum");
     }
   }
 }
