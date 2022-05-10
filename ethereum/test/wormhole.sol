@@ -5,14 +5,15 @@ import "../contracts/Messages.sol";
 
 contract TestMessages {
   function testQuorum() { 
-    // An array to store our test cases
-    type[] testCases;
 
     // A struct to define our test cases
     struct TestCase {
         uint numGuardians;
         uint numSignaturesRequiredForQuorum;
     }
+
+    // An array to store each TestCase
+    TestCase[] testCases;
 
     // Define all the testCases and add them to array
     testCases.push(TestCase(0, 1));
