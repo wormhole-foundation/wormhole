@@ -64,11 +64,10 @@ module.exports = {
       provider: () =>
         new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://data-seed-prebsc-1-s1.binance.org:8545/"
+          "https://data-seed-prebsc-2-s1.binance.org:8545/"
         ),
       network_id: "97",
-      gas: 70000000,
-      gasPrice: 8000000000,
+      gas: 20000000,
     },
   },
 
@@ -84,9 +83,10 @@ module.exports = {
     },
   },
 
-  plugins: [],
+  plugins: ["truffle-plugin-verify"],
 
   api_keys: {
     etherscan: process.env.ETHERSCAN_KEY,
+    bscscan: process.env.ETHERSCAN_KEY,
   },
 };

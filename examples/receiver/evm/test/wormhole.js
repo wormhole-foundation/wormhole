@@ -16,10 +16,7 @@ const testBadSigner1PK =
   "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fc";
 
 const core = "0x" + Buffer.from("Core").toString("hex").padStart(64, 0);
-const actionContractUpgrade = "01";
 const actionGuardianSetUpgrade = "02";
-const actionMessageFee = "03";
-const actionTransferFee = "04";
 
 const ImplementationFullABI = jsonfile.readFileSync(
   "build/contracts/Implementation.json"
