@@ -33,8 +33,7 @@ contract TestMessages {
     testCases.push(TestCase(100, 76));
 
     // Loop through our testCases array and assert that our expectations are met
-    uint testCaseLength = testCases.length;
-    for (uint i=0; i<testCaseLength; i++) {
+    for (uint i=0; i<testCases.length; i++) {
         testCase = testCases[i]
         Assert.equal(quorum(testCase.numGuardians), testCase.numSignaturesRequiredForQuorum, "it should return the right number of signatures for quorum");
     }
