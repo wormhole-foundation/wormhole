@@ -308,8 +308,8 @@ func main() {
 			log.Fatalf("failed to run find FindMissingMessages RPC: %v", err)
 		}
 
-		msgs := make([]*db.VAAID, len(resp.MissingMessages))
-		for i, id := range resp.MissingMessages {
+		msgs := []*db.VAAID{}
+		for _, id := range resp.MissingMessages {
 			fmt.Println(id)
 			vId, err := db.VaaIDFromString(id)
 			if err != nil {
@@ -317,10 +317,9 @@ func main() {
 			}
 			if *vId == polygonIgnoredVaa {
 				log.Printf("Ignored message: %+v", &polygonIgnoredVaa)
-				msgs = append(msgs[:i], msgs[i+1:]...)
 				continue
 			}
-			msgs[i] = vId
+			msgs = append(msgs, vId)
 		}
 
 		if len(msgs) == 0 {
