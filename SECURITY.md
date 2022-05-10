@@ -14,3 +14,5 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 
 - **[January, 10, 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2021-01-10_neodyme.pdf)**
     - **Scopes**: *Solitaire, Solana Contracts, Ethereum Contracts, Terra Contracts, and Guardian*
+- **[April, 27, 2022 - Zellic](https://github.com/pyth-network/audit-reports/blob/main/2022_04_27/pyth2wormhole_zellic.pdf)**
+    - **Scope**: *Pyth2Wormhole*
