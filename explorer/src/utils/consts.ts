@@ -35,7 +35,7 @@ export const chainIDs: ChainIDs = {
   oasis: 7,
   // chains without mainnet contract addresses commented out
   // algorand: 8,
-  // aurora: 9,
+  aurora: 9,
   fantom: 10,
   // kurura: 11,
   // acala: 12,
@@ -76,9 +76,10 @@ export type ChainIDNumber = ChainIDs[ChainName];
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
 
-// Gatsby only includes environment variables that are explictly referenced, it does the substitution at build time.
+// Gatsby only includes environment variables that are explicitly referenced, it does the substitution at build time.
 // Created this map as a work around to access them dynamically (ie. process.env[someKeyName]).
 const envVarMap: { [name: string]: string | undefined } = {
+  // devnet
   GATSBY_DEVNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_DEVNET_SOLANA_CORE_BRIDGE,
   GATSBY_DEVNET_SOLANA_TOKEN_BRIDGE:
@@ -118,7 +119,13 @@ const envVarMap: { [name: string]: string | undefined } = {
   GATSBY_DEVNET_FANTOM_TOKEN_BRIDGE:
     process.env.GATSBY_DEVNET_FANTOM_TOKEN_BRIDGE,
   GATSBY_DEVNET_FANTOM_NFT_BRIDGE: process.env.GATSBY_DEVNET_FANTOM_NFT_BRIDGE,
+  GATSBY_DEVNET_AURORA_CORE_BRIDGE:
+    process.env.GATSBY_DEVNET_AURORA_CORE_BRIDGE,
+  GATSBY_DEVNET_AURORA_TOKEN_BRIDGE:
+    process.env.GATSBY_DEVNET_AURORA_TOKEN_BRIDGE,
+  GATSBY_DEVNET_AURORA_NFT_BRIDGE: process.env.GATSBY_DEVNET_AURORA_NFT_BRIDGE,
 
+  // testnet
   GATSBY_TESTNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_TESTNET_SOLANA_CORE_BRIDGE,
   GATSBY_TESTNET_SOLANA_TOKEN_BRIDGE:
@@ -162,7 +169,14 @@ const envVarMap: { [name: string]: string | undefined } = {
     process.env.GATSBY_TESTNET_FANTOM_TOKEN_BRIDGE,
   GATSBY_TESTNET_FANTOM_NFT_BRIDGE:
     process.env.GATSBY_TESTNET_FANTOM_NFT_BRIDGE,
+  GATSBY_TESTNET_AURORA_CORE_BRIDGE:
+    process.env.GATSBY_TESTNET_AURORA_CORE_BRIDGE,
+  GATSBY_TESTNET_AURORA_TOKEN_BRIDGE:
+    process.env.GATSBY_TESTNET_AURORA_TOKEN_BRIDGE,
+  GATSBY_TESTNET_AURORA_NFT_BRIDGE:
+    process.env.GATSBY_TESTNET_AURORA_NFT_BRIDGE,
 
+  // mainnet
   GATSBY_MAINNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_MAINNET_SOLANA_CORE_BRIDGE,
   GATSBY_MAINNET_SOLANA_TOKEN_BRIDGE:
@@ -206,6 +220,12 @@ const envVarMap: { [name: string]: string | undefined } = {
     process.env.GATSBY_MAINNET_FANTOM_TOKEN_BRIDGE,
   GATSBY_MAINNET_FANTOM_NFT_BRIDGE:
     process.env.GATSBY_MAINNET_FANTOM_NFT_BRIDGE,
+  GATSBY_MAINNET_AURORA_CORE_BRIDGE:
+    process.env.GATSBY_MAINNET_AURORA_CORE_BRIDGE,
+  GATSBY_MAINNET_AURORA_TOKEN_BRIDGE:
+    process.env.GATSBY_MAINNET_AURORA_TOKEN_BRIDGE,
+  GATSBY_MAINNET_AURORA_NFT_BRIDGE:
+    process.env.GATSBY_MAINNET_AURORA_NFT_BRIDGE,
 };
 
 export interface KnownContracts {
