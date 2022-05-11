@@ -72,7 +72,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - /tmp/start.sh
+            - "/tmp/start.sh && echo success && sleep infinity"
           ports:
             - containerPort: 8980
               name: indexer
