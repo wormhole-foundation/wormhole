@@ -11,6 +11,8 @@ export const balancePretty = (uiString: string) => {
     const num = numberString.substring(0, nsLen - 6);
     const fract = numberString.substring(nsLen - 6, nsLen - 6 + 2);
     return num + "." + fract + " M";
+  } else if (uiString.length > 8) {
+    return uiString.substring(0, 8);
   } else {
     return uiString;
   }
