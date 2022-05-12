@@ -73,15 +73,15 @@ export const METAMASK_CHAIN_PARAMETERS: {
     rpcUrls: ["https://rpc.ftm.tools"],
     blockExplorerUrls: ["https://ftmscan.com"],
   },
-  686: {
-    chainId: "0x2ae",
+  596: {
+    chainId: "0x254",
     chainName: "Karura Testnet",
     nativeCurrency: { name: "Karura Token", symbol: "KAR", decimals: 18 },
     rpcUrls: ["https://karura-dev.aca-dev.network/eth/http"],
     blockExplorerUrls: ["https://blockscout.karura-dev.aca-dev.network"],
   },
-  787: {
-    chainId: "0x313",
+  597: {
+    chainId: "0x255",
     chainName: "Acala Testnet",
     nativeCurrency: { name: "Acala Token", symbol: "ACA", decimals: 18 },
     rpcUrls: ["https://acala-dev.aca-dev.network/eth/http"],
