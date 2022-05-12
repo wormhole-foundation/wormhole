@@ -847,6 +847,36 @@ export const COVALENT_GET_TOKENS_URL = (
     nft ? "&nft=true" : ""
   }${noNftMetadata ? "&no-nft-fetch=true" : ""}`;
 };
+
+export function getBlockscoutTokenURL(chainId: ChainId): string {
+  if (chainId === CHAIN_ID_OASIS) {
+    if (CLUSTER === "testnet") {
+      return "https://testnet.explorer.emerald.oasis.dev";
+    } else if (CLUSTER === "mainnet") {
+      return "https://explorer.emerald.oasis.dev";
+    }
+  } else if (chainId === CHAIN_ID_AURORA) {
+    if (CLUSTER === "testnet") {
+      return "https://explorer.testnet.aurora.dev";
+    } else if (CLUSTER === "mainnet") {
+      return "https://explorer.mainnet.aurora.dev";
+    }
+  } else if (chainId === CHAIN_ID_KARURA) {
+    if (CLUSTER === "testnet") {
+      return "https://blockscout.karura-dev.aca-dev.network";
+    } else if (CLUSTER === "mainnet") {
+      return "https://blockscout.karura.network";
+    }
+  } else if (chainId === CHAIN_ID_CELO) {
+    if (CLUSTER === "testnet") {
+      return "https://alfajores-blockscout.celo-testnet.org";
+    } else if (CLUSTER === "mainnet") {
+      return "https://explorer.celo.org";
+    }
+  }
+  return "";
+}
+
 export const TVL_URL =
   "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvl";
 export const TVL_CUMULATIVE_URL =
