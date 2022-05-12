@@ -123,9 +123,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   celo: {
-    core: undefined,
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
+    token_bridge: "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",
+    nft_bridge: "0xA6A377d75ca5c9052c9a77ED1e865Cc25Bd97bf3",
   },
   near: {
     core: undefined,

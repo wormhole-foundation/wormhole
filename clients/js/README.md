@@ -114,5 +114,6 @@ For example, to submit a guardian set upgrade on all chains, simply run:
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain solana
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain terra
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain ethereum
+    worm submit $(cat guardian-upgrade.txt) --network mainnet --chain celo
 
 The VAA payload type (guardian set upgrade) specifies that this VAA should go to the core bridge, and the tool directs it there.
