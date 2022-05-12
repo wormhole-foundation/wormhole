@@ -242,6 +242,21 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 			case <-timer.C:
+				status, err := algodClient.Status().Do(context.Background())
+				if err != nil {
+					logger.Error(fmt.Sprintf("algodClient.Status: %s", err.Error()))
+
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+					errC <- err
+					return
+				}
+
+				if e.next_round > status.NextVersionRound {
+					e.next_round = status.NextVersionRound
+					logger.Info(fmt.Sprintf("Algorand rollback to %d", e.next_round))
+					return
+				}
+
 				for {
 					logger.Info(fmt.Sprintf("Algorand next_round set to %d", e.next_round))
 					block, err := algodClient.Block(e.next_round).Do(context.Background())
