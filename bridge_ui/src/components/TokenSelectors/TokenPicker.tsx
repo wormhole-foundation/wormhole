@@ -1,5 +1,4 @@
 import { ChainId } from "@certusone/wormhole-sdk";
-import { BigNumber } from "@ethersproject/bignumber";
 import {
   Button,
   CircularProgress,
@@ -26,6 +25,7 @@ import { useSelector } from "react-redux";
 import useMarketsMap from "../../hooks/useMarketsMap";
 import { NFTParsedTokenAccount } from "../../store/nftSlice";
 import { selectTransferTargetChain } from "../../store/selectors";
+import { balancePretty } from "../../utils/balancePretty";
 import { AVAILABLE_MARKETS_URL, CHAINS_BY_ID } from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
 import NFTViewer from "./NFTViewer";
@@ -115,18 +115,6 @@ const useStyles = makeStyles((theme) =>
     },
   })
 );
-
-export const balancePretty = (uiString: string) => {
-  const numberString = uiString.split(".")[0];
-  const bignum = BigNumber.from(numberString);
-  if (bignum.gte(1000000)) {
-    return numberString.substring(0, numberString.length - 6) + " M";
-  } else if (uiString.length > 8) {
-    return uiString.substr(0, 8);
-  } else {
-    return uiString;
-  }
-};
 
 const noClickThrough = (e: any) => {
   e.stopPropagation();
