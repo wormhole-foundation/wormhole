@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	eth_common "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"time"
 )
 
@@ -22,18 +20,13 @@ var (
 // Returns the block number and a list of MessagePublication events.
 func MessageEventsForTransaction(
 	ctx context.Context,
-	c *ethclient.Client,
+	ethIntf common.Ethish,
 	contract eth_common.Address,
 	chainId vaa.ChainID,
 	tx eth_common.Hash) (uint64, []*common.MessagePublication, error) {
 
-	f, err := abi.NewAbiFilterer(contract, c)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to create ABI filterer: %w", err)
-	}
-
 	// Get transactions logs from transaction
-	receipt, err := c.TransactionReceipt(ctx, tx)
+	receipt, err := ethIntf.TransactionReceipt(ctx, tx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get transaction receipt: %w", err)
 	}
@@ -51,9 +44,9 @@ func MessageEventsForTransaction(
 	}
 
 	// Get block
-	block, err := c.BlockByHash(ctx, receipt.BlockHash)
+	blockTime, err := ethIntf.TimeOfBlockByHash(ctx, receipt.BlockHash)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get block: %w", err)
+		return 0, nil, fmt.Errorf("failed to get block time: %w", err)
 	}
 
 	msgs := make([]*common.MessagePublication, 0, len(receipt.Logs))
@@ -73,14 +66,14 @@ func MessageEventsForTransaction(
 			continue
 		}
 
-		ev, err := f.ParseLogMessagePublished(*l)
+		ev, err := ethIntf.ParseLogMessagePublished(*l)
 		if err != nil {
 			return 0, nil, fmt.Errorf("failed to parse log: %w", err)
 		}
 
 		message := &common.MessagePublication{
 			TxHash:           ev.Raw.TxHash,
-			Timestamp:        time.Unix(int64(block.Time()), 0),
+			Timestamp:        time.Unix(int64(blockTime), 0),
 			Nonce:            ev.Nonce,
 			Sequence:         ev.Sequence,
 			EmitterChain:     chainId,

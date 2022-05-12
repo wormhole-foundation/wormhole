@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -e
+
+# ./sandbox down; ./sandbox clean; ./sandbox up dev; python3 admin.py --devnet --boot
+
+# ./sandbox reset -v; python3 admin.py --devnet --boot
+
+# python3 admin.py --devnet --genTeal
+
+# (cd ../sdk/js; npm run test -- token_bridge)
+
+PARENT_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+SANDBOX_DIR=$PARENT_DIR/_sandbox
+if [ ! -d "$SANDBOX_DIR" ]; then
+    echo "Pulling sandbox..."
+    git clone https://github.com/algorand/sandbox.git $SANDBOX_DIR
+fi
+
+$SANDBOX_DIR/sandbox "$@"

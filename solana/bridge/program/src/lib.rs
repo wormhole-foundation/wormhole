@@ -8,7 +8,7 @@ use solitaire::*;
 pub const MAX_LEN_GUARDIAN_KEYS: usize = 19;
 pub const CHAIN_ID_SOLANA: u16 = 1;
 
-#[cfg(feature = "no-entrypoint")]
+#[cfg(feature = "instructions")]
 pub mod instructions;
 
 #[cfg(feature = "wasm")]

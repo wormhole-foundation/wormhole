@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: algorand
+  name: algorand
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      protocol: TCP
+    - name: algod
+      port: 4001
+      targetPort: algod
+    - name: kmd
+      port: 4002
+      targetPort: kmd
+    - name: indexer
+      port: 8980
+      targetPort: indexer
+  selector:
+    app: algorand
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: algorand
+  name: algorand
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: algorand
+  serviceName: algorand
+  template:
+    metadata:
+      labels:
+        app: algorand
+    spec:
+      containers:
+        - image: postgres:13-alpine
+          name: algorand-postgres
+          ports:
+            - containerPort: 5432
+          resources: {}
+          env:
+            - name: POSTGRES_USER
+              value: algorand
+            - name: POSTGRES_PASSWORD
+              value: algorand
+            - name: POSTGRES_DB
+              value: indexer_db
+        - name: algorand-algod
+          image: algorand-algod
+          command:
+            - /bin/sh
+            - -c
+            - /opt/start_algod.sh
+          ports:
+            - containerPort: 4001
+              name: algod
+              protocol: TCP
+            - containerPort: 4002
+              name: kmd
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 4001
+        - name: algorand-indexer
+          image: algorand-indexer
+          command:
+            - /bin/sh
+            - -c
+            - "/tmp/start.sh && echo success && sleep infinity"
+          ports:
+            - containerPort: 8980
+              name: indexer
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 8980
+        - name: algorand-contracts
+          image: algorand-contracts
+          command:
+            - /bin/sh
+            - -c
+            - "sh deploy.sh && touch success && sleep infinity"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      restartPolicy: Always

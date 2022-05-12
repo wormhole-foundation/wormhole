@@ -1,0 +1,2382 @@
+#pragma version 6
+intcblock 0 1 2 127 133 100000 128 255
+bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d657373616765 0x6e6f70 0x766572696679564141 0x0008 0x76616c6964557064617465417070726f766548617368 0x414c474f 0x636f726541646472
+txn ApplicationID
+intc_0 // 0
+==
+bnz main_l80
+txn OnCompletion
+pushint 4 // UpdateApplication
+==
+bnz main_l79
+txn OnCompletion
+pushint 5 // DeleteApplication
+==
+bnz main_l78
+txn OnCompletion
+intc_1 // OptIn
+==
+bnz main_l77
+txn OnCompletion
+intc_0 // NoOp
+==
+bnz main_l6
+err
+main_l6:
+txna ApplicationArgs 0
+bytec 5 // "nop"
+==
+bnz main_l76
+txna ApplicationArgs 0
+pushbytes 0x72656365697665417474657374 // "receiveAttest"
+==
+bnz main_l69
+txna ApplicationArgs 0
+pushbytes 0x617474657374546f6b656e // "attestToken"
+==
+bnz main_l57
+txna ApplicationArgs 0
+pushbytes 0x636f6d706c6574655472616e73666572 // "completeTransfer"
+==
+bnz main_l41
+txna ApplicationArgs 0
+pushbytes 0x73656e645472616e73666572 // "sendTransfer"
+==
+bnz main_l21
+txna ApplicationArgs 0
+pushbytes 0x6f7074696e // "optin"
+==
+bnz main_l20
+txna ApplicationArgs 0
+pushbytes 0x676f7665726e616e6365 // "governance"
+==
+bnz main_l14
+err
+main_l14:
+callsub checkForDuplicate_21
+callsub governanceSet_7
+store 70
+txna ApplicationArgs 1
+extract 1 4
+btoi
+load 70
+==
+pushint 232 // 232
+&&
+assert
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 14 // 14
++
+store 65
+txn GroupIndex
+intc_1 // 1
+-
+store 71
+load 71
+gtxns TypeEnum
+pushint 6 // appl
+==
+load 71
+gtxns ApplicationID
+bytec_1 // "coreid"
+app_global_get
+==
+&&
+load 71
+gtxnsa ApplicationArgs 0
+bytec 6 // "verifyVAA"
+==
+&&
+load 71
+gtxns Sender
+txn Sender
+==
+&&
+load 71
+gtxnsa ApplicationArgs 1
+txna ApplicationArgs 1
+==
+&&
+load 71
+gtxnsa Accounts 0
+txna Accounts 0
+==
+&&
+load 71
+gtxnsa Accounts 1
+txna Accounts 1
+==
+&&
+load 71
+gtxnsa Accounts 2
+txna Accounts 2
+==
+&&
+txna ApplicationArgs 1
+load 65
+intc_2 // 2
+extract3
+pushbytes 0x0001 // 0x0001
+==
+&&
+txna ApplicationArgs 1
+load 65
+intc_2 // 2
++
+pushint 32 // 32
+extract3
+pushint 31 // 31
+bzero
+pushbytes 0x04 // 0x04
+concat
+==
+&&
+pushint 239 // 239
+&&
+assert
+load 71
+gtxns RekeyTo
+global ZeroAddress
+==
+load 71
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 71
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txn RekeyTo
+global ZeroAddress
+==
+txn CloseRemainderTo
+global ZeroAddress
+==
+&&
+txn AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txna ApplicationArgs 1
+load 65
+pushint 43 // 43
++
+pushint 32 // 32
+extract3
+pushint 21 // 21
+bzero
+pushbytes 0x546f6b656e427269646765 // 0x546f6b656e427269646765
+concat
+==
+pushint 263 // 263
+&&
+assert
+txna ApplicationArgs 1
+load 65
+pushint 75 // 75
++
+intc_1 // 1
+extract3
+btoi
+store 66
+load 65
+pushint 76 // 76
++
+store 65
+load 66
+intc_1 // 1
+==
+bnz main_l19
+load 66
+intc_2 // 2
+==
+bnz main_l17
+err
+main_l17:
+txna ApplicationArgs 1
+load 65
+intc_2 // 2
+extract3
+bytec 7 // 0x0008
+==
+pushint 282 // 282
+&&
+assert
+bytec 8 // "validUpdateApproveHash"
+txna ApplicationArgs 1
+load 65
+intc_2 // 2
++
+pushint 32 // 32
+extract3
+app_global_put
+main_l18:
+intc_1 // 1
+return
+main_l19:
+txna ApplicationArgs 1
+load 65
+intc_2 // 2
+extract3
+btoi
+store 67
+load 67
+intc_0 // 0
+==
+load 67
+pushint 8 // 8
+==
+||
+pushint 271 // 271
+&&
+assert
+txna ApplicationArgs 1
+load 65
+intc_2 // 2
++
+intc_2 // 2
+extract3
+store 68
+txna ApplicationArgs 1
+load 65
+pushint 4 // 4
++
+pushint 32 // 32
+extract3
+store 69
+bytec_2 // "Chain"
+load 68
+concat
+app_global_get
+intc_0 // 0
+==
+pushint 277 // 277
+&&
+assert
+bytec_2 // "Chain"
+load 68
+concat
+load 69
+app_global_put
+b main_l18
+main_l20:
+txna Accounts 1
+txna ApplicationArgs 1
+btoi
+bytec_3 // "native"
+callsub getsigaddress_15
+==
+pushint 800 // 800
+&&
+assert
+txn RekeyTo
+global ZeroAddress
+==
+txn CloseRemainderTo
+global ZeroAddress
+==
+&&
+txn AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+itxn_begin
+txna Accounts 1
+itxn_field Sender
+pushint 4 // axfer
+itxn_field TypeEnum
+txna ApplicationArgs 1
+btoi
+itxn_field XferAsset
+intc_0 // 0
+itxn_field AssetAmount
+txna Accounts 1
+itxn_field AssetReceiver
+intc_0 // 0
+itxn_field Fee
+itxn_submit
+intc_1 // 1
+return
+main_l21:
+callsub getMessageFee_8
+store 23
+pushint 32 // 32
+bzero
+store 62
+txna ApplicationArgs 1
+btoi
+store 55
+txna ApplicationArgs 5
+btoi
+store 64
+intc_2 // 2
+callsub checkFeePmt_10
+txn GroupIndex
+intc_1 // 1
+-
+store 22
+load 55
+intc_0 // 0
+==
+bnz main_l40
+load 22
+gtxns TypeEnum
+pushint 4 // axfer
+==
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+load 22
+gtxns XferAsset
+load 55
+==
+&&
+load 22
+gtxns AssetReceiver
+txna Accounts 2
+==
+&&
+pushint 693 // 693
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+load 22
+gtxns AssetAmount
+store 56
+load 64
+load 56
+<=
+pushint 706 // 706
+&&
+assert
+load 56
+load 64
+-
+store 56
+load 55
+callsub extractdecimal_20
+btoi
+callsub getFactor_14
+store 63
+load 63
+intc_1 // 1
+!=
+bnz main_l39
+main_l23:
+load 56
+intc_0 // 0
+>
+load 64
+intc_0 // 0
+>=
+&&
+pushint 722 // 722
+&&
+assert
+load 55
+intc_0 // 0
+!=
+bnz main_l38
+bytec_0 // ""
+store 59
+main_l25:
+load 59
+global CurrentApplicationAddress
+==
+bnz main_l37
+txna Accounts 2
+load 55
+bytec_3 // "native"
+callsub getsigaddress_15
+==
+pushint 746 // 746
+&&
+assert
+bytec 7 // 0x0008
+store 61
+txna ApplicationArgs 1
+store 60
+main_l27:
+load 60
+len
+pushint 32 // 32
+<=
+load 61
+len
+intc_2 // 2
+==
+&&
+txna ApplicationArgs 3
+len
+pushint 32 // 32
+<=
+&&
+pushint 753 // 753
+&&
+assert
+txn NumAppArgs
+pushint 6 // 6
+==
+bnz main_l36
+pushbytes 0x03 // 0x03
+main_l29:
+load 62
+extract 0 24
+concat
+load 56
+itob
+concat
+load 62
+intc_0 // 0
+pushint 32 // 32
+load 60
+len
+-
+extract3
+concat
+load 60
+concat
+load 61
+concat
+load 62
+intc_0 // 0
+pushint 32 // 32
+txna ApplicationArgs 3
+len
+-
+extract3
+concat
+txna ApplicationArgs 3
+concat
+txna ApplicationArgs 4
+extract 6 2
+concat
+load 62
+extract 0 24
+concat
+load 64
+itob
+concat
+txn NumAppArgs
+pushint 7 // 7
+==
+bnz main_l35
+bytec_0 // ""
+main_l31:
+concat
+store 57
+txn NumAppArgs
+pushint 7 // 7
+==
+bnz main_l34
+load 57
+len
+intc 4 // 133
+==
+pushint 779 // 779
+&&
+assert
+main_l33:
+itxn_begin
+callsub sendMfee_11
+pushint 6 // appl
+itxn_field TypeEnum
+bytec_1 // "coreid"
+app_global_get
+itxn_field ApplicationID
+bytec 4 // "publishMessage"
+itxn_field ApplicationArgs
+load 57
+itxn_field ApplicationArgs
+intc_0 // 0
+itob
+itxn_field ApplicationArgs
+txna Accounts 1
+itxn_field Accounts
+bytec 4 // "publishMessage"
+itxn_field Note
+intc_0 // 0
+itxn_field Fee
+itxn_submit
+intc_1 // 1
+return
+main_l34:
+load 57
+len
+intc 4 // 133
+txna ApplicationArgs 6
+len
++
+==
+pushint 778 // 778
+&&
+assert
+b main_l33
+main_l35:
+txna ApplicationArgs 6
+b main_l31
+main_l36:
+pushbytes 0x01 // 0x01
+b main_l29
+main_l37:
+intc_2 // 2
+intc_0 // 0
+pushint 8 // 8
+callsub read_4
+store 58
+txna ApplicationArgs 1
+load 58
+==
+pushint 735 // 735
+&&
+assert
+intc_2 // 2
+pushint 60 // 60
+pushint 92 // 92
+callsub read_4
+store 60
+intc_2 // 2
+pushint 92 // 92
+pushint 94 // 94
+callsub read_4
+store 61
+txna Accounts 2
+load 61
+btoi
+load 60
+callsub getsigaddress_15
+==
+pushint 742 // 742
+&&
+assert
+b main_l27
+main_l38:
+load 55
+callsub extractcreator_18
+callsub authaddr_16
+store 59
+b main_l25
+main_l39:
+load 56
+load 63
+/
+store 56
+load 64
+load 63
+/
+store 64
+b main_l23
+main_l40:
+load 22
+gtxns TypeEnum
+intc_1 // pay
+==
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+load 22
+gtxns Receiver
+txna Accounts 2
+==
+&&
+pushint 678 // 678
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+load 22
+gtxns Amount
+store 56
+load 64
+load 56
+<
+pushint 688 // 688
+&&
+assert
+load 56
+load 64
+-
+store 56
+b main_l23
+main_l41:
+callsub checkForDuplicate_21
+pushint 32 // 32
+bzero
+store 53
+txn GroupIndex
+intc_1 // 1
+-
+store 22
+load 22
+gtxns TypeEnum
+pushint 6 // appl
+==
+load 22
+gtxns ApplicationID
+bytec_1 // "coreid"
+app_global_get
+==
+&&
+load 22
+gtxnsa ApplicationArgs 0
+bytec 6 // "verifyVAA"
+==
+&&
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+load 22
+gtxnsa ApplicationArgs 1
+txna ApplicationArgs 1
+==
+&&
+load 22
+gtxnsa Accounts 0
+txna Accounts 0
+==
+&&
+load 22
+gtxnsa Accounts 1
+txna Accounts 1
+==
+&&
+load 22
+gtxnsa Accounts 2
+txna Accounts 2
+==
+&&
+pushint 464 // 464
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txn RekeyTo
+global ZeroAddress
+==
+txn CloseRemainderTo
+global ZeroAddress
+==
+&&
+txn AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 6 // 6
++
+pushint 8 // 8
++
+store 42
+txna ApplicationArgs 1
+load 42
+intc_2 // 2
+extract3
+btoi
+store 43
+txna ApplicationArgs 1
+load 42
+intc_2 // 2
++
+pushint 32 // 32
+extract3
+store 44
+load 43
+pushint 8 // 8
+==
+bnz main_l56
+bytec_2 // "Chain"
+txna ApplicationArgs 1
+load 42
+intc_2 // 2
+extract3
+concat
+app_global_get
+load 44
+==
+pushint 491 // 491
+&&
+assert
+main_l43:
+load 42
+pushint 43 // 43
++
+store 42
+txna ApplicationArgs 1
+load 42
+intc_1 // 1
+extract3
+btoi
+store 54
+load 54
+intc_1 // 1
+==
+load 54
+pushint 3 // 3
+==
+||
+pushint 498 // 498
+&&
+assert
+txna ApplicationArgs 1
+load 42
+intc_1 // 1
++
+pushint 24 // 24
+extract3
+load 53
+extract 0 24
+==
+pushint 500 // 500
+&&
+assert
+txna ApplicationArgs 1
+load 42
+pushint 25 // 25
++
+pushint 8 // 8
+extract3
+btoi
+store 45
+txna ApplicationArgs 1
+load 42
+pushint 33 // 33
++
+pushint 32 // 32
+extract3
+store 46
+txna ApplicationArgs 1
+load 42
+pushint 65 // 65
++
+intc_2 // 2
+extract3
+btoi
+store 47
+txna ApplicationArgs 1
+load 42
+pushint 67 // 67
++
+pushint 32 // 32
+extract3
+store 48
+txna ApplicationArgs 1
+load 42
+pushint 99 // 99
++
+intc_2 // 2
+extract3
+btoi
+store 49
+txna ApplicationArgs 1
+load 42
+pushint 101 // 101
++
+pushint 24 // 24
+extract3
+load 53
+extract 0 24
+==
+pushint 508 // 508
+&&
+assert
+txna ApplicationArgs 1
+load 42
+pushint 125 // 125
++
+pushint 8 // 8
+extract3
+btoi
+store 50
+load 49
+pushint 8 // 8
+==
+pushint 512 // 512
+&&
+assert
+load 50
+load 45
+<=
+pushint 514 // 514
+&&
+assert
+load 54
+pushint 3 // 3
+==
+bnz main_l55
+main_l44:
+load 47
+pushint 8 // 8
+==
+bnz main_l49
+pushint 3 // 3
+intc_0 // 0
+pushint 8 // 8
+callsub read_4
+btoi
+store 51
+load 51
+intc_0 // 0
+!=
+txna Accounts 3
+load 47
+load 46
+callsub getsigaddress_15
+==
+&&
+pushint 577 // 577
+&&
+assert
+main_l46:
+itxn_begin
+txna Accounts 3
+itxn_field Sender
+pushint 4 // axfer
+itxn_field TypeEnum
+load 51
+itxn_field XferAsset
+load 45
+itxn_field AssetAmount
+load 48
+itxn_field AssetReceiver
+intc_0 // 0
+itxn_field Fee
+load 50
+intc_0 // 0
+>
+bnz main_l48
+main_l47:
+itxn_submit
+intc_1 // 1
+return
+main_l48:
+itxn_next
+txna Accounts 3
+itxn_field Sender
+pushint 4 // axfer
+itxn_field TypeEnum
+load 51
+itxn_field XferAsset
+load 50
+itxn_field AssetAmount
+txn Sender
+itxn_field AssetReceiver
+intc_0 // 0
+itxn_field Fee
+b main_l47
+main_l49:
+load 46
+extract 24 8
+btoi
+store 51
+txna Accounts 3
+load 51
+bytec_3 // "native"
+callsub getsigaddress_15
+==
+pushint 529 // 529
+&&
+assert
+load 51
+intc_0 // 0
+==
+bnz main_l52
+load 51
+callsub extractdecimal_20
+btoi
+callsub getFactor_14
+store 52
+load 52
+intc_1 // 1
+!=
+bz main_l46
+load 45
+load 52
+*
+store 45
+load 50
+load 52
+*
+store 50
+b main_l46
+main_l52:
+itxn_begin
+txna Accounts 3
+itxn_field Sender
+intc_1 // pay
+itxn_field TypeEnum
+load 48
+itxn_field Receiver
+load 45
+itxn_field Amount
+intc_0 // 0
+itxn_field Fee
+load 50
+intc_0 // 0
+>
+bnz main_l54
+main_l53:
+itxn_submit
+intc_1 // 1
+return
+main_l54:
+itxn_next
+txna Accounts 3
+itxn_field Sender
+intc_1 // pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+load 50
+itxn_field Amount
+intc_0 // 0
+itxn_field Fee
+b main_l53
+main_l55:
+txn GroupIndex
+intc_1 // 1
++
+store 22
+load 22
+gtxns TypeEnum
+pushint 6 // appl
+==
+load 22
+gtxnsa ApplicationArgs 0
+txna ApplicationArgs 0
+==
+&&
+load 22
+gtxnsa ApplicationArgs 1
+txna ApplicationArgs 1
+==
+&&
+pushint 518 // 518
+&&
+assert
+callsub getNextAddress_9
+load 48
+==
+pushint 523 // 523
+&&
+assert
+b main_l44
+main_l56:
+global CurrentApplicationAddress
+load 44
+==
+pushint 490 // 490
+&&
+assert
+b main_l43
+main_l57:
+callsub getMessageFee_8
+store 23
+intc_1 // 1
+callsub checkFeePmt_10
+txna ApplicationArgs 1
+btoi
+store 39
+load 39
+intc_0 // 0
+!=
+bnz main_l68
+intc_0 // 0
+main_l59:
+bnz main_l67
+txna Accounts 2
+load 39
+bytec_3 // "native"
+callsub getsigaddress_15
+==
+pushint 862 // 862
+&&
+assert
+pushint 32 // 32
+bzero
+store 35
+txna ApplicationArgs 1
+btoi
+store 39
+load 39
+intc_0 // 0
+==
+bnz main_l66
+load 39
+callsub extractdecimal_20
+store 36
+load 36
+btoi
+pushint 8 // 8
+>
+bnz main_l65
+main_l62:
+load 39
+callsub extractunitname_19
+store 37
+load 39
+callsub extractname_17
+store 38
+main_l63:
+pushbytes 0x02 // 0x02
+load 35
+extract 0 24
+concat
+load 39
+itob
+concat
+bytec 7 // 0x0008
+concat
+load 36
+concat
+load 37
+concat
+load 35
+intc_0 // 0
+pushint 32 // 32
+load 37
+len
+-
+extract3
+concat
+load 38
+concat
+load 35
+intc_0 // 0
+pushint 32 // 32
+load 38
+len
+-
+extract3
+concat
+store 34
+main_l64:
+load 34
+len
+pushint 100 // 100
+==
+pushint 904 // 904
+&&
+assert
+itxn_begin
+callsub sendMfee_11
+pushint 6 // appl
+itxn_field TypeEnum
+bytec_1 // "coreid"
+app_global_get
+itxn_field ApplicationID
+bytec 4 // "publishMessage"
+itxn_field ApplicationArgs
+load 34
+itxn_field ApplicationArgs
+intc_0 // 0
+itob
+itxn_field ApplicationArgs
+txna Accounts 1
+itxn_field Accounts
+bytec 4 // "publishMessage"
+itxn_field Note
+intc_0 // 0
+itxn_field Fee
+itxn_submit
+intc_1 // 1
+return
+main_l65:
+pushbytes 0x08 // 0x08
+store 36
+b main_l62
+main_l66:
+pushbytes 0x06 // 0x06
+store 36
+bytec 9 // "ALGO"
+store 37
+bytec 9 // "ALGO"
+store 38
+b main_l63
+main_l67:
+intc_2 // 2
+intc_0 // 0
+pushint 8 // 8
+callsub read_4
+store 33
+txna ApplicationArgs 1
+load 33
+==
+pushint 845 // 845
+&&
+assert
+intc_2 // 2
+pushint 60 // 60
+pushint 92 // 92
+callsub read_4
+store 40
+intc_2 // 2
+pushint 92 // 92
+pushint 94 // 94
+callsub read_4
+btoi
+store 41
+txna Accounts 2
+load 41
+load 40
+callsub getsigaddress_15
+==
+pushint 852 // 852
+&&
+assert
+load 39
+callsub extractdecimal_20
+btoi
+pushint 8 // 8
+<=
+pushint 855 // 855
+&&
+assert
+intc_2 // 2
+pushint 8 // 8
+pushint 108 // 108
+callsub read_4
+store 34
+b main_l64
+main_l68:
+load 39
+callsub extractcreator_18
+callsub authaddr_16
+global CurrentApplicationAddress
+==
+b main_l59
+main_l69:
+callsub checkForDuplicate_21
+txn GroupIndex
+pushint 4 // 4
+-
+store 22
+load 22
+gtxns TypeEnum
+pushint 6 // appl
+==
+load 22
+gtxns ApplicationID
+bytec_1 // "coreid"
+app_global_get
+==
+&&
+load 22
+gtxnsa ApplicationArgs 0
+bytec 6 // "verifyVAA"
+==
+&&
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+load 22
+gtxnsa ApplicationArgs 1
+txna ApplicationArgs 1
+==
+&&
+load 22
+gtxnsa Accounts 0
+txna Accounts 0
+==
+&&
+load 22
+gtxnsa Accounts 1
+txna Accounts 1
+==
+&&
+load 22
+gtxnsa Accounts 2
+txna Accounts 2
+==
+&&
+pushint 310 // 310
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txn GroupIndex
+pushint 3 // 3
+-
+store 22
+load 22
+gtxns TypeEnum
+intc_1 // pay
+==
+load 22
+gtxns Amount
+intc 5 // 100000
+>=
+&&
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+load 22
+gtxns Receiver
+txna Accounts 3
+==
+&&
+pushint 328 // 328
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txn GroupIndex
+intc_2 // 2
+-
+store 22
+load 22
+gtxns TypeEnum
+pushint 6 // appl
+==
+load 22
+gtxns ApplicationID
+global CurrentApplicationID
+==
+&&
+load 22
+gtxnsa ApplicationArgs 0
+bytec 5 // "nop"
+==
+&&
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+pushint 338 // 338
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txn GroupIndex
+intc_1 // 1
+-
+store 22
+load 22
+gtxns TypeEnum
+pushint 6 // appl
+==
+load 22
+gtxns ApplicationID
+global CurrentApplicationID
+==
+&&
+load 22
+gtxnsa ApplicationArgs 0
+bytec 5 // "nop"
+==
+&&
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+global GroupSize
+intc_1 // 1
+-
+txn GroupIndex
+==
+&&
+pushint 348 // 348
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 6 // 6
++
+pushint 8 // 8
++
+store 24
+txna ApplicationArgs 1
+load 24
+intc_2 // 2
+extract3
+btoi
+store 26
+bytec_2 // "Chain"
+txna ApplicationArgs 1
+load 24
+intc_2 // 2
+extract3
+concat
+app_global_get
+txna ApplicationArgs 1
+load 24
+intc_2 // 2
++
+pushint 32 // 32
+extract3
+==
+pushint 362 // 362
+&&
+assert
+load 24
+pushint 43 // 43
++
+store 24
+intc_2 // 2
+txna ApplicationArgs 1
+load 24
+intc_1 // 1
+extract3
+btoi
+==
+pushint 367 // 367
+&&
+assert
+txna ApplicationArgs 1
+load 24
+intc_1 // 1
++
+pushint 32 // 32
+extract3
+store 25
+txna ApplicationArgs 1
+load 24
+pushint 33 // 33
++
+intc_2 // 2
+extract3
+btoi
+store 27
+txna ApplicationArgs 1
+load 24
+pushint 35 // 35
++
+intc_1 // 1
+extract3
+btoi
+store 28
+txna ApplicationArgs 1
+load 24
+pushint 36 // 36
++
+pushint 32 // 32
+extract3
+store 29
+txna ApplicationArgs 1
+load 24
+pushint 68 // 68
++
+pushint 32 // 32
+extract3
+store 30
+load 29
+callsub trimbytes_13
+store 29
+load 29
+len
+pushint 7 // 7
+>
+bnz main_l75
+main_l70:
+load 30
+callsub trimbytes_13
+pushbytes 0x2028576f726d686f6c6529 // " (Wormhole)"
+concat
+store 30
+load 28
+pushint 8 // 8
+>
+bnz main_l74
+main_l71:
+txna Accounts 3
+load 27
+load 25
+callsub getsigaddress_15
+==
+pushint 392 // 392
+&&
+assert
+pushint 3 // 3
+intc_0 // 0
+pushint 8 // 8
+callsub read_4
+store 31
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 6 // 6
++
+store 24
+load 31
+intc_0 // 0
+itob
+==
+bnz main_l73
+main_l72:
+txna ApplicationArgs 1
+store 32
+pushint 3 // 3
+pushint 8 // 8
+load 32
+load 24
+load 32
+len
+load 24
+-
+extract3
+callsub write_6
+pop
+intc_1 // 1
+return
+main_l73:
+itxn_begin
+txna Accounts 3
+itxn_field Sender
+pushint 3 // acfg
+itxn_field TypeEnum
+load 30
+itxn_field ConfigAssetName
+load 29
+itxn_field ConfigAssetUnitName
+pushint 18446744073709551614 // 18446744073709551614
+itxn_field ConfigAssetTotal
+load 28
+itxn_field ConfigAssetDecimals
+global CurrentApplicationAddress
+itxn_field ConfigAssetManager
+global CurrentApplicationAddress
+itxn_field ConfigAssetReserve
+global ZeroAddress
+itxn_field ConfigAssetFreeze
+global ZeroAddress
+itxn_field ConfigAssetClawback
+intc_0 // 0
+itxn_field Fee
+itxn_submit
+itxn CreatedAssetID
+itob
+store 31
+pushint 3 // 3
+intc_0 // 0
+load 31
+callsub write_6
+pop
+pushint 3 // 3
+pushbytes 0x6173736574 // "asset"
+callsub meta_5
+b main_l72
+main_l74:
+pushint 8 // 8
+store 28
+b main_l71
+main_l75:
+load 29
+extract 0 7
+store 29
+b main_l70
+main_l76:
+intc_1 // 1
+return
+main_l77:
+callsub optin_22
+return
+main_l78:
+intc_0 // 0
+return
+main_l79:
+txn Sender
+global CreatorAddress
+==
+return
+main_l80:
+bytec_1 // "coreid"
+txna ApplicationArgs 0
+btoi
+app_global_put
+bytec 10 // "coreAddr"
+txna ApplicationArgs 1
+app_global_put
+bytec 8 // "validUpdateApproveHash"
+bytec_0 // ""
+app_global_put
+pushbytes 0x76616c6964557064617465436c65617248617368 // "validUpdateClearHash"
+pushbytes 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f // 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f
+app_global_put
+intc_1 // 1
+return
+
+// intkey
+intkey_0:
+itob
+extract 7 1
+retsub
+
+// zero
+zero_1:
+store 17
+intc_0 // 0
+store 18
+zero_1_l1:
+load 18
+pushint 15 // 15
+<
+bz zero_1_l3
+load 17
+load 18
+callsub intkey_0
+intc_3 // 127
+bzero
+app_local_put
+load 18
+intc_1 // 1
++
+store 18
+b zero_1_l1
+zero_1_l3:
+retsub
+
+// get_byte
+getbyte_2:
+store 0
+load 0
+intc_3 // 127
+/
+callsub intkey_0
+app_local_get
+load 0
+intc_3 // 127
+%
+getbyte
+retsub
+
+// set_byte
+setbyte_3:
+store 21
+store 20
+store 19
+load 19
+load 20
+intc_3 // 127
+/
+callsub intkey_0
+load 19
+load 20
+intc_3 // 127
+/
+callsub intkey_0
+app_local_get
+load 20
+intc_3 // 127
+%
+load 21
+setbyte
+app_local_put
+retsub
+
+// read
+read_4:
+store 3
+store 2
+store 1
+bytec_0 // ""
+store 5
+load 2
+intc_3 // 127
+/
+store 4
+read_4_l1:
+load 4
+load 3
+intc_3 // 127
+/
+<=
+bz read_4_l9
+load 4
+load 2
+intc_3 // 127
+/
+==
+bnz read_4_l8
+intc_0 // 0
+read_4_l4:
+store 6
+load 4
+load 3
+intc_3 // 127
+/
+==
+bnz read_4_l7
+intc_3 // 127
+read_4_l6:
+store 7
+load 5
+load 1
+load 4
+callsub intkey_0
+app_local_get
+load 6
+load 7
+substring3
+concat
+store 5
+load 4
+intc_1 // 1
++
+store 4
+b read_4_l1
+read_4_l7:
+load 3
+intc_3 // 127
+%
+b read_4_l6
+read_4_l8:
+load 2
+intc_3 // 127
+%
+b read_4_l4
+read_4_l9:
+load 5
+retsub
+
+// meta
+meta_5:
+store 8
+pushbytes 0x6d657461 // "meta"
+load 8
+app_local_put
+retsub
+
+// write
+write_6:
+store 11
+store 10
+store 9
+intc_0 // 0
+store 15
+load 10
+intc_3 // 127
+/
+store 12
+write_6_l1:
+load 12
+load 10
+load 11
+len
++
+intc_3 // 127
+/
+<=
+bz write_6_l12
+load 12
+load 10
+intc_3 // 127
+/
+==
+bnz write_6_l11
+intc_0 // 0
+write_6_l4:
+store 13
+load 12
+load 10
+load 11
+len
++
+intc_3 // 127
+/
+==
+bnz write_6_l10
+intc_3 // 127
+write_6_l6:
+store 14
+load 9
+load 12
+callsub intkey_0
+load 14
+intc_3 // 127
+!=
+load 13
+intc_0 // 0
+!=
+||
+bnz write_6_l9
+intc_3 // 127
+store 16
+load 11
+load 15
+intc_3 // 127
+extract3
+write_6_l8:
+app_local_put
+load 15
+load 16
++
+store 15
+load 12
+intc_1 // 1
++
+store 12
+b write_6_l1
+write_6_l9:
+load 14
+load 13
+-
+store 16
+load 9
+load 12
+callsub intkey_0
+app_local_get
+intc_0 // 0
+load 13
+substring3
+load 11
+load 15
+load 16
+extract3
+concat
+load 9
+load 12
+callsub intkey_0
+app_local_get
+load 14
+intc_3 // 127
+substring3
+concat
+b write_6_l8
+write_6_l10:
+load 10
+load 11
+len
++
+intc_3 // 127
+%
+b write_6_l6
+write_6_l11:
+load 10
+intc_3 // 127
+%
+b write_6_l4
+write_6_l12:
+load 15
+retsub
+
+// governanceSet
+governanceSet_7:
+bytec_1 // "coreid"
+app_global_get
+pushbytes 0x63757272656e74477561726469616e536574496e646578 // "currentGuardianSetIndex"
+app_global_get_ex
+store 73
+store 72
+load 73
+pushint 76 // 76
+&&
+assert
+load 72
+retsub
+
+// getMessageFee
+getMessageFee_8:
+bytec_1 // "coreid"
+app_global_get
+pushbytes 0x4d657373616765466565 // "MessageFee"
+app_global_get_ex
+store 75
+store 74
+load 75
+pushint 81 // 81
+&&
+assert
+load 74
+retsub
+
+// getNextAddress
+getNextAddress_9:
+txn GroupIndex
+intc_1 // 1
++
+gtxns ApplicationID
+app_params_get AppAddress
+store 77
+store 76
+load 77
+pushint 86 // 86
+&&
+assert
+load 76
+retsub
+
+// checkFeePmt
+checkFeePmt_10:
+store 78
+load 23
+intc_0 // 0
+>
+bz checkFeePmt_10_l2
+txn GroupIndex
+load 78
+-
+store 22
+load 22
+gtxns TypeEnum
+intc_1 // pay
+==
+load 22
+gtxns Sender
+txn Sender
+==
+&&
+load 22
+gtxns Receiver
+global CurrentApplicationAddress
+==
+&&
+load 22
+gtxns Amount
+load 23
+>=
+&&
+pushint 100 // 100
+&&
+assert
+load 22
+gtxns RekeyTo
+global ZeroAddress
+==
+load 22
+gtxns CloseRemainderTo
+global ZeroAddress
+==
+&&
+load 22
+gtxns AssetCloseTo
+global ZeroAddress
+==
+&&
+pushint 89 // 89
+&&
+assert
+checkFeePmt_10_l2:
+retsub
+
+// sendMfee
+sendMfee_11:
+load 23
+intc_0 // 0
+>
+bz sendMfee_11_l2
+intc_1 // pay
+itxn_field TypeEnum
+bytec 10 // "coreAddr"
+app_global_get
+itxn_field Receiver
+load 23
+itxn_field Amount
+intc_0 // 0
+itxn_field Fee
+itxn_next
+sendMfee_11_l2:
+retsub
+
+// encode_uvarint
+encodeuvarint_12:
+store 87
+store 86
+load 87
+load 86
+intc 6 // 128
+>=
+bnz encodeuvarint_12_l2
+load 86
+intc 7 // 255
+&
+itob
+extract 7 1
+b encodeuvarint_12_l3
+encodeuvarint_12_l2:
+load 86
+pushint 7 // 7
+shr
+load 86
+intc 7 // 255
+&
+intc 6 // 128
+|
+itob
+extract 7 1
+load 86
+load 87
+uncover 3
+uncover 3
+callsub encodeuvarint_12
+cover 2
+store 87
+store 86
+encodeuvarint_12_l3:
+concat
+retsub
+
+// trim_bytes
+trimbytes_13:
+store 82
+load 82
+len
+store 79
+intc_1 // 1
+bzero
+store 81
+intc_0 // 0
+store 80
+trimbytes_13_l1:
+load 80
+load 79
+<
+bz trimbytes_13_l5
+load 82
+load 80
+intc_1 // 1
+extract3
+load 81
+==
+bnz trimbytes_13_l4
+trimbytes_13_l3:
+load 80
+intc_1 // 1
++
+store 80
+b trimbytes_13_l1
+trimbytes_13_l4:
+load 82
+intc_0 // 0
+load 80
+extract3
+store 82
+load 79
+store 80
+b trimbytes_13_l3
+trimbytes_13_l5:
+load 82
+retsub
+
+// getFactor
+getFactor_14:
+store 83
+load 83
+pushint 9 // 9
+==
+bnz getFactor_14_l20
+load 83
+pushint 10 // 10
+==
+bnz getFactor_14_l19
+load 83
+pushint 11 // 11
+==
+bnz getFactor_14_l18
+load 83
+pushint 12 // 12
+==
+bnz getFactor_14_l17
+load 83
+pushint 13 // 13
+==
+bnz getFactor_14_l16
+load 83
+pushint 14 // 14
+==
+bnz getFactor_14_l15
+load 83
+pushint 15 // 15
+==
+bnz getFactor_14_l14
+load 83
+pushint 16 // 16
+==
+bnz getFactor_14_l13
+load 83
+pushint 16 // 16
+>
+bnz getFactor_14_l12
+load 83
+pushint 9 // 9
+<
+bnz getFactor_14_l11
+err
+getFactor_14_l11:
+intc_1 // 1
+b getFactor_14_l21
+getFactor_14_l12:
+intc_0 // 0
+return
+intc_1 // 1
+getFactor_14_l13:
+pushint 100000000 // 100000000
+b getFactor_14_l21
+getFactor_14_l14:
+pushint 10000000 // 10000000
+b getFactor_14_l21
+getFactor_14_l15:
+pushint 1000000 // 1000000
+b getFactor_14_l21
+getFactor_14_l16:
+intc 5 // 100000
+b getFactor_14_l21
+getFactor_14_l17:
+pushint 10000 // 10000
+b getFactor_14_l21
+getFactor_14_l18:
+pushint 1000 // 1000
+b getFactor_14_l21
+getFactor_14_l19:
+pushint 100 // 100
+b getFactor_14_l21
+getFactor_14_l20:
+pushint 10 // 10
+getFactor_14_l21:
+retsub
+
+// get_sig_address
+getsigaddress_15:
+store 85
+store 84
+pushbytes 0x50726f6772616d // "Program"
+pushbytes 0x0620010181 // 0x0620010181
+concat
+load 84
+bytec_0 // ""
+callsub encodeuvarint_12
+concat
+pushbytes 0x4880 // 0x4880
+concat
+load 85
+len
+bytec_0 // ""
+callsub encodeuvarint_12
+concat
+load 85
+concat
+pushbytes 0x483110810612443119221244311881 // 0x483110810612443119221244311881
+concat
+global CurrentApplicationID
+bytec_0 // ""
+callsub encodeuvarint_12
+concat
+pushbytes 0x1244312080 // 0x1244312080
+concat
+global CurrentApplicationAddress
+len
+bytec_0 // ""
+callsub encodeuvarint_12
+concat
+global CurrentApplicationAddress
+concat
+pushbytes 0x124431018100124431093203124431153203124422 // 0x124431018100124431093203124431153203124422
+concat
+sha512_256
+retsub
+
+// auth_addr
+authaddr_16:
+acct_params_get AcctAuthAddr
+store 89
+store 88
+load 89
+bnz authaddr_16_l2
+bytec_0 // ""
+b authaddr_16_l3
+authaddr_16_l2:
+load 88
+authaddr_16_l3:
+retsub
+
+// extract_name
+extractname_17:
+asset_params_get AssetName
+store 91
+store 90
+load 91
+bnz extractname_17_l2
+bytec_0 // ""
+b extractname_17_l3
+extractname_17_l2:
+load 90
+extractname_17_l3:
+retsub
+
+// extract_creator
+extractcreator_18:
+asset_params_get AssetCreator
+store 93
+store 92
+load 93
+bnz extractcreator_18_l2
+bytec_0 // ""
+b extractcreator_18_l3
+extractcreator_18_l2:
+load 92
+extractcreator_18_l3:
+retsub
+
+// extract_unit_name
+extractunitname_19:
+asset_params_get AssetUnitName
+store 95
+store 94
+load 95
+bnz extractunitname_19_l2
+bytec_0 // ""
+b extractunitname_19_l3
+extractunitname_19_l2:
+load 94
+extractunitname_19_l3:
+retsub
+
+// extract_decimal
+extractdecimal_20:
+asset_params_get AssetDecimals
+store 97
+store 96
+load 97
+bnz extractdecimal_20_l2
+pushbytes 0x00 // 0x00
+b extractdecimal_20_l3
+extractdecimal_20_l2:
+load 96
+itob
+extract 7 1
+extractdecimal_20_l3:
+retsub
+
+// checkForDuplicate
+checkForDuplicate_21:
+txna ApplicationArgs 1
+extract 0 1
+btoi
+intc_1 // 1
+==
+pushint 933 // 933
+&&
+assert
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 14 // 14
++
+store 98
+txna ApplicationArgs 1
+load 98
+pushint 34 // 34
+extract3
+store 99
+txna ApplicationArgs 1
+load 98
+pushint 34 // 34
++
+pushint 8 // 8
+extract3
+btoi
+store 100
+load 100
+pushint 15240 // 15240
+/
+store 102
+txna Accounts 1
+load 102
+load 99
+callsub getsigaddress_15
+==
+pushint 943 // 943
+&&
+assert
+load 100
+pushint 8 // 8
+/
+pushint 1905 // 1905
+%
+store 102
+intc_1 // 1
+load 102
+callsub getbyte_2
+store 101
+load 101
+load 100
+pushint 8 // 8
+%
+getbit
+intc_0 // 0
+==
+pushint 950 // 950
+&&
+assert
+intc_1 // 1
+load 102
+load 101
+load 100
+pushint 8 // 8
+%
+intc_1 // 1
+setbit
+callsub setbyte_3
+retsub
+
+// optin
+optin_22:
+gtxn 0 TypeEnum
+intc_1 // pay
+==
+gtxn 0 Amount
+pushint 1002000 // 1002000
+==
+&&
+gtxn 1 TypeEnum
+pushint 6 // appl
+==
+&&
+gtxn 1 OnCompletion
+intc_1 // OptIn
+==
+&&
+pushint 1008 // 1008
+&&
+assert
+intc_0 // 0
+callsub zero_1
+intc_1 // 1
+retsub

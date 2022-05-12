@@ -196,6 +196,7 @@ function EvmMigrationLineItem({
             chainId={chainId}
             address={poolInfo.data.fromAddress}
             symbol={fromSymbol || undefined}
+            isAsset
           />
         </div>
         <div>
@@ -215,6 +216,7 @@ function EvmMigrationLineItem({
             chainId={chainId}
             address={poolInfo.data.toAddress}
             symbol={toSymbol || undefined}
+            isAsset
           />
         </div>
         <div className={classes.convertButton}>

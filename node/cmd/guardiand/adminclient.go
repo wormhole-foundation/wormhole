@@ -4,17 +4,20 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/common"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
-	"github.com/davecgh/go-spew/spew"
-	"github.com/spf13/pflag"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/mr-tron/base58"
+	"github.com/spf13/pflag"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
+	"github.com/certusone/wormhole/node/pkg/vaa"
 
 	"github.com/spf13/cobra"
 	"github.com/status-im/keycard-go/hexutils"
@@ -82,7 +85,7 @@ var DumpVAAByMessageID = &cobra.Command{
 }
 
 var SendObservationRequest = &cobra.Command{
-	Use:   "send-observation-request [CHAIN_ID] [TX_HASH_HEX]",
+	Use:   "send-observation-request [CHAIN_ID|CHAIN_NAME] [TX_HASH_HEX]",
 	Short: "Broadcast an observation request for the given chain ID and chain-specific tx_hash",
 	Run:   runSendObservationRequest,
 	Args:  cobra.ExactArgs(2),
@@ -226,14 +229,17 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 }
 
 func runSendObservationRequest(cmd *cobra.Command, args []string) {
-	chainID, err := strconv.Atoi(args[0])
+	chainID, err := parseChainID(args[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
 
 	txHash, err := hex.DecodeString(args[1])
 	if err != nil {
-		log.Fatalf("invalid transaction hash: %v", err)
+		txHash, err = base58.Decode(args[1])
+		if err != nil {
+			log.Fatalf("invalid transaction hash (neither hex nor base58): %v", err)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

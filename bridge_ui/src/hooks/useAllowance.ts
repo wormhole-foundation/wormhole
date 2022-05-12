@@ -1,6 +1,7 @@
 import {
   approveEth,
   ChainId,
+  CHAIN_ID_KLAYTN,
   getAllowanceEth,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
@@ -64,16 +65,29 @@ export default function useAllowance(
         }
       : (amount: BigInt) => {
           dispatch(setIsApproving(true));
-          return approveEth(
-            getTokenBridgeAddressForChain(chainId),
-            tokenAddress,
-            signer,
-            BigNumber.from(amount)
-          ).then(
-            () => {
-              dispatch(setIsApproving(false));
-              return Promise.resolve();
-            },
+          // Klaytn requires specifying gasPrice
+          const gasPricePromise =
+            chainId === CHAIN_ID_KLAYTN
+              ? signer.getGasPrice()
+              : Promise.resolve(undefined);
+          return gasPricePromise.then(
+            (gasPrice) =>
+              approveEth(
+                getTokenBridgeAddressForChain(chainId),
+                tokenAddress,
+                signer,
+                BigNumber.from(amount),
+                gasPrice === undefined ? {} : { gasPrice }
+              ).then(
+                () => {
+                  dispatch(setIsApproving(false));
+                  return Promise.resolve();
+                },
+                () => {
+                  dispatch(setIsApproving(false));
+                  return Promise.reject();
+                }
+              ),
             () => {
               dispatch(setIsApproving(false));
               return Promise.reject();

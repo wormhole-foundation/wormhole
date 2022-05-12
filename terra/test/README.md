@@ -30,4 +30,4 @@ npm run test
 
 These tests are built using Jest and is meant to be structured very similarly to the [ethereum unit tests](../../ethereum), which requires running a local node via ganache before _truffle_ can run any of the testing scripts in the [test directory](../../ethereum/test).
 
-**Currently the only test that exists is for the token bridge's transfer.**
+**Currently the only test that exists is for the token bridge's transfer and transfer with payload.**

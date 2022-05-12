@@ -75,6 +75,7 @@ solTokenBridge=$(jq --raw-output '.chains."1".contracts.tokenBridgeEmitterAddres
 ethTokenBridge=$(jq --raw-output '.chains."2".contracts.tokenBridgeEmitterAddress' $addressesJson)
 terraTokenBridge=$(jq --raw-output '.chains."3".contracts.tokenBridgeEmitterAddress' $addressesJson)
 bscTokenBridge=$(jq --raw-output '.chains."4".contracts.tokenBridgeEmitterAddress' $addressesJson)
+algoTokenBridge=$(jq --raw-output '.chains."8".contracts.tokenBridgeEmitterAddress' $addressesJson)
 
 solNFTBridge=$(jq --raw-output '.chains."1".contracts.nftBridgeEmitterAddress' $addressesJson)
 ethNFTBridge=$(jq --raw-output '.chains."2".contracts.nftBridgeEmitterAddress' $addressesJson)
@@ -84,27 +85,23 @@ terraNFTBridge=$(jq --raw-output '.chains."3".contracts.nftBridgeEmitterAddress'
 # 4) create token bridge registration VAAs
 echo "generating contract registration VAAs for token bridges"
 # fetch dependencies for the clients/token_bridge script that generates token bridge registration VAAs
-if [[ ! -d ./clients/token_bridge/node_modules ]]; then
-    echo "going to install node modules in clients/token_bridge"
-    npm ci --prefix clients/token_bridge && npm run build --prefix clients/token_bridge
+if [[ ! -d ./clients/js/node_modules ]]; then
+    echo "going to install node modules in clients/js"
+    npm ci --prefix clients/js
 fi
 # invoke clients/token_bridge commands to create registration VAAs
-solTokenBridgeVAA=$(npm --prefix clients/token_bridge run --silent main -- generate_register_chain_vaa 1 0x${solTokenBridge} --guardian_secret ${guardiansPrivateCSV})
-ethTokenBridgeVAA=$(npm --prefix clients/token_bridge run --silent main -- generate_register_chain_vaa 2 0x${ethTokenBridge} --guardian_secret ${guardiansPrivateCSV} )
-terraTokenBridgeVAA=$(npm --prefix clients/token_bridge run --silent main -- generate_register_chain_vaa 3 0x${terraTokenBridge} --guardian_secret ${guardiansPrivateCSV})
-bscTokenBridgeVAA=$(npm --prefix clients/token_bridge run --silent main -- generate_register_chain_vaa 4 0x${bscTokenBridge} --guardian_secret ${guardiansPrivateCSV})
+solTokenBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
+ethTokenBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV} )
+terraTokenBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
+bscTokenBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
+algoTokenBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
 
 
 # 5) create nft bridge registration VAAs
-# fetch dependencies for the clients/nft_bridge script that generates nft bridge registration VAAs
-if [[ ! -d ./clients/nft_bridge/node_modules ]]; then
-    echo "going to install node modules in clients/nft_bridge"
-    npm ci --prefix clients/nft_bridge && npm run build --prefix clients/nft_bridge
-fi
 echo "generating contract registration VAAs for nft bridges"
-solNFTBridgeVAA=$(npm --prefix clients/nft_bridge run --silent main -- generate_register_chain_vaa 1 0x${solNFTBridge} --guardian_secret ${guardiansPrivateCSV})
-ethNFTBridgeVAA=$(npm --prefix clients/nft_bridge run --silent main -- generate_register_chain_vaa 2 0x${ethNFTBridge} --guardian_secret ${guardiansPrivateCSV})
-terraNFTBridgeVAA=$(npm --prefix clients/nft_bridge run --silent main -- generate_register_chain_vaa 3 0x${terraNFTBridge} --guardian_secret ${guardiansPrivateCSV})
+solNFTBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m NFTBridge -c solana -a ${solNFTBridge} -g ${guardiansPrivateCSV})
+ethNFTBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
+terraNFTBridgeVAA=$(npm --prefix clients/js start --silent -- generate registration -m NFTBridge -c terra -a ${terraNFTBridge} -g ${guardiansPrivateCSV})
 
 
 
@@ -115,6 +112,7 @@ solTokenBridge="REGISTER_SOL_TOKEN_BRIDGE_VAA"
 ethTokenBridge="REGISTER_ETH_TOKEN_BRIDGE_VAA"
 terraTokenBridge="REGISTER_TERRA_TOKEN_BRIDGE_VAA"
 bscTokenBridge="REGISTER_BSC_TOKEN_BRIDGE_VAA"
+algoTokenBridge="REGISTER_ALGO_TOKEN_BRIDGE_VAA"
 
 solNFTBridge="REGISTER_SOL_NFT_BRIDGE_VAA"
 ethNFTBridge="REGISTER_ETH_NFT_BRIDGE_VAA"
@@ -149,6 +147,10 @@ upsert_env_file $envFile $terraNFTBridge $terraNFTBridgeVAA
 upsert_env_file $ethFile $bscTokenBridge $bscTokenBridgeVAA
 upsert_env_file $envFile $bscTokenBridge $bscTokenBridgeVAA
 
+# algo token bridge
+upsert_env_file $ethFile $algoTokenBridge $algoTokenBridgeVAA
+upsert_env_file $envFile $algoTokenBridge $algoTokenBridgeVAA
+
 
 # 7) copy the local .env file to the solana & terra dirs, if the script is running on the host machine
 # chain dirs will not exist if running in docker for Tilt, only if running locally. check before copying.
@@ -159,7 +161,7 @@ if [[ -d ./ethereum ]]; then
 fi
 
 # copy the hex envFile to each of the non-EVM chains
-for envDest in ./solana/.env ./terra/tools/.env; do
+for envDest in ./solana/.env ./terra/tools/.env ./algorand/.env; do
     dirname=$(dirname $envDest)
     if [[ -d "$dirname" ]]; then
         echo "copying $envFile to $envDest"

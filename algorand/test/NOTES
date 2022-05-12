@@ -1,0 +1,65 @@
+index 0
+appId 4
+textToHexString("guardian");
+guardianAddr CLAOUBJPZ5WNLM7ZU237TCOV2WODAGNUX3536PZ3JSWMBN7M46UADLN3GY
+
+('CLAOUBJPZ5WNLM7ZU237TCOV2WODAGNUX3536PZ3JSWMBN7M46UADLN3GY',
+ '01befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000677561726469616e')
+
+illness illegal arrive clip fork palm skull south impose verify toss ocean shrug vital swift similar depend margin climb uniform risk pizza canal absorb forward
+
+# Locally in your project.
+npm install -D typescript
+npm install -D ts-node
+
+# Or globally with TypeScript.
+npm install -g typescript
+npm install -g ts-node
+
+# Depending on configuration, you may also need these
+npm install -D tslib @types/node
+
+go to .../ethereum/
+npm ci
+go to ..../sdk/js
+npm ci; npm run build
+
+Then, in a new window, you can run
+  tsc -p tsconfig-cjs.json --watch
+which will track updates
+
+ts-node foo2.ts
+
+
+https://github.com/barnjamin/sdk-extras/blob/master/py/block_fetcher.py
+
+package main
+
+import (
+        "context"
+        "strings"
+
+        "github.com/algorand/go-algorand/rpcs"
+        "github.com/algorand/indexer/fetcher"
+        "github.com/sirupsen/logrus"
+)
+
+var log = logrus.New()
+
+func main() {
+        f, err := fetcher.ForNetAndToken("http://localhost:4001", strings.Repeat("a", 64), log)
+        if err != nil {
+                log.Fatalf("Failed to create fetcher: %+v", err)
+        }
+
+        f.SetBlockHandler(handler)
+
+        f.Run(context.Background())
+}
+
+func handler(ctx context.Context, cert *rpcs.EncodedBlockCert) error {
+        for _, stxn := range cert.Block.Payset {
+                log.Printf("%+v", stxn.SignedTxn.Txn.Type)
+        }
+        return nil
+}

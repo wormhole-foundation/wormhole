@@ -7,7 +7,7 @@ import {
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
-  hexToNativeString,
+  hexToNativeAssetString,
   isEVMChain,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
@@ -210,7 +210,7 @@ export default function NFTOriginVerifier() {
     originInfo &&
     originInfo.chainId &&
     originInfo.assetAddress &&
-    hexToNativeString(
+    hexToNativeAssetString(
       uint8ArrayToHex(originInfo.assetAddress),
       originInfo.chainId
     );

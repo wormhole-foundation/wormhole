@@ -15,7 +15,7 @@ export const TERRA_GAS_PRICES_URL = "https://fcd.terra.dev/v1/txs/gas_prices";
 const argv = yargs(hideBin(process.argv))
   .option('network', {
     description: 'Which network to deploy to',
-    choices: ['mainnet', 'testnet', 'localterra'],
+    choices: ['mainnet', 'testnet', 'devnet'],
     required: true
   })
   .option('artifact', {
@@ -50,8 +50,7 @@ const terra_host =
       }
     : {
         URL: "http://localhost:1317",
-        chainID: "columbus-5",
-        name: "localterra",
+        chainID: "localterra",
       };
 
 const lcd = new LCDClient(terra_host);

@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
@@ -9,6 +10,7 @@ import { useMemo } from "react";
 import { DataWrapper, getEmptyDataWrapper } from "../store/helpers";
 import { logoOverrides } from "../utils/consts";
 import { Metadata } from "../utils/metaplex";
+import useAlgoMetadata, { AlgoMetadata } from "./useAlgoMetadata";
 import useEvmMetadata, { EvmMetadata } from "./useEvmMetadata";
 import useMetaplexData from "./useMetaplexData";
 import useSolanaTokenMap from "./useSolanaTokenMap";
@@ -111,6 +113,33 @@ const constructEthMetadata = (
   };
 };
 
+const constructAlgoMetadata = (
+  addresses: string[],
+  metadataMap: DataWrapper<Map<string, AlgoMetadata> | null>
+) => {
+  const isFetching = metadataMap.isFetching;
+  const error = metadataMap.error;
+  const receivedAt = metadataMap.receivedAt;
+  const data = new Map<string, GenericMetadata>();
+  addresses.forEach((address) => {
+    const meta = metadataMap.data?.get(address);
+    const obj = {
+      symbol: meta?.symbol || undefined,
+      logo: logoOverrides.get(address) || undefined,
+      tokenName: meta?.tokenName || undefined,
+      decimals: meta?.decimals,
+    };
+    data.set(address, obj);
+  });
+
+  return {
+    isFetching,
+    error,
+    receivedAt,
+    data,
+  };
+};
+
 export default function useMetadata(
   chainId: ChainId,
   addresses: string[]
@@ -127,10 +156,14 @@ export default function useMetadata(
   const ethereumAddresses = useMemo(() => {
     return isEVMChain(chainId) ? addresses : [];
   }, [chainId, addresses]);
+  const algoAddresses = useMemo(() => {
+    return chainId === CHAIN_ID_ALGORAND ? addresses : [];
+  }, [chainId, addresses]);
 
   const metaplexData = useMetaplexData(solanaAddresses);
   const terraMetadata = useTerraMetadata(terraAddresses);
   const ethMetadata = useEvmMetadata(ethereumAddresses, chainId);
+  const algoMetadata = useAlgoMetadata(algoAddresses);
 
   const output: DataWrapper<Map<string, GenericMetadata>> = useMemo(
     () =>
@@ -140,6 +173,8 @@ export default function useMetadata(
         ? constructEthMetadata(ethereumAddresses, ethMetadata)
         : chainId === CHAIN_ID_TERRA
         ? constructTerraMetadata(terraAddresses, terraTokenMap, terraMetadata)
+        : chainId === CHAIN_ID_ALGORAND
+        ? constructAlgoMetadata(algoAddresses, algoMetadata)
         : getEmptyDataWrapper(),
     [
       chainId,
@@ -151,6 +186,8 @@ export default function useMetadata(
       terraAddresses,
       terraMetadata,
       terraTokenMap,
+      algoAddresses,
+      algoMetadata,
     ]
   );
 

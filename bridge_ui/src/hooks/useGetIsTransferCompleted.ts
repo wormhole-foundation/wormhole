@@ -1,12 +1,16 @@
 import {
+  CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  getIsTransferCompletedAlgorand,
   getIsTransferCompletedEth,
   getIsTransferCompletedSolana,
   getIsTransferCompletedTerra,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { Connection } from "@solana/web3.js";
+import { LCDClient } from "@terra-money/terra.js";
+import algosdk from "algosdk";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -16,15 +20,16 @@ import {
   selectTransferTargetChain,
 } from "../store/selectors";
 import {
+  ALGORAND_HOST,
+  ALGORAND_TOKEN_BRIDGE_ID,
   getEvmChainId,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
   TERRA_GAS_PRICES_URL,
   TERRA_HOST,
 } from "../utils/consts";
-import useTransferSignedVAA from "./useTransferSignedVAA";
-import { LCDClient } from "@terra-money/terra.js";
 import useIsWalletReady from "./useIsWalletReady";
+import useTransferSignedVAA from "./useTransferSignedVAA";
 
 /**
  * @param recoveryOnly Only fire when in recovery mode
@@ -124,6 +129,28 @@ export default function useGetIsTransferCompleted(
               signedVAA,
               lcdClient,
               TERRA_GAS_PRICES_URL
+            );
+          } catch (error) {
+            console.error(error);
+          }
+          if (!cancelled) {
+            setIsTransferCompleted(transferCompleted);
+            setIsLoading(false);
+          }
+        })();
+      } else if (targetChain === CHAIN_ID_ALGORAND) {
+        setIsLoading(true);
+        (async () => {
+          try {
+            const algodClient = new algosdk.Algodv2(
+              ALGORAND_HOST.algodToken,
+              ALGORAND_HOST.algodServer,
+              ALGORAND_HOST.algodPort
+            );
+            transferCompleted = await getIsTransferCompletedAlgorand(
+              algodClient,
+              ALGORAND_TOKEN_BRIDGE_ID,
+              signedVAA
             );
           } catch (error) {
             console.error(error);

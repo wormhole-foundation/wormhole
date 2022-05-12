@@ -113,17 +113,6 @@ local_resource(
     trigger_mode = trigger_mode,
 )
 
-if algorand:
-    local_resource(
-        name = "teal-gen",
-        deps = ["staging/algorand/teal"],
-        cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
-        env = {"DOCKER_BUILDKIT": "1"},
-        labels = ["algorand"],
-        allow_parallel = True,
-        trigger_mode = trigger_mode,
-    )
-
 # wasm
 
 if solana:
@@ -421,6 +410,17 @@ if bridge_ui:
     )
 
 if ci_tests:
+    local_resource(
+        name = "solana-tests",
+        deps = ["solana"],
+        dir = "solana",
+        cmd = "tilt docker build -- -f Dockerfile --target ci_tests --build-arg BRIDGE_ADDRESS=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o .",
+        env = {"DOCKER_BUILDKIT": "1"},
+        labels = ["ci"],
+        allow_parallel = True,
+        trigger_mode = trigger_mode,
+    )
+
     docker_build(
         ref = "tests-image",
         context = ".",
@@ -440,27 +440,6 @@ if ci_tests:
         "ci-tests",
         resource_deps = ["proto-gen-web", "wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "solana-devnet", "spy", "guardian"],
         labels = ["ci"],
-        trigger_mode = trigger_mode,
-    )
-
-# algorand
-if algorand:
-    k8s_yaml_with_ns("devnet/algorand.yaml")
-
-    docker_build(
-        ref = "algorand",
-        context = "third_party/algorand",
-        dockerfile = "third_party/algorand/Dockerfile",
-    )
-
-    k8s_resource(
-        "algorand",
-        resource_deps = ["teal-gen"],
-        port_forwards = [
-            port_forward(4001, name = "Algorand RPC [:4001]", host = webHost),
-            port_forward(4002, name = "Algorand KMD [:4002]", host = webHost),
-        ],
-        labels = ["algorand"],
         trigger_mode = trigger_mode,
     )
 
@@ -581,3 +560,38 @@ k8s_resource(
     labels = ["terra"],
     trigger_mode = trigger_mode,
 )
+
+if algorand:
+    k8s_yaml_with_ns("devnet/algorand-devnet.yaml")
+  
+    docker_build(
+        ref = "algorand-algod",
+        context = "algorand/sandbox-algorand",
+        dockerfile = "algorand/sandbox-algorand/images/algod/Dockerfile"
+    )
+
+    docker_build(
+        ref = "algorand-indexer",
+        context = "algorand/sandbox-algorand",
+        dockerfile = "algorand/sandbox-algorand/images/indexer/Dockerfile"
+    )
+
+    docker_build(
+        ref = "algorand-contracts",
+        context = "algorand",
+        dockerfile = "algorand/Dockerfile",
+        ignore = ["algorand/test/*.*"]
+    )
+
+    k8s_resource(
+        "algorand",
+        port_forwards = [
+            port_forward(4001, name = "Algod [:4001]", host = webHost),
+            port_forward(4002, name = "KMD [:4002]", host = webHost),
+            port_forward(8980, name = "Indexer [:8980]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["algorand"],
+        trigger_mode = trigger_mode,
+    )
+    

@@ -17,12 +17,13 @@ import { zeroPad } from "ethers/lib/utils.js";
 */
 const artifacts = [
   "wormhole.wasm",
-  "token_bridge.wasm",
+  "token_bridge_terra.wasm",
   "cw20_wrapped.wasm",
   "cw20_base.wasm",
   "nft_bridge.wasm",
   "cw721_wrapped.wasm",
   "cw721_base.wasm",
+  "mock_bridge_integration.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
@@ -166,7 +167,7 @@ addresses["wormhole.wasm"] = await instantiate("wormhole.wasm", {
   },
 });
 
-addresses["token_bridge.wasm"] = await instantiate("token_bridge.wasm", {
+addresses["token_bridge_terra.wasm"] = await instantiate("token_bridge_terra.wasm", {
   gov_chain: govChain,
   gov_address: Buffer.from(govAddress, "hex").toString("base64"),
   wormhole_contract: addresses["wormhole.wasm"],
@@ -239,13 +240,15 @@ await mint_cw721(
 /* Registrations: tell the bridge contracts to know about each other */
 
 const contract_registrations = {
-  "token_bridge.wasm": [
+  "token_bridge_terra.wasm": [
     // Solana
     process.env.REGISTER_SOL_TOKEN_BRIDGE_VAA,
     // Ethereum
     process.env.REGISTER_ETH_TOKEN_BRIDGE_VAA,
     // BSC
     process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA,
+    // ALGO
+    process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA,
   ],
   "nft_bridge.wasm": [
     // Solana

@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_SOLANA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
@@ -64,13 +65,19 @@ async function evm(
 ) {
   dispatch(setIsSending(true));
   try {
+    // Klaytn requires specifying gasPrice
+    const overrides =
+      chainId === CHAIN_ID_KLAYTN
+        ? { gasPrice: (await signer.getGasPrice()).toString() }
+        : {};
     const receipt = await transferFromEth(
       getNFTBridgeAddressForChain(chainId),
       signer,
       tokenAddress,
       tokenId,
       recipientChain,
-      recipientAddress
+      recipientAddress,
+      overrides
     );
     dispatch(
       setTransferTx({ id: receipt.transactionHash, block: receipt.blockNumber })

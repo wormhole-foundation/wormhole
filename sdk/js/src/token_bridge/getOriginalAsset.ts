@@ -1,13 +1,28 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
+import { decodeLocalState } from "../algorand";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId, canonicalAddress, isNativeDenom } from "../terra";
-import { ChainId, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
-import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
+import {
+  ChainId,
+  ChainName,
+  CHAIN_ID_ALGORAND,
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+  coalesceChainId,
+  hexToUint8Array,
+} from "../utils";
+import { safeBigIntToNumber } from "../utils/bigint";
+import {
+  getIsWrappedAssetAlgorand,
+  getIsWrappedAssetEth,
+} from "./getIsWrappedAsset";
 
+// TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
   isWrapped: boolean;
   chainId: ChainId;
@@ -25,7 +40,7 @@ export async function getOriginalAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
   wrappedAddress: string,
-  lookupChainId: ChainId
+  lookupChain: ChainId | ChainName
 ): Promise<WormholeWrappedInfo> {
   const isWrapped = await getIsWrappedAssetEth(
     tokenBridgeAddress,
@@ -47,7 +62,7 @@ export async function getOriginalAssetEth(
   }
   return {
     isWrapped: false,
-    chainId: lookupChainId,
+    chainId: coalesceChainId(lookupChain),
     assetAddress: zeroPad(arrayify(wrappedAddress), 32),
   };
 }
@@ -133,4 +148,39 @@ export async function getOriginalAssetSol(
     chainId: CHAIN_ID_SOLANA,
     assetAddress: new Uint8Array(32),
   };
+}
+
+/**
+ * Returns an origin chain and asset address on {originChain} for a provided Wormhole wrapped address
+ * @param client Algodv2 client
+ * @param tokenBridgeId Application ID of the token bridge
+ * @param assetId Algorand asset index
+ * @returns wrapped wormhole information structure
+ */
+export async function getOriginalAssetAlgorand(
+  client: Algodv2,
+  tokenBridgeId: bigint,
+  assetId: bigint
+): Promise<WormholeWrappedInfo> {
+  let retVal: WormholeWrappedInfo = {
+    isWrapped: false,
+    chainId: CHAIN_ID_ALGORAND,
+    assetAddress: new Uint8Array(),
+  };
+  retVal.isWrapped = await getIsWrappedAssetAlgorand(
+    client,
+    tokenBridgeId,
+    assetId
+  );
+  if (!retVal.isWrapped) {
+    retVal.assetAddress = zeroPad(hexToUint8Array(assetId.toString(16)), 32);
+    return retVal;
+  }
+  const assetInfo = await client.getAssetByID(safeBigIntToNumber(assetId)).do();
+  const lsa = assetInfo.params.creator;
+  const dls = await decodeLocalState(client, tokenBridgeId, lsa);
+  const dlsBuffer: Buffer = Buffer.from(dls);
+  retVal.chainId = dlsBuffer.readInt16BE(92) as ChainId;
+  retVal.assetAddress = new Uint8Array(dlsBuffer.slice(60, 60 + 32));
+  return retVal;
 }

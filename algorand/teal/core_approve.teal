@@ -1,0 +1,1562 @@
+#pragma version 6
+intcblock 1 0 127 2 1000 202 204 208 213 274 267 237 253 19200 241 242 196 128 255
+bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x6e6f70 0x76657269667953696773 0x4d657373616765466565 0x766572696679564141 0x76616c6964557064617465417070726f766548617368 0x767068617368 0x7075626c6973684d657373616765 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x6d657461
+txn ApplicationID
+intc_1 // 0
+==
+bnz main_l75
+txn OnCompletion
+pushint 4 // UpdateApplication
+==
+bnz main_l74
+txn OnCompletion
+pushint 5 // DeleteApplication
+==
+bnz main_l73
+txn OnCompletion
+intc_0 // OptIn
+==
+bnz main_l72
+txn OnCompletion
+intc_1 // NoOp
+==
+bnz main_l6
+err
+main_l6:
+txna ApplicationArgs 0
+bytec 10 // "publishMessage"
+==
+bnz main_l69
+txna ApplicationArgs 0
+bytec 4 // "nop"
+==
+bnz main_l68
+txna ApplicationArgs 0
+pushbytes 0x696e6974 // "init"
+==
+bnz main_l52
+txna ApplicationArgs 0
+bytec 5 // "verifySigs"
+==
+bnz main_l51
+txna ApplicationArgs 0
+bytec 7 // "verifyVAA"
+==
+bnz main_l29
+txna ApplicationArgs 0
+pushbytes 0x676f7665726e616e6365 // "governance"
+==
+bnz main_l13
+err
+main_l13:
+callsub checkForDuplicate_11
+txn GroupIndex
+intc_0 // 1
+-
+gtxns TypeEnum
+pushint 6 // appl
+==
+txn GroupIndex
+intc_0 // 1
+-
+gtxns ApplicationID
+txn ApplicationID
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxnsa ApplicationArgs 0
+bytec 7 // "verifyVAA"
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxns Sender
+txn Sender
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxns RekeyTo
+global ZeroAddress
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxnsa ApplicationArgs 1
+txna ApplicationArgs 1
+==
+&&
+txn GroupIndex
+gtxns RekeyTo
+global ZeroAddress
+==
+&&
+txn GroupIndex
+gtxns Sender
+txn Sender
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxnsa Accounts 0
+txna Accounts 0
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxnsa Accounts 1
+txna Accounts 1
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxnsa Accounts 2
+txna Accounts 2
+==
+&&
+pushint 506 // 506
+&&
+assert
+bytec_3 // "currentGuardianSetIndex"
+app_global_get
+store 26
+load 26
+intc_1 // 0
+!=
+bnz main_l28
+main_l14:
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 14 // 14
++
+store 21
+txna ApplicationArgs 1
+load 21
+intc_3 // 2
+extract3
+bytec 11 // 0x0001
+==
+intc 5 // 202
+&&
+assert
+txna ApplicationArgs 1
+load 21
+intc_3 // 2
++
+pushint 32 // 32
+extract3
+bytec 12 // 0x0000000000000000000000000000000000000000000000000000000000000004
+==
+intc 6 // 204
+&&
+assert
+load 21
+pushint 43 // 43
++
+store 21
+txna ApplicationArgs 1
+load 21
+pushint 32 // 32
+extract3
+bytec 13 // 0x00000000000000000000000000000000000000000000000000000000436f7265
+==
+intc 7 // 208
+&&
+assert
+load 21
+pushint 32 // 32
++
+store 21
+txna ApplicationArgs 1
+load 21
+intc_0 // 1
++
+intc_3 // 2
+extract3
+store 28
+load 28
+bytec_1 // 0x0008
+==
+load 28
+bytec 14 // 0x0000
+==
+||
+intc 8 // 213
+&&
+assert
+txna ApplicationArgs 1
+load 21
+intc_0 // 1
+extract3
+btoi
+store 22
+load 22
+intc_0 // 1
+==
+bnz main_l27
+load 22
+intc_3 // 2
+==
+bnz main_l22
+load 22
+pushint 3 // 3
+==
+bnz main_l21
+load 22
+pushint 4 // 4
+==
+bnz main_l19
+err
+main_l19:
+load 21
+intc_0 // 1
++
+store 21
+load 28
+bytec_1 // 0x0008
+==
+intc 9 // 274
+&&
+assert
+load 21
+pushint 26 // 26
++
+store 21
+txna ApplicationArgs 1
+load 21
+pushint 8 // 8
+extract3
+btoi
+store 24
+load 21
+pushint 8 // 8
++
+store 21
+txna ApplicationArgs 1
+load 21
+pushint 32 // 32
+extract3
+store 23
+itxn_begin
+intc_0 // pay
+itxn_field TypeEnum
+load 23
+itxn_field Receiver
+load 24
+itxn_field Amount
+intc_1 // 0
+itxn_field Fee
+itxn_submit
+main_l20:
+intc_0 // 1
+return
+intc_0 // 1
+return
+main_l21:
+load 21
+intc_0 // 1
++
+store 21
+load 28
+bytec_1 // 0x0008
+==
+intc 10 // 267
+&&
+assert
+load 21
+intc_3 // 2
++
+pushint 24 // 24
++
+store 21
+txna ApplicationArgs 1
+load 21
+pushint 8 // 8
+extract3
+btoi
+store 24
+bytec 6 // "MessageFee"
+load 24
+app_global_put
+b main_l20
+main_l22:
+load 21
+pushint 3 // 3
++
+store 21
+txna ApplicationArgs 1
+load 21
+pushint 4 // 4
+extract3
+btoi
+store 25
+txna Accounts 3
+load 25
+bytec_2 // "guardian"
+callsub getsigaddress_9
+==
+intc 11 // 237
+&&
+assert
+intc_1 // 0
+intc_1 // 0
+==
+bnz main_l26
+main_l23:
+bytec_3 // "currentGuardianSetIndex"
+load 25
+app_global_put
+load 21
+pushint 4 // 4
++
+store 21
+txna ApplicationArgs 1
+load 21
+intc_0 // 1
+extract3
+btoi
+store 27
+load 27
+intc_1 // 0
+>
+intc 12 // 253
+&&
+assert
+pushint 3 // 3
+intc_1 // 0
+txna ApplicationArgs 1
+load 21
+intc_0 // 1
+pushint 20 // 20
+load 27
+*
++
+extract3
+callsub write_7
+pop
+txna Accounts 3
+txna Accounts 2
+!=
+bnz main_l25
+main_l24:
+pushint 3 // 3
+bytec_2 // "guardian"
+callsub meta_5
+b main_l20
+main_l25:
+intc_3 // 2
+intc 4 // 1000
+txn FirstValid
+intc 13 // 19200
++
+itob
+callsub write_7
+pop
+b main_l24
+main_l26:
+txna Accounts 3
+txna Accounts 2
+!=
+intc 14 // 241
+&&
+assert
+load 25
+load 26
+>
+intc 15 // 242
+&&
+assert
+b main_l23
+main_l27:
+load 21
+pushint 3 // 3
++
+store 21
+bytec 8 // "validUpdateApproveHash"
+txna ApplicationArgs 1
+load 21
+pushint 32 // 32
+extract3
+app_global_put
+b main_l20
+main_l28:
+txna ApplicationArgs 1
+extract 1 4
+store 25
+load 25
+btoi
+load 26
+==
+intc 16 // 196
+&&
+assert
+b main_l14
+main_l29:
+txna Accounts 2
+txna ApplicationArgs 1
+extract 1 4
+btoi
+bytec_2 // "guardian"
+callsub getsigaddress_9
+==
+pushint 372 // 372
+&&
+assert
+intc_3 // 2
+bytec_2 // "guardian"
+callsub checkMeta_6
+intc_3 // 2
+intc_1 // 0
+callsub getbyte_2
+store 12
+intc_3 // 2
+intc_0 // 1
+intc_0 // 1
+pushint 20 // 20
+load 12
+*
++
+callsub read_4
+store 13
+intc_3 // 2
+intc 4 // 1000
+pushint 1008 // 1008
+callsub read_4
+btoi
+store 18
+load 18
+intc_1 // 0
+!=
+bnz main_l50
+main_l30:
+pushbytes 0x00000000 // 0x00000000
+store 17
+txna ApplicationArgs 1
+extract 5 1
+btoi
+store 14
+pushint 6 // 6
+load 14
+pushint 66 // 66
+*
++
+store 15
+txna ApplicationArgs 1
+load 15
+txna ApplicationArgs 1
+len
+load 15
+-
+extract3
+keccak256
+keccak256
+store 16
+load 12
+intc_1 // 0
+>
+load 14
+load 12
+<=
+&&
+load 14
+load 12
+intc_3 // 2
+*
+pushint 3 // 3
+/
+>
+&&
+pushint 393 // 393
+&&
+assert
+pushint 6 // 6
+store 15
+txn GroupIndex
+intc_1 // 0
+>
+pushint 422 // 422
+&&
+assert
+txn GroupIndex
+intc_0 // 1
+-
+store 10
+load 10
+gtxns NumAppArgs
+intc_1 // 0
+>
+pushint 425 // 425
+&&
+assert
+load 10
+gtxnsa ApplicationArgs 0
+store 11
+main_l31:
+load 10
+intc_1 // 0
+>
+load 11
+bytec 5 // "verifySigs"
+==
+load 11
+bytec 4 // "nop"
+==
+||
+&&
+bnz main_l47
+main_l32:
+load 11
+bytec 5 // "verifySigs"
+!=
+load 11
+bytec 4 // "nop"
+!=
+&&
+bnz main_l46
+main_l33:
+load 10
+txn GroupIndex
+<=
+bnz main_l35
+load 15
+pushint 6 // 6
+load 14
+pushint 66 // 66
+*
++
+==
+pushint 497 // 497
+&&
+assert
+intc_0 // 1
+return
+main_l35:
+load 10
+gtxns TypeEnum
+pushint 6 // appl
+==
+load 10
+gtxns RekeyTo
+global ZeroAddress
+==
+&&
+load 10
+gtxns ApplicationID
+txn ApplicationID
+==
+&&
+load 10
+gtxnsa Accounts 1
+txna Accounts 1
+==
+&&
+load 10
+gtxnsa Accounts 2
+txna Accounts 2
+==
+&&
+pushint 444 // 444
+&&
+assert
+load 10
+gtxnsa ApplicationArgs 0
+store 11
+load 11
+bytec 5 // "verifySigs"
+==
+bnz main_l42
+load 11
+bytec 4 // "nop"
+==
+bnz main_l41
+load 11
+bytec 7 // "verifyVAA"
+==
+bnz main_l41
+intc_0 // 1
+intc_0 // 1
+==
+bnz main_l40
+err
+main_l40:
+intc_1 // 0
+return
+main_l41:
+load 10
+intc_0 // 1
++
+store 10
+b main_l33
+main_l42:
+load 10
+gtxnsa ApplicationArgs 1
+store 18
+txna ApplicationArgs 1
+load 15
+load 18
+len
+extract3
+load 18
+==
+pushint 461 // 461
+&&
+assert
+load 15
+load 18
+len
++
+store 19
+bytec_0 // ""
+store 18
+main_l43:
+load 15
+load 19
+<
+bnz main_l45
+load 10
+gtxnsa ApplicationArgs 2
+load 18
+==
+load 10
+gtxns Sender
+bytec 9 // "vphash"
+app_global_get
+==
+&&
+load 10
+gtxnsa ApplicationArgs 3
+load 16
+==
+&&
+pushint 481 // 481
+&&
+assert
+b main_l41
+main_l45:
+txna ApplicationArgs 1
+load 15
+intc_0 // 1
+extract3
+btoi
+store 20
+load 17
+load 20
+getbit
+intc_1 // 0
+==
+pushint 472 // 472
+&&
+assert
+load 17
+load 20
+intc_0 // 1
+setbit
+store 17
+load 18
+load 13
+load 20
+pushint 20 // 20
+*
+pushint 20 // 20
+extract3
+concat
+store 18
+load 15
+pushint 66 // 66
++
+store 15
+b main_l43
+main_l46:
+load 10
+intc_0 // 1
++
+store 10
+b main_l33
+main_l47:
+load 10
+intc_0 // 1
+-
+store 10
+load 10
+gtxns NumAppArgs
+intc_1 // 0
+>
+bnz main_l49
+bytec_0 // ""
+store 11
+b main_l32
+main_l49:
+load 10
+gtxnsa ApplicationArgs 0
+store 11
+b main_l31
+main_l50:
+txn FirstValid
+load 18
+<
+pushint 381 // 381
+&&
+assert
+b main_l30
+main_l51:
+intc_0 // 1
+return
+main_l52:
+bytec 9 // "vphash"
+txna ApplicationArgs 2
+app_global_put
+txn Sender
+global CreatorAddress
+==
+pushint 301 // 301
+&&
+assert
+bytec 15 // "booted"
+app_global_get
+intc_1 // 0
+==
+pushint 304 // 304
+&&
+assert
+bytec 15 // "booted"
+pushbytes 0x74727565 // "true"
+app_global_put
+callsub checkForDuplicate_11
+bytec_3 // "currentGuardianSetIndex"
+app_global_get
+store 7
+load 7
+intc_1 // 0
+!=
+bnz main_l67
+main_l53:
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 14 // 14
++
+store 2
+txna ApplicationArgs 1
+load 2
+intc_3 // 2
+extract3
+bytec 11 // 0x0001
+==
+intc 5 // 202
+&&
+assert
+txna ApplicationArgs 1
+load 2
+intc_3 // 2
++
+pushint 32 // 32
+extract3
+bytec 12 // 0x0000000000000000000000000000000000000000000000000000000000000004
+==
+intc 6 // 204
+&&
+assert
+load 2
+pushint 43 // 43
++
+store 2
+txna ApplicationArgs 1
+load 2
+pushint 32 // 32
+extract3
+bytec 13 // 0x00000000000000000000000000000000000000000000000000000000436f7265
+==
+intc 7 // 208
+&&
+assert
+load 2
+pushint 32 // 32
++
+store 2
+txna ApplicationArgs 1
+load 2
+intc_0 // 1
++
+intc_3 // 2
+extract3
+store 9
+load 9
+bytec_1 // 0x0008
+==
+load 9
+bytec 14 // 0x0000
+==
+||
+intc 8 // 213
+&&
+assert
+txna ApplicationArgs 1
+load 2
+intc_0 // 1
+extract3
+btoi
+store 3
+load 3
+intc_0 // 1
+==
+bnz main_l66
+load 3
+intc_3 // 2
+==
+bnz main_l61
+load 3
+pushint 3 // 3
+==
+bnz main_l60
+load 3
+pushint 4 // 4
+==
+bnz main_l58
+err
+main_l58:
+load 2
+intc_0 // 1
++
+store 2
+load 9
+bytec_1 // 0x0008
+==
+intc 9 // 274
+&&
+assert
+load 2
+pushint 26 // 26
++
+store 2
+txna ApplicationArgs 1
+load 2
+pushint 8 // 8
+extract3
+btoi
+store 5
+load 2
+pushint 8 // 8
++
+store 2
+txna ApplicationArgs 1
+load 2
+pushint 32 // 32
+extract3
+store 4
+itxn_begin
+intc_0 // pay
+itxn_field TypeEnum
+load 4
+itxn_field Receiver
+load 5
+itxn_field Amount
+intc_1 // 0
+itxn_field Fee
+itxn_submit
+main_l59:
+intc_0 // 1
+return
+main_l60:
+load 2
+intc_0 // 1
++
+store 2
+load 9
+bytec_1 // 0x0008
+==
+intc 10 // 267
+&&
+assert
+load 2
+intc_3 // 2
++
+pushint 24 // 24
++
+store 2
+txna ApplicationArgs 1
+load 2
+pushint 8 // 8
+extract3
+btoi
+store 5
+bytec 6 // "MessageFee"
+load 5
+app_global_put
+b main_l59
+main_l61:
+load 2
+pushint 3 // 3
++
+store 2
+txna ApplicationArgs 1
+load 2
+pushint 4 // 4
+extract3
+btoi
+store 6
+txna Accounts 3
+load 6
+bytec_2 // "guardian"
+callsub getsigaddress_9
+==
+intc 11 // 237
+&&
+assert
+intc_0 // 1
+intc_1 // 0
+==
+bnz main_l65
+main_l62:
+bytec_3 // "currentGuardianSetIndex"
+load 6
+app_global_put
+load 2
+pushint 4 // 4
++
+store 2
+txna ApplicationArgs 1
+load 2
+intc_0 // 1
+extract3
+btoi
+store 8
+load 8
+intc_1 // 0
+>
+intc 12 // 253
+&&
+assert
+pushint 3 // 3
+intc_1 // 0
+txna ApplicationArgs 1
+load 2
+intc_0 // 1
+pushint 20 // 20
+load 8
+*
++
+extract3
+callsub write_7
+pop
+txna Accounts 3
+txna Accounts 2
+!=
+bnz main_l64
+main_l63:
+pushint 3 // 3
+bytec_2 // "guardian"
+callsub meta_5
+b main_l59
+main_l64:
+intc_3 // 2
+intc 4 // 1000
+txn FirstValid
+intc 13 // 19200
++
+itob
+callsub write_7
+pop
+b main_l63
+main_l65:
+txna Accounts 3
+txna Accounts 2
+!=
+intc 14 // 241
+&&
+assert
+load 6
+load 7
+>
+intc 15 // 242
+&&
+assert
+b main_l62
+main_l66:
+load 2
+pushint 3 // 3
++
+store 2
+bytec 8 // "validUpdateApproveHash"
+txna ApplicationArgs 1
+load 2
+pushint 32 // 32
+extract3
+app_global_put
+b main_l59
+main_l67:
+txna ApplicationArgs 1
+extract 1 4
+store 6
+load 6
+btoi
+load 7
+==
+intc 16 // 196
+&&
+assert
+b main_l53
+main_l68:
+intc_0 // 1
+return
+main_l69:
+txna Accounts 1
+intc_1 // 0
+txn Sender
+callsub getsigaddress_9
+==
+pushint 154 // 154
+&&
+assert
+bytec 6 // "MessageFee"
+app_global_get
+store 1
+load 1
+intc_1 // 0
+>
+bnz main_l71
+main_l70:
+intc_0 // 1
+intc_1 // 0
+pushint 8 // 8
+callsub read_4
+btoi
+intc_0 // 1
++
+itob
+store 0
+intc_0 // 1
+intc_1 // 0
+load 0
+callsub write_7
+pop
+load 0
+log
+intc_0 // 1
+bytec 10 // "publishMessage"
+callsub meta_5
+intc_0 // 1
+return
+main_l71:
+txn GroupIndex
+intc_0 // 1
+-
+gtxns TypeEnum
+intc_0 // pay
+==
+txn GroupIndex
+intc_0 // 1
+-
+gtxns Amount
+load 1
+>=
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxns Receiver
+global CurrentApplicationAddress
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxns RekeyTo
+global ZeroAddress
+==
+&&
+pushint 158 // 158
+&&
+assert
+b main_l70
+main_l72:
+callsub optin_10
+return
+main_l73:
+intc_1 // 0
+return
+main_l74:
+txn Sender
+global CreatorAddress
+==
+return
+main_l75:
+bytec 6 // "MessageFee"
+intc_1 // 0
+app_global_put
+bytec 9 // "vphash"
+bytec_0 // ""
+app_global_put
+bytec_3 // "currentGuardianSetIndex"
+intc_1 // 0
+app_global_put
+bytec 8 // "validUpdateApproveHash"
+bytec_0 // ""
+app_global_put
+pushbytes 0x76616c6964557064617465436c65617248617368 // "validUpdateClearHash"
+pushbytes 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f // 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f
+app_global_put
+intc_0 // 1
+return
+
+// intkey
+intkey_0:
+itob
+extract 7 1
+retsub
+
+// zero
+zero_1:
+store 51
+intc_1 // 0
+store 52
+zero_1_l1:
+load 52
+pushint 15 // 15
+<
+bz zero_1_l3
+load 51
+load 52
+callsub intkey_0
+intc_2 // 127
+bzero
+app_local_put
+load 52
+intc_0 // 1
++
+store 52
+b zero_1_l1
+zero_1_l3:
+retsub
+
+// get_byte
+getbyte_2:
+store 29
+load 29
+intc_2 // 127
+/
+callsub intkey_0
+app_local_get
+load 29
+intc_2 // 127
+%
+getbyte
+retsub
+
+// set_byte
+setbyte_3:
+store 60
+store 59
+store 58
+load 58
+load 59
+intc_2 // 127
+/
+callsub intkey_0
+load 58
+load 59
+intc_2 // 127
+/
+callsub intkey_0
+app_local_get
+load 59
+intc_2 // 127
+%
+load 60
+setbyte
+app_local_put
+retsub
+
+// read
+read_4:
+store 32
+store 31
+store 30
+bytec_0 // ""
+store 34
+load 31
+intc_2 // 127
+/
+store 33
+read_4_l1:
+load 33
+load 32
+intc_2 // 127
+/
+<=
+bz read_4_l9
+load 33
+load 31
+intc_2 // 127
+/
+==
+bnz read_4_l8
+intc_1 // 0
+read_4_l4:
+store 35
+load 33
+load 32
+intc_2 // 127
+/
+==
+bnz read_4_l7
+intc_2 // 127
+read_4_l6:
+store 36
+load 34
+load 30
+load 33
+callsub intkey_0
+app_local_get
+load 35
+load 36
+substring3
+concat
+store 34
+load 33
+intc_0 // 1
++
+store 33
+b read_4_l1
+read_4_l7:
+load 32
+intc_2 // 127
+%
+b read_4_l6
+read_4_l8:
+load 31
+intc_2 // 127
+%
+b read_4_l4
+read_4_l9:
+load 34
+retsub
+
+// meta
+meta_5:
+store 37
+bytec 16 // "meta"
+load 37
+app_local_put
+retsub
+
+// checkMeta
+checkMeta_6:
+store 38
+bytec 16 // "meta"
+app_local_get
+load 38
+==
+pushint 145 // 145
+&&
+assert
+retsub
+
+// write
+write_7:
+store 41
+store 40
+store 39
+intc_1 // 0
+store 45
+load 40
+intc_2 // 127
+/
+store 42
+write_7_l1:
+load 42
+load 40
+load 41
+len
++
+intc_2 // 127
+/
+<=
+bz write_7_l12
+load 42
+load 40
+intc_2 // 127
+/
+==
+bnz write_7_l11
+intc_1 // 0
+write_7_l4:
+store 43
+load 42
+load 40
+load 41
+len
++
+intc_2 // 127
+/
+==
+bnz write_7_l10
+intc_2 // 127
+write_7_l6:
+store 44
+load 39
+load 42
+callsub intkey_0
+load 44
+intc_2 // 127
+!=
+load 43
+intc_1 // 0
+!=
+||
+bnz write_7_l9
+intc_2 // 127
+store 46
+load 41
+load 45
+intc_2 // 127
+extract3
+write_7_l8:
+app_local_put
+load 45
+load 46
++
+store 45
+load 42
+intc_0 // 1
++
+store 42
+b write_7_l1
+write_7_l9:
+load 44
+load 43
+-
+store 46
+load 39
+load 42
+callsub intkey_0
+app_local_get
+intc_1 // 0
+load 43
+substring3
+load 41
+load 45
+load 46
+extract3
+concat
+load 39
+load 42
+callsub intkey_0
+app_local_get
+load 44
+intc_2 // 127
+substring3
+concat
+b write_7_l8
+write_7_l10:
+load 40
+load 41
+len
++
+intc_2 // 127
+%
+b write_7_l6
+write_7_l11:
+load 40
+intc_2 // 127
+%
+b write_7_l4
+write_7_l12:
+load 45
+retsub
+
+// encode_uvarint
+encodeuvarint_8:
+store 50
+store 49
+load 50
+load 49
+intc 17 // 128
+>=
+bnz encodeuvarint_8_l2
+load 49
+intc 18 // 255
+&
+itob
+extract 7 1
+b encodeuvarint_8_l3
+encodeuvarint_8_l2:
+load 49
+pushint 7 // 7
+shr
+load 49
+intc 18 // 255
+&
+intc 17 // 128
+|
+itob
+extract 7 1
+load 49
+load 50
+uncover 3
+uncover 3
+callsub encodeuvarint_8
+cover 2
+store 50
+store 49
+encodeuvarint_8_l3:
+concat
+retsub
+
+// get_sig_address
+getsigaddress_9:
+store 48
+store 47
+pushbytes 0x50726f6772616d // "Program"
+pushbytes 0x0620010181 // 0x0620010181
+concat
+load 47
+bytec_0 // ""
+callsub encodeuvarint_8
+concat
+pushbytes 0x4880 // 0x4880
+concat
+load 48
+len
+bytec_0 // ""
+callsub encodeuvarint_8
+concat
+load 48
+concat
+pushbytes 0x483110810612443119221244311881 // 0x483110810612443119221244311881
+concat
+global CurrentApplicationID
+bytec_0 // ""
+callsub encodeuvarint_8
+concat
+pushbytes 0x1244312080 // 0x1244312080
+concat
+global CurrentApplicationAddress
+len
+bytec_0 // ""
+callsub encodeuvarint_8
+concat
+global CurrentApplicationAddress
+concat
+pushbytes 0x124431018100124431093203124431153203124422 // 0x124431018100124431093203124431153203124422
+concat
+sha512_256
+retsub
+
+// optin
+optin_10:
+gtxn 0 TypeEnum
+intc_0 // pay
+==
+gtxn 0 Amount
+pushint 1002000 // 1002000
+==
+&&
+gtxn 1 TypeEnum
+pushint 6 // appl
+==
+&&
+gtxn 1 OnCompletion
+intc_0 // OptIn
+==
+&&
+gtxn 1 ApplicationID
+global CurrentApplicationID
+==
+&&
+pushint 136 // 136
+&&
+assert
+intc_1 // 0
+callsub zero_1
+intc_0 // 1
+retsub
+
+// checkForDuplicate
+checkForDuplicate_11:
+txna ApplicationArgs 1
+extract 0 1
+btoi
+intc_0 // 1
+==
+pushint 330 // 330
+&&
+assert
+txna ApplicationArgs 1
+extract 5 1
+btoi
+pushint 66 // 66
+*
+pushint 14 // 14
++
+store 53
+txna ApplicationArgs 1
+load 53
+pushint 34 // 34
+extract3
+store 54
+txna ApplicationArgs 1
+load 53
+pushint 34 // 34
++
+pushint 8 // 8
+extract3
+btoi
+store 55
+load 55
+pushint 15240 // 15240
+/
+store 57
+txna Accounts 1
+load 57
+load 54
+callsub getsigaddress_9
+==
+pushint 340 // 340
+&&
+assert
+load 55
+pushint 8 // 8
+/
+pushint 1905 // 1905
+%
+store 57
+intc_0 // 1
+load 57
+callsub getbyte_2
+store 56
+load 56
+load 55
+pushint 8 // 8
+%
+getbit
+intc_1 // 0
+==
+pushint 347 // 347
+&&
+assert
+intc_0 // 1
+load 57
+load 56
+load 55
+pushint 8 // 8
+%
+intc_0 // 1
+setbit
+callsub setbyte_3
+intc_0 // 1
+pushbytes 0x6475706c6963617465 // "duplicate"
+callsub meta_5
+retsub

@@ -76,7 +76,8 @@ jobs:
         with:
           go-version: '1.17.5'
       - run: make generate && ./lint.sh
-      - run: cd node && go test -v ./...
+      # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
+      - run: cd node && go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
   # Run rust lints and tests
   rust-lint-and-tests:

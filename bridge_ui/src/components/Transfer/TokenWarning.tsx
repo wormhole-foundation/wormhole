@@ -1,4 +1,10 @@
-import { ChainId, CHAIN_ID_ETH, isEVMChain } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_BSC,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { Box, Link, makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import {
@@ -27,7 +33,7 @@ function WormholeWrappedWarning() {
       <Typography component="div" className={classes.line}>
         The tokens you will receive are{" "}
         <Box fontWeight={900} display="inline">
-          Wormhole Wrapped Tokens
+          Portal Wrapped Tokens
         </Box>{" "}
         and will need to be exchanged for native assets.
       </Typography>
@@ -84,6 +90,50 @@ function RewardsWarning() {
   );
 }
 
+function LiquidityWarning() {
+  const classes = useStyles();
+  return (
+    <Alert severity="info" variant="outlined" className={classes.alert}>
+      <Typography component="div" className={classes.line}>
+        The tokens you will receive are{" "}
+        <Box fontWeight={900} display="inline">
+          Portal Wrapped Tokens
+        </Box>{" "}
+        which currently have no liquid markets!
+      </Typography>
+      <Typography component="div">
+        <Link
+          href={AVAILABLE_MARKETS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Click here to see available markets for wrapped tokens.
+        </Link>
+      </Typography>
+    </Alert>
+  );
+}
+
+function shouldShowLiquidityWarning(
+  sourceChain: ChainId,
+  sourceAsset: string,
+  targetChain: ChainId
+) {
+  if (sourceChain === CHAIN_ID_SOLANA && targetChain === CHAIN_ID_BSC) {
+    return [
+      "7i5KKsX2weiTkry7jA4ZwSuXGhs5eJBEjY8vVxR4pfRx", // GMT
+      "AFbX8oGjGpmVFywbVouvhQSRmiW2aR1mohfahi4Y2AdB", // GST
+    ].includes(sourceAsset);
+  } else if (sourceChain === CHAIN_ID_BSC && targetChain === CHAIN_ID_SOLANA) {
+    return [
+      "0x3019bf2a2ef8040c242c9a4c5c4bd4c81678b2a1", // GMT
+      "0x4a2c860cec6471b9f5f5a336eb4f38bb21683c98", // GST
+      "0x570a5d26f7765ecb712c0924e4de545b89fd43df", // "sol"
+    ].includes(sourceAsset);
+  }
+  return false;
+}
+
 export default function TokenWarning({
   sourceChain,
   sourceAsset,
@@ -117,6 +167,11 @@ export default function TokenWarning({
   const showMultiChainWarning = isMultiChain && isWormholeWrapped;
   const showWrappedWarning = !isMultiChain && isWormholeWrapped; //Multichain warning is more important
   const showRewardsWarning = isRewardsToken;
+  const showLiquidityWarning = shouldShowLiquidityWarning(
+    sourceChain,
+    searchableAddress,
+    targetChain
+  );
 
   return (
     <>
@@ -128,6 +183,7 @@ export default function TokenWarning({
       ) : null}
       {showWrappedWarning ? <WormholeWrappedWarning /> : null}
       {showRewardsWarning ? <RewardsWarning /> : null}
+      {showLiquidityWarning ? <LiquidityWarning /> : null}
     </>
   );
 }

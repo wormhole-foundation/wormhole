@@ -1,0 +1,58 @@
+version: '3'
+
+services:
+  algo-algod:
+    container_name: "algorand-tilt-algod"
+    build:
+      context: .
+      dockerfile: ./images/algod/Dockerfile
+      args:
+        CHANNEL: ""
+        URL: "https://github.com/algorand/go-algorand"
+        BRANCH: "master"
+        SHA: ""
+        BOOTSTRAP_URL: ""
+        GENESIS_FILE: ""
+        TEMPLATE: "images/algod/DevModeNetwork.json"
+        TOKEN: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ALGOD_PORT: "4001"
+        KMD_PORT: "4002"
+        CDT_PORT: "9392"
+    ports:
+      - 4001:4001
+      - 4002:4002
+      - 9392:9392
+
+  algo-indexer:
+    container_name: "algorand-tilt-indexer"
+    build:
+      context: .
+      dockerfile: ./images/indexer/Dockerfile
+      args:
+        URL: "https://github.com/algorand/indexer"
+        BRANCH: "develop"
+        SHA: ""
+    ports:
+      - 8980:8980
+    restart: unless-stopped
+    environment:
+      DISABLED: ""
+      PORT: "8980"
+      SNAPSHOT: ""
+      CONNECTION_STRING: "host=algo-indexer-db port=5432 user=algorand password=algorand dbname=indexer_db sslmode=disable"
+      ALGOD_ADDR: "algo-algod:4001"
+      ALGOD_TOKEN: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    depends_on:
+      - algo-indexer-db
+      - algo-algod
+
+  algo-indexer-db:
+    image: "postgres:13-alpine"
+    container_name: "algorand-tilt-postgres"
+    ports:
+      - 5433:5432
+    user: postgres
+    environment:
+      POSTGRES_USER: algorand
+      POSTGRES_PASSWORD: algorand
+      POSTGRES_DB: indexer_db

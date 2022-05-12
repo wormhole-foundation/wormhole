@@ -32,6 +32,8 @@ const emitterChains = [
   { label: ChainID[5], value: chainIDs["polygon"] },
   { label: ChainID[6], value: chainIDs["avalanche"] },
   { label: ChainID[7], value: chainIDs["oasis"] },
+  { label: ChainID[9], value: chainIDs["aurora"] },
+  { label: ChainID[10], value: chainIDs["fantom"] },
 ];
 
 interface ExplorerMessageSearchProps {

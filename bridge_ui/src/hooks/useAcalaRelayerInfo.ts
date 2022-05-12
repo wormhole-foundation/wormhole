@@ -64,12 +64,12 @@ export const useAcalaRelayerInfo = (
           },
         });
 
-        console.log("check should relay: ", {
-          targetChain,
-          originAsset,
-          amount: vaaNormalizedAmount,
-          result: result.data?.shouldRelay,
-        });
+        // console.log("check should relay: ", {
+        //   targetChain,
+        //   originAsset,
+        //   amount: vaaNormalizedAmount,
+        //   result: result.data?.shouldRelay,
+        // });
         if (!cancelled) {
           useStore
             ? dispatch(receiveAcalaRelayerInfo(result.data))

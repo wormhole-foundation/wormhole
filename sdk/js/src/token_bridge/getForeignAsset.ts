@@ -1,10 +1,21 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { ethers } from "ethers";
-import { Bridge__factory } from "../ethers-contracts";
-import { ChainId } from "../utils";
 import { LCDClient } from "@terra-money/terra.js";
+import { Algodv2 } from "algosdk";
+import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
+import {
+  calcLogicSigAccount,
+  decodeLocalState,
+  hexToNativeAssetBigIntAlgorand,
+} from "../algorand";
+import { Bridge__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
+import {
+  ChainId,
+  ChainName,
+  CHAIN_ID_ALGORAND,
+  coalesceChainId,
+} from "../utils";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -17,12 +28,15 @@ import { importTokenWasm } from "../solana/wasm";
 export async function getForeignAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
-  originChain: ChainId,
+  originChain: ChainId | ChainName,
   originAsset: Uint8Array
-) {
+): Promise<string | null> {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
   try {
-    return await tokenBridge.wrappedAsset(originChain, originAsset);
+    return await tokenBridge.wrappedAsset(
+      coalesceChainId(originChain),
+      originAsset
+    );
   } catch (e) {
     return null;
   }
@@ -31,15 +45,15 @@ export async function getForeignAssetEth(
 export async function getForeignAssetTerra(
   tokenBridgeAddress: string,
   client: LCDClient,
-  originChain: ChainId,
+  originChain: ChainId | ChainName,
   originAsset: Uint8Array
-) {
+): Promise<string | null> {
   try {
     const result: { address: string } = await client.wasm.contractQuery(
       tokenBridgeAddress,
       {
         wrapped_registry: {
-          chain: originChain,
+          chain: coalesceChainId(originChain),
           address: fromUint8Array(originAsset),
         },
       }
@@ -61,18 +75,49 @@ export async function getForeignAssetTerra(
 export async function getForeignAssetSolana(
   connection: Connection,
   tokenBridgeAddress: string,
-  originChain: ChainId,
+  originChain: ChainId | ChainName,
   originAsset: Uint8Array
-) {
+): Promise<string | null> {
   const { wrapped_address } = await importTokenWasm();
   const wrappedAddress = wrapped_address(
     tokenBridgeAddress,
     originAsset,
-    originChain
+    coalesceChainId(originChain)
   );
   const wrappedAddressPK = new PublicKey(wrappedAddress);
   const wrappedAssetAccountInfo = await connection.getAccountInfo(
     wrappedAddressPK
   );
   return wrappedAssetAccountInfo ? wrappedAddressPK.toString() : null;
+}
+
+export async function getForeignAssetAlgorand(
+  client: Algodv2,
+  tokenBridgeId: bigint,
+  chain: ChainId | ChainName,
+  contract: string
+): Promise<bigint | null> {
+  const chainId = coalesceChainId(chain);
+  if (chainId === CHAIN_ID_ALGORAND) {
+    return hexToNativeAssetBigIntAlgorand(contract);
+  } else {
+    let { lsa, doesExist } = await calcLogicSigAccount(
+      client,
+      tokenBridgeId,
+      BigInt(chainId),
+      contract
+    );
+    if (!doesExist) {
+      return null;
+    }
+    let asset: Uint8Array = await decodeLocalState(
+      client,
+      tokenBridgeId,
+      lsa.address()
+    );
+    if (asset.length > 8) {
+      const tmp = Buffer.from(asset.slice(0, 8));
+      return tmp.readBigUInt64BE(0);
+    } else return null;
+  }
 }

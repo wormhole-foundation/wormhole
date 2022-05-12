@@ -305,6 +305,7 @@ function Redeem() {
               <SmartAddress
                 chainId={targetChain}
                 address={targetAsset || undefined}
+                isAsset
               />
             </>
           ) : null}

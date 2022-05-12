@@ -165,6 +165,20 @@ module.exports = {
       gas: 4465030,
       gasPrice: 300000000000,
     },
+    karura: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          // To use this local host, needed to run this: ENDPOINT_URL=wss://karura-rpc-1.aca-api.network npx @acala-network/eth-rpc-adapter@latest
+          "http://localhost:8545"
+          //"https://eth-rpc-karura.aca-api.network/"
+        );
+      },
+      network_id: 686,
+      gasPrice: "0x2f7e8803ea",
+      gasLimit: "0x329b140",
+      gas: "0x329b140",
+    },   
     karura_testnet: {
       provider: () => {
         return new HDWalletProvider(
@@ -200,6 +214,35 @@ module.exports = {
       gas: '8500000',
       gasPrice: null
     },
+    celo: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://forno.celo.org"
+        )
+      },
+      network_id: 42220,
+    },    
+    celo_alfajores_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://alfajores-forno.celo-testnet.org"
+        )
+      },
+      network_id: 44787,
+    },
+    moonbeam_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.api.moonbase.moonbeam.network"
+        );
+      },
+      network_id: 1287,
+      gasPrice: 3000000000, // 3.0 gwei
+      timeoutBlocks: 15000,
+    },    
   },
 
   compilers: {

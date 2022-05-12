@@ -10,7 +10,7 @@ import {
   fetchMarketsMap,
   receiveMarketsMap,
 } from "../store/tokenSlice";
-import { FEATURED_MARKETS_JSON_URL } from "../utils/consts";
+import { CLUSTER, FEATURED_MARKETS_JSON_URL } from "../utils/consts";
 
 export type MarketsMap = {
   markets?: {
@@ -45,6 +45,7 @@ const useMarketsMap = (shouldFire: boolean): DataWrapper<MarketsMap> => {
   const dispatch = useDispatch();
   const internalShouldFire =
     shouldFire &&
+    CLUSTER === "mainnet" &&
     (marketsMap.data === undefined ||
       (marketsMap.data === null && !marketsMap.isFetching));
 

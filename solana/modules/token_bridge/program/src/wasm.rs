@@ -15,7 +15,9 @@ use crate::{
         create_wrapped,
         register_chain,
         transfer_native,
+        transfer_native_with_payload,
         transfer_wrapped,
+        transfer_wrapped_with_payload,
         upgrade_contract,
     },
     messages::{
@@ -33,7 +35,9 @@ use crate::{
     CreateWrappedData,
     RegisterChainData,
     TransferNativeData,
+    TransferNativeWithPayloadData,
     TransferWrappedData,
+    TransferWrappedWithPayloadData,
 };
 use borsh::BorshDeserialize;
 use bridge::{
@@ -116,6 +120,52 @@ pub fn transfer_native_ix(
 }
 
 #[wasm_bindgen]
+pub fn transfer_native_with_payload_ix(
+    program_id: String,
+    bridge_id: String,
+    payer: String,
+    message: String,
+    from: String,
+    mint: String,
+    nonce: u32,
+    amount: u64,
+    fee: u64,
+    target_address: Vec<u8>,
+    target_chain: u16,
+    payload: Vec<u8>,
+) -> JsValue {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
+    let payer = Pubkey::from_str(payer.as_str()).unwrap();
+    let message = Pubkey::from_str(message.as_str()).unwrap();
+    let from = Pubkey::from_str(from.as_str()).unwrap();
+    let mint = Pubkey::from_str(mint.as_str()).unwrap();
+
+    let mut target_addr = [0u8; 32];
+    target_addr.copy_from_slice(target_address.as_slice());
+
+    let ix = transfer_native_with_payload(
+        program_id,
+        bridge_id,
+        payer,
+        message,
+        from,
+        mint,
+        TransferNativeWithPayloadData {
+            nonce,
+            amount,
+            fee,
+            target_address: target_addr,
+            target_chain,
+            payload,
+        },
+    )
+    .unwrap();
+
+    JsValue::from_serde(&ix).unwrap()
+}
+
+#[wasm_bindgen]
 pub fn transfer_wrapped_ix(
     program_id: String,
     bridge_id: String,
@@ -158,6 +208,58 @@ pub fn transfer_wrapped_ix(
             fee,
             target_address: target_addr,
             target_chain,
+        },
+    )
+    .unwrap();
+
+    JsValue::from_serde(&ix).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn transfer_wrapped_with_payload_ix(
+    program_id: String,
+    bridge_id: String,
+    payer: String,
+    message: String,
+    from: String,
+    from_owner: String,
+    token_chain: u16,
+    token_address: Vec<u8>,
+    nonce: u32,
+    amount: u64,
+    fee: u64,
+    target_address: Vec<u8>,
+    target_chain: u16,
+    payload: Vec<u8>,
+) -> JsValue {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
+    let payer = Pubkey::from_str(payer.as_str()).unwrap();
+    let message = Pubkey::from_str(message.as_str()).unwrap();
+    let from = Pubkey::from_str(from.as_str()).unwrap();
+    let from_owner = Pubkey::from_str(from_owner.as_str()).unwrap();
+
+    let mut target_addr = [0u8; 32];
+    target_addr.copy_from_slice(target_address.as_slice());
+    let mut token_addr = [0u8; 32];
+    token_addr.copy_from_slice(token_address.as_slice());
+
+    let ix = transfer_wrapped_with_payload(
+        program_id,
+        bridge_id,
+        payer,
+        message,
+        from,
+        from_owner,
+        token_chain,
+        token_addr,
+        TransferWrappedWithPayloadData {
+            nonce,
+            amount,
+            fee,
+            target_address: target_addr,
+            target_chain,
+            payload,
         },
     )
     .unwrap();

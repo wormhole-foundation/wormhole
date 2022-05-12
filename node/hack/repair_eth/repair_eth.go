@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +34,9 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDPolygon:   "https://api.polygonscan.com/api",
 	vaa.ChainIDOasis:     "https://explorer.emerald.oasis.dev/api",
 	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
+	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
+	vaa.ChainIDKarura:    "https://blockscout.karura.network/api",
+	vaa.ChainIDCelo:      "https://explorer.celo.org/api",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -41,6 +46,9 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDPolygon:   "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
 	vaa.ChainIDOasis:     "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
 	vaa.ChainIDAurora:    "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
+	vaa.ChainIDFantom:    strings.ToLower("0x126783A6Cb203a3E35344528B26ca3a0489a1485"),
+	vaa.ChainIDCelo:      strings.ToLower("0x88505117ca88e7dd2eC6ea1e13f0948db2d50d56"), // This needs to be the mainnet wormhole address
+	vaa.ChainIDKarura:    strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
 }
 
 var (
@@ -49,11 +57,28 @@ var (
 	chain        = flag.String("chain", "ethereum", "Eth Chain name")
 	dryRun       = flag.Bool("dryRun", true, "Dry run")
 	step         = flag.Uint64("step", 10000, "Step")
+	showError    = flag.Bool("showError", false, "On http error, show the response body")
+	sleepTime    = flag.Int("sleepTime", 0, "Time to sleep between loops when getting logs")
 )
 
 var (
 	tokenLockupTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
+
+// Add a browser User-Agent to make cloudflare more happy
+func addUserAgent(req *http.Request) *http.Request {
+	if req == nil {
+		return nil
+	}
+	req.Header.Set(
+		"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36",
+	)
+	return req
+}
+
+func usesBlockscout(chainId vaa.ChainID) bool {
+	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura || chainId == vaa.ChainIDCelo
+}
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
@@ -101,10 +126,10 @@ type logResponse struct {
 	Result json.RawMessage `json:"result"`
 }
 
-func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string) (uint64, error) {
+func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string, showErr bool) (uint64, error) {
 	var req *http.Request
 	var err error
-	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+	if usesBlockscout(chainId) {
 		// This is the BlockScout based explorer leg
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
 	} else {
@@ -113,6 +138,7 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	if err != nil {
 		panic(err)
 	}
+	req = addUserAgent(req)
 
 	resp, err := c.Do(req.WithContext(ctx))
 	if err != nil {
@@ -124,18 +150,26 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	var r struct {
 		Result string `json:"result"`
 	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read response body: %w", err)
+	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+	if resp.StatusCode != http.StatusOK && showErr {
+		fmt.Println(string(body))
+	}
+
+	if err := json.Unmarshal(body, &r); err != nil {
 		return 0, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return hexutil.DecodeUint64(r.Result)
 }
 
-func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string) ([]*logEntry, error) {
+func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string, showErr bool) ([]*logEntry, error) {
 	var req *http.Request
 	var err error
-	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+	if usesBlockscout(chainId) {
 		// This is the BlockScout based explorer leg
 		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 			"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&topic0=%s",
@@ -148,6 +182,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 	if err != nil {
 		panic(err)
 	}
+	req = addUserAgent(req)
 
 	resp, err := c.Do(req)
 	if err != nil {
@@ -158,7 +193,16 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 
 	var r logResponse
 
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && showErr {
+		fmt.Println(string(body))
+	}
+
+	if err := json.Unmarshal(body, &r); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -173,7 +217,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 		return nil, fmt.Errorf("failed to unmarshal log entry: %w", err)
 	}
 
-	if chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora {
+	if usesBlockscout(chainId) {
 		// Because of a bug in BlockScout based explorers we need to check the address
 		// in the log to see if it is the core bridge
 		var filtered []*logEntry
@@ -198,7 +242,7 @@ func main() {
 
 	if *etherscanKey == "" {
 		// BlockScout based explorers don't require an ether scan key
-		if chainID != vaa.ChainIDOasis && chainID != vaa.ChainIDAurora {
+		if !usesBlockscout(chainID) {
 			log.Fatal("Etherscan API Key is required")
 		}
 	}
@@ -212,10 +256,16 @@ func main() {
 	if !ok {
 		panic("no core contract")
 	}
-
 	ctx := context.Background()
 
-	currentHeight, err := getCurrentHeight(chainID, ctx, http.DefaultClient, etherscanAPI, *etherscanKey)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Fatalf("Error creating http cookiejar: %v", err)
+	}
+	httpClient := &http.Client{
+		Jar: jar,
+	}
+	currentHeight, err := getCurrentHeight(chainID, ctx, httpClient, etherscanAPI, *etherscanKey, *showError)
 	if err != nil {
 		log.Fatalf("Failed to get current height: %v", err)
 	}
@@ -228,6 +278,14 @@ func main() {
 	defer conn.Close()
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
+	}
+
+	// A polygon VAA that was not reobserved before the blocks aged out of guardian rpc nodes
+	ignoreAddress, _ := vaa.StringToAddress("0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde")
+	polygonIgnoredVaa := db.VAAID{
+		Sequence:       6840,
+		EmitterChain:   vaa.ChainIDPolygon,
+		EmitterAddress: ignoreAddress,
 	}
 
 	for _, emitter := range common.KnownEmitters {
@@ -256,6 +314,11 @@ func main() {
 			vId, err := db.VaaIDFromString(id)
 			if err != nil {
 				log.Fatalf("failed to parse VAAID: %v", err)
+			}
+			if *vId == polygonIgnoredVaa {
+				log.Printf("Ignored message: %+v", &polygonIgnoredVaa)
+				msgs = append(msgs[:i], msgs[i+1:]...)
+				continue
 			}
 			msgs[i] = vId
 		}
@@ -288,7 +351,10 @@ func main() {
 
 	limiter := rate.NewLimiter(rate.Every(1*time.Second), 1)
 
-	c := &http.Client{Timeout: 5 * time.Second}
+	c := &http.Client{
+		Jar:     jar,
+		Timeout: 5 * time.Second,
+	}
 
 	ethAbi, err := abi2.JSON(strings.NewReader(abi.AbiABI))
 	if err != nil {
@@ -315,7 +381,7 @@ func main() {
 
 		log.Printf("Requesting logs from block %s to %s", from, to)
 
-		logs, err := getLogs(chainID, ctx, c, etherscanAPI, *etherscanKey, coreContract, tokenLockupTopic.Hex(), from, to)
+		logs, err := getLogs(chainID, ctx, c, etherscanAPI, *etherscanKey, coreContract, tokenLockupTopic.Hex(), from, to, *showError)
 		if err != nil {
 			log.Fatalf("failed to get logs: %v", err)
 		}
@@ -410,6 +476,7 @@ func main() {
 				if err != nil {
 					panic(err)
 				}
+				req = addUserAgent(req)
 				resp, err := c.Do(req)
 				if err != nil {
 					log.Fatalf("verify: %v", err)
@@ -436,6 +503,10 @@ func main() {
 		if total == 0 {
 			log.Printf("No missing messages left")
 			break
+		}
+		// Allow sleeping between loops for chains that have aggressive blocking in the explorers
+		if sleepTime != nil {
+			time.Sleep(time.Duration(*sleepTime) * time.Second)
 		}
 	}
 }
