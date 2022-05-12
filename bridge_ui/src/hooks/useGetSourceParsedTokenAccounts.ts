@@ -94,8 +94,8 @@ import {
   WAVAX_DECIMALS,
   WBNB_ADDRESS,
   WBNB_DECIMALS,
-  WCELO_ADDRESS,
-  WCELO_DECIMALS,
+  CELO_ADDRESS,
+  CELO_DECIMALS,
   WETH_ADDRESS,
   WETH_AURORA_ADDRESS,
   WETH_AURORA_DECIMALS,
@@ -498,23 +498,27 @@ const createNativeCeloParsedTokenAccount = (
   provider: Provider,
   signerAddress: string | undefined
 ) => {
+  // Celo has a "native asset" ERC-20
+  // https://docs.celo.org/developer-guide/celo-for-eth-devs
   return !(provider && signerAddress)
     ? Promise.reject()
-    : provider.getBalance(signerAddress).then((balanceInWei) => {
-        const balanceInEth = ethers.utils.formatEther(balanceInWei);
-        return createParsedTokenAccount(
-          signerAddress, //public key
-          WCELO_ADDRESS, //Mint key, On the other side this will be wcelo, so this is hopefully a white lie.
-          balanceInWei.toString(), //amount, in wei
-          WCELO_DECIMALS,
-          parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
-          balanceInEth.toString(), //This is the actual display field, which has full precision.
-          "CELO", //A white lie for display purposes
-          "CELO", //A white lie for display purposes
-          celoIcon,
-          true //isNativeAsset
-        );
-      });
+    : TokenImplementation__factory.connect(CELO_ADDRESS, provider)
+        .balanceOf(signerAddress)
+        .then((balance) => {
+          const balanceInEth = ethers.utils.formatUnits(balance, CELO_DECIMALS);
+          return createParsedTokenAccount(
+            signerAddress, //public key
+            CELO_ADDRESS, //Mint key, On the other side this will be wavax, so this is hopefully a white lie.
+            balance.toString(), //amount, in wei
+            CELO_DECIMALS,
+            parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+            balanceInEth.toString(), //This is the actual display field, which has full precision.
+            "CELO", //A white lie for display purposes
+            "CELO", //A white lie for display purposes
+            celoIcon,
+            false //isNativeAsset
+          );
+        });
 };
 
 const createNFTParsedTokenAccountFromCovalent = (
