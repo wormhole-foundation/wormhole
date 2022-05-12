@@ -84,6 +84,7 @@ import {
   ALGORAND_HOST,
   ALGO_DECIMALS,
   COVALENT_GET_TOKENS_URL,
+  getBlockscoutTokenURL,
   KAR_ADDRESS,
   KAR_DECIMALS,
   logoOverrides,
@@ -574,6 +575,53 @@ export type CovalentNFTData = {
   token_balance: string;
   external_data: CovalentNFTExternalData;
   token_url: string;
+};
+
+const getEthereumAccountsBlockscout = async (
+  walletAddress: string,
+  nft: boolean,
+  chainId: ChainId,
+  url: string
+): Promise<CovalentData[]> => {
+  try {
+    const massagedURL =
+      url + "/api?module=account&action=tokenlist&address=" + walletAddress;
+    console.log(massagedURL);
+    const output = [] as CovalentData[];
+    const response = await axios.get(massagedURL);
+    console.log("blockscout data:", response);
+    const tokens = response.data.result;
+
+    console.log("numTokens:", tokens.length);
+    if (tokens instanceof Array && tokens.length) {
+      for (const item of tokens) {
+        if (
+          item.decimals !== undefined &&
+          item.contractAddress &&
+          item.balance &&
+          item.balance !== "0" &&
+          (nft ? item.type?.includes("ERC-721") : item.type?.includes("ERC-20"))
+        ) {
+          const cd: CovalentData = {
+            contract_decimals: item.decimals,
+            contract_address: item.contractAddress,
+            balance: item.balance,
+            contract_ticker_symbol: item.symbol,
+            contract_name: item.name,
+            logo_url: "",
+            quote: 0,
+            quote_rate: 0,
+          };
+          output.push(cd);
+        }
+      }
+    }
+
+    console.log("Returning", output.length, "items...");
+    return output;
+  } catch (error) {
+    return Promise.reject("Unable to retrieve your Ethereum Tokens.");
+  }
 };
 
 const getEthereumAccountsCovalent = async (
@@ -1308,7 +1356,73 @@ function useGetAvailableTokens(nft: boolean = false) {
     // const nftBscTestWallet1 = "0x5f464a652bd1991df0be37979b93b3306d64a909";
     let cancelled = false;
     const walletAddress = signerAddress;
-    if (walletAddress && isEVMChain(lookupChain) && !covalent) {
+    const blockScoutUrl = getBlockscoutTokenURL(lookupChain);
+    console.log("blockScoutUrl", blockScoutUrl);
+    if (blockScoutUrl.length > 0 && walletAddress) {
+      !cancelled && setCovalentLoading(true);
+      !cancelled &&
+        dispatch(
+          nft
+            ? fetchSourceParsedTokenAccountsNFT()
+            : fetchSourceParsedTokenAccounts()
+        );
+      getEthereumAccountsBlockscout(
+        walletAddress,
+        nft,
+        lookupChain,
+        blockScoutUrl
+      ).then(
+        (accounts) => {
+          !cancelled && setCovalentLoading(false);
+          !cancelled && setCovalentError(undefined);
+          // !cancelled && setCovalent(accounts);
+          !cancelled &&
+            dispatch(
+              nft
+                ? receiveSourceParsedTokenAccountsNFT(
+                    accounts.reduce((arr, current) => {
+                      if (current.nft_data) {
+                        current.nft_data.forEach((x) =>
+                          arr.push(
+                            createNFTParsedTokenAccountFromCovalent(
+                              walletAddress,
+                              current,
+                              x
+                            )
+                          )
+                        );
+                      }
+                      return arr;
+                    }, [] as NFTParsedTokenAccount[])
+                  )
+                : receiveSourceParsedTokenAccounts(
+                    accounts.map((x) =>
+                      createParsedTokenAccountFromCovalent(walletAddress, x)
+                    )
+                  )
+            );
+        },
+        () => {
+          !cancelled &&
+            dispatch(
+              nft
+                ? errorSourceParsedTokenAccountsNFT(
+                    "Cannot load your Ethereum NFTs at the moment."
+                  )
+                : errorSourceParsedTokenAccounts(
+                    "Cannot load your Ethereum tokens at the moment."
+                  )
+            );
+          !cancelled &&
+            setCovalentError("Cannot load your Ethereum tokens at the moment.");
+          !cancelled && setCovalentLoading(false);
+        }
+      );
+
+      return () => {
+        cancelled = true;
+      };
+    } else if (walletAddress && isEVMChain(lookupChain) && !covalent) {
       //TODO less cancel
       !cancelled && setCovalentLoading(true);
       !cancelled &&
@@ -1317,6 +1431,7 @@ function useGetAvailableTokens(nft: boolean = false) {
             ? fetchSourceParsedTokenAccountsNFT()
             : fetchSourceParsedTokenAccounts()
         );
+      console.log("Going to covalent...");
       getEthereumAccountsCovalent(walletAddress, nft, lookupChain).then(
         (accounts) => {
           !cancelled && setCovalentLoading(false);
