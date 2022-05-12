@@ -222,6 +222,8 @@ module.exports = {
         )
       },
       network_id: 42220,
+      gas: 8000000,
+      gasPrice: null
     },    
     celo_alfajores_testnet: {
       provider: () => {
