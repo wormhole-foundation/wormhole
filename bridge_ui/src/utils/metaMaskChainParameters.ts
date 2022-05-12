@@ -94,6 +94,20 @@ export const METAMASK_CHAIN_PARAMETERS: {
     rpcUrls: ["https://rpc.testnet.fantom.network"],
     blockExplorerUrls: ["https://testnet.ftmscan.com"],
   },
+  42220: {
+    chainId: "0xa4ec",
+    chainName: "Celo",
+    nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
+    rpcUrls: ["https://forno.celo.org"],
+    blockExplorerUrls: ["https://explorer.celo.org"],
+  },
+  44787: {
+    chainId: "0xaef3",
+    chainName: "Celo (Alfajores Testnet)",
+    nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
+    rpcUrls: ["https://forno.celo.org"],
+    blockExplorerUrls: ["https://alfajores-blockscout.celo-testnet.org"],
+  },
   42261: {
     chainId: "0xa515",
     chainName: "Emerald Paratime Testnet",
