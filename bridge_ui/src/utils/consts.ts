@@ -313,9 +313,9 @@ export const AURORA_NETWORK_CHAIN_ID =
 export const FANTOM_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 250 : CLUSTER === "testnet" ? 4002 : 1381;
 export const KARURA_NETWORK_CHAIN_ID =
-  CLUSTER === "mainnet" ? 686 : CLUSTER === "testnet" ? 686 : 1381;
+  CLUSTER === "mainnet" ? 686 : CLUSTER === "testnet" ? 596 : 1381;
 export const ACALA_NETWORK_CHAIN_ID =
-  CLUSTER === "mainnet" ? 787 : CLUSTER === "testnet" ? 787 : 1381;
+  CLUSTER === "mainnet" ? 787 : CLUSTER === "testnet" ? 597 : 1381;
 export const KLAYTN_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 8217 : CLUSTER === "testnet" ? 1001 : 1381;
 export const CELO_NETWORK_CHAIN_ID =
