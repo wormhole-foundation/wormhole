@@ -112,10 +112,10 @@ export const EthereumProviderProvider = ({
     setSigner(undefined);
     setSignerAddress(undefined);
     setConnectType(undefined);
-    if (ethereumProvider && ethereumProvider.removeAllListeners) {
+    if (ethereumProvider?.removeAllListeners) {
       ethereumProvider.removeAllListeners();
-      setEthereumProvider(undefined);
     }
+    setEthereumProvider(undefined);
     if (walletConnectProvider) {
       walletConnectProvider
         .disconnect()

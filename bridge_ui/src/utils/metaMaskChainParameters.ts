@@ -119,7 +119,7 @@ export const METAMASK_CHAIN_PARAMETERS: {
     chainId: "0xaef3",
     chainName: "Celo (Alfajores Testnet)",
     nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
-    rpcUrls: ["https://forno.celo.org"],
+    rpcUrls: ["https://alfajores-forno.celo-testnet.org"],
     blockExplorerUrls: ["https://alfajores-blockscout.celo-testnet.org"],
   },
   42261: {
