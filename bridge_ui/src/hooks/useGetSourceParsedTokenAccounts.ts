@@ -1379,6 +1379,7 @@ function useGetAvailableTokens(nft: boolean = false) {
         (accounts) => {
           !cancelled && setCovalentLoading(false);
           !cancelled && setCovalentError(undefined);
+          // If the following line is uncommented, this useEffect() gets called in an apparent infinite loop
           // !cancelled && setCovalent(accounts);
           !cancelled &&
             dispatch(
@@ -1426,7 +1427,9 @@ function useGetAvailableTokens(nft: boolean = false) {
       return () => {
         cancelled = true;
       };
-    } else if (walletAddress && isEVMChain(lookupChain) && !covalent) {
+    }
+    // If the above block is executed, this line is not reached.  That's why I didn't use an else if...
+    if (walletAddress && isEVMChain(lookupChain) && !covalent) {
       //TODO less cancel
       !cancelled && setCovalentLoading(true);
       !cancelled &&
