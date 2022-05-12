@@ -66,6 +66,11 @@ export const CHAINS: ChainInfo[] =
           logo: bscIcon,
         },
         {
+          id: CHAIN_ID_CELO,
+          name: "Celo",
+          logo: celoIcon,
+        },
+        {
           id: CHAIN_ID_ETH,
           name: "Ethereum",
           logo: ethIcon,
@@ -207,7 +212,7 @@ export const CHAINS: ChainInfo[] =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_KARURA] : [];
+  CLUSTER === "mainnet" ? [CHAIN_ID_KARURA, CHAIN_ID_CELO] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -615,21 +620,21 @@ export const KLAYTN_TOKEN_BRIDGE_ADDRESS = getAddress(
 );
 export const CELO_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xa321448d90d4e5b0A732867c18eA198e75CAC48E"
     : CLUSTER === "testnet"
     ? "0x88505117CA88e7dd2eC6EA1E13f0948db2D50D56"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const CELO_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xA6A377d75ca5c9052c9a77ED1e865Cc25Bd97bf3"
     : CLUSTER === "testnet"
     ? "0xaCD8190F647a31E56A656748bC30F69259f245Db"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const CELO_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed"
     : CLUSTER === "testnet"
     ? "0x05ca6037eC51F8b712eD2E6Fa72219FEaE74E153"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
@@ -937,13 +942,13 @@ export const WKLAY_ADDRESS =
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WKLAY_DECIMALS = 18;
 
-export const WCELO_ADDRESS =
+export const CELO_ADDRESS =
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0x471ece3750da237f93b8e339c536989b8978a438"
     : CLUSTER === "testnet"
-    ? "0x524d97A67f50F4A062C28c74F60703Aec9028a94"
+    ? "0xF194afDf50B03e69Bd7D057c1Aa9e10c9954E4C9"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
-export const WCELO_DECIMALS = 18;
+export const CELO_DECIMALS = 18;
 
 export const ALGO_DECIMALS = 6;
 
