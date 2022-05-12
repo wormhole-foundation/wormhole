@@ -271,6 +271,35 @@ export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
     : chainId === CHAIN_ID_CELO
     ? "CELO"
     : "";
+
+export const getDefaultNativeCurrencyAddressEvm = (chainId: ChainId) => {
+  return chainId === CHAIN_ID_ETH
+    ? WETH_ADDRESS
+    : chainId === CHAIN_ID_BSC
+    ? WBNB_ADDRESS
+    : chainId === CHAIN_ID_POLYGON
+    ? WMATIC_ADDRESS
+    : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+    ? ROPSTEN_WETH_ADDRESS
+    : chainId === CHAIN_ID_AVAX
+    ? WAVAX_ADDRESS
+    : chainId === CHAIN_ID_OASIS
+    ? WROSE_ADDRESS
+    : chainId === CHAIN_ID_AURORA
+    ? WETH_AURORA_ADDRESS
+    : chainId === CHAIN_ID_FANTOM
+    ? WFTM_ADDRESS
+    : chainId === CHAIN_ID_KARURA
+    ? KAR_ADDRESS
+    : chainId === CHAIN_ID_ACALA
+    ? ACA_ADDRESS
+    : chainId === CHAIN_ID_KLAYTN
+    ? WKLAY_ADDRESS
+    : chainId === CHAIN_ID_CELO
+    ? CELO_ADDRESS
+    : "";
+};
+
 export const getExplorerName = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH || chainId === CHAIN_ID_ETHEREUM_ROPSTEN
     ? "Etherscan"
@@ -811,15 +840,10 @@ export const COVALENT_BSC = CLUSTER === "devnet" ? 56 : BSC_NETWORK_CHAIN_ID;
 export const COVALENT_POLYGON =
   CLUSTER === "devnet" ? 137 : POLYGON_NETWORK_CHAIN_ID;
 export const COVALENT_AVAX = CLUSTER === "devnet" ? 137 : AVAX_NETWORK_CHAIN_ID;
-export const COVALENT_OASIS = CLUSTER === "devnet" ? null : null;
-export const COVALENT_AURORA = CLUSTER === "devnet" ? null : null;
 export const COVALENT_FANTOM =
   CLUSTER === "devnet" ? 250 : FANTOM_NETWORK_CHAIN_ID;
-export const COVALENT_KARURA = CLUSTER === "devnet" ? null : null;
-export const COVALENT_ACALA = CLUSTER === "devnet" ? null : null;
 export const COVALENT_KLAYTN =
   CLUSTER === "mainnet" ? KLAYTN_NETWORK_CHAIN_ID : null; // Covalent only support mainnet
-export const COVALENT_CELO = CLUSTER === "devnet" ? null : null;
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
   walletAddress: string,
@@ -835,26 +859,60 @@ export const COVALENT_GET_TOKENS_URL = (
       ? COVALENT_POLYGON
       : chainId === CHAIN_ID_AVAX
       ? COVALENT_AVAX
-      : chainId === CHAIN_ID_OASIS
-      ? COVALENT_OASIS
-      : chainId === CHAIN_ID_AURORA
-      ? COVALENT_AURORA
       : chainId === CHAIN_ID_FANTOM
       ? COVALENT_FANTOM
-      : chainId === CHAIN_ID_KARURA
-      ? COVALENT_KARURA
-      : chainId === CHAIN_ID_ACALA
-      ? COVALENT_ACALA
       : chainId === CHAIN_ID_KLAYTN
       ? COVALENT_KLAYTN
-      : chainId === CHAIN_ID_CELO
-      ? COVALENT_CELO
       : "";
   // https://www.covalenthq.com/docs/api/#get-/v1/{chain_id}/address/{address}/balances_v2/
-  return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${
-    nft ? "&nft=true" : ""
-  }${noNftMetadata ? "&no-nft-fetch=true" : ""}`;
+  return chainNum
+    ? `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${
+        nft ? "&nft=true" : ""
+      }${noNftMetadata ? "&no-nft-fetch=true" : ""}`
+    : "";
 };
+
+export const BLOCKSCOUT_GET_TOKENS_URL = (
+  chainId: ChainId,
+  walletAddress: string
+) => {
+  const baseUrl =
+    chainId === CHAIN_ID_OASIS
+      ? CLUSTER === "mainnet"
+        ? "https://explorer.emerald.oasis.dev"
+        : CLUSTER === "testnet"
+        ? "https://testnet.explorer.emerald.oasis.dev"
+        : ""
+      : chainId === CHAIN_ID_AURORA
+      ? CLUSTER === "mainnet"
+        ? "https://explorer.mainnet.aurora.dev"
+        : CLUSTER === "testnet"
+        ? "https://explorer.testnet.aurora.dev"
+        : ""
+      : chainId === CHAIN_ID_ACALA
+      ? CLUSTER === "mainnet"
+        ? "https://blockscout.acala.network"
+        : CLUSTER === "testnet"
+        ? "https://blockscout.acala-dev.aca-dev.network"
+        : ""
+      : chainId === CHAIN_ID_KARURA
+      ? CLUSTER === "mainnet"
+        ? "https://blockscout.karura.network"
+        : CLUSTER === "testnet"
+        ? "https://blockscout.karura-dev.aca-dev.network"
+        : ""
+      : chainId === CHAIN_ID_CELO
+      ? CLUSTER === "mainnet"
+        ? "https://explorer.celo.org"
+        : CLUSTER === "testnet"
+        ? "https://alfajores-blockscout.celo-testnet.org"
+        : ""
+      : "";
+  return baseUrl
+    ? `${baseUrl}/api?module=account&action=tokenlist&address=${walletAddress}`
+    : "";
+};
+
 export const TVL_URL =
   "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvl";
 export const TVL_CUMULATIVE_URL =
