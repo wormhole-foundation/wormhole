@@ -7,7 +7,7 @@ describe("Unit Tests", () => {
       expect(balancePretty("9.99")).toBe("9.99");
     });
     it("123456.789 => 123456.78", () => {
-      expect(balancePretty("123456.789")).toBe("123456.789");
+      expect(balancePretty("123456.789")).toBe("123456.7");
     });
     it("1234567.8912 => 1.23 M", () => {
       expect(balancePretty("1234567.891")).toBe("1.23 M");
