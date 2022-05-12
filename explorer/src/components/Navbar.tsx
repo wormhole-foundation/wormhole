@@ -1,5 +1,5 @@
 import { AppBar, Hidden, Button,  Box, Link, Toolbar } from "@mui/material";
-import ArrowForward from "@mui/icons-material/ArrowForward";
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Link as RouterLink } from "gatsby";
 import React from "react";
 import { OutboundLink } from "gatsby-plugin-google-gtag";
@@ -21,17 +21,17 @@ const NavBar = () => (
       textAlign: 'center',
       p: 1
     }}>
-      <Box sx={{ m: '5px 10px' }}>ImmuneFi bug bounty</Box>
+      <Box sx={{ m: '5px 10px' }}>The Terra chain has been halted and as a result, Wormhole is unable to process Terra transfers.</Box>
       <Button
           component={OutboundLink}
-          href="https://www.immunefi.com/bounty/wormhole/"
+          href="https://twitter.com/terra_money"
           target='_blank'
           sx={{m: '5px 10px', flex: '0 0 auto'}}
           variant="outlined"
           color="inherit"
-          endIcon={<ArrowForward />}
+          endIcon={<OpenInNewIcon />}
         >
-            Learn More
+            Message from Terra
       </Button>
     </Box>
 
