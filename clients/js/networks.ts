@@ -75,7 +75,7 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   celo: {
-    rpc: undefined,
+    rpc: "https://forno.celo.org",
     key: get_env_var("ETH_KEY"),
   },
   near: {

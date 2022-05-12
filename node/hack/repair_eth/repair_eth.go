@@ -36,7 +36,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
 	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
 	vaa.ChainIDKarura:    "https://blockscout.karura.network/api",
-	vaa.ChainIDCelo:      "https://explorer.celo.org/api",
+	vaa.ChainIDCelo:      "https://celoscan.xyz/api",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -47,8 +47,8 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDOasis:     "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
 	vaa.ChainIDAurora:    "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
 	vaa.ChainIDFantom:    strings.ToLower("0x126783A6Cb203a3E35344528B26ca3a0489a1485"),
-	vaa.ChainIDCelo:      strings.ToLower("0x88505117ca88e7dd2eC6ea1e13f0948db2d50d56"), // This needs to be the mainnet wormhole address
 	vaa.ChainIDKarura:    strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
+	vaa.ChainIDCelo:      strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
 }
 
 var (
@@ -77,7 +77,7 @@ func addUserAgent(req *http.Request) *http.Request {
 }
 
 func usesBlockscout(chainId vaa.ChainID) bool {
-	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura || chainId == vaa.ChainIDCelo
+	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
