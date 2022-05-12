@@ -1,5 +1,4 @@
 import {
-  ChainId,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
@@ -125,7 +124,9 @@ const supportedTokens = {
     address: WFTM_ADDRESS,
     decimals: WFTM_DECIMALS,
   },
-};
+} as const;
+
+type SupportedChain = keyof typeof supportedTokens;
 
 interface BalancesInfo {
   native: ethers.BigNumber;
@@ -134,7 +135,9 @@ interface BalancesInfo {
 
 function UnwrapNative() {
   const classes = useStyles();
-  const [selectedChainId, setSelectedChainId] = useState<ChainId>(CHAIN_ID_ETH);
+  const [selectedChainId, setSelectedChainId] = useState<SupportedChain>(
+    CHAIN_ID_ETH as SupportedChain
+  );
   const [balances, setBalances] = useState<DataWrapper<BalancesInfo>>(
     getEmptyDataWrapper()
   );
@@ -144,7 +147,7 @@ function UnwrapNative() {
   const { signer } = useEthereumProvider();
   const { isReady, statusMessage } = useIsWalletReady(selectedChainId);
   const handleSelect = useCallback((event) => {
-    setSelectedChainId(parseInt(event.target.value) as ChainId);
+    setSelectedChainId(parseInt(event.target.value) as SupportedChain);
   }, []);
   useEffect(() => {
     setBalances(getEmptyDataWrapper());

@@ -1230,7 +1230,7 @@ export const VAA_EMITTER_ADDRESSES = [
 export const WORMHOLE_EXPLORER_BASE = "https://wormholenetwork.com/en/explorer";
 
 export type MultiChainInfo = {
-  [key in ChainId]: { [address: string]: string };
+  [key in ChainId]?: { [address: string]: string };
 };
 export const MULTI_CHAIN_TOKENS: MultiChainInfo =
   //EVM chains should format the addresses to all lowercase

@@ -186,7 +186,7 @@ export default function TokenOriginVerifier() {
   const [primaryLookupAsset, setPrimaryLookupAsset] = useState("");
 
   const [secondaryLookupChain, setSecondaryLookupChain] =
-    useState(CHAIN_ID_TERRA);
+    useState<ChainId>(CHAIN_ID_TERRA);
 
   const primaryLookupChainOptions = useMemo(
     () => (isBeta ? CHAINS.filter((x) => !BETA_CHAINS.includes(x.id)) : CHAINS),

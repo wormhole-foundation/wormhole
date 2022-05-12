@@ -1,4 +1,5 @@
 import {
+  ChainId,
   CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
@@ -78,7 +79,7 @@ export default function NFTOriginVerifier() {
   const classes = useStyles();
   const isBeta = useBetaContext();
   const { provider, signerAddress } = useEthereumProvider();
-  const [lookupChain, setLookupChain] = useState(CHAIN_ID_ETH);
+  const [lookupChain, setLookupChain] = useState<ChainId>(CHAIN_ID_ETH);
   const { isReady, statusMessage } = useIsWalletReady(lookupChain);
   const [lookupAsset, setLookupAsset] = useState("");
   const [lookupTokenId, setLookupTokenId] = useState("");

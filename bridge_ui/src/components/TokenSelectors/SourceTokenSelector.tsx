@@ -80,7 +80,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
 
   //This is only for errors so bad that we shouldn't even mount the component
   const fatalError =
-    isEVMChain(lookupChain) &&
+    !isEVMChain(lookupChain) &&
     lookupChain !== CHAIN_ID_TERRA &&
     maps?.tokenAccounts?.error; //Terra & ETH can proceed because it has advanced mode
 
