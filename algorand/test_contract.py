@@ -21,7 +21,7 @@ from typing import List, Tuple, Dict, Any, Optional, Union
 from pyteal.ast import *
 from pyteal.types import *
 from pyteal.compiler import *
-from pyteal.ir import *
+from pyteal.ir import  *
 from globals import *
 from inlineasm import *
 
@@ -32,6 +32,8 @@ from TmplSig import TmplSig
 from local_blob import LocalBlob
 
 import sys
+
+portal_transfer_selector = MethodSignature("portal_transfer(byte[])byte[]")
 
 def fullyCompileContract(client: AlgodClient, contract: Expr) -> bytes:
     teal = compileTeal(contract, mode=Mode.Application, version=6)
@@ -104,7 +106,7 @@ def approve_app():
         off = ScratchVar()
 
         return Seq([
-            off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(190)), 
+            off.store(Btoi(Extract(Txn.application_args[1], Int(7), Int(1))) * Int(66) + Int(192)), 
             Log(Extract(Txn.application_args[1], off.load(), Len(Txn.application_args[1]) - off.load())),
             Approve()
         ])
@@ -134,7 +136,7 @@ def approve_app():
         [METHOD == Bytes("test1"), test1()],
         [METHOD == Bytes("setup"), setup()],
         [METHOD == Bytes("mint"), mint()],
-        [METHOD == Bytes("completeTransfer"), completeTransfer()],
+        [METHOD == portal_transfer_selector, completeTransfer()],
     )
 
     on_create = Seq( [
