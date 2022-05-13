@@ -43,7 +43,7 @@ func init() {
 	shutdownGuardianKey = authProofFlagSet.String("guardian-key", "", "Guardian key to sign proof. File path or hex string")
 	shutdownPubKey = authProofFlagSet.String("proof-pub-key", "", "Public key to encode in proof")
 
-	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 1, "Default current guardian set index")
+	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 2, "Default current guardian set index")
 
 	setUpdateNumGuardians = AdminClientGuardianSetTemplateCmd.Flags().Int("num", 1, "Number of devnet guardians in example file")
 	TemplateCmd.AddCommand(AdminClientGuardianSetTemplateCmd)
