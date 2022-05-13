@@ -47,41 +47,42 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	return conn, err, c
 }
 
-func getSequenceForTxhash(txhash string) (uint64, error) {
-	client := &http.Client{ 
-		Timeout: time.Second * 5, 
+func getSequencesForTxhash(txhash string) ([]uint64, error) {
+	client := &http.Client{
+		Timeout: time.Second * 5,
 	}
 	url := fmt.Sprintf("https://fcd.terra.dev/cosmos/tx/v1beta1/txs/%s", txhash)
 	resp, err := client.Get(url)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get message: %w", err)
+		return []uint64{}, fmt.Errorf("failed to get message: %w", err)
 	}
 	defer resp.Body.Close()
 	txBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read message: %w", err)
+		return []uint64{}, fmt.Errorf("failed to read message: %w", err)
 	}
 
 	txJSON := string(txBody)
 	if !gjson.Valid(txJSON) {
-		return 0, fmt.Errorf("invalid JSON response")
+		return []uint64{}, fmt.Errorf("invalid JSON response")
 	}
 	txHashRaw := gjson.Get(txJSON, "tx_response.txhash")
 	if !txHashRaw.Exists() {
-		return 0, fmt.Errorf("terra tx does not have tx hash")
+		return []uint64{}, fmt.Errorf("terra tx does not have tx hash")
 	}
 	txHash := txHashRaw.String()
 
 	events := gjson.Get(txJSON, "tx_response.events")
 	if !events.Exists() {
-		return 0, fmt.Errorf("terra tx has no events")
+		return []uint64{}, fmt.Errorf("terra tx has no events")
 	}
 	msgs := EventsToMessagePublications(*terraAddr, txHash, events.Array())
 	// Should only ever be 1 message. Stole the above function from watcher.go
-	if len(msgs) != 1 {
-		return 0, fmt.Errorf("EventsToMessagePublications returned %d msgs", len(msgs))
+	var sequences = []uint64{}
+	for _, msg := range msgs {
+		sequences = append(sequences, msg.Sequence)
 	}
-	return msgs[0].Sequence, nil
+	return sequences, nil
 }
 
 // This was stolen from pkg/terra/watcher.go
@@ -307,38 +308,40 @@ func main() {
 			}
 			txhash := gjson.Get(tx.String(), "txhash")
 			// Get sequence number for tx
-			seq, err := getSequenceForTxhash(txhash.String())
+			seqs, err := getSequencesForTxhash(txhash.String())
 			if err != nil {
 				log.Fatalln("Failed getting sequence number", err)
 				continue
 			}
-			// Check to see if this is a missing sequence number
-			if !missingMessages[seq] {
-				continue;
-			}
-			log.Println("txhash", txhash.String(), "sequence number", seq)
-			// send observation request to guardian
-			if *dryRun {
-				log.Println("Would have sent txhash", txhash, "to the guardian to re-observe")
-			} else {
-				txHashAsByteArray, err := terra.StringToHash(txhash.String())
-				if err != nil {
-					log.Fatalln("Couldn't decode the txhash", txhash)
+			for _, seq := range seqs {
+				// Check to see if this is a missing sequence number
+				if !missingMessages[seq] {
+					continue
+				}
+				log.Println("txhash", txhash.String(), "sequence number", seq)
+				// send observation request to guardian
+				if *dryRun {
+					log.Println("Would have sent txhash", txhash, "to the guardian to re-observe")
 				} else {
-					_, err = admin.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
-						ObservationRequest: &gossipv1.ObservationRequest{
-							ChainId: uint32(vaa.ChainIDTerra),
-							TxHash:  txHashAsByteArray.Bytes(),
-						}})
+					txHashAsByteArray, err := terra.StringToHash(txhash.String())
 					if err != nil {
-						log.Fatalf("SendObservationRequest: %v", err)
+						log.Fatalln("Couldn't decode the txhash", txhash)
+					} else {
+						_, err = admin.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
+							ObservationRequest: &gossipv1.ObservationRequest{
+								ChainId: uint32(vaa.ChainIDTerra),
+								TxHash:  txHashAsByteArray.Bytes(),
+							}})
+						if err != nil {
+							log.Fatalf("SendObservationRequest: %v", err)
+						}
 					}
 				}
-			}
-			if (seq <= uint64(lowest)) {
-				// We are done
-				log.Println("Finished!")
-				return
+				if seq <= uint64(lowest) {
+					// We are done
+					log.Println("Finished!")
+					return
+				}
 			}
 		}
 	}
