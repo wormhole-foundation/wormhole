@@ -82,7 +82,13 @@ func getSequencesForTxhash(txhash string) ([]uint64, error) {
 	// Should only ever be 1 message. Stole the above function from watcher.go
 	var sequences = []uint64{}
 	for _, msg := range msgs {
-		sequences = append(sequences, msg.Sequence)
+		tokenBridgeEmitter, err := vaa.StringToAddress(TerraEmitter.Emitter)
+		if err != nil {
+			log.Fatalf("Terra emitter address is not valid: %s", TerraEmitter.Emitter)
+		}
+		if msg.EmitterAddress == tokenBridgeEmitter {
+			sequences = append(sequences, msg.Sequence)
+		}
 	}
 	return sequences, nil
 }
