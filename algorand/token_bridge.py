@@ -522,7 +522,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                     tidx.store(Txn.group_index() + Int(1)),
                     MagicAssert(And(
                         Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
-                        Gtxn[tidx.load()].application_args[0] == Txn.application_args[0],
+                        Gtxn[tidx.load()].application_args[0] == Bytes("base16", "0x903f4535"), # sha256("portal_transfer(byte[])byte[]")[:4]
                         Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
                         Gtxn[tidx.load()].application_id() == aid.load()
                     )),

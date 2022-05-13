@@ -1010,7 +1010,7 @@ class PortalCore:
                     sender=sender.getAddress(),
                     index=int.from_bytes(bytes.fromhex(p["ToAddress"]), "big"),
                     on_complete=transaction.OnComplete.NoOpOC,
-                    app_args=[b"completeTransfer", vaa],
+                    app_args=[bytes.fromhex("903f4535"), vaa],
                     foreign_assets = foreign_assets,
                     sp=sp
                 ))
