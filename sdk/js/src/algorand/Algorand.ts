@@ -15,6 +15,9 @@ import algosdk, {
   signLogicSigTransaction,
   Transaction,
 } from "algosdk";
+
+import abi from "algosdk";
+
 import { BigNumber } from "ethers";
 import { keccak256 } from "ethers/lib/utils";
 import { getEmitterAddressAlgorand } from "../bridge";
@@ -871,9 +874,11 @@ export async function _submitVAAAlgorand(
     if (meta === "TokenBridge Transfer With Payload") {
       txs[txs.length - 1].tx.appForeignApps = [aid];
 
+      let m = abi.ABIMethod.fromSignature("portal_transfer(byte[])byte[]");
+      
       txs.push({
         tx: makeApplicationCallTxnFromObject({
-          appArgs: [textToUint8Array("completeTransfer"), vaa],
+          appArgs: [m.getSelector(), (m.args[0].type as abi.ABIType).encode(vaa)],
           appIndex: aid,
           foreignAssets: foreignAssets,
           from: senderAddr,
