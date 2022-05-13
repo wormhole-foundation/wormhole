@@ -873,7 +873,8 @@ export async function _submitVAAAlgorand(
 
       txs.push({
         tx: makeApplicationCallTxnFromObject({
-          appArgs: [textToUint8Array("completeTransfer"), vaa],
+          // 0x903f4535 is sha256("portal_transfer(byte[])byte[]").slice(0,4)
+          appArgs: [hexToUint8Array("903f4535"), vaa],
           appIndex: aid,
           foreignAssets: foreignAssets,
           from: senderAddr,

@@ -134,10 +134,13 @@ class AlgoTest(PortalCore):
         while True:
             nexttoken = ""
             while True:
-                response = self.myindexer.search_transactions( min_round=self.INDEXER_ROUND, note_prefix=self.NOTE_PREFIX, next_page=nexttoken)
+                response = self.myindexer.search_transactions( min_round=self.INDEXER_ROUND, next_page=nexttoken)
 #                pprint.pprint(response)
                 for x in response["transactions"]:
 #                    pprint.pprint(x)
+                    if 'inner-txns' not in x:
+                        continue
+
                     for y in x["inner-txns"]:
                         if "application-transaction" not in y:
                             continue

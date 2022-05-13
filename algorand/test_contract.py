@@ -21,7 +21,7 @@ from typing import List, Tuple, Dict, Any, Optional, Union
 from pyteal.ast import *
 from pyteal.types import *
 from pyteal.compiler import *
-from pyteal.ir import *
+from pyteal.ir import  *
 from globals import *
 from inlineasm import *
 
@@ -134,7 +134,7 @@ def approve_app():
         [METHOD == Bytes("test1"), test1()],
         [METHOD == Bytes("setup"), setup()],
         [METHOD == Bytes("mint"), mint()],
-        [METHOD == Bytes("completeTransfer"), completeTransfer()],
+        [METHOD == Bytes("base16", "0x903f4535"), completeTransfer()],
     )
 
     on_create = Seq( [
