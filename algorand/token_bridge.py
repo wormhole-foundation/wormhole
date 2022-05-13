@@ -40,6 +40,9 @@ bits_per_key = max_bytes_per_key * bits_per_byte
 max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
+# sha256("portal_transfer(byte[])byte[]")[:4]
+portal_transfer_selector = Bytes("base16", "0x903f4535")   
+
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name, devmode) -> bytes:
     if devmode:
         teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
@@ -522,8 +525,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                     tidx.store(Txn.group_index() + Int(1)),
                     MagicAssert(And(
                         Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
-                        Gtxn[tidx.load()].application_args[0] == Txn.application_args[0],
-                        Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
+                        Gtxn[tidx.load()].application_args[0] == portal_transfer_selector, # sha256("portal_transfer(byte[])byte[]")[:4]
+                        Gtxn[tidx.load()].application_args[1] == Concat(Extract(Itob(Len(Txn.application_args[1])), Int(6), Int(2)), Txn.application_args[1]),
                         Gtxn[tidx.load()].application_id() == aid.load()
                     )),
                     Destination.store(getAppAddress(aid.load()))
