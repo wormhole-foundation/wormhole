@@ -4,7 +4,7 @@
 
 ### Added
 
-Celo Mainnet support
+Klaytn and Celo mainnet support
 
 ## 0.3.1
 
