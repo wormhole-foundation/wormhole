@@ -23,13 +23,15 @@ import (
 	"github.com/certusone/wormhole/node/pkg/vaa"
 
 	"github.com/tidwall/gjson"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 )
 
 var (
-	adminRPC   = flag.String("adminRPC", "/run/guardiand/admin.socket", "Admin RPC address")
-	terraAddr  = flag.String("terraProgram", "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5", "Terra program address")
-	dryRun     = flag.Bool("dryRun", true, "Dry run")
+	adminRPC     = flag.String("adminRPC", "/run/guardiand/admin.socket", "Admin RPC address")
+	terraAddr    = flag.String("terraProgram", "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5", "Terra program address")
+	dryRun       = flag.Bool("dryRun", true, "Dry run")
+	sleepTime    = flag.Int("sleepTime", 1, "Time to sleep between http requests")
 	TerraEmitter = struct {
 		ChainID vaa.ChainID
 		Emitter string
@@ -270,13 +272,20 @@ func main() {
 		missingMessages[msg.Sequence] = true
 	}
 
-	log.Printf("Starting search for missing sequence numbers...")
+	limiter := rate.NewLimiter(rate.Every(time.Duration(*sleepTime)*time.Second), 1)
+
+	log.Printf("Starting search for missing sequence numbers (sleeping %ds between requests)...", *sleepTime)
 	offset := 0
+
 	var firstTime bool = true
 	for (offset > 0) || firstTime {
+		if err := limiter.Wait(ctx); err != nil {
+			log.Fatalf("failed to wait: %v", err)
+		}
+
 		firstTime = false
-		client := &http.Client{ 
-			Timeout: time.Second * 5, 
+		client := &http.Client{
+			Timeout: time.Second * 5,
 		}
 		resp, err := client.Get(fmt.Sprintf("https://fcd.terra.dev/v1/txs?offset=%d&limit=100&account=%s", offset, *terraAddr))
 		if err != nil {
