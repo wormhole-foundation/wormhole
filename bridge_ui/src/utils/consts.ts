@@ -86,6 +86,11 @@ export const CHAINS: ChainInfo[] =
           logo: karuraIcon,
         },
         {
+          id: CHAIN_ID_KLAYTN,
+          name: "Klaytn",
+          logo: klaytnIcon,
+        },
+        {
           id: CHAIN_ID_OASIS,
           name: "Oasis",
           logo: oasisIcon,
@@ -212,7 +217,9 @@ export const CHAINS: ChainInfo[] =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_KARURA, CHAIN_ID_CELO] : [];
+  CLUSTER === "mainnet"
+    ? [CHAIN_ID_KARURA, CHAIN_ID_CELO, CHAIN_ID_KLAYTN]
+    : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -599,21 +606,21 @@ export const ACALA_TOKEN_BRIDGE_ADDRESS = getAddress(
 );
 export const KLAYTN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"
     : CLUSTER === "testnet"
     ? "0x1830CC6eE66c84D2F177B94D544967c774E624cA"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const KLAYTN_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0x3c3c561757BAa0b78c5C025CdEAa4ee24C1dFfEf"
     : CLUSTER === "testnet"
     ? "0x94c994fC51c13101062958b567e743f1a04432dE"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const KLAYTN_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0x5b08ac39EAED75c0439FC750d9FE7E1F9dD0193F"
     : CLUSTER === "testnet"
     ? "0xC7A13BE098720840dEa132D860fDfa030884b09A"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
@@ -810,7 +817,8 @@ export const COVALENT_FANTOM =
   CLUSTER === "devnet" ? 250 : FANTOM_NETWORK_CHAIN_ID;
 export const COVALENT_KARURA = CLUSTER === "devnet" ? null : null;
 export const COVALENT_ACALA = CLUSTER === "devnet" ? null : null;
-export const COVALENT_KLAYTN = CLUSTER === "devnet" ? null : null;
+export const COVALENT_KLAYTN =
+  CLUSTER === "mainnet" ? KLAYTN_NETWORK_CHAIN_ID : null; // Covalent only support mainnet
 export const COVALENT_CELO = CLUSTER === "devnet" ? null : null;
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
@@ -936,7 +944,7 @@ export const ACA_DECIMALS = 12;
 
 export const WKLAY_ADDRESS =
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xe4f05a66ec68b54a58b17c22107b02e0232cc817"
     : CLUSTER === "testnet"
     ? "0x762ac6e8183db5a8e912a66fcc1a09f5a7ac96a9"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";

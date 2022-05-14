@@ -94,6 +94,20 @@ export const METAMASK_CHAIN_PARAMETERS: {
     rpcUrls: ["https://rpc.testnet.fantom.network"],
     blockExplorerUrls: ["https://testnet.ftmscan.com"],
   },
+  8217: {
+    chainId: "0x2019",
+    chainName: "Klaytn",
+    nativeCurrency: { name: "Klay", symbol: "KLAY", decimals: 18 },
+    rpcUrls: ["https://public-node-api.klaytnapi.com/v1/cypress"],
+    blockExplorerUrls: ["https://scope.klaytn.com"],
+  },
+  1001: {
+    chainId: "0x3E9",
+    chainName: "Klaytn Testnet Baobab",
+    nativeCurrency: { name: "Klay", symbol: "KLAY", decimals: 18 },
+    rpcUrls: ["https://api.baobab.klaytn.net:8651"],
+    blockExplorerUrls: ["https://baobab.scope.klaytn.com/"],
+  },
   42220: {
     chainId: "0xa4ec",
     chainName: "Celo",
