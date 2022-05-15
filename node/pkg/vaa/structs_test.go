@@ -114,6 +114,10 @@ func TestSignature_DataString(t *testing.T) {
 	assert.Equal(t, sigData.String(), expected)
 }
 
+func TestMinVAALength(t *testing.T) {
+	assert.Equal(t, minVAALength, 63)
+}
+
 func TestChainId_String(t *testing.T) {
 	type test struct {
 		input  ChainID
