@@ -1436,7 +1436,6 @@ function useGetAvailableTokens(nft: boolean = false) {
             ? fetchSourceParsedTokenAccountsNFT()
             : fetchSourceParsedTokenAccounts()
         );
-      console.log("Going to covalent...");
       getEthereumAccountsCovalent(walletAddress, nft, lookupChain).then(
         (accounts) => {
           !cancelled && setCovalentLoading(false);
