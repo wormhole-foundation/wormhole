@@ -1,4 +1,4 @@
-import { AppBar, Hidden, Button,  Box, Link, Toolbar } from "@mui/material";
+import { AppBar, Hidden, Button, Box, Link, Toolbar } from "@mui/material";
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import { Link as RouterLink } from "gatsby";
 import React from "react";
@@ -11,30 +11,6 @@ const linkStyle = { ml: 3, textUnderlineOffset: 6 };
 const linkActiveStyle = { textDecoration: "underline" };
 
 const NavBar = () => (
-  <>
-    <Box sx={{
-      display: 'flex',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-      background: '#17153f',
-      textAlign: 'center',
-      p: 1
-    }}>
-      <Box sx={{ m: '5px 10px' }}>ImmuneFi bug bounty</Box>
-      <Button
-          component={OutboundLink}
-          href="https://www.immunefi.com/bounty/wormhole/"
-          target='_blank'
-          sx={{m: '5px 10px', flex: '0 0 auto'}}
-          variant="outlined"
-          color="inherit"
-          endIcon={<ArrowForward />}
-        >
-            Learn More
-      </Button>
-    </Box>
-
   <AppBar
     position="static"
     sx={{ backgroundColor: "transparent" }}
@@ -76,7 +52,5 @@ const NavBar = () => (
       </Box> */}
     </Toolbar>
   </AppBar>
-  
-  </>
 );
 export default NavBar;
