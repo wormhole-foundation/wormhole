@@ -1,10 +1,18 @@
 # Changelog
 
+## 0.3.3
+
+### Added
+
+Changed the payload3 support on Algorand conform to the new ABI specifications
+
+Klaytn and Celo mainnet support
+
 ## 0.3.2
 
 ### Added
 
-Klaytn and Celo mainnet support
+Payload 3 (Contract-Controlled Transfer) support
 
 ## 0.3.1
 
