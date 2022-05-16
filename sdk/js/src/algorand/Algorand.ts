@@ -893,13 +893,6 @@ export async function _submitVAAAlgorand(
   return txs;
 }
 
-function concatUint8Arrays(a: Uint8Array, b: Uint8Array) { // a, b TypedArray of same type
-    var c = new Uint8Array(a.length + b.length);
-    c.set(a, 0);
-    c.set(b, a.length);
-    return c;
-}
-
 export function uint8ArrayToNativeStringAlgorand(a: Uint8Array): string {
   return encodeAddress(a);
 }
