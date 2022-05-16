@@ -310,4 +310,5 @@ python3 test.py
 
 echo "bring the sandbox down"
 cd ..
+
 ./sandbox down
