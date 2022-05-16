@@ -33,8 +33,7 @@ from local_blob import LocalBlob
 
 import sys
 
-# sha256("portal_transfer(byte[])byte[]")[:4]
-portal_transfer_selector = Bytes("base16", "0x903f4535")   
+portal_transfer_selector = MethodSignature("portal_transfer(byte[])byte[]")
 
 def fullyCompileContract(client: AlgodClient, contract: Expr) -> bytes:
     teal = compileTeal(contract, mode=Mode.Application, version=6)

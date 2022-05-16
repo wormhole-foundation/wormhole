@@ -40,8 +40,7 @@ bits_per_key = max_bytes_per_key * bits_per_byte
 max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
-# sha256("portal_transfer(byte[])byte[]")[:4]
-portal_transfer_selector = Bytes("base16", "0x903f4535")   
+portal_transfer_selector = MethodSignature("portal_transfer(byte[])byte[]")
 
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name, devmode) -> bytes:
     if devmode:
