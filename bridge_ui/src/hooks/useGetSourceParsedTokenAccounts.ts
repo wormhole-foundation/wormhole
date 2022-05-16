@@ -1362,7 +1362,7 @@ function useGetAvailableTokens(nft: boolean = false) {
     const walletAddress = signerAddress;
     const blockScoutUrl = getBlockscoutTokenURL(lookupChain);
     console.log("blockScoutUrl", blockScoutUrl);
-    if (blockScoutUrl.length > 0 && walletAddress) {
+    if (blockScoutUrl.length > 0 && walletAddress && !covalent) {
       !cancelled && setCovalentLoading(true);
       !cancelled &&
         dispatch(
@@ -1379,8 +1379,7 @@ function useGetAvailableTokens(nft: boolean = false) {
         (accounts) => {
           !cancelled && setCovalentLoading(false);
           !cancelled && setCovalentError(undefined);
-          // If the following line is uncommented, this useEffect() gets called in an apparent infinite loop
-          // !cancelled && setCovalent(accounts);
+          !cancelled && setCovalent(accounts);
           !cancelled &&
             dispatch(
               nft
@@ -1428,7 +1427,6 @@ function useGetAvailableTokens(nft: boolean = false) {
         cancelled = true;
       };
     }
-    // If the above block is executed, this line is not reached.  That's why I didn't use an else if...
     if (walletAddress && isEVMChain(lookupChain) && !covalent) {
       //TODO less cancel
       !cancelled && setCovalentLoading(true);
