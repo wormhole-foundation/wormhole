@@ -4,6 +4,8 @@
 
 ### Added
 
+Changed the payload3 support on Algorand confirm to the new ABI specifications 
+
 Klaytn and Celo mainnet support
 
 ## 0.3.1
