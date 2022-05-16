@@ -21,7 +21,7 @@ from gentest import GenTest
 
 from algosdk.v2client.algod import AlgodClient
 from algosdk.kmd import KMDClient
-from algosdk import account, mnemonic
+from algosdk import account, mnemonic, abi
 from algosdk.encoding import decode_address, encode_address
 from algosdk.future import transaction
 from pyteal import compileTeal, Mode, Expr
@@ -1006,11 +1006,12 @@ class PortalCore:
                 txns[-1].fee = txns[-1].fee * 2
 
             if p["Meta"] == "TokenBridge Transfer With Payload":
+                m = abi.Method("portal_transfer", [abi.Argument("byte[]")], abi.Returns("byte[]"))
                 txns.append(transaction.ApplicationCallTxn(
                     sender=sender.getAddress(),
                     index=int.from_bytes(bytes.fromhex(p["ToAddress"]), "big"),
                     on_complete=transaction.OnComplete.NoOpOC,
-                    app_args=[bytes.fromhex("903f4535"), vaa],
+                    app_args=[m.get_selector(), len(vaa).to_bytes(2, "big") + vaa],
                     foreign_assets = foreign_assets,
                     sp=sp
                 ))

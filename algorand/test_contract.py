@@ -104,7 +104,7 @@ def approve_app():
         off = ScratchVar()
 
         return Seq([
-            off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(190)), 
+            off.store(Btoi(Extract(Txn.application_args[1], Int(7), Int(1))) * Int(66) + Int(192)), 
             Log(Extract(Txn.application_args[1], off.load(), Len(Txn.application_args[1]) - off.load())),
             Approve()
         ])
