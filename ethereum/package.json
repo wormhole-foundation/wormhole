@@ -30,10 +30,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "caver-js": "^1.8.1",
     "dotenv": "^10.0.0",
     "elliptic": "^6.5.2",
     "ganache-cli": "^6.12.1",
     "jsonfile": "^4.0.0",
-    "solc": "^0.8.4"
+    "solc": "^0.8.4",
+    "truffle-hdwallet-provider-klaytn": "^1.4.2"
   }
 }

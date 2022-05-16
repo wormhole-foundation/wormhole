@@ -71,7 +71,7 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   klaytn: {
-    rpc: undefined,
+    rpc: "https://public-node-api.klaytnapi.com/v1/cypress",
     key: get_env_var("ETH_KEY"),
   },
   celo: {

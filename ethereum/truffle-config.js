@@ -1,5 +1,7 @@
 require("dotenv").config({ path: ".env" });
 const HDWalletProvider = require("@truffle/hdwallet-provider");
+const KLAYHDWalletProvider = require("truffle-hdwallet-provider-klaytn");
+const Caver = require("caver-js");
 
 module.exports = {
   networks: {
@@ -186,7 +188,7 @@ module.exports = {
           "http://103.253.145.222:8545"
         );
       },
-      network_id: 686,
+      network_id: 596,
       gasPrice: 202184721385,
       gasLimit: 117096000,
       gas: 117096000,
@@ -198,10 +200,35 @@ module.exports = {
           "http://157.245.252.103:8545"
         );
       },
-      network_id: 787,
+      network_id: 597,
       gasPrice: 202184721385,
       gasLimit: 213192000,
       gas: 213192000,
+    },
+    klaytn: { // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
+      provider: () => {
+        const option = {
+          headers: [
+            {
+              name: 'Authorization',
+              value:
+                'Basic ' +
+                Buffer.from(process.env.KLAY_ACCESS_ID + ':' + process.env.KLAY_SECURITY_KEY).toString('base64'),
+            },
+            { name: 'x-chain-id', value: '8217' },
+          ],
+          keepAlive: false,
+        }
+        return new KLAYHDWalletProvider(
+          process.env.MNEMONIC,
+          new Caver.providers.HttpProvider('https://node-api.klaytnapi.com/v1/klaytn', option)
+        )
+      },      
+      network_id: 8217, //Klaytn mainnet's network id
+      gas: '8000000',
+      gasPrice: '750000000000', 
+      disableConfirmationListener: true,
+      pollingInterval: 1800000,
     },
     klaytn_testnet: { // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
       provider: () => {

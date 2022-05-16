@@ -118,9 +118,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   klaytn: {
-    core: undefined,
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7",
+    token_bridge: "0x5b08ac39EAED75c0439FC750d9FE7E1F9dD0193F",
+    nft_bridge: "0x3c3c561757BAa0b78c5C025CdEAa4ee24C1dFfEf",
   },
   celo: {
     core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
