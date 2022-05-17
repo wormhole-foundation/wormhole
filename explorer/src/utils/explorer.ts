@@ -133,6 +133,8 @@ const nativeExplorerContractUri = (
       base = "https://explorer.oasis.updev.si/address/";
     } else if (chainId === chainIDs["fantom"]) {
       base = "https://ftmscan.com/address/";
+    } else if (chainId === chainIDs["aurora"]) {
+      base = "https://aurorascan.dev/address/";
     }
     return `${base}${nativeAddress}`;
   }
@@ -159,6 +161,8 @@ const nativeExplorerTxUri = (
     base = "https://explorer.emerald.oasis.dev/tx/";
   } else if (chainId === chainIDs["fantom"]) {
     base = "https://ftmscan.com/tx/";
+  } else if (chainId === chainIDs["aurora"]) {
+    base = "https://aurorascan.dev/tx/";
   }
 
   if (base) {
