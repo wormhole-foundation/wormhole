@@ -256,6 +256,7 @@ const getEmitterAddress: {
   avalanche: getEmitterAddressEVM,
   oasis: getEmitterAddressEVM,
   fantom: getEmitterAddressEVM,
+  aurora: getEmitterAddressEVM,
 };
 
 // the keys used for creating the map of contract addresses of each chain, on each network.
