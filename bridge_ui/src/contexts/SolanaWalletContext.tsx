@@ -13,6 +13,7 @@ import {
   SolongWalletAdapter,
   TorusWalletAdapter,
   SolletExtensionWalletAdapter,
+  ExodusWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 import { FC, useMemo } from "react";
 import { SOLANA_HOST } from "../utils/consts";
@@ -29,6 +30,7 @@ export const SolanaWalletProvider: FC = (props) => {
       new SlopeWalletAdapter(),
       new SolongWalletAdapter(),
       new TorusWalletAdapter(),
+      new ExodusWalletAdapter(),
     ],
     []
   );
