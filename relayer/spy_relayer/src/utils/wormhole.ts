@@ -1,6 +1,7 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 
 export const chainIDStrings: { [key in ChainId]: string } = {
+  0: "Unset",
   1: "Solana",
   2: "Ethereum",
   3: "Terra",
@@ -13,5 +14,9 @@ export const chainIDStrings: { [key in ChainId]: string } = {
   10: "Fantom",
   11: "Karura",
   12: "Acala",
+  13: "Klaytn",
+  14: "Celo",
+  15: "NEAR",
+  16: "Moonbeam",
   10001: "Ropsten",
 };

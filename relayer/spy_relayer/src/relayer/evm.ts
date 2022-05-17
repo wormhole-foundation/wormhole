@@ -1,16 +1,18 @@
 import {
   Bridge__factory,
+  CHAIN_ID_CELO,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_POLYGON,
   getIsTransferCompletedEth,
   hexToUint8Array,
   redeemOnEth,
   redeemOnEthNative,
 } from "@certusone/wormhole-sdk";
-import { Signer } from "@ethersproject/abstract-signer";
 import { ethers } from "ethers";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
+import { CeloProvider, CeloWallet } from "@celo-tools/celo-ethers-wrapper";
 
 export function newProvider(
   url: string,
@@ -41,8 +43,16 @@ export async function relayEVM(
     relayLogger
   );
   const signedVaaArray = hexToUint8Array(signedVAA);
-  let provider = newProvider(chainConfigInfo.nodeUrl);
-  const signer: Signer = new ethers.Wallet(walletPrivateKey, provider);
+  let provider = undefined;
+  let signer = undefined;
+  if (chainConfigInfo.chainId === CHAIN_ID_CELO) {
+    provider = new CeloProvider(chainConfigInfo.nodeUrl);
+    await provider.ready;
+    signer = new CeloWallet(walletPrivateKey, provider);
+  } else {
+    provider = newProvider(chainConfigInfo.nodeUrl);
+    signer = new ethers.Wallet(walletPrivateKey, provider);
+  }
 
   logger.debug("Checking to see if vaa has already been redeemed.");
   const alreadyRedeemed = await getIsTransferCompletedEth(
@@ -69,14 +79,17 @@ export async function relayEVM(
   }
 
   logger.debug("Redeeming.");
-  // look, there's something janky with Polygon + ethers + EIP-1559
   let overrides = {};
   if (chainConfigInfo.chainId === CHAIN_ID_POLYGON) {
+    // look, there's something janky with Polygon + ethers + EIP-1559
     let feeData = await provider.getFeeData();
     overrides = {
       maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
+  } else if (chainConfigInfo.chainId === CHAIN_ID_KLAYTN) {
+    // Klaytn requires specifying gasPrice
+    overrides = { gasPrice: (await signer.getGasPrice()).toString() };
   }
   const bridge = Bridge__factory.connect(
     chainConfigInfo.tokenBridgeAddress,
