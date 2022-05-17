@@ -1348,6 +1348,8 @@ export const RELAYER_COMPARE_ASSET: RelayerCompareAsset = {
   [CHAIN_ID_OASIS]: "oasis-network",
   [CHAIN_ID_FANTOM]: "fantom",
   [CHAIN_ID_AURORA]: "ethereum", // Aurora uses bridged ether
+  [CHAIN_ID_KLAYTN]: "klay-token",
+  [CHAIN_ID_CELO]: "celo",
 } as RelayerCompareAsset;
 export const getCoinGeckoURL = (coinGeckoId: string) =>
   `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`;
