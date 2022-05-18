@@ -1,0 +1,90 @@
+# syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
+FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5 AS build
+
+RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
+RUN rustup component add rustfmt
+RUN rustup default nightly-2022-01-02
+
+WORKDIR /usr/src/bridge
+
+# Support additional root CAs
+COPY devnet_setup.sh cert.pem* /certs/
+# Debian
+RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
+
+RUN cargo install wasm-pack --vers 0.9.1
+
+ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
+ENV EMITTER_ADDRESS="11111111111111111111111111111115"
+ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+
+COPY bridge bridge
+COPY modules modules
+COPY solitaire solitaire
+COPY migration migration
+
+# wasm-bindgen 0.2.74 generates JavaScript bindings for SystemInstruction exported from solana-program 1.9.4.
+# The generated JavaScript references a non-existent function (wasm.__wbg_systeminstruction_free) that leads
+# to an attempted import error when importing the wasm packed for bundler. SystemInstruction isn't used in the sdk,
+# so we remove the non-existent function reference as a workaround.
+ARG SED_REMOVE_INVALID_REFERENCE="/^\s*wasm.__wbg_systeminstruction_free(ptr);$/d"
+
+# arm64 doesn't have wasm-opt support
+RUN echo "[package.metadata.wasm-pack.profile.release]\nwasm-opt = false" >> bridge/program/Cargo.toml
+RUN echo "[package.metadata.wasm-pack.profile.release]\nwasm-opt = false" >> modules/token_bridge/program/Cargo.toml
+RUN echo "[package.metadata.wasm-pack.profile.release]\nwasm-opt = false" >> migration/Cargo.toml
+RUN echo "[package.metadata.wasm-pack.profile.release]\nwasm-opt = false" >> modules/nft_bridge/program/Cargo.toml
+
+# TODO: it appears that wasm-pack ignores our lockfiles even with --locked
+
+# Compile Wormhole
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE bridge_bg.js
+
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
+
+# Compile Token Bridge
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE token_bridge_bg.js
+
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
+
+# Compile Migration
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd migration && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE wormhole_migration_bg.js
+
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd migration && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
+
+# Compile NFT Bridge
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd modules/nft_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE nft_bridge_bg.js
+
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=target \
+    cd modules/nft_bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
+
+FROM scratch AS export
+
+COPY --from=build /usr/src/bridge/bridge/program/bundler sdk/js/src/solana/core
+COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler sdk/js/src/solana/token
+COPY --from=build /usr/src/bridge/migration/bundler sdk/js/src/solana/migration
+COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler sdk/js/src/solana/nft
+
+COPY --from=build /usr/src/bridge/bridge/program/nodejs sdk/js/src/solana/core-node
+COPY --from=build /usr/src/bridge/modules/token_bridge/program/nodejs sdk/js/src/solana/token-node
+COPY --from=build /usr/src/bridge/migration/nodejs sdk/js/src/solana/migration-node
+COPY --from=build /usr/src/bridge/modules/nft_bridge/program/nodejs sdk/js/src/solana/nft-node
