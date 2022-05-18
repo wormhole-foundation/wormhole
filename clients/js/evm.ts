@@ -47,7 +47,7 @@ export async function execute_governance_evm(
       maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
-  } else if (chain === "klaytn") {
+  } else if (chain === "klaytn" || chain === "fantom") {
     overrides = { gasPrice: (await signer.getGasPrice()).toString() }
   }
 
