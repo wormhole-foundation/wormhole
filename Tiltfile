@@ -36,6 +36,7 @@ update_settings(max_parallel_updates = 10)
 # Runtime configuration
 config.define_bool("ci", False, "We are running in CI")
 config.define_bool("manual", False, "Set TRIGGER_MODE_MANUAL by default")
+config.define_bool("m1", False, "Use this flag for M-series Macs (e.g. use an arm64 solana-test-validator due to AVX requirement)")
 
 config.define_string("num", False, "Number of guardian nodes to run")
 
@@ -100,6 +101,7 @@ btc = cfg.get("btc", False)
 redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
+m1 = cfg.get("m1", False)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -484,6 +486,17 @@ if solana or pythnet:
     )
 
     # solana local devnet
+
+    build_args = {}
+    if m1:
+        build_args = {"BASE_IMAGE": "ghcr.io/wormholelabs-xyz/solana-test-validator-m1:1.17.29@sha256:c5a43c0762f2dab4873a9e632a389029b6d5f706be7dfb89a42a66cc65a3dd24"}
+
+    docker_build(
+        ref = "solana-test-validator",
+        context = "solana",
+        dockerfile = "solana/Dockerfile.test-validator",
+        build_args = build_args
+    )
 
     k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 
