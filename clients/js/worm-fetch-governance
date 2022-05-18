@@ -10,6 +10,7 @@ if [ -z "$sequence" ]; then
 	echo "$usage"
 	exit 1
 fi
+TMPDIR="$HOME/.wormhole"
 mkdir -p "$TMPDIR/vaa"
 cached="$TMPDIR/vaa/$sequence"
 
