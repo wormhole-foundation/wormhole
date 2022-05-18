@@ -12,6 +12,7 @@ import (
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
+	common "github.com/certusone/wormhole/node/pkg/common"
 	ethAbi "github.com/certusone/wormhole/node/pkg/ethereum/abi"
 
 	"go.uber.org/zap"
@@ -96,10 +97,31 @@ func (e *EthImpl) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMess
 	return e.filterer.ParseLogMessagePublished(log)
 }
 
-func (e *EthImpl) SubscribeNewHead(ctx context.Context, sink chan<- *ethTypes.Header) (ethereum.Subscription, error) {
+func (e *EthImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
 	if e.client == nil {
 		panic("client is not initialized!")
 	}
 
-	return e.client.SubscribeNewHead(ctx, sink)
+	headSink := make(chan *ethTypes.Header, 2)
+	headerSubscription, err := e.client.SubscribeNewHead(ctx, headSink)
+	if err != nil {
+		return headerSubscription, err
+	}
+
+	// The purpose of this is to map events from the geth event channel to the new block event channel.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev := <-headSink:
+				sink <- &common.NewBlock{
+					Number: ev.Number,
+					Hash:   ev.Hash(),
+				}
+			}
+		}
+	}()
+
+	return headerSubscription, err
 }

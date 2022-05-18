@@ -16,6 +16,7 @@ import (
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	celoAbi "github.com/certusone/wormhole/node/pkg/celo/abi"
+	common "github.com/certusone/wormhole/node/pkg/common"
 	ethAbi "github.com/certusone/wormhole/node/pkg/ethereum/abi"
 
 	"go.uber.org/zap"
@@ -145,7 +146,7 @@ func (e *CeloImpl) ParseLogMessagePublished(ethLog ethTypes.Log) (*ethAbi.AbiLog
 	return convertEventToEth(celoEvent), err
 }
 
-func (e *CeloImpl) SubscribeNewHead(ctx context.Context, sink chan<- *ethTypes.Header) (ethereum.Subscription, error) {
+func (e *CeloImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
 	if e.client == nil {
 		panic("client is not initialized!")
 	}
@@ -156,14 +157,17 @@ func (e *CeloImpl) SubscribeNewHead(ctx context.Context, sink chan<- *ethTypes.H
 		return headerSubscription, err
 	}
 
-	// The purpose of this is to map events from the Celo event channel to the Eth event channel.
+	// The purpose of this is to map events from the Celo event channel to the new block event channel.
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case celoEvent := <-headSink:
-				sink <- convertNewHeadEventToEth(celoEvent)
+			case ev := <-headSink:
+				sink <- &common.NewBlock{
+					Number: ev.Number,
+					Hash:   ethCommon.BytesToHash(ev.Hash().Bytes()),
+				}
 			}
 		}
 	}()

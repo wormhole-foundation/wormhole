@@ -5,6 +5,7 @@ package common
 
 import (
 	"context"
+	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -15,6 +16,11 @@ import (
 
 	"go.uber.org/zap"
 )
+
+type NewBlock struct {
+	Number *big.Int
+	Hash   ethCommon.Hash
+}
 
 type Ethish interface {
 	SetLogger(l *zap.Logger)
@@ -27,5 +33,5 @@ type Ethish interface {
 	TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error)
 	TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error)
 	ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error)
-	SubscribeNewHead(ctx context.Context, ch chan<- *ethTypes.Header) (ethereum.Subscription, error)
+	SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error)
 }
