@@ -1,6 +1,7 @@
 import {
   Bridge__factory,
   CHAIN_ID_CELO,
+  CHAIN_ID_FANTOM,
   CHAIN_ID_KLAYTN,
   CHAIN_ID_POLYGON,
   getIsTransferCompletedEth,
@@ -87,8 +88,8 @@ export async function relayEVM(
       maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
-  } else if (chainConfigInfo.chainId === CHAIN_ID_KLAYTN) {
-    // Klaytn requires specifying gasPrice
+  } else if (chainConfigInfo.chainId === CHAIN_ID_KLAYTN || chainConfigInfo.chainId === CHAIN_ID_FANTOM) {
+    // Klaytn and Fantom require specifying gasPrice
     overrides = { gasPrice: (await signer.getGasPrice()).toString() };
   }
   const bridge = Bridge__factory.connect(
