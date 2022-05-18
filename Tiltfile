@@ -19,6 +19,7 @@ update_settings(max_parallel_updates = 10)
 # Runtime configuration
 config.define_bool("ci", False, "We are running in CI")
 config.define_bool("manual", False, "Set TRIGGER_MODE_MANUAL by default")
+config.define_bool("m1", False, "Build Solana from source for m1 arm64")
 
 config.define_string("num", False, "Number of guardian nodes to run")
 
@@ -63,6 +64,7 @@ spy_relayer = cfg.get("spy_relayer", ci)
 e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
+m1 = cfg.get("m1", False)
 
 bridge_ui_hot = not ci
 
@@ -116,11 +118,14 @@ local_resource(
 # wasm
 
 if solana:
+    cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. ."
+    if m1:
+        cmd = "tilt docker build -- -f Dockerfile.wasm.m1 -o type=local,dest=.. ."
     local_resource(
         name = "wasm-gen",
         deps = ["solana"],
         dir = "solana",
-        cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
+        cmd = cmd,
         env = {"DOCKER_BUILDKIT": "1"},
         labels = ["solana"],
         allow_parallel = True,
@@ -235,22 +240,29 @@ k8s_resource(
 
 if solana:
     # solana client cli (used for devnet setup)
+    dockerfile = "Dockerfile.client"
+    if m1:
+        dockerfile = "Dockerfile.client.m1"
 
     docker_build(
         ref = "bridge-client",
         context = ".",
         only = ["./proto", "./solana", "./clients"],
-        dockerfile = "Dockerfile.client",
+        dockerfile = dockerfile,
         # Ignore target folders from local (non-container) development.
         ignore = ["./solana/*/target"],
     )
 
     # solana smart contract
 
+    dockerfile = "solana/Dockerfile"
+    if m1:
+        dockerfile = "solana/Dockerfile.m1"
+
     docker_build(
         ref = "solana-contract",
         context = "solana",
-        dockerfile = "solana/Dockerfile",
+        dockerfile = dockerfile,
         target = "builder",
         build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
     )
