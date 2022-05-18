@@ -74,5 +74,21 @@
     "nodeUrl": "CHANGE ME",
     "tokenBridgeAddress": "0x7C9Fc5741288cDFdD83CeB07f3ea7e22618D79D2",
     "wrappedAsset": "0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83"
+  },
+  {
+    "chainId":              13,
+    "chainName":            "Klaytn",
+    "nativeCurrencySymbol": "KLAY",
+    "nodeUrl":            "https://public-node-api.klaytnapi.com/v1/cypress",
+    "tokenBridgeAddress": "0x5b08ac39EAED75c0439FC750d9FE7E1F9dD0193F",
+    "wrappedAsset":       "0xe4f05a66ec68b54a58b17c22107b02e0232cc817"
+  },
+  {
+    "chainId":              14,
+    "chainName":            "Celo",
+    "nativeCurrencySymbol": "CELO",
+    "nodeUrl":            "https://forno.celo.org",
+    "tokenBridgeAddress": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",
+    "wrappedAsset":       "0x0000000000000000000000000000000000000000"
   }
 ]
