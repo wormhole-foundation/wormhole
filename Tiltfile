@@ -739,7 +739,7 @@ docker_build(
     context = ".",
     dockerfile = "./wormhole_chain/Dockerfile",
     only = [],
-    ignore = ["./wormhole_chain/testing", "./wormhole_chain/ts-sdk", "./wormhole_chain/design", "./wormhole_chain/vue", "./wormhole_chain/build"],
+    ignore = ["./wormhole_chain/testing", "./wormhole_chain/ts-sdk", "./wormhole_chain/design", "./wormhole_chain/vue", "./wormhole_chain/build/wormhole-chaind"],
 )
 
 k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-guardian-devnet.yaml")

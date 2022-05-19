@@ -44,7 +44,7 @@ fast_sync = true
 db_backend = "goleveldb"
 
 # Database directory
-db_dir = "../guardian_validator/data"
+db_dir = "../../build/data"
 
 # Output level for logging, including package level options
 log_level = "info"
@@ -55,13 +55,13 @@ log_format = "plain"
 ##### additional base config options #####
 
 # Path to the JSON file containing the initial validator set and other meta data
-genesis_file = "../guardian_validator/config/genesis.json"
+genesis_file = "../../build/config/genesis.json"
 
 # Path to the JSON file containing the private key to use as a validator in the consensus protocol
 priv_validator_key_file = "config/priv_validator_key.json"
 
 # Path to the JSON file containing the last sign state of a validator
-priv_validator_state_file = "../guardian_validator/data/priv_validator_state.json"
+priv_validator_state_file = "../../build/data/priv_validator_state.json"
 
 # TCP or UNIX socket address for Tendermint to listen on for
 # connections from an external PrivValidator process
@@ -185,13 +185,13 @@ external_address = ""
 seeds = ""
 
 # Comma separated list of nodes to keep persistent connections to
-persistent_peers = "6e99b24ddeea916061c0d9ccb58c0d19611b05ef@guardian-validator:26656"
+persistent_peers = "c3f474217c930af3a4e998c4e52a57cee188ff43@guardian-validator:26656"
 
 # UPNP port forwarding
 upnp = false
 
 # Path to address book
-addr_book_file = "../guardian_validator/config/addrbook.json"
+addr_book_file = "../../build/config/addrbook.json"
 
 # Set true for strict address routability rules
 # Set false for private or local networks
@@ -326,7 +326,7 @@ version = "v0"
 #######################################################
 [consensus]
 
-wal_file = "../guardian_validator/data/cs.wal/wal"
+wal_file = "../../build/data/cs.wal/wal"
 
 # How long we wait for a proposal block before prevoting nil
 timeout_propose = "1s"
