@@ -5,6 +5,7 @@ package ethereum
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -25,7 +26,7 @@ import (
 type MoonbeamImpl struct {
 	BaseEth  *EthImpl
 	logger   *zap.Logger
-	mbRpcCon *ethRpc.Client
+	rawClient *ethRpc.Client
 }
 
 func (e *MoonbeamImpl) SetLogger(l *zap.Logger) {
@@ -38,7 +39,7 @@ func (e *MoonbeamImpl) DialContext(ctx context.Context, rawurl string) (err erro
 	defer cancel()
 
 	// This is used for doing raw eth_ RPC calls.
-	e.mbRpcCon, err = ethRpc.DialContext(timeout, rawurl)
+	e.rawClient, err = ethRpc.DialContext(timeout, rawurl)
 	if err != nil {
 		return err
 	}
@@ -103,13 +104,22 @@ func (sub *MoonbeamSubscription) Unsubscribe() {
 	})
 }
 
+// Moonbeam can publish blocks before they are marked final. This means we need to sit on the block until a special "is finalized"
+// query returns true. The assumption is that every block number will eventually be published and finalized, it's just that the contents
+// of the block (and therefore the hash) might change if there is a rollback. Therefore rather than subscribing for headers from geth,
+// we use a polling mechanism to get the next expected block, and keep doing it until it is marked final.
+
 func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
 	if e.BaseEth.client == nil {
 		panic("client is not initialized!")
 	}
-	if e.mbRpcCon == nil {
-		panic("mbRpcCon is not initialized!")
-	}	
+	if e.rawClient == nil {
+		panic("rawClient is not initialized!")
+	}
+
+	sub := &MoonbeamSubscription{
+		err: make(chan error, 1),
+	}
 
 	latestBlock, err := e.getBlock(ctx, nil)
 	if err != nil {
@@ -122,19 +132,23 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 
 	timer := time.NewTimer(time.Millisecond) // Start immediately.
 	go func() {
+		var errorCount int
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-timer.C:
+				var errorOccurred bool
 				for {
 					var block *common.NewBlock
 					var err error
+					errorOccurred = false
 
 					// See if the next block has been created yet.
 					if currentBlockNumber.Cmp(latestBlock.Number) > 0 {
 						latestBlock, err = e.getBlock(ctx, nil)
 						if err != nil {
+							errorOccurred = true
 							e.logger.Error("failed to look up latest block", zap.String("eth_network", e.BaseEth.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
@@ -154,6 +168,7 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 					if block == nil {
 						block, err = e.getBlock(ctx, &currentBlockNumber)
 						if err != nil {
+							errorOccurred = true
 							e.logger.Error("failed to get current block", zap.String("eth_network", e.BaseEth.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
@@ -162,6 +177,7 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 
 					finalized, err := e.isBlockFinalized(ctx, block.Hash.Hex())
 					if err != nil {
+						errorOccurred = true
 						e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.BaseEth.NetworkName),
 							zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 						break
@@ -174,14 +190,19 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 					currentBlockNumber.Add(&currentBlockNumber, BIG_ONE)
 				}
 
+				if errorOccurred {
+					errorCount++
+					if errorCount > 1 {
+						sub.err <- fmt.Errorf("polling encountered multiple errors")
+					}
+				} else {
+					errorCount = 0
+				}
+
 				timer = time.NewTimer(DELAY_IN_MS * time.Millisecond)
 			}
 		}
 	}()
-
-	sub := &MoonbeamSubscription{
-		err: make(chan error, 1),
-	}
 
 	return sub, err
 }
@@ -200,7 +221,7 @@ func (e *MoonbeamImpl) getBlock(ctx context.Context, number *big.Int) (*common.N
 	}
 
 	var m Marshaller
-	err := e.mbRpcCon.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
+	err := e.rawClient.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
 	if err != nil {
 		e.logger.Error("failed to get block", zap.String("eth_network", e.BaseEth.NetworkName),
 			zap.String("requested_block", numStr), zap.Error(err))
@@ -216,7 +237,7 @@ func (e *MoonbeamImpl) getBlock(ctx context.Context, number *big.Int) (*common.N
 
 func (e *MoonbeamImpl) isBlockFinalized(ctx context.Context, hash string) (bool, error) {
 	var finalized bool
-	err := e.mbRpcCon.CallContext(ctx, &finalized, "moon_isBlockFinalized", hash)
+	err := e.rawClient.CallContext(ctx, &finalized, "moon_isBlockFinalized", hash)
 	if err != nil {
 		e.logger.Error("failed to check for finality", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
 		return false, err
