@@ -5,8 +5,10 @@ vue/
 release/
 testing/js/node_modules
 .vscode/
-build/
-build.tmp/
+!build
+build/wormhole-chaind
+validators/first_validator/keyring-test
+validators/second_validator/keyring-test
 ts-sdk/node_modules
 ts-sdk/lib
 

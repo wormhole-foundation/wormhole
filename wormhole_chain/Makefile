@@ -10,38 +10,36 @@ ifneq ("$(STARPORT_ACTUAL_VERSION)", "$(STARPORT_EXPECTED_VERSION)")
 endif
 
 .PHONY: all
-all: build/wormhole-chaind vue validators
+all: client vue validators
+
+.PHONY: client
+client: build/wormhole-chaind
 
 .PHONY: validators
-validators: build
+validators:
 	# These files change when the genesis file changes, so we need to make
 	# sure to copy them over
 	touch -m $@
-	rm validators/first_validator/genesis/*.json
-	cp build/config/gentx/*.json validators/first_validator/genesis/gentx.json
+	rm build/config/gentx/gentx-c3f474217c930af3a4e998c4e52a57cee188ff43.json
+	./build/wormhole-chaind --home build/ gentx tiltGuardian "0uworm" --chain-id wormholechain --min-self-delegation "0"
 	cp build/config/priv_validator_key.json validators/first_validator/config/
 	cp build/config/node_key.json validators/first_validator/config/
+	mkdir -p validators/first_validator/keyring-test
 	cp build/keyring-test/* validators/first_validator/keyring-test/
-	cp build/keyring-test/* validators/guardian_validator/keyring-test/
 	# Copy these lines for each new validator
 	# We grab the validator's address from the gentx memo that it creates.
-	sed -E "s/(persistent_peers = \")[^@]*/\1$$(grep -lR MsgCreateValidator validators/first_validator/genesis | xargs grep -l $(TILT_VALADDRESS) | xargs jq '.body.memo' -r | cut -d@ -f1)/" validators/second_validator/config/config.toml -i
+	sed -E "s/(persistent_peers = \")[^@]*/\1$$(grep -lR MsgCreateValidator build/config/gentx | xargs grep -l $(TILT_VALADDRESS) | xargs jq '.body.memo' -r | cut -d@ -f1)/" validators/second_validator/config/config.toml -i
+	mkdir -p validators/second_validator/keyring-test
 	cp build/keyring-test/* validators/second_validator/keyring-test/
 
-build: config.yml
-	touch -m $@
-	starport chain init --home $@
-	cp client.toml $@/config/client.toml
-	touch -m proto
-
-build/wormhole-chaind: cmd/wormhole-chaind/main.go $(GO_FILES) build proto
+build/wormhole-chaind: cmd/wormhole-chaind/main.go $(GO_FILES) proto
 	go build -o $@ $<
 
 proto:  $(PROTO_FILES)
 	starport generate proto-go
 	touch proto
 
-vue: $(GO_FILES) proto build
+vue: $(GO_FILES) proto
 	mkdir -p $@
 	touch -m $@
 	starport generate vuex --proto-all-modules
@@ -58,7 +56,7 @@ run: build/wormhole-chaind
 	./$< start --home build
 
 .PHONY: test
-test: build
+test:
 	go test -v ./...
 
 .PHONY: bootstrap
@@ -67,4 +65,4 @@ bootstrap:
 
 .PHONY: clean
 clean:
-	rm -rf build vue
+	rm -rf build/wormhole-chaind vue
