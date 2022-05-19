@@ -223,6 +223,26 @@ func TestUnmarshal(t *testing.T) {
 	assert.Equal(t, &vaa1, vaa2)
 }
 
+func TestUnmarshalTooBig(t *testing.T) {
+	vaa := getVaa()
+
+	// Overwrite an oversized payload for the VAA that we cannot unmarshal
+	var payload []byte
+	for i := 0; i < 2000; i++ {
+		payload = append(payload, 'a')
+	}
+	vaa.Payload = payload
+
+	// Let's marshal the VAA to bytes to unmarshaled
+	marshalBytes, err := vaa.Marshal()
+	assert.Nil(t, err)
+
+	// Let's now unmarshal the oversized VAA and cause it to panic
+	vaa2, err2 := Unmarshal(marshalBytes)
+	assert.Nil(t, vaa2)
+	assert.NotNil(t, err2)
+}
+
 func TestVerifySignatures(t *testing.T) {
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
