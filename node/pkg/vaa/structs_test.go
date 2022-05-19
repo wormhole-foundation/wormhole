@@ -115,7 +115,7 @@ func TestSignature_DataString(t *testing.T) {
 }
 
 func TestMinVAALength(t *testing.T) {
-	assert.Equal(t, minVAALength, 63)
+	assert.Equal(t, minVAALength, 57)
 }
 
 func TestChainId_String(t *testing.T) {

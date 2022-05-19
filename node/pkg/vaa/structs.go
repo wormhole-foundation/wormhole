@@ -212,13 +212,11 @@ const (
 	//  - sequence (8 bytes)
 	//  - consistency level (1 byte)
 	//  - payload (0 bytes)
-	//  PAYLOAD
-	//  -
 	//
 	// From Above: 1 + 4 + 1 + 0 + 4 + 4 + 2 + 32 + 8  + 1 + 0 // Equals 57
 	//
 	// More details here: https://docs.wormholenetwork.com/wormhole/vaas
-	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1 // Equals 63
+	minVAALength        = 57
 	SupportedVAAVersion = 0x01
 )
 
