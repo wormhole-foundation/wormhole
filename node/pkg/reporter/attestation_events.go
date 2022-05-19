@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const maxClientId = 1e6
+
 type (
 	// MessagePublication is a VAA along with a transaction identifer from the EmiterChain
 	MessagePublication struct {
@@ -50,7 +52,7 @@ func (re *AttestationEventReporter) getUniqueClientId() int {
 	clientId := 0
 	found := true
 	for found {
-		clientId = rand.Intn(1e6) //#nosec G404 The clientIds don't need to be unpredictable. They just need to be unique.
+		clientId = rand.Intn(maxClientId) //#nosec G404 The clientIds don't need to be unpredictable. They just need to be unique.
 		_, found = re.subs[clientId]
 	}
 	return clientId

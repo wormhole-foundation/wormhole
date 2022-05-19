@@ -14,7 +14,6 @@ func TestGetUniqueClientId(t *testing.T) {
 		Con: It takes ca. 0.463s to run this test
 	*/
 
-	var maxClientId int = 1e6 // need to adjust this if magic value in getUniqueClientId changes
 	var almostFullMap = make(map[int]*lifecycleEventChannels, maxClientId)
 
 	firstExpectedValue := 0
