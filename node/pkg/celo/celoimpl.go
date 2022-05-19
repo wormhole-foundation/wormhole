@@ -245,24 +245,3 @@ func convertLogFromEth(l *ethTypes.Log) *celoTypes.Log {
 		Removed:     l.Removed,
 	}
 }
-
-func convertNewHeadEventToEth(ev *celoTypes.Header) *ethTypes.Header {
-	return &ethTypes.Header{
-		ParentHash: ethCommon.BytesToHash(ev.ParentHash.Bytes()),
-		// Celo doesn't have UncleHash.
-		Coinbase:    ethCommon.BytesToAddress(ev.Coinbase.Bytes()),
-		Root:        ethCommon.BytesToHash(ev.Root.Bytes()),
-		TxHash:      ethCommon.BytesToHash(ev.TxHash.Bytes()),
-		ReceiptHash: ethCommon.BytesToHash(ev.ReceiptHash.Bytes()),
-		Bloom:       ethTypes.BytesToBloom(ev.Bloom.Bytes()),
-		// Celo doesn't have Difficulty.
-		Number: ev.Number,
-		// Celo doesn't have GasLimit.
-		GasUsed: ev.GasUsed,
-		Time:    ev.Time,
-		Extra:   ev.Extra,
-		// Celo doesn't have MixDigest.
-		// Celo doesn't have Nonce.
-		// Celo doesn't have BaseFee.
-	}
-}

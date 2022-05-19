@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"math/big"
-	"strconv"
 	"sync"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethHexUtils "github.com/ethereum/go-ethereum/common/hexutil"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
@@ -27,7 +25,6 @@ import (
 type MoonbeamImpl struct {
 	BaseEth  *EthImpl
 	logger   *zap.Logger
-	mbClient *ethClient.Client
 	mbRpcCon *ethRpc.Client
 }
 
@@ -42,12 +39,6 @@ func (e *MoonbeamImpl) DialContext(ctx context.Context, rawurl string) (err erro
 
 	// This is used for doing raw eth_ RPC calls.
 	e.mbRpcCon, err = ethRpc.DialContext(timeout, rawurl)
-	if err != nil {
-		return err
-	}
-
-	// This is used for doing go-ethereum calls in the polling method.
-	e.mbClient, err = ethClient.DialContext(ctx, rawurl)
 	if err != nil {
 		return err
 	}
@@ -118,20 +109,18 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 	}
 	if e.mbRpcCon == nil {
 		panic("mbRpcCon is not initialized!")
-	}
-	if e.mbClient == nil {
-		panic("mbClient is not initialized!")
 	}	
 
-	latestBlockNumber, err := e.getLatestBlockNumber(ctx)
+	latestBlock, err := e.getBlock(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	currentBlockNumber := latestBlockNumber
+	currentBlockNumber := *latestBlock.Number
 
-	const DELAY_IN_MS = 1000
+	const DELAY_IN_MS = 250
+	var BIG_ONE = big.NewInt(1)
 
-	timer := time.NewTimer(1 * time.Millisecond) // Start immediately.
+	timer := time.NewTimer(time.Millisecond) // Start immediately.
 	go func() {
 		for {
 			select {
@@ -139,58 +128,50 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 				return
 			case <-timer.C:
 				for {
+					var block *common.NewBlock
+					var err error
+
 					// See if the next block has been created yet.
-					if currentBlockNumber > latestBlockNumber {
-						latestBlockNumber, err = e.getLatestBlockNumber(ctx)
+					if currentBlockNumber.Cmp(latestBlock.Number) > 0 {
+						latestBlock, err = e.getBlock(ctx, nil)
 						if err != nil {
 							e.logger.Error("failed to look up latest block", zap.String("eth_network", e.BaseEth.NetworkName),
-								zap.Uint64("block", currentBlockNumber), zap.Error(err))
+								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
 						}
 
-						if currentBlockNumber > latestBlockNumber {
-							e.logger.Info("waiting for new latest block", zap.String("eth_network", e.BaseEth.NetworkName),
-								zap.Uint64("current_block", currentBlockNumber), zap.Uint64("latest_block", latestBlockNumber))
+						if currentBlockNumber.Cmp(latestBlock.Number) > 0 {
+							// We have to wait for this block to become available.
+							break
+						}
+
+						if currentBlockNumber.Cmp(latestBlock.Number) == 0 {
+							block = latestBlock
+						}
+					}
+
+					// Fetch the hash every time, in case it changes due to a rollback. The only exception is if we just got it above.
+					if block == nil {
+						block, err = e.getBlock(ctx, &currentBlockNumber)
+						if err != nil {
+							e.logger.Error("failed to get current block", zap.String("eth_network", e.BaseEth.NetworkName),
+								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
 						}
 					}
 
-					// Fetch the hash every time, in case it changes due to a rollback.
-					blockHash, err := e.getBlockHash(ctx, currentBlockNumber)
-					if err != nil {
-						e.logger.Error("failed to look up hash for current block", zap.String("eth_network", e.BaseEth.NetworkName),
-							zap.Uint64("block", currentBlockNumber), zap.Error(err))
-						break
-					}
-
-					e.logger.Info("checking to see if block is finalized", zap.String("eth_network", e.BaseEth.NetworkName),
-						zap.Uint64("block", currentBlockNumber), zap.Stringer("hash", blockHash))
-					finalized, err := e.isBlockFinalized(ctx, blockHash.Hex())
+					finalized, err := e.isBlockFinalized(ctx, block.Hash.Hex())
 					if err != nil {
 						e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.BaseEth.NetworkName),
-							zap.Uint64("block", currentBlockNumber), zap.Error(err))
+							zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 						break
 					}
 					if !finalized {
 						break
 					}
 
-					e.logger.Info("block is now finalized", zap.String("eth_network", e.BaseEth.NetworkName),
-						zap.Uint64("block", currentBlockNumber), zap.Stringer("hash", blockHash))
-
-					ev, err := e.getBlock(ctx, currentBlockNumber)
-					if err != nil {
-						e.logger.Error("failed to get finalized block", zap.String("eth_network", e.BaseEth.NetworkName),
-							zap.Uint64("block", currentBlockNumber), zap.Error(err))
-						// Don't break, move on to the next block.
-					} else {
-						sink <- &common.NewBlock{
-							Number: ev.Number,
-							Hash:   blockHash,
-						}
-					}
-
-					currentBlockNumber += 1
+					sink <- block
+					currentBlockNumber.Add(&currentBlockNumber, BIG_ONE)
 				}
 
 				timer = time.NewTimer(DELAY_IN_MS * time.Millisecond)
@@ -205,34 +186,32 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 	return sub, err
 }
 
-func (e *MoonbeamImpl) getLatestBlockNumber(ctx context.Context) (uint64, error) {
+func (e *MoonbeamImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBlock, error) {
+	var numStr string
+	if number != nil {
+		numStr = ethHexUtils.EncodeBig(number)
+	} else {
+		numStr = "latest"
+	}
+
 	type Marshaller struct {
 		Number *ethHexUtils.Big
-	}
-
-	var m Marshaller
-	err := e.mbRpcCon.CallContext(ctx, &m, "eth_getBlockByNumber", "latest", false)
-	if err != nil {
-		e.logger.Error("failed to get current block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
-		return 0, err
-	}
-
-	return strconv.ParseUint(m.Number.String()[2:], 16, 64)
-}
-
-func (e *MoonbeamImpl) getBlockHash(ctx context.Context, number uint64) (ethCommon.Hash, error) {
-	type Marshaller struct {
 		Hash ethCommon.Hash `json:"hash"`
 	}
 
 	var m Marshaller
-	err := e.mbRpcCon.CallContext(ctx, &m, "eth_getBlockByNumber", strconv.FormatUint(number, 10), false)
+	err := e.mbRpcCon.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
 	if err != nil {
-		e.logger.Error("failed to get current block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
-		return m.Hash, err
+		e.logger.Error("failed to get block", zap.String("eth_network", e.BaseEth.NetworkName),
+			zap.String("requested_block", numStr), zap.Error(err))
+		return nil, err
 	}
 
-	return m.Hash, nil
+	n := big.Int(*m.Number)
+	return &common.NewBlock{
+		Number: &n,
+		Hash:   m.Hash,
+	}, nil
 }
 
 func (e *MoonbeamImpl) isBlockFinalized(ctx context.Context, hash string) (bool, error) {
@@ -244,16 +223,4 @@ func (e *MoonbeamImpl) isBlockFinalized(ctx context.Context, hash string) (bool,
 	}
 
 	return finalized, nil
-}
-
-func (e *MoonbeamImpl) getBlock(ctx context.Context, number uint64) (*ethTypes.Header, error) {
-	var bnum big.Int
-	bnum.SetUint64(number)
-	ev, err := e.mbClient.HeaderByNumber(ctx, &bnum)
-	if err != nil {
-		e.logger.Error("failed to get block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Uint64("block", number), zap.Error(err))
-		return ev, err
-	}
-
-	return ev, nil
 }
