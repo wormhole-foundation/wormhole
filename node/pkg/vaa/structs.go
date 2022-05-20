@@ -271,11 +271,15 @@ func Unmarshal(data []byte) (*VAA, error) {
 		return nil, fmt.Errorf("failed to read commitment: %w", err)
 	}
 
-	payload := make([]byte, 1000)
+	payload := make([]byte, 1001)
 	n, err := reader.Read(payload)
 	if err != nil || n == 0 {
 		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
 	}
+	if len(payload) > 1000 {
+		return nil, fmt.Errorf("payload too big [%d]", n)
+	}
+
 	v.Payload = payload[:n]
 
 	return v, nil

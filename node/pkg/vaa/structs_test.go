@@ -239,8 +239,8 @@ func TestUnmarshalTooBig(t *testing.T) {
 
 	// Let's now unmarshal the oversized VAA and cause it to panic
 	vaa2, err2 := Unmarshal(marshalBytes)
-	assert.Nil(t, vaa2)
 	assert.NotNil(t, err2)
+	assert.Nil(t, vaa2)
 }
 
 func TestVerifySignatures(t *testing.T) {
