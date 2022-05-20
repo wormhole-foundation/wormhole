@@ -44,6 +44,15 @@ contract BridgeStorage {
 
         // Mapping of bridge contracts on other chains
         mapping(uint16 => bytes32) bridgeImplementations;
+
+        // Required number of block confirmations to assume finality
+        uint8 finality;
+
+        // These 248 bits (31 bytes) are unused, and we reserve them for future
+        // state variables that can be packed into the same word slot as
+        // 'finality' above. Anything smaller than a full word can be allocated
+        // here to save gas
+        uint248 unused;
     }
 }
 

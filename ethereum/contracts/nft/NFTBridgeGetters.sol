@@ -57,4 +57,8 @@ contract NFTBridgeGetters is NFTBridgeState {
     function splCache(uint256 tokenId) public view returns (NFTBridgeStorage.SPLCache memory) {
         return _state.splCache[tokenId];
     }
+
+    function finality() public view returns (uint8) {
+        return _state.finality;
+    }
 }

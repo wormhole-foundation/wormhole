@@ -58,7 +58,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         sequence = wormhole().publishMessage{
             value : msg.value
-        }(nonce, encoded, 15);
+        }(nonce, encoded, finality());
     }
 
     function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable returns (uint64 sequence) {
@@ -205,7 +205,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         sequence = wormhole().publishMessage{
             value : callValue
-        }(nonce, encoded, 15);
+        }(nonce, encoded, finality());
     }
 
     function logTransferWithPayload(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint256 callValue, uint32 nonce, bytes memory payload) internal returns (uint64 sequence) {
@@ -226,7 +226,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         sequence = wormhole().publishMessage{
             value : callValue
-        }(nonce, encoded, 15);
+        }(nonce, encoded, finality());
     }
 
     function updateWrapped(bytes memory encodedVm) external returns (address token) {
