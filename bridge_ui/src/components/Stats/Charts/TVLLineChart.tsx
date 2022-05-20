@@ -47,6 +47,7 @@ const TVLLineChart = ({
           axisLine={false}
           tickLine={false}
           dy={16}
+          padding={{ right: 32 }}
         />
         <YAxis
           tickFormatter={formatTVL}
