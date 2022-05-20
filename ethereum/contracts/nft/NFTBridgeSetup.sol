@@ -15,7 +15,8 @@ contract NFTBridgeSetup is NFTBridgeSetters, ERC1967Upgrade {
         address wormhole,
         uint16 governanceChainId,
         bytes32 governanceContract,
-        address tokenImplementation
+        address tokenImplementation,
+        uint8 finality
     ) public {
         setChainId(chainId);
 
@@ -25,6 +26,8 @@ contract NFTBridgeSetup is NFTBridgeSetters, ERC1967Upgrade {
         setGovernanceContract(governanceContract);
 
         setTokenImplementation(tokenImplementation);
+
+        setFinality(finality);
 
         _upgradeTo(implementation);
     }

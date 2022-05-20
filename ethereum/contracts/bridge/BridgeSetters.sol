@@ -54,4 +54,8 @@ contract BridgeSetters is BridgeState {
     function setOutstandingBridged(address token, uint256 outstanding) internal {
         _state.outstandingBridged[token] = outstanding;
     }
+
+    function setFinality(uint8 finality) internal {
+        _state.provider.finality = finality;
+    }
 }
