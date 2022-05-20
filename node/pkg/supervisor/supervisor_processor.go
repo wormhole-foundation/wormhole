@@ -206,7 +206,7 @@ func (s *supervisor) processDied(r *processorRequestDied) {
 
 	// Cancel all siblings.
 	if n.parent != nil {
-		for name, _ := range n.parent.groupSiblings(n.name) {
+		for name := range n.parent.groupSiblings(n.name) {
 			if name == n.name {
 				continue
 			}
@@ -262,7 +262,7 @@ func (s *supervisor) processGC() {
 
 	// We build a queue of nodes to visit, starting from the leaves.
 	queue = []*node{}
-	for l, _ := range leaves {
+	for l := range leaves {
 		queue = append(queue, s.nodeByDN(l))
 	}
 
@@ -366,7 +366,7 @@ func (s *supervisor) processGC() {
 	}
 
 	// Reinitialize and reschedule all subtrees
-	for dn, _ := range can {
+	for dn := range can {
 		n := s.nodeByDN(dn)
 
 		// Only back off when the node unexpectedly died - not when it got canceled.

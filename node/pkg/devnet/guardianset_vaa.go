@@ -22,7 +22,7 @@ func DevnetGuardianSetVSS(n uint) *vaa.VAA {
 	pubkeys := make([]common.Address, n)
 
 	for n := range pubkeys {
-		key := DeterministicEcdsaKeyByIndex(crypto.S256(), uint64(n))
+		key := InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), uint64(n))
 		pubkeys[n] = crypto.PubkeyToAddress(key.PublicKey)
 	}
 
@@ -41,7 +41,7 @@ func DevnetGuardianSetVSS(n uint) *vaa.VAA {
 	}
 
 	// The devnet is initialized with a single guardian (ethereum/migrations/1_initial_migration.js).
-	key0 := DeterministicEcdsaKeyByIndex(crypto.S256(), 0)
+	key0 := InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), 0)
 	v.AddSignature(key0, 0)
 
 	return v
