@@ -22,6 +22,7 @@ contract("Bridge", function () {
     const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner1PK);
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
     const testChainId = "2";
+    const testFinality = "15";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
     let WETH = process.env.BRIDGE_INIT_WETH;
@@ -47,6 +48,10 @@ contract("Bridge", function () {
         // chain id
         const chainId = await initialized.methods.chainId().call();
         assert.equal(chainId, testChainId);
+
+        // finality
+        const finality = await initialized.methods.finality().call();
+        assert.equal(finality, testFinality);
 
         // governance
         const governanceChainId = await initialized.methods.governanceChainId().call();

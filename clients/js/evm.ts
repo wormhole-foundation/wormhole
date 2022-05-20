@@ -51,6 +51,7 @@ export async function query_contract_evm(
       result.isInitialized = await core.isInitialized(result.implementation)
       break
     case "TokenBridge":
+      // TODO: add finality (need new sdk release)
       contract_address = contract_address ? contract_address : contracts.token_bridge;
       if (contract_address === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for ${chain}`)
@@ -74,6 +75,7 @@ export async function query_contract_evm(
       }
       break
     case "NFTBridge":
+      // TODO: add finality (need new sdk release)
       contract_address = contract_address ? contract_address : contracts.nft_bridge;
       if (contract_address === undefined) {
         throw Error(`Unknown nft bridge contract on ${network} for ${chain}`)
