@@ -2,18 +2,19 @@ package common
 
 import (
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
+
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestGetOrCreateNodeKeyWithNewPath(t *testing.T) {
 	// Get a non-existing temp file path to write auto-generated privKey to
-	path := "/tmp/node_key_test_" + fmt.Sprint(rand.Int())
+	path := "/tmp/node_key_test_" + fmt.Sprint(rand.Int()) //#nosec G404 no CSPRNG needed here
 	defer os.Remove(path)
 
 	logger, _ := zap.NewProduction()

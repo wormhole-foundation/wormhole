@@ -3,9 +3,10 @@ package devnet
 import (
 	"encoding/hex"
 	"fmt"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestDeterministicEcdsaKeyByIndex(t *testing.T) {
@@ -23,7 +24,7 @@ func TestDeterministicEcdsaKeyByIndex(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(fmt.Sprint(tc.index), func(t *testing.T) {
-			privKey := DeterministicEcdsaKeyByIndex(crypto.S256(), tc.index)
+			privKey := InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), tc.index)
 			got := crypto.FromECDSA(privKey)
 			assert.Equal(t, tc.privKeyHex, hex.EncodeToString(got))
 		})
