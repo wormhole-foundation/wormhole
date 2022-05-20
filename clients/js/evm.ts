@@ -30,6 +30,7 @@ export async function query_contract_evm(
 
   switch (module) {
     case "Core":
+      // TODO: add finality (need new sdk release)
       contract_address = contract_address ? contract_address : contracts.core;
       if (contract_address === undefined) {
         throw Error(`Unknown core contract on ${network} for ${chain}`)

@@ -55,7 +55,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         sequence = wormhole().publishMessage{
             value : msg.value
-        }(nonce, encoded, 15);
+        }(nonce, encoded, finality());
     }
 
     /*
@@ -314,7 +314,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         sequence = wormhole().publishMessage{value: callValue}(
             nonce,
             encoded,
-            15
+            finality()
         );
     }
 
@@ -351,7 +351,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         sequence = wormhole().publishMessage{value: callValue}(
             nonce,
             encoded,
-            15
+            finality()
         );
     }
     function updateWrapped(bytes memory encodedVm) external returns (address token) {
