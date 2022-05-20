@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4
+
+### Changed
+
+Fixed createWrappedAlgorand for Chain IDs > 128
+
 ## 0.3.3
 
 ### Added

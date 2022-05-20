@@ -1,5 +1,3 @@
-import base32 from 'hi-base32';
-
 import { formatUnits, parseUnits } from "@ethersproject/units";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
@@ -29,7 +27,7 @@ import algosdk, {
   waitForConfirmation,
 } from "algosdk";
 import axios from "axios";
-import { BigNumber, utils, ethers } from "ethers";
+import { BigNumber, ethers, utils } from "ethers";
 import {
   approveEth,
   attestFromAlgorand,
@@ -731,17 +729,12 @@ describe("Integration Tests", () => {
             initialBalOnEth,
             18
           );
-          console.log(
-            "Balance on Eth before transfer = ",
-            parseInt(initialBalOnEthStr)
-          );
 
           // Get initial balance of ERC20 on Terra
           const originAssetHex = tryNativeToHexString(ERC20, CHAIN_ID_ETH);
           if (!originAssetHex) {
             throw new Error("originAssetHex is null");
           }
-          console.log("ERC20 originAssetHex: ", originAssetHex);
           const foreignAsset = await getForeignAssetTerra(
             TERRA_TOKEN_BRIDGE_ADDRESS,
             lcd,
@@ -751,7 +744,6 @@ describe("Integration Tests", () => {
           if (!foreignAsset) {
             throw new Error("foreignAsset is null");
           }
-          console.log("ERC20 foreignAssetHex: ", foreignAsset);
           const tokenDefinition: any = await lcd.wasm.contractQuery(
             foreignAsset,
             {
@@ -770,11 +762,7 @@ describe("Integration Tests", () => {
             cw20BalOnTerra.balance,
             tokenDefinition.decimals
           );
-          let initialCW20BalOnTerra: number = parseInt(balAmount);
-          console.log(
-            "CW20 balance on Terra before transfer = ",
-            initialCW20BalOnTerra
-          );
+          // let initialCW20BalOnTerra: number = parseInt(balAmount);
 
           // approve the bridge to spend tokens
           await approveEth(
@@ -864,10 +852,6 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           let finalBalOnEthStr = ethers.utils.formatUnits(finalBalOnEth, 18);
-          console.log(
-            "Balance on Eth after transfer = ",
-            parseInt(finalBalOnEthStr)
-          );
           expect(
             parseInt(initialBalOnEthStr) - parseInt(finalBalOnEthStr)
           ).toEqual(1);
@@ -882,11 +866,7 @@ describe("Integration Tests", () => {
             cw20BalOnTerra.balance,
             tokenDefinition.decimals
           );
-          let finalCW20BalOnTerra: number = parseInt(balAmount);
-          console.log(
-            "CW20 balance on Terra after transfer = ",
-            finalCW20BalOnTerra
-          );
+          // let finalCW20BalOnTerra: number = parseInt(balAmount);
           provider.destroy();
           done();
         } catch (e) {
@@ -1229,9 +1209,6 @@ describe("Integration Tests", () => {
               signedVaa
             );
           } catch (e) {
-            console.log(
-              "createWrappedOnEth() failed.  Trying updateWrappedOnEth()..."
-            );
             success = false;
           }
           if (!success) {
@@ -1264,11 +1241,9 @@ describe("Integration Tests", () => {
 
           // Get initial balance of luna on Terra
           const initialTerraBalance: number = await queryBalanceOnTerra(Asset);
-          console.log("Initial Terra balance of", Asset, initialTerraBalance);
 
           // Get initial balance of uusd on Terra
-          const initialFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
-          console.log("Initial Terra balance of", FeeAsset, initialFeeBalance);
+          // const initialFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
 
           // Get initial balance of wrapped luna on Eth
           const ETH_TEST_WALLET_PUBLIC_KEY =
@@ -1300,10 +1275,6 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const initialLunaBalOnEthInt = parseInt(initialLunaBalOnEth._hex);
-          console.log(
-            "Luna balance on Eth before transfer = ",
-            initialLunaBalOnEthInt
-          );
 
           // Start transfer from Terra to Ethereum
           const hexStr = tryNativeToHexString(
@@ -1345,7 +1316,6 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           const result = await lcd.tx.broadcast(executeTx);
-          console.log("Transfer gas used: ", result.gas_used);
           const info = await waitForTerraExecution(result.txhash);
           if (!info) {
             throw new Error("info not found");
@@ -1380,20 +1350,14 @@ describe("Integration Tests", () => {
           // Test finished.  Check wallet balances
           // Get final balance of uluna on Terra
           const finalTerraBalance = await queryBalanceOnTerra(Asset);
-          console.log("Final Terra balance of", Asset, finalTerraBalance);
 
           // Get final balance of uusd on Terra
-          const finalFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
-          console.log("Final Terra balance of", FeeAsset, finalFeeBalance);
+          // const finalFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
           expect(initialTerraBalance - 1e6 === finalTerraBalance).toBe(true);
           const lunaBalOnEthAfter = await token.balanceOf(
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const lunaBalOnEthAfterInt = parseInt(lunaBalOnEthAfter._hex);
-          console.log(
-            "Luna balance on Eth after transfer = ",
-            lunaBalOnEthAfterInt
-          );
           expect(initialLunaBalOnEthInt + 1e6 === lunaBalOnEthAfterInt).toBe(
             true
           );
@@ -1418,7 +1382,6 @@ describe("Integration Tests", () => {
           });
           const Asset: string = "uluna";
           const initialTerraBalance: number = await queryBalanceOnTerra(Asset);
-          console.log("Terra balance before transfer = ", initialTerraBalance);
           const ETH_TEST_WALLET_PUBLIC_KEY =
             "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
           const provider = new ethers.providers.WebSocketProvider(
@@ -1446,10 +1409,6 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const initialLunaBalOnEthInt = parseInt(initialLunaBalOnEth._hex);
-          console.log(
-            "Luna balance on Eth before transfer = ",
-            initialLunaBalOnEthInt
-          );
           const Amount: string = "1000000";
 
           // approve the bridge to spend tokens
@@ -1470,7 +1429,6 @@ describe("Integration Tests", () => {
             CHAIN_ID_TERRA,
             tryNativeToUint8Array(wallet.key.accAddress, CHAIN_ID_TERRA)
           );
-          console.log("Transfer gas used: ", receipt.gasUsed);
 
           // get the sequence from the logs (needed to fetch the vaa)
           const sequence = parseSequenceFromLogEth(
@@ -1530,21 +1488,15 @@ describe("Integration Tests", () => {
 
           // Check wallet balances after
           const finalTerraBalance = await queryBalanceOnTerra(Asset);
-          console.log("Terra balance after transfer = ", finalTerraBalance);
           expect(initialTerraBalance + 1e6 === finalTerraBalance).toBe(true);
           const finalLunaBalOnEth = await token.balanceOf(
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const finalLunaBalOnEthInt = parseInt(finalLunaBalOnEth._hex);
-          console.log(
-            "Luna balance on Eth after transfer = ",
-            finalLunaBalOnEthInt
-          );
           expect(initialLunaBalOnEthInt - 1e6 === finalLunaBalOnEthInt).toBe(
             true
           );
-          const uusdBal = await queryBalanceOnTerra("uusd");
-          console.log("uusdBal = ", uusdBal);
+          // const uusdBal = await queryBalanceOnTerra("uusd");
         } catch (e) {
           console.error("Transfer back failure: ", e);
           done("Transfer back Failure");
@@ -1635,9 +1587,6 @@ describe("Integration Tests", () => {
               signedVaa
             );
           } catch (e) {
-            console.log(
-              "createWrappedOnEth() failed.  Trying updateWrappedOnEth()..."
-            );
             success = false;
           }
           if (!success) {
@@ -1651,12 +1600,10 @@ describe("Integration Tests", () => {
           // Attestation is complete
 
           // Get initial balance of uusd on Terra
-          const initialFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
-          console.log("Initial Terra balance of", FeeAsset, initialFeeBalance);
+          // const initialFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
 
           // Get wallet on eth
           const originAssetHex = tryNativeToHexString(CW20, CHAIN_ID_TERRA);
-          console.log("CW20 originAssetHex: ", originAssetHex);
           if (!originAssetHex) {
             throw new Error("originAssetHex is null");
           }
@@ -1679,10 +1626,6 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           let initialCW20BalOnEthInt = parseInt(initialCW20BalOnEth._hex);
-          console.log(
-            "CW20 balance on Eth before transfer = ",
-            initialCW20BalOnEthInt
-          );
 
           // Get initial balance of CW20 on Terra
           const tokenDefinition: any = await lcd.wasm.contractQuery(CW20, {
@@ -1698,10 +1641,6 @@ describe("Integration Tests", () => {
             tokenDefinition.decimals
           );
           let initialCW20BalOnTerra: number = parseInt(amount);
-          console.log(
-            "CW20 balance on Terra before transfer = ",
-            initialCW20BalOnTerra
-          );
           const hexStr = tryNativeToHexString(
             ETH_TEST_WALLET_PUBLIC_KEY,
             CHAIN_ID_ETH
@@ -1768,17 +1707,12 @@ describe("Integration Tests", () => {
               signedVaa
             )
           ).toBe(true);
-          console.log("Finished transferring CW20 token to Ethereum");
 
           // Check the wallet balances
           let finalCW20BalOnEth = await token.balanceOf(
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           let finalCW20BalOnEthInt = parseInt(finalCW20BalOnEth._hex);
-          console.log(
-            "CW20 balance on Eth after transfer = ",
-            finalCW20BalOnEthInt
-          );
           expect(initialCW20BalOnEthInt + 1e6 === finalCW20BalOnEthInt).toBe(
             true
           );
@@ -1792,25 +1726,13 @@ describe("Integration Tests", () => {
             tokenDefinition.decimals
           );
           let finalCW20BalOnTerra: number = parseInt(amount);
-          console.log(
-            "CW20 balance on Terra after transfer = ",
-            finalCW20BalOnTerra
-          );
           expect(initialCW20BalOnTerra - finalCW20BalOnTerra === 1).toBe(true);
           // Done checking wallet balances
 
           // Start the reverse transfer from Ethereum back to Terra
           // Get initial wallet balances
           initialCW20BalOnTerra = finalCW20BalOnTerra;
-          console.log(
-            "CW20 balance on Terra before transfer = ",
-            initialCW20BalOnTerra
-          );
           initialCW20BalOnEthInt = finalCW20BalOnEthInt;
-          console.log(
-            "CW20 balance on Eth before transfer = ",
-            initialCW20BalOnEthInt
-          );
 
           // approve the bridge to spend tokens
           await approveEth(
@@ -1829,7 +1751,6 @@ describe("Integration Tests", () => {
             CHAIN_ID_TERRA,
             tryNativeToUint8Array(wallet.key.accAddress, CHAIN_ID_TERRA)
           );
-          console.log("Transfer gas used: ", receipt.gasUsed);
 
           // get the sequence from the logs (needed to fetch the vaa)
           sequence = parseSequenceFromLogEth(receipt, ETH_CORE_BRIDGE_ADDRESS);
@@ -1887,10 +1808,6 @@ describe("Integration Tests", () => {
           // Check wallet balances after transfer back
           finalCW20BalOnEth = await token.balanceOf(ETH_TEST_WALLET_PUBLIC_KEY);
           finalCW20BalOnEthInt = parseInt(finalCW20BalOnEth._hex);
-          console.log(
-            "CW20 balance on Eth after transfer = ",
-            finalCW20BalOnEthInt
-          );
           expect(initialCW20BalOnEthInt - 1e6 === finalCW20BalOnEthInt).toBe(
             true
           );
@@ -1904,10 +1821,6 @@ describe("Integration Tests", () => {
             tokenDefinition.decimals
           );
           finalCW20BalOnTerra = parseInt(amount);
-          console.log(
-            "CW20 balance on Terra after transfer = ",
-            finalCW20BalOnTerra
-          );
           expect(finalCW20BalOnTerra - initialCW20BalOnTerra === 1).toBe(true);
           // Done checking wallet balances
         } catch (e) {
@@ -1923,21 +1836,16 @@ describe("Integration Tests", () => {
     test("Algorand transfer native ALGO to Eth and back again", (done) => {
       (async () => {
         try {
-          console.log("Starting attestation...");
           const client: algosdk.Algodv2 = getAlgoClient();
           const tempAccts: Account[] = await getTempAccounts();
           const numAccts: number = tempAccts.length;
           expect(numAccts).toBeGreaterThan(0);
           const wallet: Account = tempAccts[0];
 
-          let accountInfo = await client.accountInformation(wallet.addr).do();
-          console.log("Account balance: %d microAlgos", accountInfo.amount);
-
+          // let accountInfo = await client.accountInformation(wallet.addr).do();
           // Asset Index of native ALGO is 0
           const AlgoIndex = BigInt(0);
-          console.log("Testing attestFromAlgorand...");
-          const b = await getBalances(client, wallet.addr);
-          console.log("balances", b);
+          // const b = await getBalances(client, wallet.addr);
           const txs = await attestFromAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -1946,15 +1854,11 @@ describe("Integration Tests", () => {
             AlgoIndex
           );
 
-
           const result = await signSendAndConfirmAlgorand(client, txs, wallet);
-
-          console.log("txid of attest", txs[txs.length - 1].tx.txID(), Buffer.from(base32.decode.asBytes(txs[txs.length - 1].tx.txID())).toString("hex"));
 
           const sn = parseSequenceFromLogAlgorand(result);
 
           // Now, try to send a NOP
-          console.log("Start of NOP...");
           const suggParams: algosdk.SuggestedParams = await client
             .getTransactionParams()
             .do();
@@ -1968,12 +1872,9 @@ describe("Integration Tests", () => {
           const resp = await client
             .sendRawTransaction(nopTxn.signTxn(wallet.sk))
             .do();
-          console.log("resp", resp);
-          const response = await waitForConfirmation(client, resp.txId, 1);
-          console.log("End of NOP");
+          await waitForConfirmation(client, resp.txId, 1);
           // End of NOP
 
-          console.log("Getting emitter address...");
           const emitterAddr = getEmitterAddressAlgorand(TOKEN_BRIDGE_ID);
           const { vaaBytes } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -1983,7 +1884,6 @@ describe("Integration Tests", () => {
             { transport: NodeHttpTransport() }
           );
           const pvaa = _parseVAAAlgorand(vaaBytes);
-          console.log("VAA for createWrappedOnEth:", pvaa);
           const provider = new ethers.providers.WebSocketProvider(
             ETH_NODE_URL
           ) as any;
@@ -1996,13 +1896,9 @@ describe("Integration Tests", () => {
               vaaBytes
             );
           } catch (e) {
-            console.log(
-              "createWrappedOnEth() failed.  Trying updateWrappedOnEth()..."
-            );
             success = false;
           }
           if (!success) {
-            console.log("using updateWrappedOnEth...");
             try {
               const cr = await updateWrappedOnEth(
                 ETH_TOKEN_BRIDGE_ADDRESS,
@@ -2014,20 +1910,12 @@ describe("Integration Tests", () => {
               console.error("failed to updateWrappedOnEth", e);
             }
           }
-          console.log("Attestation is complete...");
-          console.log("Starting transfer to Eth...");
           // Check wallet
           const a = parseInt(AlgoIndex.toString());
           const originAssetHex = (
             "0000000000000000000000000000000000000000000000000000000000000000" +
             a.toString(16)
           ).slice(-64);
-          console.log(
-            "calling getForeignAssetEth",
-            ETH_TOKEN_BRIDGE_ADDRESS,
-            CHAIN_ID_ALGORAND,
-            originAssetHex
-          );
           const foreignAsset = await getForeignAssetEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             provider,
@@ -2037,7 +1925,6 @@ describe("Integration Tests", () => {
           if (!foreignAsset) {
             throw new Error("foreignAsset is null");
           }
-          console.log("foreignAsset", foreignAsset);
           let token = TokenImplementation__factory.connect(
             foreignAsset,
             signer
@@ -2050,21 +1937,18 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
-          console.log("Balance on Eth before transfer = ", initialBalOnEthInt);
 
           // Get initial balance on Algorand
           let algoWalletBals: Map<number, number> = await getBalances(
             client,
             wallet.addr
           );
-          console.log("algoWalletBals:", algoWalletBals);
           const startingAlgoBal = algoWalletBals.get(
             safeBigIntToNumber(AlgoIndex)
           );
           if (!startingAlgoBal) {
             throw new Error("startingAlgoBal is undefined");
           }
-          console.log("startingAlgoBal", startingAlgoBal);
 
           // Start transfer from Algorand to Ethereum
           const hexStr = nativeToHexString(
@@ -2074,10 +1958,8 @@ describe("Integration Tests", () => {
           if (!hexStr) {
             throw new Error("Failed to convert to hexStr");
           }
-          console.log("hexStr", hexStr);
           const AmountToTransfer: number = 12300;
           const Fee: number = 0;
-          console.log("Calling transferFromAlgorand...");
           const transferTxs = await transferFromAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2095,7 +1977,6 @@ describe("Integration Tests", () => {
             wallet
           );
           const txSid = parseSequenceFromLogAlgorand(transferResult);
-          console.log("Getting signed VAA...");
           const signedVaa = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
@@ -2103,16 +1984,12 @@ describe("Integration Tests", () => {
             txSid,
             { transport: NodeHttpTransport() }
           );
-          console.log("About to redeemOnEth...");
-          console.log("vaa", uint8ArrayToHex(signedVaa.vaaBytes));
           const pv = _parseVAAAlgorand(signedVaa.vaaBytes);
-          console.log(pv);
           const roe = await redeemOnEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             signer,
             signedVaa.vaaBytes
           );
-          console.log("Check if transfer is complete...");
           expect(
             await getIsTransferCompletedEth(
               ETH_TOKEN_BRIDGE_ADDRESS,
@@ -2125,50 +2002,29 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
-          console.log("Balance on Eth after transfer = ", balOnEthAfterInt);
           expect(balOnEthAfterInt - initialBalOnEthInt).toEqual(
             AmountToTransfer
           );
 
           // Get final balance on Algorand
           algoWalletBals = await getBalances(client, wallet.addr);
-          console.log("algoWalletBals after:", algoWalletBals);
           const finalAlgoBal = algoWalletBals.get(
             safeBigIntToNumber(AlgoIndex)
           );
           if (!finalAlgoBal) {
             throw new Error("finalAlgoBal is undefined");
           }
-          console.log(
-            "startingAlgoBal",
-            startingAlgoBal,
-            "finalAlgoBal",
-            finalAlgoBal,
-            "AmountToTransfer",
-            AmountToTransfer
-          );
           // expect(startingAlgoBal - finalAlgoBal).toBe(AmountToTransfer);
 
           // Attempt to transfer from Eth back to Algorand
           const Amount: string = "100";
 
           // approve the bridge to spend tokens
-          console.log("About to approveEth...");
           await approveEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             foreignAsset,
             signer,
             Amount
-          );
-          console.log(
-            "About to transferFromEth...",
-            ETH_TOKEN_BRIDGE_ADDRESS,
-            signer,
-            foreignAsset,
-            Amount,
-            CHAIN_ID_ALGORAND,
-            wallet.addr,
-            decodeAddress(wallet.addr)
           );
           const receipt = await transferFromEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
@@ -2178,9 +2034,7 @@ describe("Integration Tests", () => {
             CHAIN_ID_ALGORAND,
             decodeAddress(wallet.addr).publicKey
           );
-          console.log("receipt", receipt);
           // get the sequence from the logs (needed to fetch the vaa)
-          console.log("About to parseSeq...");
           const sequence = parseSequenceFromLogEth(
             receipt,
             ETH_CORE_BRIDGE_ADDRESS
@@ -2188,7 +2042,6 @@ describe("Integration Tests", () => {
           const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
 
           // poll until the guardian(s) witness and sign the vaa
-          console.log("About to getSignedVAA...");
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ETH,
@@ -2199,8 +2052,6 @@ describe("Integration Tests", () => {
             }
           );
           algoWalletBals = await getBalances(client, wallet.addr);
-          console.log("algoWallet2Bals before:", algoWalletBals);
-          console.log("About to redeemOnAlgorand...");
           const redeemTxs = await redeemOnAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2209,46 +2060,27 @@ describe("Integration Tests", () => {
             wallet.addr
           );
           await signSendAndConfirmAlgorand(client, redeemTxs, wallet);
-          console.log("About to getIsTransferComplete...");
-          const completed: boolean = await getIsTransferCompletedAlgorand(
+          const completed = await getIsTransferCompletedAlgorand(
             client,
             TOKEN_BRIDGE_ID,
             signedVAA
           );
-          console.log("Checking wallets...");
-          const newBal = await token.balanceOf(ETH_TEST_WALLET_PUBLIC_KEY);
-          const newBalInt = parseInt(newBal._hex);
-          console.log(
-            "newBalInt",
-            newBalInt,
-            "AmountToTransfer",
-            AmountToTransfer,
-            "Amount",
-            Amount
-          );
+          expect(completed).toBe(true);
+          // const newBal = await token.balanceOf(ETH_TEST_WALLET_PUBLIC_KEY);
+          // const newBalInt = parseInt(newBal._hex);
           // expect(newBalInt).toBe(AmountToTransfer - parseInt(Amount));
 
           // Get second final balance on Algorand
           algoWalletBals = await getBalances(client, wallet.addr);
-          console.log("algoWalletBals after after:", algoWalletBals);
           const secondFinalAlgoBal = algoWalletBals.get(
             safeBigIntToNumber(AlgoIndex)
           );
           if (!secondFinalAlgoBal) {
             throw new Error("secondFinalAlgoBal is undefined");
           }
-          console.log(
-            "secondFinalAlgoBal",
-            secondFinalAlgoBal,
-            "finalAlgoBal",
-            finalAlgoBal,
-            "Amount",
-            Amount
-          );
           // expect(secondFinalAlgoBal - finalAlgoBal).toBe(
           //   parseInt(Amount) * 100
           // );
-          console.log("algoWallet2Bals after:", algoWalletBals);
           provider.destroy();
         } catch (e) {
           console.error("Algorand ALGO transfer error:", e);
@@ -2261,20 +2093,15 @@ describe("Integration Tests", () => {
     test("Algorand create chuckNorium, transfer to Eth and back again", (done) => {
       (async () => {
         try {
-          console.log("Starting attestation...");
           const client: algosdk.Algodv2 = getAlgoClient();
           const tempAccts: Account[] = await getTempAccounts();
           const numAccts: number = tempAccts.length;
           expect(numAccts).toBeGreaterThan(0);
           const wallet: Account = tempAccts[0];
 
-          let accountInfo = await client.accountInformation(wallet.addr).do();
-          console.log("Account balance: %d microAlgos", accountInfo.amount);
+          // let accountInfo = await client.accountInformation(wallet.addr).do();
 
-          console.log("Creating fake asset...");
           const assetIndex: number = await createAsset(wallet);
-          console.log("Newly created asset index =", assetIndex);
-          console.log("Testing attestFromAlgorand...");
           const attestTxs = await attestFromAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2288,10 +2115,8 @@ describe("Integration Tests", () => {
             wallet
           );
           const attestSn = parseSequenceFromLogAlgorand(attestResult);
-          console.log("attestSn", attestSn);
 
           // Now, try to send a NOP
-          console.log("Start of NOP...");
           const suggParams: algosdk.SuggestedParams = await client
             .getTransactionParams()
             .do();
@@ -2305,12 +2130,9 @@ describe("Integration Tests", () => {
           const resp = await client
             .sendRawTransaction(nopTxn.signTxn(wallet.sk))
             .do();
-          console.log("resp", resp);
-          const response = await waitForConfirmation(client, resp.txId, 1);
-          console.log("End of NOP");
+          await waitForConfirmation(client, resp.txId, 1);
           // End of NOP
 
-          console.log("Getting emitter address...");
           const emitterAddr = getEmitterAddressAlgorand(TOKEN_BRIDGE_ID);
           const { vaaBytes } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -2331,13 +2153,9 @@ describe("Integration Tests", () => {
               vaaBytes
             );
           } catch (e) {
-            console.log(
-              "createWrappedOnEth() failed.  Trying updateWrappedOnEth()..."
-            );
             success = false;
           }
           if (!success) {
-            console.log("using updateWrappedOnEth...");
             try {
               const cr = await updateWrappedOnEth(
                 ETH_TOKEN_BRIDGE_ADDRESS,
@@ -2351,26 +2169,12 @@ describe("Integration Tests", () => {
               return;
             }
           }
-          console.log("Attestation is complete...");
-          console.log("Starting transfer to Eth...");
           // Check wallet
           const a = parseInt(assetIndex.toString());
           const originAssetHex = (
             "0000000000000000000000000000000000000000000000000000000000000000" +
             a.toString(16)
           ).slice(-64);
-          console.log(
-            "assetIndex: ",
-            assetIndex,
-            ", originAssetHex:",
-            originAssetHex
-          );
-          console.log(
-            "calling getForeignAssetEth",
-            ETH_TOKEN_BRIDGE_ADDRESS,
-            CHAIN_ID_ALGORAND,
-            originAssetHex
-          );
           const foreignAsset = await getForeignAssetEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             provider,
@@ -2380,7 +2184,6 @@ describe("Integration Tests", () => {
           if (!foreignAsset) {
             throw new Error("foreignAsset is null");
           }
-          console.log("foreignAsset", foreignAsset);
           let token = TokenImplementation__factory.connect(
             foreignAsset,
             signer
@@ -2389,23 +2192,20 @@ describe("Integration Tests", () => {
           // Get initial balance on ethereum
           const ETH_TEST_WALLET_PUBLIC_KEY =
             "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1";
-          const initialBalOnEth = await token.balanceOf(
-            ETH_TEST_WALLET_PUBLIC_KEY
-          );
-          const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
-          console.log("Balance on Eth before transfer = ", initialBalOnEthInt);
+          // const initialBalOnEth = await token.balanceOf(
+          //   ETH_TEST_WALLET_PUBLIC_KEY
+          // );
+          // const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
 
           // Get initial balance on Algorand
           let algoWalletBals: Map<number, number> = await getBalances(
             client,
             wallet.addr
           );
-          console.log("algoWalletBals:", algoWalletBals);
           const startingAlgoBal = algoWalletBals.get(assetIndex);
           if (!startingAlgoBal) {
             throw new Error("startingAlgoBal is undefined");
           }
-          console.log("startingAlgoBal", startingAlgoBal);
 
           // Start transfer from Algorand to Ethereum
           const hexStr = nativeToHexString(
@@ -2415,10 +2215,8 @@ describe("Integration Tests", () => {
           if (!hexStr) {
             throw new Error("Failed to convert to hexStr");
           }
-          console.log("hexStr", hexStr);
           const AmountToTransfer: number = 12300;
           const Fee: number = 0;
-          console.log("Calling transferFromAlgorand...");
           const transferTxs = await transferFromAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2436,7 +2234,6 @@ describe("Integration Tests", () => {
             wallet
           );
           const txSid = parseSequenceFromLogAlgorand(transferResult);
-          console.log("Getting signed VAA...");
           const signedVaa = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
@@ -2444,14 +2241,11 @@ describe("Integration Tests", () => {
             txSid,
             { transport: NodeHttpTransport() }
           );
-          console.log("About to redeemOnEth...");
-          console.log("vaa", uint8ArrayToHex(signedVaa.vaaBytes));
-          const roe = await redeemOnEth(
+          await redeemOnEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             signer,
             signedVaa.vaaBytes
           );
-          console.log("Check if transfer is complete...");
           expect(
             await getIsTransferCompletedEth(
               ETH_TOKEN_BRIDGE_ADDRESS,
@@ -2464,40 +2258,26 @@ describe("Integration Tests", () => {
             ETH_TEST_WALLET_PUBLIC_KEY
           );
           const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
-          console.log("Balance on Eth after transfer = ", balOnEthAfterInt);
           const FinalAmt: number = AmountToTransfer / 100;
           expect(balOnEthAfterInt).toEqual(FinalAmt);
 
           // Get final balance on Algorand
           algoWalletBals = await getBalances(client, wallet.addr);
-          console.log("algoWalletBals after:", algoWalletBals);
           const finalAlgoBal = algoWalletBals.get(assetIndex);
           if (!finalAlgoBal) {
             throw new Error("finalAlgoBal is undefined");
           }
-          console.log("finalAlgoBal", finalAlgoBal);
           expect(startingAlgoBal - finalAlgoBal).toBe(AmountToTransfer);
 
           // Attempt to transfer from Eth back to Algorand
           const Amount: string = "100";
 
           // approve the bridge to spend tokens
-          console.log("About to approveEth...");
           await approveEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             foreignAsset,
             signer,
             Amount
-          );
-          console.log(
-            "About to transferFromEth...",
-            ETH_TOKEN_BRIDGE_ADDRESS,
-            signer,
-            foreignAsset,
-            Amount,
-            CHAIN_ID_ALGORAND,
-            wallet.addr,
-            decodeAddress(wallet.addr)
           );
           const receipt = await transferFromEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
@@ -2507,9 +2287,7 @@ describe("Integration Tests", () => {
             CHAIN_ID_ALGORAND,
             decodeAddress(wallet.addr).publicKey
           );
-          console.log("receipt", receipt);
           // get the sequence from the logs (needed to fetch the vaa)
-          console.log("About to parseSeq...");
           const sequence = parseSequenceFromLogEth(
             receipt,
             ETH_CORE_BRIDGE_ADDRESS
@@ -2517,7 +2295,6 @@ describe("Integration Tests", () => {
           const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
 
           // poll until the guardian(s) witness and sign the vaa
-          console.log("About to getSignedVAA...");
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ETH,
@@ -2527,7 +2304,6 @@ describe("Integration Tests", () => {
               transport: NodeHttpTransport(),
             }
           );
-          console.log("About to redeemOnAlgorand...");
           const redeemTxs = await redeemOnAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2536,26 +2312,22 @@ describe("Integration Tests", () => {
             wallet.addr
           );
           await signSendAndConfirmAlgorand(client, redeemTxs, wallet);
-          console.log("About to getIsTransferComplete...");
-          const completed: boolean = await getIsTransferCompletedAlgorand(
+          const completed = await getIsTransferCompletedAlgorand(
             client,
             TOKEN_BRIDGE_ID,
             signedVAA
           );
-          console.log("Checking wallets...");
+          expect(completed).toBe(true);
           const newBal = await token.balanceOf(ETH_TEST_WALLET_PUBLIC_KEY);
           const newBalInt = parseInt(newBal._hex);
-          console.log("newBalInt", newBalInt);
           expect(newBalInt).toBe(FinalAmt - parseInt(Amount));
 
           // Get second final balance on Algorand
           algoWalletBals = await getBalances(client, wallet.addr);
-          console.log("algoWalletBals after after:", algoWalletBals);
           const secondFinalAlgoBal = algoWalletBals.get(assetIndex);
           if (!secondFinalAlgoBal) {
             throw new Error("secondFinalAlgoBal is undefined");
           }
-          console.log("secondFinalAlgoBal", secondFinalAlgoBal);
           expect(secondFinalAlgoBal - finalAlgoBal).toBe(
             parseInt(Amount) * 100
           );
@@ -2571,7 +2343,6 @@ describe("Integration Tests", () => {
     test("Transfer wrapped Luna from Terra to Algorand and back again", (done) => {
       (async () => {
         try {
-          console.log("Starting attestation...");
           const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
           const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
           const aa: string = uint8ArrayToHex(decTbAddr);
@@ -2638,7 +2409,6 @@ describe("Integration Tests", () => {
             attestSn,
             emitterAddress
           );
-          console.log("About to createWrappedOnAlgorand...", attestSignedVaa);
           const createWrappedTxs = await createWrappedOnAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2657,7 +2427,6 @@ describe("Integration Tests", () => {
             TOKEN_BRIDGE_ID,
             attestSignedVaa
           );
-          console.log("assetIdCreated", assetIdCreated);
           if (!assetIdCreated) {
             throw new Error("Failed to create asset");
           }
@@ -2665,11 +2434,9 @@ describe("Integration Tests", () => {
           // Start of transfer from Terra to Algorand
           // Get initial balance of luna on Terra
           const initialTerraBalance: number = await queryBalanceOnTerra(Asset);
-          console.log("Initial Terra balance of", Asset, initialTerraBalance);
 
           // Get initial balance of uusd on Terra
-          const initialFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
-          console.log("Initial Terra balance of", FeeAsset, initialFeeBalance);
+          // const initialFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
 
           // Get initial balance of wrapped luna on Algorand
           const originAssetHex = nativeToHexString(Asset, CHAIN_ID_TERRA);
@@ -2679,19 +2446,16 @@ describe("Integration Tests", () => {
           // TODO:  Get wallet balance on Algorand
 
           // Get Balances
-          console.log("aa", tbAddr, decTbAddr, aa);
           const tbBals: Map<number, number> = await getBalances(
             client,
             algoWallet.addr
             // "TPFKQBOR7RJ475XW6XMOZMSMBCZH6WNGFQNT7CM7NL2UMBCMBIU5PVBGPM"
           );
-          console.log("bals:", tbBals, assetIdCreated);
           let assetIdCreatedBegBal: number = 0;
           const tempBal = tbBals.get(safeBigIntToNumber(assetIdCreated));
           if (tempBal) {
             assetIdCreatedBegBal = tempBal;
           }
-          console.log("assetIdCreatedBegBal", assetIdCreatedBegBal);
 
           // Start transfer from Terra to Algorand
           const txMsgs = await transferFromTerra(
@@ -2710,7 +2474,6 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           const txResult = await lcd.tx.broadcast(executeTx);
-          console.log("Transfer gas used: ", txResult.gas_used);
           const txInfo = await waitForTerraExecution(txResult.txhash);
           if (!txInfo) {
             throw new Error("info not found");
@@ -2748,24 +2511,20 @@ describe("Integration Tests", () => {
             client,
             algoWallet.addr
           );
-          console.log("algoWallet bals:", bals);
           let assetIdCreatedEndBal: number = 0;
           const tmpBal = bals.get(safeBigIntToNumber(assetIdCreated));
           if (tmpBal) {
             assetIdCreatedEndBal = tmpBal;
           }
-          console.log("assetIdCreatedEndBal", assetIdCreatedEndBal);
           expect(assetIdCreatedEndBal - assetIdCreatedBegBal).toBe(
             parseInt(Amount)
           );
 
           // Get final balance of uluna on Terra
           const finalTerraBalance = await queryBalanceOnTerra(Asset);
-          console.log("Final Terra balance of", Asset, finalTerraBalance);
 
           // Get final balance of uusd on Terra
-          const finalFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
-          console.log("Final Terra balance of", FeeAsset, finalFeeBalance);
+          // const finalFeeBalance: number = await queryBalanceOnTerra(FeeAsset);
           expect(initialTerraBalance - 1e6 === finalTerraBalance).toBe(true);
 
           // Start of transfer back to Terra
@@ -2780,7 +2539,6 @@ describe("Integration Tests", () => {
             throw new Error("Failed to convert to hexStr");
           }
           const Fee: number = 0;
-          console.log("Calling transferFromAlgorand...");
           const transferTxs = await transferFromAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2798,7 +2556,6 @@ describe("Integration Tests", () => {
             algoWallet
           );
           const txSid = parseSequenceFromLogAlgorand(transferResult);
-          console.log("Getting signed VAA...");
           const signedVaa = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
@@ -2806,8 +2563,6 @@ describe("Integration Tests", () => {
             txSid,
             { transport: NodeHttpTransport() }
           );
-          console.log("vaa", uint8ArrayToHex(signedVaa.vaaBytes));
-          console.log("About to redeemOnTerra...");
 
           const redeemMsg = await redeemOnTerra(
             TERRA_TOKEN_BRIDGE_ADDRESS,
@@ -2846,13 +2601,7 @@ describe("Integration Tests", () => {
           ).toBe(true);
 
           // Check wallet balances after
-          console.log("Checking wallet balances after transfer...");
           const finalLunaOnTerraBalance = await queryBalanceOnTerra(Asset);
-          console.log(
-            "Terra balance after transfer = ",
-            finalLunaOnTerraBalance,
-            finalTerraBalance
-          );
           expect(finalLunaOnTerraBalance - finalTerraBalance).toBe(
             TransferBackAmount
           );
@@ -2860,21 +2609,14 @@ describe("Integration Tests", () => {
             client,
             algoWallet.addr
           );
-          console.log("algoWallet bals:", retBals);
           let assetIdCreatedFinBal: number = 0;
           const tBal = retBals.get(safeBigIntToNumber(assetIdCreated));
           if (tBal) {
             assetIdCreatedFinBal = tBal;
           }
-          console.log(
-            "assetIdCreatedFinBal",
-            assetIdCreatedFinBal,
-            assetIdCreatedEndBal
-          );
           expect(assetIdCreatedEndBal - assetIdCreatedFinBal).toBe(
             TransferBackAmount
           );
-          console.log("TESTING getOriginalAssetAlgorand....");
           const info: WormholeWrappedInfo = await getOriginalAssetAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2892,7 +2634,6 @@ describe("Integration Tests", () => {
     test("Testing relay type redeem", (done) => {
       (async () => {
         try {
-          console.log("Starting new test of transferring ETH to algorand.");
           const client: algosdk.Algodv2 = getAlgoClient();
           const tempAccts: Account[] = await getTempAccounts();
           const numAccts: number = tempAccts.length;
@@ -2911,34 +2652,23 @@ describe("Integration Tests", () => {
             BigInt(0)
           );
           expect(relayerWalletBalance).toBeGreaterThan(0);
-          console.log("algoWallet", algoWallet.addr, algoWalletBalance);
-          console.log(
-            "relayerWallet",
-            relayerWallet.addr,
-            relayerWalletBalance
-          );
           // ETH setup to transfer LUNA to Algorand
 
           // create a signer for Eth
           const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-          console.log("here");
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-          console.log("here");
           // attest the test token
           const receipt = await attestFromEth(
             ETH_TOKEN_BRIDGE_ADDRESS,
             signer,
             TEST_ERC20
           );
-          console.log("here");
           // get the sequence from the logs (needed to fetch the vaa)
           const sequence = parseSequenceFromLogEth(
             receipt,
             ETH_CORE_BRIDGE_ADDRESS
           );
-          console.log("here");
           const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
-          console.log("here");
           // poll until the guardian(s) witness and sign the vaa
           const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
@@ -2949,7 +2679,6 @@ describe("Integration Tests", () => {
               transport: NodeHttpTransport(),
             }
           );
-          console.log("About to createWrappedOnAlgorand...");
           const createWrappedTxs = await createWrappedOnAlgorand(
             client,
             TOKEN_BRIDGE_ID,
@@ -2971,15 +2700,6 @@ describe("Integration Tests", () => {
           if (!assetIdCreated) {
             throw new Error("Failed to create asset");
           }
-          console.log("assetIdCreated", assetIdCreated);
-          console.log(
-            "algoWallet balance:",
-            await getBalance(client, algoWallet.addr, assetIdCreated)
-          );
-          console.log(
-            "relayerWallet balance:",
-            await getBalance(client, relayerWallet.addr, assetIdCreated)
-          );
 
           // Start of transfer from ETH to Algorand
           // approve the bridge to spend tokens
@@ -3019,7 +2739,6 @@ describe("Integration Tests", () => {
             }
           );
 
-          console.log("about to redeemOnAlgorand...");
           // Redeem half the amount on Algorand
           const firstHalfRedeemTxs = await redeemOnAlgorand(
             client,
@@ -3065,7 +2784,6 @@ describe("Integration Tests", () => {
             }
           );
 
-          console.log("about to redeemOnAlgorand second half...");
           // Redeem second half the amount on Algorand
           const redeemTxs = await redeemOnAlgorand(
             client,
@@ -3082,7 +2800,6 @@ describe("Integration Tests", () => {
               secondHalfVaa
             )
           ).toBe(true);
-          console.log("Destroying the provider...");
           provider.destroy();
         } catch (e) {
           console.error("new test error:", e);
@@ -3096,7 +2813,6 @@ describe("Integration Tests", () => {
     test("testing algorand payload3", (done) => {
       (async () => {
         try {
-          console.log("Starting new test of transferring ETH to algorand.");
           const tbAddr: string = getApplicationAddress(TOKEN_BRIDGE_ID);
           const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
           const aa: string = uint8ArrayToHex(decTbAddr);
@@ -3109,8 +2825,9 @@ describe("Integration Tests", () => {
 
           const Fee: number = 0;
           var testapp: number = 8;
-          var dest = utils.hexZeroPad(BigNumber.from(testapp).toHexString(), 32).substring(2);
-          console.log("Dest address: ", dest);
+          var dest = utils
+            .hexZeroPad(BigNumber.from(testapp).toHexString(), 32)
+            .substring(2);
 
           const transferTxs = await transferFromAlgorand(
             client,
@@ -3131,7 +2848,6 @@ describe("Integration Tests", () => {
             algoWallet
           );
           const txSid = parseSequenceFromLogAlgorand(transferResult);
-          console.log("Getting signed VAA...");
           const signedVaa = await getSignedVAAWithRetry(
             WORMHOLE_RPC_HOSTS,
             CHAIN_ID_ALGORAND,
@@ -3139,8 +2855,6 @@ describe("Integration Tests", () => {
             txSid,
             { transport: NodeHttpTransport() }
           );
-          console.log("payload3 vaa", uint8ArrayToHex(signedVaa.vaaBytes));
-          console.log("About to send back into algorand...");
 
           const txns = await redeemOnAlgorand(
             client,
@@ -3149,19 +2863,14 @@ describe("Integration Tests", () => {
             signedVaa.vaaBytes,
             algoWallet.addr
           );
-          console.log("signSendAndConfirm...");
-          
-          const wbefore = await getBalance(client, getApplicationAddress(testapp), BigInt(0));
-          console.log(
-            "test app wallet before:",
-              wbefore
+
+          const wbefore = await getBalance(
+            client,
+            getApplicationAddress(testapp),
+            BigInt(0)
           );
 
-          await signSendAndConfirmAlgorand(
-            client,
-            txns,
-            algoWallet
-          );
+          await signSendAndConfirmAlgorand(client, txns, algoWallet);
           expect(
             await getIsTransferCompletedAlgorand(
               client,
@@ -3169,14 +2878,13 @@ describe("Integration Tests", () => {
               signedVaa.vaaBytes
             )
           ).toBe(true);
-          const wafter = await getBalance(client, getApplicationAddress(testapp), BigInt(0));
-          console.log(
-            "test app wallet after:",
-            wafter
+          const wafter = await getBalance(
+            client,
+            getApplicationAddress(testapp),
+            BigInt(0)
           );
 
           expect(BigInt(wafter - wbefore) === BigInt(100));
-          console.log("payload3 sent...");
         } catch (e) {
           console.error("new test error:", e);
           done("new test error");
