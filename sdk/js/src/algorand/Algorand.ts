@@ -230,50 +230,92 @@ export async function optin(
   };
 }
 
-function extract3(buffer: any, start: number, size: number) {
+function extract3(buffer: Uint8Array, start: number, size: number) {
   return buffer.slice(start, start + size);
 }
 
 /**
  * Parses the VAA into a Map
  * @param vaa The VAA to be parsed
- * @returns The Map<string, any> containing the parsed elements of the VAA
+ * @returns The ParsedVAA containing the parsed elements of the VAA
  */
-export function _parseVAAAlgorand(vaa: Uint8Array): Map<string, any> {
-  let ret = new Map<string, any>();
+type ParsedVAA = {
+  version: number;
+  index: number;
+  siglen: number;
+  signatures: Uint8Array;
+  sigs: Uint8Array[];
+  digest: Uint8Array;
+  timestamp: number;
+  nonce: number;
+  chainRaw: string;
+  chain: number;
+  emitter: string;
+  sequence: bigint;
+  consistency: number;
+  Meta:
+    | "Unknown"
+    | "TokenBridge"
+    | "TokenBridge RegisterChain"
+    | "TokenBridge UpgradeContract"
+    | "CoreGovernance"
+    | "TokenBridge Attest"
+    | "TokenBridge Transfer"
+    | "TokenBridge Transfer With Payload";
+  module?: Uint8Array;
+  action?: number;
+  targetChain?: number;
+  EmitterChainID?: number;
+  targetEmitter?: Uint8Array;
+  newContract?: Uint8Array;
+  NewGuardianSetIndex?: number;
+  Type?: number;
+  Contract?: string;
+  FromChain?: number;
+  Decimals?: number;
+  Symbol?: Uint8Array;
+  Name?: Uint8Array;
+  Amount?: Uint8Array;
+  ToAddress?: Uint8Array;
+  ToChain?: number;
+  Fee?: Uint8Array;
+  Payload?: Uint8Array;
+};
+export function _parseVAAAlgorand(vaa: Uint8Array): ParsedVAA {
+  let ret = {} as ParsedVAA;
   let buf = Buffer.from(vaa);
-  ret.set("version", buf.readIntBE(0, 1));
-  ret.set("index", buf.readIntBE(1, 4));
-  ret.set("siglen", buf.readIntBE(5, 1));
-  const siglen = ret.get("siglen");
+  ret.version = buf.readIntBE(0, 1);
+  ret.index = buf.readIntBE(1, 4);
+  ret.siglen = buf.readIntBE(5, 1);
+  const siglen = ret.siglen;
   if (siglen) {
-    ret.set("signatures", extract3(vaa, 6, siglen * 66));
+    ret.signatures = extract3(vaa, 6, siglen * 66);
   }
-  const sigs = [];
+  const sigs: Uint8Array[] = [];
   for (let i = 0; i < siglen; i++) {
     const start = 6 + i * 66;
     const len = 66;
     const sigBuf = extract3(vaa, start, len);
     sigs.push(sigBuf);
   }
-  ret.set("sigs", sigs);
+  ret.sigs = sigs;
   let off = siglen * 66 + 6;
-  ret.set("digest", vaa.slice(off)); // This is what is actually signed...
-  ret.set("timestamp", buf.readIntBE(off, 4));
+  ret.digest = vaa.slice(off); // This is what is actually signed...
+  ret.timestamp = buf.readIntBE(off, 4);
   off += 4;
-  ret.set("nonce", buf.readIntBE(off, 4));
+  ret.nonce = buf.readIntBE(off, 4);
   off += 4;
-  ret.set("chainRaw", Buffer.from(extract3(vaa, off, 2)).toString("hex"));
-  ret.set("chain", buf.readIntBE(off, 2));
+  ret.chainRaw = Buffer.from(extract3(vaa, off, 2)).toString("hex");
+  ret.chain = buf.readIntBE(off, 2);
   off += 2;
-  ret.set("emitter", Buffer.from(extract3(vaa, off, 32)).toString("hex"));
+  ret.emitter = Buffer.from(extract3(vaa, off, 32)).toString("hex");
   off += 32;
-  ret.set("sequence", buf.readBigUInt64BE(off));
+  ret.sequence = buf.readBigUInt64BE(off);
   off += 8;
-  ret.set("consistency", buf.readIntBE(off, 1));
+  ret.consistency = buf.readIntBE(off, 1);
   off += 1;
 
-  ret.set("Meta", "Unknown");
+  ret.Meta = "Unknown";
 
   if (
     !Buffer.compare(
@@ -284,24 +326,24 @@ export function _parseVAAAlgorand(vaa: Uint8Array): Map<string, any> {
       )
     )
   ) {
-    ret.set("Meta", "TokenBridge");
-    ret.set("module", extract3(vaa, off, 32));
+    ret.Meta = "TokenBridge";
+    ret.module = extract3(vaa, off, 32);
     off += 32;
-    ret.set("action", buf.readIntBE(off, 1));
+    ret.action = buf.readIntBE(off, 1);
     off += 1;
-    if (ret.get("action") === 1) {
-      ret.set("Meta", "TokenBridge RegisterChain");
-      ret.set("targetChain", buf.readIntBE(off, 2));
+    if (ret.action === 1) {
+      ret.Meta = "TokenBridge RegisterChain";
+      ret.targetChain = buf.readIntBE(off, 2);
       off += 2;
-      ret.set("EmitterChainID", buf.readIntBE(off, 2));
+      ret.EmitterChainID = buf.readIntBE(off, 2);
       off += 2;
-      ret.set("targetEmitter", extract3(vaa, off, 32));
+      ret.targetEmitter = extract3(vaa, off, 32);
       off += 32;
-    } else if (ret.get("action") === 2) {
-      ret.set("Meta", "TokenBridge UpgradeContract");
-      ret.set("targetChain", buf.readIntBE(off, 2));
+    } else if (ret.action === 2) {
+      ret.Meta = "TokenBridge UpgradeContract";
+      ret.targetChain = buf.readIntBE(off, 2);
       off += 2;
-      ret.set("newContract", extract3(vaa, off, 32));
+      ret.newContract = extract3(vaa, off, 32);
       off += 32;
     }
   } else if (
@@ -313,71 +355,71 @@ export function _parseVAAAlgorand(vaa: Uint8Array): Map<string, any> {
       )
     )
   ) {
-    ret.set("Meta", "CoreGovernance");
-    ret.set("module", extract3(vaa, off, 32));
+    ret.Meta = "CoreGovernance";
+    ret.module = extract3(vaa, off, 32);
     off += 32;
-    ret.set("action", buf.readIntBE(off, 1));
+    ret.action = buf.readIntBE(off, 1);
     off += 1;
-    ret.set("targetChain", buf.readIntBE(off, 2));
+    ret.targetChain = buf.readIntBE(off, 2);
     off += 2;
-    ret.set("NewGuardianSetIndex", buf.readIntBE(off, 4));
+    ret.NewGuardianSetIndex = buf.readIntBE(off, 4);
   }
 
-  //    ret.set("len", vaa.slice(off).length)
-  //    ret.set("act", buf.readIntBE(off, 1))
+  //    ret.len=vaa.slice(off).length)
+  //    ret.act=buf.readIntBE(off, 1))
 
   if (vaa.slice(off).length === 100 && buf.readIntBE(off, 1) === 2) {
-    ret.set("Meta", "TokenBridge Attest");
-    ret.set("Type", buf.readIntBE(off, 1));
+    ret.Meta = "TokenBridge Attest";
+    ret.Type = buf.readIntBE(off, 1);
     off += 1;
-    ret.set("Contract", uint8ArrayToHex(extract3(vaa, off, 32)));
+    ret.Contract = uint8ArrayToHex(extract3(vaa, off, 32));
     off += 32;
-    ret.set("FromChain", buf.readIntBE(off, 2));
+    ret.FromChain = buf.readIntBE(off, 2);
     off += 2;
-    ret.set("Decimals", buf.readIntBE(off, 1));
+    ret.Decimals = buf.readIntBE(off, 1);
     off += 1;
-    ret.set("Symbol", extract3(vaa, off, 32));
+    ret.Symbol = extract3(vaa, off, 32);
     off += 32;
-    ret.set("Name", extract3(vaa, off, 32));
+    ret.Name = extract3(vaa, off, 32);
   }
 
   if (vaa.slice(off).length === 133 && buf.readIntBE(off, 1) === 1) {
-    ret.set("Meta", "TokenBridge Transfer");
-    ret.set("Type", buf.readIntBE(off, 1));
+    ret.Meta = "TokenBridge Transfer";
+    ret.Type = buf.readIntBE(off, 1);
     off += 1;
-    ret.set("Amount", extract3(vaa, off, 32));
+    ret.Amount = extract3(vaa, off, 32);
     off += 32;
-    ret.set("Contract", uint8ArrayToHex(extract3(vaa, off, 32)));
+    ret.Contract = uint8ArrayToHex(extract3(vaa, off, 32));
     off += 32;
-    ret.set("FromChain", buf.readIntBE(off, 2));
+    ret.FromChain = buf.readIntBE(off, 2);
     off += 2;
-    ret.set("ToAddress", extract3(vaa, off, 32));
+    ret.ToAddress = extract3(vaa, off, 32);
     off += 32;
-    ret.set("ToChain", buf.readIntBE(off, 2));
+    ret.ToChain = buf.readIntBE(off, 2);
     off += 2;
-    ret.set("Fee", extract3(vaa, off, 32));
+    ret.Fee = extract3(vaa, off, 32);
   }
 
   if (off >= buf.length) {
     return ret;
   }
   if (buf.readIntBE(off, 1) === 3) {
-    ret.set("Meta", "TokenBridge Transfer With Payload");
-    ret.set("Type", buf.readIntBE(off, 1));
+    ret.Meta = "TokenBridge Transfer With Payload";
+    ret.Type = buf.readIntBE(off, 1);
     off += 1;
-    ret.set("Amount", extract3(vaa, off, 32));
+    ret.Amount = extract3(vaa, off, 32);
     off += 32;
-    ret.set("Contract", uint8ArrayToHex(extract3(vaa, off, 32)));
+    ret.Contract = uint8ArrayToHex(extract3(vaa, off, 32));
     off += 32;
-    ret.set("FromChain", buf.readIntBE(off, 2));
+    ret.FromChain = buf.readIntBE(off, 2);
     off += 2;
-    ret.set("ToAddress", extract3(vaa, off, 32));
+    ret.ToAddress = extract3(vaa, off, 32);
     off += 32;
-    ret.set("ToChain", buf.readIntBE(off, 2));
+    ret.ToChain = buf.readIntBE(off, 2);
     off += 2;
-    ret.set("Fee", extract3(vaa, off, 32));
+    ret.Fee = extract3(vaa, off, 32);
     off += 32;
-    ret.set("Payload", vaa.slice(off));
+    ret.Payload = vaa.slice(off);
   }
 
   return ret;
@@ -460,13 +502,13 @@ export async function assetOptinCheck(
 }
 
 class SubmitVAAState {
-  vaaMap: Map<string, any>;
+  vaaMap: ParsedVAA;
   accounts: string[];
   txs: TransactionSignerPair[];
   guardianAddr: string;
 
   constructor(
-    vaaMap: Map<string, any>,
+    vaaMap: ParsedVAA,
     accounts: string[],
     txs: TransactionSignerPair[],
     guardianAddr: string
@@ -495,11 +537,11 @@ export async function submitVAAHeader(
   appid: bigint
 ): Promise<SubmitVAAState> {
   // A lot of our logic here depends on parseVAA and knowing what the payload is..
-  const parsedVAA: Map<string, any> = _parseVAAAlgorand(vaa);
-  const seq: bigint = parsedVAA.get("sequence") / BigInt(MAX_BITS);
-  const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
-  const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
-  const index: number = parsedVAA.get("index");
+  const parsedVAA = _parseVAAAlgorand(vaa);
+  const seq: bigint = parsedVAA.sequence / BigInt(MAX_BITS);
+  const chainRaw: string = parsedVAA.chainRaw; // TODO: this needs to be a hex string
+  const em: string = parsedVAA.emitter; // TODO: this needs to be a hex string
+  const index: number = parsedVAA.index;
 
   let txs: TransactionSignerPair[] = [];
   // "seqAddr"
@@ -540,16 +582,16 @@ export async function submitVAAHeader(
   // limitations with lsigs AND reduces the cost of the entire operation on a conjested network by reducing the
   // bytes passed into the transaction
   // This is a 2 pass digest
-  const digest = keccak256(keccak256(parsedVAA.get("digest"))).slice(2);
+  const digest = keccak256(keccak256(parsedVAA.digest)).slice(2);
 
   // How many signatures can we process in a single txn... we can do 9!
   // There are likely upwards of 19 signatures.  So, we ned to split things up
-  const numSigs: number = parsedVAA.get("siglen");
+  const numSigs: number = parsedVAA.siglen;
   let numTxns: number = Math.floor(numSigs / MAX_SIGS_PER_TXN) + 1;
 
   const SIG_LEN: number = 66;
   const BSIZE: number = SIG_LEN * MAX_SIGS_PER_TXN;
-  const signatures: Uint8Array = parsedVAA.get("signatures");
+  const signatures: Uint8Array = parsedVAA.signatures;
   const verifySigArg: Uint8Array = textToUint8Array("verifySigs");
   const lsa = new LogicSigAccount(ALGO_VERIFY);
   for (let nt = 0; nt < numTxns; nt++) {
@@ -638,17 +680,18 @@ export async function _submitVAAAlgorand(
 
   // If this happens to be setting up a new guardian set, we probably need it as well...
   if (
-    parsedVAA.get("Meta") === "CoreGovernance" &&
-    parsedVAA.get("action") === 2
+    parsedVAA.Meta === "CoreGovernance" &&
+    parsedVAA.action === 2 &&
+    parsedVAA.NewGuardianSetIndex !== undefined
   ) {
-    const ngsi = parsedVAA.get("NewGuardianSetIndex");
+    const ngsi = parsedVAA.NewGuardianSetIndex;
     const guardianPgmName = textToHexString("guardian");
     // "newGuardianAddr"
     const { addr: newGuardianAddr, txs: newGuardianOptInTxs } = await optin(
       client,
       senderAddr,
       bridgeId,
-      ngsi,
+      BigInt(ngsi),
       guardianPgmName
     );
     accts.push(newGuardianAddr);
@@ -657,26 +700,27 @@ export async function _submitVAAAlgorand(
 
   // When we attest for a new token, we need some place to store the info... later we will need to
   // mirror the other way as well
-  const meta = parsedVAA.get("Meta");
+  const meta = parsedVAA.Meta;
   let chainAddr: string = "";
   if (
-    meta === "TokenBridge Attest" ||
-    meta === "TokenBridge Transfer" ||
-    meta === "TokenBridge Transfer With Payload"
+    (meta === "TokenBridge Attest" ||
+      meta === "TokenBridge Transfer" ||
+      meta === "TokenBridge Transfer With Payload") &&
+    parsedVAA.Contract !== undefined
   ) {
-    if (parsedVAA.get("FromChain") !== CHAIN_ID_ALGORAND) {
+    if (parsedVAA.FromChain !== CHAIN_ID_ALGORAND && parsedVAA.FromChain) {
       // "TokenBridge chainAddr"
       const result = await optin(
         client,
         senderAddr,
         tokenBridgeId,
-        parsedVAA.get("FromChain"),
-        parsedVAA.get("Contract")
+        BigInt(parsedVAA.FromChain),
+        parsedVAA.Contract
       );
       chainAddr = result.addr;
       txs.unshift(...result.txs);
     } else {
-      const assetId = hexToNativeAssetBigIntAlgorand(parsedVAA.get("Contract"));
+      const assetId = hexToNativeAssetBigIntAlgorand(parsedVAA.Contract);
       // "TokenBridge native chainAddr"
       const result = await optin(
         client,
@@ -798,12 +842,13 @@ export async function _submitVAAAlgorand(
   }
 
   if (
-    meta === "TokenBridge Transfer" ||
-    meta === "TokenBridge Transfer With Payload"
+    (meta === "TokenBridge Transfer" ||
+      meta === "TokenBridge Transfer With Payload") &&
+    parsedVAA.Contract !== undefined
   ) {
     let foreignAssets: number[] = [];
     let a: number = 0;
-    if (parsedVAA.get("FromChain") !== CHAIN_ID_ALGORAND) {
+    if (parsedVAA.FromChain !== CHAIN_ID_ALGORAND) {
       let asset = await decodeLocalState(client, tokenBridgeId, chainAddr);
 
       if (asset.length > 8) {
@@ -811,19 +856,23 @@ export async function _submitVAAAlgorand(
         a = safeBigIntToNumber(tmp.readBigUInt64BE(0));
       }
     } else {
-      a = parseInt(parsedVAA.get("Contract"), 16);
+      a = parseInt(parsedVAA.Contract, 16);
     }
 
     // The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
 
     let aid = 0;
-    let addr;
+    let addr = "";
 
-    if ((parsedVAA.get("ToChain") === 8) && (parsedVAA.get("Type") === 3)) {
-      aid = Number(hexToNativeAssetBigIntAlgorand(parsedVAA.get("ToAddress")));
-      addr = getApplicationAddress(aid);
-    } else {
-      addr = encodeAddress(hexToUint8Array(parsedVAA.get("ToAddress")));
+    if (parsedVAA.ToAddress !== undefined) {
+      if (parsedVAA.ToChain === 8 && parsedVAA.Type === 3) {
+        aid = Number(
+          hexToNativeAssetBigIntAlgorand(uint8ArrayToHex(parsedVAA.ToAddress))
+        );
+        addr = getApplicationAddress(aid);
+      } else {
+        addr = encodeAddress(parsedVAA.ToAddress);
+      }
     }
 
     if (a !== 0) {
@@ -863,10 +912,8 @@ export async function _submitVAAAlgorand(
 
     // We need to cover the inner transactions
     if (
-      Buffer.compare(
-        parsedVAA.get("Fee"),
-        Buffer.from(ZERO_PAD_BYTES, "hex")
-      ) === 0
+      parsedVAA.Fee !== undefined &&
+      Buffer.compare(parsedVAA.Fee, Buffer.from(ZERO_PAD_BYTES, "hex")) === 0
     )
       txs[txs.length - 1].tx.fee = txs[txs.length - 1].tx.fee * 2;
     else txs[txs.length - 1].tx.fee = txs[txs.length - 1].tx.fee * 3;
@@ -875,10 +922,13 @@ export async function _submitVAAAlgorand(
       txs[txs.length - 1].tx.appForeignApps = [aid];
 
       let m = abi.ABIMethod.fromSignature("portal_transfer(byte[])byte[]");
-      
+
       txs.push({
         tx: makeApplicationCallTxnFromObject({
-          appArgs: [m.getSelector(), (m.args[0].type as abi.ABIType).encode(vaa)],
+          appArgs: [
+            m.getSelector(),
+            (m.args[0].type as abi.ABIType).encode(vaa),
+          ],
           appIndex: aid,
           foreignAssets: foreignAssets,
           from: senderAddr,

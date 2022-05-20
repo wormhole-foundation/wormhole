@@ -10,6 +10,7 @@ import algosdk, {
   waitForConfirmation,
 } from "algosdk";
 import { getForeignAssetAlgorand } from "../../token_bridge";
+import { ChainId } from "../../utils";
 import { TransactionSignerPair, _parseVAAAlgorand } from "../Algorand";
 
 const ci = !!process.env.CI;
@@ -327,12 +328,15 @@ export async function getForeignAssetFromVaaAlgorand(
   tokenBridgeId: bigint,
   vaa: Uint8Array
 ): Promise<bigint | null> {
-  const parsedVAA: Map<string, any> = _parseVAAAlgorand(vaa);
+  const parsedVAA = _parseVAAAlgorand(vaa);
+  if (parsedVAA.Contract === undefined) {
+    throw "parsedVAA.Contract is undefined";
+  }
   return await getForeignAssetAlgorand(
     client,
     tokenBridgeId,
-    parsedVAA.get("FromChain"),
-    parsedVAA.get("Contract")
+    parsedVAA.FromChain as ChainId,
+    parsedVAA.Contract
   );
 }
 

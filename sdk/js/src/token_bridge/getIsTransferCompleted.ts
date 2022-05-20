@@ -142,10 +142,10 @@ export async function getIsTransferCompletedAlgorand(
   appId: bigint,
   signedVAA: Uint8Array
 ): Promise<boolean> {
-  const parsedVAA: Map<string, any> = _parseVAAAlgorand(signedVAA);
-  const seq: bigint = parsedVAA.get("sequence");
-  const chainRaw: string = parsedVAA.get("chainRaw"); // this needs to be a hex string
-  const em: string = parsedVAA.get("emitter"); // this needs to be a hex string
+  const parsedVAA = _parseVAAAlgorand(signedVAA);
+  const seq: bigint = parsedVAA.sequence;
+  const chainRaw: string = parsedVAA.chainRaw; // this needs to be a hex string
+  const em: string = parsedVAA.emitter; // this needs to be a hex string
   const { doesExist, lsa } = await calcLogicSigAccount(
     client,
     appId,
