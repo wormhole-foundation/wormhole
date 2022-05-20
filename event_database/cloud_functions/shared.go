@@ -67,7 +67,7 @@ var tokensToSkip = map[string]bool{
 	"0x7e347498dfef39a88099e3e343140ae17cde260e":   true, // fake wAVAX on bsc
 	"0x685629e5e99e3959254c4d23cd9097fbaef01fb2":   true, // amWeth
 	"terra1vpehfldr2u2m2gw38zaryp4tfw7fe2kw2lryjf": true, //fake btc on terra
-
+	"0xe9986beb0bcfff418dc4a252904cec370dfb14b8":   true, // fake Dai Stablecoin on bsc
 }
 
 // init runs during cloud function initialization. So, this will only run during an
