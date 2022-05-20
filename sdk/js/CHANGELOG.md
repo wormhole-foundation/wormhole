@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5
+
+### Changed
+
+Added APIs to send transfers with payloads
+
 ## 0.3.4
 
 ### Changed
