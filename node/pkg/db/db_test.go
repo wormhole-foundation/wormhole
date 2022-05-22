@@ -3,13 +3,15 @@ package db
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"github.com/certusone/wormhole/node/pkg/vaa"
-	"github.com/ethereum/go-ethereum/crypto"
 	"os"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/ethereum/go-ethereum/crypto"
+
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func getVAA() vaa.VAA {
@@ -79,7 +81,7 @@ func TestStoreSignedVAAUnsigned(t *testing.T) {
 	testVaa := getVAA()
 
 	// Should panic because the VAA is not signed
-	assert.Panics(t, func() { db.StoreSignedVAA(&testVaa) })
+	assert.Panics(t, func() { db.StoreSignedVAA(&testVaa) }, "The code did not panic")
 }
 
 func TestStoreSignedVAASigned(t *testing.T) {
