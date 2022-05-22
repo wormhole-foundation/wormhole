@@ -6,7 +6,7 @@ import "../contracts/Messages.sol";
 contract TestMessages {
   function testQuorum() public { 
     // An array to hold our test cases
-    uint[2][] testCases;
+    uint[2][] memory testCases;
 
     // Define all the testCases and add them to array
     testCases.push([0, 1]);
