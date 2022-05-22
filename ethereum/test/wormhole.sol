@@ -23,7 +23,7 @@ contract TestMessages {
     testCases.push([11, 8]);
     testCases.push([12, 9]);
     testCases.push([20, 14]);
-    testCases.push([25, 17]);
+    testCases.push([25, 16]);
 
     // Loop through our testCases array and assert that our expectations are met
     for (uint i=0; i<testCases.length; i++) {
