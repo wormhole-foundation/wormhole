@@ -1142,8 +1142,9 @@ class PortalCore:
             off += 2
             ret["Fee"] = vaa[off:(off + 32)].hex()
             off += 32
+            ret["FromAddress"] = vaa[off:(off + 32)].hex()
+            off += 32
             ret["Payload"] = vaa[off:].hex()
-            ret["body"] = ret["Payload"]
         
         return ret
 

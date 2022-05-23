@@ -503,7 +503,7 @@ class AlgoTest(PortalCore):
 #        pprint.pprint(vaa)
 #        sys.exit(0)
 
-        gt = GenTest(True)
+        gt = GenTest(False)
         self.gt = gt
 
         self.setup_args()
@@ -737,6 +737,8 @@ class AlgoTest(PortalCore):
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
 
+        print("player address: " + decode_address(player2.getAddress()).hex())
+        print("payload3 vaa: "+ vaa)
         pprint.pprint(self.parseVAA(bytes.fromhex(vaa)))
 
         print("testid balance before = ", self.getBalances(client, get_application_address(self.testid)))

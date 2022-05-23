@@ -511,13 +511,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             Destination.store(        Extract(Txn.application_args[1], off.load() + Int(67), Int(32))),
             DestChain.store(     Btoi(Extract(Txn.application_args[1], off.load() + Int(99), Int(2)))),
 
-            MagicAssert(Extract(Txn.application_args[1], off.load() + Int(101),Int(24)) == Extract(zb.load(), Int(0), Int(24))),
-            Fee.store(           Btoi(Extract(Txn.application_args[1], off.load() + Int(125),Int(8)))),  # uint256
-
             # This directed at us?
             MagicAssert(DestChain.load() == Int(8)),
-
-            MagicAssert(Fee.load() <= Amount.load()),
 
             If (action.load() == Int(3), Seq([
                     aid.store(Btoi(Extract(Destination.load(), Int(24), Int(8)))), # The destination is the appid in a payload3
@@ -528,8 +523,14 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                         Gtxn[tidx.load()].application_args[1] == Concat(Extract(Itob(Len(Txn.application_args[1])), Int(6), Int(2)), Txn.application_args[1]),
                         Gtxn[tidx.load()].application_id() == aid.load()
                     )),
-                    Destination.store(getAppAddress(aid.load()))
-            ])),
+                    Destination.store(getAppAddress(aid.load())),
+                    Fee.store(Int(0))
+                ]), Seq([
+                    MagicAssert(Extract(Txn.application_args[1], off.load() + Int(101),Int(24)) == Extract(zb.load(), Int(0), Int(24))),
+                    Fee.store(Btoi(Extract(Txn.application_args[1], off.load() + Int(125),Int(8)))),  # uint256
+                    MagicAssert(Fee.load() <= Amount.load()),
+                ])
+            ),
 
             If(OriginChain.load() == Int(8),
                Seq([
@@ -776,9 +777,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                 Extract(zb.load(), Int(0), Int(32) - Len(Txn.application_args[3])),
                 Txn.application_args[3],
                 Extract(Txn.application_args[4], Int(6), Int(2)),
-                Extract(zb.load(), Int(0), Int(24)),
-                Itob(fee.load()),  # 8 bytes
-                If(Txn.application_args.length() == Int(7), Txn.application_args[6], Bytes(""))
+                If(Txn.application_args.length() == Int(7), Concat(Txn.sender(), Txn.application_args[6]), Concat(Extract(zb.load(), Int(0), Int(24)), Itob(fee.load())))
             )),
 
             # This one magic line should protect us from overruns/underruns and trickery..
