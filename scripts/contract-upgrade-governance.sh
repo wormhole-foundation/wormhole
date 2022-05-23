@@ -239,24 +239,23 @@ digest=$(echo "$verify" | grep "VAA with digest" | cut -d' ' -f6 | sed 's/://g')
 
 # This we only print to stdout, because in multi mode, it gets recomputed each
 # time. The rest of the output gets printed into the instructions file
-cat << EOD
-# Governance
-Shell command for voting:
+cat <<-EOD
+	# Governance
+	Shell command for voting:
 
-\`\`\`shell
-cat << EOF > governance.prototxt
-$(cat "$gov_msg_file")
+	\`\`\`shell
+	cat << EOF > governance.prototxt
+	$(cat "$gov_msg_file")
 
-EOF
+	EOF
 
-guardiand admin governance-vaa-inject --socket /path/to/admin.sock governance.prototxt
-\`\`\`
+	guardiand admin governance-vaa-inject --socket /path/to/admin.sock governance.prototxt
+	\`\`\`
 
-Expected digest(s):
-\`\`\`
-$digest
-\`\`\`
-
+	Expected digest(s):
+	\`\`\`
+	$digest
+	\`\`\`
 EOD
 
 echo "# Verification steps ($chain_name)
@@ -266,61 +265,61 @@ echo "# Verification steps ($chain_name)
 
 case "$evm" in
   true)
-    cat <<EOF >> "$instructions_file"
-## Build
-\`\`\`shell
-wormhole/ethereum $ npm ci
-wormhole/ethereum $ npm run build
-\`\`\`
+    cat <<-EOF >> "$instructions_file"
+	## Build
+	\`\`\`shell
+	wormhole/ethereum $ npm ci
+	wormhole/ethereum $ npm run build
+	\`\`\`
 
-## Verify
-Contract at [$explorer$address]($explorer$address)
-\`\`\`shell
-wormhole/ethereum $ export BYTECODE=<BYTECODE FROM EXPLORER HERE>
-wormhole/ethereum $ cat $evm_artifact | jq -r ".deployedBytecode" | sha256sum
-wormhole/ethereum $ echo \$BYTECODE | sha256sum
-\`\`\`
+	## Verify
+	Contract at [$explorer$address]($explorer$address)
+	\`\`\`shell
+	wormhole/ethereum $ export BYTECODE=<BYTECODE FROM EXPLORER HERE>
+	wormhole/ethereum $ cat $evm_artifact | jq -r ".deployedBytecode" | sha256sum
+	wormhole/ethereum $ echo \$BYTECODE | sha256sum
+	\`\`\`
 
 EOF
     ;;
   false)
     case "$chain_name" in
-      solana) cat <<EOF >> "$instructions_file"
-## Build
-\`\`\`shell
-wormhole/solana $ make clean
-wormhole/solana $ make NETWORK=mainnet artifacts
-\`\`\`
+      solana) cat <<-EOF >> "$instructions_file"
+	## Build
+	\`\`\`shell
+	wormhole/solana $ make clean
+	wormhole/solana $ make NETWORK=mainnet artifacts
+	\`\`\`
 
-This command will compile all the contracts into the \`artifacts-mainnet\` directory using Docker to ensure that the build artifacts are deterministic.
+	This command will compile all the contracts into the \`artifacts-mainnet\` directory using Docker to ensure that the build artifacts are deterministic.
 
-## Verify
-Contract at [$explorer$address]($explorer$address)
+	## Verify
+	Contract at [$explorer$address]($explorer$address)
 
-Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
+	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
 
-\`\`\`shell
-# $module
-wormhole/solana$ ./verify -n mainnet $solana_artifact $address
-\`\`\`
+	\`\`\`shell
+	# $module
+	wormhole/solana$ ./verify -n mainnet $solana_artifact $address
+	\`\`\`
 EOF
         ;;
-      terra) cat <<EOF >> "$instructions_file"
-## Build
-\`\`\`shell
-wormhole/terra $ make clean
-wormhole/terra $ make artifacts
-\`\`\`
+      terra) cat <<-EOF >> "$instructions_file"
+	## Build
+	\`\`\`shell
+	wormhole/terra $ make clean
+	wormhole/terra $ make artifacts
+	\`\`\`
 
-This command will compile all the contracts into the \`artifacts\` directory using Docker to ensure that the build artifacts are deterministic.
+	This command will compile all the contracts into the \`artifacts\` directory using Docker to ensure that the build artifacts are deterministic.
 
-## Verify
-Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
+	## Verify
+	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
 
-\`\`\`shell
-# $module
-wormhole/terra$ ./verify -n mainnet $terra_artifact $terra_code_id
-\`\`\`
+	\`\`\`shell
+	# $module
+	wormhole/terra$ ./verify -n mainnet $terra_artifact $terra_code_id
+	\`\`\`
 EOF
         ;;
       *)
@@ -333,11 +332,11 @@ esac
 
 
 
-cat <<EOF >> "$instructions_file"
-## Create governance
-\`\`\`shell
-$create_governance
-\`\`\`
+cat <<-EOF >> "$instructions_file"
+	## Create governance
+	\`\`\`shell
+	$create_governance
+	\`\`\`
 
 EOF
 
