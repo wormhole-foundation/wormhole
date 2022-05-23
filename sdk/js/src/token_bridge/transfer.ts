@@ -154,11 +154,39 @@ export async function transferFromTerra(
   amount: string,
   recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array,
-  relayerFee: string = "0"
+  relayerFee: string = "0",
+  payload: Uint8Array | null = null
 ) {
   const recipientChainId = coalesceChainId(recipientChain);
   const nonce = Math.round(Math.random() * 100000);
   const isNativeAsset = isNativeDenom(tokenAddress);
+  const mk_initiate_transfer = (info: object) =>
+    payload
+      ? {
+          initiate_transfer_with_payload: {
+            asset: {
+              amount,
+              info,
+            },
+            recipient_chain: recipientChainId,
+            recipient: Buffer.from(recipientAddress).toString("base64"),
+            fee: relayerFee,
+            nonce: nonce,
+            payload: payload,
+          },
+        }
+      : {
+          initiate_transfer: {
+            asset: {
+              amount,
+              info,
+            },
+            recipient_chain: recipientChainId,
+            recipient: Buffer.from(recipientAddress).toString("base64"),
+            fee: relayerFee,
+            nonce: nonce,
+          },
+        };
   return isNativeAsset
     ? [
         new MsgExecuteContract(
@@ -172,22 +200,11 @@ export async function transferFromTerra(
         new MsgExecuteContract(
           walletAddress,
           tokenBridgeAddress,
-          {
-            initiate_transfer: {
-              asset: {
-                amount,
-                info: {
-                  native_token: {
-                    denom: tokenAddress,
-                  },
-                },
-              },
-              recipient_chain: recipientChainId,
-              recipient: Buffer.from(recipientAddress).toString("base64"),
-              fee: relayerFee,
-              nonce: nonce,
+          mk_initiate_transfer({
+            native_token: {
+              denom: tokenAddress,
             },
-          },
+          }),
           {}
         ),
       ]
@@ -209,22 +226,11 @@ export async function transferFromTerra(
         new MsgExecuteContract(
           walletAddress,
           tokenBridgeAddress,
-          {
-            initiate_transfer: {
-              asset: {
-                amount: amount,
-                info: {
-                  token: {
-                    contract_addr: tokenAddress,
-                  },
-                },
-              },
-              recipient_chain: recipientChainId,
-              recipient: Buffer.from(recipientAddress).toString("base64"),
-              fee: relayerFee,
-              nonce: nonce,
+          mk_initiate_transfer({
+            token: {
+              contract_addr: tokenAddress,
             },
-          },
+          }),
           {}
         ),
       ];
