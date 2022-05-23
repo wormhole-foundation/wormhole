@@ -219,6 +219,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             to : recipient,
             toChain : recipientChain,
             fee : fee,
+            fromAddress : bytes32(uint256(uint160(msg.sender))),
             payload : payload
         });
 
@@ -446,6 +447,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             transfer.to,
             transfer.toChain,
             transfer.fee,
+            transfer.fromAddress,
             transfer.payload
         );
     }
