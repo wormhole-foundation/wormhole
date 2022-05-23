@@ -264,7 +264,7 @@ fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult
     /* An GuardianSet with no addresses should not be accepted,
      * it would break assumptions of the underlying contracts
      */
-    if new_guardian_set.addresses.is_empty()
+    if new_guardian_set.addresses.is_empty() {
         return ContractError::GuardianSetEmpty.std_err();
     }
 
