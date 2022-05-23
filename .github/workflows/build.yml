@@ -15,13 +15,12 @@ jobs:
         with:
           go-version: 1.17
       - uses: actions/checkout@v3
+      - run: cd node
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
           # version of golangci-lint
           version: v1.42
-          working-directory: node
-
           # golangci-lint command line arguments
           args: --skip-dirs pkg/supervisor
       
