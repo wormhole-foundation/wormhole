@@ -8,24 +8,20 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 import "./NFTBridge.sol";
 
-
 contract NFTBridgeImplementation is NFTBridge {
     // Beacon getter for the token contracts
     function implementation() public view returns (address) {
         return tokenImplementation();
     }
 
-    function initialize() initializer public virtual {
+    function initialize() public virtual initializer {
         // this function needs to be exposed for an upgrade to pass
     }
 
     modifier initializer() {
         address impl = ERC1967Upgrade._getImplementation();
 
-        require(
-            !isInitialized(impl),
-            "already initialized"
-        );
+        require(!isInitialized(impl), "already initialized");
 
         setInitialized(impl);
 

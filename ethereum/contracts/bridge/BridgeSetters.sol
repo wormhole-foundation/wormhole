@@ -30,7 +30,9 @@ contract BridgeSetters is BridgeState {
         _state.provider.governanceContract = governanceContract;
     }
 
-    function setBridgeImplementation(uint16 chainId, bytes32 bridgeContract) internal {
+    function setBridgeImplementation(uint16 chainId, bytes32 bridgeContract)
+        internal
+    {
         _state.bridgeImplementations[chainId] = bridgeContract;
     }
 
@@ -46,12 +48,18 @@ contract BridgeSetters is BridgeState {
         _state.wormhole = payable(wh);
     }
 
-    function setWrappedAsset(uint16 tokenChainId, bytes32 tokenAddress, address wrapper) internal {
+    function setWrappedAsset(
+        uint16 tokenChainId,
+        bytes32 tokenAddress,
+        address wrapper
+    ) internal {
         _state.wrappedAssets[tokenChainId][tokenAddress] = wrapper;
         _state.isWrappedAsset[wrapper] = true;
     }
 
-    function setOutstandingBridged(address token, uint256 outstanding) internal {
+    function setOutstandingBridged(address token, uint256 outstanding)
+        internal
+    {
         _state.outstandingBridged[token] = outstanding;
     }
 }

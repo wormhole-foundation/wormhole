@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 import "../BridgeImplementation.sol";
 
 contract MockBridgeImplementation is BridgeImplementation {
-    function initialize() initializer public override {
+    function initialize() public override initializer {
         // this function needs to be exposed for an upgrade to pass
     }
 

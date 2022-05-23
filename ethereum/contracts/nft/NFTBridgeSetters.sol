@@ -30,7 +30,9 @@ contract NFTBridgeSetters is NFTBridgeState {
         _state.provider.governanceContract = governanceContract;
     }
 
-    function setBridgeImplementation(uint16 chainId, bytes32 bridgeContract) internal {
+    function setBridgeImplementation(uint16 chainId, bytes32 bridgeContract)
+        internal
+    {
         _state.bridgeImplementations[chainId] = bridgeContract;
     }
 
@@ -42,12 +44,19 @@ contract NFTBridgeSetters is NFTBridgeState {
         _state.wormhole = payable(wh);
     }
 
-    function setWrappedAsset(uint16 tokenChainId, bytes32 tokenAddress, address wrapper) internal {
+    function setWrappedAsset(
+        uint16 tokenChainId,
+        bytes32 tokenAddress,
+        address wrapper
+    ) internal {
         _state.wrappedAssets[tokenChainId][tokenAddress] = wrapper;
         _state.isWrappedAsset[wrapper] = true;
     }
 
-    function setSplCache(uint256 tokenId, NFTBridgeStorage.SPLCache memory cache) internal {
+    function setSplCache(
+        uint256 tokenId,
+        NFTBridgeStorage.SPLCache memory cache
+    ) internal {
         _state.splCache[tokenId] = cache;
     }
 

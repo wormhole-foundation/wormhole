@@ -25,27 +25,19 @@ contract NFTBridgeStorage {
     struct State {
         address payable wormhole;
         address tokenImplementation;
-
         Provider provider;
-
         // Mapping of consumed governance actions
         mapping(bytes32 => bool) consumedGovernanceActions;
-
         // Mapping of consumed token transfers
         mapping(bytes32 => bool) completedTransfers;
-
         // Mapping of initialized implementations
         mapping(address => bool) initializedImplementations;
-
         // Mapping of wrapped assets (chainID => nativeAddress => wrappedAddress)
         mapping(uint16 => mapping(bytes32 => address)) wrappedAssets;
-
         // Mapping to safely identify wrapped assets
         mapping(address => bool) isWrappedAsset;
-
         // Mapping of bridge contracts on other chains
         mapping(uint16 => bytes32) bridgeImplementations;
-
         // Mapping of spl token info caches (chainID => nativeAddress => SPLCache)
         mapping(uint256 => SPLCache) splCache;
     }

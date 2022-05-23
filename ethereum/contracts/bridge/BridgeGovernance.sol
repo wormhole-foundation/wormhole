@@ -22,39 +22,69 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     using BytesLib for bytes;
 
     // "TokenBridge" (left padded)
-    bytes32 constant module = 0x000000000000000000000000000000000000000000546f6b656e427269646765;
+    bytes32 constant module =
+        0x000000000000000000000000000000000000000000546f6b656e427269646765;
 
     // Execute a RegisterChain governance message
     function registerChain(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        (
+            IWormhole.VM memory vm,
+            bool valid,
+            string memory reason
+        ) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
 
         setGovernanceActionConsumed(vm.hash);
 
-        BridgeStructs.RegisterChain memory chain = parseRegisterChain(vm.payload);
+        BridgeStructs.RegisterChain memory chain = parseRegisterChain(
+            vm.payload
+        );
 
-        require(chain.chainId == chainId() || chain.chainId == 0, "invalid chain id");
-        require(bridgeContracts(chain.emitterChainID) == bytes32(0), "chain already registered");
+        require(
+            chain.chainId == chainId() || chain.chainId == 0,
+            "invalid chain id"
+        );
+        require(
+            bridgeContracts(chain.emitterChainID) == bytes32(0),
+            "chain already registered"
+        );
 
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
     }
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        (
+            IWormhole.VM memory vm,
+            bool valid,
+            string memory reason
+        ) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
 
         setGovernanceActionConsumed(vm.hash);
 
-        BridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
+        BridgeStructs.UpgradeContract memory implementation = parseUpgrade(
+            vm.payload
+        );
 
         require(implementation.chainId == chainId(), "wrong chain id");
 
-        upgradeImplementation(address(uint160(uint256(implementation.newContract))));
+        upgradeImplementation(
+            address(uint160(uint256(implementation.newContract)))
+        );
     }
 
-    function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason){
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
+    function verifyGovernanceVM(bytes memory encodedVM)
+        internal
+        view
+        returns (
+            IWormhole.VM memory parsedVM,
+            bool isValid,
+            string memory invalidReason
+        )
+    {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole()
+            .parseAndVerifyVM(encodedVM);
 
         if (!valid) {
             return (vm, valid, reason);
@@ -74,7 +104,10 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         return (vm, true, "");
     }
 
-    event ContractUpgraded(address indexed oldContract, address indexed newContract);
+    event ContractUpgraded(
+        address indexed oldContract,
+        address indexed newContract
+    );
 
     function upgradeImplementation(address newImplementation) internal {
         address currentImplementation = _getImplementation();
@@ -82,15 +115,21 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         _upgradeTo(newImplementation);
 
         // Call initialize function of the new implementation
-        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
+        (bool success, bytes memory reason) = newImplementation.delegatecall(
+            abi.encodeWithSignature("initialize()")
+        );
 
         require(success, string(reason));
 
         emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
-    function parseRegisterChain(bytes memory encoded) public pure returns (BridgeStructs.RegisterChain memory chain) {
-        uint index = 0;
+    function parseRegisterChain(bytes memory encoded)
+        public
+        pure
+        returns (BridgeStructs.RegisterChain memory chain)
+    {
+        uint256 index = 0;
 
         // governance header
 
@@ -116,14 +155,21 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         require(encoded.length == index, "invalid RegisterChain: wrong length");
     }
 
-    function parseUpgrade(bytes memory encoded) public pure returns (BridgeStructs.UpgradeContract memory chain) {
-        uint index = 0;
+    function parseUpgrade(bytes memory encoded)
+        public
+        pure
+        returns (BridgeStructs.UpgradeContract memory chain)
+    {
+        uint256 index = 0;
 
         // governance header
 
         chain.module = encoded.toBytes32(index);
         index += 32;
-        require(chain.module == module, "invalid UpgradeContract: wrong module");
+        require(
+            chain.module == module,
+            "invalid UpgradeContract: wrong module"
+        );
 
         chain.action = encoded.toUint8(index);
         index += 1;
@@ -137,6 +183,9 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         chain.newContract = encoded.toBytes32(index);
         index += 32;
 
-        require(encoded.length == index, "invalid UpgradeContract: wrong length");
+        require(
+            encoded.length == index,
+            "invalid UpgradeContract: wrong length"
+        );
     }
 }

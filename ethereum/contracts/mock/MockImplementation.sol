@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 import "../Implementation.sol";
 
 contract MockImplementation is Implementation {
-    function initialize() initializer public {
+    function initialize() public initializer {
         // this function needs to be exposed for an upgrade to pass
     }
 

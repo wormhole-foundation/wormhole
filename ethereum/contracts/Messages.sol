@@ -8,56 +8,79 @@ import "./Getters.sol";
 import "./Structs.sol";
 import "./libraries/external/BytesLib.sol";
 
-
 contract Messages is Getters {
     using BytesLib for bytes;
 
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
-    function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
+    function parseAndVerifyVM(bytes calldata encodedVM)
+        public
+        view
+        returns (
+            Structs.VM memory vm,
+            bool valid,
+            string memory reason
+        )
+    {
         vm = parseVM(encodedVM);
         (valid, reason) = verifyVM(vm);
     }
 
-   /**
-    * @dev `verifyVM` serves to validate an arbitrary vm against a valid Guardian set
-    *  - it aims to make sure the VM is for a known guardianSet
-    *  - it aims to ensure the guardianSet is not expired
-    *  - it aims to ensure the VM has reached quorum
-    *  - it aims to verify the signatures provided against the guardianSet
-    */
-    function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
+    /**
+     * @dev `verifyVM` serves to validate an arbitrary vm against a valid Guardian set
+     *  - it aims to make sure the VM is for a known guardianSet
+     *  - it aims to ensure the guardianSet is not expired
+     *  - it aims to ensure the VM has reached quorum
+     *  - it aims to verify the signatures provided against the guardianSet
+     */
+    function verifyVM(Structs.VM memory vm)
+        public
+        view
+        returns (bool valid, string memory reason)
+    {
         /// @dev Obtain the current guardianSet for the guardianSetIndex provided
-        Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
+        Structs.GuardianSet memory guardianSet = getGuardianSet(
+            vm.guardianSetIndex
+        );
 
-       /**
-        * @dev Checks whether the guardianSet has zero keys
-        * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure 
-        * that guardianSet key size doesn't fall to zero and negatively impact quorum assessment.  If guardianSet
-        * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and 
-        * signature verification.
-        */
-        if(guardianSet.keys.length == 0){
+        /**
+         * @dev Checks whether the guardianSet has zero keys
+         * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure
+         * that guardianSet key size doesn't fall to zero and negatively impact quorum assessment.  If guardianSet
+         * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
+         * signature verification.
+         */
+        if (guardianSet.keys.length == 0) {
             return (false, "invalid guardian set");
         }
 
         /// @dev Checks if VM guardian set index matches the current index (unless the current set is expired).
-        if(vm.guardianSetIndex != getCurrentGuardianSetIndex() && guardianSet.expirationTime < block.timestamp){
+        if (
+            vm.guardianSetIndex != getCurrentGuardianSetIndex() &&
+            guardianSet.expirationTime < block.timestamp
+        ) {
             return (false, "guardian set has expired");
         }
 
-       /**
-        * @dev We're using a fixed point number transformation with 1 decimal to deal with rounding.
-        *   WARNING: This quorum check is critical to assessing whether we have enough Guardian signatures to validate a VM
-        *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and 
-        *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
-        */
-        if(((guardianSet.keys.length * 10 / 3) * 2) / 10 + 1 > vm.signatures.length){
+        /**
+         * @dev We're using a fixed point number transformation with 1 decimal to deal with rounding.
+         *   WARNING: This quorum check is critical to assessing whether we have enough Guardian signatures to validate a VM
+         *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
+         *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
+         */
+        if (
+            (((guardianSet.keys.length * 10) / 3) * 2) / 10 + 1 >
+            vm.signatures.length
+        ) {
             return (false, "no quorum");
         }
 
         /// @dev Verify the proposed vm.signatures against the guardianSet
-        (bool signaturesValid, string memory invalidReason) = verifySignatures(vm.hash, vm.signatures, guardianSet);
-        if(!signaturesValid){
+        (bool signaturesValid, string memory invalidReason) = verifySignatures(
+            vm.hash,
+            vm.signatures,
+            guardianSet
+        );
+        if (!signaturesValid) {
             return (false, invalidReason);
         }
 
@@ -71,17 +94,27 @@ contract Messages is Getters {
      *  - it intentioanlly does not solve for quorum (you should use verifyVM if you need these protections)
      *  - it intentionally returns true when signatures is an empty set (you should use verifyVM if you need these protections)
      */
-    function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) public pure returns (bool valid, string memory reason) {
+    function verifySignatures(
+        bytes32 hash,
+        Structs.Signature[] memory signatures,
+        Structs.GuardianSet memory guardianSet
+    ) public pure returns (bool valid, string memory reason) {
         uint8 lastIndex = 0;
-        for (uint i = 0; i < signatures.length; i++) {
+        for (uint256 i = 0; i < signatures.length; i++) {
             Structs.Signature memory sig = signatures[i];
 
             /// Ensure that provided signature indices are ascending only
-            require(i == 0 || sig.guardianIndex > lastIndex, "signature indices must be ascending");
+            require(
+                i == 0 || sig.guardianIndex > lastIndex,
+                "signature indices must be ascending"
+            );
             lastIndex = sig.guardianIndex;
 
             /// Check to see if the signer of the signature does not match a specific Guardian key at the provided index
-            if(ecrecover(hash, sig.v, sig.r, sig.s) != guardianSet.keys[sig.guardianIndex]){
+            if (
+                ecrecover(hash, sig.v, sig.r, sig.s) !=
+                guardianSet.keys[sig.guardianIndex]
+            ) {
                 return (false, "VM signature invalid");
             }
         }
@@ -94,8 +127,13 @@ contract Messages is Getters {
      * @dev parseVM serves to parse an encodedVM into a vm struct
      *  - it intentionally performs no validation functions, it simply parses raw into a struct
      */
-    function parseVM(bytes memory encodedVM) public pure virtual returns (Structs.VM memory vm) {
-        uint index = 0;
+    function parseVM(bytes memory encodedVM)
+        public
+        pure
+        virtual
+        returns (Structs.VM memory vm)
+    {
+        uint256 index = 0;
 
         vm.version = encodedVM.toUint8(index);
         index += 1;
@@ -108,7 +146,7 @@ contract Messages is Getters {
         uint256 signersLen = encodedVM.toUint8(index);
         index += 1;
         vm.signatures = new Structs.Signature[](signersLen);
-        for (uint i = 0; i < signersLen; i++) {
+        for (uint256 i = 0; i < signersLen; i++) {
             vm.signatures[i].guardianIndex = encodedVM.toUint8(index);
             index += 1;
 

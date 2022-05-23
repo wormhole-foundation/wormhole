@@ -18,7 +18,6 @@ contract GovernanceStructs {
         bytes32 module;
         uint8 action;
         uint16 chain;
-
         address newContract;
     }
 
@@ -26,7 +25,6 @@ contract GovernanceStructs {
         bytes32 module;
         uint8 action;
         uint16 chain;
-
         Structs.GuardianSet newGuardianSet;
         uint32 newGuardianSetIndex;
     }
@@ -35,7 +33,6 @@ contract GovernanceStructs {
         bytes32 module;
         uint8 action;
         uint16 chain;
-
         uint256 messageFee;
     }
 
@@ -43,13 +40,16 @@ contract GovernanceStructs {
         bytes32 module;
         uint8 action;
         uint16 chain;
-
         uint256 amount;
         bytes32 recipient;
     }
 
-    function parseContractUpgrade(bytes memory encodedUpgrade) public pure returns (ContractUpgrade memory cu) {
-        uint index = 0;
+    function parseContractUpgrade(bytes memory encodedUpgrade)
+        public
+        pure
+        returns (ContractUpgrade memory cu)
+    {
+        uint256 index = 0;
 
         cu.module = encodedUpgrade.toBytes32(index);
         index += 32;
@@ -62,14 +62,20 @@ contract GovernanceStructs {
         cu.chain = encodedUpgrade.toUint16(index);
         index += 2;
 
-        cu.newContract = address(uint160(uint256(encodedUpgrade.toBytes32(index))));
+        cu.newContract = address(
+            uint160(uint256(encodedUpgrade.toBytes32(index)))
+        );
         index += 32;
 
         require(encodedUpgrade.length == index, "invalid ContractUpgrade");
     }
 
-    function parseGuardianSetUpgrade(bytes memory encodedUpgrade) public pure returns (GuardianSetUpgrade memory gsu) {
-        uint index = 0;
+    function parseGuardianSetUpgrade(bytes memory encodedUpgrade)
+        public
+        pure
+        returns (GuardianSetUpgrade memory gsu)
+    {
+        uint256 index = 0;
 
         gsu.module = encodedUpgrade.toBytes32(index);
         index += 32;
@@ -89,11 +95,11 @@ contract GovernanceStructs {
         index += 1;
 
         gsu.newGuardianSet = Structs.GuardianSet({
-            keys : new address[](guardianLength),
-            expirationTime : 0
+            keys: new address[](guardianLength),
+            expirationTime: 0
         });
 
-        for(uint i = 0; i < guardianLength; i++) {
+        for (uint256 i = 0; i < guardianLength; i++) {
             gsu.newGuardianSet.keys[i] = encodedUpgrade.toAddress(index);
             index += 20;
         }
@@ -101,8 +107,12 @@ contract GovernanceStructs {
         require(encodedUpgrade.length == index, "invalid GuardianSetUpgrade");
     }
 
-    function parseSetMessageFee(bytes memory encodedSetMessageFee) public pure returns (SetMessageFee memory smf) {
-        uint index = 0;
+    function parseSetMessageFee(bytes memory encodedSetMessageFee)
+        public
+        pure
+        returns (SetMessageFee memory smf)
+    {
+        uint256 index = 0;
 
         smf.module = encodedSetMessageFee.toBytes32(index);
         index += 32;
@@ -121,8 +131,12 @@ contract GovernanceStructs {
         require(encodedSetMessageFee.length == index, "invalid SetMessageFee");
     }
 
-    function parseTransferFees(bytes memory encodedTransferFees) public pure returns (TransferFees memory tf) {
-        uint index = 0;
+    function parseTransferFees(bytes memory encodedTransferFees)
+        public
+        pure
+        returns (TransferFees memory tf)
+    {
+        uint256 index = 0;
 
         tf.module = encodedTransferFees.toBytes32(index);
         index += 32;

@@ -42,7 +42,7 @@ contract BridgeStructs {
 
     struct TransferResult {
         // Chain ID of the token
-        uint16  tokenChain;
+        uint16 tokenChain;
         // Address of the token. Left-zero-padded if shorter than 32 bytes
         bytes32 tokenAddress;
         // Amount being transferred (big-endian uint256)
@@ -50,7 +50,7 @@ contract BridgeStructs {
         // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
         uint256 normalizedArbiterFee;
         // Portion of msg.value to be paid as the core bridge fee
-        uint wormholeFee;
+        uint256 wormholeFee;
     }
 
     struct AssetMeta {
@@ -76,7 +76,6 @@ contract BridgeStructs {
         uint8 action;
         // governance paket chain id: this or 0
         uint16 chainId;
-
         // Chain ID
         uint16 emitterChainID;
         // Emitter address. Left-zero-padded if shorter than 32 bytes
@@ -91,7 +90,6 @@ contract BridgeStructs {
         uint8 action;
         // governance paket chain id
         uint16 chainId;
-
         // Address of the new contract
         bytes32 newContract;
     }

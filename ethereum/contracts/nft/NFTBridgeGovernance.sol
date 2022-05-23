@@ -17,44 +17,75 @@ import "./token/NFTImplementation.sol";
 
 import "../interfaces/IWormhole.sol";
 
-contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgrade {
+contract NFTBridgeGovernance is
+    NFTBridgeGetters,
+    NFTBridgeSetters,
+    ERC1967Upgrade
+{
     using BytesLib for bytes;
 
     // "NFTBridge" (left padded)
-    bytes32 constant module = 0x00000000000000000000000000000000000000000000004e4654427269646765;
+    bytes32 constant module =
+        0x00000000000000000000000000000000000000000000004e4654427269646765;
 
     // Execute a RegisterChain governance message
     function registerChain(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        (
+            IWormhole.VM memory vm,
+            bool valid,
+            string memory reason
+        ) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
 
         setGovernanceActionConsumed(vm.hash);
 
-        NFTBridgeStructs.RegisterChain memory chain = parseRegisterChain(vm.payload);
+        NFTBridgeStructs.RegisterChain memory chain = parseRegisterChain(
+            vm.payload
+        );
 
-        require(chain.chainId == chainId() || chain.chainId == 0, "invalid chain id");
+        require(
+            chain.chainId == chainId() || chain.chainId == 0,
+            "invalid chain id"
+        );
 
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
     }
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        (
+            IWormhole.VM memory vm,
+            bool valid,
+            string memory reason
+        ) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
 
         setGovernanceActionConsumed(vm.hash);
 
-        NFTBridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
+        NFTBridgeStructs.UpgradeContract memory implementation = parseUpgrade(
+            vm.payload
+        );
 
         require(implementation.chainId == chainId(), "wrong chain id");
 
-        upgradeImplementation(address(uint160(uint256(implementation.newContract))));
+        upgradeImplementation(
+            address(uint160(uint256(implementation.newContract)))
+        );
     }
 
-    function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason){
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
+    function verifyGovernanceVM(bytes memory encodedVM)
+        internal
+        view
+        returns (
+            IWormhole.VM memory parsedVM,
+            bool isValid,
+            string memory invalidReason
+        )
+    {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole()
+            .parseAndVerifyVM(encodedVM);
 
-        if(!valid){
+        if (!valid) {
             return (vm, valid, reason);
         }
 
@@ -65,29 +96,39 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
             return (vm, false, "wrong governance contract");
         }
 
-        if(governanceActionIsConsumed(vm.hash)){
+        if (governanceActionIsConsumed(vm.hash)) {
             return (vm, false, "governance action already consumed");
         }
 
         return (vm, true, "");
     }
 
-    event ContractUpgraded(address indexed oldContract, address indexed newContract);
+    event ContractUpgraded(
+        address indexed oldContract,
+        address indexed newContract
+    );
+
     function upgradeImplementation(address newImplementation) internal {
         address currentImplementation = _getImplementation();
 
         _upgradeTo(newImplementation);
 
         // Call initialize function of the new implementation
-        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
+        (bool success, bytes memory reason) = newImplementation.delegatecall(
+            abi.encodeWithSignature("initialize()")
+        );
 
         require(success, string(reason));
 
         emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
-    function parseRegisterChain(bytes memory encoded) public pure returns(NFTBridgeStructs.RegisterChain memory chain) {
-        uint index = 0;
+    function parseRegisterChain(bytes memory encoded)
+        public
+        pure
+        returns (NFTBridgeStructs.RegisterChain memory chain)
+    {
+        uint256 index = 0;
 
         // governance header
 
@@ -113,14 +154,21 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         require(encoded.length == index, "invalid RegisterChain: wrong length");
     }
 
-    function parseUpgrade(bytes memory encoded) public pure returns(NFTBridgeStructs.UpgradeContract memory chain) {
-        uint index = 0;
+    function parseUpgrade(bytes memory encoded)
+        public
+        pure
+        returns (NFTBridgeStructs.UpgradeContract memory chain)
+    {
+        uint256 index = 0;
 
         // governance header
 
         chain.module = encoded.toBytes32(index);
         index += 32;
-        require(chain.module == module, "invalid UpgradeContract: wrong module");
+        require(
+            chain.module == module,
+            "invalid UpgradeContract: wrong module"
+        );
 
         chain.action = encoded.toUint8(index);
         index += 1;
@@ -134,6 +182,9 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         chain.newContract = encoded.toBytes32(index);
         index += 32;
 
-        require(encoded.length == index, "invalid UpgradeContract: wrong length");
+        require(
+            encoded.length == index,
+            "invalid UpgradeContract: wrong length"
+        );
     }
 }

@@ -32,7 +32,6 @@ contract NFTBridgeStructs {
         uint8 action;
         // governance paket chain id: this or 0
         uint16 chainId;
-
         // Chain ID
         uint16 emitterChainID;
         // Emitter address. Left-zero-padded if shorter than 32 bytes
@@ -47,7 +46,6 @@ contract NFTBridgeStructs {
         uint8 action;
         // governance paket chain id
         uint16 chainId;
-
         // Address of the new contract
         bytes32 newContract;
     }
