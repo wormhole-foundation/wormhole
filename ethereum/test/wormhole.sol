@@ -1,16 +1,26 @@
+// contracts/Messages.sol
+// SPDX-License-Identifier: Apache 2
+
 pragma solidity ^0.8.0;
 
 import "truffle/Assert.sol";
 import "../contracts/Messages.sol";
 
-contract TestMessages {
+contract TestMessages is Messages {
   function testQuorum() public { 
-    // An array to hold our test cases
-    uint[][] memory testCases = [[0, 1],[1, 1],[2, 2],[3, 3],[4, 3],[5, 4],[6, 5],[7, 5],[8, 6],[9, 7],[10, 7],[11, 8],[12, 9],[20, 14]];
-
-    // Loop through our testCases array and assert that our expectations are met
-    for (uint i=0; i<testCases.length; i++) {
-        Assert.equal(quorum(testCases[i][0]), testCases[i][1], "it should return the right number of signatures for quorum");
-    }
-  }
+    Assert.equal(quorum(0), 1, "it should return quorum");
+    Assert.equal(quorum(1), 1, "it should return quorum");
+    Assert.equal(quorum(2), 2, "it should return quorum");
+    Assert.equal(quorum(3), 3, "it should return quorum");
+    Assert.equal(quorum(4), 3, "it should return quorum");
+    Assert.equal(quorum(5), 4, "it should return quorum");
+    Assert.equal(quorum(6), 5, "it should return quorum");
+    Assert.equal(quorum(7), 5, "it should return quorum");
+    Assert.equal(quorum(8), 6, "it should return quorum");
+    Assert.equal(quorum(9), 7, "it should return quorum");
+    Assert.equal(quorum(10), 7, "it should return quorum");
+    Assert.equal(quorum(11), 8, "it should return quorum");
+    Assert.equal(quorum(12), 9, "it should return quorum");
+    Assert.equal(quorum(20), 14, "it should return quorum");
+  }  
 }
