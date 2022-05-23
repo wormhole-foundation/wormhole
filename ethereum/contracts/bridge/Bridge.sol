@@ -20,8 +20,10 @@ import "./token/TokenImplementation.sol";
 contract Bridge is BridgeGovernance, ReentrancyGuard {
     using BytesLib for bytes;
 
-    // Produce a AssetMeta message for a given token
-    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence){
+    /*
+     *  @dev Produce a AssetMeta message for a given token
+     */
+    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence) {
         // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
         (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
         (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
@@ -94,19 +96,17 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     function wrapAndTransferETHWithPayload(
         uint16 recipientChain,
         bytes32 recipient,
-        uint256 arbiterFee,
         uint32 nonce,
         bytes memory payload
     ) public payable returns (uint64 sequence) {
         BridgeStructs.TransferResult
-            memory transferResult = _wrapAndTransferETH(arbiterFee);
+            memory transferResult = _wrapAndTransferETH(0);
         sequence = logTransferWithPayload(
             transferResult.tokenChain,
             transferResult.tokenAddress,
             transferResult.normalizedAmount,
             recipientChain,
             recipient,
-            transferResult.normalizedArbiterFee,
             transferResult.wormholeFee,
             nonce,
             payload
@@ -193,14 +193,13 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint256 amount,
         uint16 recipientChain,
         bytes32 recipient,
-        uint256 arbiterFee,
         uint32 nonce,
         bytes memory payload
     ) public payable nonReentrant returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
-            arbiterFee
+            0
         );
         sequence = logTransferWithPayload(
             transferResult.tokenChain,
@@ -208,7 +207,6 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             transferResult.normalizedAmount,
             recipientChain,
             recipient,
-            transferResult.normalizedArbiterFee,
             transferResult.wormholeFee,
             nonce,
             payload
@@ -331,12 +329,10 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint256 amount,
         uint16 recipientChain,
         bytes32 recipient,
-        uint256 fee,
         uint256 callValue,
         uint32 nonce,
         bytes memory payload
     ) internal returns (uint64 sequence) {
-        require(fee <= amount, "fee exceeds amount");
 
         BridgeStructs.TransferWithPayload memory transfer = BridgeStructs
             .TransferWithPayload({
@@ -346,7 +342,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
                 tokenChain: tokenChain,
                 to: recipient,
                 toChain: recipientChain,
-                fee: fee,
+                fromAddress : bytes32(uint256(uint160(msg.sender))),
                 payload: payload
             });
 
@@ -426,30 +422,64 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
     }
 
-    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
-        return _completeTransfer(encodedVm, false, feeRecipient);
+    /*
+     * @notice Complete a contract-controlled transfer of an ERC20 token.
+     *
+     * @dev The transaction can only be redeemed by the recipient, typically a
+     * contract.
+     *
+     * @param encodedVm    A byte array containing a VAA signed by the guardians.
+     *
+     * @return The byte array representing a BridgeStructs.TransferWithPayload.
+     */
+    function completeTransferWithPayload(bytes memory encodedVm) public returns (bytes memory) {
+        return _completeTransfer(encodedVm, false);
     }
 
-    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
-        return _completeTransfer(encodedVm, true, feeRecipient);
+    /*
+     * @notice Complete a contract-controlled transfer of WETH, and unwrap to ETH.
+     *
+     * @dev The transaction can only be redeemed by the recipient, typically a
+     * contract.
+     *
+     * @param encodedVm    A byte array containing a VAA signed by the guardians.
+     *
+     * @return The byte array representing a BridgeStructs.TransferWithPayload.
+     */
+    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm) public returns (bytes memory) {
+        return _completeTransfer(encodedVm, true);
     }
 
+    /*
+     * @notice Complete a transfer of an ERC20 token.
+     *
+     * @dev The msg.sender gets paid the associated fee.
+     *
+     * @param encodedVm A byte array containing a VAA signed by the guardians.
+     */
     function completeTransfer(bytes memory encodedVm) public {
-        _completeTransfer(encodedVm, false, msg.sender);
+        _completeTransfer(encodedVm, false);
     }
 
+    /*
+     * @notice Complete a transfer of WETH and unwrap to eth.
+     *
+     * @dev The msg.sender gets paid the associated fee.
+     *
+     * @param encodedVm A byte array containing a VAA signed by the guardians.
+     */
     function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
-        _completeTransfer(encodedVm, true, msg.sender);
+        _completeTransfer(encodedVm, true);
     }
 
     // Execute a Transfer message
-    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH, address feeRecipient) internal returns (bytes memory) {
+    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal returns (bytes memory) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
         require(verifyBridgeVM(vm), "invalid emitter");
 
-        BridgeStructs.Transfer memory transfer = parseTransfer(vm.payload);
+        BridgeStructs.Transfer memory transfer = _parseTransferCommon(vm.payload);
 
         // payload 3 must be redeemed by the designated proxy contract
         address transferRecipient = address(uint160(uint256(transfer.to)));
@@ -486,19 +516,19 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint256 nativeFee = deNormalizeAmount(transfer.fee, decimals);
 
         // transfer fee to arbiter
-        if (nativeFee > 0 && transferRecipient != feeRecipient) {
+        if (nativeFee > 0 && transferRecipient != msg.sender) {
             require(nativeFee <= nativeAmount, "fee higher than transferred amount");
 
             if (unwrapWETH) {
                 WETH().withdraw(nativeFee);
 
-                payable(feeRecipient).transfer(nativeFee);
+                payable(msg.sender).transfer(nativeFee);
             } else {
                 if (transfer.tokenChain != chainId()) {
                     // mint wrapped asset
-                    TokenImplementation(address(transferToken)).mint(feeRecipient, nativeFee);
+                    TokenImplementation(address(transferToken)).mint(msg.sender, nativeFee);
                 } else {
-                    SafeERC20.safeTransfer(transferToken, feeRecipient, nativeFee);
+                    SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);
                 }
             }
         } else {
@@ -574,11 +604,18 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             transfer.tokenChain,
             transfer.to,
             transfer.toChain,
-            transfer.fee,
+            transfer.fromAddress,
             transfer.payload
         );
     }
 
+    function parsePayloadID(bytes memory encoded) public pure returns (uint8 payloadID) {
+        payloadID = encoded.toUint8(0);
+    }
+
+    /*
+     * @dev Parse a token metadata attestation (payload id 2)
+     */
     function parseAssetMeta(bytes memory encoded) public pure returns (BridgeStructs.AssetMeta memory meta) {
         uint index = 0;
 
@@ -605,13 +642,19 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         require(encoded.length == index, "invalid AssetMeta");
     }
 
+    /*
+     * @dev Parse a token transfer (payload id 1).
+     *
+     * @params encoded The byte array corresponding to the token transfer (not
+     *                 the whole VAA, only the payload)
+     */
     function parseTransfer(bytes memory encoded) public pure returns (BridgeStructs.Transfer memory transfer) {
         uint index = 0;
 
         transfer.payloadID = encoded.toUint8(index);
         index += 1;
 
-        require(transfer.payloadID == 1 || transfer.payloadID == 3, "invalid Transfer");
+        require(transfer.payloadID == 1, "invalid Transfer");
 
         transfer.amount = encoded.toUint256(index);
         index += 32;
@@ -631,8 +674,70 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         transfer.fee = encoded.toUint256(index);
         index += 32;
 
-        // payload 3 allows for an arbitrary additional payload
-        require(encoded.length == index || transfer.payloadID == 3, "invalid Transfer");
+        require(encoded.length == index, "invalid Transfer");
+    }
+
+    /*
+     * @dev Parse a token transfer with payload (payload id 3).
+     *
+     * @params encoded The byte array corresponding to the token transfer (not
+     *                 the whole VAA, only the payload)
+     */
+    function parseTransferWithPayload(bytes memory encoded) public pure returns (BridgeStructs.TransferWithPayload memory transfer) {
+        uint index = 0;
+
+        transfer.payloadID = encoded.toUint8(index);
+        index += 1;
+
+        require(transfer.payloadID == 3, "invalid Transfer");
+
+        transfer.amount = encoded.toUint256(index);
+        index += 32;
+
+        transfer.tokenAddress = encoded.toBytes32(index);
+        index += 32;
+
+        transfer.tokenChain = encoded.toUint16(index);
+        index += 2;
+
+        transfer.to = encoded.toBytes32(index);
+        index += 32;
+
+        transfer.toChain = encoded.toUint16(index);
+        index += 2;
+
+        transfer.fromAddress = encoded.toBytes32(index);
+        index += 32;
+
+        transfer.payload = encoded.slice(index, encoded.length - index);
+    }
+
+    /*
+     * @dev Parses either a type 1 transfer or a type 3 transfer ("transfer with
+     *      payload") as a Transfer struct. The fee is set to 0 for type 3
+     *      transfers, since they have no fees associated with them.
+     *
+     *      The sole purpose of this function is to get around the local
+     *      variable count limitation in _completeTransfer.
+     */
+    function _parseTransferCommon(bytes memory encoded) public pure returns (BridgeStructs.Transfer memory transfer) {
+        uint8 payloadID = parsePayloadID(encoded);
+
+        if (payloadID == 1) {
+            transfer = parseTransfer(encoded);
+        } else if (payloadID == 3) {
+            BridgeStructs.TransferWithPayload memory t = parseTransferWithPayload(encoded);
+            transfer.payloadID = 3;
+            transfer.amount = t.amount;
+            transfer.tokenAddress = t.tokenAddress;
+            transfer.tokenChain = t.tokenChain;
+            transfer.to = t.to;
+            transfer.toChain = t.toChain;
+            // Type 3 payloads don't have fees.
+            transfer.fee = 0;
+        } else {
+            revert("Invalid payload id");
+        }
     }
 
     function bytes32ToString(bytes32 input) internal pure returns (string memory) {
