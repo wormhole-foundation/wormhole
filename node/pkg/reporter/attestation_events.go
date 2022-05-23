@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const maxClientId = 1e6
+
 type (
 	// MessagePublication is a VAA along with a transaction identifer from the EmiterChain
 	MessagePublication struct {
@@ -47,10 +49,10 @@ func EventListener(logger *zap.Logger) *AttestationEventReporter {
 
 // getUniqueClientId loops to generate & test integers for existence as key of map. returns an int that is not a key in map.
 func (re *AttestationEventReporter) getUniqueClientId() int {
-	clientId := rand.Intn(1e6)
-	found := false
+	clientId := 0
+	found := true
 	for found {
-		clientId = rand.Intn(1e6)
+		clientId = rand.Intn(maxClientId) //#nosec G404 The clientIds don't need to be unpredictable. They just need to be unique.
 		_, found = re.subs[clientId]
 	}
 	return clientId
