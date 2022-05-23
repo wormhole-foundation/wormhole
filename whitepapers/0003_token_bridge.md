@@ -128,7 +128,7 @@ Proposed bridge interface:
 `transfer(address token, uint64-uint256 amount (size depending on chains standards), uint16 recipient_chain, bytes32 recipient, uint256 fee)` - Initiate
 a `Transfer`. Amount in the tokens native decimals.
 
-`transferWithPayload(address token, uint64-uint256 amount (size depending on chains standards), uint16 recipient_chain, bytes32 recipient, uint256 fee, bytes payload)` - Initiate
+`transferWithPayload(address token, uint64-uint256 amount (size depending on chains standards), uint16 recipient_chain, bytes32 recipient, bytes payload)` - Initiate
 a `TransferWithPayload`. Amount in the tokens native decimals. `payload` is an arbitrary binary blob.
 
 `createWrapped(Message assetMeta)` - Creates a wrapped asset using `AssetMeta`
@@ -176,8 +176,8 @@ TokenChain uint16
 To bytes32
 // Chain ID of the recipient
 ToChain uint16
-// Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
-Fee uint256
+// The address of the message sender on the source chain
+FromAddress bytes32
 // Arbitrary payload
 Payload bytes
 ```
