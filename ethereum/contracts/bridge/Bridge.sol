@@ -20,8 +20,10 @@ import "./token/TokenImplementation.sol";
 contract Bridge is BridgeGovernance, ReentrancyGuard {
     using BytesLib for bytes;
 
-    // Produce a AssetMeta message for a given token
-    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence){
+    /*
+     *  @dev Produce a AssetMeta message for a given token
+     */
+    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence) {
         // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
         (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
         (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
@@ -61,11 +63,26 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         }(nonce, encoded, 15);
     }
 
+    /*
+     *  @notice Send eth through portal by first wrapping it to WETH.
+     */
     function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _wrapAndTransferETH(arbiterFee);
         sequence = logTransfer(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce);
     }
 
+    /*
+     *  @notice Send eth through portal by first wrapping it.
+     *
+     *  @dev This type of transfer is called a "contract-controlled transfer".
+     *  There are three differences from a regular token transfer:
+     *  1) Additional arbitrary payload can be attached to the message
+     *  2) Only the recipient (typically a contract) can redeem the transaction
+     *  3) The sender's address (msg.sender) is also included in the transaction payload
+     *
+     *  With these three additional components, xDapps can implement cross-chain
+     *  composable interactions.
+     */
     function wrapAndTransferETHWithPayload(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _wrapAndTransferETH(arbiterFee);
         sequence = logTransferWithPayload(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce, payload);
@@ -106,17 +123,34 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         });
     }
 
+    /*
+     *  @notice Send ERC20 token through portal.
+     */
     function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable nonReentrant returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(token, amount, arbiterFee);
         sequence = logTransfer(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce);
     }
 
+    /*
+     *  @notice Send ERC20 token through portal.
+     *
+     *  @dev This type of transfer is called a "contract-controlled transfer".
+     *  There are three differences from a regular token transfer:
+     *  1) Additional arbitrary payload can be attached to the message
+     *  2) Only the recipient (typically a contract) can redeem the transaction
+     *  3) The sender's address (msg.sender) is also included in the transaction payload
+     *
+     *  With these three additional components, xDapps can implement cross-chain
+     *  composable interactions.
+     */
     function transferTokensWithPayload(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable nonReentrant returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(token, amount, arbiterFee);
         sequence = logTransferWithPayload(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce, payload);
     }
 
-    // Initiate a Transfer
+    /*
+     *  @notice Initiate a transfer
+     */
     function _transferTokens(address token, uint256 amount, uint256 arbiterFee) internal returns (BridgeStructs.TransferResult memory transferResult) {
         // determine token parameters
         uint16 tokenChain;
@@ -208,6 +242,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         }(nonce, encoded, 15);
     }
 
+    /*
+     * @dev Publish a token transfer message with payload.
+     *
+     * @return The sequence number of the published message.
+     */
     function logTransferWithPayload(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint256 callValue, uint32 nonce, bytes memory payload) internal returns (uint64 sequence) {
         require(fee <= amount, "fee exceeds amount");
 
@@ -298,18 +337,66 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
     }
 
+    /*
+     * @notice Complete a contract-controlled transfer of an ERC20 token.
+     *
+     * @dev The transaction can only be redeemed by the recipient, typically a
+     * contract.
+     *
+     * @param encodedVm    A byte array containing a VAA signed by the guardians.
+     *
+     * @param feeRecipient An address that gets paid the fee amount specified in
+     *                     the VAA. Typically this is a relayer. If a relayer
+     *                     redeems through a contract, then it is the contract's
+     *                     responsibility to set the message sender as the fee
+     *                     recipient. Not doing so might result in the relayer
+     *                     ignoring the message.
+     *
+     * @return The byte array representing a BridgeStructs.TransferWithPayload.
+     */
     function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
         return _completeTransfer(encodedVm, false, feeRecipient);
     }
 
+    /*
+     * @notice Complete a contract-controlled transfer of WETH, and unwrap to ETH.
+     *
+     * @dev The transaction can only be redeemed by the recipient, typically a
+     * contract.
+     *
+     * @param encodedVm    A byte array containing a VAA signed by the guardians.
+     *
+     * @param feeRecipient An address that gets paid the fee amount specified in
+     *                     the VAA. Typically this is a relayer. If a relayer
+     *                     redeems through a contract, then it is the contract's
+     *                     responsibility to set the message sender as the fee
+     *                     recipient. Not doing so might result in the relayer
+     *                     ignoring the message.
+     *
+     * @return The byte array representing a BridgeStructs.TransferWithPayload.
+     */
     function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
         return _completeTransfer(encodedVm, true, feeRecipient);
     }
 
+    /*
+     * @notice Complete a transfer of an ERC20 token.
+     *
+     * @dev The msg.sender gets paid the associated fee.
+     *
+     * @param encodedVm A byte array containing a VAA signed by the guardians.
+     */
     function completeTransfer(bytes memory encodedVm) public {
         _completeTransfer(encodedVm, false, msg.sender);
     }
 
+    /*
+     * @notice Complete a transfer of WETH and unwrap to eth.
+     *
+     * @dev The msg.sender gets paid the associated fee.
+     *
+     * @param encodedVm A byte array containing a VAA signed by the guardians.
+     */
     function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
         _completeTransfer(encodedVm, true, msg.sender);
     }
