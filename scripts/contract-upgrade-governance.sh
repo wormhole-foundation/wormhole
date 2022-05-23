@@ -28,7 +28,10 @@
 
 set -euo pipefail
 
-usage="Usage:
+function usage() {
+cat <<EOF >&2
+Usage:
+
   $(basename "$0") [-h] [-m s] [-c s] [-a s] [-o d] -- Generate governance proposal for a given module to be upgraded to a given address
 
   where:
@@ -37,7 +40,10 @@ usage="Usage:
     -c  chain name
     -a  new code address (example: 0x3f1a6729bb27350748f0a0bd85ca641a100bf0a1)
     -o  multi-mode output directory
-"
+EOF
+exit 1
+}
+
 
 ### Parse command line options
 address=""
@@ -47,8 +53,7 @@ multi_mode=false
 out_dir=""
 while getopts ':hm:c:a:o:' option; do
   case "$option" in
-    h) echo "$usage"
-       exit
+    h) usage
        ;;
     m) module=$OPTARG
        ;;
@@ -60,20 +65,18 @@ while getopts ':hm:c:a:o:' option; do
        out_dir=$OPTARG
        ;;
     :) printf "missing argument for -%s\n" "$OPTARG" >&2
-       echo "$usage" >&2
-       exit 1
+       usage
        ;;
    \?) printf "illegal option: -%s\n" "$OPTARG" >&2
-       echo "$usage" >&2
-       exit 1
+       usage
        ;;
   esac
 done
 shift $((OPTIND - 1))
 
-[ -z "$address" ] && { echo "$usage" >&2; exit 1; }
-[ -z "$chain_name" ] && { echo "$usage" >&2; exit 1; }
-[ -z "$module" ] && { echo "$usage" >&2; exit 1; }
+[ -z "$address" ] && usage
+[ -z "$chain_name" ] && usage
+[ -z "$module" ] && usage
 
 ### The script constructs the governance proposal in two different steps. First,
 ### the governance prototxt (for VAA injection by the guardiand tool), then the voting/verification instructions.
@@ -102,7 +105,9 @@ case "$chain_name" in
     ;;
   terra)
     chain=3
-    # explorer="https://finder.terra.money/columbus-5/address/"
+    # This is not technically the explorer, but terra finder does not show
+    # information about code ids, so this is the best we can do.
+    explorer="https://lcd.terra.dev/terra/wasm/v1beta1/codes/"
     ;;
   bsc)
     chain=4
@@ -200,9 +205,8 @@ guardiand template token-bridge-upgrade-contract \\
     solana_artifact="artifacts-mainnet/nft_bridge.so"
     terra_artifact="artifacts/nft_bridge.wasm"
     ;;
-  *) echo "illegal module $module" >&2
-     echo "$usage" >&2
-     exit 1
+  *) echo "unknown module $module" >&2
+     usage
      ;;
 esac
 
@@ -233,7 +237,6 @@ echo "$rest" >> "$gov_msg_file"
 verify=$(guardiand admin governance-vaa-verify "$gov_msg_file" 2>&1)
 digest=$(echo "$verify" | grep "VAA with digest" | cut -d' ' -f6 | sed 's/://g')
 
-
 ################################################################################
 # Print vote command and expected digests
 
@@ -258,14 +261,18 @@ cat <<-EOD
 	\`\`\`
 EOD
 
+################################################################################
+# Verification instructions
+# The rest of the output is printed to the instructions file (which then also
+# gets printed to stdout at the end)
+
 echo "# Verification steps ($chain_name)
 " >> "$instructions_file"
 
 # Verification steps depend on the chain.
 
-case "$evm" in
-  true)
-    cat <<-EOF >> "$instructions_file"
+if [ "$evm" = true ]; then
+  cat <<-EOF >> "$instructions_file"
 	## Build
 	\`\`\`shell
 	wormhole/ethereum $ npm ci
@@ -281,10 +288,8 @@ case "$evm" in
 	\`\`\`
 
 EOF
-    ;;
-  false)
-    case "$chain_name" in
-      solana) cat <<-EOF >> "$instructions_file"
+elif [ "$chain_name" = "solana" ]; then
+  cat <<-EOF >> "$instructions_file"
 	## Build
 	\`\`\`shell
 	wormhole/solana $ make clean
@@ -303,8 +308,8 @@ EOF
 	wormhole/solana$ ./verify -n mainnet $solana_artifact $address
 	\`\`\`
 EOF
-        ;;
-      terra) cat <<-EOF >> "$instructions_file"
+elif [ "$chain_name" = "terra" ]; then
+  cat <<-EOF >> "$instructions_file"
 	## Build
 	\`\`\`shell
 	wormhole/terra $ make clean
@@ -314,6 +319,7 @@ EOF
 	This command will compile all the contracts into the \`artifacts\` directory using Docker to ensure that the build artifacts are deterministic.
 
 	## Verify
+	Contract at [$explorer$terra_code_id]($explorer$terra_code_id)
 	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
 
 	\`\`\`shell
@@ -321,14 +327,10 @@ EOF
 	wormhole/terra$ ./verify -n mainnet $terra_artifact $terra_code_id
 	\`\`\`
 EOF
-        ;;
-      *)
-        echo "ERROR: no verification instructions for chain $chain_name" >&2
-        exit 1
-        ;;
-    esac
-    ;;
-esac
+else
+  echo "ERROR: no verification instructions for chain $chain_name" >&2
+  exit 1
+fi
 
 
 
