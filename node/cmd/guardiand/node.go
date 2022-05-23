@@ -5,18 +5,19 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log"
+	"net/http"
+	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
+	"os"
+	"path"
+	"strings"
+
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
 	"go.uber.org/zap/zapcore"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"path"
-	"strings"
 
 	solana_types "github.com/gagliardetto/solana-go"
 	"github.com/gorilla/mux"
@@ -358,6 +359,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		go func() {
 			logger.Info("status server listening on [::]:6060")
+			// SECURITY: If making changes, ensure that we always do `router := mux.NewRouter()` before this to avoid accidentally exposing pprof
 			logger.Error("status server crashed", zap.Error(http.ListenAndServe(*statusAddr, router)))
 		}()
 	}
