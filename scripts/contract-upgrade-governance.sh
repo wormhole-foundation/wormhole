@@ -82,7 +82,7 @@ shift $((OPTIND - 1))
 ### the governance prototxt (for VAA injection by the guardiand tool), then the voting/verification instructions.
 gov_msg_file=""
 instructions_file=""
-if "$multi_mode"; then
+if [ "$multi_mode" = true ]; then
   mkdir -p "$out_dir"
   gov_msg_file="$out_dir/governance.prototxt"
   instructions_file="$out_dir/instructions.md"
