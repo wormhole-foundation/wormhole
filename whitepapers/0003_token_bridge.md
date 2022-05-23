@@ -178,6 +178,8 @@ To bytes32
 ToChain uint16
 // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
 Fee uint256
+// The address of the message sender on the source chain
+FromAddress bytes32
 // Arbitrary payload
 Payload bytes
 ```
