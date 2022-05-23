@@ -6,24 +6,7 @@ import "../contracts/Messages.sol";
 contract TestMessages {
   function testQuorum() public { 
     // An array to hold our test cases
-    uint[2][] memory testCases;
-
-    // Define all the testCases and add them to array
-    testCases.push([0, 1]);
-    testCases.push([1, 1]);
-    testCases.push([2, 2]);
-    testCases.push([3, 3]);
-    testCases.push([4, 3]);
-    testCases.push([5, 4]);
-    testCases.push([6, 5]);
-    testCases.push([7, 5]);
-    testCases.push([8, 6]);
-    testCases.push([9, 7]);
-    testCases.push([10, 7]);
-    testCases.push([11, 8]);
-    testCases.push([12, 9]);
-    testCases.push([20, 14]);
-    testCases.push([25, 16]);
+    uint[][] balance = [[0, 1],[1, 1],[2, 2],[3, 3],[4, 3],[5, 4],[6, 5],[7, 5],[8, 6],[9, 7],[10, 7],[11, 8],[12, 9],[20, 14]]
 
     // Loop through our testCases array and assert that our expectations are met
     for (uint i=0; i<testCases.length; i++) {
