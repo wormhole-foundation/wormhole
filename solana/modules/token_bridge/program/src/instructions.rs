@@ -43,28 +43,16 @@ use borsh::BorshSerialize;
 use bridge::{
     accounts::{
         Bridge,
-        BridgeConfig,
         Claim,
         ClaimDerivationData,
         FeeCollector,
-        PostedVAA,
-        PostedVAAData,
-        PostedVAADerivationData,
         Sequence,
         SequenceDerivationData,
     },
     api::ForeignAddress,
-    instructions::hash_vaa,
-    vaa::{
-        ClaimableVAA,
-        PayloadMessage,
-        SerializePayload,
-    },
-    PostVAA,
     PostVAAData,
     CHAIN_ID_SOLANA,
 };
-use primitive_types::U256;
 use solana_program::{
     instruction::{
         AccountMeta,
@@ -75,11 +63,6 @@ use solana_program::{
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
-};
-use spl_token::state::Mint;
-use std::{
-    cmp::min,
-    str::FromStr,
 };
 
 pub fn initialize(

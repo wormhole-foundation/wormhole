@@ -8,62 +8,33 @@ use crate::{
         WrappedMetaDerivationData,
         WrappedTokenMeta,
     },
-    messages::{
-        PayloadAssetMeta,
-        PayloadTransfer,
-    },
+    messages::PayloadAssetMeta,
     types::*,
-    TokenBridgeError::{
-        self,
-        *,
-    },
+    TokenBridgeError::*,
 };
 use bridge::{
-    accounts::Bridge,
-    api::{
-        PostMessage,
-        PostMessageData,
-    },
+    api::PostMessageData,
     types::ConsistencyLevel,
     vaa::SerializePayload,
     CHAIN_ID_SOLANA,
 };
-use primitive_types::U256;
 use solana_program::{
     account_info::AccountInfo,
     instruction::{
         AccountMeta,
         Instruction,
     },
-    program::{
-        invoke,
-        invoke_signed,
-    },
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    program::invoke,
     sysvar::clock::Clock,
 };
 use solitaire::{
     processors::seeded::{
         invoke_seeded,
-        Owned,
         Seeded,
     },
-    CreationLamports::Exempt,
     *,
 };
-use spl_token::{
-    error::TokenError::OwnerMismatch,
-    state::{
-        Account,
-        Mint,
-    },
-};
 use spl_token_metadata::state::Metadata;
-use std::ops::{
-    Deref,
-    DerefMut,
-};
 
 #[derive(FromAccounts)]
 pub struct AttestToken<'b> {

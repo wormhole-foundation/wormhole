@@ -1,4 +1,5 @@
 #![feature(adt_const_params)]
+#![allow(incomplete_features)]
 #![deny(unused_must_use)]
 
 // #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
@@ -62,7 +63,6 @@ pub use api::{
 };
 
 use solitaire::*;
-use std::error::Error;
 
 // Static list of invalid VAA Message accounts.
 pub(crate) static INVALID_VAAS: &'static [&'static str; 7] = &[

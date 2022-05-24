@@ -26,11 +26,7 @@ use crate::{
     },
 };
 use bridge::{
-    accounts::Bridge,
-    api::{
-        PostMessage,
-        PostMessageData,
-    },
+    api::PostMessageData,
     types::ConsistencyLevel,
     vaa::SerializePayload,
     CHAIN_ID_SOLANA,
@@ -46,9 +42,7 @@ use solana_program::{
         invoke,
         invoke_signed,
     },
-    program_error::ProgramError,
     program_option::COption,
-    pubkey::Pubkey,
     sysvar::clock::Clock,
 };
 use solitaire::{
@@ -58,17 +52,6 @@ use solitaire::{
     },
     CreationLamports::Exempt,
     *,
-};
-use spl_token::{
-    error::TokenError::OwnerMismatch,
-    state::{
-        Account,
-        Mint,
-    },
-};
-use std::ops::{
-    Deref,
-    DerefMut,
 };
 
 pub type TransferNativeWithPayload<'b> = TransferNative<'b>;

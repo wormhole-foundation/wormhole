@@ -268,7 +268,7 @@ pub fn upgrade_guardian_set(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,
-            sequence: sequence,
+            sequence,
         },
         &program_id,
     );

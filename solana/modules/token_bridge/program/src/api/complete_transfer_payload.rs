@@ -12,10 +12,7 @@ use crate::{
         WrappedMint,
         WrappedTokenMeta,
     },
-    messages::{
-        PayloadTransfer,
-        PayloadTransferWithPayload,
-    },
+    messages::PayloadTransferWithPayload,
     types::*,
     TokenBridgeError::*,
 };
@@ -23,27 +20,13 @@ use bridge::{
     vaa::ClaimableVAA,
     CHAIN_ID_SOLANA,
 };
-use solana_program::{
-    account_info::AccountInfo,
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_program::account_info::AccountInfo;
 use solitaire::{
     processors::seeded::{
         invoke_seeded,
         Seeded,
     },
-    CreationLamports::Exempt,
     *,
-};
-use spl_token::state::{
-    Account,
-    Mint,
-};
-use std::ops::{
-    Deref,
-    DerefMut,
 };
 
 #[derive(FromAccounts)]
@@ -99,7 +82,7 @@ pub struct CompleteNativeWithPayloadData {}
 pub fn complete_native_with_payload(
     ctx: &ExecutionContext,
     accs: &mut CompleteNativeWithPayload,
-    data: CompleteNativeWithPayloadData,
+    _data: CompleteNativeWithPayloadData,
 ) -> Result<()> {
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
@@ -187,7 +170,7 @@ pub struct CompleteWrappedWithPayload<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
-    // Signed message for the transfer
+    /// Signed message for the transfer
     pub vaa: ClaimableVAA<'b, PayloadTransferWithPayload>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
@@ -238,7 +221,7 @@ pub struct CompleteWrappedWithPayloadData {}
 pub fn complete_wrapped_with_payload(
     ctx: &ExecutionContext,
     accs: &mut CompleteWrappedWithPayload,
-    data: CompleteWrappedWithPayloadData,
+    _data: CompleteWrappedWithPayloadData,
 ) -> Result<()> {
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();

@@ -8,9 +8,7 @@ use crate::{
         GovernancePayloadUpgrade,
         PayloadGovernanceRegisterChain,
     },
-    types::*,
     TokenBridgeError::{
-        InvalidChain,
         InvalidGovernanceKey,
         InvalidVAA,
     },
@@ -20,14 +18,12 @@ use bridge::{
     vaa::{
         ClaimableVAA,
         DeserializePayload,
-        PayloadMessage,
     },
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
     account_info::AccountInfo,
     program::invoke_signed,
-    program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::{
         clock::Clock,
@@ -39,12 +35,8 @@ use solitaire::{
     CreationLamports::Exempt,
     *,
 };
-use std::ops::{
-    Deref,
-    DerefMut,
-};
 
-// Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
+/// Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
 fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
 where
     T: DeserializePayload,
