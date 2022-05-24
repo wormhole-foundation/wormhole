@@ -20,8 +20,6 @@ pub use api::{
     UninitializedMessage,
 };
 
-use bridge::PostVAAData;
-
 solitaire! {
     Initialize  => initialize,
     PostMessage => post_message,

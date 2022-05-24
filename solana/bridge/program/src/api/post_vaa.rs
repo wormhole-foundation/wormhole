@@ -34,10 +34,7 @@ use serde::{
     Serialize,
 };
 use sha3::Digest;
-use solana_program::{
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_program::program_error::ProgramError;
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,

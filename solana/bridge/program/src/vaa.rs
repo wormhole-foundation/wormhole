@@ -8,7 +8,6 @@ use crate::{
         InvalidGovernanceChain,
         InvalidGovernanceModule,
         VAAAlreadyExecuted,
-        VAAInvalid,
     },
     Claim,
     ClaimDerivationData,

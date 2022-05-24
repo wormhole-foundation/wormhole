@@ -1,9 +1,7 @@
 use solitaire::*;
 
 use solana_program::{
-    log::sol_log,
     program::invoke_signed,
-    program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::{
         clock::Clock,
