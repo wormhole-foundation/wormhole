@@ -61,3 +61,21 @@ Create `.env` from the sample file, then add your Covalent API key:
 ```bash
 cp .env.sample .env
 ```
+
+## Run Project
+```bash
+npm i
+npm start
+```
+
+### Custom Design And Text Changes Example on .env
+
+REACT_APP_PRIMARY_COLOR="#2abfff"
+REACT_APP_SECONDARY_COLOR="#ffffff12"
+REACT_APP_BODY_COLOR="#16171b"
+REACT_APP_TEXT_COLOR="#ffffff"
+REACT_APP_LOGO="cloud image link"
+REACT_APP_TITLE="Token Bridge"
+REACT_APP_SUBTITLE="Token Bridge"
+REACT_APP_LINK_NAME=""
+REACT_APP_LINK_ADDRESS=""

@@ -42,8 +42,7 @@ import Transfer from "./components/Transfer";
 import UnwrapNative from "./components/UnwrapNative";
 import WithdrawTokensTerra from "./components/WithdrawTokensTerra";
 import { useBetaContext } from "./contexts/BetaContext";
-import Portal from "./icons/portal_logo.svg";
-import Header from "./images/Header.png";
+import StackOS from "./icons/logo.svg";
 import { CLUSTER } from "./utils/consts";
 
 const useStyles = makeStyles((theme) => ({
@@ -64,7 +63,7 @@ const useStyles = makeStyles((theme) => ({
     ...theme.typography.body2,
     fontWeight: 600,
     fontFamily: "Suisse BP Intl, sans-serif",
-    color: "black",
+    color: process.env.REACT_APP_PRIMARY_COLOR,
     marginLeft: theme.spacing(4),
     textUnderlineOffset: "6px",
     [theme.breakpoints.down("sm")]: {
@@ -78,24 +77,11 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   bg: {
-    // background:
-    //   "linear-gradient(160deg, rgba(69,74,117,.1) 0%, rgba(138,146,178,.1) 33%, rgba(69,74,117,.1) 66%, rgba(98,104,143,.1) 100%), linear-gradient(45deg, rgba(153,69,255,.1) 0%, rgba(121,98,231,.1) 20%, rgba(0,209,140,.1) 100%)",
     display: "flex",
     flexDirection: "column",
     minHeight: "100vh",
     position: "relative",
     overflow: "hidden",
-  },
-  headerImage: {
-    position: "absolute",
-    zIndex: -1,
-    top: 0,
-    background: `url(${Header})`,
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "top -750px center",
-    backgroundSize: "2070px 1155px",
-    width: "100%",
-    height: 1155,
   },
   brandLink: {
     display: "inline-flex",
@@ -128,67 +114,7 @@ const useStyles = makeStyles((theme) => ({
     marginRight: theme.spacing(1),
     display: "inline-block",
   },
-  gradientRight: {
-    position: "absolute",
-    top: "72px",
-    right: "-1000px",
-    width: "1757px",
-    height: "1506px",
-    background:
-      "radial-gradient(closest-side at 50% 50%, #FFCE00 0%, #FFCE0000 100%)",
-    opacity: "0.2",
-    transform: "matrix(0.87, 0.48, -0.48, 0.87, 0, 0)",
-    zIndex: "-1",
-    pointerEvent: "none",
-    [theme.breakpoints.down("sm")]: {
-      display: "none",
-    },
-  },
-  gradientLeft: {
-    top: "-530px",
-    left: "-350px",
-    width: "1379px",
-    height: "1378px",
-    position: "absolute",
-    background:
-      "radial-gradient(closest-side at 50% 50%, #F44B1B 0%, #F44B1B00 100%)",
-    opacity: "0.2",
-    zIndex: "-1",
-    pointerEvent: "none",
-  },
-  gradientLeft2: {
-    bottom: "-330px",
-    left: "-350px",
-    width: "1379px",
-    height: "1378px",
-    position: "absolute",
-    background:
-      "radial-gradient(closest-side at 50% 50%, #F44B1B 0%, #F44B1B00 100%)",
-    opacity: "0.2",
-    zIndex: "-1",
-    pointerEvent: "none",
-    [theme.breakpoints.down("sm")]: {
-      display: "none",
-    },
-  },
-  gradientRight2: {
-    position: "absolute",
-    bottom: "-900px",
-    right: "-1000px",
-    width: "1757px",
-    height: "1506px",
-    background:
-      "radial-gradient(closest-side at 50% 50%, #FFCE00 0%, #FFCE0000 100%)",
-    opacity: "0.24",
-    transform: "matrix(0.87, 0.48, -0.48, 0.87, 0, 0);",
-    zIndex: "-1",
-    pointerEvent: "none",
-    [theme.breakpoints.down("sm")]: {
-      display: "none",
-    },
-  },
 }));
-
 function App() {
   const classes = useStyles();
   const isBeta = useBetaContext();
@@ -214,7 +140,7 @@ function App() {
             to="/transfer"
             className={classes.brandLink}
           >
-            <img src={Portal} alt="Portal" className={classes.wormholeIcon} />
+            <img src={process.env.REACT_APP_LOGO || StackOS} alt="StackOS" className={classes.wormholeIcon} />
           </Link>
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
@@ -228,7 +154,7 @@ function App() {
                 Bridge
               </Link>
               <Link
-                href="https://docs.wormholenetwork.com/wormhole/faqs"
+                href="https://curved-variraptor-e0b.notion.site/StackOS-Community-NFT-Nodes-FAQ-37411cf5e7f84aafa9307a9bf5a17f3f"
                 target="_blank"
                 rel="noopener noreferrer"
                 color="inherit"
@@ -246,13 +172,13 @@ function App() {
                 Stats
               </Link>
               <Link
-                href="https://wormholenetwork.com/"
+                href={process.env.REACT_APP_LINK_ADDRESS}
                 target="_blank"
                 rel="noopener noreferrer"
                 color="inherit"
                 className={classes.link}
               >
-                Wormhole
+                {process.env.REACT_APP_LINK_NAME}
               </Link>
             </div>
           </Hidden>
@@ -273,7 +199,7 @@ function App() {
       </AppBar>
       {CLUSTER === "mainnet" ? null : (
         <AppBar position="static" className={classes.betaBanner} elevation={0}>
-          <Typography style={{ textAlign: "center" }}>
+          <Typography style={{ textAlign: "center", color: "#fff" }}>
             Caution! You are using the {CLUSTER} build of this app.
           </Typography>
         </AppBar>
@@ -286,7 +212,7 @@ function App() {
           </Typography>
         </AppBar>
       ) : null}
-      <div className={classes.headerImage} />
+      <div/>
       {["/transfer", "/nft", "/redeem"].includes(pathname) ? (
         <Container maxWidth="md" style={{ paddingBottom: 24 }}>
           <HeaderText
@@ -294,17 +220,16 @@ function App() {
             subtitle={
               <>
                 <Typography>
-                  Portal is a bridge that offers unlimited transfers across
-                  chains for tokens and NFTs wrapped by Wormhole.
+                  {process.env.REACT_APP_SUBTITLE}
                 </Typography>
-                <Typography>
+                {/* <Typography>
                   Unlike many other bridges, you avoid double wrapping and never
                   have to retrace your steps.
-                </Typography>
+                </Typography> */}
               </>
             }
           >
-            Token Bridge
+            {process.env.REACT_APP_TITLE}
           </HeaderText>
           <Tabs
             value={pathname}
@@ -312,7 +237,7 @@ function App() {
             onChange={handleTabChange}
             indicatorColor="primary"
           >
-            <Tab label="Tokens" value="/transfer" />
+            <Tab label="Tokens" value="/transfer"/>
             <Tab label="NFTs" value="/nft" />
             <Tab label="Redeem" value="/redeem" to="/redeem" />
           </Tabs>
@@ -371,11 +296,7 @@ function App() {
           <Redirect to="/transfer" />
         </Route>
       </Switch>
-      <div className={classes.spacer} />
-      <div className={classes.gradientRight}></div>
-      <div className={classes.gradientRight2}></div>
-      <div className={classes.gradientLeft}></div>
-      <div className={classes.gradientLeft2}></div>
+      {/* <div className={classes.spacer} /> */}
       <Footer />
     </div>
   );

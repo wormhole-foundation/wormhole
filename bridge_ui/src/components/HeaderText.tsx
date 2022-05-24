@@ -5,7 +5,8 @@ import { COLORS } from "../muiTheme";
 
 const useStyles = makeStyles((theme) => ({
   centeredContainer: {
-    marginBottom: theme.spacing(24),
+    marginBottom: theme.spacing(10),
+    marginTop: theme.spacing(8),
     textAlign: "center",
     width: "100%",
   },

@@ -1,5 +1,4 @@
 import { createTheme, responsiveFontSizes } from "@material-ui/core";
-import bg from "../src/images/bg.svg";
 import SuisseBPIntlBold from "./fonts/SuisseBPIntlBold.woff2";
 
 export const COLORS = {
@@ -10,7 +9,7 @@ export const COLORS = {
   greenWithTransparency: "rgba(10, 194, 175, 0.8)",
   lightGreen: "rgba(51, 242, 223, 1)",
   lightBlue: "#83b9fc",
-  nearBlack: "#17153f",
+  nearBlack: "#16171b",
   nearBlackWithMinorTransparency: "rgba(0,0,0,.25)",
   red: "#aa0818",
   darkRed: "#810612",
@@ -31,15 +30,14 @@ export const theme = responsiveFontSizes(
     palette: {
       type: "dark",
       background: {
-        default: COLORS.nearBlack,
-        paper: COLORS.nearBlack,
+        default: process.env.REACT_APP_BODY_COLOR || '',
       },
       divider: COLORS.white,
       text: {
-        primary: COLORS.white,
+        primary: process.env.REACT_APP_TEXT_COLOR,
       },
       primary: {
-        main: COLORS.blueWithTransparency, // #0074FF
+        main: process.env.REACT_APP_PRIMARY_COLOR, // #0074FF
         light: COLORS.lightBlue,
       },
       secondary: {
@@ -75,7 +73,6 @@ export const theme = responsiveFontSizes(
           "@font-face": [suisse],
           body: {
             overscrollBehaviorY: "none",
-            backgroundImage: `url(${bg})`,
             backgroundPosition: "top center",
             backgroundRepeat: "repeat-y",
             backgroundSize: "120%",
@@ -101,7 +98,7 @@ export const theme = responsiveFontSizes(
       },
       MuiAccordion: {
         root: {
-          backgroundColor: COLORS.whiteWithTransparency,
+          backgroundColor: process.env.REACT_APP_SECONDARY_COLOR,
           "&:before": {
             display: "none",
           },
@@ -120,22 +117,35 @@ export const theme = responsiveFontSizes(
       MuiAlert: {
         root: {
           borderRadius: "8px",
-          border: "1px solid",
+          border: "1px solid #fff",
         },
       },
       MuiButton: {
         root: {
           borderRadius: "22px",
           letterSpacing: ".1em",
+          backgroundColor: process.env.REACT_APP_PRIMARY_COLOR,
+          borderColor: process.env.REACT_APP_PRIMARY_COLOR,
+          
         },
         outlinedSizeSmall: {
           padding: "6px 9px",
           fontSize: "0.70rem",
         },
+        containedPrimary: {
+          backgroundColor: process.env.REACT_APP_PRIMARY_COLOR,
+          borderColor: process.env.REACT_APP_PRIMARY_COLOR,
+          color: process.env.REACT_APP_TEXT_COLOR,
+          "&:hover": {
+            backgroundColor: process.env.REACT_APP_TEXT_COLOR,
+            color: process.env.REACT_APP_PRIMARY_COLOR
+          }
+        }
+        
       },
       MuiLink: {
         root: {
-          color: COLORS.lightBlue,
+          color: process.env.REACT_APP_PRIMARY_COLOR,
         },
       },
       MuiPaper: {
@@ -152,7 +162,7 @@ export const theme = responsiveFontSizes(
       },
       MuiStep: {
         root: {
-          backgroundColor: COLORS.whiteWithTransparency,
+          backgroundColor: process.env.REACT_APP_SECONDARY_COLOR,
           backdropFilter: "blur(4px)",
           borderRadius: "28px",
           padding: "32px 32px 16px",
@@ -172,7 +182,7 @@ export const theme = responsiveFontSizes(
       },
       MuiStepLabel: {
         label: {
-          color: COLORS.white,
+          color: process.env.REACT_APP_TEXT_COLOR,
           textTransform: "uppercase",
           "&.MuiStepLabel-active": {},
           "&.MuiStepLabel-completed": {},
@@ -180,17 +190,17 @@ export const theme = responsiveFontSizes(
       },
       MuiTabs: {
         root: {
-          borderBottom: `1px solid ${COLORS.white}`,
+          borderBottom: `1px solid ${process.env.REACT_APP_TEXT_COLOR}`,
         },
         indicator: {
           height: "100%",
-          background: "linear-gradient(20deg, #f44b1b 0%, #eeb430 100%);",
+          background: process.env.REACT_APP_PRIMARY_COLOR,
           zIndex: -1,
         },
       },
       MuiTab: {
         root: {
-          color: COLORS.white,
+          color: process.env.REACT_APP_TEXT_COLOR,
           fontFamily: "Suisse BP Intl, sans-serif",
           fontWeight: "bold",
           fontSize: 18,
@@ -200,7 +210,7 @@ export const theme = responsiveFontSizes(
         },
         textColorInherit: {
           opacity: 1,
-        },
+        }
       },
       MuiTableCell: {
         root: {
