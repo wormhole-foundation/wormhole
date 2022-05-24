@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.17.5
+ARG GO_VERSION=1.18.2
 FROM golang:$GO_VERSION as algorand-algod
 
 # Support additional root CAs
