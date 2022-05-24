@@ -198,7 +198,25 @@ const (
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
 
-	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
+	// Minimum VAA size is derrived from the following assumptions:
+	//  HEADER
+	//  - Supported VAA Version (1 byte)
+	//  - Guardian Set Index (4 bytes)
+	//  - Length of Signatures (1 byte) <== assume no signatures
+	//  - Actual Signatures (0 bytes)
+	//  BODY
+	//  - timestamp (4 bytes)
+	//  - nonce (4 bytes)
+	//  - emitter chain (2 bytes)
+	//  - emitter address (32 bytes)
+	//  - sequence (8 bytes)
+	//  - consistency level (1 byte)
+	//  - payload (0 bytes)
+	//
+	// From Above: 1 + 4 + 1 + 0 + 4 + 4 + 2 + 32 + 8  + 1 + 0 // Equals 57
+	//
+	// More details here: https://docs.wormholenetwork.com/wormhole/vaas
+	minVAALength        = 57
 	SupportedVAAVersion = 0x01
 )
 
