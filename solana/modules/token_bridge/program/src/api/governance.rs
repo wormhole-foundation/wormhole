@@ -37,7 +37,7 @@ use solitaire::{
 };
 
 /// Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
-fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
+fn verify_governance<T>(vaa: &ClaimableVAA<T>) -> Result<()>
 where
     T: DeserializePayload,
 {

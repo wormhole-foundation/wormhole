@@ -36,24 +36,13 @@ use borsh::BorshSerialize;
 use bridge::{
     accounts::{
         Bridge,
-        BridgeConfig,
         Claim,
         ClaimDerivationData,
         FeeCollector,
-        PostedVAA,
-        PostedVAAData,
-        PostedVAADerivationData,
         Sequence,
         SequenceDerivationData,
     },
     api::ForeignAddress,
-    instructions::hash_vaa,
-    vaa::{
-        ClaimableVAA,
-        PayloadMessage,
-        SerializePayload,
-    },
-    PostVAA,
     PostVAAData,
     CHAIN_ID_SOLANA,
 };
@@ -69,8 +58,6 @@ use solitaire::{
     processors::seeded::Seeded,
     AccountState,
 };
-use spl_token::state::Mint;
-use std::str::FromStr;
 
 pub fn initialize(
     program_id: Pubkey,
@@ -215,7 +202,7 @@ pub fn complete_wrapped_meta(
     data: CompleteWrappedMetaData,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
+    let (message_acc, _claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
     let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
         &EndpointDerivationData {
             emitter_chain: vaa.emitter_chain,
@@ -345,7 +332,7 @@ pub fn transfer_native(
 
     // SPL Metadata
     let spl_metadata = SplTokenMeta::key(
-        &SplTokenMetaDerivationData { mint: mint },
+        &SplTokenMetaDerivationData { mint },
         &spl_token_metadata::id(),
     );
 

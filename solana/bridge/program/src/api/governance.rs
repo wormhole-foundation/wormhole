@@ -36,7 +36,7 @@ use crate::{
     CHAIN_ID_SOLANA,
 };
 
-fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
+fn verify_governance<T>(vaa: &ClaimableVAA<T>) -> Result<()>
 where
     T: DeserializePayload,
 {

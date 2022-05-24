@@ -141,7 +141,7 @@ mod helpers {
                 .map(|key| {
                     let public_key = PublicKey::from_secret_key(&key);
                     let mut h = sha3::Keccak256::default();
-                    h.write(&public_key.serialize()[1..]).unwrap();
+                    h.write_all(&public_key.serialize()[1..]).unwrap();
                     let key: [u8; 32] = h.finalize().into();
                     let mut address = [0u8; 20];
                     address.copy_from_slice(&key[12..]);
@@ -728,10 +728,10 @@ mod helpers {
             v.write_u32::<BigEndian>(vaa.timestamp).unwrap();
             v.write_u32::<BigEndian>(vaa.nonce).unwrap();
             v.write_u16::<BigEndian>(vaa.emitter_chain).unwrap();
-            v.write(&vaa.emitter_address).unwrap();
+            v.write_all(&vaa.emitter_address).unwrap();
             v.write_u64::<BigEndian>(vaa.sequence).unwrap();
             v.write_u8(vaa.consistency_level).unwrap();
-            v.write(&vaa.payload).unwrap();
+            v.write_all(&vaa.payload).unwrap();
             v.into_inner()
         };
 
@@ -739,13 +739,13 @@ mod helpers {
         // signature account, binding that set of signatures to this VAA.
         let body: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
-            h.write(body.as_slice()).unwrap();
+            h.write_all(body.as_slice()).unwrap();
             h.finalize().into()
         };
 
         let body_hash: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
-            h.write(&body).unwrap();
+            h.write_all(&body).unwrap();
             h.finalize().into()
         };
 

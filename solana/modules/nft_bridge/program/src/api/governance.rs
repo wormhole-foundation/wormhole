@@ -36,7 +36,7 @@ use solitaire::{
 };
 
 // Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
-fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
+fn verify_governance<T>(vaa: &ClaimableVAA<T>) -> Result<()>
 where
     T: DeserializePayload,
 {
@@ -95,7 +95,7 @@ pub fn upgrade_contract(
     _data: UpgradeContractData,
 ) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    accs.vaa.verify(&ctx.program_id)?;
+    accs.vaa.verify(ctx.program_id)?;
 
     accs.vaa.claim(ctx, accs.payer.key)?;
 
