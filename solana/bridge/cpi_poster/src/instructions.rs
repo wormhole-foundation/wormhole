@@ -7,6 +7,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub fn post_message(
     program_id: Pubkey,
     bridge_id: Pubkey,

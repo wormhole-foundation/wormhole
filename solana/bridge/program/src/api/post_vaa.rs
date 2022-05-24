@@ -176,7 +176,7 @@ fn check_active<'r>(
 }
 
 // Static list of invalid signature accounts that are not allowed to post VAAs.
-static INVALID_SIGNATURES: &'static [&'static str; 16] = &[
+static INVALID_SIGNATURES: &[&str; 16] = &[
     "18eK1799CaNMGCUnnCt1Kq2uwKkax6T2WmtrDsZuVFQ",
     "2g6NCUUPaD6AxdHPQMVLpjpAvBfKMek6dDiGUe2A6T33",
     "3hYV5968hNzbqUfcvnQ6v9D5h32hEwGJn19c47N3unNj",
@@ -224,10 +224,10 @@ fn check_integrity<'r>(
         v.write_u32::<BigEndian>(vaa.timestamp)?;
         v.write_u32::<BigEndian>(vaa.nonce)?;
         v.write_u16::<BigEndian>(vaa.emitter_chain)?;
-        v.write(&vaa.emitter_address)?;
+        v.write_all(&vaa.emitter_address)?;
         v.write_u64::<BigEndian>(vaa.sequence)?;
         v.write_u8(vaa.consistency_level)?;
-        v.write(&vaa.payload)?;
+        v.write_all(&vaa.payload)?;
         v.into_inner()
     };
 

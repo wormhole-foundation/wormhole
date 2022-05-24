@@ -84,6 +84,7 @@ pub fn initialize(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn complete_native(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -138,6 +139,7 @@ pub fn complete_native(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn complete_native_with_payload(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -198,6 +200,7 @@ pub fn complete_native_with_payload(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn complete_wrapped(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -259,6 +262,7 @@ pub fn complete_wrapped(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn complete_wrapped_with_payload(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -543,6 +547,7 @@ fn transfer_native_raw(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_wrapped(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -567,6 +572,7 @@ pub fn transfer_wrapped(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_wrapped_with_payload(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -595,6 +601,7 @@ pub fn transfer_wrapped_with_payload(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn transfer_wrapped_raw(
     program_id: Pubkey,
     bridge_id: Pubkey,

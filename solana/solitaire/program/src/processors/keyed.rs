@@ -1,7 +1,4 @@
-use solana_program::{
-    pubkey::Pubkey,
-    sysvar::Sysvar as SolanaSysvar,
-};
+use solana_program::sysvar::Sysvar as SolanaSysvar;
 
 use crate::{
     processors::seeded::Owned,
@@ -19,8 +16,8 @@ pub trait Keyed<'a, 'b: 'a> {
     fn info(&'a self) -> &Info<'b>;
 }
 
-impl<'a, 'b: 'a, T: Owned + Default, const IsInitialized: AccountState> Keyed<'a, 'b>
-    for Data<'b, T, IsInitialized>
+impl<'a, 'b: 'a, T: Owned + Default, const IS_INITIALIZED: AccountState> Keyed<'a, 'b>
+    for Data<'b, T, IS_INITIALIZED>
 {
     fn info(&'a self) -> &'a Info<'b> {
         &self.0
@@ -51,7 +48,7 @@ where
     }
 }
 
-impl<'a, 'b: 'a, T, const Seed: &'static str> Keyed<'a, 'b> for Derive<T, Seed>
+impl<'a, 'b: 'a, T, const SEED: &'static str> Keyed<'a, 'b> for Derive<T, SEED>
 where
     T: Keyed<'a, 'b>,
 {

@@ -1,6 +1,5 @@
-
+#![allow(incomplete_features)]
 #![feature(adt_const_params)]
-#![allow(warnings)]
 
 use std::{
     fmt::Display,
@@ -9,12 +8,10 @@ use std::{
 };
 
 use borsh::BorshDeserialize;
-use bridge::{
-    accounts::{
-        Bridge,
-        BridgeData,
-        FeeCollector,
-    },
+use bridge::accounts::{
+    Bridge,
+    BridgeData,
+    FeeCollector,
 };
 use clap::{
     crate_description,
@@ -26,7 +23,6 @@ use clap::{
     Arg,
     SubCommand,
 };
-use hex;
 use solana_clap_utils::{
     input_parsers::{
         keypair_of,
@@ -50,7 +46,6 @@ use solana_sdk::{
         CommitmentLevel,
     },
     native_token::*,
-    program_error::ProgramError::AccountAlreadyInitialized,
     pubkey::Pubkey,
     signature::{
         read_keypair_file,
@@ -77,6 +72,10 @@ struct Config {
 type Error = Box<dyn std::error::Error>;
 type CommmandResult = Result<Option<Transaction>, Error>;
 
+// [`get_recent_blockhash`] is deprecated, but devnet deployment hangs using the
+// recommended method, so allowing deprecated here. This is only the client, so
+// no risk.
+#[allow(deprecated)]
 fn command_deploy_bridge(
     config: &Config,
     bridge: &Pubkey,
@@ -98,18 +97,22 @@ fn command_deploy_bridge(
         initial_guardians.as_slice(),
     )
     .unwrap();
-    println!("config account: {}, ", ix.accounts[0].pubkey.to_string());
+    println!("config account: {}, ", ix.accounts[0].pubkey);
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(transaction.message()),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
 
+// [`get_recent_blockhash`] is deprecated, but devnet deployment hangs using the
+// recommended method, so allowing deprecated here. This is only the client, so
+// no risk.
+#[allow(deprecated)]
 fn command_post_message(
     config: &Config,
     bridge: &Pubkey,
@@ -164,7 +167,7 @@ fn command_post_message(
         Transaction::new_with_payer(&[transfer_ix, ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(transaction.message()))?;
     transaction.sign(
         &[&config.fee_payer, &config.owner, &message],
         recent_blockhash,
@@ -186,7 +189,7 @@ fn main() {
                 .global(true)
                 .help("Configuration file to use");
             if let Some(ref config_file) = *solana_cli_config::CONFIG_FILE {
-                arg.default_value(&config_file)
+                arg.default_value(config_file)
             } else {
                 arg
             }
@@ -360,10 +363,9 @@ fn main() {
         ("create-bridge", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
             let initial_guardians = values_of::<String>(arg_matches, "guardian").unwrap();
-            let initial_data: Vec<Vec<u8>> = initial_guardians
+            let initial_data = initial_guardians
                 .into_iter()
-                .map(|key| hex::decode(key).unwrap())
-                .collect::<Vec<Vec<u8>>>();
+                .map(|key| hex::decode(key).unwrap());
             let guardians: Vec<[u8; 20]> = initial_data
                 .into_iter()
                 .map(|key| {

@@ -1,35 +1,22 @@
-#![allow(warnings)]
-
 use borsh::{
     BorshDeserialize,
-    BorshSerialize,
 };
 use byteorder::{
     BigEndian,
     WriteBytesExt,
 };
-use hex_literal::hex;
 use libsecp256k1::{
-    Message as Secp256k1Message,
     PublicKey,
     SecretKey,
 };
 use sha3::Digest;
 use solana_program::{
-    borsh::try_from_slice_unchecked,
-    hash,
     instruction::{
-        AccountMeta,
         Instruction,
     },
     program_pack::Pack,
     pubkey::Pubkey,
-    system_instruction::{
-        self,
-        create_account,
-    },
-    system_program,
-    sysvar,
+    system_instruction,
 };
 use solana_program_test::{
     BanksClient,
@@ -40,40 +27,29 @@ use solana_sdk::{
     rent::Rent,
     secp256k1_instruction::new_secp256k1_instruction,
     signature::{
-        read_keypair_file,
         Keypair,
-        Signature,
         Signer,
     },
     signers::Signers,
     transaction::Transaction,
     transport::TransportError,
 };
-use spl_token::state::Mint;
 use std::{
-    convert::TryInto,
     env,
     io::{
         Cursor,
         Write,
     },
-    time::{
-        Duration,
-        SystemTime,
-    },
+    time::SystemTime,
 };
 
 use token_bridge::{
-    accounts::*,
-    instruction,
     instructions,
     types::*,
-    Initialize,
 };
 
 use solitaire::{
     processors::seeded::Seeded,
-    AccountState,
 };
 
 pub use helpers::*;
@@ -99,11 +75,9 @@ mod helpers {
     use bridge::{
         accounts::{
             FeeCollector,
-            PostedVAADerivationData,
         },
         types::ConsistencyLevel,
         PostVAAData,
-        PostedVAAData,
     };
     use solana_program_test::processor;
     use token_bridge::{
@@ -115,7 +89,6 @@ mod helpers {
         TransferWrappedData,
     };
 
-    use std::ops::Add;
     use token_bridge::messages::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
@@ -125,8 +98,6 @@ mod helpers {
     /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key
     /// encoding: 0x0123456789ABCDEF01234
     pub fn generate_keys(count: u8) -> (Vec<[u8; 20]>, Vec<SecretKey>) {
-        use rand::Rng;
-        use sha3::Digest;
 
         let mut rng = rand::thread_rng();
 
@@ -139,9 +110,9 @@ mod helpers {
             secret_keys
                 .iter()
                 .map(|key| {
-                    let public_key = PublicKey::from_secret_key(&key);
+                    let public_key = PublicKey::from_secret_key(key);
                     let mut h = sha3::Keccak256::default();
-                    h.write(&public_key.serialize()[1..]).unwrap();
+                    h.write_all(&public_key.serialize()[1..]).unwrap();
                     let key: [u8; 32] = h.finalize().into();
                     let mut address = [0u8; 20];
                     address.copy_from_slice(&key[12..]);
@@ -157,11 +128,11 @@ mod helpers {
     pub async fn setup() -> (BanksClient, Keypair, Pubkey, Pubkey) {
         let (program, token_program) = (
             env::var("BRIDGE_PROGRAM")
-                .unwrap_or("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o".to_string())
+                .unwrap_or_else(|_| "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o".to_string())
                 .parse::<Pubkey>()
                 .unwrap(),
             env::var("TOKEN_BRIDGE_PROGRAM")
-                .unwrap_or("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE".to_string())
+                .unwrap_or_else(|_| "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE".to_string())
                 .parse::<Pubkey>()
                 .unwrap(),
         );
@@ -290,12 +261,6 @@ mod helpers {
         mint: Pubkey,
         nonce: u32,
     ) -> Result<(), TransportError> {
-        let account = client
-            .get_account_with_commitment(mint, CommitmentLevel::Finalized)
-            .await?
-            .expect("mint account not found");
-        let mint_data = Mint::unpack(&account.data).expect("Could not unpack Mint");
-
         let instruction = instructions::attest(
             program,
             bridge,
@@ -320,6 +285,7 @@ mod helpers {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn transfer_native(
         client: &mut BanksClient,
         program: Pubkey,
@@ -373,6 +339,7 @@ mod helpers {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn transfer_wrapped(
         client: &mut BanksClient,
         program: Pubkey,
@@ -604,6 +571,7 @@ mod helpers {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_spl_metadata(
         client: &mut BanksClient,
         payer: &Keypair,
@@ -705,7 +673,7 @@ mod helpers {
         nonce: u32,
         sequence: u64,
     ) -> (PostVAAData, [u8; 32], [u8; 32]) {
-        let mut vaa = PostVAAData {
+        let vaa = PostVAAData {
             version: 0,
             guardian_set_index: 0,
 
@@ -728,10 +696,10 @@ mod helpers {
             v.write_u32::<BigEndian>(vaa.timestamp).unwrap();
             v.write_u32::<BigEndian>(vaa.nonce).unwrap();
             v.write_u16::<BigEndian>(vaa.emitter_chain).unwrap();
-            v.write(&vaa.emitter_address).unwrap();
+            v.write_all(&vaa.emitter_address).unwrap();
             v.write_u64::<BigEndian>(vaa.sequence).unwrap();
             v.write_u8(vaa.consistency_level).unwrap();
-            v.write(&vaa.payload).unwrap();
+            v.write_all(&vaa.payload).unwrap();
             v.into_inner()
         };
 
@@ -739,13 +707,13 @@ mod helpers {
         // signature account, binding that set of signatures to this VAA.
         let body: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
-            h.write(body.as_slice()).unwrap();
+            h.write_all(body.as_slice()).unwrap();
             h.finalize().into()
         };
 
         let body_hash: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
-            h.write(&body).unwrap();
+            h.write_all(&body).unwrap();
             h.finalize().into()
         };
 
@@ -815,6 +783,7 @@ mod helpers {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn post_message(
         client: &mut BanksClient,
         program: Pubkey,

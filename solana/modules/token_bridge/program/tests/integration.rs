@@ -1,63 +1,19 @@
 #![allow(warnings)]
-
-use borsh::BorshSerialize;
 use bridge::{
     accounts::{
-        Bridge,
-        FeeCollector,
-        GuardianSet,
-        GuardianSetDerivationData,
         PostedVAA,
         PostedVAADerivationData,
-        SignatureSet,
     },
-    instruction,
-    types::{
-        GovernancePayloadGuardianSetChange,
-        GovernancePayloadSetMessageFee,
-        GovernancePayloadTransferFees,
-    },
-    BridgeConfig,
-    BridgeData,
-    GuardianSetData,
-    Initialize,
-    MessageData,
-    PostVAA,
-    PostVAAData,
-    PostedVAAData,
-    SequenceTracker,
     SerializePayload,
-    Signature,
-    SignatureSet as SignatureSetData,
 };
-use byteorder::{
-    BigEndian,
-    WriteBytesExt,
-};
-use hex_literal::hex;
 use libsecp256k1::{
-    Message as Secp256k1Message,
-    PublicKey,
     SecretKey,
 };
 use primitive_types::U256;
 use rand::Rng;
-use sha3::Digest;
 use solana_program::{
-    borsh::try_from_slice_unchecked,
-    hash,
-    instruction::{
-        AccountMeta,
-        Instruction,
-    },
     program_pack::Pack,
     pubkey::Pubkey,
-    system_instruction::{
-        self,
-        create_account,
-    },
-    system_program,
-    sysvar,
 };
 use solana_program_test::{
     tokio,
@@ -66,11 +22,9 @@ use solana_program_test::{
 use solana_sdk::{
     commitment_config::CommitmentLevel,
     signature::{
-        read_keypair_file,
         Keypair,
         Signer,
     },
-    transaction::Transaction,
     transport::TransportError,
 };
 use solitaire::{
@@ -80,22 +34,11 @@ use solitaire::{
 use spl_token::state::Mint;
 use std::{
     collections::HashMap,
-    convert::TryInto,
-    io::{
-        Cursor,
-        Write,
-    },
     str::FromStr,
-    time::{
-        Duration,
-        SystemTime,
-        UNIX_EPOCH,
-    },
 };
 use token_bridge::{
     accounts::{
         ConfigAccount,
-        EmitterAccount,
         WrappedDerivationData,
         WrappedMint,
     },
@@ -105,7 +48,6 @@ use token_bridge::{
         PayloadTransfer,
     },
     types::{
-        Address,
         Config,
     },
 };
@@ -190,7 +132,7 @@ async fn set_up() -> Result<Context, TransportError> {
         mint_pubkey.as_ref(),
     ];
 
-    let (metadata_key, metadata_bump_seed) = Pubkey::find_program_address(
+    let (metadata_key, _metadata_bump_seed) = Pubkey::find_program_address(
         metadata_seeds,
         &Pubkey::from_str("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").unwrap(),
     );
@@ -278,11 +220,11 @@ async fn create_wrapped(context: &mut Context) -> Pubkey {
         ref mut client,
         ref bridge,
         ref token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_account,
-        ref token_authority,
+        mint_authority: _,
+        mint: _,
+        mint_meta: _,
+        token_account: _,
+        token_authority: _,
         ..
     } = context;
 
@@ -305,7 +247,7 @@ async fn create_wrapped(context: &mut Context) -> Pubkey {
     common::post_vaa(client, *bridge, payer, signature_set, vaa.clone())
         .await
         .unwrap();
-    let mut msg_derivation_data = &PostedVAADerivationData {
+    let msg_derivation_data = &PostedVAADerivationData {
         payload_hash: body.to_vec(),
     };
     let message_key =
@@ -367,10 +309,10 @@ async fn attest() {
         ref mut client,
         bridge,
         token_bridge,
-        ref mint_authority,
+        mint_authority: _,
         ref mint,
-        ref mint_meta,
-        ref metadata_account,
+        mint_meta: _,
+        metadata_account: _,
         ..
     } = set_up().await.unwrap();
 
@@ -388,7 +330,6 @@ async fn attest() {
     .await
     .unwrap();
 
-    let emitter_key = EmitterAccount::key(None, &token_bridge);
     let account = client
         .get_account_with_commitment(mint.pubkey(), CommitmentLevel::Processed)
         .await
@@ -402,7 +343,6 @@ async fn attest() {
         symbol: "USD".to_string(),
         name: "Bitcoin".to_string(),
     };
-    let payload = payload.try_to_vec().unwrap();
 }
 
 #[tokio::test]
@@ -467,7 +407,7 @@ async fn register_chain(context: &mut Context) {
         .await
         .unwrap();
 
-    let mut msg_derivation_data = &PostedVAADerivationData {
+    let msg_derivation_data = &PostedVAADerivationData {
         payload_hash: body.to_vec(),
     };
     let message_key =

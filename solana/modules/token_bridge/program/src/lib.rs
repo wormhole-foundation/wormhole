@@ -65,7 +65,7 @@ pub use api::{
 use solitaire::*;
 
 // Static list of invalid VAA Message accounts.
-pub(crate) static INVALID_VAAS: &'static [&'static str; 7] = &[
+pub(crate) static INVALID_VAAS: &[&str; 7] = &[
     "28Tx7c3W8rggVNyUQEAL9Uq6pUng4xJLAeLA6V8nLH1Z",
     "32YEuzLCvSyHoV6NFpaTXfiAB8sHiAnYcvP2BBeLeGWq",
     "427N2RrDHYooLvyWCiEiNR4KtGsGFTMuXiGwtuChWRSd",

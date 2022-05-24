@@ -132,7 +132,7 @@ pub fn attest_token(
         let metadata: Metadata =
             Metadata::from_account_info(accs.spl_metadata.info()).ok_or(InvalidMetadata)?;
         payload.name = metadata.data.name.clone();
-        payload.symbol = metadata.data.symbol.clone();
+        payload.symbol = metadata.data.symbol;
     }
 
     let params = (

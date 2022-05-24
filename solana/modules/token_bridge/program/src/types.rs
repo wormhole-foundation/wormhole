@@ -37,7 +37,6 @@ impl Owned for Config {
 #[cfg(feature = "cpi")]
 impl Owned for Config {
     fn owner(&self) -> AccountOwner {
-        use solana_program::pubkey::Pubkey;
         use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("TOKEN_BRIDGE_ADDRESS")).unwrap())
     }
@@ -59,7 +58,6 @@ impl Owned for EndpointRegistration {
 #[cfg(feature = "cpi")]
 impl Owned for EndpointRegistration {
     fn owner(&self) -> AccountOwner {
-        use solana_program::pubkey::Pubkey;
         use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("TOKEN_BRIDGE_ADDRESS")).unwrap())
     }
@@ -82,7 +80,6 @@ impl Owned for WrappedMeta {
 #[cfg(feature = "cpi")]
 impl Owned for WrappedMeta {
     fn owner(&self) -> AccountOwner {
-        use solana_program::pubkey::Pubkey;
         use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("TOKEN_BRIDGE_ADDRESS")).unwrap())
     }
