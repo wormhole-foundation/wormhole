@@ -217,9 +217,7 @@ export const CHAINS: ChainInfo[] =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet"
-    ? [CHAIN_ID_KARURA, CHAIN_ID_CELO, CHAIN_ID_KLAYTN]
-    : [];
+  CLUSTER === "mainnet" ? [CHAIN_ID_CELO, CHAIN_ID_KLAYTN] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
