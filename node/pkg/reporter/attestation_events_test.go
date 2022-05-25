@@ -45,7 +45,7 @@ func TestGetUniqueClientIdRandomness(t *testing.T) {
 
 func TestEventListener(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer logger.Sync() // nolint:errcheck
 
 	subs_expect := map[int]*lifecycleEventChannels{}
 
@@ -55,7 +55,7 @@ func TestEventListener(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer logger.Sync() // nolint:errcheck
 
 	attestationEventReporter := EventListener(logger)
 	activeSubscription := attestationEventReporter.Subscribe()
