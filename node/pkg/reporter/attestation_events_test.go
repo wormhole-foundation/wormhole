@@ -9,7 +9,7 @@ import (
 
 func TestGetUniqueClientId(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer logger.Sync() // nolint:errcheck
 
 	attestationEventReporter := EventListener(logger)
 	assert.Equal(t, 498081, attestationEventReporter.getUniqueClientId())
