@@ -1,13 +1,21 @@
 package reporter
 
 import (
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"sync"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGetUniqueClientId(t *testing.T) {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	attestationEventReporter := EventListener(logger)
+	assert.Equal(t, 498081, attestationEventReporter.getUniqueClientId())
+}
+
+func TestGetUniqueClientIdRandomness(t *testing.T) {
 	/*
 		Rationale:
 		Pro: This test does not have false positives. It is guaranteed to fail if the magic value for the maximum client ID changes.
@@ -33,4 +41,23 @@ func TestGetUniqueClientId(t *testing.T) {
 	almostFullMap[firstExpectedValue] = nil
 	delete(almostFullMap, secondExpectedValue)
 	assert.Equal(t, re.getUniqueClientId(), secondExpectedValue)
+}
+
+func TestEventListener(t *testing.T) {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	subs_expect := map[int]*lifecycleEventChannels{}
+
+	attestationEventReporter := EventListener(logger)
+	assert.Equal(t, subs_expect, attestationEventReporter.subs)
+}
+
+func TestSubscribe(t *testing.T) {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	attestationEventReporter := EventListener(logger)
+	activeSubscription := attestationEventReporter.Subscribe()
+	assert.Equal(t, 180566, activeSubscription.ClientId)
 }
