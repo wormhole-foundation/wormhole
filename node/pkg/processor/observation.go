@@ -289,18 +289,8 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 
-	// Verify VAA signature to prevent a DoS attack on our local store.
-	if !v.VerifySignatures(p.gs.Keys) {
-		p.logger.Warn("received SignedVAAWithQuorum message with invalid VAA signatures",
-			zap.String("digest", hash),
-			zap.Any("message", m),
-			zap.Any("vaa", v),
-		)
-		return
-	}
-
+	// Verify VAA has enough signatures for quorum
 	quorum := CalculateQuorum(len(p.gs.Keys))
-
 	if len(v.Signatures) < quorum {
 		p.logger.Warn("received SignedVAAWithQuorum message without quorum",
 			zap.String("digest", hash),
@@ -308,6 +298,16 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 			zap.Any("vaa", v),
 			zap.Int("wanted_sigs", quorum),
 			zap.Int("got_sigs", len(v.Signatures)),
+		)
+		return
+	}
+
+	// Verify VAA signatures to prevent a DoS attack on our local store.
+	if !v.VerifySignatures(p.gs.Keys) {
+		p.logger.Warn("received SignedVAAWithQuorum message with invalid VAA signatures",
+			zap.String("digest", hash),
+			zap.Any("message", m),
+			zap.Any("vaa", v),
 		)
 		return
 	}
