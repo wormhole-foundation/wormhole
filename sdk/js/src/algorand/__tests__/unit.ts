@@ -12,7 +12,12 @@ import {
   optin,
   _parseVAAAlgorand,
 } from "../Algorand";
-import { getAlgoClient, getTempAccounts } from "./testHelpers";
+import {
+  createNFT,
+  getAlgoClient,
+  getBalances,
+  getTempAccounts,
+} from "./testHelpers";
 import { PopulateData, TmplSig } from "../TmplSig";
 
 const CORE_ID = BigInt(4);
@@ -166,6 +171,25 @@ describe("Unit Tests", () => {
           console.log("fee =", fee);
         } catch (e) {
           console.error("Account exists error:", e);
+          expect(false).toBe(true);
+        }
+        done();
+      })();
+    });
+    test("Create NFT", (done) => {
+      (async () => {
+        try {
+          console.log("Starting account exists...");
+          const client: algosdk.Algodv2 = getAlgoClient();
+          const tempAccts: Account[] = await getTempAccounts();
+          const numAccts: number = tempAccts.length;
+          expect(numAccts).toBeGreaterThan(0);
+          const wallet: Account = tempAccts[0];
+          const b = await getBalances(client, wallet.addr);
+          const nftId = await createNFT(wallet);
+          const balances = await getBalances(client, wallet.addr);
+        } catch (e) {
+          console.error("Create NFT error:", e);
           expect(false).toBe(true);
         }
         done();

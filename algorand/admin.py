@@ -1,5 +1,6 @@
 # python3 -m pip install pycryptodomex uvarint pyteal web3 coincurve
 
+import os
 from os.path import exists
 from time import time, sleep
 from eth_abi import encode_single, encode_abi
@@ -1186,6 +1187,65 @@ class PortalCore:
     
                 self.client.send_transactions(signedTxns)
                 print("Sent some ALGO to: " + wallet)
+
+                print("Creating a Token...")
+                txn = transaction.AssetConfigTxn(
+                    sender=a.getAddress(),
+                    sp=suggestedParams,
+                    total=1000000,
+                    default_frozen=False,
+                    unit_name="NORIUM",
+                    asset_name="ChuckNorium",
+                    manager=a.getAddress(),
+                    reserve=a.getAddress(),
+                    freeze=a.getAddress(),
+                    clawback=a.getAddress(),
+                    strict_empty_address_check=False,
+                    decimals=6)
+                stxn = txn.sign(a.getPrivateKey())
+                txid = self.client.send_transaction(stxn)
+                print("NORIUM creation transaction ID: {}".format(txid))
+                confirmed_txn = transaction.wait_for_confirmation(self.client, txid, 4)
+                print("TXID: ", txid)
+                print("Result confirmed in round: {}".format(confirmed_txn['confirmed-round']))
+
+                print("Creating an NFT...")
+                # JSON file
+                dir_path = os.path.dirname(os.path.realpath(__file__))
+                f = open (dir_path + 'cnNftMetadata.json', "r")
+  
+                # Reading from file
+                metadataJSON = json.loads(f.read())
+                metadataStr = json.dumps(metadataJSON)
+
+                hash = hashlib.new("sha512_256")
+                hash.update(b"arc0003/amj")
+                hash.update(metadataStr.encode("utf-8"))
+                json_metadata_hash = hash.digest()
+                print("json_metadata_hash: ", hash.hexdigest())
+
+				# Create transaction
+                txn = transaction.AssetConfigTxn(
+                    sender=a.getAddress(),
+                    sp=suggestedParams,
+                    total=1,
+                    default_frozen=False,
+                    unit_name="CNART",
+                    asset_name="ChuckNoriumArtwork@arc3",
+                    manager=a.getAddress(),
+                    reserve=a.getAddress(),
+                    freeze=a.getAddress(),
+                    clawback=a.getAddress(),
+                    strict_empty_address_check=False,
+                    url="file://cnNftMetadata.json",
+                    metadata_hash=json_metadata_hash,
+                    decimals=0)
+                stxn = txn.sign(a.getPrivateKey())
+                txid = self.client.send_transaction(stxn)
+                print("NORIUM NFT creation transaction ID: {}".format(txid))
+                confirmed_txn = transaction.wait_for_confirmation(self.client, txid, 4)
+                print("TXID: ", txid)
+                print("Result confirmed in round: {}".format(confirmed_txn['confirmed-round']))
 
             if exists(self.args.env):
                 if self.gt == None:
