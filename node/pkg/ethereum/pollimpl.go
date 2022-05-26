@@ -1,4 +1,6 @@
-// This implements the interface to the standard go-ethereum library.
+// This implements polling for the next available block.
+
+// It can optionally call a chain specific function to verify that the block is finalized.
 
 package ethereum
 
@@ -23,18 +25,29 @@ import (
 	"go.uber.org/zap"
 )
 
-type MoonbeamImpl struct {
-	BaseEth  *EthImpl
-	logger   *zap.Logger
+type PollFinalizer interface {
+	SetLogger(l *zap.Logger, netName string)
+	DialContext(ctx context.Context, rawurl string) error
+	IsBlockFinalized(ctx context.Context, block *common.NewBlock) (bool, error)
+}
+
+type PollImpl struct {
+	BaseEth   EthImpl
+	Finalizer PollFinalizer
+	DelayInMs int
+	logger    *zap.Logger
 	rawClient *ethRpc.Client
 }
 
-func (e *MoonbeamImpl) SetLogger(l *zap.Logger) {
+func (e *PollImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
-	e.logger.Info("using Moonbeam specific implementation", zap.String("eth_network", e.BaseEth.NetworkName))
+	e.logger.Info("using polling to check for new blocks", zap.String("eth_network", e.BaseEth.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
+	if e.Finalizer != nil {
+		e.Finalizer.SetLogger(l, e.BaseEth.NetworkName)
+	}
 }
 
-func (e *MoonbeamImpl) DialContext(ctx context.Context, rawurl string) (err error) {
+func (e *PollImpl) DialContext(ctx context.Context, rawurl string) (err error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
@@ -44,59 +57,66 @@ func (e *MoonbeamImpl) DialContext(ctx context.Context, rawurl string) (err erro
 		return err
 	}
 
+	if e.Finalizer != nil {
+		err = e.Finalizer.DialContext(ctx, rawurl)
+		if err != nil {
+			return err
+		}
+	}
+
 	// This is used for doing all other go-ethereum calls.
 	return e.BaseEth.DialContext(ctx, rawurl)
 }
 
-func (e *MoonbeamImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
+func (e *PollImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
 	return e.BaseEth.NewAbiFilterer(address)
 }
 
-func (e *MoonbeamImpl) NewAbiCaller(address ethCommon.Address) (err error) {
+func (e *PollImpl) NewAbiCaller(address ethCommon.Address) (err error) {
 	return e.BaseEth.NewAbiCaller(address)
 }
 
-func (e *MoonbeamImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
+func (e *PollImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
 	return e.BaseEth.GetCurrentGuardianSetIndex(ctx)
 }
 
-func (e *MoonbeamImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
+func (e *PollImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
 	return e.BaseEth.GetGuardianSet(ctx, index)
 }
 
-func (e *MoonbeamImpl) WatchLogMessagePublished(ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *PollImpl) WatchLogMessagePublished(ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	return e.BaseEth.WatchLogMessagePublished(ctx, timeout, sink)
 }
 
-func (e *MoonbeamImpl) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
+func (e *PollImpl) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
 	return e.BaseEth.TransactionReceipt(ctx, txHash)
 }
 
-func (e *MoonbeamImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
+func (e *PollImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
 	return e.BaseEth.TimeOfBlockByHash(ctx, hash)
 }
 
-func (e *MoonbeamImpl) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
+func (e *PollImpl) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
 	return e.BaseEth.ParseLogMessagePublished(log)
 }
 
-type MoonbeamSubscription struct {
+type PollSubscription struct {
 	errOnce   sync.Once
 	err       chan error
 	quit      chan error
 	unsubDone chan struct{}
 }
 
-func (sub *MoonbeamSubscription) Err() <-chan error {
+var ErrUnsubscribed = errors.New("unsubscribed")
+
+func (sub *PollSubscription) Err() <-chan error {
 	return sub.err
 }
 
-var errUnsubscribed = errors.New("unsubscribed")
-
-func (sub *MoonbeamSubscription) Unsubscribe() {
+func (sub *PollSubscription) Unsubscribe() {
 	sub.errOnce.Do(func() {
 		select {
-		case sub.quit <- errUnsubscribed:
+		case sub.quit <- ErrUnsubscribed:
 			<-sub.unsubDone
 		case <-sub.unsubDone:
 		}
@@ -104,12 +124,7 @@ func (sub *MoonbeamSubscription) Unsubscribe() {
 	})
 }
 
-// Moonbeam can publish blocks before they are marked final. This means we need to sit on the block until a special "is finalized"
-// query returns true. The assumption is that every block number will eventually be published and finalized, it's just that the contents
-// of the block (and therefore the hash) might change if there is a rollback. Therefore rather than subscribing for headers from geth,
-// we use a polling mechanism to get the next expected block, and keep doing it until it is marked final.
-
-func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
 	if e.BaseEth.client == nil {
 		panic("client is not initialized!")
 	}
@@ -117,7 +132,7 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 		panic("rawClient is not initialized!")
 	}
 
-	sub := &MoonbeamSubscription{
+	sub := &PollSubscription{
 		err: make(chan error, 1),
 	}
 
@@ -127,7 +142,6 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 	}
 	currentBlockNumber := *latestBlock.Number
 
-	const DELAY_IN_MS = 250
 	var BIG_ONE = big.NewInt(1)
 
 	timer := time.NewTimer(time.Millisecond) // Start immediately.
@@ -175,12 +189,18 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 						}
 					}
 
-					finalized, err := e.isBlockFinalized(ctx, block.Hash.Hex())
-					if err != nil {
-						errorOccurred = true
-						e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.BaseEth.NetworkName),
-							zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
-						break
+					var finalized bool
+					if e.Finalizer != nil {
+						var err error
+						finalized, err = e.Finalizer.IsBlockFinalized(ctx, block)
+						if err != nil {
+							errorOccurred = true
+							e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.BaseEth.NetworkName),
+								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
+							break
+						}
+					} else {
+						finalized = true
 					}
 					if !finalized {
 						break
@@ -199,7 +219,7 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 					errorCount = 0
 				}
 
-				timer = time.NewTimer(DELAY_IN_MS * time.Millisecond)
+				timer = time.NewTimer(time.Duration(e.DelayInMs) * time.Millisecond)
 			}
 		}
 	}()
@@ -207,7 +227,7 @@ func (e *MoonbeamImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *comm
 	return sub, err
 }
 
-func (e *MoonbeamImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBlock, error) {
+func (e *PollImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBlock, error) {
 	var numStr string
 	if number != nil {
 		numStr = ethHexUtils.EncodeBig(number)
@@ -217,7 +237,7 @@ func (e *MoonbeamImpl) getBlock(ctx context.Context, number *big.Int) (*common.N
 
 	type Marshaller struct {
 		Number *ethHexUtils.Big
-		Hash ethCommon.Hash `json:"hash"`
+		Hash   ethCommon.Hash `json:"hash"`
 	}
 
 	var m Marshaller
@@ -233,15 +253,4 @@ func (e *MoonbeamImpl) getBlock(ctx context.Context, number *big.Int) (*common.N
 		Number: &n,
 		Hash:   m.Hash,
 	}, nil
-}
-
-func (e *MoonbeamImpl) isBlockFinalized(ctx context.Context, hash string) (bool, error) {
-	var finalized bool
-	err := e.rawClient.CallContext(ctx, &finalized, "moon_isBlockFinalized", hash)
-	if err != nil {
-		e.logger.Error("failed to check for finality", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
-		return false, err
-	}
-
-	return finalized, nil
 }
