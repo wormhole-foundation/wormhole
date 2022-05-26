@@ -54,7 +54,12 @@ tools/node_modules: tools/package-lock.json
 	cd tools && npm ci
 
 LocalTerra:
-	git clone --depth 1 https://www.github.com/terra-money/LocalTerra
+	mkdir LocalTerra && \
+	cd LocalTerra && \
+	git init && \
+	git remote add origin  https://www.github.com/terra-money/LocalTerra.git && \
+	git fetch --depth 1 origin 958ff795f261f5ff2efc7b56604e2434eb76f7c4 && \
+	git checkout FETCH_HEAD
 
 test/node_modules: test/package-lock.json
 	cd test && npm ci
