@@ -16,9 +16,9 @@ no-entrypoint = []
 trace = []
 
 [dependencies]
-borsh = "=0.9.1"
+borsh = "=0.9.3"
 byteorder = "1.4.3"
 rocksalt = { path = "../../solitaire/rocksalt" }
 
 sha3 = "0.9.1"
-solana-program = "=1.9.4"
+solana-program = "=1.10.19"

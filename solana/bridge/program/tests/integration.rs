@@ -363,9 +363,11 @@ async fn test_bridge_messages_unreliable() {
     let emitter = Keypair::new();
     let message_key = Keypair::new();
 
-    for _ in 0..2 {
+    for _ in 0..10 {
         let nonce = rand::thread_rng().gen();
-        let message: [u8; 32] = rand::thread_rng().gen();
+        let message: Vec<u8> = (0..rand::random::<u8>())
+            .map(|_| rand::random::<u8>())
+            .collect();
         let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
         // Post the message, publishing the data for guardian consumption.
@@ -437,40 +439,6 @@ async fn test_bridge_messages_unreliable() {
             assert_eq!(*signature, true);
         }
     }
-
-    // Make sure that posting a message with a different length fails (<len)
-    let nonce = rand::thread_rng().gen();
-    let message: [u8; 16] = rand::thread_rng().gen();
-
-    assert!(common::post_message_unreliable(
-        client,
-        program,
-        payer,
-        &emitter,
-        &message_key,
-        nonce,
-        message.to_vec(),
-        10_000,
-    )
-    .await
-    .is_err());
-
-    // Make sure that posting a message with a different length fails (>len)
-    let nonce = rand::thread_rng().gen();
-    let message: [u8; 128] = [0u8; 128];
-
-    assert!(common::post_message_unreliable(
-        client,
-        program,
-        payer,
-        &emitter,
-        &message_key,
-        nonce,
-        message.to_vec(),
-        10_000,
-    )
-    .await
-    .is_err());
 }
 
 // Make sure that solitaire can claim accounts that already hold lamports so the protocol can't be

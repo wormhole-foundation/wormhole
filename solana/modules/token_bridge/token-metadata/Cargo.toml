@@ -15,6 +15,6 @@ no-entrypoint = []
 test-bpf = []
 
 [dependencies]
-borsh = "=0.9.1"
-solana-program = "=1.9.4"
-spl-token = { version = "=3.2.0", features = ["no-entrypoint"] }
+borsh = "=0.9.3"
+solana-program = "=1.10.19"
+spl-token = { version = "=3.3.0", features = ["no-entrypoint"] }

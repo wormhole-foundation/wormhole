@@ -18,7 +18,13 @@ use crate::{
 };
 use solana_program::{
     msg,
-    sysvar::clock::Clock,
+    program::invoke,
+    rent::Rent,
+    system_instruction,
+    sysvar::{
+        clock::Clock,
+        Sysvar as SolanaSysvar,
+    },
 };
 use solitaire::{
     processors::seeded::Seeded,
@@ -136,14 +142,37 @@ pub fn post_message_unreliable(
     accs: &mut PostMessageUnreliable,
     data: PostMessageData,
 ) -> Result<()> {
-    // Accounts can't be resized so the payload sizes need to match
-    if accs.message.is_initialized() && accs.message.payload.len() != data.payload.len() {
-        return Err(InvalidPayloadLength.into());
-    }
     // The emitter must be identical
     if accs.message.is_initialized() && accs.emitter.key.to_bytes() != accs.message.emitter_address
     {
         return Err(EmitterChanged.into());
+    }
+
+    // Make sure the account can be resized sufficiently to fit the new payload
+    if accs.message.is_initialized()
+        && data.payload.len() as isize - accs.message.payload.len() as isize
+            > solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE as isize
+    {
+        return Err(InvalidPayloadLength.into());
+    }
+
+    if accs.message.is_initialized() && accs.message.payload.len() != data.payload.len() {
+        // Reallocate message account to fit the new payload
+        accs.message.info().realloc(
+            (accs.message.info().data_len() as isize
+                + ((data.payload.len() as isize) - (accs.message.payload.len() as isize)))
+                as usize,
+            true,
+        )?;
+
+        // Fund account appropriately
+        let rent = Rent::get()?;
+        let new_minimum_balance = rent.minimum_balance(accs.message.info().data_len());
+        let lamports_diff = new_minimum_balance.saturating_sub(accs.message.info().lamports());
+        invoke(
+            &system_instruction::transfer(accs.payer.key, accs.message.info().key, lamports_diff),
+            ctx.accounts,
+        )?;
     }
 
     post_message_internal(
