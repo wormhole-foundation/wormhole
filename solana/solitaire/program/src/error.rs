@@ -64,10 +64,9 @@ impl From<std::io::Error> for SolitaireError {
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<ProgramError> for SolitaireError {
-    fn into(self) -> ProgramError {
-        match self {
+impl From<SolitaireError> for ProgramError {
+    fn from(err: SolitaireError) -> ProgramError {
+        match err {
             SolitaireError::ProgramError(e) => e,
             _ => ProgramError::Custom(0),
         }

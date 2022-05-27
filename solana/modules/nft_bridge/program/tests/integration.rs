@@ -184,7 +184,6 @@ async fn transfer_native() {
         ref mut client,
         bridge,
         nft_bridge,
-        mint_authority: _,
         ref mint,
         ref token_account,
         ref token_authority,
@@ -213,9 +212,6 @@ async fn register_chain(context: &mut Context) {
         ref mut client,
         ref bridge,
         ref nft_bridge,
-        mint_authority: _,
-        mint: _,
-        token_authority: _,
         ref guardian_keys,
         ..
     } = context;

@@ -159,6 +159,7 @@ mod helpers {
 
     /// Wait for a single transaction to fully finalize, guaranteeing chain state has been
     /// confirmed. Useful for consistently fetching data during state checks.
+    #[allow(dead_code)]
     pub async fn sync(client: &mut BanksClient, payer: &Keypair) {
         let payer_key = payer.pubkey();
         execute(
@@ -186,6 +187,7 @@ mod helpers {
     }
 
     /// Fetch account balance
+    #[allow(dead_code)]
     pub async fn get_account_balance(client: &mut BanksClient, account: Pubkey) -> u64 {
         client.get_account(account).await.unwrap().unwrap().lamports
     }
@@ -213,6 +215,7 @@ mod helpers {
         .await
     }
 
+    #[allow(dead_code)]
     pub async fn transfer(
         client: &mut BanksClient,
         from: &Keypair,
@@ -784,6 +787,7 @@ mod helpers {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[allow(dead_code)]
     pub async fn post_message(
         client: &mut BanksClient,
         program: Pubkey,

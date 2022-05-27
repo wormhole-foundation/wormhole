@@ -21,10 +21,13 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solitaire::SolitaireError;
-use std::io::{
-    Cursor,
-    Read,
-    Write,
+use std::{
+    cmp,
+    io::{
+        Cursor,
+        Read,
+        Write,
+    },
 };
 
 pub const MODULE: &str = "NFTBridge";
@@ -113,7 +116,6 @@ impl DeserializePayload for PayloadTransfer {
 }
 
 impl SerializePayload for PayloadTransfer {
-    #[allow(clippy::manual_memcpy)]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SolitaireError> {
         // Payload ID
         writer.write_u8(1)?;
@@ -122,15 +124,14 @@ impl SerializePayload for PayloadTransfer {
         writer.write_u16::<BigEndian>(self.token_chain)?;
 
         let mut symbol: [u8; 32] = [0; 32];
-        for i in 0..self.symbol.len() {
-            symbol[i] = self.symbol.as_bytes()[i];
-        }
+        let count = cmp::min(symbol.len(), self.symbol.len());
+        symbol[..count].copy_from_slice(self.symbol[..count].as_bytes());
+
         writer.write_all(&symbol)?;
 
         let mut name: [u8; 32] = [0; 32];
-        for i in 0..self.name.len() {
-            name[i] = self.name.as_bytes()[i];
-        }
+        let count = cmp::min(name.len(), self.name.len());
+        name[..count].copy_from_slice(self.name[..count].as_bytes());
         writer.write_all(&name)?;
 
         let mut id_data: [u8; 32] = [0; 32];

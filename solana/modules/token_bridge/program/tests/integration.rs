@@ -1,4 +1,4 @@
-#![allow(warnings)]
+#![allow(dead_code)]
 use bridge::{
     accounts::{
         PostedVAA,
@@ -6,21 +6,15 @@ use bridge::{
     },
     SerializePayload,
 };
-use libsecp256k1::{
-    SecretKey,
-};
+use libsecp256k1::SecretKey;
 use primitive_types::U256;
 use rand::Rng;
-use solana_program::{
-    program_pack::Pack,
-    pubkey::Pubkey,
-};
+use solana_program::pubkey::Pubkey;
 use solana_program_test::{
     tokio,
     BanksClient,
 };
 use solana_sdk::{
-    commitment_config::CommitmentLevel,
     signature::{
         Keypair,
         Signer,
@@ -31,7 +25,7 @@ use solitaire::{
     processors::seeded::Seeded,
     AccountState,
 };
-use spl_token::state::Mint;
+
 use std::{
     collections::HashMap,
     str::FromStr,
@@ -47,9 +41,7 @@ use token_bridge::{
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
     },
-    types::{
-        Config,
-    },
+    types::Config,
 };
 
 mod common;
@@ -141,7 +133,7 @@ async fn set_up() -> Result<Context, TransportError> {
     use token_bridge::accounts::WrappedTokenMeta;
     let metadata_account = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
         &token_bridge::accounts::WrappedMetaDerivationData {
-            mint_key: mint_pubkey.clone(),
+            mint_key: mint_pubkey,
         },
         &token_bridge,
     );
@@ -251,7 +243,7 @@ async fn create_wrapped(context: &mut Context) -> Pubkey {
         payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, bridge);
 
     common::create_wrapped(
         client,
@@ -270,7 +262,7 @@ async fn create_wrapped(context: &mut Context) -> Pubkey {
             token_chain: 2,
             token_address: [1u8; 32],
         },
-        &token_bridge,
+        token_bridge,
     )
 }
 
@@ -329,20 +321,6 @@ async fn attest() {
     )
     .await
     .unwrap();
-
-    let account = client
-        .get_account_with_commitment(mint.pubkey(), CommitmentLevel::Processed)
-        .await
-        .unwrap()
-        .unwrap();
-    let mint_data = Mint::unpack(&account.data).unwrap();
-    let payload = PayloadAssetMeta {
-        token_address: mint.pubkey().to_bytes(),
-        token_chain: 1,
-        decimals: mint_data.decimals,
-        symbol: "USD".to_string(),
-        name: "Bitcoin".to_string(),
-    };
 }
 
 #[tokio::test]
@@ -352,9 +330,7 @@ async fn transfer_native() {
         ref mut client,
         bridge,
         token_bridge,
-        ref mint_authority,
         ref mint,
-        ref mint_meta,
         ref token_account,
         ref token_authority,
         ..
@@ -383,10 +359,6 @@ async fn register_chain(context: &mut Context) {
         ref mut client,
         ref bridge,
         ref token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_authority,
         ref guardian_keys,
         ..
     } = context;
@@ -400,7 +372,7 @@ async fn register_chain(context: &mut Context) {
     let message = payload.try_to_vec().unwrap();
 
     let (vaa, body, _) = common::generate_vaa(emitter.pubkey().to_bytes(), 1, message, nonce, 0);
-    let signature_set = common::verify_signatures(client, &bridge, payer, body, guardian_keys, 0)
+    let signature_set = common::verify_signatures(client, bridge, payer, body, guardian_keys, 0)
         .await
         .unwrap();
     common::post_vaa(client, *bridge, payer, signature_set, vaa.clone())
@@ -411,7 +383,7 @@ async fn register_chain(context: &mut Context) {
         payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, bridge);
 
     common::register_chain(
         client,
@@ -435,9 +407,7 @@ async fn transfer_native_in() {
         ref mut client,
         bridge,
         token_bridge,
-        ref mint_authority,
         ref mint,
-        ref mint_meta,
         ref token_account,
         ref token_authority,
         ref guardian_keys,
@@ -484,7 +454,7 @@ async fn transfer_native_in() {
         payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, &bridge);
 
     common::complete_native(
         client,
@@ -509,10 +479,6 @@ async fn transfer_wrapped() {
         ref mut client,
         bridge,
         token_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_account,
         ref token_authority,
         ref guardian_keys,
         ..
@@ -538,11 +504,11 @@ async fn transfer_wrapped() {
     common::post_vaa(client, bridge, payer, signature_set, vaa.clone())
         .await
         .unwrap();
-    let mut msg_derivation_data = &PostedVAADerivationData {
+    let msg_derivation_data = &PostedVAADerivationData {
         payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, &bridge);
 
     common::complete_transfer_wrapped(
         client,
