@@ -44,16 +44,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         BridgeStructs.AssetMeta memory meta = BridgeStructs.AssetMeta({
         payloadID : 2,
-        // Address of the token. Left-zero-padded if shorter than 32 bytes
-        tokenAddress : bytes32(uint256(uint160(tokenAddress))),
-        // Chain ID of the token
-        tokenChain : chainId(),
-        // Number of decimals of the token (big-endian uint8)
-        decimals : decimals,
-        // Symbol of the token (UTF-8)
-        symbol : symbol,
-        // Name of the token (UTF-8)
-        name : name
+        tokenAddress : bytes32(uint256(uint160(tokenAddress))), // Address of the token. Left-zero-padded if shorter than 32 bytes
+        tokenChain : chainId(), // Chain ID of the token
+        decimals : decimals, // Number of decimals of the token (big-endian uint8)
+        symbol : symbol, // Symbol of the token (UTF-8)
+        name : name // Name of the token (UTF-8)
         });
 
         bytes memory encoded = encodeAssetMeta(meta);
@@ -66,9 +61,24 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     /*
      *  @notice Send eth through portal by first wrapping it to WETH.
      */
-    function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable returns (uint64 sequence) {
-        BridgeStructs.TransferResult memory transferResult = _wrapAndTransferETH(arbiterFee);
-        sequence = logTransfer(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce);
+    function wrapAndTransferETH(
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint256 arbiterFee,
+        uint32 nonce
+    ) public payable returns (uint64 sequence) {
+        BridgeStructs.TransferResult
+            memory transferResult = _wrapAndTransferETH(arbiterFee);
+        sequence = logTransfer(
+            transferResult.tokenChain,
+            transferResult.tokenAddress,
+            transferResult.normalizedAmount,
+            recipientChain,
+            recipient,
+            transferResult.normalizedArbiterFee,
+            transferResult.wormholeFee,
+            nonce
+        );
     }
 
     /*
@@ -83,9 +93,26 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *  With these three additional components, xDapps can implement cross-chain
      *  composable interactions.
      */
-    function wrapAndTransferETHWithPayload(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable returns (uint64 sequence) {
-        BridgeStructs.TransferResult memory transferResult = _wrapAndTransferETH(arbiterFee);
-        sequence = logTransferWithPayload(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce, payload);
+    function wrapAndTransferETHWithPayload(
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint256 arbiterFee,
+        uint32 nonce,
+        bytes memory payload
+    ) public payable returns (uint64 sequence) {
+        BridgeStructs.TransferResult
+            memory transferResult = _wrapAndTransferETH(arbiterFee);
+        sequence = logTransferWithPayload(
+            transferResult.tokenChain,
+            transferResult.tokenAddress,
+            transferResult.normalizedAmount,
+            recipientChain,
+            recipient,
+            transferResult.normalizedArbiterFee,
+            transferResult.wormholeFee,
+            nonce,
+            payload
+        );
     }
 
     function _wrapAndTransferETH(uint256 arbiterFee) internal returns (BridgeStructs.TransferResult memory transferResult) {
@@ -126,9 +153,29 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     /*
      *  @notice Send ERC20 token through portal.
      */
-    function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable nonReentrant returns (uint64 sequence) {
-        BridgeStructs.TransferResult memory transferResult = _transferTokens(token, amount, arbiterFee);
-        sequence = logTransfer(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce);
+    function transferTokens(
+        address token,
+        uint256 amount,
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint256 arbiterFee,
+        uint32 nonce
+    ) public payable nonReentrant returns (uint64 sequence) {
+        BridgeStructs.TransferResult memory transferResult = _transferTokens(
+            token,
+            amount,
+            arbiterFee
+        );
+        sequence = logTransfer(
+            transferResult.tokenChain,
+            transferResult.tokenAddress,
+            transferResult.normalizedAmount,
+            recipientChain,
+            recipient,
+            transferResult.normalizedArbiterFee,
+            transferResult.wormholeFee,
+            nonce
+        );
     }
 
     /*
@@ -143,11 +190,32 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *  With these three additional components, xDapps can implement cross-chain
      *  composable interactions.
      */
-    function transferTokensWithPayload(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable nonReentrant returns (uint64 sequence) {
-        BridgeStructs.TransferResult memory transferResult = _transferTokens(token, amount, arbiterFee);
-        sequence = logTransferWithPayload(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce, payload);
+    function transferTokensWithPayload(
+        address token,
+        uint256 amount,
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint256 arbiterFee,
+        uint32 nonce,
+        bytes memory payload
+    ) public payable nonReentrant returns (uint64 sequence) {
+        BridgeStructs.TransferResult memory transferResult = _transferTokens(
+            token,
+            amount,
+            arbiterFee
+        );
+        sequence = logTransferWithPayload(
+            transferResult.tokenChain,
+            transferResult.tokenAddress,
+            transferResult.normalizedAmount,
+            recipientChain,
+            recipient,
+            transferResult.normalizedArbiterFee,
+            transferResult.wormholeFee,
+            nonce,
+            payload
+        );
     }
-
     /*
      *  @notice Initiate a transfer
      */
@@ -222,24 +290,35 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         return amount;
     }
 
-    function logTransfer(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint256 callValue, uint32 nonce) internal returns (uint64 sequence) {
+    function logTransfer(
+        uint16 tokenChain,
+        bytes32 tokenAddress,
+        uint256 amount,
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint256 fee,
+        uint256 callValue,
+        uint32 nonce
+    ) internal returns (uint64 sequence) {
         require(fee <= amount, "fee exceeds amount");
 
         BridgeStructs.Transfer memory transfer = BridgeStructs.Transfer({
-            payloadID : 1,
-            amount : amount,
-            tokenAddress : tokenAddress,
-            tokenChain : tokenChain,
-            to : recipient,
-            toChain : recipientChain,
-            fee : fee
+            payloadID: 1,
+            amount: amount,
+            tokenAddress: tokenAddress,
+            tokenChain: tokenChain,
+            to: recipient,
+            toChain: recipientChain,
+            fee: fee
         });
 
         bytes memory encoded = encodeTransfer(transfer);
 
-        sequence = wormhole().publishMessage{
-            value : callValue
-        }(nonce, encoded, 15);
+        sequence = wormhole().publishMessage{value: callValue}(
+            nonce,
+            encoded,
+            15
+        );
     }
 
     /*
@@ -247,28 +326,40 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @return The sequence number of the published message.
      */
-    function logTransferWithPayload(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint256 callValue, uint32 nonce, bytes memory payload) internal returns (uint64 sequence) {
+    function logTransferWithPayload(
+        uint16 tokenChain,
+        bytes32 tokenAddress,
+        uint256 amount,
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint256 fee,
+        uint256 callValue,
+        uint32 nonce,
+        bytes memory payload
+    ) internal returns (uint64 sequence) {
         require(fee <= amount, "fee exceeds amount");
 
-        BridgeStructs.TransferWithPayload memory transfer = BridgeStructs.TransferWithPayload({
-            payloadID : 3,
-            amount : amount,
-            tokenAddress : tokenAddress,
-            tokenChain : tokenChain,
-            to : recipient,
-            toChain : recipientChain,
-            fee : fee,
-            fromAddress : bytes32(uint256(uint160(msg.sender))),
-            payload : payload
-        });
+        BridgeStructs.TransferWithPayload memory transfer = BridgeStructs
+            .TransferWithPayload({
+                payloadID: 3,
+                amount: amount,
+                tokenAddress: tokenAddress,
+                tokenChain: tokenChain,
+                to: recipient,
+                toChain: recipientChain,
+                fee: fee,
+                fromAddress: bytes32(uint256(uint160(msg.sender))),
+                payload: payload
+            });
 
         bytes memory encoded = encodeTransferWithPayload(transfer);
 
-        sequence = wormhole().publishMessage{
-            value : callValue
-        }(nonce, encoded, 15);
+        sequence = wormhole().publishMessage{value: callValue}(
+            nonce,
+            encoded,
+            15
+        );
     }
-
     function updateWrapped(bytes memory encodedVm) external returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
