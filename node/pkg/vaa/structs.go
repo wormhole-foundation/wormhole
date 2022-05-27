@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"strings"
 	"time"
 
@@ -58,6 +59,16 @@ type (
 	}
 
 	SignatureData [65]byte
+
+	TransferPayloadHdr struct {
+		Type         uint8
+		TokenChainID ChainID
+		TokenAddress Address
+		ToChainID    ChainID
+		ToAddress    Address
+		Amount       *big.Int
+		Fee          *big.Int
+	}
 )
 
 func (a Address) MarshalJSON() ([]byte, error) {
@@ -413,6 +424,65 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 		Index:     index,
 		Signature: sigData,
 	})
+}
+
+func (v *VAA) IsTransfer() bool {
+	return len(v.Payload) > 0 && (v.Payload[0] == 1) || (v.Payload[0] == 3)
+}
+
+func (v *VAA) DecodeTransferPayloadHdr() (*TransferPayloadHdr, error) {
+	if ! v.IsTransfer() {
+		return nil, fmt.Errorf("unsupported payload type")
+	}
+
+	if len(v.Payload) < 133 {
+		return nil, fmt.Errorf("buffer too short")
+	}
+
+	p := &TransferPayloadHdr{}
+
+	// Payload type: payload[0]
+	p.Type = uint8(v.Payload[0])
+
+	// Amount: payload[1] for 32
+	p.Amount = new(big.Int)
+	p.Amount.SetBytes(v.Payload[1:33])
+
+	reader := bytes.NewReader(v.Payload[33:])
+
+	// Token address: payload[33] for 32
+	p.TokenAddress = Address{}
+	err := binary.Read(reader, binary.BigEndian, &p.TokenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	// Token chain ID: payload[65] for 2
+	p.TokenChainID = ChainID(0)
+	err = binary.Read(reader, binary.BigEndian, &p.TokenChainID)
+	if err != nil {
+		return nil, err
+	}
+
+	// To address: payload[67] for 32
+	p.ToAddress = Address{}
+	err = binary.Read(reader, binary.BigEndian, &p.ToAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	// To chain ID: payload[99] for 2
+	p.ToChainID = ChainID(0)
+	err = binary.Read(reader, binary.BigEndian, &p.ToChainID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fee: payload[101] for 32
+	p.Fee = new(big.Int)
+	p.Fee.SetBytes(v.Payload[101:133])
+
+	return p, nil
 }
 
 // MustWrite calls binary.Write and panics on errors
