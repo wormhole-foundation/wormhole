@@ -493,9 +493,30 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 
 func TestStringToAddress(t *testing.T) {
 	expected := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-	addr, err := StringToAddress("0000000000000000000000000000000000000000000000000000000000000004")
+	addr1, err := StringToAddress("0000000000000000000000000000000000000000000000000000000000000004")
 	assert.Nil(t, err)
-	assert.Equal(t, expected, addr)
+	assert.Equal(t, expected, addr1)
+
+	// Should zero pad shorter strings.
+	addr2, err := StringToAddress("04")
+	assert.Nil(t, err)
+	assert.Equal(t, expected, addr2)
+	
+	// Should trim the leading "0x" if present.
+	addr3, err := StringToAddress("0x04")
+	assert.Nil(t, err)
+	assert.Equal(t, expected, addr3)
+
+	// Should handle a 20 byte ethereum style address.
+	expected2 := Address{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x90, 0xfb, 0x16, 0x72, 0x8, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78, 0x1, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0xc, 0x16}
+	addr4, err := StringToAddress("0x0290FB167208Af455bB137780163b7B7a9a10C16")
+	assert.Nil(t, err)
+	assert.Equal(t, expected2, addr4)
+
+	// Should reject anything that's too long.
+	_, err = StringToAddress("0x0000000000000000000000000000000000000000000000000000000000000000000004")
+	assert.NotNil(t, err)
+	assert.Equal(t, "value must be no more than 32 bytes", err.Error())
 }
 
 func TestDecodeTransferPayloadHdr(t *testing.T) {
