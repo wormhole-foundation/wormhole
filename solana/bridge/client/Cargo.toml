@@ -18,5 +18,4 @@ solana-sdk = "=1.9.4"
 solana-cli-config = "=1.9.4"
 solana-clap-utils = "=1.9.4"
 solitaire = { path = "../../solitaire/program" }
-solitaire-client = { path = "../../solitaire/client" }
 wormhole-bridge-solana = { path = "../program", features = ["client"] }
