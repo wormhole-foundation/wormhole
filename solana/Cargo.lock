@@ -264,7 +264,6 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "wormhole-bridge-solana",
 ]
 
@@ -284,7 +283,6 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "wormhole-bridge-solana",
 ]
 
@@ -508,7 +506,6 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "wormhole-bridge-solana",
 ]
 
@@ -1577,7 +1574,6 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "spl-associated-token-account",
  "spl-token",
  "spl-token-metadata",
@@ -3179,16 +3175,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "solitaire-client"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "solana-program",
- "solana-sdk",
- "solitaire",
-]
-
-[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3480,7 +3466,6 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "spl-token",
  "spl-token-metadata",
  "wasm-bindgen",
@@ -3503,7 +3488,6 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "spl-token-metadata",
  "token-bridge",
 ]
@@ -4060,7 +4044,6 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "wasm-bindgen",
 ]
 
@@ -4081,7 +4064,6 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "solitaire",
- "solitaire-client",
  "spl-token",
  "wasm-bindgen",
 ]

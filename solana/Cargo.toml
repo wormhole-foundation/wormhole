@@ -8,7 +8,6 @@ members = [
     "modules/nft_bridge/program",
     "modules/token_bridge/client",
     "modules/token_bridge/program",
-    "solitaire/client",
     "solitaire/program",
     "solitaire/rocksalt",
 ]

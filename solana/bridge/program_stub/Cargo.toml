@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "bridge_stub"
 
 [features]
-client = ["solitaire/client", "solitaire-client", "no-entrypoint"]
+client = ["no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
 no-entrypoint = ["solitaire/no-entrypoint"]
@@ -21,7 +21,6 @@ byteorder = "1.4.3"
 primitive-types = { version = "0.9.0", default-features = false }
 sha3 = "0.9.1"
 solana-program = "=1.9.4"
-solitaire-client = { path = "../../solitaire/client", optional = true }
 solitaire = { path = "../../solitaire/program" }
 wormhole-bridge-solana = { path = "../program", features = ["no-entrypoint"] }
 
