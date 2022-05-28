@@ -1,0 +1,11 @@
+name: "Solidity Advisory Check (every day at 8am)"
+on:
+  schedule:
+  - cron: "0 8 * * *"
+
+steps:
+- uses: actions/checkout@v3
+- uses: actions/setup-python@v3
+  with:
+    python-version: '3.x'
+- run: python scripts/solidity_advisory_check.py
