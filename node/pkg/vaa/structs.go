@@ -494,11 +494,17 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 
 // StringToAddress converts a hex-encoded adress into a vaa.Address
 func StringToAddress(value string) (Address, error) {
+	if len(value) >= 2 && value[0] == '0' && value[1] == 'x' {
+		value = value[2:]
+	}
 	var address Address
 	res, err := hex.DecodeString(value)
 	if err != nil {
 		return address, err
 	}
-	copy(address[:], res)
+	if len(res) > 32 {
+		return address, fmt.Errorf("value must be no more than 32 bytes")
+	}
+	copy(address[32-len(res):], res)
 	return address, nil
 }
