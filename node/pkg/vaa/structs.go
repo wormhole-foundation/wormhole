@@ -67,7 +67,6 @@ type (
 		ToChainID    ChainID
 		ToAddress    Address
 		Amount       *big.Int
-		Fee          *big.Int
 	}
 )
 
@@ -426,6 +425,7 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 	})
 }
 
+// NOTE: This function assumes that the caller has verified that the VAA is from the token bridge.
 func (v *VAA) IsTransfer() bool {
 	return len(v.Payload) > 0 && (v.Payload[0] == 1) || (v.Payload[0] == 3)
 }
@@ -477,10 +477,6 @@ func (v *VAA) DecodeTransferPayloadHdr() (*TransferPayloadHdr, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Fee: payload[101] for 32
-	p.Fee = new(big.Int)
-	p.Fee.SetBytes(v.Payload[101:133])
 
 	return p, nil
 }
