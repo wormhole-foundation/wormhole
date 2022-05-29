@@ -530,7 +530,6 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 		toChainId      ChainID
 		toAddr         string
 		amount         int64
-		fee            int64
 	}
 
 	pos_tests := []PositiveTest{
@@ -543,7 +542,6 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			toChainId:      ChainIDSolana,
 			toAddr:         "21c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f0",
 			amount:         725000000,
-			fee:            0,
 		},
 	}
 
@@ -559,7 +557,6 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			assert.Nil(t, err)
 
 			expectedAmount := big.NewInt(testCase.amount)
-			expectedFee := big.NewInt(testCase.fee)
 
 			data, err := hex.DecodeString(testCase.vaa)
 			assert.Nil(t, err)
@@ -580,7 +577,6 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			assert.Equal(t, testCase.toChainId, payload.ToChainID)
 			assert.Equal(t, expectedToAddr, payload.ToAddress)
 			assert.Equal(t, expectedAmount.Cmp(payload.Amount), 0)
-			assert.Equal(t, expectedFee.Cmp(payload.Fee), 0)
 		})
 	}
 
