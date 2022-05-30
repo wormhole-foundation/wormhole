@@ -70,7 +70,7 @@ const CustodyAddresses: React.FC<any> = () => {
         nftAddress: getNFTBridgeAddressForChain(CHAIN_ID_BSC),
       },
       {
-        chainName: "Terra",
+        chainName: "Terra Classic",
         chainId: CHAIN_ID_TERRA,
         tokenAddress: getTokenBridgeAddressForChain(CHAIN_ID_TERRA),
         nftAddress: null,
