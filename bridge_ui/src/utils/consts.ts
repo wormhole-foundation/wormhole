@@ -107,7 +107,7 @@ export const CHAINS: ChainInfo[] =
         },
         {
           id: CHAIN_ID_TERRA,
-          name: "Terra",
+          name: "Terra Classic",
           logo: terraIcon,
         },
       ]
@@ -185,7 +185,7 @@ export const CHAINS: ChainInfo[] =
         },
         {
           id: CHAIN_ID_TERRA,
-          name: "Terra",
+          name: "Terra Classic",
           logo: terraIcon,
         },
       ]
@@ -212,7 +212,7 @@ export const CHAINS: ChainInfo[] =
         },
         {
           id: CHAIN_ID_TERRA,
-          name: "Terra",
+          name: "Terra Classic",
           logo: terraIcon,
         },
       ];
@@ -251,7 +251,7 @@ export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
     : chainId === CHAIN_ID_BSC
     ? "BNB"
     : chainId === CHAIN_ID_TERRA
-    ? "LUNA"
+    ? "LUNC"
     : chainId === CHAIN_ID_POLYGON
     ? "MATIC"
     : chainId === CHAIN_ID_AVAX
