@@ -99,7 +99,6 @@ export async function transferFromEth(
           amount,
           recipientChainId,
           recipientAddress,
-          relayerFee,
           createNonce(),
           payload,
           overrides
@@ -135,7 +134,6 @@ export async function transferFromEthNative(
       : await bridge.wrapAndTransferETHWithPayload(
           recipientChainId,
           recipientAddress,
-          relayerFee,
           createNonce(),
           payload,
           {
