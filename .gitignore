@@ -1,6 +1,7 @@
 build
 node_modules
 .idea
+.dccache
 .arcconfig
 *.iml
 bin
