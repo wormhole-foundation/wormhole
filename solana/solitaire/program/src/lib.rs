@@ -83,8 +83,8 @@ impl CreationLamports {
 
 /// Trait definition that describes types that can be constructed from a list of solana account
 /// references. A list of dependent accounts is produced as a side effect of the parsing stage.
-pub trait FromAccounts<'a, 'b: 'a, 'c> {
-    fn from<T>(_: &'a Pubkey, _: &'c mut Iter<'a, AccountInfo<'b>>, _: &'a T) -> Result<Self>
+pub trait FromAccounts<'a, 'b: 'a> {
+    fn from<T>(_: &'a Pubkey, _: &mut Iter<'a, AccountInfo<'b>>, _: &'a T) -> Result<Self>
     where
         Self: Sized;
 }
