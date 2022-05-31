@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6
+
+### Changed
+
+Fixed Algorand for addresses for non native assets
+
 ## 0.3.5
 
 ### Changed

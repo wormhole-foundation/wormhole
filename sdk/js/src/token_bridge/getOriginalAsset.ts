@@ -173,7 +173,7 @@ export async function getOriginalAssetAlgorand(
     assetId
   );
   if (!retVal.isWrapped) {
-    retVal.assetAddress = zeroPad(hexToUint8Array(assetId.toString(16)), 32);
+    retVal.assetAddress = zeroPad(arrayify(ethers.BigNumber.from(assetId)), 32);
     return retVal;
   }
   const assetInfo = await client.getAssetByID(safeBigIntToNumber(assetId)).do();
