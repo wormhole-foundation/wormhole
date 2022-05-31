@@ -435,7 +435,7 @@ func (v *VAA) DecodeTransferPayloadHdr() (*TransferPayloadHdr, error) {
 		return nil, fmt.Errorf("unsupported payload type")
 	}
 
-	if len(v.Payload) < 133 {
+	if len(v.Payload) < 101 {
 		return nil, fmt.Errorf("buffer too short")
 	}
 
