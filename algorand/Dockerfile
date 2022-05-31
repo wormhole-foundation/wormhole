@@ -19,5 +19,6 @@ RUN pipenv install
 RUN mkdir teal
 
 COPY *.py .
+COPY test/*.json .
 COPY deploy.sh deploy.sh 
 COPY .env .env

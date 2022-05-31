@@ -204,21 +204,21 @@ export async function getBalances(
 ): Promise<Map<number, number>> {
   let balances = new Map<number, number>();
   const accountInfo = await client.accountInformation(account).do();
-  // console.log("Account Info:", accountInfo);
-  // console.log("Account Info|created-assets:", accountInfo["created-assets"]);
+  console.log("Account Info:", accountInfo);
+  console.log("Account Info|created-assets:", accountInfo["created-assets"]);
 
   // Put the algo balance in key 0
   balances.set(0, accountInfo.amount);
 
   const assets: Array<any> = accountInfo.assets;
-  // console.log("assets", assets);
+  console.log("assets", assets);
   assets.forEach(function (asset) {
-    // console.log("inside foreach", asset);
+    console.log("inside foreach", asset);
     const assetId = asset["asset-id"];
     const amount = asset.amount;
     balances.set(assetId, amount);
   });
-  // console.log("balances", balances);
+  console.log("balances", balances);
   return balances;
 }
 
@@ -267,11 +267,13 @@ export async function createAsset(account: Account): Promise<any> {
   // Used to display asset units to user
   const unitName = "NORIUM";
   // Friendly name of the asset
-  const assetName = "chuckNorium";
+  const assetName = "ChuckNorium";
   // Optional string pointing to a URL relating to the asset
-  const assetURL = "http://www.chucknorris.com";
+  // const assetURL = "http://www.chucknorris.com";
+  const assetURL = "";
   // Optional hash commitment of some sort relating to the asset. 32 character length.
-  const assetMetadataHash = "16efaa3924a6fd9d3a4824799a4ac65d";
+  // const assetMetadataHash = "16efaa3924a6fd9d3a4824799a4ac65d";
+  const assetMetadataHash = "";
   // The following parameters are the only ones
   // that can be changed, and they have to be changed
   // by the current manager
@@ -316,6 +318,74 @@ export async function createAsset(account: Account): Promise<any> {
   //Get the completed Transaction
   console.log(
     "createAsset() - Transaction " +
+      tx.txId +
+      " confirmed in round " +
+      ptx["confirmed-round"]
+  );
+  return assetID;
+}
+
+export async function createNFT(account: Account): Promise<number> {
+  console.log("Creating NFT...");
+  const aClient = getAlgoClient();
+  const params = await aClient.getTransactionParams().do();
+  // Asset creation specific parameters
+  const addr = account.addr;
+  // Whether user accounts will need to be unfrozen before transacting
+  const defaultFrozen = false;
+  // integer number of decimals for asset unit calculation
+  const decimals = 0;
+  // total number of this asset available for circulation
+  const total = 1;
+  // Used to display asset units to user
+  const unitName = "CNART";
+  // Friendly name of the asset
+  const assetName = "ChuckNoriumArtwork@arc3";
+  // Optional string pointing to a URL relating to the asset
+  const assetURL = "http://www.chucknorris.com";
+  // Optional hash commitment of some sort relating to the asset. 32 character length.
+  const assetMetadataHash = "16efaa3924a6fd9d3a4824799a4ac65d";
+  // The following parameters are the only ones
+  // that can be changed, and they have to be changed
+  // by the current manager
+  // Specified address can change reserve, freeze, clawback, and manager
+  const manager = account.addr;
+  // Specified address is considered the asset reserve
+  // (it has no special privileges, this is only informational)
+  const reserve = account.addr;
+  // Specified address can freeze or unfreeze user asset holdings
+  const freeze = account.addr;
+  // Specified address can revoke user asset holdings and send
+  // them to other addresses
+  const clawback = account.addr;
+
+  // signing and sending "txn" allows "addr" to create an asset
+  const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+    from: addr,
+    total,
+    decimals,
+    assetName,
+    unitName,
+    assetURL,
+    assetMetadataHash,
+    defaultFrozen,
+    freeze,
+    manager,
+    clawback,
+    reserve,
+    suggestedParams: params,
+  });
+
+  const rawSignedTxn = txn.signTxn(account.sk);
+  // console.log("rawSignedTxn:", rawSignedTxn);
+  const tx = await aClient.sendRawTransaction(rawSignedTxn).do();
+
+  // wait for transaction to be confirmed
+  const ptx = await algosdk.waitForConfirmation(aClient, tx.txId, 4);
+  // Get the new asset's information from the creator account
+  const assetID: number = ptx["asset-index"];
+  console.log(
+    "createNFT() - Transaction " +
       tx.txId +
       " confirmed in round " +
       ptx["confirmed-round"]
