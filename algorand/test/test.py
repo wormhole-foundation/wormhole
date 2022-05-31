@@ -533,7 +533,7 @@ class AlgoTest(PortalCore):
 
         if self.foundation == None:
             print("We dont have a account?  ")
-            sys.exit(0)
+            sys.exit(1)
 
         foundation = self.foundation
 
