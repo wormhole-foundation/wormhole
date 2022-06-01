@@ -20,12 +20,15 @@ validators:
 	# These files change when the genesis file changes, so we need to make
 	# sure to copy them over
 	touch -m $@
-	rm build/config/gentx/gentx-c3f474217c930af3a4e998c4e52a57cee188ff43.json
-	./build/wormhole-chaind --home build/ gentx tiltGuardian "0uworm" --chain-id wormholechain --min-self-delegation "0"
+	rm -f build/config/gentx/gentx-c3f474217c930af3a4e998c4e52a57cee188ff43.json
+	./build/wormhole-chaind --home build/ gentx tiltGuardian "0uworm" --chain-id=wormholechain --min-self-delegation="0" --keyring-dir=keyring-test
+
+	# Copy config to validators/first_validator
 	cp build/config/priv_validator_key.json validators/first_validator/config/
 	cp build/config/node_key.json validators/first_validator/config/
 	mkdir -p validators/first_validator/keyring-test
 	cp build/keyring-test/* validators/first_validator/keyring-test/
+
 	# Copy these lines for each new validator
 	# We grab the validator's address from the gentx memo that it creates.
 	sed -E "s/(persistent_peers = \")[^@]*/\1$$(grep -lR MsgCreateValidator build/config/gentx | xargs grep -l $(TILT_VALADDRESS) | xargs jq '.body.memo' -r | cut -d@ -f1)/" validators/second_validator/config/config.toml -i
@@ -42,7 +45,7 @@ proto:  $(PROTO_FILES)
 vue: $(GO_FILES) proto
 	mkdir -p $@
 	touch -m $@
-	starport generate vuex --proto-all-modules
+	NODE_OPTIONS="" starport generate vuex --proto-all-modules
 
 # For now this is a phony target so we just rebuild it each time instead of
 # tracking dependencies
@@ -53,7 +56,7 @@ ts-sdk: vue
 
 .PHONY: run
 run: build/wormhole-chaind
-	./$< start --home build
+	./$< start --home build  --log_level="debug"
 
 .PHONY: test
 test:
@@ -65,4 +68,5 @@ bootstrap:
 
 .PHONY: clean
 clean:
-	rm -rf build/wormhole-chaind vue
+	rm -rf build/wormhole-chaind build/**/*.db build/**/*.wal vue
+	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json

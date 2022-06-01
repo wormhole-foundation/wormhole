@@ -1,26 +1,8 @@
 {
-  "genesis_time": "2022-05-18T17:44:53.023830309Z",
   "chain_id": "wormholechain",
-  "initial_height": "1",
-  "consensus_params": {
-    "block": {
-      "max_bytes": "22020096",
-      "max_gas": "-1",
-      "time_iota_ms": "1000"
-    },
-    "evidence": {
-      "max_age_num_blocks": "100000",
-      "max_age_duration": "172800000000000",
-      "max_bytes": "1048576"
-    },
-    "validator": {
-      "pub_key_types": [
-        "ed25519"
-      ]
-    },
-    "version": {}
-  },
-  "app_hash": "",
+  "gentxs_dir": "build/config/gentx",
+  "moniker": "mynode",
+  "node_id": "c3f474217c930af3a4e998c4e52a57cee188ff43",
   "app_state": {
     "auth": {
       "params": {
@@ -176,7 +158,7 @@
                   "key": "fnfoo/C+i+Ng1J8vct6wfvrTS9JeNIG5UeO87ZHKMkY="
                 },
                 "value": {
-                  "denom": "hole",
+                  "denom": "uworm",
                   "amount": "0"
                 }
               }
@@ -209,7 +191,7 @@
             }
           },
           "signatures": [
-            "dXA18wXqlG+TleTeMidpuALOznAOe8oB/1qQXgnIMpopeojT3+dQf9Qx8mlu16v31eex2YUo4xnkMcn4E71cQA=="
+            "wksmbgHHl22UKLmZK3AuSIdPxfX5+BPmvhVxHJC3wB5dzE1l0n+qmMxpbEP/wr0Xi0aC/qIszss6VxVoUmiPKw=="
           ]
         }
       ]
