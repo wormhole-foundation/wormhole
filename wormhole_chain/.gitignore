@@ -4,9 +4,9 @@ vue/src/store/generated/
 vue/
 release/
 testing/js/node_modules
-.vscode/
 !build
 build/wormhole-chaind
+build/data
 validators/first_validator/keyring-test
 validators/second_validator/keyring-test
 ts-sdk/node_modules
