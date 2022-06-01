@@ -5,13 +5,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"reflect"
-	"testing"
-	"time"
 )
 
 func TestChainIDFromString(t *testing.T) {
@@ -488,8 +489,51 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 }
 
 func TestStringToAddress(t *testing.T) {
-	expected := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-	addr, err := StringToAddress("0000000000000000000000000000000000000000000000000000000000000004")
-	assert.Nil(t, err)
-	assert.Equal(t, expected, addr)
+	tests := []struct {
+		name     string
+		value    string
+		expected Address
+	}{
+		{
+			name:  "basic",
+			value: "ecab25c70d4de7dc12bad3130e8d5b0733ad0e551a8b1224e1dd3c27a1eb5ade",
+			expected: Address{
+				0xec, 0xab, 0x25, 0xc7, 0x0d, 0x4d, 0xe7, 0xdc, 0x12, 0xba, 0xd3, 0x13,
+				0x0e, 0x8d, 0x5b, 0x07, 0x33, 0xad, 0x0e, 0x55, 0x1a, 0x8b, 0x12, 0x24,
+				0xe1, 0xdd, 0x3c, 0x27, 0xa1, 0xeb, 0x5a, 0xde,
+			},
+		},
+		{
+			name:     "empty string",
+			value:    "",
+			expected: Address{},
+		},
+		{
+			name:  "longer than 32",
+			value: "62d54ccad4d27ae172d0f6312dba686808e08da08367dae932fc58d020238da4f467358e9b9670a6",
+			expected: Address{
+				0x62, 0xd5, 0x4c, 0xca, 0xd4, 0xd2, 0x7a, 0xe1, 0x72, 0xd0, 0xf6, 0x31,
+				0x2d, 0xba, 0x68, 0x68, 0x08, 0xe0, 0x8d, 0xa0, 0x83, 0x67, 0xda, 0xe9,
+				0x32, 0xfc, 0x58, 0xd0, 0x20, 0x23, 0x8d, 0xa4,
+			},
+		},
+		{
+			name:  "zero pad left",
+			value: "3c6fa05be708cb0e2662f7811d0f6809099fe11c",
+			expected: Address{
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x3c, 0x6f, 0xa0, 0x5b, 0xe7, 0x08, 0xcb, 0x0e, 0x26, 0x62, 0xf7, 0x81,
+				0x1d, 0x0f, 0x68, 0x09, 0x09, 0x9f, 0xe1, 0x1c,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := StringToAddress(tt.value)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
 }

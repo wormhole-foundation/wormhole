@@ -422,13 +422,20 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	}
 }
 
-// StringToAddress converts a hex-encoded adress into a vaa.Address
+// StringToAddress converts a hex-encoded address into a vaa.Address. If the address is less than 32
+// bytes, the returned vaa.Address will be zero-padded on the left. If the address is longer than 32
+// bytes, then the returned vaa.Address will only contain the leftmost 32 bytes.
 func StringToAddress(value string) (Address, error) {
 	var address Address
 	res, err := hex.DecodeString(value)
 	if err != nil {
 		return address, err
 	}
-	copy(address[:], res)
+
+	start := 0
+	if len(res) < len(address) {
+		start = len(address) - len(res)
+	}
+	copy(address[start:], res)
 	return address, nil
 }
