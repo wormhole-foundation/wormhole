@@ -1,5 +1,5 @@
 broadcast-mode = "block"
-chain-id = ""
+chain-id = "wormholechain"
 keyring-backend = "test"
 node = "tcp://localhost:26657"
 output = "text"
