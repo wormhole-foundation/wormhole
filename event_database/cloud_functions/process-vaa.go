@@ -139,6 +139,7 @@ func DecodeTokenTransfer(data []byte) (*TokenTransfer, error) {
 
 	return tt, nil
 }
+
 func DecodeNFTTransfer(data []byte) (*NFTTransfer, error) {
 	nt := &NFTTransfer{}
 	nt.PayloadId = data[0]
@@ -226,6 +227,7 @@ func makeRowKey(emitterChain vaa.ChainID, emitterAddress vaa.Address, sequence u
 	// left-pad the sequence with zeros to 16 characters, because bigtable keys are stored lexicographically
 	return fmt.Sprintf("%d:%s:%016d", emitterChain, emitterAddress, sequence)
 }
+
 func writePayloadToBigTable(ctx context.Context, rowKey string, colFam string, mutation *bigtable.Mutation, forceWrite bool) error {
 	mut := mutation
 	if !forceWrite {
@@ -242,6 +244,7 @@ func writePayloadToBigTable(ctx context.Context, rowKey string, colFam string, m
 	}
 	return nil
 }
+
 func TrimUnicodeFromByteArray(b []byte) []byte {
 	// Escaped Unicode that has been observed in payload's token names and symbol:
 	null := "\u0000"

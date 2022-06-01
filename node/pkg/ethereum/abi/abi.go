@@ -240,7 +240,6 @@ func (_Abi *AbiTransactorRaw) Transact(opts *bind.TransactOpts, method string, p
 func (_Abi *AbiCaller) ChainId(opts *bind.CallOpts) (uint16, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "chainId")
-
 	if err != nil {
 		return *new(uint16), err
 	}
@@ -248,7 +247,6 @@ func (_Abi *AbiCaller) ChainId(opts *bind.CallOpts) (uint16, error) {
 	out0 := *abi.ConvertType(out[0], new(uint16)).(*uint16)
 
 	return out0, err
-
 }
 
 // ChainId is a free data retrieval call binding the contract method 0x9a8a0592.
@@ -271,7 +269,6 @@ func (_Abi *AbiCallerSession) ChainId() (uint16, error) {
 func (_Abi *AbiCaller) GetCurrentGuardianSetIndex(opts *bind.CallOpts) (uint32, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "getCurrentGuardianSetIndex")
-
 	if err != nil {
 		return *new(uint32), err
 	}
@@ -279,7 +276,6 @@ func (_Abi *AbiCaller) GetCurrentGuardianSetIndex(opts *bind.CallOpts) (uint32, 
 	out0 := *abi.ConvertType(out[0], new(uint32)).(*uint32)
 
 	return out0, err
-
 }
 
 // GetCurrentGuardianSetIndex is a free data retrieval call binding the contract method 0x1cfe7951.
@@ -302,7 +298,6 @@ func (_Abi *AbiCallerSession) GetCurrentGuardianSetIndex() (uint32, error) {
 func (_Abi *AbiCaller) GetGuardianSet(opts *bind.CallOpts, index uint32) (StructsGuardianSet, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "getGuardianSet", index)
-
 	if err != nil {
 		return *new(StructsGuardianSet), err
 	}
@@ -310,7 +305,6 @@ func (_Abi *AbiCaller) GetGuardianSet(opts *bind.CallOpts, index uint32) (Struct
 	out0 := *abi.ConvertType(out[0], new(StructsGuardianSet)).(*StructsGuardianSet)
 
 	return out0, err
-
 }
 
 // GetGuardianSet is a free data retrieval call binding the contract method 0xf951975a.
@@ -333,7 +327,6 @@ func (_Abi *AbiCallerSession) GetGuardianSet(index uint32) (StructsGuardianSet, 
 func (_Abi *AbiCaller) GetGuardianSetExpiry(opts *bind.CallOpts) (uint32, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "getGuardianSetExpiry")
-
 	if err != nil {
 		return *new(uint32), err
 	}
@@ -341,7 +334,6 @@ func (_Abi *AbiCaller) GetGuardianSetExpiry(opts *bind.CallOpts) (uint32, error)
 	out0 := *abi.ConvertType(out[0], new(uint32)).(*uint32)
 
 	return out0, err
-
 }
 
 // GetGuardianSetExpiry is a free data retrieval call binding the contract method 0xeb8d3f12.
@@ -364,7 +356,6 @@ func (_Abi *AbiCallerSession) GetGuardianSetExpiry() (uint32, error) {
 func (_Abi *AbiCaller) GovernanceActionIsConsumed(opts *bind.CallOpts, hash [32]byte) (bool, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "governanceActionIsConsumed", hash)
-
 	if err != nil {
 		return *new(bool), err
 	}
@@ -372,7 +363,6 @@ func (_Abi *AbiCaller) GovernanceActionIsConsumed(opts *bind.CallOpts, hash [32]
 	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
 
 	return out0, err
-
 }
 
 // GovernanceActionIsConsumed is a free data retrieval call binding the contract method 0x2c3c02a4.
@@ -395,7 +385,6 @@ func (_Abi *AbiCallerSession) GovernanceActionIsConsumed(hash [32]byte) (bool, e
 func (_Abi *AbiCaller) GovernanceChainId(opts *bind.CallOpts) (uint16, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "governanceChainId")
-
 	if err != nil {
 		return *new(uint16), err
 	}
@@ -403,7 +392,6 @@ func (_Abi *AbiCaller) GovernanceChainId(opts *bind.CallOpts) (uint16, error) {
 	out0 := *abi.ConvertType(out[0], new(uint16)).(*uint16)
 
 	return out0, err
-
 }
 
 // GovernanceChainId is a free data retrieval call binding the contract method 0xfbe3c2cd.
@@ -426,7 +414,6 @@ func (_Abi *AbiCallerSession) GovernanceChainId() (uint16, error) {
 func (_Abi *AbiCaller) GovernanceContract(opts *bind.CallOpts) ([32]byte, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "governanceContract")
-
 	if err != nil {
 		return *new([32]byte), err
 	}
@@ -434,7 +421,6 @@ func (_Abi *AbiCaller) GovernanceContract(opts *bind.CallOpts) ([32]byte, error)
 	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
 
 	return out0, err
-
 }
 
 // GovernanceContract is a free data retrieval call binding the contract method 0xb172b222.
@@ -457,7 +443,6 @@ func (_Abi *AbiCallerSession) GovernanceContract() ([32]byte, error) {
 func (_Abi *AbiCaller) IsInitialized(opts *bind.CallOpts, impl common.Address) (bool, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "isInitialized", impl)
-
 	if err != nil {
 		return *new(bool), err
 	}
@@ -465,7 +450,6 @@ func (_Abi *AbiCaller) IsInitialized(opts *bind.CallOpts, impl common.Address) (
 	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
 
 	return out0, err
-
 }
 
 // IsInitialized is a free data retrieval call binding the contract method 0xd60b347f.
@@ -488,7 +472,6 @@ func (_Abi *AbiCallerSession) IsInitialized(impl common.Address) (bool, error) {
 func (_Abi *AbiCaller) MessageFee(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "messageFee")
-
 	if err != nil {
 		return *new(*big.Int), err
 	}
@@ -496,7 +479,6 @@ func (_Abi *AbiCaller) MessageFee(opts *bind.CallOpts) (*big.Int, error) {
 	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
 
 	return out0, err
-
 }
 
 // MessageFee is a free data retrieval call binding the contract method 0x1a90a219.
@@ -519,7 +501,6 @@ func (_Abi *AbiCallerSession) MessageFee() (*big.Int, error) {
 func (_Abi *AbiCaller) NextSequence(opts *bind.CallOpts, emitter common.Address) (uint64, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "nextSequence", emitter)
-
 	if err != nil {
 		return *new(uint64), err
 	}
@@ -527,7 +508,6 @@ func (_Abi *AbiCaller) NextSequence(opts *bind.CallOpts, emitter common.Address)
 	out0 := *abi.ConvertType(out[0], new(uint64)).(*uint64)
 
 	return out0, err
-
 }
 
 // NextSequence is a free data retrieval call binding the contract method 0x4cf842b5.
@@ -551,7 +531,8 @@ func (_Abi *AbiCaller) ParseAndVerifyVM(opts *bind.CallOpts, encodedVM []byte) (
 	Vm     StructsVM
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "parseAndVerifyVM", encodedVM)
 
@@ -569,7 +550,6 @@ func (_Abi *AbiCaller) ParseAndVerifyVM(opts *bind.CallOpts, encodedVM []byte) (
 	outstruct.Reason = *abi.ConvertType(out[2], new(string)).(*string)
 
 	return *outstruct, err
-
 }
 
 // ParseAndVerifyVM is a free data retrieval call binding the contract method 0xc0fd8bde.
@@ -579,7 +559,8 @@ func (_Abi *AbiSession) ParseAndVerifyVM(encodedVM []byte) (struct {
 	Vm     StructsVM
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	return _Abi.Contract.ParseAndVerifyVM(&_Abi.CallOpts, encodedVM)
 }
 
@@ -590,7 +571,8 @@ func (_Abi *AbiCallerSession) ParseAndVerifyVM(encodedVM []byte) (struct {
 	Vm     StructsVM
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	return _Abi.Contract.ParseAndVerifyVM(&_Abi.CallOpts, encodedVM)
 }
 
@@ -600,7 +582,6 @@ func (_Abi *AbiCallerSession) ParseAndVerifyVM(encodedVM []byte) (struct {
 func (_Abi *AbiCaller) ParseContractUpgrade(opts *bind.CallOpts, encodedUpgrade []byte) (GovernanceStructsContractUpgrade, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "parseContractUpgrade", encodedUpgrade)
-
 	if err != nil {
 		return *new(GovernanceStructsContractUpgrade), err
 	}
@@ -608,7 +589,6 @@ func (_Abi *AbiCaller) ParseContractUpgrade(opts *bind.CallOpts, encodedUpgrade 
 	out0 := *abi.ConvertType(out[0], new(GovernanceStructsContractUpgrade)).(*GovernanceStructsContractUpgrade)
 
 	return out0, err
-
 }
 
 // ParseContractUpgrade is a free data retrieval call binding the contract method 0x4fdc60fa.
@@ -631,7 +611,6 @@ func (_Abi *AbiCallerSession) ParseContractUpgrade(encodedUpgrade []byte) (Gover
 func (_Abi *AbiCaller) ParseGuardianSetUpgrade(opts *bind.CallOpts, encodedUpgrade []byte) (GovernanceStructsGuardianSetUpgrade, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "parseGuardianSetUpgrade", encodedUpgrade)
-
 	if err != nil {
 		return *new(GovernanceStructsGuardianSetUpgrade), err
 	}
@@ -639,7 +618,6 @@ func (_Abi *AbiCaller) ParseGuardianSetUpgrade(opts *bind.CallOpts, encodedUpgra
 	out0 := *abi.ConvertType(out[0], new(GovernanceStructsGuardianSetUpgrade)).(*GovernanceStructsGuardianSetUpgrade)
 
 	return out0, err
-
 }
 
 // ParseGuardianSetUpgrade is a free data retrieval call binding the contract method 0x04ca84cf.
@@ -662,7 +640,6 @@ func (_Abi *AbiCallerSession) ParseGuardianSetUpgrade(encodedUpgrade []byte) (Go
 func (_Abi *AbiCaller) ParseSetMessageFee(opts *bind.CallOpts, encodedSetMessageFee []byte) (GovernanceStructsSetMessageFee, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "parseSetMessageFee", encodedSetMessageFee)
-
 	if err != nil {
 		return *new(GovernanceStructsSetMessageFee), err
 	}
@@ -670,7 +647,6 @@ func (_Abi *AbiCaller) ParseSetMessageFee(opts *bind.CallOpts, encodedSetMessage
 	out0 := *abi.ConvertType(out[0], new(GovernanceStructsSetMessageFee)).(*GovernanceStructsSetMessageFee)
 
 	return out0, err
-
 }
 
 // ParseSetMessageFee is a free data retrieval call binding the contract method 0x515f3247.
@@ -693,7 +669,6 @@ func (_Abi *AbiCallerSession) ParseSetMessageFee(encodedSetMessageFee []byte) (G
 func (_Abi *AbiCaller) ParseTransferFees(opts *bind.CallOpts, encodedTransferFees []byte) (GovernanceStructsTransferFees, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "parseTransferFees", encodedTransferFees)
-
 	if err != nil {
 		return *new(GovernanceStructsTransferFees), err
 	}
@@ -701,7 +676,6 @@ func (_Abi *AbiCaller) ParseTransferFees(opts *bind.CallOpts, encodedTransferFee
 	out0 := *abi.ConvertType(out[0], new(GovernanceStructsTransferFees)).(*GovernanceStructsTransferFees)
 
 	return out0, err
-
 }
 
 // ParseTransferFees is a free data retrieval call binding the contract method 0x0319e59c.
@@ -724,7 +698,6 @@ func (_Abi *AbiCallerSession) ParseTransferFees(encodedTransferFees []byte) (Gov
 func (_Abi *AbiCaller) ParseVM(opts *bind.CallOpts, encodedVM []byte) (StructsVM, error) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "parseVM", encodedVM)
-
 	if err != nil {
 		return *new(StructsVM), err
 	}
@@ -732,7 +705,6 @@ func (_Abi *AbiCaller) ParseVM(opts *bind.CallOpts, encodedVM []byte) (StructsVM
 	out0 := *abi.ConvertType(out[0], new(StructsVM)).(*StructsVM)
 
 	return out0, err
-
 }
 
 // ParseVM is a free data retrieval call binding the contract method 0xa9e11893.
@@ -755,7 +727,8 @@ func (_Abi *AbiCallerSession) ParseVM(encodedVM []byte) (StructsVM, error) {
 func (_Abi *AbiCaller) VerifySignatures(opts *bind.CallOpts, hash [32]byte, signatures []StructsSignature, guardianSet StructsGuardianSet) (struct {
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "verifySignatures", hash, signatures, guardianSet)
 
@@ -771,7 +744,6 @@ func (_Abi *AbiCaller) VerifySignatures(opts *bind.CallOpts, hash [32]byte, sign
 	outstruct.Reason = *abi.ConvertType(out[1], new(string)).(*string)
 
 	return *outstruct, err
-
 }
 
 // VerifySignatures is a free data retrieval call binding the contract method 0xa0cce1b3.
@@ -780,7 +752,8 @@ func (_Abi *AbiCaller) VerifySignatures(opts *bind.CallOpts, hash [32]byte, sign
 func (_Abi *AbiSession) VerifySignatures(hash [32]byte, signatures []StructsSignature, guardianSet StructsGuardianSet) (struct {
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	return _Abi.Contract.VerifySignatures(&_Abi.CallOpts, hash, signatures, guardianSet)
 }
 
@@ -790,7 +763,8 @@ func (_Abi *AbiSession) VerifySignatures(hash [32]byte, signatures []StructsSign
 func (_Abi *AbiCallerSession) VerifySignatures(hash [32]byte, signatures []StructsSignature, guardianSet StructsGuardianSet) (struct {
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	return _Abi.Contract.VerifySignatures(&_Abi.CallOpts, hash, signatures, guardianSet)
 }
 
@@ -800,7 +774,8 @@ func (_Abi *AbiCallerSession) VerifySignatures(hash [32]byte, signatures []Struc
 func (_Abi *AbiCaller) VerifyVM(opts *bind.CallOpts, vm StructsVM) (struct {
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	var out []interface{}
 	err := _Abi.contract.Call(opts, &out, "verifyVM", vm)
 
@@ -816,7 +791,6 @@ func (_Abi *AbiCaller) VerifyVM(opts *bind.CallOpts, vm StructsVM) (struct {
 	outstruct.Reason = *abi.ConvertType(out[1], new(string)).(*string)
 
 	return *outstruct, err
-
 }
 
 // VerifyVM is a free data retrieval call binding the contract method 0x875be02a.
@@ -825,7 +799,8 @@ func (_Abi *AbiCaller) VerifyVM(opts *bind.CallOpts, vm StructsVM) (struct {
 func (_Abi *AbiSession) VerifyVM(vm StructsVM) (struct {
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	return _Abi.Contract.VerifyVM(&_Abi.CallOpts, vm)
 }
 
@@ -835,7 +810,8 @@ func (_Abi *AbiSession) VerifyVM(vm StructsVM) (struct {
 func (_Abi *AbiCallerSession) VerifyVM(vm StructsVM) (struct {
 	Valid  bool
 	Reason string
-}, error) {
+}, error,
+) {
 	return _Abi.Contract.VerifyVM(&_Abi.CallOpts, vm)
 }
 
@@ -1085,7 +1061,6 @@ type AbiAdminChanged struct {
 //
 // Solidity: event AdminChanged(address previousAdmin, address newAdmin)
 func (_Abi *AbiFilterer) FilterAdminChanged(opts *bind.FilterOpts) (*AbiAdminChangedIterator, error) {
-
 	logs, sub, err := _Abi.contract.FilterLogs(opts, "AdminChanged")
 	if err != nil {
 		return nil, err
@@ -1097,7 +1072,6 @@ func (_Abi *AbiFilterer) FilterAdminChanged(opts *bind.FilterOpts) (*AbiAdminCha
 //
 // Solidity: event AdminChanged(address previousAdmin, address newAdmin)
 func (_Abi *AbiFilterer) WatchAdminChanged(opts *bind.WatchOpts, sink chan<- *AbiAdminChanged) (event.Subscription, error) {
-
 	logs, sub, err := _Abi.contract.WatchLogs(opts, "AdminChanged")
 	if err != nil {
 		return nil, err
@@ -1219,7 +1193,6 @@ type AbiBeaconUpgraded struct {
 //
 // Solidity: event BeaconUpgraded(address indexed beacon)
 func (_Abi *AbiFilterer) FilterBeaconUpgraded(opts *bind.FilterOpts, beacon []common.Address) (*AbiBeaconUpgradedIterator, error) {
-
 	var beaconRule []interface{}
 	for _, beaconItem := range beacon {
 		beaconRule = append(beaconRule, beaconItem)
@@ -1236,7 +1209,6 @@ func (_Abi *AbiFilterer) FilterBeaconUpgraded(opts *bind.FilterOpts, beacon []co
 //
 // Solidity: event BeaconUpgraded(address indexed beacon)
 func (_Abi *AbiFilterer) WatchBeaconUpgraded(opts *bind.WatchOpts, sink chan<- *AbiBeaconUpgraded, beacon []common.Address) (event.Subscription, error) {
-
 	var beaconRule []interface{}
 	for _, beaconItem := range beacon {
 		beaconRule = append(beaconRule, beaconItem)
@@ -1364,7 +1336,6 @@ type AbiContractUpgraded struct {
 //
 // Solidity: event ContractUpgraded(address indexed oldContract, address indexed newContract)
 func (_Abi *AbiFilterer) FilterContractUpgraded(opts *bind.FilterOpts, oldContract []common.Address, newContract []common.Address) (*AbiContractUpgradedIterator, error) {
-
 	var oldContractRule []interface{}
 	for _, oldContractItem := range oldContract {
 		oldContractRule = append(oldContractRule, oldContractItem)
@@ -1385,7 +1356,6 @@ func (_Abi *AbiFilterer) FilterContractUpgraded(opts *bind.FilterOpts, oldContra
 //
 // Solidity: event ContractUpgraded(address indexed oldContract, address indexed newContract)
 func (_Abi *AbiFilterer) WatchContractUpgraded(opts *bind.WatchOpts, sink chan<- *AbiContractUpgraded, oldContract []common.Address, newContract []common.Address) (event.Subscription, error) {
-
 	var oldContractRule []interface{}
 	for _, oldContractItem := range oldContract {
 		oldContractRule = append(oldContractRule, oldContractItem)
@@ -1516,7 +1486,6 @@ type AbiGuardianSetAdded struct {
 //
 // Solidity: event GuardianSetAdded(uint32 indexed index)
 func (_Abi *AbiFilterer) FilterGuardianSetAdded(opts *bind.FilterOpts, index []uint32) (*AbiGuardianSetAddedIterator, error) {
-
 	var indexRule []interface{}
 	for _, indexItem := range index {
 		indexRule = append(indexRule, indexItem)
@@ -1533,7 +1502,6 @@ func (_Abi *AbiFilterer) FilterGuardianSetAdded(opts *bind.FilterOpts, index []u
 //
 // Solidity: event GuardianSetAdded(uint32 indexed index)
 func (_Abi *AbiFilterer) WatchGuardianSetAdded(opts *bind.WatchOpts, sink chan<- *AbiGuardianSetAdded, index []uint32) (event.Subscription, error) {
-
 	var indexRule []interface{}
 	for _, indexItem := range index {
 		indexRule = append(indexRule, indexItem)
@@ -1664,7 +1632,6 @@ type AbiLogMessagePublished struct {
 //
 // Solidity: event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel)
 func (_Abi *AbiFilterer) FilterLogMessagePublished(opts *bind.FilterOpts, sender []common.Address) (*AbiLogMessagePublishedIterator, error) {
-
 	var senderRule []interface{}
 	for _, senderItem := range sender {
 		senderRule = append(senderRule, senderItem)
@@ -1681,7 +1648,6 @@ func (_Abi *AbiFilterer) FilterLogMessagePublished(opts *bind.FilterOpts, sender
 //
 // Solidity: event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel)
 func (_Abi *AbiFilterer) WatchLogMessagePublished(opts *bind.WatchOpts, sink chan<- *AbiLogMessagePublished, sender []common.Address) (event.Subscription, error) {
-
 	var senderRule []interface{}
 	for _, senderItem := range sender {
 		senderRule = append(senderRule, senderItem)
@@ -1808,7 +1774,6 @@ type AbiUpgraded struct {
 //
 // Solidity: event Upgraded(address indexed implementation)
 func (_Abi *AbiFilterer) FilterUpgraded(opts *bind.FilterOpts, implementation []common.Address) (*AbiUpgradedIterator, error) {
-
 	var implementationRule []interface{}
 	for _, implementationItem := range implementation {
 		implementationRule = append(implementationRule, implementationItem)
@@ -1825,7 +1790,6 @@ func (_Abi *AbiFilterer) FilterUpgraded(opts *bind.FilterOpts, implementation []
 //
 // Solidity: event Upgraded(address indexed implementation)
 func (_Abi *AbiFilterer) WatchUpgraded(opts *bind.WatchOpts, sink chan<- *AbiUpgraded, implementation []common.Address) (event.Subscription, error) {
-
 	var implementationRule []interface{}
 	for _, implementationItem := range implementation {
 		implementationRule = append(implementationRule, implementationItem)

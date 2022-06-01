@@ -26,12 +26,17 @@ type cumulativeResult struct {
 
 // an in-memory cache of previously calculated results
 var warmCumulativeCache = map[string]map[string]map[string]map[string]float64{}
-var muWarmCumulativeCache sync.RWMutex
-var warmCumulativeCacheFilePath = "notional-transferred-to-cumulative-cache.json"
 
-var transferredToUpToYesterday = map[string]map[string]map[string]map[string]float64{}
-var muTransferredToUpToYesterday sync.RWMutex
-var transferredToUpToYesterdayFilePath = "notional-transferred-to-up-to-yesterday-cache.json"
+var (
+	muWarmCumulativeCache       sync.RWMutex
+	warmCumulativeCacheFilePath = "notional-transferred-to-cumulative-cache.json"
+)
+
+var (
+	transferredToUpToYesterday         = map[string]map[string]map[string]map[string]float64{}
+	muTransferredToUpToYesterday       sync.RWMutex
+	transferredToUpToYesterdayFilePath = "notional-transferred-to-up-to-yesterday-cache.json"
+)
 
 // calculates the amount of each symbol transfered to each chain.
 func transferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
@@ -273,7 +278,6 @@ func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context,
 		}
 	}
 	return selectDays
-
 }
 
 // calculates the cumulative value transferred each day since launch.
@@ -408,7 +412,6 @@ func NotionalTransferredToCumulative(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-
 		}(prefix, queryDays)
 	}
 

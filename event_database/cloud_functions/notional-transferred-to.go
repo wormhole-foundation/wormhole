@@ -27,8 +27,11 @@ type amountsResult struct {
 
 // an in-memory cache of previously calculated results
 var warmTransfersToCache = map[string]map[string]map[string]map[string]float64{}
-var muWarmTransfersToCache sync.RWMutex
-var warmTransfersToCacheFilePath = "notional-transferred-to-cache.json"
+
+var (
+	muWarmTransfersToCache       sync.RWMutex
+	warmTransfersToCacheFilePath = "notional-transferred-to-cache.json"
+)
 
 type TransferData struct {
 	TokenSymbol      string
@@ -47,7 +50,6 @@ type TransferData struct {
 func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) []TransferData {
 	rows := []TransferData{}
 	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
-
 		t := &TransferData{}
 		if _, ok := row[transferDetailsFam]; ok {
 			for _, item := range row[transferDetailsFam] {
@@ -98,7 +100,6 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 		}
 
 		return true
-
 	}, bigtable.RowFilter(
 		bigtable.ConditionFilter(
 			bigtable.ChainFilters(

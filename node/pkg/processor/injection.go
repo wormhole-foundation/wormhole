@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -13,13 +14,11 @@ import (
 	"github.com/certusone/wormhole/node/pkg/vaa"
 )
 
-var (
-	vaaInjectionsTotal = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_vaa_injections_total",
-			Help: "Total number of injected VAA queued for broadcast",
-		})
-)
+var vaaInjectionsTotal = promauto.NewCounter(
+	prometheus.CounterOpts{
+		Name: "wormhole_vaa_injections_total",
+		Help: "Total number of injected VAA queued for broadcast",
+	})
 
 // handleInjection processes a pre-populated VAA injected locally.
 func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {

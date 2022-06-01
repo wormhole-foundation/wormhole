@@ -5,6 +5,12 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -14,11 +20,6 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
-	"log"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
@@ -33,7 +34,6 @@ const (
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
-
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
 	}
@@ -203,7 +203,8 @@ func main() {
 						ObservationRequest: &gossipv1.ObservationRequest{
 							ChainId: uint32(vaa.ChainIDSolana),
 							TxHash:  acc[:],
-						}})
+						},
+					})
 					if err != nil {
 						log.Fatalf("SendObservationRequest: %v", err)
 					}

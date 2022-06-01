@@ -26,12 +26,17 @@ type cumulativeAddressesResult struct {
 
 // an in-memory cache of previously calculated results
 var warmCumulativeAddressesCache = map[string]map[string]map[string]map[string]float64{}
-var muWarmCumulativeAddressesCache sync.RWMutex
-var warmCumulativeAddressesCacheFilePath = "addresses-transferred-to-cumulative-cache.json"
 
-var addressesToUpToYesterday = map[string]map[string]map[string]map[string]float64{}
-var muAddressesToUpToYesterday sync.RWMutex
-var addressesToUpToYesterdayFilePath = "addresses-transferred-to-up-to-yesterday-cache.json"
+var (
+	muWarmCumulativeAddressesCache       sync.RWMutex
+	warmCumulativeAddressesCacheFilePath = "addresses-transferred-to-cumulative-cache.json"
+)
+
+var (
+	addressesToUpToYesterday         = map[string]map[string]map[string]map[string]float64{}
+	muAddressesToUpToYesterday       sync.RWMutex
+	addressesToUpToYesterdayFilePath = "addresses-transferred-to-up-to-yesterday-cache.json"
+)
 
 // finds all the unique addresses that have received tokens since a particular moment.
 func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
@@ -248,7 +253,6 @@ func createCumulativeAddressesOfInterval(tbl *bigtable.Table, ctx context.Contex
 		}
 	}
 	return selectDays
-
 }
 
 // finds unique addresses that tokens have been transferred to.
@@ -362,7 +366,6 @@ func AddressesTransferredToCumulative(w http.ResponseWriter, r *http.Request) {
 	if allTime != "" {
 		wg.Add(1)
 		go func(prefix string) {
-
 			defer wg.Done()
 			periodAmounts := addressesTransferredToSince(tbl, ctx, prefix, releaseDay)
 			if amounts != "" {

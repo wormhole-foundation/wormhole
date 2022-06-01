@@ -35,7 +35,6 @@ func MakeRowKey(emitterChain vaa.ChainID, emitterAddress vaa.Address, sequence u
 
 func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTableConnectionConfig) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
-
 		e := &bigTableWriter{events: events, connectionConfig: connectionConfig}
 
 		hostname, err := os.Hostname()

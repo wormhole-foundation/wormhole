@@ -3,13 +3,14 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -127,8 +128,8 @@ func NewEthWatcher(
 	setEvents chan *common.GuardianSet,
 	minConfirmations uint64,
 	obsvReqC chan *gossipv1.ObservationRequest,
-	unsafeDevMode bool) *Watcher {
-
+	unsafeDevMode bool,
+) *Watcher {
 	var ethIntf common.Ethish
 	if chainID == vaa.ChainIDCelo && !unsafeDevMode {
 		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
@@ -150,7 +151,8 @@ func NewEthWatcher(
 		obsvReqC:            obsvReqC,
 		pending:             map[pendingKey]*pendingMessage{},
 		ethIntf:             ethIntf,
-		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode)}
+		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode),
+	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {

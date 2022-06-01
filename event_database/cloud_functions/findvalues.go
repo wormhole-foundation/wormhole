@@ -144,7 +144,6 @@ func FindValues(w http.ResponseWriter, r *http.Request) {
 			),
 			bigtable.BlockAllFilter(),
 		)))
-
 	if err != nil {
 		http.Error(w, "Error reading rows", http.StatusInternalServerError)
 		log.Printf("tbl.ReadRows(): %v", err)

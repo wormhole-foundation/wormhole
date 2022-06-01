@@ -154,7 +154,8 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		zap.String("signature", hex.EncodeToString(s)))
 
 	messagesSignedTotal.With(prometheus.Labels{
-		"emitter_chain": k.EmitterChain.String()}).Add(1)
+		"emitter_chain": k.EmitterChain.String(),
+	}).Add(1)
 
 	p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{VAA: *v, InitiatingTxID: k.TxHash})
 

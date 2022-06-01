@@ -7,6 +7,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
 	"github.com/algorand/go-algorand-sdk/crypto"
@@ -21,8 +24,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type (
@@ -83,8 +84,8 @@ func NewWatcher(
 
 func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger) {
 	for q := 0; q < len(t.EvalDelta.InnerTxns); q++ {
-		var it = t.EvalDelta.InnerTxns[q]
-		var at = it.Txn
+		it := t.EvalDelta.InnerTxns[q]
+		at := it.Txn
 
 		if (len(at.ApplicationArgs) != 3) || (uint64(at.ApplicationID) != e.appid) {
 			continue
@@ -94,7 +95,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 			continue
 		}
 
-		var ed = it.EvalDelta
+		ed := it.EvalDelta
 		if len(ed.Logs) == 0 {
 			continue
 		}
@@ -131,7 +132,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 			logger.Info("id: " + hex.EncodeToString(id) + " " + Id)
 		}
 
-		var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
+		txHash := eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
 
 		observation := &common.MessagePublication{
 			TxHash:           txHash,
@@ -225,7 +226,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					return
 				}
 				for i := 0; i < len(result.Transactions); i++ {
-					var t = result.Transactions[i]
+					t := result.Transactions[i]
 					r := t.ConfirmedRound
 
 					block, err := algodClient.Block(r).Do(context.Background())

@@ -111,7 +111,7 @@ func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string
 		panic(err)
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}

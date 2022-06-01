@@ -6,17 +6,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"net/http"
-
 	"github.com/certusone/wormhole/node/pkg/vaa"
 )
 
-const cgBaseUrl = "https://api.coingecko.com/api/v3/"
-const cgProBaseUrl = "https://pro-api.coingecko.com/api/v3/"
+const (
+	cgBaseUrl    = "https://api.coingecko.com/api/v3/"
+	cgProBaseUrl = "https://pro-api.coingecko.com/api/v3/"
+)
 
 type CoinGeckoCoin struct {
 	Id     string `json:"id"`
@@ -68,13 +69,12 @@ func fetchCoinGeckoCoins() map[string][]CoinGeckoCoin {
 	if parseErr != nil {
 		log.Printf("fetchCoinGeckoCoins failed parsing body. err %v\n", parseErr)
 	}
-	var geckoCoins = map[string][]CoinGeckoCoin{}
+	geckoCoins := map[string][]CoinGeckoCoin{}
 	for _, coin := range parsed {
 		symbol := strings.ToLower(coin.Symbol)
 		geckoCoins[symbol] = append(geckoCoins[symbol], coin)
 	}
 	return geckoCoins
-
 }
 
 func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
@@ -381,7 +381,7 @@ func fetchSolanaTokenList() map[string]SolanaToken {
 	if parseErr != nil {
 		log.Printf("fetchSolanaTokenList failed parsing body. err %v\n", parseErr)
 	}
-	var solTokens = map[string]SolanaToken{}
+	solTokens := map[string]SolanaToken{}
 	for _, token := range parsed.Tokens {
 		if _, ok := solTokens[token.Address]; !ok {
 			solTokens[token.Address] = token
@@ -390,8 +390,10 @@ func fetchSolanaTokenList() map[string]SolanaToken {
 	return solTokens
 }
 
-const solanaBeachPublicBaseURL = "https://prod-api.solana.surf/v1/"
-const solanaBeachPrivateBaseURL = "https://api.solanabeach.io/v1/"
+const (
+	solanaBeachPublicBaseURL  = "https://prod-api.solana.surf/v1/"
+	solanaBeachPrivateBaseURL = "https://api.solanabeach.io/v1/"
+)
 
 type SolanaBeachAccountOwner struct {
 	Owner SolanaBeachAccountOwnerAddress `json:"owner"`

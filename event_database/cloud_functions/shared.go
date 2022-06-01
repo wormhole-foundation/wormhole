@@ -24,18 +24,27 @@ import (
 // client is a global Bigtable client, to avoid initializing a new client for
 // every request.
 var client *bigtable.Client
-var clientOnce sync.Once
-var tbl *bigtable.Table
 
-var storageClient *storage.Client
-var cacheBucketName string
-var cacheBucket *storage.BucketHandle
+var (
+	clientOnce sync.Once
+	tbl        *bigtable.Table
+)
 
-var pubsubClient *pubsub.Client
-var pubSubTokenTransferDetailsTopic *pubsub.Topic
+var (
+	storageClient   *storage.Client
+	cacheBucketName string
+	cacheBucket     *storage.BucketHandle
+)
 
-var coinGeckoCoins = map[string][]CoinGeckoCoin{}
-var solanaTokens = map[string]SolanaToken{}
+var (
+	pubsubClient                    *pubsub.Client
+	pubSubTokenTransferDetailsTopic *pubsub.Topic
+)
+
+var (
+	coinGeckoCoins = map[string][]CoinGeckoCoin{}
+	solanaTokens   = map[string]SolanaToken{}
+)
 
 var releaseDay = time.Date(2021, 9, 13, 0, 0, 0, 0, time.UTC)
 
@@ -66,7 +75,7 @@ var tokensToSkip = map[string]bool{
 	"0xE389Ac691BD2b0228DAFFfF548fbcE38470373E8":   true, // fake WMATIC on poly
 	"0x7e347498dfef39a88099e3e343140ae17cde260e":   true, // fake wAVAX on bsc
 	"0x685629e5e99e3959254c4d23cd9097fbaef01fb2":   true, // amWeth
-	"terra1vpehfldr2u2m2gw38zaryp4tfw7fe2kw2lryjf": true, //fake btc on terra
+	"terra1vpehfldr2u2m2gw38zaryp4tfw7fe2kw2lryjf": true, // fake btc on terra
 	"0xe9986beb0bcfff418dc4a252904cec370dfb14b8":   true, // fake Dai Stablecoin on bsc
 }
 
@@ -120,7 +129,6 @@ func init() {
 	for k := range tokensToSkip {
 		tokensToSkip[strings.ToLower(k)] = true
 	}
-
 }
 
 func timeTrack(start time.Time, name string) {
@@ -186,13 +194,16 @@ var columnFamilies = []string{
 	"TokenTransferDetails",
 	"ChainDetails",
 }
-var messagePubFam = columnFamilies[0]
-var quorumStateFam = columnFamilies[1]
-var transferPayloadFam = columnFamilies[2]
-var metaPayloadFam = columnFamilies[3]
-var nftPayloadFam = columnFamilies[4]
-var transferDetailsFam = columnFamilies[5]
-var chainDetailsFam = columnFamilies[6]
+
+var (
+	messagePubFam      = columnFamilies[0]
+	quorumStateFam     = columnFamilies[1]
+	transferPayloadFam = columnFamilies[2]
+	metaPayloadFam     = columnFamilies[3]
+	nftPayloadFam      = columnFamilies[4]
+	transferDetailsFam = columnFamilies[5]
+	chainDetailsFam    = columnFamilies[6]
+)
 
 type (
 	// Summary is MessagePublication data & QuorumState data
@@ -293,7 +304,6 @@ func chainIdStringToType(chainId string) vaa.ChainID {
 func makeSummary(row bigtable.Row) *Summary {
 	summary := &Summary{}
 	if _, ok := row[messagePubFam]; ok {
-
 		for _, item := range row[messagePubFam] {
 			switch item.Column {
 			case "MessagePublication:InitiatingTxID":
@@ -454,6 +464,7 @@ func makeDetails(row bigtable.Row) *Details {
 func roundToTwoDecimalPlaces(num float64) float64 {
 	return math.Round(num*100) / 100
 }
+
 func createCachePrefix(prefix string) string {
 	cachePrefix := prefix
 	if prefix == "" {

@@ -7,6 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
+	"net"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -15,12 +22,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"math"
-	"math/rand"
-	"net"
-	"net/http"
-	"os"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
@@ -212,8 +213,8 @@ func (s *nodePrivilegedService) fetchMissing(
 	c *http.Client,
 	chain vaa.ChainID,
 	addr string,
-	seq uint64) (bool, error) {
-
+	seq uint64,
+) (bool, error) {
 	// shuffle the list of public RPC endpoints
 	rand.Shuffle(len(nodes), func(i, j int) {
 		nodes[i], nodes[j] = nodes[j], nodes[i]

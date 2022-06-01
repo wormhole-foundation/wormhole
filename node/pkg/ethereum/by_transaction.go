@@ -3,18 +3,17 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	eth_common "github.com/ethereum/go-ethereum/common"
-	"time"
 )
 
-var (
-	// SECURITY: Hardcoded ABI identifier for the LogMessagePublished topic. When using the watcher, we don't need this
-	// since the node will only hand us pre-filtered events. In this case, we need to manually verify it
-	// since ParseLogMessagePublished will only verify whether it parses.
-	logMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
-)
+// SECURITY: Hardcoded ABI identifier for the LogMessagePublished topic. When using the watcher, we don't need this
+// since the node will only hand us pre-filtered events. In this case, we need to manually verify it
+// since ParseLogMessagePublished will only verify whether it parses.
+var logMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 
 // MessageEventsForTransaction returns the lockup events for a given transaction.
 // Returns the block number and a list of MessagePublication events.
@@ -23,8 +22,8 @@ func MessageEventsForTransaction(
 	ethIntf common.Ethish,
 	contract eth_common.Address,
 	chainId vaa.ChainID,
-	tx eth_common.Hash) (uint64, []*common.MessagePublication, error) {
-
+	tx eth_common.Hash,
+) (uint64, []*common.MessagePublication, error) {
 	// Get transactions logs from transaction
 	receipt, err := ethIntf.TransactionReceipt(ctx, tx)
 	if err != nil {

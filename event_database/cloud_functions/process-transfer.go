@@ -132,7 +132,6 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 					}
 				}
 			}
-
 		}
 		// result = row
 		return true

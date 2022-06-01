@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -19,7 +21,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
-	"time"
 )
 
 type SolanaWatcher struct {
@@ -103,7 +104,8 @@ func NewSolanaWatcher(
 	contractAddress solana.PublicKey,
 	messageEvents chan *common.MessagePublication,
 	obsvReqC chan *gossipv1.ObservationRequest,
-	commitment rpc.CommitmentType) *SolanaWatcher {
+	commitment rpc.CommitmentType,
+) *SolanaWatcher {
 	return &SolanaWatcher{
 		contract: contractAddress,
 		wsUrl:    wsUrl, rpcUrl: rpcUrl,

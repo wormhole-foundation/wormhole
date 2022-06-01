@@ -3,8 +3,9 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"time"
+
+	"github.com/certusone/wormhole/node/pkg/notify/discord"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 
@@ -121,7 +122,6 @@ func NewProcessor(
 	attestationEvents *reporter.AttestationEventReporter,
 	notifier *discord.DiscordNotifier,
 ) *Processor {
-
 	return &Processor{
 		lockC:              lockC,
 		setC:               setC,

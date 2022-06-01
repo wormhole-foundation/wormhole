@@ -2,9 +2,10 @@ package common
 
 import (
 	"fmt"
-	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // LockMemory locks current and future pages in memory to protect secret keys from being swapped out to disk.
@@ -21,5 +22,5 @@ func LockMemory() {
 // SetRestrictiveUmask masks the group and world bits. This ensures that key material
 // and sockets we create aren't accidentally group- or world-readable.
 func SetRestrictiveUmask() {
-	syscall.Umask(0077) // cannot fail
+	syscall.Umask(0o077) // cannot fail
 }

@@ -2,11 +2,12 @@ package common
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"os"
 )
 
 func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error) {
@@ -25,7 +26,7 @@ func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error)
 				panic(err)
 			}
 
-			err = ioutil.WriteFile(path, s, 0600)
+			err = ioutil.WriteFile(path, s, 0o600)
 			if err != nil {
 				return nil, fmt.Errorf("failed to write node key: %w", err)
 			}

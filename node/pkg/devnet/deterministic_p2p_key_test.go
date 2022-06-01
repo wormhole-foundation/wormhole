@@ -3,8 +3,9 @@ package devnet
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDeterministicP2PPrivKeyByIndex(t *testing.T) {
@@ -27,5 +28,4 @@ func TestDeterministicP2PPrivKeyByIndex(t *testing.T) {
 			assert.Equal(t, tc.privKeyHex, hex.EncodeToString(got))
 		})
 	}
-
 }

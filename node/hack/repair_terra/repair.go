@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -40,7 +39,6 @@ var (
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
-
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
 	}
@@ -80,7 +78,7 @@ func getSequencesForTxhash(txhash string) ([]uint64, error) {
 	}
 	msgs := EventsToMessagePublications(*terraAddr, txHash, events.Array())
 	// Should only ever be 1 message. Stole the above function from watcher.go
-	var sequences = []uint64{}
+	sequences := []uint64{}
 	for _, msg := range msgs {
 		tokenBridgeEmitter, err := vaa.StringToAddress(TerraEmitter.Emitter)
 		if err != nil {
@@ -346,7 +344,8 @@ func main() {
 							ObservationRequest: &gossipv1.ObservationRequest{
 								ChainId: uint32(vaa.ChainIDTerra),
 								TxHash:  txHashAsByteArray.Bytes(),
-							}})
+							},
+						})
 						if err != nil {
 							log.Fatalf("SendObservationRequest: %v", err)
 						}

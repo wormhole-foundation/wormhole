@@ -24,8 +24,11 @@ type transfersResult struct {
 
 // an in-memory cache of previously calculated results
 var warmTransfersCache = map[string]map[string]map[string]map[string]map[string]float64{}
-var muWarmTransfersCache sync.RWMutex
-var warmTransfersCacheFilePath = "notional-transferred-cache.json"
+
+var (
+	muWarmTransfersCache       sync.RWMutex
+	warmTransfersCacheFilePath = "notional-transferred-cache.json"
+)
 
 // finds the daily amount of each symbol transferred from each chain, to each chain,
 // from the specified start to the present.
@@ -433,7 +436,6 @@ func NotionalTransferred(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-
 		}(prefix)
 	}
 

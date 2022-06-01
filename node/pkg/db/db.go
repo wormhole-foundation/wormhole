@@ -3,10 +3,11 @@ package db
 import (
 	"errors"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/vaa"
-	"github.com/dgraph-io/badger/v3"
 	"strconv"
 	"strings"
+
+	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/dgraph-io/badger/v3"
 )
 
 type Database struct {
@@ -58,9 +59,7 @@ func VaaIDFromVAA(v *vaa.VAA) *VAAID {
 	}
 }
 
-var (
-	ErrVAANotFound = errors.New("requested VAA not found in store")
-)
+var ErrVAANotFound = errors.New("requested VAA not found in store")
 
 func (i *VAAID) Bytes() []byte {
 	return []byte(fmt.Sprintf("signed/%d/%s/%d", i.EmitterChain, i.EmitterAddress, i.Sequence))
@@ -104,7 +103,6 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}

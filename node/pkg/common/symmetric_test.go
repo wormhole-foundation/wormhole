@@ -2,12 +2,12 @@ package common
 
 import (
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAESGCM(t *testing.T) {
-
 	type test struct {
 		data []byte
 		enc  string

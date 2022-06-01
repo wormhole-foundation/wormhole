@@ -19,8 +19,11 @@ type transfersFromResult struct {
 
 // an in-memory cache of previously calculated results
 var transfersFromCache transfersFromResult
-var muTransfersFromCache sync.RWMutex
-var transfersFromFilePath = "notional-transferred-from.json"
+
+var (
+	muTransfersFromCache  sync.RWMutex
+	transfersFromFilePath = "notional-transferred-from.json"
+)
 
 // finds the daily amount transferred from each chain from the specified start to the present.
 func createTransfersFromOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) {

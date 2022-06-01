@@ -610,7 +610,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Database
 	dbPath := path.Join(*dataDir, "db")
-	if err := os.MkdirAll(dbPath, 0700); err != nil {
+	if err := os.MkdirAll(dbPath, 0o700); err != nil {
 		logger.Fatal("failed to create database directory", zap.Error(err))
 	}
 	db, err := db.Open(dbPath)
@@ -771,7 +771,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	attestationEvents := reporter.EventListener(logger)
 
 	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst)
-
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}

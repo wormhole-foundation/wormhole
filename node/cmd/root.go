@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/certusone/wormhole/node/cmd/debug"
 	"github.com/certusone/wormhole/node/cmd/spy"
 	"github.com/certusone/wormhole/node/pkg/version"
-	"os"
 
 	"github.com/spf13/cobra"
 

@@ -20,8 +20,11 @@ type tvlResult struct {
 
 // an in-memory cache of previously calculated results
 var warmTvlCache = map[string]map[string]map[string]LockedAsset{}
-var muWarmTvlCache sync.RWMutex
-var warmTvlFilePath = "tvl-cache.json"
+
+var (
+	muWarmTvlCache  sync.RWMutex
+	warmTvlFilePath = "tvl-cache.json"
+)
 
 var notionalTvlResultPath = "notional-tvl.json"
 
@@ -482,7 +485,7 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 	loadJsonToInterface(ctx, notionalTvlResultPath, &muWarmTvlCache, &cachedResult)
 
 	// delta of last 24 hours
-	var last24HourDelta = map[string]map[string]LockedAsset{}
+	last24HourDelta := map[string]map[string]LockedAsset{}
 	if last24Hours != "" {
 		last24HourDelta = cachedResult.Last24HoursChange
 	}

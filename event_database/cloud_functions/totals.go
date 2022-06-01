@@ -30,8 +30,11 @@ type totalsResult struct {
 // to do a full table scan with each request.
 // https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
 var warmTotalsCache = map[string]map[string]map[string]int{}
-var muWarmTotalsCache sync.RWMutex
-var warmTotalsCacheFilePath = "totals-cache.json"
+
+var (
+	muWarmTotalsCache       sync.RWMutex
+	warmTotalsCacheFilePath = "totals-cache.json"
+)
 
 // derive the result index relevant to a row.
 func makeGroupKey(keySegments int, rowKey string) string {
@@ -49,11 +52,9 @@ func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string
 	rows := []bigtable.Row{}
 
 	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
-
 		rows = append(rows, row)
 
 		return true
-
 	}, bigtable.RowFilter(
 		bigtable.ChainFilters(
 			// combine filters to get only what we need:

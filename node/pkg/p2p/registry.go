@@ -1,9 +1,10 @@
 package p2p
 
 import (
+	"sync"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
-	"sync"
 )
 
 // The p2p package implements a simple global metrics registry singleton for node status values transmitted on-chain.
@@ -29,9 +30,7 @@ func NewRegistry() *registry {
 	}
 }
 
-var (
-	DefaultRegistry = NewRegistry()
-)
+var DefaultRegistry = NewRegistry()
 
 // SetGuardianAddress stores the node's guardian address to broadcast in Heartbeat messages.
 // This should be called once during startup, when the guardian key is loaded.

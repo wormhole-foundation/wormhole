@@ -22,10 +22,13 @@ import (
 // to do a full table scan with each request.
 // https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
 var warmCache = map[string]map[string]string{}
-var lastCacheReset time.Time
-var muWarmRecentCache sync.RWMutex
-var warmRecentCacheFilePath = "recent-cache.json"
-var timestampKey = "lastUpdate"
+
+var (
+	lastCacheReset          time.Time
+	muWarmRecentCache       sync.RWMutex
+	warmRecentCacheFilePath = "recent-cache.json"
+	timestampKey            = "lastUpdate"
+)
 
 // query for last of each rowKey prefix
 func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, prefix string, keySegments int) map[string]string {
@@ -86,7 +89,6 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 
 	mostRecentByKeySegment := map[string]string{}
 	err := tbl.ReadRows(ctx, rowSet, func(row bigtable.Row) bool {
-
 		keyParts := strings.Split(row.Key(), ":")
 		groupByKey := strings.Join(keyParts[:2], ":")
 		mostRecentByKeySegment[groupByKey] = keyParts[2]
@@ -98,7 +100,6 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 			bigtable.TimestampRangeFilter(start, end),
 			bigtable.StripValueFilter(),
 		)))
-
 	if err != nil {
 		log.Fatalf("failed to read recent rows: %v", err)
 	}
@@ -160,7 +161,6 @@ func fetchMostRecentRows(tbl *bigtable.Table, ctx context.Context, prefix string
 	results := map[string][]bigtable.Row{}
 
 	err := tbl.ReadRows(ctx, rangeList, func(row bigtable.Row) bool {
-
 		var groupByKey string
 		if keySegments == 0 {
 			groupByKey = "*"

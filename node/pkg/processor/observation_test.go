@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"testing"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
@@ -12,13 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
-	"testing"
-	"time"
 )
 
 func getVAA() vaa.VAA {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+	payload := []byte{97, 97, 97, 97, 97, 97}
+	governanceEmitter := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	vaa := vaa.VAA{
 		Version:          uint8(1),
@@ -71,16 +72,26 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 		addrs      []ethcommon.Address
 		errString  string
 	}{
-		{label: "GuardianSetNoKeys", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{}, addrs: []ethcommon.Address{},
-			errString: "dropping SignedVAAWithQuorum message since we have a guardian set without keys"},
-		{label: "VAANoSignatures", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
-			errString: "received SignedVAAWithQuorum message with no VAA signatures"},
-		{label: "VAAInvalidSignatures", keyOrder: []*ecdsa.PrivateKey{badPrivateKey1}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
-			errString: "received SignedVAAWithQuorum message with invalid VAA signatures"},
-		{label: "DuplicateGoodSignaturesNonMonotonic", keyOrder: []*ecdsa.PrivateKey{goodPrivateKey1, goodPrivateKey1, goodPrivateKey1, goodPrivateKey1}, indexOrder: []uint8{0, 0, 0, 0}, addrs: []ethcommon.Address{goodAddr1},
-			errString: "received SignedVAAWithQuorum message with invalid VAA signatures"},
-		{label: "DuplicateGoodSignaturesMonotonic", keyOrder: []*ecdsa.PrivateKey{goodPrivateKey1, goodPrivateKey1, goodPrivateKey1, goodPrivateKey1}, indexOrder: []uint8{0, 1, 2, 3}, addrs: []ethcommon.Address{goodAddr1},
-			errString: "received SignedVAAWithQuorum message with invalid VAA signatures"},
+		{
+			label: "GuardianSetNoKeys", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{}, addrs: []ethcommon.Address{},
+			errString: "dropping SignedVAAWithQuorum message since we have a guardian set without keys",
+		},
+		{
+			label: "VAANoSignatures", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
+			errString: "received SignedVAAWithQuorum message with no VAA signatures",
+		},
+		{
+			label: "VAAInvalidSignatures", keyOrder: []*ecdsa.PrivateKey{badPrivateKey1}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
+			errString: "received SignedVAAWithQuorum message with invalid VAA signatures",
+		},
+		{
+			label: "DuplicateGoodSignaturesNonMonotonic", keyOrder: []*ecdsa.PrivateKey{goodPrivateKey1, goodPrivateKey1, goodPrivateKey1, goodPrivateKey1}, indexOrder: []uint8{0, 0, 0, 0}, addrs: []ethcommon.Address{goodAddr1},
+			errString: "received SignedVAAWithQuorum message with invalid VAA signatures",
+		},
+		{
+			label: "DuplicateGoodSignaturesMonotonic", keyOrder: []*ecdsa.PrivateKey{goodPrivateKey1, goodPrivateKey1, goodPrivateKey1, goodPrivateKey1}, indexOrder: []uint8{0, 1, 2, 3}, addrs: []ethcommon.Address{goodAddr1},
+			errString: "received SignedVAAWithQuorum message with invalid VAA signatures",
+		},
 	}
 
 	for _, tc := range tests {

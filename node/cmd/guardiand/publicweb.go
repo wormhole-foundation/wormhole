@@ -3,6 +3,10 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
+	"strings"
+
 	"github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -11,9 +15,6 @@ import (
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc"
-	"net"
-	"net/http"
-	"strings"
 )
 
 func allowCORSWrapper(h http.Handler) http.Handler {

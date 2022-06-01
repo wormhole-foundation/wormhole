@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
 	"sort"
 	"strconv"
 	"sync"
@@ -22,8 +21,11 @@ type tvlCumulativeResult struct {
 
 // an in-memory cache of previously calculated results
 var warmTvlCumulativeCache = map[string]map[string]map[string]LockedAsset{}
-var muWarmTvlCumulativeCache sync.RWMutex
-var warmTvlCumulativeCacheFilePath = "tvl-cumulative-cache.json"
+
+var (
+	muWarmTvlCumulativeCache       sync.RWMutex
+	warmTvlCumulativeCacheFilePath = "tvl-cumulative-cache.json"
+)
 
 var notionalTvlCumulativeResultPath = "notional-tvl-cumulative.json"
 
@@ -205,7 +207,6 @@ func createTvlCumulativeOfInterval(tbl *bigtable.Table, ctx context.Context, sta
 		}
 	}
 	return selectDays
-
 }
 
 // calculates the cumulative value transferred each day since launch.
@@ -329,7 +330,7 @@ func ComputeTvlCumulative(w http.ResponseWriter, r *http.Request) {
 	//	return
 	//}
 	w.WriteHeader(http.StatusOK)
-	//w.Write(jsonBytes)
+	// w.Write(jsonBytes)
 }
 
 func TvlCumulative(w http.ResponseWriter, r *http.Request) {
@@ -401,7 +402,6 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonBytes, err := json.Marshal(result)
-
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))

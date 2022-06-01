@@ -20,18 +20,19 @@ import (
 // to do a full table scan with each request.
 // https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
 var warmNFTCache = map[string]map[string]map[string]int{}
-var muWarmNFTCache sync.RWMutex
-var warmNFTCacheFilePath = "nft-cache.json"
+
+var (
+	muWarmNFTCache       sync.RWMutex
+	warmNFTCacheFilePath = "nft-cache.json"
+)
 
 func fetchNFTRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) ([]bigtable.Row, error) {
 	rows := []bigtable.Row{}
 
 	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
-
 		rows = append(rows, row)
 
 		return true
-
 	}, bigtable.RowFilter(
 		bigtable.ConditionFilter(
 			bigtable.ChainFilters(

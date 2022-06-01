@@ -3,11 +3,12 @@ package vaa
 import (
 	"bytes"
 	"encoding/binary"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
 // CoreModule is the identifier of the Core module (which is used for governance messages)
-var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x43, 0x6f, 0x72, 0x65}
+var CoreModule = []byte{0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0o0, 0x43, 0x6f, 0x72, 0x65}
 
 type (
 	// BodyContractUpgrade is a governance message to perform a contract upgrade of the core module

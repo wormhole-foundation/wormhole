@@ -29,5 +29,4 @@ func TestDeterministicEcdsaKeyByIndex(t *testing.T) {
 			assert.Equal(t, tc.privKeyHex, hex.EncodeToString(got))
 		})
 	}
-
 }

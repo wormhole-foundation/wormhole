@@ -5,13 +5,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"reflect"
-	"testing"
-	"time"
 )
 
 func TestChainIDFromString(t *testing.T) {
@@ -152,8 +153,8 @@ func TestChainId_String(t *testing.T) {
 }
 
 func getVaa() VAA {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+	payload := []byte{97, 97, 97, 97, 97, 97}
+	governanceEmitter := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	return VAA{
 		Version:          uint8(1),
@@ -233,85 +234,117 @@ func TestVerifySignatures(t *testing.T) {
 	}
 
 	tests := []test{
-		{label: "NoSignerZero",
+		{
+			label:      "NoSignerZero",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
-		{label: "NoSignerOne",
+			result:     true,
+		},
+		{
+			label:      "NoSignerOne",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{1},
-			result:     true},
-		{label: "SingleZero",
+			result:     true,
+		},
+		{
+			label:      "SingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
-		{label: "RogueSingleOne",
+			result:     true,
+		},
+		{
+			label:      "RogueSingleOne",
 			keyOrder:   []*ecdsa.PrivateKey{privKey4},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "RogueSingleZero",
+			result:     false,
+		},
+		{
+			label:      "RogueSingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey4},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "SingleOne",
+			result:     false,
+		},
+		{
+			label:      "SingleOne",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
-		{label: "MultiUniqSignerMonotonicIndex",
+			result:     true,
+		},
+		{
+			label:      "MultiUniqSignerMonotonicIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 2},
-			result:     true},
-		{label: "MultiMisOrderedSignerMonotonicIndex",
+			result:     true,
+		},
+		{
+			label:      "MultiMisOrderedSignerMonotonicIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey3, privKey2, privKey1},
 			addrs:      addrs,
-			indexOrder: []uint8{0, 1, 2}, result: false},
-		{label: "MultiUniqSignerNonMonotonic",
+			indexOrder: []uint8{0, 1, 2}, result: false,
+		},
+		{
+			label:      "MultiUniqSignerNonMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 2, 1},
-			result:     false},
-		{label: "MultiUniqSignerFullSameIndex0",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerFullSameIndex0",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiUniqSignerFullSameIndex1",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerFullSameIndex1",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiUniqSignerPartialSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerPartialSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 1},
-			result:     false},
-		{label: "MultiSameSignerPartialSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerPartialSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey2},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 1},
-			result:     false},
-		{label: "MultiSameSignerNonMonotonic",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerNonMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey2},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 2, 1},
-			result:     false},
-		{label: "MultiSameSignerFullSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerFullSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey1, privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiSameSignerMonotonic",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey1, privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 2},
-			result:     false},
+			result:     false,
+		},
 	}
 
 	for _, tc := range tests {

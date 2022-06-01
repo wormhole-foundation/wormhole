@@ -1,6 +1,10 @@
 package p2p
 
 import (
+	"math"
+	"regexp"
+	"strconv"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -8,9 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"math"
-	"regexp"
-	"strconv"
 )
 
 var (
@@ -51,12 +52,10 @@ func collectNodeMetrics(addr common.Address, peerId peer.ID, hb *gossipv1.Heartb
 	}
 }
 
-var (
-	// Parse version string using regular expression.
-	// The version string should be in the format of "vX.Y.Z"
-	// where X, Y and Z are integers. Suffixes are ignored.
-	reVersion = regexp.MustCompile(`^v(\d+)\.(\d+)\.(\d+)`)
-)
+// Parse version string using regular expression.
+// The version string should be in the format of "vX.Y.Z"
+// where X, Y and Z are integers. Suffixes are ignored.
+var reVersion = regexp.MustCompile(`^v(\d+)\.(\d+)\.(\d+)`)
 
 // sanitizeVersion cleans up the version string to prevent an attacker from executing a cardinality attack.
 func sanitizeVersion(version string, reference string) string {

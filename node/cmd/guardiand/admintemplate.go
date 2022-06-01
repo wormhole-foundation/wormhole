@@ -23,13 +23,15 @@ import (
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 )
 
-var setUpdateNumGuardians *int
-var templateGuardianIndex *int
-var chainID *string
-var address *string
-var module *string
-var shutdownGuardianKey *string
-var shutdownPubKey *string
+var (
+	setUpdateNumGuardians *int
+	templateGuardianIndex *int
+	chainID               *string
+	address               *string
+	module                *string
+	shutdownGuardianKey   *string
+	shutdownPubKey        *string
+)
 
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
@@ -91,6 +93,7 @@ var AdminClientTokenBridgeUpgradeContractCmd = &cobra.Command{
 	Short: "Generate an empty token bridge contract upgrade template at specified path",
 	Run:   runTokenBridgeUpgradeContractTemplate,
 }
+
 var AdminClientShutdownProofCmd = &cobra.Command{
 	Use:   "shutdown-proof",
 	Short: "Generate an auth proof for shutdown voting on behalf of the guardian.",
@@ -160,6 +163,7 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 	}
 	fmt.Print(string(b))
 }
+
 func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
 	address, err := parseAddress(*address)
 	if err != nil {

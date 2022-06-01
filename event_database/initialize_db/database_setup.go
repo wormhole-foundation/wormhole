@@ -20,7 +20,6 @@ func sliceContains(list []string, target string) bool {
 
 // RunSetup will create a table and column families, if they do not already exist.
 func RunSetup(project string, instance string, keyFilePath string) {
-
 	ctx := context.Background()
 
 	// Set up admin client, tables, and column families.

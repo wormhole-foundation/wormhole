@@ -5,6 +5,9 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -12,8 +15,6 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"strings"
-	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -105,7 +106,6 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 				return idht, err
 			}),
 		)
-
 		if err != nil {
 			panic(err)
 		}
@@ -256,7 +256,8 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 							Heartbeat:    b,
 							Signature:    sig,
 							GuardianAddr: ourAddr.Bytes(),
-						}}}
+						},
+					}}
 
 					b, err = proto.Marshal(&msg)
 					if err != nil {
@@ -306,7 +307,9 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 
 					envelope := &gossipv1.GossipMessage{
 						Message: &gossipv1.GossipMessage_SignedObservationRequest{
-							SignedObservationRequest: sReq}}
+							SignedObservationRequest: sReq,
+						},
+					}
 
 					b, err = proto.Marshal(envelope)
 					if err != nil {

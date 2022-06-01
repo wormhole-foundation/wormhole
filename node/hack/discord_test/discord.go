@@ -3,14 +3,13 @@ package main
 import (
 	"encoding/hex"
 	"flag"
+
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"go.uber.org/zap"
 )
 
-var (
-	botToken = flag.String("botToken", "", "Discord bot token")
-)
+var botToken = flag.String("botToken", "", "Discord bot token")
 
 func init() {
 	flag.Parse()
@@ -47,12 +46,14 @@ func main() {
 	}
 
 	if err := d.MissingSignaturesOnTransaction(v, 14, 13, true, []string{
-		"Certus One", "Not Certus One"}); err != nil {
+		"Certus One", "Not Certus One",
+	}); err != nil {
 		logger.Fatal("failed to send test message", zap.Error(err))
 	}
 
 	if err := d.MissingSignaturesOnTransaction(v, 14, 13, true, []string{
-		"Certus One"}); err != nil {
+		"Certus One",
+	}); err != nil {
 		logger.Fatal("failed to send test message", zap.Error(err))
 	}
 }

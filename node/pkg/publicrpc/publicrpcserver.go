@@ -80,7 +80,6 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		EmitterAddress: addr,
 		Sequence:       req.MessageId.Sequence,
 	})
-
 	if err != nil {
 		if err == db.ErrVAANotFound {
 			return nil, status.Error(codes.NotFound, err.Error())

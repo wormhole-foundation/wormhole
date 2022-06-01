@@ -39,7 +39,6 @@ func createAndSubscribe(client *pubsub.Client, topicName, subscriptionName strin
 	err := sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		msg.Ack()
 		handler(ctx, p.PubSubMessage{Data: msg.Data})
-
 	})
 	if err != nil {
 		fmt.Println(fmt.Errorf("receive err: %v", err))

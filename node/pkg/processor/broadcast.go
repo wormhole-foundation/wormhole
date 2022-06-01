@@ -2,9 +2,10 @@ package processor
 
 import (
 	"encoding/hex"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -14,13 +15,11 @@ import (
 	"github.com/certusone/wormhole/node/pkg/vaa"
 )
 
-var (
-	observationsBroadcastTotal = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_observations_broadcast_total",
-			Help: "Total number of signed observations queued for broadcast",
-		})
-)
+var observationsBroadcastTotal = promauto.NewCounter(
+	prometheus.CounterOpts{
+		Name: "wormhole_observations_broadcast_total",
+		Help: "Total number of signed observations queued for broadcast",
+	})
 
 func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte, txhash []byte) {
 	digest := v.SigningMsg()

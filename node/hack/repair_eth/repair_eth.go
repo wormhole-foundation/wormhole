@@ -63,9 +63,7 @@ var (
 	sleepTime    = flag.Int("sleepTime", 0, "Time to sleep between loops when getting logs")
 )
 
-var (
-	tokenLockupTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
-)
+var tokenLockupTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 
 // Add a browser User-Agent to make cloudflare more happy
 func addUserAgent(req *http.Request) *http.Request {
@@ -84,7 +82,6 @@ func usesBlockscout(chainId vaa.ChainID) bool {
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
-
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
 	}
@@ -461,7 +458,8 @@ func main() {
 				ObservationRequest: &gossipv1.ObservationRequest{
 					ChainId: uint32(chainID),
 					TxHash:  tx.Bytes(),
-				}})
+				},
+			})
 			if err != nil {
 				log.Fatalf("SendObservationRequest: %v", err)
 			}

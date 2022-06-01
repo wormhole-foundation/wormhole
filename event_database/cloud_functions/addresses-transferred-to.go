@@ -30,8 +30,11 @@ type addressesResult struct {
 
 // an in-memory cache of previously calculated results
 var warmAddressesCache = map[string]map[string]map[string]map[string]float64{}
-var muWarmAddressesCache sync.RWMutex
-var warmAddressesCacheFilePath = "addresses-transferred-to-cache.json"
+
+var (
+	muWarmAddressesCache       sync.RWMutex
+	warmAddressesCacheFilePath = "addresses-transferred-to-cache.json"
+)
 
 type AddressData struct {
 	TokenSymbol        string
@@ -46,7 +49,6 @@ type AddressData struct {
 func fetchAddressRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) []AddressData {
 	rows := []AddressData{}
 	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
-
 		t := &AddressData{}
 		if _, ok := row[transferDetailsFam]; ok {
 			for _, item := range row[transferDetailsFam] {
@@ -87,7 +89,6 @@ func fetchAddressRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix
 		}
 
 		return true
-
 	}, bigtable.RowFilter(
 		bigtable.ConditionFilter(
 			bigtable.ChainFilters(
@@ -227,7 +228,6 @@ func createAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 
 // finds all the unique addresses that have received tokens since a particular moment.
 func addressesTransferredToSinceDate(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
-
 	result := map[string]map[string]float64{}
 
 	// fetch data for days not in the cache
@@ -384,7 +384,6 @@ func AddressesTransferredTo(w http.ResponseWriter, r *http.Request) {
 	if last24Hours != "" {
 		wg.Add(1)
 		go func(prefix string) {
-
 			last24HourInterval := -time.Duration(24) * time.Hour
 			now := time.Now().UTC()
 			start := now.Add(last24HourInterval)
@@ -486,7 +485,6 @@ func AddressesTransferredTo(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-
 		}(prefix, queryDays)
 	}
 
@@ -505,5 +503,4 @@ func AddressesTransferredTo(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
-
 }

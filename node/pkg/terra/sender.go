@@ -24,7 +24,6 @@ type submitVAAParams struct {
 
 // SubmitVAA prepares transaction with signed VAA and sends it to the Terra blockchain
 func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (*client.TxResponse, error) {
-
 	// Serialize VAA
 	vaaBytes, err := signed.Marshal()
 	if err != nil {
@@ -63,8 +62,8 @@ func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddre
 	contractCall, err := json.Marshal(submitVAAMsg{
 		Params: submitVAAParams{
 			VAA: vaaBytes,
-		}})
-
+		},
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -75,10 +75,8 @@ func Transaction(w http.ResponseWriter, r *http.Request) {
 
 	var result bigtable.Row
 	readErr := tbl.ReadRows(r.Context(), bigtable.PrefixRange(""), func(row bigtable.Row) bool {
-
 		result = row
 		return true
-
 	}, bigtable.RowFilter(bigtable.ValueFilter(transactionID)))
 
 	if readErr != nil {

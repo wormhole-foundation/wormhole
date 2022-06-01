@@ -38,5 +38,4 @@ func main() {
 	if *setupDB {
 		RunSetup(*project, *instance, *keyFilePath)
 	}
-
 }

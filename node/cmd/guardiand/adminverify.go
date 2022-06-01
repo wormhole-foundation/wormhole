@@ -40,9 +40,7 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 	timestamp := time.Unix(int64(req.Timestamp), 0)
 
 	for _, message := range req.Messages {
-		var (
-			v *vaa.VAA
-		)
+		var v *vaa.VAA
 		switch payload := message.Payload.(type) {
 		case *nodev1.GovernanceMessage_GuardianSet:
 			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
