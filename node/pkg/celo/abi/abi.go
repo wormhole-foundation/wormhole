@@ -1898,4 +1898,3 @@ func (_Abi *AbiFilterer) ParseUpgraded(log types.Log) (*AbiUpgraded, error) {
 	event.Raw = log
 	return event, nil
 }
-

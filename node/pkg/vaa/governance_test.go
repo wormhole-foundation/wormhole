@@ -14,7 +14,7 @@ func TestCreateGovernanceVAA(t *testing.T) {
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	got_vaa := CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, payload)
-	
+
 	want_vaa := &VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
