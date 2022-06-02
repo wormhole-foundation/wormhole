@@ -1,16 +1,17 @@
 package telemetry
 
 import (
-	"cloud.google.com/go/logging"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+
+	"cloud.google.com/go/logging"
 	"github.com/blendle/zapdriver"
 	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/api/option"
-	"io/ioutil"
 )
 
 type Telemetry struct {

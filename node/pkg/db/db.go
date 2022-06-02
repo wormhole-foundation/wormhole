@@ -3,10 +3,11 @@ package db
 import (
 	"errors"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/vaa"
-	"github.com/dgraph-io/badger/v3"
 	"strconv"
 	"strings"
+
+	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/dgraph-io/badger/v3"
 )
 
 type Database struct {

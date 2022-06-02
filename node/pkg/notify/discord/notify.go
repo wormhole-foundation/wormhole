@@ -3,12 +3,13 @@ package discord
 import (
 	"bytes"
 	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/diamondburned/arikawa/v3/api"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"go.uber.org/zap"
-	"strings"
-	"sync"
 )
 
 type DiscordNotifier struct {

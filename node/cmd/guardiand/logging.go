@@ -1,9 +1,10 @@
 package guardiand
 
 import (
+	"unicode"
+
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
-	"unicode"
 )
 
 type consoleEncoder struct {

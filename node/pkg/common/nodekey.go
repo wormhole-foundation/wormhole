@@ -2,11 +2,12 @@ package common
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"os"
 )
 
 func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error) {
