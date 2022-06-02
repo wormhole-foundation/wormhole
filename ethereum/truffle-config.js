@@ -193,6 +193,19 @@ module.exports = {
       gasLimit: 117096000,
       gas: 117096000,
     },
+    acala: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          // To use this local host, needed to run this: ENDPOINT_URL=wss://acala-rpc-0.aca-api.network npx @acala-network/eth-rpc-adapter@latest
+          //"http://localhost:8545"
+          "https://eth-rpc-acala.aca-api.network/"
+        );
+      },
+      network_id: 787,
+      gasPrice: "0x2f25eb03ea",
+      gas: "0x6fc3540",
+    },    
     acala_testnet: {
       provider: () => {
         return new HDWalletProvider(

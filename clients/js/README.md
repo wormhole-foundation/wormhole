@@ -108,6 +108,7 @@ For example, to submit a guardian set upgrade on all chains, simply run:
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain aurora
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain fantom
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain karura
+    worm submit $(cat guardian-upgrade.txt) --network mainnet --chain acala
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain klaytn
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain avalanche
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain polygon

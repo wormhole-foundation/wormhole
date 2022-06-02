@@ -39,7 +39,7 @@ export async function execute_governance_evm(
   // NOTE: some of these might have only been tested on mainnet. If it fails in
   // testnet (or devnet), they might require additional guards
   let overrides: ethers.Overrides = {}
-  if (chain === "karura") {
+  if (chain === "karura" || chain == "acala") {
     overrides = await getKaruraGasParams(n.rpc)
   } else if (chain === "polygon") {
     let feeData = await provider.getFeeData();

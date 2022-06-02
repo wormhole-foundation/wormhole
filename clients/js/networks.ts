@@ -67,7 +67,7 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   acala: {
-    rpc: undefined,
+    rpc: "https://eth-rpc-acala.aca-api.network/",
     key: get_env_var("ETH_KEY"),
   },
   klaytn: {
