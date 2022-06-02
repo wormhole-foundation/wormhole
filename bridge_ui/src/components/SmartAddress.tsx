@@ -155,7 +155,7 @@ export default function SmartAddress({
           : "blockscout.karura.network"
       }/${isAsset ? "token" : "address"}/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
-    ? `https://explorer.solana.com/address/${useableAddress}${
+    ? `https://solscan.io/address/${useableAddress}${
         CLUSTER === "testnet"
           ? "?cluster=devnet"
           : CLUSTER === "devnet"

@@ -92,7 +92,7 @@ export default function ShowTx({
             : "blockscout.karura.network"
         }/tx/${tx?.id}`
       : chainId === CHAIN_ID_SOLANA
-      ? `https://explorer.solana.com/tx/${tx?.id}${
+      ? `https://solscan.io/tx/${tx?.id}${
           CLUSTER === "testnet"
             ? "?cluster=devnet"
             : CLUSTER === "devnet"
