@@ -7,7 +7,6 @@ import (
 	"os"
 )
 
-
 func main() {
 	var port int
 	var code int
@@ -19,11 +18,10 @@ func main() {
 
 	flag.Parse()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(code)
 		fmt.Fprintf(w, "%s\n", message)
 	})
-
 
 	fmt.Printf("Starting server at port %d\nResponse code (%d)\nmessage (%s)\n", port, code, message)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
