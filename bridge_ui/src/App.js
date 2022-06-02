@@ -42,8 +42,7 @@ import Transfer from "./components/Transfer";
 import UnwrapNative from "./components/UnwrapNative";
 import WithdrawTokensTerra from "./components/WithdrawTokensTerra";
 import { useBetaContext } from "./contexts/BetaContext";
-import Portal from "./icons/portal_logo.svg";
-import Header from "./images/Header.png";
+import Portal from "./icons/portal_logo_w.svg";
 import { CLUSTER } from "./utils/consts";
 
 const useStyles = makeStyles((theme) => ({
@@ -64,7 +63,7 @@ const useStyles = makeStyles((theme) => ({
     ...theme.typography.body2,
     fontWeight: 600,
     fontFamily: "Suisse BP Intl, sans-serif",
-    color: "black",
+    color: "white",
     marginLeft: theme.spacing(4),
     textUnderlineOffset: "6px",
     [theme.breakpoints.down("sm")]: {
@@ -85,17 +84,6 @@ const useStyles = makeStyles((theme) => ({
     minHeight: "100vh",
     position: "relative",
     overflow: "hidden",
-  },
-  headerImage: {
-    position: "absolute",
-    zIndex: -1,
-    top: 0,
-    background: `url(${Header})`,
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "top -750px center",
-    backgroundSize: "2070px 1155px",
-    width: "100%",
-    height: 1155,
   },
   brandLink: {
     display: "inline-flex",
@@ -237,15 +225,6 @@ function App() {
                 FAQ
               </Link>
               <Link
-                component={NavLink}
-                to="/stats"
-                size="small"
-                color="inherit"
-                className={classes.link}
-              >
-                Stats
-              </Link>
-              <Link
                 href="https://wormholenetwork.com/"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -286,7 +265,6 @@ function App() {
           </Typography>
         </AppBar>
       ) : null}
-      <div className={classes.headerImage} />
       {["/transfer", "/nft", "/redeem"].includes(pathname) ? (
         <Container maxWidth="md" style={{ paddingBottom: 24 }}>
           <HeaderText
