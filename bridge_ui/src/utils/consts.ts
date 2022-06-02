@@ -290,6 +290,8 @@ export const getExplorerName = (chainId: ChainId) =>
     ? "FTMScan"
     : chainId === CHAIN_ID_KLAYTN
     ? "Klaytnscope"
+    : chainId === CHAIN_ID_SOLANA
+    ? "Solscan"
     : "Explorer";
 export const WORMHOLE_RPC_HOSTS =
   CLUSTER === "mainnet"
