@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.7
+
+### Changed
+
+Acala mainnet support
+
 ## 0.3.6
 
 ### Changed
