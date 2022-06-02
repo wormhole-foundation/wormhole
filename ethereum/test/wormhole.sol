@@ -21,6 +21,7 @@ contract TestMessages is Messages {
     Assert.equal(quorum(10), 7, "it should return quorum");
     Assert.equal(quorum(11), 8, "it should return quorum");
     Assert.equal(quorum(12), 9, "it should return quorum");
+    Assert.equal(quorum(19), 13, "it should return quorum");
     Assert.equal(quorum(20), 14, "it should return quorum");
   }  
 }
