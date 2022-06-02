@@ -11,18 +11,21 @@ import axios from "axios";
 import { TERRA_GAS_PRICES_URL, TERRA_HOST } from "./consts";
 
 export const NATIVE_TERRA_DECIMALS = 6;
+export const LUNA_CLASSIC_SYMBOL = "LUNC"
 
 export const getNativeTerraIcon = (symbol = "") =>
-  `https://assets.terra.money/icon/60/${symbol}.png`;
+  `https://assets.terra.money/icon/60/${
+    symbol === LUNA_CLASSIC_SYMBOL ? "Luna" : symbol.slice(0, symbol.length - 1)
+  }.png`;
 
 // inspired by https://github.com/terra-money/station/blob/dca7de43958ce075c6e46605622203b9859b0e14/src/lib/utils/format.ts#L38
 export const formatNativeDenom = (denom = ""): string => {
   const unit = denom.slice(1).toUpperCase();
   const isValidTerra = isNativeTerra(denom);
   return denom === "uluna"
-    ? "Luna"
+    ? LUNA_CLASSIC_SYMBOL
     : isValidTerra
-    ? unit.slice(0, 2) + "T"
+    ? unit.slice(0, 2) + "TC"
     : "";
 };
 
