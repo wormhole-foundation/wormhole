@@ -3,13 +3,14 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 

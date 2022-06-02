@@ -1,6 +1,10 @@
 package p2p
 
 import (
+	"math"
+	"regexp"
+	"strconv"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -8,9 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"math"
-	"regexp"
-	"strconv"
 )
 
 var (

@@ -2,8 +2,9 @@ package guardiand
 
 import (
 	"fmt"
-	"github.com/coreos/go-systemd/activation"
 	"net"
+
+	"github.com/coreos/go-systemd/activation"
 )
 
 func getSDListeners() ([]net.Listener, error) {

@@ -5,6 +5,12 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -14,11 +20,6 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
-	"log"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
