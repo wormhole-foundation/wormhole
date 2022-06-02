@@ -150,6 +150,6 @@ contract Messages is Getters {
      * @dev quorum serves solely to determine the number of signatures required to acheive quorum
      */
     function quorum(uint numGuardians) public pure virtual returns (uint numSignaturesRequiredForQuorum) {
-        return ((numGuardians * 10 / 3) * 2) / 10 + 1;
+        return ((numGuardians * 2) / 3) + 1;
     }
 }
