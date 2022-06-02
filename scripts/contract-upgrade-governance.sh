@@ -144,6 +144,11 @@ case "$chain_name" in
     explorer="https://blockscout.karura.network/address/"
     evm=true
     ;;
+  acala)
+    chain=11
+    explorer="https://blockscout.acala.network/address/"
+    evm=true
+    ;;    
   klaytn)
     chain=13
     explorer="https://scope.klaytn.com/account/"
