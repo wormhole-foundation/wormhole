@@ -145,7 +145,7 @@ case "$chain_name" in
     evm=true
     ;;
   acala)
-    chain=11
+    chain=12
     explorer="https://blockscout.acala.network/address/"
     evm=true
     ;;    
