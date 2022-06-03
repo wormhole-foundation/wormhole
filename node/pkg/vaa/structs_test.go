@@ -501,7 +501,7 @@ func TestStringToAddress(t *testing.T) {
 	addr2, err := StringToAddress("04")
 	assert.Nil(t, err)
 	assert.Equal(t, expected, addr2)
-	
+
 	// Should trim the leading "0x" if present.
 	addr3, err := StringToAddress("0x04")
 	assert.Nil(t, err)
