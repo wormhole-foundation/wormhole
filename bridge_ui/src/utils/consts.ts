@@ -15,6 +15,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CONTRACTS,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { clusterApiUrl } from "@solana/web3.js";
@@ -50,6 +51,11 @@ export interface ChainInfo {
 export const CHAINS: ChainInfo[] =
   CLUSTER === "mainnet"
     ? [
+        {
+          id: CHAIN_ID_ACALA,
+          name: "Acala",
+          logo: acalaIcon,
+        },
         {
           id: CHAIN_ID_AURORA,
           name: "Aurora",
@@ -217,7 +223,7 @@ export const CHAINS: ChainInfo[] =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_CELO, CHAIN_ID_KLAYTN] : [];
+  CLUSTER === "mainnet" ? [CHAIN_ID_ACALA, CHAIN_ID_CELO, CHAIN_ID_KLAYTN] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -440,7 +446,7 @@ export const KARURA_HOST =
     : "";
 export const ACALA_HOST =
   CLUSTER === "mainnet"
-    ? ""
+    ? "https://eth-rpc-acala.aca-api.network/"
     : CLUSTER === "testnet"
     ? "https://acala-dev.aca-dev.network/eth/http"
     : "";
@@ -614,21 +620,21 @@ export const KARURA_TOKEN_BRIDGE_ADDRESS = getAddress(
 );
 export const ACALA_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? CONTRACTS.MAINNET.acala.core
     : CLUSTER === "testnet"
     ? "0x4377B49d559c0a9466477195C6AdC3D433e265c0"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const ACALA_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? CONTRACTS.MAINNET.acala.nft_bridge
     : CLUSTER === "testnet"
     ? "0x96f1335e0AcAB3cfd9899B30b2374e25a2148a6E"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const ACALA_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? CONTRACTS.MAINNET.acala.token_bridge
     : CLUSTER === "testnet"
     ? "0xebA00cbe08992EdD08ed7793E07ad6063c807004"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"

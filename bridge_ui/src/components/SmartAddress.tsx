@@ -15,6 +15,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isNativeDenom,
+  CHAIN_ID_ACALA,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
 import { FileCopy, OpenInNew } from "@material-ui/icons";
@@ -153,6 +154,12 @@ export default function SmartAddress({
         CLUSTER === "testnet"
           ? "blockscout.karura-dev.aca-dev.network"
           : "blockscout.karura.network"
+      }/${isAsset ? "token" : "address"}/${useableAddress}`
+    : chainId === CHAIN_ID_ACALA
+    ? `https://${
+        CLUSTER === "testnet"
+          ? "blockscout.acala-dev.aca-dev.network"
+          : "blockscout.acala.network"
       }/${isAsset ? "token" : "address"}/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://solscan.io/address/${useableAddress}${
