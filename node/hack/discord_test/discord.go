@@ -47,12 +47,12 @@ func main() {
 		logger.Fatal("failed to initialize notifier", zap.Error(err))
 	}
 
-	if err := d.MissingSignaturesOnTransaction(v, 14, 13, true, []string{
+	if err := d.MissingSignaturesOnObservation(v, 14, 13, true, []string{
 		"Certus One", "Not Certus One"}); err != nil {
 		logger.Fatal("failed to send test message", zap.Error(err))
 	}
 
-	if err := d.MissingSignaturesOnTransaction(v, 14, 13, true, []string{
+	if err := d.MissingSignaturesOnObservation(v, 14, 13, true, []string{
 		"Certus One"}); err != nil {
 		logger.Fatal("failed to send test message", zap.Error(err))
 	}

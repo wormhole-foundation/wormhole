@@ -21,12 +21,22 @@ import (
 )
 
 type (
-	// vaaState represents the local view of a given VAA
-	vaaState struct {
+	// Observation defines the interface for any events observed by the guardian.
+	Observation interface {
+		// GetEmitterChain returns the id of the chain where this event was observed.
+		GetEmitterChain() vaa.ChainID
+		// MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
+		MessageID() string
+		// HexDigest return a hex-encoded digest of the observation.
+		HexDigest() string
+	}
+
+	// state represents the local view of a given observation
+	state struct {
 		// First time this digest was seen (possibly even before we observed it ourselves).
 		firstObserved time.Time
-		// Copy of the VAA we constructed when we made our own observation.
-		ourVAA *vaa.VAA
+		// Copy of our observation.
+		ourObservation Observation
 		// Map of signatures seen by guardian. During guardian set updates, this may contain signatures belonging
 		// to either the old or new guardian set.
 		signatures map[ethcommon.Address][]byte
@@ -38,17 +48,17 @@ type (
 		source string
 		// Number of times the cleanup service has attempted to retransmit this VAA.
 		retryCount uint
-		// Copy of the bytes we submitted (ourVAA, but signed and serialized). Used for retransmissions.
+		// Copy of the bytes we submitted (ourObservation, but signed and serialized). Used for retransmissions.
 		ourMsg []byte
 		// Copy of the guardian set valid at observation/injection time.
 		gs *common.GuardianSet
 	}
 
-	vaaMap map[string]*vaaState
+	observationMap map[string]*state
 
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
-		vaaSignatures vaaMap
+		signatures observationMap
 	}
 )
 
@@ -137,7 +147,7 @@ func NewProcessor(
 		notifier: notifier,
 
 		logger:  supervisor.Logger(ctx),
-		state:   &aggregationState{vaaMap{}},
+		state:   &aggregationState{observationMap{}},
 		ourAddr: crypto.PubkeyToAddress(gk.PublicKey),
 	}
 }
