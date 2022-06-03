@@ -67,17 +67,19 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	// All nodes will create the exact same VAA and sign its digest.
 	// Consensus is established on this digest.
 
-	v := &vaa.VAA{
-		Version:          vaa.SupportedVAAVersion,
-		GuardianSetIndex: p.gs.Index,
-		Signatures:       nil,
-		Timestamp:        k.Timestamp,
-		Nonce:            k.Nonce,
-		EmitterChain:     k.EmitterChain,
-		EmitterAddress:   k.EmitterAddress,
-		Payload:          k.Payload,
-		Sequence:         k.Sequence,
-		ConsistencyLevel: k.ConsistencyLevel,
+	v := &VAA{
+		VAA: vaa.VAA{
+			Version:          vaa.SupportedVAAVersion,
+			GuardianSetIndex: p.gs.Index,
+			Signatures:       nil,
+			Timestamp:        k.Timestamp,
+			Nonce:            k.Nonce,
+			EmitterChain:     k.EmitterChain,
+			EmitterAddress:   k.EmitterAddress,
+			Payload:          k.Payload,
+			Sequence:         k.Sequence,
+			ConsistencyLevel: k.ConsistencyLevel,
+		},
 	}
 
 	// A governance message should never be emitted on-chain
@@ -98,7 +100,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	//
 	// Exception: if an observation is made within the settlement time (30s), we'll
 	// process it so other nodes won't consider it a miss.
-	if vb, err := p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v)); err == nil {
+	if vb, err := p.db.GetSignedVAABytes(*db.VaaIDFromVAA(&v.VAA)); err == nil {
 		// unmarshal vaa
 		var existing *vaa.VAA
 		if existing, err = vaa.Unmarshal(vb); err != nil {
@@ -156,7 +158,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	messagesSignedTotal.With(prometheus.Labels{
 		"emitter_chain": k.EmitterChain.String()}).Add(1)
 
-	p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{VAA: *v, InitiatingTxID: k.TxHash})
+	p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{VAA: v.VAA, InitiatingTxID: k.TxHash})
 
 	p.broadcastSignature(v, s, k.TxHash.Bytes())
 }
