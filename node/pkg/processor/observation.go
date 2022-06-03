@@ -93,7 +93,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 	// Determine which guardian set to use. The following cases are possible:
 	//
-	//  - We have already seen the message and generated ourVAA. In this case, use the guardian set valid at the time,
+	//  - We have already seen the message and generated ourObservation. In this case, use the guardian set valid at the time,
 	//    even if the guardian set was updated. Old guardian sets remain valid for longer than aggregation state,
 	//    and the guardians in the old set stay online and observe and sign messages for the transition period.
 	//
@@ -108,8 +108,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	// During an update, vaaState.signatures can contain signatures from *both* guardian sets.
 	//
 	var gs *node_common.GuardianSet
-	if p.state.vaaSignatures[hash] != nil && p.state.vaaSignatures[hash].gs != nil {
-		gs = p.state.vaaSignatures[hash].gs
+	if p.state.signatures[hash] != nil && p.state.signatures[hash].gs != nil {
+		gs = p.state.signatures[hash].gs
 	} else {
 		gs = p.gs
 	}
@@ -147,7 +147,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	observationsReceivedByGuardianAddressTotal.WithLabelValues(their_addr.Hex()).Inc()
 
 	// []byte isn't hashable in a map. Paying a small extra cost for encoding for easier debugging.
-	if p.state.vaaSignatures[hash] == nil {
+	if p.state.signatures[hash] == nil {
 		// We haven't yet seen this event ourselves, and therefore do not know what the VAA looks like.
 		// However, we have established that a valid guardian has signed it, and therefore we can
 		// already start aggregating signatures for it.
@@ -158,20 +158,20 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 		observationsUnknownTotal.Inc()
 
-		p.state.vaaSignatures[hash] = &vaaState{
+		p.state.signatures[hash] = &state{
 			firstObserved: time.Now(),
 			signatures:    map[common.Address][]byte{},
 			source:        "unknown",
 		}
 	}
 
-	p.state.vaaSignatures[hash].signatures[their_addr] = m.Signature
+	p.state.signatures[hash].signatures[their_addr] = m.Signature
 
 	// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
 	agg := make([]bool, len(gs.Keys))
 	var sigs []*vaa.Signature
 	for i, a := range gs.Keys {
-		s, ok := p.state.vaaSignatures[hash].signatures[a]
+		s, ok := p.state.signatures[hash].signatures[a]
 
 		if ok {
 			var bs [65]byte
@@ -188,27 +188,13 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		agg[i] = ok
 	}
 
-	if p.state.vaaSignatures[hash].ourVAA != nil {
-		// We have seen it on chain!
-		// Deep copy the VAA and add signatures
-		v := p.state.vaaSignatures[hash].ourVAA
-		signed := &vaa.VAA{
-			Version:          v.Version,
-			GuardianSetIndex: v.GuardianSetIndex,
-			Signatures:       sigs,
-			Timestamp:        v.Timestamp,
-			Nonce:            v.Nonce,
-			Sequence:         v.Sequence,
-			EmitterChain:     v.EmitterChain,
-			EmitterAddress:   v.EmitterAddress,
-			Payload:          v.Payload,
-			ConsistencyLevel: v.ConsistencyLevel,
-		}
+	if p.state.signatures[hash].ourObservation != nil {
+		// We have made this observation on chain!
 
 		// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.
 		quorum := CalculateQuorum(len(gs.Keys))
 
-		p.logger.Info("aggregation state for VAA",
+		p.logger.Info("aggregation state for observation",
 			zap.String("digest", hash),
 			zap.Any("set", gs.KeysAsHexStrings()),
 			zap.Uint32("index", gs.Index),
@@ -218,32 +204,14 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			zap.Bool("quorum", len(sigs) >= quorum),
 		)
 
-		if len(sigs) >= quorum && !p.state.vaaSignatures[hash].submitted {
-			vaaBytes, err := signed.Marshal()
-			if err != nil {
-				panic(err)
-			}
-
-			// Store signed VAA in database.
-			p.logger.Info("signed VAA with quorum",
-				zap.String("digest", hash),
-				zap.Any("vaa", signed),
-				zap.String("bytes", hex.EncodeToString(vaaBytes)),
-				zap.String("message_id", signed.MessageID()))
-
-			if err := p.db.StoreSignedVAA(signed); err != nil {
-				p.logger.Error("failed to store signed VAA", zap.Error(err))
-			}
-
-			p.broadcastSignedVAA(signed)
-			p.attestationEvents.ReportVAAQuorum(signed)
-			p.state.vaaSignatures[hash].submitted = true
+		if len(sigs) >= quorum && !p.state.signatures[hash].submitted {
+			p.state.signatures[hash].ourObservation.HandleQuorum(sigs, hash, p)
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",
 				zap.String("digest", hash))
 		}
 	} else {
-		p.logger.Info("we have not yet seen this VAA - temporarily storing signature",
+		p.logger.Info("we have not yet seen this observation - temporarily storing signature",
 			zap.String("digest", hash),
 			zap.Bools("aggregation", agg))
 
