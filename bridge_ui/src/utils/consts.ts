@@ -1456,3 +1456,15 @@ export const COLOR_BY_CHAIN_ID: { [key in ChainId]?: string } = {
   [CHAIN_ID_KARURA]: "#FF4B3B",
   [CHAIN_ID_ACALA]: "#E00F51",
 };
+
+export const DISABLED_TOKEN_TRANSFERS: { [key in ChainId]?: string[] } = {
+  [CHAIN_ID_KARURA]: [
+    "0x0000000000000000000100000000000000000081", // aUSD
+  ],
+};
+export const getIsTokenTransferDisabled = (
+  chainId: ChainId,
+  tokenAddress: string
+) => {
+  return !!DISABLED_TOKEN_TRANSFERS[chainId]?.includes(tokenAddress);
+};
