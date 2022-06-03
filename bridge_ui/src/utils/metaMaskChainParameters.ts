@@ -87,6 +87,20 @@ export const METAMASK_CHAIN_PARAMETERS: {
     rpcUrls: ["https://acala-dev.aca-dev.network/eth/http"],
     blockExplorerUrls: ["https://blockscout.acala-dev.aca-dev.network"],
   },
+  686: {
+    chainId: "0x2AE",
+    chainName: "Karura",
+    nativeCurrency: { name: "Karura Token", symbol: "KAR", decimals: 18 },
+    rpcUrls: ["https://eth-rpc-karura.aca-api.network"],
+    blockExplorerUrls: ["https://blockscout.karura.network"],
+  },
+  787: {
+    chainId: "0x313",
+    chainName: "Acala",
+    nativeCurrency: { name: "Acala Token", symbol: "ACA", decimals: 18 },
+    rpcUrls: ["https://eth-rpc-acala.aca-api.network"],
+    blockExplorerUrls: ["https://blockscout.acala.network"],
+  },
   4002: {
     chainId: "0xfa2",
     chainName: "Fantom Testnet",
