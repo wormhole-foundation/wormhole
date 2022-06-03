@@ -14,6 +14,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CHAIN_ID_ACALA,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Typography } from "@material-ui/core";
 import { Transaction } from "../store/transferSlice";
@@ -90,6 +91,12 @@ export default function ShowTx({
           CLUSTER === "testnet"
             ? "blockscout.karura-dev.aca-dev.network"
             : "blockscout.karura.network"
+        }/tx/${tx?.id}`
+      : chainId === CHAIN_ID_ACALA
+      ? `https://${
+          CLUSTER === "testnet"
+            ? "blockscout.acala-dev.aca-dev.network"
+            : "blockscout.acala.network"
         }/tx/${tx?.id}`
       : chainId === CHAIN_ID_SOLANA
       ? `https://solscan.io/tx/${tx?.id}${
