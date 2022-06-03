@@ -6,10 +6,10 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/terra-project/terra.go/client"
-	"github.com/terra-project/terra.go/key"
-	"github.com/terra-project/terra.go/msg"
-	"github.com/terra-project/terra.go/tx"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/terra-money/terra.go/client"
+	"github.com/terra-money/terra.go/key"
+	"github.com/terra-money/terra.go/msg"
 
 	"github.com/certusone/wormhole/node/pkg/vaa"
 )
@@ -23,7 +23,7 @@ type submitVAAParams struct {
 }
 
 // SubmitVAA prepares transaction with signed VAA and sends it to the Terra blockchain
-func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (*client.TxResponse, error) {
+func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (*sdk.TxResponse, error) {
 
 	// Serialize VAA
 	vaaBytes, err := signed.Marshal()
@@ -32,13 +32,13 @@ func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddre
 	}
 
 	// Derive Raw Private Key
-	privKey, err := key.DerivePrivKey(feePayer, key.CreateHDPath(0, 0))
+	privKey, err := key.DerivePrivKeyBz(feePayer, key.CreateHDPath(0, 0))
 	if err != nil {
 		return nil, err
 	}
 
 	// Generate StdPrivKey
-	tmKey, err := key.StdPrivKeyGen(privKey)
+	tmKey, err := key.PrivKeyGen(privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -69,16 +69,13 @@ func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddre
 		return nil, err
 	}
 
-	executeContract := msg.NewExecuteContract(addr, contract, contractCall, msg.NewCoins())
+	executeContract := msg.NewMsgExecuteContract(addr, contract, contractCall, msg.NewCoins())
 
 	transaction, err := LCDClient.CreateAndSignTx(ctx, client.CreateTxOptions{
 		Msgs: []msg.Msg{
 			executeContract,
 		},
-		Fee: tx.StdFee{
-			Gas:    msg.NewInt(0),
-			Amount: msg.NewCoins(),
-		},
+		FeeAmount: msg.NewCoins(),
 	})
 	if err != nil {
 		return nil, err
