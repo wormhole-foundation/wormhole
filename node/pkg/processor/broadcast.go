@@ -23,15 +23,18 @@ var (
 		})
 )
 
-func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte, txhash []byte) {
-	digest := v.SigningMsg()
-
+func (p *Processor) broadcastSignature(
+	o Observation,
+	signature []byte,
+	txhash []byte,
+) {
+	digest := o.SigningMsg()
 	obsv := gossipv1.SignedObservation{
 		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
 		Hash:      digest.Bytes(),
 		Signature: signature,
 		TxHash:    txhash,
-		MessageId: v.MessageID(),
+		MessageId: o.MessageID(),
 	}
 
 	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
@@ -46,18 +49,18 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte, txhash []by
 	// Store our VAA in case we're going to submit it to Solana
 	hash := hex.EncodeToString(digest.Bytes())
 
-	if p.state.vaaSignatures[hash] == nil {
-		p.state.vaaSignatures[hash] = &vaaState{
+	if p.state.signatures[hash] == nil {
+		p.state.signatures[hash] = &state{
 			firstObserved: time.Now(),
 			signatures:    map[ethcommon.Address][]byte{},
 			source:        "loopback",
 		}
 	}
 
-	p.state.vaaSignatures[hash].ourVAA = v
-	p.state.vaaSignatures[hash].ourMsg = msg
-	p.state.vaaSignatures[hash].source = v.EmitterChain.String()
-	p.state.vaaSignatures[hash].gs = p.gs // guaranteed to match ourVAA - there's no concurrent access to p.gs
+	p.state.signatures[hash].ourObservation = o
+	p.state.signatures[hash].ourMsg = msg
+	p.state.signatures[hash].source = o.GetEmitterChain().String()
+	p.state.signatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 
 	// Fast path for our own signature
 	go func() { p.obsvC <- &obsv }()

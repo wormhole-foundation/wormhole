@@ -494,6 +494,11 @@ func DecodeTransferPayloadHdr(payload []byte) (*TransferPayloadHdr, error) {
 	return p, nil
 }
 
+// GetEmitterChain implements the processor.Observation interface for *VAA.
+func (v *VAA) GetEmitterChain() ChainID {
+	return v.EmitterChain
+}
+
 // MustWrite calls binary.Write and panics on errors
 func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	if err := binary.Write(w, order, data); err != nil {
