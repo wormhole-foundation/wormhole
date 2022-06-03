@@ -437,7 +437,7 @@ func (v *VAA) IsTransfer() bool {
 }
 
 func (v *VAA) DecodeTransferPayloadHdr() (*TransferPayloadHdr, error) {
-	if ! v.IsTransfer() {
+	if !v.IsTransfer() {
 		return nil, fmt.Errorf("unsupported payload type")
 	}
 
