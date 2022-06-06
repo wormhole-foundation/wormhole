@@ -805,16 +805,14 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "polygonwatch",
-			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, polygonMinConfirmations, chainObsvReqC[vaa.ChainIDPolygon],
-				*unsafeDevMode).Run); err != nil {
+			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, polygonMinConfirmations, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode).Run); err != nil {
 			// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
 			//
-			// If we are not querying the checkpoint server, we should hardcode the minimum number of confirmations to 512 regardless of what the smart contract specifies to protect
+			// Hardcode the minimum number of confirmations to 512 regardless of what the smart contract specifies to protect
 			// developers from accidentally specifying an unsafe number of confirmations. We can remove this restriction as soon
 			// as specific public guidance exists for Polygon developers.
 			return err
 		}
-
 		if err := supervisor.Run(ctx, "avalanchewatch",
 			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAvalanche], *unsafeDevMode).Run); err != nil {
 			return err
