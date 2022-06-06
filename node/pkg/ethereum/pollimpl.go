@@ -189,21 +189,18 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 						}
 					}
 
-					var finalized bool
 					if e.Finalizer != nil {
-						var err error
-						finalized, err = e.Finalizer.IsBlockFinalized(ctx, block)
+						finalized, err := e.Finalizer.IsBlockFinalized(ctx, block)
 						if err != nil {
 							errorOccurred = true
 							e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.BaseEth.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
 						}
-					} else {
-						finalized = true
-					}
-					if !finalized {
-						break
+
+						if !finalized {
+							break
+						}
 					}
 
 					sink <- block
