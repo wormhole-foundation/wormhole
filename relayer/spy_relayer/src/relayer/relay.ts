@@ -39,7 +39,7 @@ export async function relay(
     const transferPayload = parseTransferPayload(
       Buffer.from(parsedVAA.payload)
     );
-
+      
     const chainConfigInfo = getChainConfigInfo(transferPayload.targetChain);
     if (!chainConfigInfo) {
       logger.error("relay: improper chain ID: " + transferPayload.targetChain);

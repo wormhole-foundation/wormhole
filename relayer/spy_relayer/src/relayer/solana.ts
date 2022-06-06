@@ -29,7 +29,7 @@ export async function relaySolana(
     relayLogger: ScopedLogger,
     metrics: PromHelper
   ) {
-  
+    console.log("sddddd solannaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
     return { redeemed: true, result: "already redeemed" }; 
   
 }
