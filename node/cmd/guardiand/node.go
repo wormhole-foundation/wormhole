@@ -799,8 +799,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
+		polygonMinConfirmations := uint64(512)
+		if *testnetMode {
+			polygonMinConfirmations = 64
+		}
+
 		if err := supervisor.Run(ctx, "polygonwatch",
-			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, 512, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode).Run); err != nil {
+			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, polygonMinConfirmations, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode).Run); err != nil {
 			// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
 			//
 			// Hardcode the minimum number of confirmations to 512 regardless of what the smart contract specifies to protect
