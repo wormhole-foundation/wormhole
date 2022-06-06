@@ -44,8 +44,8 @@ export async function relayEVM(
     relayLogger
   );
   const signedVaaArray = hexToUint8Array(signedVAA);
-  let provider = undefined;
-  let signer = undefined;
+  let provider;
+  let signer;
   if (chainConfigInfo.chainId === CHAIN_ID_CELO) {
     provider = new CeloProvider(chainConfigInfo.nodeUrl);
     await provider.ready;

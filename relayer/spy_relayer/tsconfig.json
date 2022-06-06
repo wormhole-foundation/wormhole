@@ -11,8 +11,10 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "downlevelIteration": true
+    "isolatedModules": false,
+    "downlevelIteration": true,
+    "noImplicitAny": false,
+    "esModuleInterop": true, 
   },
   "include": ["src"],
   "exclude": ["node_modules", "**/__tests__/*"]

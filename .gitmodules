@@ -1,0 +1,6 @@
+[submodule "relayer/spy_relayer/xRaydium"]
+	path = relayer/spy_relayer/xRaydium
+	url = https://github.com/JoeHowarth/xRaydium
+[submodule "relayer/spy_relayer/src/xRaydium"]
+	path = relayer/spy_relayer/src/xRaydium
+	url = https://github.com/JoeHowarth/xRaydium
