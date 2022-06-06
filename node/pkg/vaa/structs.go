@@ -426,29 +426,29 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 }
 
 // NOTE: This function assumes that the caller has verified that the VAA is from the token bridge.
-func (v *VAA) IsTransfer() bool {
-	return len(v.Payload) > 0 && (v.Payload[0] == 1) || (v.Payload[0] == 3)
+func IsTransfer(payload []byte) bool {
+	return len(payload) > 0 && (payload[0] == 1) || (payload[0] == 3)
 }
 
-func (v *VAA) DecodeTransferPayloadHdr() (*TransferPayloadHdr, error) {
-	if !v.IsTransfer() {
+func DecodeTransferPayloadHdr(payload []byte) (*TransferPayloadHdr, error) {
+	if !IsTransfer(payload) {
 		return nil, fmt.Errorf("unsupported payload type")
 	}
 
-	if len(v.Payload) < 101 {
+	if len(payload) < 101 {
 		return nil, fmt.Errorf("buffer too short")
 	}
 
 	p := &TransferPayloadHdr{}
 
 	// Payload type: payload[0]
-	p.Type = uint8(v.Payload[0])
+	p.Type = uint8(payload[0])
 
 	// Amount: payload[1] for 32
 	p.Amount = new(big.Int)
-	p.Amount.SetBytes(v.Payload[1:33])
+	p.Amount.SetBytes(payload[1:33])
 
-	reader := bytes.NewReader(v.Payload[33:])
+	reader := bytes.NewReader(payload[33:])
 
 	// Token address: payload[33] for 32
 	p.TokenAddress = Address{}

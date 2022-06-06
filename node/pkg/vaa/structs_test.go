@@ -566,7 +566,7 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			assert.Equal(t, expectedEmitterAddr, vaa.EmitterAddress)
 			assert.Equal(t, 133, len(vaa.Payload))
 
-			payload, err := vaa.DecodeTransferPayloadHdr()
+			payload, err := DecodeTransferPayloadHdr(vaa.Payload)
 			assert.Nil(t, err)
 			assert.Equal(t, testCase.payloadType, payload.Type)
 			assert.Equal(t, testCase.tokenChainId, payload.TokenChainID)
@@ -600,7 +600,7 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, vaa)
 
-			_, err = vaa.DecodeTransferPayloadHdr()
+			_, err = DecodeTransferPayloadHdr(vaa.Payload)
 			assert.NotNil(t, err)
 			assert.Equal(t, testCase.errStr, err.Error())
 		})
