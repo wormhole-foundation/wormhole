@@ -521,6 +521,9 @@ func TestStringToAddress(t *testing.T) {
 		{label: "too short",
 			rawAddr:   "4",
 			errString: "value must be at least 1 byte"},
+		{label: "empty string",
+			rawAddr:   "",
+			errString: "value must be at least 1 byte"},
 	}
 
 	for _, tc := range tests {
@@ -570,6 +573,10 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 		},
 		{label: "buffer too short",
 			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01",
+			errString: "buffer too short",
+		},
+		{label: "empty string",
+			vaa:       "",
 			errString: "buffer too short",
 		},
 	}
