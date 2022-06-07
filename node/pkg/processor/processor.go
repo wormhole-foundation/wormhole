@@ -156,13 +156,8 @@ func NewProcessor(
 func (p *Processor) Run(ctx context.Context) error {
 	p.cleanup = time.NewTicker(30 * time.Second)
 
-	var govTimer *time.Timer
-	if p.governor != nil {
-		p.logger.Info("processor: governor is set")
-		govTimer = time.NewTimer(time.Minute)
-	} else {
-		p.logger.Info("processor: why isn't governor set??")
-	}
+	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
+	govTimer := time.NewTimer(time.Minute)
 
 	for {
 		select {

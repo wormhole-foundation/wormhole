@@ -198,11 +198,13 @@ func (d *Database) FindEmitterSequenceGap(prefix VAAID) (resp []uint64, firstSeq
 }
 
 type Transfer struct {
-	Timestamp    time.Time
-	Value        uint64
-	TokenChainID vaa.ChainID
-	TokenAddress vaa.Address
-	MsgID        string
+	Timestamp      time.Time
+	Value          uint64
+	TokenChainID   vaa.ChainID
+	TokenAddress   vaa.Address
+	EmitterChainID vaa.ChainID
+	EmitterAddress vaa.Address
+	MsgID          string
 }
 
 func (t *Transfer) Marshal() ([]byte, error) {
@@ -212,6 +214,8 @@ func (t *Transfer) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, t.Value)
 	vaa.MustWrite(buf, binary.BigEndian, t.TokenChainID)
 	buf.Write(t.TokenAddress[:])
+	vaa.MustWrite(buf, binary.BigEndian, t.EmitterChainID)
+	buf.Write(t.EmitterAddress[:])
 	buf.Write([]byte(t.MsgID))
 	return buf.Bytes(), nil
 }
@@ -240,6 +244,16 @@ func UnmarshalTransfer(data []byte) (*Transfer, error) {
 		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
 	}
 	t.TokenAddress = tokenAddress
+
+	if err := binary.Read(reader, binary.BigEndian, &t.EmitterChainID); err != nil {
+		return nil, fmt.Errorf("failed to read token chain id: %w", err)
+	}
+
+	emitterAddress := vaa.Address{}
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+	}
+	t.EmitterAddress = emitterAddress
 
 	msgID := make([]byte, 256)
 	n, err := reader.Read(msgID)
