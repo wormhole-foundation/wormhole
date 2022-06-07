@@ -535,7 +535,8 @@ func TestStringToAddress(t *testing.T) {
 }
 
 func TestDecodeTransferPayloadHdr(t *testing.T) {
-	type PositiveTest struct {
+	type Test struct {
+		label          string
 		vaa            string
 		payloadType    uint8
 		emitterChainId ChainID
@@ -545,10 +546,12 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 		toChainId      ChainID
 		toAddr         string
 		amount         int64
+		errString      string
 	}
 
-	pos_tests := []PositiveTest{
-		{vaa: "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
+	tests := []Test{
+		{label: "valid vaa",
+			vaa:            "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
 			payloadType:    1,
 			emitterChainId: ChainIDEthereum,
 			emitterAddr:    "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
@@ -557,70 +560,57 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			toChainId:      ChainIDSolana,
 			toAddr:         "21c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f0",
 			amount:         725000000,
+			errString:      "",
+		},
+		{label: "unsupported payload type",
+			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f02000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
+			errString: "unsupported payload type",
+		},
+		{label: "buffer too short",
+			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01",
+			errString: "buffer too short",
 		},
 	}
 
-	for _, testCase := range pos_tests {
-		t.Run(string(testCase.vaa), func(t *testing.T) {
-			expectedEmitterAddr, err := StringToAddress(testCase.emitterAddr)
-			assert.Nil(t, err)
-
-			expectedTokenAddr, err := StringToAddress(testCase.tokenAddr)
-			assert.Nil(t, err)
-
-			expectedToAddr, err := StringToAddress(testCase.toAddr)
-			assert.Nil(t, err)
-
-			expectedAmount := big.NewInt(testCase.amount)
-
-			data, err := hex.DecodeString(testCase.vaa)
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			data, err := hex.DecodeString(tc.vaa)
 			assert.Nil(t, err)
 
 			vaa, err := Unmarshal(data)
 			assert.Nil(t, err)
 			assert.NotNil(t, vaa)
 
-			assert.Equal(t, testCase.emitterChainId, vaa.EmitterChain)
-			assert.Equal(t, expectedEmitterAddr, vaa.EmitterAddress)
-			assert.Equal(t, 133, len(vaa.Payload))
+			if len(tc.errString) == 0 {
+				expectedEmitterAddr, err := StringToAddress(tc.emitterAddr)
+				assert.Nil(t, err)
 
-			payload, err := DecodeTransferPayloadHdr(vaa.Payload)
-			assert.Nil(t, err)
-			assert.Equal(t, testCase.payloadType, payload.Type)
-			assert.Equal(t, testCase.tokenChainId, payload.TokenChainID)
-			assert.Equal(t, expectedTokenAddr, payload.TokenAddress)
-			assert.Equal(t, testCase.toChainId, payload.ToChainID)
-			assert.Equal(t, expectedToAddr, payload.ToAddress)
-			assert.Equal(t, expectedAmount.Cmp(payload.Amount), 0)
-		})
-	}
+				expectedTokenAddr, err := StringToAddress(tc.tokenAddr)
+				assert.Nil(t, err)
 
-	type NegativeTest struct {
-		vaa    string
-		errStr string
-	}
+				expectedToAddr, err := StringToAddress(tc.toAddr)
+				assert.Nil(t, err)
 
-	neg_tests := []NegativeTest{
-		{vaa: "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f02000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
-			errStr: "unsupported payload type",
-		},
-		{vaa: "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01",
-			errStr: "buffer too short",
-		},
-	}
+				expectedAmount := big.NewInt(tc.amount)
 
-	for _, testCase := range neg_tests {
-		t.Run(string(testCase.vaa), func(t *testing.T) {
-			data, err := hex.DecodeString(testCase.vaa)
-			assert.Nil(t, err)
+				assert.Equal(t, tc.emitterChainId, vaa.EmitterChain)
+				assert.Equal(t, expectedEmitterAddr, vaa.EmitterAddress)
+				assert.Equal(t, 133, len(vaa.Payload))
 
-			vaa, err := Unmarshal(data)
-			assert.Nil(t, err)
-			assert.NotNil(t, vaa)
+				payload, err := DecodeTransferPayloadHdr(vaa.Payload)
+				assert.Nil(t, err)
+				assert.Equal(t, tc.payloadType, payload.Type)
+				assert.Equal(t, tc.tokenChainId, payload.TokenChainID)
+				assert.Equal(t, expectedTokenAddr, payload.TokenAddress)
+				assert.Equal(t, tc.toChainId, payload.ToChainID)
+				assert.Equal(t, expectedToAddr, payload.ToAddress)
+				assert.Equal(t, expectedAmount.Cmp(payload.Amount), 0)
+			} else {
+				_, err = DecodeTransferPayloadHdr(vaa.Payload)
+				assert.NotNil(t, err)
+				assert.Equal(t, tc.errString, err.Error())
+			}
 
-			_, err = DecodeTransferPayloadHdr(vaa.Payload)
-			assert.NotNil(t, err)
-			assert.Equal(t, testCase.errStr, err.Error())
 		})
 	}
 }
