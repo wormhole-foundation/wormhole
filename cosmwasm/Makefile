@@ -1,6 +1,5 @@
 bridge_SOURCE=wormhole
 token_bridge_SOURCE=token_bridge_terra
-nft_bridge_SOURCE=nft_bridge
 
 SOURCE_FILES=$(shell find . -name "*.rs" -or -name "*.lock" -or -name "*.toml" | grep -v target)
 
@@ -36,10 +35,6 @@ deploy/bridge: bridge-code-id-$(NETWORK).txt
 ## Deploy token bridge
 deploy/token_bridge: token_bridge-code-id-$(NETWORK).txt
 
-.PHONY: deploy/nft_bridge
-## Deploy NFT bridge
-deploy/nft_bridge: nft_bridge-code-id-$(NETWORK).txt
-
 %-code-id-$(NETWORK).txt: check-network tools/node_modules payer-$(NETWORK).json artifacts
 	@echo "Deploying artifacts/$($*_SOURCE).wasm on $(NETWORK)"
 	@node tools/deploy_single.js \
@@ -54,12 +49,7 @@ tools/node_modules: tools/package-lock.json
 	cd tools && npm ci
 
 LocalTerra:
-	mkdir LocalTerra && \
-	cd LocalTerra && \
-	git init && \
-	git remote add origin  https://www.github.com/terra-money/LocalTerra.git && \
-	git fetch --depth 1 origin 958ff795f261f5ff2efc7b56604e2434eb76f7c4 && \
-	git checkout FETCH_HEAD
+	git clone --depth 1 https://www.github.com/terra-money/LocalTerra
 
 test/node_modules: test/package-lock.json
 	cd test && npm ci
@@ -67,8 +57,8 @@ test/node_modules: test/package-lock.json
 .PHONY: unit-test
 ## Run unit tests
 unit-test:
-	cargo test -p wormhole-bridge-terra
-	cargo test -p token-bridge-terra
+	cargo test -p wormhole-bridge-terra-2
+	cargo test -p token-bridge-terra-2
 
 .PHONY: test
 ## Run unit and integration tests

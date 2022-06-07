@@ -99,6 +99,7 @@ npm start -- submit -c solana -n devnet "$REGISTER_ETH_TOKEN_BRIDGE_VAA"
 npm start -- submit -c solana -n devnet "$REGISTER_TERRA_TOKEN_BRIDGE_VAA"
 npm start -- submit -c solana -n devnet "$REGISTER_BSC_TOKEN_BRIDGE_VAA"
 npm start -- submit -c solana -n devnet "$REGISTER_ALGO_TOKEN_BRIDGE_VAA"
+npm start -- submit -c solana -n devnet "$REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
 # Register the NFT Bridge Endpoint on ETH
 npm start -- submit -c solana -n devnet "$REGISTER_ETH_NFT_BRIDGE_VAA"
 npm start -- submit -c solana -n devnet "$REGISTER_TERRA_NFT_BRIDGE_VAA"

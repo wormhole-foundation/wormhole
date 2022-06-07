@@ -7,7 +7,7 @@ export function parseEventsFromLog(receipt: BlockTxBroadcastResult): any[] {
 }
 
 export function computeGasPaid(receipt: BlockTxBroadcastResult): Int {
-  const gasPrice = new Coin("uusd", GAS_PRICE).amount;
+  const gasPrice = new Coin("uluna", GAS_PRICE).amount;
   // LocalTerra seems to spend all the gas_wanted
   // instead of spending gas_used...
   return new Int(gasPrice.mul(receipt.gas_wanted).ceil());

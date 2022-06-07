@@ -21,6 +21,23 @@ export function makeGovernanceVaaPayload(
   );
 }
 
+export function makeAttestationVaaPayload(
+  chain: number,
+  hexlifiedTokenAddress: string,
+  decimals: number,
+  symbol: string,
+  name: string
+) {
+  return (
+    abi.encodeParameter("uint8", 2).substring(2 + 62) +
+    hexlifiedTokenAddress +
+    abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)) +
+    abi.encodeParameter("uint8", decimals).substring(2 + 62) +
+    symbol +
+    name
+  );
+}
+
 export function makeTransferVaaPayload(
   payloadType: number,
   amount: string,
@@ -37,7 +54,8 @@ export function makeTransferVaaPayload(
     // tokenaddress
     hexlifiedTokenAddress +
     // tokenchain
-    "0003" + // we only care about terra-specific tokens for these tests
+    // TODO: add tests for non-native tokens too
+    "0012" + // we only care about terra2-specific tokens for these tests
     // receiver
     encodedTo +
     // receiving chain

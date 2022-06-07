@@ -76,8 +76,8 @@ use std::convert::TryFrom;
 
 type HumanAddr = String;
 
-// Chain ID of Terra
-const CHAIN_ID: u16 = 3;
+// Chain ID of Terra 2.0
+const CHAIN_ID: u16 = 18;
 
 // Lock assets fee amount and denomination
 const FEE_AMOUNT: u128 = 0;
