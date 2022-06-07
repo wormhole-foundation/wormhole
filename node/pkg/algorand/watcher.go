@@ -258,7 +258,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				if e.next_round < status.NextVersionRound {
 					for {
-						logger.Info(fmt.Sprintf("inspecting block %d", e.next_round));
+						logger.Info(fmt.Sprintf("inspecting block %d", e.next_round))
 						block, err := algodClient.Block(e.next_round).Do(context.Background())
 						if err != nil {
 							logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
@@ -277,7 +277,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 						}
 						e.next_round = e.next_round + 1
 						if e.next_round == status.NextVersionRound {
-							break;
+							break
 						}
 					}
 				}
