@@ -6,7 +6,6 @@ FROM cosmwasm/workspace-optimizer:0.12.6@sha256:e6565a5e87c830ef3e8775a9035006b3
 COPY Cargo.lock /code/
 COPY Cargo.toml /code/
 COPY contracts /code/contracts
-COPY packages /code/packages
 
 # Support additional root CAs
 COPY README.md cert.pem* /certs/

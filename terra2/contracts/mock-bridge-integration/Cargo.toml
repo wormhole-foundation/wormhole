@@ -1,5 +1,5 @@
 [package]
-name = "mock-bridge-integration"
+name = "mock-bridge-integration-2"
 version = "0.1.0"
 edition = "2018"
 description = "Mock Bridge Integration for Transfer w/ Payload"

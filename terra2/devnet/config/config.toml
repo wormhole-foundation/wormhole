@@ -12,7 +12,7 @@
 
 # TCP or UNIX socket address of the ABCI application,
 # or the name of an ABCI application compiled in with the Tendermint binary
-proxy_app = "tcp://127.0.0.1:26656"
+proxy_app = "tcp://127.0.0.1:26658"
 
 # A custom human readable name for this node
 moniker = "localterra"
@@ -47,7 +47,7 @@ db_backend = "goleveldb"
 db_dir = "data"
 
 # Output level for logging, including package level options
-log_level = "debug"
+log_level = "info"
 
 # Output format: 'plain' (colored text) or 'json'
 log_format = "plain"
@@ -136,14 +136,41 @@ max_subscription_clients = 100
 # the estimated # maximum number of broadcast_tx_commit calls per block.
 max_subscriptions_per_client = 5
 
+# Experimental parameter to specify the maximum number of events a node will
+# buffer, per subscription, before returning an error and closing the
+# subscription. Must be set to at least 100, but higher values will accommodate
+# higher event throughput rates (and will use more memory).
+experimental_subscription_buffer_size = 200
+
+# Experimental parameter to specify the maximum number of RPC responses that
+# can be buffered per WebSocket client. If clients cannot read from the
+# WebSocket endpoint fast enough, they will be disconnected, so increasing this
+# parameter may reduce the chances of them being disconnected (but will cause
+# the node to use more memory).
+#
+# Must be at least the same as "experimental_subscription_buffer_size",
+# otherwise connections could be dropped unnecessarily. This value should
+# ideally be somewhat higher than "experimental_subscription_buffer_size" to
+# accommodate non-subscription-related RPC responses.
+experimental_websocket_write_buffer_size = 200
+
+# If a WebSocket client cannot read fast enough, at present we may
+# silently drop events instead of generating an error or disconnecting the
+# client.
+#
+# Enabling this experimental parameter will cause the WebSocket connection to
+# be closed instead if it cannot read fast enough, allowing for greater
+# predictability in subscription behaviour.
+experimental_close_on_slow_client = false
+
 # How long to wait for a tx to be committed during /broadcast_tx_commit.
 # WARNING: Using a value larger than 10s will result in increasing the
 # global HTTP write timeout, which applies to all connections and endpoints.
 # See https://github.com/tendermint/tendermint/issues/3435
-timeout_broadcast_tx_commit = "10s"
+timeout_broadcast_tx_commit = "30s"
 
 # Maximum size of request body, in bytes
-max_body_bytes = 4194304
+max_body_bytes = 1000000
 
 # Maximum size of request header, in bytes
 max_header_bytes = 1048576
@@ -172,12 +199,13 @@ pprof_laddr = "localhost:6060"
 [p2p]
 
 # Address to listen for incoming connections
-laddr = "tcp://0.0.0.0:26660"
+laddr = "tcp://0.0.0.0:26656"
 
 # Address to advertise to peers for them to dial
 # If empty, will use the same port as the laddr,
 # and will introspect on the listener or use UPnP
-# to figure out the address.
+# to figure out the address. ip and port are required
+# example: 159.89.10.97:26656
 external_address = ""
 
 # Comma separated list of seed nodes to connect to
@@ -301,6 +329,13 @@ discovery_time = "15s"
 # Temporary directory for state sync snapshot chunks, defaults to the OS tempdir (typically /tmp).
 # Will create a new, randomly named directory within, and remove it when done.
 temp_dir = ""
+
+# The timeout duration before re-requesting a chunk, possibly from a different
+# peer (default: 1 minute).
+chunk_request_timeout = "10s"
+
+# The number of concurrent chunk fetchers to run (default: 1).
+chunk_fetchers = "4"
 
 #######################################################
 ###       Fast Sync Configuration Connections       ###
