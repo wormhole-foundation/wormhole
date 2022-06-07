@@ -614,3 +614,26 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 		})
 	}
 }
+
+func TestIsTransfer(t *testing.T) {
+	type Test struct {
+		label   string
+		payload []byte
+		result  bool
+	}
+
+	tests := []Test{
+		{label: "empty", payload: []byte{}, result: false},
+		{label: "non-valid payload", payload: []byte{0x0}, result: false},
+		{label: "payload 1", payload: []byte{0x1}, result: true},
+		{label: "payload 2", payload: []byte{0x2}, result: false},
+		{label: "payload 3", payload: []byte{0x3}, result: true},
+		{label: "payload 4", payload: []byte{0x4}, result: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			assert.Equal(t, tc.result, IsTransfer(tc.payload))
+		})
+	}
+}
