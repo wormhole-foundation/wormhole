@@ -20,6 +20,8 @@ bigtable-writer.json
 /solana/artifacts/
 /terra/artifacts/
 !/terra/artifacts/cw20_base.wasm
+/terra2/artifacts/
+!/terra2/artifacts/cw20_base.wasm
 /solana/artifacts-testnet/
 /solana/artifacts-devnet/
 /solana/artifacts-mainnet/

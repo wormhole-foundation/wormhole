@@ -196,7 +196,7 @@ def build_node_yaml():
 
 k8s_yaml_with_ns(build_node_yaml())
 
-guardian_resource_deps = ["proto-gen", "eth-devnet", "eth-devnet2", "terra-terrad"]
+guardian_resource_deps = ["proto-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra2-terrad"]
 if solana:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
 
@@ -450,7 +450,7 @@ if ci_tests:
 
     k8s_resource(
         "ci-tests",
-        resource_deps = ["proto-gen-web", "wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "solana-devnet", "spy", "guardian"],
+        resource_deps = ["proto-gen-web", "wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "terra2-terrad", "terra2-fcd", "solana-devnet", "spy", "guardian"],
         labels = ["ci"],
         trigger_mode = trigger_mode,
     )
@@ -570,6 +570,47 @@ k8s_resource(
     resource_deps = ["terra-terrad", "terra-postgres"],
     port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
     labels = ["terra"],
+    trigger_mode = trigger_mode,
+)
+
+# terra 2 devnet
+
+docker_build(
+    ref = "terra2-image",
+    context = "./terra2/devnet",
+    dockerfile = "terra2/devnet/Dockerfile",
+)
+
+docker_build(
+    ref = "terra2-contracts",
+    context = "./terra2",
+    dockerfile = "./terra2/Dockerfile",
+)
+
+k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
+
+k8s_resource(
+    "terra2-terrad",
+    port_forwards = [
+        port_forward(26657, name = "Terra 2 RPC [:26657]", host = webHost),
+        port_forward(1317, name = "Terra 2 LCD [:1317]", host = webHost),
+    ],
+    resource_deps = ["const-gen"],
+    labels = ["terra2"],
+    trigger_mode = trigger_mode,
+)
+
+k8s_resource(
+    "terra2-postgres",
+    labels = ["terra2"],
+    trigger_mode = trigger_mode,
+)
+
+k8s_resource(
+    "terra2-fcd",
+    resource_deps = ["terra2-terrad", "terra2-postgres"],
+    port_forwards = [port_forward(3060, name = "Terra 2 FCD [:3060]", host = webHost)],
+    labels = ["terra2"],
     trigger_mode = trigger_mode,
 )
 

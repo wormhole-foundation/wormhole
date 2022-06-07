@@ -40,4 +40,5 @@ FROM scratch AS const-export
 COPY --from=const-build /scripts/.env.0x ethereum/.env
 COPY --from=const-build /scripts/.env.hex solana/.env
 COPY --from=const-build /scripts/.env.hex terra/tools/.env
+COPY --from=const-build /scripts/.env.hex terra2/tools/.env
 COPY --from=const-build /scripts/.env.hex algorand/.env
