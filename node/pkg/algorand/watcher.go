@@ -21,7 +21,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -257,33 +256,35 @@ func (e *Watcher) Run(ctx context.Context) error {
 					return
 				}
 
-				for {
-					logger.Info(fmt.Sprintf("Algorand next_round set to %d", e.next_round))
-					block, err := algodClient.Block(e.next_round).Do(context.Background())
-					if err != nil {
-						if strings.Contains(err.Error(), "ledger does not have entry") {
+				if e.next_round < status.NextVersionRound {
+					for {
+						logger.Info(fmt.Sprintf("inspecting block %d", e.next_round))
+						block, err := algodClient.Block(e.next_round).Do(context.Background())
+						if err != nil {
+							logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
+
+							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+							errC <- err
+							return
+						}
+
+						if block.Round == 0 {
 							break
 						}
-						logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
 
-						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
-						errC <- err
-						return
+						for _, element := range block.Payset {
+							lookAtTxn(e, element, block, logger)
+						}
+						e.next_round = e.next_round + 1
+						if e.next_round == status.NextVersionRound {
+							break
+						}
 					}
-
-					if block.Round == 0 {
-						break
-					}
-
-					for _, element := range block.Payset {
-						lookAtTxn(e, element, block, logger)
-					}
-					e.next_round = e.next_round + 1
 				}
 				readiness.SetReady(common.ReadinessAlgorandSyncing)
-				currentAlgorandHeight.Set(float64(e.next_round - 1))
+				currentAlgorandHeight.Set(float64(e.next_round))
 				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
-					Height:          int64(e.next_round - 1),
+					Height:          int64(e.next_round),
 					ContractAddress: fmt.Sprintf("%d", e.appid),
 				})
 			}
