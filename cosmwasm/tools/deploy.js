@@ -1,7 +1,6 @@
-import 'dotenv/config'
+import "dotenv/config";
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
 import {
-  StdFee,
   MsgInstantiateContract,
   MsgExecuteContract,
   MsgStoreCode,
@@ -17,13 +16,10 @@ import { zeroPad } from "ethers/lib/utils.js";
 */
 const artifacts = [
   "wormhole.wasm",
-  "token_bridge_terra.wasm",
-  "cw20_wrapped.wasm",
+  "token_bridge_terra_2.wasm",
+  "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
-  "nft_bridge.wasm",
-  "cw721_wrapped.wasm",
-  "cw721_base.wasm",
-  "mock_bridge_integration.wasm",
+  "mock_bridge_integration_2.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
@@ -117,7 +113,7 @@ const govChain = 1;
 const govAddress =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
-async function instantiate(contract, inst_msg) {
+async function instantiate(contract, inst_msg, label) {
   var address;
   await wallet
     .createAndSignTx({
@@ -126,14 +122,16 @@ async function instantiate(contract, inst_msg) {
           wallet.key.accAddress,
           wallet.key.accAddress,
           codeIds[contract],
-          inst_msg
+          inst_msg,
+          undefined,
+          label
         ),
       ],
       memo: "",
     })
     .then((tx) => terra.tx.broadcast(tx))
     .then((rs) => {
-      address = /"contract_address","value":"([^"]+)/gm.exec(rs.raw_log)[1];
+      address = /"_contract_address","value":"([^"]+)/gm.exec(rs.raw_log)[1];
     });
   console.log(
     `Instantiated ${contract} at ${address} (${convert_terra_address_to_hex(
@@ -148,99 +146,61 @@ async function instantiate(contract, inst_msg) {
 
 const addresses = {};
 
-const init_guardians = JSON.parse(process.env.INIT_SIGNERS)
+const init_guardians = JSON.parse(process.env.INIT_SIGNERS);
 if (!init_guardians || init_guardians.length === 0) {
-  throw "failed to get initial guardians from .env file."
+  throw "failed to get initial guardians from .env file.";
 }
 
-addresses["wormhole.wasm"] = await instantiate("wormhole.wasm", {
-  gov_chain: govChain,
-  gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-  guardian_set_expirity: 86400,
-  initial_guardian_set: {
-    addresses: init_guardians.map(hex => {
-      return {
-        bytes: Buffer.from(hex, "hex").toString("base64")
-      }
-    }),
-    expiration_time: 0,
-  },
-});
-
-addresses["token_bridge_terra.wasm"] = await instantiate("token_bridge_terra.wasm", {
-  gov_chain: govChain,
-  gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-  wormhole_contract: addresses["wormhole.wasm"],
-  wrapped_asset_code_id: codeIds["cw20_wrapped.wasm"],
-});
-
-addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
-  name: "MOCK",
-  symbol: "MCK",
-  decimals: 6,
-  initial_balances: [
-    {
-      address: wallet.key.accAddress,
-      amount: "100000000",
-    },
-  ],
-  mint: null,
-});
-
-addresses["nft_bridge.wasm"] = await instantiate("nft_bridge.wasm", {
-  gov_chain: govChain,
-  gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-  wormhole_contract: addresses["wormhole.wasm"],
-  wrapped_asset_code_id: codeIds["cw721_wrapped.wasm"],
-});
-
-addresses["cw721_base.wasm"] = await instantiate("cw721_base.wasm", {
-  name: "MOCK",
-  symbol: "MCK",
-  minter: wallet.key.accAddress,
-});
-
-async function mint_cw721(token_id, token_uri) {
-  await wallet
-    .createAndSignTx({
-      msgs: [
-        new MsgExecuteContract(
-          wallet.key.accAddress,
-          addresses["cw721_base.wasm"],
-          {
-            mint: {
-              token_id: token_id.toString(),
-              owner: wallet.key.accAddress,
-              token_uri: token_uri,
-            },
-          },
-          { uluna: 1000 }
-        ),
-      ],
-      memo: "",
-      fee: new StdFee(2000000, {
-        uluna: "100000",
+addresses["wormhole.wasm"] = await instantiate(
+  "wormhole.wasm",
+  {
+    gov_chain: govChain,
+    gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+    guardian_set_expirity: 86400,
+    initial_guardian_set: {
+      addresses: init_guardians.map((hex) => {
+        return {
+          bytes: Buffer.from(hex, "hex").toString("base64"),
+        };
       }),
-    })
-    .then((tx) => terra.tx.broadcast(tx));
-  console.log(
-    `Minted NFT with token_id ${token_id} at ${addresses["cw721_base.wasm"]}`
-  );
-}
-
-await mint_cw721(
-  0,
-  "https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/"
+      expiration_time: 0,
+    },
+  },
+  "wormhole"
 );
-await mint_cw721(
-  1,
-  "https://portal.neondistrict.io/api/getNft/158456327500392944014123206890"
+
+addresses["token_bridge_terra_2.wasm"] = await instantiate(
+  "token_bridge_terra_2.wasm",
+  {
+    gov_chain: govChain,
+    gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+    wormhole_contract: addresses["wormhole.wasm"],
+    wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+  },
+  "tokenBridge"
+);
+
+addresses["mock.wasm"] = await instantiate(
+  "cw20_base.wasm",
+  {
+    name: "MOCK",
+    symbol: "MCK",
+    decimals: 6,
+    initial_balances: [
+      {
+        address: wallet.key.accAddress,
+        amount: "100000000",
+      },
+    ],
+    mint: null,
+  },
+  "mock"
 );
 
 /* Registrations: tell the bridge contracts to know about each other */
 
 const contract_registrations = {
-  "token_bridge_terra.wasm": [
+  "token_bridge_terra_2.wasm": [
     // Solana
     process.env.REGISTER_SOL_TOKEN_BRIDGE_VAA,
     // Ethereum
@@ -249,12 +209,8 @@ const contract_registrations = {
     process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA,
     // ALGO
     process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA,
-  ],
-  "nft_bridge.wasm": [
-    // Solana
-    process.env.REGISTER_SOL_NFT_BRIDGE_VAA,
-    // Ethereum
-    process.env.REGISTER_ETH_NFT_BRIDGE_VAA,
+    // TERRA
+    process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA,
   ],
 };
 
@@ -278,9 +234,6 @@ for (const [contract, registrations] of Object.entries(
           ),
         ],
         memo: "",
-        fee: new StdFee(2000000, {
-          uluna: "100000",
-        }),
       })
       .then((tx) => terra.tx.broadcast(tx))
       .then((rs) => console.log(rs));

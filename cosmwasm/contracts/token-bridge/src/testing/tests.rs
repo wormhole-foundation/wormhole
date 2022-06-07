@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use cosmwasm_std::{
     Binary,
     StdResult,
@@ -6,16 +8,13 @@ use cosmwasm_std::{
 use wormhole::state::ParsedVAA;
 
 use crate::{
-    contract::{
-        build_asset_id,
-        build_native_id,
-    },
     state::{
         Action,
         TokenBridgeMessage,
         TransferInfo,
         TransferWithPayloadInfo,
     },
+    token_address::ExternalTokenId,
 };
 
 #[test]
@@ -52,27 +51,31 @@ fn binary_check() -> StdResult<()> {
 
 #[test]
 fn build_native_and_asset_ids() -> StdResult<()> {
-    let denom = "uusd";
-    let native_id = build_native_id(denom);
+    let external_id_uluna = ExternalTokenId::from_bank_token(&"uluna".to_string())?;
 
-    let expected_native_id = vec![
-        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 117u8,
-        117u8, 115u8, 100u8,
-    ];
-    assert_eq!(&native_id, &expected_native_id, "native_id != expected");
+    let expected_external_id: [u8; 32] = [1, 250, 108, 111, 188, 54, 216, 194, 69, 176, 168, 82, 164, 62, 181, 214, 68, 232, 180, 196, 119, 178, 123, 250, 185, 83, 124, 16, 148, 89, 57, 218];
+    assert_eq!(
+        &external_id_uluna.serialize(),
+        &expected_external_id,
+        "external_id != expected"
+    );
 
     // weth
     let chain = 2u16;
     let token_address = "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-    let token_address = hex::decode(token_address).unwrap();
-    let asset_id = build_asset_id(chain, token_address.as_slice());
+    let token_address: [u8; 32] = hex::decode(token_address)
+        .unwrap()
+        .as_slice()
+        .try_into()
+        .unwrap();
+    let external_id_weth = ExternalTokenId::from_foreign_token(chain, token_address);
 
-    let expected_asset_id = vec![
-        171u8, 106u8, 233u8, 80u8, 14u8, 139u8, 124u8, 78u8, 181u8, 77u8, 142u8, 76u8, 109u8, 81u8,
-        55u8, 100u8, 139u8, 159u8, 42u8, 85u8, 172u8, 234u8, 0u8, 114u8, 11u8, 82u8, 40u8, 40u8,
-        50u8, 73u8, 211u8, 135u8,
-    ];
-    assert_eq!(&asset_id, &expected_asset_id, "asset_id != expected");
+    let expected_asset_id: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194];
+    assert_eq!(
+        &external_id_weth.serialize(),
+        &expected_asset_id,
+        "asset_id != expected"
+    );
     Ok(())
 }
 
@@ -105,7 +108,8 @@ fn deserialize_transfer_vaa() -> StdResult<()> {
     let token_address = "0100000000000000000000000000000000000000000000000000000075757364";
     let token_address = hex::decode(token_address).unwrap();
     assert_eq!(
-        info.token_address, token_address,
+        info.token_address.serialize().to_vec(),
+        token_address,
         "info.token_address != expected"
     );
 
@@ -117,7 +121,11 @@ fn deserialize_transfer_vaa() -> StdResult<()> {
 
     let recipient = "000000000000000000000000f7f7dde848e7450a029cd0a9bd9bdae4b5147db3";
     let recipient = hex::decode(recipient).unwrap();
-    assert_eq!(info.recipient, recipient, "info.recipient != expected");
+    assert_eq!(
+        info.recipient.to_vec(),
+        recipient,
+        "info.recipient != expected"
+    );
 
     let recipient_chain = 3u16;
     assert_eq!(
@@ -162,7 +170,8 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
     let token_address = "0100000000000000000000000000000000000000000000000000000075757364";
     let token_address = hex::decode(token_address).unwrap();
     assert_eq!(
-        info.token_address, token_address,
+        info.token_address.serialize().to_vec(),
+        token_address,
         "info.token_address != expected"
     );
 
@@ -174,7 +183,11 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
 
     let recipient = "0000000000000000000000008cec800d24df11e556e708461c98122df4a2c3b1";
     let recipient = hex::decode(recipient).unwrap();
-    assert_eq!(info.recipient, recipient, "info.recipient != expected");
+    assert_eq!(
+        info.recipient.to_vec(),
+        recipient,
+        "info.recipient != expected"
+    );
 
     let recipient_chain = 3u16;
     assert_eq!(

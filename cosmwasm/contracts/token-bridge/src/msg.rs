@@ -12,6 +12,11 @@ use terraswap::asset::{
     AssetInfo,
 };
 
+use crate::token_address::{
+    ExternalTokenId,
+    TokenId,
+};
+
 type HumanAddr = String;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -28,7 +33,8 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     RegisterAssetHook {
-        asset_id: Binary,
+        chain: u16,
+        token_address: ExternalTokenId,
     },
 
     DepositTokens {},
@@ -77,6 +83,7 @@ pub struct MigrateMsg {}
 pub enum QueryMsg {
     WrappedRegistry { chain: u16, address: Binary },
     TransferInfo { vaa: Binary },
+    ExternalId { external_id: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -89,10 +96,16 @@ pub struct WrappedRegistryResponse {
 #[serde(rename_all = "snake_case")]
 pub struct TransferInfoResponse {
     pub amount: Uint128,
-    pub token_address: Vec<u8>,
+    pub token_address: [u8; 32],
     pub token_chain: u16,
-    pub recipient: Vec<u8>,
+    pub recipient: [u8; 32],
     pub recipient_chain: u16,
     pub fee: Uint128,
     pub payload: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ExternalIdResponse {
+    pub token_id: TokenId,
 }

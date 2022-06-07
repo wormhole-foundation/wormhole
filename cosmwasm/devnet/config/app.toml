@@ -8,11 +8,11 @@
 # The minimum gas prices a validator is willing to accept for processing a
 # transaction. A transaction's fees must meet the minimum of any denomination
 # specified in this config (e.g. 0.25token1;0.0001token2).
-minimum-gas-prices = "0.01133uluna,0.15uusd,0.104938usdr,169.77ukrw,428.571umnt,0.125ueur,0.98ucny,16.37ujpy,0.11ugbp,10.88uinr,0.19ucad,0.14uchf,0.19uaud,0.2usgd,4.62uthb,1.25usek"
+minimum-gas-prices = "0.15uluna"
 
 # default: the last 100 states are kept in addition to every 500th state; pruning at 10 block intervals
 # nothing: all historic states will be saved, nothing will be deleted (i.e. archiving node)
-# everything: all saved states will be deleted, storing only the current state; pruning at 10 block intervals
+# everything: all saved states will be deleted, storing only the current and previous state; pruning at 10 block intervals
 # custom: allow pruning options to be manually specified through 'pruning-keep-recent', 'pruning-keep-every', and 'pruning-interval'
 pruning = "default"
 
@@ -44,7 +44,7 @@ halt-time = 0
 # It has no bearing on application state pruning which is determined by the
 # "pruning-*" configurations.
 #
-# Note: Tendermint block pruning is dependant on this parameter in conjunction
+# Note: Tendermint block pruning is dependant on this parameter in conunction
 # with the unbonding (safety threshold) period, state pruning and state sync
 # snapshot parameters to determine the correct minimum value of
 # ResponseCommit.RetainHeight.
@@ -59,6 +59,10 @@ inter-block-cache = true
 # Example:
 # ["message.sender", "message.recipient"]
 index-events = []
+
+# IavlCacheSize set the size of the iavl tree cache. 
+# Default cache size is 50mb.
+iavl-cache-size = 781250
 
 ###############################################################################
 ###                         Telemetry Configuration                         ###
@@ -116,7 +120,7 @@ max-open-connections = 1000
 rpc-read-timeout = 10
 
 # RPCWriteTimeout defines the Tendermint RPC write timeout (in seconds).
-rpc-write-timeout = 30
+rpc-write-timeout = 0
 
 # RPCMaxBodyBytes defines the Tendermint maximum response body (in bytes).
 rpc-max-body-bytes = 1000000
@@ -192,15 +196,8 @@ snapshot-interval = 0
 snapshot-keep-recent = 2
 
 [wasm]
-# The maximum gas amount can be spent for contract query.
-# The contract query will invoke contract execution vm,
-# so we need to restrict the max usage to prevent DoS attack
-contract-query-gas-limit = "3000000"
-
-# The flag to specify whether print contract logs or not
-contract-debug-mode = "false"
-
-# The WASM VM memory cache size in MiB not bytes
-contract-memory-cache-size = "500"
-
-contract-logging-whitelist = "*"
+# This is the maximum sdk gas (wasm and storage) that we allow for any x/wasm "smart" queries
+query_gas_limit = 300000
+# This is the number of wasm vm instances we keep cached in memory for speed-up
+# Warning: this is currently unstable and may lead to crashes, best to keep for 0 unless testing locally
+lru_size = 0

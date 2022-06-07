@@ -6,14 +6,13 @@ FROM cosmwasm/workspace-optimizer:0.12.6@sha256:e6565a5e87c830ef3e8775a9035006b3
 COPY Cargo.lock /code/
 COPY Cargo.toml /code/
 COPY contracts /code/contracts
-COPY packages /code/packages
 
 # Support additional root CAs
 COPY README.md cert.pem* /certs/
 # Alpine
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
 
-RUN optimize_workspace.sh
+RUN --mount=type=cache,target=/code/target,id=cosmwasm_target --mount=type=cache,target=/usr/local/cargo/registry optimize_workspace.sh
 
 FROM scratch as artifacts
 COPY --from=builder /code/artifacts /
