@@ -6,6 +6,9 @@ import {
 } from "@certusone/wormhole-sdk";
 import { getLogger } from "./helpers/logHelper";
 
+import defaultBackend from "./backends/default"
+import { Backend, Listener, Relayer } from "./backends/definitions"
+
 export type SupportedToken = {
   chainId: ChainId;
   address: string;
@@ -21,6 +24,24 @@ export type CommonEnvironment = {
 };
 
 let loggingEnv: CommonEnvironment | undefined = undefined;
+
+let backend: Backend
+const setBackend: () => void = () => {
+  // Use the global one if it is already instantiated
+  if (backend) {
+    return
+  }
+  if (process.env.CUSTOM_BACKEND) {
+    try {
+      backend = require(process.env.CUSTOM_BACKEND)
+    } catch (e: any) {
+      throw new Error(`Backend specified in CUSTOM_BACKEND is not importable: ${e?.message}`)
+    }
+  }
+  if (!backend) {
+    backend = defaultBackend
+  }
+}
 
 export const getCommonEnvironment: () => CommonEnvironment = () => {
   if (loggingEnv) {
@@ -110,6 +131,7 @@ export type ListenerEnvironment = {
   restPort: number;
   numSpyWorkers: number;
   supportedTokens: { chainId: ChainId; address: string }[];
+  listenerBackend: Listener
 };
 
 let listenerEnv: ListenerEnvironment | undefined = undefined;
@@ -131,6 +153,7 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
   let numSpyWorkers: number;
   let supportedTokens: { chainId: ChainId; address: string }[] = [];
   const logger = getLogger();
+  let listenerBackend: Listener;
 
   if (!process.env.SPY_SERVICE_HOST) {
     throw new Error("Missing required environment variable: SPY_SERVICE_HOST");
@@ -202,12 +225,17 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
     }
   }
 
+  logger.info("Setting the backend...")
+  setBackend()
+  listenerBackend = backend.listener
+
   return {
     spyServiceHost,
     spyServiceFilters,
     restPort,
     numSpyWorkers,
     supportedTokens,
+    listenerBackend,
   };
 };
 
@@ -230,6 +258,8 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
   let clearRedisOnInit: boolean;
   let demoteWorkingOnInit: boolean;
   let supportedTokens: { chainId: ChainId; address: string }[] = [];
+  let relayerBackend: Relayer
+  const logger = getLogger();
 
   if (!process.env.REDIS_HOST) {
     throw new Error("Missing required environment variable: REDIS_HOST");
@@ -290,6 +320,10 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
     }
   }
 
+  logger.info("Setting the backend...")
+  setBackend()
+  relayerBackend = backend.relayer
+
   return {
     supportedChains,
     redisHost,
@@ -297,6 +331,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
     clearRedisOnInit,
     demoteWorkingOnInit,
     supportedTokens,
+    relayerBackend
   };
 };
 
