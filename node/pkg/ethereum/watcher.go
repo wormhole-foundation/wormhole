@@ -135,6 +135,8 @@ func NewEthWatcher(
 		ethIntf = &celo.CeloImpl{NetworkName: networkName}
 	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
 		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
+	} else if chainID == vaa.ChainIDNeon {
+		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, DelayInMs: 250}
 	} else {
 		ethIntf = &EthImpl{NetworkName: networkName}
 	}
