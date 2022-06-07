@@ -69,3 +69,35 @@ see .env.tilt.relayer for an example
 - CLEAR_REDIS_ON_INIT - boolean, if TRUE the relayer will clear the PENDING and WORKING Redis tables before it starts up.
 - DEMOTE_WORKING_ON_INIT - boolean, if TRUE the relayer will move everything from the WORKING Redis table to the PENDING one.
 - LOG_LEVEL - log level, debug or info
+
+
+Personal Startup Notes
+
+Spy Relayer
+
+docker build --platform linux/arm64/v8 -f Dockerfile -t spy_relayer .
+
+DOCKER_BUILDKIT=1 docker run --platform linux/arm64/v8 -e ARGS='--spyRPC [::]:7076 --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt' -p 7076:7076 myrelayerarm64
+
+docker run --platform linux/arm64/v8 -e ARGS='--spyRPC [::]:7076 --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt' -p 7076:7076 myrelayerarm64
+
+docker run --platform linux/arm64/v8 -e ARGS='--spyRPC [::]:7076 --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt' -p 7076:7076 spy_relayer
+
+
+docker run --platform linux/arm64/v8  -p 7078:7078 spy_relayer 
+
+Or start from GUI
+
+
+Wormhole Guardian Node
+
+docker build -f Dockerfile -t guardian .
+
+To run Guardian node on Testnet
+docker run -p 7073:7073 --entrypoint /guardiand guardian spy --nodeKey /tmp/node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt 
+
+
+SPY_RELAYER CONFIG FILE
+
+SPY_SERVICE_FILTERS=[{"chainId":1,"emitterAddress":"B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE"}, {"chainId":2,"emitterAddress":"0x61E44E506Ca5659E6c0bba9b678586fA2d729756"}]
+SUPPORTED_TOKENS=[{"chainId":1,"address":"So11111111111111111111111111111111111111112"}, {"chainId":2,"address":"0x5C9796c4BcDc48B935421661002d7f3e9E3b822a"}]

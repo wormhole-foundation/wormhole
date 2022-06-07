@@ -17,7 +17,7 @@ import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
-import {relay_signed_vaa} from "../xRaydium/scripts/run"
+import {relay_signed_vaa, redeem} from "../xRaydium/scripts/run"
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
@@ -29,12 +29,54 @@ export async function relaySolana(
     relayLogger: ScopedLogger,
     metrics: PromHelper
   ) {
-    const logger = getScopedLogger(["solana"], relayLogger);
-    logger.info("in relaySolana!!!!!!!!!!!!!!!!!!!!!!")
-    console.log("sddddd solannaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-    return { redeemed: true, result: "already redeemed" }; 
-}
+      const logger = getScopedLogger(["solana"], relayLogger);
+    //TODO native transfer & create associated token account
+    //TODO close connection
+    const signedVaaArray = hexToUint8Array(signedVAAString);
+    const signedVaaBuffer = Buffer.from(signedVaaArray);
+    const connection = new Connection(chainConfigInfo.nodeUrl, "confirmed");
+    if (!chainConfigInfo.bridgeAddress) {
+          // This should never be the case, as enforced by createSolanaChainConfig
+          return { redeemed: false, result: null };
+      }
+    // const keypair = Keypair.fromSecretKey(walletPrivateKey);
+    // const payerAddress = keypair.publicKey.toString();
+    // logger.info(
+    //   "publicKey: %s, bridgeAddress: %s, tokenBridgeAddress: %s",
+    //   payerAddress,
+    //   chainConfigInfo.bridgeAddress,
+    //   chainConfigInfo.tokenBridgeAddress
+    // );
+    // logger.debug("Checking to see if vaa has already been redeemed.");
 
+    // const alreadyRedeemed = await getIsTransferCompletedSolana(
+    //   chainConfigInfo.tokenBridgeAddress,
+    //   signedVaaArray,
+    //   connection
+    // );
+    // if (alreadyRedeemed) {
+    //   logger.info("VAA has already been redeemed!");
+    //   return { redeemed: true, result: "already redeemed" };
+    // }
+    // if (checkOnly) {
+    //   return { redeemed: false, result: "not redeemed" };
+    // }
+
+    // const { parse_vaa } = await importCoreWasm();
+    // const parsedVAA = parse_vaa(signedVaaArray);
+    // const payloadBuffer = Buffer.from(parsedVAA.payload);
+    // const transferPayload = parseTransferPayload(payloadBuffer);
+
+    // *** DOES REDEEMING
+
+    return { redeemed: true, result: "redeemed (hypothetically)" };
+
+    // redeem(
+    //   vaaBytes: Uint8Array,
+    //   transferPayload,
+    //   false
+    // ) 
+}
 
 //relay solana
 // export async function relaySolana(
