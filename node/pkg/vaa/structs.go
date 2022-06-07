@@ -502,17 +502,29 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 
 // StringToAddress converts a hex-encoded address into a vaa.Address
 func StringToAddress(value string) (Address, error) {
-	if len(value) >= 2 && value[0] == '0' && value[1] == 'x' {
+	var address Address
+
+	// Make sure we have enough to decode
+	if len(value) < 2 {
+		return address, fmt.Errorf("value must be at least 1 byte")
+	}
+
+	// Trim any preceding "0x" to the address
+	if value[0:2] == "0x" {
 		value = value[2:]
 	}
-	var address Address
+
+	// Decode the string from hex to binary
 	res, err := hex.DecodeString(value)
 	if err != nil {
 		return address, err
 	}
+
+	// Make sure we don't have too many bytes
 	if len(res) > 32 {
 		return address, fmt.Errorf("value must be no more than 32 bytes")
 	}
 	copy(address[32-len(res):], res)
+
 	return address, nil
 }
