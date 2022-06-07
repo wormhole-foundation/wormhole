@@ -68,7 +68,6 @@ type (
 type ChainGovernor struct {
 	db                 *db.Database
 	logger             *zap.Logger
-	lockC              chan *common.MessagePublication
 	mutex              sync.Mutex
 	tokens             map[tokenKey]*tokenEntry
 	chains             map[vaa.ChainID]*chainEntry
@@ -223,71 +222,190 @@ func (gov *ChainGovernor) InitConfigForTest(
 	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
 }
 
-// TODO: Implement this.
 func (gov *ChainGovernor) loadFromDB() error {
 	gov.logger.Info("governor: loadFromDB")
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	// Scan the DB.
-	// - If the key starts with "PENDING", the payload will be a message. Unmarshall it, create a VAA, and add it to the pending list.
-	// - If the key does not start with "PENDING", it's a VAA. If it is less than 24 hours old, add it to the transfers list.
-
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
-		gov.logger.Error("governor: failed to read pending transactions from db", zap.Error(err))
-	} else {
-		if len(pending) != 0 {
-			sort.SliceStable(pending, func(i, j int )bool{
-				return pending[i].Timestamp.Before(pending[j].Timestamp)
-			})
+		gov.logger.Error("governor: failed to reload transactions from db", zap.Error(err))
+		return err
+	}
 
-			for _, k := range pending {
-				ce, exists := gov.chains[k.EmitterChain]
+	now := time.Now()
+	if len(pending) != 0 {
+		sort.SliceStable(pending, func(i, j int) bool {
+			return pending[i].Timestamp.Before(pending[j].Timestamp)
+		})
 
-				// If we don't care about this chain, the VAA can be published.
-				if !exists {
-					continue
-				}
-			
-				// If we don't care about this emitter, the VAA can be published.
-				if k.EmitterAddress != ce.emitterAddr {
-					continue
-				}
-
-				gov.logger.Info("governor: pending transfer",
-					zap.Stringer("TxHash", k.TxHash),
-					zap.Stringer("Timestamp", k.Timestamp),
-					zap.Uint32("Nonce", k.Nonce),
-					zap.Uint64("Sequence", k.Sequence),
-					zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
-					zap.Stringer("EmitterChain", k.EmitterChain),
-					zap.Stringer("EmitterAddress", k.EmitterAddress),
-				)
-			}
+		for _, k := range pending {
+			gov.reloadPendingTransfer(k, now)
 		}
+	}
 
-		if len(xfers) != 0 {
-			sort.SliceStable(xfers, func(i, j int )bool{
-				return xfers[i].Timestamp.Before(xfers[j].Timestamp)
-			})
+	if len(xfers) != 0 {
+		sort.SliceStable(xfers, func(i, j int) bool {
+			return xfers[i].Timestamp.Before(xfers[j].Timestamp)
+		})
 
-			startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-			for _, t := range xfers {
-				if startTime.Before(t.Timestamp) {
-					gov.logger.Info("governor: transfer",
-						zap.Stringer("Timestamp", t.Timestamp),
-						zap.Uint64("Value", t.Value),
-						zap.Stringer("TokenChainID", t.TokenChainID),
-						zap.Stringer("TokenAddress", t.TokenAddress),
-						zap.String("MsgID", t.MsgID),
-					)
-				}
+		startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+		for _, t := range xfers {
+			if startTime.Before(t.Timestamp) {
+				gov.reloadTransfer(t, now, startTime)
+			} else {
+				gov.db.DeleteTransfer(t)
 			}
 		}
 	}
 
 	return nil
+}
+
+func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, now time.Time) {
+	ce, exists := gov.chains[k.EmitterChain]
+	if !exists {
+		gov.logger.Error("governor: reloaded pending transfer for unsupported chain, dropping it",
+			zap.String("MsgID", k.MessageIDString()),
+			zap.Stringer("TxHash", k.TxHash),
+			zap.Stringer("Timestamp", k.Timestamp),
+			zap.Uint32("Nonce", k.Nonce),
+			zap.Uint64("Sequence", k.Sequence),
+			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
+			zap.Stringer("EmitterChain", k.EmitterChain),
+			zap.Stringer("EmitterAddress", k.EmitterAddress),
+		)
+		return
+	}
+
+	if k.EmitterAddress != ce.emitterAddr {
+		gov.logger.Error("governor: reloaded pending transfer for unsupported emitter address, dropping it",
+			zap.String("MsgID", k.MessageIDString()),
+			zap.Stringer("TxHash", k.TxHash),
+			zap.Stringer("Timestamp", k.Timestamp),
+			zap.Uint32("Nonce", k.Nonce),
+			zap.Uint64("Sequence", k.Sequence),
+			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
+			zap.Stringer("EmitterChain", k.EmitterChain),
+			zap.Stringer("EmitterAddress", k.EmitterAddress),
+		)
+		return
+	}
+
+	payload, err := vaa.DecodeTransferPayloadHdr(k.Payload)
+	if err != nil {
+		gov.logger.Error("governor: failed to parse payload for reloaded pending transfer, dropping it",
+			zap.String("MsgID", k.MessageIDString()),
+			zap.Stringer("TxHash", k.TxHash),
+			zap.Stringer("Timestamp", k.Timestamp),
+			zap.Uint32("Nonce", k.Nonce),
+			zap.Uint64("Sequence", k.Sequence),
+			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
+			zap.Stringer("EmitterChain", k.EmitterChain),
+			zap.Stringer("EmitterAddress", k.EmitterAddress),
+			zap.Stringer("tokenChain", payload.TokenChainID),
+			zap.Stringer("tokenAddress", payload.TokenAddress),
+			zap.Error(err),
+		)
+		return
+	}
+
+	tk := tokenKey{chain: payload.TokenChainID, addr: payload.TokenAddress}
+	token, exists := gov.tokens[tk]
+	if !exists {
+		gov.logger.Error("governor: reloaded pending transfer for unsupported token, dropping it",
+			zap.String("MsgID", k.MessageIDString()),
+			zap.Stringer("TxHash", k.TxHash),
+			zap.Stringer("Timestamp", k.Timestamp),
+			zap.Uint32("Nonce", k.Nonce),
+			zap.Uint64("Sequence", k.Sequence),
+			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
+			zap.Stringer("EmitterChain", k.EmitterChain),
+			zap.Stringer("EmitterAddress", k.EmitterAddress),
+			zap.Stringer("tokenChain", payload.TokenChainID),
+			zap.Stringer("tokenAddress", payload.TokenAddress),
+		)
+		return
+	}
+
+	value, err := computeValue(payload.Amount, token)
+	if err != nil {
+		gov.logger.Error("governor: failed to compute value for reloaded pending transfer, dropping it",
+			zap.String("MsgID", k.MessageIDString()),
+			zap.Stringer("TxHash", k.TxHash),
+			zap.Stringer("Timestamp", k.Timestamp),
+			zap.Uint32("Nonce", k.Nonce),
+			zap.Uint64("Sequence", k.Sequence),
+			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
+			zap.Stringer("EmitterChain", k.EmitterChain),
+			zap.Stringer("EmitterAddress", k.EmitterAddress),
+			zap.Stringer("tokenChain", payload.TokenChainID),
+			zap.Stringer("tokenAddress", payload.TokenAddress),
+			zap.Error(err),
+		)
+		return
+	}
+
+	gov.logger.Info("governor: reloaded pending transfer",
+		zap.String("MsgID", k.MessageIDString()),
+		zap.Stringer("TxHash", k.TxHash),
+		zap.Stringer("Timestamp", k.Timestamp),
+		zap.Uint32("Nonce", k.Nonce),
+		zap.Uint64("Sequence", k.Sequence),
+		zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
+		zap.Stringer("EmitterChain", k.EmitterChain),
+		zap.Stringer("EmitterAddress", k.EmitterAddress),
+	)
+
+	ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, value: value, msg: k})
+}
+
+func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTime time.Time) {
+	ce, exists := gov.chains[t.EmitterChainID]
+	if !exists {
+		gov.logger.Error("governor: reloaded transfer for unsupported chain, dropping it",
+			zap.Stringer("Timestamp", t.Timestamp),
+			zap.Uint64("Value", t.Value),
+			zap.Stringer("TokenChainID", t.TokenChainID),
+			zap.Stringer("TokenAddress", t.TokenAddress),
+			zap.String("MsgID", t.MsgID),
+		)
+		return
+	}
+
+	if t.EmitterAddress != ce.emitterAddr {
+		gov.logger.Error("governor: reloaded transfer for unsupported emitter address, dropping it",
+			zap.Stringer("Timestamp", t.Timestamp),
+			zap.Uint64("Value", t.Value),
+			zap.Stringer("TokenChainID", t.TokenChainID),
+			zap.Stringer("TokenAddress", t.TokenAddress),
+			zap.String("MsgID", t.MsgID),
+		)
+		return
+	}
+
+	tk := tokenKey{chain: t.TokenChainID, addr: t.TokenAddress}
+	_, exists = gov.tokens[tk]
+	if !exists {
+		gov.logger.Error("governor: reloaded transfer for unsupported token, dropping it",
+			zap.Stringer("Timestamp", t.Timestamp),
+			zap.Uint64("Value", t.Value),
+			zap.Stringer("TokenChainID", t.TokenChainID),
+			zap.Stringer("TokenAddress", t.TokenAddress),
+			zap.String("MsgID", t.MsgID),
+		)
+		return
+	}
+
+	gov.logger.Info("governor: reloaded transfer",
+		zap.Stringer("Timestamp", t.Timestamp),
+		zap.Uint64("Value", t.Value),
+		zap.Stringer("TokenChainID", t.TokenChainID),
+		zap.Stringer("TokenAddress", t.TokenAddress),
+		zap.String("MsgID", t.MsgID),
+	)
+
+	ce.transfers = append(ce.transfers, *t)
 }
 
 // Returns true if the message can be published, false if it has been added to the pending list.
@@ -344,25 +462,15 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	prevTotalValue := ce.TrimAndSumValue(startTime, gov.db)
-	prevTotalValue += SumPendingValue(ce.pending)
 
-	amountFloat := new(big.Float)
-	amountFloat = amountFloat.SetInt(payload.Amount)
-
-	valueFloat := new(big.Float)
-	valueFloat = valueFloat.Mul(amountFloat, token.price)
-
-	valueBigInt, _ := valueFloat.Int(nil)
-	valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
-
-	if !valueBigInt.IsUint64() {
-		return false, fmt.Errorf("value is too large to fit in uint64")
+	value, err := computeValue(payload.Amount, token)
+	if err != nil {
+		return false, err
 	}
 
-	value := valueBigInt.Uint64()
 	newTotalValue := prevTotalValue + value
 
-	if newTotalValue > ce.dailyLimit {
+	if (newTotalValue > ce.dailyLimit) || (len(ce.pending) != 0) {
 		if gov.logger != nil {
 			gov.logger.Error("governor: enqueuing vaa because it would exceed the daily limit",
 				zap.Uint64("value", value),
@@ -482,6 +590,25 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 	return msgsToPublish, nil
 }
 
+func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
+	amountFloat := new(big.Float)
+	amountFloat = amountFloat.SetInt(amount)
+
+	valueFloat := new(big.Float)
+	valueFloat = valueFloat.Mul(amountFloat, token.price)
+
+	valueBigInt, _ := valueFloat.Int(nil)
+	valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+
+	if !valueBigInt.IsUint64() {
+		return 0, fmt.Errorf("value is too large to fit in uint64")
+	}
+
+	value := valueBigInt.Uint64()
+
+	return value, nil
+}
+
 func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db *db.Database) uint64 {
 	var sum uint64
 	sum, ce.transfers = TrimAndSumValue(ce.transfers, startTime, db)
@@ -506,7 +633,7 @@ func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Databa
 
 	if trimIdx >= 0 {
 		if db != nil {
-			for idx := 0; idx <= trimIdx; idx++ { 
+			for idx := 0; idx <= trimIdx; idx++ {
 				db.DeleteTransfer(&transfers[idx])
 			}
 		}
@@ -515,15 +642,6 @@ func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Databa
 	}
 
 	return sum, transfers
-}
-
-func SumPendingValue(pending []pendingEntry) uint64 {
-	var sum uint64
-	for _, pe := range pending {
-		sum += pe.value
-	}
-
-	return sum
 }
 
 func (gov *ChainGovernor) GetStatsForChain(chainID vaa.ChainID) (numTrans int, valueTrans uint64, numPending int, valuePending uint64) {
@@ -599,4 +717,8 @@ Questions:
   should we allow that one? For now, assuming we will block it.
 - What should I do with a single transfer that exceeds the daily limit? Just keep it in the queue until they manually release or delete it? Assuming we will queue it up.
 - If we are going to be reading prices in real time, is the value of an already processed / pending transfer fixed, or does it change as the prices move? Assuming values should change?
+
+Things still yet to do:
+- Console commands
+- CoinGecko
 */
