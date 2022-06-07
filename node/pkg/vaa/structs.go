@@ -427,7 +427,13 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 
 // NOTE: This function assumes that the caller has verified that the VAA is from the token bridge.
 func IsTransfer(payload []byte) bool {
-	return len(payload) > 0 && (payload[0] == 1) || (payload[0] == 3)
+	if len(payload) > 0 {
+		if payload[0] == 1 || payload[0] == 3 {
+			return true
+		}
+	}
+
+	return false
 }
 
 func DecodeTransferPayloadHdr(payload []byte) (*TransferPayloadHdr, error) {
