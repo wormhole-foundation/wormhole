@@ -514,8 +514,10 @@ func TestStringToAddress(t *testing.T) {
 			errString: ""},
 		{label: "too long",
 			rawAddr:   "0x0000000000000000000000000000000000000000000000000000000000000000000004",
-			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
 			errString: "value must be no more than 32 bytes"},
+		{label: "too short",
+			rawAddr:   "4",
+			errString: "value must be at least 1 byte"},
 	}
 
 	for _, tc := range tests {
