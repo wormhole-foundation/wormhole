@@ -300,6 +300,7 @@ async function processRequest(
         metrics
       );
       logger.info("Relay returned: %o", Status[relayResult.status]);
+      logger.info("Relay result: %o", relayResult.result);
     } catch (e: any) {
       if (e.message) {
         logger.error("Failed to relay transfer vaa: %s", e.message);

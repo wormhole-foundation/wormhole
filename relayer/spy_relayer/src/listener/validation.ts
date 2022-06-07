@@ -105,11 +105,11 @@ export async function parseAndValidateVaa(
   //   return "VAA is not from a monitored contract.";
   // }
 
-  const isCorrectPayloadType = parsedVaa.payload[0] === 1;
+  const isCorrectPayloadType = parsedVaa.payload[0] === 3;
 
   if (!isCorrectPayloadType) {
-    logger.debug("Specified vaa is not payload type 1.");
-    return "Specified vaa is not payload type 1..";
+    logger.debug("Specified vaa is not payload type 3.");
+    return "Specified vaa is not payload type 3..";
   }
 
   let parsedPayload: any = null;
@@ -143,12 +143,12 @@ export async function parseAndValidateVaa(
   }
 
   //TODO configurable
-  const sufficientFee = parsedPayload.fee && parsedPayload.fee > 0;
+  const sufficientFee = parsedPayload.fee && parsedPayload.fee >= 0;
 
-  if (!sufficientFee) {
-    logger.debug("Token transfer does not have a sufficient fee.");
-    return "Token transfer does not have a sufficient fee.";
-  }
+  // if (!sufficientFee) {
+  //   logger.debug("Token transfer does not have a sufficient fee.");
+  //   return "Token transfer does not have a sufficient fee.";
+  // }
 
   const key = getKey(parsedPayload.originChain, originAddressNative as string); //was null checked above
 

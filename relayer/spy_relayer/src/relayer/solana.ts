@@ -29,9 +29,10 @@ export async function relaySolana(
     relayLogger: ScopedLogger,
     metrics: PromHelper
   ) {
+    const logger = getScopedLogger(["solana"], relayLogger);
+    logger.info("in relaySolana!!!!!!!!!!!!!!!!!!!!!!")
     console.log("sddddd solannaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
     return { redeemed: true, result: "already redeemed" }; 
-  
 }
 
 

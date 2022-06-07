@@ -119,7 +119,7 @@ message BridgeUpgradeContract {
 
   // ID of the chain where the bridge contract should be updated (uint16).
   uint32 target_chain_id = 2;
-
+  
   // Hex-encoded address (without leading 0x) of the new program/contract.
   string new_contract = 3;
 }

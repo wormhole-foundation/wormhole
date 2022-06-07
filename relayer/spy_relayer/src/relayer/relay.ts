@@ -35,11 +35,11 @@ export async function relay(
   const logger = getScopedLogger(["relay"], relayLogger);
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(hexToUint8Array(signedVAA));
-  if (parsedVAA.payload[0] === 1) {
+  if (parsedVAA.payload[0] === 3) {
     const transferPayload = parseTransferPayload(
       Buffer.from(parsedVAA.payload)
     );
-      
+
     const chainConfigInfo = getChainConfigInfo(transferPayload.targetChain);
     if (!chainConfigInfo) {
       logger.error("relay: improper chain ID: " + transferPayload.targetChain);
