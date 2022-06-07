@@ -26,6 +26,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/ethereum"
+	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -150,6 +151,8 @@ var (
 	bigTableTableName          *string
 	bigTableTopicName          *string
 	bigTableKeyPath            *string
+
+	chainGovernorEnabled *bool
 )
 
 func init() {
@@ -258,6 +261,8 @@ func init() {
 	bigTableTableName = NodeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
 	bigTableTopicName = NodeCmd.Flags().String("bigTableTopicName", "", "GCP topic name to publish to")
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
+
+	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 }
 
 var (
@@ -931,6 +936,15 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
+		var gov *governor.ChainGovernor
+		if *chainGovernorEnabled {
+			logger.Info("chain governor is enabled")
+			gov = governor.NewChainGovernor(ctx, db)
+			gov.Run(ctx)
+		} else {
+			logger.Info("chain governor is disabled")
+		}
+
 		p := processor.NewProcessor(ctx,
 			db,
 			lockC,
@@ -948,6 +962,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			*terraContract,
 			attestationEvents,
 			notifier,
+			gov,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
