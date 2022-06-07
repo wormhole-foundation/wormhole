@@ -17,7 +17,7 @@ use cosmwasm_std::{
 use cosmwasm_std::entry_point;
 
 use cw2::set_contract_version;
-use cw20_legacy::{
+use cw20_base::{
     allowances::{
         execute_burn_from,
         execute_decrease_allowance,
@@ -80,7 +80,7 @@ pub fn instantiate(
         total_supply: Uint128::new(0),
         // set creator as minter
         mint: Some(MinterData {
-            minter: deps.api.addr_canonicalize(info.sender.as_str())?,
+            minter: deps.api.addr_validate(info.sender.as_str())?,
             cap: None,
         }),
     };

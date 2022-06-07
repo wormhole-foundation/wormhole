@@ -6,7 +6,7 @@ use cw20_base::msg::{
     ExecuteMsg as TokenMsg,
     QueryMsg as TokenQuery,
 };
-use cw20_wrapped::msg::{
+use cw20_wrapped_2::msg::{
     ExecuteMsg as WrappedMsg,
     InitHook,
     InstantiateMsg as WrappedInit,
@@ -56,7 +56,6 @@ use cosmwasm_std::{
     BankMsg,
     Binary,
     CanonicalAddr,
-    Coin,
     CosmosMsg,
     Deps,
     DepsMut,
@@ -231,20 +230,6 @@ pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
         .add_attribute("action", "reply_handler"))
 }
 
-pub fn coins_after_tax(deps: DepsMut, coins: Vec<Coin>) -> StdResult<Vec<Coin>> {
-    let mut res = vec![];
-    for coin in coins {
-        let asset = Asset {
-            amount: coin.amount.clone(),
-            info: AssetInfo::NativeToken {
-                denom: coin.denom.clone(),
-            },
-        };
-        res.push(asset.deduct_tax(&deps.querier)?);
-    }
-    Ok(res)
-}
-
 fn parse_vaa(deps: Deps, block_time: u64, data: &Binary) -> StdResult<ParsedVAA> {
     let cfg = config_read(deps.storage).load()?;
     let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -348,7 +333,7 @@ fn withdraw_tokens(
         )?;
         messages.push(CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
-            amount: coins_after_tax(deps, vec![coin(deposited_amount, &denom)])?,
+            amount: vec![coin(deposited_amount, &denom)],
         }));
     }
 
@@ -508,7 +493,7 @@ fn handle_create_asset_meta_token(
                 nonce,
             })?,
             // forward coins sent to this message
-            funds: coins_after_tax(deps, info.funds.clone())?,
+            funds: info.funds.clone(),
         }))
         .add_attribute("meta.token_chain", CHAIN_ID.to_string())
         .add_attribute("meta.token", asset_address)
@@ -546,7 +531,7 @@ fn handle_create_asset_meta_native_token(
                 nonce,
             })?,
             // forward coins sent to this message
-            funds: coins_after_tax(deps, info.funds.clone())?,
+            funds: info.funds.clone(),
         }))
         .add_attribute("meta.token_chain", CHAIN_ID.to_string())
         .add_attribute("meta.symbol", symbol)
@@ -878,7 +863,7 @@ fn handle_complete_transfer_token(
 }
 
 fn handle_complete_transfer_token_native(
-    mut deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     info: MessageInfo,
     emitter_chain: u16,
@@ -945,13 +930,13 @@ fn handle_complete_transfer_token_native(
 
     let mut messages = vec![CosmosMsg::Bank(BankMsg::Send {
         to_address: recipient.to_string(),
-        amount: coins_after_tax(deps.branch(), vec![coin(amount, &denom)])?,
+        amount: vec![coin(amount, &denom)],
     })];
 
     if fee != 0 {
         messages.push(CosmosMsg::Bank(BankMsg::Send {
             to_address: relayer_address.to_string(),
-            amount: coins_after_tax(deps, vec![coin(fee, &denom)])?,
+            amount: vec![coin(fee, &denom)],
         }));
     }
 
@@ -1005,7 +990,7 @@ fn handle_initiate_transfer(
 }
 
 fn handle_initiate_transfer_token(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     asset: HumanAddr,
@@ -1053,7 +1038,7 @@ fn handle_initiate_transfer_token(
                 msg: to_binary(&WrappedQuery::WrappedAssetInfo {})?,
             });
             let wrapped_token_info: WrappedAssetInfoResponse =
-                deps.querier.custom_query(&request)?;
+                deps.querier.query(&request)?;
             asset_chain = wrapped_token_info.asset_chain;
             asset_address = wrapped_token_info.asset_address.into();
 
@@ -1088,7 +1073,7 @@ fn handle_initiate_transfer_token(
                     nonce,
                 })?,
                 // forward coins sent to this message
-                funds: coins_after_tax(deps.branch(), info.funds.clone())?,
+                funds: info.funds.clone(),
             }));
         }
         Err(_) => {
@@ -1294,7 +1279,7 @@ fn handle_initiate_transfer_native_token(
             message: Binary::from(token_bridge_message.serialize()),
             nonce,
         })?,
-        funds: coins_after_tax(deps, info.funds.clone())?,
+        funds: info.funds.clone(),
     }));
 
     Ok(Response::new()
