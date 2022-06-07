@@ -431,7 +431,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(2218274), valuePending)
 
-	// Once we have something big queued, small things should be queued as well.
+	// Once we have something queued, small things should be queued as well.
 	msg.Payload = payloadBytes1
 	canPost, err = gov.ProcessMsgForTime(&msg, time.Now())
 	assert.Nil(t, err)
@@ -608,17 +608,99 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(532385), valuePending)
 }
 
+func TestIfAnythingIsQueuedEverythingIsQueued(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+
+	gov.SetDayLengthInMinutes(24 * 60)
+	gov.SetTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+
+	// A bigg VAA should be queued.
+	payloadBytes1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1000,
+	)
+
+	msg1 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
+	canPost, err := gov.ProcessMsgForTime(&msg1, now)
+	assert.Nil(t, err)
+
+	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
+	assert.Equal(t, false, canPost)
+	assert.Equal(t, 0, numTrans)
+	assert.Equal(t, uint64(0), valueTrans)
+	assert.Equal(t, 1, numPending)
+	assert.Equal(t, uint64(1774619), valuePending)
+
+	// And once we've started queuing things, even a small one should be queued.
+	payloadBytes2 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1,
+	)
+
+	msg2 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes2,
+	}
+
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 6:00pm (CST)")
+	canPost, err = gov.ProcessMsgForTime(&msg2, now)
+	assert.Nil(t, err)
+
+	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
+	assert.Equal(t, false, canPost)
+	assert.Equal(t, 0, numTrans)
+	assert.Equal(t, uint64(0), valueTrans)
+	assert.Equal(t, 2, numPending)
+	assert.Equal(t, uint64(1774619+1774), valuePending)
+}
+
 func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	assert.Nil(t, err)
 
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	assert.Nil(t, err)
+
 	xfer1 := &db.Transfer{
-		Timestamp:    time.Unix(int64(1654516425), 0),
-		Value:        125000,
-		TokenChainID: vaa.ChainIDEthereum,
-		TokenAddress: tokenAddr,
-		MsgID:        "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		Timestamp:      time.Unix(int64(1654516425), 0),
+		Value:          125000,
+		TokenChainID:   vaa.ChainIDEthereum,
+		TokenAddress:   tokenAddr,
+		EmitterChainID: vaa.ChainIDEthereum,
+		EmitterAddress: tokenBridgeAddr,
+		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 	}
 
 	bytes, err := xfer1.Marshal()
@@ -631,6 +713,8 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	assert.Equal(t, xfer1.Value, xfer2.Value)
 	assert.Equal(t, xfer1.TokenChainID, xfer2.TokenChainID)
 	assert.Equal(t, xfer1.TokenAddress, xfer2.TokenAddress)
+	assert.Equal(t, xfer1.EmitterChainID, xfer2.EmitterChainID)
+	assert.Equal(t, xfer1.EmitterAddress, xfer2.EmitterAddress)
 	assert.Equal(t, xfer1.MsgID, xfer2.MsgID)
 
 	expectedTransferKey := "GOV:XFER:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
