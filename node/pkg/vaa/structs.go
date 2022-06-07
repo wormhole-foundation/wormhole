@@ -494,7 +494,7 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	}
 }
 
-// StringToAddress converts a hex-encoded adress into a vaa.Address
+// StringToAddress converts a hex-encoded address into a vaa.Address
 func StringToAddress(value string) (Address, error) {
 	if len(value) >= 2 && value[0] == '0' && value[1] == 'x' {
 		value = value[2:]
