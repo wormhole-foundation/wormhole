@@ -1,9 +1,9 @@
 import {
   CHAIN_ID_ACALA,
   CHAIN_ID_KARURA,
-  CHAIN_ID_TERRA,
   hexToNativeAssetString,
   isEVMChain,
+  isTerraChain,
 } from "@certusone/wormhole-sdk";
 import {
   Card,
@@ -299,14 +299,14 @@ function FeeMethodSelector() {
           <Typography variant="body1">{"Manual Payment"}</Typography>
           <Typography variant="body2" color="textSecondary">
             {`Pay with your own ${
-              targetChain === CHAIN_ID_TERRA
+              isTerraChain(targetChain)
                 ? "funds"
                 : getDefaultNativeCurrencySymbol(targetChain)
             } on ${CHAINS_BY_ID[targetChain]?.name || "target chain"}`}
           </Typography>
         </div>
       </div>
-      {(isEVMChain(targetChain) || targetChain === CHAIN_ID_TERRA) && (
+      {(isEVMChain(targetChain) || isTerraChain(targetChain)) && (
         <GasEstimateSummary
           methodType="transfer"
           chainId={targetChain}

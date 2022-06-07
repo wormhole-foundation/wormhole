@@ -5,12 +5,13 @@ import {
   CHAIN_ID_KARURA,
   CHAIN_ID_KLAYTN,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   createWrappedOnAlgorand,
   createWrappedOnEth,
   createWrappedOnSolana,
   createWrappedOnTerra,
   isEVMChain,
+  isTerraChain,
+  TerraChainId,
   updateWrappedOnEth,
   updateWrappedOnSolana,
   updateWrappedOnTerra,
@@ -48,7 +49,6 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import { getKaruraGasParams } from "../utils/karura";
 import parseError from "../utils/parseError";
@@ -199,18 +199,20 @@ async function terra(
   wallet: ConnectedWallet,
   signedVAA: Uint8Array,
   shouldUpdate: boolean,
-  feeDenom: string
+  feeDenom: string,
+  chainId: TerraChainId
 ) {
   dispatch(setIsCreating(true));
+  const tokenBridgeAddress = getTokenBridgeAddressForChain(chainId);
   try {
     const msg = shouldUpdate
       ? await updateWrappedOnTerra(
-          TERRA_TOKEN_BRIDGE_ADDRESS,
+          tokenBridgeAddress,
           wallet.terraAddress,
           signedVAA
         )
       : await createWrappedOnTerra(
-          TERRA_TOKEN_BRIDGE_ADDRESS,
+          tokenBridgeAddress,
           wallet.terraAddress,
           signedVAA
         );
@@ -218,7 +220,8 @@ async function terra(
       wallet,
       [msg],
       "Wormhole - Create Wrapped",
-      [feeDenom]
+      [feeDenom],
+      chainId
     );
     dispatch(
       setCreateTx({ id: result.result.txhash, block: result.result.height })
@@ -270,14 +273,15 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
         signedVAA,
         shouldUpdate
       );
-    } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && !!signedVAA) {
+    } else if (isTerraChain(targetChain) && !!terraWallet && !!signedVAA) {
       terra(
         dispatch,
         enqueueSnackbar,
         terraWallet,
         signedVAA,
         shouldUpdate,
-        terraFeeDenom
+        terraFeeDenom,
+        targetChain
       );
     } else if (
       targetChain === CHAIN_ID_ALGORAND &&

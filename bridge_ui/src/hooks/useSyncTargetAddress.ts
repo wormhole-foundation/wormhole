@@ -2,8 +2,8 @@ import {
   canonicalAddress,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
+  isTerraChain,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { arrayify, zeroPad } from "@ethersproject/bytes";
@@ -99,7 +99,7 @@ function useSyncTargetAddress(shouldFire: boolean, nft?: boolean) {
           }
         })();
       } else if (
-        targetChain === CHAIN_ID_TERRA &&
+        isTerraChain(targetChain) &&
         terraWallet &&
         terraWallet.walletAddress
       ) {

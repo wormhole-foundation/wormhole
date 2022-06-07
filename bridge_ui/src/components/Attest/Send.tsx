@@ -1,4 +1,4 @@
-import { CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA, isTerraChain } from "@certusone/wormhole-sdk";
 import { Alert } from "@material-ui/lab";
 import { Link, makeStyles } from "@material-ui/core";
 import { useMemo } from "react";
@@ -63,8 +63,8 @@ function Send() {
   return (
     <>
       <KeyAndBalance chainId={sourceChain} />
-      {sourceChain === CHAIN_ID_TERRA && (
-        <TerraFeeDenomPicker disabled={disabled} />
+      {isTerraChain(sourceChain) && (
+        <TerraFeeDenomPicker disabled={disabled} chainId={sourceChain} />
       )}
       <ButtonWithLoader
         disabled={!isReady || disabled}

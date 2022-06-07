@@ -2,12 +2,12 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   getOriginalAssetAlgorand,
+  getOriginalAssetCosmWasm,
   getOriginalAssetEth,
   getOriginalAssetSol,
-  getOriginalAssetTerra,
   isEVMChain,
+  isTerraChain,
   uint8ArrayToHex,
   WormholeWrappedInfo,
 } from "@certusone/wormhole-sdk";
@@ -17,6 +17,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { Algodv2 } from "algosdk";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -35,13 +36,12 @@ import {
   ALGORAND_HOST,
   ALGORAND_TOKEN_BRIDGE_ID,
   getNFTBridgeAddressForChain,
+  getTerraConfig,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_HOST,
 } from "../utils/consts";
-import { Algodv2 } from "algosdk";
 
 export interface StateSafeWormholeWrappedInfo {
   isWrapped: boolean;
@@ -128,12 +128,13 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
           }
         } catch (e) {}
       }
-      if (sourceChain === CHAIN_ID_TERRA && sourceAsset) {
+      if (isTerraChain(sourceChain) && sourceAsset) {
         try {
-          const lcd = new LCDClient(TERRA_HOST);
+          const lcd = new LCDClient(getTerraConfig(sourceChain));
           const wrappedInfo = makeStateSafe(
-            await getOriginalAssetTerra(lcd, sourceAsset)
+            await getOriginalAssetCosmWasm(lcd, sourceAsset, sourceChain)
           );
+          console.log(wrappedInfo);
           if (!cancelled) {
             dispatch(setSourceWormholeWrappedInfo(wrappedInfo));
           }
