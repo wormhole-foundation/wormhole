@@ -577,7 +577,7 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 		},
 		{label: "empty string",
 			vaa:       "",
-			errString: "buffer too short",
+			errString: "VAA is too short",
 		},
 	}
 
@@ -587,37 +587,41 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			assert.Nil(t, err)
 
 			vaa, err := Unmarshal(data)
-			assert.Nil(t, err)
-			assert.NotNil(t, vaa)
-
-			if len(tc.errString) == 0 {
-				expectedEmitterAddr, err := StringToAddress(tc.emitterAddr)
-				assert.Nil(t, err)
-
-				expectedTokenAddr, err := StringToAddress(tc.tokenAddr)
-				assert.Nil(t, err)
-
-				expectedToAddr, err := StringToAddress(tc.toAddr)
-				assert.Nil(t, err)
-
-				expectedAmount := big.NewInt(tc.amount)
-
-				assert.Equal(t, tc.emitterChainId, vaa.EmitterChain)
-				assert.Equal(t, expectedEmitterAddr, vaa.EmitterAddress)
-				assert.Equal(t, 133, len(vaa.Payload))
-
-				payload, err := DecodeTransferPayloadHdr(vaa.Payload)
-				assert.Nil(t, err)
-				assert.Equal(t, tc.payloadType, payload.Type)
-				assert.Equal(t, tc.tokenChainId, payload.TokenChainID)
-				assert.Equal(t, expectedTokenAddr, payload.TokenAddress)
-				assert.Equal(t, tc.toChainId, payload.ToChainID)
-				assert.Equal(t, expectedToAddr, payload.ToAddress)
-				assert.Equal(t, expectedAmount.Cmp(payload.Amount), 0)
-			} else {
-				_, err = DecodeTransferPayloadHdr(vaa.Payload)
-				assert.NotNil(t, err)
+			if err != nil {
 				assert.Equal(t, tc.errString, err.Error())
+			} else {
+				assert.Nil(t, err)
+				assert.NotNil(t, vaa)
+
+				if len(tc.errString) == 0 {
+					expectedEmitterAddr, err := StringToAddress(tc.emitterAddr)
+					assert.Nil(t, err)
+
+					expectedTokenAddr, err := StringToAddress(tc.tokenAddr)
+					assert.Nil(t, err)
+
+					expectedToAddr, err := StringToAddress(tc.toAddr)
+					assert.Nil(t, err)
+
+					expectedAmount := big.NewInt(tc.amount)
+
+					assert.Equal(t, tc.emitterChainId, vaa.EmitterChain)
+					assert.Equal(t, expectedEmitterAddr, vaa.EmitterAddress)
+					assert.Equal(t, 133, len(vaa.Payload))
+
+					payload, err := DecodeTransferPayloadHdr(vaa.Payload)
+					assert.Nil(t, err)
+					assert.Equal(t, tc.payloadType, payload.Type)
+					assert.Equal(t, tc.tokenChainId, payload.TokenChainID)
+					assert.Equal(t, expectedTokenAddr, payload.TokenAddress)
+					assert.Equal(t, tc.toChainId, payload.ToChainID)
+					assert.Equal(t, expectedToAddr, payload.ToAddress)
+					assert.Equal(t, expectedAmount.Cmp(payload.Amount), 0)
+				} else {
+					_, err = DecodeTransferPayloadHdr(vaa.Payload)
+					assert.NotNil(t, err)
+					assert.Equal(t, tc.errString, err.Error())
+				}
 			}
 
 		})
