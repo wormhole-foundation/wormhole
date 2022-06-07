@@ -45,7 +45,7 @@ export async function transact(
     memo: memo,
   });
 
-  return client.tx.broadcast(tx);
+  return client.tx.broadcastBlock(tx);
 }
 
 export async function transactWithoutMemo(
