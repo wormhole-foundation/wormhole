@@ -7,7 +7,7 @@ import {
   Wallet,
 } from "@terra-money/terra.js";
 
-export const GAS_PRICE = 0.2; // uusd
+export const GAS_PRICE = 0.15; // uluna
 
 export async function makeProviderAndWallet(): Promise<[LCDClient, Wallet]> {
   // provider
@@ -16,7 +16,7 @@ export async function makeProviderAndWallet(): Promise<[LCDClient, Wallet]> {
     chainID: "localterra",
     gasAdjustment: "2",
     gasPrices: {
-      uusd: GAS_PRICE,
+      uluna: GAS_PRICE,
     },
   });
 
@@ -45,7 +45,7 @@ export async function transact(
     memo: memo,
   });
 
-  return client.tx.broadcast(tx);
+  return client.tx.broadcastBlock(tx);
 }
 
 export async function transactWithoutMemo(

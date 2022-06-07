@@ -43,8 +43,12 @@ impl ByteUtils for &[u8] {
         (self.get_u128_be(index), self.get_u128_be(index + 128 / 8))
     }
     fn get_address(&self, index: usize) -> CanonicalAddr {
-        // 32 bytes are reserved for addresses, but only the last 20 bytes are taken by the actual address
-        CanonicalAddr::from(&self[index + 32 - 20..index + 32])
+        // 32 bytes are reserved for addresses, but wasmd uses both 32 and 20 bytes
+        // https://github.com/CosmWasm/wasmd/blob/ac92fdcf37388cc8dc24535f301f64395f8fb3da/x/wasm/types/types.go#L325
+        if self.get_u128_be(index) >> 32 == 0 {
+            return CanonicalAddr::from(&self[index + 12..index + 32])    
+        }
+        return CanonicalAddr::from(&self[index..index + 32])
     }
     fn get_bytes32(&self, index: usize) -> &[u8] {
         &self[index..index + 32]
@@ -61,13 +65,13 @@ impl ByteUtils for &[u8] {
     }
 }
 
-/// Left-pad a 20 byte address with 0s
+/// Left-pad a <= 32 byte address with 0s
 pub fn extend_address_to_32(addr: &CanonicalAddr) -> Vec<u8> {
     extend_address_to_32_array(addr).to_vec()
 }
 
 pub fn extend_address_to_32_array(addr: &CanonicalAddr) -> [u8; 32] {
-    let mut v: Vec<u8> = vec![0; 12];
+    let mut v: Vec<u8> = vec![0; 32 - addr.len()];
     v.extend(addr.as_slice());
     let mut result: [u8; 32] = [0; 32];
     result.copy_from_slice(&v);

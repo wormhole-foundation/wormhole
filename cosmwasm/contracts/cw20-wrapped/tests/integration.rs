@@ -17,7 +17,7 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::to_length_prefixed;
 use cw20::TokenInfoResponse;
-use cw20_wrapped::{
+use cw20_wrapped_2::{
     contract::{
         execute,
         instantiate,
@@ -49,7 +49,7 @@ fn get_wrapped_asset_info<S: Storage>(storage: &S) -> WrappedAssetInfo {
 }
 
 fn do_init() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-    let mut deps = mock_dependencies(&[]);
+    let mut deps = mock_dependencies();
     let init_msg = InstantiateMsg {
         name: "Integers".into(),
         symbol: "INT".into(),
