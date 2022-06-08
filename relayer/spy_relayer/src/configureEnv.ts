@@ -225,7 +225,7 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
     }
   }
 
-  logger.info("Setting the backend...")
+  logger.info("Setting the listener backend...")
   setBackend()
   listenerBackend = backend.listener
 
@@ -320,7 +320,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
     }
   }
 
-  logger.info("Setting the backend...")
+  logger.info("Setting the relayer backend...")
   setBackend()
   relayerBackend = backend.relayer
 

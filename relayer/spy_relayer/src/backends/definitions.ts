@@ -1,31 +1,42 @@
 import { ChainId } from "@certusone/wormhole-sdk";
-import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { ScopedLogger } from "../helpers/logHelper";
 import { ListenerEnvironment } from "../configureEnv";
+import { StoreKey, StorePayload } from "../helpers/redisHelper";
 
 /** TypedFilter is used by subscribeSignedVAA to filter messages returned by the guardian spy */
 export interface TypedFilter {
   emitterFilter: { chainId: ChainId; emitterAddress: string };
 }
 
-/** Listener is an interface for listening for VAAs for a given type */
+/** Listen to VAAs via a http listener or guardian spy service */
 export interface Listener {
-  logger: ScopedLogger
-  env: ListenerEnvironment
-  getEmitterFilters(): Promise<TypedFilter[]>
-  shouldRelay(rawVaa: Uint8Array): Promise<boolean>
+  logger: ScopedLogger;
+  env: ListenerEnvironment;
+
+  /** Get filters for the guardian spy subscription */
+  getEmitterFilters(): Promise<TypedFilter[]>;
+
+  /** Parse and validate the received VAAs from the spy */
+  validate(rawVaa: Uint8Array): Promise<unknown>;
+
+  /** Process and add the VAA to redis if it is valid */
+  process(rawVaa: Uint8Array): Promise<void>;
+
+  /** Serialize and store a validated VAA in redis for the relayer */
+  store(key: StoreKey, payload: StorePayload): Promise<void>;
 }
 
 /** Relayer is an interface for relaying messages across chains */
 export interface Relayer {
-  logger: ScopedLogger
+  logger: ScopedLogger;
 
-  run(): void
+  run(): void;
   isComplete(): boolean; // For the audit thread
   targetChain(): ChainId; // Parse payload for target chain: relay_worker.ts:processRequest()
 }
 
 /** Backend is the interface necessary to implement for custom relayers */
 export interface Backend {
-    listener: Listener
-    relayer: Relayer
+  listener: Listener;
+  relayer: Relayer;
 }
