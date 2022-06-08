@@ -8,7 +8,8 @@ on:
 jobs:
   # Run the full Tilt build and wait for it to converge
   tilt:
-    needs: go-lint-and-tests # run cheap lints and tests before firing up the expensive tilt environment
+    # run cheap lints, tests, and builds before firing up the expensive tilt
+    needs: [go-lint-and-tests, node, algorand, ethereum, terra, rust-lint-and-tests] 
     runs-on: tilt-kube-public
 
     # Cancel previous builds on the same branch/ref. Full runs are expensive
