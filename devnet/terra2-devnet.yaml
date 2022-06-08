@@ -168,7 +168,7 @@ spec:
               value: "false"
             - name: TYPEORM_ENTITIES
               value: "src/orm/*Entity.ts"
-        - image: terramoney/fcd:bombay
+        - image: terramoney/fcd:2.0.5
           name: fcd-api
           args:
             - start
