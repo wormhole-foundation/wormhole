@@ -85,15 +85,10 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: "1.17.5"
-      # ensure that code is formatted
-      - name: Install gofumpt
-        run: go install golang.org/x/tools/cmd/goimports@latest
-      - name: Format Golang Code
-        run: GOFMT_OUTPUT="$(goimports -l `find ./node ./event_database -name '*.go'` 2>&1)"; if [ -n "$GOFMT_OUTPUT" ]; then printf "All the following files are not correctly formatted\n${GOFMT_OUTPUT}\n"; exit 1; fi
-      - name: Install golangci
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ~ v1.42.0
-      - name: Run linter
-        run: make generate && ./lint.sh --out-format=github-actions
+      - name: Formatting checks
+        run: ./format -cl
+      - name: Linting checks
+        run: make generate && ./lint.sh -cg
 
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
