@@ -8,10 +8,11 @@ package ethereum
 
 import (
 	"context"
+	"time"
+
 	common "github.com/certusone/wormhole/node/pkg/common"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"go.uber.org/zap"
-	"time"
 )
 
 type MoonbeamFinalizer struct {

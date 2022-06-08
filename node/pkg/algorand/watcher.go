@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
