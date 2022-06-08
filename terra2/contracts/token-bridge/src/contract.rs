@@ -1196,14 +1196,12 @@ fn handle_initiate_transfer_token(
         .add_attribute("transfer.block_time", env.block.time.seconds().to_string()))
 }
 
-/// All ISO-4217 currency codes are 3 letters, so we can safely slice anything that is not ULUNA.
-/// https://www.xe.com/iso4217.php
 fn format_native_denom_symbol(denom: &str) -> String {
     if denom == "uluna" {
         return "LUNA".to_string();
     }
-    // UUSD -> US -> UST
-    denom.to_uppercase()[1..3].to_string() + "T"
+    //TODO: is there better formatting to do here?
+    denom.to_uppercase().to_string()
 }
 
 fn handle_initiate_transfer_native_token(

@@ -52,12 +52,12 @@ fn binary_check() -> StdResult<()> {
 
 #[test]
 fn build_native_and_asset_ids() -> StdResult<()> {
-    let denom = "uusd";
+    let denom = "uluna";
     let native_id = build_native_id(denom);
 
     let expected_native_id = vec![
-        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 117u8,
-        117u8, 115u8, 100u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 117u8, 108u8,
+        117u8, 110u8, 97u8,
     ];
     assert_eq!(&native_id, &expected_native_id, "native_id != expected");
 

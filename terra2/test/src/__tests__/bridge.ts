@@ -55,10 +55,10 @@ const contracts = new Map<string, string>();
     > should not allow a redemption from msg.sender other than 'to' on token bridge transfer with payload
     > should allow a redemption from msg.sender == 'to' on token bridge transfer with payload and check that sender recieves fee
     > should burn bridged assets wrappers on transfer to another chain
-    > should handle ETH deposits correctly (uusd)
-    > should handle ETH withdrawals and fees correctly (uusd)
-    > should handle ETH deposits with payload correctly (uusd)
-    > should handle ETH withdrawals with payload correctly (uusd)
+    > should handle ETH deposits correctly (uluna)
+    > should handle ETH withdrawals and fees correctly (uluna)
+    > should handle ETH deposits with payload correctly (uluna)
+    > should handle ETH withdrawals with payload correctly (uluna)
     > should revert on transfer out of a total of > max(uint64) tokens
     
 */
@@ -75,36 +75,46 @@ describe("Bridge Tests", () => {
         ).toString("base64");
 
         // wormhole
-        const wormhole = await deploy(client, wallet, WASM_WORMHOLE, {
-          gov_chain: GOVERNANCE_CHAIN,
-          gov_address: governanceAddress,
-          guardian_set_expirity: 86400,
-          initial_guardian_set: {
-            addresses: [
-              {
-                bytes: Buffer.from(
-                  "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-                  "hex"
-                ).toString("base64"),
-              },
-            ],
-            expiration_time: 0,
+        const wormhole = await deploy(
+          client,
+          wallet,
+          WASM_WORMHOLE,
+          {
+            gov_chain: GOVERNANCE_CHAIN,
+            gov_address: governanceAddress,
+            guardian_set_expirity: 86400,
+            initial_guardian_set: {
+              addresses: [
+                {
+                  bytes: Buffer.from(
+                    "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+                    "hex"
+                  ).toString("base64"),
+                },
+              ],
+              expiration_time: 0,
+            },
           },
-        });
-
+          "wormhole"
+        );
         // token bridge
         const wrappedAssetCodeId = await storeCode(
           client,
           wallet,
           WASM_WRAPPED_ASSET
         );
-        const tokenBridge = await deploy(client, wallet, WASM_TOKEN_BRIDGE, {
-          gov_chain: GOVERNANCE_CHAIN,
-          gov_address: governanceAddress,
-          wormhole_contract: wormhole,
-          wrapped_asset_code_id: wrappedAssetCodeId,
-        });
-
+        const tokenBridge = await deploy(
+          client,
+          wallet,
+          WASM_TOKEN_BRIDGE,
+          {
+            gov_chain: GOVERNANCE_CHAIN,
+            gov_address: governanceAddress,
+            wormhole_contract: wormhole,
+            wrapped_asset_code_id: wrappedAssetCodeId,
+          },
+          "tokenBridge"
+        );
         // mock bridge integration
         const mockBridgeIntegration = await deploy(
           client,
@@ -112,7 +122,8 @@ describe("Bridge Tests", () => {
           WASM_MOCK_BRIDGE_INTEGRATION,
           {
             token_bridge_contract: tokenBridge,
-          }
+          },
+          "mockBridgeIntegration"
         );
         contracts.set("wormhole", wormhole);
         contracts.set("tokenBridge", tokenBridge);
@@ -180,8 +191,8 @@ describe("Bridge Tests", () => {
 
         const tokenBridge = contracts.get("tokenBridge")!;
 
-        // transfer uusd
-        const denom = "uusd";
+        // transfer uluna
+        const denom = "uluna";
         const recipientAddress =
           "0000000000000000000000004206942069420694206942069420694206942069";
         const amount = "100000000"; // one benjamin
@@ -253,7 +264,7 @@ describe("Bridge Tests", () => {
 
         const tokenBridge = contracts.get("tokenBridge")!;
 
-        const denom = "uusd";
+        const denom = "uluna";
         const amount = "100000000"; // one benjamin
         const relayerFee = "1000000"; // one dolla
 
@@ -329,7 +340,7 @@ describe("Bridge Tests", () => {
         const walletExpectedChange = new Int(relayerFee).sub(gasPaid);
 
         // due to rounding, we should expect the balances to reconcile
-        // within 1 unit (equivalent to 1e-6 uusd). Best-case scenario
+        // within 1 unit (equivalent to 1e-6 uluna). Best-case scenario
         // we end up with slightly more balance than expected
         const reconciled = walletBalanceAfter
           .minus(walletExpectedChange)
@@ -377,8 +388,8 @@ describe("Bridge Tests", () => {
 
         const tokenBridge = contracts.get("tokenBridge")!;
 
-        // transfer uusd
-        const denom = "uusd";
+        // transfer uluna
+        const denom = "uluna";
         const recipientAddress =
           "0000000000000000000000004206942069420694206942069420694206942069";
         const amount = "100000000"; // one benjamin
@@ -453,7 +464,7 @@ describe("Bridge Tests", () => {
         const tokenBridge = contracts.get("tokenBridge")!;
         const mockBridgeIntegration = contracts.get("mockBridgeIntegration")!;
 
-        const denom = "uusd";
+        const denom = "uluna";
         const amount = "100000000"; // one benjamin
         const relayerFee = "1000000"; // one dolla
 
@@ -534,7 +545,7 @@ describe("Bridge Tests", () => {
         const walletExpectedChange = new Int(relayerFee).sub(gasPaid);
 
         // due to rounding, we should expect the balances to reconcile
-        // within 1 unit (equivalent to 1e-6 uusd). Best-case scenario
+        // within 1 unit (equivalent to 1e-6 uluna). Best-case scenario
         // we end up with slightly more balance than expected
         const reconciled = walletBalanceAfter
           .minus(walletExpectedChange)
@@ -596,7 +607,7 @@ describe("Bridge Tests", () => {
         const tokenBridge = contracts.get("tokenBridge")!;
         const mockBridgeIntegration = contracts.get("mockBridgeIntegration")!;
 
-        const denom = "uusd";
+        const denom = "uluna";
         const amount = "100000000"; // one benjamin
         const relayerFee = "1000000"; // one dolla
 
