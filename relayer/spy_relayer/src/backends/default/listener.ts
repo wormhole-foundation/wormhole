@@ -3,20 +3,36 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
-  hexToNativeString,
+  uint8ArrayToHex,
+  tryHexToNativeString,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
   parseTransferPayload,
 } from "@certusone/wormhole-sdk";
-import { ChainID } from "@certusone/wormhole-sdk/lib/cjs/proto/publicrpc/v1/publicrpc";
-
-import { getListenerEnvironment, ListenerEnvironment } from "../../configureEnv";
+import {
+  getListenerEnvironment,
+  ListenerEnvironment,
+} from "../../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../../helpers/logHelper";
-import { ParsedVaa, parseVaaTyped } from "../../listener/validation";
-import { TypedFilter, Listener, Relayer } from "../definitions";
+import {
+  ParsedVaa,
+  ParsedTransferPayload,
+  parseVaaTyped,
+} from "../../listener/validation";
+import { TypedFilter, Listener } from "../definitions";
+import {
+  getKey,
+  initPayloadWithVAA,
+  storeInRedis,
+  checkQueue,
+  StoreKey,
+  storeKeyFromParsedVAA,
+  storeKeyToJson,
+  StorePayload,
+  storePayloadToJson,
+} from "../../helpers/redisHelper";
 
-// Copied from: spy_listen.ts
 async function encodeEmitterAddress(
   myChainId: ChainId,
   emitterAddressStr: string
@@ -36,8 +52,6 @@ async function encodeEmitterAddress(
 export class TokenBridgeListener implements Listener {
   logger: ScopedLogger;
   env: ListenerEnvironment;
-  parsedVaa?: ParsedVaa<Uint8Array>;
-  parsedPayload?: any;
 
   constructor() {
     this.env = getListenerEnvironment();
@@ -45,9 +59,8 @@ export class TokenBridgeListener implements Listener {
   }
 
   /** Verify this payload is version 1. */
-  verifyIsPayloadV1(): boolean {
-    const isCorrectPayloadType =
-      this.parsedVaa && this.parsedVaa.payload[0] === 1;
+  verifyIsPayloadV1(parsedVaa: ParsedVaa<Uint8Array>): boolean {
+    const isCorrectPayloadType = parsedVaa.payload[0] === 1;
 
     if (!isCorrectPayloadType) {
       this.logger.debug("Specified vaa is not payload type 1.");
@@ -57,17 +70,16 @@ export class TokenBridgeListener implements Listener {
   }
 
   /** Verify this payload has a fee specified for relaying. */
-  verifyFeeSpecified(): boolean {
+  verifyFeeSpecified(payload: ParsedTransferPayload): boolean {
     /**
      * TODO: simulate gas fees / get notional from coingecko and ensure the fees cover the relay.
      *       We might just keep this check here but verify the notional is enough to pay the gas
      *       fees in the actual relayer. That way we can retry up to the max number of retries
      *       and if the gas fluctuates we might be able to make it still.
      */
-    const sufficientFee =
-      this.parsedPayload &&
-      this.parsedPayload.fee &&
-      this.parsedPayload.fee > 0;
+
+    /** Is the specified fee sufficient to relay? */
+    const sufficientFee = payload.fee && payload.fee > BigInt(0);
 
     if (!sufficientFee) {
       this.logger.debug("Token transfer does not have a sufficient fee.");
@@ -77,18 +89,24 @@ export class TokenBridgeListener implements Listener {
   }
 
   /** Verify the the token in this payload in the approved token list. */
-  verifyIsApprovedToken(): boolean {
+  verifyIsApprovedToken(payload: ParsedTransferPayload): boolean {
     const env = getListenerEnvironment();
-    const originAddressNative = hexToNativeString(
-      this.parsedPayload.originAddress,
-      this.parsedPayload.originChain
-    );
+    let originAddressNative: string;
+    try {
+      originAddressNative = tryHexToNativeString(
+        payload.originAddress,
+        payload.originChain
+      );
+    } catch (e: any) {
+      return false;
+    }
 
+    // Token is in the SUPPORTED_TOKENS env var config
     const isApprovedToken = env.supportedTokens.find((token) => {
       return (
         originAddressNative &&
         token.address.toLowerCase() === originAddressNative.toLowerCase() &&
-        token.chainId === this.parsedPayload.originChain
+        token.chainId === payload.originChain
       );
     });
 
@@ -100,10 +118,12 @@ export class TokenBridgeListener implements Listener {
     return true;
   }
 
-  /** Verify this is a VAA we want to relay. */
-  public async shouldRelay(rawVaa: Uint8Array): Promise<boolean> {
+  /** Parses a raw VAA byte array
+   *
+   * @throws when unable to parse the VAA
+   */
+  public async parseVaa(rawVaa: Uint8Array): Promise<ParsedVaa<Uint8Array>> {
     let parsedVaa: ParsedVaa<Uint8Array> | null = null;
-    let parsedPayload: any = null;
 
     try {
       parsedVaa = await parseVaaTyped(rawVaa);
@@ -111,30 +131,61 @@ export class TokenBridgeListener implements Listener {
       this.logger.error("Encountered error while parsing raw VAA " + e);
     }
     if (!parsedVaa) {
-      return false;
+      throw new Error("Unable to parse the specified VAA.");
     }
-    this.parsedVaa = parsedVaa;
 
-    parsedPayload = parseTransferPayload(Buffer.from(parsedVaa.payload));
+    return parsedVaa;
+  }
+
+  /** Parse the VAA and return the payload nicely typed */
+  public async parsePayload(
+    rawPayload: Uint8Array
+  ): Promise<ParsedTransferPayload> {
+    let parsedPayload: any;
+    try {
+      parsedPayload = parseTransferPayload(Buffer.from(rawPayload));
+    } catch (e) {
+      this.logger.error("Encountered error while parsing vaa payload" + e);
+    }
+
     if (!parsedPayload) {
-      this.logger.error("Failed to parse the transfer payload");
-      return false;
+      this.logger.debug("Failed to parse the transfer payload.");
+      throw new Error("Could not parse the transfer payload.");
+    }
+    return parsedPayload;
+  }
+
+  /** Verify this is a VAA we want to relay. */
+  public async validate(
+    rawVaa: Uint8Array
+  ): Promise<ParsedVaa<ParsedTransferPayload> | string> {
+    let parsedVaa = await this.parseVaa(rawVaa);
+    let parsedPayload: ParsedTransferPayload;
+
+    // Verify this is actual a token bridge transfer payload
+    if (!this.verifyIsPayloadV1(parsedVaa)) {
+      return "Wrong payload type";
+    }
+    try {
+      parsedPayload = await this.parsePayload(parsedVaa.payload);
+    } catch (e: any) {
+      return "Payload parsing failure";
     }
 
-    // Verify this VAA should be relayed.
-    if (!this.verifyIsPayloadV1()) {
-      return false;
-    } else if (!this.verifyIsApprovedToken()) {
-      return false;
-    } else if (!this.verifyFeeSpecified()) {
-      return false;
+    // Verify we want to relay this request
+    if (
+      !this.verifyIsApprovedToken(parsedPayload) ||
+      !this.verifyFeeSpecified(parsedPayload)
+    ) {
+      return "Validation failed";
     }
+
     // Great success!
-    return true;
+    return { ...parsedVaa, payload: parsedPayload };
   }
 
   /** Get spy filters for all emitters we care about */
-  async getEmitterFilters(): Promise<TypedFilter[]> {
+  public async getEmitterFilters(): Promise<TypedFilter[]> {
     let filters: {
       emitterFilter: { chainId: ChainId; emitterAddress: string };
     }[] = [];
@@ -172,5 +223,79 @@ export class TokenBridgeListener implements Listener {
       this.logger.info("Getting spyServiceFiltere " + i);
     }
     return filters;
+  }
+
+  /** Process and validate incoming VAAs from the spy. */
+  public async process(rawVaa: Uint8Array): Promise<void> {
+    // TODO: Use a type guard function to verify the ParsedVaa type too?
+    const validationResults: ParsedVaa<ParsedTransferPayload> | string =
+      await this.validate(rawVaa);
+
+    if (typeof validationResults === "string") {
+      this.logger.debug(`Skipping spied request: ${validationResults}`);
+      return;
+    }
+    const parsedVaa: ParsedVaa<ParsedTransferPayload> = validationResults;
+
+    const originChain = parsedVaa.payload.originChain;
+    const originAddress = parsedVaa.payload.originAddress;
+
+    let originAddressNative: string;
+    try {
+      originAddressNative = tryHexToNativeString(originAddress, originChain);
+    } catch (e: any) {
+      this.logger.error(
+        `Failure to convert address "${originAddress}" on chain "${originChain}" to the native address`
+      );
+      return;
+    }
+
+    const key = getKey(parsedVaa.payload.originChain, originAddressNative);
+
+    const isQueued = await checkQueue(key);
+    if (isQueued) {
+      this.logger.error(`Not storing in redis: ${isQueued}`);
+      return;
+    }
+
+    this.logger.info(
+      "forwarding vaa to relayer: emitter: [" +
+        parsedVaa.emitterChain +
+        ":" +
+        uint8ArrayToHex(parsedVaa.emitterAddress) +
+        "], seqNum: " +
+        parsedVaa.sequence +
+        ", payload: origin: [" +
+        parsedVaa.payload.originAddress +
+        ":" +
+        parsedVaa.payload.originAddress +
+        "], target: [" +
+        parsedVaa.payload.targetChain +
+        ":" +
+        parsedVaa.payload.targetAddress +
+        "],  amount: " +
+        parsedVaa.payload.amount +
+        "],  fee: " +
+        parsedVaa.payload.fee +
+        ", "
+    );
+
+    const redisKey: StoreKey = storeKeyFromParsedVAA(parsedVaa);
+    const redisPayload: StorePayload = initPayloadWithVAA(
+      uint8ArrayToHex(rawVaa)
+    );
+
+    await this.store(redisKey, redisPayload);
+  }
+
+  public async store(key: StoreKey, payload: StorePayload): Promise<void> {
+    let serializedKey = storeKeyToJson(key);
+    let serializedPayload = storePayloadToJson(payload);
+
+    this.logger.debug(
+      `storing: key: [${key.chain_id}/${key.emitter_address}/${key.sequence}], payload: [${serializedPayload}]`
+    );
+
+    return await storeInRedis(serializedKey, serializedPayload);
   }
 }

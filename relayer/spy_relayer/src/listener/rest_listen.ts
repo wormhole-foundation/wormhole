@@ -1,21 +1,6 @@
-import { uint8ArrayToHex } from "@certusone/wormhole-sdk";
-import { importCoreWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { Request, Response } from "express";
 import { getListenerEnvironment, ListenerEnvironment } from "../configureEnv";
 import { getLogger } from "../helpers/logHelper";
-import {
-  initPayloadWithVAA,
-  pushVaaToRedis,
-  storeInRedis,
-  storeKeyFromParsedVAA,
-  storeKeyToJson,
-  storePayloadToJson,
-} from "../helpers/redisHelper";
-import {
-  parseAndValidateVaa,
-  ParsedTransferPayload,
-  ParsedVaa,
-} from "./validation";
 
 let logger = getLogger();
 let env: ListenerEnvironment;
@@ -51,17 +36,8 @@ export async function run() {
   (async () => {
     app.get("/relayvaa/:vaa", async (req: Request, res: Response) => {
       try {
-        const vaaBuf = Uint8Array.from(Buffer.from(req.params.vaa, "base64"));
-        const hexVaa = uint8ArrayToHex(vaaBuf);
-        const validationResults: ParsedVaa<ParsedTransferPayload> | string =
-          await parseAndValidateVaa(vaaBuf);
-
-        if (typeof validationResults === "string") {
-          logger.debug("Rejecting REST request due validation failure");
-          return;
-        }
-
-        pushVaaToRedis(validationResults, hexVaa);
+        const rawVaa = Uint8Array.from(Buffer.from(req.params.vaa, "base64"));
+        await env.listenerBackend.process(rawVaa);
 
         res.status(200).json({ message: "Scheduled" });
       } catch (e) {
