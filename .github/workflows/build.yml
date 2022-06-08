@@ -86,7 +86,7 @@ jobs:
         with:
           go-version: "1.17.5"
       - name: Formatting checks
-        run: ./format -cl
+        run: ./format.sh -cl
       - name: Linting checks
         run: make generate && ./lint.sh -cg
 
