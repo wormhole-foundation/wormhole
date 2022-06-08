@@ -64,7 +64,7 @@ if [ "$DOCKER" == "true" ]; then
     if ! [[ "$GOIMPORTS_ARGS" =~ "w" ]]; then
         MOUNT+=",readonly"
     fi
-    docker run $MOUNT -it $DOCKER_IMAGE $COMMAND
+    docker run $MOUNT $DOCKER_IMAGE $COMMAND
     exit $?
 fi
 
