@@ -32,6 +32,8 @@ const FOREIGN_TOKEN_BRIDGE =
 const GUARDIAN_SET_INDEX = 0;
 const CONSISTENCY_LEVEL = 0;
 
+const CHAIN_ID = 18;
+
 const WASM_WORMHOLE = "../artifacts/wormhole.wasm";
 const WASM_WRAPPED_ASSET = "../artifacts/cw20_wrapped_2.wasm";
 const WASM_TOKEN_BRIDGE = "../artifacts/token_bridge_terra_2.wasm";
@@ -333,7 +335,7 @@ describe("Bridge Tests", () => {
           amount,
           lunaAddress,
           encodedTo,
-          3,
+          CHAIN_ID,
           relayerFee,
           undefined
         );
@@ -544,7 +546,7 @@ describe("Bridge Tests", () => {
           amount,
           lunaAddress,
           encodedTo,
-          3,
+          CHAIN_ID,
           relayerFee,
           additionalPayload
         );
@@ -687,7 +689,7 @@ describe("Bridge Tests", () => {
           amount,
           lunaAddress,
           encodedTo,
-          3,
+          CHAIN_ID,
           relayerFee,
           additionalPayload
         );

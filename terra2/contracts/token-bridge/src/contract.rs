@@ -111,8 +111,8 @@ use crate::{
 
 type HumanAddr = String;
 
-// Chain ID of Terra
-const CHAIN_ID: u16 = 3;
+// Chain ID of Terra 2.0
+const CHAIN_ID: u16 = 18;
 
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
