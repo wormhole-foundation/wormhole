@@ -8,6 +8,7 @@ on:
 jobs:
   # Run the full Tilt build and wait for it to converge
   tilt:
+    needs: go-lint-and-tests # run cheap lints and tests before firing up the expensive tilt environment
     runs-on: tilt-kube-public
 
     # Cancel previous builds on the same branch/ref. Full runs are expensive
@@ -73,8 +74,8 @@ jobs:
           node-version: "16"
       - run: cd terra && make test
 
-  # Run linters, Go tests and other outside-of-Tilt things.
-  lint-and-tests:
+  # Run Go linters, Go tests and other outside-of-Tilt things.
+  go-lint-and-tests:
     # The linter is slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
@@ -94,7 +95,7 @@ jobs:
       - name: Run golang tests
         run: cd node && go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
-  # Run rust lints and tests
+  # Run Rust lints and tests
   rust-lint-and-tests:
     runs-on: ubuntu-20.04
     strategy:
