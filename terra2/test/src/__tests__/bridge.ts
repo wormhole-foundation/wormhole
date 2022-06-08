@@ -1,19 +1,25 @@
-import { describe, expect, jest, test } from "@jest/globals";
+import {
+  parseSequenceFromLogTerra,
+  setDefaultWasm,
+} from "@certusone/wormhole-sdk";
 import { Bech32, toHex } from "@cosmjs/encoding";
+import { describe, expect, jest, test } from "@jest/globals";
+import { Int, MsgExecuteContract, TxInfo } from "@terra-money/terra.js";
 import {
   getNativeBalance,
   makeProviderAndWallet,
   transactWithoutMemo,
 } from "../helpers/client";
-import { storeCode, deploy } from "../instantiate";
-import { Int, MsgExecuteContract } from "@terra-money/terra.js";
+import { computeGasPaid, parseEventsFromLog } from "../helpers/receipt";
 import {
   makeGovernanceVaaPayload,
   makeTransferVaaPayload,
   signAndEncodeVaa,
   TEST_SIGNER_PKS,
 } from "../helpers/vaa";
-import { computeGasPaid, parseEventsFromLog } from "../helpers/receipt";
+import { deploy, storeCode } from "../instantiate";
+
+setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
@@ -97,6 +103,7 @@ describe("Bridge Tests", () => {
           },
           "wormhole"
         );
+        console.log("wormhole deployed at", wormhole);
         // token bridge
         const wrappedAssetCodeId = await storeCode(
           client,
@@ -115,6 +122,7 @@ describe("Bridge Tests", () => {
           },
           "tokenBridge"
         );
+        console.log("tokenBridge deployed at", tokenBridge);
         // mock bridge integration
         const mockBridgeIntegration = await deploy(
           client,
@@ -132,6 +140,47 @@ describe("Bridge Tests", () => {
       } catch (e) {
         console.error(e);
         done("Failed to Deploy Contracts");
+      }
+    })();
+  });
+  test("Post a Message", (done) => {
+    (async () => {
+      try {
+        const [client, wallet] = await makeProviderAndWallet();
+
+        const wormhole = contracts.get("wormhole")!;
+        const postMessage = new MsgExecuteContract(
+          wallet.key.accAddress,
+          wormhole,
+          {
+            post_message: {
+              message: Buffer.from("0001020304050607", "hex").toString(
+                "base64"
+              ),
+              nonce: 69,
+            },
+          }
+        );
+        console.log("posting...");
+        const receipt = await transactWithoutMemo(client, wallet, [
+          postMessage,
+        ]);
+        console.info("receipt", receipt.txhash);
+        const seq0 = parseSequenceFromLogTerra(receipt as any);
+        console.info("sequence", seq0);
+        expect(seq0).toBe("0");
+        console.log("posting another...");
+        const receipt2 = await transactWithoutMemo(client, wallet, [
+          postMessage,
+        ]);
+        console.info("receipt", receipt2.txhash);
+        const seq1 = parseSequenceFromLogTerra(receipt2 as any);
+        console.info("sequence", seq1);
+        expect(seq1).toBe("1");
+        done();
+      } catch (e) {
+        console.error(e);
+        done("Failed to Post a Message");
       }
     })();
   });
@@ -241,8 +290,10 @@ describe("Bridge Tests", () => {
         );
 
         // execute outbound transfer
+        console.log("deposit");
+        await transactWithoutMemo(client, wallet, [deposit]);
+        console.log("transfer");
         const receipt = await transactWithoutMemo(client, wallet, [
-          deposit,
           initiateTransfer,
         ]);
         console.info("receipt", receipt.txhash);
@@ -272,13 +323,13 @@ describe("Bridge Tests", () => {
         const recipient = "terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp"; // test2
         const encodedTo = nativeToHex(recipient);
         console.log("encodedTo", encodedTo);
-        const ustAddress =
-          "0100000000000000000000000000000000000000000000000000000075757364";
+        const lunaAddress =
+          "010000000000000000000000000000000000000000000000000000756c756e61";
 
         const vaaPayload = makeTransferVaaPayload(
           1,
           amount,
-          ustAddress,
+          lunaAddress,
           encodedTo,
           3,
           relayerFee,
@@ -472,14 +523,14 @@ describe("Bridge Tests", () => {
 
         const encodedTo = nativeToHex(mockBridgeIntegration);
         console.log("encodedTo", encodedTo);
-        const ustAddress =
-          "0100000000000000000000000000000000000000000000000000000075757364";
+        const lunaAddress =
+          "010000000000000000000000000000000000000000000000000000756c756e61";
         const additionalPayload = "All your base are belong to us";
 
         const vaaPayload = makeTransferVaaPayload(
           3,
           amount,
-          ustAddress,
+          lunaAddress,
           encodedTo,
           3,
           relayerFee,
@@ -615,14 +666,14 @@ describe("Bridge Tests", () => {
 
         const encodedTo = nativeToHex(mockBridgeIntegration);
         console.log("encodedTo", encodedTo);
-        const ustAddress =
-          "0100000000000000000000000000000000000000000000000000000075757364";
+        const lunaAddress =
+          "010000000000000000000000000000000000000000000000000000756c756e61";
         const additionalPayload = "All your base are belong to us";
 
         const vaaPayload = makeTransferVaaPayload(
           3,
           amount,
-          ustAddress,
+          lunaAddress,
           encodedTo,
           3,
           relayerFee,
