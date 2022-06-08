@@ -86,8 +86,11 @@ jobs:
         with:
           go-version: "1.17.5"
       # ensure that code is formatted
-      - run: GOFMT_OUTPUT="$(gofmt -l `find ./node ./event_database -name '*.go' | grep -v vendor` 2>&1)"; if [ -n "$GOFMT_OUTPUT" ]; then printf "All the following files are not correctly formatted\n${GOFMT_OUTPUT}\n"; exit 1; fi
-      # run linters
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+      - name: Format Golang Code
+        run: GOFMT_OUTPUT="$(goimports -l `find ./node ./event_database -name '*.go'` 2>&1)"; if [ -n "$GOFMT_OUTPUT" ]; then printf "All the following files are not correctly formatted\n${GOFMT_OUTPUT}\n"; exit 1; fi
+      # run linters # v0.3.1
       - run: make generate && ./lint.sh
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - run: cd node && go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
