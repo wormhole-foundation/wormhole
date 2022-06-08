@@ -15,7 +15,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/celo"
@@ -135,6 +134,8 @@ func NewEthWatcher(
 		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
 		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
 		ethIntf = &celo.CeloImpl{NetworkName: networkName}
+	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
+		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
 	} else {
 		ethIntf = &EthImpl{NetworkName: networkName}
 	}
@@ -374,8 +375,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}()
 
 	// Watch headers
-	headSink := make(chan *types.Header, 2)
-	headerSubscription, err := e.ethIntf.SubscribeNewHead(ctx, headSink)
+	headSink := make(chan *common.NewBlock, 2)
+	headerSubscription, err := e.ethIntf.SubscribeForBlocks(ctx, headSink)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "header_subscribe_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
@@ -399,7 +400,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				start := time.Now()
-				currentHash := ev.Hash()
+				currentHash := ev.Hash
 				logger.Info("processing new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Stringer("current_blockhash", currentHash),

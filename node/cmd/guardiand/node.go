@@ -329,12 +329,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 	readiness.RegisterComponent(common.ReadinessFantomSyncing)
 	readiness.RegisterComponent(common.ReadinessKaruraSyncing)
+	readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 	readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 	readiness.RegisterComponent(common.ReadinessCeloSyncing)
 
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
-		readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 		readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
 	}
 
@@ -445,6 +445,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *karuraContract == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --karuraContract")
 	}
+	if *acalaRPC == "" {
+		logger.Fatal("Please specify --acalaRPC")
+	}
+	if *acalaContract == "" && !*unsafeDevMode {
+		logger.Fatal("Please specify --acalaContract")
+	}
 	if *klaytnRPC == "" {
 		logger.Fatal("Please specify --klaytnRPC")
 	}
@@ -464,12 +470,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *ethRopstenContract == "" {
 			logger.Fatal("Please specify --ethRopstenContract")
 		}
-		if *acalaRPC == "" {
-			logger.Fatal("Please specify --acalaRPC")
-		}
-		if *acalaContract == "" {
-			logger.Fatal("Please specify --acalaContract")
-		}
 		if *moonbeamRPC == "" {
 			logger.Fatal("Please specify --moonbeamRPC")
 		}
@@ -482,12 +482,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
-		}
-		if *acalaRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --acalaRPC")
-		}
-		if *acalaContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --acalaContract")
 		}
 		if *moonbeamRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --moonbeamRPC")
@@ -679,10 +673,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode {
-		chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 	}
@@ -805,8 +799,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
+		polygonMinConfirmations := uint64(512)
+		if *testnetMode {
+			polygonMinConfirmations = 64
+		}
+
 		if err := supervisor.Run(ctx, "polygonwatch",
-			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, 512, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode).Run); err != nil {
+			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, polygonMinConfirmations, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode).Run); err != nil {
 			// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
 			//
 			// Hardcode the minimum number of confirmations to 512 regardless of what the smart contract specifies to protect
@@ -834,6 +833,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			ethereum.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", common.ReadinessKaruraSyncing, vaa.ChainIDKarura, lockC, nil, 1, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run); err != nil {
 			return err
 		}
+		if err := supervisor.Run(ctx, "acalawatch",
+			ethereum.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", common.ReadinessAcalaSyncing, vaa.ChainIDAcala, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAcala], *unsafeDevMode).Run); err != nil {
+			return err
+		}
 		if err := supervisor.Run(ctx, "klaytnwatch",
 			ethereum.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", common.ReadinessKlaytnSyncing, vaa.ChainIDKlaytn, lockC, nil, 1, chainObsvReqC[vaa.ChainIDKlaytn], *unsafeDevMode).Run); err != nil {
 			return err
@@ -846,10 +849,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
 				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, nil, 1, chainObsvReqC[vaa.ChainIDEthereumRopsten], *unsafeDevMode).Run); err != nil {
-				return err
-			}
-			if err := supervisor.Run(ctx, "acalawatch",
-				ethereum.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", common.ReadinessAcalaSyncing, vaa.ChainIDAcala, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAcala], *unsafeDevMode).Run); err != nil {
 				return err
 			}
 			if err := supervisor.Run(ctx, "moonbeamwatch",

@@ -3,6 +3,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_FANTOM,
+  CHAIN_ID_KLAYTN,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   MockWETH9__factory,
@@ -25,6 +26,7 @@ import avaxIcon from "../icons/avax.svg";
 import bnbIcon from "../icons/bnb.svg";
 import ethIcon from "../icons/eth.svg";
 import fantomIcon from "../icons/fantom.svg";
+import klaytnIcon from "../icons/klaytn.svg";
 import oasisIcon from "../icons/oasis-network-rose-logo.svg";
 import polygonIcon from "../icons/polygon.svg";
 import { COLORS } from "../muiTheme";
@@ -44,6 +46,8 @@ import {
   WETH_DECIMALS,
   WFTM_ADDRESS,
   WFTM_DECIMALS,
+  WKLAY_ADDRESS,
+  WKLAY_DECIMALS,
   WMATIC_ADDRESS,
   WMATIC_DECIMALS,
   WROSE_ADDRESS,
@@ -123,6 +127,12 @@ const supportedTokens = {
     icon: fantomIcon,
     address: WFTM_ADDRESS,
     decimals: WFTM_DECIMALS,
+  },
+  [CHAIN_ID_KLAYTN]: {
+    symbol: "WKLAY",
+    icon: klaytnIcon,
+    address: WKLAY_ADDRESS,
+    decimals: WKLAY_DECIMALS,
   },
 } as const;
 

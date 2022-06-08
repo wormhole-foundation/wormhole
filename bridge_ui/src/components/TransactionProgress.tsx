@@ -16,7 +16,7 @@ import { Connection } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { Transaction } from "../store/transferSlice";
-import { CHAINS_BY_ID, SOLANA_HOST } from "../utils/consts";
+import { CHAINS_BY_ID, CLUSTER, SOLANA_HOST } from "../utils/consts";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -77,9 +77,11 @@ export default function TransactionProgress({
   }, [isSendComplete, chainId, provider, tx]);
   const blockDiff =
     tx && tx.block && currentBlock ? currentBlock - tx.block : undefined;
-  const expectedBlocks =
+  const expectedBlocks = // minimum confirmations enforced by guardians or specified by the contract
     chainId === CHAIN_ID_POLYGON
-      ? 512 // minimum confirmations enforced by guardians
+      ? CLUSTER === "testnet"
+        ? 64
+        : 512
       : chainId === CHAIN_ID_OASIS ||
         chainId === CHAIN_ID_AURORA ||
         chainId === CHAIN_ID_FANTOM ||

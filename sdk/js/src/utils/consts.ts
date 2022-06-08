@@ -113,9 +113,9 @@ const MAINNET = {
     nft_bridge: "0xb91e3638F82A1fACb28690b37e3aAE45d2c33808",
   },
   acala: {
-    core: undefined,
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
+    token_bridge: "0xae9d7fe007b3327AA64A32824Aaac52C42a6E624",
+    nft_bridge: "0xb91e3638F82A1fACb28690b37e3aAE45d2c33808",
   },
   klaytn: {
     core: "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7",
