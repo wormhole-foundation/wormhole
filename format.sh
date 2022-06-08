@@ -61,6 +61,8 @@ if [ "$DOCKER" == "true" ]; then
     # But it's easy so we just won't support that case for now.
     # If we wanted to support it, my idea would be to `docker run`, `docker cp`, `docker exec`, `docker rm`.
 
+    cat /proc/1/cgroup
+
     if grep -sq 'docker\|lxc' /proc/1/cgroup; then
         echo "Already running inside a container. This situation isn't supported (yet)."
         exit 1
