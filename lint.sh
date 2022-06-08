@@ -45,7 +45,7 @@ if [ "$DOCKER" == "true" ]; then
     COMMAND="./$(basename $0) $SELF_ARGS_WITHOUT_DOCKER"
     MOUNT="--workdir /app --mount=type=bind,target=/app,source=$PWD,readonly"
 
-    docker run $MOUNT -it $DOCKER_IMAGE $COMMAND
+    docker run $MOUNT $DOCKER_IMAGE $COMMAND
     exit $?
 fi
 
