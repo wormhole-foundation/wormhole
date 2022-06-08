@@ -41,6 +41,12 @@ shift "$(($OPTIND - 1))"
 
 # run this script recursively inside docker, if requested
 if [ "$DOCKER" == "true" ]; then
+
+    if grep -sq 'docker\|lxc' /proc/1/cgroup; then
+        echo "Already running inside a container. This situation isn't supported (yet)."
+        exit 1
+    fi
+
     DOCKER_IMAGE="$(docker build -q -f $DOCKERFILE .)"
     COMMAND="./$(basename $0) $SELF_ARGS_WITHOUT_DOCKER"
     MOUNT="--workdir /app --mount=type=bind,target=/app,source=$PWD,readonly"

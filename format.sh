@@ -56,6 +56,16 @@ fi
 
 # run this script recursively inside docker, if requested
 if [ "$DOCKER" == "true" ]; then
+    # The easy thing to do here would be to use a bind mount to share the code with the container. 
+    # But this doesn't work in scenarios where we are in a container already. 
+    # But it's easy so we just won't support that case for now.
+    # If we wanted to support it, my idea would be to `docker run`, `docker cp`, `docker exec`, `docker rm`.
+
+    if grep -sq 'docker\|lxc' /proc/1/cgroup; then
+        echo "Already running inside a container. This situation isn't supported (yet)."
+        exit 1
+    fi
+
     DOCKER_IMAGE="$(docker build -q -f $DOCKERFILE .)"
     COMMAND="./$(basename $0) $SELF_ARGS_WITHOUT_DOCKER"
     MOUNT="--workdir /app --mount=type=bind,target=/app,source=$PWD"
