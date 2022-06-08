@@ -133,6 +133,7 @@ describe("Bridge Tests", () => {
           },
           "mockBridgeIntegration"
         );
+        console.log("mockBridgeIntegration deployed at", mockBridgeIntegration);
         contracts.set("wormhole", wormhole);
         contracts.set("tokenBridge", tokenBridge);
         contracts.set("mockBridgeIntegration", mockBridgeIntegration);
@@ -297,6 +298,7 @@ describe("Bridge Tests", () => {
           initiateTransfer,
         ]);
         console.info("receipt", receipt.txhash);
+        console.info(receipt);
 
         const balanceAfter = await getNativeBalance(client, tokenBridge, denom);
         expect(balanceBefore.add(amount).eq(balanceAfter)).toBeTruthy();
@@ -370,6 +372,11 @@ describe("Bridge Tests", () => {
           tokenBridge,
           denom
         );
+        console.log(
+          walletBalanceBefore,
+          recipientBalanceBefore,
+          bridgeBalanceBefore
+        );
 
         const submitVaa = new MsgExecuteContract(walletAddress, tokenBridge, {
           submit_vaa: {
@@ -413,7 +420,7 @@ describe("Bridge Tests", () => {
             .eq(recipientBalanceAfter)
         ).toBeTruthy();
 
-        // cehck bridge balance change
+        // check bridge balance change
         const bridgeExpectedChange = new Int(amount);
         const bridgeBalanceAfter = await getNativeBalance(
           client,
@@ -424,6 +431,11 @@ describe("Bridge Tests", () => {
           bridgeBalanceBefore.sub(bridgeExpectedChange).eq(bridgeBalanceAfter)
         ).toBeTruthy();
 
+        console.log(
+          walletBalanceAfter,
+          recipientBalanceAfter,
+          bridgeBalanceAfter
+        );
         done();
       } catch (e) {
         console.error(e);

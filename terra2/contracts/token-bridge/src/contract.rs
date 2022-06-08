@@ -925,6 +925,7 @@ fn handle_complete_transfer_token_native(
 
     // note -- here the amount is the amount the recipient will receive;
     // amount + fee is the total sent
+    token_address[0] = 1;
     let token_address = (&*token_address).get_address(0);
     receive_native(deps.storage, &token_address, Uint128::new(amount + fee))?;
 
@@ -1240,11 +1241,11 @@ fn handle_initiate_transfer_native_token(
     let asset_chain: u16 = CHAIN_ID;
     let mut asset_address: Vec<u8> = build_native_id(&denom);
 
-    send_native(deps.storage, &asset_address[..].into(), amount)?;
-
     // Mark the first byte of the address to distinguish it as native.
     asset_address = extend_address_to_32(&asset_address.into());
     asset_address[0] = 1;
+
+    send_native(deps.storage, &asset_address[..].into(), amount)?;
 
     let transfer_info = TransferInfo {
         token_chain: asset_chain,
