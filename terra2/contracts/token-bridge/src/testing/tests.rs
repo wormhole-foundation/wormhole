@@ -55,9 +55,10 @@ fn build_native_and_asset_ids() -> StdResult<()> {
     let denom = "uluna";
     let native_id = build_native_id(denom);
 
-    let expected_native_id = vec![
-        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 117u8, 108u8,
-        117u8, 110u8, 97u8,
+    let expected_native_id: [u8; 32] = [
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 117u8, 108u8, 117u8, 110u8,
+        97u8,
     ];
     assert_eq!(&native_id, &expected_native_id, "native_id != expected");
 
@@ -105,7 +106,7 @@ fn deserialize_transfer_vaa() -> StdResult<()> {
     let token_address = "0100000000000000000000000000000000000000000000000000000075757364";
     let token_address = hex::decode(token_address).unwrap();
     assert_eq!(
-        info.token_address, token_address,
+        info.token_address.to_vec(), token_address,
         "info.token_address != expected"
     );
 
@@ -117,7 +118,7 @@ fn deserialize_transfer_vaa() -> StdResult<()> {
 
     let recipient = "000000000000000000000000f7f7dde848e7450a029cd0a9bd9bdae4b5147db3";
     let recipient = hex::decode(recipient).unwrap();
-    assert_eq!(info.recipient, recipient, "info.recipient != expected");
+    assert_eq!(info.recipient.to_vec(), recipient, "info.recipient != expected");
 
     let recipient_chain = 3u16;
     assert_eq!(
@@ -162,7 +163,7 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
     let token_address = "0100000000000000000000000000000000000000000000000000000075757364";
     let token_address = hex::decode(token_address).unwrap();
     assert_eq!(
-        info.token_address, token_address,
+        info.token_address.to_vec(), token_address,
         "info.token_address != expected"
     );
 
@@ -174,7 +175,7 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
 
     let recipient = "0000000000000000000000008cec800d24df11e556e708461c98122df4a2c3b1";
     let recipient = hex::decode(recipient).unwrap();
-    assert_eq!(info.recipient, recipient, "info.recipient != expected");
+    assert_eq!(info.recipient.to_vec(), recipient, "info.recipient != expected");
 
     let recipient_chain = 3u16;
     assert_eq!(
