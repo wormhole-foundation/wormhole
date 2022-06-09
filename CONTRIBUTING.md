@@ -67,11 +67,23 @@ own features on top of, without requiring any changes in Wormhole itself.
 
 Please open a GitHub issue outlining your use case, and we can help you build it!
 
-# Pre-Submit checks
+# Pre-Commit checks
 Run `./lint.sh` and `./format.sh`. 
 
 ## IDE Integration
 ### Golang formatting
 You must format your code with `goimports` before submitting. 
 You can install it with `go install golang.org/x/tools/cmd/goimports@latest` and run it with `goimports -d ./`. 
-You can enable it in VSCode with `"go.formatTool": "goimports",` in your `settings.json`. 
+You can enable it in VSCode with the following in your `settings.json`. 
+```json
+  "go.useLanguageServer": true,
+  "go.formatTool": "goimports",
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.formatOnSaveMode": "file",
+    "editor.codeActionsOnSave": {
+      "source.fixAll": true,
+      "source.organizeImports": true
+    }
+  },
+```
