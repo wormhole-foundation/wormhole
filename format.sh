@@ -67,14 +67,15 @@ if [ "$DOCKER" == "true" ]; then
     fi
 
     DOCKER_IMAGE="$(docker build -q -f "$DOCKERFILE" .)"
-    COMMAND="./$(basename "$0") $SELF_ARGS_WITHOUT_DOCKER"
-    MOUNT="--workdir /app --mount=type=bind,target=/app,source=$PWD"
+    COMMAND="./$(basename "$0")"
+    ARGS="$SELF_ARGS_WITHOUT_DOCKER"
+    MOUNT="--mount=type=bind,target=/app,source=$PWD"
 
     # for safety, mount as readonly unless -w flag was given
     if ! [[ "$GOIMPORTS_ARGS" =~ "w" ]]; then
         MOUNT+=",readonly"
     fi
-    docker run "$MOUNT" "$DOCKER_IMAGE" "$COMMAND"
+    docker run --workdir /app "$MOUNT" "$DOCKER_IMAGE" "$COMMAND" "$ARGS"
     exit "$?"
 fi
 
