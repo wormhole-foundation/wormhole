@@ -354,8 +354,9 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   terra2: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+    token_bridge:
+      "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6",
     nft_bridge: undefined,
   },
   ropsten: {
