@@ -17,6 +17,7 @@ import {
   CHAIN_ID_UNSET,
   coalesceChainId,
   isEVMChain,
+  isTerraChain,
 } from "./consts";
 
 /**
@@ -64,12 +65,12 @@ export const tryUint8ArrayToNative = (
     return hexZeroPad(hexValue(a), 20);
   } else if (chainId === CHAIN_ID_SOLANA) {
     return new PublicKey(a).toString();
-  } else if (chainId === CHAIN_ID_TERRA) {
+  } else if (isTerraChain(chainId)) {
     const h = uint8ArrayToHex(a);
     if (isHexNativeTerra(h)) {
       return nativeTerraHexToDenom(h);
     } else {
-      return humanAddress(a.slice(-20)); // terra expects 20 bytes, not 32
+      return humanAddress(chainId === CHAIN_ID_TERRA ? a.slice(-20) : a); // terra classic expects 20 bytes, not 32
     }
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);
@@ -168,7 +169,7 @@ export const tryNativeToHexString = (
     return uint8ArrayToHex(zeroPad(arrayify(address), 32));
   } else if (chainId === CHAIN_ID_SOLANA) {
     return uint8ArrayToHex(zeroPad(new PublicKey(address).toBytes(), 32));
-  } else if (chainId === CHAIN_ID_TERRA) {
+  } else if (isTerraChain(chainId)) {
     if (isNativeDenom(address)) {
       return (
         "01" +
