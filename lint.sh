@@ -6,25 +6,24 @@ set -e
 set -o pipefail
 
 print_help() {
-    printf "Usage: $(basename $0) [-h] [-c] [-w] [-d] [-l].\n"
-    printf "-h\tPrint this help.\n"
-    printf "-c\tRun in docker and don't worry about dependencies\n"
-    printf "-w\tAutomatically fix all formatting issues\n"
-    printf "-d\tPrint diff for all formatting issues\n"
-    printf "-l\tList files that have formatting issues\n"
+    printf "%s\n" "Usage: $(basename $0) [-h] [-c] [-g]."
+    printf "%s\t%s\n" "-h" "Print this help."
+    printf "%s\t%s\n" "-c" "Run in docker and don't worry about dependencies"
+    printf "%s\t%s\n" "-g" "Format output to be parsed by github actions"
 }
 
 DOCKER=""
 GOLANGCI_LINT_ARGS=""
-SELF_ARGS_WITHOUT_DOCKER="${*/c/}"
+SELF_ARGS_WITHOUT_DOCKER=""
 
-while getopts 'hcg' opt; do
+while getopts ':hcg' opt; do
     case "$opt" in
     c)
         DOCKER="true"
         ;;
     g)
         GOLANGCI_LINT_ARGS+="--out-format=github-actions "
+        SELF_ARGS_WITHOUT_DOCKER+="-g "
         ;;
 
     h)
@@ -33,7 +32,7 @@ while getopts 'hcg' opt; do
         ;;
 
     ?)
-        printf "Invalid command option."
+        printf "Invalid command option.\n"
         print_help
         exit 1
         ;;
@@ -51,10 +50,9 @@ if [ "$DOCKER" == "true" ]; then
 
     DOCKER_IMAGE="$(docker build -q -f "$DOCKERFILE" .)"
     COMMAND="./$(basename "$0")"
-    ARGS="$SELF_ARGS_WITHOUT_DOCKER"
     MOUNT="--mount=type=bind,target=/app,source=$PWD"
 
-    docker run --workdir /app "$MOUNT" "$DOCKER_IMAGE" "$COMMAND" "$ARGS"
+    docker run --workdir /app "$MOUNT" "$DOCKER_IMAGE" "$COMMAND" $SELF_ARGS_WITHOUT_DOCKER
     exit "$?"
 fi
 
@@ -65,4 +63,4 @@ fi
 
 # Do the actual linting!
 cd node/
-golangci-lint run --skip-dirs pkg/supervisor --timeout=10m "$GOLANGCI_LINT_ARGS" ./...
+golangci-lint run --skip-dirs pkg/supervisor --timeout=10m $GOLANGCI_LINT_ARGS ./...

@@ -6,17 +6,17 @@ set -e
 set -o pipefail
 
 print_help() {
-    printf "Usage: $(basename $0) [-h] [-c] [-w] [-d] [-l].\n"
-    printf "-h\tPrint this help.\n"
-    printf "-c\tRun in docker and don't worry about dependencies\n"
-    printf "-w\tAutomatically fix all formatting issues\n"
-    printf "-d\tPrint diff for all formatting issues\n"
-    printf "-l\tList files that have formatting issues\n"
+    printf "%s\n" "Usage: $(basename $0) [-h] [-c] [-w] [-d] [-l]."
+    printf "%s\t%s\n" "-h" "Print this help."
+    printf "%s\t%s\n" "-c" "Run in docker and don't worry about dependencies"
+    printf "%s\t%s\n" "-w" "Automatically fix all formatting issues"
+    printf "%s\t%s\n" "-d" "Print diff for all formatting issues"
+    printf "%s\t%s\n" "-l" "List files that have formatting issues"
 }
 
 GOIMPORTS_ARGS=""
 DOCKER=""
-SELF_ARGS_WITHOUT_DOCKER="${*/c/}"
+SELF_ARGS_WITHOUT_DOCKER=""
 
 while getopts 'cwdlh' opt; do
     case "$opt" in
@@ -25,13 +25,16 @@ while getopts 'cwdlh' opt; do
         ;;
     w)
         GOIMPORTS_ARGS+="-w "
+        SELF_ARGS_WITHOUT_DOCKER+="-w "
         ;;
     d)
         GOIMPORTS_ARGS+="-d "
+        SELF_ARGS_WITHOUT_DOCKER+="-d "
         ;;
 
     l)
         GOIMPORTS_ARGS+="-l "
+        SELF_ARGS_WITHOUT_DOCKER+="-l "
         ;;
 
     h)
@@ -68,14 +71,13 @@ if [ "$DOCKER" == "true" ]; then
 
     DOCKER_IMAGE="$(docker build -q -f "$DOCKERFILE" .)"
     COMMAND="./$(basename "$0")"
-    ARGS="$SELF_ARGS_WITHOUT_DOCKER"
     MOUNT="--mount=type=bind,target=/app,source=$PWD"
 
     # for safety, mount as readonly unless -w flag was given
     if ! [[ "$GOIMPORTS_ARGS" =~ "w" ]]; then
         MOUNT+=",readonly"
     fi
-    docker run --workdir /app "$MOUNT" "$DOCKER_IMAGE" "$COMMAND" "$ARGS"
+    docker run --workdir /app "$MOUNT" "$DOCKER_IMAGE" "$COMMAND" $SELF_ARGS_WITHOUT_DOCKER
     exit "$?"
 fi
 
