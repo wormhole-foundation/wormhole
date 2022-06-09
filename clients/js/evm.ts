@@ -147,3 +147,17 @@ async function getKaruraGasParams(rpc: string): Promise<{
     gasPrice: parseInt(res.gasPrice, 16),
   };
 }
+
+//
+export async function setStorageAt(rpc: string, contract_address: string, storage_slot: string, value: string): Promise<any> {
+  return (await axios.post(rpc, {
+    id: 0,
+    jsonrpc: "2.0",
+    method: "hardhat_setStorageAt",
+    params: [
+      contract_address,
+      storage_slot,
+      value,
+    ],
+  })).data
+}
