@@ -1355,10 +1355,8 @@ pub fn build_native_id(denom: &str) -> [u8; 32] {
     assert!(n < 20);
     // First 12 bytes are 1 followed by 11 zeros.
     let mut asset_address = vec![1];
-    asset_address.extend(vec![0; 11]);
-
+    asset_address.extend(vec![0; 31 - n]);
     asset_address.extend_from_slice(denom.as_bytes());
-    asset_address.resize(32, 0);
     let mut result: [u8; 32] = [0; 32];
     result.copy_from_slice(&asset_address);
     result
