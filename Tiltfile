@@ -592,8 +592,8 @@ k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
 k8s_resource(
     "terra2-terrad",
     port_forwards = [
-        port_forward(26658, name = "Terra 2 RPC [:26658]", host = webHost),
-        port_forward(1318, name = "Terra 2 LCD [:1318]", host = webHost),
+        port_forward(26658, container_port = 26657, name = "Terra 2 RPC [:26658]", host = webHost),
+        port_forward(1318, container_port = 1317, name = "Terra 2 LCD [:1318]", host = webHost),
     ],
     resource_deps = ["const-gen"],
     labels = ["terra2"],
@@ -609,7 +609,7 @@ k8s_resource(
 k8s_resource(
     "terra2-fcd",
     resource_deps = ["terra2-terrad", "terra2-postgres"],
-    port_forwards = [port_forward(3061, name = "Terra 2 FCD [:3061]", host = webHost)],
+    port_forwards = [port_forward(3061, container_port = 3060, name = "Terra 2 FCD [:3061]", host = webHost)],
     labels = ["terra2"],
     trigger_mode = trigger_mode,
 )
