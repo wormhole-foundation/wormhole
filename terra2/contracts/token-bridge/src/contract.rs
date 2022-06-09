@@ -82,6 +82,7 @@ use crate::{
         TransferInfoResponse,
         WrappedRegistryResponse,
     },
+    query_ext,
     state::{
         bridge_contracts,
         bridge_contracts_read,
@@ -511,13 +512,20 @@ fn handle_create_asset_meta_native_token(
     let cfg = config_read(deps.storage).load()?;
     let mut asset_id = extend_address_to_32(&build_native_id(&denom).into());
     asset_id[0] = 1;
-    let symbol = format_native_denom_symbol(&denom);
+
+    let meta_response: query_ext::DenomMetadataResponse = query_ext::query(
+        &deps.querier,
+        &query_ext::QueryRequest::Bank(query_ext::BankQuery::DenomMetadata { denom }),
+    )?;
+
+    let symbol = meta_response.metadata.symbol;
+    let name = meta_response.metadata.name;
     let meta: AssetMeta = AssetMeta {
         token_chain: CHAIN_ID,
         token_address: asset_id.clone(),
         decimals: 6,
         symbol: extend_string_to_32(&symbol),
-        name: extend_string_to_32(&symbol),
+        name: extend_string_to_32(&name),
     };
     let token_bridge_message = TokenBridgeMessage {
         action: Action::ATTEST_META,
@@ -1195,14 +1203,6 @@ fn handle_initiate_transfer_token(
         .add_attribute("transfer.amount", amount.to_string())
         .add_attribute("transfer.nonce", nonce.to_string())
         .add_attribute("transfer.block_time", env.block.time.seconds().to_string()))
-}
-
-fn format_native_denom_symbol(denom: &str) -> String {
-    if denom == "uluna" {
-        return "LUNA".to_string();
-    }
-    //TODO: is there better formatting to do here?
-    denom.to_uppercase().to_string()
 }
 
 fn handle_initiate_transfer_native_token(
