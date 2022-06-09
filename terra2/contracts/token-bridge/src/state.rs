@@ -185,9 +185,9 @@ impl TokenBridgeMessage {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TransferInfo {
     pub amount: (u128, u128),
-    pub token_address: Vec<u8>,
+    pub token_address: [u8; 32],
     pub token_chain: u16,
-    pub recipient: Vec<u8>,
+    pub recipient: [u8; 32],
     pub recipient_chain: u16,
     pub fee: (u128, u128),
 }
@@ -196,9 +196,9 @@ impl TransferInfo {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
         let amount = data.get_u256(0);
-        let token_address = data.get_bytes32(32).to_vec();
+        let token_address = data.get_const_bytes::<32>(32);
         let token_chain = data.get_u16(64);
-        let recipient = data.get_bytes32(66).to_vec();
+        let recipient = data.get_const_bytes::<32>(66);
         let recipient_chain = data.get_u16(98);
         let fee = data.get_u256(100);
 
@@ -215,7 +215,7 @@ impl TransferInfo {
         [
             self.amount.0.to_be_bytes().to_vec(),
             self.amount.1.to_be_bytes().to_vec(),
-            self.token_address.clone(),
+            self.token_address.to_vec(),
             self.token_chain.to_be_bytes().to_vec(),
             self.recipient.to_vec(),
             self.recipient_chain.to_be_bytes().to_vec(),
@@ -265,7 +265,7 @@ impl TransferWithPayloadInfo {
 // 67 [32]uint8  Name
 
 pub struct AssetMeta {
-    pub token_address: Vec<u8>,
+    pub token_address: [u8; 32],
     pub token_chain: u16,
     pub decimals: u8,
     pub symbol: Vec<u8>,
@@ -275,7 +275,7 @@ pub struct AssetMeta {
 impl AssetMeta {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
-        let token_address = data.get_bytes32(0).to_vec();
+        let token_address = data.get_const_bytes::<32>(0);
         let token_chain = data.get_u16(32);
         let decimals = data.get_u8(34);
         let symbol = data.get_bytes32(35).to_vec();
@@ -292,7 +292,7 @@ impl AssetMeta {
 
     pub fn serialize(&self) -> Vec<u8> {
         [
-            self.token_address.clone(),
+            self.token_address.to_vec(),
             self.token_chain.to_be_bytes().to_vec(),
             self.decimals.to_be_bytes().to_vec(),
             self.symbol.clone(),
