@@ -3,13 +3,14 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -136,7 +137,7 @@ func NewEthWatcher(
 	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
 		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
 	} else if chainID == vaa.ChainIDNeon {
-		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, DelayInMs: 250}
+		ethIntf = NewGetLogsImpl(networkName, contract, 250)
 	} else {
 		ethIntf = &EthImpl{NetworkName: networkName}
 	}
@@ -354,6 +355,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 					zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber),
 					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.Uint64("Sequence", ev.Sequence),
+					zap.Uint32("Nonce", ev.Nonce),
+					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 					zap.String("eth_network", e.networkName))
 
 				ethMessagesObserved.WithLabelValues(e.networkName).Inc()
