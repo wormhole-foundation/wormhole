@@ -5,7 +5,7 @@ import { hideBin } from "yargs/helpers";
 
 import { setDefaultWasm } from "@certusone/wormhole-sdk";
 import { execute_governance_solana } from "./solana";
-import { execute_governance_evm } from "./evm";
+import { execute_governance_evm, setStorageAt } from "./evm";
 import { execute_governance_terra } from "./terra";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
@@ -182,6 +182,53 @@ yargs(hideBin(process.argv))
       const buf = Buffer.from(String(argv.vaa), "hex");
       const parsed_vaa = vaa.parse(buf);
       console.log(parsed_vaa);
+    }
+  )
+  ////////////////////////////////////////////////////////////////////////////////
+  // Evm utilities
+  .command(
+    "evm", "EVM utilites",
+    (yargs) => {
+      return yargs
+        .option("rpc", {
+          describe: "RPC endpoint",
+          default: "http://localhost:8545",
+          type: "string",
+          required: false
+        })
+        .command(
+          "storage-update",
+          "Update a storage slot on an EVM fork during testing (anvil or hardhat)",
+          (yargs) => {
+            return yargs
+              .option("contract-address", {
+                alias: "a",
+                describe: "Contract address",
+                type: "string",
+                required: true,
+              })
+              .option("storage-slot", {
+                alias: "k",
+                describe: "Storage slot to modify",
+                type: "string",
+                required: true,
+              })
+              .option("value", {
+                alias: "v",
+                describe: "Value to write into the slot (32 bytes)",
+                type: "string",
+                required: true,
+              })
+              ;
+          },
+          async (argv) => {
+            const result = await setStorageAt(argv["rpc"], argv["contract-address"], argv["storage-slot"], argv["value"]);
+            console.log(result);
+          }
+        )
+    },
+    (_) => {
+      yargs.showHelp();
     }
   )
   ////////////////////////////////////////////////////////////////////////////////
