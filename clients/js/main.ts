@@ -209,6 +209,12 @@ yargs(hideBin(process.argv))
           type: "string",
           choices: ["mainnet", "testnet", "devnet"],
           required: true,
+        })
+        .option("contract-address", {
+          alias: "a",
+          describe: "Contract to submit VAA to (override config)",
+          type: "string",
+          required: false,
         });
     },
     async (argv) => {
@@ -270,7 +276,7 @@ yargs(hideBin(process.argv))
           "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
         );
       } else if (isEVMChain(chain)) {
-        await execute_governance_evm(parsed_vaa.payload, buf, network, chain);
+        await execute_governance_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"]);
       } else if (chain === "terra") {
         await execute_governance_terra(parsed_vaa.payload, buf, network);
       } else if (chain === "solana") {

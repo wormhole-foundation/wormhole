@@ -10,7 +10,8 @@ export async function execute_governance_evm(
   payload: Payload,
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET",
-  chain: EVMChainName
+  chain: EVMChainName,
+  contract_address: string | undefined
 ) {
   let n = NETWORKS[network][chain]
   if (!n.rpc) {
@@ -24,8 +25,8 @@ export async function execute_governance_evm(
 
   let contracts: Contracts = CONTRACTS[network][chain]
 
-  let provider = undefined
-  let signer = undefined
+  let provider: ethers.providers.JsonRpcProvider;
+  let signer: ethers.Wallet;
   if (chain === "celo") {
     provider = new celo.CeloProvider(rpc)
     await provider.ready
@@ -33,7 +34,7 @@ export async function execute_governance_evm(
   } else {
     provider = new ethers.providers.JsonRpcProvider(rpc)
     signer = new ethers.Wallet(key, provider)
-  } 
+  }
 
   // Here we apply a set of chain-specific overrides.
   // NOTE: some of these might have only been tested on mainnet. If it fails in
@@ -53,11 +54,12 @@ export async function execute_governance_evm(
 
   switch (payload.module) {
     case "Core":
-      if (contracts.core === undefined) {
+      contract_address = contract_address ? contract_address : contracts.core;
+      if (contract_address === undefined) {
         throw Error(`Unknown core contract on ${network} for ${chain}`)
       }
       let c = new Implementation__factory(signer)
-      let cb = c.attach(contracts.core)
+      let cb = c.attach(contract_address)
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set")
@@ -72,11 +74,12 @@ export async function execute_governance_evm(
       }
       break
     case "NFTBridge":
-      if (contracts.nft_bridge === undefined) {
+      contract_address = contract_address ? contract_address : contracts.nft_bridge;
+      if (contract_address === undefined) {
         throw Error(`Unknown nft bridge contract on ${network} for ${chain}`)
       }
       let n = new NFTBridgeImplementation__factory(signer)
-      let nb = n.attach(contracts.nft_bridge)
+      let nb = n.attach(contract_address)
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
@@ -93,11 +96,12 @@ export async function execute_governance_evm(
       }
       break
     case "TokenBridge":
-      if (contracts.token_bridge === undefined) {
+      contract_address = contract_address ? contract_address : contracts.token_bridge;
+      if (contract_address === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for ${chain}`)
       }
       let t = new BridgeImplementation__factory(signer)
-      let tb = t.attach(contracts.token_bridge)
+      let tb = t.attach(contract_address)
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
@@ -118,7 +122,7 @@ export async function execute_governance_evm(
   }
 }
 
-export async function getKaruraGasParams(rpc: string): Promise<{
+async function getKaruraGasParams(rpc: string): Promise<{
   gasPrice: number;
   gasLimit: number;
 }> {
