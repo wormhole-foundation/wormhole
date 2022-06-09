@@ -90,6 +90,10 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
   },
+  terra2: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
     key: get_env_var("ETH_KEY"),
@@ -170,6 +174,10 @@ const TESTNET = {
     rpc: "https://proxy.devnet.neonlabs.org/solana",
     key: get_env_var("ETH_KEY"),
   },
+  terra2: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
     key: get_env_var("ETH_KEY"),
@@ -247,6 +255,10 @@ const DEVNET = {
     key: undefined,
   },
   neon: {
+    rpc: undefined,
+    key: undefined,
+  },
+  terra2: {
     rpc: undefined,
     key: undefined,
   },

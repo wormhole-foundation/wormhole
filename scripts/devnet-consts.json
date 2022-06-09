@@ -202,6 +202,32 @@
             "contracts": {
                 "tokenBridgeEmitterAddress": "8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2"
             }
+        },
+        "18": {
+            "rpcUrlTilt": "http://terra2-terrad:1317",
+            "rpcUrlLocal": "http://localhost:1318",
+            "rpcPort": "1318",
+            "contracts": {
+                "coreEmitterAddress": "ade4a5f5803a439835c636395a8d648dee57b2fc90d98dc17fa887159b69638b",
+                "coreNativeAddress": "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+                "tokenBridgeEmitterAddress": "9e28beafa966b2407bffb0d48651e94972a56e69f3c0897d9e8facbdaeb98386",
+                "tokenBridgeNativeAddress": "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6"
+            },
+            "accounts": {
+                "testWallet": {
+                    "public": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+                    "private": "",
+                    "mnemonic": "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
+                }
+            },
+            "addresses": {
+                "testToken": {
+                    "address": "terra1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqynf7kp",
+                    "name": "MOCK",
+                    "symbol": "MCK",
+                    "decimals": 6
+                }
+            }
         }
     },
     "gancheDefaults": [
