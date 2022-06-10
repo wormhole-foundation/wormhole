@@ -99,6 +99,11 @@ export const CHAINS: ChainInfo[] =
           logo: klaytnIcon,
         },
         {
+          id: CHAIN_ID_NEON,
+          name: "Neon",
+          logo: neonIcon,
+        },        
+        {
           id: CHAIN_ID_OASIS,
           name: "Oasis",
           logo: oasisIcon,
@@ -313,6 +318,8 @@ export const getDefaultNativeCurrencyAddressEvm = (chainId: ChainId) => {
     ? WKLAY_ADDRESS
     : chainId === CHAIN_ID_CELO
     ? CELO_ADDRESS
+    : chainId === CHAIN_ID_NEON
+    ? WNEON_ADDRESS    
     : "";
 };
 
@@ -1068,6 +1075,14 @@ export const CELO_ADDRESS =
     ? "0xF194afDf50B03e69Bd7D057c1Aa9e10c9954E4C9"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const CELO_DECIMALS = 18;
+
+export const WNEON_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0xf8ad328e98f85fccbf09e43b16dcbbda7e84beab"
+    : CLUSTER === "testnet"
+    ? "0xf8aD328E98f85fccbf09E43B16dcbbda7E84BEAB"
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const WNEON_DECIMALS = 18;
 
 export const ALGO_DECIMALS = 6;
 

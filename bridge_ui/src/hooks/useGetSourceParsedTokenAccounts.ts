@@ -11,6 +11,7 @@ import {
   CHAIN_ID_FANTOM,
   CHAIN_ID_KARURA,
   CHAIN_ID_KLAYTN,
+  CHAIN_ID_NEON,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
@@ -49,6 +50,7 @@ import ethIcon from "../icons/eth.svg";
 import fantomIcon from "../icons/fantom.svg";
 import karuraIcon from "../icons/karura.svg";
 import klaytnIcon from "../icons/klaytn.svg";
+import neonIcon from "../icons/neon.svg";
 import oasisIcon from "../icons/oasis-network-rose-logo.svg";
 import polygonIcon from "../icons/polygon.svg";
 import {
@@ -107,6 +109,8 @@ import {
   WKLAY_DECIMALS,
   WMATIC_ADDRESS,
   WMATIC_DECIMALS,
+  WNEON_ADDRESS,
+  WNEON_DECIMALS,  
   WROSE_ADDRESS,
   WROSE_DECIMALS,
   getDefaultNativeCurrencyAddressEvm,
@@ -521,6 +525,29 @@ const createNativeCeloParsedTokenAccount = (
             false //isNativeAsset
           );
         });
+};
+
+const createNativeNeonParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : provider.getBalance(signerAddress).then((balanceInWei) => {
+        const balanceInEth = ethers.utils.formatEther(balanceInWei);
+        return createParsedTokenAccount(
+          signerAddress, //public key
+          WNEON_ADDRESS, //Mint key, On the other side this will be wneon, so this is hopefully a white lie.
+          balanceInWei.toString(), //amount, in wei
+          WNEON_DECIMALS,
+          parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+          balanceInEth.toString(), //This is the actual display field, which has full precision.
+          "NEON", //A white lie for display purposes
+          "NEON", //A white lie for display purposes
+          neonIcon,
+          true //isNativeAsset
+        );
+      });
 };
 
 const createNFTParsedTokenAccountFromCovalent = (
@@ -1302,7 +1329,7 @@ function useGetAvailableTokens(nft: boolean = false) {
           if (!cancelled) {
             setEthNativeAccount(undefined);
             setEthNativeAccountLoading(false);
-            setEthNativeAccountError("Unable to retrieve your Acala balance.");
+            setEthNativeAccountError("Unable to retrieve your Klaytn balance.");
           }
         }
       );
@@ -1335,7 +1362,40 @@ function useGetAvailableTokens(nft: boolean = false) {
           if (!cancelled) {
             setEthNativeAccount(undefined);
             setEthNativeAccountLoading(false);
-            setEthNativeAccountError("Unable to retrieve your Acala balance.");
+            setEthNativeAccountError("Unable to retrieve your Celo balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+  
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_NEON &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeNeonParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your Neon balance.");
           }
         }
       );
