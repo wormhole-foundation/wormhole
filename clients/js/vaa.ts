@@ -416,26 +416,32 @@ export function impossible(a: never): any {
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder utils
 
-type Encoding
+export type Encoding
     = "uint8"
     | "uint16"
     | "uint32"
     | "uint64"
+    | "uint128"
+    | "uint256"
     | "bytes32"
+    | "address"
 
-function typeWidth(type: Encoding): number {
+export function typeWidth(type: Encoding): number {
     switch (type) {
         case "uint8": return 1
         case "uint16": return 2
         case "uint32": return 4
         case "uint64": return 8
+        case "uint128": return 16
+        case "uint256": return 32
         case "bytes32": return 32
+        case "address": return 20
     }
 }
 
 // Couldn't find a satisfactory binary serialisation solution, so we just use
 // the ethers library's encoding logic
-function encode(type: Encoding, val: any): string {
+export function encode(type: Encoding, val: any): string {
     // ethers operates on hex strings (sigh) and left pads everything to 32
     // bytes (64 characters). We take last 2*n characters where n is the width
     // of the type being serialised in bytes (since a byte is represented as 2
@@ -445,6 +451,6 @@ function encode(type: Encoding, val: any): string {
 
 // Encode a string as binary left-padded to 32 bytes, represented as a hex
 // string (64 chars long)
-function encodeString(str: string): Buffer {
+export function encodeString(str: string): Buffer {
     return Buffer.from(Buffer.from(str).toString("hex").padStart(64, "0"), "hex")
 }
