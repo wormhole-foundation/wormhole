@@ -141,7 +141,7 @@ yargs(hideBin(process.argv))
                 type: "ContractUpgrade",
                 chain: toChainId(argv["chain"]),
                 address: Buffer.from(
-                  argv["contract-address"].padStart(64, "0"),
+                  evm_address(argv["contract-address"]),
                   "hex"
                 ),
               };
@@ -167,13 +167,25 @@ yargs(hideBin(process.argv))
       describe: "vaa",
       type: "string",
     });
-  },
-    async (argv) => {
-      const buf = Buffer.from(String(argv.vaa), "hex");
-      const parsed_vaa = vaa.parse(buf);
-      console.log(parsed_vaa);
-    }
-  )
+  }, async (argv) => {
+    const buf = Buffer.from(String(argv.vaa), "hex");
+    const parsed_vaa = vaa.parse(buf);
+    console.log(parsed_vaa);
+    console.log("Digest:", vaa.vaaDigest(parsed_vaa))
+  })
+  .command("recover <digest> <signature>", "Recover an address from a signature", (yargs) => {
+    return yargs
+      .positional("digest", {
+        describe: "digest",
+        type: "string"
+      })
+      .positional("signature", {
+        describe: "signature",
+        type: "string"
+      });
+  }, async (argv) => {
+    console.log(ethers.utils.recoverAddress(hex(argv["digest"]), hex(argv["signature"])))
+  })
   ////////////////////////////////////////////////////////////////////////////////
   // Evm utilities
   .command("evm", "EVM utilites", (yargs) => {
@@ -212,7 +224,7 @@ yargs(hideBin(process.argv))
           });
       },
         async (argv) => {
-          const result = await setStorageAt(argv["rpc"], argv["contract-address"], argv["storage-slot"], ["uint256"], [argv["value"]]);
+          const result = await setStorageAt(argv["rpc"], evm_address(argv["contract-address"]), argv["storage-slot"], ["uint256"], [argv["value"]]);
           console.log(result);
         }
       )
@@ -351,3 +363,11 @@ yargs(hideBin(process.argv))
       }
     }
   ).argv;
+
+function hex(x: string): string {
+  return ethers.utils.hexlify(x, { allowMissingPrefix: true })
+}
+
+function evm_address(x: string): string {
+  return hex(x).substring(2).padStart(64, "0")
+}

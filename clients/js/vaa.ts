@@ -148,6 +148,10 @@ export function serialiseVAA(vaa: VAA<Payload>) {
     return body.join("")
 }
 
+export function vaaDigest(vaa: VAA<Payload>) {
+  return solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + vaaBody(vaa)])])
+}
+
 function vaaBody(vaa: VAA<Payload>) {
     let payload = vaa.payload
     let payload_str: string
@@ -187,8 +191,7 @@ function vaaBody(vaa: VAA<Payload>) {
 }
 
 export function sign(signers: string[], vaa: VAA<Payload>): Signature[] {
-    const body = vaaBody(vaa)
-    const hash = solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + body])])
+    const hash = vaaDigest(vaa)
     const ec = new elliptic.ec("secp256k1")
 
     return signers.map((signer, i) => {
