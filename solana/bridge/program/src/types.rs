@@ -51,7 +51,7 @@ pub struct GovernancePayloadUpgrade {
 
 impl SerializePayload for GovernancePayloadUpgrade {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
-        v.write(&self.new_contract.to_bytes())?;
+        v.write_all(&self.new_contract.to_bytes())?;
         Ok(())
     }
 }
@@ -99,7 +99,7 @@ impl SerializePayload for GovernancePayloadGuardianSetChange {
         v.write_u32::<BigEndian>(self.new_guardian_set_index)?;
         v.write_u8(self.new_guardian_set.len() as u8)?;
         for key in self.new_guardian_set.iter() {
-            v.write(key)?;
+            v.write_all(key)?;
         }
         Ok(())
     }
@@ -119,7 +119,7 @@ where
         let mut keys = Vec::with_capacity(keys_len as usize);
         for _ in 0..keys_len {
             let mut key: [u8; 20] = [0; 20];
-            c.read(&mut key)?;
+            c.read_exact(&mut key)?;
             keys.push(key);
         }
 
@@ -151,7 +151,7 @@ impl SerializePayload for GovernancePayloadSetMessageFee {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
         let mut fee_data = [0u8; 32];
         self.fee.to_big_endian(&mut fee_data);
-        v.write(&fee_data[..])?;
+        v.write_all(&fee_data[..])?;
 
         Ok(())
     }
@@ -197,8 +197,8 @@ impl SerializePayload for GovernancePayloadTransferFees {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
         let mut amount_data = [0u8; 32];
         self.amount.to_big_endian(&mut amount_data);
-        v.write(&amount_data)?;
-        v.write(&self.to)?;
+        v.write_all(&amount_data)?;
+        v.write_all(&self.to)?;
         Ok(())
     }
 }

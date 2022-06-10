@@ -1,6 +1,6 @@
 
+#![allow(incomplete_features)]
 #![feature(adt_const_params)]
-#![allow(warnings)]
 
 pub use rocksalt::*;
 
@@ -11,42 +11,12 @@ pub use rocksalt::*;
 
 // We need a few Solana things in scope in order to properly abstract Solana.
 use solana_program::{
-    account_info::{
-        next_account_info,
-        AccountInfo,
-    },
-    entrypoint,
-    entrypoint::ProgramResult,
-    instruction::{
-        AccountMeta,
-        Instruction,
-    },
-    program::invoke_signed,
-    program_error::ProgramError,
-    program_pack::Pack,
+    account_info::AccountInfo,
     pubkey::Pubkey,
     rent::Rent,
-    system_instruction,
-    system_program,
-    sysvar::{
-        self,
-        SysvarId,
-    },
 };
 
-use std::{
-    io::{
-        ErrorKind,
-        Write,
-    },
-    marker::PhantomData,
-    ops::{
-        Deref,
-        DerefMut,
-    },
-    slice::Iter,
-    string::FromUtf8Error,
-};
+use std::slice::Iter;
 
 pub use borsh::{
     BorshDeserialize,
@@ -85,7 +55,7 @@ pub use crate::{
 };
 
 /// Library name and version to print in entrypoint. Must be evaluated in this crate in order to do the right thing
-pub const PKG_NAME_VERSION: &'static str =
+pub const PKG_NAME_VERSION: &str =
     concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
 
 pub struct ExecutionContext<'a, 'b: 'a> {

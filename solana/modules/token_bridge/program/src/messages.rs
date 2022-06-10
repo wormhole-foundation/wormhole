@@ -1,13 +1,6 @@
-use crate::{
-    types::{
-        Address,
-        ChainID,
-    },
-    TokenBridgeError,
-};
-use borsh::{
-    BorshDeserialize,
-    BorshSerialize,
+use crate::types::{
+    Address,
+    ChainID,
 };
 use bridge::{
     vaa::{
@@ -24,38 +17,32 @@ use byteorder::{
 };
 use primitive_types::U256;
 use solana_program::{
-    native_token::Sol,
-    program_error::{
-        ProgramError,
-        ProgramError::InvalidAccountData,
-    },
+    program_error::ProgramError::InvalidAccountData,
     pubkey::Pubkey,
 };
 use solitaire::SolitaireError;
 use std::{
-    error::Error,
+    cmp,
     io::{
         Cursor,
         Read,
         Write,
     },
-    str::Utf8Error,
-    string::FromUtf8Error,
 };
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct PayloadTransfer {
-    // Amount being transferred (big-endian uint256)
+    /// Amount being transferred (big-endian uint256)
     pub amount: U256,
-    // Address of the token. Left-zero-padded if shorter than 32 bytes
+    /// Address of the token. Left-zero-padded if shorter than 32 bytes
     pub token_address: Address,
-    // Chain ID of the token
+    /// Chain ID of the token
     pub token_chain: ChainID,
-    // Address of the recipient. Left-zero-padded if shorter than 32 bytes
+    /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
     pub to: Address,
-    // Chain ID of the recipient
+    /// Chain ID of the recipient
     pub to_chain: ChainID,
-    // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
+    /// Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
     pub fee: U256,
 }
 
@@ -107,16 +94,16 @@ impl SerializePayload for PayloadTransfer {
 
         let mut am_data: [u8; 32] = [0; 32];
         self.amount.to_big_endian(&mut am_data);
-        writer.write(&am_data)?;
+        writer.write_all(&am_data)?;
 
-        writer.write(&self.token_address)?;
+        writer.write_all(&self.token_address)?;
         writer.write_u16::<BigEndian>(self.token_chain)?;
-        writer.write(&self.to)?;
+        writer.write_all(&self.to)?;
         writer.write_u16::<BigEndian>(self.to_chain)?;
 
         let mut fee_data: [u8; 32] = [0; 32];
         self.fee.to_big_endian(&mut fee_data);
-        writer.write(&fee_data)?;
+        writer.write_all(&fee_data)?;
 
         Ok(())
     }
@@ -170,18 +157,18 @@ impl SerializePayload for PayloadTransferWithPayload {
 
         let mut am_data: [u8; 32] = [0; 32];
         self.amount.to_big_endian(&mut am_data);
-        writer.write(&am_data)?;
+        writer.write_all(&am_data)?;
 
-        writer.write(&self.token_address)?;
+        writer.write_all(&self.token_address)?;
         writer.write_u16::<BigEndian>(self.token_chain)?;
-        writer.write(&self.to)?;
+        writer.write_all(&self.to)?;
         writer.write_u16::<BigEndian>(self.to_chain)?;
 
         let mut fee_data: [u8; 32] = [0; 32];
         self.fee.to_big_endian(&mut fee_data);
-        writer.write(&fee_data)?;
+        writer.write_all(&fee_data)?;
 
-        writer.write(self.payload.as_slice())?;
+        writer.write_all(self.payload.as_slice())?;
 
         Ok(())
     }
@@ -189,33 +176,33 @@ impl SerializePayload for PayloadTransferWithPayload {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct PayloadTransferWithPayload {
-    // Amount being transferred (big-endian uint256)
+    /// Amount being transferred (big-endian uint256)
     pub amount: U256,
-    // Address of the token. Left-zero-padded if shorter than 32 bytes
+    /// Address of the token. Left-zero-padded if shorter than 32 bytes
     pub token_address: Address,
-    // Chain ID of the token
+    /// Chain ID of the token
     pub token_chain: ChainID,
-    // Address of the recipient. Left-zero-padded if shorter than 32 bytes
+    /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
     pub to: Address,
-    // Chain ID of the recipient
+    /// Chain ID of the recipient
     pub to_chain: ChainID,
-    // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
+    /// Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
     pub fee: U256,
-    // Arbitrary payload
+    /// Arbitrary payload
     pub payload: Vec<u8>,
 }
 
 #[derive(PartialEq, Debug)]
 pub struct PayloadAssetMeta {
-    // Address of the token. Left-zero-padded if shorter than 32 bytes
+    /// Address of the token. Left-zero-padded if shorter than 32 bytes
     pub token_address: Address,
-    // Chain ID of the token
+    /// Chain ID of the token
     pub token_chain: ChainID,
-    // Number of decimals of the token
+    /// Number of decimals of the token
     pub decimals: u8,
-    // Symbol of the token
+    /// Symbol of the token
     pub symbol: String,
-    // Name of the token
+    /// Name of the token
     pub name: String,
 }
 
@@ -268,22 +255,22 @@ impl SerializePayload for PayloadAssetMeta {
         // Payload ID
         writer.write_u8(2)?;
 
-        writer.write(&self.token_address)?;
+        writer.write_all(&self.token_address)?;
         writer.write_u16::<BigEndian>(self.token_chain)?;
 
         writer.write_u8(self.decimals)?;
 
         let mut symbol: [u8; 32] = [0; 32];
-        for i in 0..self.symbol.len() {
-            symbol[i] = self.symbol.as_bytes()[i];
-        }
-        writer.write(&symbol)?;
+        let count = cmp::min(symbol.len(), self.symbol.len());
+        symbol[..count].copy_from_slice(self.symbol[..count].as_bytes());
+
+        writer.write_all(&symbol)?;
 
         let mut name: [u8; 32] = [0; 32];
-        for i in 0..self.name.len() {
-            name[i] = self.name.as_bytes()[i];
-        }
-        writer.write(&name)?;
+        let count = cmp::min(name.len(), self.name.len());
+        name[..count].copy_from_slice(self.name[..count].as_bytes());
+
+        writer.write_all(&name)?;
 
         Ok(())
     }
@@ -291,9 +278,9 @@ impl SerializePayload for PayloadAssetMeta {
 
 #[derive(PartialEq, Debug)]
 pub struct PayloadGovernanceRegisterChain {
-    // Chain ID of the chain to be registered
+    /// Chain ID of the chain to be registered
     pub chain: ChainID,
-    // Address of the endpoint on the chain
+    /// Address of the endpoint on the chain
     pub endpoint_address: Address,
 }
 
@@ -336,7 +323,7 @@ where
         self.write_governance_header(writer)?;
         // Payload ID
         writer.write_u16::<BigEndian>(self.chain)?;
-        writer.write(&self.endpoint_address[..])?;
+        writer.write_all(&self.endpoint_address[..])?;
 
         Ok(())
     }
@@ -344,14 +331,14 @@ where
 
 #[derive(PartialEq, Debug)]
 pub struct GovernancePayloadUpgrade {
-    // Address of the new Implementation
+    /// Address of the new Implementation
     pub new_contract: Pubkey,
 }
 
 impl SerializePayload for GovernancePayloadUpgrade {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
         self.write_governance_header(v)?;
-        v.write(&self.new_contract.to_bytes())?;
+        v.write_all(&self.new_contract.to_bytes())?;
         Ok(())
     }
 }
@@ -386,6 +373,7 @@ impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 }
 
 #[cfg(feature = "no-entrypoint")]
+#[allow(unused_imports)]
 mod tests {
     use crate::messages::{
         GovernancePayloadUpgrade,
@@ -417,7 +405,7 @@ mod tests {
             fee: U256::from(1139),
         };
 
-        let mut data = transfer_original.try_to_vec().unwrap();
+        let data = transfer_original.try_to_vec().unwrap();
         let transfer_deser = PayloadTransfer::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(transfer_original, transfer_deser);
@@ -436,7 +424,7 @@ mod tests {
             name: "ZAC".to_string(),
         };
 
-        let mut data = am_original.try_to_vec().unwrap();
+        let data = am_original.try_to_vec().unwrap();
         let am_deser = PayloadAssetMeta::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(am_original, am_deser);
@@ -448,7 +436,7 @@ mod tests {
             new_contract: Pubkey::new_unique(),
         };
 
-        let mut data = original.try_to_vec().unwrap();
+        let data = original.try_to_vec().unwrap();
         let deser = GovernancePayloadUpgrade::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(original, deser);
@@ -464,7 +452,7 @@ mod tests {
             endpoint_address,
         };
 
-        let mut data = original.try_to_vec().unwrap();
+        let data = original.try_to_vec().unwrap();
         let deser = PayloadGovernanceRegisterChain::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(original, deser);

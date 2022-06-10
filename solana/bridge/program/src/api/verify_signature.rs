@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_if)]
 use solitaire::*;
 
 use crate::{
@@ -83,10 +84,10 @@ pub fn verify_signatures(
                 return None;
             }
 
-            return Some(SigInfo {
+            Some(SigInfo {
                 sig_index: *p as u8,
                 signer_index: i as u8,
-            });
+            })
         })
         .collect();
 

@@ -31,11 +31,12 @@ impl<'a, const State: AccountState> Seeded<&PostedVAADerivationData> for PostedV
 }
 
 #[repr(transparent)]
+#[derive(Default)]
 pub struct PostedVAAData(pub MessageData);
 
 impl BorshSerialize for PostedVAAData {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        writer.write(b"vaa")?;
+        writer.write_all(b"vaa")?;
         BorshSerialize::serialize(&self.0, writer)
     }
 }
@@ -60,12 +61,6 @@ impl Deref for PostedVAAData {
 impl DerefMut for PostedVAAData {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { std::mem::transmute(&mut self.0) }
-    }
-}
-
-impl Default for PostedVAAData {
-    fn default() -> Self {
-        PostedVAAData(MessageData::default())
     }
 }
 

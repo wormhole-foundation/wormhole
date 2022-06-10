@@ -1,9 +1,7 @@
 use solitaire::*;
 
 use solana_program::{
-    log::sol_log,
     program::invoke_signed,
-    program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::{
         clock::Clock,
@@ -38,7 +36,7 @@ use crate::{
     CHAIN_ID_SOLANA,
 };
 
-fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
+fn verify_governance<T>(vaa: &ClaimableVAA<T>) -> Result<()>
 where
     T: DeserializePayload,
 {

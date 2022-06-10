@@ -12,7 +12,6 @@ use crate::{
         WrappedTokenMeta,
     },
     messages::PayloadAssetMeta,
-    types::*,
     TokenBridgeError::{
         InvalidChain,
         InvalidMetadata,
@@ -27,8 +26,6 @@ use bridge::{
 use solana_program::{
     account_info::AccountInfo,
     program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
 };
 use solitaire::{
     processors::seeded::{
@@ -38,24 +35,12 @@ use solitaire::{
     CreationLamports::Exempt,
     *,
 };
-use spl_token::{
-    error::TokenError::OwnerMismatch,
-    state::{
-        Account,
-        Mint,
-    },
-};
+
 use spl_token_metadata::state::{
     Data as SplData,
     Metadata,
 };
-use std::{
-    cmp::min,
-    ops::{
-        Deref,
-        DerefMut,
-    },
-};
+use std::cmp::min;
 
 #[derive(FromAccounts)]
 pub struct CreateWrapped<'b> {
@@ -146,7 +131,7 @@ pub fn create_wrapped(
 pub fn create_accounts(
     ctx: &ExecutionContext,
     accs: &mut CreateWrapped,
-    data: CreateWrappedData,
+    _data: CreateWrappedData,
 ) -> Result<()> {
     // Create mint account
     accs.mint
@@ -206,7 +191,7 @@ pub fn create_accounts(
 pub fn update_accounts(
     ctx: &ExecutionContext,
     accs: &mut CreateWrapped,
-    data: CreateWrappedData,
+    _data: CreateWrappedData,
 ) -> Result<()> {
     accs.spl_metadata.verify_derivation(
         &spl_token_metadata::id(),
@@ -250,14 +235,6 @@ pub fn truncate_utf8(data: impl AsRef<[u8]>, len: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    fn extend_string(n: &str) -> Vec<u8> {
-        let mut bytes = vec![0u8; 32];
-        for i in 0..n.len() {
-            bytes[i] = n.as_bytes()[i];
-        }
-        bytes.to_vec()
-    }
-
     #[test]
     fn test_unicode_truncation() {
         #[rustfmt::skip]

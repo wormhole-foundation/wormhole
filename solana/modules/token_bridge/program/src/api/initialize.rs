@@ -1,20 +1,11 @@
-use crate::{
-    accounts::ConfigAccount,
-    types::*,
-};
+use crate::accounts::ConfigAccount;
 use solana_program::{
     account_info::AccountInfo,
-    msg,
-    program_error::ProgramError,
     pubkey::Pubkey,
 };
 use solitaire::{
     CreationLamports::Exempt,
     *,
-};
-use std::ops::{
-    Deref,
-    DerefMut,
 };
 
 #[derive(FromAccounts)]

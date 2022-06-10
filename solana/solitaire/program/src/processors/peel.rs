@@ -11,10 +11,8 @@ use solana_program::{
     sysvar::{
         self,
         Sysvar as SolanaSysvar,
-        SysvarId,
     },
 };
-use std::marker::PhantomData;
 
 use crate::{
     processors::seeded::{
@@ -23,7 +21,6 @@ use crate::{
     },
     trace,
     types::*,
-    AccountState::MaybeInitialized,
     Context,
     Result,
     SolitaireError,
@@ -75,15 +72,15 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Option<T> {
 }
 
 /// Peel a Derived Key
-impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b, 'c>
-    for Derive<T, Seed>
+impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const SEED: &'static str> Peel<'a, 'b, 'c>
+    for Derive<T, SEED>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         // Attempt to Derive Seed
-        let (derived, bump) = Pubkey::find_program_address(&[Seed.as_ref()], ctx.this);
+        let (derived, _bump) = Pubkey::find_program_address(&[SEED.as_ref()], ctx.this);
         match derived == *ctx.info().key {
             true => T::peel(ctx).map(|v| Derive(v)),
-            _ => Err(SolitaireError::InvalidDerive(*ctx.info().key, derived).into()),
+            _ => Err(SolitaireError::InvalidDerive(*ctx.info().key, derived)),
         }
     }
 
@@ -103,7 +100,7 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T> {
         match ctx.info().is_writable {
             true => T::peel(ctx).map(|v| Mut(v)),
             _ => Err(
-                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable).into(),
+                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable),
             ),
         }
     }
@@ -137,7 +134,7 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         match ctx.info().is_signer {
             true => T::peel(ctx).map(|v| Signer(v)),
-            _ => Err(SolitaireError::InvalidSigner(*ctx.info().key).into()),
+            _ => Err(SolitaireError::InvalidSigner(*ctx.info().key)),
         }
     }
 
@@ -179,7 +176,7 @@ where
                 ctx.info().clone(),
                 Var::from_account_info(ctx.info())?,
             )),
-            _ => Err(SolitaireError::InvalidSysvar(*ctx.info().key).into()),
+            _ => Err(SolitaireError::InvalidSysvar(*ctx.info().key)),
         }
     }
 
@@ -198,7 +195,7 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         if ctx.immutable && ctx.info().is_writable {
             return Err(
-                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable).into(),
+                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable),
             );
         }
 
@@ -219,18 +216,18 @@ impl<
         'b: 'a,
         'c,
         T: BorshDeserialize + BorshSerialize + Owned + Default,
-        const IsInitialized: AccountState,
-    > Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized>
+        const IS_INITIALIZED: AccountState,
+    > Peel<'a, 'b, 'c> for Data<'b, T, IS_INITIALIZED>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         if ctx.immutable && ctx.info().is_writable {
             return Err(
-                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable).into(),
+                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable),
             );
         }
 
         // If we're initializing the type, we should emit system/rent as deps.
-        let (initialized, data): (bool, T) = match IsInitialized {
+        let (initialized, data): (bool, T) = match IS_INITIALIZED {
             AccountState::Uninitialized => {
                 if !ctx.info().data.borrow().is_empty() {
                     return Err(SolitaireError::AlreadyInitialized(*ctx.info().key));
@@ -238,13 +235,13 @@ impl<
                 (false, T::default())
             }
             AccountState::Initialized => {
-                (true, T::try_from_slice(&mut *ctx.info().data.borrow_mut())?)
+                (true, T::try_from_slice(*ctx.info().data.borrow_mut())?)
             }
             AccountState::MaybeInitialized => {
                 if ctx.info().data.borrow().is_empty() {
                     (false, T::default())
                 } else {
-                    (true, T::try_from_slice(&mut *ctx.info().data.borrow_mut())?)
+                    (true, T::try_from_slice(*ctx.info().data.borrow_mut())?)
                 }
             }
         };
@@ -269,7 +266,7 @@ impl<
     }
 
     fn deps() -> Vec<Pubkey> {
-        if IsInitialized == AccountState::Initialized {
+        if IS_INITIALIZED == AccountState::Initialized {
             return vec![];
         }
 
