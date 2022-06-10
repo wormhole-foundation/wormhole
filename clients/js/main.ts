@@ -3,9 +3,9 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
-import { setDefaultWasm } from "@certusone/wormhole-sdk";
+import { CONTRACTS, setDefaultWasm } from "@certusone/wormhole-sdk";
 import { execute_governance_solana } from "./solana";
-import { execute_governance_evm, setStorageAt } from "./evm";
+import { execute_governance_evm, hijack_evm, setStorageAt } from "./evm";
 import { execute_governance_terra } from "./terra";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
@@ -17,6 +17,7 @@ import {
   isEVMChain,
   toChainId,
 } from "@certusone/wormhole-sdk";
+import { ethers } from "ethers";
 
 setDefaultWasm("node");
 
@@ -50,44 +51,39 @@ yargs(hideBin(process.argv))
   ////////////////////////////////////////////////////////////////////////////////
   // Generate
   .command(
-    "generate",
-    "generate VAAs (devnet and testnet only)",
-    (yargs) => {
+    "generate", "generate VAAs (devnet and testnet only)", (yargs) => {
       return (
         yargs
           .option("guardian-secret", {
             alias: "g",
             required: true,
-            describe: "Guardians' secret keys",
+            describe: "Guardians' secret keys (CSV)",
             type: "string",
           })
           // Registration
-          .command(
-            "registration",
-            "Generate registration VAA",
-            (yargs) => {
-              return yargs
-                .option("chain", {
-                  alias: "c",
-                  describe: "Chain to register",
-                  type: "string",
-                  choices: Object.keys(CHAINS),
-                  required: true,
-                })
-                .option("contract-address", {
-                  alias: "a",
-                  describe: "Contract to register",
-                  type: "string",
-                  required: true,
-                })
-                .option("module", {
-                  alias: "m",
-                  describe: "Module to upgrade",
-                  type: "string",
-                  choices: ["NFTBridge", "TokenBridge"],
-                  required: true,
-                });
-            },
+          .command("registration", "Generate registration VAA", (yargs) => {
+            return yargs
+              .option("chain", {
+                alias: "c",
+                describe: "Chain to register",
+                type: "string",
+                choices: Object.keys(CHAINS),
+                required: true,
+              })
+              .option("contract-address", {
+                alias: "a",
+                describe: "Contract to register",
+                type: "string",
+                required: true,
+              })
+              .option("module", {
+                alias: "m",
+                describe: "Module to upgrade",
+                type: "string",
+                choices: ["NFTBridge", "TokenBridge"],
+                required: true,
+              });
+          },
             (argv) => {
               let module = argv["module"] as "NFTBridge" | "TokenBridge";
               assertChain(argv["chain"]);
@@ -111,32 +107,29 @@ yargs(hideBin(process.argv))
             }
           )
           // Upgrade
-          .command(
-            "upgrade",
-            "Generate contract upgrade VAA",
-            (yargs) => {
-              return yargs
-                .option("chain", {
-                  alias: "c",
-                  describe: "Chain to upgrade",
-                  type: "string",
-                  choices: Object.keys(CHAINS),
-                  required: true,
-                })
-                .option("contract-address", {
-                  alias: "a",
-                  describe: "Contract to upgrade to",
-                  type: "string",
-                  required: true,
-                })
-                .option("module", {
-                  alias: "m",
-                  describe: "Module to upgrade",
-                  type: "string",
-                  choices: ["Core", "NFTBridge", "TokenBridge"],
-                  required: true,
-                });
-            },
+          .command("upgrade", "Generate contract upgrade VAA", (yargs) => {
+            return yargs
+              .option("chain", {
+                alias: "c",
+                describe: "Chain to upgrade",
+                type: "string",
+                choices: Object.keys(CHAINS),
+                required: true,
+              })
+              .option("contract-address", {
+                alias: "a",
+                describe: "Contract to upgrade to",
+                type: "string",
+                required: true,
+              })
+              .option("module", {
+                alias: "m",
+                describe: "Module to upgrade",
+                type: "string",
+                choices: ["Core", "NFTBridge", "TokenBridge"],
+                required: true,
+              });
+          },
             (argv) => {
               assertChain(argv["chain"]);
               let module = argv["module"] as
@@ -169,15 +162,12 @@ yargs(hideBin(process.argv))
   )
   ////////////////////////////////////////////////////////////////////////////////
   // Parse
-  .command(
-    "parse <vaa>",
-    "Parse a VAA",
-    (yargs) => {
-      return yargs.positional("vaa", {
-        describe: "vaa",
-        type: "string",
-      });
-    },
+  .command("parse <vaa>", "Parse a VAA", (yargs) => {
+    return yargs.positional("vaa", {
+      describe: "vaa",
+      type: "string",
+    });
+  },
     async (argv) => {
       const buf = Buffer.from(String(argv.vaa), "hex");
       const parsed_vaa = vaa.parse(buf);
@@ -186,84 +176,106 @@ yargs(hideBin(process.argv))
   )
   ////////////////////////////////////////////////////////////////////////////////
   // Evm utilities
-  .command(
-    "evm", "EVM utilites",
-    (yargs) => {
-      return yargs
-        .option("rpc", {
-          describe: "RPC endpoint",
-          default: "http://localhost:8545",
-          type: "string",
-          required: false
+  .command("evm", "EVM utilites", (yargs) => {
+    return yargs
+      .option("rpc", {
+        describe: "RPC endpoint",
+        default: "http://localhost:8545",
+        type: "string",
+        required: false
+      })
+      .command("address-from-secret <secret>", "Compute a 20 byte eth address from a 32 byte private key", (yargs) => {
+        return yargs
+          .positional("secret", { type: "string", describe: "Secret key (32 bytes)" })
+      }, (argv) => {
+        console.log(ethers.utils.computeAddress(argv["secret"]))
+      })
+      .command("storage-update", "Update a storage slot on an EVM fork during testing (anvil or hardhat)", (yargs) => {
+        return yargs
+          .option("contract-address", {
+            alias: "a",
+            describe: "Contract address",
+            type: "string",
+            required: true,
+          })
+          .option("storage-slot", {
+            alias: "k",
+            describe: "Storage slot to modify",
+            type: "string",
+            required: true,
+          })
+          .option("value", {
+            alias: "v",
+            describe: "Value to write into the slot (32 bytes)",
+            type: "string",
+            required: true,
+          });
+      },
+        async (argv) => {
+          const result = await setStorageAt(argv["rpc"], argv["contract-address"], argv["storage-slot"], ["uint256"], [argv["value"]]);
+          console.log(result);
+        }
+      )
+      .command("hijack", "Override the guardian set of the core bridge contract during testing (anvil or hardhat)", (yargs) => {
+        return yargs
+          .option("core-contract-address", {
+            alias: "a",
+            describe: "Core contract address",
+            type: "string",
+            default: CONTRACTS.MAINNET.ethereum.core,
+          })
+          .option("guardian-address", {
+            alias: "g",
+            required: true,
+            describe: "Guardians' public addresses (CSV)",
+            type: "string",
+          })
+          .option("guardian-set-index", {
+            alias: "i",
+            required: false,
+            describe: "New guardian set index",
+            type: "number"
+          });
+      },
+        async (argv) => {
+          const guardian_addresses = argv["guardian-address"].split(",")
+          await hijack_evm(argv["rpc"], argv["core-contract-address"], guardian_addresses, argv["guardian-set-index"])
         })
-        .command(
-          "storage-update",
-          "Update a storage slot on an EVM fork during testing (anvil or hardhat)",
-          (yargs) => {
-            return yargs
-              .option("contract-address", {
-                alias: "a",
-                describe: "Contract address",
-                type: "string",
-                required: true,
-              })
-              .option("storage-slot", {
-                alias: "k",
-                describe: "Storage slot to modify",
-                type: "string",
-                required: true,
-              })
-              .option("value", {
-                alias: "v",
-                describe: "Value to write into the slot (32 bytes)",
-                type: "string",
-                required: true,
-              })
-              ;
-          },
-          async (argv) => {
-            const result = await setStorageAt(argv["rpc"], argv["contract-address"], argv["storage-slot"], argv["value"]);
-            console.log(result);
-          }
-        )
-    },
+  },
     (_) => {
       yargs.showHelp();
     }
   )
   ////////////////////////////////////////////////////////////////////////////////
   // Submit
-  .command(
-    "submit <vaa>",
-    "Execute a VAA",
-    (yargs) => {
-      return yargs
-        .positional("vaa", {
-          describe: "vaa",
-          type: "string",
-          required: true,
-        })
-        .option("chain", {
-          alias: "c",
-          describe: "chain name",
-          type: "string",
-          choices: Object.keys(CHAINS),
-          required: false,
-        })
-        .option("network", {
-          alias: "n",
-          describe: "network",
-          type: "string",
-          choices: ["mainnet", "testnet", "devnet"],
-          required: true,
-        })
-        .option("contract-address", {
-          alias: "a",
-          describe: "Contract to submit VAA to (override config)",
-          type: "string",
-          required: false,
-        });
-    },
+  .command("submit <vaa>", "Execute a VAA", (yargs) => {
+    return yargs
+      .positional("vaa", {
+        describe: "vaa",
+        type: "string",
+        required: true,
+      })
+      .option("chain", {
+        alias: "c",
+        describe: "chain name",
+        type: "string",
+        choices: Object.keys(CHAINS),
+        required: false,
+      })
+      .option("network", {
+        alias: "n",
+        describe: "network",
+        type: "string",
+        choices: ["mainnet", "testnet", "devnet"],
+        required: true,
+      })
+      .option("contract-address", {
+        alias: "a",
+        describe: "Contract to submit VAA to (override config)",
+        type: "string",
+        required: false,
+      });
+  },
     async (argv) => {
       const vaa_hex = String(argv.vaa);
       const buf = Buffer.from(vaa_hex, "hex");
