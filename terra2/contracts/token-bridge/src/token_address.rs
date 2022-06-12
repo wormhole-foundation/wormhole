@@ -1,43 +1,210 @@
+use cosmwasm_std::{
+    Addr,
+    StdError,
+    StdResult,
+    Storage,
+};
+
+use schemars::JsonSchema;
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use sha3::{
+    Digest,
+    Keccak256,
+};
+
+use crate::{
+    state::{
+        bank_token_hashes,
+        bank_token_hashes_read,
+        native_c20_hashes,
+        native_c20_hashes_read,
+    },
+    CHAIN_ID,
+};
+
 /// Represent the external view of a token address.
-/// This is the value that goes into the wormhole VAA.
+/// This is the value that goes into the VAA.
 ///
-/// TODO: implement and document the new behaviour using hashing and storage.
-/// Currently this is just the old implementation that looks at the first byte
-/// and if it's 1 it assumes it's a native token (which is incorrect, because
-/// now the contract address space is 32 bytes instead of 20, so the first byte
-/// could legitimately be 1)
+/// When given an external 32 byte address, there are 3 options:
+/// 1. This is a token native to this chain
+///     a. it's a token managed by the Bank cosmos module
+///     (e.g. the staking denom "uluna" on Terra)
+///     b. it's a CW20 token
+/// 2. This is a token address from another chain
+///
+/// In the first case (native tokens), the left-most byte tells us which case it
+/// is: if the byte is 1, then it's a Bank token, if it's 0, then it's a CW20.
+/// Since denom names can be arbitarily long, and CW20 addresses are 32 byes. In
+/// order to "fit" the information into the available 31 bytes, we hash the data
+/// (either the denom or the CW20 address), and put the first 31 bytes of the
+/// hash into the address.
+/// In order to be able to recover the denom and the contract address later, we
+/// store a mapping from these 32 bytes to denoms and CW20 addresses (in
+/// separate maps, to avoid collisions when a denom happens to match a CW20
+/// address) (c.f. [`native_cw20_hashes`] & [`bank_token_hashes`] in state.rs)
+///
+/// In the second case (foreign tokens), the whole 32 bytes correspond to the
+/// external token address. In this case, the corresponding token will be a
+/// wrapped asset, whose address is stored in storage as a mapping (c.f. [`wrapped_asset`] in state.rs)
+///
+///    (chain_id, external_id) => wrapped_asset_address
+///
+/// For internal consumption of these addresses, we first convert them to [`TokenId`].
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[repr(transparent)]
 pub struct ExternalTokenId {
-    address: [u8; 32],
+    bytes: [u8; 32],
+}
+
+/// The intention is that [`ExternalTokenId`] should always be converted to/from
+/// [`TokenId`] through the functions defined in this module. This is why its
+/// internal contents are private. The following functions are called
+/// [`serialize`] and [`deserialize`] to signify that they should only be used
+/// when converting back and forth the wire format.
+impl ExternalTokenId {
+    pub fn serialize(&self) -> [u8; 32] {
+        self.bytes
+    }
+
+    pub fn deserialize(data: [u8; 32]) -> Self {
+        Self { bytes: data }
+    }
 }
 
 impl ExternalTokenId {
-    // TODO: update this (see above)
-    pub fn to_token_id(&self) -> TokenId {
-        let marker_byte = self.address[0];
-        match marker_byte {
-            1 => {
-                let mut token_address = self.address.clone();
-                token_address[0] = 0;
-                let mut denom = token_address.to_vec();
-                denom.retain(|&c| c != 0);
-                let denom = String::from_utf8(denom).unwrap();
-                TokenId::Native { denom }
+    pub fn to_token_id(&self, storage: &dyn Storage, origin_chain: u16) -> StdResult<TokenId> {
+        if origin_chain == CHAIN_ID {
+            let marker_byte = self.bytes[0];
+            match marker_byte {
+                1 => {
+                    let denom = bank_token_hashes_read(storage).load(&self.bytes)?;
+                    Ok(TokenId::Bank { denom })
+                }
+                0 => {
+                    let human_address = native_c20_hashes_read(storage).load(&self.bytes)?;
+                    Ok(TokenId::Contract(ContractId::NativeCW20 {
+                        contract_address: human_address,
+                    }))
+                }
+                b => Err(StdError::generic_err(format!("Unknown marker byte: {}", b))),
             }
-            _ => TokenId::CW20 {
-                address: self.address,
+        } else {
+            Ok(TokenId::Contract(ContractId::ForeignToken {
+                chain_id: origin_chain,
+                foreign_address: self.bytes,
+            }))
+        }
+    }
+
+    pub fn from_native_cw20(contract_address: &Addr) -> StdResult<ExternalTokenId> {
+        let mut hash = hash(contract_address.as_bytes());
+        // override first byte with marker byte
+        hash[0] = 0;
+        Ok(ExternalTokenId { bytes: hash })
+    }
+
+    pub fn from_foreign_token(chain_id: u16, foreign_address: [u8; 32]) -> ExternalTokenId {
+        assert!(chain_id != CHAIN_ID, "Expected a foreign chain id.");
+        ExternalTokenId {
+            bytes: foreign_address,
+        }
+    }
+
+    pub fn from_bank_token(denom: &String) -> StdResult<ExternalTokenId> {
+        let mut hash = hash(&denom.as_bytes());
+        // override first byte with marker byte
+        hash[0] = 1;
+        Ok(ExternalTokenId { bytes: hash })
+    }
+
+    pub fn from_token_id(token_id: &TokenId) -> StdResult<ExternalTokenId> {
+        match token_id {
+            TokenId::Bank { denom } => Self::from_bank_token(denom),
+            TokenId::Contract(contract) => match contract {
+                ContractId::NativeCW20 { contract_address } => {
+                    Self::from_native_cw20(contract_address)
+                }
+                ContractId::ForeignToken {
+                    chain_id,
+                    foreign_address,
+                } => Ok(Self::from_foreign_token(*chain_id, *foreign_address)),
             },
         }
     }
 }
 
-impl From<&[u8; 32]> for ExternalTokenId {
-    fn from(address: &[u8; 32]) -> Self {
-        Self { address: *address }
+/// Internal view of an address. This type is similar to [`AssetInfo`], but more
+/// granular. We do differentiate between bank tokens and CW20 tokens, but in
+/// the latter case, we further differentiate between native CW20s and wrapped
+/// CW20s (see [`ContractId`]).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum TokenId {
+    Bank { denom: String },
+    Contract(ContractId),
+}
+
+impl TokenId {
+    /// Given a [`TokenId`], we can always directly construct an
+    /// [`ExternalTokenId`], but the converse is not true, since the
+    /// construction of external ids involves hashing, and is thus irreversible.
+    /// To maintain the bijection (modulo hash collisions), we store the hash
+    /// preimages in storage, so given an external id, the necessary information
+    /// can always be queried to reconstruct the token id.
+    /// This information must be stored when the token id is first converted to
+    /// an external id, i.e. when an attestation is generated for the token.
+    pub fn store(&self, storage: &mut dyn Storage) -> StdResult<ExternalTokenId> {
+        let external_id = ExternalTokenId::from_token_id(self)?;
+        match self {
+            TokenId::Bank { denom } => bank_token_hashes(storage).save(&external_id.bytes, denom),
+            TokenId::Contract(contract) => match contract {
+                ContractId::NativeCW20 { contract_address } => {
+                    native_c20_hashes(storage).save(&external_id.bytes, &contract_address)
+                }
+                ContractId::ForeignToken {
+                    chain_id: _,
+                    foreign_address: _,
+                } => Err(StdError::generic_err(
+                    "Foreign tokens are not stored in storage",
+                )),
+            },
+        }?;
+        Ok(external_id)
     }
 }
 
-/// Internal view of a token id.
-pub enum TokenId {
-    Native { denom: String },
-    CW20 { address: [u8; 32] },
+/// A contract id is either a native cw20 address, or a foreign token. The
+/// reason we represent the foreign address here instead of storing the wrapped
+/// CW20 contract's address directly is that the wrapped asset might not be
+/// deployed yet.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum ContractId {
+    NativeCW20 {
+        contract_address: Addr,
+    },
+    /// A wrapped token might not exist yet.
+    ForeignToken {
+        chain_id: u16,
+        foreign_address: [u8; 32],
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[repr(transparent)]
+pub struct WrappedCW20 {
+    pub human_address: Addr,
+}
+
+impl WrappedCW20 {
+    pub fn into_string(self) -> String {
+        self.human_address.into_string()
+    }
+}
+
+fn hash(bytes: &[u8]) -> [u8; 32] {
+    let mut hasher = Keccak256::new();
+    hasher.update(bytes);
+    hasher.finalize().into()
 }
