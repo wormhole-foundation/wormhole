@@ -29,30 +29,48 @@ use crate::{
 /// This is the value that goes into the VAA.
 ///
 /// When given an external 32 byte address, there are 3 options:
-/// 1. This is a token native to this chain
+/// I. This is a token native to this chain
 ///     a. it's a token managed by the Bank cosmos module
 ///     (e.g. the staking denom "uluna" on Terra)
 ///     b. it's a CW20 token
-/// 2. This is a token address from another chain
+/// II. This is a token address from another chain
 ///
-/// In the first case (native tokens), the left-most byte tells us which case it
-/// is: if the byte is 1, then it's a Bank token, if it's 0, then it's a CW20.
-/// Since denom names can be arbitarily long, and CW20 addresses are 32 byes. In
-/// order to "fit" the information into the available 31 bytes, we hash the data
-/// (either the denom or the CW20 address), and put the first 31 bytes of the
-/// hash into the address.
+/// Thus, interpreting an external token id requires knowing whether the token
+/// in question originates from this chain, or another chain. This information
+/// will always be available from the context.
+///
+/// I. //////////////////////////////////////////////////////////////////////////
+///
+/// In the first case (native tokens), the layout of is the following:
+///
+///  | 1 byte |                          31 bytes                               |
+///  +--------+-----------------------------------------------------------------+
+///  | MARKER |                           HASH                                  |
+///  +--------+-----------------------------------------------------------------+
+///
+/// The left-most byte (MARKER) tells us whether it's a Bank token (1), or a CW20 (0).
+/// Since denom names can be arbitarily long, and CW20 addresses are 32 byes, we
+/// cannot directly encode them into the remaining 31 bytes. Instead, we hash
+/// the data (either the denom or the CW20 address), and put the last 31 bytes
+/// of the hash into the address (HASH). In particular, this choice reduces the
+/// space of the hash function by 8 bits, but assuming the hash is resistant to
+/// differential attacks, we consider giving up on these 8 bits safe.
+///
 /// In order to be able to recover the denom and the contract address later, we
-/// store a mapping from these 32 bytes to denoms and CW20 addresses (in
-/// separate maps, to avoid collisions when a denom happens to match a CW20
-/// address) (c.f. [`native_cw20_hashes`] & [`bank_token_hashes`] in state.rs)
+/// store a mapping from these 32 bytes (MARKER+HASH) to denoms and CW20
+/// addresses (c.f. [`native_cw20_hashes`] & [`bank_token_hashes`] in state.rs)
+///
+/// II. /////////////////////////////////////////////////////////////////////////
 ///
 /// In the second case (foreign tokens), the whole 32 bytes correspond to the
 /// external token address. In this case, the corresponding token will be a
-/// wrapped asset, whose address is stored in storage as a mapping (c.f. [`wrapped_asset`] in state.rs)
+/// wrapped asset, whose address is stored in storage as a mapping (c.f.
+/// [`wrapped_asset`] in state.rs)
 ///
 ///    (chain_id, external_id) => wrapped_asset_address
 ///
-/// For internal consumption of these addresses, we first convert them to [`TokenId`].
+/// For internal consumption of these addresses, we first convert them to
+/// [`TokenId`] (see below).
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[repr(transparent)]
 pub struct ExternalTokenId {
