@@ -6,7 +6,7 @@ set -eo pipefail -o nounset
 ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 DOCKERFILE="$ROOT/Dockerfile.lint"
 
-VALID_COMMANDS=("lint", "format")
+VALID_COMMANDS=("lint" "format")
 
 SELF_ARGS_WITHOUT_DOCKER=""
 GOIMPORTS_ARGS=""
@@ -41,7 +41,7 @@ format(){
     GOFMT_OUTPUT="$(find ./node ./event_database -type f -name '*.go' -not -path './node/pkg/proto/*' -exec goimports $GOIMPORTS_ARGS {} + 2>&1)"
 
     if [ "$GITHUB_ACTION" == "true" ]; then
-        GOFMT_OUTPUT="$(echo "$GOFMT_OUTPUT" | awk '{print "::error file="$0"::Formatting error"}')"
+        GOFMT_OUTPUT="$(echo "$GOFMT_OUTPUT" | awk '{print "::error file="$0"::Formatting error. Please format using ./scripts/lint.sh -d format."}')"
     fi
 
     if [ -n "$GOFMT_OUTPUT" ]; then
@@ -63,8 +63,6 @@ lint(){
 
 DOCKER="false"
 GITHUB_ACTION="false"
-RUN_FORMATTER="false"
-RUN_LINTER="false"
 
 while getopts 'cwdlgh' opt; do
     case "$opt" in
@@ -109,7 +107,7 @@ fi
 
 COMMAND="$1"
 
-if [[ ! " ${VALID_COMMANDS[*]}, " =~ " ${COMMAND}, " ]]; then
+if [[ ! " ${VALID_COMMANDS[*]} " =~ " ${COMMAND} " ]]; then
     echo "Invalid command $COMMAND." >&2 
     print_help
     exit 1
