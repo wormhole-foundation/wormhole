@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	_ "net/http/pprof" // #no_sec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
+	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
+	"os"
 	"path"
 	"strings"
-
-	"os"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
