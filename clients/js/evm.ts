@@ -1,4 +1,4 @@
-import { BridgeImplementation__factory, Implementation__factory, NFTBridgeImplementation__factory } from "@certusone/wormhole-sdk"
+import { BridgeImplementation__factory, CHAINS, Implementation__factory, NFTBridgeImplementation__factory } from "@certusone/wormhole-sdk"
 import { ethers } from "ethers"
 import { NETWORKS } from "./networks"
 import { encode, Encoding, impossible, Payload, typeWidth } from "./vaa"
@@ -6,6 +6,97 @@ import { Contracts, CONTRACTS, EVMChainName } from "@certusone/wormhole-sdk"
 import axios from "axios";
 import * as celo from "@celo-tools/celo-ethers-wrapper";
 import { solidityKeccak256 } from "ethers/lib/utils"
+
+const _IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+
+export async function query_contract_evm(
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  chain: EVMChainName,
+  module: "Core" | "NFTBridge" | "TokenBridge",
+  contract_address: string | undefined
+): Promise<object> {
+  let n = NETWORKS[network][chain]
+  if (!n.rpc) {
+    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
+  }
+  let rpc: string = n.rpc
+
+  let contracts: Contracts = CONTRACTS[network][chain]
+
+  const provider = new ethers.providers.JsonRpcProvider(rpc)
+
+  let result: any = {}
+
+  switch (module) {
+    case "Core":
+      contract_address = contract_address ? contract_address : contracts.core;
+      if (contract_address === undefined) {
+        throw Error(`Unknown core contract on ${network} for ${chain}`)
+      }
+      const core = Implementation__factory.connect(contract_address, provider)
+      result.address = contract_address
+      result.currentGuardianSetIndex = await core.getCurrentGuardianSetIndex()
+      result.guardianSet = {}
+      for (let i of Array(result.currentGuardianSetIndex + 1).keys()) {
+        let guardian_set = await core.getGuardianSet(i)
+        result.guardianSet[i] = { keys: guardian_set[0], expiry: guardian_set[1] }
+      }
+      result.guardianSetExpiry = await core.getGuardianSetExpiry()
+      result.chainId = await core.chainId()
+      result.governanceChainId = await core.governanceChainId()
+      result.governanceContract = await core.governanceContract()
+      result.messageFee = await core.messageFee()
+      result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+      result.isInitialized = await core.isInitialized(result.implementation)
+      break
+    case "TokenBridge":
+      contract_address = contract_address ? contract_address : contracts.token_bridge;
+      if (contract_address === undefined) {
+        throw Error(`Unknown token bridge contract on ${network} for ${chain}`)
+      }
+      const tb = BridgeImplementation__factory.connect(contract_address, provider)
+      result.address = contract_address
+      result.wormhole = await tb.wormhole()
+      result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+      result.isInitialized = await tb.isInitialized(result.implementation)
+      result.chainId = await tb.chainId()
+      result.governanceChainId = await tb.governanceChainId()
+      result.governanceContract = await tb.governanceContract()
+      result.registrations = {}
+      for (let [c_name, c_id] of Object.entries(CHAINS)) {
+        if (c_name === chain) {
+          continue
+        }
+        result.registrations[c_name] = await tb.bridgeContracts(c_id)
+      }
+      break
+    case "NFTBridge":
+      contract_address = contract_address ? contract_address : contracts.nft_bridge;
+      if (contract_address === undefined) {
+        throw Error(`Unknown nft bridge contract on ${network} for ${chain}`)
+      }
+      const nb = NFTBridgeImplementation__factory.connect(contract_address, provider)
+      result.address = contract_address
+      result.wormhole = await nb.wormhole()
+      result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+      result.isInitialized = await nb.isInitialized(result.implementation)
+      result.chainId = await nb.chainId()
+      result.governanceChainId = await nb.governanceChainId()
+      result.governanceContract = await nb.governanceContract()
+      result.registrations = {}
+      for (let [c_name, c_id] of Object.entries(CHAINS)) {
+        if (c_name === chain) {
+          continue
+        }
+        result.registrations[c_name] = await nb.bridgeContracts(c_id)
+      }
+      break
+    default:
+      impossible(module)
+  }
+
+  return result
+}
 
 export async function execute_governance_evm(
   payload: Payload,

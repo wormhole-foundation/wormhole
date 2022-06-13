@@ -3,9 +3,9 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
-import { CONTRACTS, setDefaultWasm } from "@certusone/wormhole-sdk";
+import { assertEVMChain, CONTRACTS, setDefaultWasm } from "@certusone/wormhole-sdk";
 import { execute_governance_solana } from "./solana";
-import { execute_governance_evm, hijack_evm, setStorageAt } from "./evm";
+import { execute_governance_evm, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
 import { execute_governance_terra } from "./terra";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
@@ -222,12 +222,57 @@ yargs(hideBin(process.argv))
             type: "string",
             required: true,
           });
-      },
-        async (argv) => {
-          const result = await setStorageAt(argv["rpc"], evm_address(argv["contract-address"]), argv["storage-slot"], ["uint256"], [argv["value"]]);
-          console.log(result);
+      }, async (argv) => {
+        const result = await setStorageAt(argv["rpc"], evm_address(argv["contract-address"]), argv["storage-slot"], ["uint256"], [argv["value"]]);
+        console.log(result);
+      })
+      .command("info", "Query info about the on-chain state of the contract", (yargs) => {
+        return yargs
+          .option("chain", {
+            alias: "c",
+            describe: "Chain to query",
+            type: "string",
+            choices: Object.keys(CHAINS),
+            required: true,
+          })
+          .option("module", {
+            alias: "m",
+            describe: "Module to query",
+            type: "string",
+            choices: ["Core", "NFTBridge", "TokenBridge"],
+            required: true,
+          })
+          .option("network", {
+            alias: "n",
+            describe: "network",
+            type: "string",
+            choices: ["mainnet", "testnet", "devnet"],
+            required: true,
+          })
+          .option("contract-address", {
+            alias: "a",
+            describe: "Contract to query (override config)",
+            type: "string",
+            required: false,
+          });
+      }, async (argv) => {
+        // TODO: don't ignore RPC argument
+        assertChain(argv["chain"])
+        assertEVMChain(argv["chain"])
+        const network = argv.network.toUpperCase();
+        if (
+          network !== "MAINNET" &&
+          network !== "TESTNET" &&
+          network !== "DEVNET"
+        ) {
+          throw Error(`Unknown network: ${network}`);
         }
-      )
+        let module = argv["module"] as
+          | "Core"
+          | "NFTBridge"
+          | "TokenBridge";
+        console.log(JSON.stringify(await query_contract_evm(network, argv["chain"], module, argv["contract-address"])))
+      })
       .command("hijack", "Override the guardian set of the core bridge contract during testing (anvil or hardhat)", (yargs) => {
         return yargs
           .option("core-contract-address", {
@@ -245,14 +290,13 @@ yargs(hideBin(process.argv))
           .option("guardian-set-index", {
             alias: "i",
             required: false,
-            describe: "New guardian set index",
+            describe: "New guardian set index (if unspecified, default to overriding the current index)",
             type: "number"
           });
-      },
-        async (argv) => {
-          const guardian_addresses = argv["guardian-address"].split(",")
-          await hijack_evm(argv["rpc"], argv["core-contract-address"], guardian_addresses, argv["guardian-set-index"])
-        })
+      }, async (argv) => {
+        const guardian_addresses = argv["guardian-address"].split(",")
+        await hijack_evm(argv["rpc"], argv["core-contract-address"], guardian_addresses, argv["guardian-set-index"])
+      })
   },
     (_) => {
       yargs.showHelp();
@@ -287,81 +331,80 @@ yargs(hideBin(process.argv))
         type: "string",
         required: false,
       });
-  },
-    async (argv) => {
-      const vaa_hex = String(argv.vaa);
-      const buf = Buffer.from(vaa_hex, "hex");
-      const parsed_vaa = vaa.parse(buf);
+  }, async (argv) => {
+    const vaa_hex = String(argv.vaa);
+    const buf = Buffer.from(vaa_hex, "hex");
+    const parsed_vaa = vaa.parse(buf);
 
-      if (!vaa.hasPayload(parsed_vaa)) {
-        throw Error("Couldn't parse VAA payload");
-      }
-
-      console.log(parsed_vaa.payload);
-
-      const network = argv.network.toUpperCase();
-      if (
-        network !== "MAINNET" &&
-        network !== "TESTNET" &&
-        network !== "DEVNET"
-      ) {
-        throw Error(`Unknown network: ${network}`);
-      }
-
-      // We figure out the target chain to submit the VAA to.
-      // The VAA might specify this itself (for example a contract upgrade VAA
-      // or a token transfer VAA), in which case we just submit the VAA to
-      // that target chain.
-      //
-      // If the VAA does not have a target (e.g. chain registration VAAs or
-      // guardian set upgrade VAAs), we require the '--chain' argument to be
-      // set on the command line.
-      //
-      // As a sanity check, in the event that the VAA does specify a target
-      // and the '--chain' argument is also set, we issue an error if those
-      // two don't agree instead of silently taking the VAA's target chain.
-
-      // get VAA chain
-      const vaa_chain_id = parsed_vaa.payload.chain;
-      assertChain(vaa_chain_id);
-      const vaa_chain = toChainName(vaa_chain_id);
-
-      // get chain from command line arg
-      const cli_chain = argv["chain"];
-
-      let chain: ChainName;
-      if (cli_chain !== undefined) {
-        assertChain(cli_chain);
-        if (vaa_chain !== "unset" && cli_chain !== vaa_chain) {
-          throw Error(
-            `Specified target chain (${cli_chain}) does not match VAA target chain (${vaa_chain})`
-          );
-        }
-        chain = cli_chain;
-      } else {
-        chain = vaa_chain;
-      }
-
-      if (chain === "unset") {
-        throw Error(
-          "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
-        );
-      } else if (isEVMChain(chain)) {
-        await execute_governance_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"]);
-      } else if (chain === "terra") {
-        await execute_governance_terra(parsed_vaa.payload, buf, network);
-      } else if (chain === "solana") {
-        await execute_governance_solana(parsed_vaa, buf, network);
-      } else if (chain === "algorand") {
-        throw Error("Algorand is not supported yet");
-      } else if (chain === "near") {
-        throw Error("NEAR is not supported yet");
-      } else {
-        // If you get a type error here, hover over `chain`'s type and it tells you
-        // which cases are not handled
-        impossible(chain);
-      }
+    if (!vaa.hasPayload(parsed_vaa)) {
+      throw Error("Couldn't parse VAA payload");
     }
+
+    console.log(parsed_vaa.payload);
+
+    const network = argv.network.toUpperCase();
+    if (
+      network !== "MAINNET" &&
+      network !== "TESTNET" &&
+      network !== "DEVNET"
+    ) {
+      throw Error(`Unknown network: ${network}`);
+    }
+
+    // We figure out the target chain to submit the VAA to.
+    // The VAA might specify this itself (for example a contract upgrade VAA
+    // or a token transfer VAA), in which case we just submit the VAA to
+    // that target chain.
+    //
+    // If the VAA does not have a target (e.g. chain registration VAAs or
+    // guardian set upgrade VAAs), we require the '--chain' argument to be
+    // set on the command line.
+    //
+    // As a sanity check, in the event that the VAA does specify a target
+    // and the '--chain' argument is also set, we issue an error if those
+    // two don't agree instead of silently taking the VAA's target chain.
+
+    // get VAA chain
+    const vaa_chain_id = parsed_vaa.payload.chain;
+    assertChain(vaa_chain_id);
+    const vaa_chain = toChainName(vaa_chain_id);
+
+    // get chain from command line arg
+    const cli_chain = argv["chain"];
+
+    let chain: ChainName;
+    if (cli_chain !== undefined) {
+      assertChain(cli_chain);
+      if (vaa_chain !== "unset" && cli_chain !== vaa_chain) {
+        throw Error(
+          `Specified target chain (${cli_chain}) does not match VAA target chain (${vaa_chain})`
+        );
+      }
+      chain = cli_chain;
+    } else {
+      chain = vaa_chain;
+    }
+
+    if (chain === "unset") {
+      throw Error(
+        "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
+      );
+    } else if (isEVMChain(chain)) {
+      await execute_governance_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"]);
+    } else if (chain === "terra") {
+      await execute_governance_terra(parsed_vaa.payload, buf, network);
+    } else if (chain === "solana") {
+      await execute_governance_solana(parsed_vaa, buf, network);
+    } else if (chain === "algorand") {
+      throw Error("Algorand is not supported yet");
+    } else if (chain === "near") {
+      throw Error("NEAR is not supported yet");
+    } else {
+      // If you get a type error here, hover over `chain`'s type and it tells you
+      // which cases are not handled
+      impossible(chain);
+    }
+  }
   ).argv;
 
 function hex(x: string): string {
