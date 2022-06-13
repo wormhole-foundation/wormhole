@@ -161,7 +161,7 @@ yargs(hideBin(process.argv))
     }
   )
   ////////////////////////////////////////////////////////////////////////////////
-  // Parse
+  // Misc
   .command("parse <vaa>", "Parse a VAA", (yargs) => {
     return yargs.positional("vaa", {
       describe: "vaa",
@@ -185,6 +185,11 @@ yargs(hideBin(process.argv))
       });
   }, async (argv) => {
     console.log(ethers.utils.recoverAddress(hex(argv["digest"]), hex(argv["signature"])))
+  })
+  .command("contracts", "Print contract addresses", (yargs) => {
+    return yargs
+  }, async (argv) => {
+    console.log(JSON.stringify(CONTRACTS))
   })
   ////////////////////////////////////////////////////////////////////////////////
   // Evm utilities

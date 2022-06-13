@@ -59,9 +59,11 @@ export async function query_contract_evm(
       result.wormhole = await tb.wormhole()
       result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
       result.isInitialized = await tb.isInitialized(result.implementation)
+      result.tokenImplementation = await tb.tokenImplementation()
       result.chainId = await tb.chainId()
       result.governanceChainId = await tb.governanceChainId()
       result.governanceContract = await tb.governanceContract()
+      result.WETH = await tb.WETH()
       result.registrations = {}
       for (let [c_name, c_id] of Object.entries(CHAINS)) {
         if (c_name === chain) {
@@ -80,6 +82,7 @@ export async function query_contract_evm(
       result.wormhole = await nb.wormhole()
       result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
       result.isInitialized = await nb.isInitialized(result.implementation)
+      result.tokenImplementation = await nb.tokenImplementation()
       result.chainId = await nb.chainId()
       result.governanceChainId = await nb.governanceChainId()
       result.governanceContract = await nb.governanceContract()
