@@ -30,6 +30,10 @@ contract Implementation is Governance {
         setNextSequence(emitter, sequence + 1);
     }
 
+    function initialize() initializer public virtual {
+        // this function needs to be exposed for an upgrade to pass
+    }
+
     modifier initializer() {
         address implementation = ERC1967Upgrade._getImplementation();
 
