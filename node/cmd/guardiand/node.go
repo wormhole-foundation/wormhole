@@ -11,9 +11,10 @@ import (
 	"path"
 	"strings"
 
+	"os"
+
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
-	"os"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -94,7 +95,7 @@ var (
 	acalaRPC      *string
 	acalaContract *string
 
-	klaytnRPC   *string
+	klaytnRPC      *string
 	klaytnContract *string
 
 	celoRPC      *string
