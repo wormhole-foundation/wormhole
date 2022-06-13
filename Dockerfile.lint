@@ -5,5 +5,9 @@ RUN useradd -u 1000 -U -m -d /home/lint lint
 USER 1000
 WORKDIR /home/lint
 
+# install goimports
+RUN go install golang.org/x/tools/cmd/goimports@latest
+
+# install golangci-lint
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
 	sh -s -- -b $(go env GOPATH)/bin v1.46.2
