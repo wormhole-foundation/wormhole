@@ -111,7 +111,7 @@ fi
 
 COMMAND="$1"
 
-if [[ ! " ${VALID_COMMANDS[*]} " =~ " ${COMMAND} " ]]; then
+if [[ ! " ${VALID_COMMANDS[*]} " == *" $COMMAND "* ]]; then
     echo "Invalid command $COMMAND." >&2 
     print_help
     exit 1
