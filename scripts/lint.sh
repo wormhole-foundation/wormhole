@@ -41,7 +41,7 @@ format(){
     GOFMT_OUTPUT="$(find ./node ./event_database -type f -name '*.go' -not -path './node/pkg/proto/*' -exec goimports $GOIMPORTS_ARGS {} + 2>&1)"
 
     if [ "$GITHUB_ACTION" == "true" ]; then
-        GOFMT_OUTPUT="$(echo "$GOFMT_OUTPUT" | awk '{print "::error file={"$0"},title={Formatting error}"}')"
+        GOFMT_OUTPUT="$(echo "$GOFMT_OUTPUT" | awk '{print "::error file="$0"::Formatting error"}')"
     fi
 
     if [ -n "$GOFMT_OUTPUT" ]; then
