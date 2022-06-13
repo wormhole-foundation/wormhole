@@ -596,90 +596,105 @@ fn handle_create_asset_meta_native_token(
 }
 
 fn handle_complete_transfer_with_payload(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     data: &Binary,
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
-    let state = config_read(deps.storage).load()?;
+    let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
 
-    let vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), data)?;
-    let data = vaa.payload;
-
-    if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
-        return ContractError::VaaAlreadyExecuted.std_err();
-    }
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
-
-    // check if vaa is from governance
-    if is_governance_emitter(&state, vaa.emitter_chain, &vaa.emitter_address) {
-        return ContractError::InvalidVAAAction.std_err();
-    }
-
-    let message = TokenBridgeMessage::deserialize(&data)?;
-
-    match message.action {
-        Action::TRANSFER_WITH_PAYLOAD => handle_complete_transfer(
-            deps,
-            env,
-            info,
-            vaa.emitter_chain,
-            vaa.emitter_address,
-            TransferType::WithPayload { payload: () },
-            &message.payload,
-            relayer_address,
-        ),
-        _ => ContractError::InvalidVAAAction.std_err(),
-    }
-}
-
-fn submit_vaa(deps: DepsMut, env: Env, info: MessageInfo, data: &Binary) -> StdResult<Response> {
-    let state = config_read(deps.storage).load()?;
-
-    let vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), data)?;
-    let data = vaa.payload;
-
-    if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
-        return ContractError::VaaAlreadyExecuted.std_err();
-    }
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
-
-    // check if vaa is from governance
-    if is_governance_emitter(&state, vaa.emitter_chain, &vaa.emitter_address) {
-        return handle_governance_payload(deps, env, &data);
-    }
-
-    let message = TokenBridgeMessage::deserialize(&data)?;
-
-    match message.action {
-        Action::TRANSFER => {
-            let sender = info.sender.to_string();
-            handle_complete_transfer(
+    if let Either::Right(message) = payload {
+        match message.action {
+            Action::TRANSFER_WITH_PAYLOAD => handle_complete_transfer(
                 deps,
                 env,
                 info,
                 vaa.emitter_chain,
                 vaa.emitter_address,
-                TransferType::WithoutPayload,
+                TransferType::WithPayload { payload: () },
                 &message.payload,
-                &sender,
-            )
+                relayer_address,
+            ),
+            _ => ContractError::InvalidVAAAction.std_err(),
         }
-        Action::ATTEST_META => handle_attest_meta(
-            deps,
-            env,
-            vaa.emitter_chain,
-            vaa.emitter_address,
-            vaa.sequence,
-            &message.payload,
-        ),
-        _ => ContractError::InvalidVAAAction.std_err(),
+    } else {
+        return ContractError::InvalidVAAAction.std_err();
     }
 }
 
-fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
-    let gov_packet = GovernancePacket::deserialize(&data)?;
+enum Either<A, B> {
+    Left(A),
+    Right(B),
+}
+
+fn parse_and_archive_vaa(
+    deps: DepsMut,
+    env: Env,
+    data: &Binary,
+) -> StdResult<(ParsedVAA, Either<GovernancePacket, TokenBridgeMessage>)> {
+    let state = config_read(deps.storage).load()?;
+
+    let vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), data)?;
+
+    if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
+        return ContractError::VaaAlreadyExecuted.std_err();
+    }
+    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
+
+    // check if vaa is from governance
+    if is_governance_emitter(&state, vaa.emitter_chain, &vaa.emitter_address) {
+        let gov_packet = GovernancePacket::deserialize(&vaa.payload)?;
+        return Ok((vaa, Either::Left(gov_packet)));
+    }
+
+    let message = TokenBridgeMessage::deserialize(&vaa.payload)?;
+    return Ok((vaa, Either::Right(message)));
+}
+
+fn submit_vaa(
+    mut deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    data: &Binary,
+) -> StdResult<Response> {
+    let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
+    match payload {
+        Either::Left(governance_packet) => {
+            return handle_governance_payload(deps, env, &governance_packet)
+        }
+        Either::Right(message) => match message.action {
+            Action::TRANSFER => {
+                let sender = info.sender.to_string();
+                handle_complete_transfer(
+                    deps,
+                    env,
+                    info,
+                    vaa.emitter_chain,
+                    vaa.emitter_address,
+                    TransferType::WithoutPayload,
+                    &message.payload,
+                    &sender,
+                )
+            }
+            Action::ATTEST_META => handle_attest_meta(
+                deps,
+                env,
+                vaa.emitter_chain,
+                vaa.emitter_address,
+                vaa.sequence,
+                &message.payload,
+            ),
+            _ => ContractError::InvalidVAAAction.std_err(),
+        },
+    }
+}
+
+fn handle_governance_payload(
+    deps: DepsMut,
+    env: Env,
+    gov_packet: &GovernancePacket,
+) -> StdResult<Response> {
     let module = get_string_from_32(&gov_packet.module);
 
     if module != "TokenBridge" {
