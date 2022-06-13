@@ -45,11 +45,10 @@ format(){
     # Use -exec because of pitfall #1 in http://mywiki.wooledge.org/BashPitfalls
     GOFMT_OUTPUT="$(find ./node ./event_database -type f -name '*.go' -not -path './node/pkg/proto/*' -exec goimports $GOIMPORTS_ARGS {} + 2>&1)"
 
-    if [ "$GITHUB_ACTION" == "true" ]; then
-        GOFMT_OUTPUT="$(echo "$GOFMT_OUTPUT" | awk '{print "::error file="$0"::Formatting error. Please format using ./scripts/lint.sh -d format."}')"
-    fi
-
     if [ -n "$GOFMT_OUTPUT" ]; then
+        if [ "$GITHUB_ACTION" == "true" ]; then
+            GOFMT_OUTPUT="$(echo "$GOFMT_OUTPUT" | awk '{print "::error file="$0"::Formatting error. Please format using ./scripts/lint.sh -d format."}')"
+        fi
         echo "$GOFMT_OUTPUT" >&2
         exit 1
     fi
