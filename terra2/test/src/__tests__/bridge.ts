@@ -328,7 +328,7 @@ describe("Bridge Tests", () => {
         const encodedTo = nativeToHex(recipient);
         console.log("encodedTo", encodedTo);
         const lunaAddress =
-          "010000000000000000000000000000000000000000000000000000756c756e61";
+          "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da";
 
         const vaaPayload = makeTransferVaaPayload(
           1,
@@ -538,7 +538,7 @@ describe("Bridge Tests", () => {
         const encodedTo = nativeToHex(mockBridgeIntegration);
         console.log("encodedTo", encodedTo);
         const lunaAddress =
-          "010000000000000000000000000000000000000000000000000000756c756e61";
+          "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da";
         const additionalPayload = "All your base are belong to us";
 
         const vaaPayload = makeTransferVaaPayload(
@@ -681,7 +681,7 @@ describe("Bridge Tests", () => {
         const encodedTo = nativeToHex(mockBridgeIntegration);
         console.log("encodedTo", encodedTo);
         const lunaAddress =
-          "010000000000000000000000000000000000000000000000000000756c756e61";
+          "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da";
         const additionalPayload = "All your base are belong to us";
 
         const vaaPayload = makeTransferVaaPayload(

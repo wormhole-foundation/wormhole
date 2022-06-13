@@ -37,7 +37,8 @@ export function makeTransferVaaPayload(
     // tokenaddress
     hexlifiedTokenAddress +
     // tokenchain
-    "0003" + // we only care about terra-specific tokens for these tests
+    // TODO: add tests for non-native tokens too
+    "0012" + // we only care about terra2-specific tokens for these tests
     // receiver
     encodedTo +
     // receiving chain

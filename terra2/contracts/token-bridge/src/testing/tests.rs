@@ -53,11 +53,7 @@ fn binary_check() -> StdResult<()> {
 fn build_native_and_asset_ids() -> StdResult<()> {
     let external_id_uluna = ExternalTokenId::from_bank_token(&"uluna".to_string())?;
 
-    // TODO(csongor): fix this test
-    let expected_external_id: [u8; 32] = [
-        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
-        0u8, 0u8, 0u8, 0u8, 117u8, 108u8, 117u8, 110u8, 97u8,
-    ];
+    let expected_external_id: [u8; 32] = [1, 250, 108, 111, 188, 54, 216, 194, 69, 176, 168, 82, 164, 62, 181, 214, 68, 232, 180, 196, 119, 178, 123, 250, 185, 83, 124, 16, 148, 89, 57, 218];
     assert_eq!(
         &external_id_uluna.serialize(),
         &expected_external_id,
@@ -74,12 +70,7 @@ fn build_native_and_asset_ids() -> StdResult<()> {
         .unwrap();
     let external_id_weth = ExternalTokenId::from_foreign_token(chain, token_address);
 
-    // TODO(csongor): fix this test
-    let expected_asset_id: [u8; 32] = [
-        171u8, 106u8, 233u8, 80u8, 14u8, 139u8, 124u8, 78u8, 181u8, 77u8, 142u8, 76u8, 109u8, 81u8,
-        55u8, 100u8, 139u8, 159u8, 42u8, 85u8, 172u8, 234u8, 0u8, 114u8, 11u8, 82u8, 40u8, 40u8,
-        50u8, 73u8, 211u8, 135u8,
-    ];
+    let expected_asset_id: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194];
     assert_eq!(
         &external_id_weth.serialize(),
         &expected_asset_id,
@@ -176,7 +167,6 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
     let amount = (0u128, 100_000_000u128);
     assert_eq!(info.amount, amount, "info.amount != expected");
 
-    // TODO(csongor): fix this test
     let token_address = "0100000000000000000000000000000000000000000000000000000075757364";
     let token_address = hex::decode(token_address).unwrap();
     assert_eq!(
@@ -191,7 +181,6 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
         "info.token_chain != expected"
     );
 
-    // TODO(csongor): fix this test
     let recipient = "0000000000000000000000008cec800d24df11e556e708461c98122df4a2c3b1";
     let recipient = hex::decode(recipient).unwrap();
     assert_eq!(
