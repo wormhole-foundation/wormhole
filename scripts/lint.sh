@@ -31,6 +31,11 @@ format(){
         GOIMPORTS_ARGS="-l"
     fi
 
+    # only -l supports output as github action
+    if [ "$GITHUB_ACTION" == "true" ]; then
+        GOIMPORTS_ARGS="-l"
+    fi
+
     # Check for dependencies
     if ! command -v goimports >/dev/null 2>&1; then
         printf "%s\n" "Require goimports. You can run this command in a docker container instead with '-c' and not worry about it or install it: \n\tgo install golang.org/x/tools/cmd/goimports@latest" >&2
