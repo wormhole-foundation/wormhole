@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
-	"os"
+	_ "net/http/pprof" // #no_sec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"path"
 	"strings"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
+	"os"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -94,7 +94,7 @@ var (
 	acalaRPC      *string
 	acalaContract *string
 
-	klaytnRPC      *string
+	klaytnRPC   *string
 	klaytnContract *string
 
 	celoRPC      *string
