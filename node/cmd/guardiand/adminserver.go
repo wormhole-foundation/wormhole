@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
@@ -36,6 +37,7 @@ type nodePrivilegedService struct {
 	obsvReqSendC chan *gossipv1.ObservationRequest
 	logger       *zap.Logger
 	signedInC    chan *gossipv1.SignedVAAWithQuorum
+	governor     *governor.ChainGovernor
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -343,7 +345,8 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	}, nil
 }
 
-func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, signedInC chan *gossipv1.SignedVAAWithQuorum, obsvReqSendC chan *gossipv1.ObservationRequest, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
+func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, signedInC chan *gossipv1.SignedVAAWithQuorum, obsvReqSendC chan *gossipv1.ObservationRequest,
+	db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -381,6 +384,7 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 		db:           db,
 		logger:       logger.Named("adminservice"),
 		signedInC:    signedInC,
+		governor:     gov,
 	}
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst)
@@ -395,4 +399,52 @@ func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req 
 	s.obsvReqSendC <- req.ObservationRequest
 	s.logger.Info("sent observation request", zap.Any("request", req.ObservationRequest))
 	return &nodev1.SendObservationRequestResponse{}, nil
+}
+
+func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *nodev1.ChainGovernorStatusRequest) (*nodev1.ChainGovernorStatusResponse, error) {
+	if s.governor == nil {
+		return &nodev1.ChainGovernorStatusResponse{
+			Response: "chain governor is not enabled",
+		}, nil
+	}
+
+	return &nodev1.ChainGovernorStatusResponse{
+		Response: s.governor.Status(),
+	}, nil
+}
+
+func (s *nodePrivilegedService) ChainGovernorDropPendingVAA(ctx context.Context, req *nodev1.ChainGovernorDropPendingVAARequest) (*nodev1.ChainGovernorDropPendingVAAResponse, error) {
+	if s.governor == nil {
+		return &nodev1.ChainGovernorDropPendingVAAResponse{
+			Response: "chain governor is not enabled",
+		}, nil
+	}
+
+	if len(req.VaaId) == 0 {
+		return &nodev1.ChainGovernorDropPendingVAAResponse{
+			Response: "the VAA id must be specified as \"chainId/emitterAddress/seqNum\"",
+		}, nil
+	}
+
+	return &nodev1.ChainGovernorDropPendingVAAResponse{
+		Response: s.governor.DropPendingVAA(req.VaaId),
+	}, nil
+}
+
+func (s *nodePrivilegedService) ChainGovernorReleasePendingVAA(ctx context.Context, req *nodev1.ChainGovernorReleasePendingVAARequest) (*nodev1.ChainGovernorReleasePendingVAAResponse, error) {
+	if s.governor == nil {
+		return &nodev1.ChainGovernorReleasePendingVAAResponse{
+			Response: "chain governor is not enabled",
+		}, nil
+	}
+
+	if len(req.VaaId) == 0 {
+		return &nodev1.ChainGovernorReleasePendingVAAResponse{
+			Response: "the VAA id must be specified as \"chainId/emitterAddress/seqNum\"",
+		}, nil
+	}
+
+	return &nodev1.ChainGovernorReleasePendingVAAResponse{
+		Response: s.governor.ReleasePendingVAA(req.VaaId),
+	}, nil
 }
