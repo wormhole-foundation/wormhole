@@ -1,7 +1,6 @@
 package governor
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"math/big"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 
 	"go.uber.org/zap"
@@ -71,21 +69,22 @@ type ChainGovernor struct {
 	mutex              sync.Mutex
 	tokens             map[tokenKey]*tokenEntry
 	chains             map[vaa.ChainID]*chainEntry
+	msgsToPublish      []*common.MessagePublication
 	dayLengthInMinutes int
 }
 
 func NewChainGovernor(
-	ctx context.Context,
+	logger *zap.Logger,
 	db *db.Database,
 ) *ChainGovernor {
-	return newChainGovernor(db, supervisor.Logger(ctx))
+	return newChainGovernor(logger, db)
 }
 
 func NewChainGovernorForTest() *ChainGovernor {
 	return newChainGovernor(nil, nil)
 }
 
-func newChainGovernor(db *db.Database, logger *zap.Logger) *ChainGovernor {
+func newChainGovernor(logger *zap.Logger, db *db.Database) *ChainGovernor {
 	return &ChainGovernor{
 		db:     db,
 		logger: logger,
@@ -94,9 +93,9 @@ func newChainGovernor(db *db.Database, logger *zap.Logger) *ChainGovernor {
 	}
 }
 
-func (gov *ChainGovernor) Run(ctx context.Context) error {
+func (gov *ChainGovernor) Run() error {
 	if gov.logger != nil {
-		gov.logger.Info("governor: starting chain governor")
+		gov.logger.Info("CGOV: starting chain governor")
 	}
 
 	if err := gov.initConfig(); err != nil {
@@ -114,7 +113,7 @@ func (gov *ChainGovernor) Run(ctx context.Context) error {
 
 func (gov *ChainGovernor) initConfig() error {
 	if gov.logger != nil {
-		gov.logger.Info("governor: initConfig")
+		gov.logger.Info("CGOV: initConfig")
 	}
 
 	gov.mutex.Lock()
@@ -164,7 +163,7 @@ func (gov *ChainGovernor) initConfig() error {
 		te := &tokenEntry{price: price, decimals: decimals, symbol: ct.symbol, token: key}
 
 		if gov.logger != nil {
-			gov.logger.Info("governor: will monitor token:", zap.Stringer("chain", key.chain),
+			gov.logger.Info("CGOV: will monitor token:", zap.Stringer("chain", key.chain),
 				zap.Stringer("addr", key.addr),
 				zap.String("symbol", te.symbol),
 				zap.String("price", te.price.String()),
@@ -187,7 +186,7 @@ func (gov *ChainGovernor) initConfig() error {
 		ce := &chainEntry{emitterChainId: cc.emitterChainID, emitterAddr: emitterAddr, dailyLimit: cc.dailyLimit}
 
 		if gov.logger != nil {
-			gov.logger.Info("governor: will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
+			gov.logger.Info("CGOV: will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
 				zap.Stringer("emitterAddr", ce.emitterAddr),
 				zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)))
 		}
@@ -223,13 +222,13 @@ func (gov *ChainGovernor) InitConfigForTest(
 }
 
 func (gov *ChainGovernor) loadFromDB() error {
-	gov.logger.Info("governor: loadFromDB")
+	gov.logger.Info("CGOV: loadFromDB")
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
-		gov.logger.Error("governor: failed to reload transactions from db", zap.Error(err))
+		gov.logger.Error("CGOV: failed to reload transactions from db", zap.Error(err))
 		return err
 	}
 
@@ -265,7 +264,7 @@ func (gov *ChainGovernor) loadFromDB() error {
 func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, now time.Time) {
 	ce, exists := gov.chains[k.EmitterChain]
 	if !exists {
-		gov.logger.Error("governor: reloaded pending transfer for unsupported chain, dropping it",
+		gov.logger.Error("CGOV: reloaded pending transfer for unsupported chain, dropping it",
 			zap.String("MsgID", k.MessageIDString()),
 			zap.Stringer("TxHash", k.TxHash),
 			zap.Stringer("Timestamp", k.Timestamp),
@@ -279,7 +278,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 	}
 
 	if k.EmitterAddress != ce.emitterAddr {
-		gov.logger.Error("governor: reloaded pending transfer for unsupported emitter address, dropping it",
+		gov.logger.Error("CGOV: reloaded pending transfer for unsupported emitter address, dropping it",
 			zap.String("MsgID", k.MessageIDString()),
 			zap.Stringer("TxHash", k.TxHash),
 			zap.Stringer("Timestamp", k.Timestamp),
@@ -294,7 +293,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 
 	payload, err := vaa.DecodeTransferPayloadHdr(k.Payload)
 	if err != nil {
-		gov.logger.Error("governor: failed to parse payload for reloaded pending transfer, dropping it",
+		gov.logger.Error("CGOV: failed to parse payload for reloaded pending transfer, dropping it",
 			zap.String("MsgID", k.MessageIDString()),
 			zap.Stringer("TxHash", k.TxHash),
 			zap.Stringer("Timestamp", k.Timestamp),
@@ -313,7 +312,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 	tk := tokenKey{chain: payload.TokenChainID, addr: payload.TokenAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
-		gov.logger.Error("governor: reloaded pending transfer for unsupported token, dropping it",
+		gov.logger.Error("CGOV: reloaded pending transfer for unsupported token, dropping it",
 			zap.String("MsgID", k.MessageIDString()),
 			zap.Stringer("TxHash", k.TxHash),
 			zap.Stringer("Timestamp", k.Timestamp),
@@ -330,7 +329,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
-		gov.logger.Error("governor: failed to compute value for reloaded pending transfer, dropping it",
+		gov.logger.Error("CGOV: failed to compute value for reloaded pending transfer, dropping it",
 			zap.String("MsgID", k.MessageIDString()),
 			zap.Stringer("TxHash", k.TxHash),
 			zap.Stringer("Timestamp", k.Timestamp),
@@ -346,7 +345,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 		return
 	}
 
-	gov.logger.Info("governor: reloaded pending transfer",
+	gov.logger.Info("CGOV: reloaded pending transfer",
 		zap.String("MsgID", k.MessageIDString()),
 		zap.Stringer("TxHash", k.TxHash),
 		zap.Stringer("Timestamp", k.Timestamp),
@@ -363,7 +362,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTime time.Time) {
 	ce, exists := gov.chains[t.EmitterChainID]
 	if !exists {
-		gov.logger.Error("governor: reloaded transfer for unsupported chain, dropping it",
+		gov.logger.Error("CGOV: reloaded transfer for unsupported chain, dropping it",
 			zap.Stringer("Timestamp", t.Timestamp),
 			zap.Uint64("Value", t.Value),
 			zap.Stringer("TokenChainID", t.TokenChainID),
@@ -374,7 +373,7 @@ func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTim
 	}
 
 	if t.EmitterAddress != ce.emitterAddr {
-		gov.logger.Error("governor: reloaded transfer for unsupported emitter address, dropping it",
+		gov.logger.Error("CGOV: reloaded transfer for unsupported emitter address, dropping it",
 			zap.Stringer("Timestamp", t.Timestamp),
 			zap.Uint64("Value", t.Value),
 			zap.Stringer("TokenChainID", t.TokenChainID),
@@ -387,7 +386,7 @@ func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTim
 	tk := tokenKey{chain: t.TokenChainID, addr: t.TokenAddress}
 	_, exists = gov.tokens[tk]
 	if !exists {
-		gov.logger.Error("governor: reloaded transfer for unsupported token, dropping it",
+		gov.logger.Error("CGOV: reloaded transfer for unsupported token, dropping it",
 			zap.Stringer("Timestamp", t.Timestamp),
 			zap.Uint64("Value", t.Value),
 			zap.Stringer("TokenChainID", t.TokenChainID),
@@ -397,7 +396,7 @@ func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTim
 		return
 	}
 
-	gov.logger.Info("governor: reloaded transfer",
+	gov.logger.Info("CGOV: reloaded transfer",
 		zap.Stringer("Timestamp", t.Timestamp),
 		zap.Uint64("Value", t.Value),
 		zap.Stringer("TokenChainID", t.TokenChainID),
@@ -413,7 +412,7 @@ func (gov *ChainGovernor) ProcessMsg(k *common.MessagePublication) bool {
 	publish, err := gov.ProcessMsgForTime(k, time.Now())
 	if err != nil {
 		if gov.logger != nil {
-			gov.logger.Error("governor: failed to process VAA: %v", zap.Error(err))
+			gov.logger.Error("CGOV: failed to process VAA: %v", zap.Error(err))
 		}
 		return false
 	}
@@ -440,7 +439,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 	// We only care about transfers.
 	if !vaa.IsTransfer(k.Payload) {
 		if gov.logger != nil {
-			gov.logger.Info("governor: ignoring VAA for uninteresting payload type", zap.String("msgID", k.MessageIDString()), zap.Uint8("payload_type", k.Payload[0]))
+			gov.logger.Info("CGOV: ignoring VAA for uninteresting payload type", zap.String("msgID", k.MessageIDString()), zap.Uint8("payload_type", k.Payload[0]))
 		}
 		return true, nil
 	}
@@ -455,7 +454,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 	token, exists := gov.tokens[tk]
 	if !exists {
 		if gov.logger != nil {
-			gov.logger.Info("governor: ignoring VAA for uninteresting token", zap.String("msgID", k.MessageIDString()), zap.Stringer("token", tk))
+			gov.logger.Info("CGOV: ignoring VAA for uninteresting token", zap.String("msgID", k.MessageIDString()), zap.Stringer("token", tk))
 		}
 		return true, nil
 	}
@@ -472,7 +471,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 
 	if (newTotalValue > ce.dailyLimit) || (len(ce.pending) != 0) {
 		if gov.logger != nil {
-			gov.logger.Error("governor: enqueuing vaa because it would exceed the daily limit",
+			gov.logger.Error("CGOV: enqueuing vaa because it would exceed the daily limit",
 				zap.Uint64("value", value),
 				zap.Uint64("prevTotalValue", prevTotalValue),
 				zap.Uint64("newTotalValue", newTotalValue),
@@ -489,10 +488,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 			// TODO: Delete this!
 			xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 			if err != nil {
-				gov.logger.Error("governor: failed to read pending transactions from db", zap.Error(err))
+				gov.logger.Error("CGOV: failed to read pending transactions from db", zap.Error(err))
 			} else {
 				for _, k := range pending {
-					gov.logger.Info("governor: pending transfer",
+					gov.logger.Info("CGOV: pending transfer",
 						zap.Stringer("TxHash", k.TxHash),
 						zap.Stringer("Timestamp", k.Timestamp),
 						zap.Uint32("Nonce", k.Nonce),
@@ -504,7 +503,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 				}
 
 				for _, t := range xfers {
-					gov.logger.Info("governor: transfer",
+					gov.logger.Info("CGOV: transfer",
 						zap.Stringer("Timestamp", t.Timestamp),
 						zap.Uint64("Value", t.Value),
 						zap.Stringer("TokenChainID", t.TokenChainID),
@@ -519,7 +518,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 	}
 
 	if gov.logger != nil {
-		gov.logger.Info("governor: posting vaa",
+		gov.logger.Info("CGOV: posting vaa",
 			zap.Uint64("value", value),
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
@@ -549,6 +548,12 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 
 	var msgsToPublish []*common.MessagePublication
+	if len(gov.msgsToPublish) != 0 {
+		gov.logger.Info("CGOV: posting released vaas", zap.Int("num", len(gov.msgsToPublish)))
+		msgsToPublish = gov.msgsToPublish
+		gov.msgsToPublish = nil
+	}
+
 	for _, ce := range gov.chains {
 		for len(ce.pending) != 0 {
 			pe := &ce.pending[0]
@@ -560,7 +565,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 
 			if publish {
 				if gov.logger != nil {
-					gov.logger.Info("governor: posting pending vaa",
+					gov.logger.Info("CGOV: posting pending vaa",
 						zap.String("value", fmt.Sprint(pe.value)),
 						zap.String("prevTotalValue", fmt.Sprint(prevTotalValue)),
 						zap.String("newTotalValue", fmt.Sprint(newTotalValue)),
@@ -643,6 +648,86 @@ func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Databa
 
 	return sum, transfers
 }
+func SumValue(transfers []db.Transfer, startTime time.Time) uint64 {
+	if len(transfers) == 0 {
+		return 0
+	}
+
+	var sum uint64
+
+	for _, t := range transfers {
+		if !t.Timestamp.Before(startTime) {
+			sum += t.Value
+		}
+	}
+
+	return sum
+}
+
+func (gov *ChainGovernor) Status() string {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	for _, ce := range gov.chains {
+		valueTrans := SumValue(ce.transfers, startTime)
+		s := fmt.Sprintf("CGOV: chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
+		gov.logger.Info(s)
+		if len(ce.pending) != 0 {
+			for idx, pe := range ce.pending {
+				s := fmt.Sprintf("   CGOV: chain: %v, pending[%v], value: %v, vaa: %v, time: %v", ce.emitterChainId, idx, pe.value,
+					pe.msg.MessageIDString(), pe.timeStamp.String())
+				gov.logger.Info(s)
+			}
+		}
+	}
+
+	return "grep the log for \"CGOV:\" for status"
+}
+
+func (gov *ChainGovernor) DropPendingVAA(vaaId string) string {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	for _, ce := range gov.chains {
+		for idx, pe := range ce.pending {
+			if pe.msg.MessageIDString() == vaaId {
+				gov.logger.Info("CGOV: dropping pending vaa",
+					zap.String("msgId", pe.msg.MessageIDString()),
+					zap.Uint64("value", pe.value),
+					zap.Stringer("timeStamp", pe.timeStamp),
+				)
+				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
+				return "vaa has been dropped from the pending list"
+			}
+		}
+	}
+
+	return "vaa not found in the pending list"
+}
+
+func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) string {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	for _, ce := range gov.chains {
+		for idx, pe := range ce.pending {
+			if pe.msg.MessageIDString() == vaaId {
+				gov.logger.Info("CGOV: releasing pending vaa, should be published soon",
+					zap.String("msgId", pe.msg.MessageIDString()),
+					zap.Uint64("value", pe.value),
+					zap.Stringer("timeStamp", pe.timeStamp),
+				)
+
+				gov.msgsToPublish = append(gov.msgsToPublish, pe.msg)
+				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
+				return "pending vaa has been released and will be published soon"
+			}
+		}
+	}
+
+	return "vaa not found in the pending list"
+}
 
 func (gov *ChainGovernor) GetStatsForChain(chainID vaa.ChainID) (numTrans int, valueTrans uint64, numPending int, valuePending uint64) {
 	gov.mutex.Lock()
@@ -721,4 +806,5 @@ Questions:
 Things still yet to do:
 - Console commands
 - CoinGecko
+- Pull tokens from https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvl
 */

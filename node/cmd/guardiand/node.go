@@ -816,8 +816,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
 
+	var gov *governor.ChainGovernor
+	if *chainGovernorEnabled {
+		logger.Info("chain governor is enabled")
+		gov = governor.NewChainGovernor(logger, db)
+		gov.Run()
+	} else {
+		logger.Info("chain governor is disabled")
+	}
+
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst, gov)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
@@ -934,15 +943,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err := supervisor.Run(ctx, "solwatch-finalized",
 			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized).Run); err != nil {
 			return err
-		}
-
-		var gov *governor.ChainGovernor
-		if *chainGovernorEnabled {
-			logger.Info("chain governor is enabled")
-			gov = governor.NewChainGovernor(ctx, db)
-			gov.Run(ctx)
-		} else {
-			logger.Info("chain governor is disabled")
 		}
 
 		p := processor.NewProcessor(ctx,
