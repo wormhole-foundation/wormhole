@@ -68,7 +68,7 @@ own features on top of, without requiring any changes in Wormhole itself.
 Please open a GitHub issue outlining your use case, and we can help you build it!
 
 # Pre-Commit checks
-Run `./lint.sh` and `./format.sh`. 
+Run `./scripts/lint.sh -d format` and `./scripts/lint.sh lint`. 
 
 ## IDE Integration
 ### Golang formatting
