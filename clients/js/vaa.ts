@@ -286,7 +286,7 @@ const coreContractUpgradeParser: P<CoreContractUpgrade> =
             length: 32,
             encoding: "hex",
             assert: Buffer.from("Core").toString("hex").padStart(64, "0"),
-            formatter: (_str) => module
+            formatter: (_str) => "Core"
         })
         .uint8("type", {
             assert: 1,

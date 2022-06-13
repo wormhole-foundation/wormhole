@@ -1,0 +1,95 @@
+#!/bin/bash
+
+set -euo pipefail
+
+function usage() {
+cat <<EOF >&2
+Usage:
+
+  $(basename "$0") [-h] [-m s] [-c s] [-a s] -- Simulate an upgrade on a fork of mainnet, and check for any errors.
+
+  where:
+    -h  show this help text
+    -m  module (bridge, token_bridge, nft_bridge)
+    -c  chain name
+    -a  new code address (by default it builds the most recent contract in the repository)
+EOF
+exit 1
+}
+
+before=$(mktemp)
+after=$(mktemp)
+
+CHAIN=ethereum
+CORE=$(worm contracts | jq ".MAINNET.$CHAIN.core")
+
+### Parse command line options
+address=""
+module=""
+chain_name=""
+while getopts ':hm:c:a:' option; do
+  case "$option" in
+    h) usage
+       ;;
+    m) module=$OPTARG
+       ;;
+    a) address=$OPTARG
+       ;;
+    c) chain_name=$OPTARG
+       ;;
+    :) printf "missing argument for -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+   \?) printf "illegal option: -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+[ -z "$chain_name" ] && usage
+[ -z "$module" ] && usage
+
+GUARDIAN_ADDRESS=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
+
+MODULE=""
+SCRIPT=""
+case "$module" in
+    bridge|core)
+        MODULE=Core
+        CONTRACT=$(worm contracts | jq ".MAINNET.$CHAIN.core")
+        SCRIPT="scripts/deploy_core_bridge.js"
+        ;;
+    token_bridge)
+        MODULE=TokenBridge
+        CONTRACT=$(worm contracts | jq ".MAINNET.$CHAIN.token_bridge")
+        SCRIPT="scripts/deploy_token_bridge.js"
+        ;;
+    nft_bridge)
+        MODULE=NFTBridge
+        CONTRACT=$(worm contracts | jq ".MAINNET.$CHAIN.nft_bridge")
+        SCRIPT="scripts/deploy_nft_bridge.js"
+        ;;
+    *) echo "unknown module $module" >&2
+       usage
+       ;;
+esac
+
+if [[ -n "$address" ]]; then
+    new_implementation="$address"
+else
+    build_output=$(mktemp)
+    npm run build > "$build_output" || (cat "$build_output" && exit 1)
+    new_implementation=$(npx truffle exec $SCRIPT --network development | grep "address:" | cut -d' ' -f3)
+fi
+echo "New implementation: $new_implementation"
+vaa=$(worm generate upgrade -c $CHAIN -a "$new_implementation" -m $MODULE -g "$GUARDIAN_SECRET")
+
+worm evm hijack -g "$GUARDIAN_ADDRESS" -i 0 -a "$CORE"> /dev/null
+
+worm evm info -c $CHAIN -m $MODULE -n devnet -a "$CONTRACT" | jq | grep -v '"implementation":' > "$before"
+worm submit "$vaa" -n devnet -a "$CONTRACT" > /dev/null
+worm evm info -c $CHAIN -m $MODULE -n devnet -a "$CONTRACT" | jq | grep -v '"implementation":' > "$after"
+
+git diff --no-index "$before" "$after" --exit-code
