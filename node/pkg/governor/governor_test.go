@@ -124,7 +124,7 @@ func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 
 	gov := NewChainGovernorForTest()
 
-	err := gov.Run(ctx)
+	err := gov.Run()
 	if err != nil {
 		return gov, nil
 	}
