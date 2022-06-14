@@ -873,7 +873,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *chainGovernorEnabled {
 		logger.Info("chain governor is enabled")
 		gov = governor.NewChainGovernor(logger, db)
-		gov.Run()
 	} else {
 		logger.Info("chain governor is disabled")
 	}
@@ -1009,6 +1008,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			if err := supervisor.Run(ctx, "solwatch-finalized",
 				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized).Run); err != nil {
 				return err
+			}
+		}
+
+		if gov != nil {
+			err := gov.Run(ctx)
+			if err != nil {
+				log.Fatal("failed to create chain goveneror", zap.Error(err))
 			}
 		}
 
