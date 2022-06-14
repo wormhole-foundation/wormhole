@@ -10,22 +10,23 @@ function clean_up () {
 }
 trap clean_up EXIT
 
-anvil --fork-url "$(worm rpc mainnet ethereum)" --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect" > /dev/null &
-
-ANVIL_PID=$!
 echo "🍴 Forking mainnet..."
+anvil --fork-url "$(worm rpc mainnet ethereum)" --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect" > /dev/null &
+ANVIL_PID=$!
 
-echo "Updating core contract #1"
-./simulate_upgrade -m bridge -c ethereum
-echo "Updating core contract #2"
-./simulate_upgrade -m bridge -c ethereum
+sleep 10
 
-echo "Updating token bridge contract #1"
-./simulate_upgrade -m token_bridge -c ethereum
-echo "Updating token bridge contract #2"
-./simulate_upgrade -m token_bridge -c ethereum
+echo "========================= Updating core contract #1 ============================"
+./simulate_upgrade -m bridge -c ethereum -d
+echo "========================= Updating core contract #2 ============================"
+./simulate_upgrade -m bridge -c ethereum -d
 
-echo "Updating NFT bridge contract #1"
-./simulate_upgrade -m nft_bridge -c ethereum
-echo "Updating NFT bridge contract #2"
-./simulate_upgrade -m nft_bridge -c ethereum
+echo "===================== Updating token bridge contract #1 ========================"
+./simulate_upgrade -m token_bridge -c ethereum -d
+echo "===================== Updating token bridge contract #2 ========================"
+./simulate_upgrade -m token_bridge -c ethereum -d
+
+echo "====================== Updating NFT bridge contract #1 ========================="
+./simulate_upgrade -m nft_bridge -c ethereum -d
+echo "====================== Updating NFT bridge contract #2 ========================="
+./simulate_upgrade -m nft_bridge -c ethereum -d

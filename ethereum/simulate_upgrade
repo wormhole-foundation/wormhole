@@ -6,13 +6,14 @@ function usage() {
 cat <<EOF >&2
 Usage:
 
-  $(basename "$0") [-h] [-m s] [-c s] [-x] [-k] [-a s] [-l s] -- Simulate an upgrade on a fork of mainnet, and check for any errors.
+  $(basename "$0") [-h] [-m s] [-c s] [-x] [-k] [-d] [-a s] [-l s] -- Simulate an upgrade on a fork of mainnet, and check for any errors.
 
   where:
     -h  show this help text
     -m  module (bridge, token_bridge, nft_bridge)
     -c  chain name
     -x  run anvil
+    -d  don't compile contract first
     -k  keep anvil alive
     -l  file to loge to (by default creates a new tmp file)
     -a  new code address (by default it builds the most recent contract in the repository)
@@ -28,9 +29,10 @@ address=""
 module=""
 chain_name=""
 run_anvil=false
+skip_compile=false
 keepalive_anvil=false
 anvil_out=$(mktemp)
-while getopts ':hm:c:a:xkl:' option; do
+while getopts ':hm:c:a:xkdl:' option; do
   case "$option" in
     h) usage
        ;;
@@ -41,6 +43,8 @@ while getopts ':hm:c:a:xkl:' option; do
     c) chain_name=$OPTARG
        ;;
     x) run_anvil=true
+       ;;
+    d) skip_compile=true
        ;;
     l) anvil_out=$OPTARG
        ;;
@@ -116,8 +120,10 @@ CONTRACT=$(worm contract mainnet "$chain_name" "$MODULE")
 if [[ -n "$address" ]]; then
     new_implementation="$address"
 else
-    echo "🛠  Compiling contract..."
-    build_output=$(npm run build) || ( echo "$build_output" && exit 1 )
+    if [[ $skip_compile = false ]]; then
+        echo "🛠  Compiling contract..."
+        build_output=$(npm run build) || ( echo "$build_output" && exit 1 )
+    fi
     printf "⬆️  Deploying implementation..."
     deploy_output=$(npx truffle exec $SCRIPT --network development) || ( echo "$deploy_output" && exit 1 )
     new_implementation=$(echo "$deploy_output" | grep "address:" | cut -d' ' -f3)
