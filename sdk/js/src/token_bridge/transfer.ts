@@ -308,7 +308,7 @@ export async function transferNativeSol(
           ancillaryKeypair.publicKey.toString(),
           WSOL_ADDRESS,
           nonce,
-          amount,
+          amount.valueOf(),
           relayerFee,
           targetAddress,
           coalesceChainId(targetChain),
@@ -322,7 +322,7 @@ export async function transferNativeSol(
           ancillaryKeypair.publicKey.toString(),
           WSOL_ADDRESS,
           nonce,
-          amount,
+          amount.valueOf(),
           relayerFee,
           targetAddress,
           coalesceChainId(targetChain)
@@ -409,7 +409,7 @@ export async function transferFromSolana(
             fromAddress,
             mintAddress,
             nonce,
-            amount,
+            amount.valueOf(),
             relayerFee,
             targetAddress,
             coalesceChainId(targetChain),
@@ -423,7 +423,7 @@ export async function transferFromSolana(
             fromAddress,
             mintAddress,
             nonce,
-            amount,
+            amount.valueOf(),
             relayerFee,
             targetAddress,
             coalesceChainId(targetChain)
@@ -439,7 +439,7 @@ export async function transferFromSolana(
           originChainId as number, // checked by isSolanaNative
           originAddress as Uint8Array, // checked by throw
           nonce,
-          amount,
+          amount.valueOf(),
           relayerFee,
           targetAddress,
           coalesceChainId(targetChain),
@@ -455,7 +455,7 @@ export async function transferFromSolana(
           originChainId as number, // checked by isSolanaNative
           originAddress as Uint8Array, // checked by throw
           nonce,
-          amount,
+          amount.valueOf(),
           relayerFee,
           targetAddress,
           coalesceChainId(targetChain)
