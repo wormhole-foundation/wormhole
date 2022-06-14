@@ -13,13 +13,14 @@ export async function query_contract_evm(
   network: "MAINNET" | "TESTNET" | "DEVNET",
   chain: EVMChainName,
   module: "Core" | "NFTBridge" | "TokenBridge",
-  contract_address: string | undefined
+  contract_address: string | undefined,
+  _rpc: string | undefined
 ): Promise<object> {
   let n = NETWORKS[network][chain]
-  if (!n.rpc) {
+  let rpc: string | undefined = _rpc ?? n.rpc;
+  if (n.rpc === undefined) {
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
   }
-  let rpc: string = n.rpc
 
   let contracts: Contracts = CONTRACTS[network][chain]
 
@@ -106,16 +107,17 @@ export async function execute_governance_evm(
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET",
   chain: EVMChainName,
-  contract_address: string | undefined
+  contract_address: string | undefined,
+  _rpc: string | undefined
 ) {
   let n = NETWORKS[network][chain]
-  if (!n.rpc) {
+  let rpc: string | undefined = _rpc ?? n.rpc;
+  if (rpc === undefined) {
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
   }
   if (!n.key) {
     throw Error(`No ${network} key defined for ${chain} (see networks.ts)`)
   }
-  let rpc: string = n.rpc
   let key: string = n.key
 
   let contracts: Contracts = CONTRACTS[network][chain]

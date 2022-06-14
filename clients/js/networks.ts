@@ -200,15 +200,15 @@ const DEVNET = {
   },
   polygon: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   avalanche: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   oasis: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   algorand: {
     rpc: undefined,
@@ -216,27 +216,27 @@ const DEVNET = {
   },
   fantom: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   aurora: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   karura: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   acala: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   klaytn: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   celo: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   near: {
     rpc: undefined,
@@ -244,15 +244,15 @@ const DEVNET = {
   },
   moonbeam: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   neon: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   ropsten: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
 };
 

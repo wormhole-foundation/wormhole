@@ -18,6 +18,7 @@ import {
   toChainId,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
+import { NETWORKS } from "./networks";
 
 setDefaultWasm("node");
 
@@ -186,10 +187,76 @@ yargs(hideBin(process.argv))
   }, async (argv) => {
     console.log(ethers.utils.recoverAddress(hex(argv["digest"]), hex(argv["signature"])))
   })
-  .command("contracts", "Print contract addresses", (yargs) => {
+  .command("contract <network> <chain> <module>", "Print contract address", (yargs) => {
     return yargs
+      .positional("network", {
+        describe: "network",
+        type: "string",
+        choices: ["mainnet", "testnet", "devnet"],
+      })
+      .positional("chain", {
+        describe: "Chain to query",
+        type: "string",
+        choices: Object.keys(CHAINS),
+      })
+      .positional("module", {
+        describe: "Module to query",
+        type: "string",
+        choices: ["Core", "NFTBridge", "TokenBridge"],
+      })
   }, async (argv) => {
-    console.log(JSON.stringify(CONTRACTS))
+    assertChain(argv["chain"])
+    assertEVMChain(argv["chain"])
+    const network = argv.network.toUpperCase();
+    if (
+      network !== "MAINNET" &&
+      network !== "TESTNET" &&
+      network !== "DEVNET"
+    ) {
+      throw Error(`Unknown network: ${network}`);
+    }
+    let module = argv["module"] as
+      | "Core"
+      | "NFTBridge"
+      | "TokenBridge";
+    switch (module) {
+      case "Core":
+        console.log(CONTRACTS[network][argv["chain"]]["core"])
+        break;
+      case "NFTBridge":
+        console.log(CONTRACTS[network][argv["chain"]]["nft_bridge"])
+        break;
+      case "TokenBridge":
+        console.log(CONTRACTS[network][argv["chain"]]["token_bridge"])
+        break;
+      default:
+        impossible(module)
+    }
+  })
+  .command("rpc <network> <chain>", "Print RPC address", (yargs) => {
+    return yargs
+      .positional("network", {
+        describe: "network",
+        type: "string",
+        choices: ["mainnet", "testnet", "devnet"],
+      })
+      .positional("chain", {
+        describe: "Chain to query",
+        type: "string",
+        choices: Object.keys(CHAINS),
+      })
+  }, async (argv) => {
+    assertChain(argv["chain"])
+    assertEVMChain(argv["chain"])
+    const network = argv.network.toUpperCase();
+    if (
+      network !== "MAINNET" &&
+      network !== "TESTNET" &&
+      network !== "DEVNET"
+    ) {
+      throw Error(`Unknown network: ${network}`);
+    }
+    console.log(NETWORKS[network][argv["chain"]].rpc)
   })
   ////////////////////////////////////////////////////////////////////////////////
   // Evm utilities
@@ -197,7 +264,6 @@ yargs(hideBin(process.argv))
     return yargs
       .option("rpc", {
         describe: "RPC endpoint",
-        default: "http://localhost:8545",
         type: "string",
         required: false
       })
@@ -261,7 +327,6 @@ yargs(hideBin(process.argv))
             required: false,
           });
       }, async (argv) => {
-        // TODO: don't ignore RPC argument
         assertChain(argv["chain"])
         assertEVMChain(argv["chain"])
         const network = argv.network.toUpperCase();
@@ -276,7 +341,8 @@ yargs(hideBin(process.argv))
           | "Core"
           | "NFTBridge"
           | "TokenBridge";
-        console.log(JSON.stringify(await query_contract_evm(network, argv["chain"], module, argv["contract-address"])))
+        let rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc
+        console.log(JSON.stringify(await query_contract_evm(network, argv["chain"], module, argv["contract-address"], rpc)))
       })
       .command("hijack", "Override the guardian set of the core bridge contract during testing (anvil or hardhat)", (yargs) => {
         return yargs
@@ -300,7 +366,8 @@ yargs(hideBin(process.argv))
           });
       }, async (argv) => {
         const guardian_addresses = argv["guardian-address"].split(",")
-        await hijack_evm(argv["rpc"], argv["core-contract-address"], guardian_addresses, argv["guardian-set-index"])
+        let rpc = argv["rpc"] ?? NETWORKS.DEVNET.ethereum.rpc
+        await hijack_evm(rpc, argv["core-contract-address"], guardian_addresses, argv["guardian-set-index"])
       })
   },
     (_) => {
@@ -335,7 +402,12 @@ yargs(hideBin(process.argv))
         describe: "Contract to submit VAA to (override config)",
         type: "string",
         required: false,
-      });
+      })
+      .option("rpc", {
+        describe: "RPC endpoint",
+        type: "string",
+        required: false
+      })
   }, async (argv) => {
     const vaa_hex = String(argv.vaa);
     const buf = Buffer.from(vaa_hex, "hex");
@@ -395,7 +467,7 @@ yargs(hideBin(process.argv))
         "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
       );
     } else if (isEVMChain(chain)) {
-      await execute_governance_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"]);
+      await execute_governance_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"], argv["rpc"]);
     } else if (chain === "terra") {
       await execute_governance_terra(parsed_vaa.payload, buf, network);
     } else if (chain === "solana") {
