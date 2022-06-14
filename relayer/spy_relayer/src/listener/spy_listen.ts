@@ -2,6 +2,7 @@ import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
+import { getBackend } from "../backends";
 import { getListenerEnvironment, ListenerEnvironment } from "../configureEnv";
 import { getLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
@@ -38,22 +39,20 @@ export async function run(ph: PromHelper) {
       "]"
   );
 
-  let typedFilters = await env.listenerBackend.getEmitterFilters()
+  let typedFilters = await getBackend().listener.getEmitterFilters();
   const wrappedFilters = { filters: typedFilters };
 
   while (true) {
     let stream: any;
     try {
-      const client = createSpyRPCServiceClient(
-        env.spyServiceHost || ""
-      );
+      const client = createSpyRPCServiceClient(env.spyServiceHost || "");
       stream = await subscribeSignedVAA(client, wrappedFilters);
 
       //TODO validate that this is the correct type of the vaaBytes
       stream.on("data", ({ vaaBytes }: { vaaBytes: Buffer }) => {
-        metrics.incIncoming()
+        metrics.incIncoming();
         const asUint8 = new Uint8Array(vaaBytes);
-        env.listenerBackend.process(asUint8);
+        getBackend().listener.process(asUint8);
       });
 
       let connected = true;
