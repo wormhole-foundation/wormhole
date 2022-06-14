@@ -21,6 +21,23 @@ export function makeGovernanceVaaPayload(
   );
 }
 
+export function makeAttestationVaaPayload(
+  chain: number,
+  hexlifiedTokenAddress: string,
+  decimals: number,
+  symbol: string,
+  name: string
+) {
+  return (
+    abi.encodeParameter("uint8", 2).substring(2 + 62) +
+    hexlifiedTokenAddress +
+    abi.encodeParameter("uint16", chain).substring(2 + (64 - 4)) +
+    abi.encodeParameter("uint8", decimals).substring(2 + 62) +
+    symbol +
+    name
+  );
+}
+
 export function makeTransferVaaPayload(
   payloadType: number,
   amount: string,

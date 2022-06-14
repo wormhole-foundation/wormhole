@@ -5,6 +5,7 @@ import {
 import { Bech32, toHex } from "@cosmjs/encoding";
 import { describe, expect, jest, test } from "@jest/globals";
 import { Int, MsgExecuteContract, TxInfo } from "@terra-money/terra.js";
+import { hexZeroPad, keccak256 } from "ethers/lib/utils";
 import {
   getNativeBalance,
   makeProviderAndWallet,
@@ -12,6 +13,7 @@ import {
 } from "../helpers/client";
 import { computeGasPaid, parseEventsFromLog } from "../helpers/receipt";
 import {
+  makeAttestationVaaPayload,
   makeGovernanceVaaPayload,
   makeTransferVaaPayload,
   signAndEncodeVaa,
@@ -29,7 +31,17 @@ const GOVERNANCE_ADDRESS =
 const FOREIGN_CHAIN = 1;
 const FOREIGN_TOKEN_BRIDGE =
   "000000000000000000000000000000000000000000000000000000000000ffff";
+const FOREIGN_TOKEN =
+  "000000000000000000000000000000000000000000000000000000000000eeee";
 const GUARDIAN_SET_INDEX = 0;
+const GUARDIAN_ADDRESS = Buffer.from(
+  "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+  "hex"
+).toString("base64");
+const LUNA_ADDRESS =
+  "01" + keccak256(Buffer.from("uluna", "utf-8")).substring(4); // cut off 0x56 (0x prefix - 1 byte)
+// const INJ_ADDRESS =
+//   "01" + keccak256(Buffer.from("inj", "utf-8")).substring(4); // cut off 0x56 (0x prefix - 1 byte)
 const CONSISTENCY_LEVEL = 0;
 
 const CHAIN_ID = 18;
@@ -71,6 +83,12 @@ const contracts = new Map<string, string>();
     
 */
 
+test("LUNA Hashing", () => {
+  const knownLuna =
+    "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da";
+  expect(LUNA_ADDRESS).toBe(knownLuna);
+});
+
 describe("Bridge Tests", () => {
   test("Deploy Contracts", (done) => {
     (async () => {
@@ -94,10 +112,7 @@ describe("Bridge Tests", () => {
             initial_guardian_set: {
               addresses: [
                 {
-                  bytes: Buffer.from(
-                    "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-                    "hex"
-                  ).toString("base64"),
+                  bytes: GUARDIAN_ADDRESS,
                 },
               ],
               expiration_time: 0,
@@ -146,6 +161,43 @@ describe("Bridge Tests", () => {
       }
     })();
   });
+  test("Query GuardianSetInfo", (done) => {
+    (async () => {
+      try {
+        const [client] = await makeProviderAndWallet();
+
+        const wormhole = contracts.get("wormhole")!;
+        const result: any = await client.wasm.contractQuery(wormhole, {
+          guardian_set_info: {},
+        });
+        expect(result.guardian_set_index).toBe(0);
+        expect(result.addresses.length).toBe(1);
+        expect(result.addresses[0].bytes).toBe(GUARDIAN_ADDRESS);
+        done();
+      } catch (e) {
+        console.error(e);
+        done("Failed to Query GuardianSetInfo");
+      }
+    })();
+  });
+  test("Query State", (done) => {
+    (async () => {
+      try {
+        const [client] = await makeProviderAndWallet();
+
+        const wormhole = contracts.get("wormhole")!;
+        const result: any = await client.wasm.contractQuery(wormhole, {
+          get_state: {},
+        });
+        expect(result.fee.amount).toBe("0");
+        expect(result.fee.denom).toBe("uluna");
+        done();
+      } catch (e) {
+        console.error(e);
+        done("Failed to Query State");
+      }
+    })();
+  });
   test("Post a Message", (done) => {
     (async () => {
       try {
@@ -164,21 +216,15 @@ describe("Bridge Tests", () => {
             },
           }
         );
-        console.log("posting...");
         const receipt = await transactWithoutMemo(client, wallet, [
           postMessage,
         ]);
-        console.info("receipt", receipt.txhash);
         const seq0 = parseSequenceFromLogTerra(receipt as any);
-        console.info("sequence", seq0);
         expect(seq0).toBe("0");
-        console.log("posting another...");
         const receipt2 = await transactWithoutMemo(client, wallet, [
           postMessage,
         ]);
-        console.info("receipt", receipt2.txhash);
         const seq1 = parseSequenceFromLogTerra(receipt2 as any);
-        console.info("sequence", seq1);
         expect(seq1).toBe("1");
         done();
       } catch (e) {
@@ -197,7 +243,6 @@ describe("Bridge Tests", () => {
           FOREIGN_CHAIN,
           FOREIGN_TOKEN_BRIDGE
         );
-        console.info("vaaPayload", vaaPayload);
 
         const timestamp = 1;
         const nonce = 1;
@@ -214,7 +259,6 @@ describe("Bridge Tests", () => {
           GUARDIAN_SET_INDEX,
           CONSISTENCY_LEVEL
         );
-        console.info("signedVaa", signedVaa);
 
         const tokenBridge = contracts.get("tokenBridge")!;
         const submitVaa = new MsgExecuteContract(
@@ -228,7 +272,6 @@ describe("Bridge Tests", () => {
         );
 
         const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
-        console.info("receipt", receipt.txhash);
         done();
       } catch (e) {
         console.error(e);
@@ -293,14 +336,10 @@ describe("Bridge Tests", () => {
         );
 
         // execute outbound transfer
-        console.log("deposit");
         await transactWithoutMemo(client, wallet, [deposit]);
-        console.log("transfer");
         const receipt = await transactWithoutMemo(client, wallet, [
           initiateTransfer,
         ]);
-        console.info("receipt", receipt.txhash);
-        console.info(receipt);
 
         const balanceAfter = await getNativeBalance(client, tokenBridge, denom);
         expect(balanceBefore.add(amount).eq(balanceAfter)).toBeTruthy();
@@ -326,20 +365,16 @@ describe("Bridge Tests", () => {
         const walletAddress = wallet.key.accAddress;
         const recipient = "terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp"; // test2
         const encodedTo = nativeToHex(recipient);
-        console.log("encodedTo", encodedTo);
-        const lunaAddress =
-          "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da";
 
         const vaaPayload = makeTransferVaaPayload(
           1,
           amount,
-          lunaAddress,
+          LUNA_ADDRESS,
           encodedTo,
           CHAIN_ID,
           relayerFee,
           undefined
         );
-        console.info("vaaPayload", vaaPayload);
 
         const timestamp = 0;
         const nonce = 0;
@@ -356,7 +391,6 @@ describe("Bridge Tests", () => {
           GUARDIAN_SET_INDEX,
           CONSISTENCY_LEVEL
         );
-        console.info("signedVaa", signedVaa);
 
         // check balances
         const walletBalanceBefore = await getNativeBalance(
@@ -374,11 +408,6 @@ describe("Bridge Tests", () => {
           tokenBridge,
           denom
         );
-        console.log(
-          walletBalanceBefore,
-          recipientBalanceBefore,
-          bridgeBalanceBefore
-        );
 
         const submitVaa = new MsgExecuteContract(walletAddress, tokenBridge, {
           submit_vaa: {
@@ -388,7 +417,6 @@ describe("Bridge Tests", () => {
 
         // execute outbound transfer with signed vaa
         const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
-        console.info("receipt", receipt.txhash);
 
         // check wallet (relayer) balance change
         const walletBalanceAfter = await getNativeBalance(
@@ -433,11 +461,6 @@ describe("Bridge Tests", () => {
           bridgeBalanceBefore.sub(bridgeExpectedChange).eq(bridgeBalanceAfter)
         ).toBeTruthy();
 
-        console.log(
-          walletBalanceAfter,
-          recipientBalanceAfter,
-          bridgeBalanceAfter
-        );
         done();
       } catch (e) {
         console.error(e);
@@ -509,7 +532,6 @@ describe("Bridge Tests", () => {
           deposit,
           initiateTransferWithPayload,
         ]);
-        console.info("receipt txHash", receipt.txhash);
 
         const balanceAfter = await getNativeBalance(client, tokenBridge, denom);
         expect(balanceBefore.add(amount).eq(balanceAfter)).toBeTruthy();
@@ -536,21 +558,17 @@ describe("Bridge Tests", () => {
         const walletAddress = wallet.key.accAddress;
 
         const encodedTo = nativeToHex(mockBridgeIntegration);
-        console.log("encodedTo", encodedTo);
-        const lunaAddress =
-          "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da";
         const additionalPayload = "All your base are belong to us";
 
         const vaaPayload = makeTransferVaaPayload(
           3,
           amount,
-          lunaAddress,
+          LUNA_ADDRESS,
           encodedTo,
           CHAIN_ID,
           relayerFee,
           additionalPayload
         );
-        console.info("vaaPayload", vaaPayload);
 
         const timestamp = 1;
         const nonce = 1;
@@ -567,7 +585,6 @@ describe("Bridge Tests", () => {
           GUARDIAN_SET_INDEX,
           CONSISTENCY_LEVEL
         );
-        console.info("signedVaa", signedVaa);
 
         // check balances before execute
         const walletBalanceBefore = await getNativeBalance(
@@ -598,7 +615,6 @@ describe("Bridge Tests", () => {
 
         // execute outbound transfer with signed vaa
         const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
-        console.info("receipt txHash", receipt.txhash);
 
         // check wallet (relayer) balance change
         const walletBalanceAfter = await getNativeBalance(
@@ -679,21 +695,17 @@ describe("Bridge Tests", () => {
         const walletAddress = wallet.key.accAddress;
 
         const encodedTo = nativeToHex(mockBridgeIntegration);
-        console.log("encodedTo", encodedTo);
-        const lunaAddress =
-          "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da";
         const additionalPayload = "All your base are belong to us";
 
         const vaaPayload = makeTransferVaaPayload(
           3,
           amount,
-          lunaAddress,
+          LUNA_ADDRESS,
           encodedTo,
           CHAIN_ID,
           relayerFee,
           additionalPayload
         );
-        console.info("vaaPayload", vaaPayload);
 
         const timestamp = 1;
         const nonce = 1;
@@ -710,7 +722,6 @@ describe("Bridge Tests", () => {
           GUARDIAN_SET_INDEX,
           CONSISTENCY_LEVEL
         );
-        console.info("signedVaa", signedVaa);
 
         let expectedErrorFound = false;
         try {
@@ -725,7 +736,6 @@ describe("Bridge Tests", () => {
           const receipt = await transactWithoutMemo(client, wallet, [
             submitVaa,
           ]);
-          console.info("receipt txHash", receipt.txhash);
         } catch (e) {
           const errorMsg: string = e.response.data.message;
           expectedErrorFound = errorMsg.includes(
@@ -744,6 +754,86 @@ describe("Bridge Tests", () => {
       }
     })();
   });
+  test("Attest a Native Asset", (done) => {
+    (async () => {
+      try {
+        const [client, wallet] = await makeProviderAndWallet();
+
+        const tokenBridge = contracts.get("tokenBridge")!;
+        const attest = new MsgExecuteContract(
+          wallet.key.accAddress,
+          tokenBridge,
+          {
+            create_asset_meta: {
+              asset_info: {
+                native_token: { denom: "uluna" },
+              },
+              nonce: 69,
+            },
+          }
+        );
+
+        const receipt = await transactWithoutMemo(client, wallet, [attest]);
+        console.log(receipt);
+        done();
+      } catch (e) {
+        console.error(e);
+        done("Failed to Attest a Native Asset");
+      }
+    })();
+  });
+  // test("Register a Foreign Asset", (done) => {
+  //   (async () => {
+  //     try {
+  //       const [client, wallet] = await makeProviderAndWallet();
+
+  //       const vaaPayload = makeAttestationVaaPayload(
+  //         FOREIGN_CHAIN,
+  //         FOREIGN_TOKEN,
+  //         18,
+  //         hexZeroPad("0x" + Buffer.from("TEST", "utf-8").toString("hex"), 32),
+  //         hexZeroPad(
+  //           "0x" + Buffer.from("Testy Token", "utf-8").toString("hex"),
+  //           32
+  //         )
+  //       );
+
+  //       const timestamp = 1;
+  //       const nonce = 1;
+  //       const sequence = 0;
+
+  //       const signedVaa = signAndEncodeVaa(
+  //         timestamp,
+  //         nonce,
+  //         GOVERNANCE_CHAIN,
+  //         GOVERNANCE_ADDRESS,
+  //         sequence,
+  //         vaaPayload,
+  //         TEST_SIGNER_PKS,
+  //         GUARDIAN_SET_INDEX,
+  //         CONSISTENCY_LEVEL
+  //       );
+
+  //       const tokenBridge = contracts.get("tokenBridge")!;
+  //       const submitVaa = new MsgExecuteContract(
+  //         wallet.key.accAddress,
+  //         tokenBridge,
+  //         {
+  //           submit_vaa: {
+  //             data: Buffer.from(signedVaa, "hex").toString("base64"),
+  //           },
+  //         }
+  //       );
+
+  //       const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
+  //       console.log(receipt);
+  //       done();
+  //     } catch (e) {
+  //       console.error(e);
+  //       done("Failed to Register a Foreign Asset");
+  //     }
+  //   })();
+  // });
 });
 
 function nativeToHex(address: string) {
