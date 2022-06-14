@@ -125,7 +125,7 @@ fi
 printf " %s\n" "$new_implementation"
 vaa=$(worm generate upgrade -c "$chain_name" -a "$new_implementation" -m $MODULE -g "$GUARDIAN_SECRET")
 
-echo "💂‍ Overriding guardian set with $GUARDIAN_ADDRESS"
+echo "💂 Overriding guardian set with $GUARDIAN_ADDRESS"
 worm evm hijack -g "$GUARDIAN_ADDRESS" -i 0 -a "$CORE" --rpc "$RPC"> /dev/null
 
 echo "🔍 Querying old contract state"

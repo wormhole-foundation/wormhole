@@ -18,7 +18,7 @@ export async function query_contract_evm(
 ): Promise<object> {
   let n = NETWORKS[network][chain]
   let rpc: string | undefined = _rpc ?? n.rpc;
-  if (n.rpc === undefined) {
+  if (rpc === undefined) {
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
   }
 
