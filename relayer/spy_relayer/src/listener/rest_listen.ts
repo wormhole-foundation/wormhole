@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getBackend } from "../backends";
 import { getListenerEnvironment, ListenerEnvironment } from "../configureEnv";
 import { getLogger } from "../helpers/logHelper";
 
@@ -37,7 +38,7 @@ export async function run() {
     app.get("/relayvaa/:vaa", async (req: Request, res: Response) => {
       try {
         const rawVaa = Uint8Array.from(Buffer.from(req.params.vaa, "base64"));
-        await env.listenerBackend.process(rawVaa);
+        await getBackend().listener.process(rawVaa);
 
         res.status(200).json({ message: "Scheduled" });
       } catch (e) {
