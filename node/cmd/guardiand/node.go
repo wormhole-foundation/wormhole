@@ -103,6 +103,9 @@ var (
 	moonbeamRPC      *string
 	moonbeamContract *string
 
+	neonRPC      *string
+	neonContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
@@ -199,6 +202,9 @@ func init() {
 
 	moonbeamRPC = NodeCmd.Flags().String("moonbeamRPC", "", "Moonbeam RPC URL")
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
+
+	neonRPC = NodeCmd.Flags().String("neonRPC", "", "Neon RPC URL")
+	neonContract = NodeCmd.Flags().String("neonContract", "", "Neon contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -336,6 +342,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 		readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
+		readiness.RegisterComponent(common.ReadinessNeonSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -387,6 +394,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*klaytnContract = devnet.GanacheWormholeContractAddress.Hex()
 		*celoContract = devnet.GanacheWormholeContractAddress.Hex()
 		*moonbeamContract = devnet.GanacheWormholeContractAddress.Hex()
+		*neonContract = devnet.GanacheWormholeContractAddress.Hex()
 	}
 
 	// Verify flags
@@ -476,6 +484,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *moonbeamContract == "" {
 			logger.Fatal("Please specify --moonbeamContract")
 		}
+		if *neonRPC == "" {
+			logger.Fatal("Please specify --neonRPC")
+		}
+		if *neonContract == "" {
+			logger.Fatal("Please specify --neonContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -488,6 +502,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *moonbeamContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --moonbeamContract")
+		}
+		if *neonRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --neonRPC")
+		}
+		if *neonContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --neonContract")
 		}
 	}
 	if *nodeName == "" {
@@ -584,6 +604,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	klaytnContractAddr := eth_common.HexToAddress(*klaytnContract)
 	celoContractAddr := eth_common.HexToAddress(*celoContract)
 	moonbeamContractAddr := eth_common.HexToAddress(*moonbeamContract)
+	neonContractAddr := eth_common.HexToAddress(*neonContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -678,6 +699,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode {
 		chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 	}
 
@@ -853,6 +875,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 			if err := supervisor.Run(ctx, "moonbeamwatch",
 				ethereum.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", common.ReadinessMoonbeamSyncing, vaa.ChainIDMoonbeam, lockC, nil, 1, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "neonwatch",
+				ethereum.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, lockC, nil, 32, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode).Run); err != nil {
 				return err
 			}
 		}

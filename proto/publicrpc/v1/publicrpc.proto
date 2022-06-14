@@ -25,6 +25,7 @@ enum ChainID {
   CHAIN_ID_CELO = 14;
   CHAIN_ID_NEAR = 15;
   CHAIN_ID_MOONBEAM = 16;
+  CHAIN_ID_NEON = 17;
   // Special case - Eth has two testnets. CHAIN_ID_ETHEREUM is Goerli,
   // but we also want to connect to Ropsten, so we add a separate chain.
   CHAIN_ID_ETHEREUM_ROPSTEN = 10001;
