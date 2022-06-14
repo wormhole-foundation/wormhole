@@ -29,7 +29,7 @@ export default async function removeLiquidity(
       to_mint,
       liquidity_token_account,
       lp_share_token_account,
-      amount
+      amount.valueOf()
     )
   );
   const transaction = new Transaction().add(approvalIx, ix);

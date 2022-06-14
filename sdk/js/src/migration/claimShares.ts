@@ -29,7 +29,7 @@ export default async function claimShares(
       to_mint,
       output_token_account,
       lp_share_token_account,
-      amount
+      amount.valueOf()
     )
   );
   const transaction = new Transaction().add(approvalIx, ix);
