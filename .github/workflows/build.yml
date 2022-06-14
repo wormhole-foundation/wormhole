@@ -64,6 +64,21 @@ jobs:
           node-version: "16"
       - run: cd ethereum && make test
 
+  ethereum-upgrade:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+      - run: cd clients/js && make install
+      - run: curl -L https://foundry.paradigm.xyz | bash
+      - run: $HOME/.foundry/bin/foundryup
+      - run: cd ethereum && make dependencies
+      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ ./simulate_upgrade -m bridge -c ethereum -x
+      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ ./simulate_upgrade -m token_bridge -c ethereum -x
+      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ ./simulate_upgrade -m nft_bridge -c ethereum -x
+
   terra:
     runs-on: ubuntu-20.04
     steps:
