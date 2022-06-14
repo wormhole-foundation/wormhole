@@ -135,7 +135,7 @@ worm submit "$vaa" -n devnet -a "$CONTRACT" --rpc "$RPC" > /dev/null
 echo "🔍 Querying new contract state"
 worm evm info -c "$chain_name" -m $MODULE -n devnet -a "$CONTRACT" --rpc "$RPC" | jq | grep -v '"implementation":' > "$after"
 
-git diff --no-index "$before" "$after" --exit-code && echo "✅ Upgrade simulation successful"
+git diff --no-index "$before" "$after" --exit-code && echo "✅ Upgrade simulation successful" || exit 1
 
 if [[ $keepalive_anvil = true ]]; then
     echo "Listening on $RPC"

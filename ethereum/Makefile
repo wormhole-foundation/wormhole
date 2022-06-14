@@ -25,5 +25,9 @@ test: build .env dependencies
 	npm test || (pkill ganache-cli && exit 1)
 	pkill ganache-cli || true
 
+.PHONY: test-upgrade
+test-upgrade: build .env dependencies
+	./simulate_upgrades
+
 clean:
 	rm -rf ganache.log .env node_modules build

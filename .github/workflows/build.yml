@@ -74,10 +74,7 @@ jobs:
       - run: cd clients/js && make install
       - run: curl -L https://foundry.paradigm.xyz | bash
       - run: $HOME/.foundry/bin/foundryup
-      - run: cd ethereum && make dependencies
-      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ ./simulate_upgrade -m bridge -c ethereum -x
-      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ ./simulate_upgrade -m token_bridge -c ethereum -x
-      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ ./simulate_upgrade -m nft_bridge -c ethereum -x
+      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ make test-upgrade
 
   terra:
     runs-on: ubuntu-20.04
