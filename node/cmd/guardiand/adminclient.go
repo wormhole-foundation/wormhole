@@ -50,6 +50,7 @@ func init() {
 	DumpVAAByMessageID.Flags().AddFlagSet(pf)
 	SendObservationRequest.Flags().AddFlagSet(pf)
 	ClientChainGovernorStatusCmd.Flags().AddFlagSet(pf)
+	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorDropPendingVAACmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReleasePendingVAACmd.Flags().AddFlagSet(pf)
 
@@ -60,6 +61,7 @@ func init() {
 	AdminCmd.AddCommand(DumpVAAByMessageID)
 	AdminCmd.AddCommand(SendObservationRequest)
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
+	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
 	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
 	AdminCmd.AddCommand(ClientChainGovernorReleasePendingVAACmd)
 }
@@ -101,6 +103,13 @@ var ClientChainGovernorStatusCmd = &cobra.Command{
 	Use:   "cgov-status",
 	Short: "Displays the status of the chain governor",
 	Run:   runChainGovernorStatus,
+	Args:  cobra.ExactArgs(0),
+}
+
+var ClientChainGovernorReloadCmd = &cobra.Command{
+	Use:   "cgov-reload",
+	Short: "Clears the chain governor history and reloads it from the database",
+	Run:   runChainGovernorReload,
 	Args:  cobra.ExactArgs(0),
 }
 
@@ -303,6 +312,25 @@ func runChainGovernorStatus(cmd *cobra.Command, args []string) {
 	resp, err := c.ChainGovernorStatus(ctx, &msg)
 	if err != nil {
 		log.Fatalf("failed to run ChainGovernorStatus RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runChainGovernorReload(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	conn, err, c := getAdminClient(ctx, *clientSocketPath)
+	defer conn.Close()
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+
+	msg := nodev1.ChainGovernorReloadRequest{}
+	resp, err := c.ChainGovernorReload(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run ChainGovernorReload RPC: %s", err)
 	}
 
 	fmt.Println(resp.Response)
