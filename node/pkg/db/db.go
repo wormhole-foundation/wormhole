@@ -42,13 +42,13 @@ func VaaIDFromString(s string) (*VAAID, error) {
 		return nil, fmt.Errorf("invalid sequence: %s", err)
 	}
 
-	msgID := &VAAID{
+	msgId := &VAAID{
 		EmitterChain:   vaa.ChainID(emitterChain),
 		EmitterAddress: emitterAddress,
 		Sequence:       sequence,
 	}
 
-	return msgID, nil
+	return msgId, nil
 }
 
 func VaaIDFromVAA(v *vaa.VAA) *VAAID {
