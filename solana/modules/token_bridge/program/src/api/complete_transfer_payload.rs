@@ -129,12 +129,10 @@ pub fn complete_native_with_payload(
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     let mut amount = accs.vaa.amount.as_u64();
-    let mut fee = accs.vaa.fee.as_u64();
 
     // Wormhole always caps transfers at 8 decimals; un-truncate if the local token has more
     if accs.mint.decimals > 8 {
         amount *= 10u64.pow((accs.mint.decimals - 8) as u32);
-        fee *= 10u64.pow((accs.mint.decimals - 8) as u32);
     }
 
     // Transfer tokens
@@ -144,18 +142,7 @@ pub fn complete_native_with_payload(
         accs.to.info().key,
         accs.custody_signer.key,
         &[],
-        amount.checked_sub(fee).unwrap(),
-    )?;
-    invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
-
-    // Transfer fees
-    let transfer_ix = spl_token::instruction::transfer(
-        &spl_token::id(),
-        accs.custody.info().key,
-        accs.to_fees.info().key,
-        accs.custody_signer.key,
-        &[],
-        fee,
+        amount,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
@@ -266,22 +253,7 @@ pub fn complete_wrapped_with_payload(
         accs.to.info().key,
         accs.mint_authority.key,
         &[],
-        accs.vaa
-            .amount
-            .as_u64()
-            .checked_sub(accs.vaa.fee.as_u64())
-            .unwrap(),
-    )?;
-    invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
-
-    // Mint fees
-    let mint_ix = spl_token::instruction::mint_to(
-        &spl_token::id(),
-        accs.mint.info().key,
-        accs.to_fees.info().key,
-        accs.mint_authority.key,
-        &[],
-        accs.vaa.fee.as_u64(),
+        accs.vaa.amount.as_u64()
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 

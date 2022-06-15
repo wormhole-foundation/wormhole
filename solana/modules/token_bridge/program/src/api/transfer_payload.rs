@@ -7,20 +7,14 @@ use crate::{
         CustodyAccountDerivationData,
         CustodySigner,
         EmitterAccount,
-        MintSigner,
         WrappedDerivationData,
         WrappedMetaDerivationData,
         WrappedMint,
         WrappedTokenMeta,
     },
-    messages::PayloadTransfer,
+    messages::PayloadTransferWithPayload,
     types::*,
-    TokenBridgeError,
-    TokenBridgeError::{
-        InvalidChain,
-        InvalidFee,
-        WrongAccountOwner,
-    },
+    TokenBridgeError::InvalidChain,
 };
 use bridge::{
     api::PostMessageData,
@@ -35,32 +29,76 @@ use solana_program::{
         AccountMeta,
         Instruction,
     },
-    program::{
-        invoke,
-        invoke_signed,
-    },
-    program_option::COption,
     sysvar::clock::Clock,
 };
 use solitaire::{
-    processors::seeded::{
-        invoke_seeded,
-        Seeded,
-    },
-    CreationLamports::Exempt,
+    processors::seeded::invoke_seeded,
     *,
 };
+use solana_program::pubkey::Pubkey;
+
+use super::{
+    verify_and_execute_native_transfers,
+    verify_and_execute_wrapped_transfers,
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Sender
+
+#[repr(transparent)]
+pub struct Sender<'b>(MaybeMut<Signer<Info<'b>>>);
+
+impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Sender<'b> {
+    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(Sender(MaybeMut::peel(ctx)?))
+    }
+
+    fn deps() -> Vec<Pubkey> {
+        MaybeMut::<Signer<Info<'b>>>::deps()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        MaybeMut::persist(&self.0, program_id)
+    }
+}
+
+// May or may not be a PDA, so we don't use [`Derive`], instead implement
+// [`Seeded`] directly.
+impl<'b> Seeded<()> for Sender<'b> {
+    fn seeds(_accs: ()) -> Vec<Vec<u8>> {
+        vec![String::from("sender").as_bytes().to_vec()]
+    }
+}
+
+impl<'a, 'b: 'a> Keyed<'a, 'b> for Sender<'b> {
+    fn info(&'a self) -> &Info<'b> {
+        &self.0
+    }
+}
+
+/// TODO(csongor): document
+fn derive_sender_address(sender: &Sender, cpi_program_id: &AccountInfo) -> Result<Address> {
+    if cpi_program_id.key.to_bytes() == [0; 32] {
+        return Ok(sender.info().key.to_bytes());
+    } else {
+        sender.verify_derivation(cpi_program_id.key, ())?;
+        Ok(cpi_program_id.key.to_bytes())
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Transfer wrapped with payload
 
 #[derive(FromAccounts)]
-pub struct TransferNative<'b> {
+pub struct TransferNativeWithPayload<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
-
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
-
     pub mint: Mut<Data<'b, SplMint, { AccountState::Initialized }>>,
-
     pub custody: Mut<CustodyAccount<'b, { AccountState::MaybeInitialized }>>,
 
     // This could allow someone to race someone else's tx if they do the approval in a separate tx.
@@ -85,10 +123,13 @@ pub struct TransferNative<'b> {
     pub fee_collector: Mut<Info<'b>>,
 
     pub clock: Sysvar<'b, Clock>,
+
+    pub sender: Sender<'b>,
+    pub cpi_program_id: Info<'b>,
 }
 
-impl<'a> From<&TransferNative<'a>> for CustodyAccountDerivationData {
-    fn from(accs: &TransferNative<'a>) -> Self {
+impl<'a> From<&TransferNativeWithPayload<'a>> for CustodyAccountDerivationData {
+    fn from(accs: &TransferNativeWithPayload<'a>) -> Self {
         CustodyAccountDerivationData {
             mint: *accs.mint.info().key,
         }
@@ -96,18 +137,18 @@ impl<'a> From<&TransferNative<'a>> for CustodyAccountDerivationData {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
-pub struct TransferNativeData {
+pub struct TransferNativeWithPayloadData {
     pub nonce: u32,
     pub amount: u64,
-    pub fee: u64,
     pub target_address: Address,
     pub target_chain: ChainID,
+    pub payload: Vec<u8>,
 }
 
-pub fn transfer_native(
+pub fn transfer_native_with_payload(
     ctx: &ExecutionContext,
-    accs: &mut TransferNative,
-    data: TransferNativeData,
+    accs: &mut TransferNativeWithPayload,
+    data: TransferNativeWithPayloadData,
 ) -> Result<()> {
     // Prevent transferring to the same chain.
     if data.target_chain == CHAIN_ID_SOLANA {
@@ -115,7 +156,7 @@ pub fn transfer_native(
     }
 
     let derivation_data: CustodyAccountDerivationData = (&*accs).into();
-    let (amount, fee) = verify_and_execute_native_transfers(
+    let (amount, _fee) = verify_and_execute_native_transfers(
         ctx,
         &derivation_data,
         &accs.payer,
@@ -127,17 +168,18 @@ pub fn transfer_native(
         &accs.bridge,
         &accs.fee_collector,
         data.amount,
-        data.fee,
+        0,
     )?;
 
     // Post message
-    let payload = PayloadTransfer {
+    let payload = PayloadTransferWithPayload {
         amount: U256::from(amount),
         token_address: accs.mint.info().key.to_bytes(),
         token_chain: CHAIN_ID_SOLANA,
         to: data.target_address,
         to_chain: data.target_chain,
-        fee: U256::from(fee),
+        from_address: derive_sender_address(&accs.sender, &accs.cpi_program_id)?,
+        payload: data.payload,
     };
     let params = (
         bridge::instruction::Instruction::PostMessage,
@@ -168,84 +210,11 @@ pub fn transfer_native(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn verify_and_execute_native_transfers(
-    ctx: &ExecutionContext,
-    derivation_data: &CustodyAccountDerivationData,
-    payer: &Mut<Signer<AccountInfo>>,
-    from: &Mut<Data<SplAccount, { AccountState::Initialized }>>,
-    mint: &Mut<Data<SplMint, { AccountState::Initialized }>>,
-    custody: &Mut<CustodyAccount<{ AccountState::MaybeInitialized }>>,
-    authority_signer: &AuthoritySigner,
-    custody_signer: &CustodySigner,
-    bridge: &Mut<CoreBridge<{ AccountState::Initialized }>>,
-    fee_collector: &Mut<Info>,
-    raw_amount: u64,
-    raw_fee: u64,
-) -> Result<(u64, u64)> {
-    // Verify that the custody account is derived correctly
-    custody.verify_derivation(ctx.program_id, derivation_data)?;
-
-    // Verify mints
-    if from.mint != *mint.info().key {
-        return Err(TokenBridgeError::InvalidMint.into());
-    }
-
-    // Fee must be less than amount
-    if raw_fee > raw_amount {
-        return Err(InvalidFee.into());
-    }
-
-    // Verify that the token is not a wrapped token
-    if let COption::Some(mint_authority) = mint.mint_authority {
-        if mint_authority == MintSigner::key(None, ctx.program_id) {
-            return Err(TokenBridgeError::TokenNotNative.into());
-        }
-    }
-
-    if !custody.is_initialized() {
-        custody.create(derivation_data, ctx, payer.key, Exempt)?;
-
-        let init_ix = spl_token::instruction::initialize_account(
-            &spl_token::id(),
-            custody.info().key,
-            mint.info().key,
-            custody_signer.key,
-        )?;
-        invoke_signed(&init_ix, ctx.accounts, &[])?;
-    }
-
-    let trunc_divisor = 10u64.pow(8.max(mint.decimals as u32) - 8);
-    // Truncate to 8 decimals
-    let amount: u64 = raw_amount / trunc_divisor;
-    let fee: u64 = raw_fee / trunc_divisor;
-    // Untruncate the amount to drop the remainder so we don't  "burn" user's funds.
-    let amount_trunc: u64 = amount * trunc_divisor;
-
-    // Transfer tokens
-    let transfer_ix = spl_token::instruction::transfer(
-        &spl_token::id(),
-        from.info().key,
-        custody.info().key,
-        authority_signer.key,
-        &[],
-        amount_trunc,
-    )?;
-    invoke_seeded(&transfer_ix, ctx, authority_signer, None)?;
-
-    // Pay fee
-    let transfer_ix = solana_program::system_instruction::transfer(
-        payer.key,
-        fee_collector.key,
-        bridge.config.fee,
-    );
-    invoke(&transfer_ix, ctx.accounts)?;
-
-    Ok((amount, fee))
-}
+////////////////////////////////////////////////////////////////////////////////
+// Transfer wrapped with payload
 
 #[derive(FromAccounts)]
-pub struct TransferWrapped<'b> {
+pub struct TransferWrappedWithPayload<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
@@ -272,10 +241,13 @@ pub struct TransferWrapped<'b> {
     pub fee_collector: Mut<Info<'b>>,
 
     pub clock: Sysvar<'b, Clock>,
+
+    pub sender: Sender<'b>,
+    pub cpi_program_id: Info<'b>,
 }
 
-impl<'a> From<&TransferWrapped<'a>> for WrappedDerivationData {
-    fn from(accs: &TransferWrapped<'a>) -> Self {
+impl<'a> From<&TransferWrappedWithPayload<'a>> for WrappedDerivationData {
+    fn from(accs: &TransferWrappedWithPayload<'a>) -> Self {
         WrappedDerivationData {
             token_chain: 1,
             token_address: accs.mint.info().key.to_bytes(),
@@ -283,8 +255,8 @@ impl<'a> From<&TransferWrapped<'a>> for WrappedDerivationData {
     }
 }
 
-impl<'a> From<&TransferWrapped<'a>> for WrappedMetaDerivationData {
-    fn from(accs: &TransferWrapped<'a>) -> Self {
+impl<'a> From<&TransferWrappedWithPayload<'a>> for WrappedMetaDerivationData {
+    fn from(accs: &TransferWrappedWithPayload<'a>) -> Self {
         WrappedMetaDerivationData {
             mint_key: *accs.mint.info().key,
         }
@@ -292,18 +264,18 @@ impl<'a> From<&TransferWrapped<'a>> for WrappedMetaDerivationData {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
-pub struct TransferWrappedData {
+pub struct TransferWrappedWithPayloadData {
     pub nonce: u32,
     pub amount: u64,
-    pub fee: u64,
     pub target_address: Address,
     pub target_chain: ChainID,
+    pub payload: Vec<u8>,
 }
 
-pub fn transfer_wrapped(
+pub fn transfer_wrapped_with_payload(
     ctx: &ExecutionContext,
-    accs: &mut TransferWrapped,
-    data: TransferWrappedData,
+    accs: &mut TransferWrappedWithPayload,
+    data: TransferWrappedWithPayloadData,
 ) -> Result<()> {
     // Prevent transferring to the same chain.
     if data.target_chain == CHAIN_ID_SOLANA {
@@ -323,17 +295,18 @@ pub fn transfer_wrapped(
         &accs.bridge,
         &accs.fee_collector,
         data.amount,
-        data.fee,
+        0,
     )?;
 
     // Post message
-    let payload = PayloadTransfer {
+    let payload = PayloadTransferWithPayload {
         amount: U256::from(data.amount),
         token_address: accs.wrapped_meta.token_address,
         token_chain: accs.wrapped_meta.chain,
         to: data.target_address,
         to_chain: data.target_chain,
-        fee: U256::from(data.fee),
+        from_address: derive_sender_address(&accs.sender, &accs.cpi_program_id)?,
+        payload: data.payload,
     };
     let params = (
         bridge::instruction::Instruction::PostMessage,
@@ -364,58 +337,3 @@ pub fn transfer_wrapped(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn verify_and_execute_wrapped_transfers(
-    ctx: &ExecutionContext,
-    derivation_data: &WrappedMetaDerivationData,
-    payer: &Mut<Signer<AccountInfo>>,
-    from: &Mut<Data<SplAccount, { AccountState::Initialized }>>,
-    from_owner: &MaybeMut<Signer<Info>>,
-    mint: &Mut<WrappedMint<{ AccountState::Initialized }>>,
-    wrapped_meta: &WrappedTokenMeta<{ AccountState::Initialized }>,
-    authority_signer: &AuthoritySigner,
-    bridge: &Mut<CoreBridge<{ AccountState::Initialized }>>,
-    fee_collector: &Mut<Info>,
-    amount: u64,
-    fee: u64,
-) -> Result<()> {
-    // Verify that the from account is owned by the from_owner
-    if &from.owner != from_owner.key {
-        return Err(WrongAccountOwner.into());
-    }
-
-    // Verify mints
-    if mint.info().key != &from.mint {
-        return Err(TokenBridgeError::InvalidMint.into());
-    }
-
-    // Fee must be less than amount
-    if fee > amount {
-        return Err(InvalidFee.into());
-    }
-
-    // Verify that meta is correct
-    wrapped_meta.verify_derivation(ctx.program_id, derivation_data)?;
-
-    // Burn tokens
-    let burn_ix = spl_token::instruction::burn(
-        &spl_token::id(),
-        from.info().key,
-        mint.info().key,
-        authority_signer.key,
-        &[],
-        amount,
-    )?;
-    invoke_seeded(&burn_ix, ctx, authority_signer, None)?;
-
-    // Pay fee
-    let transfer_ix = solana_program::system_instruction::transfer(
-        payer.key,
-        fee_collector.key,
-        bridge.config.fee,
-    );
-
-    invoke(&transfer_ix, ctx.accounts)?;
-
-    Ok(())
-}
