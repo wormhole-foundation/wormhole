@@ -471,7 +471,7 @@ fn handle_attest_meta(
                 }),
             })?,
             funds: vec![],
-            label: String::new(),
+            label: "Wormhole Wrapped CW20".to_string(),
         })
     };
     wrapped_asset_seq(deps.storage, meta.token_chain).save(&token_address, &sequence)?;
