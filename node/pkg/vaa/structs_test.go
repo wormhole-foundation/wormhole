@@ -69,7 +69,7 @@ func TestChainIDFromString(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			chainId, err := ChainIDFromString(tc.input)
 			assert.Equal(t, tc.output, chainId)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 		})
 	}
 
@@ -87,7 +87,7 @@ func TestAddress_MarshalJSON(t *testing.T) {
 	expected := "223030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303422"
 	marshalJsonAddress, err := addr.MarshalJSON()
 	assert.Equal(t, hex.EncodeToString(marshalJsonAddress), expected)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestAddress_String(t *testing.T) {
@@ -530,7 +530,7 @@ func TestStringToAddress(t *testing.T) {
 		t.Run(string(tc.label), func(t *testing.T) {
 			addr, err := StringToAddress(tc.rawAddr)
 			if len(tc.errString) == 0 {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, tc.addr, addr)
 			} else {
 				assert.Equal(t, tc.errString, err.Error())
@@ -546,10 +546,10 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 		payloadType    uint8
 		emitterChainId ChainID
 		emitterAddr    string
-		tokenChainId   ChainID
-		tokenAddr      string
-		toChainId      ChainID
-		toAddr         string
+		originChain    ChainID
+		originAddress  string
+		targetChain    ChainID
+		targetAddress  string
 		amount         int64
 		errString      string
 	}
@@ -560,10 +560,10 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			payloadType:    1,
 			emitterChainId: ChainIDEthereum,
 			emitterAddr:    "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
-			tokenChainId:   ChainIDEthereum,
-			tokenAddr:      "000000000000000000000000DDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
-			toChainId:      ChainIDSolana,
-			toAddr:         "21c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f0",
+			originChain:    ChainIDEthereum,
+			originAddress:  "000000000000000000000000DDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
+			targetChain:    ChainIDSolana,
+			targetAddress:  "21c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f0",
 			amount:         725000000,
 			errString:      "",
 		},
@@ -584,24 +584,24 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(string(tc.label), func(t *testing.T) {
 			data, err := hex.DecodeString(tc.vaa)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			vaa, err := Unmarshal(data)
 			if err != nil {
 				assert.Equal(t, tc.errString, err.Error())
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 				assert.NotNil(t, vaa)
 
 				if len(tc.errString) == 0 {
 					expectedEmitterAddr, err := StringToAddress(tc.emitterAddr)
-					assert.Nil(t, err)
+					assert.NoError(t, err)
 
-					expectedTokenAddr, err := StringToAddress(tc.tokenAddr)
-					assert.Nil(t, err)
+					expectedOriginAddress, err := StringToAddress(tc.originAddress)
+					assert.NoError(t, err)
 
-					expectedToAddr, err := StringToAddress(tc.toAddr)
-					assert.Nil(t, err)
+					expectedTargetAddress, err := StringToAddress(tc.targetAddress)
+					assert.NoError(t, err)
 
 					expectedAmount := big.NewInt(tc.amount)
 
@@ -610,12 +610,12 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 					assert.Equal(t, 133, len(vaa.Payload))
 
 					payload, err := DecodeTransferPayloadHdr(vaa.Payload)
-					assert.Nil(t, err)
+					assert.NoError(t, err)
 					assert.Equal(t, tc.payloadType, payload.Type)
-					assert.Equal(t, tc.tokenChainId, payload.TokenChainID)
-					assert.Equal(t, expectedTokenAddr, payload.TokenAddress)
-					assert.Equal(t, tc.toChainId, payload.ToChainID)
-					assert.Equal(t, expectedToAddr, payload.ToAddress)
+					assert.Equal(t, tc.originChain, payload.OriginChain)
+					assert.Equal(t, expectedOriginAddress, payload.OriginAddress)
+					assert.Equal(t, tc.targetChain, payload.TargetChain)
+					assert.Equal(t, expectedTargetAddress, payload.TargetAddress)
 					assert.Equal(t, expectedAmount.Cmp(payload.Amount), 0)
 				} else {
 					_, err = DecodeTransferPayloadHdr(vaa.Payload)

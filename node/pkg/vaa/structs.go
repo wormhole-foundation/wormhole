@@ -61,12 +61,12 @@ type (
 	SignatureData [65]byte
 
 	TransferPayloadHdr struct {
-		Type         uint8
-		TokenChainID ChainID
-		TokenAddress Address
-		ToChainID    ChainID
-		ToAddress    Address
-		Amount       *big.Int
+		Type          uint8
+		Amount        *big.Int
+		OriginAddress Address
+		OriginChain   ChainID
+		TargetAddress Address
+		TargetChain   ChainID
 	}
 )
 
@@ -456,30 +456,26 @@ func DecodeTransferPayloadHdr(payload []byte) (*TransferPayloadHdr, error) {
 
 	reader := bytes.NewReader(payload[33:])
 
-	// Token address: payload[33] for 32
-	p.TokenAddress = Address{}
-	err := binary.Read(reader, binary.BigEndian, &p.TokenAddress)
+	// Origin address: payload[33] for 32
+	err := binary.Read(reader, binary.BigEndian, &p.OriginAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	// Token chain ID: payload[65] for 2
-	p.TokenChainID = ChainID(0)
-	err = binary.Read(reader, binary.BigEndian, &p.TokenChainID)
+	// Origin chain ID: payload[65] for 2
+	err = binary.Read(reader, binary.BigEndian, &p.OriginChain)
 	if err != nil {
 		return nil, err
 	}
 
-	// To address: payload[67] for 32
-	p.ToAddress = Address{}
-	err = binary.Read(reader, binary.BigEndian, &p.ToAddress)
+	// Target address: payload[67] for 32
+	err = binary.Read(reader, binary.BigEndian, &p.TargetAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	// To chain ID: payload[99] for 2
-	p.ToChainID = ChainID(0)
-	err = binary.Read(reader, binary.BigEndian, &p.ToChainID)
+	// Target chain ID: payload[99] for 2
+	err = binary.Read(reader, binary.BigEndian, &p.TargetChain)
 	if err != nil {
 		return nil, err
 	}
