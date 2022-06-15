@@ -4,11 +4,12 @@ if [ ! -d _sandbox ]; then
   echo We need to create it...
   git clone https://github.com/algorand/sandbox.git _sandbox
 fi
-if [ "`grep enable-all-parameters _sandbox/images/indexer/start.sh | wc -l`" == "0" ]; then
-  echo the indexer is incorrectly configured
-  sed -i -e 's/dev-mode/dev-mode --enable-all-parameters/'  _sandbox/images/indexer/start.sh
-  echo delete all the existing docker images
-fi
+
+sed -i -e 's@export ALGOD_URL=""@export ALGOD_URL="https://github.com/algorand/go-algorand"@'  _sandbox/config.dev
+sed -i -e 's/export ALGOD_CHANNEL="stable"/export ALGOD_CHANNEL=""/'  _sandbox/config.dev
+sed -i -e 's/export ALGOD_BRANCH=""/export ALGOD_BRANCH="v3.6.2-stable"/'  _sandbox/config.dev
+sed -i -e 's/export INDEXER_ENABLE_ALL_PARAMETERS="false"/export INDEXER_ENABLE_ALL_PARAMETERS="true"/'  _sandbox/config.dev
+
 ./sandbox clean
 ./sandbox up -v dev
 echo running the tests...
