@@ -67,6 +67,7 @@ function useFetchTargetAsset(nft?: boolean) {
   const originAsset = useSelector(
     nft ? selectNFTOriginAsset : selectTransferOriginAsset
   );
+  console.log(originAsset);
   const originTokenId = useSelector(selectNFTOriginTokenId);
   const tokenId = originTokenId || ""; // this should exist by this step for NFT transfers
   const targetChain = useSelector(

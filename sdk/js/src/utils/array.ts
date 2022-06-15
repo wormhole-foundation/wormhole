@@ -6,6 +6,7 @@ import {
   nativeStringToHexAlgorand,
   uint8ArrayToNativeStringAlgorand,
 } from "../algorand";
+import { buildTokenId } from "../cosmwasm/address";
 import { canonicalAddress, humanAddress, isNativeDenom } from "../terra";
 import {
   ChainId,
@@ -170,7 +171,7 @@ export const tryNativeToHexString = (
     return uint8ArrayToHex(zeroPad(arrayify(address), 32));
   } else if (chainId === CHAIN_ID_SOLANA) {
     return uint8ArrayToHex(zeroPad(new PublicKey(address).toBytes(), 32));
-  } else if (isTerraChain(chainId)) {
+  } else if (chainId === CHAIN_ID_TERRA) {
     if (isNativeDenom(address)) {
       return (
         "01" +
@@ -181,6 +182,8 @@ export const tryNativeToHexString = (
     } else {
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
+  } else if (chainId === CHAIN_ID_TERRA2) {
+    return buildTokenId(address);
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);
   } else if (chainId === CHAIN_ID_NEAR) {

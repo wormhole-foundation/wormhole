@@ -3,9 +3,9 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
   getOriginalAssetAlgorand,
+  getOriginalAssetCosmWasm,
   getOriginalAssetEth,
   getOriginalAssetSol,
-  getOriginalAssetTerra,
   hexToNativeAssetString,
   isEVMChain,
   isTerraChain,
@@ -32,12 +32,12 @@ import {
   ALGORAND_HOST,
   ALGORAND_TOKEN_BRIDGE_ID,
   getNFTBridgeAddressForChain,
+  getTerraConfig,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOLANA_SYSTEM_PROGRAM_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  getTerraConfig,
 } from "../utils/consts";
 import useIsWalletReady from "./useIsWalletReady";
 
@@ -70,7 +70,7 @@ export async function getOriginalAssetToken(
       );
     } else if (isTerraChain(foreignChain)) {
       const lcd = new LCDClient(getTerraConfig(foreignChain));
-      promise = await getOriginalAssetTerra(
+      promise = await getOriginalAssetCosmWasm(
         lcd,
         foreignNativeStringAddress,
         foreignChain
@@ -228,6 +228,7 @@ function useOriginalAsset(
         if (!cancelled) {
           setIsLoading(false);
           setArgs();
+          console.log("setting", result.assetAddress);
           setOriginAddress(
             hexToNativeAssetString(
               uint8ArrayToHex(result.assetAddress),
