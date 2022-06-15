@@ -102,7 +102,7 @@ export const CHAINS: ChainInfo[] =
           id: CHAIN_ID_NEON,
           name: "Neon",
           logo: neonIcon,
-        },        
+        },
         {
           id: CHAIN_ID_OASIS,
           name: "Oasis",
@@ -235,7 +235,7 @@ export const CHAINS: ChainInfo[] =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_ACALA, CHAIN_ID_CELO, CHAIN_ID_KLAYTN] : [];
+  CLUSTER === "mainnet" ? [CHAIN_ID_ACALA, CHAIN_ID_KLAYTN] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -319,7 +319,7 @@ export const getDefaultNativeCurrencyAddressEvm = (chainId: ChainId) => {
     : chainId === CHAIN_ID_CELO
     ? CELO_ADDRESS
     : chainId === CHAIN_ID_NEON
-    ? WNEON_ADDRESS    
+    ? WNEON_ADDRESS
     : "";
 };
 
