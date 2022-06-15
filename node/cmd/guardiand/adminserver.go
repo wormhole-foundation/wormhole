@@ -413,6 +413,18 @@ func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *no
 	}, nil
 }
 
+func (s *nodePrivilegedService) ChainGovernorReload(ctx context.Context, req *nodev1.ChainGovernorReloadRequest) (*nodev1.ChainGovernorReloadResponse, error) {
+	if s.governor == nil {
+		return &nodev1.ChainGovernorReloadResponse{
+			Response: "chain governor is not enabled",
+		}, nil
+	}
+
+	return &nodev1.ChainGovernorReloadResponse{
+		Response: s.governor.Reload(),
+	}, nil
+}
+
 func (s *nodePrivilegedService) ChainGovernorDropPendingVAA(ctx context.Context, req *nodev1.ChainGovernorDropPendingVAARequest) (*nodev1.ChainGovernorDropPendingVAAResponse, error) {
 	if s.governor == nil {
 		return &nodev1.ChainGovernorDropPendingVAAResponse{

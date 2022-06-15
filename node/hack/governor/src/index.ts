@@ -1,30 +1,24 @@
 import {
   tryNativeToHexString,
   ChainId,
-  CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
-  hexToUint8Array,
-  uint8ArrayToHex,
-  parseTransferPayload,
-  getEmitterAddressEth,
-  getEmitterAddressSolana,
-  getEmitterAddressTerra,
 } from "@certusone/wormhole-sdk";
 
 const MinNotional = 1000000
 
 const axios = require('axios');
 const fs = require("fs");
+const execSync = require('child_process').execSync;
 
 /*
-  '2Kc38rfQ49DFaKHQaWbijkE7fcymUMLY5guUiUsDmFfn': {
-    Symbol: 'KURO',
-    Name: 'Kurobi',
-    Address: '2Kc38rfQ49DFaKHQaWbijkE7fcymUMLY5guUiUsDmFfn',
-    CoinGeckoId: 'kurobi',
-    Amount: 200,
-    Notional: 1.52,
-    TokenPrice: 0.00757962
+  "2Kc38rfQ49DFaKHQaWbijkE7fcymUMLY5guUiUsDmFfn": {
+    "Symbol": "KURO",
+    "Name": "Kurobi",
+    "Address": "2Kc38rfQ49DFaKHQaWbijkE7fcymUMLY5guUiUsDmFfn",
+    "CoinGeckoId": "kurobi",
+    "Amount": 200,
+    "Notional": 1.39,
+    "TokenPrice": 0.00694548,
+    "TokenDecimals": 6
   },
 */
 
@@ -41,7 +35,7 @@ axios
     content += "// This file was generated: " + (new(Date)).toString() + " using a min notional of " + MinNotional + "\n"
     content += "package governor\n\n"
     content += "func tokenList() []tokenConfigEntry {\n"
-    content += "\treturn [] tokenConfigEntry {\n"
+    content += "\treturn []tokenConfigEntry {\n"
 
     for (let chain in res.data.AllTime) {
         for (let addr in res.data.AllTime[chain]) {
@@ -62,8 +56,8 @@ axios
                   ", addr: \"" + wormholeAddr +
                   "\", symbol: \"" + data.Symbol +
                   "\", coinGeckoId: \"" + data.CoinGeckoId +
-                  "\", decimals: 18, price: " +
-                  data.TokenPrice +
+                  "\", decimals: " + data.TokenDecimals +
+                  ", price: " + data.TokenPrice +
                   " }, // Addr: " +
                   data.Address + ", Notional: " + notional +
                   "\n"
@@ -80,6 +74,8 @@ axios
     await fs.writeFileSync("../../pkg/governor/tokens.go", content, {
       flag: "w+",
     });
+
+    execSync("go fmt ../../pkg/governor/tokens.go")
   })
   .catch(error => {
     console.error(error);

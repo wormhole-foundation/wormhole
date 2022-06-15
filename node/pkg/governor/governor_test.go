@@ -308,10 +308,10 @@ func TestBuidMockTransferPayload(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, uint8(1), payload.Type)
-	assert.Equal(t, vaa.ChainIDEthereum, payload.TokenChainID)
-	assert.Equal(t, expectedTokenAddr, payload.TokenAddress)
-	assert.Equal(t, vaa.ChainIDPolygon, payload.ToChainID)
-	assert.Equal(t, expectedToAddr, payload.ToAddress)
+	assert.Equal(t, vaa.ChainIDEthereum, payload.OriginChain)
+	assert.Equal(t, expectedTokenAddr, payload.OriginAddress)
+	assert.Equal(t, vaa.ChainIDPolygon, payload.TargetChain)
+	assert.Equal(t, expectedToAddr, payload.TargetAddress)
 	assert.Equal(t, 0, expectedAmount.Cmp(payload.Amount))
 }
 
@@ -696,9 +696,9 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	xfer1 := &db.Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
 		Value:          125000,
-		TokenChainID:   vaa.ChainIDEthereum,
-		TokenAddress:   tokenAddr,
-		EmitterChainID: vaa.ChainIDEthereum,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
 	}
@@ -711,9 +711,9 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 	assert.Equal(t, xfer1.Timestamp, xfer2.Timestamp)
 	assert.Equal(t, xfer1.Value, xfer2.Value)
-	assert.Equal(t, xfer1.TokenChainID, xfer2.TokenChainID)
-	assert.Equal(t, xfer1.TokenAddress, xfer2.TokenAddress)
-	assert.Equal(t, xfer1.EmitterChainID, xfer2.EmitterChainID)
+	assert.Equal(t, xfer1.OriginChain, xfer2.OriginChain)
+	assert.Equal(t, xfer1.OriginAddress, xfer2.OriginAddress)
+	assert.Equal(t, xfer1.EmitterChain, xfer2.EmitterChain)
 	assert.Equal(t, xfer1.EmitterAddress, xfer2.EmitterAddress)
 	assert.Equal(t, xfer1.MsgID, xfer2.MsgID)
 
@@ -769,10 +769,10 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, uint8(1), payload2.Type)
-	assert.Equal(t, vaa.ChainIDEthereum, payload2.TokenChainID)
-	assert.Equal(t, expectTokenAddr, payload2.TokenAddress)
-	assert.Equal(t, vaa.ChainIDPolygon, payload2.ToChainID)
-	assert.Equal(t, expectToAddr, payload2.ToAddress)
+	assert.Equal(t, vaa.ChainIDEthereum, payload2.OriginChain)
+	assert.Equal(t, expectTokenAddr, payload2.OriginAddress)
+	assert.Equal(t, vaa.ChainIDPolygon, payload2.TargetChain)
+	assert.Equal(t, expectToAddr, payload2.TargetAddress)
 	assert.Equal(t, 0, big.NewInt(27000000000).Cmp(payload2.Amount))
 
 	expectedPendingKey := "GOV:PENDING:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
