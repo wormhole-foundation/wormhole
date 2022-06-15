@@ -920,7 +920,7 @@ func (gov *ChainGovernor) SetTokenPriceForTesting(tokenChainID vaa.ChainID, toke
 	return nil
 }
 
-// We should use the max(coinGecko, configuredPrice) as our price for computing notional value.
+// We should use the max(coinGeckoPrice, configuredPrice) as our price for computing notional value.
 func (te tokenEntry) updatePrice() {
 	if (te.coinGeckoPrice == nil) || (te.coinGeckoPrice.Cmp(te.cfgPrice) < 0) {
 		te.price.Set(te.cfgPrice)
