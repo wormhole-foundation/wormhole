@@ -99,11 +99,6 @@ export const CHAINS: ChainInfo[] =
           logo: klaytnIcon,
         },
         {
-          id: CHAIN_ID_NEON,
-          name: "Neon",
-          logo: neonIcon,
-        },
-        {
           id: CHAIN_ID_OASIS,
           name: "Oasis",
           logo: oasisIcon,
