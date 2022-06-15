@@ -506,9 +506,7 @@ func StringToAddress(value string) (Address, error) {
 	}
 
 	// Trim any preceding "0x" to the address
-	if value[0:2] == "0x" {
-		value = value[2:]
-	}
+	value = strings.TrimPrefix(value, "0x")
 
 	// Decode the string from hex to binary
 	res, err := hex.DecodeString(value)
