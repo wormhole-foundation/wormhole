@@ -1,9 +1,9 @@
 // The purpose of the Chain Governor is to limit the notional TVL that can leave a chain in a single day.
-// It works by tracking transfers (types one and three) for a configured set of tokens from a configured set of emitters.
+// It works by tracking transfers (types one and three) for a configured set of tokens from a configured set of emitters (chains).
 //
-// To compute the notional value for a transfer, it uses the amount from the transfer multiplied by the maximum of
+// To compute the notional value of a transfer, the governor uses the amount from the transfer multiplied by the maximum of
 // a hard coded price and the latest price pulled from CoinkGecko (every five minutes). Once a transfer is published,
-// its value is fixed. However the value of pending transfers is computed using the latest price each interval.
+// its value (as factored into the daily total) is fixed. However the value of pending transfers is computed using the latest price each interval.
 //
 // The governor maintains a rolling 24 hour window of transfers that have been received from a configured chain (emitter)
 // and compares that value to the configured limit for that chain. If a new transfer would exceed the limit, then it is
@@ -16,10 +16,16 @@
 //
 // The chain governor supports the following admin client commands:
 //   - cgov-status - displays the status of the chain governor to the log file.
-//   - cgov-drop-pending-vaa [VAA_ID] - removes the specified pending transfer from the pending list and discards it.
-//   - cgov-release-pending-vaa [VAA_ID] - removes the specified pending transfer from the pending list and publishes it, without regard for the threshold.
+//   - cgov-drop-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and discards it.
+//   - cgov-release-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and publishes it, without regard to the threshold.
 //
 // The VAA_ID is of the form "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/3", which is "emitter chain / emitter address / sequence number".
+//
+// The set of tokens to be monitored is specified in tokens.go, which can be auto generated using the tool in node/hack/governor. See the README there.
+//
+// The set of chains to be monitored is specified in chains.go, which can be edited by hand.
+//
+// To enable the chain governor, you must specified the --chainGovernorEnabled guardiand command line argument.
 
 package governor
 
@@ -260,10 +266,12 @@ func (gov *ChainGovernor) InitConfigForTest(
 }
 
 func (gov *ChainGovernor) loadFromDB() error {
-	gov.logger.Info("cgov: loadFromDB")
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
+	return gov.loadFromDBAlreadyLocked()
+}
 
+func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
 		gov.logger.Error("cgov: failed to reload transactions from db", zap.Error(err))
@@ -340,14 +348,14 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
 			zap.Stringer("EmitterChain", k.EmitterChain),
 			zap.Stringer("EmitterAddress", k.EmitterAddress),
-			zap.Stringer("tokenChain", payload.TokenChainID),
-			zap.Stringer("tokenAddress", payload.TokenAddress),
+			zap.Stringer("tokenChain", payload.OriginChain),
+			zap.Stringer("tokenAddress", payload.OriginAddress),
 			zap.Error(err),
 		)
 		return
 	}
 
-	tk := tokenKey{chain: payload.TokenChainID, addr: payload.TokenAddress}
+	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
 		gov.logger.Error("cgov: reloaded pending transfer for unsupported token, dropping it",
@@ -359,8 +367,8 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
 			zap.Stringer("EmitterChain", k.EmitterChain),
 			zap.Stringer("EmitterAddress", k.EmitterAddress),
-			zap.Stringer("tokenChain", payload.TokenChainID),
-			zap.Stringer("tokenAddress", payload.TokenAddress),
+			zap.Stringer("tokenChain", payload.OriginChain),
+			zap.Stringer("tokenAddress", payload.OriginAddress),
 		)
 		return
 	}
@@ -381,13 +389,13 @@ func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, no
 }
 
 func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTime time.Time) {
-	ce, exists := gov.chains[t.EmitterChainID]
+	ce, exists := gov.chains[t.EmitterChain]
 	if !exists {
 		gov.logger.Error("cgov: reloaded transfer for unsupported chain, dropping it",
 			zap.Stringer("Timestamp", t.Timestamp),
 			zap.Uint64("Value", t.Value),
-			zap.Stringer("TokenChainID", t.TokenChainID),
-			zap.Stringer("TokenAddress", t.TokenAddress),
+			zap.Stringer("EmitterChain", t.EmitterChain),
+			zap.Stringer("EmitterAddress", t.EmitterAddress),
 			zap.String("MsgID", t.MsgID),
 		)
 		return
@@ -397,21 +405,21 @@ func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTim
 		gov.logger.Error("cgov: reloaded transfer for unsupported emitter address, dropping it",
 			zap.Stringer("Timestamp", t.Timestamp),
 			zap.Uint64("Value", t.Value),
-			zap.Stringer("TokenChainID", t.TokenChainID),
-			zap.Stringer("TokenAddress", t.TokenAddress),
+			zap.Stringer("OriginChain", t.OriginChain),
+			zap.Stringer("OriginAddress", t.OriginAddress),
 			zap.String("MsgID", t.MsgID),
 		)
 		return
 	}
 
-	tk := tokenKey{chain: t.TokenChainID, addr: t.TokenAddress}
+	tk := tokenKey{chain: t.OriginChain, addr: t.OriginAddress}
 	_, exists = gov.tokens[tk]
 	if !exists {
 		gov.logger.Error("cgov: reloaded transfer for unsupported token, dropping it",
 			zap.Stringer("Timestamp", t.Timestamp),
 			zap.Uint64("Value", t.Value),
-			zap.Stringer("TokenChainID", t.TokenChainID),
-			zap.Stringer("TokenAddress", t.TokenAddress),
+			zap.Stringer("OriginChain", t.OriginChain),
+			zap.Stringer("OriginAddress", t.OriginAddress),
 			zap.String("MsgID", t.MsgID),
 		)
 		return
@@ -420,8 +428,8 @@ func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTim
 	gov.logger.Info("cgov: reloaded transfer",
 		zap.Stringer("Timestamp", t.Timestamp),
 		zap.Uint64("Value", t.Value),
-		zap.Stringer("TokenChainID", t.TokenChainID),
-		zap.Stringer("TokenAddress", t.TokenAddress),
+		zap.Stringer("OriginChain", t.OriginChain),
+		zap.Stringer("OriginAddress", t.OriginAddress),
 		zap.String("MsgID", t.MsgID),
 	)
 
@@ -562,7 +570,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 	}
 
 	// If we don't care about this token, the VAA can be published.
-	tk := tokenKey{chain: payload.TokenChainID, addr: payload.TokenAddress}
+	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
 		if gov.logger != nil {
@@ -596,34 +604,6 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 			if err != nil {
 				return false, err
 			}
-
-			// TODO: Delete this!
-			xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
-			if err != nil {
-				gov.logger.Error("cgov: failed to read pending transactions from db", zap.Error(err))
-			} else {
-				for _, k := range pending {
-					gov.logger.Info("cgov: pending transfer",
-						zap.Stringer("TxHash", k.TxHash),
-						zap.Stringer("Timestamp", k.Timestamp),
-						zap.Uint32("Nonce", k.Nonce),
-						zap.Uint64("Sequence", k.Sequence),
-						zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
-						zap.Stringer("EmitterChain", k.EmitterChain),
-						zap.Stringer("EmitterAddress", k.EmitterAddress),
-					)
-				}
-
-				for _, t := range xfers {
-					gov.logger.Info("cgov: transfer",
-						zap.Stringer("Timestamp", t.Timestamp),
-						zap.Uint64("Value", t.Value),
-						zap.Stringer("TokenChainID", t.TokenChainID),
-						zap.Stringer("TokenAddress", t.TokenAddress),
-						zap.String("MsgID", t.MsgID),
-					)
-				}
-			}
 		}
 
 		return false, nil
@@ -637,7 +617,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 			zap.String("msgID", k.MessageIDString()))
 	}
 
-	xfer := db.Transfer{Timestamp: now, Value: value, TokenChainID: token.token.chain, TokenAddress: token.token.addr, MsgID: k.MessageIDString()}
+	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: k.EmitterChain, EmitterAddress: k.EmitterAddress, MsgID: k.MessageIDString()}
 	ce.transfers = append(ce.transfers, xfer)
 	if gov.db != nil {
 		err = gov.db.StoreTransfer(&xfer)
@@ -704,7 +684,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 
 			msgsToPublish = append(msgsToPublish, pe.msg)
 
-			xfer := db.Transfer{Timestamp: now, Value: value, TokenChainID: pe.token.token.chain, TokenAddress: pe.token.token.addr, MsgID: pe.msg.MessageIDString()}
+			xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr, EmitterChain: pe.msg.EmitterChain, EmitterAddress: pe.msg.EmitterAddress, MsgID: pe.msg.MessageIDString()}
 			ce.transfers = append(ce.transfers, xfer)
 
 			if gov.db != nil {
@@ -813,6 +793,20 @@ func (gov *ChainGovernor) Status() string {
 	}
 
 	return "grep the log for \"cgov:\" for status"
+}
+
+func (gov *ChainGovernor) Reload() string {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	for _, ce := range gov.chains {
+		ce.transfers = nil
+		ce.pending = nil
+	}
+
+	gov.loadFromDBAlreadyLocked()
+
+	return "chain governor has been reset and reloaded"
 }
 
 func (gov *ChainGovernor) DropPendingVAA(vaaId string) string {

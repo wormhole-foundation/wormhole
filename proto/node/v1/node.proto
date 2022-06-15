@@ -32,6 +32,9 @@ service NodePrivilegedService {
   // ChainGovernorStatus displays the status of the chain governor.
   rpc ChainGovernorStatus (ChainGovernorStatusRequest) returns (ChainGovernorStatusResponse);
 
+  // ChainGovernorReload clears the chain governor history and reloads it from the database.
+  rpc ChainGovernorReload (ChainGovernorReloadRequest) returns (ChainGovernorReloadResponse);
+
   // ChainGovernorDropPendingVAA drops a VAA from the chain governor pending list.
   rpc ChainGovernorDropPendingVAA (ChainGovernorDropPendingVAARequest) returns (ChainGovernorDropPendingVAAResponse);
 
@@ -162,6 +165,12 @@ message SendObservationRequestResponse {}
 message ChainGovernorStatusRequest {}
 
 message ChainGovernorStatusResponse {
+  string response = 1;
+}
+
+message ChainGovernorReloadRequest {}
+
+message ChainGovernorReloadResponse {
   string response = 1;
 }
 
