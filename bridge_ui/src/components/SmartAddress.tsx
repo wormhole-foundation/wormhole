@@ -16,6 +16,9 @@ import {
   CHAIN_ID_TERRA,
   isNativeDenom,
   CHAIN_ID_ACALA,
+  isTerraChain,
+  CHAIN_ID_TERRA2,
+  TerraChainId,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
 import { FileCopy, OpenInNew } from "@material-ui/icons";
@@ -87,10 +90,10 @@ export default function SmartAddress({
   isAsset?: boolean;
 }) {
   const classes = useStyles();
-  const isNativeTerra = chainId === CHAIN_ID_TERRA && isNativeDenom(address);
+  const isNativeTerra = isTerraChain(chainId) && isNativeDenom(address);
   const useableAddress = parsedTokenAccount?.mintKey || address || "";
   const useableSymbol = isNativeTerra
-    ? formatNativeDenom(address)
+    ? formatNativeDenom(address || "", chainId as TerraChainId)
     : parsedTokenAccount?.symbol || symbol || "";
   // const useableLogo = logo || isNativeTerra ? getNativeTerraIcon(useableSymbol) : null
   const isNative = parsedTokenAccount?.isNativeAsset || isNativeTerra || false;
@@ -170,12 +173,16 @@ export default function SmartAddress({
           : ""
       }`
     : chainId === CHAIN_ID_TERRA
+    ? CLUSTER === "mainnet"
+      ? `https://finder.terra.money/columbus-5/address/${useableAddress}`
+      : undefined
+    : chainId === CHAIN_ID_TERRA2
     ? `https://finder.terra.money/${
         CLUSTER === "devnet"
           ? "localterra"
           : CLUSTER === "testnet"
-          ? "bombay-12"
-          : "columbus-5"
+          ? "pisco-1"
+          : "phoenix-1"
       }/address/${useableAddress}`
     : chainId === CHAIN_ID_ALGORAND
     ? `https://${CLUSTER === "testnet" ? "testnet." : ""}algoexplorer.io/${

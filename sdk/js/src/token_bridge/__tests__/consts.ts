@@ -52,17 +52,20 @@ export const TERRA_HOST =
         URL: "https://lcd.terra.dev",
         chainID: "columbus-5",
         name: "mainnet",
+        isClassic: true,
       }
     : CLUSTER === "testnet"
     ? {
         URL: "https://bombay-lcd.terra.dev",
         chainID: "bombay-12",
         name: "testnet",
+        isClassic: true,
       }
     : {
         URL: TERRA_NODE_URL,
         chainID: "columbus-5",
         name: "localterra",
+        isClassic: true,
       };
 
 describe("consts should exist", () => {

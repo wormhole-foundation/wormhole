@@ -7,16 +7,17 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_KLAYTN,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   getEmitterAddressAlgorand,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
   isEVMChain,
+  isTerraChain,
   parseSequenceFromLogAlgorand,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
+  TerraChainId,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { Alert } from "@material-ui/lab";
@@ -57,7 +58,6 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
@@ -230,19 +230,25 @@ async function terra(
   enqueueSnackbar: any,
   wallet: ConnectedWallet,
   asset: string,
-  feeDenom: string
+  feeDenom: string,
+  chainId: TerraChainId
 ) {
   dispatch(setIsSending(true));
   try {
+    const tokenBridgeAddress = getTokenBridgeAddressForChain(chainId)
     const msg = await attestFromTerra(
-      TERRA_TOKEN_BRIDGE_ADDRESS,
+      tokenBridgeAddress,
       wallet.terraAddress,
       asset
     );
-    const result = await postWithFees(wallet, [msg], "Create Wrapped", [
-      feeDenom,
-    ]);
-    const info = await waitForTerraExecution(result);
+    const result = await postWithFees(
+      wallet,
+      [msg],
+      "Create Wrapped",
+      [feeDenom],
+      chainId
+    );
+    const info = await waitForTerraExecution(result, chainId);
     dispatch(setAttestTx({ id: info.txhash, block: info.height }));
     enqueueSnackbar(null, {
       content: <Alert severity="success">Transaction confirmed</Alert>,
@@ -252,13 +258,13 @@ async function terra(
       throw new Error("Sequence not found");
     }
     const emitterAddress = await getEmitterAddressTerra(
-      TERRA_TOKEN_BRIDGE_ADDRESS
+      tokenBridgeAddress,
     );
     enqueueSnackbar(null, {
       content: <Alert severity="info">Fetching VAA</Alert>,
     });
     const { vaaBytes } = await getSignedVAAWithRetry(
-      CHAIN_ID_TERRA,
+      chainId,
       emitterAddress,
       sequence
     );
@@ -295,8 +301,15 @@ export function useHandleAttest() {
       evm(dispatch, enqueueSnackbar, signer, sourceAsset, sourceChain);
     } else if (sourceChain === CHAIN_ID_SOLANA && !!solanaWallet && !!solPK) {
       solana(dispatch, enqueueSnackbar, solPK, sourceAsset, solanaWallet);
-    } else if (sourceChain === CHAIN_ID_TERRA && !!terraWallet) {
-      terra(dispatch, enqueueSnackbar, terraWallet, sourceAsset, terraFeeDenom);
+    } else if (isTerraChain(sourceChain) && !!terraWallet) {
+      terra(
+        dispatch,
+        enqueueSnackbar,
+        terraWallet,
+        sourceAsset,
+        terraFeeDenom,
+        sourceChain
+      );
     } else if (sourceChain === CHAIN_ID_ALGORAND && algoAccounts[0]) {
       algo(dispatch, enqueueSnackbar, algoAccounts[0].address, sourceAsset);
     } else {

@@ -111,6 +111,7 @@ import {
 } from "./consts";
 import {
   getSignedVAABySequence,
+  getTerraGasPrices,
   queryBalanceOnTerra,
   transferFromEthToSolana,
   waitForTerraExecution,
@@ -653,6 +654,7 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -663,9 +665,7 @@ describe("Integration Tests", () => {
             wallet.key.accAddress,
             signedVAA
           );
-          const gasPrices = await axios
-            .get(TERRA_GAS_PRICES_URL)
-            .then((result) => result.data);
+          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -716,6 +716,7 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
 
           // Get initial wallet balances
@@ -813,9 +814,7 @@ describe("Integration Tests", () => {
             wallet.key.accAddress,
             signedVAA
           );
-          const gasPrices = await axios
-            .get(TERRA_GAS_PRICES_URL)
-            .then((result) => result.data);
+          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -883,14 +882,13 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
           });
           const wallet = lcd.wallet(mk);
-          const gasPrices = await axios
-            .get(TERRA_GAS_PRICES_URL)
-            .then((result) => result.data);
+          const gasPrices = await getTerraGasPrices();
           // deposit some tokens (separate transactions)
           for (let i = 0; i < 3; i++) {
             const deposit = new MsgExecuteContract(
@@ -1145,6 +1143,7 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -1158,7 +1157,7 @@ describe("Integration Tests", () => {
             TerraWalletAddress,
             Asset
           );
-          const gasPrices = await lcd.config.gasPrices;
+          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -1231,6 +1230,7 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -1293,7 +1293,7 @@ describe("Integration Tests", () => {
             CHAIN_ID_ETH,
             hexToUint8Array(hexStr) // This needs to be ETH wallet
           );
-          const gasPrices = await lcd.config.gasPrices;
+          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -1376,6 +1376,7 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -1452,9 +1453,7 @@ describe("Integration Tests", () => {
             wallet.key.accAddress,
             signedVAA
           );
-          const gasPrices = await axios
-            .get(TERRA_GAS_PRICES_URL)
-            .then((result) => result.data);
+          const gasPrices = await getTerraGasPrices();
           const feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -1524,6 +1523,7 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -1536,7 +1536,7 @@ describe("Integration Tests", () => {
             TerraWalletAddress,
             CW20
           );
-          let gasPrices = await lcd.config.gasPrices;
+          const gasPrices = await getTerraGasPrices();
           let feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -1656,7 +1656,6 @@ describe("Integration Tests", () => {
             CHAIN_ID_ETH,
             hexToUint8Array(hexStr) // This needs to be ETH wallet
           );
-          gasPrices = await lcd.config.gasPrices;
           feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -1771,9 +1770,6 @@ describe("Integration Tests", () => {
             wallet.key.accAddress,
             signedVAA
           );
-          gasPrices = await axios
-            .get(TERRA_GAS_PRICES_URL)
-            .then((result) => result.data);
           feeEstimate = await lcd.tx.estimateFee(
             [
               {
@@ -2354,6 +2350,7 @@ describe("Integration Tests", () => {
           const lcd = new LCDClient({
             URL: TERRA_NODE_URL,
             chainID: TERRA_CHAIN_ID,
+            isClassic: true,
           });
           const mk = new MnemonicKey({
             mnemonic: TERRA_PRIVATE_KEY,
@@ -2370,7 +2367,7 @@ describe("Integration Tests", () => {
             TerraWalletAddress,
             Asset
           );
-          const gasPrices = lcd.config.gasPrices;
+          const gasPrices = await getTerraGasPrices();
           let feeEstimate = await lcd.tx.estimateFee(
             [
               {

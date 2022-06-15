@@ -2,13 +2,13 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   getOriginalAssetAlgorand,
   getOriginalAssetEth,
   getOriginalAssetSol,
   getOriginalAssetTerra,
   hexToNativeAssetString,
   isEVMChain,
+  isTerraChain,
   uint8ArrayToHex,
   uint8ArrayToNative,
 } from "@certusone/wormhole-sdk";
@@ -37,7 +37,7 @@ import {
   SOLANA_SYSTEM_PROGRAM_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_HOST,
+  getTerraConfig,
 } from "../utils/consts";
 import useIsWalletReady from "./useIsWalletReady";
 
@@ -68,9 +68,13 @@ export async function getOriginalAssetToken(
         SOL_TOKEN_BRIDGE_ADDRESS,
         foreignNativeStringAddress
       );
-    } else if (foreignChain === CHAIN_ID_TERRA) {
-      const lcd = new LCDClient(TERRA_HOST);
-      promise = await getOriginalAssetTerra(lcd, foreignNativeStringAddress);
+    } else if (isTerraChain(foreignChain)) {
+      const lcd = new LCDClient(getTerraConfig(foreignChain));
+      promise = await getOriginalAssetTerra(
+        lcd,
+        foreignNativeStringAddress,
+        foreignChain
+      );
     } else if (foreignChain === CHAIN_ID_ALGORAND) {
       const algodClient = new Algodv2(
         ALGORAND_HOST.algodToken,

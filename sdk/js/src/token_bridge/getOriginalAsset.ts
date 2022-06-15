@@ -69,12 +69,13 @@ export async function getOriginalAssetEth(
 
 export async function getOriginalAssetTerra(
   client: LCDClient,
-  wrappedAddress: string
+  wrappedAddress: string,
+  lookupChain: ChainId | ChainName
 ): Promise<WormholeWrappedInfo> {
   if (isNativeDenom(wrappedAddress)) {
     return {
       isWrapped: false,
-      chainId: CHAIN_ID_TERRA,
+      chainId: coalesceChainId(lookupChain),
       assetAddress: buildNativeId(wrappedAddress),
     };
   }
@@ -98,7 +99,7 @@ export async function getOriginalAssetTerra(
   } catch (e) {}
   return {
     isWrapped: false,
-    chainId: CHAIN_ID_TERRA,
+    chainId: coalesceChainId(lookupChain),
     assetAddress: zeroPad(canonicalAddress(wrappedAddress), 32),
   };
 }
