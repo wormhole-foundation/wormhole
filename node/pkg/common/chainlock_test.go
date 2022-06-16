@@ -98,55 +98,71 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 }
 
 func TestMessageIDString(t *testing.T) {
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
-	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	addr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	assert.NoError(t, err)
 
-	payloadBytes1 := buildMockTransferPayloadBytes(1,
-		vaa.ChainIDEthereum,
-		tokenAddrStr,
-		vaa.ChainIDPolygon,
-		toAddrStr,
-		270,
-	)
-
-	msg := &MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654516425), 0),
-		Nonce:            123456,
-		Sequence:         789101112131415,
-		EmitterChain:     vaa.ChainIDEthereum,
-		EmitterAddress:   tokenBridgeAddr,
-		Payload:          payloadBytes1,
-		ConsistencyLevel: 16,
+	type test struct {
+		label  string
+		input  MessagePublication
+		output string
 	}
 
-	assert.Equal(t, "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415", msg.MessageIDString())
+	tests := []test{
+		{label: "simple",
+			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
+		{label: "missing sequence",
+			input:  MessagePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"},
+		{label: "missing chain id",
+			input:  MessagePublication{Sequence: 1, EmitterAddress: addr},
+			output: "0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
+		{label: "missing emitter address",
+			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
+			output: "2/0000000000000000000000000000000000000000000000000000000000000000/1"},
+		{label: "empty message",
+			input:  MessagePublication{},
+			output: "0/0000000000000000000000000000000000000000000000000000000000000000/0"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.label, func(t *testing.T) {
+			assert.Equal(t, tc.output, tc.input.MessageIDString())
+		})
+	}
 }
 
 func TestMessageID(t *testing.T) {
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
-	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	addr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	assert.NoError(t, err)
 
-	payloadBytes1 := buildMockTransferPayloadBytes(1,
-		vaa.ChainIDEthereum,
-		tokenAddrStr,
-		vaa.ChainIDPolygon,
-		toAddrStr,
-		270,
-	)
-
-	msg := &MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654516425), 0),
-		Nonce:            123456,
-		Sequence:         789101112131415,
-		EmitterChain:     vaa.ChainIDEthereum,
-		EmitterAddress:   tokenBridgeAddr,
-		Payload:          payloadBytes1,
-		ConsistencyLevel: 16,
+	type test struct {
+		label  string
+		input  MessagePublication
+		output []byte
 	}
 
-	assert.Equal(t, []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), msg.MessageID())
+	tests := []test{
+		{label: "simple",
+			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
+		{label: "missing sequence",
+			input:  MessagePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")},
+		{label: "missing chain id",
+			input:  MessagePublication{Sequence: 1, EmitterAddress: addr},
+			output: []byte("0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
+		{label: "missing emitter address",
+			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
+			output: []byte("2/0000000000000000000000000000000000000000000000000000000000000000/1")},
+		{label: "empty message",
+			input:  MessagePublication{},
+			output: []byte("0/0000000000000000000000000000000000000000000000000000000000000000/0")},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.label, func(t *testing.T) {
+			assert.Equal(t, tc.output, tc.input.MessageID())
+		})
+	}
 }
