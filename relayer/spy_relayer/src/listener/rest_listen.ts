@@ -6,8 +6,7 @@ import { getLogger } from "../helpers/logHelper";
 let logger = getLogger();
 let env: ListenerEnvironment;
 
-export function init(runRest: boolean): boolean {
-  if (!runRest) return true;
+export function init(): boolean {
   try {
     env = getListenerEnvironment();
   } catch (e) {

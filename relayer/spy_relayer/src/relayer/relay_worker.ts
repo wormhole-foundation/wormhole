@@ -36,9 +36,7 @@ type WorkableItem = {
   value: string;
 };
 
-export function init(runWorker: boolean): boolean {
-  if (!runWorker) return true;
-
+export function init(): boolean {
   try {
     relayerEnv = getRelayerEnvironment();
   } catch (e) {

@@ -8,9 +8,7 @@ let metrics: PromHelper;
 const logger = getLogger();
 let relayerEnv: RelayerEnvironment;
 
-export function init(runWorker: boolean): boolean {
-  if (!runWorker) return true;
-
+export function init(): boolean {
   try {
     relayerEnv = getRelayerEnvironment();
   } catch (e) {

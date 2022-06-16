@@ -13,8 +13,7 @@ let env: ListenerEnvironment;
 let logger = getLogger();
 let vaaUriPrelude: string;
 
-export function init(runListen: boolean): boolean {
-  if (!runListen) return true;
+export function init(): boolean {
   try {
     env = getListenerEnvironment();
     vaaUriPrelude =
