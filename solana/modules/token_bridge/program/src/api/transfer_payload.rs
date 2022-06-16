@@ -46,14 +46,14 @@ use super::{
 // Sender
 
 #[repr(transparent)]
-pub struct Sender<'b>(MaybeMut<Signer<Info<'b>>>);
+pub struct SenderAccount<'b>(pub MaybeMut<Signer<Info<'b>>>);
 
-impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Sender<'b> {
+impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for SenderAccount<'b> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
     where
         Self: Sized,
     {
-        Ok(Sender(MaybeMut::peel(ctx)?))
+        Ok(SenderAccount(MaybeMut::peel(ctx)?))
     }
 
     fn deps() -> Vec<Pubkey> {
@@ -67,13 +67,13 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Sender<'b> {
 
 // May or may not be a PDA, so we don't use [`Derive`], instead implement
 // [`Seeded`] directly.
-impl<'b> Seeded<()> for Sender<'b> {
+impl<'b> Seeded<()> for SenderAccount<'b> {
     fn seeds(_accs: ()) -> Vec<Vec<u8>> {
         vec![String::from("sender").as_bytes().to_vec()]
     }
 }
 
-impl<'a, 'b: 'a> Keyed<'a, 'b> for Sender<'b> {
+impl<'a, 'b: 'a> Keyed<'a, 'b> for SenderAccount<'b> {
     fn info(&'a self) -> &Info<'b> {
         &self.0
     }
@@ -86,13 +86,13 @@ impl<'a, 'b: 'a> Keyed<'a, 'b> for Sender<'b> {
 /// Since on Solana, a transaction can have multiple different signers, getting
 /// this information is not so straightforward.
 /// The strategy we use to figure out the sender of the transaction is to
-/// require an additional signer ([`Sender`]) for the transaction.
+/// require an additional signer ([`SenderAccount`]) for the transaction.
 /// If the transaction was sent by a user wallet directly, then this may just be
 /// the wallet's pubkey. If, however, the transaction was initiated by a
 /// program, then we require this to be a PDA derived from the sender program's
 /// id and the string "sender". In this case, the sender program must also
 /// attach its program id to the instruction data. If the PDA verification
-/// succeeds (thereby proving that [`cpi_program_id`] indeed signed the
+/// succeeds (thereby proving that [[`cpi_program_id`]] indeed signed the
 /// transaction), then the program's id is attached to the VAA as the sender,
 /// otherwise the transaction is rejected.
 ///
@@ -107,11 +107,11 @@ impl<'a, 'b: 'a> Keyed<'a, 'b> for Sender<'b> {
 /// send across. The legitimacy of the attached data can be verified by checking
 /// that the sender contract is a trusted one.
 ///
-/// Also note that attaching the correct PDA as [`Sender`] but missing the
-/// [`cpi_program_id`] field will result in a successful transaction, but in
+/// Also note that attaching the correct PDA as [[`SenderAccount`]] but missing the
+/// [[`cpi_program_id`]] field will result in a successful transaction, but in
 /// that case the PDA's address will directly be encoded into the payload
 /// instead of the sender program's id.
-fn derive_sender_address(sender: &Sender, cpi_program_id: &Option<Pubkey>) -> Result<Address> {
+fn derive_sender_address(sender: &SenderAccount, cpi_program_id: &Option<Pubkey>) -> Result<Address> {
     match cpi_program_id {
         Some(cpi_program_id) => {
             sender.verify_derivation(cpi_program_id, ())?;
@@ -157,7 +157,7 @@ pub struct TransferNativeWithPayload<'b> {
     pub clock: Sysvar<'b, Clock>,
 
     /// See [`derive_sender_address`]
-    pub sender: Sender<'b>,
+    pub sender: SenderAccount<'b>,
 }
 
 impl<'a> From<&TransferNativeWithPayload<'a>> for CustodyAccountDerivationData {
@@ -277,7 +277,7 @@ pub struct TransferWrappedWithPayload<'b> {
     pub clock: Sysvar<'b, Clock>,
 
     /// See [`derive_sender_address`]
-    pub sender: Sender<'b>,
+    pub sender: SenderAccount<'b>,
 }
 
 impl<'a> From<&TransferWrappedWithPayload<'a>> for WrappedDerivationData {

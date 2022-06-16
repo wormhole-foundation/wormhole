@@ -24,6 +24,7 @@ use crate::{
         AttestTokenData,
         CreateWrappedData,
         RegisterChainData,
+        SenderAccount,
         TransferNativeData,
         TransferWrappedData,
         UpgradeContractData,
@@ -447,6 +448,26 @@ fn claimable_vaa(
     )
 }
 
+/// Required accounts
+///
+/// | name             | account                                                           | signer |
+/// |------------------+-------------------------------------------------------------------+--------|
+/// | payer            | Pubkey                                                            | true   |
+/// | config           | PDA(program_id, ["config"])                                       | false  |
+/// | from             | Pubkey                                                            | false  |
+/// | mint             | Pubkey                                                            | false  |
+/// | custody          | PDA(program_id, [mint])                                           | false  |
+/// | authority_signer | PDA(program_id, ["authority_signer"])                             | false  |
+/// | custody_signer   | PDA(program_id, ["custody_signer"])                               | false  |
+/// | bridge_config    | PDA(bridge_id,  ["Bridge"])                                       | false  |
+/// | message          | Pubkey                                                            | true   |
+/// | emitter          | PDA(program_id, ["emitter"])                                      | false  |
+/// | sequence         | PDA(bridge_id,  ["Sequence", emitter])                            | false  |
+/// | fee_collector    | PDA(bridge_id,  ["fee_collector"])                                | false  |
+/// | rent             | rent sysvar                                                       | false  |
+/// | system_program   | system program                                                    | false  |
+/// | bridge_id        | bridge_id program                                                 | false  |
+/// | spl_token        | spl_token program                                                 | false  |
 pub fn transfer_native(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -455,50 +476,6 @@ pub fn transfer_native(
     from: Pubkey,
     mint: Pubkey,
     data: TransferNativeData,
-) -> solitaire::Result<Instruction> {
-    transfer_native_raw(
-        program_id,
-        bridge_id,
-        payer,
-        message_key,
-        from,
-        mint,
-        (crate::instruction::Instruction::TransferNative, data).try_to_vec()?,
-    )
-}
-
-pub fn transfer_native_with_payload(
-    program_id: Pubkey,
-    bridge_id: Pubkey,
-    payer: Pubkey,
-    message_key: Pubkey,
-    from: Pubkey,
-    mint: Pubkey,
-    data: TransferNativeWithPayloadData,
-) -> solitaire::Result<Instruction> {
-    transfer_native_raw(
-        program_id,
-        bridge_id,
-        payer,
-        message_key,
-        from,
-        mint,
-        (
-            crate::instruction::Instruction::TransferNativeWithPayload,
-            data,
-        )
-            .try_to_vec()?,
-    )
-}
-
-fn transfer_native_raw(
-    program_id: Pubkey,
-    bridge_id: Pubkey,
-    payer: Pubkey,
-    message_key: Pubkey,
-    from: Pubkey,
-    mint: Pubkey,
-    data: Vec<u8>,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let custody_key = CustodyAccount::<'_, { AccountState::Initialized }>::key(
@@ -519,6 +496,8 @@ fn transfer_native_raw(
         &bridge_id,
     );
     let fee_collector_key = FeeCollector::key(None, &bridge_id);
+
+    let instruction = crate::instruction::Instruction::TransferNative;
 
     Ok(Instruction {
         program_id,
@@ -543,7 +522,92 @@ fn transfer_native_raw(
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
-        data,
+        data: (instruction, data).try_to_vec()?,
+    })
+}
+
+/// Required accounts
+///
+/// | name             | account                                                                | signer |
+/// |------------------+------------------------------------------------------------------------+--------|
+/// | payer            | Pubkey                                                                 | true   |
+/// | config           | PDA(program_id, \["config"\])                                          | false  |
+/// | from             | Pubkey                                                                 | false  |
+/// | mint             | Pubkey                                                                 | false  |
+/// | custody          | PDA(program_id, \[mint\])                                              | false  |
+/// | authority_signer | PDA(program_id, \["authority_signer"\])                                | false  |
+/// | custody_signer   | PDA(program_id, \["custody_signer"\])                                  | false  |
+/// | bridge_config    | PDA(bridge_id,  \["Bridge"\])                                          | false  |
+/// | message          | Pubkey                                                                 | true   |
+/// | emitter          | PDA(program_id, \["emitter"\])                                         | false  |
+/// | sequence         | PDA(bridge_id,  \["Sequence", emitter\])                               | false  |
+/// | fee_collector    | PDA(bridge_id,  \["fee_collector"\])                                   | false  |
+/// | sender           | if Some(p) = data.cpi_program_id then PDA(p, \["sender"\]) else payer  | true   |
+/// | rent             | rent sysvar                                                            | false  |
+/// | system_program   | system program                                                         | false  |
+/// | bridge_id        | bridge_id program                                                      | false  |
+/// | spl_token        | spl_token program                                                      | false  |
+pub fn transfer_native_with_payload(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    from: Pubkey,
+    mint: Pubkey,
+    data: TransferNativeWithPayloadData,
+) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let custody_key = CustodyAccount::<'_, { AccountState::Initialized }>::key(
+        &CustodyAccountDerivationData { mint },
+        &program_id,
+    );
+
+    let authority_signer_key = AuthoritySigner::key(None, &program_id);
+    let custody_signer_key = CustodySigner::key(None, &program_id);
+    let emitter_key = EmitterAccount::key(None, &program_id);
+
+    // Bridge keys
+    let bridge_config = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &bridge_id);
+    let sequence_key = Sequence::key(
+        &SequenceDerivationData {
+            emitter_key: &emitter_key,
+        },
+        &bridge_id,
+    );
+    let fee_collector_key = FeeCollector::key(None, &bridge_id);
+
+    let sender = match data.cpi_program_id {
+        Some(cpi_program_id) => SenderAccount::key((), &cpi_program_id),
+        None => payer,
+    };
+
+    let instruction = crate::instruction::Instruction::TransferNativeWithPayload;
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(config_key, false),
+            AccountMeta::new(from, false),
+            AccountMeta::new(mint, false),
+            AccountMeta::new(custody_key, false),
+            AccountMeta::new_readonly(authority_signer_key, false),
+            AccountMeta::new_readonly(custody_signer_key, false),
+            AccountMeta::new(bridge_config, false),
+            AccountMeta::new(message_key, true),
+            AccountMeta::new_readonly(emitter_key, false),
+            AccountMeta::new(sequence_key, false),
+            AccountMeta::new(fee_collector_key, false),
+            AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
+            AccountMeta::new(sender, true),
+            // Dependencies
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            // Program
+            AccountMeta::new_readonly(bridge_id, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data: (instruction, data).try_to_vec()?,
     })
 }
 
