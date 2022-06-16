@@ -1,4 +1,4 @@
-import { CHAIN_ID_ALGORAND } from "@certusone/wormhole-sdk";
+import { ChainId, CHAIN_ID_ALGORAND } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
 import { Algodv2 } from "algosdk";
 import React, { useCallback } from "react";
@@ -85,17 +85,20 @@ export default function AlgoTokenPicker(props: AlgoTokenPickerProps) {
     [walletAddress]
   );
 
-  const isSearchableAddress = useCallback((address: string) => {
-    if (address.length === 0) {
-      return false;
-    }
-    try {
-      parseInt(address);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }, []);
+  const isSearchableAddress = useCallback(
+    (address: string, chainId: ChainId) => {
+      if (address.length === 0) {
+        return false;
+      }
+      try {
+        parseInt(address);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    []
+  );
 
   const RenderComp = useCallback(
     ({ account }: { account: NFTParsedTokenAccount }) => {

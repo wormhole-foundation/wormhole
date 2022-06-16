@@ -4,7 +4,6 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_KARURA,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   getEmitterAddressAlgorand,
   getEmitterAddressEth,
   getEmitterAddressSolana,
@@ -14,12 +13,14 @@ import {
   hexToUint8Array,
   importCoreWasm,
   isEVMChain,
+  isTerraChain,
   parseNFTPayload,
   parseSequenceFromLogAlgorand,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
   parseTransferPayload,
+  TerraChainId,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import {
@@ -67,8 +68,7 @@ import {
   SOLANA_HOST,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_HOST,
-  TERRA_TOKEN_BRIDGE_ADDRESS,
+  getTerraConfig,
   WORMHOLE_RPC_HOSTS,
 } from "../utils/consts";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
@@ -201,19 +201,19 @@ async function solana(tx: string, enqueueSnackbar: any, nft: boolean) {
   }
 }
 
-async function terra(tx: string, enqueueSnackbar: any) {
+async function terra(tx: string, enqueueSnackbar: any, chainId: TerraChainId) {
   try {
-    const lcd = new LCDClient(TERRA_HOST);
+    const lcd = new LCDClient(getTerraConfig(chainId));
     const info = await lcd.tx.txInfo(tx);
     const sequence = parseSequenceFromLogTerra(info);
     if (!sequence) {
       throw new Error("Sequence not found");
     }
     const emitterAddress = await getEmitterAddressTerra(
-      TERRA_TOKEN_BRIDGE_ADDRESS
+      getTokenBridgeAddressForChain(chainId)
     );
     const { vaaBytes } = await getSignedVAAWithRetry(
-      CHAIN_ID_TERRA,
+      chainId,
       emitterAddress,
       sequence,
       WORMHOLE_RPC_HOSTS.length
@@ -467,11 +467,15 @@ export default function Recovery() {
             }
           }
         })();
-      } else if (recoverySourceChain === CHAIN_ID_TERRA) {
+      } else if (isTerraChain(recoverySourceChain)) {
         setRecoverySourceTxError("");
         setRecoverySourceTxIsLoading(true);
         (async () => {
-          const { vaa, error } = await terra(recoverySourceTx, enqueueSnackbar);
+          const { vaa, error } = await terra(
+            recoverySourceTx,
+            enqueueSnackbar,
+            recoverySourceChain
+          );
           if (!cancelled) {
             setRecoverySourceTxIsLoading(false);
             if (vaa) {

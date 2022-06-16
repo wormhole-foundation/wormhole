@@ -1,12 +1,14 @@
+import { TerraChainId } from "@certusone/wormhole-sdk";
 import { LCDClient } from "@terra-money/terra.js";
 import { MutableRefObject, useEffect, useMemo, useState } from "react";
-import { TERRA_HOST } from "../utils/consts";
+import { getTerraConfig } from "../utils/consts";
 
 export interface TerraNativeBalances {
   [index: string]: string;
 }
 
 export default function useTerraNativeBalances(
+  chainId: TerraChainId,
   walletAddress?: string,
   refreshRef?: MutableRefObject<() => void>
 ) {
@@ -25,7 +27,8 @@ export default function useTerraNativeBalances(
     if (walletAddress) {
       setIsLoading(true);
       setBalances(undefined);
-      const lcd = new LCDClient(TERRA_HOST);
+      const lcd = new LCDClient(getTerraConfig(chainId));
+      console.log(lcd);
       lcd.bank
         .balance(walletAddress)
         .then(([coins]) => {
@@ -49,7 +52,7 @@ export default function useTerraNativeBalances(
       setIsLoading(false);
       setBalances(undefined);
     }
-  }, [walletAddress, refresh]);
+  }, [walletAddress, refresh, chainId]);
   const value = useMemo(() => ({ isLoading, balances }), [isLoading, balances]);
   return value;
 }

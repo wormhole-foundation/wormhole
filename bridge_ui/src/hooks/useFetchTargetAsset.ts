@@ -2,7 +2,6 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   getForeignAssetAlgorand,
   getForeignAssetEth,
   getForeignAssetSolana,
@@ -10,6 +9,7 @@ import {
   hexToNativeAssetString,
   hexToUint8Array,
   isEVMChain,
+  isTerraChain,
 } from "@certusone/wormhole-sdk";
 import {
   getForeignAssetEth as getForeignAssetEthNFT,
@@ -51,8 +51,7 @@ import {
   SOLANA_HOST,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_HOST,
-  TERRA_TOKEN_BRIDGE_ADDRESS,
+  getTerraConfig,
 } from "../utils/consts";
 
 function useFetchTargetAsset(nft?: boolean) {
@@ -68,6 +67,7 @@ function useFetchTargetAsset(nft?: boolean) {
   const originAsset = useSelector(
     nft ? selectNFTOriginAsset : selectTransferOriginAsset
   );
+  console.log(originAsset);
   const originTokenId = useSelector(selectNFTOriginTokenId);
   const tokenId = originTokenId || ""; // this should exist by this step for NFT transfers
   const targetChain = useSelector(
@@ -214,12 +214,12 @@ function useFetchTargetAsset(nft?: boolean) {
           }
         }
       }
-      if (targetChain === CHAIN_ID_TERRA && originChain && originAsset) {
+      if (isTerraChain(targetChain) && originChain && originAsset) {
         dispatch(setTargetAsset(fetchDataWrapper()));
         try {
-          const lcd = new LCDClient(TERRA_HOST);
+          const lcd = new LCDClient(getTerraConfig(targetChain));
           const asset = await getForeignAssetTerra(
-            TERRA_TOKEN_BRIDGE_ADDRESS,
+            getTokenBridgeAddressForChain(targetChain),
             lcd,
             originChain,
             hexToUint8Array(originAsset)
