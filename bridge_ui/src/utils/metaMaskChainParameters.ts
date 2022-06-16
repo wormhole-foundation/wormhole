@@ -171,6 +171,13 @@ export const METAMASK_CHAIN_PARAMETERS: {
     rpcUrls: ["https://rpc-mumbai.maticvigil.com"],
     blockExplorerUrls: ["https://mumbai.polygonscan.com"],
   },
+  245022926: {
+    chainId: "0xE9AC0CE",
+    chainName: "remote proxy — solana devnet",
+    nativeCurrency: { name: "NEON", symbol: "NEON", decimals: 18 },
+    rpcUrls: ["https://proxy.devnet.neonlabs.org/solana"],
+    blockExplorerUrls: ["https://neonscan.org/"],
+  },
   1313161554: {
     chainId: "0x4e454152",
     chainName: "Aurora Mainnet",

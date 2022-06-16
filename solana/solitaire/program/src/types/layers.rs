@@ -6,21 +6,10 @@
 //! the layer below, allowing for optimized recursion.
 
 use std::{
-    io::{
-        ErrorKind,
-        Write,
-    },
-    marker::PhantomData,
     ops::{
         Deref,
         DerefMut,
     },
-};
-
-use crate::Info;
-use borsh::{
-    BorshDeserialize,
-    BorshSerialize,
 };
 
 #[repr(transparent)]
@@ -36,7 +25,7 @@ pub struct Signer<Next>(pub Next);
 pub struct System<Next>(pub Next);
 
 #[repr(transparent)]
-pub struct Derive<Next, const Seed: &'static str>(pub Next);
+pub struct Derive<Next, const SEED: &'static str>(pub Next);
 
 // Several traits are required for types defined here, they cannot be defined in another file due
 // to orphan instance limitations.
@@ -93,14 +82,14 @@ impl<T> DerefMut for System<T> {
     }
 }
 
-impl<T, const Seed: &'static str> Deref for Derive<T, Seed> {
+impl<T, const SEED: &'static str> Deref for Derive<T, SEED> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         unsafe { std::mem::transmute(&self.0) }
     }
 }
 
-impl<T, const Seed: &'static str> DerefMut for Derive<T, Seed> {
+impl<T, const SEED: &'static str> DerefMut for Derive<T, SEED> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { std::mem::transmute(&mut self.0) }
     }

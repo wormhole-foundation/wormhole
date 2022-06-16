@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"strings"
 	"time"
 
@@ -58,6 +59,15 @@ type (
 	}
 
 	SignatureData [65]byte
+
+	TransferPayloadHdr struct {
+		Type          uint8
+		Amount        *big.Int
+		OriginAddress Address
+		OriginChain   ChainID
+		TargetAddress Address
+		TargetChain   ChainID
+	}
 )
 
 func (a Address) MarshalJSON() ([]byte, error) {
@@ -116,6 +126,8 @@ func (c ChainID) String() string {
 		return "celo"
 	case ChainIDMoonbeam:
 		return "moonbeam"
+	case ChainIDNeon:
+		return "neon"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -157,6 +169,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDCelo, nil
 	case "moonbeam":
 		return ChainIDMoonbeam, nil
+	case "neon":
+		return ChainIDNeon, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -194,6 +208,8 @@ const (
 	ChainIDCelo ChainID = 14
 	// ChainIDMoonbeam is the ChainID of Moonbeam
 	ChainIDMoonbeam ChainID = 16
+	// ChainIDNeon is the ChainID of Neon
+	ChainIDNeon ChainID = 17
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
@@ -415,6 +431,58 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 	})
 }
 
+// NOTE: This function assumes that the caller has verified that the VAA is from the token bridge.
+func IsTransfer(payload []byte) bool {
+	return (len(payload) > 0) && ((payload[0] == 1) || (payload[0] == 3))
+}
+
+func DecodeTransferPayloadHdr(payload []byte) (*TransferPayloadHdr, error) {
+	if !IsTransfer(payload) {
+		return nil, fmt.Errorf("unsupported payload type")
+	}
+
+	if len(payload) < 101 {
+		return nil, fmt.Errorf("buffer too short")
+	}
+
+	p := &TransferPayloadHdr{}
+
+	// Payload type: payload[0]
+	p.Type = uint8(payload[0])
+
+	// Amount: payload[1] for 32
+	p.Amount = new(big.Int)
+	p.Amount.SetBytes(payload[1:33])
+
+	reader := bytes.NewReader(payload[33:])
+
+	// Origin address: payload[33] for 32
+	err := binary.Read(reader, binary.BigEndian, &p.OriginAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	// Origin chain ID: payload[65] for 2
+	err = binary.Read(reader, binary.BigEndian, &p.OriginChain)
+	if err != nil {
+		return nil, err
+	}
+
+	// Target address: payload[67] for 32
+	err = binary.Read(reader, binary.BigEndian, &p.TargetAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	// Target chain ID: payload[99] for 2
+	err = binary.Read(reader, binary.BigEndian, &p.TargetChain)
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
+}
+
 // MustWrite calls binary.Write and panics on errors
 func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	if err := binary.Write(w, order, data); err != nil {
@@ -422,13 +490,31 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	}
 }
 
-// StringToAddress converts a hex-encoded adress into a vaa.Address
+// StringToAddress converts a hex-encoded address into a vaa.Address
 func StringToAddress(value string) (Address, error) {
 	var address Address
+
+	// Make sure we have enough to decode
+	if len(value) < 2 {
+		return address, fmt.Errorf("value must be at least 1 byte")
+	}
+
+	// Trim any preceding "0x" to the address
+	if value[0:2] == "0x" {
+		value = value[2:]
+	}
+
+	// Decode the string from hex to binary
 	res, err := hex.DecodeString(value)
 	if err != nil {
 		return address, err
 	}
-	copy(address[:], res)
+
+	// Make sure we don't have too many bytes
+	if len(res) > 32 {
+		return address, fmt.Errorf("value must be no more than 32 bytes")
+	}
+	copy(address[32-len(res):], res)
+
 	return address, nil
 }

@@ -2,10 +2,6 @@ use crate::types::*;
 use bridge::{
     accounts::BridgeData,
     api::ForeignAddress,
-    vaa::{
-        DeserializePayload,
-        PayloadMessage,
-    },
 };
 use solana_program::pubkey::Pubkey;
 use solitaire::{
@@ -17,35 +13,35 @@ pub type AuthoritySigner<'b> = Derive<Info<'b>, "authority_signer">;
 pub type CustodySigner<'b> = Derive<Info<'b>, "custody_signer">;
 pub type MintSigner<'b> = Derive<Info<'b>, "mint_signer">;
 
-pub type CoreBridge<'a, const State: AccountState> = Data<'a, BridgeData, { State }>;
+pub type CoreBridge<'a, const STATE: AccountState> = Data<'a, BridgeData, { STATE }>;
 
 pub type EmitterAccount<'b> = Derive<Info<'b>, "emitter">;
 
-pub type ConfigAccount<'b, const State: AccountState> =
-    Derive<Data<'b, Config, { State }>, "config">;
+pub type ConfigAccount<'b, const STATE: AccountState> =
+    Derive<Data<'b, Config, { STATE }>, "config">;
 
-pub type CustodyAccount<'b, const State: AccountState> = Data<'b, SplAccount, { State }>;
+pub type CustodyAccount<'b, const STATE: AccountState> = Data<'b, SplAccount, { STATE }>;
 
 pub struct CustodyAccountDerivationData {
     pub mint: Pubkey,
 }
 
-impl<'b, const State: AccountState> Seeded<&CustodyAccountDerivationData>
-    for CustodyAccount<'b, { State }>
+impl<'b, const STATE: AccountState> Seeded<&CustodyAccountDerivationData>
+    for CustodyAccount<'b, { STATE }>
 {
     fn seeds(accs: &CustodyAccountDerivationData) -> Vec<Vec<u8>> {
         vec![accs.mint.to_bytes().to_vec()]
     }
 }
 
-pub type WrappedMint<'b, const State: AccountState> = Data<'b, SplMint, { State }>;
+pub type WrappedMint<'b, const STATE: AccountState> = Data<'b, SplMint, { STATE }>;
 
 pub struct WrappedDerivationData {
     pub token_chain: ChainID,
     pub token_address: ForeignAddress,
 }
 
-impl<'b, const State: AccountState> Seeded<&WrappedDerivationData> for WrappedMint<'b, { State }> {
+impl<'b, const STATE: AccountState> Seeded<&WrappedDerivationData> for WrappedMint<'b, { STATE }> {
     fn seeds(data: &WrappedDerivationData) -> Vec<Vec<u8>> {
         vec![
             String::from("wrapped").as_bytes().to_vec(),
@@ -55,14 +51,14 @@ impl<'b, const State: AccountState> Seeded<&WrappedDerivationData> for WrappedMi
     }
 }
 
-pub type WrappedTokenMeta<'b, const State: AccountState> = Data<'b, WrappedMeta, { State }>;
+pub type WrappedTokenMeta<'b, const STATE: AccountState> = Data<'b, WrappedMeta, { STATE }>;
 
 pub struct WrappedMetaDerivationData {
     pub mint_key: Pubkey,
 }
 
-impl<'b, const State: AccountState> Seeded<&WrappedMetaDerivationData>
-    for WrappedTokenMeta<'b, { State }>
+impl<'b, const STATE: AccountState> Seeded<&WrappedMetaDerivationData>
+    for WrappedTokenMeta<'b, { STATE }>
 {
     fn seeds(data: &WrappedMetaDerivationData) -> Vec<Vec<u8>> {
         vec![
@@ -73,7 +69,7 @@ impl<'b, const State: AccountState> Seeded<&WrappedMetaDerivationData>
 }
 
 /// Registered chain endpoint
-pub type Endpoint<'b, const State: AccountState> = Data<'b, EndpointRegistration, { State }>;
+pub type Endpoint<'b, const STATE: AccountState> = Data<'b, EndpointRegistration, { STATE }>;
 
 pub struct EndpointDerivationData {
     pub emitter_chain: u16,
@@ -81,7 +77,7 @@ pub struct EndpointDerivationData {
 }
 
 /// Seeded implementation based on an incoming VAA
-impl<'b, const State: AccountState> Seeded<&EndpointDerivationData> for Endpoint<'b, { State }> {
+impl<'b, const STATE: AccountState> Seeded<&EndpointDerivationData> for Endpoint<'b, { STATE }> {
     fn seeds(data: &EndpointDerivationData) -> Vec<Vec<u8>> {
         vec![
             data.emitter_chain.to_be_bytes().to_vec(),

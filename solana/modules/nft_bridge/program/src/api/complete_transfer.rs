@@ -214,7 +214,6 @@ pub fn complete_wrapped(
     accs: &mut CompleteWrapped,
     _data: CompleteWrappedData,
 ) -> Result<()> {
-    use bstr::ByteSlice;
 
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();

@@ -8,6 +8,7 @@ import {
   CHAIN_ID_FANTOM,
   CHAIN_ID_KARURA,
   CHAIN_ID_KLAYTN,
+  CHAIN_ID_NEON,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
@@ -50,6 +51,7 @@ import {
   WFTM_ADDRESS,
   WKLAY_ADDRESS,
   WMATIC_ADDRESS,
+  WNEON_ADDRESS,
   WROSE_ADDRESS,
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
@@ -142,6 +144,10 @@ function Redeem() {
     targetChain === CHAIN_ID_KLAYTN &&
     targetAsset &&
     targetAsset.toLowerCase() === WKLAY_ADDRESS.toLowerCase();
+  const isNeonNative =
+    targetChain === CHAIN_ID_NEON &&
+    targetAsset &&
+    targetAsset.toLowerCase() === WNEON_ADDRESS.toLowerCase();
   const isSolNative =
     targetChain === CHAIN_ID_SOLANA &&
     targetAsset &&
@@ -156,6 +162,7 @@ function Redeem() {
     isAuroraNative ||
     isFantomNative ||
     isKlaytnNative ||
+    isNeonNative ||
     isSolNative;
   const [useNativeRedeem, setUseNativeRedeem] = useState(true);
   const toggleNativeRedeem = useCallback(() => {

@@ -91,6 +91,8 @@ spec:
             - ws://eth-devnet:8545
             - --moonbeamRPC
             - ws://eth-devnet:8545
+            - --neonRPC
+            - ws://eth-devnet:8545
             - --terraWS
             - ws://terra-terrad:26657/websocket
             - --terraLCD

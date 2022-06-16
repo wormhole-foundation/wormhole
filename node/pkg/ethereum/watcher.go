@@ -136,6 +136,8 @@ func NewEthWatcher(
 		ethIntf = &celo.CeloImpl{NetworkName: networkName}
 	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
 		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
+	} else if chainID == vaa.ChainIDNeon {
+		ethIntf = NewGetLogsImpl(networkName, contract, 250)
 	} else {
 		ethIntf = &EthImpl{NetworkName: networkName}
 	}
@@ -353,6 +355,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 					zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber),
 					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.Uint64("Sequence", ev.Sequence),
+					zap.Uint32("Nonce", ev.Nonce),
+					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 					zap.String("eth_network", e.networkName))
 
 				ethMessagesObserved.WithLabelValues(e.networkName).Inc()
