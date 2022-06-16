@@ -1,6 +1,17 @@
-import { BlockTxBroadcastResult, Coins, LCDClient, MnemonicKey, Msg, MsgExecuteContract, Fee, TxInfo, Wallet, isTxError } from "@terra-money/terra.js";
+import {
+  Coins,
+  LCDClient,
+  MnemonicKey,
+  Msg,
+  MsgExecuteContract,
+  Fee,
+  TxInfo,
+  WaitTxBroadcastResult,
+  Wallet,
+  isTxError,
+} from "@terra-money/terra.js";
 import axios from "axios";
-import Web3 from 'web3';
+import Web3 from "web3";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
 import {
@@ -8,9 +19,7 @@ import {
   Token,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import {
-  MsgInstantiateContract,
-} from "@terra-money/terra.js";
+import { MsgInstantiateContract } from "@terra-money/terra.js";
 import { BigNumberish, ethers } from "ethers";
 import {
   ChainId,
@@ -24,7 +33,7 @@ import {
   parseSequenceFromLogSolana,
   getEmitterAddressSolana,
   CHAIN_ID_SOLANA,
-  parseNFTPayload
+  parseNFTPayload,
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
 import { importCoreWasm, setDefaultWasm } from "../../solana/wasm";
@@ -51,7 +60,12 @@ import {
   NFTImplementation__factory,
 } from "../../ethers-contracts";
 import sha3 from "js-sha3";
-import { Connection, Keypair, PublicKey, TransactionResponse } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  TransactionResponse,
+} from "@solana/web3.js";
 import { postVaaSolanaWithRetry } from "../../solana";
 import { tryNativeToUint8Array } from "../../utils";
 const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
@@ -66,10 +80,13 @@ type Address = string;
 const lcd = new LCDClient({
   URL: TERRA_NODE_URL,
   chainID: TERRA_CHAIN_ID,
+  isClassic: true,
 });
-const terraWallet: Wallet = lcd.wallet(new MnemonicKey({
-  mnemonic: TERRA_PRIVATE_KEY,
-}));
+const terraWallet: Wallet = lcd.wallet(
+  new MnemonicKey({
+    mnemonic: TERRA_PRIVATE_KEY,
+  })
+);
 
 // ethereum setup
 const web3 = new Web3(ETH_NODE_URL);
@@ -86,11 +103,11 @@ const payerAddress = keypair.publicKey.toString();
 beforeEach(() => {
   provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
   signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider); // corresponds to accounts[1]
-})
+});
 
 afterEach(() => {
   provider.destroy();
-})
+});
 
 describe("Integration Tests", () => {
   test("Send Ethereum ERC-721 to Terra and back", (done) => {
@@ -102,14 +119,22 @@ describe("Integration Tests", () => {
           "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/",
           11 // mint ids 0..10 (inclusive)
         );
-        const transaction = await _transferFromEth(erc721.address, 10, terraWallet.key.accAddress, CHAIN_ID_TERRA);
+        const transaction = await _transferFromEth(
+          erc721.address,
+          10,
+          terraWallet.key.accAddress,
+          CHAIN_ID_TERRA
+        );
         let signedVAA = await waitUntilEthTxObserved(transaction);
         (await expectReceivedOnTerra(signedVAA)).toBe(false);
         await _redeemOnTerra(signedVAA);
         (await expectReceivedOnTerra(signedVAA)).toBe(true);
 
         // Check we have the wrapped NFT contract
-        const terra_addr = await nft_bridge.getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
+        const terra_addr = await nft_bridge.getForeignAssetTerra(
+          TERRA_NFT_BRIDGE_ADDRESS,
+          lcd,
+          CHAIN_ID_ETH,
           tryNativeToUint8Array(erc721.address, CHAIN_ID_ETH)
         );
         if (!terra_addr) {
@@ -117,17 +142,28 @@ describe("Integration Tests", () => {
         }
 
         // 10 => "10"
-        const info: any = await lcd.wasm.contractQuery(terra_addr, { nft_info: { token_id: "10" } });
-        expect(info.token_uri).toBe("https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/10");
+        const info: any = await lcd.wasm.contractQuery(terra_addr, {
+          nft_info: { token_id: "10" },
+        });
+        expect(info.token_uri).toBe(
+          "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/10"
+        );
 
-        const ownerInfo: any = await lcd.wasm.contractQuery(terra_addr, { owner_of: { token_id: "10" } });
+        const ownerInfo: any = await lcd.wasm.contractQuery(terra_addr, {
+          owner_of: { token_id: "10" },
+        });
         expect(ownerInfo.owner).toBe(terraWallet.key.accAddress);
 
         let ownerEth = await erc721.ownerOf(10);
         expect(ownerEth).not.toBe(signer.address);
 
         // Send back the NFT to ethereum
-        const transaction2 = await _transferFromTerra(terra_addr, "10", signer.address, CHAIN_ID_ETH);
+        const transaction2 = await _transferFromTerra(
+          terra_addr,
+          "10",
+          signer.address,
+          CHAIN_ID_ETH
+        );
         signedVAA = await waitUntilTerraTxObserved(transaction2);
         (await expectReceivedOnEth(signedVAA)).toBe(false);
         await _redeemOnEth(signedVAA);
@@ -140,7 +176,9 @@ describe("Integration Tests", () => {
         // the wrapped token should no longer exist
         let error;
         try {
-          await lcd.wasm.contractQuery(terra_addr, { owner_of: { token_id: "10" } });
+          await lcd.wasm.contractQuery(terra_addr, {
+            owner_of: { token_id: "10" },
+          });
         } catch (e) {
           error = e;
         }
@@ -149,7 +187,9 @@ describe("Integration Tests", () => {
         done();
       } catch (e) {
         console.error(e);
-        done(`An error occured while trying to transfer from Ethereum to Terra and back: ${e}`);
+        done(
+          `An error occured while trying to transfer from Ethereum to Terra and back: ${e}`
+        );
       }
     })();
   });
@@ -160,18 +200,26 @@ describe("Integration Tests", () => {
         const cw721 = await deployNFTOnTerra(
           "Integration Test NFT",
           "INT",
-          'https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/',
+          "https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/",
           token_id
         );
         // transfer NFT
-        const transaction = await _transferFromTerra(cw721, token_id, signer.address, CHAIN_ID_ETH);
+        const transaction = await _transferFromTerra(
+          cw721,
+          token_id,
+          signer.address,
+          CHAIN_ID_ETH
+        );
         let signedVAA = await waitUntilTerraTxObserved(transaction);
         (await expectReceivedOnEth(signedVAA)).toBe(false);
         await _redeemOnEth(signedVAA);
         (await expectReceivedOnEth(signedVAA)).toBe(true);
 
         // Check we have the wrapped NFT contract
-        const eth_addr = await nft_bridge.getForeignAssetEth(ETH_NFT_BRIDGE_ADDRESS, provider, CHAIN_ID_TERRA,
+        const eth_addr = await nft_bridge.getForeignAssetEth(
+          ETH_NFT_BRIDGE_ADDRESS,
+          provider,
+          CHAIN_ID_TERRA,
           tryNativeToUint8Array(cw721, CHAIN_ID_TERRA)
         );
         if (!eth_addr) {
@@ -180,18 +228,25 @@ describe("Integration Tests", () => {
 
         const token = NFTImplementation__factory.connect(eth_addr, signer);
         // the id on eth will be the keccak256 hash of the terra id
-        const eth_id = '0x' + sha3.keccak256(token_id);
+        const eth_id = "0x" + sha3.keccak256(token_id);
         const owner = await token.ownerOf(eth_id);
         expect(owner).toBe(signer.address);
 
         // send back the NFT to terra
-        const transaction2 = await _transferFromEth(eth_addr, eth_id, terraWallet.key.accAddress, CHAIN_ID_TERRA);
+        const transaction2 = await _transferFromEth(
+          eth_addr,
+          eth_id,
+          terraWallet.key.accAddress,
+          CHAIN_ID_TERRA
+        );
         signedVAA = await waitUntilEthTxObserved(transaction2);
         (await expectReceivedOnTerra(signedVAA)).toBe(false);
         await _redeemOnTerra(signedVAA);
         (await expectReceivedOnTerra(signedVAA)).toBe(true);
 
-        const ownerInfo: any = await lcd.wasm.contractQuery(cw721, { owner_of: { token_id: token_id } });
+        const ownerInfo: any = await lcd.wasm.contractQuery(cw721, {
+          owner_of: { token_id: token_id },
+        });
         expect(ownerInfo.owner).toBe(terraWallet.key.accAddress);
 
         // the wrapped token should no longer exist
@@ -207,7 +262,9 @@ describe("Integration Tests", () => {
         done();
       } catch (e) {
         console.error(e);
-        done(`An error occured while trying to transfer from Terra to Ethereum: ${e}`);
+        done(
+          `An error occured while trying to transfer from Terra to Ethereum: ${e}`
+        );
       }
     })();
   });
@@ -216,17 +273,19 @@ describe("Integration Tests", () => {
       try {
         const { parse_vaa } = await importCoreWasm();
 
-        const fromAddress = (
-          await Token.getAssociatedTokenAddress(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            new PublicKey(TEST_SOLANA_TOKEN),
-            keypair.publicKey
-          )
+        const fromAddress = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          new PublicKey(TEST_SOLANA_TOKEN),
+          keypair.publicKey
         );
 
         // send to terra
-        const transaction1 = await _transferFromSolana(fromAddress, terraWallet.key.accAddress, CHAIN_ID_TERRA);
+        const transaction1 = await _transferFromSolana(
+          fromAddress,
+          terraWallet.key.accAddress,
+          CHAIN_ID_TERRA
+        );
         let signedVAA = await waitUntilSolanaTxObserved(transaction1);
 
         // we get the solana token id from the VAA
@@ -235,25 +294,41 @@ describe("Integration Tests", () => {
         );
 
         await _redeemOnTerra(signedVAA);
-        const terra_addr = await nft_bridge.getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_SOLANA,
+        const terra_addr = await nft_bridge.getForeignAssetTerra(
+          TERRA_NFT_BRIDGE_ADDRESS,
+          lcd,
+          CHAIN_ID_SOLANA,
           tryNativeToUint8Array(TEST_SOLANA_TOKEN, CHAIN_ID_SOLANA)
         );
         if (!terra_addr) {
           throw new Error("Terra address is null");
         }
         // send to ethereum
-        const transaction2 = await _transferFromTerra(terra_addr, tokenId.toString(), signer.address, CHAIN_ID_ETH);
+        const transaction2 = await _transferFromTerra(
+          terra_addr,
+          tokenId.toString(),
+          signer.address,
+          CHAIN_ID_ETH
+        );
         signedVAA = await waitUntilTerraTxObserved(transaction2);
 
         await _redeemOnEth(signedVAA);
-        const eth_addr = await nft_bridge.getForeignAssetEth(ETH_NFT_BRIDGE_ADDRESS, provider, CHAIN_ID_SOLANA,
+        const eth_addr = await nft_bridge.getForeignAssetEth(
+          ETH_NFT_BRIDGE_ADDRESS,
+          provider,
+          CHAIN_ID_SOLANA,
           tryNativeToUint8Array(TEST_SOLANA_TOKEN, CHAIN_ID_SOLANA)
         );
         if (!eth_addr) {
           throw new Error("Ethereum address is null");
         }
 
-        const transaction3 = await _transferFromEth(eth_addr, tokenId, fromAddress.toString(), CHAIN_ID_SOLANA);
+        const transaction3 = await _transferFromEth(
+          eth_addr,
+          tokenId,
+          fromAddress.toString(),
+          CHAIN_ID_SOLANA
+        );
         signedVAA = await waitUntilEthTxObserved(transaction3);
 
         const { name, symbol } = parseNFTPayload(
@@ -261,15 +336,17 @@ describe("Integration Tests", () => {
         );
 
         // if the names match up here, it means all the spl caches work
-        expect(name).toBe('Not a PUNK🎸');
-        expect(symbol).toBe('PUNK🎸');
+        expect(name).toBe("Not a PUNK🎸");
+        expect(symbol).toBe("PUNK🎸");
 
         await _redeemOnSolana(signedVAA);
 
         done();
       } catch (e) {
         console.error(e);
-        done(`An error occured while trying to transfer from Solana to Ethereum: ${e}`);
+        done(
+          `An error occured while trying to transfer from Solana to Ethereum: ${e}`
+        );
       }
     })();
   });
@@ -282,16 +359,26 @@ describe("Integration Tests", () => {
         "https://foo.com",
         1
       );
-      const transaction = await _transferFromEth(erc721.address, 0, terraWallet.key.accAddress, CHAIN_ID_TERRA);
+      const transaction = await _transferFromEth(
+        erc721.address,
+        0,
+        terraWallet.key.accAddress,
+        CHAIN_ID_TERRA
+      );
       let signedVAA = await waitUntilEthTxObserved(transaction);
       await _redeemOnTerra(signedVAA);
-      const terra_addr = await nft_bridge.getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
+      const terra_addr = await nft_bridge.getForeignAssetTerra(
+        TERRA_NFT_BRIDGE_ADDRESS,
+        lcd,
+        CHAIN_ID_ETH,
         tryNativeToUint8Array(erc721.address, CHAIN_ID_ETH)
       );
       if (!terra_addr) {
         throw new Error("Terra address is null");
       }
-      const info: any = await lcd.wasm.contractQuery(terra_addr, { contract_info: {} });
+      const info: any = await lcd.wasm.contractQuery(terra_addr, {
+        contract_info: {},
+      });
       expect(info.name).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�");
       done();
     })();
@@ -301,16 +388,23 @@ describe("Integration Tests", () => {
 ////////////////////////////////////////////////////////////////////////////////
 // Utils
 
-async function deployNFTOnEth(name: string, symbol: string, uri: string, how_many: number): Promise<NFTImplementation> {
+async function deployNFTOnEth(
+  name: string,
+  symbol: string,
+  uri: string,
+  how_many: number
+): Promise<NFTImplementation> {
   const accounts = await web3.eth.getAccounts();
   const nftContract = new web3.eth.Contract(ERC721.abi);
-  let nft = await nftContract.deploy({
-    data: ERC721.bytecode,
-    arguments: [name, symbol, uri]
-  }).send({
-    from: accounts[1],
-    gas: 5000000,
-  });
+  let nft = await nftContract
+    .deploy({
+      data: ERC721.bytecode,
+      arguments: [name, symbol, uri],
+    })
+    .send({
+      from: accounts[1],
+      gas: 5000000,
+    });
 
   // The eth contracts mints tokens with sequential ids, so in order to get to a
   // specific id, we need to mint multiple nfts. We need this to test that
@@ -326,7 +420,12 @@ async function deployNFTOnEth(name: string, symbol: string, uri: string, how_man
   return NFTImplementation__factory.connect(nft.options.address, signer);
 }
 
-async function deployNFTOnTerra(name: string, symbol: string, uri: string, token_id: string): Promise<Address> {
+async function deployNFTOnTerra(
+  name: string,
+  symbol: string,
+  uri: string,
+  token_id: string
+): Promise<Address> {
   var address: any;
   await terraWallet
     .createAndSignTx({
@@ -356,18 +455,19 @@ async function deployNFTOnTerra(name: string, symbol: string, uri: string, token
 }
 
 async function getGasPrices() {
-  return axios
-    .get(TERRA_GAS_PRICES_URL)
-    .then((result) => result.data);
+  return axios.get(TERRA_GAS_PRICES_URL).then((result) => result.data);
 }
 
-async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<Fee> {
+async function estimateTerraFee(
+  gasPrices: Coins.Input,
+  msgs: Msg[]
+): Promise<Fee> {
   const feeEstimate = await lcd.tx.estimateFee(
     [
       {
         sequenceNumber: await terraWallet.sequence(),
-        publicKey: terraWallet.key.publicKey
-      }
+        publicKey: terraWallet.key.publicKey,
+      },
     ],
     {
       msgs,
@@ -379,7 +479,9 @@ async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<Fe
   return feeEstimate;
 }
 
-async function waitUntilTerraTxObserved(txresult: BlockTxBroadcastResult): Promise<Uint8Array> {
+async function waitUntilTerraTxObserved(
+  txresult: WaitTxBroadcastResult
+): Promise<Uint8Array> {
   // get the sequence from the logs (needed to fetch the vaa)
   const info = await waitForTerraExecution(txresult.txhash);
   const sequence = parseSequenceFromLogTerra(info);
@@ -397,12 +499,11 @@ async function waitUntilTerraTxObserved(txresult: BlockTxBroadcastResult): Promi
   return signedVAA;
 }
 
-async function waitUntilEthTxObserved(receipt: ethers.ContractReceipt): Promise<Uint8Array> {
+async function waitUntilEthTxObserved(
+  receipt: ethers.ContractReceipt
+): Promise<Uint8Array> {
   // get the sequence from the logs (needed to fetch the vaa)
-  let sequence = parseSequenceFromLogEth(
-    receipt,
-    ETH_CORE_BRIDGE_ADDRESS
-  );
+  let sequence = parseSequenceFromLogEth(receipt, ETH_CORE_BRIDGE_ADDRESS);
   let emitterAddress = getEmitterAddressEth(ETH_NFT_BRIDGE_ADDRESS);
   // poll until the guardian(s) witness and sign the vaa
   const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
@@ -417,7 +518,9 @@ async function waitUntilEthTxObserved(receipt: ethers.ContractReceipt): Promise<
   return signedVAA;
 }
 
-async function waitUntilSolanaTxObserved(response: TransactionResponse): Promise<Uint8Array> {
+async function waitUntilSolanaTxObserved(
+  response: TransactionResponse
+): Promise<Uint8Array> {
   // get the sequence from the logs (needed to fetch the vaa)
   const sequence = parseSequenceFromLogSolana(response);
   const emitterAddress = await getEmitterAddressSolana(
@@ -436,7 +539,11 @@ async function waitUntilSolanaTxObserved(response: TransactionResponse): Promise
   return signedVAA;
 }
 
-async function mint_cw721(contract_address: string, token_id: string, token_uri: any): Promise<void> {
+async function mint_cw721(
+  contract_address: string,
+  token_id: string,
+  token_uri: any
+): Promise<void> {
   await terraWallet
     .createAndSignTx({
       msgs: [
@@ -473,9 +580,7 @@ async function waitForTerraExecution(txHash: string): Promise<TxInfo> {
   }
   if (isTxError(info)) {
     // error code
-    throw new Error(
-      `Tx ${txHash}: error code ${info.code}: ${info.raw_log}`
-    );
+    throw new Error(`Tx ${txHash}: error code ${info.code}: ${info.raw_log}`);
   }
   return info;
 }
@@ -496,12 +601,17 @@ async function expectReceivedOnEth(signedVAA: Uint8Array) {
     await nft_bridge.getIsTransferCompletedEth(
       ETH_NFT_BRIDGE_ADDRESS,
       provider,
-      signedVAA,
+      signedVAA
     )
   );
 }
 
-async function _transferFromEth(erc721: string, token_id: BigNumberish, address: string, chain: ChainId): Promise<ethers.ContractReceipt> {
+async function _transferFromEth(
+  erc721: string,
+  token_id: BigNumberish,
+  address: string,
+  chain: ChainId
+): Promise<ethers.ContractReceipt> {
   return nft_bridge.transferFromEth(
     ETH_NFT_BRIDGE_ADDRESS,
     signer,
@@ -512,7 +622,12 @@ async function _transferFromEth(erc721: string, token_id: BigNumberish, address:
   );
 }
 
-async function _transferFromTerra(terra_addr: string, token_id: string, address: string, chain: ChainId): Promise<BlockTxBroadcastResult> {
+async function _transferFromTerra(
+  terra_addr: string,
+  token_id: string,
+  address: string,
+  chain: ChainId
+): Promise<WaitTxBroadcastResult> {
   const gasPrices = await getGasPrices();
   const msgs = await nft_bridge.transferFromTerra(
     terraWallet.key.accAddress,
@@ -520,18 +635,23 @@ async function _transferFromTerra(terra_addr: string, token_id: string, address:
     terra_addr,
     token_id,
     chain,
-    tryNativeToUint8Array(address, chain))
+    tryNativeToUint8Array(address, chain)
+  );
   const tx = await terraWallet.createAndSignTx({
     msgs: msgs,
     memo: "test",
     feeDenoms: ["uluna"],
     gasPrices,
-    fee: await estimateTerraFee(gasPrices, msgs)
+    fee: await estimateTerraFee(gasPrices, msgs),
   });
   return lcd.tx.broadcast(tx);
 }
 
-async function _transferFromSolana(fromAddress: PublicKey, targetAddress: string, chain: ChainId): Promise<TransactionResponse> {
+async function _transferFromSolana(
+  fromAddress: PublicKey,
+  targetAddress: string,
+  chain: ChainId
+): Promise<TransactionResponse> {
   const transaction = await nft_bridge.transferFromSolana(
     connection,
     SOLANA_CORE_BRIDGE_ADDRESS,
@@ -544,29 +664,24 @@ async function _transferFromSolana(fromAddress: PublicKey, targetAddress: string
   );
   // sign, send, and confirm transaction
   transaction.partialSign(keypair);
-  const txid = await connection.sendRawTransaction(
-    transaction.serialize()
-  );
+  const txid = await connection.sendRawTransaction(transaction.serialize());
   await connection.confirmTransaction(txid);
   const info = await connection.getTransaction(txid);
   if (!info) {
-    throw new Error(
-      "An error occurred while fetching the transaction info"
-    );
+    throw new Error("An error occurred while fetching the transaction info");
   }
   return info;
 }
 
-
-async function _redeemOnEth(signedVAA: Uint8Array): Promise<ethers.ContractReceipt> {
-  return nft_bridge.redeemOnEth(
-    ETH_NFT_BRIDGE_ADDRESS,
-    signer,
-    signedVAA
-  );
+async function _redeemOnEth(
+  signedVAA: Uint8Array
+): Promise<ethers.ContractReceipt> {
+  return nft_bridge.redeemOnEth(ETH_NFT_BRIDGE_ADDRESS, signer, signedVAA);
 }
 
-async function _redeemOnTerra(signedVAA: Uint8Array): Promise<BlockTxBroadcastResult> {
+async function _redeemOnTerra(
+  signedVAA: Uint8Array
+): Promise<WaitTxBroadcastResult> {
   const msg = await nft_bridge.redeemOnTerra(
     TERRA_NFT_BRIDGE_ADDRESS,
     terraWallet.key.accAddress,
@@ -595,5 +710,5 @@ async function _redeemOnSolana(signedVAA: Uint8Array) {
     payerAddress,
     Buffer.from(signedVAA),
     maxRetries
-  )
+  );
 }

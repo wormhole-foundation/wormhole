@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2
+
+### Added
+
+Neon testnet support
+Terra 2 devnet support
+
+### Changed
+
+Updated terra.js
+
 ## 0.3.8
 
 ### Added
