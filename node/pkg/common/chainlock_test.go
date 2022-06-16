@@ -43,7 +43,7 @@ func buildMockTransferPayloadBytes(
 }
 
 func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
@@ -67,10 +67,10 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	}
 
 	bytes, err := msg1.Marshal()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	msg2, err := UnmarshalMessagePublication(bytes)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, msg1.TxHash, msg2.TxHash)
 	assert.Equal(t, msg1.Timestamp, msg2.Timestamp)
@@ -81,13 +81,13 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	assert.Equal(t, msg1.ConsistencyLevel, msg2.ConsistencyLevel)
 
 	payload2, err := vaa.DecodeTransferPayloadHdr(msg2.Payload)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	expectTokenAddr, err := vaa.StringToAddress(tokenAddrStr)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	expectToAddr, err := vaa.StringToAddress(toAddrStr)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, uint8(1), payload2.Type)
 	assert.Equal(t, vaa.ChainIDEthereum, payload2.OriginChain)
@@ -98,7 +98,7 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 }
 
 func TestMessageIDString(t *testing.T) {
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
@@ -125,7 +125,7 @@ func TestMessageIDString(t *testing.T) {
 }
 
 func TestMessageID(t *testing.T) {
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
