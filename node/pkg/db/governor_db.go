@@ -87,6 +87,8 @@ const transferLen int = len(transfer)
 const pending string = "GOV:PENDING:"
 const pendingLen int = len(pending)
 
+const minMsgIdLen int = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
+
 func TransferMsgID(t *Transfer) []byte {
 	return []byte(fmt.Sprintf("%v%v", transfer, t.MsgID))
 }
@@ -96,11 +98,11 @@ func PendingMsgID(k *common.MessagePublication) []byte {
 }
 
 func IsTransfer(keyBytes []byte) bool {
-	return (len(keyBytes) > transferLen) && (string(keyBytes[0:transferLen]) == transfer)
+	return (len(keyBytes) >= transferLen+minMsgIdLen) && (string(keyBytes[0:transferLen]) == transfer)
 }
 
 func IsPendingMsg(keyBytes []byte) bool {
-	return (len(keyBytes) > pendingLen) && (string(keyBytes[0:pendingLen]) == pending)
+	return (len(keyBytes) >= pendingLen+minMsgIdLen) && (string(keyBytes[0:pendingLen]) == pending)
 }
 
 // This is called by the chain governor on start up to reload status.
