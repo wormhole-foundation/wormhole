@@ -19,100 +19,105 @@ import (
 
 func TestTrimEmptyTransfers(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var transfers []db.Transfer
-	sum, updatedTransfers := TrimAndSumValue(transfers, now, nil)
+	sum, updatedTransfers, err := TrimAndSumValue(transfers, now, nil)
+	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), sum)
 	assert.Equal(t, 0, len(updatedTransfers))
 }
 
 func TestSumAllFromToday(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var transfers []db.Transfer
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 125000, Timestamp: transferTime})
-	sum, updatedTransfers := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	sum, updatedTransfers, err := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	assert.NoError(t, err)
 	assert.Equal(t, uint64(125000), sum)
 	assert.Equal(t, 1, len(updatedTransfers))
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var transfers []db.Transfer
 
 	// The first transfer should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:59am (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 125000, Timestamp: transferTime1})
 
 	// But the second should not.
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 225000, Timestamp: transferTime2})
 	assert.Equal(t, 2, len(transfers))
 
-	sum, updatedTransfers := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	sum, updatedTransfers, err := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(updatedTransfers))
 	assert.Equal(t, uint64(225000), sum)
 }
 
 func TestTrimSeveralTransfers(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var transfers []db.Transfer
 
 	// The first two transfers should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 10:00am (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 125000, Timestamp: transferTime1})
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 135000, Timestamp: transferTime2})
 
 	// But the next three should not.
 	transferTime3, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 145000, Timestamp: transferTime3})
 
 	transferTime4, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 155000, Timestamp: transferTime4})
 
 	transferTime5, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 165000, Timestamp: transferTime5})
 
 	assert.Equal(t, 5, len(transfers))
 
-	sum, updatedTransfers := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	sum, updatedTransfers, err := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(updatedTransfers))
 	assert.Equal(t, uint64(465000), sum)
 }
 
 func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var transfers []db.Transfer
 
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 125000, Timestamp: transferTime1})
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:45am (CST)")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	transfers = append(transfers, db.Transfer{Value: 225000, Timestamp: transferTime2})
 	assert.Equal(t, 2, len(transfers))
 
-	sum, updatedTransfers := TrimAndSumValue(transfers, now, nil)
+	sum, updatedTransfers, err := TrimAndSumValue(transfers, now, nil)
+	assert.NoError(t, err)
 	assert.Equal(t, 0, len(updatedTransfers))
 	assert.Equal(t, uint64(0), sum)
 }
@@ -165,7 +170,7 @@ func TestVaaForUninterestingEmitterChain(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, gov)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
@@ -183,7 +188,7 @@ func TestVaaForUninterestingEmitterChain(t *testing.T) {
 	}
 
 	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -197,7 +202,7 @@ func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, gov)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
@@ -215,7 +220,7 @@ func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 	}
 
 	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -229,7 +234,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, gov)
 
 	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
@@ -247,7 +252,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	}
 
 	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -289,7 +294,7 @@ func buildMockTransferPayloadBytes(
 }
 
 func TestBuidMockTransferPayload(t *testing.T) {
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 	payloadBytes := buildMockTransferPayloadBytes(1,
 		vaa.ChainIDEthereum,
@@ -306,7 +311,7 @@ func TestBuidMockTransferPayload(t *testing.T) {
 
 	expectedAmount := big.NewInt(125000000)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, uint8(1), payload.Type)
 	assert.Equal(t, vaa.ChainIDEthereum, payload.OriginChain)
 	assert.Equal(t, expectedTokenAddr, payload.OriginAddress)
@@ -319,7 +324,7 @@ func TestVaaForUninterestingToken(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, gov)
 
 	uninterestingTokenAddrStr := "0x42"
@@ -346,7 +351,7 @@ func TestVaaForUninterestingToken(t *testing.T) {
 	}
 
 	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -360,15 +365,16 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
 	gov.SetDayLengthInMinutes(24 * 60)
-	gov.SetTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	err = gov.SetTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	assert.NoError(t, err)
 
 	payloadBytes1 := buildMockTransferPayloadBytes(1,
 		vaa.ChainIDEthereum,
@@ -391,7 +397,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	}
 
 	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -401,7 +407,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	assert.Equal(t, uint64(0), valuePending)
 
 	canPost, err = gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -422,7 +428,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	msg.Payload = payloadBytes2
 
 	canPost, err = gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
 	assert.Equal(t, false, canPost)
@@ -434,7 +440,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	// Once we have something queued, small things should be queued as well.
 	msg.Payload = payloadBytes1
 	canPost, err = gov.ProcessMsgForTime(&msg, time.Now())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
 	assert.Equal(t, false, canPost)
@@ -448,15 +454,16 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
 	gov.SetDayLengthInMinutes(24 * 60)
-	gov.SetTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	err = gov.SetTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	assert.NoError(t, err)
 
 	// The first VAA should be accepted.
 	payloadBytes1 := buildMockTransferPayloadBytes(1,
@@ -480,7 +487,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	canPost, err := gov.ProcessMsgForTime(&msg1, now)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -511,7 +518,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 6:00pm (CST)")
 	canPost, err = gov.ProcessMsgForTime(&msg2, now)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
 	assert.Equal(t, true, canPost)
@@ -542,7 +549,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 2:00am (CST)")
 	canPost, err = gov.ProcessMsgForTime(&msg3, now)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
 	assert.Equal(t, false, canPost)
@@ -573,7 +580,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 8:00am (CST)")
 	canPost, err = gov.ProcessMsgForTime(&msg4, now)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
 	assert.Equal(t, false, canPost)
@@ -585,7 +592,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	// If we check pending before noon, nothing should happen.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
 	toBePublished, err := gov.CheckPendingForTime(now, false)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
@@ -597,11 +604,11 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	// But at 3pm, the first one should drop off and the first queued one should get posted.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 3:00pm (CST)")
 	toBePublished, err = gov.CheckPendingForTime(now, false)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, numTrans)
 	assert.Equal(t, uint64(488020+496893), valueTrans)
 	assert.Equal(t, 1, numPending)
@@ -612,15 +619,16 @@ func TestIfAnythingIsQueuedEverythingIsQueued(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
 	gov.SetDayLengthInMinutes(24 * 60)
-	gov.SetTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	err = gov.SetTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	assert.NoError(t, err)
 
 	// A bigg VAA should be queued.
 	payloadBytes1 := buildMockTransferPayloadBytes(1,
@@ -644,7 +652,7 @@ func TestIfAnythingIsQueuedEverythingIsQueued(t *testing.T) {
 
 	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	canPost, err := gov.ProcessMsgForTime(&msg1, now)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.GetStatsForAllChains()
 	assert.Equal(t, false, canPost)
@@ -675,7 +683,7 @@ func TestIfAnythingIsQueuedEverythingIsQueued(t *testing.T) {
 
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 6:00pm (CST)")
 	canPost, err = gov.ProcessMsgForTime(&msg2, now)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.GetStatsForAllChains()
 	assert.Equal(t, false, canPost)
