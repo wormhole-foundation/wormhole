@@ -1,6 +1,5 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ScopedLogger } from "../helpers/logHelper";
-import { ListenerEnvironment } from "../configureEnv";
 import { StoreKey, StorePayload } from "../helpers/redisHelper";
 
 /** TypedFilter is used by subscribeSignedVAA to filter messages returned by the guardian spy */
@@ -11,7 +10,6 @@ export interface TypedFilter {
 /** Listen to VAAs via a http listener or guardian spy service */
 export interface Listener {
   logger: ScopedLogger;
-  env: ListenerEnvironment;
 
   /** Get filters for the guardian spy subscription */
   getEmitterFilters(): Promise<TypedFilter[]>;

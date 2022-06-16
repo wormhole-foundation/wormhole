@@ -51,10 +51,11 @@ async function encodeEmitterAddress(
 /** Listener for payload 1 token bridge messages only */
 export class TokenBridgeListener implements Listener {
   logger: ScopedLogger;
-  env: ListenerEnvironment;
 
+  /**
+   * @throws - when the listener environment setup fails
+   */
   constructor() {
-    this.env = getListenerEnvironment();
     this.logger = getScopedLogger(["TokenBridgeListener"]);
   }
 
@@ -90,8 +91,8 @@ export class TokenBridgeListener implements Listener {
 
   /** Verify the the token in this payload in the approved token list. */
   verifyIsApprovedToken(payload: ParsedTransferPayload): boolean {
-    const env = getListenerEnvironment();
     let originAddressNative: string;
+    let env = getListenerEnvironment();
     try {
       originAddressNative = tryHexToNativeString(
         payload.originAddress,
@@ -186,12 +187,13 @@ export class TokenBridgeListener implements Listener {
 
   /** Get spy filters for all emitters we care about */
   public async getEmitterFilters(): Promise<TypedFilter[]> {
+    let env = getListenerEnvironment();
     let filters: {
       emitterFilter: { chainId: ChainId; emitterAddress: string };
     }[] = [];
-    for (let i = 0; i < this.env.spyServiceFilters.length; i++) {
+    for (let i = 0; i < env.spyServiceFilters.length; i++) {
       this.logger.info("Getting spyServiceFiltera " + i);
-      const filter = this.env.spyServiceFilters[i];
+      const filter = env.spyServiceFilters[i];
       this.logger.info(
         "Getting spyServiceFilter[" +
           i +
