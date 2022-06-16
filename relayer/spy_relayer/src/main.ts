@@ -75,49 +75,60 @@ if (!foundOne) {
   logger.info("spy_relay is running both the listener and relayer");
 }
 
-if (
-  !error &&
-  spyListener.init(runListen) &&
-  relayWorker.init(runWorker) &&
-  restListener.init(runRest) &&
-  walletMonitor.init(runWalletMonitor)
-) {
-  const commonEnv = getCommonEnvironment();
-  const { promPort, readinessPort } = commonEnv;
-  logger.info("prometheus client listening on port " + promPort);
-  let promClient: PromHelper;
-  const runAll: boolean = runListen && runWorker && runWalletMonitor;
-  if (runAll) {
-    promClient = new PromHelper("spy_relay", promPort, PromMode.All);
-  } else if (runListen) {
-    promClient = new PromHelper("spy_relay", promPort, PromMode.Listen);
-  } else if (runWorker) {
-    promClient = new PromHelper("spy_relay", promPort, PromMode.Relay);
-  } else if (runWalletMonitor) {
-    promClient = new PromHelper("spy_relay", promPort, PromMode.WalletMonitor);
-  } else {
-    logger.error("Invalid run mode for Prometheus");
-    promClient = new PromHelper("spy_relay", promPort, PromMode.All);
-  }
+const runAll: boolean = runListen && runWorker && runWalletMonitor;
+if (runListen && !spyListener.init()) {
+  process.exit(1);
+}
 
-  redisHelper.init(promClient);
+if (runWorker && !relayWorker.init()) {
+  process.exit(1);
+}
 
-  if (runListen) spyListener.run(promClient);
-  if (runWorker) relayWorker.run(promClient);
-  if (runRest) restListener.run();
-  if (runWalletMonitor) walletMonitor.run(promClient);
+if (runRest && !restListener.init()) {
+  process.exit(1);
+}
 
-  if (readinessPort) {
-    const Net = require("net");
-    const readinessServer = new Net.Server();
-    readinessServer.listen(readinessPort, function () {
-      logger.info("listening for readiness requests on port " + readinessPort);
-    });
+if (runWalletMonitor && !walletMonitor.init()) {
+  process.exit(1);
+}
 
-    readinessServer.on("connection", function (socket: any) {
-      //logger.debug("readiness connection");
-    });
-  }
+if (error) {
+  logger.error(error);
+  process.exit(1);
+}
+
+const commonEnv = getCommonEnvironment();
+const { promPort, readinessPort } = commonEnv;
+logger.info("prometheus client listening on port " + promPort);
+let promClient: PromHelper;
+if (runAll) {
+  promClient = new PromHelper("spy_relay", promPort, PromMode.All);
+} else if (runListen) {
+  promClient = new PromHelper("spy_relay", promPort, PromMode.Listen);
+} else if (runWorker) {
+  promClient = new PromHelper("spy_relay", promPort, PromMode.Relay);
+} else if (runWalletMonitor) {
+  promClient = new PromHelper("spy_relay", promPort, PromMode.WalletMonitor);
 } else {
-  logger.error("Initialization failed.");
+  logger.error("Invalid run mode for Prometheus");
+  promClient = new PromHelper("spy_relay", promPort, PromMode.All);
+}
+
+redisHelper.init(promClient);
+
+if (runListen) spyListener.run(promClient);
+if (runWorker) relayWorker.run(promClient);
+if (runRest) restListener.run();
+if (runWalletMonitor) walletMonitor.run(promClient);
+
+if (readinessPort) {
+  const Net = require("net");
+  const readinessServer = new Net.Server();
+  readinessServer.listen(readinessPort, function () {
+    logger.info("listening for readiness requests on port " + readinessPort);
+  });
+
+  readinessServer.on("connection", function (socket: any) {
+    //logger.debug("readiness connection");
+  });
 }
