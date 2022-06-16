@@ -13,10 +13,10 @@ import (
 
 func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
@@ -29,10 +29,10 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	}
 
 	bytes, err := xfer1.Marshal()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	xfer2, err := UnmarshalTransfer(bytes)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, xfer1.Timestamp, xfer2.Timestamp)
 	assert.Equal(t, xfer1.Value, xfer2.Value)
@@ -48,7 +48,7 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 func TestPendingMsgID(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -66,10 +66,10 @@ func TestPendingMsgID(t *testing.T) {
 
 func TestTransferMsgID(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	xfer := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),

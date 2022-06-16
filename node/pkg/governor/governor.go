@@ -299,7 +299,9 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 			if startTime.Before(t.Timestamp) {
 				gov.reloadTransfer(t, now, startTime)
 			} else {
-				gov.db.DeleteTransfer(t)
+				if err := gov.db.DeleteTransfer(t); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -481,24 +483,25 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
 	return nil
 }
 
-func (gov *ChainGovernor) queryCoinGecko() error {
+// This does not return an error. Instead, it just logs the error and we will try again five minutes later.
+func (gov *ChainGovernor) queryCoinGecko() {
 	gov.logger.Info("cgov: querying coin gecko")
 	response, err := http.Get(gov.coinGeckoQuery)
 	if err != nil {
 		gov.logger.Error("cgov: failed to query coin gecko", zap.String("query", gov.coinGeckoQuery), zap.Error(err))
-		return err
+		return
 	}
 
 	responseData, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		gov.logger.Error("cgov: failed to parse coin gecko response", zap.Error(err))
-		return err
+		return
 	}
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(responseData, &result); err != nil {
 		gov.logger.Error("cgov: failed to unmarshal coin gecko json", zap.Error(err))
-		return err
+		return
 	}
 
 	now := time.Now()
@@ -523,8 +526,6 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 			)
 		}
 	}
-
-	return nil
 }
 
 // Returns true if the message can be published, false if it has been added to the pending list.
@@ -580,7 +581,14 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 	}
 
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue := ce.TrimAndSumValue(startTime, gov.db)
+	prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
+	if err != nil {
+		if gov.logger != nil {
+			gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
+		}
+
+		return false, err
+	}
 
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
@@ -649,7 +657,14 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 	for _, ce := range gov.chains {
 		for len(ce.pending) != 0 {
 			pe := &ce.pending[0]
-			prevTotalValue := ce.TrimAndSumValue(startTime, gov.db)
+			prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
+			if err != nil {
+				if gov.logger != nil {
+					gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
+				}
+
+				return msgsToPublish, err
+			}
 
 			value, err := computeValue(pe.amount, pe.token)
 			if err != nil {
@@ -662,7 +677,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 					)
 				}
 
-				continue
+				return msgsToPublish, err
 			}
 
 			newTotalValue := prevTotalValue + value
@@ -688,14 +703,15 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 			ce.transfers = append(ce.transfers, xfer)
 
 			if gov.db != nil {
-				err := gov.db.StoreTransfer(&xfer)
-				if err != nil {
+				if err := gov.db.StoreTransfer(&xfer); err != nil {
 					return msgsToPublish, err
 				}
 			}
 
 			if gov.db != nil {
-				gov.db.DeletePendingMsg(pe.msg)
+				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+					return msgsToPublish, err
+				}
 			}
 			ce.pending = ce.pending[1:]
 		}
@@ -723,15 +739,14 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db *db.Database) uint64 {
-	var sum uint64
-	sum, ce.transfers = TrimAndSumValue(ce.transfers, startTime, db)
-	return sum
+func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db *db.Database) (sum uint64, err error) {
+	sum, ce.transfers, err = TrimAndSumValue(ce.transfers, startTime, db)
+	return sum, err
 }
 
-func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Database) (uint64, []db.Transfer) {
+func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Database) (uint64, []db.Transfer, error) {
 	if len(transfers) == 0 {
-		return 0, transfers
+		return 0, transfers, nil
 	}
 
 	var trimIdx int = -1
@@ -748,14 +763,16 @@ func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Databa
 	if trimIdx >= 0 {
 		if db != nil {
 			for idx := 0; idx <= trimIdx; idx++ {
-				db.DeleteTransfer(&transfers[idx])
+				if err := db.DeleteTransfer(&transfers[idx]); err != nil {
+					return 0, transfers, err
+				}
 			}
 		}
 
 		transfers = transfers[trimIdx+1:]
 	}
 
-	return sum, transfers
+	return sum, transfers, nil
 }
 func SumValue(transfers []db.Transfer, startTime time.Time) uint64 {
 	if len(transfers) == 0 {
@@ -799,12 +816,19 @@ func (gov *ChainGovernor) Reload() string {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
+	if gov.db == nil {
+		return "unable to reload because the database is not initialized"
+	}
+
 	for _, ce := range gov.chains {
 		ce.transfers = nil
 		ce.pending = nil
 	}
 
-	gov.loadFromDBAlreadyLocked()
+	if err := gov.loadFromDBAlreadyLocked(); err != nil {
+		gov.logger.Error("cgov: failed to load from the database", zap.Error(err))
+		return "failed to load from the database, see the log file for details"
+	}
 
 	return "chain governor has been reset and reloaded"
 }
