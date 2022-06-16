@@ -1,4 +1,7 @@
-import { CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_SOLANA,
+  isTerraChain,
+} from "@certusone/wormhole-sdk";
 import { Alert } from "@material-ui/lab";
 import { useSelector } from "react-redux";
 import { useHandleNFTTransfer } from "../../hooks/useHandleNFTTransfer";
@@ -44,8 +47,8 @@ function Send() {
         Transfer the NFT to the Wormhole Token Bridge.
       </StepDescription>
       <KeyAndBalance chainId={sourceChain} />
-      {sourceChain === CHAIN_ID_TERRA && (
-        <TerraFeeDenomPicker disabled={disabled} />
+      {isTerraChain(sourceChain) && (
+        <TerraFeeDenomPicker disabled={disabled} chainId={sourceChain} />
       )}
       <Alert severity="info" variant="outlined">
         This will initiate the transfer on {CHAINS_BY_ID[sourceChain].name} and

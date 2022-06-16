@@ -12,6 +12,7 @@ import { setTerraFeeDenom } from "../store/feeSlice";
 import { selectTerraFeeDenom } from "../store/selectors";
 import useTerraNativeBalances from "../hooks/useTerraNativeBalances";
 import { formatNativeDenom, getNativeTerraIcon } from "../utils/terra";
+import { TerraChainId } from "@certusone/wormhole-sdk";
 
 const useStyles = makeStyles((theme) => ({
   feePickerContainer: {
@@ -38,12 +39,16 @@ const useStyles = makeStyles((theme) => ({
 
 type TerraFeeDenomPickerProps = {
   disabled: boolean;
+  chainId: TerraChainId;
 };
 
 export default function TerraFeeDenomPicker(props: TerraFeeDenomPickerProps) {
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
   const wallet = useConnectedWallet();
-  const { balances } = useTerraNativeBalances(wallet?.walletAddress);
+  const { balances } = useTerraNativeBalances(
+    props.chainId,
+    wallet?.walletAddress
+  );
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -52,7 +57,7 @@ export default function TerraFeeDenomPicker(props: TerraFeeDenomPickerProps) {
     if (balances) {
       for (const [denom, amount] of Object.entries(balances)) {
         if (amount === "0") continue;
-        const symbol = formatNativeDenom(denom);
+        const symbol = formatNativeDenom(denom, props.chainId);
         if (symbol) {
           items.push({
             denom,
@@ -64,7 +69,7 @@ export default function TerraFeeDenomPicker(props: TerraFeeDenomPickerProps) {
     }
     // prevent an out-of-range value from being selected
     if (!items.find((item) => item.denom === terraFeeDenom)) {
-      const symbol = formatNativeDenom(terraFeeDenom);
+      const symbol = formatNativeDenom(terraFeeDenom, props.chainId);
       items.push({
         denom: terraFeeDenom,
         symbol,
@@ -72,7 +77,7 @@ export default function TerraFeeDenomPicker(props: TerraFeeDenomPickerProps) {
       });
     }
     return items;
-  }, [balances, terraFeeDenom]);
+  }, [balances, terraFeeDenom, props.chainId]);
 
   return (
     <div className={classes.feePickerContainer}>

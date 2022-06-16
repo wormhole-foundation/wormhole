@@ -2,13 +2,13 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   getOriginalAssetAlgorand,
+  getOriginalAssetCosmWasm,
   getOriginalAssetEth,
   getOriginalAssetSol,
-  getOriginalAssetTerra,
   hexToNativeAssetString,
   isEVMChain,
+  isTerraChain,
   uint8ArrayToHex,
   uint8ArrayToNative,
 } from "@certusone/wormhole-sdk";
@@ -32,12 +32,12 @@ import {
   ALGORAND_HOST,
   ALGORAND_TOKEN_BRIDGE_ID,
   getNFTBridgeAddressForChain,
+  getTerraConfig,
   getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOLANA_SYSTEM_PROGRAM_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_HOST,
 } from "../utils/consts";
 import useIsWalletReady from "./useIsWalletReady";
 
@@ -68,9 +68,13 @@ export async function getOriginalAssetToken(
         SOL_TOKEN_BRIDGE_ADDRESS,
         foreignNativeStringAddress
       );
-    } else if (foreignChain === CHAIN_ID_TERRA) {
-      const lcd = new LCDClient(TERRA_HOST);
-      promise = await getOriginalAssetTerra(lcd, foreignNativeStringAddress);
+    } else if (isTerraChain(foreignChain)) {
+      const lcd = new LCDClient(getTerraConfig(foreignChain));
+      promise = await getOriginalAssetCosmWasm(
+        lcd,
+        foreignNativeStringAddress,
+        foreignChain
+      );
     } else if (foreignChain === CHAIN_ID_ALGORAND) {
       const algodClient = new Algodv2(
         ALGORAND_HOST.algodToken,
@@ -224,6 +228,7 @@ function useOriginalAsset(
         if (!cancelled) {
           setIsLoading(false);
           setArgs();
+          console.log("setting", result.assetAddress);
           setOriginAddress(
             hexToNativeAssetString(
               uint8ArrayToHex(result.assetAddress),
