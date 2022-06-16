@@ -29,13 +29,13 @@ use solana_program::{
         AccountMeta,
         Instruction,
     },
+    pubkey::Pubkey,
     sysvar::clock::Clock,
 };
 use solitaire::{
     processors::seeded::invoke_seeded,
     *,
 };
-use solana_program::pubkey::Pubkey;
 
 use super::{
     verify_and_execute_native_transfers,
@@ -79,13 +79,45 @@ impl<'a, 'b: 'a> Keyed<'a, 'b> for Sender<'b> {
     }
 }
 
-/// TODO(csongor): document
-fn derive_sender_address(sender: &Sender, cpi_program_id: &AccountInfo) -> Result<Address> {
-    if cpi_program_id.key.to_bytes() == [0; 32] {
-        return Ok(sender.info().key.to_bytes());
-    } else {
-        sender.verify_derivation(cpi_program_id.key, ())?;
-        Ok(cpi_program_id.key.to_bytes())
+/// Transfers with payload also include the address of the account or contract
+/// that sent the transfer. Semantically this is identical to "msg.sender" on
+/// EVM chains, i.e. it is the address of the immediate caller of the token
+/// bridge transaction.
+/// Since on Solana, a transaction can have multiple different signers, getting
+/// this information is not so straightforward.
+/// The strategy we use to figure out the sender of the transaction is to
+/// require an additional signer ([`Sender`]) for the transaction.
+/// If the transaction was sent by a user wallet directly, then this may just be
+/// the wallet's pubkey. If, however, the transaction was initiated by a
+/// program, then we require this to be a PDA derived from the sender program's
+/// id and the string "sender". In this case, the sender program must also
+/// attach its program id to the instruction data. If the PDA verification
+/// succeeds (thereby proving that [`cpi_program_id`] indeed signed the
+/// transaction), then the program's id is attached to the VAA as the sender,
+/// otherwise the transaction is rejected.
+///
+/// Note that a program may opt to forego the PDA derivation and instead just
+/// pass on the original wallet as the wallet account (or any other signer, as
+/// long as they don't provide their program_id in the instruction data). The
+/// sender address is provided as a means for protocols to verify on the
+/// receiving end that the message was emitted by a contract they trust, so
+/// foregoing this check is not advised. If the receiving contract needs to know
+/// the sender wallet's address too, then that information can be included in
+/// the additional payload, along with any other data that the protocol needs to
+/// send across. The legitimacy of the attached data can be verified by checking
+/// that the sender contract is a trusted one.
+///
+/// Also note that attaching the correct PDA as [`Sender`] but missing the
+/// [`cpi_program_id`] field will result in a successful transaction, but in
+/// that case the PDA's address will directly be encoded into the payload
+/// instead of the sender program's id.
+fn derive_sender_address(sender: &Sender, cpi_program_id: &Option<Pubkey>) -> Result<Address> {
+    match cpi_program_id {
+        Some(cpi_program_id) => {
+            sender.verify_derivation(cpi_program_id, ())?;
+            Ok(cpi_program_id.to_bytes())
+        }
+        None => Ok(sender.info().key.to_bytes()),
     }
 }
 
@@ -124,8 +156,8 @@ pub struct TransferNativeWithPayload<'b> {
 
     pub clock: Sysvar<'b, Clock>,
 
+    /// See [`derive_sender_address`]
     pub sender: Sender<'b>,
-    pub cpi_program_id: Info<'b>,
 }
 
 impl<'a> From<&TransferNativeWithPayload<'a>> for CustodyAccountDerivationData {
@@ -143,6 +175,8 @@ pub struct TransferNativeWithPayloadData {
     pub target_address: Address,
     pub target_chain: ChainID,
     pub payload: Vec<u8>,
+    /// See [`derive_sender_address`]
+    pub cpi_program_id: Option<Pubkey>,
 }
 
 pub fn transfer_native_with_payload(
@@ -178,7 +212,7 @@ pub fn transfer_native_with_payload(
         token_chain: CHAIN_ID_SOLANA,
         to: data.target_address,
         to_chain: data.target_chain,
-        from_address: derive_sender_address(&accs.sender, &accs.cpi_program_id)?,
+        from_address: derive_sender_address(&accs.sender, &data.cpi_program_id)?,
         payload: data.payload,
     };
     let params = (
@@ -242,8 +276,8 @@ pub struct TransferWrappedWithPayload<'b> {
 
     pub clock: Sysvar<'b, Clock>,
 
+    /// See [`derive_sender_address`]
     pub sender: Sender<'b>,
-    pub cpi_program_id: Info<'b>,
 }
 
 impl<'a> From<&TransferWrappedWithPayload<'a>> for WrappedDerivationData {
@@ -270,6 +304,8 @@ pub struct TransferWrappedWithPayloadData {
     pub target_address: Address,
     pub target_chain: ChainID,
     pub payload: Vec<u8>,
+    /// See [`derive_sender_address`]
+    pub cpi_program_id: Option<Pubkey>,
 }
 
 pub fn transfer_wrapped_with_payload(
@@ -305,7 +341,7 @@ pub fn transfer_wrapped_with_payload(
         token_chain: accs.wrapped_meta.chain,
         to: data.target_address,
         to_chain: data.target_chain,
-        from_address: derive_sender_address(&accs.sender, &accs.cpi_program_id)?,
+        from_address: derive_sender_address(&accs.sender, &data.cpi_program_id)?,
         payload: data.payload,
     };
     let params = (
@@ -336,4 +372,3 @@ pub fn transfer_wrapped_with_payload(
 
     Ok(())
 }
-
