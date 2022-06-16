@@ -1,0 +1,19 @@
+[package]
+name = "cw721"
+version = "0.10.1"
+authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
+edition = "2018"
+description = "Definition and types for the CosmWasm-721 NFT interface"
+license = "Apache-2.0"
+repository = "https://github.com/CosmWasm/cw-nfts"
+homepage = "https://cosmwasm.com"
+documentation = "https://docs.cosmwasm.com"
+
+[dependencies]
+cw0 = { version = "0.8.0" }
+cosmwasm-std = { version = "0.16.0" }
+schemars = "0.8.6"
+serde = { version = "1.0.130", default-features = false, features = ["derive"] }
+
+[dev-dependencies]
+cosmwasm-schema = { version = "1.0.0-beta2" }

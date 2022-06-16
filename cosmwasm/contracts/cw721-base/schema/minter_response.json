@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MinterResponse",
+  "description": "Shows who can mint these tokens",
+  "type": "object",
+  "required": [
+    "minter"
+  ],
+  "properties": {
+    "minter": {
+      "type": "string"
+    }
+  }
+}
