@@ -2,8 +2,8 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
+  isTerraChain,
 } from "@certusone/wormhole-sdk";
 import AlgorandWalletKey from "./AlgorandWalletKey";
 import EthereumSignerKey from "./EthereumSignerKey";
@@ -17,7 +17,7 @@ function KeyAndBalance({ chainId }: { chainId: ChainId }) {
   if (chainId === CHAIN_ID_SOLANA) {
     return <SolanaWalletKey />;
   }
-  if (chainId === CHAIN_ID_TERRA) {
+  if (isTerraChain(chainId)) {
     return <TerraWalletKey />;
   }
   if (chainId === CHAIN_ID_ALGORAND) {

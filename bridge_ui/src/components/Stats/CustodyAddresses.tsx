@@ -8,6 +8,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CHAIN_ID_TERRA2,
 } from "@certusone/wormhole-sdk";
 import { Container, makeStyles, Paper, Typography } from "@material-ui/core";
 import { useMemo } from "react";
@@ -104,6 +105,12 @@ const CustodyAddresses: React.FC<any> = () => {
         chainId: CHAIN_ID_AURORA,
         tokenAddress: getTokenBridgeAddressForChain(CHAIN_ID_AURORA),
         nftAddress: getNFTBridgeAddressForChain(CHAIN_ID_AURORA),
+      },
+      {
+        chainName: "Terra",
+        chainId: CHAIN_ID_TERRA2,
+        tokenAddress: getTokenBridgeAddressForChain(CHAIN_ID_TERRA2),
+        nftAddress: null,
       },
     ];
   }, []);

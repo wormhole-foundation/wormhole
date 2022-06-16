@@ -15,6 +15,8 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   CHAIN_ID_ACALA,
+  isTerraChain,
+  CHAIN_ID_TERRA2,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Typography } from "@material-ui/core";
 import { Transaction } from "../store/transferSlice";
@@ -42,7 +44,7 @@ export default function ShowTx({
     CLUSTER === "testnet" ||
     CLUSTER === "mainnet" ||
     (CLUSTER === "devnet" &&
-      (chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_TERRA));
+      (chainId === CHAIN_ID_SOLANA || isTerraChain(chainId)));
   const explorerAddress =
     chainId === CHAIN_ID_ETH
       ? `https://${CLUSTER === "testnet" ? "goerli." : ""}etherscan.io/tx/${
@@ -107,12 +109,16 @@ export default function ShowTx({
             : ""
         }`
       : chainId === CHAIN_ID_TERRA
+      ? CLUSTER === "mainnet"
+        ? `https://finder.terra.money/columbus-5/tx/${tx?.id}`
+        : undefined
+      : chainId === CHAIN_ID_TERRA2
       ? `https://finder.terra.money/${
           CLUSTER === "devnet"
             ? "localterra"
             : CLUSTER === "testnet"
-            ? "bombay-12"
-            : "columbus-5"
+            ? "pisco-1"
+            : "phoenix-1"
         }/tx/${tx?.id}`
       : chainId === CHAIN_ID_ALGORAND
       ? `https://${CLUSTER === "testnet" ? "testnet." : ""}algoexplorer.io/tx/${

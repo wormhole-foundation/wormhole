@@ -35,6 +35,7 @@ export function RegisterNowButtonCore({
       originChain && hexToNativeAssetString(originAsset, originChain);
     if (originChain && originAsset && nativeAsset && canSwitch) {
       dispatch(setSourceChain(originChain));
+      console.log(originChain);
       dispatch(setSourceAsset(nativeAsset));
       dispatch(setTargetChain(targetChain));
       dispatch(setStep(2));

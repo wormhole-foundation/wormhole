@@ -1,9 +1,9 @@
 import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
   isNativeDenom,
+  isTerraChain,
   TokenImplementation__factory,
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -24,7 +24,7 @@ import {
   ALGORAND_HOST,
   getEvmChainId,
   SOLANA_HOST,
-  TERRA_HOST,
+  getTerraConfig,
 } from "../utils/consts";
 import { NATIVE_TERRA_DECIMALS } from "../utils/terra";
 import { createParsedTokenAccount } from "./useGetSourceParsedTokenAccounts";
@@ -67,8 +67,8 @@ function useGetTargetParsedTokenAccounts() {
     }
     let cancelled = false;
 
-    if (targetChain === CHAIN_ID_TERRA && terraWallet) {
-      const lcd = new LCDClient(TERRA_HOST);
+    if (isTerraChain(targetChain) && terraWallet) {
+      const lcd = new LCDClient(getTerraConfig(targetChain));
       if (isNativeDenom(targetAsset)) {
         lcd.bank
           .balance(terraWallet.walletAddress)
