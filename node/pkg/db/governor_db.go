@@ -18,7 +18,7 @@ type Transfer struct {
 	Value          uint64
 	OriginChain    vaa.ChainID
 	OriginAddress  vaa.Address
-	EmitterChain vaa.ChainID
+	EmitterChain   vaa.ChainID
 	EmitterAddress vaa.Address
 	MsgID          string
 }
