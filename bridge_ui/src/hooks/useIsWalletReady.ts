@@ -2,8 +2,8 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
+  isTerraChain,
 } from "@certusone/wormhole-sdk";
 import { hexlify, hexStripZeros } from "@ethersproject/bytes";
 import { useConnectedWallet } from "@terra-money/wallet-provider";
@@ -98,11 +98,7 @@ function useIsWalletReady(
   }, [provider, correctEvmNetwork, chainId, connectType, disconnect]);
 
   return useMemo(() => {
-    if (
-      chainId === CHAIN_ID_TERRA &&
-      hasTerraWallet &&
-      terraWallet?.walletAddress
-    ) {
+    if (isTerraChain(chainId) && hasTerraWallet && terraWallet?.walletAddress) {
       // TODO: terraWallet does not update on wallet changes
       return createWalletStatus(
         true,

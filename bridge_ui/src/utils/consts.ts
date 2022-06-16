@@ -16,8 +16,11 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CHAIN_ID_TERRA2,
   CONTRACTS,
   isEVMChain,
+  isTerraChain,
+  TerraChainId,
 } from "@certusone/wormhole-sdk";
 import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
@@ -37,6 +40,7 @@ import oasisIcon from "../icons/oasis-network-rose-logo.svg";
 import polygonIcon from "../icons/polygon.svg";
 import solanaIcon from "../icons/solana.svg";
 import terraIcon from "../icons/terra.svg";
+import terra2Icon from "../icons/terra2.svg";
 
 export type Cluster = "devnet" | "testnet" | "mainnet";
 export const CLUSTER: Cluster =
@@ -201,6 +205,11 @@ export const CHAINS: ChainInfo[] =
           name: "Terra Classic",
           logo: terraIcon,
         },
+        {
+          id: CHAIN_ID_TERRA2,
+          name: "Terra",
+          logo: terra2Icon,
+        },
       ]
     : [
         {
@@ -227,6 +236,11 @@ export const CHAINS: ChainInfo[] =
           id: CHAIN_ID_TERRA,
           name: "Terra Classic",
           logo: terraIcon,
+        },
+        {
+          id: CHAIN_ID_TERRA2,
+          name: "Terra",
+          logo: terra2Icon,
         },
       ];
 export const BETA_CHAINS: ChainId[] =
@@ -264,6 +278,8 @@ export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
     ? "BNB"
     : chainId === CHAIN_ID_TERRA
     ? "LUNC"
+    : chainId === CHAIN_ID_TERRA2
+    ? "LUNA"
     : chainId === CHAIN_ID_POLYGON
     ? "MATIC"
     : chainId === CHAIN_ID_AVAX
@@ -323,7 +339,7 @@ export const getExplorerName = (chainId: ChainId) =>
     ? "Etherscan"
     : chainId === CHAIN_ID_BSC
     ? "BscScan"
-    : chainId === CHAIN_ID_TERRA
+    : isTerraChain(chainId)
     ? "Finder"
     : chainId === CHAIN_ID_POLYGON
     ? "Polygonscan"
@@ -417,24 +433,39 @@ export const SOLANA_HOST = process.env.REACT_APP_SOLANA_API_URL
   ? clusterApiUrl("devnet")
   : "http://localhost:8899";
 
-export const TERRA_HOST =
-  CLUSTER === "mainnet"
+export const getTerraConfig = (chainId: TerraChainId) => {
+  const isClassic = chainId === CHAIN_ID_TERRA;
+  return CLUSTER === "mainnet"
     ? {
-        URL: "https://lcd.terra.dev",
-        chainID: "columbus-5",
+        URL:
+          chainId === CHAIN_ID_TERRA2
+            ? "https://phoenix-lcd.terra.dev"
+            : "https://columbus-lcd.terra.dev",
+        chainID: chainId === CHAIN_ID_TERRA2 ? "phoenix-1" : "columbus-5",
         name: "mainnet",
+        isClassic,
       }
     : CLUSTER === "testnet"
     ? {
-        URL: "https://bombay-lcd.terra.dev",
-        chainID: "bombay-12",
+        URL:
+          chainId === CHAIN_ID_TERRA2
+            ? "https://pisco-lcd.terra.dev"
+            : "https://bombay-lcd.terra.dev",
+        chainID: chainId === CHAIN_ID_TERRA2 ? "pisco-1" : "bombay-12",
         name: "testnet",
+        isClassic,
       }
     : {
-        URL: "http://localhost:1317",
-        chainID: "columbus-5",
+        URL:
+          chainId === CHAIN_ID_TERRA2
+            ? "http://localhost:1318"
+            : "http://localhost:1317",
+        chainID: chainId === CHAIN_ID_TERRA2 ? "phoenix-1" : "columbus-5",
         name: "localterra",
+        isClassic,
       };
+};
+
 export const ALGORAND_HOST =
   CLUSTER === "mainnet"
     ? {
@@ -776,6 +807,18 @@ export const TERRA_TOKEN_BRIDGE_ADDRESS =
     : CLUSTER === "testnet"
     ? "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a"
     : "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
+export const TERRA2_BRIDGE_ADDRESS =
+  CLUSTER === "mainnet"
+    ? ""
+    : CLUSTER === "testnet"
+    ? ""
+    : "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au";
+export const TERRA2_TOKEN_BRIDGE_ADDRESS =
+  CLUSTER === "mainnet"
+    ? ""
+    : CLUSTER === "testnet"
+    ? ""
+    : "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6";
 export const ALGORAND_BRIDGE_ID = BigInt(
   CLUSTER === "mainnet" ? "0" : CLUSTER === "testnet" ? "86525623" : "4"
 );
@@ -794,6 +837,8 @@ export const getBridgeAddressForChain = (chainId: ChainId) =>
     ? BSC_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_TERRA
     ? TERRA_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_TERRA2
+    ? TERRA2_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_POLYGON
     ? POLYGON_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
@@ -856,6 +901,8 @@ export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
     ? BSC_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_TERRA
     ? TERRA_TOKEN_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_TERRA2
+    ? TERRA2_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_POLYGON
     ? POLYGON_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
@@ -1324,13 +1371,20 @@ export const getMigrationAssetMap = (chainId: ChainId) => {
 export const SUPPORTED_TERRA_TOKENS = ["uluna", "uusd"];
 export const TERRA_DEFAULT_FEE_DENOM = SUPPORTED_TERRA_TOKENS[0];
 
-export const TERRA_FCD_BASE =
+export const getTerraFCDBaseUrl = (chainId: TerraChainId) =>
   CLUSTER === "mainnet"
-    ? "https://fcd.terra.dev"
+    ? chainId === CHAIN_ID_TERRA2
+      ? "https://phoenix-fcd.terra.dev"
+      : "https://columbus-fcd.terra.dev"
     : CLUSTER === "testnet"
-    ? "https://bombay-fcd.terra.dev"
+    ? chainId === CHAIN_ID_TERRA2
+      ? "https://pisco-fcd.terra.dev"
+      : "https://bombay-fcd.terra.dev"
+    : chainId === CHAIN_ID_TERRA2
+    ? "http://localhost:3061"
     : "http://localhost:3060";
-export const TERRA_GAS_PRICES_URL = `${TERRA_FCD_BASE}/v1/txs/gas_prices`;
+export const getTerraGasPricesUrl = (chainId: TerraChainId) =>
+  `${getTerraFCDBaseUrl(chainId)}/v1/txs/gas_prices`;
 
 export const TOTAL_TRANSACTIONS_WORMHOLE = `https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-totals?groupBy=address`;
 
@@ -1415,7 +1469,7 @@ export const logoOverrides = new Map<string, string>([
 export const getHowToAddTokensToWalletUrl = (chainId: ChainId) => {
   if (isEVMChain(chainId)) {
     return "https://docs.wormholenetwork.com/wormhole/video-tutorial-how-to-manually-add-tokens-to-your-wallet#1.-metamask-ethereum-polygon-and-bsc";
-  } else if (chainId === CHAIN_ID_TERRA) {
+  } else if (isTerraChain(chainId)) {
     return "https://docs.wormholenetwork.com/wormhole/video-tutorial-how-to-manually-add-tokens-to-your-wallet#2.-terra-station";
   }
   return "";
@@ -1424,7 +1478,7 @@ export const getHowToAddTokensToWalletUrl = (chainId: ChainId) => {
 export const getHowToAddToTokenListUrl = (chainId: ChainId) => {
   if (chainId === CHAIN_ID_SOLANA) {
     return "https://github.com/solana-labs/token-list";
-  } else if (chainId === CHAIN_ID_TERRA) {
+  } else if (isTerraChain(chainId)) {
     return "https://github.com/terra-money/assets";
   }
   return "";

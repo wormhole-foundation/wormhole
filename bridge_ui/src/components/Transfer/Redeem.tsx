@@ -12,8 +12,8 @@ import {
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
+  isTerraChain,
   WSOL_ADDRESS,
 } from "@certusone/wormhole-sdk";
 import {
@@ -242,8 +242,8 @@ function Redeem() {
   const nonRelayContent = (
     <>
       <KeyAndBalance chainId={targetChain} />
-      {targetChain === CHAIN_ID_TERRA && (
-        <TerraFeeDenomPicker disabled={disabled} />
+      {isTerraChain(targetChain) && (
+        <TerraFeeDenomPicker disabled={disabled} chainId={targetChain} />
       )}
       {isNativeEligible && (
         <FormControlLabel

@@ -3,14 +3,15 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_KLAYTN,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
+  isTerraChain,
   redeemAndUnwrapOnSolana,
   redeemOnAlgorand,
   redeemOnEth,
   redeemOnEthNative,
   redeemOnSolana,
   redeemOnTerra,
+  TerraChainId,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { Alert } from "@material-ui/lab";
@@ -46,7 +47,6 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import parseError from "../utils/parseError";
 import { postVaaWithRetry } from "../utils/postVaa";
@@ -192,12 +192,13 @@ async function terra(
   enqueueSnackbar: any,
   wallet: ConnectedWallet,
   signedVAA: Uint8Array,
-  feeDenom: string
+  feeDenom: string,
+  chainId: TerraChainId
 ) {
   dispatch(setIsRedeeming(true));
   try {
     const msg = await redeemOnTerra(
-      TERRA_TOKEN_BRIDGE_ADDRESS,
+      getTokenBridgeAddressForChain(chainId),
       wallet.terraAddress,
       signedVAA
     );
@@ -205,7 +206,8 @@ async function terra(
       wallet,
       [msg],
       "Wormhole - Complete Transfer",
-      [feeDenom]
+      [feeDenom],
+      chainId
     );
     dispatch(
       setRedeemTx({ id: result.result.txhash, block: result.result.height })
@@ -250,8 +252,15 @@ export function useHandleRedeem() {
         signedVAA,
         false
       );
-    } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
-      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom);
+    } else if (isTerraChain(targetChain) && !!terraWallet && signedVAA) {
+      terra(
+        dispatch,
+        enqueueSnackbar,
+        terraWallet,
+        signedVAA,
+        terraFeeDenom,
+        targetChain
+      );
     } else if (
       targetChain === CHAIN_ID_ALGORAND &&
       algoAccounts[0] &&
@@ -290,8 +299,15 @@ export function useHandleRedeem() {
         signedVAA,
         true
       );
-    } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
-      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom); //TODO isNative = true
+    } else if (isTerraChain(targetChain) && !!terraWallet && signedVAA) {
+      terra(
+        dispatch,
+        enqueueSnackbar,
+        terraWallet,
+        signedVAA,
+        terraFeeDenom,
+        targetChain
+      ); //TODO isNative = true
     } else if (
       targetChain === CHAIN_ID_ALGORAND &&
       algoAccounts[0] &&

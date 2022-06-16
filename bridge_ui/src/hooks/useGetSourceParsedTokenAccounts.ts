@@ -15,8 +15,8 @@ import {
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
+  isTerraChain,
   TokenImplementation__factory,
   WSOL_ADDRESS,
   WSOL_DECIMALS,
@@ -1546,7 +1546,7 @@ function useGetAvailableTokens(nft: boolean = false) {
         },
         resetAccounts: resetSourceAccounts,
       }
-    : lookupChain === CHAIN_ID_TERRA
+    : isTerraChain(lookupChain)
     ? {
         resetAccounts: resetSourceAccounts,
       }

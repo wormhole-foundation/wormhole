@@ -1,7 +1,8 @@
+import { TerraChainId } from "@certusone/wormhole-sdk";
 import { LCDClient } from "@terra-money/terra.js";
 import { useLayoutEffect, useMemo, useState } from "react";
 import { DataWrapper } from "../store/helpers";
-import { TERRA_HOST } from "../utils/consts";
+import { getTerraConfig } from "../utils/consts";
 
 export type TerraMetadata = {
   symbol?: string;
@@ -24,8 +25,8 @@ const fetchSingleMetadata = async (address: string, lcd: LCDClient) =>
         } as TerraMetadata)
     );
 
-const fetchTerraMetadata = async (addresses: string[]) => {
-  const lcd = new LCDClient(TERRA_HOST);
+const fetchTerraMetadata = async (addresses: string[], chainId: TerraChainId) => {
+  const lcd = new LCDClient(getTerraConfig(chainId));
   const promises: Promise<TerraMetadata>[] = [];
   addresses.forEach((address) => {
     promises.push(fetchSingleMetadata(address, lcd));
@@ -40,7 +41,8 @@ const fetchTerraMetadata = async (addresses: string[]) => {
 };
 
 const useTerraMetadata = (
-  addresses: string[]
+  addresses: string[],
+  chainId: TerraChainId
 ): DataWrapper<Map<string, TerraMetadata>> => {
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState("");
@@ -52,7 +54,7 @@ const useTerraMetadata = (
       setIsFetching(true);
       setError("");
       setData(null);
-      fetchTerraMetadata(addresses).then(
+      fetchTerraMetadata(addresses, chainId).then(
         (results) => {
           if (!cancelled) {
             setData(results);
@@ -70,7 +72,7 @@ const useTerraMetadata = (
     return () => {
       cancelled = true;
     };
-  }, [addresses]);
+  }, [addresses, chainId]);
 
   return useMemo(
     () => ({

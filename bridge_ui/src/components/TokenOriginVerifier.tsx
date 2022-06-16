@@ -1,7 +1,7 @@
 import {
   ChainId,
+  CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
   nativeToHexString,
 } from "@certusone/wormhole-sdk";
@@ -186,7 +186,7 @@ export default function TokenOriginVerifier() {
   const [primaryLookupAsset, setPrimaryLookupAsset] = useState("");
 
   const [secondaryLookupChain, setSecondaryLookupChain] =
-    useState<ChainId>(CHAIN_ID_TERRA);
+    useState<ChainId>(CHAIN_ID_ETH);
 
   const primaryLookupChainOptions = useMemo(
     () => (isBeta ? CHAINS.filter((x) => !BETA_CHAINS.includes(x.id)) : CHAINS),
@@ -207,7 +207,7 @@ export default function TokenOriginVerifier() {
       setPrimaryLookupChain(e.target.value);
       if (secondaryLookupChain === e.target.value) {
         setSecondaryLookupChain(
-          e.target.value === CHAIN_ID_SOLANA ? CHAIN_ID_TERRA : CHAIN_ID_SOLANA
+          e.target.value === CHAIN_ID_SOLANA ? CHAIN_ID_ETH : CHAIN_ID_SOLANA
         );
       }
       setPrimaryLookupAsset("");
