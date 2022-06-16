@@ -45,15 +45,8 @@ export interface TerraNativeBalances {
   [index: string]: string;
 }
 
-function init() {
-  try {
-    env = getRelayerEnvironment();
-  } catch (e) {
-    logger.error("Unable to instantiate the relayerEnv in wallet monitor");
-  }
-}
-
 async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
+  env = getRelayerEnvironment();
   //TODO loop through all the chain configs, calc the public keys, pull their balances, and push to a combo of the loggers and prmometheus
   if (!env) {
     logger.error("pullBalances() - no env");
@@ -318,7 +311,6 @@ export async function collectWallets(metrics: PromHelper) {
   const scopedLogger = getScopedLogger(["collectWallets"], logger);
   const ONE_MINUTE: number = 60000;
   scopedLogger.info("Starting up.");
-  init();
   while (true) {
     scopedLogger.debug("Pulling balances.");
     let wallets: WalletBalance[] = [];
