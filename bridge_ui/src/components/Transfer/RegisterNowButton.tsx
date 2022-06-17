@@ -12,9 +12,14 @@ import {
   selectAttestSignedVAAHex,
   selectTransferOriginAsset,
   selectTransferOriginChain,
+  selectTransferSourceAsset,
   selectTransferTargetChain,
 } from "../../store/selectors";
-import { ChainId, hexToNativeAssetString } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_TERRA2,
+  hexToNativeAssetString,
+} from "@certusone/wormhole-sdk";
 
 export function RegisterNowButtonCore({
   originChain,
@@ -29,19 +34,30 @@ export function RegisterNowButtonCore({
   const history = useHistory();
   // user might be in the middle of a different attest
   const signedVAAHex = useSelector(selectAttestSignedVAAHex);
+  const sourceAsset = useSelector(selectTransferSourceAsset);
   const canSwitch = originChain && originAsset && !signedVAAHex;
   const handleClick = useCallback(() => {
-    const nativeAsset =
-      originChain && hexToNativeAssetString(originAsset, originChain);
+    const nativeAsset = originChain
+      ? originChain === CHAIN_ID_TERRA2
+        ? sourceAsset // use the preimage address for terra2
+        : hexToNativeAssetString(originAsset, originChain)
+      : undefined;
     if (originChain && originAsset && nativeAsset && canSwitch) {
       dispatch(setSourceChain(originChain));
-      console.log(originChain);
       dispatch(setSourceAsset(nativeAsset));
       dispatch(setTargetChain(targetChain));
       dispatch(setStep(2));
       history.push("/register");
     }
-  }, [dispatch, canSwitch, originChain, originAsset, targetChain, history]);
+  }, [
+    dispatch,
+    canSwitch,
+    originChain,
+    originAsset,
+    targetChain,
+    history,
+    sourceAsset,
+  ]);
   if (!canSwitch) return null;
   return (
     <Button

@@ -416,7 +416,7 @@ export function GasEstimateSummary({
         priceQuote={priceQuote}
       />
     );
-  } else if (chainId === CHAIN_ID_TERRA) { // TODO: terra2 support
+  } else if (chainId === CHAIN_ID_TERRA) {
     return <TerraGasEstimateSummary methodType={methodType} />;
   } else {
     return null;
