@@ -25,3 +25,19 @@ contract TestMessages is Messages {
     Assert.equal(quorum(20), 14, "it should return quorum");
   }  
 }
+
+
+contract TestConversion {
+  function testConversion() public { 
+    uint8 num8 = 0;
+    uint32 num32 = 260;
+
+    num8 = num32
+
+    require(num8 > 0, "num8 is negative");
+    require(num8 == 0, "num8 is zero");
+    require(num8 < 0, "num8 is positive");
+
+
+  }  
+}
