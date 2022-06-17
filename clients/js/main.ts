@@ -272,7 +272,7 @@ yargs(hideBin(process.argv))
       } else if (isEVMChain(chain)) {
         await execute_governance_evm(parsed_vaa.payload, buf, network, chain);
       } else if (isTerraChain(chain)) {
-        await execute_governance_terra(parsed_vaa.payload, buf, network);
+        await execute_governance_terra(parsed_vaa.payload, buf, network, chain);
       } else if (chain === "solana") {
         await execute_governance_solana(parsed_vaa, buf, network);
       } else if (chain === "algorand") {
