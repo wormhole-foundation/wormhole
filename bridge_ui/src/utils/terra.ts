@@ -30,7 +30,6 @@ export const formatNativeDenom = (
   denom: string,
   chainId: TerraChainId
 ): string => {
-  console.log(denom, chainId);
   const unit = denom.slice(1).toUpperCase();
   const isValidTerra = isNativeTerra(denom);
   return denom === "uluna"

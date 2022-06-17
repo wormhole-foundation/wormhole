@@ -28,7 +28,6 @@ export default function useTerraNativeBalances(
       setIsLoading(true);
       setBalances(undefined);
       const lcd = new LCDClient(getTerraConfig(chainId));
-      console.log(lcd);
       lcd.bank
         .balance(walletAddress)
         .then(([coins]) => {

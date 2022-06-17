@@ -125,7 +125,6 @@ function Source() {
   const handleSourceChange = useCallback(
     (event) => {
       dispatch(setSourceChain(event.target.value));
-      console.log(event.target.value);
     },
     [dispatch]
   );

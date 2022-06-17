@@ -67,7 +67,6 @@ function useFetchTargetAsset(nft?: boolean) {
   const originAsset = useSelector(
     nft ? selectNFTOriginAsset : selectTransferOriginAsset
   );
-  console.log(originAsset);
   const originTokenId = useSelector(selectNFTOriginTokenId);
   const tokenId = originTokenId || ""; // this should exist by this step for NFT transfers
   const targetChain = useSelector(
@@ -258,7 +257,6 @@ function useFetchTargetAsset(nft?: boolean) {
             originChain,
             originAsset
           );
-          console.log("foreign asset algo:", asset);
           if (!cancelled) {
             dispatch(
               setTargetAsset(
