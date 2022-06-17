@@ -251,8 +251,9 @@ const TESTNET = {
     nft_bridge: "0xa52Da3B1ffd258a2fFB7719a6aeE24095eEE24E2",
   },
   terra2: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
+    token_bridge:
+      "terra1c02vds4uhgtrmcw7ldlg75zumdqxr8hwf7npseuf2h58jzhpgjxsgmwkvk",
     nft_bridge: undefined,
   },
   ropsten: {

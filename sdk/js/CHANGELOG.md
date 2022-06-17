@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3
+
+### Added
+
+Terra 2 testnet addresses
+
 ## 0.4.2
 
 ### Added
