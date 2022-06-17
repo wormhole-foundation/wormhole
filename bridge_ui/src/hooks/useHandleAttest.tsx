@@ -235,7 +235,7 @@ async function terra(
 ) {
   dispatch(setIsSending(true));
   try {
-    const tokenBridgeAddress = getTokenBridgeAddressForChain(chainId)
+    const tokenBridgeAddress = getTokenBridgeAddressForChain(chainId);
     const msg = await attestFromTerra(
       tokenBridgeAddress,
       wallet.terraAddress,
@@ -257,9 +257,7 @@ async function terra(
     if (!sequence) {
       throw new Error("Sequence not found");
     }
-    const emitterAddress = await getEmitterAddressTerra(
-      tokenBridgeAddress,
-    );
+    const emitterAddress = await getEmitterAddressTerra(tokenBridgeAddress);
     enqueueSnackbar(null, {
       content: <Alert severity="info">Fetching VAA</Alert>,
     });

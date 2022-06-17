@@ -134,7 +134,6 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
           const wrappedInfo = makeStateSafe(
             await getOriginalAssetCosmWasm(lcd, sourceAsset, sourceChain)
           );
-          console.log(wrappedInfo);
           if (!cancelled) {
             dispatch(setSourceWormholeWrappedInfo(wrappedInfo));
           }

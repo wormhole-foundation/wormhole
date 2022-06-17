@@ -228,7 +228,6 @@ function useOriginalAsset(
         if (!cancelled) {
           setIsLoading(false);
           setArgs();
-          console.log("setting", result.assetAddress);
           setOriginAddress(
             hexToNativeAssetString(
               uint8ArrayToHex(result.assetAddress),

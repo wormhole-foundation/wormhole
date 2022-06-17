@@ -1,6 +1,7 @@
 import {
   CHAIN_ID_ACALA,
   CHAIN_ID_KARURA,
+  CHAIN_ID_TERRA,
   hexToNativeAssetString,
   isEVMChain,
   isTerraChain,
@@ -306,7 +307,7 @@ function FeeMethodSelector() {
           </Typography>
         </div>
       </div>
-      {(isEVMChain(targetChain) || isTerraChain(targetChain)) && (
+      {(isEVMChain(targetChain) || targetChain === CHAIN_ID_TERRA) && (
         <GasEstimateSummary
           methodType="transfer"
           chainId={targetChain}

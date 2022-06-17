@@ -65,7 +65,6 @@ function Transfer() {
         return;
       }
       if (sourceChain) {
-        console.log(sourceChain);
         dispatch(setSourceChain(sourceChain));
       }
       if (targetChain) {
