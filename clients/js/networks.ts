@@ -91,8 +91,9 @@ const MAINNET = {
     key: undefined,
   },
   terra2: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://phoenix-lcd.terra.dev",
+    chain_id: "phoenix-1",
+    key: get_env_var("TERRA_MNEMONIC"),
   },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
@@ -175,8 +176,9 @@ const TESTNET = {
     key: get_env_var("ETH_KEY"),
   },
   terra2: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://pisco-lcd.terra.dev",
+    chain_id: "pisco-1",
+    key: get_env_var("TERRA_MNEMONIC"),
   },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
@@ -259,8 +261,9 @@ const DEVNET = {
     key: undefined,
   },
   terra2: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://localhost:1318",
+    chain_id: "phoenix-1",
+    key: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius",
   },
   ropsten: {
     rpc: undefined,
