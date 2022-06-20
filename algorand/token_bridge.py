@@ -863,7 +863,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                    MagicAssert(Btoi(extract_decimal(aid.load())) <= Int(8)),
 
                    # Lets just hand back the previously generated vaa payload
-                   p.store(blob.read(Int(2), Int(8), Int(108)))
+                   p.store(blob.read(Int(2), Int(59), Int(159)))
                ]),
                Seq([
 #                   Log(Bytes("Non Wormhole wrapped")),
