@@ -119,34 +119,33 @@ export async function attestFromAlgorand(
     aa
   );
   txs.push(...emitterOptInTxs);
-  let wormhole: boolean = false;
-  let creatorAcctInfo: any = false;
+
   let creatorAddr = "";
+  let creatorAcctInfo;
   const bPgmName: Uint8Array = textToUint8Array("attestToken");
 
   if (assetId !== BigInt(0)) {
     const assetInfo = await client
       .getAssetByID(safeBigIntToNumber(assetId))
       .do();
-    creatorAddr = assetInfo.params.creator;
-    creatorAcctInfo = await client.accountInformation(creatorAddr).do();
-    wormhole = creatorAcctInfo["auth-addr"] === tbAddr;
-  } else {
-    wormhole = false;
+    creatorAcctInfo = await client
+      .accountInformation(assetInfo.params.creator)
+      .do();
+    if (creatorAcctInfo["auth-addr"] === tbAddr) {
+      throw new Error("Cannot re-attest wormhole assets");
+    }
   }
 
-  if (!wormhole) {
-    // "notWormhole"
-    const result = await optin(
-      client,
-      senderAddr,
-      tokenBridgeId,
-      assetId,
-      textToHexString("native")
-    );
-    creatorAddr = result.addr;
-    txs.push(...result.txs);
-  }
+  const result = await optin(
+    client,
+    senderAddr,
+    tokenBridgeId,
+    assetId,
+    textToHexString("native")
+  );
+  creatorAddr = result.addr;
+  txs.push(...result.txs);
+
   const suggParams: SuggestedParams = await client.getTransactionParams().do();
 
   const firstTxn = makeApplicationCallTxnFromObject({

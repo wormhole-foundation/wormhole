@@ -617,11 +617,6 @@ class AlgoTest(PortalCore):
         self.submitVAA(transferVAA, client, player, self.tokenid)
         seq += 1
 
-        aid = client.account_info(player.getAddress())["assets"][0]["asset-id"]
-        print("generate an attest of the asset we just received: " + str(aid))
-        # paul - attestFromAlgorand
-        self.testAttest(client, player, aid)
-
         print("Create the test app we will use to torture ourselves using a new player")
         player2 = self.getTemporaryAccount(client)
         print("player2 address " + player2.getAddress())
