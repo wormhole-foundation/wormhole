@@ -19,8 +19,9 @@ import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {relayToSolana} from "../xRaydium/scripts/relay"
-import {TransferPayload} from "../xRaydium/scripts/lib/lib"
-
+import {TransferPayload,getAndParseVaa} from "../xRaydium/scripts/lib/lib"
+import {redeemResponsesToEvm} from "../xRaydium/scripts/relay"
+import * as wh from "@certusone/wormhole-sdk";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
@@ -69,18 +70,21 @@ export async function relaySolana(
     const parsedVAA = parse_vaa(signedVaaArray);
     const payloadBuffer = Buffer.from(parsedVAA.payload);
     let payload3 = parsedVAA["payload"].slice(133);
-    let myTransferPayload3 = parseTransferPayload(payloadBuffer);
+    let myTransferPayload3 = parseTransferPayload(payloadBuffer) as TransferPayload;
     logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
     myTransferPayload3["payload3"] = payload3;
-    //logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
-    console.log("myTransferPayload3: ", myTransferPayload3)
-    // *** DOES REDEEMING 
-    // await redeem( 
-    //   signedVaaArray, 
-    //    myTransferPayload3 as TransferPayload, 
-    //    "", 
-    //    false
-    // ) 
+
+    const returnSeqs = await relayToSolana(
+        signedVaaArray,
+        parsedVAA,
+        myTransferPayload3,
+    );
+    
+    logger.info("\n\n\n=============done relaying to solana...!!!!!!!\n\n\n")
+
+    //await redeemResponsesToEvm(returnSeqs);
+    //logger.info("=============done redeem responses to EVM!!!...!!!")
+
     return { redeemed: true, result: "redeemed (hypothetically)" };
 }
 

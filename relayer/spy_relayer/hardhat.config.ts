@@ -1,5 +1,4 @@
-import * as dotenv from "dotenv";
-
+//import * as dotenv from "dotenv";
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
@@ -9,7 +8,7 @@ import "@typechain/hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "ethers";
 
-dotenv.config();
+//dotenv.config();
 
 // When using the hardhat network, you may choose to fork Fuji or Avalanche Mainnet
 // This will allow you to debug contracts using the hardhat network while keeping the current network state
@@ -103,5 +102,4 @@ const config: HardhatUserConfig = {
     },
   },
 };
-
 export default config;
