@@ -3,7 +3,7 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
-import { setDefaultWasm } from "@certusone/wormhole-sdk";
+import { isTerraChain, setDefaultWasm } from "@certusone/wormhole-sdk";
 import { execute_governance_solana } from "./solana";
 import { execute_governance_evm } from "./evm";
 import { execute_governance_terra } from "./terra";
@@ -271,7 +271,7 @@ yargs(hideBin(process.argv))
         );
       } else if (isEVMChain(chain)) {
         await execute_governance_evm(parsed_vaa.payload, buf, network, chain);
-      } else if (chain === "terra") {
+      } else if (isTerraChain(chain)) {
         await execute_governance_terra(parsed_vaa.payload, buf, network);
       } else if (chain === "solana") {
         await execute_governance_solana(parsed_vaa, buf, network);

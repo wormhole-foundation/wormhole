@@ -29,7 +29,7 @@ export default async function migrateTokens(
       to_mint,
       input_token_account,
       output_token_account,
-      amount
+      amount.valueOf()
     )
   );
   const transaction = new Transaction().add(approvalIx, ix);

@@ -67,7 +67,7 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   acala: {
-    rpc: undefined,
+    rpc: "https://eth-rpc-acala.aca-api.network/",
     key: get_env_var("ETH_KEY"),
   },
   klaytn: {
@@ -85,7 +85,15 @@ const MAINNET = {
   moonbeam: {
     rpc: undefined,
     key: undefined,
-  },  
+  },
+  neon: {
+    rpc: undefined,
+    key: undefined,
+  },
+  terra2: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
     key: get_env_var("ETH_KEY"),
@@ -161,7 +169,15 @@ const TESTNET = {
   moonbeam: {
     rpc: "https://rpc.api.moonbase.moonbeam.network",
     key: get_env_var("ETH_KEY"),
-  },  
+  },
+  neon: {
+    rpc: "https://proxy.devnet.neonlabs.org/solana",
+    key: get_env_var("ETH_KEY"),
+  },
+  terra2: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
     key: get_env_var("ETH_KEY"),
@@ -237,7 +253,15 @@ const DEVNET = {
   moonbeam: {
     rpc: undefined,
     key: undefined,
-  },  
+  },
+  neon: {
+    rpc: undefined,
+    key: undefined,
+  },
+  terra2: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: undefined,
     key: undefined,

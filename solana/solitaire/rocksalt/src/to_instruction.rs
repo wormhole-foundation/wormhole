@@ -1,25 +1,14 @@
 //! Derive macro logic for ToInstruction
 
-use proc_macro::TokenStream;
 use proc_macro2::{
     Span,
     TokenStream as TokenStream2,
 };
-use quote::{
-    quote,
-    quote_spanned,
-};
+use quote::quote;
 use syn::{
-    parse_macro_input,
-    parse_quote,
-    spanned::Spanned,
     Data,
     DataStruct,
-    DeriveInput,
     Fields,
-    GenericParam,
-    Generics,
-    Index,
 };
 
 pub fn generate_to_instruction(
@@ -45,9 +34,9 @@ pub fn generate_to_instruction(
                 }
             });
             let client_struct_name =
-                syn::Ident::new(&format!("{}Accounts", name.to_string()), Span::call_site());
+                syn::Ident::new(&format!("{}Accounts", name), Span::call_site());
 
-            let client_struct_decl = generate_clientside_struct(&name, &client_struct_name, &data);
+            let client_struct_decl = generate_clientside_struct(&client_struct_name, data);
 
             quote! {
             /// Solitaire-generated client-side #name representation
@@ -90,7 +79,6 @@ pub fn generate_to_instruction(
 }
 
 pub fn generate_clientside_struct(
-    name: &syn::Ident,
     client_struct_name: &syn::Ident,
     data: &Data,
 ) -> TokenStream2 {

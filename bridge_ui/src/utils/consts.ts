@@ -11,10 +11,12 @@ import {
   CHAIN_ID_FANTOM,
   CHAIN_ID_KARURA,
   CHAIN_ID_KLAYTN,
+  CHAIN_ID_NEON,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CONTRACTS,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { clusterApiUrl } from "@solana/web3.js";
@@ -30,6 +32,7 @@ import ethIcon from "../icons/eth.svg";
 import fantomIcon from "../icons/fantom.svg";
 import karuraIcon from "../icons/karura.svg";
 import klaytnIcon from "../icons/klaytn.svg";
+import neonIcon from "../icons/neon.svg";
 import oasisIcon from "../icons/oasis-network-rose-logo.svg";
 import polygonIcon from "../icons/polygon.svg";
 import solanaIcon from "../icons/solana.svg";
@@ -50,6 +53,11 @@ export interface ChainInfo {
 export const CHAINS: ChainInfo[] =
   CLUSTER === "mainnet"
     ? [
+        {
+          id: CHAIN_ID_ACALA,
+          name: "Acala",
+          logo: acalaIcon,
+        },
         {
           id: CHAIN_ID_AURORA,
           name: "Aurora",
@@ -169,6 +177,11 @@ export const CHAINS: ChainInfo[] =
           logo: klaytnIcon,
         },
         {
+          id: CHAIN_ID_NEON,
+          name: "Neon",
+          logo: neonIcon,
+        },
+        {
           id: CHAIN_ID_OASIS,
           name: "Oasis",
           logo: oasisIcon,
@@ -217,9 +230,7 @@ export const CHAINS: ChainInfo[] =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet"
-    ? [CHAIN_ID_KARURA, CHAIN_ID_CELO, CHAIN_ID_KLAYTN]
-    : [];
+  CLUSTER === "mainnet" ? [CHAIN_ID_ACALA, CHAIN_ID_KLAYTN] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -234,7 +245,8 @@ export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
     id === CHAIN_ID_KARURA ||
     id === CHAIN_ID_ACALA ||
     id === CHAIN_ID_KLAYTN ||
-    id === CHAIN_ID_CELO
+    id === CHAIN_ID_CELO ||
+    id === CHAIN_ID_NEON
 );
 export type ChainsById = { [key in ChainId]: ChainInfo };
 export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
@@ -272,7 +284,40 @@ export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
     ? "KLAY"
     : chainId === CHAIN_ID_CELO
     ? "CELO"
+    : chainId === CHAIN_ID_NEON
+    ? "NEON"
     : "";
+
+export const getDefaultNativeCurrencyAddressEvm = (chainId: ChainId) => {
+  return chainId === CHAIN_ID_ETH
+    ? WETH_ADDRESS
+    : chainId === CHAIN_ID_BSC
+    ? WBNB_ADDRESS
+    : chainId === CHAIN_ID_POLYGON
+    ? WMATIC_ADDRESS
+    : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+    ? ROPSTEN_WETH_ADDRESS
+    : chainId === CHAIN_ID_AVAX
+    ? WAVAX_ADDRESS
+    : chainId === CHAIN_ID_OASIS
+    ? WROSE_ADDRESS
+    : chainId === CHAIN_ID_AURORA
+    ? WETH_AURORA_ADDRESS
+    : chainId === CHAIN_ID_FANTOM
+    ? WFTM_ADDRESS
+    : chainId === CHAIN_ID_KARURA
+    ? KAR_ADDRESS
+    : chainId === CHAIN_ID_ACALA
+    ? ACA_ADDRESS
+    : chainId === CHAIN_ID_KLAYTN
+    ? WKLAY_ADDRESS
+    : chainId === CHAIN_ID_CELO
+    ? CELO_ADDRESS
+    : chainId === CHAIN_ID_NEON
+    ? WNEON_ADDRESS
+    : "";
+};
+
 export const getExplorerName = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH || chainId === CHAIN_ID_ETHEREUM_ROPSTEN
     ? "Etherscan"
@@ -290,6 +335,8 @@ export const getExplorerName = (chainId: ChainId) =>
     ? "FTMScan"
     : chainId === CHAIN_ID_KLAYTN
     ? "Klaytnscope"
+    : chainId === CHAIN_ID_SOLANA
+    ? "Solscan"
     : "Explorer";
 export const WORMHOLE_RPC_HOSTS =
   CLUSTER === "mainnet"
@@ -332,6 +379,8 @@ export const KLAYTN_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 8217 : CLUSTER === "testnet" ? 1001 : 1381;
 export const CELO_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 42220 : CLUSTER === "testnet" ? 44787 : 1381;
+export const NEON_NETWORK_CHAIN_ID =
+  CLUSTER === "mainnet" ? 245022934 : CLUSTER === "testnet" ? 245022926 : 1381;
 export const getEvmChainId = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH
     ? ETH_NETWORK_CHAIN_ID
@@ -357,6 +406,8 @@ export const getEvmChainId = (chainId: ChainId) =>
     ? KLAYTN_NETWORK_CHAIN_ID
     : chainId === CHAIN_ID_CELO
     ? CELO_NETWORK_CHAIN_ID
+    : chainId === CHAIN_ID_NEON
+    ? NEON_NETWORK_CHAIN_ID
     : undefined;
 export const SOLANA_HOST = process.env.REACT_APP_SOLANA_API_URL
   ? process.env.REACT_APP_SOLANA_API_URL
@@ -411,7 +462,7 @@ export const KARURA_HOST =
     : "";
 export const ACALA_HOST =
   CLUSTER === "mainnet"
-    ? ""
+    ? "https://eth-rpc-acala.aca-api.network/"
     : CLUSTER === "testnet"
     ? "https://acala-dev.aca-dev.network/eth/http"
     : "";
@@ -585,21 +636,21 @@ export const KARURA_TOKEN_BRIDGE_ADDRESS = getAddress(
 );
 export const ACALA_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? CONTRACTS.MAINNET.acala.core
     : CLUSTER === "testnet"
     ? "0x4377B49d559c0a9466477195C6AdC3D433e265c0"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const ACALA_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? CONTRACTS.MAINNET.acala.nft_bridge
     : CLUSTER === "testnet"
     ? "0x96f1335e0AcAB3cfd9899B30b2374e25a2148a6E"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const ACALA_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? CONTRACTS.MAINNET.acala.token_bridge
     : CLUSTER === "testnet"
     ? "0xebA00cbe08992EdD08ed7793E07ad6063c807004"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
@@ -644,6 +695,27 @@ export const CELO_TOKEN_BRIDGE_ADDRESS = getAddress(
     ? "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed"
     : CLUSTER === "testnet"
     ? "0x05ca6037eC51F8b712eD2E6Fa72219FEaE74E153"
+    : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+);
+export const NEON_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000000000000000000000000"
+    : CLUSTER === "testnet"
+    ? CONTRACTS.TESTNET.neon.core
+    : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+);
+export const NEON_NFT_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000000000000000000000000"
+    : CLUSTER === "testnet"
+    ? CONTRACTS.TESTNET.neon.nft_bridge
+    : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
+);
+export const NEON_TOKEN_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000000000000000000000000"
+    : CLUSTER === "testnet"
+    ? CONTRACTS.TESTNET.neon.token_bridge
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const SOL_BRIDGE_ADDRESS =
@@ -742,6 +814,8 @@ export const getBridgeAddressForChain = (chainId: ChainId) =>
     ? KLAYTN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_CELO
     ? CELO_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_NEON
+    ? NEON_BRIDGE_ADDRESS
     : "";
 export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
@@ -770,6 +844,8 @@ export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
     ? KLAYTN_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_CELO
     ? CELO_NFT_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_NEON
+    ? NEON_NFT_BRIDGE_ADDRESS
     : "";
 export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
@@ -800,6 +876,8 @@ export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
     ? KLAYTN_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_CELO
     ? CELO_TOKEN_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_NEON
+    ? NEON_TOKEN_BRIDGE_ADDRESS
     : "";
 
 export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
@@ -811,15 +889,12 @@ export const COVALENT_BSC = CLUSTER === "devnet" ? 56 : BSC_NETWORK_CHAIN_ID;
 export const COVALENT_POLYGON =
   CLUSTER === "devnet" ? 137 : POLYGON_NETWORK_CHAIN_ID;
 export const COVALENT_AVAX = CLUSTER === "devnet" ? 137 : AVAX_NETWORK_CHAIN_ID;
-export const COVALENT_OASIS = CLUSTER === "devnet" ? null : null;
-export const COVALENT_AURORA = CLUSTER === "devnet" ? null : null;
 export const COVALENT_FANTOM =
   CLUSTER === "devnet" ? 250 : FANTOM_NETWORK_CHAIN_ID;
-export const COVALENT_KARURA = CLUSTER === "devnet" ? null : null;
-export const COVALENT_ACALA = CLUSTER === "devnet" ? null : null;
 export const COVALENT_KLAYTN =
   CLUSTER === "mainnet" ? KLAYTN_NETWORK_CHAIN_ID : null; // Covalent only support mainnet
 export const COVALENT_CELO = CLUSTER === "devnet" ? null : null;
+export const COVALENT_NEON = CLUSTER === "devnet" ? null : null;
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
   walletAddress: string,
@@ -835,26 +910,64 @@ export const COVALENT_GET_TOKENS_URL = (
       ? COVALENT_POLYGON
       : chainId === CHAIN_ID_AVAX
       ? COVALENT_AVAX
-      : chainId === CHAIN_ID_OASIS
-      ? COVALENT_OASIS
-      : chainId === CHAIN_ID_AURORA
-      ? COVALENT_AURORA
       : chainId === CHAIN_ID_FANTOM
       ? COVALENT_FANTOM
-      : chainId === CHAIN_ID_KARURA
-      ? COVALENT_KARURA
-      : chainId === CHAIN_ID_ACALA
-      ? COVALENT_ACALA
       : chainId === CHAIN_ID_KLAYTN
       ? COVALENT_KLAYTN
       : chainId === CHAIN_ID_CELO
       ? COVALENT_CELO
+      : chainId === CHAIN_ID_NEON
+      ? COVALENT_NEON
       : "";
   // https://www.covalenthq.com/docs/api/#get-/v1/{chain_id}/address/{address}/balances_v2/
-  return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${
-    nft ? "&nft=true" : ""
-  }${noNftMetadata ? "&no-nft-fetch=true" : ""}`;
+  return chainNum
+    ? `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${
+        nft ? "&nft=true" : ""
+      }${noNftMetadata ? "&no-nft-fetch=true" : ""}`
+    : "";
 };
+
+export const BLOCKSCOUT_GET_TOKENS_URL = (
+  chainId: ChainId,
+  walletAddress: string
+) => {
+  const baseUrl =
+    chainId === CHAIN_ID_OASIS
+      ? CLUSTER === "mainnet"
+        ? "https://explorer.emerald.oasis.dev"
+        : CLUSTER === "testnet"
+        ? "https://testnet.explorer.emerald.oasis.dev"
+        : ""
+      : chainId === CHAIN_ID_AURORA
+      ? CLUSTER === "mainnet"
+        ? "https://explorer.mainnet.aurora.dev"
+        : CLUSTER === "testnet"
+        ? "https://explorer.testnet.aurora.dev"
+        : ""
+      : chainId === CHAIN_ID_ACALA
+      ? CLUSTER === "mainnet"
+        ? "https://blockscout.acala.network"
+        : CLUSTER === "testnet"
+        ? "https://blockscout.acala-dev.aca-dev.network"
+        : ""
+      : chainId === CHAIN_ID_KARURA
+      ? CLUSTER === "mainnet"
+        ? "https://blockscout.karura.network"
+        : CLUSTER === "testnet"
+        ? "https://blockscout.karura-dev.aca-dev.network"
+        : ""
+      : chainId === CHAIN_ID_CELO
+      ? CLUSTER === "mainnet"
+        ? "https://explorer.celo.org"
+        : CLUSTER === "testnet"
+        ? "https://alfajores-blockscout.celo-testnet.org"
+        : ""
+      : "";
+  return baseUrl
+    ? `${baseUrl}/api?module=account&action=tokenlist&address=${walletAddress}`
+    : "";
+};
+
 export const TVL_URL =
   "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvl";
 export const TVL_CUMULATIVE_URL =
@@ -957,6 +1070,14 @@ export const CELO_ADDRESS =
     ? "0xF194afDf50B03e69Bd7D057c1Aa9e10c9954E4C9"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const CELO_DECIMALS = 18;
+
+export const WNEON_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0xf8ad328e98f85fccbf09e43b16dcbbda7e84beab"
+    : CLUSTER === "testnet"
+    ? "0xf8aD328E98f85fccbf09E43B16dcbbda7E84BEAB"
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const WNEON_DECIMALS = 18;
 
 export const ALGO_DECIMALS = 6;
 
@@ -1391,4 +1512,16 @@ export const COLOR_BY_CHAIN_ID: { [key in ChainId]?: string } = {
   [CHAIN_ID_FANTOM]: "#1969FF",
   [CHAIN_ID_KARURA]: "#FF4B3B",
   [CHAIN_ID_ACALA]: "#E00F51",
+};
+
+export const DISABLED_TOKEN_TRANSFERS: { [key in ChainId]?: string[] } = {
+  [CHAIN_ID_KARURA]: [
+    "0x0000000000000000000100000000000000000081", // aUSD
+  ],
+};
+export const getIsTokenTransferDisabled = (
+  chainId: ChainId,
+  tokenAddress: string
+) => {
+  return !!DISABLED_TOKEN_TRANSFERS[chainId]?.includes(tokenAddress);
 };

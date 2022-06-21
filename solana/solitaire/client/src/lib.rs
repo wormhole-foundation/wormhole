@@ -1,7 +1,7 @@
 
+#![allow(incomplete_features)]
 #![feature(adt_const_params)]
 #![feature(const_generics_defaults)]
-#![allow(warnings)]
 
 //! Client-specific code
 
@@ -106,7 +106,7 @@ where
         match a {
             Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
             SignerRO(pair) => Ok(vec![AccountMeta::new_readonly(pair.pubkey(), true)]),
-            other => Err(format!(
+            _other => Err(format!(
                 "{} must be passed as Signer or SignerRO",
                 std::any::type_name::<Self>()
             )
@@ -115,7 +115,7 @@ where
     }
 }
 
-impl<'a, 'b: 'a, T, const Seed: &'static str> Wrap for Derive<T, Seed> {
+impl<'a, 'b: 'a, T, const SEED: &'static str> Wrap for Derive<T, SEED> {
     fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
         match a {
             AccEntry::Derived(program_id) => {
@@ -128,7 +128,7 @@ impl<'a, 'b: 'a, T, const Seed: &'static str> Wrap for Derive<T, Seed> {
 
                 Ok(vec![AccountMeta::new_readonly(k, false)])
             }
-            other => Err(format!(
+            _other => Err(format!(
                 "{} must be passed as Derived or DerivedRO",
                 std::any::type_name::<Self>()
             )
@@ -137,14 +137,14 @@ impl<'a, 'b: 'a, T, const Seed: &'static str> Wrap for Derive<T, Seed> {
     }
 }
 
-impl<'a, T, const IsInitialized: AccountState> Wrap for Data<'a, T, IsInitialized>
+impl<'a, T, const IS_INITIALIZED: AccountState> Wrap for Data<'a, T, IS_INITIALIZED>
 where
     T: BorshSerialize + Owned + Default,
 {
     fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
         use AccEntry::*;
         use AccountState::*;
-        match IsInitialized {
+        match IS_INITIALIZED {
             Initialized => match a {
                 Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
                 UnprivilegedRO(k) => Ok(vec![AccountMeta::new_readonly(*k, false)]),
@@ -173,7 +173,7 @@ where
     fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
         if let AccEntry::Sysvar(k) = a {
             if Var::check_id(k) {
-                Ok(vec![AccountMeta::new_readonly(k.clone(), false)])
+                Ok(vec![AccountMeta::new_readonly(*k, false)])
             } else {
                 Err(format!(
                     "{} does not point at sysvar {}",
@@ -191,8 +191,8 @@ where
 impl<'b> Wrap for Info<'b> {
     fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
         match a {
-            AccEntry::UnprivilegedRO(k) => Ok(vec![AccountMeta::new_readonly(k.clone(), false)]),
-            AccEntry::Unprivileged(k) => Ok(vec![AccountMeta::new(k.clone(), false)]),
+            AccEntry::UnprivilegedRO(k) => Ok(vec![AccountMeta::new_readonly(*k, false)]),
+            AccEntry::Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
             _other => Err(format!(
                 "{} must be passed as Unprivileged or UnprivilegedRO",
                 std::any::type_name::<Self>()

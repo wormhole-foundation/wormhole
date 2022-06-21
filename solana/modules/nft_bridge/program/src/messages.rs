@@ -21,10 +21,13 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solitaire::SolitaireError;
-use std::io::{
-    Cursor,
-    Read,
-    Write,
+use std::{
+    cmp,
+    io::{
+        Cursor,
+        Read,
+        Write,
+    },
 };
 
 pub const MODULE: &str = "NFTBridge";
@@ -117,29 +120,28 @@ impl SerializePayload for PayloadTransfer {
         // Payload ID
         writer.write_u8(1)?;
 
-        writer.write(&self.token_address)?;
+        writer.write_all(&self.token_address)?;
         writer.write_u16::<BigEndian>(self.token_chain)?;
 
         let mut symbol: [u8; 32] = [0; 32];
-        for i in 0..self.symbol.len() {
-            symbol[i] = self.symbol.as_bytes()[i];
-        }
-        writer.write(&symbol)?;
+        let count = cmp::min(symbol.len(), self.symbol.len());
+        symbol[..count].copy_from_slice(self.symbol[..count].as_bytes());
+
+        writer.write_all(&symbol)?;
 
         let mut name: [u8; 32] = [0; 32];
-        for i in 0..self.name.len() {
-            name[i] = self.name.as_bytes()[i];
-        }
-        writer.write(&name)?;
+        let count = cmp::min(name.len(), self.name.len());
+        name[..count].copy_from_slice(self.name[..count].as_bytes());
+        writer.write_all(&name)?;
 
         let mut id_data: [u8; 32] = [0; 32];
         self.token_id.to_big_endian(&mut id_data);
-        writer.write(&id_data)?;
+        writer.write_all(&id_data)?;
 
         writer.write_u8(self.uri.len() as u8)?;
-        writer.write(self.uri.as_bytes())?;
+        writer.write_all(self.uri.as_bytes())?;
 
-        writer.write(&self.to)?;
+        writer.write_all(&self.to)?;
         writer.write_u16::<BigEndian>(self.to_chain)?;
 
         Ok(())
@@ -193,7 +195,7 @@ where
         self.write_governance_header(writer)?;
         // Payload ID
         writer.write_u16::<BigEndian>(self.chain)?;
-        writer.write(&self.endpoint_address[..])?;
+        writer.write_all(&self.endpoint_address[..])?;
 
         Ok(())
     }
@@ -208,7 +210,7 @@ pub struct GovernancePayloadUpgrade {
 impl SerializePayload for GovernancePayloadUpgrade {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
         self.write_governance_header(v)?;
-        v.write(&self.new_contract.to_bytes())?;
+        v.write_all(&self.new_contract.to_bytes())?;
         Ok(())
     }
 }
@@ -243,6 +245,7 @@ impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 }
 
 #[cfg(feature = "no-entrypoint")]
+#[allow(unused_imports)]
 mod tests {
     use crate::messages::{
         GovernancePayloadUpgrade,
@@ -275,7 +278,7 @@ mod tests {
             token_id: U256::from(1234),
         };
 
-        let mut data = transfer_original.try_to_vec().unwrap();
+        let data = transfer_original.try_to_vec().unwrap();
         let transfer_deser = PayloadTransfer::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(transfer_original, transfer_deser);
@@ -287,7 +290,7 @@ mod tests {
             new_contract: Pubkey::new_unique(),
         };
 
-        let mut data = original.try_to_vec().unwrap();
+        let data = original.try_to_vec().unwrap();
         let deser = GovernancePayloadUpgrade::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(original, deser);
@@ -303,7 +306,7 @@ mod tests {
             endpoint_address,
         };
 
-        let mut data = original.try_to_vec().unwrap();
+        let data = original.try_to_vec().unwrap();
         let deser = PayloadGovernanceRegisterChain::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(original, deser);

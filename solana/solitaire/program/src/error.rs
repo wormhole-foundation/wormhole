@@ -64,10 +64,10 @@ impl From<std::io::Error> for SolitaireError {
     }
 }
 
-impl Into<ProgramError> for SolitaireError {
-    fn into(self) -> ProgramError {
-        match self {
-            SolitaireError::ProgramError(e) => return e,
+impl From<SolitaireError> for ProgramError {
+    fn from(err: SolitaireError) -> ProgramError {
+        match err {
+            SolitaireError::ProgramError(e) => e,
             _ => ProgramError::Custom(0),
         }
     }

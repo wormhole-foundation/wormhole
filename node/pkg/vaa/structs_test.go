@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"math/big"
 	"reflect"
 	"testing"
 	"time"
@@ -37,6 +38,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "klaytn", output: ChainIDKlaytn},
 		{input: "celo", output: ChainIDCelo},
 		{input: "moonbeam", output: ChainIDMoonbeam},
+		{input: "neon", output: ChainIDNeon},
+		{input: "terra2", output: ChainIDTerra2},
 		{input: "ethereum-ropsten", output: ChainIDEthereumRopsten},
 
 		{input: "Solana", output: ChainIDSolana},
@@ -54,6 +57,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Klaytn", output: ChainIDKlaytn},
 		{input: "Celo", output: ChainIDCelo},
 		{input: "Moonbeam", output: ChainIDMoonbeam},
+		{input: "Neon", output: ChainIDNeon},
+		{input: "Terra2", output: ChainIDTerra2},
 		{input: "Ethereum-ropsten", output: ChainIDEthereumRopsten},
 	}
 
@@ -66,7 +71,7 @@ func TestChainIDFromString(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			chainId, err := ChainIDFromString(tc.input)
 			assert.Equal(t, tc.output, chainId)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 		})
 	}
 
@@ -84,7 +89,7 @@ func TestAddress_MarshalJSON(t *testing.T) {
 	expected := "223030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303422"
 	marshalJsonAddress, err := addr.MarshalJSON()
 	assert.Equal(t, hex.EncodeToString(marshalJsonAddress), expected)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestAddress_String(t *testing.T) {
@@ -141,6 +146,8 @@ func TestChainId_String(t *testing.T) {
 		{input: 13, output: "klaytn"},
 		{input: 14, output: "celo"},
 		{input: 16, output: "moonbeam"},
+		{input: 17, output: "neon"},
+		{input: 18, output: "terra2"},
 		{input: 10001, output: "ethereum-ropsten"},
 	}
 
@@ -488,8 +495,161 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 }
 
 func TestStringToAddress(t *testing.T) {
-	expected := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-	addr, err := StringToAddress("0000000000000000000000000000000000000000000000000000000000000004")
-	assert.Nil(t, err)
-	assert.Equal(t, expected, addr)
+
+	type Test struct {
+		label     string
+		rawAddr   string
+		addr      Address
+		errString string
+	}
+
+	tests := []Test{
+		{label: "simple",
+			rawAddr:   "0000000000000000000000000000000000000000000000000000000000000004",
+			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
+			errString: ""},
+		{label: "zero-padding",
+			rawAddr:   "04",
+			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
+			errString: ""},
+		{label: "trim-0x", rawAddr: "0x04",
+			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
+			errString: ""},
+		{label: "20byte eth-style address", rawAddr: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+			addr:      Address{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x90, 0xfb, 0x16, 0x72, 0x8, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78, 0x1, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0xc, 0x16},
+			errString: ""},
+		{label: "too long",
+			rawAddr:   "0x0000000000000000000000000000000000000000000000000000000000000000000004",
+			errString: "value must be no more than 32 bytes"},
+		{label: "too short",
+			rawAddr:   "4",
+			errString: "value must be at least 1 byte"},
+		{label: "empty string",
+			rawAddr:   "",
+			errString: "value must be at least 1 byte"},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			addr, err := StringToAddress(tc.rawAddr)
+			if len(tc.errString) == 0 {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.addr, addr)
+			} else {
+				assert.Equal(t, tc.errString, err.Error())
+			}
+		})
+	}
+}
+
+func TestDecodeTransferPayloadHdr(t *testing.T) {
+	type Test struct {
+		label          string
+		vaa            string
+		payloadType    uint8
+		emitterChainId ChainID
+		emitterAddr    string
+		originChain    ChainID
+		originAddress  string
+		targetChain    ChainID
+		targetAddress  string
+		amount         int64
+		errString      string
+	}
+
+	tests := []Test{
+		{label: "valid vaa",
+			vaa:            "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
+			payloadType:    1,
+			emitterChainId: ChainIDEthereum,
+			emitterAddr:    "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
+			originChain:    ChainIDEthereum,
+			originAddress:  "000000000000000000000000DDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
+			targetChain:    ChainIDSolana,
+			targetAddress:  "21c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f0",
+			amount:         725000000,
+			errString:      "",
+		},
+		{label: "unsupported payload type",
+			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f02000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
+			errString: "unsupported payload type",
+		},
+		{label: "buffer too short",
+			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01",
+			errString: "buffer too short",
+		},
+		{label: "empty string",
+			vaa:       "",
+			errString: "VAA is too short",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			data, err := hex.DecodeString(tc.vaa)
+			assert.NoError(t, err)
+
+			vaa, err := Unmarshal(data)
+			if err != nil {
+				assert.Equal(t, tc.errString, err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, vaa)
+
+				if len(tc.errString) == 0 {
+					expectedEmitterAddr, err := StringToAddress(tc.emitterAddr)
+					assert.NoError(t, err)
+
+					expectedOriginAddress, err := StringToAddress(tc.originAddress)
+					assert.NoError(t, err)
+
+					expectedTargetAddress, err := StringToAddress(tc.targetAddress)
+					assert.NoError(t, err)
+
+					expectedAmount := big.NewInt(tc.amount)
+
+					assert.Equal(t, tc.emitterChainId, vaa.EmitterChain)
+					assert.Equal(t, expectedEmitterAddr, vaa.EmitterAddress)
+					assert.Equal(t, 133, len(vaa.Payload))
+
+					payload, err := DecodeTransferPayloadHdr(vaa.Payload)
+					assert.NoError(t, err)
+					assert.Equal(t, tc.payloadType, payload.Type)
+					assert.Equal(t, tc.originChain, payload.OriginChain)
+					assert.Equal(t, expectedOriginAddress, payload.OriginAddress)
+					assert.Equal(t, tc.targetChain, payload.TargetChain)
+					assert.Equal(t, expectedTargetAddress, payload.TargetAddress)
+					assert.Equal(t, expectedAmount.Cmp(payload.Amount), 0)
+				} else {
+					_, err = DecodeTransferPayloadHdr(vaa.Payload)
+					assert.NotNil(t, err)
+					assert.Equal(t, tc.errString, err.Error())
+				}
+			}
+
+		})
+	}
+}
+
+func TestIsTransfer(t *testing.T) {
+	type Test struct {
+		label   string
+		payload []byte
+		result  bool
+	}
+
+	tests := []Test{
+		{label: "empty", payload: []byte{}, result: false},
+		{label: "non-valid payload", payload: []byte{0x0}, result: false},
+		{label: "payload 1", payload: []byte{0x1}, result: true},
+		{label: "payload 2", payload: []byte{0x2}, result: false},
+		{label: "payload 3", payload: []byte{0x3}, result: true},
+		{label: "payload 4", payload: []byte{0x4}, result: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			assert.Equal(t, tc.result, IsTransfer(tc.payload))
+		})
+	}
 }

@@ -1,51 +1,15 @@
-#![allow(warnings)]
-
-use borsh::BorshSerialize;
 use bridge::{
     accounts::{
-        Bridge,
-        FeeCollector,
-        GuardianSet,
-        GuardianSetDerivationData,
         PostedVAA,
         PostedVAADerivationData,
-        SignatureSet,
     },
-    instruction,
-    types::{
-        GovernancePayloadGuardianSetChange,
-        GovernancePayloadSetMessageFee,
-        GovernancePayloadTransferFees,
-    },
-    BridgeConfig,
-    BridgeData,
-    GuardianSetData,
-    Initialize,
-    MessageData,
-    PostVAA,
-    PostVAAData,
-    PostedVAAData,
-    SequenceTracker,
     SerializePayload,
-    Signature,
-    SignatureSet as SignatureSetData,
 };
-use byteorder::{
-    BigEndian,
-    WriteBytesExt,
-};
-use hex_literal::hex;
-use libsecp256k1::{
-    Message as Secp256k1Message,
-    PublicKey,
-    SecretKey,
-};
+
+use libsecp256k1::SecretKey;
 use nft_bridge::{
     accounts::{
         ConfigAccount,
-        EmitterAccount,
-        SplTokenMeta,
-        SplTokenMetaDerivationData,
         WrappedDerivationData,
         WrappedMint,
     },
@@ -53,63 +17,27 @@ use nft_bridge::{
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
     },
-    types::{
-        Address,
-        Config,
-    },
+    types::Config,
 };
 use primitive_types::U256;
 use rand::Rng;
-use sha3::Digest;
-use solana_program::{
-    borsh::try_from_slice_unchecked,
-    hash,
-    instruction::{
-        AccountMeta,
-        Instruction,
-    },
-    program_pack::Pack,
-    pubkey::Pubkey,
-    system_instruction::{
-        self,
-        create_account,
-    },
-    system_program,
-    sysvar,
-};
+use solana_program::pubkey::Pubkey;
 use solana_program_test::{
     tokio,
     BanksClient,
 };
 use solana_sdk::{
-    commitment_config::CommitmentLevel,
     signature::{
-        read_keypair_file,
         Keypair,
         Signer,
     },
-    transaction::Transaction,
     transport::TransportError,
 };
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
 };
-use spl_token::state::Mint;
-use std::{
-    collections::HashMap,
-    convert::TryInto,
-    io::{
-        Cursor,
-        Write,
-    },
-    str::FromStr,
-    time::{
-        Duration,
-        SystemTime,
-        UNIX_EPOCH,
-    },
-};
+use std::str::FromStr;
 
 mod common;
 
@@ -121,9 +49,6 @@ const GOVERNANCE_KEY: [u8; 64] = [
 ];
 
 struct Context {
-    /// Guardian public keys.
-    guardians: Vec<[u8; 20]>,
-
     /// Guardian secret keys.
     guardian_keys: Vec<SecretKey>,
 
@@ -142,7 +67,6 @@ struct Context {
     /// Keypairs for mint information, required in multiple tests.
     mint_authority: Keypair,
     mint: Keypair,
-    mint_meta: Pubkey,
 
     /// Keypairs for test token accounts.
     token_authority: Keypair,
@@ -170,22 +94,13 @@ async fn set_up() -> Result<Context, TransportError> {
         mint_pubkey.as_ref(),
     ];
 
-    let (metadata_key, metadata_bump_seed) = Pubkey::find_program_address(
+    let (metadata_key, _metadata_bump_seed) = Pubkey::find_program_address(
         metadata_seeds,
         &Pubkey::from_str("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").unwrap(),
     );
 
     // Token Bridge Meta
-    use nft_bridge::accounts::WrappedTokenMeta;
-    let metadata_account = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
-        &nft_bridge::accounts::WrappedMetaDerivationData {
-            mint_key: mint_pubkey.clone(),
-        },
-        &nft_bridge,
-    );
-
     let mut context = Context {
-        guardians,
         guardian_keys,
         bridge,
         client,
@@ -193,7 +108,6 @@ async fn set_up() -> Result<Context, TransportError> {
         nft_bridge,
         mint_authority: Keypair::new(),
         mint,
-        mint_meta: metadata_account,
         token_account: Keypair::new(),
         token_authority: Keypair::new(),
         metadata_account: metadata_key,
@@ -270,9 +184,7 @@ async fn transfer_native() {
         ref mut client,
         bridge,
         nft_bridge,
-        ref mint_authority,
         ref mint,
-        ref mint_meta,
         ref token_account,
         ref token_authority,
         ..
@@ -300,10 +212,6 @@ async fn register_chain(context: &mut Context) {
         ref mut client,
         ref bridge,
         ref nft_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_authority,
         ref guardian_keys,
         ..
     } = context;
@@ -317,18 +225,18 @@ async fn register_chain(context: &mut Context) {
     let message = payload.try_to_vec().unwrap();
 
     let (vaa, body, _) = common::generate_vaa(emitter.pubkey().to_bytes(), 1, message, nonce, 0);
-    let signature_set = common::verify_signatures(client, &bridge, payer, body, guardian_keys, 0)
+    let signature_set = common::verify_signatures(client, bridge, payer, body, guardian_keys, 0)
         .await
         .unwrap();
     common::post_vaa(client, *bridge, payer, signature_set, vaa.clone())
         .await
         .unwrap();
 
-    let mut msg_derivation_data = &PostedVAADerivationData {
+    let msg_derivation_data = &PostedVAADerivationData {
         payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, bridge);
 
     common::register_chain(
         client,
@@ -352,9 +260,8 @@ async fn transfer_native_in() {
         ref mut client,
         bridge,
         nft_bridge,
-        ref mint_authority,
+        mint_authority: _,
         ref mint,
-        ref mint_meta,
         ref token_account,
         ref token_authority,
         ref guardian_keys,
@@ -388,8 +295,8 @@ async fn transfer_native_in() {
     );
 
     let payload = PayloadTransfer {
-        token_address: [1u8; 32],
-        token_chain: 1,
+        token_address,
+        token_chain,
         symbol: "NFT".into(),
         name: "Non-Fungible Token".into(),
         token_id,
@@ -410,7 +317,7 @@ async fn transfer_native_in() {
         payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, &bridge);
 
     common::complete_native(
         client,
@@ -437,13 +344,12 @@ async fn transfer_wrapped() {
         ref mut client,
         bridge,
         nft_bridge,
-        ref mint_authority,
-        ref mint,
-        ref mint_meta,
-        ref token_account,
+        mint_authority: _,
+        mint: _,
+        token_account: _,
         ref token_authority,
         ref guardian_keys,
-        metadata_account,
+        metadata_account: _,
         ..
     } = context;
 
@@ -489,11 +395,11 @@ async fn transfer_wrapped() {
     common::post_vaa(client, bridge, payer, signature_set, vaa.clone())
         .await
         .unwrap();
-    let mut msg_derivation_data = &PostedVAADerivationData {
+    let msg_derivation_data = &PostedVAADerivationData {
         payload_hash: body.to_vec(),
     };
     let message_key =
-        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, &bridge);
 
     common::complete_wrapped(
         client,

@@ -308,8 +308,8 @@ export async function transferNativeSol(
           ancillaryKeypair.publicKey.toString(),
           WSOL_ADDRESS,
           nonce,
-          amount,
-          relayerFee,
+          amount.valueOf(),
+          relayerFee.valueOf(),
           targetAddress,
           coalesceChainId(targetChain),
           payload
@@ -322,8 +322,8 @@ export async function transferNativeSol(
           ancillaryKeypair.publicKey.toString(),
           WSOL_ADDRESS,
           nonce,
-          amount,
-          relayerFee,
+          amount.valueOf(),
+          relayerFee.valueOf(),
           targetAddress,
           coalesceChainId(targetChain)
         )
@@ -409,8 +409,8 @@ export async function transferFromSolana(
             fromAddress,
             mintAddress,
             nonce,
-            amount,
-            relayerFee,
+            amount.valueOf(),
+            relayerFee.valueOf(),
             targetAddress,
             coalesceChainId(targetChain),
             payload
@@ -423,8 +423,8 @@ export async function transferFromSolana(
             fromAddress,
             mintAddress,
             nonce,
-            amount,
-            relayerFee,
+            amount.valueOf(),
+            relayerFee.valueOf(),
             targetAddress,
             coalesceChainId(targetChain)
           )
@@ -439,8 +439,8 @@ export async function transferFromSolana(
           originChainId as number, // checked by isSolanaNative
           originAddress as Uint8Array, // checked by throw
           nonce,
-          amount,
-          relayerFee,
+          amount.valueOf(),
+          relayerFee.valueOf(),
           targetAddress,
           coalesceChainId(targetChain),
           payload
@@ -455,8 +455,8 @@ export async function transferFromSolana(
           originChainId as number, // checked by isSolanaNative
           originAddress as Uint8Array, // checked by throw
           nonce,
-          amount,
-          relayerFee,
+          amount.valueOf(),
+          relayerFee.valueOf(),
           targetAddress,
           coalesceChainId(targetChain)
         )
