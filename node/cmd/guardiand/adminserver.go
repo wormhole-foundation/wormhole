@@ -403,9 +403,7 @@ func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req 
 
 func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *nodev1.ChainGovernorStatusRequest) (*nodev1.ChainGovernorStatusResponse, error) {
 	if s.governor == nil {
-		return &nodev1.ChainGovernorStatusResponse{
-			Response: "chain governor is not enabled",
-		}, nil
+		return nil, fmt.Errorf("chain governor is not enabled")
 	}
 
 	return &nodev1.ChainGovernorStatusResponse{
@@ -415,48 +413,53 @@ func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *no
 
 func (s *nodePrivilegedService) ChainGovernorReload(ctx context.Context, req *nodev1.ChainGovernorReloadRequest) (*nodev1.ChainGovernorReloadResponse, error) {
 	if s.governor == nil {
-		return &nodev1.ChainGovernorReloadResponse{
-			Response: "chain governor is not enabled",
-		}, nil
+		return nil, fmt.Errorf("chain governor is not enabled")
+	}
+
+	resp, err := s.governor.Reload()
+	if err != nil {
+		return nil, err
 	}
 
 	return &nodev1.ChainGovernorReloadResponse{
-		Response: s.governor.Reload(),
+		Response: resp,
 	}, nil
 }
 
 func (s *nodePrivilegedService) ChainGovernorDropPendingVAA(ctx context.Context, req *nodev1.ChainGovernorDropPendingVAARequest) (*nodev1.ChainGovernorDropPendingVAAResponse, error) {
 	if s.governor == nil {
-		return &nodev1.ChainGovernorDropPendingVAAResponse{
-			Response: "chain governor is not enabled",
-		}, nil
+		return nil, fmt.Errorf("chain governor is not enabled")
 	}
 
 	if len(req.VaaId) == 0 {
-		return &nodev1.ChainGovernorDropPendingVAAResponse{
-			Response: "the VAA id must be specified as \"chainId/emitterAddress/seqNum\"",
-		}, nil
+		return nil, fmt.Errorf("the VAA id must be specified as \"chainId/emitterAddress/seqNum\"")
+	}
+
+	resp, err := s.governor.DropPendingVAA(req.VaaId)
+	if err != nil {
+		return nil, err
 	}
 
 	return &nodev1.ChainGovernorDropPendingVAAResponse{
-		Response: s.governor.DropPendingVAA(req.VaaId),
+		Response: resp,
 	}, nil
 }
 
 func (s *nodePrivilegedService) ChainGovernorReleasePendingVAA(ctx context.Context, req *nodev1.ChainGovernorReleasePendingVAARequest) (*nodev1.ChainGovernorReleasePendingVAAResponse, error) {
 	if s.governor == nil {
-		return &nodev1.ChainGovernorReleasePendingVAAResponse{
-			Response: "chain governor is not enabled",
-		}, nil
+		return nil, fmt.Errorf("chain governor is not enabled")
 	}
 
 	if len(req.VaaId) == 0 {
-		return &nodev1.ChainGovernorReleasePendingVAAResponse{
-			Response: "the VAA id must be specified as \"chainId/emitterAddress/seqNum\"",
-		}, nil
+		return nil, fmt.Errorf("the VAA id must be specified as \"chainId/emitterAddress/seqNum\"")
+	}
+
+	resp, err := s.governor.ReleasePendingVAA(req.VaaId)
+	if err != nil {
+		return nil, err
 	}
 
 	return &nodev1.ChainGovernorReleasePendingVAAResponse{
-		Response: s.governor.ReleasePendingVAA(req.VaaId),
+		Response: resp,
 	}, nil
 }

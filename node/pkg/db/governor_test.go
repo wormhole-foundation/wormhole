@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -13,10 +14,10 @@ import (
 
 func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
@@ -29,18 +30,12 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	}
 
 	bytes, err := xfer1.Marshal()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	xfer2, err := UnmarshalTransfer(bytes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, xfer1.Timestamp, xfer2.Timestamp)
-	assert.Equal(t, xfer1.Value, xfer2.Value)
-	assert.Equal(t, xfer1.OriginChain, xfer2.OriginChain)
-	assert.Equal(t, xfer1.OriginAddress, xfer2.OriginAddress)
-	assert.Equal(t, xfer1.EmitterChain, xfer2.EmitterChain)
-	assert.Equal(t, xfer1.EmitterAddress, xfer2.EmitterAddress)
-	assert.Equal(t, xfer1.MsgID, xfer2.MsgID)
+	assert.Equal(t, xfer1, xfer2)
 
 	expectedTransferKey := "GOV:XFER:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
@@ -48,7 +43,7 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 func TestPendingMsgID(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -66,10 +61,10 @@ func TestPendingMsgID(t *testing.T) {
 
 func TestTransferMsgID(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	xfer := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
@@ -134,10 +129,10 @@ func TestStoreTransfer(t *testing.T) {
 	defer db.Close()
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
@@ -162,10 +157,10 @@ func TestDeleteTransfer(t *testing.T) {
 	defer db.Close()
 
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),

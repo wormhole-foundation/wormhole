@@ -812,12 +812,12 @@ func (gov *ChainGovernor) Status() string {
 	return "grep the log for \"cgov:\" for status"
 }
 
-func (gov *ChainGovernor) Reload() string {
+func (gov *ChainGovernor) Reload() (string, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	if gov.db == nil {
-		return "unable to reload because the database is not initialized"
+		return "", fmt.Errorf("unable to reload because the database is not initialized")
 	}
 
 	for _, ce := range gov.chains {
@@ -827,13 +827,13 @@ func (gov *ChainGovernor) Reload() string {
 
 	if err := gov.loadFromDBAlreadyLocked(); err != nil {
 		gov.logger.Error("cgov: failed to load from the database", zap.Error(err))
-		return "failed to load from the database, see the log file for details"
+		return "", err
 	}
 
-	return "chain governor has been reset and reloaded"
+	return "chain governor has been reset and reloaded", nil
 }
 
-func (gov *ChainGovernor) DropPendingVAA(vaaId string) string {
+func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -847,15 +847,15 @@ func (gov *ChainGovernor) DropPendingVAA(vaaId string) string {
 					zap.Stringer("timeStamp", pe.timeStamp),
 				)
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
-				return "vaa has been dropped from the pending list"
+				return "vaa has been dropped from the pending list", nil
 			}
 		}
 	}
 
-	return "vaa not found in the pending list"
+	return "", fmt.Errorf("vaa not found in the pending list")
 }
 
-func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) string {
+func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -871,12 +871,12 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) string {
 
 				gov.msgsToPublish = append(gov.msgsToPublish, pe.msg)
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
-				return "pending vaa has been released and will be published soon"
+				return "pending vaa has been released and will be published soon", nil
 			}
 		}
 	}
 
-	return "vaa not found in the pending list"
+	return "", fmt.Errorf("vaa not found in the pending list")
 }
 
 func (gov *ChainGovernor) GetStatsForChain(chainID vaa.ChainID) (numTrans int, valueTrans uint64, numPending int, valuePending uint64) {

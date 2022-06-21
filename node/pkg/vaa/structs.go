@@ -246,6 +246,8 @@ const (
 	// More details here: https://docs.wormholenetwork.com/wormhole/vaas
 	minVAALength        = 57
 	SupportedVAAVersion = 0x01
+
+	InternalTruncatedPayloadSafetyLimit = 1000
 )
 
 // Unmarshal deserializes the binary representation of a VAA
@@ -321,7 +323,7 @@ func Unmarshal(data []byte) (*VAA, error) {
 		return nil, fmt.Errorf("failed to read commitment: %w", err)
 	}
 
-	payload := make([]byte, 1000)
+	payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
 	n, err := reader.Read(payload)
 	if err != nil || n == 0 {
 		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
