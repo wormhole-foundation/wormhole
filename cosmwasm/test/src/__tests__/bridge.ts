@@ -1,4 +1,5 @@
 import {
+  getEmitterAddressTerra,
   parseSequenceFromLogTerra,
   setDefaultWasm,
 } from "@certusone/wormhole-sdk";
@@ -539,7 +540,7 @@ describe("Bridge Tests", () => {
 
         // need to deposit before initiating transfer
         const deposit = new MsgExecuteContract(
-          wallet.key.accAddress,
+          walletAddress,
           tokenBridge,
           {
             deposit_tokens: {},
@@ -565,7 +566,7 @@ describe("Bridge Tests", () => {
                 "base64"
               ),
               fee: relayerFee,
-              payload: Buffer.from(myPayload, "hex").toString("base64"),
+              payload: Buffer.from(myPayload, "ascii").toString("base64"),
               nonce: 69,
             },
           }
@@ -583,6 +584,61 @@ describe("Bridge Tests", () => {
           deposit,
           initiateTransferWithPayload,
         ]);
+
+        console.log(receipt);
+
+        const jsonLog = JSON.parse(receipt.raw_log);
+        let message = "";
+        jsonLog.map((row: any) => {
+          row.events.map((event: any) => {
+            event.attributes.map((attribute: any) => {
+              if (attribute.key === "message.message") {
+                message = attribute.value;
+              }
+            });
+          });
+        });
+        // payload type
+        let last = 0;
+        let len = 2;
+        expect(message.substring(last, last + len)).toEqual("03");
+        last += len;
+        // amount
+        len = 64;
+        expect(message.substring(last, last + len)).toEqual(
+          "0000000000000000000000000000000000000000000000000000000005f5e100"
+        );
+        last += len;
+        // token address
+        len = 64;
+        expect(message.substring(last, last + len)).toEqual(
+          "01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da"
+        );
+        last += len;
+        // token chain
+        len = 4;
+        expect(message.substring(last, last + len)).toEqual("0012");
+        last += len;
+        // recipient address
+        len = 64;
+        expect(message.substring(last, last + len)).toEqual(
+          "0000000000000000000000004206942069420694206942069420694206942069"
+        );
+        last += len;
+        // recipient chain
+        len = 4;
+        expect(message.substring(last, last + len)).toEqual("0002");
+        last += len;
+        // sender address
+        len = 64;
+        expect(message.substring(last, last + len)).toEqual(
+          await getEmitterAddressTerra(walletAddress)
+        );
+        last += len;
+        // payload
+        expect(message.substring(last)).toEqual(
+          Buffer.from(myPayload, "ascii").toString("hex")
+        );
 
         const balanceAfter = await getNativeBalance(client, tokenBridge, denom);
         expect(balanceBefore.add(amount).eq(balanceAfter)).toBeTruthy();
@@ -617,7 +673,7 @@ describe("Bridge Tests", () => {
           LUNA_ADDRESS,
           encodedTo,
           CHAIN_ID,
-          relayerFee,
+          relayerFee, // now sender_address
           additionalPayload
         );
 
@@ -638,11 +694,6 @@ describe("Bridge Tests", () => {
         );
 
         // check balances before execute
-        const walletBalanceBefore = await getNativeBalance(
-          client,
-          walletAddress,
-          denom
-        );
         const contractBalanceBefore = await getNativeBalance(
           client,
           mockBridgeIntegration,
@@ -667,33 +718,13 @@ describe("Bridge Tests", () => {
         // execute outbound transfer with signed vaa
         const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
 
-        // check wallet (relayer) balance change
-        const walletBalanceAfter = await getNativeBalance(
-          client,
-          walletAddress,
-          denom
-        );
-        const gasPaid = computeGasPaid(receipt);
-        const walletExpectedChange = new Int(relayerFee).sub(gasPaid);
-
-        // due to rounding, we should expect the balances to reconcile
-        // within 1 unit (equivalent to 1e-6 uluna). Best-case scenario
-        // we end up with slightly more balance than expected
-        const reconciled = walletBalanceAfter
-          .minus(walletExpectedChange)
-          .minus(walletBalanceBefore);
-        expect(
-          reconciled.greaterThanOrEqualTo("0") &&
-            reconciled.lessThanOrEqualTo("1")
-        ).toBeTruthy();
-
         // check contract balance change
         const contractBalanceAfter = await getNativeBalance(
           client,
           mockBridgeIntegration,
           denom
         );
-        const contractExpectedChange = new Int(amount).sub(relayerFee);
+        const contractExpectedChange = new Int(amount);
         expect(
           contractBalanceBefore
             .add(contractExpectedChange)
