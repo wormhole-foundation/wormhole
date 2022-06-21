@@ -87,6 +87,20 @@ export const METAMASK_CHAIN_PARAMETERS: {
     rpcUrls: ["https://acala-dev.aca-dev.network/eth/http"],
     blockExplorerUrls: ["https://blockscout.acala-dev.aca-dev.network"],
   },
+  686: {
+    chainId: "0x2AE",
+    chainName: "Karura",
+    nativeCurrency: { name: "Karura Token", symbol: "KAR", decimals: 18 },
+    rpcUrls: ["https://eth-rpc-karura.aca-api.network"],
+    blockExplorerUrls: ["https://blockscout.karura.network"],
+  },
+  787: {
+    chainId: "0x313",
+    chainName: "Acala",
+    nativeCurrency: { name: "Acala Token", symbol: "ACA", decimals: 18 },
+    rpcUrls: ["https://eth-rpc-acala.aca-api.network"],
+    blockExplorerUrls: ["https://blockscout.acala.network"],
+  },
   4002: {
     chainId: "0xfa2",
     chainName: "Fantom Testnet",
@@ -119,7 +133,7 @@ export const METAMASK_CHAIN_PARAMETERS: {
     chainId: "0xaef3",
     chainName: "Celo (Alfajores Testnet)",
     nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
-    rpcUrls: ["https://forno.celo.org"],
+    rpcUrls: ["https://alfajores-forno.celo-testnet.org"],
     blockExplorerUrls: ["https://alfajores-blockscout.celo-testnet.org"],
   },
   42261: {
@@ -156,6 +170,13 @@ export const METAMASK_CHAIN_PARAMETERS: {
     nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
     rpcUrls: ["https://rpc-mumbai.maticvigil.com"],
     blockExplorerUrls: ["https://mumbai.polygonscan.com"],
+  },
+  245022926: {
+    chainId: "0xE9AC0CE",
+    chainName: "remote proxy — solana devnet",
+    nativeCurrency: { name: "NEON", symbol: "NEON", decimals: 18 },
+    rpcUrls: ["https://proxy.devnet.neonlabs.org/solana"],
+    blockExplorerUrls: ["https://neonscan.org/"],
   },
   1313161554: {
     chainId: "0x4e454152",

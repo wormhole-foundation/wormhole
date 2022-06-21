@@ -36,6 +36,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
 	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
 	vaa.ChainIDKarura:    "https://blockscout.karura.network/api",
+	vaa.ChainIDAcala:     "https://blockscout.acala.network/api",
 	// NOTE: Not sure what should be here for Klaytn, since they use: https://scope.klaytn.com/
 	vaa.ChainIDCelo: "https://celoscan.xyz/api",
 }
@@ -49,6 +50,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDAurora:    "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
 	vaa.ChainIDFantom:    strings.ToLower("0x126783A6Cb203a3E35344528B26ca3a0489a1485"),
 	vaa.ChainIDKarura:    strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
+	vaa.ChainIDAcala:     strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
 	vaa.ChainIDKlaytn:    strings.ToLower("0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"),
 	vaa.ChainIDCelo:      strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
 }
@@ -79,7 +81,7 @@ func addUserAgent(req *http.Request) *http.Request {
 }
 
 func usesBlockscout(chainId vaa.ChainID) bool {
-	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura
+	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura || chainId == vaa.ChainIDAcala
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {

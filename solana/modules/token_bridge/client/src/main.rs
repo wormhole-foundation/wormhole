@@ -1,6 +1,5 @@
-
+#![allow(incomplete_features)]
 #![feature(adt_const_params)]
-#![allow(warnings)]
 
 use std::{
     fmt::Display,
@@ -8,7 +7,6 @@ use std::{
     process::exit,
 };
 
-use borsh::BorshDeserialize;
 use clap::{
     crate_description,
     crate_name,
@@ -19,7 +17,6 @@ use clap::{
     Arg,
     SubCommand,
 };
-use hex;
 use solana_clap_utils::{
     input_parsers::{
         keypair_of,
@@ -36,26 +33,22 @@ use solana_client::{
     rpc_client::RpcClient,
     rpc_config::RpcSendTransactionConfig,
 };
-use solana_program::account_info::AccountInfo;
 use solana_sdk::{
     commitment_config::{
         CommitmentConfig,
         CommitmentLevel,
     },
     native_token::*,
-    program_error::ProgramError::AccountAlreadyInitialized,
     pubkey::Pubkey,
     signature::{
         read_keypair_file,
         Keypair,
         Signer,
     },
-    system_instruction::transfer,
     transaction::Transaction,
 };
 use solitaire::{
     processors::seeded::Seeded,
-    AccountState,
     Info,
 };
 use solitaire_client::Derive;
@@ -70,6 +63,10 @@ struct Config {
 type Error = Box<dyn std::error::Error>;
 type CommmandResult = Result<Option<Transaction>, Error>;
 
+// [`get_recent_blockhash`] is deprecated, but devnet deployment hangs using the
+// recommended method, so allowing deprecated here. This is only the client, so
+// no risk.
+#[allow(deprecated)]
 fn command_init_bridge(config: &Config, bridge: &Pubkey, core_bridge: &Pubkey) -> CommmandResult {
     println!("Initializing Token bridge {}", bridge);
 
@@ -79,13 +76,13 @@ fn command_init_bridge(config: &Config, bridge: &Pubkey, core_bridge: &Pubkey) -
 
     let ix = token_bridge::instructions::initialize(*bridge, config.owner.pubkey(), *core_bridge)
         .unwrap();
-    println!("config account: {}, ", ix.accounts[1].pubkey.to_string());
+    println!("config account: {}, ", ix.accounts[1].pubkey);
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(transaction.message()),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
@@ -127,7 +124,7 @@ fn command_create_meta(
     );
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
-    let (recent_blockhash, _) = config.rpc_client.get_recent_blockhash()?;
+    let recent_blockhash = config.rpc_client.get_latest_blockhash()?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -146,7 +143,7 @@ fn main() {
                 .global(true)
                 .help("Configuration file to use");
             if let Some(ref config_file) = *solana_cli_config::CONFIG_FILE {
-                arg.default_value(&config_file)
+                arg.default_value(config_file)
             } else {
                 arg
             }
@@ -338,7 +335,8 @@ fn main() {
             )
             .0;
             let meta_info = config.rpc_client.get_account(&meta_acc).unwrap();
-            let meta_info = spl_token_metadata::state::Metadata::from_bytes(&meta_info.data).unwrap();
+            let meta_info =
+                spl_token_metadata::state::Metadata::from_bytes(&meta_info.data).unwrap();
             println!("Key: {:?}", meta_info.key);
             println!("Mint: {}", meta_info.mint);
             println!("Metadata Key: {}", meta_acc);

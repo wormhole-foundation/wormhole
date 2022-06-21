@@ -7,7 +7,6 @@
 use borsh::BorshSerialize;
 use solana_program::{
     account_info::AccountInfo,
-    entrypoint::ProgramResult,
     program::{
         invoke,
         invoke_signed,
@@ -28,7 +27,6 @@ use crate::{
     ExecutionContext,
     Keyed,
     Result,
-    SolitaireError,
 };
 
 /// A short alias for AccountInfo.
@@ -85,13 +83,13 @@ use IsSigned::*;
 ///
 /// Data<(), { AccountState::Uninitialized }>
 #[rustfmt::skip]
-pub struct Data<'r, T: Owned + Default, const IsInitialized: AccountState> (
+pub struct Data<'r, T: Owned + Default, const IS_INITIALIZED: AccountState> (
     pub Box<Info<'r>>,
     pub T,
 );
 
-impl<'r, T: Owned + Default, const IsInitialized: AccountState> Deref
-    for Data<'r, T, IsInitialized>
+impl<'r, T: Owned + Default, const IS_INITIALIZED: AccountState> Deref
+    for Data<'r, T, IS_INITIALIZED>
 {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -99,8 +97,8 @@ impl<'r, T: Owned + Default, const IsInitialized: AccountState> Deref
     }
 }
 
-impl<'r, T: Owned + Default, const IsInitialized: AccountState> DerefMut
-    for Data<'r, T, IsInitialized>
+impl<'r, T: Owned + Default, const IS_INITIALIZED: AccountState> DerefMut
+    for Data<'r, T, IS_INITIALIZED>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.1
@@ -123,7 +121,7 @@ impl<'b, Var: SolanaSysvar> Deref for Sysvar<'b, Var> {
     }
 }
 
-impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
+impl<const SEED: &'static str> Derive<AccountInfo<'_>, SEED> {
     pub fn create(
         &self,
         ctx: &ExecutionContext,
@@ -132,7 +130,7 @@ impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
         space: usize,
         owner: &Pubkey,
     ) -> Result<()> {
-        let (_, bump_seed) = Pubkey::find_program_address(&[Seed.as_bytes()][..], ctx.program_id);
+        let (_, bump_seed) = Pubkey::find_program_address(&[SEED.as_bytes()][..], ctx.program_id);
         create_account(
             ctx,
             self.info(),
@@ -140,13 +138,13 @@ impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
             lamports,
             space,
             owner,
-            SignedWithSeeds(&[&[Seed.as_bytes(), &[bump_seed]]]),
+            SignedWithSeeds(&[&[SEED.as_bytes(), &[bump_seed]]]),
         )
     }
 }
 
-impl<const Seed: &'static str, T: BorshSerialize + Owned + Default>
-    Derive<Data<'_, T, { AccountState::Uninitialized }>, Seed>
+impl<const SEED: &'static str, T: BorshSerialize + Owned + Default>
+    Derive<Data<'_, T, { AccountState::Uninitialized }>, SEED>
 {
     pub fn create(
         &self,
@@ -156,7 +154,7 @@ impl<const Seed: &'static str, T: BorshSerialize + Owned + Default>
     ) -> Result<()> {
         // Get serialized struct size
         let size = self.0.try_to_vec().unwrap().len();
-        let (_, bump_seed) = Pubkey::find_program_address(&[Seed.as_bytes()][..], ctx.program_id);
+        let (_, bump_seed) = Pubkey::find_program_address(&[SEED.as_bytes()][..], ctx.program_id);
         create_account(
             ctx,
             self.info(),
@@ -164,7 +162,7 @@ impl<const Seed: &'static str, T: BorshSerialize + Owned + Default>
             lamports,
             size,
             ctx.program_id,
-            SignedWithSeeds(&[&[Seed.as_bytes(), &[bump_seed]]]),
+            SignedWithSeeds(&[&[SEED.as_bytes(), &[bump_seed]]]),
         )
     }
 }

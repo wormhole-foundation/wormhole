@@ -26,13 +26,14 @@ var warmTvlFilePath = "tvl-cache.json"
 var notionalTvlResultPath = "notional-tvl.json"
 
 type LockedAsset struct {
-	Symbol      string
-	Name        string
-	Address     string
-	CoinGeckoId string
-	Amount      float64
-	Notional    float64
-	TokenPrice  float64
+	Symbol        string
+	Name          string
+	Address       string
+	CoinGeckoId   string
+	Amount        float64
+	Notional      float64
+	TokenPrice    float64
+	TokenDecimals int
 }
 
 // finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
@@ -120,13 +121,14 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 
 				if _, ok := results[dateStr][row.OriginChain][row.TokenAddress]; !ok {
 					results[dateStr][row.OriginChain][row.TokenAddress] = LockedAsset{
-						Symbol:      row.TokenSymbol,
-						Name:        row.TokenName,
-						Address:     row.TokenAddress,
-						CoinGeckoId: row.CoinGeckoCoinId,
-						TokenPrice:  row.TokenPrice,
-						Amount:      0,
-						Notional:    0,
+						Symbol:        row.TokenSymbol,
+						Name:          row.TokenName,
+						Address:       row.TokenAddress,
+						CoinGeckoId:   row.CoinGeckoCoinId,
+						TokenPrice:    row.TokenPrice,
+						TokenDecimals: row.TokenDecimals,
+						Amount:        0,
+						Notional:      0,
 					}
 				}
 
@@ -215,12 +217,13 @@ func tvlSinceDate(tbl *bigtable.Table, ctx context.Context, dailyTotals map[stri
 				} else {
 					// have not seen this asset in previous days
 					result[chain][address] = LockedAsset{
-						Symbol:      lockedAsset.Symbol,
-						Name:        lockedAsset.Name,
-						Address:     lockedAsset.Address,
-						CoinGeckoId: lockedAsset.CoinGeckoId,
-						Amount:      lockedAsset.Amount,
-						TokenPrice:  lockedAsset.TokenPrice,
+						Symbol:        lockedAsset.Symbol,
+						Name:          lockedAsset.Name,
+						Address:       lockedAsset.Address,
+						CoinGeckoId:   lockedAsset.CoinGeckoId,
+						Amount:        lockedAsset.Amount,
+						TokenPrice:    lockedAsset.TokenPrice,
+						TokenDecimals: lockedAsset.TokenDecimals,
 					}
 				}
 			}
@@ -352,13 +355,14 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 					}
 
 					notionalLocked[chain][address] = LockedAsset{
-						Symbol:      lockedAsset.Symbol,
-						Name:        lockedAsset.Name,
-						Address:     lockedAsset.Address,
-						CoinGeckoId: lockedAsset.CoinGeckoId,
-						Amount:      lockedAsset.Amount,
-						Notional:    roundToTwoDecimalPlaces(notionalVal),
-						TokenPrice:  currentPrice,
+						Symbol:        lockedAsset.Symbol,
+						Name:          lockedAsset.Name,
+						Address:       lockedAsset.Address,
+						CoinGeckoId:   lockedAsset.CoinGeckoId,
+						Amount:        lockedAsset.Amount,
+						Notional:      roundToTwoDecimalPlaces(notionalVal),
+						TokenPrice:    currentPrice,
+						TokenDecimals: lockedAsset.TokenDecimals,
 					}
 
 					if asset, ok := notionalLocked[chain]["*"]; ok {

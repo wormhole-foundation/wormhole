@@ -1,33 +1,8 @@
-#![allow(warnings)]
-
-use borsh::BorshSerialize;
-use byteorder::{
-    BigEndian,
-    WriteBytesExt,
-};
-use hex_literal::hex;
-use libsecp256k1::{
-    Message as Secp256k1Message,
-    PublicKey,
-    SecretKey,
-};
+use libsecp256k1::SecretKey;
 use rand::Rng;
-use sha3::Digest;
 use solana_program::{
-    borsh::try_from_slice_unchecked,
-    hash,
-    instruction::{
-        AccountMeta,
-        Instruction,
-    },
-    program_pack::Pack,
     pubkey::Pubkey,
-    system_instruction::{
-        self,
-        create_account,
-    },
-    system_program,
-    sysvar,
+    system_instruction,
 };
 use solana_program_test::{
     tokio,
@@ -36,46 +11,28 @@ use solana_program_test::{
 use solana_sdk::{
     commitment_config::CommitmentLevel,
     signature::{
-        read_keypair_file,
         Keypair,
         Signer,
     },
-    transaction::Transaction,
 };
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
 };
-use std::{
-    convert::TryInto,
-    io::{
-        Cursor,
-        Write,
-    },
-    time::{
-        Duration,
-        SystemTime,
-    },
-};
 
 use bridge::{
     accounts::{
         Bridge,
-        BridgeConfig,
         BridgeData,
         FeeCollector,
         GuardianSet,
         GuardianSetData,
         GuardianSetDerivationData,
-        MessageData,
         PostedVAA,
         PostedVAAData,
         PostedVAADerivationData,
-        SequenceTracker,
-        SignatureSet,
         SignatureSetData,
     },
-    instruction,
     instructions,
     types::{
         ConsistencyLevel,
@@ -84,15 +41,10 @@ use bridge::{
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
     },
-    Initialize,
-    PostVAA,
-    PostVAAData,
     SerializeGovernancePayload,
-    Signature,
 };
 use primitive_types::U256;
 use solana_program::rent::Rent;
-use solana_sdk::hash::hashv;
 
 mod common;
 
@@ -124,15 +76,11 @@ impl Sequencer {
         *entry += 1;
         *entry - 1
     }
-
-    fn peek(&mut self, emitter: [u8; 32]) -> u64 {
-        *self.sequences.entry(emitter).or_insert(0)
-    }
 }
 
 async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
     let (public_keys, secret_keys) = common::generate_keys(6);
-    let mut context = Context {
+    let context = Context {
         public: public_keys,
         secret: secret_keys,
         seq: Sequencer {
@@ -218,7 +166,7 @@ async fn bridge_messages() {
         );
 
         // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-        let (vaa, body, body_hash) =
+        let (vaa, body, _body_hash) =
             common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
         let vaa_time = vaa.timestamp;
 
@@ -232,7 +180,7 @@ async fn bridge_messages() {
             &PostedVAADerivationData {
                 payload_hash: body.to_vec(),
             },
-            &program,
+            program,
         );
         common::post_vaa(client, program, payer, signature_set, vaa)
             .await
@@ -265,8 +213,8 @@ async fn bridge_messages() {
         assert_eq!(signatures.hash, body);
         assert_eq!(signatures.guardian_set_index, 0);
 
-        for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-            assert_eq!(*signature, true);
+        for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+            assert!(*signature);
         }
     }
 
@@ -302,7 +250,7 @@ async fn bridge_messages() {
     );
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let vaa_time = vaa.timestamp;
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
@@ -314,7 +262,7 @@ async fn bridge_messages() {
         &PostedVAADerivationData {
             payload_hash: body.to_vec(),
         },
-        &program,
+        program,
     );
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
@@ -347,8 +295,8 @@ async fn bridge_messages() {
     assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 0);
 
-    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        assert_eq!(*signature, true);
+    for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        assert!(*signature);
     }
 }
 
@@ -434,9 +382,9 @@ async fn invalid_emitter() {
     let message = [0u8; 32].to_vec();
     let emitter = Keypair::new();
     let nonce = rand::thread_rng().gen();
-    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+    let _sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    let fee_collector = FeeCollector::key(None, &program);
+    let fee_collector = FeeCollector::key(None, program);
 
     let msg_account = Keypair::new();
     // Manually send a message that isn't signed by the emitter, which should be rejected to
@@ -520,7 +468,7 @@ async fn guardian_set_change() {
         emitter.pubkey().to_bytes()
     );
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let vaa_time = vaa.timestamp;
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
@@ -530,7 +478,7 @@ async fn guardian_set_change() {
         &PostedVAADerivationData {
             payload_hash: body.to_vec(),
         },
-        &program,
+        program,
     );
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
@@ -550,10 +498,10 @@ async fn guardian_set_change() {
     common::sync(client, payer).await;
 
     // Derive keys for accounts we want to check.
-    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
     let guardian_set_key = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
         &GuardianSetDerivationData { index: 1 },
-        &program,
+        program,
     );
 
     // Fetch account states.
@@ -591,7 +539,7 @@ async fn guardian_set_change() {
 
     // Submit the message a second time with a new nonce.
     let nonce = rand::thread_rng().gen();
-    let message_key = common::post_message(
+    let _message_key = common::post_message(
         client,
         program,
         payer,
@@ -607,7 +555,7 @@ async fn guardian_set_change() {
     context.secret = new_secret_keys;
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 1, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 1)
         .await
@@ -617,7 +565,7 @@ async fn guardian_set_change() {
         &PostedVAADerivationData {
             payload_hash: body.to_vec(),
         },
-        &program,
+        program,
     );
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
@@ -649,8 +597,8 @@ async fn guardian_set_change() {
     assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 1);
 
-    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        assert_eq!(*signature, true);
+    for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        assert!(*signature);
     }
 }
 
@@ -664,7 +612,7 @@ async fn guardian_set_change_fails() {
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Upgrade the guardian set with a new set of guardians.
-    let (new_public_keys, new_secret_keys) = common::generate_keys(6);
+    let (new_public_keys, _new_secret_keys) = common::generate_keys(6);
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadGuardianSetChange {
         new_guardian_set_index: 2,
@@ -684,8 +632,6 @@ async fn guardian_set_change_fails() {
     )
     .await
     .unwrap();
-    let (vaa, body, body_hash) =
-        common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
 
     assert!(common::upgrade_guardian_set(
         client,
@@ -727,7 +673,7 @@ async fn set_fees() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -748,8 +694,8 @@ async fn set_fees() {
     common::sync(client, payer).await;
 
     // Fetch Bridge to check on-state value.
-    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
-    let fee_collector = FeeCollector::key(None, &program);
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
+    let fee_collector = FeeCollector::key(None, program);
     let bridge: BridgeData = common::get_account_data(client, bridge_key).await;
     assert_eq!(bridge.config.fee, 100);
 
@@ -775,7 +721,7 @@ async fn set_fees() {
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
-    let message_key = common::post_message(
+    let _message_key = common::post_message(
         client,
         program,
         payer,
@@ -787,7 +733,7 @@ async fn set_fees() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -797,7 +743,7 @@ async fn set_fees() {
         &PostedVAADerivationData {
             payload_hash: body.to_vec(),
         },
-        &program,
+        program,
     );
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
@@ -836,8 +782,8 @@ async fn set_fees() {
     assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 0);
 
-    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        assert_eq!(*signature, true);
+    for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        assert!(*signature);
     }
 }
 
@@ -869,7 +815,7 @@ async fn set_fees_fails() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -917,7 +863,7 @@ async fn free_fees() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -938,8 +884,8 @@ async fn free_fees() {
     common::sync(client, payer).await;
 
     // Fetch Bridge to check on-state value.
-    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
-    let fee_collector = FeeCollector::key(None, &program);
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
+    let fee_collector = FeeCollector::key(None, program);
     let bridge: BridgeData = common::get_account_data(client, bridge_key).await;
     assert_eq!(bridge.config.fee, 0);
 
@@ -949,12 +895,12 @@ async fn free_fees() {
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
-    let message_key =
+    let _message_key =
         common::post_message(client, program, payer, &emitter, nonce, message.clone(), 0)
             .await
             .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -964,7 +910,7 @@ async fn free_fees() {
         &PostedVAADerivationData {
             payload_hash: body.to_vec(),
         },
-        &program,
+        program,
     );
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
@@ -1003,8 +949,8 @@ async fn free_fees() {
     assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 0);
 
-    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        assert_eq!(*signature, true);
+    for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        assert!(*signature);
     }
 }
 
@@ -1015,7 +961,6 @@ async fn transfer_fees() {
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    let recipient = Keypair::new();
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
         amount: 100u128.into(),
@@ -1025,8 +970,7 @@ async fn transfer_fees() {
     .unwrap();
 
     // Fetch accounts for chain state checking.
-    let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = common::get_account_balance(client, fee_collector).await;
+    let fee_collector = FeeCollector::key(None, program);
 
     let message_key = common::post_message(
         client,
@@ -1040,7 +984,7 @@ async fn transfer_fees() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -1078,7 +1022,6 @@ async fn transfer_fees_fails() {
     let emitter = Keypair::new();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    let recipient = Keypair::new();
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
         amount: 100u128.into(),
@@ -1088,8 +1031,7 @@ async fn transfer_fees_fails() {
     .unwrap();
 
     // Fetch accounts for chain state checking.
-    let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = common::get_account_balance(client, fee_collector).await;
+    let fee_collector = FeeCollector::key(None, program);
 
     let message_key = common::post_message(
         client,
@@ -1103,7 +1045,7 @@ async fn transfer_fees_fails() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -1139,7 +1081,6 @@ async fn transfer_too_much() {
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    let recipient = Keypair::new();
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
         amount: 100_000_000_000u64.into(),
@@ -1149,8 +1090,7 @@ async fn transfer_too_much() {
     .unwrap();
 
     // Fetch accounts for chain state checking.
-    let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = common::get_account_balance(client, fee_collector).await;
+    let fee_collector = FeeCollector::key(None, program);
 
     let message_key = common::post_message(
         client,
@@ -1164,7 +1104,7 @@ async fn transfer_too_much() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -1204,7 +1144,7 @@ async fn foreign_bridge_messages() {
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Verify the VAA generated on a foreign chain.
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 2);
 
     // Derive where we expect created accounts to be.
@@ -1212,7 +1152,7 @@ async fn foreign_bridge_messages() {
         &PostedVAADerivationData {
             payload_hash: body.to_vec(),
         },
-        &program,
+        program,
     );
 
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
@@ -1242,8 +1182,8 @@ async fn foreign_bridge_messages() {
     assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 0);
 
-    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        assert_eq!(*signature, true);
+    for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        assert!(*signature);
     }
 }
 
@@ -1257,11 +1197,10 @@ async fn transfer_total_fails() {
     // Be sure any previous tests have fully committed.
     common::sync(client, payer).await;
 
-    let fee_collector = FeeCollector::key(None, &program);
+    let fee_collector = FeeCollector::key(None, program);
     let account_balance = common::get_account_balance(client, fee_collector).await;
 
     // Prepare to remove total balance, adding 10_000 to include the fee we're about to pay.
-    let recipient = Keypair::new();
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
         amount: (account_balance + 10_000).into(),
@@ -1282,7 +1221,7 @@ async fn transfer_total_fails() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await
@@ -1323,9 +1262,6 @@ async fn upgrade_contract() {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
-    // Upgrade the guardian set with a new set of guardians.
-    let (new_public_keys, new_secret_keys) = common::generate_keys(1);
-
     // New Contract Address
     // let new_contract = Pubkey::new_unique();
     let new_contract = *program;
@@ -1333,11 +1269,9 @@ async fn upgrade_contract() {
     let nonce = rand::thread_rng().gen();
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
-    let message = GovernancePayloadUpgrade {
-        new_contract: new_contract.clone(),
-    }
-    .try_to_vec()
-    .unwrap();
+    let message = GovernancePayloadUpgrade { new_contract }
+        .try_to_vec()
+        .unwrap();
 
     let message_key = common::post_message(
         client,
@@ -1351,7 +1285,7 @@ async fn upgrade_contract() {
     .await
     .unwrap();
 
-    let (vaa, body, body_hash) =
+    let (vaa, body, _body_hash) =
         common::generate_vaa(&emitter, message.clone(), nonce, sequence, 0, 1);
     let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
         .await

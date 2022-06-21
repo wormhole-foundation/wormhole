@@ -128,7 +128,7 @@ export async function attestFromAlgorand(
     const assetInfo = await client
       .getAssetByID(safeBigIntToNumber(assetId))
       .do();
-    const creatorAddr = assetInfo.params.creator;
+    creatorAddr = assetInfo.params.creator;
     creatorAcctInfo = await client.accountInformation(creatorAddr).do();
     wormhole = creatorAcctInfo["auth-addr"] === tbAddr;
   } else {

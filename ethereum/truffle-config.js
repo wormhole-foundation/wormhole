@@ -180,7 +180,7 @@ module.exports = {
       gasPrice: "0x2f7e8803ea",
       gasLimit: "0x329b140",
       gas: "0x329b140",
-    },   
+    },
     karura_testnet: {
       provider: () => {
         return new HDWalletProvider(
@@ -192,6 +192,19 @@ module.exports = {
       gasPrice: 202184721385,
       gasLimit: 117096000,
       gas: 117096000,
+    },
+    acala: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          // To use this local host, needed to run this: ENDPOINT_URL=wss://acala-rpc-0.aca-api.network npx @acala-network/eth-rpc-adapter@latest
+          //"http://localhost:8545"
+          "https://eth-rpc-acala.aca-api.network/"
+        );
+      },
+      network_id: 787,
+      gasPrice: "0x2f25eb03ea",
+      gas: "0x6fc3540",
     },
     acala_testnet: {
       provider: () => {
@@ -205,59 +218,68 @@ module.exports = {
       gasLimit: 213192000,
       gas: 213192000,
     },
-    klaytn: { // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
+    klaytn: {
+      // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
       provider: () => {
         const option = {
           headers: [
             {
-              name: 'Authorization',
+              name: "Authorization",
               value:
-                'Basic ' +
-                Buffer.from(process.env.KLAY_ACCESS_ID + ':' + process.env.KLAY_SECURITY_KEY).toString('base64'),
+                "Basic " +
+                Buffer.from(
+                  process.env.KLAY_ACCESS_ID +
+                    ":" +
+                    process.env.KLAY_SECURITY_KEY
+                ).toString("base64"),
             },
-            { name: 'x-chain-id', value: '8217' },
+            { name: "x-chain-id", value: "8217" },
           ],
           keepAlive: false,
-        }
+        };
         return new KLAYHDWalletProvider(
           process.env.MNEMONIC,
-          new Caver.providers.HttpProvider('https://node-api.klaytnapi.com/v1/klaytn', option)
-        )
-      },      
+          new Caver.providers.HttpProvider(
+            "https://node-api.klaytnapi.com/v1/klaytn",
+            option
+          )
+        );
+      },
       network_id: 8217, //Klaytn mainnet's network id
-      gas: '8000000',
-      gasPrice: '750000000000', 
+      gas: "8000000",
+      gasPrice: "750000000000",
       disableConfirmationListener: true,
       pollingInterval: 1800000,
     },
-    klaytn_testnet: { // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
+    klaytn_testnet: {
+      // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://api.baobab.klaytn.net:8651/"
         );
       },
-      network_id: '1001',
-      gas: '8500000',
-      gasPrice: null
+      network_id: "1001",
+      gas: "8500000",
+      gasPrice: null,
     },
     celo: {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://forno.celo.org"
-        )
+        );
       },
       network_id: 42220,
       gas: 8000000,
-      gasPrice: null
-    },    
+      gasPrice: null,
+    },
     celo_alfajores_testnet: {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://alfajores-forno.celo-testnet.org"
-        )
+        );
       },
       network_id: 44787,
     },
@@ -271,7 +293,18 @@ module.exports = {
       network_id: 1287,
       gasPrice: 3000000000, // 3.0 gwei
       timeoutBlocks: 15000,
-    },    
+    },
+    neon_devnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://proxy.devnet.neonlabs.org/solana"
+        );
+      },
+      network_id: "*",
+      gas: 3000000000,
+      gasPrice: 443065000000,
+    },
   },
 
   compilers: {

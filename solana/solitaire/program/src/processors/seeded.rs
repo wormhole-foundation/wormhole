@@ -1,32 +1,21 @@
 use super::keyed::Keyed;
 use crate::{
     create_account,
-    system_instruction,
-    AccountInfo,
     AccountState,
     CreationLamports,
     Data,
-    Deref,
     Derive,
     ExecutionContext,
-    FromAccounts,
-    Info,
     IsSigned::*,
-    Peel,
     Result,
-    Signer,
     SolitaireError,
-    System,
-    Sysvar,
 };
 use borsh::{
-    BorshSchema,
     BorshSerialize,
 };
 use solana_program::{
     entrypoint::ProgramResult,
     instruction::Instruction,
-    msg,
     program::invoke_signed,
     pubkey::Pubkey,
 };
@@ -53,8 +42,8 @@ pub trait Owned {
     }
 }
 
-impl<'a, T: Owned + Default, const IsInitialized: AccountState> Owned
-    for Data<'a, T, IsInitialized>
+impl<'a, T: Owned + Default, const IS_INITIALIZED: AccountState> Owned
+    for Data<'a, T, IS_INITIALIZED>
 {
     fn owner(&self) -> AccountOwner {
         self.1.owner()
@@ -69,9 +58,9 @@ pub trait Seeded<I> {
     }
 
     fn key(accs: I, program_id: &Pubkey) -> Pubkey {
-        let mut seeds = Self::seeds(accs);
-        let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
-        let mut seed_slice = s.as_slice();
+        let seeds = Self::seeds(accs);
+        let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let seed_slice = s.as_slice();
         let (addr, _) = Pubkey::find_program_address(seed_slice, program_id);
 
         addr
@@ -79,8 +68,8 @@ pub trait Seeded<I> {
 
     fn bumped_seeds(accs: I, program_id: &Pubkey) -> Vec<Vec<u8>> {
         let mut seeds = Self::seeds(accs);
-        let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
-        let mut seed_slice = s.as_slice();
+        let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let seed_slice = s.as_slice();
         let (_, bump_seed) = Pubkey::find_program_address(seed_slice, program_id);
         seeds.push(vec![bump_seed]);
 
@@ -99,7 +88,7 @@ pub trait Seeded<I> {
         let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
         let seed_slice = s.as_slice();
 
-        let (derived, bump) = Pubkey::find_program_address(seed_slice, program_id);
+        let (derived, _bump) = Pubkey::find_program_address(seed_slice, program_id);
         if &derived == self.info().key {
             Ok(())
         } else {
@@ -118,8 +107,8 @@ pub trait Creatable<'a, I> {
     ) -> Result<()>;
 }
 
-impl<T: BorshSerialize + Owned + Default, const IsInitialized: AccountState> AccountSize
-    for Data<'_, T, IsInitialized>
+impl<T: BorshSerialize + Owned + Default, const IS_INITIALIZED: AccountState> AccountSize
+    for Data<'_, T, IS_INITIALIZED>
 {
     fn size(&self) -> usize {
         self.1.try_to_vec().unwrap().len()
@@ -137,8 +126,8 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
         let seeds = T::bumped_seeds(accs, ctx.program_id);
         let size = self.size();
 
-        let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
-        let mut seed_slice = s.as_slice();
+        let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let seed_slice = s.as_slice();
 
         create_account(
             ctx,
@@ -152,9 +141,9 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
     }
 }
 
-impl<'a, const Seed: &'static str, T> Seeded<Option<()>> for Derive<T, Seed> {
-    fn seeds(accs: Option<()>) -> Vec<Vec<u8>> {
-        vec![Seed.as_bytes().to_vec()]
+impl<'a, const SEED: &'static str, T> Seeded<Option<()>> for Derive<T, SEED> {
+    fn seeds(_accs: Option<()>) -> Vec<Vec<u8>> {
+        vec![SEED.as_bytes().to_vec()]
     }
 }
 

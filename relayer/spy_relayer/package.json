@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@celo-tools/celo-ethers-wrapper": "^0.1.0",
-    "@certusone/wormhole-sdk": "^0.3.3",
+    "@certusone/wormhole-sdk": "^0.3.8",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@nomiclabs/hardhat-etherscan": "^3.0.4",
     "@project-serum/anchor": "^0.25.0-beta.1",

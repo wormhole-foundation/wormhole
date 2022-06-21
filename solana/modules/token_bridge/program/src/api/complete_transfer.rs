@@ -21,27 +21,13 @@ use bridge::{
     vaa::ClaimableVAA,
     CHAIN_ID_SOLANA,
 };
-use solana_program::{
-    account_info::AccountInfo,
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_program::account_info::AccountInfo;
 use solitaire::{
     processors::seeded::{
         invoke_seeded,
         Seeded,
     },
-    CreationLamports::Exempt,
     *,
-};
-use spl_token::state::{
-    Account,
-    Mint,
-};
-use std::ops::{
-    Deref,
-    DerefMut,
 };
 
 #[derive(FromAccounts)]
@@ -86,7 +72,7 @@ pub struct CompleteNativeData {}
 pub fn complete_native(
     ctx: &ExecutionContext,
     accs: &mut CompleteNative,
-    data: CompleteNativeData,
+    _data: CompleteNativeData,
 ) -> Result<()> {
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
@@ -212,7 +198,7 @@ pub struct CompleteWrappedData {}
 pub fn complete_wrapped(
     ctx: &ExecutionContext,
     accs: &mut CompleteWrapped,
-    data: CompleteWrappedData,
+    _data: CompleteWrappedData,
 ) -> Result<()> {
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();

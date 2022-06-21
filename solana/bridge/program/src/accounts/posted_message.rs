@@ -26,6 +26,7 @@ pub type PostedMessage<'a, const State: AccountState> = Data<'a, PostedMessageDa
 // This is using the same payload as the PostedVAA for backwards compatibility.
 // This will be deprecated in a future release.
 #[repr(transparent)]
+#[derive(Default)]
 pub struct PostedMessageData(pub MessageData);
 
 #[derive(Debug, Default, BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
@@ -63,7 +64,7 @@ pub struct MessageData {
 
 impl BorshSerialize for PostedMessageData {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        writer.write(b"msg")?;
+        writer.write_all(b"msg")?;
         BorshSerialize::serialize(&self.0, writer)
     }
 }
@@ -88,12 +89,6 @@ impl Deref for PostedMessageData {
 impl DerefMut for PostedMessageData {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { std::mem::transmute(&mut self.0) }
-    }
-}
-
-impl Default for PostedMessageData {
-    fn default() -> Self {
-        PostedMessageData(MessageData::default())
     }
 }
 
