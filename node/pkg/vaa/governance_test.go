@@ -1,8 +1,11 @@
 package vaa
 
-import "testing"
-import "time"
-import "github.com/stretchr/testify/assert"
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
 
 // Testing the expected default behavior of a CreateGovernanceVAA
 func TestCreateGovernanceVAA(t *testing.T) {
