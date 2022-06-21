@@ -6,6 +6,7 @@ import {
   hexToUint8Array,
   importCoreWasm,
   parseTransferPayload,
+  ChainId,
   postVaaSolanaWithRetry,
   redeemOnSolana,
 } from "@certusone/wormhole-sdk";
@@ -18,6 +19,8 @@ import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {relay_signed_vaa, redeem} from "../xRaydium/scripts/run"
+import {TransferPayload} from "../xRaydium/scripts/lib"
+
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
@@ -38,7 +41,8 @@ export async function relaySolana(
     if (!chainConfigInfo.bridgeAddress) {
           // This should never be the case, as enforced by createSolanaChainConfig
           return { redeemed: false, result: null };
-      }
+    }
+
     // const keypair = Keypair.fromSecretKey(walletPrivateKey);
     // const payerAddress = keypair.publicKey.toString();
     // logger.info(
@@ -61,21 +65,23 @@ export async function relaySolana(
     // if (checkOnly) {
     //   return { redeemed: false, result: "not redeemed" };
     // }
-
-    // const { parse_vaa } = await importCoreWasm();
-    // const parsedVAA = parse_vaa(signedVaaArray);
-    // const payloadBuffer = Buffer.from(parsedVAA.payload);
-    // const transferPayload = parseTransferPayload(payloadBuffer);
-
-    // *** DOES REDEEMING
-
+    const { parse_vaa } = await importCoreWasm();
+    const parsedVAA = parse_vaa(signedVaaArray);
+    const payloadBuffer = Buffer.from(parsedVAA.payload);
+    let payload3 = parsedVAA["payload"].slice(133);
+    let myTransferPayload3 = parseTransferPayload(payloadBuffer);
+    logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
+    myTransferPayload3["payload3"] = payload3;
+    //logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
+    console.log("myTransferPayload3: ", myTransferPayload3)
+    // *** DOES REDEEMING 
+    await redeem( 
+      signedVaaArray, 
+       myTransferPayload3 as TransferPayload, 
+       "", 
+       false
+    ) 
     return { redeemed: true, result: "redeemed (hypothetically)" };
-
-    // redeem(
-    //   vaaBytes: Uint8Array,
-    //   transferPayload,
-    //   false
-    // ) 
 }
 
 //relay solana
