@@ -18,8 +18,8 @@ import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
-import {relay_signed_vaa, redeem} from "../xRaydium/scripts/run"
-import {TransferPayload} from "../xRaydium/scripts/lib"
+import {relayToSolana} from "../xRaydium/scripts/relay"
+import {TransferPayload} from "../xRaydium/scripts/lib/lib"
 
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
@@ -75,12 +75,12 @@ export async function relaySolana(
     //logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
     console.log("myTransferPayload3: ", myTransferPayload3)
     // *** DOES REDEEMING 
-    await redeem( 
-      signedVaaArray, 
-       myTransferPayload3 as TransferPayload, 
-       "", 
-       false
-    ) 
+    // await redeem( 
+    //   signedVaaArray, 
+    //    myTransferPayload3 as TransferPayload, 
+    //    "", 
+    //    false
+    // ) 
     return { redeemed: true, result: "redeemed (hypothetically)" };
 }
 

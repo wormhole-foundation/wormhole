@@ -340,6 +340,7 @@ async function calcLocalAddressesEVM(
 ): Promise<string[]> {
   const tokenBridge = Bridge__factory.connect(
     chainConfigInfo.tokenBridgeAddress,
+    // @ts-ignore
     provider
   );
   let tokenAddressPromises: Promise<string>[] = [];
