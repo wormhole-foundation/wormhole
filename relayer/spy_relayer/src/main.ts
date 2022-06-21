@@ -22,7 +22,7 @@ const logger = getLogger();
 
 // Load the relay config data.
 let runListen: boolean = true;
-let runWorker: boolean = true;
+let runRelayWorker: boolean = true;
 let runRest: boolean = true;
 let runWalletMonitor: boolean = true;
 let foundOne: boolean = false;
@@ -37,7 +37,7 @@ for (let idx = 0; idx < process.argv.length; ++idx) {
     }
 
     logger.info("spy_relay is running in listen only mode");
-    runWorker = false;
+    runRelayWorker = false;
     runWalletMonitor = false;
     foundOne = true;
   }
@@ -66,7 +66,7 @@ for (let idx = 0; idx < process.argv.length; ++idx) {
     logger.info("spy_relay is running in wallet monitor only mode");
     runListen = false;
     runRest = false;
-    runWorker = false;
+    runRelayWorker = false;
     foundOne = true;
   }
 }
@@ -75,12 +75,12 @@ if (!foundOne) {
   logger.info("spy_relay is running both the listener and relayer");
 }
 
-const runAll: boolean = runListen && runWorker && runWalletMonitor;
+const runAll: boolean = runListen && runRelayWorker && runWalletMonitor;
 if (runListen && !spyListener.init()) {
   process.exit(1);
 }
 
-if (runWorker && !relayWorker.init()) {
+if (runRelayWorker && !relayWorker.init()) {
   process.exit(1);
 }
 
@@ -105,7 +105,7 @@ if (runAll) {
   promClient = new PromHelper("spy_relay", promPort, PromMode.All);
 } else if (runListen) {
   promClient = new PromHelper("spy_relay", promPort, PromMode.Listen);
-} else if (runWorker) {
+} else if (runRelayWorker) {
   promClient = new PromHelper("spy_relay", promPort, PromMode.Relay);
 } else if (runWalletMonitor) {
   promClient = new PromHelper("spy_relay", promPort, PromMode.WalletMonitor);
@@ -117,7 +117,7 @@ if (runAll) {
 redisHelper.init(promClient);
 
 if (runListen) spyListener.run(promClient);
-if (runWorker) relayWorker.run(promClient);
+if (runRelayWorker) relayWorker.run(promClient);
 if (runRest) restListener.run();
 if (runWalletMonitor) walletMonitor.run(promClient);
 
