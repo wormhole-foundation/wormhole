@@ -83,3 +83,18 @@ var KnownEmitters = []struct {
 	{vaa.ChainIDCelo, "000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed", EmitterTokenBridge},
 	{vaa.ChainIDCelo, "000000000000000000000000A6A377d75ca5c9052c9a77ED1e865Cc25Bd97bf3", EmitterNFTBridge},
 }
+
+func GetEmitterAddressForChain(chainID vaa.ChainID, emitterType EmitterType) (vaa.Address, error) {
+	for _, emitter := range KnownEmitters {
+		if emitter.ChainID == chainID && emitter.BridgeType == emitterType {
+			emitterAddr, err := vaa.StringToAddress(emitter.Emitter)
+			if err != nil {
+				return vaa.Address{}, err
+			}
+
+			return emitterAddr, nil
+		}
+	}
+
+	return vaa.Address{}, fmt.Errorf("lookup failed")
+}
