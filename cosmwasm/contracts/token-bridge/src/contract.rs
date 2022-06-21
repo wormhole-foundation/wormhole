@@ -368,7 +368,7 @@ fn handle_register_asset(
 
     let mut bucket = wrapped_asset(deps.storage, chain);
     let result = bucket.load(&token_address.serialize()).ok();
-    if let Some(_) = result {
+    if result.is_some() {
         return ContractError::AssetAlreadyRegistered.std_err();
     }
 
@@ -379,7 +379,7 @@ fn handle_register_asset(
         },
     )?;
 
-    let contract_address: CanonicalAddr = deps.api.addr_canonicalize(&info.sender.as_str())?;
+    let contract_address: CanonicalAddr = deps.api.addr_canonicalize(info.sender.as_str())?;
     is_wrapped_asset(deps.storage).save(contract_address.as_slice(), &())?;
 
     Ok(Response::new()
@@ -537,7 +537,7 @@ fn handle_create_asset_meta_token(
                 nonce,
             })?,
             // forward coins sent to this message
-            funds: info.funds.clone(),
+            funds: info.funds,
         }))
         .add_attribute("meta.token_chain", CHAIN_ID.to_string())
         .add_attribute("meta.token", asset_address)
@@ -577,7 +577,7 @@ fn handle_create_asset_meta_native_token(
                 nonce,
             })?,
             // forward coins sent to this message
-            funds: info.funds.clone(),
+            funds: info.funds,
         }))
         .add_attribute("meta.token_chain", CHAIN_ID.to_string())
         .add_attribute("meta.symbol", symbol)
@@ -610,7 +610,7 @@ fn handle_complete_transfer_with_payload(
             _ => ContractError::InvalidVAAAction.std_err(),
         }
     } else {
-        return ContractError::InvalidVAAAction.std_err();
+        ContractError::InvalidVAAAction.std_err()
     }
 }
 
@@ -640,7 +640,7 @@ fn parse_and_archive_vaa(
     }
 
     let message = TokenBridgeMessage::deserialize(&vaa.payload)?;
-    return Ok((vaa, Either::Right(message)));
+    Ok((vaa, Either::Right(message)))
 }
 
 fn submit_vaa(
@@ -652,7 +652,7 @@ fn submit_vaa(
     let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
     match payload {
         Either::Left(governance_packet) => {
-            return handle_governance_payload(deps, env, &governance_packet)
+            handle_governance_payload(deps, env, &governance_packet)
         }
         Either::Right(message) => match message.action {
             Action::TRANSFER => {
@@ -706,7 +706,7 @@ fn handle_governance_payload(
 }
 
 fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
-    let UpgradeContract { new_contract } = UpgradeContract::deserialize(&data)?;
+    let UpgradeContract { new_contract } = UpgradeContract::deserialize(data)?;
 
     Ok(Response::new()
         .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
@@ -721,7 +721,7 @@ fn handle_register_chain(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<
     let RegisterChain {
         chain_id,
         chain_address,
-    } = RegisterChain::deserialize(&data)?;
+    } = RegisterChain::deserialize(data)?;
 
     let existing = bridge_contracts_read(deps.storage).load(&chain_id.to_be_bytes());
     if existing.is_ok() {
@@ -738,6 +738,7 @@ fn handle_register_chain(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<
         .add_attribute("chain_address", hex::encode(chain_address)))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_complete_transfer(
     deps: DepsMut,
     env: Env,
@@ -748,7 +749,7 @@ fn handle_complete_transfer(
     data: &Vec<u8>,
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
-    let transfer_info = TransferInfo::deserialize(&data)?;
+    let transfer_info = TransferInfo::deserialize(data)?;
     let token_id = transfer_info
         .token_address
         .to_token_id(deps.storage, transfer_info.token_chain)?;
@@ -778,6 +779,8 @@ fn handle_complete_transfer(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::bind_instead_of_map)]
 fn handle_complete_transfer_token(
     deps: DepsMut,
     _env: Env,
@@ -790,9 +793,9 @@ fn handle_complete_transfer_token(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = match transfer_type {
-        TransferType::WithoutPayload => TransferInfo::deserialize(&data)?,
+        TransferType::WithoutPayload => TransferInfo::deserialize(data)?,
         TransferType::WithPayload { payload: _ } => {
-            TransferWithPayloadInfo::deserialize(&data)?.transfer_info
+            TransferWithPayloadInfo::deserialize(data)?.transfer_info
         }
     };
 
@@ -922,6 +925,7 @@ fn handle_complete_transfer_token(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_complete_transfer_token_native(
     deps: DepsMut,
     _env: Env,
@@ -934,9 +938,9 @@ fn handle_complete_transfer_token_native(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = match transfer_type {
-        TransferType::WithoutPayload => TransferInfo::deserialize(&data)?,
+        TransferType::WithoutPayload => TransferInfo::deserialize(data)?,
         TransferType::WithPayload { payload: () } => {
-            TransferWithPayloadInfo::deserialize(&data)?.transfer_info
+            TransferWithPayloadInfo::deserialize(data)?.transfer_info
         }
     };
 
@@ -1000,6 +1004,7 @@ fn handle_complete_transfer_token_native(
         .add_attribute("fee", fee.to_string()))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_initiate_transfer(
     deps: DepsMut,
     env: Env,
@@ -1039,6 +1044,7 @@ fn handle_initiate_transfer(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_initiate_transfer_token(
     deps: DepsMut,
     env: Env,
@@ -1182,7 +1188,7 @@ fn handle_initiate_transfer_token(
                 token_address: external_id,
                 amount: (0, amount.u128()),
                 recipient_chain,
-                recipient: recipient.clone(),
+                recipient,
                 fee: (0, fee.u128()),
             };
 
@@ -1242,7 +1248,7 @@ fn handle_initiate_transfer_token(
         .add_attribute(
             "transfer.sender",
             hex::encode(extend_address_to_32(
-                &deps.api.addr_canonicalize(&info.sender.as_str())?,
+                &deps.api.addr_canonicalize(info.sender.as_str())?,
             )),
         )
         .add_attribute("transfer.recipient_chain", recipient_chain.to_string())
@@ -1257,9 +1263,10 @@ fn format_native_denom_symbol(denom: &str) -> String {
         return "LUNA".to_string();
     }
     //TODO: is there better formatting to do here?
-    denom.to_uppercase().to_string()
+    denom.to_uppercase()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_initiate_transfer_native_token(
     deps: DepsMut,
     env: Env,
@@ -1304,7 +1311,7 @@ fn handle_initiate_transfer_native_token(
         token_address: asset_address.clone(),
         amount: (0, amount.u128()),
         recipient_chain,
-        recipient: recipient.clone(),
+        recipient,
         fee: (0, fee.u128()),
     };
 
@@ -1323,14 +1330,14 @@ fn handle_initiate_transfer_native_token(
         },
     };
 
-    let sender = deps.api.addr_canonicalize(&info.sender.as_str())?;
+    let sender = deps.api.addr_canonicalize(info.sender.as_str())?;
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.wormhole_contract,
         msg: to_binary(&WormholeExecuteMsg::PostMessage {
             message: Binary::from(token_bridge_message.serialize()),
             nonce,
         })?,
-        funds: info.funds.clone(),
+        funds: info.funds,
     }));
 
     Ok(Response::new()
@@ -1372,7 +1379,7 @@ pub fn query_wrapped_registry(
     address: &[u8],
 ) -> StdResult<WrappedRegistryResponse> {
     // Check if this asset is already deployed
-    match wrapped_asset_read(deps.storage, chain).load(&address) {
+    match wrapped_asset_read(deps.storage, chain).load(address) {
         Ok(address) => Ok(WrappedRegistryResponse {
             address: address.into_string(),
         }),
@@ -1411,6 +1418,6 @@ fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<Transfer
     }
 }
 
-fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &Vec<u8>) -> bool {
-    cfg.gov_chain == emitter_chain && cfg.gov_address == emitter_address.clone()
+fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {
+    cfg.gov_chain == emitter_chain && cfg.gov_address == emitter_address
 }
