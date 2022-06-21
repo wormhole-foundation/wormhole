@@ -31,13 +31,9 @@ package governor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/big"
-	"net/http"
-	"sort"
 	"sync"
 	"time"
 
@@ -62,7 +58,6 @@ type (
 	// Layout of the config data for each chain
 	chainConfigEntry struct {
 		emitterChainID vaa.ChainID
-		emitterAddr    string
 		dailyLimit     uint64
 	}
 
@@ -122,10 +117,6 @@ func NewChainGovernor(
 	return newChainGovernor(logger, db, false)
 }
 
-func NewChainGovernorForTest() *ChainGovernor {
-	return newChainGovernor(nil, nil, true)
-}
-
 func newChainGovernor(logger *zap.Logger, db *db.Database, testMode bool) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
@@ -166,18 +157,6 @@ func (gov *ChainGovernor) initConfig() error {
 	gov.dayLengthInMinutes = 24 * 60
 	configTokens := tokenList()
 	configChains := chainList()
-
-	//////////////////////// Start of block to comment out before commit
-	// gov.dayLengthInMinutes = 5
-	// configTokens = []tokenConfigEntry{
-	// 	tokenConfigEntry{chain: 2, addr: "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E", symbol: "WETH", coinGeckoId: "weth", decimals: 18, price: 1774.62},
-	// }
-
-	// // This is the data for each chain being monitored. Note that the emitter address is the token bridge.
-	// configChains = []chainConfigEntry{
-	// 	chainConfigEntry{emitterChainID: vaa.ChainIDEthereum, emitterAddr: "0x0290fb167208af455bb137780163b7b7a9a10c16", dailyLimit: 100000},
-	// }
-	//////////////////////// End of block to comment out before commit
 
 	for _, ct := range configTokens {
 		addr, err := vaa.StringToAddress(ct.addr)
@@ -222,9 +201,9 @@ func (gov *ChainGovernor) initConfig() error {
 	}
 
 	for _, cc := range configChains {
-		emitterAddr, err := vaa.StringToAddress(cc.emitterAddr)
+		emitterAddr, err := common.GetEmitterAddressForChain(cc.emitterChainID, common.EmitterTokenBridge)
 		if err != nil {
-			return fmt.Errorf("invalid emitter address: %s", cc.emitterAddr)
+			return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.emitterChainID)
 		}
 
 		ce := &chainEntry{emitterChainId: cc.emitterChainID, emitterAddr: emitterAddr, dailyLimit: cc.dailyLimit}
@@ -243,289 +222,6 @@ func (gov *ChainGovernor) initConfig() error {
 	}
 
 	return nil
-}
-
-// This is so we can have consistent config data for unit tests.
-func (gov *ChainGovernor) InitConfigForTest(
-	emitterChainID vaa.ChainID,
-	emitterAddr vaa.Address,
-	dailyLimit uint64,
-	tokenChainID vaa.ChainID,
-	tokenAddr vaa.Address,
-	tokenSymbol string,
-	tokenPrice float64,
-	tokenDecimals int64,
-) {
-	gov.chains[emitterChainID] = &chainEntry{emitterChainId: emitterChainID, emitterAddr: emitterAddr, dailyLimit: dailyLimit}
-
-	price := big.NewFloat(tokenPrice)
-	decimalsFloat := big.NewFloat(math.Pow(10.0, float64(tokenDecimals)))
-	decimals, _ := decimalsFloat.Int(nil)
-	key := tokenKey{chain: tokenChainID, addr: tokenAddr}
-	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
-}
-
-func (gov *ChainGovernor) loadFromDB() error {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-	return gov.loadFromDBAlreadyLocked()
-}
-
-func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
-	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
-	if err != nil {
-		gov.logger.Error("cgov: failed to reload transactions from db", zap.Error(err))
-		return err
-	}
-
-	now := time.Now()
-	if len(pending) != 0 {
-		sort.SliceStable(pending, func(i, j int) bool {
-			return pending[i].Timestamp.Before(pending[j].Timestamp)
-		})
-
-		for _, k := range pending {
-			gov.reloadPendingTransfer(k, now)
-		}
-	}
-
-	if len(xfers) != 0 {
-		sort.SliceStable(xfers, func(i, j int) bool {
-			return xfers[i].Timestamp.Before(xfers[j].Timestamp)
-		})
-
-		startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-		for _, t := range xfers {
-			if startTime.Before(t.Timestamp) {
-				gov.reloadTransfer(t, now, startTime)
-			} else {
-				if err := gov.db.DeleteTransfer(t); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (gov *ChainGovernor) reloadPendingTransfer(k *common.MessagePublication, now time.Time) {
-	ce, exists := gov.chains[k.EmitterChain]
-	if !exists {
-		gov.logger.Error("cgov: reloaded pending transfer for unsupported chain, dropping it",
-			zap.String("MsgID", k.MessageIDString()),
-			zap.Stringer("TxHash", k.TxHash),
-			zap.Stringer("Timestamp", k.Timestamp),
-			zap.Uint32("Nonce", k.Nonce),
-			zap.Uint64("Sequence", k.Sequence),
-			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
-			zap.Stringer("EmitterChain", k.EmitterChain),
-			zap.Stringer("EmitterAddress", k.EmitterAddress),
-		)
-		return
-	}
-
-	if k.EmitterAddress != ce.emitterAddr {
-		gov.logger.Error("cgov: reloaded pending transfer for unsupported emitter address, dropping it",
-			zap.String("MsgID", k.MessageIDString()),
-			zap.Stringer("TxHash", k.TxHash),
-			zap.Stringer("Timestamp", k.Timestamp),
-			zap.Uint32("Nonce", k.Nonce),
-			zap.Uint64("Sequence", k.Sequence),
-			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
-			zap.Stringer("EmitterChain", k.EmitterChain),
-			zap.Stringer("EmitterAddress", k.EmitterAddress),
-		)
-		return
-	}
-
-	payload, err := vaa.DecodeTransferPayloadHdr(k.Payload)
-	if err != nil {
-		gov.logger.Error("cgov: failed to parse payload for reloaded pending transfer, dropping it",
-			zap.String("MsgID", k.MessageIDString()),
-			zap.Stringer("TxHash", k.TxHash),
-			zap.Stringer("Timestamp", k.Timestamp),
-			zap.Uint32("Nonce", k.Nonce),
-			zap.Uint64("Sequence", k.Sequence),
-			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
-			zap.Stringer("EmitterChain", k.EmitterChain),
-			zap.Stringer("EmitterAddress", k.EmitterAddress),
-			zap.Stringer("tokenChain", payload.OriginChain),
-			zap.Stringer("tokenAddress", payload.OriginAddress),
-			zap.Error(err),
-		)
-		return
-	}
-
-	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
-	token, exists := gov.tokens[tk]
-	if !exists {
-		gov.logger.Error("cgov: reloaded pending transfer for unsupported token, dropping it",
-			zap.String("MsgID", k.MessageIDString()),
-			zap.Stringer("TxHash", k.TxHash),
-			zap.Stringer("Timestamp", k.Timestamp),
-			zap.Uint32("Nonce", k.Nonce),
-			zap.Uint64("Sequence", k.Sequence),
-			zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
-			zap.Stringer("EmitterChain", k.EmitterChain),
-			zap.Stringer("EmitterAddress", k.EmitterAddress),
-			zap.Stringer("tokenChain", payload.OriginChain),
-			zap.Stringer("tokenAddress", payload.OriginAddress),
-		)
-		return
-	}
-
-	gov.logger.Info("cgov: reloaded pending transfer",
-		zap.String("MsgID", k.MessageIDString()),
-		zap.Stringer("TxHash", k.TxHash),
-		zap.Stringer("Timestamp", k.Timestamp),
-		zap.Uint32("Nonce", k.Nonce),
-		zap.Uint64("Sequence", k.Sequence),
-		zap.Uint8("ConsistencyLevel", k.ConsistencyLevel),
-		zap.Stringer("EmitterChain", k.EmitterChain),
-		zap.Stringer("EmitterAddress", k.EmitterAddress),
-		zap.Stringer("Amount", payload.Amount),
-	)
-
-	ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, amount: payload.Amount, msg: k})
-}
-
-func (gov *ChainGovernor) reloadTransfer(t *db.Transfer, now time.Time, startTime time.Time) {
-	ce, exists := gov.chains[t.EmitterChain]
-	if !exists {
-		gov.logger.Error("cgov: reloaded transfer for unsupported chain, dropping it",
-			zap.Stringer("Timestamp", t.Timestamp),
-			zap.Uint64("Value", t.Value),
-			zap.Stringer("EmitterChain", t.EmitterChain),
-			zap.Stringer("EmitterAddress", t.EmitterAddress),
-			zap.String("MsgID", t.MsgID),
-		)
-		return
-	}
-
-	if t.EmitterAddress != ce.emitterAddr {
-		gov.logger.Error("cgov: reloaded transfer for unsupported emitter address, dropping it",
-			zap.Stringer("Timestamp", t.Timestamp),
-			zap.Uint64("Value", t.Value),
-			zap.Stringer("OriginChain", t.OriginChain),
-			zap.Stringer("OriginAddress", t.OriginAddress),
-			zap.String("MsgID", t.MsgID),
-		)
-		return
-	}
-
-	tk := tokenKey{chain: t.OriginChain, addr: t.OriginAddress}
-	_, exists = gov.tokens[tk]
-	if !exists {
-		gov.logger.Error("cgov: reloaded transfer for unsupported token, dropping it",
-			zap.Stringer("Timestamp", t.Timestamp),
-			zap.Uint64("Value", t.Value),
-			zap.Stringer("OriginChain", t.OriginChain),
-			zap.Stringer("OriginAddress", t.OriginAddress),
-			zap.String("MsgID", t.MsgID),
-		)
-		return
-	}
-
-	gov.logger.Info("cgov: reloaded transfer",
-		zap.Stringer("Timestamp", t.Timestamp),
-		zap.Uint64("Value", t.Value),
-		zap.Stringer("OriginChain", t.OriginChain),
-		zap.Stringer("OriginAddress", t.OriginAddress),
-		zap.String("MsgID", t.MsgID),
-	)
-
-	ce.transfers = append(ce.transfers, *t)
-}
-
-func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
-	//https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
-	str := "https://api.coingecko.com/api/v3/simple/price?ids="
-	first := true
-	for coinGeckoId := range gov.tokensByCoinGeckoId {
-		if first {
-			first = false
-		} else {
-			str += ","
-		}
-
-		str += coinGeckoId
-	}
-
-	str += "&vs_currencies=usd"
-	gov.coinGeckoQuery = str
-
-	if first {
-		if gov.logger != nil {
-			gov.logger.Info("cgov: did not find any securities, nothing to do!")
-		}
-
-		return nil
-	}
-
-	if gov.logger != nil {
-		gov.logger.Info("cgov: coingecko query: ", zap.String("query", str))
-	}
-
-	timer := time.NewTimer(time.Millisecond) // Start immediately.
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				gov.queryCoinGecko()
-				timer = time.NewTimer(time.Duration(5) * time.Minute)
-			}
-		}
-	}()
-
-	return nil
-}
-
-// This does not return an error. Instead, it just logs the error and we will try again five minutes later.
-func (gov *ChainGovernor) queryCoinGecko() {
-	gov.logger.Info("cgov: querying coin gecko")
-	response, err := http.Get(gov.coinGeckoQuery)
-	if err != nil {
-		gov.logger.Error("cgov: failed to query coin gecko", zap.String("query", gov.coinGeckoQuery), zap.Error(err))
-		return
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		gov.logger.Error("cgov: failed to parse coin gecko response", zap.Error(err))
-		return
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(responseData, &result); err != nil {
-		gov.logger.Error("cgov: failed to unmarshal coin gecko json", zap.Error(err))
-		return
-	}
-
-	now := time.Now()
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	for coinGeckoId, data := range result {
-		te, exists := gov.tokensByCoinGeckoId[coinGeckoId]
-		if exists {
-			price := data.(map[string]interface{})["usd"].(float64)
-			te.coinGeckoPrice = big.NewFloat(price)
-			te.updatePrice()
-			te.priceTime = now
-
-			gov.logger.Info("cgov: updated price",
-				zap.String("symbol", te.symbol),
-				zap.String("coinGeckoId",
-					te.coinGeckoId),
-				zap.Stringer("price", te.price),
-				zap.Stringer("cfgPrice", te.cfgPrice),
-				zap.Stringer("coinGeckoPrice", te.coinGeckoPrice),
-			)
-		}
-	}
 }
 
 // Returns true if the message can be published, false if it has been added to the pending list.
@@ -597,7 +293,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 
 	newTotalValue := prevTotalValue + value
 
-	if (newTotalValue > ce.dailyLimit) || (len(ce.pending) != 0) {
+	if newTotalValue > ce.dailyLimit {
 		if gov.logger != nil {
 			gov.logger.Error("cgov: enqueuing vaa because it would exceed the daily limit",
 				zap.Uint64("value", value),
@@ -773,184 +469,6 @@ func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Databa
 	}
 
 	return sum, transfers, nil
-}
-func SumValue(transfers []db.Transfer, startTime time.Time) uint64 {
-	if len(transfers) == 0 {
-		return 0
-	}
-
-	var sum uint64
-
-	for _, t := range transfers {
-		if !t.Timestamp.Before(startTime) {
-			sum += t.Value
-		}
-	}
-
-	return sum
-}
-
-func (gov *ChainGovernor) Status() string {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	for _, ce := range gov.chains {
-		valueTrans := SumValue(ce.transfers, startTime)
-		s := fmt.Sprintf("cgov: chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
-		gov.logger.Info(s)
-		if len(ce.pending) != 0 {
-			for idx, pe := range ce.pending {
-				value, _ := computeValue(pe.amount, pe.token)
-				s := fmt.Sprintf("   cgov: chain: %v, pending[%v], value: %v, vaa: %v, time: %v", ce.emitterChainId, idx, value,
-					pe.msg.MessageIDString(), pe.timeStamp.String())
-				gov.logger.Info(s)
-			}
-		}
-	}
-
-	return "grep the log for \"cgov:\" for status"
-}
-
-func (gov *ChainGovernor) Reload() (string, error) {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	if gov.db == nil {
-		return "", fmt.Errorf("unable to reload because the database is not initialized")
-	}
-
-	for _, ce := range gov.chains {
-		ce.transfers = nil
-		ce.pending = nil
-	}
-
-	if err := gov.loadFromDBAlreadyLocked(); err != nil {
-		gov.logger.Error("cgov: failed to load from the database", zap.Error(err))
-		return "", err
-	}
-
-	return "chain governor has been reset and reloaded", nil
-}
-
-func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	for _, ce := range gov.chains {
-		for idx, pe := range ce.pending {
-			if pe.msg.MessageIDString() == vaaId {
-				value, _ := computeValue(pe.amount, pe.token)
-				gov.logger.Info("cgov: dropping pending vaa",
-					zap.String("msgId", pe.msg.MessageIDString()),
-					zap.Uint64("value", value),
-					zap.Stringer("timeStamp", pe.timeStamp),
-				)
-				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
-				return "vaa has been dropped from the pending list", nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("vaa not found in the pending list")
-}
-
-func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	for _, ce := range gov.chains {
-		for idx, pe := range ce.pending {
-			if pe.msg.MessageIDString() == vaaId {
-				value, _ := computeValue(pe.amount, pe.token)
-				gov.logger.Info("cgov: releasing pending vaa, should be published soon",
-					zap.String("msgId", pe.msg.MessageIDString()),
-					zap.Uint64("value", value),
-					zap.Stringer("timeStamp", pe.timeStamp),
-				)
-
-				gov.msgsToPublish = append(gov.msgsToPublish, pe.msg)
-				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
-				return "pending vaa has been released and will be published soon", nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("vaa not found in the pending list")
-}
-
-func (gov *ChainGovernor) GetStatsForChain(chainID vaa.ChainID) (numTrans int, valueTrans uint64, numPending int, valuePending uint64) {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	ce, exists := gov.chains[chainID]
-	if !exists {
-		return
-	}
-
-	numTrans = len(ce.transfers)
-	for _, te := range ce.transfers {
-		valueTrans += te.Value
-	}
-
-	numPending = len(ce.pending)
-	for _, pe := range ce.pending {
-		value, _ := computeValue(pe.amount, pe.token)
-		valuePending += value
-	}
-
-	return
-}
-
-func (gov *ChainGovernor) GetStatsForAllChains() (numTrans int, valueTrans uint64, numPending int, valuePending uint64) {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	for _, ce := range gov.chains {
-		numTrans += len(ce.transfers)
-		for _, te := range ce.transfers {
-			valueTrans += te.Value
-		}
-
-		numPending += len(ce.pending)
-		for _, pe := range ce.pending {
-			value, _ := computeValue(pe.amount, pe.token)
-			valuePending += value
-		}
-	}
-
-	return
-}
-
-func (gov *ChainGovernor) SetDayLengthInMinutes(min int) {
-	gov.dayLengthInMinutes = min
-}
-
-func (gov *ChainGovernor) SetTokenPriceForTesting(tokenChainID vaa.ChainID, tokenAddrStr string, price float64) error {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	tokenAddr, err := vaa.StringToAddress(tokenAddrStr)
-	if err != nil {
-		return err
-	}
-
-	token, exists := gov.tokens[tokenKey{chain: tokenChainID, addr: tokenAddr}]
-	if !exists {
-		return fmt.Errorf("token does not exist")
-	}
-
-	token.price = big.NewFloat(price)
-	return nil
-}
-
-// We should use the max(coinGeckoPrice, configuredPrice) as our price for computing notional value.
-func (te tokenEntry) updatePrice() {
-	if (te.coinGeckoPrice == nil) || (te.coinGeckoPrice.Cmp(te.cfgPrice) < 0) {
-		te.price.Set(te.cfgPrice)
-	} else {
-		te.price.Set(te.coinGeckoPrice)
-	}
 }
 
 func (tk tokenKey) String() string {

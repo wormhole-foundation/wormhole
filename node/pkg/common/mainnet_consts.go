@@ -130,3 +130,18 @@ var knownNFTBridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDKlaytn:    "0000000000000000000000003c3c561757BAa0b78c5C025CdEAa4ee24C1dFfEf",
 	vaa.ChainIDCelo:      "000000000000000000000000A6A377d75ca5c9052c9a77ED1e865Cc25Bd97bf3",
 }
+
+func GetEmitterAddressForChain(chainID vaa.ChainID, emitterType EmitterType) (vaa.Address, error) {
+	for _, emitter := range KnownEmitters {
+		if emitter.ChainID == chainID && emitter.BridgeType == emitterType {
+			emitterAddr, err := vaa.StringToAddress(emitter.Emitter)
+			if err != nil {
+				return vaa.Address{}, err
+			}
+
+			return emitterAddr, nil
+		}
+	}
+
+	return vaa.Address{}, fmt.Errorf("lookup failed")
+}
