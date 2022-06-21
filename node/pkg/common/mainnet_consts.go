@@ -1,6 +1,10 @@
 package common
 
-import "github.com/certusone/wormhole/node/pkg/vaa"
+import (
+	"fmt"
+
+	"github.com/certusone/wormhole/node/pkg/vaa"
+)
 
 // PublicRPCEndpoints is a list of known public RPC endpoints for mainnet, operated by
 // Wormhole guardian nodes.
@@ -26,6 +30,21 @@ const (
 	EmitterTokenBridge EmitterType = 2
 	EmitterNFTBridge   EmitterType = 3
 )
+
+func (et EmitterType) String() string {
+	switch et {
+	case EmitterTypeUnset:
+		return "unset"
+	case EmitterCoreBridge:
+		return "Core"
+	case EmitterTokenBridge:
+		return "TokenBridge"
+	case EmitterNFTBridge:
+		return "NFTBridge"
+	default:
+		return fmt.Sprintf("unknown emitter type: %d", et)
+	}
+}
 
 // KnownEmitters is a list of well-known mainnet emitters we want to take into account
 // when iterating over all emitters - like for finding and repairing missing messages.
