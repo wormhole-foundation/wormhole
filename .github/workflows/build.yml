@@ -85,7 +85,7 @@ jobs:
       - run: cd cosmwasm && make test
 
   # Run Go linters, Go tests and other outside-of-Tilt things.
-  go-lint-and-tests:
+  lint-and-tests:
     # The linter is slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
