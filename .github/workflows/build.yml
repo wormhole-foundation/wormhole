@@ -75,6 +75,14 @@ jobs:
         with:
           node-version: "16"
       - run: cd terra && make test
+  terra-2:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+      - run: cd cosmwasm && make test
 
   # Run Go linters, Go tests and other outside-of-Tilt things.
   go-lint-and-tests:

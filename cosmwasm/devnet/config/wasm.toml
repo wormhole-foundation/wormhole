@@ -1,0 +1,17 @@
+# This is a TOML config file.
+# For more information, see https://github.com/toml-lang/toml
+
+##### main base config options #####
+
+# The maximum gas amount can be spent for contract query.
+# The contract query will invoke contract execution vm,
+# so we need to restrict the max usage to prevent DoS attack
+contract-query-gas-limit = "3000000"
+
+# Storing instances in the LRU will have no effect on the results 
+# (still deterministic), but should lower execution time at 
+# the cost of increased memory usage. We cannot pick universal 
+# parameters for this, so we should allow node operators to set it.
+lru-size = "0"
+
+contract-logging-whitelist = "*"

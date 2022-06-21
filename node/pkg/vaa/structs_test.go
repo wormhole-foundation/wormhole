@@ -40,6 +40,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "celo", output: ChainIDCelo},
 		{input: "moonbeam", output: ChainIDMoonbeam},
 		{input: "neon", output: ChainIDNeon},
+		{input: "terra2", output: ChainIDTerra2},
 		{input: "ethereum-ropsten", output: ChainIDEthereumRopsten},
 
 		{input: "Solana", output: ChainIDSolana},
@@ -58,6 +59,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Celo", output: ChainIDCelo},
 		{input: "Moonbeam", output: ChainIDMoonbeam},
 		{input: "Neon", output: ChainIDNeon},
+		{input: "Terra2", output: ChainIDTerra2},
 		{input: "Ethereum-ropsten", output: ChainIDEthereumRopsten},
 	}
 
@@ -146,6 +148,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 14, output: "celo"},
 		{input: 16, output: "moonbeam"},
 		{input: 17, output: "neon"},
+		{input: 18, output: "terra2"},
 		{input: 10001, output: "ethereum-ropsten"},
 	}
 

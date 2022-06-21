@@ -279,6 +279,7 @@ type ParsedVAA = {
   ToAddress?: Uint8Array;
   ToChain?: number;
   Fee?: Uint8Array;
+  FromAddress?: Uint8Array;
   Payload?: Uint8Array;
 };
 export function _parseVAAAlgorand(vaa: Uint8Array): ParsedVAA {
@@ -417,7 +418,7 @@ export function _parseVAAAlgorand(vaa: Uint8Array): ParsedVAA {
     off += 32;
     ret.ToChain = buf.readIntBE(off, 2);
     off += 2;
-    ret.Fee = extract3(vaa, off, 32);
+    ret.FromAddress = extract3(vaa, off, 32);
     off += 32;
     ret.Payload = vaa.slice(off);
   }

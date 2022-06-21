@@ -249,6 +249,8 @@ const contract_registrations = {
     process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA,
     // ALGO
     process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA,
+    // TERRA2
+    process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA,
   ],
   "nft_bridge.wasm": [
     // Solana
