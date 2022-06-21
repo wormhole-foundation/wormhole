@@ -141,15 +141,36 @@ fn deserialize_transfer_vaa() -> StdResult<()> {
 
 #[test]
 fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
+
+// ┌──────────────────────────────────────────────────────────────────────────────┐
+// │ Wormhole VAA v1         │ nonce: 3921584611       │ time: 0                  │
+// │ guardian set #0         │ #11179417329878527239   │ consistency: 32          │
+// ├──────────────────────────────────────────────────────────────────────────────┤
+// │ Signature:                                                                   │
+// │   #0: b3affe40c164aa49f548fc1b5a230360d44e3c06581cd410237739897c65...        │
+// ├──────────────────────────────────────────────────────────────────────────────┤
+// │ Emitter: 11111111111111111111111111111115 (Solana)                           │
+// ╞══════════════════════════════════════════════════════════════════════════════╡
+// │ Token transfer with payload (aka payload 3)                                  │
+// │ Amount: 0.100000                                                             │
+// │ Token: terra1qqqqqqqqqqqqqqqqqqqqqqqqqp6h2umyswfh6y (Terra)                  │
+// │ Recipient: terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh (Terra)              │
+// │ From: 1399a4e782b935d2bb36b97586d3df8747b07dc66902d807eed0ae99e00ed256       │
+// ╞══════════════════════════════════════════════════════════════════════════════╡
+// │ Custom payload:                                                              │
+// │ Length: 30 (0x1e) bytes                                                      │
+// │ 0000:   41 6c 6c 20  79 6f 75 72  20 62 61 73  65 20 61 72   All your base ar│
+// │ 0010:   65 20 62 65  6c 6f 6e 67  20 74 6f 20  75 73         e belong to us  │
+// └──────────────────────────────────────────────────────────────────────────────┘
     let signed_vaa = "\
-        010000000001002b0e392ebe370e718b91dcafbba21094efd8e7f1f12e28bd90\
-        a178b4dfbbc708675152a3cd2edd20e8e018600026b73b6c6cbf02622903409e\
-        8b48ab7fa30ef001000000010000000100010000000000000000000000000000\
-        00000000000000000000000000000000ffff0000000000000002000300000000\
-        00000000000000000000000000000000000000000000000005f5e10001000000\
+        01000000000100b3affe40c164aa49f548fc1b5a230360d44e3c06581cd41023\
+        7739897c65ce4358a0c3df6c3481dd252548d14a35bb127269ab96fca353e3f7\
+        baf4d046e6e1530000000000e9bea1e300010000000000000000000000000000\
+        0000000000000000000000000000000000049b2544d497416d07200300000000\
+        000000000000000000000000000000000000000000000000000186a000000000\
         0000000000000000000000000000000000000000000000007575736400030000\
         000000000000000000008cec800d24df11e556e708461c98122df4a2c3b10003\
-        00000000000000000000000000000000000000000000000000000000000f4240\
+        1399a4e782b935d2bb36b97586d3df8747b07dc66902d807eed0ae99e00ed256\
         416c6c20796f75722062617365206172652062656c6f6e6720746f207573";
     let signed_vaa = hex::decode(signed_vaa).unwrap();
 
@@ -161,8 +182,7 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
         "message.action != expected"
     );
 
-    let info_with_payload = TransferWithPayloadInfo::deserialize(&message.payload)?;
-    let info = info_with_payload.transfer_info;
+    let info = TransferWithPayloadInfo::deserialize(&message.payload)?;
 
     let amount = (0u128, 100_000_000u128);
     assert_eq!(info.amount, amount, "info.amount != expected");
@@ -189,19 +209,25 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
         "info.recipient != expected"
     );
 
+    let sender = "1399a4e782b935d2bb36b97586d3df8747b07dc66902d807eed0ae99e00ed256";
+    let sender = hex::decode(sender).unwrap();
+    assert_eq!(
+        info.sender_address.to_vec(),
+        sender,
+        "info.sender != expected"
+    );
+
     let recipient_chain = 3u16;
     assert_eq!(
         info.recipient_chain, recipient_chain,
         "info.recipient_chain != expected"
     );
 
-    let fee = (0u128, 1_000_000u128);
-    assert_eq!(info.fee, fee, "info.fee != expected");
 
     let transfer_payload = "All your base are belong to us";
     let transfer_payload = transfer_payload.as_bytes();
     assert_eq!(
-        info_with_payload.payload.as_slice(),
+        info.payload.as_slice(),
         transfer_payload,
         "info.payload != expected"
     );
