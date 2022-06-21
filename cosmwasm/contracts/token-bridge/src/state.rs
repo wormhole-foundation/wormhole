@@ -250,30 +250,72 @@ impl TransferInfo {
 //     64  u16      token_chain
 //     66  [u8; 32] recipient
 //     98  u16      recipient_chain
-//     100 u256     fee
+//     100 [u8; 32] sender_address
 //     132 [u8]     payload
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TransferWithPayloadInfo {
-    pub transfer_info: TransferInfo,
+    pub amount: (u128, u128),
+    pub token_address: ExternalTokenId,
+    pub token_chain: u16,
+    pub recipient: [u8; 32],
+    pub recipient_chain: u16,
+    pub sender_address: [u8; 32],
     pub payload: Vec<u8>,
 }
 
 impl TransferWithPayloadInfo {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let transfer_info = TransferInfo::deserialize(data)?;
+        let data = data.as_slice();
+        let amount = data.get_u256(0);
+        let token_address = ExternalTokenId::deserialize(data.get_const_bytes::<32>(32));
+        let token_chain = data.get_u16(64);
+        let recipient = data.get_const_bytes::<32>(66);
+        let recipient_chain = data.get_u16(98);
+        let sender_address = data.get_const_bytes::<32>(100);
         let payload = TransferWithPayloadInfo::get_payload(data);
 
         Ok(TransferWithPayloadInfo {
-            transfer_info,
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            sender_address,
             payload,
         })
+
     }
+
     pub fn serialize(&self) -> Vec<u8> {
-        [self.transfer_info.serialize(), self.payload.clone()].concat()
+        [
+            self.amount.0.to_be_bytes().to_vec(),
+            self.amount.1.to_be_bytes().to_vec(),
+            self.token_address.serialize().to_vec(),
+            self.token_chain.to_be_bytes().to_vec(),
+            self.recipient.to_vec(),
+            self.recipient_chain.to_be_bytes().to_vec(),
+            self.sender_address.to_vec(),
+            self.payload.clone(),
+        ]
+        .concat()
     }
-    pub fn get_payload(data: &Vec<u8>) -> Vec<u8> {
-        return data[132..].to_vec();
+
+    pub fn get_payload(data: &[u8]) -> Vec<u8> {
+        data[132..].to_vec()
+    }
+
+    /// Convert [`TransferWithPayloadInfo`] into [`TransferInfo`] for the
+    /// purpose of handling them uniformly. Transfers with payload have 0 fees.
+    pub fn as_transfer_info(&self) -> TransferInfo {
+        TransferInfo {
+            amount: self.amount,
+            token_address: self.token_address.clone(),
+            token_chain: self.token_chain,
+            recipient: self.recipient,
+            recipient_chain: self.recipient_chain,
+            fee: (0, 0),
+        }
     }
 }
 
