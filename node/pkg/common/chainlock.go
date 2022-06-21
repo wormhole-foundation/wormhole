@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"time"
+
+	"github.com/certusone/wormhole/node/pkg/vaa"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -50,7 +51,7 @@ func (k *MessagePublication) Marshal() ([]byte, error) {
 // Unmarshal deserializes the binary representation of a VAA
 func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	if len(data) < minMsgLength {
-		return nil, fmt.Errorf("Message is too short")
+		return nil, fmt.Errorf("message is too short")
 	}
 
 	k := &MessagePublication{}
@@ -91,7 +92,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	}
 	k.EmitterAddress = emitterAddress
 
-	payload := make([]byte, 1000)
+	payload := make([]byte, vaa.InternalTruncatedPayloadSafetyLimit)
 	n, err := reader.Read(payload)
 	if err != nil || n == 0 {
 		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)

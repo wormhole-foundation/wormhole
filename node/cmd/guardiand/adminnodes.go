@@ -3,15 +3,16 @@ package guardiand
 import (
 	"context"
 	"fmt"
-	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
+	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/spf13/cobra"
 )
 
 // How to test in container:
@@ -35,11 +36,11 @@ var AdminClientListNodes = &cobra.Command{
 
 func runListNodes(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, err, c := getPublicRPCServiceClient(ctx, *clientSocketPath)
-	defer conn.Close()
+	conn, c, err := getPublicRPCServiceClient(ctx, *clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get publicrpc client: %v", err)
 	}
+	defer conn.Close()
 
 	lastHeartbeats, err := c.GetLastHeartbeats(ctx, &publicrpcv1.GetLastHeartbeatsRequest{})
 	if err != nil {

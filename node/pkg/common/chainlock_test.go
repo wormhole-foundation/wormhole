@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/binary"
+	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 	"time"
@@ -11,49 +12,43 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Note this method assumes 18 decimals for the amount.
-func buildMockTransferPayloadBytes(
-	t uint8,
-	tokenChainID vaa.ChainID,
-	tokenAddrStr string,
-	toChainID vaa.ChainID,
-	toAddrStr string,
-	amtFloat float64,
-) []byte {
+func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 	bytes := make([]byte, 101)
-	bytes[0] = t
+	bytes[0] = payload.Type
 
-	amtBigFloat := big.NewFloat(amtFloat)
-	amtBigFloat = amtBigFloat.Mul(amtBigFloat, big.NewFloat(100000000))
-	amount, _ := amtBigFloat.Int(nil)
-	amtBytes := amount.Bytes()
+	amtBytes := payload.Amount.Bytes()
 	if len(amtBytes) > 32 {
 		panic("amount will not fit in 32 bytes!")
 	}
 	copy(bytes[33-len(amtBytes):33], amtBytes)
 
-	tokenAddr, _ := vaa.StringToAddress(tokenAddrStr)
-	copy(bytes[33:65], tokenAddr.Bytes())
-	binary.BigEndian.PutUint16(bytes[65:67], uint16(tokenChainID))
-	toAddr, _ := vaa.StringToAddress(toAddrStr)
-	copy(bytes[67:99], toAddr.Bytes())
-	binary.BigEndian.PutUint16(bytes[99:101], uint16(toChainID))
-	// fmt.Printf("Bytes: [%v]", hex.EncodeToString(bytes))
+	copy(bytes[33:65], payload.OriginAddress.Bytes())
+	binary.BigEndian.PutUint16(bytes[65:67], uint16(payload.OriginChain))
+	copy(bytes[67:99], payload.TargetAddress.Bytes())
+	binary.BigEndian.PutUint16(bytes[99:101], uint16(payload.TargetChain))
 	return bytes
 }
 
 func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
-	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
-	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	require.NoError(t, err)
 
-	payloadBytes1 := buildMockTransferPayloadBytes(1,
-		vaa.ChainIDEthereum,
-		tokenAddrStr,
-		vaa.ChainIDPolygon,
-		toAddrStr,
-		270,
-	)
+	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	payload1 := &vaa.TransferPayloadHdr{
+		Type:          0x01,
+		Amount:        big.NewInt(27000000000),
+		OriginAddress: originAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: targetAddress,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+
+	payloadBytes1 := encodePayloadBytes(payload1)
 
 	msg1 := &MessagePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -61,45 +56,27 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
-		EmitterAddress:   tokenBridgeAddr,
+		EmitterAddress:   tokenBridgeAddress,
 		Payload:          payloadBytes1,
-		ConsistencyLevel: 16,
+		ConsistencyLevel: 32,
 	}
 
 	bytes, err := msg1.Marshal()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	msg2, err := UnmarshalMessagePublication(bytes)
-	assert.NoError(t, err)
-
-	assert.Equal(t, msg1.TxHash, msg2.TxHash)
-	assert.Equal(t, msg1.Timestamp, msg2.Timestamp)
-	assert.Equal(t, msg1.Nonce, msg2.Nonce)
-	assert.Equal(t, msg1.Sequence, msg2.Sequence)
-	assert.Equal(t, msg1.EmitterChain, msg2.EmitterChain)
-	assert.Equal(t, msg1.EmitterAddress, msg2.EmitterAddress)
-	assert.Equal(t, msg1.ConsistencyLevel, msg2.ConsistencyLevel)
+	require.NoError(t, err)
+	assert.Equal(t, msg1, msg2)
 
 	payload2, err := vaa.DecodeTransferPayloadHdr(msg2.Payload)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	expectTokenAddr, err := vaa.StringToAddress(tokenAddrStr)
-	assert.NoError(t, err)
-
-	expectToAddr, err := vaa.StringToAddress(toAddrStr)
-	assert.NoError(t, err)
-
-	assert.Equal(t, uint8(1), payload2.Type)
-	assert.Equal(t, vaa.ChainIDEthereum, payload2.OriginChain)
-	assert.Equal(t, expectTokenAddr, payload2.OriginAddress)
-	assert.Equal(t, vaa.ChainIDPolygon, payload2.TargetChain)
-	assert.Equal(t, expectToAddr, payload2.TargetAddress)
-	assert.Equal(t, 0, big.NewInt(27000000000).Cmp(payload2.Amount))
+	assert.Equal(t, payload1, payload2)
 }
 
 func TestMessageIDString(t *testing.T) {
 	addr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	type test struct {
 		label  string
@@ -134,7 +111,7 @@ func TestMessageIDString(t *testing.T) {
 
 func TestMessageID(t *testing.T) {
 	addr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	type test struct {
 		label  string
