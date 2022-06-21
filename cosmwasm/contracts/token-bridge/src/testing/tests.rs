@@ -188,7 +188,7 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
     let amount = (0u128, 100_000_000u128);
     assert_eq!(info.amount, amount, "info.amount != expected");
 
-    let token_address = "0100000000000000000000000000000000000000000000000000000075757364";
+    let token_address = "0000000000000000000000000000000000000000000000000000000075757364";
     let token_address = hex::decode(token_address).unwrap();
     assert_eq!(
         info.token_address.serialize().to_vec(),
