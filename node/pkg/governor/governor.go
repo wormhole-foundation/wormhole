@@ -14,12 +14,7 @@
 //
 // All completed transfers from the last 24 hours and all pending transfers are stored in the Badger DB, and reloaded on start up.
 //
-// The chain governor supports the following admin client commands:
-//   - cgov-status - displays the status of the chain governor to the log file.
-//   - cgov-drop-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and discards it.
-//   - cgov-release-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and publishes it, without regard to the threshold.
-//
-// The VAA_ID is of the form "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/3", which is "emitter chain / emitter address / sequence number".
+// The chain governor supports admin client commands as documented in governor_cmd.go.
 //
 // The set of tokens to be monitored is specified in tokens.go, which can be auto generated using the tool in node/hack/governor. See the README there.
 //
@@ -225,8 +220,8 @@ func (gov *ChainGovernor) initConfig() error {
 }
 
 // Returns true if the message can be published, false if it has been added to the pending list.
-func (gov *ChainGovernor) ProcessMsg(k *common.MessagePublication) bool {
-	publish, err := gov.ProcessMsgForTime(k, time.Now())
+func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
+	publish, err := gov.ProcessMsgForTime(msg, time.Now())
 	if err != nil {
 		if gov.logger != nil {
 			gov.logger.Error("cgov: failed to process VAA: %v", zap.Error(err))
@@ -237,11 +232,11 @@ func (gov *ChainGovernor) ProcessMsg(k *common.MessagePublication) bool {
 	return publish
 }
 
-func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now time.Time) (bool, error) {
+func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	ce, exists := gov.chains[k.EmitterChain]
+	ce, exists := gov.chains[msg.EmitterChain]
 
 	// If we don't care about this chain, the VAA can be published.
 	if !exists {
@@ -249,19 +244,19 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 	}
 
 	// If we don't care about this emitter, the VAA can be published.
-	if k.EmitterAddress != ce.emitterAddr {
+	if msg.EmitterAddress != ce.emitterAddr {
 		return true, nil
 	}
 
 	// We only care about transfers.
-	if !vaa.IsTransfer(k.Payload) {
+	if !vaa.IsTransfer(msg.Payload) {
 		if gov.logger != nil {
-			gov.logger.Info("cgov: ignoring VAA for uninteresting payload type", zap.String("msgID", k.MessageIDString()), zap.Uint8("payload_type", k.Payload[0]))
+			gov.logger.Info("cgov: ignoring VAA for uninteresting payload type", zap.String("msgID", msg.MessageIDString()), zap.Uint8("payload_type", msg.Payload[0]))
 		}
 		return true, nil
 	}
 
-	payload, err := vaa.DecodeTransferPayloadHdr(k.Payload)
+	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
 		return true, err
 	}
@@ -271,7 +266,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 	token, exists := gov.tokens[tk]
 	if !exists {
 		if gov.logger != nil {
-			gov.logger.Info("cgov: ignoring VAA for uninteresting token", zap.String("msgID", k.MessageIDString()), zap.Stringer("token", tk))
+			gov.logger.Info("cgov: ignoring VAA for uninteresting token", zap.String("msgID", msg.MessageIDString()), zap.Stringer("token", tk))
 		}
 		return true, nil
 	}
@@ -299,12 +294,12 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 				zap.Uint64("value", value),
 				zap.Uint64("prevTotalValue", prevTotalValue),
 				zap.Uint64("newTotalValue", newTotalValue),
-				zap.String("msgID", k.MessageIDString()))
+				zap.String("msgID", msg.MessageIDString()))
 		}
 
-		ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, amount: payload.Amount, msg: k})
+		ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, amount: payload.Amount, msg: msg})
 		if gov.db != nil {
-			err = gov.db.StorePendingMsg(k)
+			err = gov.db.StorePendingMsg(msg)
 			if err != nil {
 				return false, err
 			}
@@ -318,10 +313,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(k *common.MessagePublication, now ti
 			zap.Uint64("value", value),
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
-			zap.String("msgID", k.MessageIDString()))
+			zap.String("msgID", msg.MessageIDString()))
 	}
 
-	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: k.EmitterChain, EmitterAddress: k.EmitterAddress, MsgID: k.MessageIDString()}
+	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: msg.EmitterChain, EmitterAddress: msg.EmitterAddress, MsgID: msg.MessageIDString()}
 	ce.transfers = append(ce.transfers, xfer)
 	if gov.db != nil {
 		err = gov.db.StoreTransfer(&xfer)

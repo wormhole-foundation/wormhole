@@ -12,27 +12,30 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"net/url"
 	"time"
 
 	"go.uber.org/zap"
 )
 
+// An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
+
 func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
-	//https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
-	str := "https://api.coingecko.com/api/v3/simple/price?ids="
+	ids := ""
 	first := true
 	for coinGeckoId := range gov.tokensByCoinGeckoId {
 		if first {
 			first = false
 		} else {
-			str += ","
+			ids += ","
 		}
 
-		str += coinGeckoId
+		ids += coinGeckoId
 	}
 
-	str += "&vs_currencies=usd"
-	gov.coinGeckoQuery = str
+	params := url.Values{}
+	params.Add("ids", ids)
+	params.Add("vs_currencies", "usd")
 
 	if first {
 		if gov.logger != nil {
@@ -42,8 +45,10 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
 		return nil
 	}
 
+	gov.coinGeckoQuery = "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
+
 	if gov.logger != nil {
-		gov.logger.Info("cgov: coingecko query: ", zap.String("query", str))
+		gov.logger.Info("cgov: coingecko query: ", zap.String("query", gov.coinGeckoQuery))
 	}
 
 	timer := time.NewTimer(time.Millisecond) // Start immediately.
@@ -64,12 +69,12 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
 
 // This does not return an error. Instead, it just logs the error and we will try again five minutes later.
 func (gov *ChainGovernor) queryCoinGecko() {
-	gov.logger.Info("cgov: querying coin gecko")
 	response, err := http.Get(gov.coinGeckoQuery)
 	if err != nil {
 		gov.logger.Error("cgov: failed to query coin gecko", zap.String("query", gov.coinGeckoQuery), zap.Error(err))
 		return
 	}
+	defer response.Body.Close()
 
 	responseData, err := ioutil.ReadAll(response.Body)
 	if err != nil {
@@ -90,7 +95,11 @@ func (gov *ChainGovernor) queryCoinGecko() {
 	for coinGeckoId, data := range result {
 		te, exists := gov.tokensByCoinGeckoId[coinGeckoId]
 		if exists {
-			price := data.(map[string]interface{})["usd"].(float64)
+			price, ok := data.(map[string]interface{})["usd"].(float64)
+			if !ok {
+				gov.logger.Error("cgov: failed to parse coin gecko response", zap.String("coinGeckoId", coinGeckoId))
+				continue
+			}
 			te.coinGeckoPrice = big.NewFloat(price)
 			te.updatePrice()
 			te.priceTime = now

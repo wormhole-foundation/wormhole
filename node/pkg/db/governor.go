@@ -81,13 +81,13 @@ func UnmarshalTransfer(data []byte) (*Transfer, error) {
 	return t, nil
 }
 
-const transfer string = "GOV:XFER:"
-const transferLen int = len(transfer)
+const transfer = "GOV:XFER:"
+const transferLen = len(transfer)
 
-const pending string = "GOV:PENDING:"
-const pendingLen int = len(pending)
+const pending = "GOV:PENDING:"
+const pendingLen = len(pending)
 
-const minMsgIdLen int = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
+const minMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
 
 func TransferMsgID(t *Transfer) []byte {
 	return []byte(fmt.Sprintf("%v%v", transfer, t.MsgID))

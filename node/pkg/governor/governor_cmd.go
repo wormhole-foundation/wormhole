@@ -1,4 +1,5 @@
 // This file contains the code to process admin commands to the chain governor.
+// These functions are called from the adminserver.
 //
 // The chain governor supports the following admin client commands:
 //   - cgov-status - displays the status of the chain governor to the log file.
@@ -6,12 +7,6 @@
 //   - cgov-release-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and publishes it, without regard to the threshold.
 //
 // The VAA_ID is of the form "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/3", which is "emitter chain / emitter address / sequence number".
-//
-// The set of tokens to be monitored is specified in tokens.go, which can be auto generated using the tool in node/hack/governor. See the README there.
-//
-// The set of chains to be monitored is specified in chains.go, which can be edited by hand.
-//
-// To enable the chain governor, you must specified the --chainGovernorEnabled guardiand command line argument.
 
 package governor
 
@@ -29,7 +24,7 @@ func (gov *ChainGovernor) Status() string {
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	for _, ce := range gov.chains {
-		valueTrans := SumValue(ce.transfers, startTime)
+		valueTrans := sumValue(ce.transfers, startTime)
 		s := fmt.Sprintf("cgov: chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
 		gov.logger.Info(s)
 		if len(ce.pending) != 0 {
@@ -112,7 +107,7 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 	return "", fmt.Errorf("vaa not found in the pending list")
 }
 
-func SumValue(transfers []db.Transfer, startTime time.Time) uint64 {
+func sumValue(transfers []db.Transfer, startTime time.Time) uint64 {
 	if len(transfers) == 0 {
 		return 0
 	}
