@@ -121,8 +121,8 @@ if explorer:
 
 docker_build(
     ref = "guardiand-image",
-    context = "node",
-    dockerfile = "node/Dockerfile",
+    context = ".",
+    dockerfile = "Dockerfile.node",
     target = "build",
 )
 
