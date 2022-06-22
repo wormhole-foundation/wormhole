@@ -28,16 +28,16 @@ use crate::token_address::{ExternalTokenId, WrappedCW20};
 
 type HumanAddr = String;
 
-pub static CONFIG_KEY: &[u8] = b"config";
-pub static TRANSFER_TMP_KEY: &[u8] = b"transfer_tmp";
-pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
-pub static WRAPPED_ASSET_SEQ_KEY: &[u8] = b"wrapped_seq_asset";
-pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
-pub static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
-pub static BRIDGE_DEPOSITS: &[u8] = b"bridge_deposits";
-pub static NATIVE_COUNTER: &[u8] = b"native_counter";
-pub static BANK_TOKEN_HASHES_KEY: &[u8] = b"bank_token_hashes";
-pub static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
+static CONFIG_KEY: &[u8] = b"config";
+static TRANSFER_TMP_KEY: &[u8] = b"transfer_tmp";
+static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
+static WRAPPED_ASSET_SEQ_KEY: &[u8] = b"wrapped_seq_asset";
+static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
+static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
+static BRIDGE_DEPOSITS: &[u8] = b"bridge_deposits";
+static NATIVE_COUNTER: &[u8] = b"native_counter";
+static BANK_TOKEN_HASHES_KEY: &[u8] = b"bank_token_hashes";
+static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
 
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
