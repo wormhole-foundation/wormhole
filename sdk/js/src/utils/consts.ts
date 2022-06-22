@@ -148,8 +148,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   terra2: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "terra12mrnzvhx3rpej6843uge2yyfppfyd3u9c3uq223q8sl48huz9juqffcnhp",
+    token_bridge:
+      "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",
     nft_bridge: undefined,
   },
   ropsten: {
