@@ -62,6 +62,7 @@ var KnownEmitters = []struct {
 	{vaa.ChainIDEthereum, "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585", EmitterTokenBridge},
 	{vaa.ChainIDEthereum, "0000000000000000000000006ffd7ede62328b3af38fcd61461bbfc52f5651fe", EmitterNFTBridge},
 	{vaa.ChainIDTerra, "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2", EmitterTokenBridge},
+	{vaa.ChainIDTerra2, "a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3", EmitterTokenBridge},
 	{vaa.ChainIDBSC, "000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7", EmitterTokenBridge},
 	{vaa.ChainIDBSC, "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde", EmitterNFTBridge},
 	{vaa.ChainIDPolygon, "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde", EmitterTokenBridge},

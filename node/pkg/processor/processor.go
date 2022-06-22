@@ -76,9 +76,6 @@ type Processor struct {
 	devnetNumGuardians uint
 	devnetEthRPC       string
 
-	terraLCD      string
-	terraContract string
-
 	attestationEvents *reporter.AttestationEventReporter
 
 	logger *zap.Logger
@@ -117,8 +114,6 @@ func NewProcessor(
 	devnetMode bool,
 	devnetNumGuardians uint,
 	devnetEthRPC string,
-	terraLCD string,
-	terraContract string,
 	attestationEvents *reporter.AttestationEventReporter,
 	notifier *discord.DiscordNotifier,
 ) *Processor {
@@ -136,9 +131,6 @@ func NewProcessor(
 		devnetNumGuardians: devnetNumGuardians,
 		devnetEthRPC:       devnetEthRPC,
 		db:                 db,
-
-		terraLCD:      terraLCD,
-		terraContract: terraContract,
 
 		attestationEvents: attestationEvents,
 
