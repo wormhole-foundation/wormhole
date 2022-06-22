@@ -3,7 +3,7 @@ FROM --platform=linux/amd64 docker.io/golang:1.17.5@sha256:90d1ab81f3d157ca649a9
 # libwasmvm.so is not compatible with arm
 
 # Support additional root CAs
-COPY go.mod cert.pem* /certs/
+COPY node/go.mod cert.pem* /certs/
 # Debian
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 # git
@@ -11,16 +11,17 @@ RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/ce
 
 WORKDIR /app
 
-COPY tools tools
+COPY node/tools tools
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   cd tools/ && go build -mod=readonly -o /dlv github.com/go-delve/delve/cmd/dlv
 
-COPY . .
+COPY node node
 
 ARG GO_BUILD_ARGS=-race
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
+  cd node && \
   go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \
   cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v0.16.2/api/libwasmvm.so /usr/lib/
 
