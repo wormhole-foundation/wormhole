@@ -28,11 +28,9 @@ jest.setTimeout(60000);
 const GOVERNANCE_CHAIN = 1;
 const GOVERNANCE_ADDRESS =
   "0000000000000000000000000000000000000000000000000000000000000004";
-const FOREIGN_CHAIN = 1;
+const FOREIGN_CHAIN = 2;
 const FOREIGN_TOKEN_BRIDGE =
-  "000000000000000000000000000000000000000000000000000000000000ffff";
-const FOREIGN_TOKEN =
-  "000000000000000000000000000000000000000000000000000000000000eeee";
+  "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16";
 const GUARDIAN_SET_INDEX = 0;
 const GUARDIAN_ADDRESS = Buffer.from(
   "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
@@ -893,58 +891,62 @@ describe("Bridge Tests", () => {
       }
     })();
   });
-  // test("Register a Foreign Asset", (done) => {
-  //   (async () => {
-  //     try {
-  //       const [client, wallet] = await makeProviderAndWallet();
+  test("Register a Foreign Asset", (done) => {
+    (async () => {
+      try {
+        const [client, wallet] = await makeProviderAndWallet();
 
-  //       const vaaPayload = makeAttestationVaaPayload(
-  //         FOREIGN_CHAIN,
-  //         FOREIGN_TOKEN,
-  //         18,
-  //         hexZeroPad("0x" + Buffer.from("TEST", "utf-8").toString("hex"), 32),
-  //         hexZeroPad(
-  //           "0x" + Buffer.from("Testy Token", "utf-8").toString("hex"),
-  //           32
-  //         )
-  //       );
+        const signedVaa =
+          "01000000000100efccb8a5d54162691095c88369b873d93ed4ba9365ed0f94adcf39743bb034be56ce0a94d9b163cb0c63be24b94e31b75e1a5889e3de03db147278d9d3eb7d260100000992abb6000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000d0f020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a000212544b4e0000000000000000000000000000000000000000000000000000000000457468657265756d205465737420546f6b656e00000000000000000000000000";
 
-  //       const timestamp = 1;
-  //       const nonce = 1;
-  //       const sequence = 0;
+        const tokenBridge = contracts.get("tokenBridge")!;
+        const submitVaa = new MsgExecuteContract(
+          wallet.key.accAddress,
+          tokenBridge,
+          {
+            submit_vaa: {
+              data: Buffer.from(signedVaa, "hex").toString("base64"),
+            },
+          }
+        );
 
-  //       const signedVaa = signAndEncodeVaa(
-  //         timestamp,
-  //         nonce,
-  //         GOVERNANCE_CHAIN,
-  //         GOVERNANCE_ADDRESS,
-  //         sequence,
-  //         vaaPayload,
-  //         TEST_SIGNER_PKS,
-  //         GUARDIAN_SET_INDEX,
-  //         CONSISTENCY_LEVEL
-  //       );
+        const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
+        console.log(receipt);
+        done();
+      } catch (e) {
+        console.error(e);
+        done("Failed to Register a Foreign Asset");
+      }
+    })();
+  });
+  test("Update a Foreign Asset", (done) => {
+    (async () => {
+      try {
+        const [client, wallet] = await makeProviderAndWallet();
 
-  //       const tokenBridge = contracts.get("tokenBridge")!;
-  //       const submitVaa = new MsgExecuteContract(
-  //         wallet.key.accAddress,
-  //         tokenBridge,
-  //         {
-  //           submit_vaa: {
-  //             data: Buffer.from(signedVaa, "hex").toString("base64"),
-  //           },
-  //         }
-  //       );
+        const signedVaa =
+          "01000000000100d1389731568d9816267accba90abb9db37dcd09738750fae421067f2f7f33f014c2d862e288e9a3149e2d8bcd2e53ffe2ed72dfc5e8eb50c740a0df34c60103f01000011ac2076010000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000e0f020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a000212544b4e0000000000000000000000000000000000000000000000000000000000457468657265756d205465737420546f6b656e00000000000000000000000000";
 
-  //       const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
-  //       console.log(receipt);
-  //       done();
-  //     } catch (e) {
-  //       console.error(e);
-  //       done("Failed to Register a Foreign Asset");
-  //     }
-  //   })();
-  // });
+        const tokenBridge = contracts.get("tokenBridge")!;
+        const submitVaa = new MsgExecuteContract(
+          wallet.key.accAddress,
+          tokenBridge,
+          {
+            submit_vaa: {
+              data: Buffer.from(signedVaa, "hex").toString("base64"),
+            },
+          }
+        );
+
+        const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
+        console.log(receipt);
+        done();
+      } catch (e) {
+        console.error(e);
+        done("Failed to Update a Foreign Asset");
+      }
+    })();
+  });
 });
 
 function nativeToHex(address: string) {
