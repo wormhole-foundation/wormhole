@@ -49,7 +49,8 @@ export function init(): boolean {
   return true;
 }
 
-function createWorkerInfos(metrics: PromHelper) {
+/** Initialize metrics for each chain and the worker infos */
+function createWorkerInfos(metrics: PromHelper): WorkerInfo[] {
   let workerArray: WorkerInfo[] = new Array();
   let index = 0;
   relayerEnv.supportedChains.forEach((chain) => {
@@ -66,6 +67,7 @@ function createWorkerInfos(metrics: PromHelper) {
       });
       index++;
     });
+    // TODO: Name the solanaprivatekey property the same as the non-solana one
     chain.solanaPrivateKey?.forEach((key) => {
       workerArray.push({
         walletPrivateKey: key,
@@ -79,6 +81,7 @@ function createWorkerInfos(metrics: PromHelper) {
   return workerArray;
 }
 
+/** Spawn relay worker and auditor threads for all chains */
 async function spawnWorkerThreads(workerArray: WorkerInfo[]) {
   workerArray.forEach((workerInfo) => {
     spawnWorkerThread(workerInfo);
@@ -426,7 +429,7 @@ async function findWorkableItems(
   }
 }
 
-//One worker should be spawned for each chainId+privateKey combo.
+/** Spin up one worker for each (chainId, privateKey) combo. */
 async function spawnWorkerThread(workerInfo: WorkerInfo) {
   logger.info(
     "Spinning up worker[" +
