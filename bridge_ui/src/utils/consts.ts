@@ -122,6 +122,11 @@ export const CHAINS: ChainInfo[] =
           name: "Terra Classic",
           logo: terraIcon,
         },
+        {
+          id: CHAIN_ID_TERRA2,
+          name: "Terra",
+          logo: terra2Icon,
+        },
       ]
     : CLUSTER === "testnet"
     ? [
@@ -244,7 +249,9 @@ export const CHAINS: ChainInfo[] =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_ACALA, CHAIN_ID_KLAYTN] : [];
+  CLUSTER === "mainnet"
+    ? [CHAIN_ID_ACALA, CHAIN_ID_KLAYTN, CHAIN_ID_TERRA2]
+    : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -809,15 +816,15 @@ export const TERRA_TOKEN_BRIDGE_ADDRESS =
     : "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
 export const TERRA2_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
-    ? ""
+    ? CONTRACTS.MAINNET.terra2.core
     : CLUSTER === "testnet"
-    ? ""
+    ? CONTRACTS.TESTNET.terra2.core
     : "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au";
 export const TERRA2_TOKEN_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
-    ? ""
+    ? CONTRACTS.MAINNET.terra2.token_bridge
     : CLUSTER === "testnet"
-    ? ""
+    ? CONTRACTS.TESTNET.terra2.token_bridge
     : "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6";
 export const ALGORAND_BRIDGE_ID = BigInt(
   CLUSTER === "mainnet" ? "0" : CLUSTER === "testnet" ? "86525623" : "4"
