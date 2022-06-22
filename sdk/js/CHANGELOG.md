@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.4
+
+### Added
+
+Terra 2 mainnet addresses
+
 ## 0.4.3
 
 ### Added
