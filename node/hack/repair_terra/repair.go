@@ -33,11 +33,13 @@ var fcdMap = map[vaa.ChainID]string{
 }
 
 var coreContractMap = map[vaa.ChainID]string{
-	vaa.ChainIDTerra: "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5",
+	vaa.ChainIDTerra:  "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5",
+	vaa.ChainIDTerra2: "terra12mrnzvhx3rpej6843uge2yyfppfyd3u9c3uq223q8sl48huz9juqffcnhp",
 }
 
 var emitterMap = map[vaa.ChainID]string{
-	vaa.ChainIDTerra: "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2",
+	vaa.ChainIDTerra:  "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2",
+	vaa.ChainIDTerra2: "a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3",
 }
 
 type Emitter struct {
