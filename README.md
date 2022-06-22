@@ -1,6 +1,14 @@
-# Wormhole v2
+<img alt="Banner" src="docs/images/banner.jpg"/>
 
-This repository contains Certus One's reference node implementation for the Wormhole project.
+This monorepo contains the reference implementation of the [Wormhole protocol](https://wormholenetwork.com).
+
+To learn about how to use and build on Wormhole read the [Docs](http://docs.wormholenetwork.com/) or take a look at the 
+[xApp Book](https://book.wormholenetwork.com/).
+
+----
+
+See [Live Contracts](https://docs.wormholenetwork.com/wormhole/contracts) for current testnet and mainnet deployments of
+the Wormhole smart contracts.
 
 See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet, and
 [CONTRIBUTING.md](CONTRIBUTING.md) for instructions on how to contribute to this project.
@@ -8,8 +16,6 @@ See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet, a
 See [docs/operations.md](docs/operations.md) for node operator instructions.
 
 ![](docs/images/overview.svg)
-
-⚠ **Wormhole v2 is in active development - see "main" branch for the v1 mainnet version** ⚠
 
 ### Audit / Feature Status
 
