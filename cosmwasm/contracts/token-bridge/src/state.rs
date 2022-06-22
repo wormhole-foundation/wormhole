@@ -83,11 +83,11 @@ pub fn wrapped_asset_read(storage: &dyn Storage, chain: u16) -> ReadonlyBucket<W
 }
 
 pub fn wrapped_asset_seq(storage: &mut dyn Storage, chain: u16) -> Bucket<u64> {
-    Bucket::multilevel(storage, &[WRAPPED_ASSET_KEY, &chain.to_be_bytes()])
+    Bucket::multilevel(storage, &[WRAPPED_ASSET_SEQ_KEY, &chain.to_be_bytes()])
 }
 
 pub fn wrapped_asset_seq_read(storage: &mut dyn Storage, chain: u16) -> ReadonlyBucket<u64> {
-    ReadonlyBucket::multilevel(storage, &[WRAPPED_ASSET_KEY, &chain.to_be_bytes()])
+    ReadonlyBucket::multilevel(storage, &[WRAPPED_ASSET_SEQ_KEY, &chain.to_be_bytes()])
 }
 
 pub fn is_wrapped_asset(storage: &mut dyn Storage) -> Bucket<()> {
