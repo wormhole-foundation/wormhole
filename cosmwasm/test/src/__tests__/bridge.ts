@@ -54,11 +54,11 @@ const CONSISTENCY_LEVEL = 0;
 
 const CHAIN_ID = 18;
 
-const WASM_WORMHOLE = "../artifacts/wormhole.wasm";
-const WASM_WRAPPED_ASSET = "../artifacts/cw20_wrapped_2.wasm";
-const WASM_TOKEN_BRIDGE = "../artifacts/token_bridge_terra_2.wasm";
+const WASM_WORMHOLE = "../artifacts/terra2/wormhole.wasm";
+const WASM_WRAPPED_ASSET = "../artifacts/terra2/cw20_wrapped_2.wasm";
+const WASM_TOKEN_BRIDGE = "../artifacts/terra2/token_bridge_terra_2.wasm";
 const WASM_MOCK_BRIDGE_INTEGRATION =
-  "../artifacts/mock_bridge_integration_2.wasm";
+  "../artifacts/terra2/mock_bridge_integration_2.wasm";
 const WASM_CW20 = "../artifacts/cw20_base.wasm";
 
 // global map of contract addresses for all tests

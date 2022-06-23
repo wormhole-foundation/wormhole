@@ -64,8 +64,8 @@ test/node_modules: test/package-lock.json
 .PHONY: unit-test
 ## Run unit tests
 unit-test:
-	cargo test -p wormhole-bridge-terra-2
-	cargo test -p token-bridge-terra-2
+	CHAIN_NAME=terra2 cargo test -p wormhole-bridge-terra-2
+	CHAIN_NAME=terra2 cargo test -p token-bridge-terra-2
 
 .PHONY: test
 ## Run unit and integration tests

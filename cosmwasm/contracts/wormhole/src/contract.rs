@@ -92,7 +92,7 @@ pub fn get_chain() -> u16 {
 
 pub fn get_denom() -> String {
     match CHAIN_NAME {
-        "terra2" => "ULUNA".to_string(),
+        "terra2" => "uluna".to_string(),
         "injective" => "inj".to_string(),
         _ => panic!("invalid chain name"),
     }
