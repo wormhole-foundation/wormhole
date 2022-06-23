@@ -19,6 +19,7 @@ import {
 } from "../helpers/redisHelper";
 import { sleep } from "../helpers/utils";
 import { relay } from "./relay";
+import { getBackend } from "../backends";
 
 const WORKER_THREAD_RESTART_MS = 10 * 1000;
 const AUDITOR_THREAD_RESTART_MS = 10 * 1000;
@@ -93,20 +94,14 @@ async function spawnWorkerThreads(workerArray: WorkerInfo[]) {
 
 async function spawnAuditorThread(workerInfo: WorkerInfo) {
   logger.info(
-    "Spinning up auditor thread[" +
-      workerInfo.index +
-      "] to handle targetChainId " +
-      workerInfo.targetChainId
+    `Spinning up auditor thread for target chain [${workerInfo.targetChainName}-${workerInfo.index}]`
   );
 
   //At present, due to the try catch inside the while loop, this thread should never crash.
   const auditorPromise = doAuditorThread(workerInfo).catch(
     async (error: Error) => {
       logger.error(
-        "Fatal crash on auditor thread: index " +
-          workerInfo.index +
-          " chainId " +
-          workerInfo.targetChainId
+        `Fatal crash on auditor thread ${workerInfo.targetChainName}-${workerInfo.index}`
       );
       logger.error("error message: " + error.message);
       logger.error("error trace: " + error.stack);
@@ -121,7 +116,8 @@ async function spawnAuditorThread(workerInfo: WorkerInfo) {
 //One auditor thread should be spawned per worker. This is perhaps overkill, but auditors
 //should not be allowed to block workers, or other auditors.
 async function doAuditorThread(workerInfo: WorkerInfo) {
-  const auditLogger = getScopedLogger([`audit-worker-${workerInfo.index}`]);
+  const loggerName = `audit-worker-${workerInfo.targetChainName}-${workerInfo.index}`;
+  const auditLogger = getScopedLogger([loggerName]);
   while (true) {
     try {
       let redisClient: any = null;
@@ -436,8 +432,9 @@ async function spawnWorkerThread(workerInfo: WorkerInfo) {
   logger.info(
     "Spinning up worker[" +
       workerInfo.index +
-      "] to handle targetChainId " +
-      workerInfo.targetChainId
+      "] to handle target chain " +
+      workerInfo.targetChainId +
+      ` / ${workerInfo.targetChainName}`
   );
 
   const workerPromise = doWorkerThread(workerInfo).catch(async (error) => {
@@ -457,7 +454,10 @@ async function spawnWorkerThread(workerInfo: WorkerInfo) {
 }
 
 async function doWorkerThread(workerInfo: WorkerInfo) {
-  const relayLogger = getScopedLogger([`relay-worker-${workerInfo.index}`]);
+  // relay-worker-solana-1
+  const loggerName = `relay-worker-${workerInfo.targetChainName}-${workerInfo.index}`;
+  const relayLogger = getScopedLogger([loggerName]);
+  const backend = getBackend().relayer;
   while (true) {
     // relayLogger.debug("Finding workable items.");
     const workableItems: WorkableItem[] = await findWorkableItems(
@@ -473,7 +473,7 @@ async function doWorkerThread(workerInfo: WorkerInfo) {
         relayLogger.debug("Moving item: %o", workItem);
         if (await moveToWorking(workItem, relayLogger)) {
           relayLogger.info("Moved key to WORKING table: %s", workItem.key);
-          await processRequest(
+          await backend.process(
             workItem.key,
             workerInfo.walletPrivateKey,
             relayLogger
