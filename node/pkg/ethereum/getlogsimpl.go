@@ -132,11 +132,6 @@ func (f *GetLogsQuery) DialContext(ctx context.Context, rawurl string) (err erro
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	f.client, err = ethClient.DialContext(timeout, rawurl)
-
-	if err != nil {
-		return err
-	}
-
 	return err
 }
 
