@@ -179,7 +179,7 @@ pub struct GuardianAddress {
     pub bytes: Binary, // 20-byte addresses
 }
 
-use crate::contract::FEE_DENOMINATION;
+use crate::contract::get_denom;
 #[cfg(test)]
 use hex;
 
@@ -360,7 +360,7 @@ impl SetFee {
     pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let (_, amount) = data.get_u256(0);
         let fee = Coin {
-            denom: String::from(FEE_DENOMINATION),
+            denom: String::from(get_denom()),
             amount: Uint128::new(amount),
         };
         Ok(SetFee { fee })
@@ -379,7 +379,7 @@ impl TransferFee {
 
         let (_, amount) = data.get_u256(32);
         let amount = Coin {
-            denom: String::from(FEE_DENOMINATION),
+            denom: String::from(get_denom()),
             amount: Uint128::new(amount),
         };
         Ok(TransferFee { amount, recipient })

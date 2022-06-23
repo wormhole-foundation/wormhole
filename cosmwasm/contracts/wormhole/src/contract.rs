@@ -73,15 +73,30 @@ use sha3::{
 
 use generic_array::GenericArray;
 use std::convert::TryFrom;
+use std::env;
 
 type HumanAddr = String;
 
-// Chain ID of Terra 2.0
-const CHAIN_ID: u16 = 18;
+pub const CHAIN_NAME: &str = env!("CHAIN_NAME"); 
 
 // Lock assets fee amount and denomination
 const FEE_AMOUNT: u128 = 0;
-pub const FEE_DENOMINATION: &str = "uluna";
+
+pub fn get_chain() -> u16 {
+    match CHAIN_NAME {
+        "terra2" => 18,
+        "injective" => 19,
+        _ => panic!("invalid chain name"),
+    }
+}
+
+pub fn get_denom() -> String {
+    match CHAIN_NAME {
+        "terra2" => "ULUNA".to_string(),
+        "injective" => "inj".to_string(),
+        _ => panic!("invalid chain name"),
+    }
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
@@ -101,7 +116,7 @@ pub fn instantiate(
         gov_address: msg.gov_address.as_slice().to_vec(),
         guardian_set_index: 0,
         guardian_set_expirity: msg.guardian_set_expirity,
-        fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
+        fee: Coin::new(FEE_AMOUNT, get_denom()), // 0.01 Luna (or 10000 uluna) fee by default
     };
     config(deps.storage).save(&state)?;
 
@@ -159,7 +174,7 @@ fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<
         return Err(StdError::generic_err("this is not a valid module"));
     }
 
-    if gov_packet.chain != 0 && gov_packet.chain != CHAIN_ID {
+    if gov_packet.chain != 0 && gov_packet.chain != get_chain() {
         return Err(StdError::generic_err(
             "the governance VAA is for another chain",
         ));
@@ -342,7 +357,7 @@ fn handle_post_message(
     Ok(Response::new()
         .add_attribute("message.message", hex::encode(message))
         .add_attribute("message.sender", hex::encode(emitter))
-        .add_attribute("message.chain_id", CHAIN_ID.to_string())
+        .add_attribute("message.chain_id", get_chain().to_string())
         .add_attribute("message.nonce", nonce.to_string())
         .add_attribute("message.sequence", sequence.to_string())
         .add_attribute("message.block_time", env.block.time.seconds().to_string()))

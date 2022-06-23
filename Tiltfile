@@ -573,6 +573,7 @@ docker_build(
     ref = "terra2-contracts",
     context = "./cosmwasm",
     dockerfile = "./cosmwasm/Dockerfile",
+    build_args = {"CHAIN_NAME": "terra2"}
 )
 
 k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
