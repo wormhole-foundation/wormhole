@@ -9,7 +9,6 @@ import {
   demoteWorkingRedis,
   monitorRedis,
   RedisTables,
-  RelayResult,
   resetPayload,
   Status,
   StorePayload,
@@ -251,115 +250,6 @@ export async function run(ph: PromHelper) {
     monitorRedis(metrics);
   } catch (e) {
     logger.error("Failed to kick off monitorRedis: " + e);
-  }
-}
-
-async function processRequest(
-  key: string,
-  myPrivateKey: any,
-  relayLogger: ScopedLogger
-) {
-  const logger = getScopedLogger(["processRequest"], relayLogger);
-  try {
-    logger.debug("Processing request %s...", key);
-    // Get the entry from the working store
-    const rClient = await connectToRedis();
-    if (!rClient) {
-      logger.error("Failed to connect to Redis in processRequest");
-      return;
-    }
-    await rClient.select(RedisTables.WORKING);
-    let value: string | null = await rClient.get(key);
-    if (!value) {
-      logger.error("Could not find key %s", key);
-      return;
-    }
-    let payload: StorePayload = storePayloadFromJson(value);
-    if (payload.status !== Status.Pending) {
-      logger.info("This key %s has already been processed.", key);
-      return;
-    }
-    // Actually do the processing here and update status and time field
-    let relayResult: RelayResult;
-    try {
-      if (payload.retries > 0) {
-        logger.info(
-          "Calling with vaa_bytes %s, retry %d",
-          payload.vaa_bytes,
-          payload.retries
-        );
-      } else {
-        logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
-      }
-      relayResult = await relay(
-        payload.vaa_bytes,
-        false,
-        myPrivateKey,
-        logger,
-        metrics
-      );
-      logger.info("Relay returned: %o", Status[relayResult.status]);
-    } catch (e: any) {
-      if (e.message) {
-        logger.error("Failed to relay transfer vaa: %s", e.message);
-      } else {
-        logger.error("Failed to relay transfer vaa: %o", e);
-      }
-
-      relayResult = {
-        status: Status.Error,
-        result: "Failure",
-      };
-      if (e && e.message) {
-        relayResult.result = e.message;
-      }
-    }
-
-    const MAX_RETRIES = 10;
-    let targetChain: any = 0; // 0 is unspecified, but not covered by the SDK
-    try {
-      const { parse_vaa } = await importCoreWasm();
-      const parsedVAA = parse_vaa(hexToUint8Array(payload.vaa_bytes));
-      const transferPayload = parseTransferPayload(
-        Buffer.from(parsedVAA.payload)
-      );
-      targetChain = transferPayload.targetChain;
-    } catch (e) {}
-    let retry: boolean = false;
-    if (relayResult.status !== Status.Completed) {
-      metrics.incFailures(targetChain);
-      if (payload.retries >= MAX_RETRIES) {
-        relayResult.status = Status.FatalError;
-      }
-      if (relayResult.status === Status.FatalError) {
-        // Invoke fatal error logic here!
-        payload.retries = MAX_RETRIES;
-      } else {
-        // Invoke retry logic here!
-        retry = true;
-      }
-    }
-
-    // Put result back into store
-    payload.status = relayResult.status;
-    payload.timestamp = new Date().toISOString();
-    payload.retries++;
-    value = storePayloadToJson(payload);
-    if (!retry || payload.retries > MAX_RETRIES) {
-      await rClient.set(key, value);
-    } else {
-      // Remove from the working table
-      await rClient.del(key);
-      // Put this back into the incoming table
-      await rClient.select(RedisTables.INCOMING);
-      await rClient.set(key, value);
-    }
-    await rClient.quit();
-  } catch (e: any) {
-    logger.error("Unexpected error in processRequest: " + e.message);
-    logger.error("request key: " + key);
-    logger.error(e);
-    return [];
   }
 }
 
