@@ -108,9 +108,9 @@ pub fn complete_native(
     if accs.vaa.to_chain != CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
     }
-    if accs.vaa.to != accs.to.info().key.to_bytes() {
-        return Err(InvalidRecipient.into());
-    }
+
+    verify_recipient(&accs.vaa.to, &accs.to)?;
+
     if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
         return Err(InvalidVAA.into());
     }
@@ -230,9 +230,9 @@ pub fn complete_wrapped(
     if accs.vaa.to_chain != CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
     }
-    if accs.vaa.to != accs.to.info().key.to_bytes() {
-        return Err(InvalidRecipient.into());
-    }
+
+    verify_recipient(&accs.vaa.to, &accs.to)?;
+
     if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
         return Err(InvalidVAA.into());
     }
@@ -267,4 +267,22 @@ pub fn complete_wrapped(
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 
     Ok(())
+}
+
+/// Verify that the SPL token account `token_account` can receive tokens sent to
+/// `vaa_recipient`.
+/// For this to be the case, one of the following conditions have to hold:
+/// a) `vaa_recipient` matches `token_account`
+/// b) `vaa_recipient` owns `token_account`
+fn verify_recipient(
+    vaa_recipient: &[u8; 32],
+    token_account: &Data<SplAccount, { AccountState::Initialized }>,
+) -> Result<()> {
+    if *vaa_recipient == token_account.info().key.to_bytes()
+        || *vaa_recipient == token_account.owner.to_bytes()
+    {
+        Ok(())
+    } else {
+        Err(InvalidRecipient.into())
+    }
 }
