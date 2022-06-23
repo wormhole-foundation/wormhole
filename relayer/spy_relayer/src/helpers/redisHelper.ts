@@ -175,6 +175,7 @@ export type RelayResult = {
 
 export type WorkerInfo = {
   index: number;
+  targetChainName: string;
   targetChainId: number;
   walletPrivateKey: any;
 };

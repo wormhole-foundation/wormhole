@@ -64,6 +64,7 @@ function createWorkerInfos(metrics: PromHelper): WorkerInfo[] {
         walletPrivateKey: key,
         index: index,
         targetChainId: chain.chainId,
+        targetChainName: chain.chainName,
       });
       index++;
     });
@@ -73,6 +74,7 @@ function createWorkerInfos(metrics: PromHelper): WorkerInfo[] {
         walletPrivateKey: key,
         index: index,
         targetChainId: chain.chainId,
+        targetChainName: chain.chainName,
       });
       index++;
     });
