@@ -29,6 +29,66 @@ use solitaire::{
     *,
 };
 
+use solana_program::pubkey::Pubkey;
+
+////////////////////////////////////////////////////////////////////////////////
+// Recipient
+
+#[repr(transparent)]
+pub struct RedeemerAccount<'b>(pub MaybeMut<Signer<Info<'b>>>);
+
+impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for RedeemerAccount<'b> {
+    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(RedeemerAccount(MaybeMut::peel(ctx)?))
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        MaybeMut::persist(&self.0, program_id)
+    }
+}
+
+// May or may not be a PDA, so we don't use [`Derive`], instead implement
+// [`Seeded`] directly.
+impl<'b> Seeded<()> for RedeemerAccount<'b> {
+    fn seeds(_accs: ()) -> Vec<Vec<u8>> {
+        vec![String::from("redeemer").as_bytes().to_vec()]
+    }
+}
+
+impl<'a, 'b: 'a> Keyed<'a, 'b> for RedeemerAccount<'b> {
+    fn info(&'a self) -> &Info<'b> {
+        &self.0
+    }
+}
+
+impl<'b> RedeemerAccount<'b> {
+    /// Transfer with payload can only be redeemed by the recipient. The idea is
+    /// to target contracts which can then decide how to process the payload.
+    ///
+    /// The actual recipient (the `to` field in the VAA) may be either a wallet
+    /// or a program id. Since wallets can sign transactions directly, if the
+    /// recipient is a wallet, then we just require the wallet to sign the
+    /// redeem transaction. If, however, the recipient is a program, then
+    /// program can only provide a PDA as a signer. In this case, we require the
+    /// this to be a PDA derived from the recipient program id and the string
+    /// "redeemer".
+    ///
+    /// That is, the redeemer account either matches the `vaa.to` field directly
+    /// (user wallets), or is a PDA derived from vaa.to and "sender" (contracts).
+    ///
+    /// The `vaa.to` account must own the token account.
+    fn verify_recipient_address(&self, recipient: &Pubkey) -> Result<()> {
+        if recipient == self.info().key {
+            return Ok(());
+        } else {
+            self.verify_derivation(recipient, ())
+        }
+    }
+}
+
 #[derive(FromAccounts)]
 pub struct CompleteNativeWithPayload<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
@@ -38,17 +98,9 @@ pub struct CompleteNativeWithPayload<'b> {
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
-    /// Transfer with payload can only be redeemed by the recipient. The idea is
-    /// to target contracts which can then decide how to process the payload.
-    ///
-    /// The actual recipient (the `to` field above) is an associated token
-    /// account of the target contract and not the contract itself, so we also need
-    /// to take the target contract's address directly. This will be the owner
-    /// of the associated token account. This ownership check cannot be
-    /// expressed in Solitaire, so we have to check it explicitly in
-    /// [`complete_native_with_payload`]
-    /// We require that the contract is a signer of this transaction.
-    pub to_owner: MaybeMut<Signer<Info<'b>>>,
+
+    /// See [`verify_recipient_address`]
+    pub redeemer: RedeemerAccount<'b>,
     pub to_fees: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub custody: Mut<CustodyAccount<'b, { AccountState::Initialized }>>,
     pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
@@ -115,12 +167,14 @@ pub fn complete_native_with_payload(
     if accs.vaa.to_chain != CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
     }
-    if accs.vaa.to != accs.to_owner.info().key.to_bytes() {
-        return Err(InvalidRecipient.into());
-    }
 
-    // VAA-specified recipient must be token account owner
-    if *accs.to_owner.info().key != accs.to.owner {
+    let recipient = Pubkey::try_from_slice(&accs.vaa.to)?;
+    accs.redeemer.verify_recipient_address(&recipient)?;
+
+    // Token account owner must be either the VAA-specified recipient, or the
+    // redeemer account (for regular wallets, these two are equal, for programs
+    // the latter is a PDA)
+    if recipient != accs.to.owner && *accs.redeemer.info().key != accs.to.owner {
         return Err(InvalidRecipient.into());
     }
 
@@ -160,17 +214,9 @@ pub struct CompleteWrappedWithPayload<'b> {
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
-    /// Transfer with payload can only be redeemed by the recipient. The idea is
-    /// to target contracts which can then decide how to process the payload.
-    ///
-    /// The actual recipient (the `to` field above) is an associated token
-    /// account of the target contract and not the contract itself, so we also need
-    /// to take the target contract's address directly. This will be the owner
-    /// of the associated token account. This ownership check cannot be
-    /// expressed in Solitaire, so we have to check it explicitly in
-    /// [`complete_native_with_payload`]
-    /// We require that the contract is a signer of this transaction.
-    pub to_owner: MaybeMut<Signer<Info<'b>>>,
+
+    /// See [`verify_recipient_address`]
+    pub redeemer: RedeemerAccount<'b>,
     pub to_fees: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub mint: Mut<WrappedMint<'b, { AccountState::Initialized }>>,
     pub wrapped_meta: WrappedTokenMeta<'b, { AccountState::Initialized }>,
@@ -234,12 +280,14 @@ pub fn complete_wrapped_with_payload(
     if accs.vaa.to_chain != CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
     }
-    if accs.vaa.to != accs.to_owner.info().key.to_bytes() {
-        return Err(InvalidRecipient.into());
-    }
 
-    // VAA-specified recipient must be token account owner
-    if *accs.to_owner.info().key != accs.to.owner {
+    let recipient = Pubkey::try_from_slice(&accs.vaa.to)?;
+    accs.redeemer.verify_recipient_address(&recipient)?;
+
+    // Token account owner must be either the VAA-specified recipient, or the
+    // redeemer account (for regular wallets, these two are equal, for programs
+    // the latter is a PDA)
+    if recipient != accs.to.owner && *accs.redeemer.info().key != accs.to.owner {
         return Err(InvalidRecipient.into());
     }
 
@@ -253,7 +301,7 @@ pub fn complete_wrapped_with_payload(
         accs.to.info().key,
         accs.mint_authority.key,
         &[],
-        accs.vaa.amount.as_u64()
+        accs.vaa.amount.as_u64(),
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 

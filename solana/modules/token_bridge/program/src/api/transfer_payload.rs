@@ -56,10 +56,6 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for SenderAccount<'b> {
         Ok(SenderAccount(MaybeMut::peel(ctx)?))
     }
 
-    fn deps() -> Vec<Pubkey> {
-        MaybeMut::<Signer<Info<'b>>>::deps()
-    }
-
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         MaybeMut::persist(&self.0, program_id)
     }
