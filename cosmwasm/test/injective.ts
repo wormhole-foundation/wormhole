@@ -28,6 +28,7 @@ const wormholeWasm: string = "wormhole.wasm";
 const tokenBridgeWasm: string = "token_bridge_terra_2.wasm";
 const cw20WrappedWasm: string = "cw20_wrapped_2.wasm";
 const mockBridgeWasm: string = "mock_bridge_integration_2.wasm";
+const cw20BaseWasm: string = "cw20_base.wasm";
 
 function createWasmFullPath(w: string) {
   const pathToWasms: string =
@@ -167,12 +168,12 @@ async function executeCommands() {
   }
   console.log("TokenBridge contract code id: ", TokenBridgeCodeId);
 
-  // Load the CW20 token wasm contract
+  // Load the CW20 wrapped token wasm contract
   const storeCW20: string =
     "yes 12345678 | injectived tx wasm store " +
     createWasmFullPath(cw20WrappedWasm) +
     ' --from=genesis --chain-id="injective-1" --yes --fees=1500000000000000inj --gas=3000000 --output=JSON';
-  let CW20TokenId = "";
+  let CW20WrappedTokenId = "";
   console.log("about to execute:", storeCW20);
   esResult = execSync(storeCW20);
   out = esResult.toString();
@@ -194,21 +195,21 @@ async function executeCommands() {
     // console.log("element", element);
     if (element.key === "code_id") {
       // console.log("Got code_id.");
-      CW20TokenId = element.value;
+      CW20WrappedTokenId = element.value;
     }
   });
-  if (CW20TokenId === "") {
+  if (CW20WrappedTokenId === "") {
     console.error("Could not parse token bridge contract code id.");
     return;
   }
-  console.log("CW20 token contract code id: ", CW20TokenId);
+  console.log("CW20 token contract code id: ", CW20WrappedTokenId);
 
   // Instantiate the token bridge
   const tbInstJson =
     '{"gov_chain":1, "gov_address":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ=", "wormhole_contract":"' +
     WormholeContractAddress +
     '", "wrapped_asset_code_id":' +
-    CW20TokenId +
+    CW20WrappedTokenId +
     "}";
   const instantiateTokenBridge: string =
     "yes 12345678 | injectived tx wasm instantiate " +
@@ -576,20 +577,58 @@ async function executeCommands() {
   console.log("txhash query raw_log:", parsed.raw_log);
   parsed = JSON.parse(parsed.raw_log);
 
-  // Instantiate the CW20 contract
+  // Load the CW20 base token wasm contract
+  console.log("         Load a CW20 Base Token...");
+  const storeCW20Base: string =
+    "yes 12345678 | injectived tx wasm store " +
+    createWasmFullPath(cw20BaseWasm) +
+    ' --from=genesis --chain-id="injective-1" --yes --fees=1500000000000000inj --gas=3000000 --output=JSON';
+  let CW20BaseTokenId = "";
+  console.log("about to execute:", storeCW20Base);
+  esResult = execSync(storeCW20Base);
+  out = esResult.toString();
+  console.log("rinj", out);
+  parsed = JSON.parse(out);
+  console.log("parsed", parsed.txhash);
+
+  // Get the raw log to look for success (and code_id)
+  await sleep(4000);
+  txhashQuery = createHashQueryString(parsed.txhash);
+  console.log("About to exec:", txhashQuery);
+  esResult = execSync(txhashQuery);
+  parsed = JSON.parse(esResult.toString());
+  console.log("txhash query raw_log:", parsed.raw_log);
+  parsed = JSON.parse(parsed.raw_log);
+  storeCode = parsed[0]["events"][1].attributes;
+  // console.log("storeCode", storeCode);
+  storeCode.forEach((element) => {
+    // console.log("element", element);
+    if (element.key === "code_id") {
+      // console.log("Got code_id.");
+      CW20BaseTokenId = element.value;
+    }
+  });
+  if (CW20BaseTokenId === "") {
+    console.error("Could not parse CW20 base contract code id.");
+    return;
+  }
+  console.log("CW20 base token contract code id: ", CW20BaseTokenId);
+
+  // Instantiate the CW20 base token contract
+  console.log("         Instantiate a CW20 Base Token...");
   const cw20InstJson =
     '{ "name": "MOCK", "symbol": "MCK", "decimals": 6, "initial_balances": [ { "address": "' +
     GenesisContract +
     '", "amount": "100000000" } ], "mint": null }';
   console.log("cw20InstJson:", cw20InstJson);
-  const instantiateCW20: string =
+  const instantiateCW20Base: string =
     "yes 12345678 | injectived tx wasm instantiate " +
-    CW20TokenId +
+    CW20BaseTokenId +
     " " +
     JSON.stringify(cw20InstJson) +
     ' --label="mock" --from=genesis --chain-id="injective-1" --yes --fees=1000000000000000inj --gas=2000000 --no-admin --output=JSON';
-  console.log("about to execute:", instantiateCW20);
-  esResult = execSync(instantiateCW20);
+  console.log("about to execute:", instantiateCW20Base);
+  esResult = execSync(instantiateCW20Base);
   out = esResult.toString();
   console.log("rinj", out);
   parsed = JSON.parse(out);
