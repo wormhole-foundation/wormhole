@@ -162,7 +162,7 @@ pub fn post_message_unreliable(
             crate::instruction::Instruction::PostMessageUnreliable,
             PostMessageData {
                 nonce,
-                payload: payload.clone(),
+                payload,
                 consistency_level: commitment,
             },
         )

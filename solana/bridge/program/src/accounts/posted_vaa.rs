@@ -11,7 +11,11 @@ use solitaire::{
     Owned,
 };
 use std::{
-    io::Write,
+    io::{
+        Error,
+        ErrorKind::InvalidData,
+        Write,
+    },
     ops::{
         Deref,
         DerefMut,
@@ -43,6 +47,12 @@ impl BorshSerialize for PostedVAAData {
 
 impl BorshDeserialize for PostedVAAData {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        // We accept "vaa", "msg", or "msu" because it's convenient to read all of these as PostedVAAData
+        let expected = ["vaa".as_bytes(), "msg".as_bytes(), "msu".as_bytes()];
+        let magic: &[u8] = &buf[0..3];
+        if !expected.contains(&magic) {
+            return Err(Error::new(InvalidData, "Magic mismatch."));
+        };
         *buf = &buf[3..];
         Ok(PostedVAAData(
             <MessageData as BorshDeserialize>::deserialize(buf)?,
@@ -79,8 +89,8 @@ impl Owned for PostedVAAData {
 #[cfg(feature = "cpi")]
 impl Owned for PostedVAAData {
     fn owner(&self) -> AccountOwner {
-        use std::str::FromStr;
         use solana_program::pubkey::Pubkey;
+        use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("BRIDGE_ADDRESS")).unwrap())
     }
 }

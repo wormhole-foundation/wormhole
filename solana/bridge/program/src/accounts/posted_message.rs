@@ -14,7 +14,11 @@ use solitaire::{
     Owned,
 };
 use std::{
-    io::Write,
+    io::{
+        Error,
+        ErrorKind::InvalidData,
+        Write,
+    },
     ops::{
         Deref,
         DerefMut,
@@ -23,11 +27,20 @@ use std::{
 
 pub type PostedMessage<'a, const State: AccountState> = Data<'a, PostedMessageData, { State }>;
 
-// This is using the same payload as the PostedVAA for backwards compatibility.
-// This will be deprecated in a future release.
 #[repr(transparent)]
 #[derive(Default)]
-pub struct PostedMessageData(pub MessageData);
+pub struct PostedMessageData {
+    pub data: MessageData,
+}
+
+pub type PostedMessageUnreliable<'a, const State: AccountState> =
+    Data<'a, PostedMessageData, { State }>;
+
+#[repr(transparent)]
+#[derive(Default)]
+pub struct PostedMessageUnreliableData {
+    pub data: MessageData,
+}
 
 #[derive(Debug, Default, BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
 pub struct MessageData {
@@ -62,19 +75,32 @@ pub struct MessageData {
     pub payload: Vec<u8>,
 }
 
+// PostedMessageData impls
+
 impl BorshSerialize for PostedMessageData {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         writer.write_all(b"msg")?;
-        BorshSerialize::serialize(&self.0, writer)
+        BorshSerialize::serialize(&self.data, writer)
     }
 }
 
 impl BorshDeserialize for PostedMessageData {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let expected = "msg".as_bytes();
+        let magic: &[u8] = &buf[0..3];
+        if magic != expected {
+            return Err(Error::new(
+                InvalidData,
+                format!(
+                    "Magic mismatch. Expected {:?} but got {:?}",
+                    expected, magic
+                ),
+            ));
+        };
         *buf = &buf[3..];
-        Ok(PostedMessageData(
-            <MessageData as BorshDeserialize>::deserialize(buf)?,
-        ))
+        Ok(PostedMessageData {
+            data: <MessageData as BorshDeserialize>::deserialize(buf)?,
+        })
     }
 }
 
@@ -82,19 +108,21 @@ impl Deref for PostedMessageData {
     type Target = MessageData;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(&self.0) }
+        unsafe { std::mem::transmute(&self.data) }
     }
 }
 
 impl DerefMut for PostedMessageData {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { std::mem::transmute(&mut self.0) }
+        unsafe { std::mem::transmute(&mut self.data) }
     }
 }
 
 impl Clone for PostedMessageData {
     fn clone(&self) -> Self {
-        PostedMessageData(self.0.clone())
+        PostedMessageData {
+            data: self.data.clone(),
+        }
     }
 }
 
@@ -107,6 +135,72 @@ impl Owned for PostedMessageData {
 
 #[cfg(feature = "cpi")]
 impl Owned for PostedMessageData {
+    fn owner(&self) -> AccountOwner {
+        use std::str::FromStr;
+        AccountOwner::Other(Pubkey::from_str(env!("BRIDGE_ADDRESS")).unwrap())
+    }
+}
+
+// PostedMessageUnreliableData impls
+
+impl BorshSerialize for PostedMessageUnreliableData {
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(b"msu")?;
+        BorshSerialize::serialize(&self.data, writer)
+    }
+}
+
+impl BorshDeserialize for PostedMessageUnreliableData {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let expected = "msu".as_bytes();
+        let magic: &[u8] = &buf[0..3];
+        if magic != expected {
+            return Err(Error::new(
+                InvalidData,
+                format!(
+                    "Magic mismatch. Expected {:?} but got {:?}",
+                    expected, magic
+                ),
+            ));
+        };
+        *buf = &buf[3..];
+        Ok(PostedMessageUnreliableData {
+            data: <MessageData as BorshDeserialize>::deserialize(buf)?,
+        })
+    }
+}
+
+impl Deref for PostedMessageUnreliableData {
+    type Target = MessageData;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute(&self.data) }
+    }
+}
+
+impl DerefMut for PostedMessageUnreliableData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::mem::transmute(&mut self.data) }
+    }
+}
+
+impl Clone for PostedMessageUnreliableData {
+    fn clone(&self) -> Self {
+        PostedMessageUnreliableData {
+            data: self.data.clone(),
+        }
+    }
+}
+
+#[cfg(not(feature = "cpi"))]
+impl Owned for PostedMessageUnreliableData {
+    fn owner(&self) -> AccountOwner {
+        AccountOwner::This
+    }
+}
+
+#[cfg(feature = "cpi")]
+impl Owned for PostedMessageUnreliableData {
     fn owner(&self) -> AccountOwner {
         use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("BRIDGE_ADDRESS")).unwrap())
