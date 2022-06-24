@@ -231,6 +231,8 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         emitter: &Keypair,
+        // when None, then a new keypair is generated
+        message: Option<&Keypair>,
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
@@ -238,7 +240,13 @@ mod helpers {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
-        let message = Keypair::new();
+        let new_message_pair = &Keypair::new();
+
+        let message: &Keypair = match message {
+            Some(keypair) => keypair,
+            None => new_message_pair
+        };
+            // Keypair::new();
 
         // Capture the resulting message, later functions will need this.
         let instruction = instructions::post_message(
