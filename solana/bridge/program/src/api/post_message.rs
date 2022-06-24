@@ -3,6 +3,7 @@ use crate::{
         Bridge,
         FeeCollector,
         PostedMessage,
+        PostedMessageUnreliable,
         Sequence,
         SequenceDerivationData,
     },
@@ -14,10 +15,12 @@ use crate::{
     },
     types::ConsistencyLevel,
     IsSigned::*,
+    MessageData,
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
     msg,
+    pubkey::Pubkey,
     sysvar::clock::Clock,
 };
 use solitaire::{
@@ -58,7 +61,7 @@ pub struct PostMessageUnreliable<'b> {
     pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
-    pub message: Signer<Mut<PostedMessage<'b, { AccountState::MaybeInitialized }>>>,
+    pub message: Signer<Mut<PostedMessageUnreliable<'b, { AccountState::MaybeInitialized }>>>,
 
     /// Emitter of the VAA
     pub emitter: Signer<MaybeMut<Info<'b>>>,
@@ -73,9 +76,6 @@ pub struct PostMessageUnreliable<'b> {
     pub fee_collector: Mut<FeeCollector<'b>>,
 
     pub clock: Sysvar<'b, Clock>,
-}
-
-impl<'b> InstructionContext<'b> for PostMessageUnreliable<'b> {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -98,6 +98,7 @@ pub fn post_message(
     post_message_internal(
         ctx,
         &mut accs.bridge,
+        accs.message.info().key,
         &mut accs.message,
         &mut accs.emitter,
         &mut accs.sequence,
@@ -146,6 +147,7 @@ pub fn post_message_unreliable(
     post_message_internal(
         ctx,
         &mut accs.bridge,
+        accs.message.info().key,
         &mut accs.message,
         &mut accs.emitter,
         &mut accs.sequence,
@@ -172,10 +174,12 @@ pub fn post_message_unreliable(
     Ok(())
 }
 
-fn post_message_internal<'b, const MessageState: AccountState>(
+#[allow(unused_variables)] // message_key is used in `trace!`
+fn post_message_internal<'b>(
     ctx: &ExecutionContext,
     bridge: &mut Mut<Bridge<'b, { AccountState::Initialized }>>,
-    message: &mut Signer<Mut<PostedMessage<'b, { MessageState }>>>,
+    message_key: &Pubkey,
+    message: &mut MessageData,
     emitter: &mut Signer<MaybeMut<Info<'b>>>,
     sequence: &mut Mut<Sequence<'b>>,
     payer: &mut Mut<Signer<Info<'b>>>,
@@ -183,7 +187,7 @@ fn post_message_internal<'b, const MessageState: AccountState>(
     clock: &mut Sysvar<'b, Clock>,
     data: PostMessageData,
 ) -> Result<()> {
-    trace!("Message Address: {}", message.info().key);
+    trace!("Message Address: {}", message_key);
     trace!("Emitter Address: {}", emitter.info().key);
     trace!("Nonce: {}", data.nonce);
 
