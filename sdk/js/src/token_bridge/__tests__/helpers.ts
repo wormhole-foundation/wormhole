@@ -105,9 +105,9 @@ export async function transferFromEthToSolana(): Promise<string> {
 }
 
 export async function waitForTerraExecution(
-  transaction: string
+  transaction: string,
+  lcd: LCDClient
 ): Promise<TxInfo | undefined> {
-  const lcd = new LCDClient(TERRA_HOST);
   let done: boolean = false;
   let info;
   while (!done) {

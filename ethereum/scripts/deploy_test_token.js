@@ -36,7 +36,7 @@ const interateToStandardTransactionCount = async () => {
   return Promise.resolve();
 };
 
-module.exports = async function(callback) {
+module.exports = async function (callback) {
   try {
     const accounts = await web3.eth.getAccounts();
 
@@ -58,6 +58,10 @@ module.exports = async function(callback) {
 
     // mint 1000 units
     await token.methods.mint(accounts[0], "1000000000000000000000").send({
+      from: accounts[0],
+      gas: 1000000,
+    });
+    await token.methods.mint(accounts[2], "1000000000000000000000").send({
       from: accounts[0],
       gas: 1000000,
     });
