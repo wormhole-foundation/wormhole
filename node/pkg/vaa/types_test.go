@@ -4,11 +4,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestSerializeDeserialize(t *testing.T) {

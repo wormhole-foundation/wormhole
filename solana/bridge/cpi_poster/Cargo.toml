@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "cpi_poster"
 
 [features]
-client = ["solitaire/client", "solitaire-client", "no-entrypoint"]
+client = ["no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
 no-entrypoint = ["solitaire/no-entrypoint"]
@@ -22,7 +22,6 @@ primitive-types = { version = "0.9.0", default-features = false }
 sha3 = "0.9.1"
 solana-program = "=1.9.4"
 wormhole-bridge-solana = { path = "../program", features = ["no-entrypoint"] }
-solitaire-client = { path = "../../solitaire/client", optional = true }
 solitaire = { path = "../../solitaire/program" }
 
 [dev-dependencies]

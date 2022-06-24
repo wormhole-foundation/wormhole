@@ -503,7 +503,7 @@ class AlgoTest(PortalCore):
 #        pprint.pprint(vaa)
 #        sys.exit(0)
 
-        gt = GenTest(True)
+        gt = GenTest(False)
         self.gt = gt
 
         self.setup_args()
@@ -616,11 +616,6 @@ class AlgoTest(PortalCore):
         vaaLogs.append(["redeemOnAlgorand", transferVAA.hex()])
         self.submitVAA(transferVAA, client, player, self.tokenid)
         seq += 1
-
-        aid = client.account_info(player.getAddress())["assets"][0]["asset-id"]
-        print("generate an attest of the asset we just received: " + str(aid))
-        # paul - attestFromAlgorand
-        self.testAttest(client, player, aid)
 
         print("Create the test app we will use to torture ourselves using a new player")
         player2 = self.getTemporaryAccount(client)
@@ -737,6 +732,8 @@ class AlgoTest(PortalCore):
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
 
+        print("player address: " + decode_address(player2.getAddress()).hex())
+        print("payload3 vaa: "+ vaa)
         pprint.pprint(self.parseVAA(bytes.fromhex(vaa)))
 
         print("testid balance before = ", self.getBalances(client, get_application_address(self.testid)))

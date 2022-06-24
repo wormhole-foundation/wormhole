@@ -7,6 +7,7 @@ import {
 } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { LCDClient, MnemonicKey, TxInfo } from "@terra-money/terra.js";
+import axios from "axios";
 import { ethers } from "ethers";
 import {
   approveEth,
@@ -29,6 +30,7 @@ import {
   SOLANA_PRIVATE_KEY,
   SOLANA_TOKEN_BRIDGE_ADDRESS,
   TERRA_CHAIN_ID,
+  TERRA_GAS_PRICES_URL,
   TERRA_HOST,
   TERRA_NODE_URL,
   TERRA_PRIVATE_KEY,
@@ -153,6 +155,7 @@ export async function queryBalanceOnTerra(asset: string): Promise<number> {
   const lcd = new LCDClient({
     URL: TERRA_NODE_URL,
     chainID: TERRA_CHAIN_ID,
+    isClassic: true,
   });
   const mk = new MnemonicKey({
     mnemonic: TERRA_PRIVATE_KEY,
@@ -185,4 +188,8 @@ export async function queryBalanceOnTerra(asset: string): Promise<number> {
   }
 
   return balance;
+}
+
+export async function getTerraGasPrices() {
+  return axios.get(TERRA_GAS_PRICES_URL).then((result) => result.data);
 }

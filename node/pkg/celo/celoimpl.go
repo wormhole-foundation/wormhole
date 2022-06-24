@@ -164,6 +164,14 @@ func (e *CeloImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 			case <-ctx.Done():
 				return
 			case ev := <-headSink:
+				if ev == nil {
+					e.logger.Error("new header event is nil", zap.String("eth_network", e.NetworkName))
+					continue
+				}
+				if ev.Number == nil {
+					e.logger.Error("new header block number is nil", zap.String("eth_network", e.NetworkName))
+					continue
+				}
 				sink <- &common.NewBlock{
 					Number: ev.Number,
 					Hash:   ethCommon.BytesToHash(ev.Hash().Bytes()),

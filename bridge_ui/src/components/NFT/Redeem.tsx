@@ -1,4 +1,7 @@
-import { CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_SOLANA,
+  isTerraChain,
+} from "@certusone/wormhole-sdk";
 import { useSelector } from "react-redux";
 import { useHandleNFTRedeem } from "../../hooks/useHandleNFTRedeem";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -19,8 +22,8 @@ function Redeem() {
     <>
       <StepDescription>Receive the NFT on the target chain</StepDescription>
       <KeyAndBalance chainId={targetChain} />
-      {targetChain === CHAIN_ID_TERRA && (
-        <TerraFeeDenomPicker disabled={disabled} />
+      {isTerraChain(targetChain) && (
+        <TerraFeeDenomPicker disabled={disabled} chainId={targetChain} />
       )}
       {targetChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
         <SolanaTPSWarning />

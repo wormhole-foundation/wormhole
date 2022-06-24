@@ -58,8 +58,6 @@ pub struct PostMessage<'b> {
     pub clock: Sysvar<'b, Clock>,
 }
 
-impl<'b> InstructionContext<'b> for PostMessage<'b> {}
-
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct PostMessageData {
     /// Unique nonce for this message

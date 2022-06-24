@@ -91,8 +91,9 @@ const MAINNET = {
     key: undefined,
   },
   terra2: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://phoenix-lcd.terra.dev",
+    chain_id: "phoenix-1",
+    key: get_env_var("TERRA_MNEMONIC"),
   },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
@@ -116,23 +117,23 @@ const TESTNET = {
   },
   ethereum: {
     rpc: `https://goerli.infura.io/v3/${get_env_var("INFURA_KEY")}`,
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   bsc: {
     rpc: "https://data-seed-prebsc-1-s1.binance.org:8545",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   polygon: {
     rpc: `https://polygon-mumbai.infura.io/v3/${get_env_var("INFURA_KEY")}`,
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   avalanche: {
     rpc: "https://api.avax-test.network/ext/bc/C/rpc",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   oasis: {
     rpc: "https://testnet.emerald.oasis.dev",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   algorand: {
     rpc: undefined,
@@ -140,27 +141,27 @@ const TESTNET = {
   },
   fantom: {
     rpc: "https://rpc.testnet.fantom.network",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   aurora: {
     rpc: "https://testnet.aurora.dev",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   karura: {
     rpc: "http://103.253.145.222:8545",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   acala: {
     rpc: "http://157.245.252.103:8545",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   klaytn: {
     rpc: "https://api.baobab.klaytn.net:8651",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   celo: {
     rpc: "https://alfajores-forno.celo-testnet.org",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   near: {
     rpc: undefined,
@@ -168,19 +169,20 @@ const TESTNET = {
   },
   moonbeam: {
     rpc: "https://rpc.api.moonbase.moonbeam.network",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   neon: {
     rpc: "https://proxy.devnet.neonlabs.org/solana",
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   terra2: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://pisco-lcd.terra.dev",
+    chain_id: "pisco-1",
+    key: get_env_var("TERRA_MNEMONIC"),
   },
   ropsten: {
     rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
-    key: get_env_var("ETH_KEY"),
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
 };
 
@@ -259,8 +261,9 @@ const DEVNET = {
     key: undefined,
   },
   terra2: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://localhost:1318",
+    chain_id: "phoenix-1",
+    key: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius",
   },
   ropsten: {
     rpc: undefined,

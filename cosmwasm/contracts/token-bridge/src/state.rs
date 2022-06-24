@@ -28,16 +28,16 @@ use crate::token_address::{ExternalTokenId, WrappedCW20};
 
 type HumanAddr = String;
 
-pub static CONFIG_KEY: &[u8] = b"config";
-pub static TRANSFER_TMP_KEY: &[u8] = b"transfer_tmp";
-pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
-pub static WRAPPED_ASSET_SEQ_KEY: &[u8] = b"wrapped_seq_asset";
-pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
-pub static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
-pub static BRIDGE_DEPOSITS: &[u8] = b"bridge_deposits";
-pub static NATIVE_COUNTER: &[u8] = b"native_counter";
-pub static BANK_TOKEN_HASHES_KEY: &[u8] = b"bank_token_hashes";
-pub static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
+static CONFIG_KEY: &[u8] = b"config";
+static TRANSFER_TMP_KEY: &[u8] = b"transfer_tmp";
+static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
+static WRAPPED_ASSET_SEQ_KEY: &[u8] = b"wrapped_seq_asset";
+static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
+static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
+static BRIDGE_DEPOSITS: &[u8] = b"bridge_deposits";
+static NATIVE_COUNTER: &[u8] = b"native_counter";
+static BANK_TOKEN_HASHES_KEY: &[u8] = b"bank_token_hashes";
+static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
 
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -83,11 +83,11 @@ pub fn wrapped_asset_read(storage: &dyn Storage, chain: u16) -> ReadonlyBucket<W
 }
 
 pub fn wrapped_asset_seq(storage: &mut dyn Storage, chain: u16) -> Bucket<u64> {
-    Bucket::multilevel(storage, &[WRAPPED_ASSET_KEY, &chain.to_be_bytes()])
+    Bucket::multilevel(storage, &[WRAPPED_ASSET_SEQ_KEY, &chain.to_be_bytes()])
 }
 
 pub fn wrapped_asset_seq_read(storage: &mut dyn Storage, chain: u16) -> ReadonlyBucket<u64> {
-    ReadonlyBucket::multilevel(storage, &[WRAPPED_ASSET_KEY, &chain.to_be_bytes()])
+    ReadonlyBucket::multilevel(storage, &[WRAPPED_ASSET_SEQ_KEY, &chain.to_be_bytes()])
 }
 
 pub fn is_wrapped_asset(storage: &mut dyn Storage) -> Bucket<()> {
@@ -250,30 +250,72 @@ impl TransferInfo {
 //     64  u16      token_chain
 //     66  [u8; 32] recipient
 //     98  u16      recipient_chain
-//     100 u256     fee
+//     100 [u8; 32] sender_address
 //     132 [u8]     payload
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TransferWithPayloadInfo {
-    pub transfer_info: TransferInfo,
+    pub amount: (u128, u128),
+    pub token_address: ExternalTokenId,
+    pub token_chain: u16,
+    pub recipient: [u8; 32],
+    pub recipient_chain: u16,
+    pub sender_address: [u8; 32],
     pub payload: Vec<u8>,
 }
 
 impl TransferWithPayloadInfo {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let transfer_info = TransferInfo::deserialize(data)?;
+        let data = data.as_slice();
+        let amount = data.get_u256(0);
+        let token_address = ExternalTokenId::deserialize(data.get_const_bytes::<32>(32));
+        let token_chain = data.get_u16(64);
+        let recipient = data.get_const_bytes::<32>(66);
+        let recipient_chain = data.get_u16(98);
+        let sender_address = data.get_const_bytes::<32>(100);
         let payload = TransferWithPayloadInfo::get_payload(data);
 
         Ok(TransferWithPayloadInfo {
-            transfer_info,
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            sender_address,
             payload,
         })
+
     }
+
     pub fn serialize(&self) -> Vec<u8> {
-        [self.transfer_info.serialize(), self.payload.clone()].concat()
+        [
+            self.amount.0.to_be_bytes().to_vec(),
+            self.amount.1.to_be_bytes().to_vec(),
+            self.token_address.serialize().to_vec(),
+            self.token_chain.to_be_bytes().to_vec(),
+            self.recipient.to_vec(),
+            self.recipient_chain.to_be_bytes().to_vec(),
+            self.sender_address.to_vec(),
+            self.payload.clone(),
+        ]
+        .concat()
     }
-    pub fn get_payload(data: &Vec<u8>) -> Vec<u8> {
-        return data[132..].to_vec();
+
+    pub fn get_payload(data: &[u8]) -> Vec<u8> {
+        data[132..].to_vec()
+    }
+
+    /// Convert [`TransferWithPayloadInfo`] into [`TransferInfo`] for the
+    /// purpose of handling them uniformly. Transfers with payload have 0 fees.
+    pub fn as_transfer_info(&self) -> TransferInfo {
+        TransferInfo {
+            amount: self.amount,
+            token_address: self.token_address.clone(),
+            token_chain: self.token_chain,
+            recipient: self.recipient,
+            recipient_chain: self.recipient_chain,
+            fee: (0, 0),
+        }
     }
 }
 

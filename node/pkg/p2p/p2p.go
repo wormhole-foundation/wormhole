@@ -5,6 +5,9 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -12,8 +15,6 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"strings"
-	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"

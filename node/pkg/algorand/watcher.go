@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
 	"github.com/algorand/go-algorand-sdk/crypto"
@@ -21,7 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
-	"time"
 )
 
 type (

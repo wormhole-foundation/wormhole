@@ -44,9 +44,6 @@ pub struct PostVAA<'b> {
     pub clock: Sysvar<'b, Clock>,
 }
 
-impl<'b> InstructionContext<'b> for PostVAA<'b> {
-}
-
 #[derive(Default, BorshSerialize, BorshDeserialize)]
 pub struct Signature {
     pub index: u8,

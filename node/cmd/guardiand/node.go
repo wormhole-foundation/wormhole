@@ -333,8 +333,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
+	readiness.RegisterComponent(common.ReadinessTerra2Syncing)
 	if *testnetMode || *unsafeDevMode {
-		readiness.RegisterComponent(common.ReadinessTerra2Syncing)
 		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
@@ -542,16 +542,16 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
 	}
+	if *terra2WS == "" {
+		logger.Fatal("Please specify --terra2WS")
+	}
+	if *terra2LCD == "" {
+		logger.Fatal("Please specify --terra2LCD")
+	}
+	if *terra2Contract == "" {
+		logger.Fatal("Please specify --terra2Contract")
+	}
 	if *testnetMode || *unsafeDevMode {
-		if *terra2WS == "" {
-			logger.Fatal("Please specify --terra2WS")
-		}
-		if *terra2LCD == "" {
-			logger.Fatal("Please specify --terra2LCD")
-		}
-		if *terra2Contract == "" {
-			logger.Fatal("Please specify --terra2Contract")
-		}
 		if *algorandIndexerRPC == "" {
 			logger.Fatal("Please specify --algorandIndexerRPC")
 		}
@@ -702,12 +702,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDSolana] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode || *unsafeDevMode {
-		chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
 	}
 	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
@@ -902,19 +902,19 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		// Start Terra watcher only if configured
 		logger.Info("Starting Terra watcher")
 		if err := supervisor.Run(ctx, "terrawatch",
 			terra.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run); err != nil {
 			return err
 		}
 
+		logger.Info("Starting Terra 2 watcher")
+		if err := supervisor.Run(ctx, "terra2watch",
+			terra.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
+			return err
+		}
+
 		if *testnetMode || *unsafeDevMode {
-			logger.Info("Starting Terra 2 watcher")
-			if err := supervisor.Run(ctx, "terra2watch",
-				terra.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
-				return err
-			}
 			if err := supervisor.Run(ctx, "algorandwatch",
 				algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAlgodRPC, *algorandAlgodToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
 				return err
@@ -944,8 +944,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			*unsafeDevMode,
 			*devNumGuardians,
 			*ethRPC,
-			*terraLCD,
-			*terraContract,
 			attestationEvents,
 			notifier,
 		)

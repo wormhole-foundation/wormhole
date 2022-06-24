@@ -1141,10 +1141,10 @@ class PortalCore:
             off += 32
             ret["ToChain"] = int.from_bytes(vaa[off:(off + 2)], "big")
             off += 2
-            ret["Fee"] = vaa[off:(off + 32)].hex()
+            ret["Fee"] = self.zeroPadBytes;
+            ret["FromAddress"] = vaa[off:(off + 32)].hex()
             off += 32
             ret["Payload"] = vaa[off:].hex()
-            ret["body"] = ret["Payload"]
         
         return ret
 

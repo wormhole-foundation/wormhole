@@ -1,7 +1,7 @@
 import {
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   isEVMChain,
+  isTerraChain,
 } from "@certusone/wormhole-sdk";
 import { Checkbox, FormControlLabel } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
@@ -149,8 +149,8 @@ function Send() {
         Transfer the tokens to the Wormhole Token Bridge.
       </StepDescription>
       <KeyAndBalance chainId={sourceChain} />
-      {sourceChain === CHAIN_ID_TERRA && (
-        <TerraFeeDenomPicker disabled={disabled} />
+      {isTerraChain(sourceChain) && (
+        <TerraFeeDenomPicker disabled={disabled} chainId={sourceChain} />
       )}
       <Alert severity="info" variant="outlined">
         This will initiate the transfer on {CHAINS_BY_ID[sourceChain].name} and

@@ -511,13 +511,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             Destination.store(        Extract(Txn.application_args[1], off.load() + Int(67), Int(32))),
             DestChain.store(     Btoi(Extract(Txn.application_args[1], off.load() + Int(99), Int(2)))),
 
-            MagicAssert(Extract(Txn.application_args[1], off.load() + Int(101),Int(24)) == Extract(zb.load(), Int(0), Int(24))),
-            Fee.store(           Btoi(Extract(Txn.application_args[1], off.load() + Int(125),Int(8)))),  # uint256
-
             # This directed at us?
             MagicAssert(DestChain.load() == Int(8)),
-
-            MagicAssert(Fee.load() <= Amount.load()),
 
             If (action.load() == Int(3), Seq([
                     aid.store(Btoi(Extract(Destination.load(), Int(24), Int(8)))), # The destination is the appid in a payload3
@@ -528,8 +523,17 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                         Gtxn[tidx.load()].application_args[1] == Concat(Extract(Itob(Len(Txn.application_args[1])), Int(6), Int(2)), Txn.application_args[1]),
                         Gtxn[tidx.load()].application_id() == aid.load()
                     )),
-                    Destination.store(getAppAddress(aid.load()))
-            ])),
+                    Destination.store(getAppAddress(aid.load())),
+                    Fee.store(Int(0))
+                ]), Seq([
+                    MagicAssert(Extract(Txn.application_args[1], off.load() + Int(101),Int(24)) == Extract(zb.load(), Int(0), Int(24))),
+                    Fee.store(Btoi(Extract(Txn.application_args[1], off.load() + Int(125),Int(8)))),  # uint256
+                    MagicAssert(Fee.load() <= Amount.load()),
+
+                    # Remove the fee
+                    Amount.store(Amount.load() - Fee.load()),
+                ])
+            ),
 
             If(OriginChain.load() == Int(8),
                Seq([
@@ -692,12 +696,11 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                    assert_common_checks(Gtxn[tidx.load()]),
 
                    amount.store(Gtxn[tidx.load()].amount()),
-                   
-                   MagicAssert(fee.load() < amount.load()),
-                   amount.store(amount.load() - fee.load())
+
+                   # fee cannot exceed amount
+                   MagicAssert(fee.load() <= amount.load()),
                ]),
                Seq([
-
                    MagicAssert(And(
                        # The previous txn is the asset transfer itself
                        Gtxn[tidx.load()].type_enum() == TxnType.AssetTransfer,
@@ -709,10 +712,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
 
                    amount.store(Gtxn[tidx.load()].asset_amount()),
 
-
-                   # peal the fee off the amount
+                   #  fee cannot exceed amount
                    MagicAssert(fee.load() <= amount.load()),
-                   amount.store(amount.load() - fee.load()),
 
                    factor.store(getFactor(Btoi(extract_decimal(aid.load())))),
 
@@ -736,8 +737,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             # Is the authorizing signature of the creator of the asset the address of the token_bridge app itself?
             If(aaddr.load() == Global.current_application_address(),
                Seq([
-#                   Log(Bytes("Wormhole wrapped")),
-
                    asset.store(blob.read(Int(2), Int(0), Int(8))),
                    # This the correct asset?
                    MagicAssert(Txn.application_args[1] == asset.load()),
@@ -750,7 +749,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                    MagicAssert(Txn.accounts[2] == get_sig_address(Btoi(FromChain.load()), Address.load())),
                ]),
                Seq([
-#                   Log(Bytes("Non Wormhole wrapped")),
                    MagicAssert(Txn.accounts[2] == get_sig_address(aid.load(), Bytes("native"))),
                    FromChain.store(Bytes("base16", "0008")),
                    Address.store(Txn.application_args[1]),
@@ -776,9 +774,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                 Extract(zb.load(), Int(0), Int(32) - Len(Txn.application_args[3])),
                 Txn.application_args[3],
                 Extract(Txn.application_args[4], Int(6), Int(2)),
-                Extract(zb.load(), Int(0), Int(24)),
-                Itob(fee.load()),  # 8 bytes
-                If(Txn.application_args.length() == Int(7), Txn.application_args[6], Bytes(""))
+                If(Txn.application_args.length() == Int(7), Concat(Txn.sender(), Txn.application_args[6]), Concat(Extract(zb.load(), Int(0), Int(24)), Itob(fee.load())))
             )),
 
             # This one magic line should protect us from overruns/underruns and trickery..
@@ -846,27 +842,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             # Is the authorizing signature of the creator of the asset the address of the token_bridge app itself?
             If(If(aid.load() != Int(0), auth_addr(extract_creator(aid.load())) == Global.current_application_address(), Int(0)),
                Seq([
-#                   Log(Bytes("Wormhole wrapped")),
-                   # Wormhole wrapped asset
-                   asset.store(blob.read(Int(2), Int(0), Int(8))),
-                   # This the correct asset?
-                   MagicAssert(Txn.application_args[1] == asset.load()),
-
-                   # Pull the address and chain out of the original vaa
-                   Address.store(blob.read(Int(2), Int(60), Int(92))),
-                   FromChain.store(Btoi(blob.read(Int(2), Int(92), Int(94)))),
-
-                   # This the correct page given the chain and the address
-                   MagicAssert(Txn.accounts[2] == get_sig_address(FromChain.load(), Address.load())),
-
-                   # this is wormhole wrapped... it shouldn't be busting 8 
-                   MagicAssert(Btoi(extract_decimal(aid.load())) <= Int(8)),
-
-                   # Lets just hand back the previously generated vaa payload
-                   p.store(blob.read(Int(2), Int(8), Int(108)))
+                   # Cannot attest a wormhole wrapped token
+                   Reject()
                ]),
                Seq([
-#                   Log(Bytes("Non Wormhole wrapped")),
                    MagicAssert(Txn.accounts[2] == get_sig_address(aid.load(), Bytes("native"))),
 
                    zb.store(BytesZero(Int(32))),

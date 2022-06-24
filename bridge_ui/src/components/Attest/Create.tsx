@@ -1,4 +1,4 @@
-import { CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
+import { isTerraChain } from "@certusone/wormhole-sdk";
 import { CircularProgress, makeStyles } from "@material-ui/core";
 import { useSelector } from "react-redux";
 import useFetchForeignAsset from "../../hooks/useFetchForeignAsset";
@@ -45,8 +45,8 @@ function Create() {
   return (
     <>
       <KeyAndBalance chainId={targetChain} />
-      {targetChain === CHAIN_ID_TERRA && (
-        <TerraFeeDenomPicker disabled={disabled} />
+      {isTerraChain(targetChain) && (
+        <TerraFeeDenomPicker disabled={disabled} chainId={targetChain} />
       )}
       {foreignAssetInfo.isFetching ? (
         <>
