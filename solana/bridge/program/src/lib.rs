@@ -33,6 +33,8 @@ pub use accounts::{
     MessageData,
     PostedMessage,
     PostedMessageData,
+    PostedMessageUnreliable,
+    PostedMessageUnreliableData,
     PostedVAA,
     PostedVAAData,
     Sequence,

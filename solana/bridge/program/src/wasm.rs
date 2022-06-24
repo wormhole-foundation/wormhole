@@ -392,7 +392,7 @@ pub fn claim_address(program_id: String, vaa: Vec<u8>) -> Vec<u8> {
 
 #[wasm_bindgen]
 pub fn parse_posted_message(data: Vec<u8>) -> JsValue {
-    JsValue::from_serde(&PostedVAAData::try_from_slice(data.as_slice()).unwrap().0).unwrap()
+    JsValue::from_serde(&PostedVAAData::try_from_slice(data.as_slice()).unwrap().message).unwrap()
 }
 
 #[wasm_bindgen]
