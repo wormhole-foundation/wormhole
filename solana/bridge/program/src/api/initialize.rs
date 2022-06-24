@@ -35,9 +35,6 @@ pub struct Initialize<'b> {
     pub clock: Sysvar<'b, Clock>,
 }
 
-impl<'b> InstructionContext<'b> for Initialize<'b> {
-}
-
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct InitializeData {
     /// Period for how long a guardian set is valid after it has been replaced by a new one.  This
