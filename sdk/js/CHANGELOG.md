@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.5
+
+### Changed
+
+Fix hex/Uint8Array to native Terra 2 for 20-byte addresses
+
 ## 0.4.4
 
 ### Added
