@@ -1,4 +1,3 @@
-
 #![allow(incomplete_features)]
 #![feature(adt_const_params)]
 
@@ -79,12 +78,6 @@ impl CreationLamports {
             CreationLamports::Exempt => Rent::default().minimum_balance(size),
             CreationLamports::Amount(v) => v,
         }
-    }
-}
-
-pub trait InstructionContext<'a> {
-    fn deps(&self) -> Vec<Pubkey> {
-        vec![]
     }
 }
 
