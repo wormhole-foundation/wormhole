@@ -9,8 +9,11 @@ import { formatUnits } from "@ethersproject/units";
 import { LCDClient, isTxError } from "@terra-money/terra.js";
 import { ConnectedWallet, TxResult } from "@terra-money/wallet-provider";
 import axios from "axios";
-// import { TerraTokenMetadata } from "../hooks/useTerraTokenMap";
-import { getTerraGasPricesUrl, getTerraConfig } from "./consts";
+import {
+  getTerraGasPricesUrl,
+  getTerraConfig,
+  getTokenBridgeAddressForChain,
+} from "./consts";
 
 export const NATIVE_TERRA_DECIMALS = 6;
 export const LUNA_SYMBOL = "LUNA";
@@ -124,3 +127,42 @@ export async function postWithFees(
 
   return result;
 }
+
+export interface ExternalIdResponse {
+  token_id: {
+    Bank?: { denom: string };
+    Contract?: {
+      NativeCW20?: {
+        contract_address: string;
+      };
+      ForeignToken?: {
+        chain_id: string;
+        foreign_address: string;
+      };
+    };
+  };
+}
+
+// returns the TokenId corresponding to the ExternalTokenId
+// see cosmwasm token_addresses.rs
+export const queryExternalId = async (externalTokenId: string) => {
+  const lcd = new LCDClient(getTerraConfig(CHAIN_ID_TERRA2));
+  try {
+    const response = await lcd.wasm.contractQuery<ExternalIdResponse>(
+      getTokenBridgeAddressForChain(CHAIN_ID_TERRA2),
+      {
+        external_id: {
+          external_id: Buffer.from(externalTokenId, "hex").toString("base64"),
+        },
+      }
+    );
+    return (
+      // response depends on the token type
+      response.token_id.Bank?.denom ||
+      response.token_id.Contract?.NativeCW20?.contract_address ||
+      response.token_id.Contract?.ForeignToken?.foreign_address
+    );
+  } catch {
+    return null;
+  }
+};
