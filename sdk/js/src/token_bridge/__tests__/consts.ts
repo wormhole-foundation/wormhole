@@ -7,6 +7,8 @@ const ci = !!process.env.CI;
 export const ETH_NODE_URL = ci ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 export const ETH_PRIVATE_KEY =
   "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d";
+export const ETH_PRIVATE_KEY2 =
+  "0x6370fd033278c143179d81c5526140625662b8daa446c22ee2d73db3707e620c"; // account 2
 export const ETH_CORE_BRIDGE_ADDRESS =
   "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550";
 export const ETH_TOKEN_BRIDGE_ADDRESS =
@@ -31,12 +33,19 @@ export const TERRA_CHAIN_ID = "localterra";
 export const TERRA_GAS_PRICES_URL = ci
   ? "http://terra-fcd:3060/v1/txs/gas_prices"
   : "http://localhost:3060/v1/txs/gas_prices";
+export const TERRA2_GAS_PRICES_URL = ci
+  ? "http://terra2-fcd:3060/v1/txs/gas_prices"
+  : "http://localhost:3061/v1/txs/gas_prices";
 export const TERRA_CORE_BRIDGE_ADDRESS =
   "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_TOKEN_BRIDGE_ADDRESS =
   "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
+export const TERRA2_TOKEN_BRIDGE_ADDRESS =
+  "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6";
 export const TERRA_PRIVATE_KEY =
   "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius";
+export const TERRA2_PRIVATE_KEY =
+  "symbol force gallery make bulk round subway violin worry mixture penalty kingdom boring survey tool fringe patrol sausage hard admit remember broken alien absorb"; // test3
 export const TEST_ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";
 export const TEST_SOLANA_TOKEN = "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";
 export const WORMHOLE_RPC_HOSTS = ci

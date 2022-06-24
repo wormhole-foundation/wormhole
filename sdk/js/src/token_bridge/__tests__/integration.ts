@@ -1180,7 +1180,7 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           const result = await lcd.tx.broadcast(executeTx);
-          const info = await waitForTerraExecution(result.txhash);
+          const info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
           }
@@ -1316,7 +1316,7 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           const result = await lcd.tx.broadcast(executeTx);
-          const info = await waitForTerraExecution(result.txhash);
+          const info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
           }
@@ -1559,7 +1559,7 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           let result = await lcd.tx.broadcast(executeTx);
-          let info = await waitForTerraExecution(result.txhash);
+          let info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
           }
@@ -1678,7 +1678,7 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           result = await lcd.tx.broadcast(executeTx);
-          info = await waitForTerraExecution(result.txhash);
+          info = await waitForTerraExecution(result.txhash, lcd);
           if (!info) {
             throw new Error("info not found");
           }
@@ -2390,7 +2390,10 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           const attestResult = await lcd.tx.broadcast(executeAttest);
-          const attestInfo = await waitForTerraExecution(attestResult.txhash);
+          const attestInfo = await waitForTerraExecution(
+            attestResult.txhash,
+            lcd
+          );
           if (!attestInfo) {
             throw new Error("info not found");
           }
@@ -2471,7 +2474,7 @@ describe("Integration Tests", () => {
             fee: feeEstimate,
           });
           const txResult = await lcd.tx.broadcast(executeTx);
-          const txInfo = await waitForTerraExecution(txResult.txhash);
+          const txInfo = await waitForTerraExecution(txResult.txhash, lcd);
           if (!txInfo) {
             throw new Error("info not found");
           }
