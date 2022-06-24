@@ -8,12 +8,19 @@ import {
   hexToUint8Array,
   redeemOnEth,
   redeemOnEthNative,
+  importCoreWasm,
+  parseTransferPayload
 } from "@certusone/wormhole-sdk";
-import { ethers } from "ethers";
+import { BigNumber, ContractReceipt, Contract } from "ethers";
+import {ethers} from "hardhat"
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import { CeloProvider, CeloWallet } from "@celo-tools/celo-ethers-wrapper";
+import {redeemResponsesToEvm} from "../xRaydium/scripts/relay"
+import * as lib from "../lib/lib";
+import fs from "fs"
+import * as types from "../xRaydium/solana-proxy/generated_client/types";
 
 export function newProvider(
   url: string,
@@ -78,41 +85,27 @@ export async function relayEVM(
   } else {
     logger.info("Will redeem using pubkey: %s", await signer.getAddress());
   }
-
-  logger.debug("Redeeming.");
-  let overrides = {};
-  if (chainConfigInfo.chainId === CHAIN_ID_POLYGON) {
-    // look, there's something janky with Polygon + ethers + EIP-1559
-    let feeData = await provider.getFeeData();
-    overrides = {
-      maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
-    };
-  } else if (chainConfigInfo.chainId === CHAIN_ID_KLAYTN || chainConfigInfo.chainId === CHAIN_ID_FANTOM) {
-    // Klaytn and Fantom require specifying gasPrice
-    overrides = { gasPrice: (await signer.getGasPrice()).toString() };
-  }
-  const bridge = Bridge__factory.connect(
-    chainConfigInfo.tokenBridgeAddress,
-    signer
+  const { parse_vaa } = await importCoreWasm();
+  const parsed = parse_vaa(signedVaaArray);
+  let transferPayload: any = parseTransferPayload(
+    Buffer.from(parsed["payload"]),
   );
-  const contractMethod = unwrapNative
-    ? bridge.completeTransferAndUnwrapETH
-    : bridge.completeTransfer;
-  const tx = await contractMethod(signedVaaArray, overrides);
-  logger.info("waiting for tx hash: %s", tx.hash);
-  const receipt = await tx.wait();
+  transferPayload["payload3"] = Buffer.from(parsed["payload"].slice(133));
+  logger.info(parsed, "Parsed VAA");
 
-  // Checking getIsTransferCompletedEth can be problematic if we get
-  // load balanced to a node that is behind the block of our accepted tx
-  // The auditor worker should confirm that our tx was successful
-  const success = true;
+  // TODO: check sender of payload 3 is solana proxy via sender field 
 
-  if (provider instanceof ethers.providers.WebSocketProvider) {
-    await provider.destroy();
-  }
+  const addrs = JSON.parse(String(fs.readFileSync("../xRaydium/addrs")));
+  const XRaydiumBridge = await ethers.getContractFactory("XRaydiumBridge");
+  const contract = await XRaydiumBridge.attach(addrs.fuji.XRaydiumBridge);
 
-  logger.info("success: %s tx hash: %s", success, receipt.transactionHash);
+  const response = types.Response.layout().decode(transferPayload.payload3);
+  logger.info(response, "Response");
+
+  const receipt = await (await contract.receiveResponse(signedVaaArray)).wait();
+  
+  logger.info("=============done redeem responses to EVM!!!...!!!")
+
   metrics.incSuccesses(chainConfigInfo.chainId);
-  return { redeemed: success, result: receipt };
+  return { redeemed: true, result: "redeemed"};
 }

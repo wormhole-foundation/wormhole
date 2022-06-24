@@ -20,7 +20,6 @@ import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {relayToSolana} from "../xRaydium/scripts/relay"
 import {TransferPayload,getAndParseVaa} from "../xRaydium/scripts/lib/lib"
-import {redeemResponsesToEvm} from "../xRaydium/scripts/relay"
 import * as wh from "@certusone/wormhole-sdk";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
@@ -54,21 +53,24 @@ export async function relaySolana(
     // );
     // logger.debug("Checking to see if vaa has already been redeemed.");
 
-    // const alreadyRedeemed = await getIsTransferCompletedSolana(
-    //   chainConfigInfo.tokenBridgeAddress,
-    //   signedVaaArray,
-    //   connection
-    // );
-    // if (alreadyRedeemed) {
-    //   logger.info("VAA has already been redeemed!");
-    //   return { redeemed: true, result: "already redeemed" };
-    // }
-    // if (checkOnly) {
-    //   return { redeemed: false, result: "not redeemed" };
-    // }
+    const alreadyRedeemed = await getIsTransferCompletedSolana(
+       chainConfigInfo.tokenBridgeAddress,
+       signedVaaArray,
+       connection
+    );
+    if (alreadyRedeemed) {
+       logger.info("VAA has already been redeemed!");
+       return { redeemed: true, result: "already redeemed" };
+    }
+    if (checkOnly) {
+       return { redeemed: false, result: "not redeemed" };
+    }
     const { parse_vaa } = await importCoreWasm();
     const parsedVAA = parse_vaa(signedVaaArray);
     const payloadBuffer = Buffer.from(parsedVAA.payload);
+    
+    // TODO check if sender is correct, we expect a payload3
+
     let payload3 = parsedVAA["payload"].slice(133);
     let myTransferPayload3 = parseTransferPayload(payloadBuffer) as TransferPayload;
     logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
@@ -82,10 +84,7 @@ export async function relaySolana(
     
     logger.info("\n\n\n=============done relaying to solana...!!!!!!!\n\n\n")
 
-    //await redeemResponsesToEvm(returnSeqs);
-    //logger.info("=============done redeem responses to EVM!!!...!!!")
-
-    return { redeemed: true, result: "redeemed (hypothetically)" };
+    return { redeemed: true, result: "redeemed" };
 }
 
 //relay solana
