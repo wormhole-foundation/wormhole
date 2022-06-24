@@ -41,6 +41,9 @@ import {
  */
 export const isHexNativeTerra = (h: string): boolean => h.startsWith("01");
 
+const isLikely20ByteTerra = (h: string): boolean =>
+  h.startsWith("000000000000000000000000");
+
 export const nativeTerraHexToDenom = (h: string): string =>
   Buffer.from(stripZeros(hexToUint8Array(h.substr(2)))).toString("ascii");
 
@@ -72,7 +75,11 @@ export const tryUint8ArrayToNative = (
     if (isHexNativeTerra(h)) {
       return nativeTerraHexToDenom(h);
     } else {
-      return humanAddress(chainId === CHAIN_ID_TERRA2 ? a : a.slice(-20)); // terra classic expects 20 bytes, not 32
+      if (chainId === CHAIN_ID_TERRA2 && !isLikely20ByteTerra(h)) {
+        // terra 2 has 32 byte addresses for contracts and 20 for wallets
+        return humanAddress(a);
+      }
+      return humanAddress(a.slice(-20));
     }
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);
