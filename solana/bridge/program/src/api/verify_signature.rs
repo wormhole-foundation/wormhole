@@ -36,9 +36,6 @@ pub struct VerifySignatures<'b> {
     pub instruction_acc: Info<'b>,
 }
 
-impl<'b> InstructionContext<'b> for VerifySignatures<'b> {
-}
-
 impl From<&VerifySignatures<'_>> for GuardianSetDerivationData {
     fn from(data: &VerifySignatures<'_>) -> Self {
         GuardianSetDerivationData {

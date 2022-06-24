@@ -67,9 +67,6 @@ pub struct AttestToken<'b> {
     pub clock: Sysvar<'b, Clock>,
 }
 
-impl<'b> InstructionContext<'b> for AttestToken<'b> {
-}
-
 impl<'a> From<&AttestToken<'a>> for WrappedMetaDerivationData {
     fn from(accs: &AttestToken<'a>) -> Self {
         WrappedMetaDerivationData {

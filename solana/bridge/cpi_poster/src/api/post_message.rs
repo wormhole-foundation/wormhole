@@ -30,9 +30,6 @@ pub struct PostMessage<'b> {
     pub bridge_program: Info<'b>,
 }
 
-impl<'b> InstructionContext<'b> for PostMessage<'b> {
-}
-
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct PostMessageData {
     /// Unique nonce for this message
