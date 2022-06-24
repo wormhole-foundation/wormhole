@@ -126,10 +126,6 @@ impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<
         Ok(PayloadMessage(data, payload))
     }
 
-    fn deps() -> Vec<Pubkey> {
-        Data::<'b, PostedVAAData, { AccountState::Initialized }>::deps()
-    }
-
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         Data::persist(&self.0, program_id)
     }

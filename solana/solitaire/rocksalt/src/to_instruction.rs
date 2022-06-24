@@ -26,7 +26,6 @@ pub fn generate_to_instruction(
                 let ty = &field.ty;
 
                 quote! {
-                    deps.append(&mut <#ty as solitaire::Peel>::deps());
                     account_metas.append(&mut <#ty as solitaire_client::Wrap>::wrap(&self.#name)?);
 			if let Some(pair) = <#ty as solitaire_client::Wrap>::keypair(self.#name) {
 			    signers.push(pair);
