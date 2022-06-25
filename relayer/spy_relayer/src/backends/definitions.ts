@@ -1,6 +1,12 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ScopedLogger } from "../helpers/logHelper";
-import { StoreKey, StorePayload, WorkerInfo } from "../helpers/redisHelper";
+import { PromHelper } from "../helpers/promHelpers";
+import {
+  RelayResult,
+  StoreKey,
+  StorePayload,
+  WorkerInfo,
+} from "../helpers/redisHelper";
 
 export const REDIS_RETRY_MS = 10 * 1000;
 export const AUDIT_INTERVAL_MS = 30 * 1000;
@@ -29,11 +35,17 @@ export interface Listener {
 
 /** Relayer is an interface for relaying messages across chains */
 export interface Relayer {
-  /** For the audit thread to confirm the relay is completed and no chain rollbacks or reorgs have occurred */
-  isComplete(): boolean; // For the audit thread
-
   /** Parse the payload and return the target chain id */
   targetChainId(): ChainId;
+
+  /** Relay the signed VAA */
+  relay(
+    signedVAA: string,
+    checkOnly: boolean,
+    walletPrivateKey: any,
+    relayLogger: ScopedLogger,
+    metrics: PromHelper
+  ): Promise<RelayResult>;
 
   /** Process the request to relay a message */
   process(key: string, privKey: any, logger: ScopedLogger): Promise<void>;

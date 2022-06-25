@@ -22,14 +22,19 @@ import {
   storePayloadToJson,
   WorkerInfo,
 } from "../../helpers/redisHelper";
-import { relay } from "../../relayer/relay";
 import { PromHelper } from "../../helpers/promHelpers";
 import { sleep } from "../../helpers/utils";
 import { relayTerra } from "../../relayer/terra";
 import { relaySolana } from "../../relayer/solana";
 import { relayEVM } from "../../relayer/evm";
+import { getRelayerEnvironment } from "../../configureEnv";
 
 let metrics: PromHelper;
+
+function getChainConfigInfo(chainId: ChainId) {
+  const env = getRelayerEnvironment();
+  return env.supportedChains.find((x) => x.chainId === chainId);
+}
 
 /** Relayer for payload 1 token bridge messages only */
 export class TokenBridgeRelayer implements Relayer {
@@ -71,7 +76,7 @@ export class TokenBridgeRelayer implements Relayer {
         } else {
           logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
         }
-        relayResult = await relay(
+        relayResult = await this.relay(
           payload.vaa_bytes,
           false,
           privateKey,
@@ -141,7 +146,7 @@ export class TokenBridgeRelayer implements Relayer {
   }
 
   /** Run one audit thread per worker so that auditors can not block other auditors or workers */
-  async isComplete(workerInfo: WorkerInfo): Promise<void> {
+  async runAuditor(workerInfo: WorkerInfo): Promise<void> {
     const auditLogger = getScopedLogger([
       `audit-worker-${workerInfo.targetChainName}-${workerInfo.index}`,
     ]);
@@ -217,7 +222,7 @@ export class TokenBridgeRelayer implements Relayer {
               auditLogger.debug("Checking for rollback.");
 
               //TODO actually do an isTransferCompleted
-              const rr = await relay(
+              const rr = await this.relay(
                 storePayload.vaa_bytes,
                 true,
                 workerInfo.walletPrivateKey,
