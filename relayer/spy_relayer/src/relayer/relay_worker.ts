@@ -90,7 +90,7 @@ async function spawnWorkerThreads(workerArray: WorkerInfo[]) {
     spawnAuditorThread(workerInfo);
   });
 }
-
+/** Spawn an auditor thread for each (chain, wallet) combo from the backend implementation */
 async function spawnAuditorThread(workerInfo: WorkerInfo) {
   logger.info(
     `Spinning up auditor thread for target chain [${workerInfo.targetChainName}-${workerInfo.index}]`

@@ -1,7 +1,11 @@
 import {
   ChainId,
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+  hexToNativeString,
   hexToUint8Array,
   importCoreWasm,
+  isEVMChain,
   parseTransferPayload,
 } from "@certusone/wormhole-sdk";
 
@@ -21,6 +25,9 @@ import {
 import { relay } from "../../relayer/relay";
 import { PromHelper } from "../../helpers/promHelpers";
 import { sleep } from "../../helpers/utils";
+import { relayTerra } from "../../relayer/terra";
+import { relaySolana } from "../../relayer/solana";
+import { relayEVM } from "../../relayer/evm";
 
 let metrics: PromHelper;
 
@@ -133,20 +140,11 @@ export class TokenBridgeRelayer implements Relayer {
     }
   }
 
-  /** Check if the relay is completed and can't be rolled back due to a chain re-organization */
-  isComplete(): boolean {
-    return true;
-  }
-
-  /** Parse the target chain id from the payload */
-  targetChainId(): ChainId {
-    return 1;
-  }
-
   /** Run one audit thread per worker so that auditors can not block other auditors or workers */
-  async runAuditor(workerInfo: WorkerInfo): Promise<void> {
-    const loggerName = `audit-worker-${workerInfo.targetChainName}-${workerInfo.index}`;
-    const auditLogger = getScopedLogger([loggerName]);
+  async isComplete(workerInfo: WorkerInfo): Promise<void> {
+    const auditLogger = getScopedLogger([
+      `audit-worker-${workerInfo.targetChainName}-${workerInfo.index}`,
+    ]);
     while (true) {
       try {
         let redisClient: any = null;
@@ -262,5 +260,119 @@ export class TokenBridgeRelayer implements Relayer {
         auditLogger.error("spawnAuditorThread: caught exception: " + e);
       }
     }
+  }
+  /** Parse the target chain id from the payload */
+  targetChainId(): ChainId {
+    return 1;
+  }
+
+  async relay(
+    signedVAA: string,
+    checkOnly: boolean,
+    walletPrivateKey: any,
+    relayLogger: ScopedLogger,
+    metrics: PromHelper
+  ): Promise<RelayResult> {
+    const logger = getScopedLogger(["relay"], relayLogger);
+    const { parse_vaa } = await importCoreWasm();
+    const parsedVAA = parse_vaa(hexToUint8Array(signedVAA));
+    if (parsedVAA.payload[0] === 1) {
+      const transferPayload = parseTransferPayload(
+        Buffer.from(parsedVAA.payload)
+      );
+
+      const chainConfigInfo = getChainConfigInfo(transferPayload.targetChain);
+      if (!chainConfigInfo) {
+        logger.error(
+          "relay: improper chain ID: " + transferPayload.targetChain
+        );
+        return {
+          status: Status.FatalError,
+          result:
+            "Fatal Error: target chain " +
+            transferPayload.targetChain +
+            " not supported",
+        };
+      }
+
+      if (isEVMChain(transferPayload.targetChain)) {
+        const unwrapNative =
+          transferPayload.originChain === transferPayload.targetChain &&
+          hexToNativeString(
+            transferPayload.originAddress,
+            transferPayload.originChain
+          )?.toLowerCase() === chainConfigInfo.wrappedAsset?.toLowerCase();
+        logger.debug(
+          "isEVMChain: originAddress: [" +
+            transferPayload.originAddress +
+            "], wrappedAsset: [" +
+            chainConfigInfo.wrappedAsset +
+            "], unwrapNative: " +
+            unwrapNative
+        );
+        let evmResult = await relayEVM(
+          chainConfigInfo,
+          signedVAA,
+          unwrapNative,
+          checkOnly,
+          walletPrivateKey,
+          logger,
+          metrics
+        );
+        return {
+          status: evmResult.redeemed ? Status.Completed : Status.Error,
+          result: evmResult.result.toString(),
+        };
+      }
+
+      if (transferPayload.targetChain === CHAIN_ID_SOLANA) {
+        let rResult: RelayResult = { status: Status.Error, result: "" };
+        const retVal = await relaySolana(
+          chainConfigInfo,
+          signedVAA,
+          checkOnly,
+          walletPrivateKey,
+          logger,
+          metrics
+        );
+        if (retVal.redeemed) {
+          rResult.status = Status.Completed;
+        }
+        rResult.result = retVal.result;
+        return rResult;
+      }
+
+      if (transferPayload.targetChain === CHAIN_ID_TERRA) {
+        let rResult: RelayResult = { status: Status.Error, result: "" };
+        const retVal = await relayTerra(
+          chainConfigInfo,
+          signedVAA,
+          checkOnly,
+          walletPrivateKey,
+          logger,
+          metrics
+        );
+        if (retVal.redeemed) {
+          rResult.status = Status.Completed;
+        }
+        rResult.result = retVal.result;
+        return rResult;
+      }
+
+      logger.error(
+        "relay: target chain ID: " +
+          transferPayload.targetChain +
+          " is invalid, this is a program bug!"
+      );
+
+      return {
+        status: Status.FatalError,
+        result:
+          "Fatal Error: target chain " +
+          transferPayload.targetChain +
+          " is invalid, this is a program bug!",
+      };
+    }
+    return { status: Status.FatalError, result: "ERROR: Invalid payload type" };
   }
 }
