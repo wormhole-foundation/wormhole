@@ -20,7 +20,7 @@ module.exports = {
       provider: () =>
         new HDWalletProvider(
           process.env.MNEMONIC,
-          `https://mainnet.infura.io/v3/` + process.env.INFURA_KEY
+          "https://rpc.ankr.com/eth",
         ),
       network_id: 1,
       gas: 10000000,
@@ -33,7 +33,7 @@ module.exports = {
       provider: () =>
         new HDWalletProvider(
           process.env.MNEMONIC,
-          `https://rinkeby.infura.io/v3/` + process.env.INFURA_KEY
+          "https://rpc.ankr.com/eth_rinkeby",
         ),
       network_id: 4,
       gas: 5500000,
@@ -45,7 +45,7 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://goerli.infura.io/v3/" + process.env.INFURA_KEY
+          "https://rpc.ankr.com/eth_goerli"
         );
       },
       network_id: "5",
@@ -84,7 +84,7 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY
+          "https://rpc.ankr.com/polygon_mumbai",
         );
       },
       network_id: "80001",

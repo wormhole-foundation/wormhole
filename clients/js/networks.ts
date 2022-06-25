@@ -31,7 +31,7 @@ const MAINNET = {
     key: get_env_var("TERRA_MNEMONIC"),
   },
   ethereum: {
-    rpc: `https://mainnet.infura.io/v3/${get_env_var("INFURA_KEY")}`,
+    rpc: `https://rpc.ankr.com/eth`,
     key: get_env_var("ETH_KEY"),
   },
   bsc: {
@@ -39,11 +39,11 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   polygon: {
-    rpc: "https://polygon-rpc.com",
+    rpc: "https://rpc.ankr.com/polygon",
     key: get_env_var("ETH_KEY"),
   },
   avalanche: {
-    rpc: "https://api.avax.network/ext/bc/C/rpc",
+    rpc: "https://rpc.ankr.com/avalanche",
     key: get_env_var("ETH_KEY"),
   },
   algorand: {
@@ -96,7 +96,7 @@ const MAINNET = {
     key: get_env_var("TERRA_MNEMONIC"),
   },
   ropsten: {
-    rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
+    rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY"),
   },
 };
@@ -116,7 +116,7 @@ const TESTNET = {
     key: get_env_var("TERRA_MNEMONIC"),
   },
   ethereum: {
-    rpc: `https://goerli.infura.io/v3/${get_env_var("INFURA_KEY")}`,
+    rpc: `https://rpc.ankr.com/eth_goerli`,
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   bsc: {
@@ -124,11 +124,11 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   polygon: {
-    rpc: `https://polygon-mumbai.infura.io/v3/${get_env_var("INFURA_KEY")}`,
+    rpc: `https://rpc.ankr.com/polygon_mumbai`,
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   avalanche: {
-    rpc: "https://api.avax-test.network/ext/bc/C/rpc",
+    rpc: "https://rpc.ankr.com/avalanche_fuji",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   oasis: {
@@ -181,7 +181,7 @@ const TESTNET = {
     key: get_env_var("TERRA_MNEMONIC"),
   },
   ropsten: {
-    rpc: `https://ropsten.infura.io/v3/${get_env_var("INFURA_KEY")}`,
+    rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY_TESTNET"),
   },
 };
@@ -210,15 +210,15 @@ const DEVNET = {
   },
   polygon: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   avalanche: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   oasis: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   algorand: {
     rpc: undefined,
@@ -226,27 +226,27 @@ const DEVNET = {
   },
   fantom: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   aurora: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   karura: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   acala: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   klaytn: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   celo: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   near: {
     rpc: undefined,
@@ -254,11 +254,11 @@ const DEVNET = {
   },
   moonbeam: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   neon: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   terra2: {
     rpc: "http://localhost:1318",
@@ -267,7 +267,7 @@ const DEVNET = {
   },
   ropsten: {
     rpc: undefined,
-    key: undefined,
+    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
 };
 
