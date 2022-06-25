@@ -497,29 +497,6 @@ if explorer:
         trigger_mode = trigger_mode,
     )
 
-    # explorer web app
-    docker_build(
-        ref = "explorer",
-        context = "./explorer",
-        dockerfile = "./explorer/Dockerfile",
-        ignore = ["./explorer/node_modules"],
-        live_update = [
-            sync("./explorer/src", "/home/node/app/src"),
-            sync("./explorer/public", "/home/node/app/public"),
-        ],
-    )
-
-    k8s_yaml_with_ns("devnet/explorer.yaml")
-
-    k8s_resource(
-        "explorer",
-        port_forwards = [
-            port_forward(8001, name = "Explorer Web UI [:8001]", host = webHost),
-        ],
-        labels = ["explorer"],
-        trigger_mode = trigger_mode,
-    )
-
 # terra devnet
 
 docker_build(

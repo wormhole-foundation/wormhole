@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1867.323" height="1841.268" viewBox="0 0 1867.323 1841.268">
-  <defs>
-    <radialGradient id="radial-gradient" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
-      <stop offset="0" stop-color="#5189c8"/>
-      <stop offset="1" stop-color="#5189c8" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <ellipse id="Ellipse_98" data-name="Ellipse 98" cx="568.484" cy="744.5" rx="568.484" ry="744.5" transform="translate(1106.543) rotate(48)" opacity="0.697" fill="url(#radial-gradient)"/>
-</svg>
