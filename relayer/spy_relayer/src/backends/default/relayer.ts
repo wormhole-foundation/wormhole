@@ -5,19 +5,22 @@ import {
   parseTransferPayload,
 } from "@certusone/wormhole-sdk";
 
-import { Relayer } from "../definitions";
+import { REDIS_RETRY_MS, AUDIT_INTERVAL_MS, Relayer } from "../definitions";
 import { getScopedLogger, ScopedLogger } from "../../helpers/logHelper";
 import {
   connectToRedis,
   RedisTables,
   RelayResult,
+  resetPayload,
   Status,
   StorePayload,
   storePayloadFromJson,
   storePayloadToJson,
+  WorkerInfo,
 } from "../../helpers/redisHelper";
 import { relay } from "../../relayer/relay";
 import { PromHelper } from "../../helpers/promHelpers";
+import { sleep } from "../../helpers/utils";
 
 let metrics: PromHelper;
 
@@ -129,6 +132,7 @@ export class TokenBridgeRelayer implements Relayer {
       logger.error(e);
     }
   }
+
   /** Check if the relay is completed and can't be rolled back due to a chain re-organization */
   isComplete(): boolean {
     return true;
@@ -137,5 +141,126 @@ export class TokenBridgeRelayer implements Relayer {
   /** Parse the target chain id from the payload */
   targetChainId(): ChainId {
     return 1;
+  }
+
+  /** Run one audit thread per worker so that auditors can not block other auditors or workers */
+  async runAuditor(workerInfo: WorkerInfo): Promise<void> {
+    const loggerName = `audit-worker-${workerInfo.targetChainName}-${workerInfo.index}`;
+    const auditLogger = getScopedLogger([loggerName]);
+    while (true) {
+      try {
+        let redisClient: any = null;
+        while (!redisClient) {
+          redisClient = await connectToRedis();
+          if (!redisClient) {
+            auditLogger.error("Failed to connect to redis!");
+            await sleep(REDIS_RETRY_MS);
+          }
+        }
+        await redisClient.select(RedisTables.WORKING);
+        for await (const si_key of redisClient.scanIterator()) {
+          const si_value = await redisClient.get(si_key);
+          if (!si_value) {
+            continue;
+          }
+
+          const storePayload: StorePayload = storePayloadFromJson(si_value);
+          try {
+            const { parse_vaa } = await importCoreWasm();
+            const parsedVAA = parse_vaa(
+              hexToUint8Array(storePayload.vaa_bytes)
+            );
+            const payloadBuffer: Buffer = Buffer.from(parsedVAA.payload);
+            const transferPayload = parseTransferPayload(payloadBuffer);
+
+            const chain = transferPayload.targetChain;
+            if (chain !== workerInfo.targetChainId) {
+              continue;
+            }
+          } catch (e) {
+            auditLogger.error("Failed to parse a stored VAA: " + e);
+            auditLogger.error("si_value of failure: " + si_value);
+            continue;
+          }
+          auditLogger.debug(
+            "key %s => status: %s, timestamp: %s, retries: %d",
+            si_key,
+            Status[storePayload.status],
+            storePayload.timestamp,
+            storePayload.retries
+          );
+          // Let things sit in here for 10 minutes
+          // After that:
+          //    - Toss totally failed VAAs
+          //    - Check to see if successful transactions were rolled back
+          //    - Put roll backs into INCOMING table
+          //    - Toss legitimately completed transactions
+          const now = new Date();
+          const old = new Date(storePayload.timestamp);
+          const timeDelta = now.getTime() - old.getTime(); // delta is in mS
+          const TEN_MINUTES = 600000;
+          auditLogger.debug(
+            "Checking timestamps:  now: " +
+              now.toISOString() +
+              ", old: " +
+              old.toISOString() +
+              ", delta: " +
+              timeDelta
+          );
+          if (timeDelta > TEN_MINUTES) {
+            // Deal with this item
+            if (storePayload.status === Status.FatalError) {
+              // Done with this failed transaction
+              auditLogger.debug("Discarding FatalError.");
+              await redisClient.del(si_key);
+              continue;
+            } else if (storePayload.status === Status.Completed) {
+              // Check for rollback
+              auditLogger.debug("Checking for rollback.");
+
+              //TODO actually do an isTransferCompleted
+              const rr = await relay(
+                storePayload.vaa_bytes,
+                true,
+                workerInfo.walletPrivateKey,
+                auditLogger,
+                metrics
+              );
+
+              await redisClient.del(si_key);
+              if (rr.status === Status.Completed) {
+                metrics.incConfirmed(workerInfo.targetChainId);
+              } else {
+                auditLogger.info("Detected a rollback on " + si_key);
+                metrics.incRollback(workerInfo.targetChainId);
+                // Remove this item from the WORKING table and move it to INCOMING
+                await redisClient.select(RedisTables.INCOMING);
+                await redisClient.set(
+                  si_key,
+                  storePayloadToJson(
+                    resetPayload(storePayloadFromJson(si_value))
+                  )
+                );
+                await redisClient.select(RedisTables.WORKING);
+              }
+            } else if (storePayload.status === Status.Error) {
+              auditLogger.error("Received Error status.");
+              continue;
+            } else if (storePayload.status === Status.Pending) {
+              auditLogger.error("Received Pending status.");
+              continue;
+            } else {
+              auditLogger.error("Unhandled Status of " + storePayload.status);
+              continue;
+            }
+          }
+        }
+        redisClient.quit();
+        // metrics.setDemoWalletBalance(now.getUTCSeconds());
+        await sleep(AUDIT_INTERVAL_MS);
+      } catch (e) {
+        auditLogger.error("spawnAuditorThread: caught exception: " + e);
+      }
+    }
   }
 }
