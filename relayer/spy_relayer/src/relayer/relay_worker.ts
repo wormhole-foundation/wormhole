@@ -9,7 +9,6 @@ import {
   demoteWorkingRedis,
   monitorRedis,
   RedisTables,
-  resetPayload,
   Status,
   StorePayload,
   storePayloadFromJson,
@@ -17,14 +16,11 @@ import {
   WorkerInfo,
 } from "../helpers/redisHelper";
 import { sleep } from "../helpers/utils";
-import { relay } from "./relay";
 import { getBackend } from "../backends";
 
 const WORKER_THREAD_RESTART_MS = 10 * 1000;
 const AUDITOR_THREAD_RESTART_MS = 10 * 1000;
-const AUDIT_INTERVAL_MS = 30 * 1000;
 const WORKER_INTERVAL_MS = 5 * 1000;
-const REDIS_RETRY_MS = 10 * 1000;
 
 let metrics: PromHelper;
 
