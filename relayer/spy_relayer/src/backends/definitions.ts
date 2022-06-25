@@ -1,7 +1,9 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ScopedLogger } from "../helpers/logHelper";
-import { PromHelper } from "../helpers/promHelpers";
-import { StoreKey, StorePayload } from "../helpers/redisHelper";
+import { StoreKey, StorePayload, WorkerInfo } from "../helpers/redisHelper";
+
+export const REDIS_RETRY_MS = 10 * 1000;
+export const AUDIT_INTERVAL_MS = 30 * 1000;
 
 /** TypedFilter is used by subscribeSignedVAA to filter messages returned by the guardian spy */
 export interface TypedFilter {
@@ -35,6 +37,9 @@ export interface Relayer {
 
   /** Process the request to relay a message */
   process(key: string, privKey: any, logger: ScopedLogger): Promise<void>;
+
+  /** Run and auditor to ensure the relay was not rolled back due to a chain reorg */
+  runAuditor(workerInfo: WorkerInfo): Promise<void>;
 }
 
 /** Backend is the interface necessary to implement for custom relayers */
