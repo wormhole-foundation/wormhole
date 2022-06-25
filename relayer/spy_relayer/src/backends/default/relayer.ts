@@ -78,15 +78,13 @@ export class TokenBridgeRelayer implements Relayer {
 
         relayResult = {
           status: Status.Error,
-          result: "Failure",
+          result: e && e?.message !== undefined ? e.message : "Failure",
         };
-        if (e && e.message) {
-          relayResult.result = e.message;
-        }
       }
 
       const MAX_RETRIES = 10;
-      let targetChain: any = 0; // 0 is unspecified, but not covered by the SDK
+      // ChainId 0 denotes an undefined chain
+      let targetChain: ChainId = 0;
       try {
         const { parse_vaa } = await importCoreWasm();
         const parsedVAA = parse_vaa(hexToUint8Array(payload.vaa_bytes));
