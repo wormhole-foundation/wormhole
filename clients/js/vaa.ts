@@ -148,6 +148,10 @@ export function serialiseVAA(vaa: VAA<Payload>) {
     return body.join("")
 }
 
+export function vaaDigest(vaa: VAA<Payload>) {
+  return solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + vaaBody(vaa)])])
+}
+
 function vaaBody(vaa: VAA<Payload>) {
     let payload = vaa.payload
     let payload_str: string
@@ -187,8 +191,7 @@ function vaaBody(vaa: VAA<Payload>) {
 }
 
 export function sign(signers: string[], vaa: VAA<Payload>): Signature[] {
-    const body = vaaBody(vaa)
-    const hash = solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + body])])
+    const hash = vaaDigest(vaa)
     const ec = new elliptic.ec("secp256k1")
 
     return signers.map((signer, i) => {
@@ -283,7 +286,7 @@ const coreContractUpgradeParser: P<CoreContractUpgrade> =
             length: 32,
             encoding: "hex",
             assert: Buffer.from("Core").toString("hex").padStart(64, "0"),
-            formatter: (_str) => module
+            formatter: (_str) => "Core"
         })
         .uint8("type", {
             assert: 1,
@@ -416,26 +419,32 @@ export function impossible(a: never): any {
 ////////////////////////////////////////////////////////////////////////////////
 // Encoder utils
 
-type Encoding
+export type Encoding
     = "uint8"
     | "uint16"
     | "uint32"
     | "uint64"
+    | "uint128"
+    | "uint256"
     | "bytes32"
+    | "address"
 
-function typeWidth(type: Encoding): number {
+export function typeWidth(type: Encoding): number {
     switch (type) {
         case "uint8": return 1
         case "uint16": return 2
         case "uint32": return 4
         case "uint64": return 8
+        case "uint128": return 16
+        case "uint256": return 32
         case "bytes32": return 32
+        case "address": return 20
     }
 }
 
 // Couldn't find a satisfactory binary serialisation solution, so we just use
 // the ethers library's encoding logic
-function encode(type: Encoding, val: any): string {
+export function encode(type: Encoding, val: any): string {
     // ethers operates on hex strings (sigh) and left pads everything to 32
     // bytes (64 characters). We take last 2*n characters where n is the width
     // of the type being serialised in bytes (since a byte is represented as 2
@@ -445,6 +454,6 @@ function encode(type: Encoding, val: any): string {
 
 // Encode a string as binary left-padded to 32 bytes, represented as a hex
 // string (64 chars long)
-function encodeString(str: string): Buffer {
+export function encodeString(str: string): Buffer {
     return Buffer.from(Buffer.from(str).toString("hex").padStart(64, "0"), "hex")
 }
