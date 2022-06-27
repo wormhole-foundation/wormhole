@@ -251,7 +251,7 @@ pub fn upgrade_contract(
     sequence: u64,
 ) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Initialized }>::key(None, &program_id);
-    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+    let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,
@@ -305,7 +305,7 @@ pub fn upgrade_guardian_set(
     sequence: u64,
 ) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+    let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,
@@ -354,7 +354,7 @@ pub fn set_fees(
     sequence: u64,
 ) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+    let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,
@@ -389,7 +389,7 @@ pub fn transfer_fees(
     recipient: Pubkey,
 ) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+    let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,

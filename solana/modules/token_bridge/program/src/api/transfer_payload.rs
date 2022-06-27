@@ -48,8 +48,8 @@ use super::{
 #[repr(transparent)]
 pub struct SenderAccount<'b>(pub MaybeMut<Signer<Info<'b>>>);
 
-impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for SenderAccount<'b> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
+impl<'a, 'b: 'a> Peel<'a, 'b> for SenderAccount<'b> {
+    fn peel<I>(ctx: &mut Context<'a, 'b, I>) -> Result<Self>
     where
         Self: Sized,
     {

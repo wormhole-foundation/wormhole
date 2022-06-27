@@ -7,10 +7,7 @@ use crate::{
         InvalidGovernanceAction,
         InvalidGovernanceChain,
         InvalidGovernanceModule,
-        VAAAlreadyExecuted,
     },
-    Claim,
-    ClaimDerivationData,
     PostedVAAData,
     Result,
     CHAIN_ID_SOLANA,
@@ -28,12 +25,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solitaire::{
-    processors::seeded::Seeded,
-    trace,
     Context,
-    CreationLamports::Exempt,
     Data,
-    ExecutionContext,
     Peel,
     SolitaireError,
     *,
@@ -145,78 +138,6 @@ impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
 
     pub fn info(&self) -> AccountInfo<'b> {
         self.0.info().clone()
-    }
-}
-
-/// Claim account to prevent double spending.
-pub struct ClaimableVAA<'b>(Mut<Claim<'b, { AccountState::Uninitialized }>>);
-
-impl<'a, 'b: 'a> Peel<'a, 'b> for ClaimableVAA<'b> {
-    fn peel<I>(ctx: &mut Context<'a, 'b, I>) -> Result<Self> {
-        Mut::<Claim<'b, { AccountState::Uninitialized }>>::peel(ctx).map(|c| Self(c))
-    }
-
-    fn persist(&self, program_id: &Pubkey) -> Result<()> {
-        Mut::<Claim<'b, { AccountState::Uninitialized }>>::persist(&self.0, program_id)
-    }
-}
-
-impl<'b> ClaimableVAA<'b> {
-    pub fn verify<T>(&self, ctx: &ExecutionContext, message: &PayloadMessage<'b, T>) -> Result<()>
-    where
-        T: DeserializePayload,
-    {
-        trace!("Seq: {}", message.meta().sequence);
-
-        // Verify that the claim account is derived correctly
-        self.0.verify_derivation(
-            ctx.program_id,
-            &ClaimDerivationData {
-                emitter_address: message.meta().emitter_address,
-                emitter_chain: message.meta().emitter_chain,
-                sequence: message.meta().sequence,
-            },
-        )?;
-
-        Ok(())
-    }
-
-    pub fn is_claimed(&self) -> bool {
-        self.0.claimed
-    }
-
-    pub fn claim<T>(
-        &mut self,
-        ctx: &ExecutionContext,
-        payer: &Pubkey,
-        message: &PayloadMessage<'b, T>,
-    ) -> Result<()>
-    where
-        T: DeserializePayload,
-    {
-        // Verify that the claim account is derived correctly before claiming.
-        self.verify(ctx, message)?;
-
-        // Exit if the claim has already been made.
-        if self.is_claimed() {
-            return Err(VAAAlreadyExecuted.into());
-        }
-
-        // Claim the account by initializing it with a true boolean.
-        self.0.create(
-            &ClaimDerivationData {
-                emitter_address: message.meta().emitter_address,
-                emitter_chain: message.meta().emitter_chain,
-                sequence: message.meta().sequence,
-            },
-            ctx,
-            payer,
-            Exempt,
-        )?;
-
-        self.0.claimed = true;
-
-        Ok(())
     }
 }
 
