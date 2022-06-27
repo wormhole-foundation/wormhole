@@ -180,6 +180,49 @@ func ChainIDFromString(s string) (ChainID, error) {
 	}
 }
 
+func ChainIDFromInt(num uint16) (ChainID, error) {
+	switch num {
+	case 1:
+		return ChainIDSolana, nil
+	case 2:
+		return ChainIDEthereum, nil
+	case 3:
+		return ChainIDTerra, nil
+	case 4:
+		return ChainIDBSC, nil
+	case 5:
+		return ChainIDPolygon, nil
+	case 6:
+		return ChainIDAvalanche, nil
+	case 7:
+		return ChainIDOasis, nil
+	case 8:
+		return ChainIDAlgorand, nil
+	case 9:
+		return ChainIDAurora, nil
+	case 10:
+		return ChainIDFantom, nil
+	case 11:
+		return ChainIDKarura, nil
+	case 12:
+		return ChainIDAcala, nil
+	case 13:
+		return ChainIDKlaytn, nil
+	case 14:
+		return ChainIDCelo, nil
+	case 16:
+		return ChainIDMoonbeam, nil
+	case 17:
+		return ChainIDNeon, nil
+	case 18:
+		return ChainIDTerra2, nil
+	case 10001:
+		return ChainIDEthereumRopsten, nil
+	default:
+		return ChainIDUnset, fmt.Errorf("unknown chain ID: %v", num)
+	}
+}
+
 const (
 	ChainIDUnset ChainID = 0
 	// ChainIDSolana is the ChainID of Solana

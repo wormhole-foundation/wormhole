@@ -159,6 +159,55 @@ func TestChainId_String(t *testing.T) {
 	}
 }
 
+func TestChainIdInt(t *testing.T) {
+	type test struct {
+		input     uint16
+		output    ChainID
+		errString string
+	}
+
+	tests := []test{
+		{input: 0, output: ChainIDUnset, errString: "unknown chain ID: 0"},
+		{input: 1, output: ChainIDSolana, errString: ""},
+		{input: 2, output: ChainIDEthereum, errString: ""},
+		{input: 3, output: ChainIDTerra, errString: ""},
+		{input: 4, output: ChainIDBSC, errString: ""},
+		{input: 5, output: ChainIDPolygon, errString: ""},
+		{input: 6, output: ChainIDAvalanche, errString: ""},
+		{input: 7, output: ChainIDOasis, errString: ""},
+		{input: 8, output: ChainIDAlgorand, errString: ""},
+		{input: 9, output: ChainIDAurora, errString: ""},
+		{input: 10, output: ChainIDFantom, errString: ""},
+		{input: 11, output: ChainIDKarura, errString: ""},
+		{input: 12, output: ChainIDAcala, errString: ""},
+		{input: 13, output: ChainIDKlaytn, errString: ""},
+		{input: 14, output: ChainIDCelo, errString: ""},
+		{input: 16, output: ChainIDMoonbeam, errString: ""},
+		{input: 17, output: ChainIDNeon, errString: ""},
+		{input: 18, output: ChainIDTerra2, errString: ""},
+		{input: 10001, output: ChainIDEthereumRopsten, errString: ""},
+		{input: 19, output: ChainIDUnset, errString: "unknown chain ID: 19"},
+		{input: 20, output: ChainIDUnset, errString: "unknown chain ID: 20"},
+		{input: 21, output: ChainIDUnset, errString: "unknown chain ID: 21"},
+		{input: 22, output: ChainIDUnset, errString: "unknown chain ID: 22"},
+		{input: 23, output: ChainIDUnset, errString: "unknown chain ID: 23"},
+		{input: 24, output: ChainIDUnset, errString: "unknown chain ID: 24"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.output.String(), func(t *testing.T) {
+			chainId, err := ChainIDFromInt(tc.input)
+			assert.Equal(t, tc.output, chainId)
+
+			if len(tc.errString) > 0 {
+				assert.Equal(t, tc.errString, err.Error())
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func getVaa() VAA {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}

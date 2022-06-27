@@ -64,6 +64,7 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
 	}
 
+	// Address input validation
 	address, err := hex.DecodeString(req.MessageId.EmitterAddress)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode address: %v", err))
@@ -74,6 +75,17 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 
 	addr := vaa.Address{}
 	copy(addr[:], address)
+
+	// Chain input validation
+	chainId, err := vaa.ChainIDFromInt(uint16(req.MessageId.EmitterChain))
+	if err != nil || chainId == vaa.ChainIDUnset {
+		return nil, status.Error(codes.InvalidArgument, "invalid chain specified")
+	}
+
+	// Sequence input validation
+	if req.MessageId.Sequence == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no sequence specified")
+	}
 
 	b, err := s.db.GetSignedVAABytes(db.VAAID{
 		EmitterChain:   vaa.ChainID(req.MessageId.EmitterChain.Number()),
