@@ -145,6 +145,7 @@ async fn bridge_messages() {
             program,
             payer,
             &emitter,
+            None,
             nonce,
             message.clone(),
             10_000,
@@ -153,15 +154,15 @@ async fn bridge_messages() {
         .unwrap();
 
         let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
-        assert_eq!(posted_message.0.vaa_version, 0);
-        assert_eq!(posted_message.0.consistency_level, 1);
-        assert_eq!(posted_message.0.nonce, nonce);
-        assert_eq!(posted_message.0.sequence, sequence);
-        assert_eq!(posted_message.0.emitter_chain, 1);
-        assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-        assert_eq!(posted_message.0.payload, message);
+        assert_eq!(posted_message.message.vaa_version, 0);
+        assert_eq!(posted_message.message.consistency_level, 1);
+        assert_eq!(posted_message.message.nonce, nonce);
+        assert_eq!(posted_message.message.sequence, sequence);
+        assert_eq!(posted_message.message.emitter_chain, 1);
+        assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+        assert_eq!(posted_message.message.payload, message);
         assert_eq!(
-            posted_message.0.emitter_address,
+            posted_message.message.emitter_address,
             emitter.pubkey().to_bytes()
         );
 
@@ -192,20 +193,20 @@ async fn bridge_messages() {
         let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
         // Verify on chain Message
-        assert_eq!(posted_message.0.vaa_version, 0);
+        assert_eq!(posted_message.message.vaa_version, 0);
         assert_eq!(
-            posted_message.0.consistency_level,
+            posted_message.message.consistency_level,
             ConsistencyLevel::Confirmed as u8
         );
-        assert_eq!(posted_message.0.vaa_time, vaa_time);
-        assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-        assert_eq!(posted_message.0.nonce, nonce);
-        assert_eq!(posted_message.0.sequence, sequence);
-        assert_eq!(posted_message.0.emitter_chain, 1);
-        assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-        assert_eq!(posted_message.0.payload, message);
+        assert_eq!(posted_message.message.vaa_time, vaa_time);
+        assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+        assert_eq!(posted_message.message.nonce, nonce);
+        assert_eq!(posted_message.message.sequence, sequence);
+        assert_eq!(posted_message.message.emitter_chain, 1);
+        assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+        assert_eq!(posted_message.message.payload, message);
         assert_eq!(
-            posted_message.0.emitter_address,
+            posted_message.message.emitter_address,
             emitter.pubkey().to_bytes()
         );
 
@@ -229,6 +230,7 @@ async fn bridge_messages() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -237,15 +239,15 @@ async fn bridge_messages() {
     .unwrap();
 
     let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
-    assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.consistency_level, 1);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.consistency_level, 1);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -274,20 +276,20 @@ async fn bridge_messages() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 0);
     assert_eq!(
-        posted_message.0.consistency_level,
+        posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
     );
-    assert_eq!(posted_message.0.vaa_time, vaa_time);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_time, vaa_time);
+    assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -298,6 +300,166 @@ async fn bridge_messages() {
     for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         assert!(*signature);
     }
+}
+
+// Make sure that posting messages with account reuse works and only accepts messages with the same
+// length.
+#[tokio::test]
+async fn test_bridge_messages_unreliable() {
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+
+    // Data/Nonce used for emitting a message we want to prove exists. Run this twice to make sure
+    // that duplicate data does not clash.
+    let emitter = Keypair::new();
+    let message_key = Keypair::new();
+
+    for _ in 0..2 {
+        let nonce = rand::thread_rng().gen();
+        let message: [u8; 32] = rand::thread_rng().gen();
+        let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+        // Post the message, publishing the data for guardian consumption.
+        common::post_message_unreliable(
+            client,
+            program,
+            payer,
+            &emitter,
+            &message_key,
+            nonce,
+            message.to_vec(),
+            10_000,
+        )
+        .await
+        .unwrap();
+
+        // Verify on chain Message
+        let posted_message: PostedVAAData =
+            common::get_account_data(client, message_key.pubkey()).await;
+        assert_eq!(posted_message.message.vaa_version, 0);
+        assert_eq!(posted_message.message.nonce, nonce);
+        assert_eq!(posted_message.message.sequence, sequence);
+        assert_eq!(posted_message.message.emitter_chain, 1);
+        assert_eq!(posted_message.message.payload, message);
+        assert_eq!(
+            posted_message.message.emitter_address,
+            emitter.pubkey().to_bytes()
+        );
+
+        // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
+        let (vaa, body, body_hash) =
+            common::generate_vaa(&emitter, message.to_vec(), nonce, sequence, 0, 1);
+        let signature_set =
+            common::verify_signatures(client, program, payer, body, &context.secret, 0)
+                .await
+                .unwrap();
+        common::post_vaa(client, program, payer, signature_set, vaa)
+            .await
+            .unwrap();
+        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+            &PostedVAADerivationData {
+                payload_hash: body.to_vec(),
+            },
+            program,
+        );
+        common::sync(client, payer).await;
+
+        // Fetch chain accounts to verify state.
+        let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
+        let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
+
+        // Verify on chain vaa
+        assert_eq!(posted_message.message.vaa_version, 0);
+        assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+        assert_eq!(posted_message.message.nonce, nonce);
+        assert_eq!(posted_message.message.sequence, sequence);
+        assert_eq!(posted_message.message.emitter_chain, 1);
+        assert_eq!(posted_message.message.payload, message);
+        assert_eq!(
+            posted_message.message.emitter_address,
+            emitter.pubkey().to_bytes()
+        );
+
+        // Verify on chain Signatures
+        assert_eq!(signatures.hash, body);
+        assert_eq!(signatures.guardian_set_index, 0);
+
+        for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+            assert_eq!(*signature, true);
+        }
+    }
+
+    // Make sure that posting a message with a different length fails (<len)
+    let nonce = rand::thread_rng().gen();
+    let message: [u8; 16] = rand::thread_rng().gen();
+
+    assert!(common::post_message_unreliable(
+        client,
+        program,
+        payer,
+        &emitter,
+        &message_key,
+        nonce,
+        message.to_vec(),
+        10_000,
+    )
+    .await
+    .is_err());
+
+    // Make sure that posting a message with a different length fails (>len)
+    let nonce = rand::thread_rng().gen();
+    let message: [u8; 128] = [0u8; 128];
+
+    assert!(common::post_message_unreliable(
+        client,
+        program,
+        payer,
+        &emitter,
+        &message_key,
+        nonce,
+        message.to_vec(),
+        10_000,
+    )
+    .await
+    .is_err());
+}
+
+#[tokio::test]
+async fn test_bridge_messages_unreliable_do_not_override_reliable() {
+    let (ref mut _context, ref mut client, ref payer, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let message_key = Keypair::new();
+
+    let nonce = rand::thread_rng().gen();
+    let message: [u8; 32] = rand::thread_rng().gen();
+
+    // Post the message using the reliable method
+    common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        Some(&message_key),
+        nonce,
+        message.to_vec(),
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    // Make sure that posting an unreliable message to the same message account fails
+    assert!(common::post_message_unreliable(
+        client,
+        program,
+        payer,
+        &emitter,
+        &message_key,
+        nonce,
+        message.to_vec(),
+        10_000,
+    )
+    .await
+    .is_err());
 }
 
 // Make sure that solitaire can claim accounts that already hold lamports so the protocol can't be
@@ -363,13 +525,13 @@ async fn test_bridge_message_prefunded_account() {
 
     // Verify on chain Message
     let posted_message: PostedVAAData = common::get_account_data(client, message.pubkey()).await;
-    assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(posted_message.0.payload, payload);
+    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(posted_message.message.payload, payload);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 }
@@ -448,6 +610,7 @@ async fn guardian_set_change() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -456,15 +619,15 @@ async fn guardian_set_change() {
     .unwrap();
 
     let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
-    assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.consistency_level, 1);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.consistency_level, 1);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -510,20 +673,20 @@ async fn guardian_set_change() {
     let guardian_set: GuardianSetData = common::get_account_data(client, guardian_set_key).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 0);
     assert_eq!(
-        posted_message.0.consistency_level,
+        posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
     );
-    assert_eq!(posted_message.0.vaa_time, vaa_time);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_time, vaa_time);
+    assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -544,6 +707,7 @@ async fn guardian_set_change() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -577,19 +741,19 @@ async fn guardian_set_change() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 0);
     assert_eq!(
-        posted_message.0.consistency_level,
+        posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
     );
-    assert_eq!(posted_message.0.vaa_time, vaa_time);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_time, vaa_time);
+    assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -626,6 +790,7 @@ async fn guardian_set_change_fails() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -666,6 +831,7 @@ async fn set_fees() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -705,7 +871,7 @@ async fn set_fees() {
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
     assert!(
-        common::post_message(client, program, payer, &emitter, nonce, message.clone(), 50)
+        common::post_message(client, program, payer, &emitter, None, nonce, message.clone(), 50)
             .await
             .is_err()
     );
@@ -726,6 +892,7 @@ async fn set_fees() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         100,
@@ -761,20 +928,20 @@ async fn set_fees() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 0);
     assert_eq!(
-        posted_message.0.consistency_level,
+        posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
     );
-    assert_eq!(posted_message.0.vaa_time, vaa_time);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_time, vaa_time);
+    assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -808,6 +975,7 @@ async fn set_fees_fails() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -856,6 +1024,7 @@ async fn free_fees() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -896,7 +1065,7 @@ async fn free_fees() {
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
     let _message_key =
-        common::post_message(client, program, payer, &emitter, nonce, message.clone(), 0)
+        common::post_message(client, program, payer, &emitter, None, nonce, message.clone(), 0)
             .await
             .unwrap();
 
@@ -928,20 +1097,20 @@ async fn free_fees() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 0);
     assert_eq!(
-        posted_message.0.consistency_level,
+        posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
     );
-    assert_eq!(posted_message.0.vaa_time, vaa_time);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(&posted_message.0.emitter_address, emitter.pubkey().as_ref());
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_time, vaa_time);
+    assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 1);
+    assert_eq!(&posted_message.message.emitter_address, emitter.pubkey().as_ref());
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -977,6 +1146,7 @@ async fn transfer_fees() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -1038,6 +1208,7 @@ async fn transfer_fees_fails() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -1097,6 +1268,7 @@ async fn transfer_too_much() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -1167,14 +1339,14 @@ async fn foreign_bridge_messages() {
     let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
-    assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 2);
-    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.message.nonce, nonce);
+    assert_eq!(posted_message.message.sequence, sequence);
+    assert_eq!(posted_message.message.emitter_chain, 2);
+    assert_eq!(posted_message.message.payload, message);
     assert_eq!(
-        posted_message.0.emitter_address,
+        posted_message.message.emitter_address,
         emitter.pubkey().to_bytes()
     );
 
@@ -1214,6 +1386,7 @@ async fn transfer_total_fails() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,
@@ -1278,6 +1451,7 @@ async fn upgrade_contract() {
         program,
         payer,
         &emitter,
+        None,
         nonce,
         message.clone(),
         10_000,

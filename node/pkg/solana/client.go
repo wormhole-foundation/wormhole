@@ -87,8 +87,9 @@ func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 }
 
 const (
-	postMessageInstructionNumAccounts = 9
-	postMessageInstructionID          = 0x01
+	postMessageInstructionNumAccounts  = 9
+	postMessageInstructionID           = 0x01
+	postMessageUnreliableInstructionID = 0x08
 )
 
 // PostMessageData represents the user-supplied, untrusted instruction data
@@ -387,7 +388,11 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, nil
 	}
 
-	if inst.Data[0] != postMessageInstructionID {
+	if len(inst.Data) == 0 {
+		return false, nil
+	}
+
+	if inst.Data[0] != postMessageInstructionID && inst.Data[0] != postMessageUnreliableInstructionID {
 		return false, nil
 	}
 
