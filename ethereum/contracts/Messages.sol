@@ -131,6 +131,16 @@ contract Messages is Getters {
         observation.payload = encodedObservation.slice(index, length - consumed);
     }
 
+    function parseSizedObservation(
+        bytes memory encodedObservation
+    ) internal pure returns (Structs.SizedObservation memory sizedObservation) {
+        uint256 index = 0;
+        sizedObservation.size = encodedObservation.toUint32(0);
+        index += 4;
+        sizedObservation.observation =
+            parseObservation(index, sizedObservation.size - index, encodedObservation);
+    }
+
     function parseSignatures(
         uint256 start,
         uint256 signersLen,
@@ -150,6 +160,7 @@ contract Messages is Getters {
             index += 1;
         }
     }
+
 
     /**
      * @dev parseVM serves to parse an encodedVM into a vm struct
@@ -186,6 +197,39 @@ contract Messages is Getters {
         vm.sequence = observation.sequence;
         vm.consistencyLevel = observation.consistencyLevel;
         vm.payload = observation.payload;
+    }
+
+    function parseVM2(bytes memory encodedVM) public pure virtual returns (Structs.VM2 memory vm) {
+        uint256 index = 0;
+
+        vm.header.version = encodedVM.toUint8(index);
+        index += 1;
+        require(vm.header.version == 2, "VM version incompatible");
+
+        vm.header.guardianSetIndex = encodedVM.toUint32(index);
+        index += 4;
+
+        // Parse Signatures
+        uint256 signersLen = encodedVM.toUint8(index);
+        index += 1;
+
+        vm.header.signatures = parseSignatures(index, signersLen, encodedVM);
+        index += 66*signersLen;
+
+        uint8 hashesLen = encodedVM.toUint8(index);
+
+        // hash the hashes
+        bytes memory body = encodedVM.slice(index, hashesLen * 32);
+        vm.header.hash = keccak256(abi.encodePacked(keccak256(body)));
+
+        // parse hashes
+        vm.header.hashes = new bytes32[](hashesLen);
+        for (uint8 i = 0; i < hashesLen; i++) {
+            vm.header.hashes[i] = encodedVM.toBytes32(index);
+            index += 32;
+        }
+
+        // TODO: handle observations
     }
 
     /**
