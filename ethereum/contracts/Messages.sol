@@ -99,12 +99,44 @@ contract Messages is Getters {
         return (true, "");
     }
 
+    function parseObservation(
+        uint256 start,
+        uint256 length,
+        bytes memory encodedObservation
+    ) internal pure returns (Structs.Observation memory observation) {
+        uint256 index = start;
+
+        observation.timestamp = encodedObservation.toUint32(index);
+        index += 4;
+
+        observation.nonce = encodedObservation.toUint32(index);
+        index += 4;
+
+        observation.emitterChainId = encodedObservation.toUint16(index);
+        index += 2;
+
+        observation.emitterAddress = encodedObservation.toBytes32(index);
+        index += 32;
+
+        observation.sequence = encodedObservation.toUint64(index);
+        index += 8;
+
+        observation.consistencyLevel = encodedObservation.toUint8(index);
+        index += 1;
+
+        uint256 consumed = index - start;
+
+        require(length >= consumed, "Insufficient observation length");
+
+        observation.payload = encodedObservation.slice(index, length - consumed);
+    }
+
     /**
      * @dev parseVM serves to parse an encodedVM into a vm struct
      *  - it intentionally performs no validation functions, it simply parses raw into a struct
      */
     function parseVM(bytes memory encodedVM) public pure virtual returns (Structs.VM memory vm) {
-        uint index = 0;
+        uint256 index = 0;
 
         vm.version = encodedVM.toUint8(index);
         index += 1;
@@ -133,26 +165,16 @@ contract Messages is Getters {
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
-        // Parse the body
-        vm.timestamp = encodedVM.toUint32(index);
-        index += 4;
+        // TODO: we could optimise gas here by manually inlining these functions if need be
+        Structs.Observation memory observation = parseObservation(index, encodedVM.length - index, encodedVM);
 
-        vm.nonce = encodedVM.toUint32(index);
-        index += 4;
-
-        vm.emitterChainId = encodedVM.toUint16(index);
-        index += 2;
-
-        vm.emitterAddress = encodedVM.toBytes32(index);
-        index += 32;
-
-        vm.sequence = encodedVM.toUint64(index);
-        index += 8;
-
-        vm.consistencyLevel = encodedVM.toUint8(index);
-        index += 1;
-
-        vm.payload = encodedVM.slice(index, encodedVM.length - index);
+        vm.timestamp = observation.timestamp;
+        vm.nonce = observation.nonce;
+        vm.emitterChainId = observation.emitterChainId;
+        vm.emitterAddress = observation.emitterAddress;
+        vm.sequence = observation.sequence;
+        vm.consistencyLevel = observation.consistencyLevel;
+        vm.payload = observation.payload;
     }
 
     /**
