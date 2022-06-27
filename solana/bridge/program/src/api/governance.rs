@@ -224,7 +224,7 @@ pub struct TransferFees<'b> {
     pub payer: Mut<Signer<Info<'b>>>,
 
     /// Bridge config
-    pub bridge: Bridge<'b, { AccountState::Initialized }>,
+    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Governance VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadTransferFees>,
@@ -255,14 +255,16 @@ pub fn transfer_fees(
     verify_governance(&accs.vaa)?;
     accs.vaa.verify(ctx.program_id)?;
 
-    if accs
+    let new_balance = accs
         .fee_collector
         .lamports()
-        .saturating_sub(accs.vaa.amount.as_u64())
-        < accs.rent.minimum_balance(accs.fee_collector.data_len())
-    {
+        .saturating_sub(accs.vaa.amount.as_u64());
+
+    if new_balance < accs.rent.minimum_balance(accs.fee_collector.data_len()) {
         return Err(InvalidGovernanceWithdrawal.into());
     }
+
+    accs.bridge.last_lamports = new_balance;
 
     accs.vaa.claim(ctx, accs.payer.key)?;
 

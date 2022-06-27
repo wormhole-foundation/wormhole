@@ -405,7 +405,7 @@ pub fn transfer_fees(
 
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new_readonly(bridge, false),
+            AccountMeta::new(bridge, false),
             AccountMeta::new_readonly(message, false),
             AccountMeta::new(claim, false),
             AccountMeta::new(fee_collector, false),
