@@ -22,8 +22,7 @@ interface Structs {
 		uint8 guardianIndex;
 	}
 
-	struct VM {
-		uint8 version;
+	struct Observation {
 		uint32 timestamp;
 		uint32 nonce;
 		uint16 emitterChainId;
@@ -31,6 +30,27 @@ interface Structs {
 		uint64 sequence;
 		uint8 consistencyLevel;
 		bytes payload;
+
+	}
+
+	struct VM {
+		uint8 version;
+
+		// The following fields constitute an Observation. For compatibility
+		// reasons we keep the representation inlined.
+		uint32 timestamp;
+		uint32 nonce;
+		uint16 emitterChainId;
+		bytes32 emitterAddress;
+		uint64 sequence;
+		uint8 consistencyLevel;
+		bytes payload;
+
+		uint32 guardianSetIndex;
+		Signature[] signatures;
+
+		// computed value
+		bytes32 hash;
 
 		uint32 guardianSetIndex;
 		Signature[] signatures;
