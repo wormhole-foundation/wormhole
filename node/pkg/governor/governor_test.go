@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"math"
 	"math/big"
 	"testing"
@@ -12,6 +11,7 @@ import (
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -42,7 +42,26 @@ func (gov *ChainGovernor) setDayLengthInMinutes(min int) {
 	gov.dayLengthInMinutes = min
 }
 
-func (gov *ChainGovernor) setTokenPriceForTesting(tokenChainID vaa.ChainID, tokenAddrStr string, price float64) error {
+func (gov *ChainGovernor) setChainForTesting(emitterChainId vaa.ChainID, emitterAddrStr string, dailyLimit uint64) error {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	emitterAddr, err := vaa.StringToAddress(emitterAddrStr)
+	if err != nil {
+		return err
+	}
+
+	ce := &chainEntry{
+		emitterChainId: emitterChainId,
+		emitterAddr:    emitterAddr,
+		dailyLimit:     dailyLimit,
+	}
+
+	gov.chains[emitterChainId] = ce
+	return nil
+}
+
+func (gov *ChainGovernor) setTokenForTesting(tokenChainID vaa.ChainID, tokenAddrStr string, symbol string, price float64) error {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -51,12 +70,14 @@ func (gov *ChainGovernor) setTokenPriceForTesting(tokenChainID vaa.ChainID, toke
 		return err
 	}
 
-	token, exists := gov.tokens[tokenKey{chain: tokenChainID, addr: tokenAddr}]
-	if !exists {
-		return fmt.Errorf("token does not exist")
-	}
+	bigPrice := big.NewFloat(price)
+	decimalsFloat := big.NewFloat(math.Pow(10.0, float64(8)))
+	decimals, _ := decimalsFloat.Int(nil)
 
-	token.price = big.NewFloat(price)
+	key := tokenKey{chain: vaa.ChainID(tokenChainID), addr: tokenAddr}
+	te := &tokenEntry{cfgPrice: bigPrice, price: bigPrice, decimals: decimals, symbol: symbol, coinGeckoId: symbol, token: key}
+	gov.tokens[key] = te
+	gov.tokensByCoinGeckoId[symbol] = te
 	return nil
 }
 
@@ -433,10 +454,14 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
 
 	gov.setDayLengthInMinutes(24 * 60)
-	err = gov.setTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
 	require.NoError(t, err)
 
 	payloadBytes1 := buildMockTransferPayloadBytes(1,
@@ -522,10 +547,14 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
 
 	gov.setDayLengthInMinutes(24 * 60)
-	err = gov.setTokenPriceForTesting(vaa.ChainIDEthereum, tokenAddrStr, 1774.62)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
 	require.NoError(t, err)
 
 	// The first VAA should be accepted.

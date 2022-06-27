@@ -2,7 +2,6 @@ package common
 
 import (
 	"encoding/binary"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {

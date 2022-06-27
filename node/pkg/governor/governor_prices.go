@@ -74,7 +74,13 @@ func (gov *ChainGovernor) queryCoinGecko() {
 		gov.logger.Error("cgov: failed to query coin gecko", zap.String("query", gov.coinGeckoQuery), zap.Error(err))
 		return
 	}
-	defer response.Body.Close()
+
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			gov.logger.Error("cgov: failed to close coin gecko query")
+		}
+	}()
 
 	responseData, err := ioutil.ReadAll(response.Body)
 	if err != nil {

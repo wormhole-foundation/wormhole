@@ -1,7 +1,6 @@
 package db
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 

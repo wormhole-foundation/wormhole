@@ -233,6 +233,10 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 }
 
 func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
+	if msg == nil {
+		return false, fmt.Errorf("msg is nil")
+	}
+
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
