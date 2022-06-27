@@ -54,8 +54,7 @@ pub use crate::{
 };
 
 /// Library name and version to print in entrypoint. Must be evaluated in this crate in order to do the right thing
-pub const PKG_NAME_VERSION: &str =
-    concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
+pub const PKG_NAME_VERSION: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
 
 pub struct ExecutionContext<'a, 'b: 'a> {
     /// A reference to the program_id of the current program.

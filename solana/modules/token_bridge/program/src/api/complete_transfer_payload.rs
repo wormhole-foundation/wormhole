@@ -17,7 +17,10 @@ use crate::{
     TokenBridgeError::*,
 };
 use bridge::{
-    vaa::ClaimableVAA,
+    accounts::claim::{
+        self,
+        Claim,
+    },
     PayloadMessage,
     CHAIN_ID_SOLANA,
 };
@@ -36,7 +39,7 @@ pub struct CompleteNativeWithPayload<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub vaa: PayloadMessage<'b, PayloadTransferWithPayload>,
-    pub vaa_claim: ClaimableVAA<'b>,
+    pub claim: Mut<Claim<'b>>,
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
@@ -127,7 +130,7 @@ pub fn complete_native_with_payload(
     }
 
     // Prevent vaa double signing
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     let mut amount = accs.vaa.amount.as_u64();
     let mut fee = accs.vaa.fee.as_u64();
@@ -170,7 +173,7 @@ pub struct CompleteWrappedWithPayload<'b> {
 
     /// Signed message for the transfer
     pub vaa: PayloadMessage<'b, PayloadTransferWithPayload>,
-    pub vaa_claim: ClaimableVAA<'b>,
+    pub claim: Mut<Claim<'b>>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
@@ -258,7 +261,7 @@ pub fn complete_wrapped_with_payload(
         return Err(InvalidRecipient.into());
     }
 
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(
