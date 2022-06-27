@@ -13,8 +13,16 @@ module.exports = async function(callback) {
 
     const res = await contract.methods.sendMultipleMessages(
       "0x" + nonceHex,
-      "0x1",
-      32
+      [
+        "0x1",
+        "0x2",
+        "0x3"
+      ],
+      [
+        32,
+        32,
+        32
+      ]
     ).send({
       value: 0,
       from: accounts[0]

@@ -32,6 +32,17 @@ interface IWormhole {
         bytes32 hash;
     }
 
+	struct VM2 {
+		uint8 version;
+
+		uint32 guardianSetIndex;
+		Signature[] signatures;
+
+		bytes32[] hashes;
+		bytes32 hash;
+		bytes[] observations;
+	}
+
     struct ContractUpgrade {
         bytes32 module;
         uint8 action;
@@ -88,11 +99,19 @@ interface IWormhole {
 
     function parseAndVerifyVM(bytes calldata encodedVM) external view returns (VM memory vm, bool valid, string memory reason);
 
+    function parseAndVerifyBatchVM(bytes calldata encodedVM, bool cache) external returns (VM2 memory vm, bool valid, string memory reason);
+
     function verifyVM(VM memory vm) external view returns (bool valid, string memory reason);
+
+    function verifyBatchVM(VM2 memory vm, bool cache) external returns (bool valid, string memory reason);
 
     function verifySignatures(bytes32 hash, Signature[] memory signatures, GuardianSet memory guardianSet) external pure returns (bool valid, string memory reason);
 
+    function clearBatchCache(bytes32[] memory hashesToClear) external;
+
     function parseVM(bytes memory encodedVM) external pure returns (VM memory vm);
+
+    function parseBatchVM(bytes memory encodedVM)  external pure returns (VM2 memory vm);
 
     function quorum(uint numGuardians) external pure returns (uint numSignaturesRequiredForQuorum);
 

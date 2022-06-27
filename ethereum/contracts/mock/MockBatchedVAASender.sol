@@ -10,37 +10,83 @@ contract MockBatchedVAASender {
     using BytesLib for bytes;
 
     address wormholeCoreAddress;
+    mapping(bytes32 => bytes) verifiedPayloads;
 
     function sendMultipleMessages(
         uint32 nonce,
-        bytes memory payload,
-        uint8 consistencyLevel
-    )
-        public
-        payable
-        returns (
-            uint64 messageSequence0,
-            uint64 messageSequence1,
-            uint64 messageSequence2
-        )
-    {
-        messageSequence0 = wormholeCore().publishMessage{value: msg.value}(
-            nonce,
-            payload,
-            consistencyLevel
-        );
+        bytes[] calldata payload,
+        uint8[] calldata consistencyLevel
+    ) public payable returns (uint256[] memory) {
+        require(payload.length == consistencyLevel.length, "invalid input parameters");
 
-        messageSequence1 = wormholeCore().publishMessage{value: msg.value}(
-            nonce,
-            payload,
-            consistencyLevel
-        );
+        // cache wormhole instance and payload length to save on gas
+        IWormhole wormhole = wormholeCore();
+        uint256 wormholeFee = wormhole.messageFee();
+        uint256 numPayloads = payload.length;
 
-        messageSequence2 = wormholeCore().publishMessage{value: msg.value}(
-            nonce,
-            payload,
-            consistencyLevel
-        );
+        // confirm msg.value can cover messaging fees
+        require(msg.value == wormholeFee * numPayloads, "insufficient value");
+
+        // send each wormhole message and save the message sequence
+        uint256[] memory messageSequences = new uint256[](numPayloads);
+        for (uint256 i = 0; i < numPayloads; ++i) {
+            messageSequences[i] = wormhole.publishMessage{value: wormholeFee}(
+                nonce,
+                payload[i],
+                consistencyLevel[i]
+            );
+        }
+        return messageSequences;
+    }
+
+    function consumeBatchVAA(bytes memory encodedVm2) public {
+        // parse and verify a batch VAA
+        IWormhole.VM2 memory vm = parseAndVerifyBatchVM(encodedVm2, true);
+
+        // save each hash in the batch
+        bytes32[] memory cachedHashes = new bytes32[](vm.indexedObservations.length);
+
+        // consume individual VAAs in the batch
+        uint256 observationsLen = vm.indexedObservations.length;
+        for (uint256 i = 0; i < observationsLen; i++) {
+            consumeSingleVAA(vm.indexedObservations[i].vm3);
+            cachedHashes[i] = vm.hashes[vm.indexedObservations[i].index];
+        }
+
+        // clear the batch cache
+        wormholeCore().clearBatchCache(cachedHashes);
+    }
+
+    function consumeSingleVAA(IWormhole.VM memory vm) public {
+        (bool valid, string memory reason) = wormholeCore().verifyVM(vm);
+        require(valid, reason);
+
+        // save the paylaod in the vm
+        verifiedPayloads[vm.hash] = vm.payload;
+    }
+
+    function getPayload(bytes32 hash) public view returns (bytes memory) {
+        return verifiedPayloads[hash];
+    }
+
+    function clearPayload(bytes32 hash) public {
+        delete verifiedPayloads[hash];
+    }
+
+    function parseAndVerifyBatchVM(bytes memory encodedVm, bool cacheObservations) public returns (IWormhole.VM2 memory) {
+        // parse and verify a batch VAA
+        (IWormhole.VM2 memory vm, bool valid, string memory reason) = wormholeCore().parseAndVerifyBatchVM(encodedVm, cacheObservations);
+        require(valid, reason);
+        require(vm.version == 2, "wrong version type");
+        return vm;
+    }
+
+    function parseBatchVM(bytes memory encodedVm) public view returns (IWormhole.VM2 memory) {
+        return wormholeCore().parseBatchVM(encodedVm);
+    }
+
+    function parseVM(bytes memory encodedVm) public view returns (IWormhole.VM memory) {
+        return wormholeCore().parseVM(encodedVm);
     }
 
     function wormholeCore() private view returns (IWormhole) {
