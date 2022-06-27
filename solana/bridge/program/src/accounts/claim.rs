@@ -9,15 +9,65 @@ use serde::{
     Deserialize,
     Serialize,
 };
+use solana_program::pubkey::Pubkey;
 use solitaire::{
     processors::seeded::Seeded,
     AccountOwner,
-    AccountState,
+    AccountState::{
+        self,
+        *,
+    },
+    CreationLamports::Exempt,
     Data,
     Owned,
+    Result,
+    *,
 };
 
-pub type Claim<'a, const State: AccountState> = Data<'a, ClaimData, { State }>;
+use crate::{
+    DeserializePayload,
+    PayloadMessage,
+};
+
+pub type Claim<'a, const S: AccountState> = Data<'a, ClaimData, { S }>;
+
+/// Consume a claim by initializing the account. Initialized claims act as an indicator proving
+/// that a message has been consumed.
+pub fn consume<T>(
+    ctx: &ExecutionContext,
+    payer: &Pubkey,
+    claim: &mut Claim<{ Uninitialized }>,
+    message: &PayloadMessage<T>,
+) -> Result<()>
+where
+    T: DeserializePayload,
+{
+    // Verify that the claim account is derived correctly before claiming.
+    claim.verify_derivation(
+        ctx.program_id,
+        &ClaimDerivationData {
+            emitter_address: message.meta().emitter_address,
+            emitter_chain: message.meta().emitter_chain,
+            sequence: message.meta().sequence,
+        },
+    )?;
+
+    // Claim the account by initializing it with a value.
+    claim.create(
+        &ClaimDerivationData {
+            emitter_address: message.meta().emitter_address,
+            emitter_chain: message.meta().emitter_chain,
+            sequence: message.meta().sequence,
+        },
+        ctx,
+        payer,
+        Exempt,
+    )?;
+
+    claim.claimed = true;
+
+    Ok(())
+}
 
 #[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct ClaimData {

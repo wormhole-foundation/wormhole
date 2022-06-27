@@ -20,7 +20,10 @@ use crate::{
     INVALID_VAAS,
 };
 use bridge::{
-    vaa::ClaimableVAA,
+    accounts::claim::{
+        self,
+        Claim,
+    },
     PayloadMessage,
     CHAIN_ID_SOLANA,
 };
@@ -50,7 +53,7 @@ pub struct CreateWrapped<'b> {
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
     pub vaa: PayloadMessage<'b, PayloadAssetMeta>,
-    pub vaa_claim: ClaimableVAA<'b>,
+    pub claim: Claim<'b, { AccountState::Uninitialized }>,
 
     // New Wrapped
     pub mint: Mut<WrappedMint<'b, { AccountState::MaybeInitialized }>>,
@@ -117,7 +120,7 @@ pub fn create_wrapped(
         return Err(InvalidVAA.into());
     }
 
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     if accs.mint.is_initialized() {
         update_accounts(ctx, accs, data)

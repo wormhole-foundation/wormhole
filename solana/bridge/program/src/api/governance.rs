@@ -1,5 +1,3 @@
-use solitaire::*;
-
 use solana_program::{
     program::invoke_signed,
     pubkey::Pubkey,
@@ -11,10 +9,15 @@ use solana_program::{
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
+    *,
 };
 
 use crate::{
     accounts::{
+        claim::{
+            self,
+            Claim,
+        },
         Bridge,
         GuardianSet,
         GuardianSetDerivationData,
@@ -31,19 +34,18 @@ use crate::{
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
     },
-    vaa::ClaimableVAA,
     DeserializePayload,
     PayloadMessage,
     CHAIN_ID_SOLANA,
 };
 
+/// Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
 fn verify_governance<T>(vaa: &PayloadMessage<T>) -> Result<()>
 where
     T: DeserializePayload,
 {
     let expected_emitter = std::env!("EMITTER_ADDRESS");
     let current_emitter = format!("{}", Pubkey::new_from_array(vaa.meta().emitter_address));
-    // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
     if expected_emitter != current_emitter || vaa.meta().emitter_chain != CHAIN_ID_SOLANA {
         Err(InvalidGovernanceKey.into())
     } else {
@@ -62,8 +64,8 @@ pub struct UpgradeContract<'b> {
     /// GuardianSet change VAA
     pub vaa: PayloadMessage<'b, GovernancePayloadUpgrade>,
 
-    /// Claim account representing whether the vaa has already been consumed.
-    pub vaa_claim: ClaimableVAA<'b>,
+    /// An Uninitialized Claim account to consume the VAA.
+    pub claim: Mut<Claim<'b, { AccountState::Uninitialized }>>,
 
     /// PDA authority for the loader
     pub upgrade_authority: Derive<Info<'b>, "upgrade">,
@@ -96,7 +98,7 @@ pub fn upgrade_contract(
     _data: UpgradeContractData,
 ) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
+    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
         ctx.program_id,
@@ -126,8 +128,8 @@ pub struct UpgradeGuardianSet<'b> {
     /// GuardianSet change VAA
     pub vaa: PayloadMessage<'b, GovernancePayloadGuardianSetChange>,
 
-    /// Claim account representing whether the vaa has already been consumed.
-    pub vaa_claim: ClaimableVAA<'b>,
+    /// An Uninitialized Claim account to consume the VAA.
+    pub claim: Claim<'b, { AccountState::Uninitialized }>,
 
     /// Old guardian set
     pub guardian_set_old: Mut<GuardianSet<'b, { AccountState::Initialized }>>,
@@ -144,6 +146,9 @@ pub fn upgrade_guardian_set(
     accs: &mut UpgradeGuardianSet,
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
+    verify_governance(&accs.vaa)?;
+    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
+
     // Enforce single increments when upgrading.
     if accs.guardian_set_old.index != accs.vaa.new_guardian_set_index - 1 {
         return Err(InvalidGuardianSetUpgrade.into());
@@ -154,7 +159,6 @@ pub fn upgrade_guardian_set(
         return Err(InvalidGuardianSetUpgrade.into());
     }
 
-    verify_governance(&accs.vaa)?;
     accs.guardian_set_old.verify_derivation(
         ctx.program_id,
         &GuardianSetDerivationData {
@@ -167,8 +171,6 @@ pub fn upgrade_guardian_set(
             index: accs.vaa.new_guardian_set_index,
         },
     )?;
-
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
 
     // Set expiration time for the old set
     accs.guardian_set_old.expiration_time =
@@ -207,8 +209,8 @@ pub struct SetFees<'b> {
     /// Governance VAA
     pub vaa: PayloadMessage<'b, GovernancePayloadSetMessageFee>,
 
-    /// Claim account representing whether the vaa has already been consumed.
-    pub vaa_claim: ClaimableVAA<'b>,
+    /// An Uninitialized Claim account to consume the VAA.
+    pub claim: Claim<'b, { AccountState::Uninitialized }>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -216,9 +218,8 @@ pub struct SetFeesData {}
 
 pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
+    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
     accs.bridge.config.fee = accs.vaa.fee.as_u64();
-
     Ok(())
 }
 
@@ -233,8 +234,8 @@ pub struct TransferFees<'b> {
     /// Governance VAA
     pub vaa: PayloadMessage<'b, GovernancePayloadTransferFees>,
 
-    /// Claim account representing whether the vaa has already been consumed.
-    pub vaa_claim: ClaimableVAA<'b>,
+    /// An Uninitialized Claim account to consume the VAA.
+    pub claim: Claim<'b, { AccountState::Uninitialized }>,
 
     /// Account collecting tx fees
     pub fee_collector: Mut<Derive<Info<'b>, "fee_collector">>,
@@ -254,6 +255,9 @@ pub fn transfer_fees(
     accs: &mut TransferFees,
     _data: TransferFeesData,
 ) -> Result<()> {
+    verify_governance(&accs.vaa)?;
+    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
+
     // Make sure the account loaded to receive funds is equal to the one the VAA requested.
     if accs.vaa.to != accs.recipient.key.to_bytes() {
         return Err(InvalidFeeRecipient.into());
@@ -267,9 +271,6 @@ pub fn transfer_fees(
     {
         return Err(InvalidGovernanceWithdrawal.into());
     }
-
-    verify_governance(&accs.vaa)?;
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
 
     // Transfer fees
     let transfer_ix = solana_program::system_instruction::transfer(

@@ -15,10 +15,11 @@ use crate::{
     INVALID_VAAS,
 };
 use bridge::{
-    vaa::{
-        ClaimableVAA,
-        DeserializePayload,
+    accounts::claim::{
+        self,
+        Claim,
     },
+    DeserializePayload,
     PayloadMessage,
     CHAIN_ID_SOLANA,
 };
@@ -59,7 +60,7 @@ pub struct UpgradeContract<'b> {
 
     /// GuardianSet change VAA
     pub vaa: PayloadMessage<'b, GovernancePayloadUpgrade>,
-    pub vaa_claim: ClaimableVAA<'b>,
+    pub claim: Claim<'b, { AccountState::Uninitialized }>,
 
     /// PDA authority for the loader
     pub upgrade_authority: Derive<Info<'b>, "upgrade">,
@@ -96,7 +97,7 @@ pub fn upgrade_contract(
     }
 
     verify_governance(&accs.vaa)?;
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
         ctx.program_id,
@@ -123,7 +124,7 @@ pub struct RegisterChain<'b> {
     pub endpoint: Mut<Endpoint<'b, { AccountState::Uninitialized }>>,
 
     pub vaa: PayloadMessage<'b, PayloadGovernanceRegisterChain>,
-    pub vaa_claim: ClaimableVAA<'b>,
+    pub claim: Claim<'b, { AccountState::Uninitialized }>,
 }
 
 impl<'a> From<&RegisterChain<'a>> for EndpointDerivationData {
@@ -153,7 +154,7 @@ pub fn register_chain(
 
     // Claim VAA
     verify_governance(&accs.vaa)?;
-    accs.vaa_claim.claim(ctx, accs.payer.key, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     // Create endpoint
     accs.endpoint
