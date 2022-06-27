@@ -379,7 +379,7 @@ pub fn claim_address(program_id: String, vaa: Vec<u8>) -> Vec<u8> {
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
 
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
-    let claim_key = Claim::<'_, { AccountState::Initialized }>::key(
+    let claim_key = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: vaa.emitter_address,
             emitter_chain: vaa.emitter_chain,
@@ -392,7 +392,12 @@ pub fn claim_address(program_id: String, vaa: Vec<u8>) -> Vec<u8> {
 
 #[wasm_bindgen]
 pub fn parse_posted_message(data: Vec<u8>) -> JsValue {
-    JsValue::from_serde(&PostedVAAData::try_from_slice(data.as_slice()).unwrap().message).unwrap()
+    JsValue::from_serde(
+        &PostedVAAData::try_from_slice(data.as_slice())
+            .unwrap()
+            .message,
+    )
+    .unwrap()
 }
 
 #[wasm_bindgen]
