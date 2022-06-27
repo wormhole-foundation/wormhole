@@ -462,6 +462,85 @@ async fn test_bridge_messages_unreliable_do_not_override_reliable() {
     .is_err());
 }
 
+#[tokio::test]
+async fn bridge_works_after_transfer_fees() {
+    // This test aims to ensure that the bridge remains operational after the
+    // fees have been transferred out.
+    // NOTE: the bridge is initialised to take a minimum of 500 in fees.
+    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let fee_collector = FeeCollector::key(None, program);
+    let initial_balance = common::get_account_balance(client, fee_collector).await;
+
+    // First, post a message that transfer out 500 lamports.
+    // Since posting the message itself costs 500 lamports, this should result
+    // in the fee collector's account being reset to the initial amount (which
+    // is the rent exemption amount)
+    {
+        let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
+        let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+        let nonce = rand::thread_rng().gen();
+        let message = GovernancePayloadTransferFees {
+            amount: 500u128.into(),
+            to: payer.pubkey().to_bytes(),
+        }
+        .try_to_vec()
+        .unwrap();
+
+        let message_key = common::post_message(
+            client,
+            program,
+            payer,
+            &emitter,
+            None,
+            nonce,
+            message.clone(),
+            500,
+        )
+        .await
+        .unwrap();
+
+        common::transfer_fees(
+            client,
+            program,
+            payer,
+            message_key,
+            emitter.pubkey(),
+            payer.pubkey(),
+            sequence,
+        )
+        .await
+        .unwrap();
+
+        common::sync(client, payer).await;
+    }
+
+    // Ensure that the account has the same amount of money as we started with
+    let account_balance = common::get_account_balance(client, fee_collector).await;
+    assert_eq!(account_balance, initial_balance);
+
+    // Next, make sure that we can still post a message.
+    {
+        let emitter = Keypair::new();
+
+        let nonce = rand::thread_rng().gen();
+        let message: [u8; 32] = rand::thread_rng().gen();
+
+        common::post_message(
+            client,
+            program,
+            payer,
+            &emitter,
+            None,
+            nonce,
+            message.to_vec(),
+            500,
+        )
+        .await
+        .unwrap();
+    }
+}
+
 // Make sure that solitaire can claim accounts that already hold lamports so the protocol can't be
 // DoSd by someone funding derived accounts making CreateAccount fail.
 #[tokio::test]
