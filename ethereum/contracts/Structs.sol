@@ -33,6 +33,11 @@ interface Structs {
 
 	}
 
+	struct SizedObservation {
+		uint32 size;
+		Observation observation;
+	}
+
 	struct VM {
 		uint8 version;
 
@@ -51,10 +56,24 @@ interface Structs {
 
 		// computed value
 		bytes32 hash;
+	}
 
+	struct BatchHeader {
+		uint8 version;
 		uint32 guardianSetIndex;
 		Signature[] signatures;
 
+		bytes32[] hashes;
+
+		// computed value
 		bytes32 hash;
 	}
+
+	struct VM2 {
+		BatchHeader header;
+		// TODO: this should not be readily usable before running
+		// parseAndVerifyVM
+		Observation[] observations;
+	}
+
 }
