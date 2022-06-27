@@ -131,6 +131,26 @@ contract Messages is Getters {
         observation.payload = encodedObservation.slice(index, length - consumed);
     }
 
+    function parseSignatures(
+        uint256 start,
+        uint256 signersLen,
+        bytes memory data
+    ) internal pure returns (Structs.Signature[] memory signatures) {
+        uint256 index = start;
+        signatures = new Structs.Signature[](signersLen);
+        for (uint i = 0; i < signersLen; i++) {
+            signatures[i].guardianIndex = data.toUint8(index);
+            index += 1;
+
+            signatures[i].r = data.toBytes32(index);
+            index += 32;
+            signatures[i].s = data.toBytes32(index);
+            index += 32;
+            signatures[i].v = data.toUint8(index) + 27;
+            index += 1;
+        }
+    }
+
     /**
      * @dev parseVM serves to parse an encodedVM into a vm struct
      *  - it intentionally performs no validation functions, it simply parses raw into a struct
@@ -153,18 +173,9 @@ contract Messages is Getters {
         // Parse Signatures
         uint256 signersLen = encodedVM.toUint8(index);
         index += 1;
-        vm.signatures = new Structs.Signature[](signersLen);
-        for (uint i = 0; i < signersLen; i++) {
-            vm.signatures[i].guardianIndex = encodedVM.toUint8(index);
-            index += 1;
 
-            vm.signatures[i].r = encodedVM.toBytes32(index);
-            index += 32;
-            vm.signatures[i].s = encodedVM.toBytes32(index);
-            index += 32;
-            vm.signatures[i].v = encodedVM.toUint8(index) + 27;
-            index += 1;
-        }
+        vm.signatures = parseSignatures(index, signersLen, encodedVM);
+        index += 66*signersLen;
 
         /*
         Hash the body
