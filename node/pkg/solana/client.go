@@ -488,7 +488,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	}
 
 	data := info.Value.Data.GetBinary()
-	if string(data[:3]) != "msg" {
+	if string(data[:3]) != "msg" && string(data[:3]) != "msu" {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 		solanaConnectionErrors.WithLabelValues(string(s.commitment), "bad_account_data").Inc()
 		logger.Error("account is not a message account",
