@@ -364,6 +364,12 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 				name = foundName
 			}
 
+			// special case for terra-classic
+			if symbol == "LUNA" && chainID == vaa.ChainIDTerra {
+				coinGeckoCoinId = "terra-luna"
+				name = "LUNA"
+			}
+
 			log.Printf("Processing AssetMeta: Name %v, Symbol %v, coingeckoId %v\n", name, symbol, coinGeckoCoinId)
 
 			// save payload to bigtable
