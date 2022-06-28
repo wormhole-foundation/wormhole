@@ -1,5 +1,6 @@
 //import * as dotenv from "dotenv";
 import { HardhatUserConfig, task } from "hardhat/config";
+import "@nomiclabs/hardhat-ethers"; 
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
@@ -9,7 +10,6 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "ethers";
 
 //dotenv.config();
-
 // When using the hardhat network, you may choose to fork Fuji or Avalanche Mainnet
 // This will allow you to debug contracts using the hardhat network while keeping the current network state
 // To enable forking, turn one of these booleans on, and then run your tasks/scripts using ``--network hardhat``

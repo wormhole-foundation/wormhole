@@ -35,11 +35,12 @@ export async function relay(
   const logger = getScopedLogger(["relay"], relayLogger);
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(hexToUint8Array(signedVAA));
+  console.log("parsedVAA.payload[0] is: ", parsedVAA.payload[0])
   if (parsedVAA.payload[0] === 3) {
     const transferPayload = parseTransferPayload(
       Buffer.from(parsedVAA.payload)
     );
-
+      
     const chainConfigInfo = getChainConfigInfo(transferPayload.targetChain);
     if (!chainConfigInfo) {
       logger.error("relay: improper chain ID: " + transferPayload.targetChain);
@@ -53,6 +54,7 @@ export async function relay(
     }
 
     if (isEVMChain(transferPayload.targetChain)) {
+      console.log("in relay.ts EVM Chain")
       const unwrapNative =
         transferPayload.originChain === transferPayload.targetChain &&
         hexToNativeString(
@@ -83,6 +85,7 @@ export async function relay(
     }
 
     if (transferPayload.targetChain === CHAIN_ID_SOLANA) {
+      console.log("in relay.ts CHAIN_ID_SOLANA")
       let rResult: RelayResult = { status: Status.Error, result: "" };
       const retVal = await relaySolana(
         chainConfigInfo,

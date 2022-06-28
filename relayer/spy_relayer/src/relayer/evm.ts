@@ -12,19 +12,26 @@ import {
   parseTransferPayload
 } from "@certusone/wormhole-sdk";
 import { BigNumber, ContractReceipt, Contract } from "ethers";
-import {ethers} from "hardhat"
+//"/Users/leo/Developer/wormhole/relayer/spy_relayer/src/xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import { CeloProvider, CeloWallet } from "@celo-tools/celo-ethers-wrapper";
-import {redeemResponsesToEvm} from "../xRaydium/scripts/relay"
 import * as lib from "../lib/lib";
 import fs from "fs"
 import * as types from "../xRaydium/solana-proxy/generated_client/types";
+import "@nomiclabs/hardhat-ethers";
+import {ethers} from "hardhat";
+//import * as addrs from "../xRaydium/addrs";
+
+//import ethers from "hardhat";
+//import {ethers} from "../xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
+//xRaydium/node_modules/hardhat/internal/lib/hardhat-lib
 
 export function newProvider(
   url: string,
   batch: boolean = false
+//@ts-ignore
 ): ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider {
   // only support http(s), not ws(s) as the websocket constructor can blow up the entire process
   // it uses a nasty setTimeout(()=>{},0) so we are unable to cleanly catch its errors
@@ -76,7 +83,6 @@ export async function relayEVM(
   if (checkOnly) {
     return { redeemed: false, result: "not redeemed" };
   }
-
   if (unwrapNative) {
     logger.info(
       "Will redeem and unwrap using pubkey: %s",
@@ -95,9 +101,12 @@ export async function relayEVM(
 
   // TODO: check sender of payload 3 is solana proxy via sender field 
 
-  const addrs = JSON.parse(String(fs.readFileSync("../xRaydium/addrs")));
+ // const addrs = JSON.parse(String(fs.readFile("../xRaydium/addrs")));
+
+  //const addrs = JSON.parse(String(await fs.promises.readFile("../xRaydium" + "/addrs")));
+
   const XRaydiumBridge = await ethers.getContractFactory("XRaydiumBridge");
-  const contract = await XRaydiumBridge.attach(addrs.fuji.XRaydiumBridge);
+  const contract = await XRaydiumBridge.attach("0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9");
 
   const response = types.Response.layout().decode(transferPayload.payload3);
   logger.info(response, "Response");
@@ -109,3 +118,5 @@ export async function relayEVM(
   metrics.incSuccesses(chainConfigInfo.chainId);
   return { redeemed: true, result: "redeemed"};
 }
+
+

@@ -19,7 +19,7 @@ import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {relayToSolana} from "../xRaydium/scripts/relay"
-import {TransferPayload,getAndParseVaa} from "../xRaydium/scripts/lib/lib"
+import {TransferPayload} from "../xRaydium/scripts/lib/lib"
 import * as wh from "@certusone/wormhole-sdk";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
@@ -32,7 +32,9 @@ export async function relaySolana(
     relayLogger: ScopedLogger,
     metrics: PromHelper
   ) {
+    console.log("signedVAAString: ", signedVAAString)
       const logger = getScopedLogger(["solana"], relayLogger);
+    console.log("relaySolana chainConfigInfo: ", chainConfigInfo)
     //TODO native transfer & create associated token account
     //TODO close connection
     const signedVaaArray = hexToUint8Array(signedVAAString);
@@ -52,7 +54,8 @@ export async function relaySolana(
     //   chainConfigInfo.tokenBridgeAddress
     // );
     // logger.debug("Checking to see if vaa has already been redeemed.");
-
+    console.log("==============in relaySolana.ts==============!!!")
+    console.log("chainConfigInfo.tokenBridgeAddress: ", chainConfigInfo.tokenBridgeAddress)
     const alreadyRedeemed = await getIsTransferCompletedSolana(
        chainConfigInfo.tokenBridgeAddress,
        signedVaaArray,
@@ -68,10 +71,10 @@ export async function relaySolana(
     const { parse_vaa } = await importCoreWasm();
     const parsedVAA = parse_vaa(signedVaaArray);
     const payloadBuffer = Buffer.from(parsedVAA.payload);
-    
     // TODO check if sender is correct, we expect a payload3
-
+    console.log("before slice payload3.....")
     let payload3 = parsedVAA["payload"].slice(133);
+    //@ts-ignore
     let myTransferPayload3 = parseTransferPayload(payloadBuffer) as TransferPayload;
     logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
     myTransferPayload3["payload3"] = payload3;
