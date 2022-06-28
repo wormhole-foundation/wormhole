@@ -243,6 +243,10 @@ const (
 )
 
 // Unmarshal deserializes the binary representation of a VAA
+//
+// WARNING: Unmarshall will truncate payloads at 1000 bytes, this is done mainly to avoid denial of service
+//   - If you need to access the full payload, consider parsing VAA from Bytes instead of Unmarshal
+//
 func Unmarshal(data []byte) (*VAA, error) {
 	if len(data) < minVAALength {
 		return nil, fmt.Errorf("VAA is too short")
@@ -316,6 +320,7 @@ func Unmarshal(data []byte) (*VAA, error) {
 	if err != nil || n == 0 {
 		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
 	}
+
 	v.Payload = payload[:n]
 
 	return v, nil

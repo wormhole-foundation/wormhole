@@ -166,7 +166,7 @@ func getVaa() VAA {
 	return VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
+		Signatures:       []*Signature{},
 		Timestamp:        time.Unix(0, 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -182,7 +182,7 @@ func TestAddSignature(t *testing.T) {
 
 	// Generate a random private key to sign with
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	assert.Nil(t, vaa.Signatures)
+	assert.Equal(t, []*Signature{}, vaa.Signatures)
 
 	// Add a signature and make sure it's added
 	vaa.AddSignature(key, 0)
@@ -217,6 +217,48 @@ func TestHexDigest(t *testing.T) {
 	vaa := getVaa()
 	expected := "4fae136bb1fd782fe1b5180ba735cdc83bcece3f9b7fd0e5e35300a61c8acd8f"
 	assert.Equal(t, vaa.HexDigest(), expected)
+}
+
+func TestMarshal(t *testing.T) {
+	expectedBytes := []byte{0x1, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x20, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61}
+	vaa := getVaa()
+	marshalBytes, err := vaa.Marshal()
+	assert.Nil(t, err)
+	assert.Equal(t, expectedBytes, marshalBytes)
+}
+
+func TestUnmarshal(t *testing.T) {
+	vaaBytes := []byte{0x1, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x20, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61}
+	vaa1 := getVaa()
+	vaa2, err := Unmarshal(vaaBytes)
+	assert.Nil(t, err)
+	assert.Equal(t, &vaa1, vaa2)
+}
+
+func TestUnmarshalTooBig(t *testing.T) {
+	vaa := getVaa()
+
+	// Overwrite an oversized payload for the VAA that we cannot unmarshal
+	var payload []byte
+	for i := 0; i < 2000; i++ {
+		payload = append(payload, 'a')
+	}
+	vaa.Payload = payload
+
+	// Let's marshal the VAA to bytes to unmarshaled
+	marshalBytes, err := vaa.Marshal()
+	assert.Nil(t, err)
+
+	// Let's now unmarshal the oversized VAA and cause it to panic
+	vaa2, err2 := Unmarshal(marshalBytes)
+	assert.Nil(t, err2)
+
+	// Marshal the VAA
+	marshalBytes2, err3 := vaa2.Marshal()
+	assert.Nil(t, err3)
+
+	// Verify that it's truncated at to 1057 (57 byte header + 1000 byte payload)
+	assert.Equal(t, marshalBytes[:1057], marshalBytes2)
 }
 
 func TestVerifySignatures(t *testing.T) {
