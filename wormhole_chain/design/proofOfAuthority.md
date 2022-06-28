@@ -5,7 +5,7 @@ The Wormhole Chain is intended to operate via the same PoA mechanism as the rest
 - Two thirds of the Consensus Guardian Set are required for consensus. (In this case, block production.)
 - Guardian Sets are upgraded via processing Guardian Set Upgrade Governance VAAs.
 
-As such, the intent is that the 19 guardians will validate for Wormhole Chain, and Wormhole Chain consensus will be achieved when 14 Guardians vote to approve a block (via Tendermint). This means that we will need to hand-roll a PoA mechanism in the Cosmos-SDK on top of Tendermint and the normal Cosmos Staking module.
+As such, the intent is that the 19 guardians will validate for Wormhole Chain, and Wormhole Chain consensus will be achieved when 13 Guardians vote to approve a block (via Tendermint). This means that we will need to hand-roll a PoA mechanism in the Cosmos-SDK on top of Tendermint and the normal Cosmos Staking module.
 
 ## High-Level PoA Design Overview
 
@@ -42,14 +42,14 @@ Guardian Set upgrades are the trickiest operation to handle. When processing the
 ## Benefits of this implementation:
 
 - Adequately meets the requirement that Guardians are responsible for consensus and block production on Wormhole Chain.
-- Relatively robust with regard to chain 'bricks'. If at any point in the life of Wormhole Chain less than 14 of the Guardians in the Consensus Set are registered, the network will deadlock. There will not be enough Guardians registered to produce a block, and because no blocks are being produced, no registrations can be completed. This design does not change the Consensus Set unless a sufficient amount of Guardians are registered.
+- Relatively robust with regard to chain 'bricks'. If at any point in the life of Wormhole Chain less than 13 of the Guardians in the Consensus Set are registered, the network will deadlock. There will not be enough Guardians registered to produce a block, and because no blocks are being produced, no registrations can be completed. This design does not change the Consensus Set unless a sufficient amount of Guardians are registered.
 - Can swap out a massive set of Guardians all at once. Many other (simpler) designs for Guardian set swaps limit the number of Guardians which can be changed at once to only 6 to avoid network deadlocks. This design does not have this problem.
 - No modifications to Cosmos SDK validator bonding.
 
 ### Cons
 
 - Moderate complexity. This is more complicated than the most straightforward implementations, but gains important features and protections to prevent deadlocks.
-- Not 100% immune to deadlocks. If less than 14 Guardians have valid registrations, the chain will permanently halt. This is prohibitively difficult to prevent with on-chain mechanisms, and unlikely to occur. Performing a simple hard fork in the scenario of a maimed Guardian Validator set is likely the safer and simpler option.
+- Not 100% immune to deadlocks. If less than 13 Guardians have valid registrations, the chain will permanently halt. This is prohibitively difficult to prevent with on-chain mechanisms, and unlikely to occur. Performing a simple hard fork in the scenario of a maimed Guardian Validator set is likely the safer and simpler option.
 - Avoids some DOS scenarios by only allowing validator registrations for known Guardian Keys.
 
 ## Terms & Phrases:

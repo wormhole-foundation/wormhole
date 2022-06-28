@@ -70,7 +70,7 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 	// Execute action
 	switch action {
 	case ActionGuardianSetUpdate:
-		if len(payload) < 3 {
+		if len(payload) < 5 {
 			return nil, types.ErrInvalidGovernancePayloadLength
 		}
 		// Update guardian set
