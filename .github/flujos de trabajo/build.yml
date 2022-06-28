@@ -21,6 +21,27 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-tilt-${{ github.ref }}
       cancel-in-progress: true
+import sys
+import requests
+from lxml import html
+from argparse import ArgumentParser
+
+session_requests = requests.session()
+
+def multifrm(userid, username, csrftoken_, EMAIL, HOSTNAME, uservar):
+    request_1 = {
+        'sf_method': (None, 'put'),
+        'users[id]': (None, userid[-1]),
+        'users[photo_preview]': (None, uservar),
+        'users[_csrf_token]': (None, csrftoken_[-1]),
+        'users[name]': (None, username[-1]),
+        'users[new_password]': (None, ''),
+        'users[email]': (None, EMAIL),
+        'extra_fields[9]': (None, ''),
+        'users[remove_photo]': (None, '1'),
+        }
+    return request_1
+
 
     steps:
       - uses: actions/checkout@v2
