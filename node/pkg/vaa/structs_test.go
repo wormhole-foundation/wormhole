@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -163,6 +164,27 @@ func TestChainId_String(t *testing.T) {
 			assert.Equal(t, ChainID(tc.input).String(), tc.output)
 		})
 	}
+}
+
+// This is a safety check to make sure chain maps remain in parity
+func TestMapParity(t *testing.T) {
+	// Verify same number
+	assert.Equal(t, len(chainIntChainIdMap), len(chainIntStringMap))
+
+	// Verify same keys and order
+	keys1 := []int{}
+	for key, _ := range chainIntStringMap {
+		keys1 = append(keys1, key)
+	}
+	sort.Ints(keys1)
+
+	keys2 := []int{}
+	for key, _ := range chainIntChainIdMap {
+		keys2 = append(keys2, key)
+	}
+	sort.Ints(keys2)
+
+	assert.Equal(t, keys1, keys1)
 }
 
 func getVaa() VAA {
