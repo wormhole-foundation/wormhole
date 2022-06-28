@@ -12,19 +12,19 @@ import (
 func TestGetSignedVAA(t *testing.T) {
 	type test struct {
 		label     string
-		req       publicrpcv1.GetSignedVAARequest
+		req       *publicrpcv1.GetSignedVAARequest
 		errString string
 	}
 
 	tests := []test{
 		{label: "no message",
-			req:       publicrpcv1.GetSignedVAARequest{},
+			req:       &publicrpcv1.GetSignedVAARequest{},
 			errString: "rpc error: code = InvalidArgument desc = no message ID specified"},
 		{label: "empty message",
-			req:       publicrpcv1.GetSignedVAARequest{MessageId: &publicrpcv1.MessageID{}},
+			req:       &publicrpcv1.GetSignedVAARequest{MessageId: &publicrpcv1.MessageID{}},
 			errString: "rpc error: code = InvalidArgument desc = address must be 32 bytes"},
 		{label: "invalid address",
-			req: publicrpcv1.GetSignedVAARequest{
+			req: &publicrpcv1.GetSignedVAARequest{
 				MessageId: &publicrpcv1.MessageID{
 					EmitterChain:   publicrpcv1.ChainID(uint32(1)),
 					EmitterAddress: "AAAA",
@@ -33,7 +33,7 @@ func TestGetSignedVAA(t *testing.T) {
 			},
 			errString: "rpc error: code = InvalidArgument desc = address must be 32 bytes"},
 		{label: "no emitter chain",
-			req: publicrpcv1.GetSignedVAARequest{
+			req: &publicrpcv1.GetSignedVAARequest{
 				MessageId: &publicrpcv1.MessageID{
 					EmitterAddress: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 					Sequence:       uint64(1),
@@ -41,7 +41,7 @@ func TestGetSignedVAA(t *testing.T) {
 			},
 			errString: "rpc error: code = InvalidArgument desc = invalid chain specified"},
 		{label: "invalid emitter chain",
-			req: publicrpcv1.GetSignedVAARequest{
+			req: &publicrpcv1.GetSignedVAARequest{
 				MessageId: &publicrpcv1.MessageID{
 					EmitterChain:   publicrpcv1.ChainID(uint32(500)),
 					EmitterAddress: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
@@ -57,7 +57,7 @@ func TestGetSignedVAA(t *testing.T) {
 			logger, _ := zap.NewProduction()
 			server := &PublicrpcServer{logger: logger}
 
-			resp, err := server.GetSignedVAA(ctx, &tc.req)
+			resp, err := server.GetSignedVAA(ctx, tc.req)
 			assert.Nil(t, resp)
 
 			if tc.errString == "" {
