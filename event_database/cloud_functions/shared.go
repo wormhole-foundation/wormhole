@@ -285,6 +285,10 @@ func chainIdStringToType(chainId string) vaa.ChainID {
 		return vaa.ChainIDKarura
 	case "12":
 		return vaa.ChainIDAcala
+	case "13":
+		return vaa.ChainIDKlaytn
+	case "14":
+		return vaa.ChainIDCelo
 	case "10001":
 		return vaa.ChainIDEthereumRopsten
 	}
