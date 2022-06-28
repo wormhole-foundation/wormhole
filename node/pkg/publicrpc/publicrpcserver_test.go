@@ -2,12 +2,13 @@ package publicrpc
 
 import (
 	"context"
+	"testing"
+
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"testing"
 )
 
 func TestGetSignedVAA(t *testing.T) {
