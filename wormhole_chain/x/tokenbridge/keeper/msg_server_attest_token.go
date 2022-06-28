@@ -61,7 +61,6 @@ func (k msgServer) AttestToken(goCtx context.Context, msg *types.MsgAttestToken)
 	buf.Write(tokenAddress[:])
 	// TokenChain
 	MustWrite(buf, binary.BigEndian, tokenChain)
-	MustWrite(buf, binary.BigEndian, uint16(wormholeConfig.ChainId))
 	// Decimals
 	MustWrite(buf, binary.BigEndian, exponent)
 	// Symbol

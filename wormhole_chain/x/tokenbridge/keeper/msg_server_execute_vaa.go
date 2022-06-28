@@ -147,10 +147,10 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 		txSender, err := sdk.AccAddressFromBech32(msg.Creator)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		// Transfer fee to tx sender if it is not 0
-		if fee.Sign() != 0 {
+		if fee.Sign() == 1 {
 			err = k.bankKeeper.SendCoins(ctx, moduleAccount, txSender, sdk.Coins{
 				{
 					Denom:  identifier,
@@ -158,7 +158,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 				},
 			})
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 		}
 
@@ -172,7 +172,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			LocalDenom:   identifier,
 		})
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 	case PayloadIDAssetMeta:
@@ -233,7 +233,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			Decimals:     uint32(decimals),
 		})
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	default:
 		return nil, types.ErrUnknownPayloadType
