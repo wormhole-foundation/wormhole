@@ -1,4 +1,4 @@
-import { CHAIN_ID_TERRA, isNativeDenom } from "@certusone/wormhole-sdk";
+import { ChainId, isNativeDenom, TerraChainId } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
 import { LCDClient } from "@terra-money/terra.js";
 import React, { useCallback, useMemo, useRef } from "react";
@@ -8,7 +8,7 @@ import useTerraNativeBalances from "../../hooks/useTerraNativeBalances";
 import { DataWrapper } from "../../store/helpers";
 import { NFTParsedTokenAccount } from "../../store/nftSlice";
 import { ParsedTokenAccount } from "../../store/transferSlice";
-import { SUPPORTED_TERRA_TOKENS, TERRA_HOST } from "../../utils/consts";
+import { SUPPORTED_TERRA_TOKENS, getTerraConfig } from "../../utils/consts";
 import {
   formatNativeDenom,
   getNativeTerraIcon,
@@ -23,15 +23,17 @@ type TerraTokenPickerProps = {
   tokenAccounts: DataWrapper<ParsedTokenAccount[]> | undefined;
   disabled: boolean;
   resetAccounts: (() => void) | undefined;
+  chainId: TerraChainId;
 };
 
 const returnsFalse = () => false;
 
 export default function TerraTokenPicker(props: TerraTokenPickerProps) {
-  const { value, onChange, disabled } = props;
-  const { walletAddress } = useIsWalletReady(CHAIN_ID_TERRA);
+  const { value, onChange, disabled, chainId } = props;
+  const { walletAddress } = useIsWalletReady(chainId);
   const nativeRefresh = useRef<() => void>(() => {});
   const { balances, isLoading: nativeIsLoading } = useTerraNativeBalances(
+    chainId,
     walletAddress,
     nativeRefresh
   );
@@ -76,9 +78,9 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
               NATIVE_TERRA_DECIMALS, //TODO actually get decimals rather than hardcode
               0, //uiAmount is unused
               formatUnits(balances[denom], NATIVE_TERRA_DECIMALS), //uiAmountString
-              formatNativeDenom(denom), // symbol
+              formatNativeDenom(denom, props.chainId), // symbol
               undefined, //name
-              getNativeTerraIcon(formatNativeDenom(denom)), //logo
+              getNativeTerraIcon(formatNativeDenom(denom, props.chainId)), //logo
               true //is native asset
             )
           )
@@ -92,6 +94,7 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
   }, [
     walletAddress,
     balances,
+    props.chainId,
     // tokenMap
   ]);
 
@@ -102,7 +105,7 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
       if (!walletAddress) {
         return Promise.reject("Wallet not connected");
       }
-      const lcd = new LCDClient(TERRA_HOST);
+      const lcd = new LCDClient(getTerraConfig(chainId));
       return lcd.wasm
         .contractQuery(lookupAsset, {
           token_info: {},
@@ -135,12 +138,18 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
           return Promise.reject();
         });
     },
-    [walletAddress]
+    [walletAddress, chainId]
   );
 
-  const isSearchableAddress = useCallback((address: string) => {
-    return isValidTerraAddress(address) && !isNativeDenom(address);
-  }, []);
+  const isSearchableAddress = useCallback(
+    (address: string, chainId: ChainId) => {
+      return (
+        isValidTerraAddress(address, chainId as TerraChainId) &&
+        !isNativeDenom(address)
+      );
+    },
+    []
+  );
 
   const RenderComp = useCallback(
     ({ account }: { account: NFTParsedTokenAccount }) => {
@@ -162,7 +171,7 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
       error={""}
       showLoader={isLoading}
       nft={false}
-      chainId={CHAIN_ID_TERRA}
+      chainId={chainId}
     />
   );
 }

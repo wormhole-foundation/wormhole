@@ -49,8 +49,6 @@ module.exports = {
         );
       },
       network_id: "5",
-      gas: 4465030,
-      gasPrice: 10000000000,
     },
     binance: {
       provider: () => {
@@ -70,8 +68,6 @@ module.exports = {
           "https://data-seed-prebsc-1-s1.binance.org:8545/"
         ),
       network_id: "97",
-      gas: 70000000,
-      gasPrice: 8000000000,
     },
     polygon: {
       provider: () => {
@@ -123,6 +119,15 @@ module.exports = {
       gas: 4465030,
       gasPrice: 30000000000,
     },
+    oasis_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://testnet.emerald.oasis.dev"
+        );
+      },
+      network_id: 42261,
+    },
     aurora: {
       provider: () => {
         return new HDWalletProvider(
@@ -142,7 +147,7 @@ module.exports = {
       },
       network_id: 0x4e454153,
       gas: 10000000,
-      from: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0", // public key
+      from: "0x3bC7f2e458aC4E55F941C458cfD8c6851a591B4F", // public key
     },
     fantom: {
       provider: () => {
@@ -164,8 +169,6 @@ module.exports = {
         );
       },
       network_id: 0xfa2,
-      gas: 4465030,
-      gasPrice: 300000000000,
     },
     karura: {
       provider: () => {
@@ -185,13 +188,13 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "http://103.253.145.222:8545"
+          "https://karura-dev.aca-dev.network/eth/http"
         );
       },
       network_id: 596,
-      gasPrice: 202184721385,
-      gasLimit: 117096000,
-      gas: 117096000,
+      gasPrice: "0x2f7e8805de",
+      gasLimit: "0x329b140",
+      gas: "0x329b0dc",
     },
     acala: {
       provider: () => {
@@ -210,13 +213,13 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "http://157.245.252.103:8545"
+          "https://acala-dev.aca-dev.network/eth/http"
         );
       },
       network_id: 597,
-      gasPrice: 202184721385,
-      gasLimit: 213192000,
-      gas: 213192000,
+      gasPrice: "0x2ed51903ea",
+      gasLimit: "0x6fc3540",
+      gas: "0x329b0dc",
     },
     klaytn: {
       // Note that Klaytn works with version 5.3.14 of truffle, but not some of the newer versions.

@@ -17,6 +17,7 @@ export const CHAINS = {
   near: 15,
   moonbeam: 16,
   neon: 17,
+  terra2: 18,
   ropsten: 10001,
 } as const;
 
@@ -42,6 +43,8 @@ export type EVMChainName =
   | "moonbeam"
   | "neon"
   | "ropsten";
+
+export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
   core: string | undefined;
@@ -144,6 +147,12 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  terra2: {
+    core: "terra12mrnzvhx3rpej6843uge2yyfppfyd3u9c3uq223q8sl48huz9juqffcnhp",
+    token_bridge:
+      "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -241,6 +250,12 @@ const TESTNET = {
     core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
     token_bridge: "0xd11De1f930eA1F7Dd0290Fe3a2e35b9C91AEFb37",
     nft_bridge: "0xa52Da3B1ffd258a2fFB7719a6aeE24095eEE24E2",
+  },
+  terra2: {
+    core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
+    token_bridge:
+      "terra1c02vds4uhgtrmcw7ldlg75zumdqxr8hwf7npseuf2h58jzhpgjxsgmwkvk",
+    nft_bridge: undefined,
   },
   ropsten: {
     core: "0x210c5F5e2AF958B4defFe715Dc621b7a3BA888c5",
@@ -340,6 +355,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  terra2: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -403,6 +423,7 @@ export const CHAIN_ID_CELO = CHAINS["celo"];
 export const CHAIN_ID_NEAR = CHAINS["near"];
 export const CHAIN_ID_MOONBEAM = CHAINS["moonbeam"];
 export const CHAIN_ID_NEON = CHAINS["neon"];
+export const CHAIN_ID_TERRA2 = CHAINS["terra2"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
@@ -422,6 +443,8 @@ export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
  * All the EVM-based chain ids that Wormhole supports
  */
 export type EVMChainId = typeof CHAINS[EVMChainName];
+
+export type TerraChainId = typeof CHAINS[TerraChainName];
 
 /**
  *
@@ -520,6 +543,13 @@ export function isEVMChain(
   }
 }
 
+export function isTerraChain(
+  chain: ChainId | ChainName
+): chain is TerraChainId | TerraChainName {
+  const chainId = coalesceChainId(chain);
+  return chainId === CHAIN_ID_TERRA || chainId === CHAIN_ID_TERRA2;
+}
+
 /**
  *
  * Asserts that the given chain id or chain name is an EVM chain, and throws otherwise.
@@ -539,6 +569,7 @@ export const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
 export const WSOL_DECIMALS = 9;
 export const MAX_VAA_DECIMALS = 8;
 
+// TODO: will this work for terra2?
 export const TERRA_REDEEMED_CHECK_WALLET_ADDRESS =
   "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
 

@@ -11,7 +11,7 @@ import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/IWormhole.sol";
 
 interface ITokenBridge {
-    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) external returns (bytes memory);
+    function completeTransferWithPayload(bytes memory encodedVm) external returns (bytes memory);
     function wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) external view returns (address);
 }
 
@@ -28,7 +28,7 @@ contract MockTokenBridgeIntegration {
         address wrappedAddress = tokenBridge().wrappedAsset(tokenChainId, tokenAddress);
         IERC20 transferToken = IERC20(wrappedAddress);
         uint256 balanceBefore = transferToken.balanceOf(address(this));
-        bytes memory payload = tokenBridge().completeTransferWithPayload(encodedVm, msg.sender);
+        bytes memory payload = tokenBridge().completeTransferWithPayload(encodedVm);
         // make sure this vm is a payload 3
         uint8 payloadType = payload.toUint8(0);
         require(payloadType == 3, "invalid payload type");

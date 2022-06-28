@@ -7,11 +7,7 @@
 use borsh::BorshDeserialize;
 use solana_program::{
     pubkey::Pubkey,
-    system_program,
-    sysvar::{
-        self,
-        Sysvar as SolanaSysvar,
-    },
+    sysvar::Sysvar as SolanaSysvar,
 };
 
 use crate::{
@@ -34,8 +30,6 @@ pub trait Peel<'a, 'b: 'a, 'c> {
     where
         Self: Sized;
 
-    fn deps() -> Vec<Pubkey>;
-
     fn persist(&self, program_id: &Pubkey) -> Result<()>;
 }
 
@@ -52,10 +46,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Option<T> {
         } else {
             Ok(Some(T::peel(ctx)?))
         }
-    }
-
-    fn deps() -> Vec<Pubkey> {
-        T::deps()
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
@@ -84,10 +74,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const SEED: &'static str> Peel<'a, 'b,
         }
     }
 
-    fn deps() -> Vec<Pubkey> {
-        T::deps()
-    }
-
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         T::persist(self, program_id)
     }
@@ -105,10 +91,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T> {
         }
     }
 
-    fn deps() -> Vec<Pubkey> {
-        T::deps()
-    }
-
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         T::persist(self, program_id)
     }
@@ -118,10 +100,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for MaybeMut<T> {
     fn peel<I>(mut ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         ctx.immutable = !ctx.info().is_writable;
         T::peel(ctx).map(|v| MaybeMut(v))
-    }
-
-    fn deps() -> Vec<Pubkey> {
-        T::deps()
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
@@ -138,10 +116,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
         }
     }
 
-    fn deps() -> Vec<Pubkey> {
-        T::deps()
-    }
-
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         T::persist(self, program_id)
     }
@@ -154,10 +128,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for System<T> {
             true => T::peel(ctx).map(|v| System(v)),
             _ => panic!(),
         }
-    }
-
-    fn deps() -> Vec<Pubkey> {
-        T::deps()
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
@@ -180,10 +150,6 @@ where
         }
     }
 
-    fn deps() -> Vec<Pubkey> {
-        vec![]
-    }
-
     fn persist(&self, _program_id: &Pubkey) -> Result<()> {
         Ok(())
     }
@@ -201,9 +167,7 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
 
         Ok(ctx.info().clone())
     }
-    fn deps() -> Vec<Pubkey> {
-        vec![]
-    }
+
     fn persist(&self, _program_id: &Pubkey) -> Result<()> {
         Ok(())
     }
@@ -263,14 +227,6 @@ impl<
         }
 
         Ok(Data(Box::new(ctx.info().clone()), data))
-    }
-
-    fn deps() -> Vec<Pubkey> {
-        if IS_INITIALIZED == AccountState::Initialized {
-            return vec![];
-        }
-
-        vec![sysvar::rent::ID, system_program::ID]
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {

@@ -2,11 +2,12 @@ package debug
 
 import (
 	"encoding/hex"
+	"log"
+	"strings"
+
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
-	"log"
-	"strings"
 )
 
 var decodeVaaCmd = &cobra.Command{

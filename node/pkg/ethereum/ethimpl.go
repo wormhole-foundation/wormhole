@@ -20,12 +20,15 @@ import (
 
 type EthImpl struct {
 	NetworkName string
+	logger      *zap.Logger
 	client      *ethClient.Client
 	filterer    *ethAbi.AbiFilterer
 	caller      *ethAbi.AbiCaller
 }
 
-func (e *EthImpl) SetLogger(_l *zap.Logger) {}
+func (e *EthImpl) SetLogger(l *zap.Logger) {
+	e.logger = l
+}
 
 func (e *EthImpl) DialContext(ctx context.Context, rawurl string) (err error) {
 	e.client, err = ethClient.DialContext(ctx, rawurl)
@@ -115,6 +118,14 @@ func (e *EthImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.Ne
 			case <-ctx.Done():
 				return
 			case ev := <-headSink:
+				if ev == nil {
+					e.logger.Error("new header event is nil", zap.String("eth_network", e.NetworkName))
+					continue
+				}
+				if ev.Number == nil {
+					e.logger.Error("new header block number is nil", zap.String("eth_network", e.NetworkName))
+					continue
+				}
 				sink <- &common.NewBlock{
 					Number: ev.Number,
 					Hash:   ev.Hash(),

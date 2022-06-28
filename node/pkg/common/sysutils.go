@@ -2,9 +2,10 @@ package common
 
 import (
 	"fmt"
-	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // LockMemory locks current and future pages in memory to protect secret keys from being swapped out to disk.

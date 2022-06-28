@@ -49,9 +49,9 @@ use solana_sdk::{
 };
 use solitaire::{
     processors::seeded::Seeded,
+    Derive,
     Info,
 };
-use solitaire_client::Derive;
 
 struct Config {
     rpc_client: RpcClient,

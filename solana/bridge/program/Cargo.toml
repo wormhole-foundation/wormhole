@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "bridge"
 
 [features]
-client = ["solitaire/client", "solitaire-client", "no-entrypoint"]
+client = ["no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
 wasm = ["no-entrypoint", "wasm-bindgen"]
@@ -24,7 +24,6 @@ primitive-types = { version = "0.9.0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 sha3 = "0.9.1"
 solana-program = "=1.9.4"
-solitaire-client = { path = "../../solitaire/client", optional = true }
 solitaire = { path = "../../solitaire/program" }
 wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true }
 

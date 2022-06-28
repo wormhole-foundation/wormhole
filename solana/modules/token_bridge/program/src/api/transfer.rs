@@ -100,9 +100,6 @@ impl<'a> From<&TransferNative<'a>> for CustodyAccountDerivationData {
     }
 }
 
-impl<'b> InstructionContext<'b> for TransferNative<'b> {
-}
-
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct TransferNativeData {
     pub nonce: u32,
@@ -340,9 +337,6 @@ impl<'a> From<&TransferWrapped<'a>> for WrappedMetaDerivationData {
             mint_key: *accs.mint.info().key,
         }
     }
-}
-
-impl<'b> InstructionContext<'b> for TransferWrapped<'b> {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]

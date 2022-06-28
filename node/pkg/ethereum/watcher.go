@@ -399,8 +399,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				return
 			case ev := <-headSink:
+				// These two pointers should have been checked before the event was placed on the channel, but just being safe.
 				if ev == nil {
 					logger.Error("new header event is nil", zap.String("eth_network", e.networkName))
+					continue
+				}
+				if ev.Number == nil {
+					logger.Error("new header block number is nil", zap.String("eth_network", e.networkName))
 					continue
 				}
 
