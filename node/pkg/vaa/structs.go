@@ -70,6 +70,50 @@ type (
 	}
 )
 
+var chainIntStringMap = map[int]string{
+	0:     "unset",
+	1:     "solana",
+	2:     "ethereum",
+	3:     "terra",
+	4:     "bsc",
+	5:     "polygon",
+	6:     "avalanche",
+	7:     "oasis",
+	8:     "algorand",
+	9:     "aurora",
+	10:    "fantom",
+	11:    "karura",
+	12:    "acala",
+	13:    "klaytn",
+	14:    "celo",
+	16:    "moonbeam",
+	17:    "neon",
+	18:    "terra2",
+	10001: "ethereum-ropsten",
+}
+
+var chainIntChainIdMap = map[int]ChainID{
+	0:     ChainIDUnset,
+	1:     ChainIDSolana,
+	2:     ChainIDEthereum,
+	3:     ChainIDTerra,
+	4:     ChainIDBSC,
+	5:     ChainIDPolygon,
+	6:     ChainIDAvalanche,
+	7:     ChainIDOasis,
+	8:     ChainIDAlgorand,
+	9:     ChainIDAurora,
+	10:    ChainIDFantom,
+	11:    ChainIDKarura,
+	12:    ChainIDAcala,
+	13:    ChainIDKlaytn,
+	14:    ChainIDCelo,
+	16:    ChainIDMoonbeam,
+	17:    ChainIDNeon,
+	18:    ChainIDTerra2,
+	10001: ChainIDEthereumRopsten,
+}
+
 func (a Address) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
@@ -91,136 +135,35 @@ func (a SignatureData) String() string {
 }
 
 func (c ChainID) String() string {
-	switch c {
-	case ChainIDUnset:
-		return "unset"
-	case ChainIDSolana:
-		return "solana"
-	case ChainIDEthereum:
-		return "ethereum"
-	case ChainIDTerra:
-		return "terra"
-	case ChainIDBSC:
-		return "bsc"
-	case ChainIDPolygon:
-		return "polygon"
-	case ChainIDAvalanche:
-		return "avalanche"
-	case ChainIDOasis:
-		return "oasis"
-	case ChainIDAurora:
-		return "aurora"
-	case ChainIDFantom:
-		return "fantom"
-	case ChainIDAlgorand:
-		return "algorand"
-	case ChainIDEthereumRopsten:
-		return "ethereum-ropsten"
-	case ChainIDKarura:
-		return "karura"
-	case ChainIDAcala:
-		return "acala"
-	case ChainIDKlaytn:
-		return "klaytn"
-	case ChainIDCelo:
-		return "celo"
-	case ChainIDMoonbeam:
-		return "moonbeam"
-	case ChainIDNeon:
-		return "neon"
-	case ChainIDTerra2:
-		return "terra2"
-	default:
+	chainString := chainIntStringMap[int(c)]
+
+	if chainString == "" {
 		return fmt.Sprintf("unknown chain ID: %d", c)
+	} else {
+		return chainString
 	}
 }
 
 func ChainIDFromString(s string) (ChainID, error) {
 	s = strings.ToLower(s)
 
-	switch s {
-	case "solana":
-		return ChainIDSolana, nil
-	case "ethereum":
-		return ChainIDEthereum, nil
-	case "terra":
-		return ChainIDTerra, nil
-	case "bsc":
-		return ChainIDBSC, nil
-	case "polygon":
-		return ChainIDPolygon, nil
-	case "avalanche":
-		return ChainIDAvalanche, nil
-	case "oasis":
-		return ChainIDOasis, nil
-	case "aurora":
-		return ChainIDAurora, nil
-	case "fantom":
-		return ChainIDFantom, nil
-	case "algorand":
-		return ChainIDAlgorand, nil
-	case "ethereum-ropsten":
-		return ChainIDEthereumRopsten, nil
-	case "karura":
-		return ChainIDKarura, nil
-	case "acala":
-		return ChainIDAcala, nil
-	case "klaytn":
-		return ChainIDKlaytn, nil
-	case "celo":
-		return ChainIDCelo, nil
-	case "moonbeam":
-		return ChainIDMoonbeam, nil
-	case "neon":
-		return ChainIDNeon, nil
-	case "terra2":
-		return ChainIDTerra2, nil
-	default:
-		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
+	for key, element := range chainIntStringMap {
+		if element == s && key != 0 {
+			return chainIntChainIdMap[key], nil
+		}
 	}
+
+	return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 }
 
 func ChainIDFromInt(num uint16) (ChainID, error) {
-	switch num {
-	case 1:
-		return ChainIDSolana, nil
-	case 2:
-		return ChainIDEthereum, nil
-	case 3:
-		return ChainIDTerra, nil
-	case 4:
-		return ChainIDBSC, nil
-	case 5:
-		return ChainIDPolygon, nil
-	case 6:
-		return ChainIDAvalanche, nil
-	case 7:
-		return ChainIDOasis, nil
-	case 8:
-		return ChainIDAlgorand, nil
-	case 9:
-		return ChainIDAurora, nil
-	case 10:
-		return ChainIDFantom, nil
-	case 11:
-		return ChainIDKarura, nil
-	case 12:
-		return ChainIDAcala, nil
-	case 13:
-		return ChainIDKlaytn, nil
-	case 14:
-		return ChainIDCelo, nil
-	case 16:
-		return ChainIDMoonbeam, nil
-	case 17:
-		return ChainIDNeon, nil
-	case 18:
-		return ChainIDTerra2, nil
-	case 10001:
-		return ChainIDEthereumRopsten, nil
-	default:
+	chainId := chainIntChainIdMap[int(num)]
+
+	if chainId == 0 {
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %v", num)
 	}
+
+	return chainId, nil
 }
 
 const (
