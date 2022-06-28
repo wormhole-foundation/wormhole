@@ -32,14 +32,6 @@ func TestGetSignedVAA(t *testing.T) {
 				},
 			},
 			errString: "rpc error: code = InvalidArgument desc = address must be 32 bytes"},
-		{label: "no emitter chain",
-			req: &publicrpcv1.GetSignedVAARequest{
-				MessageId: &publicrpcv1.MessageID{
-					EmitterAddress: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-					Sequence:       uint64(1),
-				},
-			},
-			errString: "rpc error: code = InvalidArgument desc = invalid chain specified"},
 		{label: "invalid emitter chain",
 			req: &publicrpcv1.GetSignedVAARequest{
 				MessageId: &publicrpcv1.MessageID{

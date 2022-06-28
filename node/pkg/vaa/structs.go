@@ -156,14 +156,14 @@ func ChainIDFromString(s string) (ChainID, error) {
 	return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 }
 
-func ChainIDFromInt(num uint16) (ChainID, error) {
-	chainId := chainIntChainIdMap[int(num)]
-
-	if chainId == 0 {
-		return ChainIDUnset, fmt.Errorf("unknown chain ID: %v", num)
+func IsValidChainId(chainId ChainID) bool {
+	for _, element := range chainIntChainIdMap {
+		if chainId == element {
+			return true
+		}
 	}
 
-	return chainId, nil
+	return false
 }
 
 const (
