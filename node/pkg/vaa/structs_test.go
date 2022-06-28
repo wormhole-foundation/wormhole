@@ -149,6 +149,12 @@ func TestChainId_String(t *testing.T) {
 		{input: 16, output: "moonbeam"},
 		{input: 17, output: "neon"},
 		{input: 18, output: "terra2"},
+		{input: 19, output: "unknown chain ID: 19"},
+		{input: 20, output: "unknown chain ID: 20"},
+		{input: 21, output: "unknown chain ID: 21"},
+		{input: 22, output: "unknown chain ID: 22"},
+		{input: 23, output: "unknown chain ID: 23"},
+		{input: 24, output: "unknown chain ID: 24"},
 		{input: 10001, output: "ethereum-ropsten"},
 	}
 
