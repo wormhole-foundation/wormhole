@@ -8,8 +8,7 @@ import {
   hexToUint8Array,
   redeemOnEth,
   redeemOnEthNative,
-  importCoreWasm,
-  parseTransferPayload
+  importCoreWasm
 } from "@certusone/wormhole-sdk";
 import { BigNumber, ContractReceipt, Contract } from "ethers";
 //"/Users/leo/Developer/wormhole/relayer/spy_relayer/src/xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
@@ -23,6 +22,9 @@ import * as types from "../xRaydium/solana-proxy/generated_client/types";
 import "@nomiclabs/hardhat-ethers";
 import {ethers} from "hardhat";
 import xRaydium_abi from "../utils/xRaydium_abi.json";
+import {TransferPayload} from "../xRaydium/scripts/lib/lib"
+import {parseTransferPayload} from "../utils/wormhole"
+
 //import * as addrs from "../xRaydium/addrs";
 
 //import ethers from "hardhat";
@@ -94,9 +96,14 @@ export async function relayEVM(
   }
   const { parse_vaa } = await importCoreWasm();
   const parsed = parse_vaa(signedVaaArray);
-  let transferPayload: any = parseTransferPayload(
-    Buffer.from(parsed["payload"]),
-  );
+  
+  //@ts-ignore
+  let transferPayload = parseTransferPayload(Buffer.from(parsed.payload)) as TransferPayload;
+
+  console.log("transferPayload: ", transferPayload)
+
+  console.log("relayEVM fromAddress: ", transferPayload.fromAddress)
+
   transferPayload["payload3"] = Buffer.from(parsed["payload"].slice(133));
   logger.info(parsed, "Parsed VAA");
 

@@ -5,7 +5,6 @@ import {
   hexToNativeString,
   hexToUint8Array,
   importCoreWasm,
-  parseTransferPayload,
   ChainId,
   postVaaSolanaWithRetry,
   redeemOnSolana,
@@ -20,8 +19,7 @@ import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {relayToSolana} from "../xRaydium/scripts/relay"
 import {TransferPayload} from "../xRaydium/scripts/lib/lib"
-import * as wh from "@certusone/wormhole-sdk";
-
+import {parseTransferPayload} from "../utils/wormhole"
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
 export async function relaySolana(
@@ -76,6 +74,7 @@ export async function relaySolana(
     let payload3 = parsedVAA["payload"].slice(133);
     //@ts-ignore
     let myTransferPayload3 = parseTransferPayload(payloadBuffer) as TransferPayload;
+    console.log("relaySolana fromAddress: ", myTransferPayload3.fromAddress)
     logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
     myTransferPayload3["payload3"] = payload3;
 
