@@ -7,24 +7,22 @@ import (
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestGetSignedVAA(t *testing.T) {
 	type test struct {
-		label string
-		req   publicrpcv1.GetSignedVAARequest
-		err   error
+		label     string
+		req       publicrpcv1.GetSignedVAARequest
+		errString string
 	}
 
 	tests := []test{
 		{label: "no message",
-			req: publicrpcv1.GetSignedVAARequest{},
-			err: status.Error(codes.InvalidArgument, "no message ID specified")},
+			req:       publicrpcv1.GetSignedVAARequest{},
+			errString: "rpc error: code = InvalidArgument desc = no message ID specified"},
 		{label: "empty message",
-			req: publicrpcv1.GetSignedVAARequest{MessageId: &publicrpcv1.MessageID{}},
-			err: status.Error(codes.InvalidArgument, "address must be 32 bytes")},
+			req:       publicrpcv1.GetSignedVAARequest{MessageId: &publicrpcv1.MessageID{}},
+			errString: "rpc error: code = InvalidArgument desc = address must be 32 bytes"},
 		{label: "invalid address",
 			req: publicrpcv1.GetSignedVAARequest{
 				MessageId: &publicrpcv1.MessageID{
@@ -33,7 +31,7 @@ func TestGetSignedVAA(t *testing.T) {
 					Sequence:       uint64(1),
 				},
 			},
-			err: status.Error(codes.InvalidArgument, "address must be 32 bytes")},
+			errString: "rpc error: code = InvalidArgument desc = address must be 32 bytes"},
 		{label: "no emitter chain",
 			req: publicrpcv1.GetSignedVAARequest{
 				MessageId: &publicrpcv1.MessageID{
@@ -41,7 +39,7 @@ func TestGetSignedVAA(t *testing.T) {
 					Sequence:       uint64(1),
 				},
 			},
-			err: status.Error(codes.InvalidArgument, "invalid chain specified")},
+			errString: "rpc error: code = InvalidArgument desc = invalid chain specified"},
 		{label: "invalid emitter chain",
 			req: publicrpcv1.GetSignedVAARequest{
 				MessageId: &publicrpcv1.MessageID{
@@ -50,15 +48,7 @@ func TestGetSignedVAA(t *testing.T) {
 					Sequence:       uint64(1),
 				},
 			},
-			err: status.Error(codes.InvalidArgument, "invalid chain specified")},
-		{label: "no sequence",
-			req: publicrpcv1.GetSignedVAARequest{
-				MessageId: &publicrpcv1.MessageID{
-					EmitterChain:   publicrpcv1.ChainID(uint32(1)),
-					EmitterAddress: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-				},
-			},
-			err: status.Error(codes.InvalidArgument, "no sequence specified")},
+			errString: "rpc error: code = InvalidArgument desc = invalid chain specified"},
 	}
 
 	for _, tc := range tests {
@@ -69,7 +59,12 @@ func TestGetSignedVAA(t *testing.T) {
 
 			resp, err := server.GetSignedVAA(ctx, &tc.req)
 			assert.Nil(t, resp)
-			assert.Equal(t, tc.err, err)
+
+			if tc.errString == "" {
+				assert.Equal(t, nil, err)
+			} else {
+				assert.Equal(t, tc.errString, err.Error())
+			}
 		})
 	}
 
