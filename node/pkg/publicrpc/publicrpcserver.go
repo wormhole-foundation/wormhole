@@ -77,13 +77,13 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	copy(addr[:], address)
 
 	// Chain input validation
-	chainId, err := vaa.ChainIDFromInt(uint16(req.MessageId.EmitterChain))
-	if err != nil || chainId == vaa.ChainIDUnset {
+	chainId, err := vaa.ChainIDFromInt(uint16(req.MessageId.EmitterChain.Number()))
+	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid chain specified")
 	}
 
 	b, err := s.db.GetSignedVAABytes(db.VAAID{
-		EmitterChain:   vaa.ChainID(req.MessageId.EmitterChain.Number()),
+		EmitterChain:   chainId,
 		EmitterAddress: addr,
 		Sequence:       req.MessageId.Sequence,
 	})
