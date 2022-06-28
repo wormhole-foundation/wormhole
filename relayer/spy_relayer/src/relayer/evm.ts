@@ -22,6 +22,7 @@ import fs from "fs"
 import * as types from "../xRaydium/solana-proxy/generated_client/types";
 import "@nomiclabs/hardhat-ethers";
 import {ethers} from "hardhat";
+import xRaydium_abi from "../utils/xRaydium_abi.json";
 //import * as addrs from "../xRaydium/addrs";
 
 //import ethers from "hardhat";
@@ -101,17 +102,20 @@ export async function relayEVM(
 
   // TODO: check sender of payload 3 is solana proxy via sender field 
 
- // const addrs = JSON.parse(String(fs.readFile("../xRaydium/addrs")));
+  // const addrs = JSON.parse(String(fs.readFile("../xRaydium/addrs")));
 
   //const addrs = JSON.parse(String(await fs.promises.readFile("../xRaydium" + "/addrs")));
 
-  const XRaydiumBridge = await ethers.getContractFactory("XRaydiumBridge");
-  const contract = await XRaydiumBridge.attach("0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9");
+  //const XRaydiumBridge = await ethers.getContractFactory(xRaydium_abi.abi);
+
+  //const contract = await XRaydiumBridge.attach("0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9");
+
+  const contract = new ethers.Contract('0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9', xRaydium_abi.abi, provider);
 
   const response = types.Response.layout().decode(transferPayload.payload3);
   logger.info(response, "Response");
 
-  const receipt = await (await contract.receiveResponse(signedVaaArray)).wait();
+  const receipt = await (await contract.connect(signer).receiveResponse(signedVaaArray)).wait();
   
   logger.info("=============done redeem responses to EVM!!!...!!!")
 
