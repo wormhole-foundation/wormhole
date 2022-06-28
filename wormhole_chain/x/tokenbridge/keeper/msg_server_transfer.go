@@ -22,7 +22,7 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 
 	userAcc, err := sdk.AccAddressFromBech32(msg.Creator)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	meta, found := k.bankKeeper.GetDenomMetaData(ctx, msg.Amount.Denom)
@@ -39,8 +39,8 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 
 	// Parse fees
 	feeBig, ok := new(big.Int).SetString(msg.Fee, 10)
-	if !ok {
-		panic("invalid fee")
+	if !ok || feeBig.Sign() == -1 {
+		return nil, types.ErrInvalidFee
 	}
 
 	bridgeBalance := new(big.Int).Set(k.bankKeeper.GetBalance(ctx, k.accountKeeper.GetModuleAddress(types.ModuleName), msg.Amount.Denom).Amount.BigInt())
