@@ -173,12 +173,14 @@ func TestMapParity(t *testing.T) {
 
 	// Verify same keys and order
 	keys1 := []int{}
+	//lint:ignore S1005 ignore this!
 	for key, _ := range chainIntStringMap {
 		keys1 = append(keys1, key)
 	}
 	sort.Ints(keys1)
 
 	keys2 := []int{}
+	//lint:ignore S1005 ignore this!
 	for key, _ := range chainIntChainIdMap {
 		keys2 = append(keys2, key)
 	}
