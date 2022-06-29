@@ -189,6 +189,10 @@ export async function execute_evm(
           console.log("Registering chain")
           console.log("Hash: " + (await nb.registerChain(vaa, overrides)).hash)
           break
+        case "Transfer":
+          console.log("Completing transfer")
+          console.log("Hash: " + (await nb.completeTransfer(vaa, overrides)).hash)
+          break
         default:
           impossible(payload)
 
