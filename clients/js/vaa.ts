@@ -62,7 +62,13 @@ export type Payload =
     | PortalRegisterChain<"NFTBridge">
     | TokenBridgeTransfer
     | TokenBridgeTransferWithPayload
+    | TokenBridgeAttestMeta
 // TODO: add other types of payloads
+
+export type ContractUpgrade =
+    CoreContractUpgrade
+    | PortalContractUpgrade<"TokenBridge">
+    | PortalContractUpgrade<"NFTBridge">
 
 export function parse(buffer: Buffer): VAA<Payload | null> {
     const vaa = parseEnvelope(buffer)
@@ -74,6 +80,7 @@ export function parse(buffer: Buffer): VAA<Payload | null> {
         .or(portalRegisterChainParser("NFTBridge"))
         .or(tokenBridgeTransferParser())
         .or(tokenBridgeTransferWithPayloadParser())
+        .or(tokenBridgeAttestMetaParser())
     const payload = parser.parse(vaa.payload)
     var myVAA = { ...vaa, payload }
 
@@ -199,6 +206,9 @@ function vaaBody(vaa: VAA<Payload>) {
                     break
                 case "TransferWithPayload":
                     payload_str = serialiseTokenBridgeTransferWithPayload(payload)
+                    break
+                case "AttestMeta":
+                    payload_str = serialiseTokenBridgeAttestMeta(payload)
                     break
                 default:
                     impossible(payload)
@@ -440,6 +450,7 @@ function serialisePortalRegisterChain<Module extends "NFTBridge" | "TokenBridge"
 ////////////////////////////////////////////////////////////////////////////////
 // Token bridge
 
+// payload 1
 export interface TokenBridgeTransfer {
     module: "TokenBridge"
     type: "Transfer"
@@ -504,6 +515,70 @@ function serialiseTokenBridgeTransfer(payload: TokenBridgeTransfer): string {
     return body.join("")
 }
 
+// payload 2
+export interface TokenBridgeAttestMeta {
+    module: "TokenBridge"
+    type: "AttestMeta"
+    chain: 0,
+    tokenAddress: string
+    tokenChain: number
+    decimals: number
+    symbol: string
+    name: string
+}
+
+function tokenBridgeAttestMetaParser(): P<TokenBridgeAttestMeta> {
+    return new P(new Parser()
+        .endianess("big")
+        .string("module", {
+            length: (_) => 0,
+            formatter: (_) => "TokenBridge"
+        })
+        .string("chain", {
+            length: (_) => 0,
+            formatter: (_) => 0
+        })
+        .uint8("type", {
+            assert: 2,
+            formatter: (_action) => "AttestMeta"
+        })
+        .array("tokenAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+        .uint16("tokenChain")
+        .uint8("decimals")
+        .array("symbol", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8", arr.findIndex((val) => val != 0))
+        })
+        .array("name", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8", arr.findIndex((val) => val != 0))
+        })
+        .string("end", {
+            greedy: true,
+            assert: str => str === ""
+        })
+    )
+}
+
+function serialiseTokenBridgeAttestMeta(payload: TokenBridgeAttestMeta): string {
+    const body = [
+        encode("uint8", 2),
+        encode("bytes32", hex(payload.tokenAddress)),
+        encode("uint16", payload.tokenChain),
+        encode("uint8", payload.decimals),
+        encode("bytes32", encodeString(payload.symbol)),
+        encode("bytes32", encodeString(payload.name)),
+    ]
+    return body.join("")
+}
+
+// payload 3
 export interface TokenBridgeTransferWithPayload {
     module: "TokenBridge"
     type: "TransferWithPayload"
