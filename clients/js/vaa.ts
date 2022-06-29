@@ -61,6 +61,7 @@ export type Payload =
     | PortalRegisterChain<"TokenBridge">
     | PortalRegisterChain<"NFTBridge">
     | TokenBridgeTransfer
+    | TokenBridgeTransferWithPayload
 // TODO: add other types of payloads
 
 export function parse(buffer: Buffer): VAA<Payload | null> {
@@ -72,6 +73,7 @@ export function parse(buffer: Buffer): VAA<Payload | null> {
         .or(portalRegisterChainParser("TokenBridge"))
         .or(portalRegisterChainParser("NFTBridge"))
         .or(tokenBridgeTransferParser())
+        .or(tokenBridgeTransferWithPayloadParser())
     const payload = parser.parse(vaa.payload)
     var myVAA = { ...vaa, payload }
 
@@ -194,6 +196,9 @@ function vaaBody(vaa: VAA<Payload>) {
                     break
                 case "Transfer":
                     payload_str = serialiseTokenBridgeTransfer(payload)
+                    break
+                case "TransferWithPayload":
+                    payload_str = serialiseTokenBridgeTransferWithPayload(payload)
                     break
                 default:
                     impossible(payload)
@@ -495,6 +500,74 @@ function serialiseTokenBridgeTransfer(payload: TokenBridgeTransfer): string {
         encode("bytes32", hex(payload.toAddress)),
         encode("uint16", payload.chain),
         encode("uint256", payload.fee),
+    ]
+    return body.join("")
+}
+
+export interface TokenBridgeTransferWithPayload {
+    module: "TokenBridge"
+    type: "TransferWithPayload"
+    amount: bigint
+    tokenAddress: string
+    tokenChain: number
+    toAddress: string
+    chain: number
+    fromAddress: string,
+    payload: string
+}
+
+function tokenBridgeTransferWithPayloadParser(): P<TokenBridgeTransferWithPayload> {
+    return new P(new Parser()
+        .endianess("big")
+        .string("module", {
+            length: (_) => 0,
+            formatter: (_) => "TokenBridge"
+        })
+        .uint8("type", {
+            assert: 3,
+            formatter: (_action) => "TransferWithPayload"
+        })
+        .array("amount", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (bytes) => BigNumber.from(bytes).toBigInt()
+        })
+        .array("tokenAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+        .uint16("tokenChain")
+        .array("toAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+        .uint16("chain")
+        .array("fromAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        }).
+        array("payload", {
+            type: "uint8",
+            greedy: true,
+            readUntil: "eof",
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+    )
+}
+
+function serialiseTokenBridgeTransferWithPayload(payload: TokenBridgeTransferWithPayload): string {
+    const body = [
+        encode("uint8", 3),
+        encode("uint256", payload.amount),
+        encode("bytes32", hex(payload.tokenAddress)),
+        encode("uint16", payload.tokenChain),
+        encode("bytes32", hex(payload.toAddress)),
+        encode("uint16", payload.chain),
+        encode("bytes32", hex(payload.fromAddress)),
+        payload.payload.substring(2)
     ]
     return body.join("")
 }
