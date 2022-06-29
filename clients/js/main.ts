@@ -3,6 +3,7 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
+import { Bech32, fromBech32, toHex } from "@cosmjs/encoding";
 import { isTerraChain, assertEVMChain, CONTRACTS, setDefaultWasm } from "@certusone/wormhole-sdk";
 import { execute_governance_solana } from "./solana";
 import { execute_governance_evm, getImplementation, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
@@ -19,6 +20,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
+import base58 from "bs58";
 
 setDefaultWasm("node");
 
@@ -98,10 +100,7 @@ yargs(hideBin(process.argv))
                 type: "RegisterChain",
                 chain: 0,
                 emitterChain: toChainId(argv["chain"]),
-                emitterAddress: Buffer.from(
-                  argv["contract-address"].padStart(64, "0"),
-                  "hex"
-                ),
+                emitterAddress: parseAddress(argv["chain"], argv["contract-address"]),
               };
               let v = makeVAA(
                 GOVERNANCE_CHAIN,
@@ -149,10 +148,7 @@ yargs(hideBin(process.argv))
                 module,
                 type: "ContractUpgrade",
                 chain: toChainId(argv["chain"]),
-                address: Buffer.from(
-                  evm_address(argv["contract-address"]),
-                  "hex"
-                ),
+                address: parseCodeAddress(argv["chain"], argv["contract-address"]),
               };
               let v = makeVAA(
                 GOVERNANCE_CHAIN,
@@ -183,8 +179,9 @@ yargs(hideBin(process.argv))
     async (argv) => {
       const buf = Buffer.from(String(argv.vaa), "hex");
       const parsed_vaa = vaa.parse(buf);
-      console.log(parsed_vaa);
-      console.log("Digest:", vaa.vaaDigest(parsed_vaa))
+      let parsed_vaa_with_digest = parsed_vaa;
+      parsed_vaa_with_digest['digest'] = vaa.vaaDigest(parsed_vaa);
+      console.log(parsed_vaa_with_digest);
     })
   .command("recover <digest> <signature>", "Recover an address from a signature", (yargs) => {
     return yargs
@@ -521,4 +518,30 @@ function hex(x: string): string {
 
 function evm_address(x: string): string {
   return hex(x).substring(2).padStart(64, "0")
+}
+
+function parseAddress(chain: ChainName, address: string): string {
+  if (chain === "unset") {
+    throw Error("Chain unset")
+  } else if (isEVMChain(chain)) {
+    return "0x" + evm_address(address)
+  } else if (isTerraChain(chain)) {
+    return "0x" + toHex(fromBech32(address).data).padStart(64, "0")
+  } else if (chain === "solana") {
+    return "0x" + toHex(base58.decode(address)).padStart(64, "0")
+  } else if (chain === "algorand") {
+    throw Error("Algorand is not supported yet")
+  } else if (chain === "near") {
+    throw Error("NEAR is not supported yet")
+  } else {
+    impossible(chain)
+  }
+}
+
+function parseCodeAddress(chain: ChainName, address: string): string {
+  if (isTerraChain(chain)) {
+    return "0x" + parseInt(address, 10).toString(16).padStart(64, "0")
+  } else {
+    return parseAddress(chain, address)
+  }
 }
