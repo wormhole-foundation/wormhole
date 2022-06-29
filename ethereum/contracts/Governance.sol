@@ -10,6 +10,10 @@ import "./Setters.sol";
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
+/**
+ * @dev `Governance` defines a means to enacting changes to the core bridge contract,
+ * guardianSets, message fees, and transfer fees
+ */
 abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event GuardianSetAdded(uint32 indexed index);
@@ -17,77 +21,126 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     // "Core" (left padded)
     bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
 
+    /**
+     * @dev Upgrades a contract via Governance VAA/VM
+     */
     function submitContractUpgrade(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
+        // Verify the VAA is valid before processing it
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
         GovernanceStructs.ContractUpgrade memory upgrade = parseContractUpgrade(vm.payload);
 
+        // Verify the VAA is for this module
         require(upgrade.module == module, "Invalid Module");
+
+        // Verify the VAA is for this chain
         require(upgrade.chain == chainId(), "Invalid Chain");
 
+        // Record the governance action as consumed
         setGovernanceActionConsumed(vm.hash);
 
+        // Upgrades the implementation to the new contract
         upgradeImplementation(upgrade.newContract);
     }
 
+    /**
+     * @dev Sets a `messageFee` via Governance VAA/VM
+     */
     function submitSetMessageFee(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
+        // Verify the VAA is valid before processing it
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
         GovernanceStructs.SetMessageFee memory upgrade = parseSetMessageFee(vm.payload);
 
+        // Verify the VAA is for this module
         require(upgrade.module == module, "Invalid Module");
+
+        // Verify the VAA is for this chain
         require(upgrade.chain == chainId(), "Invalid Chain");
 
+        // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
 
+        // Updates the messageFee
         setMessageFee(upgrade.messageFee);
     }
 
+    /**
+     * @dev Deploys a new `guardianSet` via Governance VAA/VM
+     */
     function submitNewGuardianSet(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
+        // Verify the VAA is valid before processing it
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
         GovernanceStructs.GuardianSetUpgrade memory upgrade = parseGuardianSetUpgrade(vm.payload);
 
+        // Verify the VAA is for this module
         require(upgrade.module == module, "invalid Module");
+
+        // Verify the VAA is for this chain
         require(upgrade.chain == chainId() || upgrade.chain == 0, "invalid Chain");
 
+        // Verify the Guardian Set keys are not empty, this guards
+        // against the accidential upgrade to an empty GuardianSet
         require(upgrade.newGuardianSet.keys.length > 0, "new guardian set is empty");
+
+        // Verify that the index is incrementing via a predictable +1 pattern
         require(upgrade.newGuardianSetIndex == getCurrentGuardianSetIndex() + 1, "index must increase in steps of 1");
 
+        // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
 
+        // Trigger a time-based expiry of current guardianSet
         expireGuardianSet(getCurrentGuardianSetIndex());
+
+        // Add the new guardianSet to guardianSets
         storeGuardianSet(upgrade.newGuardianSet, upgrade.newGuardianSetIndex);
+
+        // Makes the new guardianSet effective
         updateGuardianSetIndex(upgrade.newGuardianSetIndex);
     }
 
+    /**
+     * @dev Submits transfer fees to the recipient via Governance VAA/VM
+     */
     function submitTransferFees(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
 
+        // Verify the VAA is valid before processing it
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
+        // Obtains the transfer from the VAA payload
         GovernanceStructs.TransferFees memory transfer = parseTransferFees(vm.payload);
 
+        // Verify the VAA is for this module
         require(transfer.module == module, "invalid Module");
+
+        // Verify the VAA is for this chain
         require(transfer.chain == chainId() || transfer.chain == 0, "invalid Chain");
 
+        // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
 
+        // Obtains the recipient address to be paid transfer fees
         address payable recipient = payable(address(uint160(uint256(transfer.recipient))));
 
+        // Transfers transfer fees to the recipient
         recipient.transfer(transfer.amount);
     }
 
+    /**
+     * @dev Upgrades the `currentImplementation` with a `newImplementation`
+     */
     function upgradeImplementation(address newImplementation) internal {
         address currentImplementation = _getImplementation();
 
@@ -101,8 +154,11 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
+    /**
+     * @dev Verifies a Governance VAA/VM is valid
+     */
     function verifyGovernanceVM(Structs.VM memory vm) internal view returns (bool, string memory){
-        // validate vm
+        // Verify the VAA is valid
         (bool isValid, string memory reason) = verifyVM(vm);
         if (!isValid){
             return (false, reason);
@@ -113,19 +169,24 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
             return (false, "not signed by current guardian set");
         }
 
-        // verify source
+        // Verify the VAA is for the governance chain (Solana)
         if (uint16(vm.emitterChainId) != governanceChainId()) {
             return (false, "wrong governance chain");
         }
+
+        // Verify the emitter contract is the governance contract (0x4 left padded)
         if (vm.emitterAddress != governanceContract()) {
             return (false, "wrong governance contract");
         }
 
         // prevent re-entry
+        // Verify this governance action hasn't already been
+        // consumed to prevent reentry
         if (governanceActionIsConsumed(vm.hash)){
             return (false, "governance action already consumed");
         }
 
+        // Confirm the governance VAA/VM is valid
         return (true, "");
     }
 }

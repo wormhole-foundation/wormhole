@@ -6,6 +6,10 @@ pragma solidity ^0.8.0;
 import "./libraries/external/BytesLib.sol";
 import "./Structs.sol";
 
+/**
+ * @dev `GovernanceStructs` defines a set of structs and parsing functions
+ * for minimal struct validation
+ */
 contract GovernanceStructs {
     using BytesLib for bytes;
 
@@ -48,6 +52,7 @@ contract GovernanceStructs {
         bytes32 recipient;
     }
 
+    /// @dev Parse a contract upgrade (action 1) with minimal validation
     function parseContractUpgrade(bytes memory encodedUpgrade) public pure returns (ContractUpgrade memory cu) {
         uint index = 0;
 
@@ -68,6 +73,7 @@ contract GovernanceStructs {
         require(encodedUpgrade.length == index, "invalid ContractUpgrade");
     }
 
+    /// @dev Parse a guardianSet upgrade (action 2) with minimal validation
     function parseGuardianSetUpgrade(bytes memory encodedUpgrade) public pure returns (GuardianSetUpgrade memory gsu) {
         uint index = 0;
 
@@ -101,6 +107,7 @@ contract GovernanceStructs {
         require(encodedUpgrade.length == index, "invalid GuardianSetUpgrade");
     }
 
+    /// @dev Parse a setMessageFee (action 3) with minimal validation
     function parseSetMessageFee(bytes memory encodedSetMessageFee) public pure returns (SetMessageFee memory smf) {
         uint index = 0;
 
@@ -121,6 +128,7 @@ contract GovernanceStructs {
         require(encodedSetMessageFee.length == index, "invalid SetMessageFee");
     }
 
+    /// @dev Parse a transferFees (action 4) with minimal validation
     function parseTransferFees(bytes memory encodedTransferFees) public pure returns (TransferFees memory tf) {
         uint index = 0;
 
