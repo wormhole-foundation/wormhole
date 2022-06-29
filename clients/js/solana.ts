@@ -46,9 +46,11 @@ export async function execute_solana(
           console.log("Registering chain")
           ix = nft_bridge.register_chain_ix(nft_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa);
           break
+        case "Transfer":
+          throw Error("Can't redeem NFTs from CLI")
+        // TODO: what's the authority account? just bail for now
         default:
           ix = impossible(v.payload)
-
       }
       break
     case "TokenBridge":

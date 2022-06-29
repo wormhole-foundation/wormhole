@@ -72,6 +72,9 @@ export async function execute_terra(
         case "RegisterChain":
           console.log("Registering chain");
           break;
+        case "Transfer":
+          console.log("Completing transfer");
+          break;
         default:
           impossible(payload);
       }
