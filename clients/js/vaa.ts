@@ -60,6 +60,7 @@ export type Payload =
     | PortalContractUpgrade<"NFTBridge">
     | PortalRegisterChain<"TokenBridge">
     | PortalRegisterChain<"NFTBridge">
+    | TokenBridgeTransfer
 // TODO: add other types of payloads
 
 export function parse(buffer: Buffer): VAA<Payload | null> {
@@ -70,6 +71,7 @@ export function parse(buffer: Buffer): VAA<Payload | null> {
         .or(portalContractUpgradeParser("NFTBridge"))
         .or(portalRegisterChainParser("TokenBridge"))
         .or(portalRegisterChainParser("NFTBridge"))
+        .or(tokenBridgeTransferParser())
     const payload = parser.parse(vaa.payload)
     var myVAA = { ...vaa, payload }
 
@@ -164,9 +166,24 @@ function vaaBody(vaa: VAA<Payload>) {
                 case "ContractUpgrade":
                     payload_str = serialiseCoreContractUpgrade(payload)
                     break
+                default:
+                    impossible(payload)
+                    break
             }
             break
         case "NFTBridge":
+            switch (payload.type) {
+                case "ContractUpgrade":
+                    payload_str = serialisePortalContractUpgrade(payload)
+                    break
+                case "RegisterChain":
+                    payload_str = serialisePortalRegisterChain(payload)
+                    break
+                default:
+                    impossible(payload)
+                    break
+            }
+            break
         case "TokenBridge":
             switch (payload.type) {
                 case "ContractUpgrade":
@@ -175,7 +192,16 @@ function vaaBody(vaa: VAA<Payload>) {
                 case "RegisterChain":
                     payload_str = serialisePortalRegisterChain(payload)
                     break
+                case "Transfer":
+                    payload_str = serialiseTokenBridgeTransfer(payload)
+                    break
+                default:
+                    impossible(payload)
+                    break
             }
+            break
+        default:
+            impossible(payload)
             break
     }
     const body = [
@@ -405,6 +431,76 @@ function serialisePortalRegisterChain<Module extends "NFTBridge" | "TokenBridge"
     ]
     return body.join("")
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Token bridge
+
+export interface TokenBridgeTransfer {
+    module: "TokenBridge"
+    type: "Transfer"
+    amount: bigint
+    tokenAddress: string
+    tokenChain: number
+    toAddress: string
+    chain: number
+    fee: bigint
+}
+
+function tokenBridgeTransferParser(): P<TokenBridgeTransfer> {
+    return new P(new Parser()
+        .endianess("big")
+        .string("module", {
+            length: (_) => 0,
+            formatter: (_) => "TokenBridge"
+        })
+        .uint8("type", {
+            assert: 1,
+            formatter: (_action) => "Transfer"
+        })
+        .array("amount", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (bytes) => BigNumber.from(bytes).toBigInt()
+        })
+        .array("tokenAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+        .uint16("tokenChain")
+        .array("toAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+        .uint16("chain")
+        .array("fee", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (bytes) => BigNumber.from(bytes).toBigInt()
+        })
+        .string("end", {
+            greedy: true,
+            assert: str => str === ""
+        })
+    )
+}
+
+function serialiseTokenBridgeTransfer(payload: TokenBridgeTransfer): string {
+    const body = [
+        encode("uint8", 1),
+        encode("uint256", payload.amount),
+        encode("bytes32", hex(payload.tokenAddress)),
+        encode("uint16", payload.tokenChain),
+        encode("bytes32", hex(payload.toAddress)),
+        encode("uint16", payload.chain),
+        encode("uint256", payload.fee),
+    ]
+    return body.join("")
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// NFT bridge
 
 // This function should be called after pattern matching on all possible options
 // of an enum (union) type, so that typescript can derive that no other options

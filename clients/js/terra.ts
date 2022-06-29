@@ -91,8 +91,7 @@ export async function execute_governance_terra(
           console.log("Registering chain");
           break;
         default:
-          impossible(payload);
-          execute_msg = impossible(payload);
+          throw Error(`VAA is of type ${payload.type}, which is not a governance action`)
       }
       break;
     default:
