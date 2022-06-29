@@ -7,6 +7,7 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
   Algodv2,
   bigIntToBytes,
@@ -19,7 +20,7 @@ import {
   Transaction as AlgorandTransaction,
 } from "algosdk";
 import { BigNumber, ethers, Overrides, PayableOverrides } from "ethers";
-import { isNativeDenom } from "..";
+import { isNativeDenom, isNativeDenomInjective } from "..";
 import {
   assetOptinCheck,
   getMessageFee,
@@ -231,6 +232,82 @@ export async function transferFromTerra(
           }),
           {}
         ),
+      ];
+}
+
+export async function transferFromInjective(
+  walletAddress: string,
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  amount: string,
+  recipientChain: ChainId | ChainName,
+  recipientAddress: Uint8Array,
+  relayerFee: string = "0",
+  payload: Uint8Array | null = null
+) {
+  const recipientChainId = coalesceChainId(recipientChain);
+  const nonce = Math.round(Math.random() * 100000);
+  const isNativeAsset = isNativeDenomInjective(tokenAddress);
+  const mk_initiate_transfer = (info: object) =>
+    payload
+      ? {
+          initiate_transfer_with_payload: {
+            asset: {
+              amount,
+              info,
+            },
+            recipient_chain: recipientChainId,
+            recipient: Buffer.from(recipientAddress).toString("base64"),
+            fee: relayerFee,
+            nonce: nonce,
+            payload: payload,
+          },
+        }
+      : {
+          initiate_transfer: {
+            asset: {
+              amount,
+              info,
+            },
+            recipient_chain: recipientChainId,
+            recipient: Buffer.from(recipientAddress).toString("base64"),
+            fee: relayerFee,
+            nonce: nonce,
+          },
+        };
+  return isNativeAsset
+    ? [
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: { deposit_tokens: {} },
+          amount: { denom: "inj", amount: amount },
+        }),
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: mk_initiate_transfer({ native_token: { denom: tokenAddress } }),
+        }),
+      ]
+    : [
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: {
+            increase_allowance: {
+              spender: tokenBridgeAddress,
+              amount: amount,
+              expires: {
+                never: {},
+              },
+            },
+          },
+        }),
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: mk_initiate_transfer({ token: { contract_addr: tokenAddress } }),
+        }),
       ];
 }
 

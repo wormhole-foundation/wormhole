@@ -22,6 +22,7 @@ import {
 } from "../utils";
 import { hexToNativeString } from "../utils/array";
 import { parseTransferPayload } from "../utils/parseVaa";
+import { createWrappedOnInjective } from "./createWrapped";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -58,6 +59,8 @@ export async function redeemOnTerra(
     },
   });
 }
+
+export const redeemOnInjective = createWrappedOnInjective;
 
 export async function redeemAndUnwrapOnSolana(
   connection: Connection,

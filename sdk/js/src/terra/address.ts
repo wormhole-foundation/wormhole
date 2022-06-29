@@ -8,6 +8,9 @@ export const isNativeTerra = (string = "") =>
 export const isNativeDenom = (string = "") =>
   isNativeTerra(string) || string === "uluna";
 
+export const isNativeDenomInjective = (string = "") =>
+  string === "inj" || string.startsWith("peggy0x");
+
 export function buildNativeId(denom: string): Uint8Array {
   const bytes = [];
   for (let i = 0; i < denom.length; i++) {

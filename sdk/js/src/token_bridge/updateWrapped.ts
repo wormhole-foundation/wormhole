@@ -1,6 +1,7 @@
 import { ethers, Overrides } from "ethers";
 import {
   createWrappedOnAlgorand,
+  createWrappedOnInjective,
   createWrappedOnSolana,
   createWrappedOnTerra,
 } from ".";
@@ -19,6 +20,8 @@ export async function updateWrappedOnEth(
 }
 
 export const updateWrappedOnTerra = createWrappedOnTerra;
+
+export const updateWrappedOnInjective = createWrappedOnInjective;
 
 export const updateWrappedOnSolana = createWrappedOnSolana;
 

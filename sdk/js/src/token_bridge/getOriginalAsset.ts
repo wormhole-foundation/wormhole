@@ -1,3 +1,5 @@
+import { getNetworkInfo, Network } from "@injectivelabs/networks";
+import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
@@ -13,6 +15,7 @@ import {
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_INJECTIVE,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   coalesceChainId,
@@ -74,6 +77,48 @@ export async function getOriginalAssetTerra(
   wrappedAddress: string
 ) {
   return getOriginalAssetCosmWasm(client, wrappedAddress, CHAIN_ID_TERRA);
+}
+
+export async function getOriginalAssetInjective(
+  wrappedAddress: string
+): Promise<WormholeWrappedInfo> {
+  const chainId = CHAIN_ID_INJECTIVE;
+  if (isNativeDenom(wrappedAddress)) {
+    return {
+      isWrapped: false,
+      chainId: chainId,
+      assetAddress: buildNativeId(wrappedAddress),
+    };
+  }
+  try {
+    const network = getNetworkInfo(Network.TestnetK8s);
+    const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+    const queryResult = await client.fetchSmartContractState(
+      wrappedAddress,
+      JSON.stringify({
+        wrapped_asset_info: {},
+      })
+    );
+    let result: any = null;
+    if (typeof queryResult.data === "string") {
+      result = JSON.parse(
+        Buffer.from(queryResult.data, "base64").toString("utf-8")
+      );
+      console.log("result", result);
+      return {
+        isWrapped: true,
+        chainId: result.asset_chain,
+        assetAddress: new Uint8Array(
+          Buffer.from(result.asset_address, "base64")
+        ),
+      };
+    }
+  } catch (e) {}
+  return {
+    isWrapped: false,
+    chainId: chainId,
+    assetAddress: zeroPad(canonicalAddress(wrappedAddress), 32),
+  };
 }
 
 export async function getOriginalAssetCosmWasm(

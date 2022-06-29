@@ -1,9 +1,17 @@
+import { getNetworkInfo, Network } from "@injectivelabs/networks";
+import {
+  ChainRestAuthApi,
+  DEFAULT_STD_FEE,
+  privateKeyToPublicKeyBase64,
+} from "@injectivelabs/sdk-ts";
+import { createTransaction, TxGrpcClient } from "@injectivelabs/tx-ts";
+import { PrivateKey } from "@injectivelabs/sdk-ts/dist/local";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
 import axios from "axios";
 import { ethers } from "ethers";
-import { redeemOnTerra } from ".";
+import { redeemOnInjective, redeemOnTerra } from ".";
 import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
 import {
   BITS_PER_KEY,
@@ -60,6 +68,72 @@ export async function getIsTransferCompletedTerra(
   } catch (e: any) {
     // redeemed if the VAA was already executed
     return e.response.data.message.includes("VaaAlreadyExecuted");
+  }
+  return false;
+}
+
+// TODO: Is there an Injective address for this?
+export async function getIsTransferCompletedInjective(
+  tokenBridgeAddress: string,
+  signedVAA: Uint8Array,
+  walletPKHash: string
+): Promise<boolean> {
+  try {
+    const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
+    const walletInjAddr = walletPK.toBech32();
+    const walletPublicKey = privateKeyToPublicKeyBase64(
+      Buffer.from(walletPKHash, "hex")
+    );
+    const roi = await redeemOnInjective(
+      tokenBridgeAddress,
+      walletInjAddr,
+      signedVAA
+    );
+    // TODO:  Remove hardcoded network.
+    const network = getNetworkInfo(Network.TestnetK8s);
+    const accountDetails = await new ChainRestAuthApi(
+      network.sentryHttpApi
+    ).fetchAccount(walletInjAddr);
+    const txFee = DEFAULT_STD_FEE;
+    txFee.amount[0] = { amount: "250000000000000", denom: "inj" };
+    txFee.gas = "500000";
+    const { signBytes, txRaw } = createTransaction({
+      message: roi.toDirectSign(),
+      memo: "",
+      fee: txFee,
+      pubKey: Buffer.from(walletPublicKey).toString("base64"),
+      sequence: parseInt(accountDetails.account.base_account.sequence, 10),
+      accountNumber: parseInt(
+        accountDetails.account.base_account.account_number,
+        10
+      ),
+      chainId: network.chainId,
+    });
+    console.log("txRaw", txRaw);
+
+    console.log("sign transaction...");
+    /** Sign transaction */
+    const sig = await walletPK.sign(signBytes);
+
+    /** Append Signatures */
+    txRaw.setSignaturesList([sig]);
+
+    const txService = new TxGrpcClient({
+      txRaw,
+      endpoint: network.sentryGrpcApi,
+    });
+
+    console.log("simulate transaction...");
+    /** Simulate transaction */
+    const simulationResponse = await txService.simulate();
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      const msgTxt: string = e.message;
+      if (msgTxt.includes("VaaAlreadyExecuted")) {
+        return true;
+      }
+      return false;
+    }
   }
   return false;
 }

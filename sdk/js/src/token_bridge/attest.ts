@@ -1,5 +1,6 @@
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
   Algodv2,
   bigIntToBytes,
@@ -11,7 +12,7 @@ import {
   SuggestedParams,
 } from "algosdk";
 import { ethers, PayableOverrides } from "ethers";
-import { isNativeDenom } from "..";
+import { isNativeDenom, isNativeDenomInjective } from "..";
 import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
@@ -51,6 +52,35 @@ export async function attestFromTerra(
             },
           },
       nonce: nonce,
+    },
+  });
+}
+
+// For native assets the asset string is the denomination.
+// For foreign assets the asset string is the inj address of the foreign asset
+export async function attestFromInjective(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  asset: string
+): Promise<MsgExecuteContractInjective> {
+  const nonce = Math.round(Math.random() * 100000);
+  const isNativeAsset = isNativeDenomInjective(asset);
+  return MsgExecuteContractInjective.fromJSON({
+    contractAddress: tokenBridgeAddress,
+    sender: walletAddress,
+    msg: {
+      create_asset_meta: {
+        asset_info: isNativeAsset
+          ? {
+              native_token: { denom: asset },
+            }
+          : {
+              token: {
+                contract_addr: asset,
+              },
+            },
+        nonce: nonce,
+      },
     },
   });
 }

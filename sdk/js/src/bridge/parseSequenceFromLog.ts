@@ -67,6 +67,23 @@ export function parseSequencesFromLogTerra(info: TxInfo): string[] {
   return sequences;
 }
 
+export function parseSequenceFromLogInjective(info: any): string {
+  // Scan for the Sequence attribute in all the outputs of the transaction.
+  // TODO: Make this not horrible.
+  let sequence = "";
+  const jsonLog = JSON.parse(info.rawLog);
+  jsonLog.map((row: any) => {
+    row.events.map((event: any) => {
+      event.attributes.map((attribute: any) => {
+        if (attribute.key === "message.sequence") {
+          sequence = attribute.value;
+        }
+      });
+    });
+  });
+  return sequence.toString();
+}
+
 const SOLANA_SEQ_LOG = "Program log: Sequence: ";
 export function parseSequenceFromLogSolana(info: TransactionResponse) {
   // TODO: better parsing, safer

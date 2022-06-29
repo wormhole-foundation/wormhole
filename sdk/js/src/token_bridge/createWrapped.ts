@@ -1,5 +1,6 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import { Algodv2 } from "algosdk";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
@@ -28,6 +29,22 @@ export async function createWrappedOnTerra(
   return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
     submit_vaa: {
       data: fromUint8Array(signedVAA),
+    },
+  });
+}
+
+export async function createWrappedOnInjective(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  signedVAA: Uint8Array
+): Promise<MsgExecuteContractInjective> {
+  return MsgExecuteContractInjective.fromJSON({
+    contractAddress: tokenBridgeAddress,
+    sender: walletAddress,
+    msg: {
+      submit_vaa: {
+        data: fromUint8Array(signedVAA),
+      },
     },
   });
 }
