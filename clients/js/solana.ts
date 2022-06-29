@@ -63,7 +63,7 @@ export async function execute_governance_solana(
           ix = token_bridge.register_chain_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
           break
         default:
-          ix = impossible(v.payload)
+          throw Error(`VAA is of type ${v.payload.type}, which is not a governance action`)
 
       }
       break
