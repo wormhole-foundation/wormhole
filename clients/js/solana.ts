@@ -71,6 +71,10 @@ export async function execute_solana(
             ix = token_bridge.complete_transfer_wrapped_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
           }
           break
+        case "AttestMeta":
+          console.log("Creating wrapped token")
+          ix = token_bridge.create_wrapped_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
+          break
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI")
         default:

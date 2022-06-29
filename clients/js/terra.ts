@@ -93,9 +93,11 @@ export async function execute_terra(
         case "Transfer":
           console.log("Completing transfer");
           break;
-        case "TransferWithPayload":
-          console.log("Completing transfer");
+        case "AttestMeta":
+          console.log("Creating wrapped token");
           break;
+        case "TransferWithPayload":
+          throw Error("Can't complete payload 3 transfer from CLI")
         default:
           impossible(payload)
           break

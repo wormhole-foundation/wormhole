@@ -247,6 +247,10 @@ export async function execute_evm(
           console.log("Completing transfer")
           console.log("Hash: " + (await tb.completeTransfer(vaa, overrides)).hash)
           break
+        case "AttestMeta":
+          console.log("Creating wrapped token")
+          console.log("Hash: " + (await tb.createWrapped(vaa, overrides)).hash)
+          break
         case "TransferWithPayload":
           console.log("Completing transfer with payload")
           console.log("Hash: " + (await tb.completeTransferWithPayload(vaa, overrides)).hash)
