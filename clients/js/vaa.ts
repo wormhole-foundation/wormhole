@@ -1,5 +1,5 @@
 import { Parser } from "binary-parser"
-import { ethers } from "ethers"
+import { BigNumber, ethers } from "ethers"
 import { solidityKeccak256 } from "ethers/lib/utils"
 import * as elliptic from "elliptic"
 
@@ -124,7 +124,7 @@ const vaaParser = new Parser()
     .array("emitterAddress", {
         type: "uint8",
         lengthInBytes: 32,
-        formatter: arr => Buffer.from(arr).toString("hex")
+        formatter: arr => "0x" + Buffer.from(arr).toString("hex")
     })
     .uint64("sequence")
     .uint8("consistencyLevel")
@@ -149,7 +149,7 @@ export function serialiseVAA(vaa: VAA<Payload>) {
 }
 
 export function vaaDigest(vaa: VAA<Payload>) {
-  return solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + vaaBody(vaa)])])
+    return solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + vaaBody(vaa)])])
 }
 
 function vaaBody(vaa: VAA<Payload>) {
@@ -182,7 +182,7 @@ function vaaBody(vaa: VAA<Payload>) {
         encode("uint32", vaa.timestamp),
         encode("uint32", vaa.nonce),
         encode("uint16", vaa.emitterChain),
-        encode("bytes32", Buffer.from(vaa.emitterAddress, "hex")),
+        encode("bytes32", hex(vaa.emitterAddress)),
         encode("uint64", vaa.sequence),
         encode("uint8", vaa.consistencyLevel),
         payload_str
@@ -258,7 +258,7 @@ const guardianSetUpgradeParser: P<GuardianSetUpgrade> = new P(new Parser()
 
 function serialiseGuardianSetUpgrade(payload: GuardianSetUpgrade): string {
     const body = [
-        encode("bytes32", Buffer.from(Buffer.from(payload.module).toString("hex").padStart(64, "0"), "hex")),
+        encode("bytes32", encodeString(payload.module)),
         encode("uint8", 2),
         encode("uint16", payload.chain),
         encode("uint32", payload.newGuardianSetIndex),
@@ -275,7 +275,7 @@ export interface CoreContractUpgrade {
     module: "Core"
     type: "ContractUpgrade"
     chain: number
-    address: Uint8Array
+    address: string
 }
 
 // Parse a core contract upgrade payload
@@ -296,7 +296,7 @@ const coreContractUpgradeParser: P<CoreContractUpgrade> =
         .array("address", {
             type: "uint8",
             lengthInBytes: 32,
-            // formatter: (arr) => Buffer.from(arr).toString("hex")
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
         })
         .string("end", {
             greedy: true,
@@ -317,7 +317,7 @@ export interface PortalContractUpgrade<Module extends "NFTBridge" | "TokenBridge
     module: Module
     type: "ContractUpgrade"
     chain: number
-    address: Uint8Array
+    address: string
 }
 
 // Parse a portal contract upgrade payload
@@ -338,7 +338,7 @@ function portalContractUpgradeParser<Module extends "NFTBridge" | "TokenBridge">
         .array("address", {
             type: "uint8",
             lengthInBytes: 32,
-            // formatter: (arr) => Buffer.from(arr).toString("hex")
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
         })
         .string("end", {
             greedy: true,
@@ -364,7 +364,7 @@ export interface PortalRegisterChain<Module extends "NFTBridge" | "TokenBridge">
     type: "RegisterChain"
     chain: number
     emitterChain: number
-    emitterAddress: Uint8Array
+    emitterAddress: string
 }
 
 // Parse a portal chain registration payload
@@ -386,13 +386,13 @@ function portalRegisterChainParser<Module extends "NFTBridge" | "TokenBridge">(m
         .array("emitterAddress", {
             type: "uint8",
             lengthInBytes: 32,
-            // formatter: (arr) => Buffer.from(arr).toString("hex")
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
         })
         .string("end", {
             greedy: true,
             assert: str => str === ""
         })
-)
+    )
 }
 
 function serialisePortalRegisterChain<Module extends "NFTBridge" | "TokenBridge">(payload: PortalRegisterChain<Module>): string {
@@ -456,4 +456,9 @@ export function encode(type: Encoding, val: any): string {
 // string (64 chars long)
 export function encodeString(str: string): Buffer {
     return Buffer.from(Buffer.from(str).toString("hex").padStart(64, "0"), "hex")
+}
+
+// Turn hex string with potentially missing 0x prefix into Buffer
+function hex(x: string): Buffer {
+    return Buffer.from(ethers.utils.hexlify(x, { allowMissingPrefix: true }).substring(2), "hex")
 }
