@@ -12,11 +12,11 @@
             "rpcUrlLocal": "http://localhost:8899",
             "rpcPort": "8899",
             "contracts": {
-                "coreEmitterAddress": "074c6d4fcaf24e4b33b3624d7c340c09e46af6fe0a86759efeb25552e46a0e2b",
+                "coreEmitterAddress": "VVStPLdubtbBUnMDhC3kt8fM3AE6NLRv73TAd3FCAen",
                 "coreNativeAddress": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
-                "tokenBridgeEmitterAddress": "c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
+                "tokenBridgeEmitterAddress": "ENG1wQ7CQKH8ibAJ1hSLmJgL9Ucg6DRDbj752ZAfidLA",
                 "tokenBridgeNativeAddress": "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE",
-                "nftBridgeEmitterAddress": "96ee982293251b48729804c8e8b24b553eb6b887867024948d2236fd37a577ab",
+                "nftBridgeEmitterAddress": "BABAnMBgBELTQnHabZqYa1thHKp834RDvud4rJ8EUr3k",
                 "nftBridgeNativeAddress": "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA"
             },
             "accounts": {
@@ -156,11 +156,11 @@
             "rpcUrlLocal": "http://localhost:1317",
             "rpcPort": "1317",
             "contracts": {
-                "coreEmitterAddress": "0000000000000000000000003b1a7485c6162c5883ee45fb2d7477a87d8a4ce5",
+                "coreEmitterAddress": "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
                 "coreNativeAddress": "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
-                "tokenBridgeEmitterAddress": "000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d",
+                "tokenBridgeEmitterAddress": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
                 "tokenBridgeNativeAddress": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
-                "nftBridgeEmitterAddress": "0000000000000000000000000fe5c51f539a651152ae461086d733777a54a134",
+                "nftBridgeEmitterAddress": "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl",
                 "nftBridgeNativeAddress": "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf"
             },
             "accounts": {
@@ -208,9 +208,9 @@
             "rpcUrlLocal": "http://localhost:1318",
             "rpcPort": "1318",
             "contracts": {
-                "coreEmitterAddress": "ade4a5f5803a439835c636395a8d648dee57b2fc90d98dc17fa887159b69638b",
+                "coreEmitterAddress": "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
                 "coreNativeAddress": "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
-                "tokenBridgeEmitterAddress": "9e28beafa966b2407bffb0d48651e94972a56e69f3c0897d9e8facbdaeb98386",
+                "tokenBridgeEmitterAddress": "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6",
                 "tokenBridgeNativeAddress": "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6"
             },
             "accounts": {
