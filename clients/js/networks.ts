@@ -95,6 +95,10 @@ const MAINNET = {
     chain_id: "phoenix-1",
     key: get_env_var("TERRA_MNEMONIC"),
   },
+  injective: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY"),
@@ -180,6 +184,11 @@ const TESTNET = {
     chain_id: "pisco-1",
     key: get_env_var("TERRA_MNEMONIC"),
   },
+  injective: {
+    rpc: "https://testnet.lcd.injective.dev",
+    chain_id: "injective-888",
+    key: get_env_var("ETH_KEY_TESTNET"),
+  },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY_TESTNET"),
@@ -264,6 +273,10 @@ const DEVNET = {
     rpc: "http://localhost:1318",
     chain_id: "phoenix-1",
     key: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius",
+  },
+  injective: {
+    rpc: undefined,
+    key: undefined,
   },
   ropsten: {
     rpc: undefined,

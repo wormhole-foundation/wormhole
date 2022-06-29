@@ -18,6 +18,7 @@ export const CHAINS = {
   moonbeam: 16,
   neon: 17,
   terra2: 18,
+  injective: 19,
   ropsten: 10001,
 } as const;
 
@@ -44,6 +45,7 @@ export type EVMChainName =
   | "neon"
   | "ropsten";
 
+export type CosmWasmChainName = "terra" | "terra2" | "injective";
 export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
@@ -153,6 +155,11 @@ const MAINNET = {
       "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",
     nft_bridge: undefined,
   },
+  injective: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -255,6 +262,11 @@ const TESTNET = {
     core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
     token_bridge:
       "terra1c02vds4uhgtrmcw7ldlg75zumdqxr8hwf7npseuf2h58jzhpgjxsgmwkvk",
+    nft_bridge: undefined,
+  },
+  injective: {
+    core: "inj1q0e70vhrv063eah90mu97sazhywmeegp7myvnh",
+    token_bridge: "inj1np4pvfw5fe9nj6ds3fv8v9cm9d8umasm5ltrtq",
     nft_bridge: undefined,
   },
   ropsten: {
@@ -360,6 +372,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  injective: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -424,6 +441,7 @@ export const CHAIN_ID_NEAR = CHAINS["near"];
 export const CHAIN_ID_MOONBEAM = CHAINS["moonbeam"];
 export const CHAIN_ID_NEON = CHAINS["neon"];
 export const CHAIN_ID_TERRA2 = CHAINS["terra2"];
+export const CHAIN_ID_INJECTIVE = CHAINS["injective"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
@@ -444,8 +462,9 @@ export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
  */
 export type EVMChainId = typeof CHAINS[EVMChainName];
 
-export type TerraChainId = typeof CHAINS[TerraChainName];
+export type CosmWasmChainId = typeof CHAINS[CosmWasmChainName];
 
+export type TerraChainId = typeof CHAINS[TerraChainName];
 /**
  *
  * Returns true when called with a valid chain, and narrows the type in the
@@ -541,6 +560,17 @@ export function isEVMChain(
   } else {
     return notEVM(chainId);
   }
+}
+
+export function isCosmWasmChain(
+  chain: ChainId | ChainName
+): chain is CosmWasmChainId | CosmWasmChainName {
+  const chainId = coalesceChainId(chain);
+  return (
+    chainId === CHAIN_ID_TERRA ||
+    chainId === CHAIN_ID_TERRA2 ||
+    chainId === CHAIN_ID_INJECTIVE
+  );
 }
 
 export function isTerraChain(

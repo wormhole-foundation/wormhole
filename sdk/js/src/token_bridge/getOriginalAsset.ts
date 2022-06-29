@@ -4,10 +4,10 @@ import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { decodeLocalState } from "../algorand";
-import { buildTokenId } from "../cosmwasm/address";
+import { buildTokenId, canonicalAddress } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
-import { buildNativeId, canonicalAddress, isNativeDenom } from "../terra";
+import { buildNativeId, isNativeDenom } from "../terra";
 import {
   ChainId,
   ChainName,

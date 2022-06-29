@@ -1,5 +1,5 @@
 import { zeroPad } from "ethers/lib/utils";
-import { canonicalAddress } from "../terra";
+import { canonicalAddress } from "..";
 import { tryUint8ArrayToNative } from "./array";
 
 test("terra address conversion", () => {

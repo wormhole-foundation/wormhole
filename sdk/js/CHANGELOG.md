@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.6
+
+### Added
+
+Injective support
+
 ## 0.4.5
 
 ### Changed
