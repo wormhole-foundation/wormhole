@@ -23,5 +23,9 @@ install: build
 	chmod +x build/main.js
 	npm link
 
+.PHONY: test
+test: build
+	./run_parse_tests
+
 clean:
 	rm -rf build node_modules

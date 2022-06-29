@@ -63,7 +63,7 @@ export type Payload =
     | TokenBridgeTransfer
     | TokenBridgeTransferWithPayload
     | TokenBridgeAttestMeta
-// TODO: add other types of payloads
+    | NFTBridgeTransfer
 
 export type ContractUpgrade =
     CoreContractUpgrade
@@ -81,7 +81,9 @@ export function parse(buffer: Buffer): VAA<Payload | null> {
         .or(tokenBridgeTransferParser())
         .or(tokenBridgeTransferWithPayloadParser())
         .or(tokenBridgeAttestMetaParser())
+        .or(nftBridgeTransferParser())
     const payload = parser.parse(vaa.payload)
+    delete payload['tokenURILength']
     var myVAA = { ...vaa, payload }
 
     return myVAA
@@ -187,6 +189,9 @@ function vaaBody(vaa: VAA<Payload>) {
                     break
                 case "RegisterChain":
                     payload_str = serialisePortalRegisterChain(payload)
+                    break
+                case "Transfer":
+                    payload_str = serialiseNFTBridgeTransfer(payload)
                     break
                 default:
                     impossible(payload)
@@ -649,6 +654,88 @@ function serialiseTokenBridgeTransferWithPayload(payload: TokenBridgeTransferWit
 
 ////////////////////////////////////////////////////////////////////////////////
 // NFT bridge
+
+export interface NFTBridgeTransfer {
+    module: "NFTBridge"
+    type: "Transfer"
+    tokenAddress: string
+    tokenChain: number
+    tokenSymbol: string
+    tokenName: string
+    tokenId: bigint
+    tokenURI: string
+    toAddress: string
+    chain: number
+}
+
+function nftBridgeTransferParser(): P<NFTBridgeTransfer> {
+    return new P(new Parser()
+        .endianess("big")
+        .string("module", {
+            length: (_) => 0,
+            formatter: (_) => "NFTBridge"
+        })
+        .uint8("type", {
+            assert: 1,
+            formatter: (_action) => "Transfer"
+        })
+        .array("tokenAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+        .uint16("tokenChain")
+        .array("tokenSymbol", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8", arr.findIndex((val) => val != 0))
+        })
+        .array("tokenName", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8", arr.findIndex((val) => val != 0))
+        })
+        .array("tokenId", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (bytes) => BigNumber.from(bytes).toBigInt()
+        })
+        .uint8("tokenURILength")
+        .array("tokenURI", {
+            type: "uint8",
+            lengthInBytes: function() {
+                return this.tokenURILength
+            },
+            formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8")
+        })
+        .array("toAddress", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (arr) => "0x" + Buffer.from(arr).toString("hex")
+        })
+        .uint16("chain")
+        .string("end", {
+            greedy: true,
+            assert: str => str === ""
+        })
+    )
+}
+
+function serialiseNFTBridgeTransfer(payload: NFTBridgeTransfer): string {
+    const body = [
+        encode("uint8", 1),
+        encode("bytes32", hex(payload.tokenAddress)),
+        encode("uint16", payload.tokenChain),
+        encode("bytes32", encodeString(payload.tokenSymbol)),
+        encode("bytes32", encodeString(payload.tokenName)),
+        encode("uint256", payload.tokenId),
+        encode("uint8", payload.tokenURI.length),
+        Buffer.from(payload.tokenURI, "utf8").toString("hex"),
+        encode("bytes32", hex(payload.toAddress)),
+        encode("uint16", payload.chain),
+    ]
+    return body.join("")
+}
 
 // This function should be called after pattern matching on all possible options
 // of an enum (union) type, so that typescript can derive that no other options
