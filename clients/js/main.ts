@@ -525,7 +525,8 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "solana") {
     return "0x" + toHex(base58.decode(address)).padStart(64, "0")
   } else if (chain === "algorand") {
-    throw Error("Algorand is not supported yet")
+    // TODO: is there a better native format for algorand?
+    return "0x" + evm_address(address)
   } else if (chain === "near") {
     throw Error("NEAR is not supported yet")
   } else {
