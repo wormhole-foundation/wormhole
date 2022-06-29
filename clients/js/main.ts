@@ -144,7 +144,7 @@ yargs(hideBin(process.argv))
                 | "Core"
                 | "NFTBridge"
                 | "TokenBridge";
-              let payload: Payload = {
+              let payload: vaa.ContractUpgrade = {
                 module,
                 type: "ContractUpgrade",
                 chain: toChainId(argv["chain"]),
