@@ -8,7 +8,7 @@ function usage() {
 cat <<EOF >&2
 Usage:
 
-  $(basename "$0") [-h] [-a] -- Run golden parser golden tests in $test_directory
+  $(basename "$0") [-h] [-a] -- Run parser golden tests in $test_directory
 
   where:
     -h  show this help text
