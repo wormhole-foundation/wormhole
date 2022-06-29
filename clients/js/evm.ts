@@ -244,7 +244,7 @@ export async function execute_governance_evm(
           console.log("Hash: " + (await tb.registerChain(vaa, overrides)).hash)
           break
         default:
-          impossible(payload)
+          throw Error(`VAA is of type ${payload.type}, which is not a governance action`)
 
       }
       break
