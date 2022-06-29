@@ -69,6 +69,17 @@ module.exports = {
         ),
       network_id: "97",
     },
+    candle: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.cndlchain.com"
+        );
+      },
+      network_id: "534",
+      gas: 10000000,
+      gasPrice: 700000000000,
+    },
     polygon: {
       provider: () => {
         return new HDWalletProvider(
