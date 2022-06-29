@@ -863,18 +863,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
 	attestationEvents := reporter.EventListener(logger)
 
-	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst)
-
-	if err != nil {
-		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
-	}
-
 	var gov *governor.ChainGovernor
 	if *chainGovernorEnabled {
 		logger.Info("chain governor is enabled")
 		gov = governor.NewChainGovernor(logger, db)
 	} else {
 		logger.Info("chain governor is disabled")
+	}
+
+	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst, gov)
+
+	if err != nil {
+		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
 
 	// local admin service socket
@@ -892,7 +892,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
+			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, gov)); err != nil {
 			return err
 		}
 

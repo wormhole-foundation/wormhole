@@ -387,7 +387,7 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 		governor:     gov,
 	}
 
-	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst)
+	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
 
 	grpcServer := common.NewInstrumentedGRPCServer(logger)
 	nodev1.RegisterNodePrivilegedServiceServer(grpcServer, nodeService)

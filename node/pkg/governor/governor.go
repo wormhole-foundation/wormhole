@@ -254,9 +254,6 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
-		if gov.logger != nil {
-			gov.logger.Info("cgov: ignoring VAA for uninteresting payload type", zap.String("msgID", msg.MessageIDString()), zap.Uint8("payload_type", msg.Payload[0]))
-		}
 		return true, nil
 	}
 
@@ -269,9 +266,6 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
-		if gov.logger != nil {
-			gov.logger.Info("cgov: ignoring VAA for uninteresting token", zap.String("msgID", msg.MessageIDString()), zap.Stringer("token", tk))
-		}
 		return true, nil
 	}
 

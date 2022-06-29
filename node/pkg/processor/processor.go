@@ -191,7 +191,6 @@ func (p *Processor) Run(ctx context.Context) error {
 		case <-p.cleanup.C:
 			p.handleCleanup(ctx)
 		case <-govTimer.C:
-			p.logger.Info("processor: governor timer ticked!")
 			if p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
