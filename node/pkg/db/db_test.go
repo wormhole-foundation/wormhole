@@ -99,7 +99,7 @@ func TestStoreSignedVAASigned(t *testing.T) {
 	testVaa.AddSignature(privKey, 0)
 
 	err2 := db.StoreSignedVAA(&testVaa)
-	assert.Nil(t, err2)
+	assert.NoError(t, err2)
 }
 
 func TestGetSignedVAABytes(t *testing.T) {
