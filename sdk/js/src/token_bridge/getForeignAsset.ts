@@ -1,5 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
+import { getNetworkInfo, Network } from "@injectivelabs/networks";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
@@ -60,6 +62,44 @@ export async function getForeignAssetTerra(
         },
       }
     );
+    return result.address;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Returns the address of the foreign asset
+ * @param tokenBridgeAddress Address of token bridge contact
+ * @param client Holds the wallet and signing information
+ * @param originChain The chainId of the origin of the asset
+ * @param originAsset The address of the origin asset
+ * @returns The foreign asset address or null
+ */
+export async function getForeignAssetInjective(
+  tokenBridgeAddress: string,
+  client: ChainGrpcWasmApi,
+  originChain: ChainId | ChainName,
+  originAsset: Uint8Array
+): Promise<string | null> {
+  try {
+    const queryResult = await client.fetchSmartContractState(
+      tokenBridgeAddress,
+      Buffer.from(
+        JSON.stringify({
+          wrapped_registry: {
+            chain: coalesceChainId(originChain),
+            address: fromUint8Array(originAsset),
+          },
+        })
+      ).toString("base64")
+    );
+    let result: any = null;
+    if (typeof queryResult.data === "string") {
+      result = JSON.parse(
+        Buffer.from(queryResult.data, "base64").toString("utf-8")
+      );
+    }
     return result.address;
   } catch (e) {
     return null;

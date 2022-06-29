@@ -88,6 +88,8 @@ export const tryUint8ArrayToNative = (
       }
       return humanAddress("terra", a.slice(-20));
     }
+  } else if (chainId === CHAIN_ID_INJECTIVE) {
+    return humanAddress("inj", a.slice(-20));
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
@@ -95,8 +97,6 @@ export const tryUint8ArrayToNative = (
     return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Near not supported yet.");
-  } else if (chainId === CHAIN_ID_INJECTIVE) {
-    throw Error("uint8ArrayToNative: Injective not supported yet.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("uint8ArrayToNative: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
@@ -207,16 +207,16 @@ export const tryNativeToHexString = (
     } else {
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
-  } else if (chainId === CHAIN_ID_TERRA2) {
-    return buildTokenId(address);
+  } else if (chainId === CHAIN_ID_TERRA2 || chainId === CHAIN_ID_INJECTIVE) {
+    return buildTokenId(chainId, address);
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
     return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
   } else if (chainId === CHAIN_ID_NEAR) {
-    return uint8ArrayToHex(zeroPad(new Uint8Array(Buffer.from(address, "ascii")), 32))
-  } else if (chainId === CHAIN_ID_INJECTIVE) {
-    throw Error("hexToNativeString: Injective not supported yet.");
+    return uint8ArrayToHex(
+      zeroPad(new Uint8Array(Buffer.from(address, "ascii")), 32)
+    );
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("hexToNativeString: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {

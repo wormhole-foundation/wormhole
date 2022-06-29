@@ -22,22 +22,19 @@ import {
   MAX_VAA_DECIMALS,
   WSOL_ADDRESS,
   WSOL_DECIMALS,
-  uint8ArrayToHex
+  uint8ArrayToHex,
 } from "../utils";
 
-import {
-    getForeignAssetNear
-} from ".";
+import { getForeignAssetNear } from ".";
 
-import {
-  _parseVAAAlgorand,
-} from "../algorand";
+import { _parseVAAAlgorand } from "../algorand";
 
 import { hexToNativeString } from "../utils/array";
 import { parseTransferPayload } from "../utils/parseVaa";
 import { Account as nearAccount } from "near-api-js";
 import BN from "bn.js";
 import { providers as nearProviders } from "near-api-js";
+import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -74,6 +71,29 @@ export async function redeemOnTerra(
     },
   });
 }
+
+/**
+ * Submits the supplied VAA to Injective
+ * @param tokenBridgeAddress Address of Inj token bridge contract
+ * @param walletAddress Address of wallet in inj format
+ * @param signedVAA VAA with the attestation message
+ * @returns Message to be broadcast
+ */
+export async function submitVAAOnInjective(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  signedVAA: Uint8Array
+): Promise<MsgExecuteContractInjective> {
+  return MsgExecuteContractInjective.fromJSON({
+    contractAddress: tokenBridgeAddress,
+    sender: walletAddress,
+    msg: {
+      data: fromUint8Array(signedVAA),
+    },
+    action: "submit_vaa",
+  });
+}
+export const redeemOnInjective = submitVAAOnInjective;
 
 export async function redeemAndUnwrapOnSolana(
   connection: Connection,

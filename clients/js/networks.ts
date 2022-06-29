@@ -208,12 +208,14 @@ const TESTNET = {
     deployerAccount: undefined,
   },
   injective: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://k8s.testnet.tm.injective.network:443",
+    chain_id: "injective-888",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   osmosis: {
     rpc: undefined,
-    key: undefined,
+    chain_id: "osmo-test-4",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   aptos: {
     rpc: undefined,

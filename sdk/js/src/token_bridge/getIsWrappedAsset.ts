@@ -1,10 +1,13 @@
+import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, getApplicationAddress } from "algosdk";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
+import { CHAIN_ID_INJECTIVE, tryNativeToHexString } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
+import { getForeignAssetInjective } from "./getForeignAsset";
 
 /**
  * Returns whether or not an asset address on Ethereum is a wormhole wrapped asset
@@ -30,6 +33,31 @@ export async function getIsWrappedAssetTerra(
   assetAddress: string
 ): Promise<boolean> {
   return false;
+}
+
+/**
+ * Checks if the asset is a wrapped asset
+ * @param tokenBridgeAddress The address of the Injective token bridge contract
+ * @param client Connection/wallet information
+ * @param assetAddress Address of the asset in Injective format
+ * @returns true if asset is a wormhole wrapped asset
+ */
+export async function getIsWrappedAssetInjective(
+  tokenBridgeAddress: string,
+  client: ChainGrpcWasmApi,
+  assetAddress: string
+): Promise<boolean> {
+  const hexified = tryNativeToHexString(assetAddress, "injective");
+  const result = await getForeignAssetInjective(
+    tokenBridgeAddress,
+    client,
+    CHAIN_ID_INJECTIVE,
+    new Uint8Array(Buffer.from(hexified))
+  );
+  if (result === null) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -90,5 +118,5 @@ export function getIsWrappedAssetNear(
   tokenBridge: string,
   asset: string
 ): boolean {
-    return asset.endsWith("." + tokenBridge);
+  return asset.endsWith("." + tokenBridge);
 }
