@@ -7,6 +7,7 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
   Algodv2,
   bigIntToBytes,
@@ -18,7 +19,7 @@ import {
   SuggestedParams,
   Transaction as AlgorandTransaction,
 } from "algosdk";
-import { BigNumber, ethers, Overrides, PayableOverrides } from "ethers";
+import { ethers, Overrides, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
 import {
   assetOptinCheck,
@@ -34,7 +35,6 @@ import {
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
 import {
-  CHAIN_ID_SOLANA,
   ChainId,
   ChainName,
   WSOL_ADDRESS,
@@ -43,9 +43,14 @@ import {
   hexToUint8Array,
   textToUint8Array,
   uint8ArrayToHex,
+  CHAIN_ID_SOLANA,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
-import { Account as nearAccount, providers as nearProviders } from "near-api-js";
+import { isNativeDenomInjective } from "../cosmwasm";
+import {
+  Account as nearAccount,
+  providers as nearProviders,
+} from "near-api-js";
 import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
 
 const BN = require("bn.js");
@@ -236,6 +241,95 @@ export async function transferFromTerra(
           }),
           {}
         ),
+      ];
+}
+
+/**
+ * Creates the necessary messages to transfer an asset
+ * @param walletAddress Address of the Inj wallet
+ * @param tokenBridgeAddress Address of the token bridge contract
+ * @param tokenAddress Address of the token being transferred
+ * @param amount Amount of token to be transferred
+ * @param recipientChain Destination chain
+ * @param recipientAddress Destination wallet address
+ * @param relayerFee Relayer fee
+ * @param payload Optional payload
+ * @returns Transfer messages to be sent on chain
+ */
+export async function transferFromInjective(
+  walletAddress: string,
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  amount: string,
+  recipientChain: ChainId | ChainName,
+  recipientAddress: Uint8Array,
+  relayerFee: string = "0",
+  payload: Uint8Array | null = null
+) {
+  const recipientChainId = coalesceChainId(recipientChain);
+  const nonce = Math.round(Math.random() * 100000);
+  const isNativeAsset = isNativeDenomInjective(tokenAddress);
+  const mk_action: string = payload
+    ? "initiate_transfer_with_payload"
+    : "initiate_transfer";
+  const mk_initiate_transfer = (info: object) =>
+    payload
+      ? {
+          asset: {
+            amount,
+            info,
+          },
+          recipient_chain: recipientChainId,
+          recipient: Buffer.from(recipientAddress).toString("base64"),
+          fee: relayerFee,
+          nonce: nonce,
+          payload: payload,
+        }
+      : {
+          asset: {
+            amount,
+            info,
+          },
+          recipient_chain: recipientChainId,
+          recipient: Buffer.from(recipientAddress).toString("base64"),
+          fee: relayerFee,
+          nonce: nonce,
+        };
+  return isNativeAsset
+    ? [
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: {},
+          action: "deposit_tokens",
+          amount: { denom: tokenAddress, amount: amount },
+        }),
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: mk_initiate_transfer({ native_token: { denom: tokenAddress } }),
+          action: mk_action,
+        }),
+      ]
+    : [
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: {
+            spender: tokenBridgeAddress,
+            amount: amount,
+            expires: {
+              never: {},
+            },
+          },
+          action: "increase_allowance",
+        }),
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: mk_initiate_transfer({ token: { contract_addr: tokenAddress } }),
+          action: mk_action,
+        }),
       ];
 }
 
@@ -634,7 +728,7 @@ export async function transferFromAlgorand(
 /**
  * Transfers an asset from Near to a receiver on another chain
  * @param client
- * @param coreBridge account 
+ * @param coreBridge account
  * @param tokenBridge account of the token bridge
  * @param assetId account
  * @param qty Quantity to transfer
@@ -659,7 +753,7 @@ export async function transferTokenFromNear(
 
   let result;
 
-  let message_fee = (await client.viewFunction(coreBridge, "message_fee", {}));
+  let message_fee = await client.viewFunction(coreBridge, "message_fee", {});
 
   if (wormhole) {
     result = await client.functionCall({
@@ -696,7 +790,9 @@ export async function transferTokenFromNear(
     }
 
     if (message_fee > 0) {
-      let bank = await client.viewFunction(tokenBridge, "bank_balance", { acct: client.accountId });
+      let bank = await client.viewFunction(tokenBridge, "bank_balance", {
+        acct: client.accountId,
+      });
 
       if (!bank[0]) {
         await client.functionCall({
@@ -744,7 +840,7 @@ export async function transferTokenFromNear(
 /**
  * Transfers NEAR from Near to a receiver on another chain
  * @param client
- * @param coreBridge account 
+ * @param coreBridge account
  * @param tokenBridge account of the token bridge
  * @param qty Quantity to transfer
  * @param receiver Receiving account
@@ -775,7 +871,7 @@ export async function transferNearFromNear(
       payload: payload,
       message_fee: message_fee,
     },
-    attachedDeposit: (new BN(qty.toString(10)).add(new BN(message_fee))),
+    attachedDeposit: new BN(qty.toString(10)).add(new BN(message_fee)),
     gas: new BN("100000000000000"),
   });
 

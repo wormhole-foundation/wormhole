@@ -1,3 +1,4 @@
+import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
@@ -80,7 +81,7 @@ export async function getIsTransferCompletedTerra(
 export async function getIsTransferCompletedTerra2(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
-  client: LCDClient,
+  client: LCDClient
 ): Promise<boolean> {
   const result: { is_redeemed: boolean } = await client.wasm.contractQuery(
     tokenBridgeAddress,
@@ -91,6 +92,37 @@ export async function getIsTransferCompletedTerra2(
     }
   );
   return result.is_redeemed;
+}
+
+/**
+ * Return if the VAA has been redeemed or not
+ * @param tokenBridgeAddress The Injective token bridge contract address
+ * @param signedVAA The signed VAA byte array
+ * @param client Holds the wallet and signing information
+ * @returns true if the VAA has been redeemed.
+ */
+export async function getIsTransferCompletedInjective(
+  tokenBridgeAddress: string,
+  signedVAA: Uint8Array,
+  client: ChainGrpcWasmApi
+): Promise<boolean> {
+  const queryResult = await client.fetchSmartContractState(
+    tokenBridgeAddress,
+    Buffer.from(
+      JSON.stringify({
+        is_vaa_redeemed: {
+          vaa: fromUint8Array(signedVAA),
+        },
+      })
+    ).toString("base64")
+  );
+  if (typeof queryResult.data === "string") {
+    const result = JSON.parse(
+      Buffer.from(queryResult.data, "base64").toString("utf-8")
+    );
+    return result.is_redeemed;
+  }
+  return false;
 }
 
 export async function getIsTransferCompletedSolana(

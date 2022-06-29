@@ -7,7 +7,11 @@ import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
-import { Account as nearAccount, providers as nearProviders } from "near-api-js";
+import { submitVAAOnInjective } from "./redeem";
+import {
+  Account as nearAccount,
+  providers as nearProviders,
+} from "near-api-js";
 import BN from "bn.js";
 
 export async function createWrappedOnEth(
@@ -33,6 +37,8 @@ export async function createWrappedOnTerra(
     },
   });
 }
+
+export const createWrappedOnInjective = submitVAAOnInjective;
 
 export async function createWrappedOnSolana(
   connection: Connection,

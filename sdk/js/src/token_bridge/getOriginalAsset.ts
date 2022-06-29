@@ -1,12 +1,14 @@
 const sha256 = require("js-sha256");
 
+import { getNetworkInfo, Network } from "@injectivelabs/networks";
+import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { decodeLocalState } from "../algorand";
-import { buildTokenId } from "../cosmwasm/address";
+import { buildTokenId, isNativeCosmWasmDenom } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId, isNativeDenom } from "../terra";
@@ -16,10 +18,15 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_NEAR,
+  CHAIN_ID_INJECTIVE,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   coalesceChainId,
+  CosmWasmChainId,
+  CosmWasmChainName,
   hexToUint8Array,
+  coalesceCosmWasmChainId,
+  tryHexToNativeAssetString,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -81,20 +88,74 @@ export async function getOriginalAssetTerra(
   return getOriginalAssetCosmWasm(client, wrappedAddress, CHAIN_ID_TERRA);
 }
 
+/**
+ * Returns information about the asset
+ * @param wrappedAddress Address of the asset in wormhole wrapped format (hex string)
+ * @param client WASM api client
+ * @returns Information about the asset
+ */
+export async function getOriginalAssetInjective(
+  wrappedAddress: string,
+  client: ChainGrpcWasmApi
+): Promise<WormholeWrappedInfo> {
+  const chainId = CHAIN_ID_INJECTIVE;
+  if (isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, wrappedAddress)) {
+    return {
+      isWrapped: false,
+      chainId: chainId,
+      assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
+    };
+  }
+  try {
+    const injWrappedAddress = tryHexToNativeAssetString(
+      wrappedAddress,
+      CHAIN_ID_INJECTIVE
+    );
+    const queryResult = await client.fetchSmartContractState(
+      injWrappedAddress,
+      Buffer.from(
+        JSON.stringify({
+          wrapped_asset_info: {},
+        })
+      ).toString("base64")
+    );
+    let result: any = null;
+    if (typeof queryResult.data === "string") {
+      result = JSON.parse(
+        Buffer.from(queryResult.data, "base64").toString("utf-8")
+      );
+      return {
+        isWrapped: true,
+        chainId: result.asset_chain,
+        assetAddress: new Uint8Array(
+          Buffer.from(result.asset_address, "base64")
+        ),
+      };
+    }
+  } catch (e) {
+    console.error("getOriginalAssetInjective() failed:", e);
+  }
+  return {
+    isWrapped: false,
+    chainId: chainId,
+    assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
+  };
+}
+
 export async function getOriginalAssetCosmWasm(
   client: LCDClient,
   wrappedAddress: string,
-  lookupChain: ChainId | ChainName
+  lookupChain: CosmWasmChainId | CosmWasmChainName
 ): Promise<WormholeWrappedInfo> {
-  const chainId = coalesceChainId(lookupChain);
-  if (isNativeDenom(wrappedAddress)) {
+  const chainId = coalesceCosmWasmChainId(lookupChain);
+  if (isNativeCosmWasmDenom(chainId, wrappedAddress)) {
     return {
       isWrapped: false,
       chainId: chainId,
       assetAddress:
         chainId === CHAIN_ID_TERRA
           ? buildNativeId(wrappedAddress)
-          : hexToUint8Array(buildTokenId(wrappedAddress)),
+          : hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
     };
   }
   try {
@@ -121,7 +182,7 @@ export async function getOriginalAssetCosmWasm(
     assetAddress:
       chainId === CHAIN_ID_TERRA
         ? zeroPad(canonicalAddress(wrappedAddress), 32)
-        : hexToUint8Array(buildTokenId(wrappedAddress)),
+        : hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
   };
 }
 
