@@ -169,7 +169,7 @@ yargs(hideBin(process.argv))
   // Misc
   .command(
     "parse <vaa>",
-    "Parse a VAA",
+    "Parse a VAA (can be in either hex or base64 format)",
     (yargs) => {
       return yargs.positional("vaa", {
         describe: "vaa",
