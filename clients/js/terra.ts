@@ -8,7 +8,7 @@ import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
 import { CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk";
 
-export async function execute_governance_terra(
+export async function execute_terra(
   payload: Payload,
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET",
@@ -90,8 +90,15 @@ export async function execute_governance_terra(
         case "RegisterChain":
           console.log("Registering chain");
           break;
+        case "Transfer":
+          console.log("Completing transfer");
+          break;
+        case "TransferWithPayload":
+          console.log("Completing transfer");
+          break;
         default:
-          throw Error(`VAA is of type ${payload.type}, which is not a governance action`)
+          impossible(payload)
+          break
       }
       break;
     default:

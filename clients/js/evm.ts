@@ -104,7 +104,7 @@ export async function query_contract_evm(
   return result
 }
 
-export async function execute_governance_evm(
+export async function execute_evm(
   payload: Payload,
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET",
@@ -211,8 +211,17 @@ export async function execute_governance_evm(
           console.log("Registering chain")
           console.log("Hash: " + (await tb.registerChain(vaa, overrides)).hash)
           break
+        case "Transfer":
+          console.log("Completing transfer")
+          console.log("Hash: " + (await tb.completeTransfer(vaa, overrides)).hash)
+          break
+        case "TransferWithPayload":
+          console.log("Completing transfer with payload")
+          console.log("Hash: " + (await tb.completeTransferWithPayload(vaa, overrides)).hash)
+          break
         default:
-          throw Error(`VAA is of type ${payload.type}, which is not a governance action`)
+          impossible(payload)
+          break
 
       }
       break
