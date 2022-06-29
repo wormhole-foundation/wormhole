@@ -70,6 +70,9 @@ var (
 	bscRPC      *string
 	bscContract *string
 
+	candleRPC      *string
+	candleContract *string
+
 	polygonRPC      *string
 	polygonContract *string
 
@@ -173,6 +176,9 @@ func init() {
 
 	bscRPC = NodeCmd.Flags().String("bscRPC", "", "Binance Smart Chain RPC URL")
 	bscContract = NodeCmd.Flags().String("bscContract", "", "Binance Smart Chain contract address")
+
+	candleRPC = NodeCmd.Flags().String("candleRPC", "", "candle RPC URL")
+	candleContract = NodeCmd.Flags().String("candleContract", "", "candle contract address")
 
 	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL")
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
@@ -338,6 +344,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
+	readiness.RegisterComponent(common.ReadinessCandleSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 	readiness.RegisterComponent(common.ReadinessOasisSyncing)
@@ -393,6 +400,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		// Deterministic ganache ETH devnet address.
 		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
 		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
+		*candleContract = devnet.GanacheWormholeContractAddress.Hex()
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
 		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
 		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
@@ -431,6 +439,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *bscContract == "" {
 		logger.Fatal("Please specify --bscContract")
+	}
+	if *candleRPC == "" {
+		logger.Fatal("Please specify --candleRPC")
+	}
+	if *candleContract == "" {
+		logger.Fatal("Please specify --candleContract")
 	}
 	if *polygonRPC == "" {
 		logger.Fatal("Please specify --polygonRPC")
@@ -611,6 +625,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 	bscContractAddr := eth_common.HexToAddress(*bscContract)
+	candleContractAddr := eth_common.HexToAddress(*candleContract)
 	polygonContractAddr := eth_common.HexToAddress(*polygonContract)
 	ethRopstenContractAddr := eth_common.HexToAddress(*ethRopstenContract)
 	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
@@ -704,6 +719,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDCandle] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
@@ -839,6 +855,11 @@ func runNode(cmd *cobra.Command, args []string) {
 			ethereum.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil, 1, chainObsvReqC[vaa.ChainIDBSC], *unsafeDevMode).Run); err != nil {
 			return err
 		}
+
+			if err := supervisor.Run(ctx, "candlewatch",
+				ethereum.NewEthWatcher(*candleRPC, candleContractAddr, "candle", common.ReadinessCandleSyncing, vaa.ChainIDCandle, lockC, nil, 1, chainObsvReqC[vaa.ChainIDBSC], *unsafeDevMode).Run); err != nil {
+				return err
+			}
 
 		polygonMinConfirmations := uint64(512)
 		if *testnetMode {

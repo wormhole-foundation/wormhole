@@ -54,9 +54,9 @@ private keys, based on `.env.sample` in this folder.
 Use `parse` to parse a VAA into JSON. For example,
 
     worm parse $(worm-fetch-governance 13940208096455381020)
-    
+
 will fetch governance VAA `13940208096455381020` and print it as JSON.
-    
+
     # ...signatures elided
     timestamp: 1651416474,
     nonce: 1570649151,
@@ -111,6 +111,7 @@ For example, to submit a guardian set upgrade on all chains, simply run:
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain acala
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain klaytn
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain avalanche
+    worm submit $(cat guardian-upgrade.txt) --network mainnet --chain candle
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain polygon
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain bsc
     worm submit $(cat guardian-upgrade.txt) --network mainnet --chain solana

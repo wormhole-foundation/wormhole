@@ -4,20 +4,21 @@ export const CHAINS = {
   ethereum: 2,
   terra: 3,
   bsc: 4,
-  polygon: 5,
-  avalanche: 6,
-  oasis: 7,
-  algorand: 8,
-  aurora: 9,
-  fantom: 10,
-  karura: 11,
-  acala: 12,
-  klaytn: 13,
-  celo: 14,
-  near: 15,
-  moonbeam: 16,
-  neon: 17,
-  terra2: 18,
+  candle: 5,
+  polygon: 6,
+  avalanche: 7,
+  oasis: 8,
+  algorand: 9,
+  aurora: 10,
+  fantom: 11,
+  karura: 12,
+  acala: 13,
+  klaytn: 14,
+  celo: 15,
+  near: 16,
+  moonbeam: 17,
+  neon: 18,
+  terra2: 19,
   ropsten: 10001,
 } as const;
 
@@ -31,6 +32,7 @@ export type ChainId = typeof CHAINS[ChainName];
 export type EVMChainName =
   | "ethereum"
   | "bsc"
+  | "candle"
   | "polygon"
   | "avalanche"
   | "oasis"
@@ -81,6 +83,11 @@ const MAINNET = {
     core: "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
     token_bridge: "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7",
     nft_bridge: "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE",
+  },
+  candle: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
   },
   polygon: {
     core: "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
@@ -410,6 +417,7 @@ export const CHAIN_ID_SOLANA = CHAINS["solana"];
 export const CHAIN_ID_ETH = CHAINS["ethereum"];
 export const CHAIN_ID_TERRA = CHAINS["terra"];
 export const CHAIN_ID_BSC = CHAINS["bsc"];
+export const CHAIN_ID_CANDLE = CHAINS["candle"];
 export const CHAIN_ID_POLYGON = CHAINS["polygon"];
 export const CHAIN_ID_AVAX = CHAINS["avalanche"];
 export const CHAIN_ID_OASIS = CHAINS["oasis"];
@@ -525,6 +533,7 @@ export function isEVMChain(
     chainId === CHAIN_ID_ETH ||
     chainId === CHAIN_ID_BSC ||
     chainId === CHAIN_ID_AVAX ||
+    chainId === CHAIN_ID_CANDLE ||
     chainId === CHAIN_ID_POLYGON ||
     chainId === CHAIN_ID_OASIS ||
     chainId === CHAIN_ID_AURORA ||

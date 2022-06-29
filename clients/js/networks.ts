@@ -38,6 +38,10 @@ const MAINNET = {
     rpc: "https://bsc-dataseed.binance.org/",
     key: get_env_var("ETH_KEY"),
   },
+  candle: {
+    rpc: "https://rpc.cndlchain.com",
+    key: get_env_var("ETH_KEY"),
+  },
   polygon: {
     rpc: "https://rpc.ankr.com/polygon",
     key: get_env_var("ETH_KEY"),

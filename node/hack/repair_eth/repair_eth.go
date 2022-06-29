@@ -31,6 +31,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDEthereum:  "https://api.etherscan.io/api",
 	vaa.ChainIDBSC:       "https://api.bscscan.com/api",
 	vaa.ChainIDAvalanche: "https://api.snowtrace.io/api",
+	vaa.ChainIDCandle:   "https://candleexplorer.com/api",
 	vaa.ChainIDPolygon:   "https://api.polygonscan.com/api",
 	vaa.ChainIDOasis:     "https://explorer.emerald.oasis.dev/api",
 	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
@@ -45,6 +46,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDEthereum:  "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
 	vaa.ChainIDBSC:       "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
 	vaa.ChainIDAvalanche: "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c",
+	vaa.ChainIDCandle:   "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7", // change
 	vaa.ChainIDPolygon:   "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
 	vaa.ChainIDOasis:     "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
 	vaa.ChainIDAurora:    "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
@@ -81,7 +83,7 @@ func addUserAgent(req *http.Request) *http.Request {
 }
 
 func usesBlockscout(chainId vaa.ChainID) bool {
-	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura || chainId == vaa.ChainIDAcala
+	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura || chainId == vaa.ChainIDAcala || chainId == vaa.ChainIDCandle
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {

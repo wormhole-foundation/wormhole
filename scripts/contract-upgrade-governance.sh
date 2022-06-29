@@ -114,18 +114,23 @@ case "$chain_name" in
     explorer="https://bscscan.com/address/"
     evm=true
     ;;
-  polygon)
+  candle)
     chain=5
+    explorer="https://candleexplorer.com/address/"
+    evm=true
+    ;;
+  polygon)
+    chain=6
     explorer="https://polygonscan.com/address/"
     evm=true
     ;;
   avalanche)
-    chain=6
+    chain=7
     explorer="https://snowtrace.io/address/"
     evm=true
     ;;
   oasis)
-    chain=7
+    chain=8
     explorer="https://explorer.emerald.oasis.dev/address/"
     evm=true
     ;;
@@ -148,7 +153,7 @@ case "$chain_name" in
     chain=12
     explorer="https://blockscout.acala.network/address/"
     evm=true
-    ;;    
+    ;;
   klaytn)
     chain=13
     explorer="https://scope.klaytn.com/account/"
