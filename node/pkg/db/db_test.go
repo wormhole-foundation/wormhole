@@ -81,7 +81,7 @@ func TestStoreSignedVAAUnsigned(t *testing.T) {
 	testVaa := getVAA()
 
 	// Should panic because the VAA is not signed
-	assert.Panics(t, func() { db.StoreSignedVAA(&testVaa) }, "The code did not panic")
+	assert.Panics(t, func() { db.StoreSignedVAA(&testVaa) }, "The code did not panic") //nolint:errcheck
 }
 
 func TestStoreSignedVAASigned(t *testing.T) {
