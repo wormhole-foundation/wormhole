@@ -98,7 +98,6 @@ func TestStoreSignedVAASigned(t *testing.T) {
 	privKey, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	testVaa.AddSignature(privKey, 0)
 
-	// Should panic because the VAA is not signed
 	err2 := db.StoreSignedVAA(&testVaa)
 	assert.Nil(t, err2)
 }
