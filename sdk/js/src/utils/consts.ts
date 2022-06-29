@@ -63,6 +63,7 @@ export type SolanaChainName =
 | "solana"
 | "pythnet";
 
+export type CosmWasmChainName = "terra" | "terra2" | "injective";
 export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
@@ -306,12 +307,12 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   injective: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "inj1xx3aupmgv3ce537c0yce8zzd3sz567syuyedpg",
+    token_bridge: "inj1q0e70vhrv063eah90mu97sazhywmeegp7myvnh",
     nft_bridge: undefined,
   },
   osmosis: {
-    core: undefined,
+    core: "osmo1hggkxr0hpw83f8vuft7ruvmmamsxmwk2hzz6nytdkzyup9krt0dq27sgyx",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -608,8 +609,9 @@ export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
  */
 export type EVMChainId = typeof CHAINS[EVMChainName];
 
-export type TerraChainId = typeof CHAINS[TerraChainName];
+export type CosmWasmChainId = typeof CHAINS[CosmWasmChainName];
 
+export type TerraChainId = typeof CHAINS[TerraChainName];
 /**
  *
  * Returns true when called with a valid chain, and narrows the type in the
@@ -708,6 +710,17 @@ export function isEVMChain(
   } else {
     return notEVM(chainId);
   }
+}
+
+export function isCosmWasmChain(
+  chain: ChainId | ChainName
+): chain is CosmWasmChainId | CosmWasmChainName {
+  const chainId = coalesceChainId(chain);
+  return (
+    chainId === CHAIN_ID_TERRA ||
+    chainId === CHAIN_ID_TERRA2 ||
+    chainId === CHAIN_ID_INJECTIVE
+  );
 }
 
 export function isTerraChain(
