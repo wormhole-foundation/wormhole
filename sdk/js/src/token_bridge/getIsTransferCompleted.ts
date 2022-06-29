@@ -1,10 +1,18 @@
+import { getNetworkInfo, Network } from "@injectivelabs/networks";
+import {
+  ChainRestAuthApi,
+  DEFAULT_STD_FEE,
+  privateKeyToPublicKeyBase64,
+} from "@injectivelabs/sdk-ts";
+import { createTransaction, TxGrpcClient } from "@injectivelabs/tx-ts";
+import { PrivateKey } from "@injectivelabs/sdk-ts/dist/local";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
 import axios from "axios";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
-import { redeemOnTerra } from ".";
+import { redeemOnInjective, redeemOnTerra } from ".";
 import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
 import {
   BITS_PER_KEY,
@@ -69,27 +77,71 @@ export async function getIsTransferCompletedTerra(
 }
 
 /**
- * This function is used to check if a VAA has been redeemed on terra2 by
- * querying the token bridge contract.
- * @param tokenBridgeAddress The token bridge address (bech32)
- * @param signedVAA The signed VAA byte array
- * @param client The LCD client. Only used for querying, not transactions will
- * be signed
+ * Return if the VAA has been redeemed or not
+ * @param tokenBridgeAddress The Injective token bridge contract address
+ * @param signedVAA The VAA that is being checked for redemption
+ * @param walletPKHash Wallet information
+ * @returns true if the VAA has been redeemed.
  */
-export async function getIsTransferCompletedTerra2(
+export async function getIsTransferCompletedInjective(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
-  client: LCDClient,
+  walletPKHash: string,
+  network: any
 ): Promise<boolean> {
-  const result: { is_redeemed: boolean } = await client.wasm.contractQuery(
-    tokenBridgeAddress,
-    {
-      is_vaa_redeemed: {
-        vaa: fromUint8Array(signedVAA),
-      },
+  try {
+    const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
+    const walletInjAddr = walletPK.toBech32();
+    const walletPublicKey = privateKeyToPublicKeyBase64(
+      Buffer.from(walletPKHash, "hex")
+    );
+    const roi = await redeemOnInjective(
+      tokenBridgeAddress,
+      walletInjAddr,
+      signedVAA
+    );
+    const accountDetails = await new ChainRestAuthApi(
+      network.sentryHttpApi
+    ).fetchAccount(walletInjAddr);
+    const txFee = DEFAULT_STD_FEE;
+    txFee.amount[0] = { amount: "250000000000000", denom: "inj" };
+    txFee.gas = "500000";
+    const { signBytes, txRaw } = createTransaction({
+      message: roi.toDirectSign(),
+      memo: "",
+      fee: txFee,
+      pubKey: walletPublicKey,
+      sequence: parseInt(accountDetails.account.base_account.sequence, 10),
+      accountNumber: parseInt(
+        accountDetails.account.base_account.account_number,
+        10
+      ),
+      chainId: network.chainId,
+    });
+
+    /** Sign transaction */
+    const sig = await walletPK.sign(Buffer.from(signBytes));
+
+    /** Append Signatures */
+    txRaw.setSignaturesList([sig]);
+
+    const txService = new TxGrpcClient({
+      txRaw,
+      endpoint: network.sentryGrpcApi,
+    });
+
+    /** Simulate transaction */
+    const simulationResponse = await txService.simulate();
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      const msgTxt: string = e.message;
+      if (msgTxt.includes("VaaAlreadyExecuted")) {
+        return true;
+      }
+      return false;
     }
-  );
-  return result.is_redeemed;
+  }
+  return false;
 }
 
 export async function getIsTransferCompletedSolana(

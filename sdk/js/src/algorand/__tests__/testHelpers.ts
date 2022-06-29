@@ -366,7 +366,7 @@ export async function signSendAndConfirmAlgorand(
   const result = await waitForConfirmation(
     algodClient,
     txs[txs.length - 1].tx.txID(),
-    1
+    4
   );
   return result;
 }

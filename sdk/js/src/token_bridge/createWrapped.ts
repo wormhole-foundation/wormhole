@@ -7,6 +7,7 @@ import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
+import { submitVAAOnInjective } from "./redeem";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -31,6 +32,8 @@ export async function createWrappedOnTerra(
     },
   });
 }
+
+export const createWrappedOnInjective = submitVAAOnInjective;
 
 export async function createWrappedOnSolana(
   connection: Connection,

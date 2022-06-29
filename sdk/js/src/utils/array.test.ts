@@ -1,3 +1,4 @@
+import { expect, test } from "@jest/globals";
 import { zeroPad } from "ethers/lib/utils";
 import { canonicalAddress } from "../cosmos";
 import { tryUint8ArrayToNative, tryNativeToHexString } from "./array";
@@ -30,4 +31,12 @@ test("wormchain address conversion", () => {
   expect(native).toBe(human);
 
   expect(tryNativeToHexString(human, "wormholechain")).toBe(canonical);
+});
+
+test("injective address conversion", () => {
+  const human = "inj180rl9ezc4389t72pc3vvlkxxs5d9jx60w9eeu3";
+  const canonical = canonicalAddress(human);
+  const lpadCanonical = zeroPad(canonical, 32);
+  const native = tryUint8ArrayToNative(lpadCanonical, "injective");
+  expect(native).toBe(human);
 });

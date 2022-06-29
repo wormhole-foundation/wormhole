@@ -7,6 +7,7 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
   Algodv2,
   bigIntToBytes,
@@ -18,7 +19,7 @@ import {
   SuggestedParams,
   Transaction as AlgorandTransaction,
 } from "algosdk";
-import { BigNumber, ethers, Overrides, PayableOverrides } from "ethers";
+import { ethers, Overrides, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
 import {
   assetOptinCheck,
@@ -36,6 +37,7 @@ import { importTokenWasm } from "../solana/wasm";
 import {
   ChainId,
   ChainName,
+  CHAIN_ID_INJECTIVE,
   CHAIN_ID_SOLANA,
   coalesceChainId,
   createNonce,
@@ -44,6 +46,7 @@ import {
   WSOL_ADDRESS,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
+import { isNativeCosmWasmDenom } from "../cosmwasm";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -231,6 +234,95 @@ export async function transferFromTerra(
           }),
           {}
         ),
+      ];
+}
+
+/**
+ * Creates the necessary messages to transfer an asset
+ * @param walletAddress Address of the Inj wallet
+ * @param tokenBridgeAddress Address of the token bridge contract
+ * @param tokenAddress Address of the token being transferred
+ * @param amount Amount of token to be transferred
+ * @param recipientChain Destination chain
+ * @param recipientAddress Destination wallet address
+ * @param relayerFee Relayer fee
+ * @param payload Optional payload
+ * @returns Transfer messages to be sent on chain
+ */
+export async function transferFromInjective(
+  walletAddress: string,
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  amount: string,
+  recipientChain: ChainId | ChainName,
+  recipientAddress: Uint8Array,
+  relayerFee: string = "0",
+  payload: Uint8Array | null = null
+) {
+  const recipientChainId = coalesceChainId(recipientChain);
+  const nonce = Math.round(Math.random() * 100000);
+  const isNativeAsset = isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, tokenAddress);
+  const mk_action = () =>
+    payload ? "initiate_transfer_with_payload" : "initiate_transfer";
+  const mk_initiate_transfer = (info: object) =>
+    payload
+      ? {
+          asset: {
+            amount,
+            info,
+          },
+          recipient_chain: recipientChainId,
+          recipient: Buffer.from(recipientAddress).toString("base64"),
+          fee: relayerFee,
+          nonce: nonce,
+          payload: payload,
+        }
+      : {
+          asset: {
+            amount,
+            info,
+          },
+          recipient_chain: recipientChainId,
+          recipient: Buffer.from(recipientAddress).toString("base64"),
+          fee: relayerFee,
+          nonce: nonce,
+        };
+  return isNativeAsset
+    ? [
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: {},
+          action: "deposit_tokens",
+          amount: { denom: tokenAddress, amount: amount },
+          // amount: { denom: "inj", amount: amount },
+        }),
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: mk_initiate_transfer({ native_token: { denom: tokenAddress } }),
+          action: mk_action(),
+        }),
+      ]
+    : [
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: {
+            spender: tokenBridgeAddress,
+            amount: amount,
+            expires: {
+              never: {},
+            },
+          },
+          action: "increase_allowance",
+        }),
+        MsgExecuteContractInjective.fromJSON({
+          contractAddress: tokenBridgeAddress,
+          sender: walletAddress,
+          msg: mk_initiate_transfer({ token: { contract_addr: tokenAddress } }),
+          action: mk_action(),
+        }),
       ];
 }
 
