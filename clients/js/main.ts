@@ -5,9 +5,9 @@ import { hideBin } from "yargs/helpers";
 
 import { Bech32, fromBech32, toHex } from "@cosmjs/encoding";
 import { isTerraChain, assertEVMChain, CONTRACTS, setDefaultWasm } from "@certusone/wormhole-sdk";
-import { execute_governance_solana } from "./solana";
-import { execute_governance_evm, getImplementation, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
-import { execute_governance_terra } from "./terra";
+import { execute_solana } from "./solana";
+import { execute_evm, getImplementation, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
+import { execute_terra } from "./terra";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
 import {
@@ -177,7 +177,18 @@ yargs(hideBin(process.argv))
       });
     },
     async (argv) => {
-      const buf = Buffer.from(String(argv.vaa), "hex");
+      let buf: Buffer;
+      try {
+        buf = Buffer.from(String(argv.vaa), "hex")
+        if (buf.length == 0) {
+          throw Error("Couldn't parse VAA as hex")
+        }
+      } catch (e) {
+        buf = Buffer.from(String(argv.vaa), "base64")
+        if (buf.length == 0) {
+          throw Error("Couldn't parse VAA as base64 or hex")
+        }
+      }
       const parsed_vaa = vaa.parse(buf);
       let parsed_vaa_with_digest = parsed_vaa;
       parsed_vaa_with_digest['digest'] = vaa.vaaDigest(parsed_vaa);
@@ -495,11 +506,11 @@ yargs(hideBin(process.argv))
           "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
         );
       } else if (isEVMChain(chain)) {
-        await execute_governance_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"], argv["rpc"]);
+        await execute_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"], argv["rpc"]);
       } else if (isTerraChain(chain)) {
-        await execute_governance_terra(parsed_vaa.payload, buf, network, chain);
+        await execute_terra(parsed_vaa.payload, buf, network, chain);
       } else if (chain === "solana") {
-        await execute_governance_solana(parsed_vaa, buf, network);
+        await execute_solana(parsed_vaa, buf, network);
       } else if (chain === "algorand") {
         throw Error("Algorand is not supported yet");
       } else if (chain === "near") {

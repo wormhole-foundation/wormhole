@@ -2,11 +2,11 @@ import * as web3s from '@solana/web3.js'
 import { NETWORKS } from "./networks";
 import { impossible, Payload, VAA } from "./vaa";
 import base58 from "bs58";
-import { importCoreWasm, importNftWasm, importTokenWasm, ixFromRust } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA, importCoreWasm, importNftWasm, importTokenWasm, ixFromRust } from "@certusone/wormhole-sdk";
 import { CONTRACTS } from "@certusone/wormhole-sdk"
 import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk"
 
-export async function execute_governance_solana(
+export async function execute_solana(
   v: VAA<Payload>,
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET"
@@ -53,7 +53,8 @@ export async function execute_governance_solana(
       break
     case "TokenBridge":
       const token_bridge = await importTokenWasm()
-      switch (v.payload.type) {
+      const payload = v.payload;
+      switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
           ix = token_bridge.upgrade_contract_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), from.publicKey.toString(), vaa)
@@ -62,8 +63,19 @@ export async function execute_governance_solana(
           console.log("Registering chain")
           ix = token_bridge.register_chain_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
           break
+        case "Transfer":
+          console.log("Completing transfer")
+          if (payload.tokenChain === CHAIN_ID_SOLANA) {
+            ix = token_bridge.complete_transfer_native_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
+          } else {
+            ix = token_bridge.complete_transfer_wrapped_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
+          }
+          break
+        case "TransferWithPayload":
+          throw Error("Can't complete payload 3 transfer from CLI")
         default:
-          throw Error(`VAA is of type ${v.payload.type}, which is not a governance action`)
+          impossible(payload)
+          break
 
       }
       break
