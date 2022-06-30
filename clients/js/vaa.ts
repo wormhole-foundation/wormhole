@@ -52,6 +52,12 @@ class P<T> {
     }
 }
 
+export interface Other {
+    type: "Other",
+    hex: string,
+    ascii?: string
+}
+
 // All the different types of payloads
 export type Payload =
     GuardianSetUpgrade
@@ -70,7 +76,7 @@ export type ContractUpgrade =
     | PortalContractUpgrade<"TokenBridge">
     | PortalContractUpgrade<"NFTBridge">
 
-export function parse(buffer: Buffer): VAA<Payload | null> {
+export function parse(buffer: Buffer): VAA<Payload | Other> {
     const vaa = parseEnvelope(buffer)
     const parser = guardianSetUpgradeParser
         .or(coreContractUpgradeParser)
@@ -82,15 +88,21 @@ export function parse(buffer: Buffer): VAA<Payload | null> {
         .or(tokenBridgeTransferWithPayloadParser())
         .or(tokenBridgeAttestMetaParser())
         .or(nftBridgeTransferParser())
-    const payload = parser.parse(vaa.payload)
-    delete payload['tokenURILength']
+    let payload : Payload | Other | null = parser.parse(vaa.payload)
+    if (payload === null) {
+        payload = {type: "Other", hex: Buffer.from(vaa.payload).toString("hex"), ascii: Buffer.from(vaa.payload).toString('utf8')}
+    } else {
+        delete payload['tokenURILength']
+    }
     var myVAA = { ...vaa, payload }
 
     return myVAA
 }
 
-export function hasPayload(vaa: VAA<Payload | null>): vaa is VAA<Payload> {
-    return vaa.payload !== null
+export function assertKnownPayload(vaa: VAA<Payload | Other>): asserts vaa is VAA<Payload> {
+    if (vaa.payload.type === "Other") {
+        throw Error(`Couldn't parse VAA payload: ${vaa.payload.hex}`);
+    }
 }
 
 // Parse the VAA envelope without looking into the payload.
@@ -161,68 +173,72 @@ export function serialiseVAA(vaa: VAA<Payload>) {
     return body.join("")
 }
 
-export function vaaDigest(vaa: VAA<Payload>) {
+export function vaaDigest(vaa: VAA<Payload | Other>) {
     return solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + vaaBody(vaa)])])
 }
 
-function vaaBody(vaa: VAA<Payload>) {
-    let payload = vaa.payload
+function vaaBody(vaa: VAA<Payload | Other>) {
     let payload_str: string
-    switch (payload.module) {
-        case "Core":
-            switch (payload.type) {
-                case "GuardianSetUpgrade":
-                    payload_str = serialiseGuardianSetUpgrade(payload)
-                    break
-                case "ContractUpgrade":
-                    payload_str = serialiseCoreContractUpgrade(payload)
-                    break
-                default:
-                    impossible(payload)
-                    break
-            }
-            break
-        case "NFTBridge":
-            switch (payload.type) {
-                case "ContractUpgrade":
-                    payload_str = serialisePortalContractUpgrade(payload)
-                    break
-                case "RegisterChain":
-                    payload_str = serialisePortalRegisterChain(payload)
-                    break
-                case "Transfer":
-                    payload_str = serialiseNFTBridgeTransfer(payload)
-                    break
-                default:
-                    impossible(payload)
-                    break
-            }
-            break
-        case "TokenBridge":
-            switch (payload.type) {
-                case "ContractUpgrade":
-                    payload_str = serialisePortalContractUpgrade(payload)
-                    break
-                case "RegisterChain":
-                    payload_str = serialisePortalRegisterChain(payload)
-                    break
-                case "Transfer":
-                    payload_str = serialiseTokenBridgeTransfer(payload)
-                    break
-                case "TransferWithPayload":
-                    payload_str = serialiseTokenBridgeTransferWithPayload(payload)
-                    break
-                case "AttestMeta":
-                    payload_str = serialiseTokenBridgeAttestMeta(payload)
-                    break
-                default:
-                    impossible(payload)
-                    break
-            }
-            break
-        default:
-            impossible(payload)
-            break
+    if (vaa.payload.type === "Other") {
+        payload_str = vaa.payload.hex
+    } else {
+        let payload = vaa.payload;
+        switch (payload.module) {
+            case "Core":
+                switch (payload.type) {
+                    case "GuardianSetUpgrade":
+                        payload_str = serialiseGuardianSetUpgrade(payload)
+                        break
+                    case "ContractUpgrade":
+                        payload_str = serialiseCoreContractUpgrade(payload)
+                        break
+                    default:
+                        impossible(payload)
+                        break
+                }
+                break
+            case "NFTBridge":
+                switch (payload.type) {
+                    case "ContractUpgrade":
+                        payload_str = serialisePortalContractUpgrade(payload)
+                        break
+                    case "RegisterChain":
+                        payload_str = serialisePortalRegisterChain(payload)
+                        break
+                    case "Transfer":
+                        payload_str = serialiseNFTBridgeTransfer(payload)
+                        break
+                    default:
+                        impossible(payload)
+                        break
+                }
+                break
+            case "TokenBridge":
+                switch (payload.type) {
+                    case "ContractUpgrade":
+                        payload_str = serialisePortalContractUpgrade(payload)
+                        break
+                    case "RegisterChain":
+                        payload_str = serialisePortalRegisterChain(payload)
+                        break
+                    case "Transfer":
+                        payload_str = serialiseTokenBridgeTransfer(payload)
+                        break
+                    case "TransferWithPayload":
+                        payload_str = serialiseTokenBridgeTransferWithPayload(payload)
+                        break
+                    case "AttestMeta":
+                        payload_str = serialiseTokenBridgeAttestMeta(payload)
+                        break
+                    default:
+                        impossible(payload)
+                        break
+                }
+                break
+            default:
+                impossible(payload)
+                break
+        }
     }
     const body = [
         encode("uint32", vaa.timestamp),

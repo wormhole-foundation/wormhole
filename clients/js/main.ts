@@ -452,9 +452,7 @@ yargs(hideBin(process.argv))
       const buf = Buffer.from(vaa_hex, "hex");
       const parsed_vaa = vaa.parse(buf);
 
-      if (!vaa.hasPayload(parsed_vaa)) {
-        throw Error("Couldn't parse VAA payload");
-      }
+      vaa.assertKnownPayload(parsed_vaa);
 
       console.log(parsed_vaa.payload);
 
