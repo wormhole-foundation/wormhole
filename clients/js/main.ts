@@ -5,7 +5,7 @@ import { hideBin } from "yargs/helpers";
 
 import { isTerraChain, assertEVMChain, CONTRACTS, setDefaultWasm } from "@certusone/wormhole-sdk";
 import { execute_governance_solana } from "./solana";
-import { execute_governance_evm, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
+import { execute_governance_evm, getImplementation, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
 import { execute_governance_terra } from "./terra";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
@@ -309,6 +309,11 @@ yargs(hideBin(process.argv))
         const result = await setStorageAt(argv["rpc"], evm_address(argv["contract-address"]), argv["storage-slot"], ["uint256"], [argv["value"]]);
         console.log(result);
       })
+      .command("chains", "Return all EVM chains",
+        async (_) => {
+          console.log(Object.values(CHAINS).map(id => toChainName(id)).filter(name => isEVMChain(name)).join(" "))
+        }
+      )
       .command("info", "Query info about the on-chain state of the contract", (yargs) => {
         return yargs
           .option("chain", {
@@ -337,6 +342,13 @@ yargs(hideBin(process.argv))
             describe: "Contract to query (override config)",
             type: "string",
             required: false,
+          })
+          .option("implementation-only", {
+            alias: "i",
+            describe: "Only query implementation (faster)",
+            type: "boolean",
+            default: false,
+            required: false,
           });
       }, async (argv) => {
         assertChain(argv["chain"])
@@ -354,7 +366,11 @@ yargs(hideBin(process.argv))
           | "NFTBridge"
           | "TokenBridge";
         let rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc
-        console.log(JSON.stringify(await query_contract_evm(network, argv["chain"], module, argv["contract-address"], rpc), null, 2))
+        if (argv["implementation-only"]) {
+          console.log(await getImplementation(network, argv["chain"], module, argv["contract-address"], rpc))
+        } else {
+          console.log(JSON.stringify(await query_contract_evm(network, argv["chain"], module, argv["contract-address"], rpc), null, 2))
+        }
       })
       .command("hijack", "Override the guardian set of the core bridge contract during testing (anvil or hardhat)", (yargs) => {
         return yargs

@@ -104,6 +104,38 @@ export async function query_contract_evm(
   return result
 }
 
+export async function getImplementation(
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  chain: EVMChainName,
+  module: "Core" | "NFTBridge" | "TokenBridge",
+  contract_address: string | undefined,
+  _rpc: string | undefined
+): Promise<ethers.BigNumber> {
+  let n = NETWORKS[network][chain]
+  let rpc: string | undefined = _rpc ?? n.rpc;
+  if (rpc === undefined) {
+    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
+  }
+
+  let contracts: Contracts = CONTRACTS[network][chain]
+
+  switch (module) {
+    case "Core":
+      contract_address = contract_address ? contract_address : contracts.core;
+      break
+    case "TokenBridge":
+      contract_address = contract_address ? contract_address : contracts.token_bridge;
+      break
+    case "NFTBridge":
+      contract_address = contract_address ? contract_address : contracts.nft_bridge;
+      break
+    default:
+      impossible(module)
+  }
+
+  return (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+}
+
 export async function execute_governance_evm(
   payload: Payload,
   vaa: Buffer,
