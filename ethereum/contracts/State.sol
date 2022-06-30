@@ -44,6 +44,8 @@ contract Storage {
 
         // EIP-155 Chain ID
         uint256 evmChainId;
+
+        mapping(bytes32 => bool) verifiedHashCache;
     }
 }
 
