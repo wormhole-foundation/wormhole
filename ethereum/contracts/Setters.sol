@@ -26,6 +26,10 @@ contract Setters is State {
         _state.consumedGovernanceActions[hash] = true;
     }
 
+    function updateVerifiedCacheStatus(bytes32 hash, bool cached) internal {
+       _state.verifiedHashCache[hash] = cached;
+    }
+
     function setChainId(uint16 chainId) internal {
         _state.provider.chainId = chainId;
     }
