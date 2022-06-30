@@ -5,6 +5,7 @@ pub mod create_wrapped;
 pub mod governance;
 pub mod initialize;
 pub mod transfer;
+pub mod transfer_payload;
 
 pub use attest::*;
 pub use complete_transfer::*;
@@ -13,3 +14,4 @@ pub use create_wrapped::*;
 pub use governance::*;
 pub use initialize::*;
 pub use transfer::*;
+pub use transfer_payload::*;

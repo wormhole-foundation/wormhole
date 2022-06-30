@@ -71,6 +71,12 @@ deploy/nft_bridge: nft_bridge-buffer-$(NETWORK).txt
 	@echo Deployed nft bridge contract at:
 	@cat $<
 
+.PHONY: wasm
+## Build wasm
+wasm: $(SOURCE_FILES)
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile.wasm -o type=local,dest=$@ .
+	cp -r $@/* ..
+
 test:
 	@echo "Running integration tests"
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile --target ci_tests --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_devnet} .
