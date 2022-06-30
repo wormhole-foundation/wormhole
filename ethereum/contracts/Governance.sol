@@ -169,7 +169,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
             return (false, "not signed by current guardian set");
         }
 
-        // Verify the VAA is for the governance chain (Solana)
+        // Verify the VAA is from the governance chain (Solana)
         if (uint16(vm.emitterChainId) != governanceChainId()) {
             return (false, "wrong governance chain");
         }
@@ -179,7 +179,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
             return (false, "wrong governance contract");
         }
 
-        // prevent re-entry
         // Verify this governance action hasn't already been
         // consumed to prevent reentry
         if (governanceActionIsConsumed(vm.hash)){
