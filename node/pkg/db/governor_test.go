@@ -117,7 +117,7 @@ func TestGetChainGovernorData(t *testing.T) {
 
 	assert.Equal(t, []*Transfer(nil), transfers)
 	assert.Equal(t, []*common.MessagePublication(nil), pending)
-	assert.Nil(t, err2)
+	require.NoError(t, err2)
 }
 
 func TestStoreTransfer(t *testing.T) {
@@ -145,7 +145,7 @@ func TestStoreTransfer(t *testing.T) {
 	}
 
 	err2 := db.StoreTransfer(xfer1)
-	assert.Nil(t, err2)
+	require.NoError(t, err2)
 }
 
 func TestDeleteTransfer(t *testing.T) {
@@ -173,10 +173,10 @@ func TestDeleteTransfer(t *testing.T) {
 	}
 
 	err2 := db.StoreTransfer(xfer1)
-	assert.Nil(t, err2)
+	require.NoError(t, err2)
 
 	err3 := db.DeleteTransfer(xfer1)
-	assert.Nil(t, err3)
+	require.NoError(t, err3)
 }
 
 func TestStorePendingMsg(t *testing.T) {
@@ -202,7 +202,7 @@ func TestStorePendingMsg(t *testing.T) {
 	}
 
 	err3 := db.StorePendingMsg(msg)
-	assert.Nil(t, err3)
+	require.NoError(t, err3)
 }
 
 func TestDeletePendingMsg(t *testing.T) {
@@ -228,7 +228,7 @@ func TestDeletePendingMsg(t *testing.T) {
 	}
 
 	err3 := db.StorePendingMsg(msg)
-	assert.Nil(t, err3)
+	require.NoError(t, err3)
 
 	err4 := db.DeletePendingMsg(msg)
 	assert.Nil(t, err4)

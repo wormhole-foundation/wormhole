@@ -39,6 +39,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	MainNetMode = 1
+	TestNetMode = 2
+	DevNetMode  = 3
+	GoTestMode  = 4
+)
+
 type (
 	// Layout of the config data for each token
 	tokenConfigEntry struct {
@@ -102,24 +109,25 @@ type ChainGovernor struct {
 	msgsToPublish       []*common.MessagePublication
 	dayLengthInMinutes  int
 	coinGeckoQuery      string
-	testMode            bool
+	env                 int
 }
 
 func NewChainGovernor(
 	logger *zap.Logger,
 	db *db.Database,
+	env int,
 ) *ChainGovernor {
-	return newChainGovernor(logger, db, false)
+	return newChainGovernor(logger, db, env)
 }
 
-func newChainGovernor(logger *zap.Logger, db *db.Database, testMode bool) *ChainGovernor {
+func newChainGovernor(logger *zap.Logger, db *db.Database, env int) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
 		logger:              logger,
 		tokens:              make(map[tokenKey]*tokenEntry),
 		tokensByCoinGeckoId: make(map[string]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
-		testMode:            testMode,
+		env:                 env,
 	}
 }
 
@@ -132,7 +140,7 @@ func (gov *ChainGovernor) Run(ctx context.Context) error {
 		return err
 	}
 
-	if !gov.testMode {
+	if gov.env != GoTestMode {
 		if err := gov.loadFromDB(); err != nil {
 			return err
 		}
@@ -152,6 +160,12 @@ func (gov *ChainGovernor) initConfig() error {
 	gov.dayLengthInMinutes = 24 * 60
 	configTokens := tokenList()
 	configChains := chainList()
+
+	if gov.env == DevNetMode {
+		configTokens, configChains = gov.initDevnetConfig()
+	} else if gov.env == TestNetMode {
+		configTokens, configChains = gov.initTestnetConfig()
+	}
 
 	for _, ct := range configTokens {
 		addr, err := vaa.StringToAddress(ct.addr)

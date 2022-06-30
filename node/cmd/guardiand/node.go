@@ -866,7 +866,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	var gov *governor.ChainGovernor
 	if *chainGovernorEnabled {
 		logger.Info("chain governor is enabled")
-		gov = governor.NewChainGovernor(logger, db)
+		env := governor.MainNetMode
+		if *testnetMode {
+			env = governor.TestNetMode
+		} else if *unsafeDevMode {
+			env = governor.DevNetMode
+		}
+		gov = governor.NewChainGovernor(logger, db, env)
 	} else {
 		logger.Info("chain governor is disabled")
 	}

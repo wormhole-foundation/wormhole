@@ -32,7 +32,9 @@ axios
 
     var content = ""
 
-    content += "// This file was generated: " + (new(Date)).toString() + " using a min notional of " + MinNotional + "\n"
+    content += "// This file contains the token config to be used in the mainnet environment.\n"
+    content += "//\n"
+    content += "// This file was generated: " + (new(Date)).toString() + " using a min notional of " + MinNotional + "\n\n"
     content += "package governor\n\n"
     content += "func tokenList() []tokenConfigEntry {\n"
     content += "\treturn []tokenConfigEntry {\n"
@@ -71,11 +73,11 @@ axios
     content += "\t}\n"
     content += "}\n"
 
-    await fs.writeFileSync("../../pkg/governor/tokens.go", content, {
+    await fs.writeFileSync("../../pkg/governor/mainnet_tokens.go", content, {
       flag: "w+",
     });
 
-    execSync("go fmt ../../pkg/governor/tokens.go")
+    execSync("go fmt ../../pkg/governor/mainnet_tokens.go")
   })
   .catch(error => {
     console.error(error);

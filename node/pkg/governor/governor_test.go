@@ -211,7 +211,7 @@ func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 		return nil, fmt.Errorf("ctx is nil")
 	}
 
-	gov := newChainGovernor(nil, nil, true)
+	gov := newChainGovernor(nil, nil, GoTestMode)
 
 	err := gov.Run(ctx)
 	if err != nil {
@@ -242,6 +242,7 @@ func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 	return gov, nil
 }
 
+// Converts a string into a go-ethereum Hash object used as test input.
 func hashFromString(str string) eth_common.Hash {
 	if (len(str) > 2) && (str[0] == '0') && (str[1] == 'x') {
 		str = str[2:]
@@ -373,7 +374,6 @@ func buildMockTransferPayloadBytes(
 	toAddr, _ := vaa.StringToAddress(toAddrStr)
 	copy(bytes[67:99], toAddr.Bytes())
 	binary.BigEndian.PutUint16(bytes[99:101], uint16(toChainID))
-	// fmt.Printf("Bytes: [%v]", hex.EncodeToString(bytes))
 	return bytes
 }
 
@@ -389,19 +389,24 @@ func TestBuidMockTransferPayload(t *testing.T) {
 	)
 
 	payload, err := vaa.DecodeTransferPayloadHdr(payloadBytes)
-
-	expectedTokenAddr, _ := vaa.StringToAddress(tokenAddrStr)
-	expectedToAddr, _ := vaa.StringToAddress(toAddrStr)
-
-	expectedAmount := big.NewInt(125000000)
-
 	require.NoError(t, err)
-	assert.Equal(t, uint8(1), payload.Type)
-	assert.Equal(t, vaa.ChainIDEthereum, payload.OriginChain)
-	assert.Equal(t, expectedTokenAddr, payload.OriginAddress)
-	assert.Equal(t, vaa.ChainIDPolygon, payload.TargetChain)
-	assert.Equal(t, expectedToAddr, payload.TargetAddress)
-	assert.Equal(t, 0, expectedAmount.Cmp(payload.Amount))
+
+	expectedTokenAddr, err := vaa.StringToAddress(tokenAddrStr)
+	require.NoError(t, err)
+
+	expectedToAddr, err := vaa.StringToAddress(toAddrStr)
+	require.NoError(t, err)
+
+	expected := &vaa.TransferPayloadHdr{
+		Type:          1,
+		Amount:        big.NewInt(125000000),
+		OriginAddress: expectedTokenAddr,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: expectedToAddr,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+
+	assert.Equal(t, expected, payload)
 }
 
 func TestVaaForUninterestingToken(t *testing.T) {
