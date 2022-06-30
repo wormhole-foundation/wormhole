@@ -198,7 +198,7 @@ contract Messages is Getters {
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
-        // TODO: we could optimise gas here by manually inlining these functions if need be
+        // TODO(csongor): we could optimise gas here by manually inlining these functions if need be
         Structs.Observation memory observation = parseObservation(index, encodedVM.length - index, encodedVM);
 
         vm.timestamp = observation.timestamp;
@@ -240,7 +240,16 @@ contract Messages is Getters {
             index += 32;
         }
 
-        // TODO: handle observations
+        uint8 observationsLen = encodedVM.toUint8(index);
+
+        vm.observations = new bytes[](observationsLen);
+        uint32 observationLen;
+        for (uint8 i = 0; i < observationsLen; i++) {
+            observationLen = encodedVM.toUint32(index);
+            index += 1;
+            vm.observations[i] = encodedVM.slice(index, observationLen);
+            index += observationLen;
+        }
     }
 
     /**

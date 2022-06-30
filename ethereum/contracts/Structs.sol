@@ -29,6 +29,7 @@ interface Structs {
 		bytes32 emitterAddress;
 		uint64 sequence;
 		uint8 consistencyLevel;
+		// ^ 51 bytes header
 		bytes payload;
 
 	}
@@ -69,11 +70,16 @@ interface Structs {
 		bytes32 hash;
 	}
 
+	// | header (n bytes)            |
+	// +-----------------------------+
+	// | observation count (uint8)   |
+	// | ...
+	// | observation length (uint32) |
+	// | Observation                 |
 	struct VM2 {
 		BatchHeader header;
-		// TODO: this should not be readily usable before running
-		// parseAndVerifyVM
-		Observation[] observations;
+		// The observations are yet to be verified
+		bytes[] observations;
 	}
 
 }
