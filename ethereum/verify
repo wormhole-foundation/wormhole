@@ -1,0 +1,102 @@
+#!/bin/bash
+
+set -euo pipefail
+
+function usage() {
+cat <<EOF >&2
+Usage:
+
+  $(basename "$0") [-h] [-n network] [-r rpc] [-c chain] <.json file> <contract address> -- Verify that the deployed on-chain bytecode matches the local build artifact
+
+  where:
+      -h  show this help text
+      -n  set the network (mainnet, testnet, devnet)
+      -r  rpc url
+      -c  set the chain name (required)"
+
+  The -n and -r flags are mutually exclusive.
+EOF
+exit 1
+}
+
+chain=""
+network=""
+rpc=""
+while getopts ':hn:r:c:' option; do
+  case "$option" in
+    h) usage
+       ;;
+    c) chain=$OPTARG
+       ;;
+    n) network=$OPTARG
+       ;;
+    r) rpc=$OPTARG
+       ;;
+    :) printf "missing argument for -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+   \?) printf "illegal option: -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+  esac
+done
+shift $((OPTIND - 1))
+[ $# -ne 2 ] && usage
+
+[[ -z $chain ]] && { echo "Missing chain flag (-c)"; usage; }
+
+json_file=$1
+contract_addr=$2
+
+# network and rpc flags are mutually exlusive
+[[ -n $network && -n $rpc ]] && usage
+
+
+# if network flag is set, we query the rpc from the cli tool.
+if [[ -n $network ]]; then
+  if ! command -v worm &> /dev/null
+  then
+    echo "worm binary could not be found. See installation instructions in clients/js/README.md"
+    exit 1
+  fi
+  rpc=$(worm rpc "$network" "$chain")
+fi
+
+if [[ -z $rpc ]]; then
+  echo "rpc endpoint or network name required."
+  usage
+fi
+
+# We'll write the bytecodes to temporary files
+deployed=$(mktemp)
+local=$(mktemp)
+
+cat "$json_file" | jq -r .deployedBytecode > "$local"
+
+ret=0
+# Grab bytecode from the JSON RPC using the eth_getCode method.
+curl "$rpc" \
+  -X POST \
+  -H "Content-Type: application/json" \
+  --data "{\"method\":\"eth_getCode\",\"params\":[\"$contract_addr\",\"latest\"],\"id\":1,\"jsonrpc\":\"2.0\"}" --silent | jq -r .result > "$deployed" || ret=$?
+
+if [ $ret -gt 0 ]; then
+  printf "\033[0;31mFailed to query eth RPC '%s' while verifying %s on %s\033[0m\n" "$rpc" "$contract_addr" "$chain"
+  exit 1
+fi
+
+# hash, then see if they match up
+hash1=$(sha256sum "$deployed" | cut -f1 -d' ')
+hash2=$(sha256sum "$local" | cut -f1 -d' ')
+
+if [ "$hash1" == "$hash2" ]; then
+  printf "\033[0;32mDeployed bytecode of %s on %s matches %s\033[0m\n" "$contract_addr" "$chain" "$json_file";
+  exit 0;
+else
+  printf "\033[0;31mDeployed bytecode of %s on %s doesn't match %s\033[0m\n" "$contract_addr" "$chain" "$json_file";
+  echo "deployed hash:"
+  echo "$hash1"
+  echo "$json_file hash:"
+  echo "$hash2"
+  exit 1;
+fi

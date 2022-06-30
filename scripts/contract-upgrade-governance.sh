@@ -93,6 +93,7 @@ fi
 
 explorer=""
 evm=false
+# TODO: move to CLI
 case "$chain_name" in
   solana)
     chain=1
@@ -180,7 +181,7 @@ evm_artifact=""
 solana_artifact=""
 terra_artifact=""
 case "$module" in
-  bridge)
+  bridge|core)
     create_governance="\
 guardiand template contract-upgrade \\
   --chain-id $chain \\
@@ -271,7 +272,7 @@ EOD
 # The rest of the output is printed to the instructions file (which then also
 # gets printed to stdout at the end)
 
-echo "# Verification steps ($chain_name)
+echo "# Verification steps ($chain_name $module)
 " >> "$instructions_file"
 
 # Verification steps depend on the chain.
@@ -280,16 +281,16 @@ if [ "$evm" = true ]; then
   cat <<-EOF >> "$instructions_file"
 	## Build
 	\`\`\`shell
-	wormhole/ethereum $ npm ci
-	wormhole/ethereum $ npm run build
+	wormhole/ethereum $ make
 	\`\`\`
 
 	## Verify
 	Contract at [$explorer$address]($explorer$address)
+
+	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
+
 	\`\`\`shell
-	wormhole/ethereum $ export BYTECODE=<BYTECODE FROM EXPLORER HERE>
-	wormhole/ethereum $ cat $evm_artifact | jq -r ".deployedBytecode" | sha256sum
-	wormhole/ethereum $ echo \$BYTECODE | sha256sum
+	wormhole/ethereum $ ./verify -r $(worm rpc mainnet $chain_name) -c $chain_name $evm_artifact $address
 	\`\`\`
 
 EOF
