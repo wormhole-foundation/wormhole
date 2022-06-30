@@ -1,0 +1,7 @@
+[package]
+name    = "Wormhole"
+version = "1.0.0"
+
+
+[addresses]
+Std = "0x1"

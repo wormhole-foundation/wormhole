@@ -1,0 +1,11 @@
+brew install cmake
+ rustup install stable-x86_64-apple-darwin
+ #rustup target add stable-x86_64-apple-darwin
+ rustup target add x86_64-apple-darwin
+
+curl https://raw.githubusercontent.com/MystenLabs/sui/main/doc/utils/sui-setup.sh -o sui-setup.sh
+chmod 755 sui-setup.sh
+./sui-setup.sh
+
+   sui genesis -f
+   sui start
