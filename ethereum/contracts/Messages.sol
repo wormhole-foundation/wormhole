@@ -5,11 +5,12 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "./Getters.sol";
+import "./Setters.sol";
 import "./Structs.sol";
 import "./libraries/external/BytesLib.sol";
 
 
-contract Messages is Getters {
+contract Messages is Getters, Setters {
     using BytesLib for bytes;
 
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
@@ -18,14 +19,66 @@ contract Messages is Getters {
         (valid, reason) = verifyVM(vm);
     }
 
-   /**
-    * @dev `verifyVM` serves to validate an arbitrary vm against a valid Guardian set
-    *  - it aims to make sure the VM is for a known guardianSet
-    *  - it aims to ensure the guardianSet is not expired
-    *  - it aims to ensure the VM has reached quorum
-    *  - it aims to verify the signatures provided against the guardianSet
-    */
-    function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
+    /// caches results
+    function parseAndVerifyVM2(bytes calldata encodedVM) public returns (Structs.VM2 memory vm, bool valid, string memory reason) {
+        vm = parseVM2(encodedVM);
+        (valid, reason) = verifyBatchHeader(vm.header);
+
+        for (uint i = 0; i < vm.header.hashes.length; i++) {
+            updateVerifiedCacheStatus(vm.header.hashes[i], true);
+        }
+
+        return (vm, valid, reason);
+    }
+
+    function wipeBatchCache(Structs.BatchHeader memory header) public {
+        for (uint i = 0; i < header.hashes.length; i++) {
+            updateVerifiedCacheStatus(header.hashes[i], false);
+        }
+    }
+
+    function parseAndVerifyVM3(bytes calldata encodedVM) public view returns (Structs.VM3 memory vm, bool valid, string memory reason) {
+        vm = parseVM3(encodedVM);
+        (valid, reason) = verifyVM3(vm);
+    }
+
+    // TODO(csongor): think about the name
+    // Can't extend the existing function because it would introduce a breaking
+    // change.
+    function parseAndVerifyVAA(
+        bytes calldata encodedVM
+    ) public view returns (Structs.Observation memory observation, bool valid, string memory reason) {
+        uint8 version = encodedVM.toUint8(0);
+        if (version == 1) {
+            Structs.VM memory vm;
+            (vm, valid, reason) = parseAndVerifyVM(encodedVM);
+
+            observation.timestamp = vm.timestamp;
+            observation.nonce = vm.nonce;
+            observation.emitterChainId = vm.emitterChainId;
+            observation.emitterAddress = vm.emitterAddress;
+            observation.sequence = vm.sequence;
+            observation.consistencyLevel = vm.consistencyLevel;
+            observation.payload = vm.payload;
+        } else if (version == 3) {
+            Structs.VM3 memory vm;
+            (vm, valid, reason) = parseAndVerifyVM3(encodedVM);
+            observation = vm.observation;
+        } else {
+            valid = false;
+            reason = "Invalid version";
+        }
+
+    }
+
+    function verifyHeader(Structs.Header memory vm) internal view returns (bool valid, string memory reason) {
+        // TODO(csongor): we should double check that all of the logic here is
+        // safe to skip if the hash is cached. I think it's safe, because it
+        // means that the checks below have already been performed.
+        if (verifiedHashCached(vm.hash)) {
+            return (true, "");
+        }
+
         /// @dev Obtain the current guardianSet for the guardianSetIndex provided
         Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
 
@@ -63,6 +116,37 @@ contract Messages is Getters {
 
         /// If we are here, we've validated the VM is a valid multi-sig that matches the guardianSet.
         return (true, "");
+    }
+
+   /**
+    * @dev `verifyVM` serves to validate an arbitrary vm against a valid Guardian set
+    *  - it aims to make sure the VM is for a known guardianSet
+    *  - it aims to ensure the guardianSet is not expired
+    *  - it aims to ensure the VM has reached quorum
+    *  - it aims to verify the signatures provided against the guardianSet
+    */
+    function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
+        Structs.Header memory header;
+        header.guardianSetIndex = vm.guardianSetIndex;
+        header.signatures = vm.signatures;
+        header.hash = vm.hash;
+        return verifyHeader(header);
+    }
+
+    function verifyVM3(Structs.VM3 memory vm) public view returns (bool valid, string memory reason) {
+        if (verifiedHashCached(vm.hash)) {
+            return (true, "");
+        } else {
+            return (false, "Could not find hash in cache");
+        }
+    }
+
+    function verifyBatchHeader(Structs.BatchHeader memory vm) public view returns (bool valid, string memory reason) {
+        Structs.Header memory header;
+        header.guardianSetIndex = vm.guardianSetIndex;
+        header.signatures = vm.signatures;
+        header.hash = vm.hash;
+        return verifyHeader(header);
     }
 
     /**
@@ -129,16 +213,6 @@ contract Messages is Getters {
         require(length >= consumed, "Insufficient observation length");
 
         observation.payload = encodedObservation.slice(index, length - consumed);
-    }
-
-    function parseSizedObservation(
-        bytes memory encodedObservation
-    ) internal pure returns (Structs.SizedObservation memory sizedObservation) {
-        uint256 index = 0;
-        sizedObservation.size = encodedObservation.toUint32(0);
-        index += 4;
-        sizedObservation.observation =
-            parseObservation(index, sizedObservation.size - index, encodedObservation);
     }
 
     function parseSignatures(
@@ -236,9 +310,25 @@ contract Messages is Getters {
         for (uint8 i = 0; i < observationsLen; i++) {
             observationLen = encodedVM.toUint32(index);
             index += 1;
-            vm.observations[i] = encodedVM.slice(index, observationLen);
+            // TODO(csongor): we add "3" to the observation here so
+            // parseAndVerifyVAA can pick up whether it's given a V1 or a V3.
+            // Is there a better way?
+            vm.observations[i] = abi.encodePacked(uint8(3), encodedVM.slice(index, observationLen));
             index += observationLen;
         }
+    }
+
+    function parseVM3(bytes memory encodedVM) public pure virtual returns (Structs.VM3 memory vm) {
+        uint256 index = 3;
+
+        vm.version = encodedVM.toUint8(index);
+        index += 1;
+        require(vm.version == 3, "VM version incompatible");
+        vm.observation = parseObservation(index, encodedVM.length, encodedVM);
+
+        // Hash the body
+        bytes memory body = encodedVM.slice(index, encodedVM.length - index);
+        vm.hash = keccak256(abi.encodePacked(keccak256(body)));
     }
 
     /**

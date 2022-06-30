@@ -22,6 +22,10 @@ contract Getters is State {
         return _state.consumedGovernanceActions[hash];
     }
 
+    function verifiedHashCached(bytes32 hash) public view returns (bool) {
+        return _state.verifiedHashCache[hash];
+    }
+
     function isInitialized(address impl) public view returns (bool) {
         return _state.initializedImplementations[impl];
     }
