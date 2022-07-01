@@ -59,20 +59,6 @@ export const METAMASK_CHAIN_PARAMETERS: {
     rpcUrls: ["https://data-seed-prebsc-1-s1.binance.org:8545"],
     blockExplorerUrls: ["https://testnet.bscscan.com"],
   },
-  137: {
-    chainId: "0x89",
-    chainName: "Polygon Mainnet",
-    nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-    rpcUrls: ["https://polygon-rpc.com"],
-    blockExplorerUrls: ["https://polygonscan.com"],
-  },
-  250: {
-    chainId: "0xfa",
-    chainName: "Fantom Opera",
-    nativeCurrency: { name: "Fantom", symbol: "FTM", decimals: 18 },
-    rpcUrls: ["https://rpc.ftm.tools"],
-    blockExplorerUrls: ["https://ftmscan.com"],
-  },
   596: {
     chainId: "0x254",
     chainName: "Karura Testnet",
