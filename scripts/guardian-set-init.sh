@@ -25,7 +25,13 @@ function upsert_env_file {
     # replace the value if it exists, else, append it to the file
     if [[ -f $file ]] && grep -q "^$key=" $file; then
         # file has the key, update it:
-        sed -i "/^$key=/s/=.*/=$new_value/" $file
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # on macOS's sed, the -i flag needs the '' argument to not create
+            # backup files
+            sed -i '' -e "/^$key=/s/=.*/=$new_value/" $file
+        else
+            sed -i -e "/^$key=/s/=.*/=$new_value/" $file
+        fi
     else
         # file does not have the key, add it:
         echo "$key=$new_value" >> $file
