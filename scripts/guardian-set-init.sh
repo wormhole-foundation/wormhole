@@ -25,7 +25,7 @@ function upsert_env_file {
     # replace the value if it exists, else, append it to the file
     if [[ -f $file ]] && grep -q "^$key=" $file; then
         # file has the key, update it:
-        sed -i "/^$key=/s/=.*/=$new_value/" $file
+        sed -i '' -e "/^$key=/s/=.*/=$new_value/" $file
     else
         # file does not have the key, add it:
         echo "$key=$new_value" >> $file
