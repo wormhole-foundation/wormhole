@@ -17,8 +17,10 @@ RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
 
 ADD . .
 
+ARG GO_BUILD_ARGS=-race
+
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
-  go build -race -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \
+  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \
   cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v0.16.2/api/libwasmvm.so /usr/lib/
 
 # Only export the final binary (+ shared objects). This reduces the image size
@@ -35,4 +37,4 @@ COPY --from=build /usr/lib/libwasmvm.so /usr/lib/
 # finally copy the guardian executable
 COPY --from=build /guardiand .
 
-ENTRYPOINT /guardiand
+ENTRYPOINT ["/guardiand"]
