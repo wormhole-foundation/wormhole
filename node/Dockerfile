@@ -20,7 +20,7 @@ ADD . .
 ARG GO_BUILD_ARGS=-race
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
-  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \
+  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \
   cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v0.16.2/api/libwasmvm.so /usr/lib/
 
 # Only export the final binary (+ shared objects). This reduces the image size
