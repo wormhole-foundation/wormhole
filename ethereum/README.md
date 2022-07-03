@@ -46,3 +46,14 @@ chain address of the recipient, `target_chain` is the id of the chain to transfe
 
 `lockETH(bytes32 recipient, uint8 target_chain)` is a convenience function to wrap the Ether sent with the function call
 and transfer it as described in `lockAssets`.
+
+
+### Forge
+
+Some tests and scripts use [Foundry](https://getfoundry.sh/). It can be installed via the official installer, or by running
+
+``` sh
+wormhole/ethereum $ ../scripts/install-foundry
+```
+
+The installer script installs foundry and the appropriate solc version to build the contracts.

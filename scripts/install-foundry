@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# This script install foundry and the solidity compiler required to build the
+# ethereum contracts. Foundry itself provides a mechanism to install solc, but
+# it doesn't work with certain firewall configurations.
+
+set -euo pipefail
+
+# check if foundry.toml exists
+if [ ! -f foundry.toml ]; then
+  echo "foundry.toml not found. Please call from the ethereum directory." >& 2
+  exit 1
+fi
+
+# Read compiler version from foundry.toml
+SOLC_VERSION=$(grep solc_version foundry.toml | cut -d'=' -f2 | tr -d '" ') || true
+
+if [ -z "$SOLC_VERSION" ]; then
+  echo "solc_version not found in foundry.toml." >& 2
+  exit 1
+fi
+
+main() {
+  OS=$(uname -s)
+  case "$OS" in
+    Darwin)
+      install_mac
+      ;;
+    Linux)
+      install_linux
+      ;;
+    *)
+      echo "Unsupported OS: $OS"
+      exit 1
+      ;;
+  esac
+}
+
+function install_mac() {
+  if ! command -v brew > /dev/null; then
+    echo "brew is unavailable. Please install: https://brew.sh"
+  fi
+
+  if ! brew list libusb > /dev/null 2>&1; then
+    echo "Installing libusb"
+    brew install libusb
+  fi
+
+  if ! command -v foundryup > /dev/null; then
+    curl -L https://foundry.paradigm.xyz --silent | bash
+    "$HOME/.foundry/bin/foundryup"
+  fi
+
+  INSTALL_DIR="$HOME/.svm/$SOLC_VERSION"
+
+  mkdir -p "$INSTALL_DIR"
+
+  SOLC_PATH="$INSTALL_DIR/solc-$SOLC_VERSION"
+
+  if [ ! -f "$SOLC_PATH" ]; then
+    echo "Installing solc-$SOLC_VERSION"
+    curl -L --silent "https://github.com/ethereum/solidity/releases/download/v$SOLC_VERSION/solc-macos" > "$SOLC_PATH"
+    chmod +x "$SOLC_PATH"
+    echo "Installed $SOLC_PATH"
+  else
+    echo "Solidity compiler found: $SOLC_PATH"
+  fi
+}
+
+function install_linux() {
+  if ! command -v foundryup > /dev/null; then
+    curl -L https://foundry.paradigm.xyz --silent | bash
+    "$HOME/.foundry/bin/foundryup"
+  fi
+
+  INSTALL_DIR="$HOME/.svm/$SOLC_VERSION"
+
+  mkdir -p "$INSTALL_DIR"
+
+  SOLC_PATH="$INSTALL_DIR/solc-$SOLC_VERSION"
+
+  if [ ! -f "$SOLC_PATH" ]; then
+    echo "Installing solc-$SOLC_VERSION"
+    curl -L --silent "https://github.com/ethereum/solidity/releases/download/v$SOLC_VERSION/solc-static-linux" > "$SOLC_PATH"
+    chmod +x "$SOLC_PATH"
+    echo "Installed $SOLC_PATH"
+  else
+    echo "Solidity compiler found: $SOLC_PATH"
+  fi
+}
+
+main "$@"; exit

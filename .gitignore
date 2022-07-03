@@ -26,3 +26,5 @@ bigtable-writer.json
 /solana/artifacts-testnet/
 /solana/artifacts-devnet/
 /solana/artifacts-mainnet/
+/ethereum/out/
+/ethereum/cache/
