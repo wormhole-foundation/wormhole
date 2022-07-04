@@ -51,6 +51,7 @@ RUN [ -n "${BRIDGE_ADDRESS}" ]
 
 # Build Wormhole Solana programs
 RUN --mount=type=cache,target=target,id=build \
+    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
     cargo build-bpf --manifest-path "bridge/program/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" -- --locked && \
