@@ -29,6 +29,19 @@ COPY migration migration
 # so we remove the non-existent function reference as a workaround.
 ARG SED_REMOVE_INVALID_REFERENCE="/^\s*wasm.__wbg_systeminstruction_free(ptr);$/d"
 
+# symlink all the target directories to the root target so cargo can share
+# build artifacts between them, and the docker cache can be mounted properly.
+# This results in
+# 1) not having to rebuild all dependencies for each program
+# 2) not having to rebuild all dependencies each time anything changes
+# Normally, cargo can take a '--target-dir' flag which could be used to
+# redirect the default target directories, but that flag is not compatible with
+# wasm-pack.
+RUN ln -s "$(pwd)/target" bridge/program/target
+RUN ln -s "$(pwd)/target" modules/token_bridge/program/target
+RUN ln -s "$(pwd)/target" modules/nft_bridge/program/target
+RUN ln -s "$(pwd)/target" migration/target
+
 # TODO: it appears that wasm-pack ignores our lockfiles even with --locked
 
 # Compile Wormhole
