@@ -15,7 +15,7 @@ RUN apt-get update && \
     rustup default nightly-2021-12-03
 
 # Support additional root CAs
-COPY devnet_setup.sh cert.pem* /certs/
+COPY cert.pem* /certs/
 # Debian
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 
