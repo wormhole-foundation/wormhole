@@ -20,8 +20,8 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci
 COPY clients/js ./
 
-ADD solana /usr/src/solana
-ADD proto /usr/src/proto
+COPY solana /usr/src/solana
+COPY proto /usr/src/proto
 
 WORKDIR /usr/src/solana
 

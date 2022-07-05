@@ -24,9 +24,9 @@ RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
 # Only invalidate the npm install step if package.json changed
-ADD --chown=node:node package.json .
-ADD --chown=node:node package-lock.json .
-ADD --chown=node:node .env.test .env
+COPY --chown=node:node package.json .
+COPY --chown=node:node package-lock.json .
+COPY --chown=node:node .env.test .env
 
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
@@ -39,4 +39,4 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
 # could be a renameat syscall. Alpine does not have this bug.
 RUN rm -rf node_modules && mv node_modules_cache node_modules
 
-ADD --chown=node:node . .
+COPY --chown=node:node . .

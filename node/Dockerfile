@@ -10,12 +10,12 @@ RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/ce
 
 WORKDIR /app
 
-ADD tools tools
+COPY tools tools
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   cd tools/ && go build -mod=readonly -o /dlv github.com/go-delve/delve/cmd/dlv
 
-ADD . .
+COPY . .
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   go build -race -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \

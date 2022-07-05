@@ -3,7 +3,7 @@ FROM docker.io/golang:1.17.0@sha256:06e92e576fc7a7067a268d47727f3083c0a564331bfc
 
 WORKDIR /app
 
-ADD . .
+COPY . .
 
 WORKDIR /app/functions_server
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
