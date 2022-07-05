@@ -151,3 +151,10 @@ jobs:
         with:
           command: test
           args: --workspace --manifest-path ${{ matrix.manifest }}
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v2
+      - run: chmod 755 ./scripts/check-docker-pin.sh
+      - run: ./scripts/check-docker-pin.sh
