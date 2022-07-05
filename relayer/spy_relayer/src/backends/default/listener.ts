@@ -10,10 +10,7 @@ import {
   getEmitterAddressTerra,
   parseTransferPayload,
 } from "@certusone/wormhole-sdk";
-import {
-  getListenerEnvironment,
-  ListenerEnvironment,
-} from "../../configureEnv";
+import { getListenerEnvironment } from "../../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../../helpers/logHelper";
 import {
   ParsedVaa,
