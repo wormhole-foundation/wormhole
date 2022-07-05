@@ -1573,14 +1573,24 @@ export const COLOR_BY_CHAIN_ID: { [key in ChainId]?: string } = {
   [CHAIN_ID_ACALA]: "#E00F51",
 };
 
-export const DISABLED_TOKEN_TRANSFERS: { [key in ChainId]?: string[] } = {
-  [CHAIN_ID_KARURA]: [
-    "0x0000000000000000000100000000000000000081", // aUSD
-  ],
+export const DISABLED_TOKEN_TRANSFERS: {
+  [key in ChainId]?: { [address: string]: ChainId[] };
+} = {
+  [CHAIN_ID_ACALA]: {
+    "0x0000000000000000000100000000000000000001": [CHAIN_ID_KARURA], // aUSD
+  },
+  [CHAIN_ID_KARURA]: {
+    "0x0000000000000000000100000000000000000081": [], // aUSD
+  },
 };
 export const getIsTokenTransferDisabled = (
-  chainId: ChainId,
+  sourceChain: ChainId,
+  targetChain: ChainId,
   tokenAddress: string
-) => {
-  return !!DISABLED_TOKEN_TRANSFERS[chainId]?.includes(tokenAddress);
+): boolean => {
+  const disabledTransfers =
+    DISABLED_TOKEN_TRANSFERS[sourceChain]?.[tokenAddress];
+  return disabledTransfers !== undefined
+    ? disabledTransfers.length === 0 || disabledTransfers.includes(targetChain)
+    : false;
 };
