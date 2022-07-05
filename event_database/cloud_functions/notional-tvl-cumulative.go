@@ -118,7 +118,7 @@ func createTvlCumulativeOfInterval(tbl *bigtable.Table, ctx context.Context, sta
 					for symbol := range thisDaySymbols {
 						symbolsUnion[symbol] = symbol
 					}
-					// initalize the chain/symbol map for this date
+					// initialize the chain/symbol map for this date
 					if _, ok := results[date][chain]; !ok {
 						results[date][chain] = map[string]LockedAsset{}
 					}
@@ -318,18 +318,16 @@ func ComputeTvlCumulative(w http.ResponseWriter, r *http.Request) {
 
 	persistInterfaceToJson(ctx, notionalTvlCumulativeResultPath, &muWarmTvlCumulativeCache, result)
 
-	// Note: GCP HTTP Load Balancer returns 502 error if response data is large,
-	// just return success if there wasn't an error
-	// jsonBytes, err := json.Marshal(result)
+	jsonBytes, err := json.Marshal(result)
 
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	w.Write([]byte(err.Error()))
-	//	log.Println(err.Error())
-	//	return
-	//}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		log.Println(err.Error())
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	//w.Write(jsonBytes)
+	w.Write(jsonBytes)
 }
 
 func TvlCumulative(w http.ResponseWriter, r *http.Request) {
