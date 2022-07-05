@@ -156,8 +156,7 @@ async function findWorkableItems(
           const { parse_vaa } = await importCoreWasm();
           const parsedVAA = parse_vaa(hexToUint8Array(storePayload.vaa_bytes));
           const payloadBuffer: Buffer = Buffer.from(parsedVAA.payload);
-          const transferPayload = parseTransferPayload(payloadBuffer);
-          const tgtChainId = transferPayload.targetChain;
+          const tgtChainId = getBackend().relayer.targetChainId(payloadBuffer);
           if (tgtChainId !== workerInfo.targetChainId) {
             // Skipping mismatched chainId
             continue;
