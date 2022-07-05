@@ -13,6 +13,6 @@ We engage 3rd party firms to conduct independent security audits of Wormhole.  A
 As these 3rd party audits are completed and issues are sufficiently addressed, we make those audit reports public.
 
 - **[January, 10, 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2021-01-10_neodyme.pdf)**
-    - **Scopes**: *Solitaire, Solana Contracts, Ethereum Contracts, Terra Contracts, and Guardian*
+    - **Scopes**: *Ethereum Contracts, Solana Contracts, Terra Contracts, Guardian, and Solitaire*
 - **[July 1, 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**
-    - **Scopes**: *Ethereum Contracts, Guardian, Solana Contracts, Terra Contracts*
+    - **Scopes**: *Ethereum Contracts, Solana Contracts, Terra Contracts, and Guardian*
