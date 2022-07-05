@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script is checks to that all our Docker images are pinned to a specific SHA256 hash
 #
