@@ -9,7 +9,7 @@ RUN apk add python3 \
         make \
         g++ 
 
-ADD . .
+COPY . .
 
 RUN echo $(ls -1 .)
 RUN echo $(less Dockerfile)

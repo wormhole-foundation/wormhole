@@ -36,7 +36,7 @@ RUN touch /tmp/foo.so && \
 # Add bridge contract sources
 WORKDIR /usr/src/bridge
 
-ADD . .
+COPY . .
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV RUST_BACKTRACE=1
