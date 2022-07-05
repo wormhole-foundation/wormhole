@@ -2,12 +2,12 @@ import {
   CHAIN_ID_SOLANA,
   getForeignAssetSolana,
   getIsTransferCompletedSolana,
-  hexToNativeString,
   hexToUint8Array,
   importCoreWasm,
   parseTransferPayload,
   postVaaSolanaWithRetry,
   redeemOnSolana,
+  tryHexToNativeAssetString,
 } from "@certusone/wormhole-sdk";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -72,9 +72,22 @@ export async function relaySolana(
   const payloadBuffer = Buffer.from(parsedVAA.payload);
   const transferPayload = parseTransferPayload(payloadBuffer);
   logger.debug("Calculating the fee destination address");
+  let nativeOrigin: string;
+
+  try {
+    nativeOrigin = tryHexToNativeAssetString(
+      transferPayload.originAddress,
+      CHAIN_ID_SOLANA
+    );
+  } catch (e: any) {
+    throw new Error(
+      `Unable to convert origin address to native: ${e?.message}`
+    );
+  }
+
   const solanaMintAddress =
     transferPayload.originChain === CHAIN_ID_SOLANA
-      ? hexToNativeString(transferPayload.originAddress, CHAIN_ID_SOLANA)
+      ? nativeOrigin
       : await getForeignAssetSolana(
           connection,
           chainConfigInfo.tokenBridgeAddress,
@@ -83,12 +96,7 @@ export async function relaySolana(
         );
   if (!solanaMintAddress) {
     throw new Error(
-      `Unable to determine mint for origin chain: ${
-        transferPayload.originChain
-      }, address: ${transferPayload.originAddress} (${hexToNativeString(
-        transferPayload.originAddress,
-        transferPayload.originChain
-      )})`
+      `Unable to determine mint for origin chain: ${transferPayload.originChain}, address: ${transferPayload.originAddress} (${nativeOrigin})`
     );
   }
   const solanaMintKey = new PublicKey(solanaMintAddress);
