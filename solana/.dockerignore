@@ -2,3 +2,6 @@ bin
 **/target
 **/bundler
 **/nodejs
+artifacts-*
+**/Makefile
+*.md
