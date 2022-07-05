@@ -2,7 +2,7 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
-  hexToNativeString,
+  tryHexToNativeString,
   hexToUint8Array,
   importCoreWasm,
   isEVMChain,
@@ -301,12 +301,22 @@ export class TokenBridgeRelayer implements Relayer {
       }
 
       if (isEVMChain(transferPayload.targetChain)) {
-        const unwrapNative =
-          transferPayload.originChain === transferPayload.targetChain &&
-          hexToNativeString(
+        let nativeOrigin: string;
+        try {
+          nativeOrigin = tryHexToNativeString(
             transferPayload.originAddress,
             transferPayload.originChain
-          )?.toLowerCase() === chainConfigInfo.wrappedAsset?.toLowerCase();
+          );
+        } catch (e: any) {
+          return {
+            status: Status.Error,
+            result: `error converting origin address: ${e?.message}`,
+          };
+        }
+        const unwrapNative =
+          transferPayload.originChain === transferPayload.targetChain &&
+          nativeOrigin?.toLowerCase() ===
+            chainConfigInfo.wrappedAsset?.toLowerCase();
         logger.debug(
           "isEVMChain: originAddress: [" +
             transferPayload.originAddress +
