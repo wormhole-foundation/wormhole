@@ -267,8 +267,9 @@ export class TokenBridgeRelayer implements Relayer {
     }
   }
   /** Parse the target chain id from the payload */
-  targetChainId(): ChainId {
-    return 1;
+  targetChainId(payload: Buffer): ChainId {
+    const transferPayload = parseTransferPayload(payload);
+    return transferPayload.targetChain;
   }
 
   async relay(

@@ -35,8 +35,8 @@ export interface Listener {
 
 /** Relayer is an interface for relaying messages across chains */
 export interface Relayer {
-  /** Parse the payload and return the target chain id */
-  targetChainId(): ChainId;
+  /** Parse the payload and return the target chain id for finding workable items*/
+  targetChainId(payload: Buffer): ChainId;
 
   /** Relay the signed VAA */
   relay(
