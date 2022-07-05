@@ -264,10 +264,6 @@ func ComputeTvlCumulative(w http.ResponseWriter, r *http.Request) {
 				if symbol == "*" {
 					continue
 				}
-				if _, ok := tokensToSkip[symbol]; ok {
-					log.Printf("going to skip %v, on chain %v, date %v", asset.Symbol, chain, date)
-					continue
-				}
 
 				notional := asset.Amount * asset.TokenPrice
 				if notional <= 0 {

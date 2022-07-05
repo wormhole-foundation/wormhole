@@ -106,10 +106,6 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 					log.Printf("skipping row without CoinGeckoCoinId. symbol: %v, amount %v", row.TokenSymbol, row.TokenAmount)
 					continue
 				}
-				if _, ok := tokensToSkip[row.TokenAddress]; ok {
-					// skip blacklisted token
-					continue
-				}
 				if row.TokenAddress == "" {
 					// if the token address is missing, skip
 					continue
