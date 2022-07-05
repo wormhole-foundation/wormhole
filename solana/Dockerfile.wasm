@@ -10,10 +10,17 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certifi
 
 COPY rust-toolchain .
 
+ENV WASM_PACK_VER=0.9.1
 # Install wasm-pack binary, saves about 2 minutes relative to building it from
-# source
-ARG WASM_PACK_VER=v0.9.1
-RUN curl -L https://github.com/rustwasm/wasm-pack/releases/download/${WASM_PACK_VER}/wasm-pack-${WASM_PACK_VER}-x86_64-unknown-linux-musl.tar.gz --output wasm-pack.tar.gz && \
+# source.
+#
+# Alternatively it could be built from source this way:
+# RUN cargo install wasm-pack --vers ${WASM_PACK_VER}
+# If you upgrade the version, it's a good idea to compare the result against
+# the source build to make sure the distributed binary indeed corresponds to the correct version
+ENV WASM_PACK_CHECKSUM=d478bd20811067566bfc88141afcc857e7713b5385c684f6d50e7c2d549847f7
+RUN curl -L https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VER}/wasm-pack-v${WASM_PACK_VER}-x86_64-unknown-linux-musl.tar.gz --output wasm-pack.tar.gz && \
+    echo "$WASM_PACK_CHECKSUM wasm-pack.tar.gz" | sha256sum --check && \
     tar xf wasm-pack.tar.gz --strip-components 1 -C /usr/local/cargo/bin && \
     rm wasm-pack.tar.gz
 
