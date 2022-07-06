@@ -141,6 +141,7 @@ docker_build(
     ref = "guardiand-image",
     context = "node",
     dockerfile = "node/Dockerfile",
+    target = "build",
 )
 
 def command_with_dlv(argv):
