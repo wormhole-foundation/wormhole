@@ -1,5 +1,5 @@
 ARG GO_VERSION=1.18.2
-FROM golang:$GO_VERSION as algorand-algod
+FROM golang:$GO_VERSION@sha256:04fab5aaf4fc18c40379924674491d988af3d9e97487472e674d0b5fd837dfac as algorand-algod
 
 # Support additional root CAs
 COPY config.dev cert.pem* /certs/
