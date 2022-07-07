@@ -42,6 +42,7 @@ start_with_algod() {
   /tmp/algorand-indexer daemon \
     --dev-mode \
     --server ":$PORT" \
+    --data-dir "/opt/data" \
     --enable-all-parameters \
     -P "$CONNECTION_STRING" \
     --algod-net "${ALGOD_ADDR}" \
