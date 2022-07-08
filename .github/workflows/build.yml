@@ -76,7 +76,7 @@ jobs:
           node-version: "16"
       - run: cd clients/js && make install
       - run: curl -L https://foundry.paradigm.xyz | bash
-      - run: $HOME/.foundry/bin/foundryup
+      - run: $HOME/.foundry/bin/foundryup -v nightly-4367ce1c3d2c10b71350b40258766d53a94c717f
       - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ make test-upgrade
 
   terra:
