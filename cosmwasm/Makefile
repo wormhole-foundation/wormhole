@@ -6,6 +6,7 @@ SOURCE_FILES=$(shell find . -name "*.rs" -or -name "*.lock" -or -name "*.toml" |
 PACKAGES=$(shell find . -name "Cargo.toml" | grep -E 'packages|contracts' | xargs cat | grep "name *=" | cut -d' ' -f3 | sed s/\"//g | sed s/-/_/g)
 WASMS_terra2=$(patsubst %, artifacts/terra2/%.wasm, $(PACKAGES))
 WASMS_injective=$(patsubst %, artifacts/injective/%.wasm, $(PACKAGES))
+WASMS_osmosis=$(patsubst %, artifacts/osmosis/%.wasm, $(PACKAGES))
 
 
 -include ../Makefile.help
@@ -15,6 +16,8 @@ WASMS_injective=$(patsubst %, artifacts/injective/%.wasm, $(PACKAGES))
 artifacts/terra2: artifacts/terra2/checksums.txt 
 
 artifacts/injective: artifacts/injective/checksums.txt 
+
+artifacts/osmosis: artifacts/osmosis/checksums.txt 
 
 VALID_mainnet=1
 VALID_testnet=1
@@ -30,6 +33,9 @@ $(WASMS_terra2) artifacts/terra2/checksums.txt: $(SOURCE_FILES)
 
 $(WASMS_injective) artifacts/injective/checksums.txt: $(SOURCE_FILES)
 	DOCKER_BUILDKIT=1 docker build --target artifacts --build-arg CHAIN_NAME=injective -o artifacts/injective .
+
+$(WASMS_osmosis) artifacts/osmosis/checksums.txt: $(SOURCE_FILES)
+	DOCKER_BUILDKIT=1 docker build --target artifacts --build-arg CHAIN_NAME=osmosis -o artifacts/osmosis .
 
 payer-$(NETWORK).json:
 	$(error Missing private key in payer-$(NETWORK).json)
