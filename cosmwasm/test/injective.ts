@@ -686,4 +686,32 @@ async function executeCommands() {
   parsed = JSON.parse(esResult.toString());
   console.log("txhash query raw_log:", parsed.raw_log);
   parsed = JSON.parse(parsed.raw_log);
+
+  // Post a message
+  console.log("         Post a Message...");
+  const postMsgJson =
+    '{"post_message":{"message":"' +
+    Buffer.from("0001020304050607", "hex").toString("base64") +
+    '","nonce":69}}';
+  const execPostMsg: string =
+    "yes 12345678 | injectived tx wasm execute " +
+    WormholeContractAddress +
+    " " +
+    JSON.stringify(postMsgJson) +
+    ' --from=genesis --chain-id="injective-1" --yes --fees=1000000000000000inj --gas=2000000 --output=JSON';
+  console.log("about to execute:", execPostMsg);
+  esResult = execSync(execPostMsg);
+  out = esResult.toString();
+  console.log("rinj", out);
+  parsed = JSON.parse(out);
+  console.log("parsed", parsed.txhash);
+
+  // Parse the txhash
+  await sleep(4000);
+  txhashQuery = createHashQueryString(parsed.txhash);
+  console.log("About to exec:", txhashQuery);
+  esResult = execSync(txhashQuery);
+  parsed = JSON.parse(esResult.toString());
+  console.log("txhash query raw_log:", parsed.raw_log);
+  parsed = JSON.parse(parsed.raw_log);
 }
