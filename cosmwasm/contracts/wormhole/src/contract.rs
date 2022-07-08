@@ -86,6 +86,7 @@ pub fn get_chain() -> u16 {
     match CHAIN_NAME {
         "terra2" => 18,
         "injective" => 19,
+        "osmosis" => 20,
         _ => panic!("invalid chain name"),
     }
 }
@@ -94,6 +95,7 @@ pub fn get_denom() -> String {
     match CHAIN_NAME {
         "terra2" => "uluna".to_string(),
         "injective" => "inj".to_string(),
+        "osmosis" => "uosmo".to_string(),
         _ => panic!("invalid chain name"),
     }
 }
