@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/vaa"
@@ -20,8 +21,11 @@ import (
 
 // terra native tokens do not have a bech32 address like cw20s do, handle them manually.
 var tokenAddressExceptions = map[string]string{
+	// terra (classic)
 	"0100000000000000000000000000000000000000000000000000000075757364": "uusd",
 	"010000000000000000000000000000000000000000000000000000756c756e61": "uluna",
+	// terra2
+	"01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da": "uluna",
 }
 
 // returns a pair of dates before and after the input time.
@@ -62,24 +66,42 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		if val, ok := tokenAddressExceptions[address]; ok {
 			return val
 		}
-
-		trimmed := address[(len(address) - 40):]
-		data, decodeErr := hex.DecodeString(trimmed)
-		if decodeErr != nil {
-			fmt.Printf("failed to decode unpadded string: %v\n", decodeErr)
-		}
-		encodedAddr, convertErr := bech32.ConvertAndEncode("terra", data)
-		if convertErr != nil {
-			fmt.Println("convert error from cosmos bech32. err", convertErr)
-		}
-		return encodedAddr
+		return humanAddressTerra(address)
 	case vaa.ChainIDAlgorand:
 		// TODO
+		return ""
+	case vaa.ChainIDTerra2:
+		// handle terra2 native assets manually
+		if val, ok := tokenAddressExceptions[address]; ok {
+			return val
+		}
+		// terra2 has 32 byte addresses for contracts and 20 for wallets
+		if isLikely20ByteTerra(address) {
+			return humanAddressTerra(address)
+		}
+		// TODO: other terra2 asset types
 		return ""
 	default:
 		log.Println("cannot process address for unknown chain: ", chain)
 		return ""
 	}
+}
+
+func isLikely20ByteTerra(address string) bool {
+	return strings.HasPrefix(address, "00000000000000000000")
+}
+
+func humanAddressTerra(address string) string {
+	trimmed := address[(len(address) - 40):]
+	data, decodeErr := hex.DecodeString(trimmed)
+	if decodeErr != nil {
+		fmt.Printf("failed to decode unpadded string: %v\n", decodeErr)
+	}
+	encodedAddr, convertErr := bech32.ConvertAndEncode("terra", data)
+	if convertErr != nil {
+		fmt.Println("convert error from cosmos bech32. err", convertErr)
+	}
+	return encodedAddr
 }
 
 // ProcessTransfer is triggered by a PubSub message, once a TokenTransferPayload is written to a row.
