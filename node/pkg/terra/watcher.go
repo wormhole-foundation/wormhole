@@ -35,7 +35,6 @@ type (
 		contract string
 
 		msgChan chan *common.MessagePublication
-		setChan chan *common.GuardianSet
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
@@ -49,6 +48,9 @@ type (
 		contractAddressFilterKey string
 		// Key for contract address in the wasm logs
 		contractAddressLogKey string
+
+		// URL to get the latest block info from
+		latestBlockURL string
 	}
 )
 
@@ -105,7 +107,26 @@ func NewWatcher(
 		contractAddressLogKey = "contract_address"
 	}
 
-	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, contract: contract, msgChan: lockEvents, obsvReqC: obsvReqC, readiness: readiness, chainID: chainID, contractAddressFilterKey: contractAddressFilterKey, contractAddressLogKey: contractAddressLogKey}
+	// Do not add a leading slash
+	latestBlockURL := "blocks/latest"
+
+	// Injective does things slightly differently than terra
+	if chainID == vaa.ChainIDInjective {
+		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
+	}
+
+	return &Watcher{
+		urlWS:                    urlWS,
+		urlLCD:                   urlLCD,
+		contract:                 contract,
+		msgChan:                  lockEvents,
+		obsvReqC:                 obsvReqC,
+		readiness:                readiness,
+		chainID:                  chainID,
+		contractAddressFilterKey: contractAddressFilterKey,
+		contractAddressLogKey:    contractAddressLogKey,
+		latestBlockURL:           latestBlockURL,
+	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -164,7 +185,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			<-t.C
 
 			// Query and report height and set currentSlotHeight
-			resp, err := client.Get(fmt.Sprintf("%s/blocks/latest", e.urlLCD))
+			resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
 			if err != nil {
 				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 				continue
