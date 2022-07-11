@@ -39,7 +39,10 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
 config.define_bool("algorand", False, "Enable Algorand component")
+config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
+config.define_bool("terra_classic", False, "Enable Terra Classic component")
+config.define_bool("terra2", False, "Enable Terra 2 component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
 config.define_bool("spy_relayer", False, "Enable spy relayer")
@@ -55,7 +58,10 @@ gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 webHost = cfg.get("webHost", "localhost")
 algorand = cfg.get("algorand", True)
+evm2 = cfg.get("evm2", True)
 solana = cfg.get("solana", True)
+terra_classic = cfg.get("terra_classic", True)
+terra2 = cfg.get("terra2", True)
 ci = cfg.get("ci", False)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
@@ -188,13 +194,72 @@ def build_node_yaml():
                     gcpProject,
                 ]
 
+            if evm2:
+                container["command"] += [
+                    "--bscRPC",
+                    "ws://eth-devnet2:8545",
+                ]
+            else:
+                container["command"] += [
+                    "--bscRPC",
+                    "ws://eth-devnet:8545",
+                ]
+
+            if solana:
+                container["command"] += [
+                    "--solanaWS",
+                    "ws://solana-devnet:8900",
+                    "--solanaRPC",
+                    "http://solana-devnet:8899",
+                ]
+
+            if terra_classic:
+                container["command"] += [
+                    "--terraWS",
+                    "ws://terra-terrad:26657/websocket",
+                    "--terraLCD",
+                    "http://terra-terrad:1317",
+                    "--terraContract",
+                    "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
+                ]
+
+            if terra2:
+                container["command"] += [
+                    "--terra2WS",
+                    "ws://terra2-terrad:26657/websocket",
+                    "--terra2LCD",
+                    "http://terra2-terrad:1317",
+                    "--terra2Contract",
+                    "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+                ]
+
+            if algorand:
+                container["command"] += [
+                    "--algorandAppID",
+                    "4",
+                    "--algorandIndexerRPC",
+                    "http://algorand:8980",
+                    "--algorandIndexerToken",
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "--algorandAlgodRPC",
+                    "http://algorand:4001",
+                    "--algorandAlgodToken",
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                ]
+
     return encode_yaml_stream(node_yaml)
 
 k8s_yaml_with_ns(build_node_yaml())
 
-guardian_resource_deps = ["proto-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra2-terrad"]
+guardian_resource_deps = ["proto-gen", "eth-devnet"]
+if evm2:
+    guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
 if solana:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
+if terra_classic:
+    guardian_resource_deps = guardian_resource_deps + ["terra-terrad"]
+if terra2:
+    guardian_resource_deps = guardian_resource_deps + ["terra2-terrad"]
 
 k8s_resource(
     "guardian",
@@ -369,15 +434,18 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-k8s_resource(
-    "eth-devnet2",
-    port_forwards = [
-        port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
-    ],
-    resource_deps = ["const-gen"],
-    labels = ["evm"],
-    trigger_mode = trigger_mode,
-)
+if evm2:
+    k8s_yaml_with_ns("devnet/eth-devnet2.yaml")
+
+    k8s_resource(
+        "eth-devnet2",
+        port_forwards = [
+            port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["evm"],
+        trigger_mode = trigger_mode,
+    )
 
 if bridge_ui:
     entrypoint = "npm run build && /app/node_modules/.bin/serve -s build -n"
@@ -465,7 +533,6 @@ if e2e:
     )
 
 # bigtable
-
 if explorer:
     k8s_yaml_with_ns("devnet/bigtable.yaml")
 
@@ -498,87 +565,85 @@ if explorer:
         trigger_mode = trigger_mode,
     )
 
-# terra devnet
+if terra_classic:
+    docker_build(
+        ref = "terra-image",
+        context = "./terra/devnet",
+        dockerfile = "terra/devnet/Dockerfile",
+    )
 
-docker_build(
-    ref = "terra-image",
-    context = "./terra/devnet",
-    dockerfile = "terra/devnet/Dockerfile",
-)
+    docker_build(
+        ref = "terra-contracts",
+        context = "./terra",
+        dockerfile = "./terra/Dockerfile",
+    )
 
-docker_build(
-    ref = "terra-contracts",
-    context = "./terra",
-    dockerfile = "./terra/Dockerfile",
-)
+    k8s_yaml_with_ns("devnet/terra-devnet.yaml")
 
-k8s_yaml_with_ns("devnet/terra-devnet.yaml")
+    k8s_resource(
+        "terra-terrad",
+        port_forwards = [
+            port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
+            port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["terra"],
+        trigger_mode = trigger_mode,
+    )
 
-k8s_resource(
-    "terra-terrad",
-    port_forwards = [
-        port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
-        port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
-    ],
-    resource_deps = ["const-gen"],
-    labels = ["terra"],
-    trigger_mode = trigger_mode,
-)
+    k8s_resource(
+        "terra-postgres",
+        labels = ["terra"],
+        trigger_mode = trigger_mode,
+    )
 
-k8s_resource(
-    "terra-postgres",
-    labels = ["terra"],
-    trigger_mode = trigger_mode,
-)
+    k8s_resource(
+        "terra-fcd",
+        resource_deps = ["terra-terrad", "terra-postgres"],
+        port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
+        labels = ["terra"],
+        trigger_mode = trigger_mode,
+    )
 
-k8s_resource(
-    "terra-fcd",
-    resource_deps = ["terra-terrad", "terra-postgres"],
-    port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
-    labels = ["terra"],
-    trigger_mode = trigger_mode,
-)
+if terra2:
+    docker_build(
+        ref = "terra2-image",
+        context = "./cosmwasm/devnet",
+        dockerfile = "cosmwasm/devnet/Dockerfile",
+    )
 
-# terra 2 devnet
+    docker_build(
+        ref = "terra2-contracts",
+        context = "./cosmwasm",
+        dockerfile = "./cosmwasm/Dockerfile",
+    )
 
-docker_build(
-    ref = "terra2-image",
-    context = "./cosmwasm/devnet",
-    dockerfile = "cosmwasm/devnet/Dockerfile",
-)
+    k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
 
-docker_build(
-    ref = "terra2-contracts",
-    context = "./cosmwasm",
-    dockerfile = "./cosmwasm/Dockerfile",
-)
+    k8s_resource(
+        "terra2-terrad",
+        port_forwards = [
+            port_forward(26658, container_port = 26657, name = "Terra 2 RPC [:26658]", host = webHost),
+            port_forward(1318, container_port = 1317, name = "Terra 2 LCD [:1318]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["terra2"],
+        trigger_mode = trigger_mode,
+    )
 
-k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
+    k8s_resource(
+        "terra2-postgres",
+        labels = ["terra2"],
+        trigger_mode = trigger_mode,
+    )
 
-k8s_resource(
-    "terra2-terrad",
-    port_forwards = [
-        port_forward(26658, container_port = 26657, name = "Terra 2 RPC [:26658]", host = webHost),
-        port_forward(1318, container_port = 1317, name = "Terra 2 LCD [:1318]", host = webHost),
-    ],
-    resource_deps = ["const-gen"],
-    labels = ["terra2"],
-    trigger_mode = trigger_mode,
-)
-
-k8s_resource(
-    "terra2-postgres",
-    labels = ["terra2"],
-    trigger_mode = trigger_mode,
-)
-
-k8s_resource(
-    "terra2-fcd",
-    resource_deps = ["terra2-terrad", "terra2-postgres"],
-    port_forwards = [port_forward(3061, container_port = 3060, name = "Terra 2 FCD [:3061]", host = webHost)],
-    labels = ["terra2"],
-    trigger_mode = trigger_mode,
-)
+    k8s_resource(
+        "terra2-fcd",
+        resource_deps = ["terra2-terrad", "terra2-postgres"],
+        port_forwards = [port_forward(3061, container_port = 3060, name = "Terra 2 FCD [:3061]", host = webHost)],
+        labels = ["terra2"],
+        trigger_mode = trigger_mode,
+    )
 
 if algorand:
     k8s_yaml_with_ns("devnet/algorand-devnet.yaml")
