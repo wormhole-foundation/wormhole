@@ -350,10 +350,16 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Register components for readiness checks.
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
-	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
-	readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	readiness.RegisterComponent(common.ReadinessTerra2Syncing)
-	if *testnetMode || *unsafeDevMode {
+	if *solanaWsRPC != "" {
+		readiness.RegisterComponent(common.ReadinessSolanaSyncing)
+	}
+	if *terraWS != "" {
+		readiness.RegisterComponent(common.ReadinessTerraSyncing)
+	}
+	if *terra2WS != "" {
+		readiness.RegisterComponent(common.ReadinessTerra2Syncing)
+	}
+	if *algorandIndexerRPC != "" {
 		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
@@ -561,35 +567,35 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --nodeName")
 	}
 
-	if *solanaContract == "" {
+	if *solanaContract == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --solanaContract")
 	}
-	if *solanaWsRPC == "" {
+	if *solanaWsRPC == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --solanaWsUrl")
 	}
-	if *solanaRPC == "" {
+	if *solanaRPC == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --solanaUrl")
 	}
 
-	if *terraWS == "" {
+	if *terraWS == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --terraWS")
 	}
-	if *terraLCD == "" {
+	if *terraLCD == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --terraLCD")
 	}
-	if *terraContract == "" {
+	if *terraContract == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --terraContract")
 	}
-	if *terra2WS == "" {
+	if *terra2WS == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --terra2WS")
 	}
-	if *terra2LCD == "" {
+	if *terra2LCD == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --terra2LCD")
 	}
-	if *terra2Contract == "" {
+	if *terra2Contract == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --terra2Contract")
 	}
-	if *testnetMode || *unsafeDevMode {
+	if *testnetMode {
 		if *algorandIndexerRPC == "" {
 			logger.Fatal("Please specify --algorandIndexerRPC")
 		}
@@ -941,16 +947,20 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		logger.Info("Starting Terra watcher")
-		if err := supervisor.Run(ctx, "terrawatch",
-			cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run); err != nil {
-			return err
+		if *terraWS != "" {
+			logger.Info("Starting Terra watcher")
+			if err := supervisor.Run(ctx, "terrawatch",
+				cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run); err != nil {
+				return err
+			}
 		}
 
-		logger.Info("Starting Terra 2 watcher")
-		if err := supervisor.Run(ctx, "terra2watch",
-			cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
-			return err
+		if *terra2WS != "" {
+			logger.Info("Starting Terra 2 watcher")
+			if err := supervisor.Run(ctx, "terra2watch",
+				cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
+				return err
+			}
 		}
 
 		if *testnetMode {
@@ -961,21 +971,23 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *testnetMode || *unsafeDevMode {
+		if *algorandIndexerRPC != "" {
 			if err := supervisor.Run(ctx, "algorandwatch",
 				algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAlgodRPC, *algorandAlgodToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
 				return err
 			}
 		}
 
-		if err := supervisor.Run(ctx, "solwatch-confirmed",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed).Run); err != nil {
-			return err
-		}
+		if *solanaWsRPC != "" {
+			if err := supervisor.Run(ctx, "solwatch-confirmed",
+				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed).Run); err != nil {
+				return err
+			}
 
-		if err := supervisor.Run(ctx, "solwatch-finalized",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized).Run); err != nil {
-			return err
+			if err := supervisor.Run(ctx, "solwatch-finalized",
+				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized).Run); err != nil {
+				return err
+			}
 		}
 
 		p := processor.NewProcessor(ctx,

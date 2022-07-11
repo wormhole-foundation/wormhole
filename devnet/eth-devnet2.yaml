@@ -2,32 +2,33 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: eth-devnet
+  name: eth-devnet2
   labels:
-    app: eth-devnet
+    app: eth-devnet2
 spec:
   ports:
-    - port: 8545
+    - port: 8546
+      targetPort: 8545
       name: rpc
       protocol: TCP
   clusterIP: None
   selector:
-    app: eth-devnet
+    app: eth-devnet2
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: eth-devnet
+  name: eth-devnet2
 spec:
   selector:
     matchLabels:
-      app: eth-devnet
-  serviceName: eth-devnet
+      app: eth-devnet2
+  serviceName: eth-devnet2
   replicas: 1
   template:
     metadata:
       labels:
-        app: eth-devnet
+        app: eth-devnet2
     spec:
       terminationGracePeriodSeconds: 1
       containers:
@@ -40,6 +41,7 @@ spec:
             - --deterministic
             - --time="1970-01-01T00:00:00+00:00"
             - --host=0.0.0.0
+            - --chainId=1397
           ports:
             - containerPort: 8545
               name: rpc
@@ -53,7 +55,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_solana_chain.js && npx truffle exec scripts/register_terra_chain.js && npx truffle exec scripts/register_terra2_chain.js && npx truffle exec scripts/register_bsc_chain.js && npx truffle exec scripts/register_algo_chain.js && nc -lkp 2000 0.0.0.0"
+            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g' .env && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_solana_chain.js && npx truffle exec scripts/register_terra_chain.js && npx truffle exec scripts/register_terra2_chain.js && npx truffle exec scripts/register_eth_chain.js && npx truffle exec scripts/register_algo_chain.js && nc -lkp 2000 0.0.0.0"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
@@ -65,5 +67,3 @@ spec:
             - /bin/sh
             - -c
             - "npx truffle exec mine.js"
----
-
