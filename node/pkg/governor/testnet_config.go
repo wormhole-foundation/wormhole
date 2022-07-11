@@ -12,12 +12,12 @@ func (gov *ChainGovernor) initTestnetConfig() ([]tokenConfigEntry, []chainConfig
 	}
 
 	tokens := []tokenConfigEntry{
-		tokenConfigEntry{chain: 2, addr: "000000000000000000000000b4fbf271143f4fbf7b91a5ded31805e42b2208d6", symbol: "WETH", coinGeckoId: "weth", decimals: 8, price: 1174},
+		tokenConfigEntry{chain: 1, addr: "069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001", symbol: "SOL", coinGeckoId: "wrapped-solana", decimals: 8, price: 34.94}, // Addr: So11111111111111111111111111111111111111112, Notional: 4145006
 	}
 
 	chains := []chainConfigEntry{
-		chainConfigEntry{emitterChainID: vaa.ChainIDSolana, dailyLimit: 1000},
-		chainConfigEntry{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 100000},
+		chainConfigEntry{emitterChainID: vaa.ChainIDAurora, emitterAddress: "0xD05eD3ad637b890D68a854d607eEAF11aF456fba", dailyLimit: 100},
+		chainConfigEntry{emitterChainID: vaa.ChainIDOasis, emitterAddress: "0x88d8004A9BdbfD9D28090A02010C19897a29605c", dailyLimit: 1000000},
 	}
 
 	return tokens, chains

@@ -19,8 +19,8 @@ func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []chainConfigE
 	}
 
 	chains := []chainConfigEntry{
-		chainConfigEntry{emitterChainID: vaa.ChainIDSolana, dailyLimit: 1000},
-		chainConfigEntry{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 100000},
+		chainConfigEntry{emitterChainID: vaa.ChainIDSolana, emitterAddress: "c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", dailyLimit: 100},
+		chainConfigEntry{emitterChainID: vaa.ChainIDEthereum, emitterAddress: "0x0290FB167208Af455bB137780163b7B7a9a10C16", dailyLimit: 100000},
 	}
 
 	return tokens, chains

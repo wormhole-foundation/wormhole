@@ -688,7 +688,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	// If we check pending before noon, nothing should happen.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
-	toBePublished, err := gov.CheckPendingForTime(now, false)
+	toBePublished, err := gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
 
@@ -700,7 +700,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 	// But at 3pm, the first one should drop off and the first queued one should get posted.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 3:00pm (CST)")
-	toBePublished, err = gov.CheckPendingForTime(now, false)
+	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
 
@@ -710,4 +710,223 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(488020+496893), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(532385), valuePending)
+}
+
+func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	// The first VAA should be accepted.
+	msg1 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			270,
+		),
+	}
+
+	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
+	canPost, err := gov.ProcessMsgForTime(&msg1, now)
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, true, canPost)
+	assert.Equal(t, 1, numTrans)
+	assert.Equal(t, uint64(479147), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+
+	// And so should the second.
+	msg2 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			275,
+		),
+	}
+
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 6:00pm (CST)")
+	canPost, err = gov.ProcessMsgForTime(&msg2, now)
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, true, canPost)
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(479147+488020), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+
+	// But the third, big one should be queued up.
+	msg3 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			500,
+		),
+	}
+
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 2:00am (CST)")
+	canPost, err = gov.ProcessMsgForTime(&msg3, now)
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, false, canPost)
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(479147+488020), valueTrans)
+	assert.Equal(t, 1, numPending)
+	assert.Equal(t, uint64(887309), valuePending)
+
+	// A fourth, smaller, but still too big one, should get enqueued.
+	msg4 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			100,
+		),
+	}
+
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 8:00am (CST)")
+	canPost, err = gov.ProcessMsgForTime(&msg4, now)
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, false, canPost)
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(479147+488020), valueTrans)
+	assert.Equal(t, 2, numPending)
+	assert.Equal(t, uint64(887309+177461), valuePending)
+
+	// A fifth, smaller, but still too big one, should also get enqueued.
+	msg5 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			101,
+		),
+	}
+
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 8:00am (CST)")
+	canPost, err = gov.ProcessMsgForTime(&msg5, now)
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, false, canPost)
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(479147+488020), valueTrans)
+	assert.Equal(t, 3, numPending)
+	assert.Equal(t, uint64(887309+177461+179236), valuePending)
+
+	// A sixth, big one should also get enqueued.
+	msg6 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			501,
+		),
+	}
+
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 2:00am (CST)")
+	canPost, err = gov.ProcessMsgForTime(&msg6, now)
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, false, canPost)
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(479147+488020), valueTrans)
+	assert.Equal(t, 4, numPending)
+	assert.Equal(t, uint64(887309+177461+179236+889084), valuePending)
+
+	// If we check pending before noon, nothing should happen.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
+	toBePublished, err := gov.CheckPendingForTime(now)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(toBePublished))
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(479147+488020), valueTrans)
+	assert.Equal(t, 4, numPending)
+	assert.Equal(t, uint64(887309+177461+179236+889084), valuePending)
+
+	// But at 3pm, the first one should drop off. This should result in the second and third, smaller pending ones being posted, but not the two big ones.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 3:00pm (CST)")
+	toBePublished, err = gov.CheckPendingForTime(now)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(toBePublished))
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	require.NoError(t, err)
+	assert.Equal(t, 3, numTrans)
+	assert.Equal(t, uint64(488020+177461+179236), valueTrans)
+	assert.Equal(t, 2, numPending)
+	assert.Equal(t, uint64(887309+889084), valuePending)
 }

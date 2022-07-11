@@ -60,6 +60,7 @@ type (
 	// Layout of the config data for each chain
 	chainConfigEntry struct {
 		emitterChainID vaa.ChainID
+		emitterAddress string
 		dailyLimit     uint64
 	}
 
@@ -210,9 +211,18 @@ func (gov *ChainGovernor) initConfig() error {
 	}
 
 	for _, cc := range configChains {
-		emitterAddr, err := common.GetEmitterAddressForChain(cc.emitterChainID, common.EmitterTokenBridge)
-		if err != nil {
-			return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.emitterChainID)
+		var emitterAddr vaa.Address
+		var err error
+		if gov.env == MainNetMode {
+			emitterAddr, err = common.GetEmitterAddressForChain(cc.emitterChainID, common.EmitterTokenBridge)
+			if err != nil {
+				return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.emitterChainID)
+			}
+		} else {
+			emitterAddr, err = vaa.StringToAddress(cc.emitterAddress)
+			if err != nil {
+				return fmt.Errorf("failed to convert emitter address for chain: %v, addr: [%v]", cc.emitterChainID, cc.emitterAddress)
+			}
 		}
 
 		ce := &chainEntry{emitterChainId: cc.emitterChainID, emitterAddr: emitterAddr, dailyLimit: cc.dailyLimit}
@@ -341,10 +351,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 }
 
 func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
-	return gov.CheckPendingForTime(time.Now(), true)
+	return gov.CheckPendingForTime(time.Now())
 }
 
-func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*common.MessagePublication, error) {
+func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -358,8 +368,9 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 	}
 
 	for _, ce := range gov.chains {
-		for len(ce.pending) != 0 {
-			pe := &ce.pending[0]
+		// Keep going as long as we find something that will fit.
+		for {
+			foundOne := false
 			prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
 			if err != nil {
 				if gov.logger != nil {
@@ -369,26 +380,29 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 				return msgsToPublish, err
 			}
 
-			value, err := computeValue(pe.amount, pe.token)
-			if err != nil {
-				if gov.logger != nil {
-					gov.logger.Error("cgov: failed to compute value for pending vaa",
-						zap.Stringer("amount", pe.amount),
-						zap.Stringer("price", pe.token.price),
-						zap.String("msgID", pe.msg.MessageIDString()),
-						zap.Error(err),
-					)
+			// Keep going until we find something that fits or hit the end.
+			for idx, pe := range ce.pending {
+				value, err := computeValue(pe.amount, pe.token)
+				if err != nil {
+					if gov.logger != nil {
+						gov.logger.Error("cgov: failed to compute value for pending vaa",
+							zap.Stringer("amount", pe.amount),
+							zap.Stringer("price", pe.token.price),
+							zap.String("msgID", pe.msg.MessageIDString()),
+							zap.Error(err),
+						)
+					}
+
+					return msgsToPublish, err
 				}
 
-				return msgsToPublish, err
-			}
+				newTotalValue := prevTotalValue + value
+				if newTotalValue > ce.dailyLimit {
+					// This one won't fit. Keep checking other enqueued ones.
+					continue
+				}
 
-			newTotalValue := prevTotalValue + value
-			if newTotalValue > ce.dailyLimit {
-				break
-			}
-
-			if publish {
+				// If we get here, we found something that fits. Publish it and remove it from the pending list.
 				if gov.logger != nil {
 					gov.logger.Info("cgov: posting pending vaa",
 						zap.Stringer("amount", pe.amount),
@@ -398,25 +412,32 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time, publish bool) ([]*c
 						zap.Uint64("newTotalValue", newTotalValue),
 						zap.String("msgID", pe.msg.MessageIDString()))
 				}
-			}
 
-			msgsToPublish = append(msgsToPublish, pe.msg)
+				msgsToPublish = append(msgsToPublish, pe.msg)
 
-			xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr, EmitterChain: pe.msg.EmitterChain, EmitterAddress: pe.msg.EmitterAddress, MsgID: pe.msg.MessageIDString()}
-			ce.transfers = append(ce.transfers, xfer)
+				xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr, EmitterChain: pe.msg.EmitterChain, EmitterAddress: pe.msg.EmitterAddress, MsgID: pe.msg.MessageIDString()}
+				ce.transfers = append(ce.transfers, xfer)
 
-			if gov.db != nil {
-				if err := gov.db.StoreTransfer(&xfer); err != nil {
-					return msgsToPublish, err
+				if gov.db != nil {
+					if err := gov.db.StoreTransfer(&xfer); err != nil {
+						return msgsToPublish, err
+					}
 				}
+
+				if gov.db != nil {
+					if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+						return msgsToPublish, err
+					}
+				}
+
+				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
+				foundOne = true
+				break // We messed up our loop indexing, so we have to break out and start over.
 			}
 
-			if gov.db != nil {
-				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
-					return msgsToPublish, err
-				}
+			if !foundOne {
+				break
 			}
-			ce.pending = ce.pending[1:]
 		}
 	}
 
