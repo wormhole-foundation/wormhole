@@ -18,10 +18,20 @@ import (
 	"github.com/gagliardetto/solana-go"
 )
 
+type AddressType int
+
+const (
+	AddressTypeWallet AddressType = iota
+	AddressTypeContract
+)
+
 // terra native tokens do not have a bech32 address like cw20s do, handle them manually.
 var tokenAddressExceptions = map[string]string{
+	// terra (classic)
 	"0100000000000000000000000000000000000000000000000000000075757364": "uusd",
 	"010000000000000000000000000000000000000000000000000000756c756e61": "uluna",
+	// terra2
+	"01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da": "uluna",
 }
 
 // returns a pair of dates before and after the input time.
@@ -31,7 +41,7 @@ func rangeFromTime(t time.Time, hours int) (start time.Time, end time.Time) {
 	return t.Add(-duration), t.Add(duration)
 }
 
-func transformHexAddressToNative(chain vaa.ChainID, address string) string {
+func transformHexAddressToNative(chain vaa.ChainID, address string, addressType AddressType) string {
 	switch chain {
 	case vaa.ChainIDSolana:
 		addr, err := hex.DecodeString(address)
@@ -62,24 +72,38 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		if val, ok := tokenAddressExceptions[address]; ok {
 			return val
 		}
-
-		trimmed := address[(len(address) - 40):]
-		data, decodeErr := hex.DecodeString(trimmed)
-		if decodeErr != nil {
-			fmt.Printf("failed to decode unpadded string: %v\n", decodeErr)
-		}
-		encodedAddr, convertErr := bech32.ConvertAndEncode("terra", data)
-		if convertErr != nil {
-			fmt.Println("convert error from cosmos bech32. err", convertErr)
-		}
-		return encodedAddr
+		return humanAddressTerra(address)
 	case vaa.ChainIDAlgorand:
 		// TODO
+		return ""
+	case vaa.ChainIDTerra2:
+		if addressType == AddressTypeContract {
+			// handle terra2 native assets manually
+			if val, ok := tokenAddressExceptions[address]; ok {
+				return val
+			}
+			// TODO: other terra2 asset types
+		} else if addressType == AddressTypeWallet {
+			return humanAddressTerra(address)
+		}
 		return ""
 	default:
 		log.Println("cannot process address for unknown chain: ", chain)
 		return ""
 	}
+}
+
+func humanAddressTerra(hexAddress string) string {
+	trimmed := hexAddress[(len(hexAddress) - 40):]
+	data, decodeErr := hex.DecodeString(trimmed)
+	if decodeErr != nil {
+		fmt.Printf("failed to decode unpadded string: %v\n", decodeErr)
+	}
+	encodedAddr, convertErr := bech32.ConvertAndEncode("terra", data)
+	if convertErr != nil {
+		fmt.Println("convert error from cosmos bech32. err", convertErr)
+	}
+	return encodedAddr
 }
 
 // ProcessTransfer is triggered by a PubSub message, once a TokenTransferPayload is written to a row.

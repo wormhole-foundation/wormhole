@@ -77,7 +77,7 @@ func fetchAddressRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix
 						t.DestinationAddress = string(item.Value)
 					}
 				}
-				t.DestinationAddress = transformHexAddressToNative(chainIdStringToType(t.DestinationChain), t.DestinationAddress)
+				t.DestinationAddress = transformHexAddressToNative(chainIdStringToType(t.DestinationChain), t.DestinationAddress, AddressTypeWallet)
 			}
 
 			keyParts := strings.Split(row.Key(), ":")
