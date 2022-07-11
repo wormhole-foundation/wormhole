@@ -180,7 +180,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         }
 
         // Verify this governance action hasn't already been
-        // consumed to prevent reentry
+        // consumed to prevent reentry and replay
         if (governanceActionIsConsumed(vm.hash)){
             return (false, "governance action already consumed");
         }
