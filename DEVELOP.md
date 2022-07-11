@@ -7,7 +7,7 @@ The following dependencies are required for local development:
 - [Go](https://golang.org/dl/) >= 1.17.5
 - [Tilt](http://tilt.dev/) >= 0.20.8
 - Any of the local Kubernetes clusters supported by Tilt.
-  We strongly recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= 
+  We strongly recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >=
   v1.21.0 with the kvm2 driver.
   - Tilt will use Minikube's embedded Docker server. If Minikube is not used, a local instance of
     [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03 is required.
@@ -33,12 +33,11 @@ to avoid having to specify `-n wormhole` for all commands:
 After installing all dependencies, just run `tilt up`.
 Whenever you modify a file, the devnet is automatically rebuilt and a rolling update is done.
 
-Launch the devnet while specifying the number of guardians nodes to run (default is five):
+Launch the devnet:
 
-    tilt up -- --num=1
+    tilt up
 
-If you want to work on non-consensus parts of the code, running with a single guardian is easiest since
-you won't have to wait for k8s to restart all pods.
+By default this runs a network consisting of one guardian, two ganache (Eth) chains, a Solana test validator, an Algorand sandbox, and LocalTerra for both Terra Classic and Terra 2. If you want to work on non-consensus parts of the code, running with a single guardian is easiest since you won't have to wait for k8s to restart all pods. See the usage guide below for arguments to customize the tilt network.
 
 ## Usage
 
@@ -58,6 +57,10 @@ Adjust number of nodes in running cluster: (this is only useful if you want to t
 of nodes diverges from the guardian set - otherwise, `tilt down --delete-namespaces` and restart the cluster)
 
     tilt args -- --num=2
+
+Run without all optional networks:
+
+    tilt up -- --algorand=false --evm2=false --solana=false --terra_classic=false --terra2=false
 
 Tear down cluster:
 
@@ -161,7 +164,6 @@ Set the include path:
 
 ![](https://i.imgur.com/bDij6Cu.png)
 
-
 ### BigTable event persistence
 
 Guardian events can be persisted to a cloud BigTable instance by passing a GCP project and service account key to Tilt.
@@ -194,4 +196,4 @@ Get yourself a working shell:
 
 Use the `--guardiand_debug` Tilt argument to run guardiand within a dlv session. The session will be exposed just like
 any other Tilt services. You can then connect any IDE that supports Go debugging, like IntelliJ (add a "Go Remote"
-target and specify the host and port your Tilt instance runs on). 
+target and specify the host and port your Tilt instance runs on).
