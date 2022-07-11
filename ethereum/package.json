@@ -26,6 +26,7 @@
     "deploy-read-only": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 1 --to 2",
     "deploy_weth9": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 9",
     "verify": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify $npm_config_module@$npm_config_contract_address --network $npm_config_network",
+    "verify-token": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify BridgeToken@$npm_config_contract_address --forceConstructorArgs string:$npm_config_constructor_args --network $npm_config_network",
     "abigen": "truffle run abigen"
   },
   "author": "",
