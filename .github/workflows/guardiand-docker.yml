@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   release:
     types: [published]
+  push:
+    branches:
+      - dev.v2
 
 env:
   REGISTRY: ghcr.io
