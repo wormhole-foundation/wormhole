@@ -75,8 +75,19 @@ jobs:
         with:
           node-version: "16"
       - run: cd clients/js && make install
-      - run: curl -L https://foundry.paradigm.xyz | bash
-      - run: $HOME/.foundry/bin/foundryup -v nightly-4367ce1c3d2c10b71350b40258766d53a94c717f
+      - id: cache-foundry
+        uses: actions/cache@v3
+        with:
+          path: $HOME/.foundry
+          key: ${{ runner.os }}-foundry
+
+      - if: steps.cache-foundry.outputs.cache-hit != 'true'
+        run: curl -L https://foundry.paradigm.xyz | bash
+
+      - name: Install foundry
+        if: steps.cache-foundry.outputs.cache-hit != 'true'
+        run: $HOME/.foundry/bin/foundryup -C 4367ce1c3d2c10b71350b40258766d53a94c717f
+
       - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ make test-upgrade
 
   terra:
