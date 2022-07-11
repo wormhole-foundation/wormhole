@@ -156,6 +156,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 	readiness.SetReady(e.readiness)
 
 	go func() {
+		latestBlockURL := fmt.Sprintf("%s/blocks/latest", e.urlLCD)
+		if e.chainID == vaa.ChainIDInjective {
+			latestBlockURL = fmt.Sprintf("%s/cosmos/base/tendermint/v1beta1/blocks/latest", e.urlLCD)
+		}
+
 		t := time.NewTicker(5 * time.Second)
 		client := &http.Client{
 			Timeout: time.Second * 5,
@@ -165,7 +170,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			<-t.C
 
 			// Query and report height and set currentSlotHeight
-			resp, err := client.Get(fmt.Sprintf("%s/blocks/latest", e.urlLCD))
+			resp, err := client.Get(latestBlockURL)
 			if err != nil {
 				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 				continue
