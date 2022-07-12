@@ -1,8 +1,6 @@
 import { ChainId, ChainName, coalesceChainId } from "../utils/consts";
-import {
-  GrpcWebImpl,
-  PublicRPCServiceClientImpl,
-} from "../proto/publicrpc/v1/publicrpc";
+import { publicrpc } from "@certusone/wormhole-sdk-proto-web";
+const { GrpcWebImpl, PublicRPCServiceClientImpl } = publicrpc;
 
 export async function getSignedVAA(
   host: string,

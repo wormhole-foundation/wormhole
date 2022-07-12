@@ -100,17 +100,6 @@ local_resource(
 )
 
 local_resource(
-    name = "proto-gen-web",
-    deps = proto_deps + ["buf.gen.web.yaml"],
-    resource_deps = ["proto-gen"],
-    cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
-    env = {"DOCKER_BUILDKIT": "1"},
-    labels = ["protobuf"],
-    allow_parallel = True,
-    trigger_mode = trigger_mode,
-)
-
-local_resource(
     name = "const-gen",
     deps = ["scripts", "clients", "ethereum/.env.test"],
     cmd = 'tilt docker build -- --target const-export -f Dockerfile.const -o type=local,dest=. --build-arg num_guardians=%s .' % (num_guardians),
@@ -507,7 +496,7 @@ if ci_tests:
 
     k8s_resource(
         "ci-tests",
-        resource_deps = ["proto-gen-web", "wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "terra2-terrad", "terra2-fcd", "solana-devnet", "spy", "guardian"],
+        resource_deps = ["wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "terra2-terrad", "terra2-fcd", "solana-devnet", "spy", "guardian"],
         labels = ["ci"],
         trigger_mode = trigger_mode,
     )
