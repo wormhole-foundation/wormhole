@@ -1,4 +1,9 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+} from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
@@ -9,7 +14,7 @@ import {
   hexToNativeAssetBigIntAlgorand,
 } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
-import { importTokenWasm } from "../solana/wasm";
+import { deriveWrappedMintKey, getWrappedMeta } from "../solana/tokenBridge";
 import {
   ChainId,
   ChainName,
@@ -70,25 +75,24 @@ export async function getForeignAssetTerra(
  * @param tokenBridgeAddress
  * @param originChain
  * @param originAsset zero pad to 32 bytes
+ * @param [commitment]
  * @returns
  */
 export async function getForeignAssetSolana(
   connection: Connection,
-  tokenBridgeAddress: string,
+  tokenBridgeAddress: PublicKeyInitData,
   originChain: ChainId | ChainName,
-  originAsset: Uint8Array
+  originAsset: Uint8Array,
+  commitment?: Commitment
 ): Promise<string | null> {
-  const { wrapped_address } = await importTokenWasm();
-  const wrappedAddress = wrapped_address(
+  const mint = deriveWrappedMintKey(
     tokenBridgeAddress,
-    originAsset,
-    coalesceChainId(originChain)
+    coalesceChainId(originChain) as number,
+    originAsset
   );
-  const wrappedAddressPK = new PublicKey(wrappedAddress);
-  const wrappedAssetAccountInfo = await connection.getAccountInfo(
-    wrappedAddressPK
-  );
-  return wrappedAssetAccountInfo ? wrappedAddressPK.toString() : null;
+  return getWrappedMeta(connection, tokenBridgeAddress, mint, commitment)
+    .catch((_) => null)
+    .then((meta) => (meta == null ? null : mint.toString()));
 }
 
 export async function getForeignAssetAlgorand(

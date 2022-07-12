@@ -55,13 +55,11 @@ export type EVMChainName =
   | "optimism"
   | "gnosis"
   | "ropsten";
-  /**
+/**
  *
  * All the Solana-based chain names that Wormhole supports
  */
-export type SolanaChainName =
-| "solana"
-| "pythnet";
+export type SolanaChainName = "solana" | "pythnet";
 
 export type TerraChainName = "terra" | "terra2";
 

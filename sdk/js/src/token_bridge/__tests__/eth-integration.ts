@@ -3,7 +3,8 @@ import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport"
 import { describe, expect, jest, test } from "@jest/globals";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  Token,
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
@@ -24,8 +25,6 @@ import {
   getEmitterAddressEth,
   getForeignAssetSolana,
   getIsTransferCompletedSolana,
-  hexToUint8Array,
-  nativeToHexString,
   parseSequenceFromLogEth,
   postVaaSolana,
   redeemOnSolana,
@@ -34,8 +33,7 @@ import {
   tryNativeToUint8Array,
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
-import { postVaaWithRetry } from "../../solana/postVaa";
-import { setDefaultWasm } from "../../solana/wasm";
+import { postVaaWithRetry } from "../../solana/sendAndConfirmPostVaa";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY,
@@ -44,8 +42,6 @@ import {
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
-
-setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
@@ -59,12 +55,10 @@ async function transferFromEthToSolana(): Promise<string> {
       connection,
       CONTRACTS.DEVNET.solana.token_bridge,
       CHAIN_ID_ETH,
-      hexToUint8Array(nativeToHexString(TEST_ERC20, CHAIN_ID_ETH) || "")
+      tryNativeToUint8Array(TEST_ERC20, CHAIN_ID_ETH)
     )) || ""
   );
-  const recipient = await Token.getAssociatedTokenAddress(
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-    TOKEN_PROGRAM_ID,
+  const recipient = await getAssociatedTokenAddress(
     solanaMintKey,
     keypair.publicKey
   );
@@ -72,16 +66,14 @@ async function transferFromEthToSolana(): Promise<string> {
   const associatedAddressInfo = await connection.getAccountInfo(recipient);
   if (!associatedAddressInfo) {
     const transaction = new Transaction().add(
-      await Token.createAssociatedTokenAccountInstruction(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        solanaMintKey,
+      await createAssociatedTokenAccountInstruction(
+        keypair.publicKey, // payer
         recipient,
         keypair.publicKey, // owner
-        keypair.publicKey // payer
+        solanaMintKey
       )
     );
-    const { blockhash } = await connection.getRecentBlockhash();
+    const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = keypair.publicKey;
     // sign, send, and confirm transaction
@@ -107,9 +99,7 @@ async function transferFromEthToSolana(): Promise<string> {
     TEST_ERC20,
     amount,
     CHAIN_ID_SOLANA,
-    hexToUint8Array(
-      nativeToHexString(recipient.toString(), CHAIN_ID_SOLANA) || ""
-    )
+    tryNativeToUint8Array(recipient.toString(), CHAIN_ID_SOLANA)
   );
   // get the sequence from the logs (needed to fetch the vaa)
   const sequence = await parseSequenceFromLogEth(
@@ -220,9 +210,7 @@ describe("Ethereum to Solana and Back", () => {
           tryNativeToUint8Array(TEST_ERC20, CHAIN_ID_ETH)
         );
         const solanaMintKey = new PublicKey(SolanaForeignAsset || "");
-        const recipient = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
+        const recipient = await getAssociatedTokenAddress(
           solanaMintKey,
           keypair.publicKey
         );
@@ -232,16 +220,14 @@ describe("Ethereum to Solana and Back", () => {
         );
         if (!associatedAddressInfo) {
           const transaction = new Transaction().add(
-            await Token.createAssociatedTokenAccountInstruction(
-              ASSOCIATED_TOKEN_PROGRAM_ID,
-              TOKEN_PROGRAM_ID,
-              solanaMintKey,
+            await createAssociatedTokenAccountInstruction(
+              keypair.publicKey, // payer
               recipient,
               keypair.publicKey, // owner
-              keypair.publicKey // payer
+              solanaMintKey
             )
           );
-          const { blockhash } = await connection.getRecentBlockhash();
+          const { blockhash } = await connection.getLatestBlockhash();
           transaction.recentBlockhash = blockhash;
           transaction.feePayer = keypair.publicKey;
           // sign, send, and confirm transaction

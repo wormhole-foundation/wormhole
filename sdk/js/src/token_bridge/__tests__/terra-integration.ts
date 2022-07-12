@@ -35,7 +35,6 @@ import {
   updateWrappedOnEth,
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
-import { setDefaultWasm } from "../../solana/wasm";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY4,
@@ -52,8 +51,6 @@ import {
   queryBalanceOnTerra,
   waitForTerraExecution,
 } from "./helpers";
-
-setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
@@ -122,7 +119,9 @@ describe("Terra Integration Tests", () => {
                   },
                 },
                 recipient_chain: CHAIN_ID_ETH,
-                recipient: Buffer.from(tryNativeToUint8Array(await signer.getAddress(), 'ethereum')).toString('base64'),
+                recipient: Buffer.from(
+                  tryNativeToUint8Array(await signer.getAddress(), "ethereum")
+                ).toString("base64"),
                 fee: "0",
                 nonce: Math.round(Math.round(Math.random() * 100000)),
               },

@@ -1,5 +1,10 @@
-import { Token, TOKEN_PROGRAM_ID, u64 } from "@solana/spl-token";
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { createApproveInstruction } from "@solana/spl-token";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  Transaction,
+} from "@solana/web3.js";
 import { ixFromRust } from "../solana";
 import { importMigrationWasm } from "../solana/wasm";
 
@@ -11,16 +16,15 @@ export default async function claimShares(
   to_mint: string,
   output_token_account: string,
   lp_share_token_account: string,
-  amount: BigInt
+  amount: BigInt,
+  commitment?: Commitment
 ) {
   const { authority_address, claim_shares } = await importMigrationWasm();
-  const approvalIx = Token.createApproveInstruction(
-    TOKEN_PROGRAM_ID,
+  const approvalIx = createApproveInstruction(
     new PublicKey(lp_share_token_account),
     new PublicKey(authority_address(program_id)),
     new PublicKey(payerAddress),
-    [],
-    new u64(amount.toString(16), 16)
+    amount.valueOf()
   );
   const ix = ixFromRust(
     claim_shares(
@@ -33,7 +37,7 @@ export default async function claimShares(
     )
   );
   const transaction = new Transaction().add(approvalIx, ix);
-  const { blockhash } = await connection.getRecentBlockhash();
+  const { blockhash } = await connection.getLatestBlockhash(commitment);
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;

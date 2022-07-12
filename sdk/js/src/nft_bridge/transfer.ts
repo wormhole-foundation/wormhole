@@ -1,14 +1,26 @@
-import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { createApproveInstruction } from "@solana/spl-token";
+import {
+  Commitment,
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+} from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers, Overrides } from "ethers";
 import {
   NFTBridge__factory,
   NFTImplementation__factory,
 } from "../ethers-contracts";
-import { getBridgeFeeIx, ixFromRust } from "../solana";
+import { createBridgeFeeTransferInstruction, ixFromRust } from "../solana";
 import { importNftWasm } from "../solana/wasm";
-import { ChainId, ChainName, CHAIN_ID_SOLANA, coalesceChainId, createNonce } from "../utils";
+import {
+  ChainId,
+  ChainName,
+  CHAIN_ID_SOLANA,
+  coalesceChainId,
+  createNonce,
+} from "../utils";
 
 export async function transferFromEth(
   tokenBridgeAddress: string,
@@ -19,7 +31,7 @@ export async function transferFromEth(
   recipientAddress: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
-  const recipientChainId = coalesceChainId(recipientChain)
+  const recipientChainId = coalesceChainId(recipientChain);
   //TODO: should we check if token attestation exists on the target chain
   const token = NFTImplementation__factory.connect(tokenAddress, signer);
   await (await token.approve(tokenBridgeAddress, tokenID, overrides)).wait();
@@ -47,11 +59,14 @@ export async function transferFromSolana(
   targetChain: ChainId | ChainName,
   originAddress?: Uint8Array,
   originChain?: ChainId | ChainName,
-  originTokenId?: Uint8Array
+  originTokenId?: Uint8Array,
+  commitment?: Commitment
 ): Promise<Transaction> {
-  const originChainId: ChainId | undefined = originChain ? coalesceChainId(originChain) : undefined
+  const originChainId: ChainId | undefined = originChain
+    ? coalesceChainId(originChain)
+    : undefined;
   const nonce = createNonce().readUInt32LE(0);
-  const transferIx = await getBridgeFeeIx(
+  const transferIx = await createBridgeFeeTransferInstruction(
     connection,
     bridgeAddress,
     payerAddress
@@ -61,13 +76,11 @@ export async function transferFromSolana(
     transfer_wrapped_ix,
     approval_authority_address,
   } = await importNftWasm();
-  const approvalIx = Token.createApproveInstruction(
-    TOKEN_PROGRAM_ID,
+  const approvalIx = createApproveInstruction(
     new PublicKey(fromAddress),
     new PublicKey(approval_authority_address(tokenBridgeAddress)),
     new PublicKey(payerAddress),
-    [],
-    Number(1)
+    1
   );
   let messageKey = Keypair.generate();
   const isSolanaNative =
@@ -106,7 +119,7 @@ export async function transferFromSolana(
         )
   );
   const transaction = new Transaction().add(transferIx, approvalIx, ix);
-  const { blockhash } = await connection.getRecentBlockhash();
+  const { blockhash } = await connection.getLatestBlockhash(commitment);
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   transaction.partialSign(messageKey);
@@ -121,7 +134,7 @@ export async function transferFromTerra(
   recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array
 ): Promise<MsgExecuteContract[]> {
-  const recipientChainId = coalesceChainId(recipientChain)
+  const recipientChainId = coalesceChainId(recipientChain);
   const nonce = Math.round(Math.random() * 100000);
   return [
     new MsgExecuteContract(

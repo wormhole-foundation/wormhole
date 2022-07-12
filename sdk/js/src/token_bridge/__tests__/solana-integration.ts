@@ -3,7 +3,7 @@ import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport"
 import { describe, expect, jest, test } from "@jest/globals";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  Token,
+  getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
@@ -31,7 +31,6 @@ import {
   tryNativeToUint8Array,
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
-import { setDefaultWasm } from "../../solana/wasm";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY3,
@@ -40,8 +39,6 @@ import {
   TEST_SOLANA_TOKEN,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
-
-setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
@@ -134,9 +131,7 @@ describe("Solana to Ethereum", () => {
         const payerAddress = keypair.publicKey.toString();
         // find the associated token account
         const fromAddress = (
-          await Token.getAssociatedTokenAddress(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
+          await getAssociatedTokenAddress(
             new PublicKey(TEST_SOLANA_TOKEN),
             keypair.publicKey
           )

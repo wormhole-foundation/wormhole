@@ -1,10 +1,16 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+} from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, getApplicationAddress } from "algosdk";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
-import { importTokenWasm } from "../solana/wasm";
+import { deriveWrappedMetaKey, getWrappedMeta } from "../solana/tokenBridge";
 import { safeBigIntToNumber } from "../utils/bigint";
+import { getForeignAssetSolana } from "./getForeignAsset";
 
 /**
  * Returns whether or not an asset address on Ethereum is a wormhole wrapped asset
@@ -32,29 +38,28 @@ export async function getIsWrappedAssetTerra(
   return false;
 }
 
+export const getIsWrappedAssetSol = getIsWrappedAssetSolana;
+
 /**
  * Returns whether or not an asset on Solana is a wormhole wrapped asset
  * @param connection
  * @param tokenBridgeAddress
  * @param mintAddress
+ * @param [commitment]
  * @returns
  */
-export async function getIsWrappedAssetSol(
+export async function getIsWrappedAssetSolana(
   connection: Connection,
-  tokenBridgeAddress: string,
-  mintAddress: string
+  tokenBridgeAddress: PublicKeyInitData,
+  mintAddress: PublicKeyInitData,
+  commitment?: Commitment
 ): Promise<boolean> {
-  if (!mintAddress) return false;
-  const { wrapped_meta_address } = await importTokenWasm();
-  const wrappedMetaAddress = wrapped_meta_address(
-    tokenBridgeAddress,
-    new PublicKey(mintAddress).toBytes()
-  );
-  const wrappedMetaAddressPK = new PublicKey(wrappedMetaAddress);
-  const wrappedMetaAccountInfo = await connection.getAccountInfo(
-    wrappedMetaAddressPK
-  );
-  return !!wrappedMetaAccountInfo;
+  if (!mintAddress) {
+    return false;
+  }
+  return getWrappedMeta(connection, tokenBridgeAddress, mintAddress, commitment)
+    .catch((_) => null)
+    .then((meta) => meta != null);
 }
 
 /**

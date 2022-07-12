@@ -1,12 +1,18 @@
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+  Transaction,
+} from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
-import { ixFromRust } from "../solana";
-import { importTokenWasm } from "../solana/wasm";
+import { createCreateWrappedInstruction } from "../solana/tokenBridge";
+import { SignedVaa } from "../vaa";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -34,22 +40,21 @@ export async function createWrappedOnTerra(
 
 export async function createWrappedOnSolana(
   connection: Connection,
-  bridgeAddress: string,
-  tokenBridgeAddress: string,
-  payerAddress: string,
-  signedVAA: Uint8Array
+  bridgeAddress: PublicKeyInitData,
+  tokenBridgeAddress: PublicKeyInitData,
+  payerAddress: PublicKeyInitData,
+  signedVaa: SignedVaa,
+  commitment?: Commitment
 ): Promise<Transaction> {
-  const { create_wrapped_ix } = await importTokenWasm();
-  const ix = ixFromRust(
-    create_wrapped_ix(
+  const transaction = new Transaction().add(
+    createCreateWrappedInstruction(
       tokenBridgeAddress,
       bridgeAddress,
       payerAddress,
-      signedVAA
+      signedVaa
     )
   );
-  const transaction = new Transaction().add(ix);
-  const { blockhash } = await connection.getRecentBlockhash();
+  const { blockhash } = await connection.getLatestBlockhash(commitment);
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
