@@ -31,3 +31,7 @@ yarn-error.log*
 
 # build
 /lib
+
+# solana idl
+/src/anchor-idl
+/src/solana/types

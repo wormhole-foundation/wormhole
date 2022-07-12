@@ -1,28 +1,30 @@
-import { PublicKey } from "@solana/web3.js";
+import { BN } from "@project-serum/anchor";
+import { PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { ethers } from "ethers";
+import { isBytes } from "ethers/lib/utils";
 import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
 import { NFTBridge__factory } from "../ethers-contracts";
-import { importNftWasm } from "../solana/wasm";
+import { deriveWrappedMintKey } from "../solana/nftBridge";
 import { ChainId, ChainName, coalesceChainId } from "../utils";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
- * @param tokenBridgeAddress
+ * @param nftBridgeAddress
  * @param provider
  * @param originChain
  * @param originAsset zero pad to 32 bytes
  * @returns
  */
 export async function getForeignAssetEth(
-  tokenBridgeAddress: string,
+  nftBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
   originChain: ChainId | ChainName,
   originAsset: Uint8Array
 ): Promise<string | null> {
   const originChainId = coalesceChainId(originChain);
-  const tokenBridge = NFTBridge__factory.connect(tokenBridgeAddress, provider);
+  const tokenBridge = NFTBridge__factory.connect(nftBridgeAddress, provider);
   try {
     if (originChainId === CHAIN_ID_SOLANA) {
       // All NFTs from Solana are minted to the same address, the originAsset is encoded as the tokenId as
@@ -41,14 +43,14 @@ export async function getForeignAssetEth(
 
 /**
  * Returns a foreign asset address on Terra for a provided native chain and asset address
- * @param tokenBridgeAddress
+ * @param nftBridgeAddress
  * @param client
  * @param originChain
  * @param originAsset
  * @returns
  */
 export async function getForeignAssetTerra(
-  tokenBridgeAddress: string,
+  nftBridgeAddress: string,
   client: LCDClient,
   originChain: ChainId,
   originAsset: Uint8Array
@@ -60,7 +62,7 @@ export async function getForeignAssetTerra(
         ? "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
         : fromUint8Array(originAsset);
     const result: { address: string } = await client.wasm.contractQuery(
-      tokenBridgeAddress,
+      nftBridgeAddress,
       {
         wrapped_registry: {
           chain: originChainId,
@@ -76,26 +78,24 @@ export async function getForeignAssetTerra(
 
 /**
  * Returns a foreign asset address on Solana for a provided native chain and asset address
- * @param tokenBridgeAddress
+ * @param nftBridgeAddress
  * @param originChain
  * @param originAsset zero pad to 32 bytes
  * @returns
  */
-export async function getForeignAssetSol(
-  tokenBridgeAddress: string,
+export async function getForeignAssetSolana(
+  nftBridgeAddress: PublicKeyInitData,
   originChain: ChainId | ChainName,
-  originAsset: Uint8Array,
-  tokenId: Uint8Array
+  originAsset: string | Uint8Array | Buffer,
+  tokenId: Uint8Array | Buffer | bigint
 ): Promise<string> {
-  const originChainId = coalesceChainId(originChain);
-  const { wrapped_address } = await importNftWasm();
-  const wrappedAddress = wrapped_address(
-    tokenBridgeAddress,
-    originAsset,
-    originChainId,
-    tokenId
-  );
-  const wrappedAddressPK = new PublicKey(wrappedAddress);
   // we don't require NFT accounts to exist, so don't check them.
-  return wrappedAddressPK.toString();
+  return deriveWrappedMintKey(
+    nftBridgeAddress,
+    coalesceChainId(originChain) as number,
+    originAsset,
+    isBytes(tokenId) ? BigInt(new BN(tokenId).toString()) : tokenId
+  ).toString();
 }
+
+export const getForeignAssetSol = getForeignAssetSolana;

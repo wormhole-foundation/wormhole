@@ -1,14 +1,22 @@
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+  Transaction,
+} from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
-import { TransactionSignerPair, _parseVAAAlgorand, _submitVAAAlgorand } from "../algorand";
+import {
+  TransactionSignerPair,
+  _parseVAAAlgorand,
+  _submitVAAAlgorand,
+} from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
-import { ixFromRust } from "../solana";
-import { importTokenWasm } from "../solana/wasm";
 import { submitVAAOnInjective } from "./redeem";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
@@ -18,6 +26,8 @@ import {
   createWrappedCoin as createWrappedCoinAptos,
   createWrappedCoinType as createWrappedCoinTypeAptos,
 } from "../aptos";
+import { createCreateWrappedInstruction } from "../solana/tokenBridge";
+import { SignedVaa } from "../vaa";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -59,17 +69,21 @@ export function createWrappedOnXpla(
 
 export async function createWrappedOnSolana(
   connection: Connection,
-  bridgeAddress: string,
-  tokenBridgeAddress: string,
-  payerAddress: string,
-  signedVAA: Uint8Array
+  bridgeAddress: PublicKeyInitData,
+  tokenBridgeAddress: PublicKeyInitData,
+  payerAddress: PublicKeyInitData,
+  signedVaa: SignedVaa,
+  commitment?: Commitment
 ): Promise<Transaction> {
-  const { create_wrapped_ix } = await importTokenWasm();
-  const ix = ixFromRust(
-    create_wrapped_ix(tokenBridgeAddress, bridgeAddress, payerAddress, signedVAA)
+  const transaction = new Transaction().add(
+    createCreateWrappedInstruction(
+      tokenBridgeAddress,
+      bridgeAddress,
+      payerAddress,
+      signedVaa
+    )
   );
-  const transaction = new Transaction().add(ix);
-  const { blockhash } = await connection.getRecentBlockhash();
+  const { blockhash } = await connection.getLatestBlockhash(commitment);
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
@@ -82,7 +96,13 @@ export async function createWrappedOnAlgorand(
   senderAddr: string,
   attestVAA: Uint8Array
 ): Promise<TransactionSignerPair[]> {
-  return await _submitVAAAlgorand(client, tokenBridgeId, bridgeId, attestVAA, senderAddr);
+  return await _submitVAAAlgorand(
+    client,
+    tokenBridgeId,
+    bridgeId,
+    attestVAA,
+    senderAddr
+  );
 }
 
 export async function createWrappedOnNear(

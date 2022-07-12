@@ -9,6 +9,7 @@
     "esModuleInterop": true,
     "downlevelIteration": true,
     "allowJs": true,
+    "resolveJsonModule": true,
     "lib": ["dom", "es5", "scripthost", "es2020.bigint"]
   },
   "include": ["src", "types"],

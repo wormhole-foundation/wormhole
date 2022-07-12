@@ -1,5 +1,10 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+} from "@solana/web3.js";
 import { LCDClient as TerraLCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
@@ -7,7 +12,6 @@ import { arrayify, sha256, zeroPad } from "ethers/lib/utils";
 import { decodeLocalState } from "../algorand";
 import { buildTokenId, isNativeCosmWasmDenom } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
-import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId } from "../terra";
 import { canonicalAddress } from "../cosmos";
 import {
@@ -38,8 +42,9 @@ import {
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { AptosClient } from "aptos";
-import { OriginInfo } from "../aptos/types"
-import { sha3_256 } from "js-sha3";;
+import { OriginInfo } from "../aptos/types";
+import { sha3_256 } from "js-sha3";
+import { getWrappedMeta } from "../solana/tokenBridge";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -203,47 +208,50 @@ export async function getOriginalAssetCosmWasm(
  * @param connection
  * @param tokenBridgeAddress
  * @param mintAddress
+ * @param [commitment]
  * @returns
  */
-export async function getOriginalAssetSol(
+export async function getOriginalAssetSolana(
   connection: Connection,
-  tokenBridgeAddress: string,
-  mintAddress: string
+  tokenBridgeAddress: PublicKeyInitData,
+  mintAddress: PublicKeyInitData,
+  commitment?: Commitment
 ): Promise<WormholeWrappedInfo> {
-  if (mintAddress) {
-    // TODO: share some of this with getIsWrappedAssetSol, like a getWrappedMetaAccountAddress or something
-    const { parse_wrapped_meta, wrapped_meta_address } =
-      await importTokenWasm();
-    const wrappedMetaAddress = wrapped_meta_address(
-      tokenBridgeAddress,
-      new PublicKey(mintAddress).toBytes()
-    );
-    const wrappedMetaAddressPK = new PublicKey(wrappedMetaAddress);
-    const wrappedMetaAccountInfo = await connection.getAccountInfo(
-      wrappedMetaAddressPK
-    );
-    if (wrappedMetaAccountInfo) {
-      const parsed = parse_wrapped_meta(wrappedMetaAccountInfo.data);
-      return {
-        isWrapped: true,
-        chainId: parsed.chain,
-        assetAddress: parsed.token_address,
-      };
-    }
-  }
   try {
+    const mint = new PublicKey(mintAddress);
+
+    return getWrappedMeta(
+      connection,
+      tokenBridgeAddress,
+      mintAddress,
+      commitment
+    )
+      .catch((_) => null)
+      .then((meta) => {
+        if (meta === null) {
+          return {
+            isWrapped: false,
+            chainId: CHAIN_ID_SOLANA,
+            assetAddress: mint.toBytes(),
+          };
+        } else {
+          return {
+            isWrapped: true,
+            chainId: meta.chain as ChainId,
+            assetAddress: Uint8Array.from(meta.tokenAddress),
+          };
+        }
+      });
+  } catch (_) {
     return {
       isWrapped: false,
       chainId: CHAIN_ID_SOLANA,
-      assetAddress: new PublicKey(mintAddress).toBytes(),
+      assetAddress: new Uint8Array(32),
     };
-  } catch (e) {}
-  return {
-    isWrapped: false,
-    chainId: CHAIN_ID_SOLANA,
-    assetAddress: new Uint8Array(32),
-  };
+  }
 }
+
+export const getOriginalAssetSol = getOriginalAssetSolana;
 
 /**
  * Returns an origin chain and asset address on {originChain} for a provided Wormhole wrapped address

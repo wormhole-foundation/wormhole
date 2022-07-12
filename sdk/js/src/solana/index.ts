@@ -1,9 +1,15 @@
-export * from "./getBridgeFeeIx";
+export * from "./utils";
+
 export {
-  createPostVaaInstruction as createPostVaaInstructionSolana,
-  createVerifySignaturesInstructions as createVerifySignaturesInstructionsSolana,
   postVaa as postVaaSolana,
   postVaaWithRetry as postVaaSolanaWithRetry,
-} from "./postVaa";
-export * from "./rust";
-export * from "./wasm";
+} from "./sendAndConfirmPostVaa";
+export {
+  createVerifySignaturesInstructions as createVerifySignaturesInstructionsSolana,
+  createPostVaaInstruction as createPostVaaInstructionSolana,
+  createBridgeFeeTransferInstruction,
+  getPostMessageAccounts as getWormholeCpiAccounts,
+} from "./wormhole";
+
+export * from "./wormhole/cpi";
+export * from "./tokenBridge/cpi";

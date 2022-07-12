@@ -1,9 +1,8 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { parseNftTransferPayload, parseTokenTransferPayload } from "../vaa";
 import { ChainId } from "./consts";
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
-
-// TODO: remove `as ChainId` in next minor version as we can't ensure it will match our type definition
 
 // note: actual first byte is message type
 //     0   [u8; 32] token_address
@@ -15,36 +14,19 @@ export const METADATA_REPLACE = new RegExp("\u0000", "g");
 //     131 [u8;len] uri
 //     ?   [u8; 32] recipient
 //     ?   u16      recipient_chain
-export const parseNFTPayload = (arr: Buffer) => {
-  const originAddress = arr.slice(1, 1 + 32).toString("hex");
-  const originChain = arr.readUInt16BE(33) as ChainId;
-  const symbol = Buffer.from(arr.slice(35, 35 + 32))
-    .toString("utf8")
-    .replace(METADATA_REPLACE, "");
-  const name = Buffer.from(arr.slice(67, 67 + 32))
-    .toString("utf8")
-    .replace(METADATA_REPLACE, "");
-  const tokenId = BigNumber.from(arr.slice(99, 99 + 32));
-  const uri_len = arr.readUInt8(131);
-  const uri = Buffer.from(arr.slice(132, 132 + uri_len))
-    .toString("utf8")
-    .replace(METADATA_REPLACE, "");
-  const target_offset = 132 + uri_len;
-  const targetAddress = arr
-    .slice(target_offset, target_offset + 32)
-    .toString("hex");
-  const targetChain = arr.readUInt16BE(target_offset + 32) as ChainId;
+export function parseNFTPayload(payload: Buffer): any {
+  const parsed = parseNftTransferPayload(payload);
   return {
-    originAddress,
-    originChain,
-    symbol,
-    name,
-    tokenId,
-    uri,
-    targetAddress,
-    targetChain,
+    originAddress: parsed.tokenAddress.toString("hex"),
+    originChain: parsed.tokenChain,
+    symbol: parsed.symbol,
+    name: parsed.name,
+    tokenId: BigNumber.from(parsed.tokenId),
+    uri: parsed.uri,
+    targetAddress: parsed.to.toString("hex"),
+    targetChain: parsed.toChain,
   };
-};
+}
 
 //     0   u256     amount
 //     32  [u8; 32] token_address
@@ -52,14 +34,17 @@ export const parseNFTPayload = (arr: Buffer) => {
 //     66  [u8; 32] recipient
 //     98  u16      recipient_chain
 //     100 u256     fee
-export const parseTransferPayload = (arr: Buffer) => ({
-  amount: BigNumber.from(arr.slice(1, 1 + 32)).toBigInt(),
-  originAddress: arr.slice(33, 33 + 32).toString("hex"),
-  originChain: arr.readUInt16BE(65) as ChainId,
-  targetAddress: arr.slice(67, 67 + 32).toString("hex"),
-  targetChain: arr.readUInt16BE(99) as ChainId,
-  fee: BigNumber.from(arr.slice(101, 101 + 32)).toBigInt(),
-});
+export function parseTransferPayload(payload: Buffer): any {
+  const parsed = parseTokenTransferPayload(payload);
+  return {
+    amount: parsed.amount,
+    originAddress: parsed.tokenAddress.toString("hex"),
+    originChain: parsed.tokenChain,
+    targetAddress: parsed.to.toString("hex"),
+    targetChain: parsed.toChain,
+    fee: parsed.fee,
+  };
+}
 
 //This returns a corrected amount, which accounts for the difference between the VAA
 //decimals, and the decimals of the asset.

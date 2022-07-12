@@ -1,10 +1,16 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+} from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { BigNumber, ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
-import { canonicalAddress, WormholeWrappedInfo } from "..";
+import { WormholeWrappedInfo } from "..";
+import { canonicalAddress } from "../cosmos";
 import { TokenImplementation__factory } from "../ethers-contracts";
-import { importNftWasm } from "../solana/wasm";
+import { getWrappedMeta } from "../solana/nftBridge";
 import {
   ChainId,
   ChainName,
@@ -24,20 +30,20 @@ export interface WormholeWrappedNFTInfo {
 
 /**
  * Returns a origin chain and asset address on {originChain} for a provided Wormhole wrapped address
- * @param tokenBridgeAddress
+ * @param nftBridgeAddress
  * @param provider
  * @param wrappedAddress
  * @returns
  */
 export async function getOriginalAssetEth(
-  tokenBridgeAddress: string,
+  nftBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
   wrappedAddress: string,
   tokenId: string,
   lookupChain: ChainId | ChainName
 ): Promise<WormholeWrappedNFTInfo> {
   const isWrapped = await getIsWrappedAssetEth(
-    tokenBridgeAddress,
+    nftBridgeAddress,
     provider,
     wrappedAddress
   );
@@ -69,55 +75,48 @@ export async function getOriginalAssetEth(
 /**
  * Returns a origin chain and asset address on {originChain} for a provided Wormhole wrapped address
  * @param connection
- * @param tokenBridgeAddress
+ * @param nftBridgeAddress
  * @param mintAddress
+ * @param [commitment]
  * @returns
  */
-export async function getOriginalAssetSol(
+export async function getOriginalAssetSolana(
   connection: Connection,
-  tokenBridgeAddress: string,
-  mintAddress: string
+  nftBridgeAddress: PublicKeyInitData,
+  mintAddress: PublicKeyInitData,
+  commitment?: Commitment
 ): Promise<WormholeWrappedNFTInfo> {
-  if (mintAddress) {
-    // TODO: share some of this with getIsWrappedAssetSol, like a getWrappedMetaAccountAddress or something
-    const { parse_wrapped_meta, wrapped_meta_address } = await importNftWasm();
-    const wrappedMetaAddress = wrapped_meta_address(
-      tokenBridgeAddress,
-      new PublicKey(mintAddress).toBytes()
-    );
-    const wrappedMetaAddressPK = new PublicKey(wrappedMetaAddress);
-    const wrappedMetaAccountInfo = await connection.getAccountInfo(
-      wrappedMetaAddressPK
-    );
-    if (wrappedMetaAccountInfo) {
-      const parsed = parse_wrapped_meta(wrappedMetaAccountInfo.data);
-      const token_id_arr = parsed.token_id as BigUint64Array;
-      const token_id_bytes = [];
-      for (let elem of token_id_arr.reverse()) {
-        token_id_bytes.push(...bigToUint8Array(elem));
-      }
-      const token_id = BigNumber.from(token_id_bytes).toString();
-      return {
-        isWrapped: true,
-        chainId: parsed.chain,
-        assetAddress: parsed.token_address,
-        tokenId: token_id,
-      };
-    }
-  }
   try {
+    const mint = new PublicKey(mintAddress);
+
+    return getWrappedMeta(connection, nftBridgeAddress, mintAddress, commitment)
+      .catch((_) => null)
+      .then((meta) => {
+        if (meta === null) {
+          return {
+            isWrapped: false,
+            chainId: CHAIN_ID_SOLANA,
+            assetAddress: mint.toBytes(),
+          };
+        } else {
+          return {
+            isWrapped: true,
+            chainId: meta.chain as ChainId,
+            assetAddress: Uint8Array.from(meta.tokenAddress),
+            tokenId: meta.tokenId.toString(),
+          };
+        }
+      });
+  } catch (_) {
     return {
       isWrapped: false,
       chainId: CHAIN_ID_SOLANA,
-      assetAddress: new PublicKey(mintAddress).toBytes(),
+      assetAddress: new Uint8Array(32),
     };
-  } catch (e) {}
-  return {
-    isWrapped: false,
-    chainId: CHAIN_ID_SOLANA,
-    assetAddress: new Uint8Array(32),
-  };
+  }
 }
+
+export const getOriginalAssetSol = getOriginalAssetSolana;
 
 // Derived from https://www.jackieli.dev/posts/bigint-to-uint8array/
 const big0 = BigInt(0);

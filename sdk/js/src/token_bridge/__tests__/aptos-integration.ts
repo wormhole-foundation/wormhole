@@ -32,14 +32,12 @@ import {
   redeemOnEth,
   generateSignAndSubmitEntryFunction,
   generateSignAndSubmitScript,
-  TokenImplementation__factory,
   transferFromAptos,
   transferFromEth,
   tryNativeToHexString,
   tryNativeToUint8Array,
   uint8ArrayToHex,
 } from "../..";
-import { setDefaultWasm } from "../../solana/wasm";
 import {
   APTOS_FAUCET_URL,
   APTOS_NODE_URL,
@@ -57,8 +55,7 @@ import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport"
 import { ethers } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import { registerCoin } from "../../aptos";
-
-setDefaultWasm("node");
+import { TokenImplementation__factory } from "../../ethers-contracts";
 
 const JEST_TEST_TIMEOUT = 60000;
 jest.setTimeout(JEST_TEST_TIMEOUT);
@@ -311,11 +308,7 @@ describe("Aptos SDK tests", () => {
     );
     expect(info.chainId).toEqual(CHAIN_ID_ETH);
     expect(info.isWrapped).toEqual(
-      await getIsWrappedAssetAptos(
-        client,
-        aptosTokenBridge,
-        aptosWrappedType
-      )
+      await getIsWrappedAssetAptos(client, aptosTokenBridge, aptosWrappedType)
     );
 
     // transfer from eth
@@ -347,7 +340,7 @@ describe("Aptos SDK tests", () => {
       5
     );
     expect(transferVAA).toBeTruthy();
-    
+
     // register token on aptos
     const script = registerCoin(aptosTokenBridge, CHAIN_ID_ETH, TEST_ERC20);
     await generateSignAndSubmitScript(client, recipient, script);
