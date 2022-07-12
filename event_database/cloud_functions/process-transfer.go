@@ -20,7 +20,7 @@ import (
 
 // terra native tokens do not have a bech32 address like cw20s do, handle them manually.
 var tokenAddressExceptions = map[string]string{
-	"0100000000000000000000000000000000000000000000000000000075757364": "ust",
+	"0100000000000000000000000000000000000000000000000000000075757364": "uusd",
 	"010000000000000000000000000000000000000000000000000000756c756e61": "uluna",
 }
 
@@ -52,7 +52,9 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		vaa.ChainIDAurora,
 		vaa.ChainIDFantom,
 		vaa.ChainIDKarura,
-		vaa.ChainIDAcala:
+		vaa.ChainIDAcala,
+		vaa.ChainIDKlaytn,
+		vaa.ChainIDCelo:
 		addr := fmt.Sprintf("0x%v", address[(len(address)-40):])
 		return addr
 	case vaa.ChainIDTerra:

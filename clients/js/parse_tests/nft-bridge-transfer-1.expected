@@ -1,0 +1,24 @@
+{
+  version: 1,
+  guardianSetIndex: 0,
+  signatures: [],
+  timestamp: 1,
+  nonce: 1,
+  emitterChain: 1,
+  emitterAddress: '0x0000000000000000000000000000000000000000000000000000000000000004',
+  sequence: 41401099n,
+  consistencyLevel: 0,
+  payload: {
+    module: 'NFTBridge',
+    type: 'Transfer',
+    tokenAddress: '0x0000000000000000000000000000000000000000000000000000000000000004',
+    tokenChain: 1,
+    tokenSymbol: 'FOO',
+    tokenName: 'BAR',
+    tokenId: 10n,
+    tokenURI: 'google.com',
+    toAddress: '0x0000000000000000000000000000000000000000000000000000000000000004',
+    chain: 10
+  },
+  digest: '0xe2a7a0f5d67018c74683851fca870403455f89d9f474e2af104740e31a00da63'
+}

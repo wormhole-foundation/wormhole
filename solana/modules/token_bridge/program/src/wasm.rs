@@ -129,7 +129,6 @@ pub fn transfer_native_with_payload_ix(
     mint: String,
     nonce: u32,
     amount: u64,
-    fee: u64,
     target_address: Vec<u8>,
     target_chain: u16,
     payload: Vec<u8>,
@@ -154,10 +153,10 @@ pub fn transfer_native_with_payload_ix(
         TransferNativeWithPayloadData {
             nonce,
             amount,
-            fee,
             target_address: target_addr,
             target_chain,
             payload,
+            cpi_program_id: None,
         },
     )
     .unwrap();
@@ -227,7 +226,6 @@ pub fn transfer_wrapped_with_payload_ix(
     token_address: Vec<u8>,
     nonce: u32,
     amount: u64,
-    fee: u64,
     target_address: Vec<u8>,
     target_chain: u16,
     payload: Vec<u8>,
@@ -256,10 +254,10 @@ pub fn transfer_wrapped_with_payload_ix(
         TransferWrappedWithPayloadData {
             nonce,
             amount,
-            fee,
             target_address: target_addr,
             target_chain,
             payload,
+            cpi_program_id: None,
         },
     )
     .unwrap();

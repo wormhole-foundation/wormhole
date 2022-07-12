@@ -1,4 +1,4 @@
-package terra
+package cosmwasm
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 )
 
 type (
-	// Watcher is responsible for looking over Terra blockchain and reporting new transactions to the contract
+	// Watcher is responsible for looking over a cosmwasm blockchain and reporting new transactions to the contract
 	Watcher struct {
 		urlWS    string
 		urlLCD   string
@@ -53,25 +53,25 @@ type (
 )
 
 var (
-	terraConnectionErrors = promauto.NewCounterVec(
+	connectionErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_terra_connection_errors_total",
-			Help: "Total number of Terra connection errors",
+			Help: "Total number of connection errors on a cosmwasm chain",
 		}, []string{"terra_network", "reason"})
-	terraMessagesConfirmed = promauto.NewCounterVec(
+	messagesConfirmed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_terra_messages_confirmed_total",
-			Help: "Total number of verified terra messages found",
+			Help: "Total number of verified messages found on a cosmwasm chain",
 		}, []string{"terra_network"})
-	currentTerraHeight = promauto.NewGaugeVec(
+	currentSlotHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "wormhole_terra_current_height",
-			Help: "Current terra slot height (at default commitment level, not the level used for observations)",
+			Help: "Current slot height on a cosmwasm chain (at default commitment level, not the level used for observations)",
 		}, []string{"terra_network"})
 	queryLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "wormhole_terra_query_latency",
-			Help: "Latency histogram for terra RPC calls",
+			Help: "Latency histogram for RPC calls on a cosmwasm chain",
 		}, []string{"terra_network", "operation"})
 )
 
@@ -86,7 +86,7 @@ type clientRequest struct {
 	ID uint64 `json:"id"`
 }
 
-// NewWatcher creates a new Terra contract watcher
+// NewWatcher creates a new cosmwasm contract watcher
 func NewWatcher(
 	urlWS string,
 	urlLCD string,
@@ -119,12 +119,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	logger.Info("connecting to websocket", zap.String("url", e.urlWS))
+	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
 	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-		terraConnectionErrors.WithLabelValues(networkName, "websocket_dial_error").Inc()
+		connectionErrors.WithLabelValues(networkName, "websocket_dial_error").Inc()
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
 	defer c.Close()
@@ -140,7 +140,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	err = c.WriteJSON(command)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-		terraConnectionErrors.WithLabelValues(networkName, "websocket_subscription_error").Inc()
+		connectionErrors.WithLabelValues(networkName, "websocket_subscription_error").Inc()
 		return fmt.Errorf("websocket subscription failed: %w", err)
 	}
 
@@ -148,10 +148,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 	_, _, err = c.ReadMessage()
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-		terraConnectionErrors.WithLabelValues(networkName, "event_subscription_error").Inc()
+		connectionErrors.WithLabelValues(networkName, "event_subscription_error").Inc()
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
-	logger.Info("subscribed to new transaction events")
+	logger.Info("subscribed to new transaction events", zap.String("network", networkName))
 
 	readiness.SetReady(e.readiness)
 
@@ -164,15 +164,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 		for {
 			<-t.C
 
-			// Query and report height and set currentTerraHeight
+			// Query and report height and set currentSlotHeight
 			resp, err := client.Get(fmt.Sprintf("%s/blocks/latest", e.urlLCD))
 			if err != nil {
-				logger.Error("query latest block response error", zap.Error(err))
+				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 				continue
 			}
 			blocksBody, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				logger.Error("query latest block response read error", zap.Error(err))
+				logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
 				errC <- err
 				resp.Body.Close()
 				continue
@@ -181,8 +181,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			blockJSON := string(blocksBody)
 			latestBlock := gjson.Get(blockJSON, "block.header.height")
-			logger.Info("current Terra height", zap.Int64("block", latestBlock.Int()))
-			currentTerraHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
+			logger.Info("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
+			currentSlotHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
 			p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 				Height:          latestBlock.Int(),
 				ContractAddress: e.contract,
@@ -202,8 +202,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				tx := hex.EncodeToString(r.TxHash)
 
-				logger.Info("received observation request for terra",
-					zap.String("tx_hash", tx))
+				logger.Info("received observation request", zap.String("network", networkName), zap.String("tx_hash", tx))
 
 				client := &http.Client{
 					Timeout: time.Second * 5,
@@ -212,12 +211,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 				// Query for tx by hash
 				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx))
 				if err != nil {
-					logger.Error("query tx response error", zap.Error(err))
+					logger.Error("query tx response error", zap.String("network", networkName), zap.Error(err))
 					continue
 				}
 				txBody, err := ioutil.ReadAll(resp.Body)
 				if err != nil {
-					logger.Error("query tx response read error", zap.Error(err))
+					logger.Error("query tx response read error", zap.String("network", networkName), zap.Error(err))
 					resp.Body.Close()
 					continue
 				}
@@ -227,21 +226,21 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				txHashRaw := gjson.Get(txJSON, "tx_response.txhash")
 				if !txHashRaw.Exists() {
-					logger.Error("terra tx does not have tx hash", zap.String("payload", txJSON))
+					logger.Error("tx does not have tx hash", zap.String("network", networkName), zap.String("payload", txJSON))
 					continue
 				}
 				txHash := txHashRaw.String()
 
 				events := gjson.Get(txJSON, "tx_response.events")
 				if !events.Exists() {
-					logger.Error("terra tx has no events", zap.String("payload", txJSON))
+					logger.Error("tx has no events", zap.String("network", networkName), zap.String("payload", txJSON))
 					continue
 				}
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
 				for _, msg := range msgs {
 					e.msgChan <- msg
-					terraMessagesConfirmed.WithLabelValues(networkName).Inc()
+					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 			}
 		}
@@ -254,8 +253,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				terraConnectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
-				logger.Error("error reading channel", zap.Error(err))
+				connectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
+				logger.Error("error reading channel", zap.String("network", networkName), zap.Error(err))
 				errC <- err
 				return
 			}
@@ -265,21 +264,21 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
 			if !txHashRaw.Exists() {
-				logger.Warn("terra message does not have tx hash", zap.String("payload", json))
+				logger.Warn("message does not have tx hash", zap.String("network", networkName), zap.String("payload", json))
 				continue
 			}
 			txHash := txHashRaw.String()
 
 			events := gjson.Get(json, "result.data.value.TxResult.result.events")
 			if !events.Exists() {
-				logger.Warn("terra message has no events", zap.String("payload", json))
+				logger.Warn("message has no events", zap.String("network", networkName), zap.String("payload", json))
 				continue
 			}
 
 			msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
 			for _, msg := range msgs {
 				e.msgChan <- msg
-				terraMessagesConfirmed.WithLabelValues(networkName).Inc()
+				messagesConfirmed.WithLabelValues(networkName).Inc()
 			}
 
 			client := &http.Client{
@@ -291,8 +290,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 			if err != nil {
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				terraConnectionErrors.WithLabelValues(networkName, "guardian_set_req_error").Inc()
-				logger.Error("query guardian set request error", zap.Error(err))
+				connectionErrors.WithLabelValues(networkName, "guardian_set_req_error").Inc()
+				logger.Error("query guardian set request error", zap.String("network", networkName), zap.Error(err))
 				errC <- err
 				return
 			}
@@ -301,7 +300,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			resp, err := client.Do(req)
 			if err != nil {
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				logger.Error("query guardian set response error", zap.Error(err))
+				logger.Error("query guardian set response error", zap.String("network", networkName), zap.Error(err))
 				errC <- err
 				return
 			}
@@ -310,7 +309,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			queryLatency.WithLabelValues(networkName, "guardian_set_info").Observe(time.Since(msm).Seconds())
 			if err != nil {
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				logger.Error("query guardian set error", zap.Error(err))
+				logger.Error("query guardian set error", zap.String("network", networkName), zap.Error(err))
 				errC <- err
 				resp.Body.Close()
 				return
@@ -320,7 +319,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
 			addresses := gjson.Get(json, "result.addresses.#.bytes")
 
-			logger.Debug("current guardian set on Terra",
+			logger.Debug("current guardian set",
+				zap.String("network", networkName),
 				zap.Any("guardianSetIndex", guardianSetIndex),
 				zap.Any("addresses", addresses))
 
@@ -334,7 +334,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	case <-ctx.Done():
 		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		if err != nil {
-			logger.Error("error on closing socket ", zap.Error(err))
+			logger.Error("error on closing socket ", zap.String("network", networkName), zap.Error(err))
 		}
 		return ctx.Err()
 	case err := <-errC:
@@ -343,10 +343,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 }
 
 func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
+	networkName := vaa.ChainID(chainID).String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {
 		if !event.IsObject() {
-			logger.Warn("terra event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
+			logger.Warn("event is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			continue
 		}
 		eventType := gjson.Get(event.String(), "type")
@@ -356,39 +357,39 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 
 		attributes := gjson.Get(event.String(), "attributes")
 		if !attributes.Exists() {
-			logger.Warn("terra message event has no attributes", zap.String("tx_hash", txHash), zap.String("event", event.String()))
+			logger.Warn("message event has no attributes", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			continue
 		}
 		mappedAttributes := map[string]string{}
 		for _, attribute := range attributes.Array() {
 			if !attribute.IsObject() {
-				logger.Warn("terra event attribute is invalid", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				logger.Warn("event attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 			keyBase := gjson.Get(attribute.String(), "key")
 			if !keyBase.Exists() {
-				logger.Warn("terra event attribute does not have key", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				logger.Warn("event attribute does not have key", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 			valueBase := gjson.Get(attribute.String(), "value")
 			if !valueBase.Exists() {
-				logger.Warn("terra event attribute does not have value", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				logger.Warn("event attribute does not have value", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 
 			key, err := base64.StdEncoding.DecodeString(keyBase.String())
 			if err != nil {
-				logger.Warn("terra event key attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
+				logger.Warn("event key attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
 				continue
 			}
 			value, err := base64.StdEncoding.DecodeString(valueBase.String())
 			if err != nil {
-				logger.Warn("terra event value attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+				logger.Warn("event value attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
 				continue
 			}
 
 			if _, ok := mappedAttributes[string(key)]; ok {
-				logger.Debug("duplicate key in events", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+				logger.Debug("duplicate key in events", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
 				continue
 			}
 
@@ -397,7 +398,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 
 		contractAddress, ok := mappedAttributes[contractAddressKey]
 		if !ok {
-			logger.Warn("terra wasm event without contract address field set", zap.String("event", event.String()))
+			logger.Warn("wasm event without contract address field set", zap.String("network", networkName), zap.String("event", event.String()))
 			continue
 		}
 		// This is not a wormhole message
@@ -407,36 +408,37 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 
 		payload, ok := mappedAttributes["message.message"]
 		if !ok {
-			logger.Error("wormhole event does not have a message field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			logger.Error("wormhole event does not have a message field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
 		sender, ok := mappedAttributes["message.sender"]
 		if !ok {
-			logger.Error("wormhole event does not have a sender field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			logger.Error("wormhole event does not have a sender field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
 		chainId, ok := mappedAttributes["message.chain_id"]
 		if !ok {
-			logger.Error("wormhole event does not have a chain_id field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			logger.Error("wormhole event does not have a chain_id field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
 		nonce, ok := mappedAttributes["message.nonce"]
 		if !ok {
-			logger.Error("wormhole event does not have a nonce field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			logger.Error("wormhole event does not have a nonce field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
 		sequence, ok := mappedAttributes["message.sequence"]
 		if !ok {
-			logger.Error("wormhole event does not have a sequence field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			logger.Error("wormhole event does not have a sequence field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
 		blockTime, ok := mappedAttributes["message.block_time"]
 		if !ok {
-			logger.Error("wormhole event does not have a block_time field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			logger.Error("wormhole event does not have a block_time field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
 
 		logger.Info("new message detected on terra",
+			zap.String("network", networkName),
 			zap.String("chainId", chainId),
 			zap.String("txHash", txHash),
 			zap.String("sender", sender),
@@ -447,33 +449,33 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 
 		senderAddress, err := StringToAddress(sender)
 		if err != nil {
-			logger.Error("cannot decode emitter hex", zap.String("tx_hash", txHash), zap.String("value", sender))
+			logger.Error("cannot decode emitter hex", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", sender))
 			continue
 		}
 		txHashValue, err := StringToHash(txHash)
 		if err != nil {
-			logger.Error("cannot decode tx hash hex", zap.String("tx_hash", txHash), zap.String("value", txHash))
+			logger.Error("cannot decode tx hash hex", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", txHash))
 			continue
 		}
 		payloadValue, err := hex.DecodeString(payload)
 		if err != nil {
-			logger.Error("cannot decode payload", zap.String("tx_hash", txHash), zap.String("value", payload))
+			logger.Error("cannot decode payload", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", payload))
 			continue
 		}
 
 		blockTimeInt, err := strconv.ParseInt(blockTime, 10, 64)
 		if err != nil {
-			logger.Error("blocktime cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", blockTime))
+			logger.Error("blocktime cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
 			continue
 		}
 		nonceInt, err := strconv.ParseUint(nonce, 10, 32)
 		if err != nil {
-			logger.Error("nonce cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", blockTime))
+			logger.Error("nonce cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
 			continue
 		}
 		sequenceInt, err := strconv.ParseUint(sequence, 10, 64)
 		if err != nil {
-			logger.Error("sequence cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", blockTime))
+			logger.Error("sequence cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
 			continue
 		}
 		messagePublication := &common.MessagePublication{

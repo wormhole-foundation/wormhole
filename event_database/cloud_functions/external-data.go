@@ -100,9 +100,13 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 	case vaa.ChainIDFantom:
 		return "fantom"
 	case vaa.ChainIDKarura:
-		return "" // no platform_id for karura on CG
+		return "karura"
 	case vaa.ChainIDAcala:
-		return "polkadot"
+		return "acala"
+	case vaa.ChainIDKlaytn:
+		return "klay-token"
+	case vaa.ChainIDCelo:
+		return "celo"
 	case vaa.ChainIDEthereumRopsten:
 		return "ethereum"
 	}

@@ -104,7 +104,39 @@ export async function query_contract_evm(
   return result
 }
 
-export async function execute_governance_evm(
+export async function getImplementation(
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  chain: EVMChainName,
+  module: "Core" | "NFTBridge" | "TokenBridge",
+  contract_address: string | undefined,
+  _rpc: string | undefined
+): Promise<ethers.BigNumber> {
+  let n = NETWORKS[network][chain]
+  let rpc: string | undefined = _rpc ?? n.rpc;
+  if (rpc === undefined) {
+    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
+  }
+
+  let contracts: Contracts = CONTRACTS[network][chain]
+
+  switch (module) {
+    case "Core":
+      contract_address = contract_address ? contract_address : contracts.core;
+      break
+    case "TokenBridge":
+      contract_address = contract_address ? contract_address : contracts.token_bridge;
+      break
+    case "NFTBridge":
+      contract_address = contract_address ? contract_address : contracts.nft_bridge;
+      break
+    default:
+      impossible(module)
+  }
+
+  return (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+}
+
+export async function execute_evm(
   payload: Payload,
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET",
@@ -189,6 +221,10 @@ export async function execute_governance_evm(
           console.log("Registering chain")
           console.log("Hash: " + (await nb.registerChain(vaa, overrides)).hash)
           break
+        case "Transfer":
+          console.log("Completing transfer")
+          console.log("Hash: " + (await nb.completeTransfer(vaa, overrides)).hash)
+          break
         default:
           impossible(payload)
 
@@ -211,8 +247,21 @@ export async function execute_governance_evm(
           console.log("Registering chain")
           console.log("Hash: " + (await tb.registerChain(vaa, overrides)).hash)
           break
+        case "Transfer":
+          console.log("Completing transfer")
+          console.log("Hash: " + (await tb.completeTransfer(vaa, overrides)).hash)
+          break
+        case "AttestMeta":
+          console.log("Creating wrapped token")
+          console.log("Hash: " + (await tb.createWrapped(vaa, overrides)).hash)
+          break
+        case "TransferWithPayload":
+          console.log("Completing transfer with payload")
+          console.log("Hash: " + (await tb.completeTransferWithPayload(vaa, overrides)).hash)
+          break
         default:
           impossible(payload)
+          break
 
       }
       break

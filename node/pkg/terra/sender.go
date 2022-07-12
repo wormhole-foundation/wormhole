@@ -1,4 +1,4 @@
-package terra
+package cosmwasm
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type submitVAAParams struct {
 	VAA []byte `json:"vaa"`
 }
 
-// SubmitVAA prepares transaction with signed VAA and sends it to the Terra blockchain
+// SubmitVAA prepares transaction with signed VAA and sends it to a cosmwasm blockchain
 func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (*sdk.TxResponse, error) {
 
 	// Serialize VAA

@@ -59,7 +59,7 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 			// "0 daysAgo start" is 00:00:00 AM of the current day
 			// "0 daysAgo end" is 23:59:59 of the current day (the future)
 
-			// calulate the start and end times for the query
+			// calculate the start and end times for the query
 			hoursAgo := (24 * daysAgo)
 			daysAgoDuration := -time.Duration(hoursAgo) * time.Hour
 			n := now.Add(daysAgoDuration)
@@ -106,12 +106,8 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 					log.Printf("skipping row without CoinGeckoCoinId. symbol: %v, amount %v", row.TokenSymbol, row.TokenAmount)
 					continue
 				}
-				if _, ok := tokensToSkip[row.TokenAddress]; ok {
-					// skip blacklisted token
-					continue
-				}
 				if row.TokenAddress == "" {
-					// if the token adress is missing, skip
+					// if the token address is missing, skip
 					continue
 				}
 
@@ -211,7 +207,7 @@ func tvlSinceDate(tbl *bigtable.Table, ctx context.Context, dailyTotals map[stri
 				amount := lockedAsset.Amount
 				if asset, ok := result[chain][address]; ok {
 					// add the amount of this symbol transferred this day to the
-					// amount already in the result (amount of this symbol prevoiusly transferred)
+					// amount already in the result (amount of this symbol previously transferred)
 					asset.Amount = asset.Amount + amount
 					result[chain][address] = asset
 				} else {

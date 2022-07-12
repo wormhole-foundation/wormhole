@@ -8,7 +8,7 @@ import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
 import { CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk";
 
-export async function execute_governance_terra(
+export async function execute_terra(
   payload: Payload,
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET",
@@ -72,6 +72,9 @@ export async function execute_governance_terra(
         case "RegisterChain":
           console.log("Registering chain");
           break;
+        case "Transfer":
+          console.log("Completing transfer");
+          break;
         default:
           impossible(payload);
       }
@@ -90,9 +93,17 @@ export async function execute_governance_terra(
         case "RegisterChain":
           console.log("Registering chain");
           break;
+        case "Transfer":
+          console.log("Completing transfer");
+          break;
+        case "AttestMeta":
+          console.log("Creating wrapped token");
+          break;
+        case "TransferWithPayload":
+          throw Error("Can't complete payload 3 transfer from CLI")
         default:
-          impossible(payload);
-          execute_msg = impossible(payload);
+          impossible(payload)
+          break
       }
       break;
     default:

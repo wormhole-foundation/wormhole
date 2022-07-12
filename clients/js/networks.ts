@@ -148,11 +148,11 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   karura: {
-    rpc: "http://103.253.145.222:8545",
+    rpc: "https://karura-dev.aca-dev.network/eth/http",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   acala: {
-    rpc: "http://157.245.252.103:8545",
+    rpc: "https://acala-dev.aca-dev.network/eth/http",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   klaytn: {

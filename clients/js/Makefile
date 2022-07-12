@@ -15,13 +15,17 @@ dependencies: node_modules
 
 build: node_modules $(SOURCE_FILES)
 	@mkdir -p build
-	@touch -m build
 	npm run build
+	@touch -m build
 
 install: build
 	@echo Linking binaries
 	chmod +x build/main.js
 	npm link
+
+.PHONY: test
+test: build
+	./run_parse_tests
 
 clean:
 	rm -rf build node_modules

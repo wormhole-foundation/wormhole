@@ -3,10 +3,11 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
+import { Bech32, fromBech32, toHex } from "@cosmjs/encoding";
 import { isTerraChain, assertEVMChain, CONTRACTS, setDefaultWasm } from "@certusone/wormhole-sdk";
-import { execute_governance_solana } from "./solana";
-import { execute_governance_evm, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
-import { execute_governance_terra } from "./terra";
+import { execute_solana } from "./solana";
+import { execute_evm, getImplementation, hijack_evm, query_contract_evm, setStorageAt } from "./evm";
+import { execute_terra } from "./terra";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
+import base58 from "bs58";
 
 setDefaultWasm("node");
 
@@ -98,10 +100,7 @@ yargs(hideBin(process.argv))
                 type: "RegisterChain",
                 chain: 0,
                 emitterChain: toChainId(argv["chain"]),
-                emitterAddress: Buffer.from(
-                  argv["contract-address"].padStart(64, "0"),
-                  "hex"
-                ),
+                emitterAddress: parseAddress(argv["chain"], argv["contract-address"]),
               };
               let v = makeVAA(
                 GOVERNANCE_CHAIN,
@@ -145,14 +144,11 @@ yargs(hideBin(process.argv))
                 | "Core"
                 | "NFTBridge"
                 | "TokenBridge";
-              let payload: Payload = {
+              let payload: vaa.ContractUpgrade = {
                 module,
                 type: "ContractUpgrade",
                 chain: toChainId(argv["chain"]),
-                address: Buffer.from(
-                  evm_address(argv["contract-address"]),
-                  "hex"
-                ),
+                address: parseCodeAddress(argv["chain"], argv["contract-address"]),
               };
               let v = makeVAA(
                 GOVERNANCE_CHAIN,
@@ -173,7 +169,7 @@ yargs(hideBin(process.argv))
   // Misc
   .command(
     "parse <vaa>",
-    "Parse a VAA",
+    "Parse a VAA (can be in either hex or base64 format)",
     (yargs) => {
       return yargs.positional("vaa", {
         describe: "vaa",
@@ -181,10 +177,22 @@ yargs(hideBin(process.argv))
       });
     },
     async (argv) => {
-      const buf = Buffer.from(String(argv.vaa), "hex");
+      let buf: Buffer;
+      try {
+        buf = Buffer.from(String(argv.vaa), "hex")
+        if (buf.length == 0) {
+          throw Error("Couldn't parse VAA as hex")
+        }
+      } catch (e) {
+        buf = Buffer.from(String(argv.vaa), "base64")
+        if (buf.length == 0) {
+          throw Error("Couldn't parse VAA as base64 or hex")
+        }
+      }
       const parsed_vaa = vaa.parse(buf);
-      console.log(parsed_vaa);
-      console.log("Digest:", vaa.vaaDigest(parsed_vaa))
+      let parsed_vaa_with_digest = parsed_vaa;
+      parsed_vaa_with_digest['digest'] = vaa.vaaDigest(parsed_vaa);
+      console.log(parsed_vaa_with_digest);
     })
   .command("recover <digest> <signature>", "Recover an address from a signature", (yargs) => {
     return yargs
@@ -309,6 +317,11 @@ yargs(hideBin(process.argv))
         const result = await setStorageAt(argv["rpc"], evm_address(argv["contract-address"]), argv["storage-slot"], ["uint256"], [argv["value"]]);
         console.log(result);
       })
+      .command("chains", "Return all EVM chains",
+        async (_) => {
+          console.log(Object.values(CHAINS).map(id => toChainName(id)).filter(name => isEVMChain(name)).join(" "))
+        }
+      )
       .command("info", "Query info about the on-chain state of the contract", (yargs) => {
         return yargs
           .option("chain", {
@@ -337,6 +350,13 @@ yargs(hideBin(process.argv))
             describe: "Contract to query (override config)",
             type: "string",
             required: false,
+          })
+          .option("implementation-only", {
+            alias: "i",
+            describe: "Only query implementation (faster)",
+            type: "boolean",
+            default: false,
+            required: false,
           });
       }, async (argv) => {
         assertChain(argv["chain"])
@@ -354,7 +374,11 @@ yargs(hideBin(process.argv))
           | "NFTBridge"
           | "TokenBridge";
         let rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc
-        console.log(JSON.stringify(await query_contract_evm(network, argv["chain"], module, argv["contract-address"], rpc), null, 2))
+        if (argv["implementation-only"]) {
+          console.log(await getImplementation(network, argv["chain"], module, argv["contract-address"], rpc))
+        } else {
+          console.log(JSON.stringify(await query_contract_evm(network, argv["chain"], module, argv["contract-address"], rpc), null, 2))
+        }
       })
       .command("hijack", "Override the guardian set of the core bridge contract during testing (anvil or hardhat)", (yargs) => {
         return yargs
@@ -428,9 +452,7 @@ yargs(hideBin(process.argv))
       const buf = Buffer.from(vaa_hex, "hex");
       const parsed_vaa = vaa.parse(buf);
 
-      if (!vaa.hasPayload(parsed_vaa)) {
-        throw Error("Couldn't parse VAA payload");
-      }
+      vaa.assertKnownPayload(parsed_vaa);
 
       console.log(parsed_vaa.payload);
 
@@ -482,11 +504,11 @@ yargs(hideBin(process.argv))
           "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
         );
       } else if (isEVMChain(chain)) {
-        await execute_governance_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"], argv["rpc"]);
+        await execute_evm(parsed_vaa.payload, buf, network, chain, argv["contract-address"], argv["rpc"]);
       } else if (isTerraChain(chain)) {
-        await execute_governance_terra(parsed_vaa.payload, buf, network, chain);
+        await execute_terra(parsed_vaa.payload, buf, network, chain);
       } else if (chain === "solana") {
-        await execute_governance_solana(parsed_vaa, buf, network);
+        await execute_solana(parsed_vaa, buf, network);
       } else if (chain === "algorand") {
         throw Error("Algorand is not supported yet");
       } else if (chain === "near") {
@@ -505,4 +527,31 @@ function hex(x: string): string {
 
 function evm_address(x: string): string {
   return hex(x).substring(2).padStart(64, "0")
+}
+
+function parseAddress(chain: ChainName, address: string): string {
+  if (chain === "unset") {
+    throw Error("Chain unset")
+  } else if (isEVMChain(chain)) {
+    return "0x" + evm_address(address)
+  } else if (isTerraChain(chain)) {
+    return "0x" + toHex(fromBech32(address).data).padStart(64, "0")
+  } else if (chain === "solana") {
+    return "0x" + toHex(base58.decode(address)).padStart(64, "0")
+  } else if (chain === "algorand") {
+    // TODO: is there a better native format for algorand?
+    return "0x" + evm_address(address)
+  } else if (chain === "near") {
+    throw Error("NEAR is not supported yet")
+  } else {
+    impossible(chain)
+  }
+}
+
+function parseCodeAddress(chain: ChainName, address: string): string {
+  if (isTerraChain(chain)) {
+    return "0x" + parseInt(address, 10).toString(16).padStart(64, "0")
+  } else {
+    return parseAddress(chain, address)
+  }
 }

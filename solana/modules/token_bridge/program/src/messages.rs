@@ -133,7 +133,9 @@ impl DeserializePayload for PayloadTransferWithPayload {
 
         let mut fee_data: [u8; 32] = [0; 32];
         v.read_exact(&mut fee_data)?;
-        let fee = U256::from_big_endian(&fee_data);
+
+        let mut from_address = Address::default();
+        v.read_exact(&mut from_address)?;
 
         let mut payload = vec![];
         v.read_to_end(&mut payload)?;
@@ -144,7 +146,7 @@ impl DeserializePayload for PayloadTransferWithPayload {
             token_chain,
             to,
             to_chain,
-            fee,
+            from_address,
             payload,
         })
     }
@@ -164,9 +166,7 @@ impl SerializePayload for PayloadTransferWithPayload {
         writer.write_all(&self.to)?;
         writer.write_u16::<BigEndian>(self.to_chain)?;
 
-        let mut fee_data: [u8; 32] = [0; 32];
-        self.fee.to_big_endian(&mut fee_data);
-        writer.write_all(&fee_data)?;
+        writer.write_all(&self.from_address)?;
 
         writer.write_all(self.payload.as_slice())?;
 
@@ -186,8 +186,8 @@ pub struct PayloadTransferWithPayload {
     pub to: Address,
     /// Chain ID of the recipient
     pub to_chain: ChainID,
-    /// Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
-    pub fee: U256,
+    /// Sender of the transaction
+    pub from_address: Address,
     /// Arbitrary payload
     pub payload: Vec<u8>,
 }

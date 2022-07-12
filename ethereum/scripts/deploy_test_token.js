@@ -61,10 +61,6 @@ module.exports = async function (callback) {
       from: accounts[0],
       gas: 1000000,
     });
-    await token.methods.mint(accounts[2], "1000000000000000000000").send({
-      from: accounts[0],
-      gas: 1000000,
-    });
 
     const nftAddress = (
       await ERC721.new(
@@ -92,6 +88,16 @@ module.exports = async function (callback) {
     const wethToken = new web3.eth.Contract(MockWETH9.abi, wethAddress);
 
     console.log("WETH token deployed at: " + wethAddress);
+
+    await token.methods.mint(accounts[2], "1000000000000000000000").send({
+      from: accounts[0],
+      gas: 1000000,
+    });
+
+    // devnet WETH token address should be deterministic
+    if (wethAddress !== "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") {
+      throw new Error("unexpected WETH token address")
+    }
 
     callback();
   } catch (e) {
