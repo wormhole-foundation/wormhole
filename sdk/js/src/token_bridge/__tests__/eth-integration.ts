@@ -34,7 +34,7 @@ import {
   tryNativeToUint8Array,
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
-import { postVaaWithRetry } from "../../solana/postVaa";
+import { postVaaWithRetry } from "../../solana/sendAndConfirmPostVaa";
 import { setDefaultWasm } from "../../solana/wasm";
 import {
   ETH_NODE_URL,

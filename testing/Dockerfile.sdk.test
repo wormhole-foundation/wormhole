@@ -10,6 +10,8 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci --prefix ethereum
 COPY ethereum ./ethereum
 
+COPY solana/idl ./solana/idl/
+
 COPY sdk/js/package.json sdk/js/package-lock.json  ./sdk/js/
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci --prefix sdk/js

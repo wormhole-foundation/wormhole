@@ -5,7 +5,8 @@ import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
-import { importCoreWasm, importNftWasm } from "../solana/wasm";
+import { importNftWasm } from "../solana/wasm";
+import { parseVaa } from "../vaa/wormhole";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -22,12 +23,7 @@ export async function redeemOnEth(
 export async function isNFTVAASolanaNative(
   signedVAA: Uint8Array
 ): Promise<boolean> {
-  const { parse_vaa } = await importCoreWasm();
-  const parsedVAA = parse_vaa(signedVAA);
-  const isSolanaNative =
-    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(33) ===
-    CHAIN_ID_SOLANA;
-  return isSolanaNative;
+  return parseVaa(signedVAA).payload.readUInt16BE(33) === CHAIN_ID_SOLANA;
 }
 
 export async function redeemOnSolana(

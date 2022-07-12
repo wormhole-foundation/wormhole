@@ -13,14 +13,15 @@ import { fromUint8Array } from "js-base64";
 import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
-import { importCoreWasm, importTokenWasm } from "../solana/wasm";
+import { importTokenWasm } from "../solana/wasm";
+import { parseVaa } from "../vaa/wormhole";
 import {
   CHAIN_ID_SOLANA,
   WSOL_ADDRESS,
   WSOL_DECIMALS,
   MAX_VAA_DECIMALS,
 } from "../utils";
-import { hexToNativeString } from "../utils/array";
+import { tryHexToNativeString } from "../utils/array";
 import { parseTransferPayload } from "../utils/parseVaa";
 
 export async function redeemOnEth(
@@ -66,19 +67,12 @@ export async function redeemAndUnwrapOnSolana(
   payerAddress: string,
   signedVAA: Uint8Array
 ) {
-  const { parse_vaa } = await importCoreWasm();
   const { complete_transfer_native_ix } = await importTokenWasm();
-  const parsedVAA = parse_vaa(signedVAA);
-  const parsedPayload = parseTransferPayload(
-    Buffer.from(new Uint8Array(parsedVAA.payload))
-  );
-  const targetAddress = hexToNativeString(
+  const parsedPayload = parseTransferPayload(parseVaa(signedVAA).payload);
+  const targetAddress = tryHexToNativeString(
     parsedPayload.targetAddress,
     CHAIN_ID_SOLANA
   );
-  if (!targetAddress) {
-    throw new Error("Failed to read the target address.");
-  }
   const targetPublicKey = new PublicKey(targetAddress);
   const targetAmount =
     parsedPayload.amount *
@@ -155,11 +149,8 @@ export async function redeemOnSolana(
   signedVAA: Uint8Array,
   feeRecipientAddress?: string
 ) {
-  const { parse_vaa } = await importCoreWasm();
-  const parsedVAA = parse_vaa(signedVAA);
   const isSolanaNative =
-    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(65) ===
-    CHAIN_ID_SOLANA;
+    parseVaa(signedVAA).payload.readUInt16BE(65) === CHAIN_ID_SOLANA;
   const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
     await importTokenWasm();
   const ixs = [];

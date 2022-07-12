@@ -6,9 +6,15 @@ import {
   NFTBridge__factory,
   NFTImplementation__factory,
 } from "../ethers-contracts";
-import { getBridgeFeeIx, ixFromRust } from "../solana";
+import { createBridgeFeeTransferInstruction, ixFromRust } from "../solana";
 import { importNftWasm } from "../solana/wasm";
-import { ChainId, ChainName, CHAIN_ID_SOLANA, coalesceChainId, createNonce } from "../utils";
+import {
+  ChainId,
+  ChainName,
+  CHAIN_ID_SOLANA,
+  coalesceChainId,
+  createNonce,
+} from "../utils";
 
 export async function transferFromEth(
   tokenBridgeAddress: string,
@@ -19,7 +25,7 @@ export async function transferFromEth(
   recipientAddress: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
-  const recipientChainId = coalesceChainId(recipientChain)
+  const recipientChainId = coalesceChainId(recipientChain);
   //TODO: should we check if token attestation exists on the target chain
   const token = NFTImplementation__factory.connect(tokenAddress, signer);
   await (await token.approve(tokenBridgeAddress, tokenID, overrides)).wait();
@@ -49,9 +55,11 @@ export async function transferFromSolana(
   originChain?: ChainId | ChainName,
   originTokenId?: Uint8Array
 ): Promise<Transaction> {
-  const originChainId: ChainId | undefined = originChain ? coalesceChainId(originChain) : undefined
+  const originChainId: ChainId | undefined = originChain
+    ? coalesceChainId(originChain)
+    : undefined;
   const nonce = createNonce().readUInt32LE(0);
-  const transferIx = await getBridgeFeeIx(
+  const transferIx = await createBridgeFeeTransferInstruction(
     connection,
     bridgeAddress,
     payerAddress
@@ -121,7 +129,7 @@ export async function transferFromTerra(
   recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array
 ): Promise<MsgExecuteContract[]> {
-  const recipientChainId = coalesceChainId(recipientChain)
+  const recipientChainId = coalesceChainId(recipientChain);
   const nonce = Math.round(Math.random() * 100000);
   return [
     new MsgExecuteContract(

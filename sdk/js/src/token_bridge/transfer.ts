@@ -31,7 +31,7 @@ import {
   Bridge__factory,
   TokenImplementation__factory,
 } from "../ethers-contracts";
-import { getBridgeFeeIx, ixFromRust } from "../solana";
+import { createBridgeFeeTransferInstruction, ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
 import {
   ChainId,
@@ -281,7 +281,7 @@ export async function transferNativeSol(
     approval_authority_address,
   } = await importTokenWasm();
   const nonce = createNonce().readUInt32LE(0);
-  const transferIx = await getBridgeFeeIx(
+  const transferIx = await createBridgeFeeTransferInstruction(
     connection,
     bridgeAddress,
     payerAddress
@@ -369,7 +369,7 @@ export async function transferFromSolana(
     ? coalesceChainId(originChain)
     : undefined;
   const nonce = createNonce().readUInt32LE(0);
-  const transferIx = await getBridgeFeeIx(
+  const transferIx = await createBridgeFeeTransferInstruction(
     connection,
     bridgeAddress,
     payerAddress
