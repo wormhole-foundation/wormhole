@@ -387,7 +387,7 @@ export async function monitorRedis(metrics: PromHelper) {
   }
 }
 
-/** Check to see if a queue is in the listener memory queue before redis */
+/** Check to see if a key is in the listener memory queue or redis incoming db */
 export async function checkQueue(key: string): Promise<string | null> {
   try {
     const backupQueue = getBackupQueue();

@@ -58,10 +58,8 @@ export class TokenBridgeListener implements Listener {
 
   /** Verify this payload is version 1. */
   verifyIsPayloadV1(parsedVaa: ParsedVaa<Uint8Array>): boolean {
-    const isCorrectPayloadType = parsedVaa.payload[0] === 1;
-
-    if (!isCorrectPayloadType) {
-      this.logger.debug("Specified vaa is not payload type 1.");
+    if (parsedVaa.payload[0] !== 1) {
+      this.logger.debug("Specified vaa is not payload version 1.");
       return false;
     }
     return true;
@@ -160,7 +158,7 @@ export class TokenBridgeListener implements Listener {
     let parsedVaa = await this.parseVaa(rawVaa);
     let parsedPayload: ParsedTransferPayload;
 
-    // Verify this is actual a token bridge transfer payload
+    // Verify this is actually a token bridge transfer payload
     if (!this.verifyIsPayloadV1(parsedVaa)) {
       return "Wrong payload type";
     }
@@ -189,7 +187,6 @@ export class TokenBridgeListener implements Listener {
       emitterFilter: { chainId: ChainId; emitterAddress: string };
     }[] = [];
     for (let i = 0; i < env.spyServiceFilters.length; i++) {
-      this.logger.info("Getting spyServiceFiltera " + i);
       const filter = env.spyServiceFilters[i];
       this.logger.info(
         "Getting spyServiceFilter[" +
@@ -209,7 +206,6 @@ export class TokenBridgeListener implements Listener {
           ),
         },
       };
-      this.logger.info("Getting spyServiceFilterc " + i);
       this.logger.info(
         "adding filter: chainId: [" +
           typedFilter.emitterFilter.chainId +
@@ -217,9 +213,7 @@ export class TokenBridgeListener implements Listener {
           typedFilter.emitterFilter.emitterAddress +
           "]"
       );
-      this.logger.info("Getting spyServiceFilterd " + i);
       filters.push(typedFilter);
-      this.logger.info("Getting spyServiceFiltere " + i);
     }
     return filters;
   }
