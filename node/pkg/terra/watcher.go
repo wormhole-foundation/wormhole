@@ -183,7 +183,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		for {
 			<-t.C
-
+			msm := time.Now()
 			// Query and report height and set currentSlotHeight
 			resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
 			if err != nil {
@@ -198,6 +198,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 				continue
 			}
 			resp.Body.Close()
+
+			// Update the prom metrics with how long the http request took to the rpc
+			queryLatency.WithLabelValues(networkName, "block_latest").Observe(time.Since(msm).Seconds())
 
 			blockJSON := string(blocksBody)
 			latestBlock := gjson.Get(blockJSON, "block.header.height")
