@@ -958,7 +958,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *terraWS != "" {
 			logger.Info("Starting Terra watcher")
 			if err := supervisor.Run(ctx, "terrawatch",
-				cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run); err != nil {
+				cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run); err != nil {
 				return err
 			}
 		}
@@ -966,7 +966,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *terra2WS != "" {
 			logger.Info("Starting Terra 2 watcher")
 			if err := supervisor.Run(ctx, "terra2watch",
-				cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
+				cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
 				return err
 			}
 		}
@@ -974,7 +974,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *testnetMode {
 			logger.Info("Starting Injective watcher")
 			if err := supervisor.Run(ctx, "injectivewatch",
-				cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, lockC, setC, chainObsvReqC[vaa.ChainIDInjective], common.ReadinessInjectiveSyncing, vaa.ChainIDInjective).Run); err != nil {
+				cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, lockC, chainObsvReqC[vaa.ChainIDInjective], common.ReadinessInjectiveSyncing, vaa.ChainIDInjective).Run); err != nil {
 				return err
 			}
 		}
