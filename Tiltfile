@@ -108,20 +108,6 @@ local_resource(
     trigger_mode = trigger_mode,
 )
 
-# wasm
-
-if solana:
-    local_resource(
-        name = "wasm-gen",
-        deps = ["solana"],
-        dir = "solana",
-        cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
-        env = {"DOCKER_BUILDKIT": "1"},
-        labels = ["solana"],
-        allow_parallel = True,
-        trigger_mode = trigger_mode,
-    )
-
 # node
 
 if explorer:
@@ -496,7 +482,7 @@ if ci_tests:
 
     k8s_resource(
         "ci-tests",
-        resource_deps = ["wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "terra2-terrad", "terra2-fcd", "solana-devnet", "spy", "guardian"],
+        resource_deps = ["eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "terra2-terrad", "terra2-fcd", "solana-devnet", "spy", "guardian"],
         labels = ["ci"],
         trigger_mode = trigger_mode,
     )
