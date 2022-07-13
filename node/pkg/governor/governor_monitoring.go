@@ -22,6 +22,14 @@
 //  {"chainId":5,"remainingAvailableNotional":"275000","notionalLimit":"275000"}
 // ]}
 //
+// Query: http://localhost:7071/v1/governor/enqueued_vaas
+//
+// Returns:
+// {"entries":[
+// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"1"},
+// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"2"}
+// ]}
+//
 // Query: http://localhost:7071/v1/governor/token_list
 //
 // Returns:
@@ -69,21 +77,26 @@ func (gov *ChainGovernor) Status() string {
 	defer gov.mutex.Unlock()
 
 	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	var resp string
 	for _, ce := range gov.chains {
 		valueTrans := sumValue(ce.transfers, startTime)
-		s := fmt.Sprintf("cgov: chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
-		gov.logger.Info(s)
+		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
+		s2 := fmt.Sprintf("cgov: %v", s1)
+		resp += s1 + "\n"
+		gov.logger.Info(s2)
 		if len(ce.pending) != 0 {
 			for idx, pe := range ce.pending {
 				value, _ := computeValue(pe.amount, pe.token)
-				s := fmt.Sprintf("   cgov: chain: %v, pending[%v], value: %v, vaa: %v, time: %v", ce.emitterChainId, idx, value,
+				s1 := fmt.Sprintf("chain: %v, pending[%v], value: %v, vaa: %v, time: %v", ce.emitterChainId, idx, value,
 					pe.msg.MessageIDString(), pe.timeStamp.String())
-				gov.logger.Info(s)
+				s2 := fmt.Sprintf("cgov: %v", s1)
+				gov.logger.Info(s2)
+				resp += "   " + s1 + "\n"
 			}
 		}
 	}
 
-	return "grep the log for \"cgov:\" for status"
+	return resp
 }
 
 // Admin command to reload the governor state from the database.
@@ -115,15 +128,24 @@ func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
 
 	for _, ce := range gov.chains {
 		for idx, pe := range ce.pending {
-			if pe.msg.MessageIDString() == vaaId {
+			msgId := pe.msg.MessageIDString()
+			if msgId == vaaId {
 				value, _ := computeValue(pe.amount, pe.token)
 				gov.logger.Info("cgov: dropping pending vaa",
-					zap.String("msgId", pe.msg.MessageIDString()),
+					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
 					zap.Stringer("timeStamp", pe.timeStamp),
 				)
+
+				if gov.db != nil {
+					if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+						return "", err
+					}
+				}
+
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
-				return "vaa has been dropped from the pending list", nil
+				str := fmt.Sprintf("vaa \"%v\" has been dropped from the pending list", msgId)
+				return str, nil
 			}
 		}
 	}
@@ -138,17 +160,29 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 
 	for _, ce := range gov.chains {
 		for idx, pe := range ce.pending {
-			if pe.msg.MessageIDString() == vaaId {
+			msgId := pe.msg.MessageIDString()
+			if msgId == vaaId {
 				value, _ := computeValue(pe.amount, pe.token)
 				gov.logger.Info("cgov: releasing pending vaa, should be published soon",
-					zap.String("msgId", pe.msg.MessageIDString()),
+					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
 					zap.Stringer("timeStamp", pe.timeStamp),
 				)
 
 				gov.msgsToPublish = append(gov.msgsToPublish, pe.msg)
+
+				if gov.db != nil {
+					// We delete the pending message from the database, but we don't add it to the transfers
+					// because released messages do not apply to the limit.
+
+					if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+						return "", err
+					}
+				}
+
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
-				return "pending vaa has been released and will be published soon", nil
+				str := fmt.Sprintf("pending vaa \"%v\" has been released and will be published soon", msgId)
+				return str, nil
 			}
 		}
 	}
@@ -202,6 +236,26 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() []*publicrpcv1.GovernorG
 	return resp
 }
 
+// REST query to get the list of enqueued VAAs.
+func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	resp := make([]*publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry, 0)
+
+	for _, ce := range gov.chains {
+		for _, pe := range ce.pending {
+			resp = append(resp, &publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry{
+				EmitterChain:   uint32(pe.msg.EmitterChain),
+				EmitterAddress: pe.msg.EmitterAddress.String(),
+				Sequence:       pe.msg.Sequence,
+			})
+		}
+	}
+
+	return resp
+}
+
 // REST query to get the list of tokens being monitored by the governor.
 func (gov *ChainGovernor) GetTokenList() []*publicrpcv1.GovernorGetTokenListResponse_Entry {
 	gov.mutex.Lock()
@@ -209,10 +263,12 @@ func (gov *ChainGovernor) GetTokenList() []*publicrpcv1.GovernorGetTokenListResp
 
 	resp := make([]*publicrpcv1.GovernorGetTokenListResponse_Entry, 0)
 
-	for tk := range gov.tokens {
+	for tk, te := range gov.tokens {
+		price, _ := te.price.Float32()
 		resp = append(resp, &publicrpcv1.GovernorGetTokenListResponse_Entry{
 			OriginChainId: uint32(tk.chain),
 			OriginAddress: "0x" + tk.addr.String(),
+			Price:         price,
 		})
 	}
 

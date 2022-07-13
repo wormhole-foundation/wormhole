@@ -130,6 +130,18 @@ func (s *PublicrpcServer) GovernorGetAvailableNotionalByChain(ctx context.Contex
 	return resp, nil
 }
 
+func (s *PublicrpcServer) GovernorGetEnqueuedVAAs(ctx context.Context, req *publicrpcv1.GovernorGetEnqueuedVAAsRequest) (*publicrpcv1.GovernorGetEnqueuedVAAsResponse, error) {
+	resp := &publicrpcv1.GovernorGetEnqueuedVAAsResponse{}
+
+	if s.gov != nil {
+		resp.Entries = s.gov.GetEnqueuedVAAs()
+	} else {
+		resp.Entries = make([]*publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry, 0)
+	}
+
+	return resp, nil
+}
+
 func (s *PublicrpcServer) GovernorGetTokenList(ctx context.Context, req *publicrpcv1.GovernorGetTokenListRequest) (*publicrpcv1.GovernorGetTokenListResponse, error) {
 	resp := &publicrpcv1.GovernorGetTokenListResponse{}
 

@@ -118,10 +118,6 @@ func NewChainGovernor(
 	db *db.Database,
 	env int,
 ) *ChainGovernor {
-	return newChainGovernor(logger, db, env)
-}
-
-func newChainGovernor(logger *zap.Logger, db *db.Database, env int) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
 		logger:              logger,

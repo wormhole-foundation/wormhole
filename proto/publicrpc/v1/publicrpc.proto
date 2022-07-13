@@ -75,6 +75,12 @@ service PublicRPCService {
     };
   }
 
+  rpc GovernorGetEnqueuedVAAs (GovernorGetEnqueuedVAAsRequest) returns (GovernorGetEnqueuedVAAsResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/enqueued_vaas"
+    };
+  }
+
   rpc GovernorGetTokenList (GovernorGetTokenListRequest) returns (GovernorGetTokenListResponse) {
     option (google.api.http) = {
       get: "/v1/governor/token_list"
@@ -142,6 +148,20 @@ message GovernorGetAvailableNotionalByChainResponse {
   repeated Entry entries = 1;
 }
 
+message GovernorGetEnqueuedVAAsRequest {
+}
+
+message GovernorGetEnqueuedVAAsResponse {
+  message Entry {
+  uint32 emitter_chain = 1;
+  string emitter_address = 2; // human-readable hex-encoded (leading 0x)
+  uint64 sequence = 3;
+  }
+
+  // There is an entry for each enqueued vaa.
+  repeated Entry entries = 1;
+}
+
 message GovernorGetTokenListRequest {
 }
 
@@ -149,6 +169,7 @@ message GovernorGetTokenListResponse {
   message Entry {
     uint32 origin_chain_id = 1;
     string origin_address = 2; // human-readable hex-encoded (leading 0x)
+    float price = 3;
   }
 
   // There is an entry for each token that applies to the notional TVL calcuation.

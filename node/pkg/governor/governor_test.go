@@ -211,7 +211,7 @@ func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 		return nil, fmt.Errorf("ctx is nil")
 	}
 
-	gov := newChainGovernor(nil, nil, GoTestMode)
+	gov := NewChainGovernor(nil, nil, GoTestMode)
 
 	err := gov.Run(ctx)
 	if err != nil {
