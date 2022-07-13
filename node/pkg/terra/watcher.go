@@ -92,7 +92,6 @@ func NewWatcher(
 	urlLCD string,
 	contract string,
 	lockEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet,
 	obsvReqC chan *gossipv1.ObservationRequest,
 	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
@@ -106,7 +105,7 @@ func NewWatcher(
 		contractAddressLogKey = "contract_address"
 	}
 
-	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, contract: contract, msgChan: lockEvents, setChan: setEvents, obsvReqC: obsvReqC, readiness: readiness, chainID: chainID, contractAddressFilterKey: contractAddressFilterKey, contractAddressLogKey: contractAddressLogKey}
+	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, contract: contract, msgChan: lockEvents, obsvReqC: obsvReqC, readiness: readiness, chainID: chainID, contractAddressFilterKey: contractAddressFilterKey, contractAddressLogKey: contractAddressLogKey}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
