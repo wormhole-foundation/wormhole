@@ -280,51 +280,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 				messagesConfirmed.WithLabelValues(networkName).Inc()
 			}
 
-			client := &http.Client{
-				Timeout: time.Second * 15,
-			}
-
-			// Query and report guardian set status
-			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.contract)
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				connectionErrors.WithLabelValues(networkName, "guardian_set_req_error").Inc()
-				logger.Error("query guardian set request error", zap.String("network", networkName), zap.Error(err))
-				errC <- err
-				return
-			}
-
-			msm := time.Now()
-			resp, err := client.Do(req)
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				logger.Error("query guardian set response error", zap.String("network", networkName), zap.Error(err))
-				errC <- err
-				return
-			}
-
-			body, err := ioutil.ReadAll(resp.Body)
-			queryLatency.WithLabelValues(networkName, "guardian_set_info").Observe(time.Since(msm).Seconds())
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				logger.Error("query guardian set error", zap.String("network", networkName), zap.Error(err))
-				errC <- err
-				resp.Body.Close()
-				return
-			}
-
-			json = string(body)
-			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
-			addresses := gjson.Get(json, "result.addresses.#.bytes")
-
-			logger.Debug("current guardian set",
-				zap.String("network", networkName),
-				zap.Any("guardianSetIndex", guardianSetIndex),
-				zap.Any("addresses", addresses))
-
-			resp.Body.Close()
-
 			// We do not send guardian changes to the processor - ETH guardians are the source of truth.
 		}
 	}()
