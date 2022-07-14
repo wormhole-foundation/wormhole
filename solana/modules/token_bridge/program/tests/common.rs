@@ -83,6 +83,7 @@ mod helpers {
     use token_bridge::{
         CompleteNativeData,
         CompleteWrappedData,
+        CompleteNativeWithPayloadData,
         CreateWrappedData,
         RegisterChainData,
         TransferNativeData,
@@ -93,6 +94,7 @@ mod helpers {
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
+        PayloadTransferWithPayload
     };
 
     /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key

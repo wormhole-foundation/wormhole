@@ -377,6 +377,7 @@ mod tests {
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
+        PayloadTransferWithPayload
     };
     use bridge::{
         DeserializePayload,
