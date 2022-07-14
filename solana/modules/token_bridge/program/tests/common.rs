@@ -507,6 +507,45 @@ mod helpers {
         .await
     }
 
+    pub async fn complete_native_with_payload(
+        client: &mut BanksClient,
+        program: Pubkey,
+        bridge: Pubkey,
+        message_acc: Pubkey,
+        vaa: PostVAAData,
+        payload: PayloadTransferWithPayload,
+        to: Pubkey,
+        redeemer: &Keypair,
+        payer: &Keypair,
+    ) -> Result<(), TransportError> {
+        let instruction = instructions::complete_native_with_payload(
+            program,
+            bridge,
+            payer.pubkey(),
+            message_acc,
+            vaa,
+            to,
+            redeemer.pubkey(),
+            None,
+            Pubkey::new(&payload.token_address[..]),
+            CompleteNativeWithPayloadData {},
+        )
+        .expect("Could not create Complete Native With Payload instruction");
+        
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+        
+        execute(
+            client,
+            payer,
+            &[payer, redeemer],
+            &[instruction],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
     pub async fn create_wrapped(
         client: &mut BanksClient,
         program: Pubkey,

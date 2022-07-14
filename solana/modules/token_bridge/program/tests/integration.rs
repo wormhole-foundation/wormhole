@@ -53,6 +53,9 @@ const GOVERNANCE_KEY: [u8; 64] = [
     88, 97, 199,
 ];
 
+const CHAIN_ID_SOLANA: u16 = 1;
+const CHAIN_ID_ETH: u16 = 2;
+
 struct Context {
     /// Guardian public keys.
     guardians: Vec<[u8; 20]>,
