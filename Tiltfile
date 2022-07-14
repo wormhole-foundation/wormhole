@@ -466,22 +466,51 @@ if ci_tests:
     )
 
     docker_build(
-        ref = "tests-image",
+        ref = "bridge-ui-test-image",
         context = ".",
-        dockerfile = "testing/Dockerfile.tests",
+        dockerfile = "testing/Dockerfile.bridge_ui.test",
+        only = [],
+        live_update = [
+            sync("./testing", "/app/testing"),
+            sync("./bridge_ui/src", "/app/bridge_ui/src"),
+        ],
+    )
+    docker_build(
+        ref = "sdk-test-image",
+        context = ".",
+        dockerfile = "testing/Dockerfile.sdk.test",
+        only = [],
+        live_update = [
+            sync("./sdk/js/src", "/app/sdk/js/src"),
+            sync("./testing", "/app/testing"),
+        ],
+    )
+    docker_build(
+        ref = "spydk-test-image",
+        context = ".",
+        dockerfile = "testing/Dockerfile.spydk.test",
         only = [],
         live_update = [
             sync("./spydk/js/src", "/app/spydk/js/src"),
-            sync("./sdk/js/src", "/app/sdk/js/src"),
             sync("./testing", "/app/testing"),
-            sync("./bridge_ui/src", "/app/bridge_ui/src"),
         ],
     )
 
     k8s_yaml_with_ns("devnet/tests.yaml")
 
+    # separate resources to parallelize docker builds
     k8s_resource(
-        "ci-tests",
+        "bridge-ui-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+    )
+    k8s_resource(
+        "sdk-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+    )
+    k8s_resource(
+        "spydk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
     )
