@@ -167,7 +167,6 @@ export async function queryBalanceOnTerra(asset: string): Promise<number> {
     let coins: any;
     let pagnation: any;
     [coins, pagnation] = await lcd.bank.balance(wallet.key.accAddress);
-    console.log("wallet query returned: %o", coins);
     if (coins) {
       let coin = coins.get(asset);
       if (coin) {
