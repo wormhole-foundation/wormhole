@@ -1,19 +1,6 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
 FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5 AS solana
 
-RUN apt-get update && \
-    apt-get install -y \
-    clang \
-    libssl-dev \
-    libudev-dev \
-    llvm \
-    pkg-config \
-    zlib1g-dev \
-    && \
-    rm -rf /var/lib/apt/lists/* && \
-    rustup component add rustfmt && \
-    rustup default nightly-2021-12-03
-
 # Support additional root CAs
 COPY cert.pem* /certs/
 # Debian
@@ -23,6 +10,7 @@ RUN sh -c "$(curl -sSfL https://release.solana.com/v1.9.4/install)"
 
 ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
 
+COPY rust-toolchain .
 # Solana does a questionable download at the beginning of a *first* build-bpf call. Trigger and layer-cache it explicitly.
 RUN cargo init --lib /tmp/decoy-crate && \
     cd /tmp/decoy-crate && cargo build-bpf && \
@@ -36,7 +24,7 @@ RUN touch /tmp/foo.so && \
 # Add bridge contract sources
 WORKDIR /usr/src/bridge
 
-ADD . .
+COPY . .
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV RUST_BACKTRACE=1
