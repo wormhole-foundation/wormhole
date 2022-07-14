@@ -40,6 +40,7 @@ use token_bridge::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
+        PayloadTransferWithPayload
     },
     types::Config,
 };
