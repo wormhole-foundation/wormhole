@@ -482,7 +482,6 @@ if ci_tests:
 
     k8s_resource(
         "ci-tests",
-        resource_deps = ["eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "terra2-terrad", "terra2-fcd", "solana-devnet", "spy", "guardian"],
         labels = ["ci"],
         trigger_mode = trigger_mode,
     )
