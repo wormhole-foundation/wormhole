@@ -40,7 +40,6 @@ export async function relay(
     const transferPayload = parseTransferPayload(
       Buffer.from(parsedVAA.payload)
     );
-      
     const chainConfigInfo = getChainConfigInfo(transferPayload.targetChain);
     if (!chainConfigInfo) {
       logger.error("relay: improper chain ID: " + transferPayload.targetChain);
@@ -52,7 +51,6 @@ export async function relay(
           " not supported",
       };
     }
-
     if (isEVMChain(transferPayload.targetChain)) {
       console.log("in relay.ts EVM Chain")
       const unwrapNative =
