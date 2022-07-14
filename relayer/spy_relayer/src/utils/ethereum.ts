@@ -7,7 +7,7 @@ export async function getEthereumToken(
 ) {
   // @ts-ignore
   const token = TokenImplementation__factory.connect(tokenAddress, provider);
-  return token;
+  return token; 
 }
 
 
