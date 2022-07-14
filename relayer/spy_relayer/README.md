@@ -29,7 +29,7 @@ docker build -f Dockerfile -t guardian .
 To run the docker image in TestNet:
 
 ```
-docker run -p 7073:7073 --entrypoint /guardiand guardian spy --nodeKey /tmp/node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt
+docker run -p 7073:7073 --entrypoint /guardiand guardian spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt
 ```
 
 To run spy_relay:
