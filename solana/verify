@@ -59,7 +59,7 @@ jq '.account.data[0]' "$account_json" | sed s/\"//g | base64 -d > "$account_dump
 # so we drop these bytes. Presumably those bytes correspond to an encoded rust
 # enum constructor?
 # Set the block size to 37 bytes and skip the first block.
-dd bs=37 skip=1 if=/tmp/account.dump of=/tmp/bytecode.dump 2>/dev/null
+dd bs=37 skip=1 if="$account_dump" of=/tmp/bytecode.dump 2>/dev/null
 
 hash1=$(sha256sum /tmp/bytecode.dump | cut -f1 -d' ')
 hash2=$(sha256sum "$obj_file" | cut -f1 -d' ')
@@ -74,5 +74,7 @@ if [ "$hash1" == "$hash2" ]; then
   exit 0;
 else
   printf "\033[0;31mFailed to verify\033[0m\n" >&2;
+  echo "JSON: $account_json" >&2;
+  echo "Dump: $account_dump" >&2;
   exit 1;
 fi
