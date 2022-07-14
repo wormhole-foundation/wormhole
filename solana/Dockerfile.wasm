@@ -8,7 +8,7 @@ RUN rustup default nightly-2022-01-02
 WORKDIR /usr/src/bridge
 
 # Support additional root CAs
-COPY devnet_setup.sh cert.pem* /certs/
+COPY cert.pem* /certs/
 # Debian
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 
