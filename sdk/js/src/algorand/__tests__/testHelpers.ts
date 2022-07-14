@@ -59,7 +59,6 @@ export async function getGenesisAccounts(): Promise<Account[]> {
   // Walk walles to find correct wallet
   let myWalletId: string = "";
   wallets.forEach((element: any) => {
-    // console.log(element);
     if (element.name === KMD_WALLET_NAME) {
       myWalletId = element.id;
     }
@@ -73,24 +72,20 @@ export async function getGenesisAccounts(): Promise<Account[]> {
   const myWalletHandle = (
     await kmd.initWalletHandle(myWalletId, KMD_WALLET_PASSWORD)
   ).wallet_handle_token;
-  // console.log("myWalletHandle:", myWalletHandle);
 
   // Get the 3 addresses associated with the Genesis wallet
   const addresses = (await kmd.listKeys(myWalletHandle)).addresses;
-  // console.log("addresses:", addresses);
   for (let i = 0; i < addresses.length; i++) {
     const element = addresses[i];
     const myExportedKey: Buffer = (
       await kmd.exportKey(myWalletHandle, KMD_WALLET_PASSWORD, element)
     ).private_key;
-    // console.log("exported key:", element, myExportedKey);
     let mn = algosdk.secretKeyToMnemonic(myExportedKey);
     let ta = algosdk.mnemonicToSecretKey(mn);
 
     retval.push(ta);
   }
   kmd.releaseWalletHandle(myWalletHandle);
-  // console.log("length of genesis accounts:", retval.length);
   return retval;
 }
 
@@ -99,9 +94,8 @@ export async function firstKmdTransaction() {
     const genAccounts = await getGenesisAccounts();
 
     // const walletRsp = await myKmdClient.getWallet(myWalletHandle);
-    // console.log("walletRsp:", walletRsp);
   } catch (e) {
-    console.log("KMD transaction error:", e);
+    console.error("KMD transaction error:", e);
   }
 }
 
@@ -116,7 +110,6 @@ export async function getTempAccounts(): Promise<Account[]> {
     console.error("Failed to get genesisAccounts");
     return retval;
   }
-  // console.log("About to construct txns...");
   const params = await algodClient.getTransactionParams().do();
   let transactions: Transaction[] = [];
   for (let i = 0; i < numAccts; i++) {
@@ -126,12 +119,6 @@ export async function getTempAccounts(): Promise<Account[]> {
     }
     let fundingAcct = genesisAccounts[i];
     // Create a payment transaction
-    // console.log(
-    //     "Creating paytxn with fundAcct",
-    //     fundingAcct,
-    //     "newAcct",
-    //     newAcct
-    // );
     const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
       from: fundingAcct.addr,
       to: newAcct.addr,
@@ -139,14 +126,10 @@ export async function getTempAccounts(): Promise<Account[]> {
       suggestedParams: params,
     });
     // Sign the transaction
-    // console.log("signing paytxn...");
     const signedTxn = payTxn.signTxn(fundingAcct.sk);
     const signedTxnId = payTxn.txID().toString();
-    // console.log("signedTxnId:", signedTxnId);
     // Submit the transaction
-    // console.log("submitting transaction...");
     const txId = await algodClient.sendRawTransaction(signedTxn).do();
-    // console.log("submitted txId:", txId);
     // Wait for response
     const confirmedTxn = await algosdk.waitForConfirmation(
       algodClient,
@@ -154,24 +137,7 @@ export async function getTempAccounts(): Promise<Account[]> {
       4
     );
     //Get the completed Transaction
-    // console.log(
-    //     "Transaction " +
-    //         txId +
-    //         " confirmed in round " +
-    //         confirmedTxn["confirmed-round"]
-    // );
-    // console.log("Confirmation response:", confirmedTxn);
-    // let mytxinfo = JSON.stringify(confirmedTxn.txn.txn, undefined, 2);
-    // console.log("Transaction information: %o", mytxinfo);
-    //        let string = new TextDecoder().decode(confirmedTxn.txn.txn.note);
-    //        console.log("Note field: ", string);
     let accountInfo = await algodClient.accountInformation(newAcct.addr).do();
-    // console.log(
-    //     "Transaction Amount: %d microAlgos",
-    //     confirmedTxn.txn.txn.amt
-    // );
-    // console.log("Transaction Fee: %d microAlgos", confirmedTxn.txn.txn.fee);
-    // console.log("Account balance: %d microAlgos", accountInfo.amount);
     retval.push(newAcct);
   }
   return retval;
@@ -180,15 +146,9 @@ export async function getTempAccounts(): Promise<Account[]> {
 export function createAccount(): Account | undefined {
   try {
     const retval = algosdk.generateAccount();
-    // let retval = new Account(tempAcct.addr, Buffer.from(tempAcct.sk));
-    // let account_mnemonic = algosdk.secretKeyToMnemonic(tempAcct.sk);
-    // console.log("Account Address = " + retval.addr);
-    // console.log("Account Mnemonic = " + account_mnemonic);
-    // console.log("Class Account:", retval);
-
     return retval;
   } catch (err) {
-    console.log("err", err);
+    console.error("err", err);
   }
 }
 
@@ -204,21 +164,16 @@ export async function getBalances(
 ): Promise<Map<number, number>> {
   let balances = new Map<number, number>();
   const accountInfo = await client.accountInformation(account).do();
-  console.log("Account Info:", accountInfo);
-  console.log("Account Info|created-assets:", accountInfo["created-assets"]);
 
   // Put the algo balance in key 0
   balances.set(0, accountInfo.amount);
 
   const assets: Array<any> = accountInfo.assets;
-  console.log("assets", assets);
   assets.forEach(function (asset) {
-    console.log("inside foreach", asset);
     const assetId = asset["asset-id"];
     const amount = asset.amount;
     balances.set(assetId, amount);
   });
-  console.log("balances", balances);
   return balances;
 }
 
@@ -252,7 +207,6 @@ export async function getBalance(
 }
 
 export async function createAsset(account: Account): Promise<any> {
-  console.log("Creating asset...");
   const aClient = getAlgoClient();
   const params = await aClient.getTransactionParams().do();
   const note = undefined; // arbitrary data to be stored in the transaction; here, none is stored
@@ -307,26 +261,17 @@ export async function createAsset(account: Account): Promise<any> {
   );
 
   const rawSignedTxn = txn.signTxn(account.sk);
-  // console.log("rawSignedTxn:", rawSignedTxn);
   const tx = await aClient.sendRawTransaction(rawSignedTxn).do();
 
   // wait for transaction to be confirmed
   const ptx = await algosdk.waitForConfirmation(aClient, tx.txId, 4);
-  // console.log("createAsset() - ptx:", ptx);
   // Get the new asset's information from the creator account
   const assetID: number = ptx["asset-index"];
   //Get the completed Transaction
-  console.log(
-    "createAsset() - Transaction " +
-      tx.txId +
-      " confirmed in round " +
-      ptx["confirmed-round"]
-  );
   return assetID;
 }
 
 export async function createNFT(account: Account): Promise<number> {
-  console.log("Creating NFT...");
   const aClient = getAlgoClient();
   const params = await aClient.getTransactionParams().do();
   // Asset creation specific parameters
@@ -377,19 +322,12 @@ export async function createNFT(account: Account): Promise<number> {
   });
 
   const rawSignedTxn = txn.signTxn(account.sk);
-  // console.log("rawSignedTxn:", rawSignedTxn);
   const tx = await aClient.sendRawTransaction(rawSignedTxn).do();
 
   // wait for transaction to be confirmed
   const ptx = await algosdk.waitForConfirmation(aClient, tx.txId, 4);
   // Get the new asset's information from the creator account
   const assetID: number = ptx["asset-index"];
-  console.log(
-    "createNFT() - Transaction " +
-      tx.txId +
-      " confirmed in round " +
-      ptx["confirmed-round"]
-  );
   return assetID;
 }
 
