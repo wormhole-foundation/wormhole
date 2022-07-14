@@ -1,6 +1,6 @@
 [submodule "relayer/spy_relayer/xRaydium"]
 	path = relayer/spy_relayer/xRaydium
-	url = https://github.com/JoeHowarth/xRaydium
+    url = ssh://git@github.com:JoeHowarth/xRaydium.git
 [submodule "relayer/spy_relayer/src/xRaydium"]
 	path = relayer/spy_relayer/src/xRaydium
-	url = https://github.com/JoeHowarth/xRaydium
+	url = ssh://git@github.com:JoeHowarth/xRaydium.git
