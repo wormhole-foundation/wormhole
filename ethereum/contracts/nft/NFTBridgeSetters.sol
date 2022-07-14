@@ -54,4 +54,8 @@ contract NFTBridgeSetters is NFTBridgeState {
     function clearSplCache(uint256 tokenId) internal {
         delete _state.splCache[tokenId];
     }
+
+    function setFinality(uint8 finality) internal {
+        _state.provider.finality = finality;
+    }
 }

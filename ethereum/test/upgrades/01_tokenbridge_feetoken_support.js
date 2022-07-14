@@ -25,6 +25,7 @@ contract("Update Bridge", function (accounts) {
     let WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
     const testForeignChainId = "1";
     const testForeignBridgeContract = "0x000000000000000000000000000000000000000000000000000000000000ffff";
+    const testFinality = 15;
 
     const currentImplementation = "0x6c4c12987303b2c94b2C76c612Fc5F4D2F0360F7";
     let bridgeProxy;
@@ -39,7 +40,8 @@ contract("Update Bridge", function (accounts) {
             testGovernanceChainId,
             testGovernanceContract,
             TokenImplementation.address,
-            WETH
+            WETH,
+            testFinality
         ).encodeABI();
 
         const deploy = await TokenBridge.new(BridgeSetup.address, initData);

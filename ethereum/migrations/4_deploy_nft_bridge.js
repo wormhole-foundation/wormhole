@@ -9,6 +9,7 @@ const Wormhole = artifacts.require("Wormhole");
 const chainId = process.env.BRIDGE_INIT_CHAIN_ID;
 const governanceChainId = process.env.BRIDGE_INIT_GOV_CHAIN_ID;
 const governanceContract = process.env.BRIDGE_INIT_GOV_CONTRACT; // bytes32
+const finality = process.env.BRIDGE_INIT_FINALITY;
 
 module.exports = async function (deployer) {
     // deploy token implementation
@@ -28,7 +29,8 @@ module.exports = async function (deployer) {
         (await Wormhole.deployed()).address,
         governanceChainId,
         governanceContract,
-        TokenImplementation.address
+        TokenImplementation.address,
+        finality
     ).encodeABI();
 
     // deploy proxy

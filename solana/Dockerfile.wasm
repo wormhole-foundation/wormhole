@@ -8,7 +8,7 @@ RUN rustup default nightly-2022-01-02
 WORKDIR /usr/src/bridge
 
 # Support additional root CAs
-COPY devnet_setup.sh cert.pem* /certs/
+COPY cert.pem* /certs/
 # Debian
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 
@@ -73,12 +73,12 @@ RUN --mount=type=cache,target=/root/.cache \
 
 FROM scratch AS export
 
-COPY --from=build /usr/src/bridge/bridge/program/bundler sdk/js/src/solana/core
-COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler sdk/js/src/solana/token
-COPY --from=build /usr/src/bridge/migration/bundler sdk/js/src/solana/migration
-COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler sdk/js/src/solana/nft
+COPY --from=build /usr/src/bridge/bridge/program/bundler sdk/js-wasm/src/core
+COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler sdk/js-wasm/src/token
+COPY --from=build /usr/src/bridge/migration/bundler sdk/js-wasm/src/migration
+COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler sdk/js-wasm/src/nft
 
-COPY --from=build /usr/src/bridge/bridge/program/nodejs sdk/js/src/solana/core-node
-COPY --from=build /usr/src/bridge/modules/token_bridge/program/nodejs sdk/js/src/solana/token-node
-COPY --from=build /usr/src/bridge/migration/nodejs sdk/js/src/solana/migration-node
-COPY --from=build /usr/src/bridge/modules/nft_bridge/program/nodejs sdk/js/src/solana/nft-node
+COPY --from=build /usr/src/bridge/bridge/program/nodejs sdk/js-wasm/src/core-node
+COPY --from=build /usr/src/bridge/modules/token_bridge/program/nodejs sdk/js-wasm/src/token-node
+COPY --from=build /usr/src/bridge/migration/nodejs sdk/js-wasm/src/migration-node
+COPY --from=build /usr/src/bridge/modules/nft_bridge/program/nodejs sdk/js-wasm/src/nft-node

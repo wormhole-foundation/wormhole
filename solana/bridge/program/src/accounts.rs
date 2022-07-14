@@ -7,11 +7,13 @@ pub mod posted_vaa;
 pub mod sequence;
 pub mod signature_set;
 
-pub use self::bridge::*;
-pub use self::claim::*;
-pub use self::fee_collector::*;
-pub use self::guardian_set::*;
-pub use self::posted_message::*;
-pub use self::posted_vaa::*;
-pub use self::sequence::*;
-pub use self::signature_set::*;
+pub use self::{
+    bridge::*,
+    claim::*,
+    fee_collector::*,
+    guardian_set::*,
+    posted_message::*,
+    posted_vaa::*,
+    sequence::*,
+    signature_set::*,
+};

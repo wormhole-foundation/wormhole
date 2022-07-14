@@ -1,7 +1,7 @@
 version: v1beta1
 plugins:
   - name: tsproto
-    out: sdk/js/src/proto
+    out: sdk/js-proto-web/src
     path: tools/node_modules/.bin/protoc-gen-ts_proto
     opt:
       - paths=source_relative
@@ -10,7 +10,7 @@ plugins:
       - forceLong=string
       - outputClientImpl=grpc-web
   - name: tsproto
-    out: spydk/js/src/proto
+    out: sdk/js-proto-node/src
     path: tools/node_modules/.bin/protoc-gen-ts_proto
     opt:
       - paths=source_relative

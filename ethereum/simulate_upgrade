@@ -1,0 +1,150 @@
+#!/bin/bash
+
+set -euo pipefail
+
+function usage() {
+cat <<EOF >&2
+Usage:
+
+  $(basename "$0") [-h] [-m s] [-c s] [-x] [-k] [-d] [-a s] [-l s] -- Simulate an upgrade on a fork of mainnet, and check for any errors.
+
+  where:
+    -h  show this help text
+    -m  module (bridge, token_bridge, nft_bridge)
+    -c  chain name
+    -x  run anvil
+    -d  don't compile contract first
+    -k  keep anvil alive
+    -l  file to loge to (by default creates a new tmp file)
+    -a  new code address (by default it builds the most recent contract in the repository)
+EOF
+exit 1
+}
+
+before=$(mktemp)
+after=$(mktemp)
+
+### Parse command line options
+address=""
+module=""
+chain_name=""
+run_anvil=false
+skip_compile=false
+keepalive_anvil=false
+anvil_out=$(mktemp)
+while getopts ':hm:c:a:xkdl:' option; do
+  case "$option" in
+    h) usage
+       ;;
+    m) module=$OPTARG
+       ;;
+    a) address=$OPTARG
+       ;;
+    c) chain_name=$OPTARG
+       ;;
+    x) run_anvil=true
+       ;;
+    d) skip_compile=true
+       ;;
+    l) anvil_out=$OPTARG
+       ;;
+    k) keepalive_anvil=true
+       run_anvil=true
+       ;;
+    :) printf "missing argument for -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+   \?) printf "illegal option: -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+[ -z "$chain_name" ] && usage
+[ -z "$module" ] && usage
+
+CORE=$(worm contract mainnet "$chain_name" Core)
+echo "core: $CORE"
+
+
+GUARDIAN_ADDRESS=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
+
+ANVIL_PID=""
+
+function clean_up () {
+    ARG=$?
+    [ -n "$ANVIL_PID" ] && kill "$ANVIL_PID"
+    exit $ARG
+}
+trap clean_up EXIT
+
+
+#TODO: make RPC an optional argument
+HOST="http://localhost"
+PORT="8545"
+RPC="$HOST:$PORT"
+
+if [[ $run_anvil = true ]]; then
+    anvil --port $PORT --fork-url "$(worm rpc mainnet $chain_name)" --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect" > "$anvil_out" &
+    ANVIL_PID=$!
+    echo "🍴 Forking mainnet..."
+    echo "Anvil logs in $anvil_out"
+    sleep 5
+    # ps | grep "$ANVIL_PID"
+fi
+
+MODULE=""
+SCRIPT=""
+case "$module" in
+    bridge|core)
+        MODULE=Core
+        SCRIPT="scripts/deploy_core_bridge.js"
+        ;;
+    token_bridge)
+        MODULE=TokenBridge
+        SCRIPT="scripts/deploy_token_bridge.js"
+        ;;
+    nft_bridge)
+        MODULE=NFTBridge
+        SCRIPT="scripts/deploy_nft_bridge.js"
+        ;;
+    *) echo "unknown module $module" >&2
+       usage
+       ;;
+esac
+
+CONTRACT=$(worm contract mainnet "$chain_name" "$MODULE")
+
+if [[ -n "$address" ]]; then
+    new_implementation="$address"
+else
+    if [[ $skip_compile = false ]]; then
+        echo "🛠  Compiling contract..."
+        build_output=$(npm run build) || ( echo "$build_output" && exit 1 )
+    fi
+    printf "⬆️  Deploying implementation..."
+    deploy_output=$(npx truffle exec $SCRIPT --network development) || ( echo "$deploy_output" && exit 1 )
+    new_implementation=$(echo "$deploy_output" | grep "address:" | cut -d' ' -f3)
+fi
+printf " %s\n" "$new_implementation"
+vaa=$(worm generate upgrade -c "$chain_name" -a "$new_implementation" -m $MODULE -g "$GUARDIAN_SECRET")
+
+echo "💂 Overriding guardian set with $GUARDIAN_ADDRESS"
+worm evm hijack -g "$GUARDIAN_ADDRESS" -i 0 -a "$CORE" --rpc "$RPC"> /dev/null
+
+echo "🔍 Querying old contract state"
+worm evm info -c "$chain_name" -m $MODULE -n devnet -a "$CONTRACT" --rpc "$RPC" | grep -v '"implementation":' > "$before"
+echo "🤝 Submitting VAA"
+worm submit "$vaa" -n devnet -a "$CONTRACT" --rpc "$RPC" > /dev/null
+echo "🔍 Querying new contract state"
+worm evm info -c "$chain_name" -m $MODULE -n devnet -a "$CONTRACT" --rpc "$RPC" | grep -v '"implementation":' > "$after"
+
+git diff --no-index "$before" "$after" --exit-code && echo "✅ Upgrade simulation successful" || exit 1
+
+if [[ $keepalive_anvil = true ]]; then
+    echo "Listening on $RPC"
+    # tail -f "$anvil_out"
+    wait "$ANVIL_PID"
+fi

@@ -4,7 +4,7 @@ RUN apt update && apt install curl git gcc libc-dev
 
 WORKDIR /app
 
-ADD go.mod .
-ADD go.sum .
+COPY go.mod .
+COPY go.sum .
 
 RUN go build -o /bin/abigen github.com/celo-org/celo-blockchain/cmd/abigen

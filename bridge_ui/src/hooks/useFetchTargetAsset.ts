@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA2,
   getForeignAssetAlgorand,
   getForeignAssetEth,
   getForeignAssetSolana,
@@ -53,6 +54,7 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   getTerraConfig,
 } from "../utils/consts";
+import { queryExternalId } from "../utils/terra";
 
 function useFetchTargetAsset(nft?: boolean) {
   const dispatch = useDispatch();
@@ -117,20 +119,39 @@ function useFetchTargetAsset(nft?: boolean) {
       return;
     }
     setLastSuccessfulArgs(null);
-    if (isSourceAssetWormholeWrapped && originChain === targetChain) {
-      dispatch(
-        setTargetAsset(
-          receiveDataWrapper({
-            doesExist: true,
-            address: hexToNativeAssetString(originAsset, originChain) || null,
-          })
-        )
-      );
-      setArgs();
-      return;
-    }
     let cancelled = false;
     (async () => {
+      if (isSourceAssetWormholeWrapped && originChain === targetChain) {
+        if (originChain === CHAIN_ID_TERRA2) {
+          const tokenId = await queryExternalId(originAsset || "");
+          if (!cancelled) {
+            dispatch(
+              setTargetAsset(
+                receiveDataWrapper({
+                  doesExist: true,
+                  address: tokenId || null,
+                })
+              )
+            );
+          }
+        } else {
+          if (!cancelled) {
+            dispatch(
+              setTargetAsset(
+                receiveDataWrapper({
+                  doesExist: true,
+                  address:
+                    hexToNativeAssetString(originAsset, originChain) || null,
+                })
+              )
+            );
+          }
+        }
+        if (!cancelled) {
+          setArgs();
+        }
+        return;
+      }
       if (
         isEVMChain(targetChain) &&
         provider &&

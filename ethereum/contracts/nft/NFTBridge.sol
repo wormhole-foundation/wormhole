@@ -94,7 +94,7 @@ contract NFTBridge is NFTBridgeGovernance {
 
         sequence = wormhole().publishMessage{
             value : callValue
-        }(nonce, encoded, 15);
+        }(nonce, encoded, finality());
     }
 
     function completeTransfer(bytes memory encodedVm) public {

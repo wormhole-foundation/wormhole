@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA2,
   getOriginalAssetAlgorand,
   getOriginalAssetCosmWasm,
   getOriginalAssetEth,
@@ -39,6 +40,7 @@ import {
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { queryExternalId } from "../utils/terra";
 import useIsWalletReady from "./useIsWalletReady";
 
 export type OriginalAssetInfo = {
@@ -228,12 +230,18 @@ function useOriginalAsset(
         if (!cancelled) {
           setIsLoading(false);
           setArgs();
-          setOriginAddress(
-            hexToNativeAssetString(
-              uint8ArrayToHex(result.assetAddress),
-              result.chainId
-            ) || null
-          );
+          if (result.chainId === CHAIN_ID_TERRA2) {
+            queryExternalId(uint8ArrayToHex(result.assetAddress)).then(
+              (tokenId) => setOriginAddress(tokenId || null)
+            );
+          } else {
+            setOriginAddress(
+              hexToNativeAssetString(
+                uint8ArrayToHex(result.assetAddress),
+                result.chainId
+              ) || null
+            );
+          }
           setOriginTokenId(result.tokenId || null);
           setOriginChain(result.chainId);
         }

@@ -4,6 +4,7 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_KARURA,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA2,
   getEmitterAddressAlgorand,
   getEmitterAddressEth,
   getEmitterAddressSolana,
@@ -73,6 +74,7 @@ import {
 } from "../utils/consts";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
+import { queryExternalId } from "../utils/terra";
 import ButtonWithLoader from "./ButtonWithLoader";
 import ChainSelect from "./ChainSelect";
 import KeyAndBalance from "./KeyAndBalance";
@@ -378,6 +380,7 @@ export default function Recovery() {
   const [recoverySourceTxError, setRecoverySourceTxError] = useState("");
   const [recoverySignedVAA, setRecoverySignedVAA] = useState("");
   const [recoveryParsedVAA, setRecoveryParsedVAA] = useState<any>(null);
+  const [terra2TokenId, setTerra2TokenId] = useState("");
   const { isReady, statusMessage } = useIsWalletReady(recoverySourceChain);
   const walletConnectError =
     isEVMChain(recoverySourceChain) && !isReady ? statusMessage : "";
@@ -397,6 +400,21 @@ export default function Recovery() {
       return null;
     }
   }, [recoveryParsedVAA, isNFT]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (parsedPayload && parsedPayload.targetChain === CHAIN_ID_TERRA2) {
+      (async () => {
+        const tokenId = await queryExternalId(parsedPayload.originAddress);
+        if (!cancelled) {
+          setTerra2TokenId(tokenId || "");
+        }
+      })();
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [parsedPayload]);
 
   const { search } = useLocation();
   const query = useMemo(() => new URLSearchParams(search), [search]);
@@ -470,6 +488,7 @@ export default function Recovery() {
       } else if (isTerraChain(recoverySourceChain)) {
         setRecoverySourceTxError("");
         setRecoverySourceTxIsLoading(true);
+        setTerra2TokenId("");
         (async () => {
           const { vaa, error } = await terra(
             recoverySourceTx,
@@ -789,12 +808,14 @@ export default function Recovery() {
                   label="Origin Token Address"
                   disabled
                   value={
-                    (parsedPayload &&
-                      hexToNativeAssetString(
-                        parsedPayload.originAddress,
-                        parsedPayload.originChain
-                      )) ||
-                    ""
+                    parsedPayload
+                      ? parsedPayload.targetChain === CHAIN_ID_TERRA2
+                        ? terra2TokenId
+                        : hexToNativeAssetString(
+                            parsedPayload.originAddress,
+                            parsedPayload.originChain
+                          ) || ""
+                      : ""
                   }
                   fullWidth
                   margin="normal"

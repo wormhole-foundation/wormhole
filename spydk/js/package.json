@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-spydk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Wormhole Spy service SDK for use with @certusone/wormhole-sdk",
   "homepage": "https://wormholenetwork.com",
   "main": "./lib/cjs/index.js",
@@ -45,7 +45,7 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
-    "@grpc/grpc-js": "^1.4.4",
-    "protobufjs": "^6.11.2"
+    "@certusone/wormhole-sdk-proto-node": "^0.0.1",
+    "@grpc/grpc-js": "^1.6.7"
   }
 }

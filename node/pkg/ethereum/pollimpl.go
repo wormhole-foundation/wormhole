@@ -244,7 +244,12 @@ func (e *PollImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBl
 			zap.String("requested_block", numStr), zap.Error(err))
 		return nil, err
 	}
-
+	if m.Number == nil {
+		e.logger.Error("failed to unmarshal block", zap.String("eth_network", e.BaseEth.NetworkName),
+			zap.String("requested_block", numStr),
+		)
+		return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
+	}
 	n := big.Int(*m.Number)
 	return &common.NewBlock{
 		Number: &n,

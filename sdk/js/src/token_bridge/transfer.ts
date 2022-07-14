@@ -307,7 +307,6 @@ export async function transferNativeSol(
           WSOL_ADDRESS,
           nonce,
           amount.valueOf(),
-          relayerFee.valueOf(),
           targetAddress,
           coalesceChainId(targetChain),
           payload
@@ -408,7 +407,6 @@ export async function transferFromSolana(
             mintAddress,
             nonce,
             amount.valueOf(),
-            relayerFee.valueOf(),
             targetAddress,
             coalesceChainId(targetChain),
             payload
@@ -438,7 +436,6 @@ export async function transferFromSolana(
           originAddress as Uint8Array, // checked by throw
           nonce,
           amount.valueOf(),
-          relayerFee.valueOf(),
           targetAddress,
           coalesceChainId(targetChain),
           payload

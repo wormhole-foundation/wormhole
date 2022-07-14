@@ -9,6 +9,8 @@ contract NFTBridgeStorage {
     struct Provider {
         uint16 chainId;
         uint16 governanceChainId;
+        // Required number of block confirmations to assume finality
+        uint8 finality;
         bytes32 governanceContract;
     }
 

@@ -46,6 +46,9 @@ type TransferData struct {
 
 // finds all the TokenTransfer rows within the specified period
 func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) []TransferData {
+	if len(tokenAllowlist) == 0 {
+		log.Fatal("tokenAllowlist is empty")
+	}
 	rows := []TransferData{}
 	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
 
@@ -97,7 +100,9 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 			keyParts := strings.Split(row.Key(), ":")
 			t.LeavingChain = keyParts[0]
 
-			rows = append(rows, *t)
+			if isTokenAllowed(t.OriginChain, t.TokenAddress) {
+				rows = append(rows, *t)
+			}
 		}
 
 		return true
@@ -193,10 +198,6 @@ func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, pr
 
 			// iterate through the rows and increment the count
 			for _, row := range queryResult {
-				if _, ok := tokensToSkip[row.TokenAddress]; ok {
-					// skip blacklisted token
-					continue
-				}
 				if _, ok := results[dateStr][row.DestinationChain]; !ok {
 					results[dateStr][row.DestinationChain] = map[string]float64{"*": 0}
 				}
@@ -290,10 +291,6 @@ func transfersToForInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 
 	// iterate through the rows and increment the count for each index
 	for _, row := range queryResults {
-		if _, ok := tokensToSkip[row.TokenAddress]; ok {
-			// skip blacklisted token
-			continue
-		}
 		if _, ok := result[row.DestinationChain]; !ok {
 			result[row.DestinationChain] = map[string]float64{"*": 0}
 		}

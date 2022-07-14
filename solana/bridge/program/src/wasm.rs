@@ -33,6 +33,7 @@ use crate::{
     instructions::{
         hash_vaa,
         post_message,
+        post_message_unreliable,
         post_vaa,
         set_fees,
         transfer_fees,
@@ -70,6 +71,34 @@ pub fn post_message_ix(
         _ => panic!("invalid consistency level"),
     };
     let ix = post_message(
+        Pubkey::from_str(program_id.as_str()).unwrap(),
+        Pubkey::from_str(payer.as_str()).unwrap(),
+        Pubkey::from_str(emitter.as_str()).unwrap(),
+        Pubkey::from_str(message.as_str()).unwrap(),
+        nonce,
+        msg,
+        consistency_level,
+    )
+    .unwrap();
+    return JsValue::from_serde(&ix).unwrap();
+}
+
+#[wasm_bindgen]
+pub fn post_message_unreliable_ix(
+    program_id: String,
+    payer: String,
+    emitter: String,
+    message: String,
+    nonce: u32,
+    msg: Vec<u8>,
+    consistency: String,
+) -> JsValue {
+    let consistency_level = match consistency.as_str() {
+        "CONFIRMED" => ConsistencyLevel::Confirmed,
+        "FINALIZED" => ConsistencyLevel::Finalized,
+        _ => panic!("invalid consistency level"),
+    };
+    let ix = post_message_unreliable(
         Pubkey::from_str(program_id.as_str()).unwrap(),
         Pubkey::from_str(payer.as_str()).unwrap(),
         Pubkey::from_str(emitter.as_str()).unwrap(),
@@ -363,7 +392,7 @@ pub fn claim_address(program_id: String, vaa: Vec<u8>) -> Vec<u8> {
 
 #[wasm_bindgen]
 pub fn parse_posted_message(data: Vec<u8>) -> JsValue {
-    JsValue::from_serde(&PostedVAAData::try_from_slice(data.as_slice()).unwrap().0).unwrap()
+    JsValue::from_serde(&PostedVAAData::try_from_slice(data.as_slice()).unwrap().message).unwrap()
 }
 
 #[wasm_bindgen]

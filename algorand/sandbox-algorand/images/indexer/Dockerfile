@@ -1,5 +1,5 @@
 ARG GO_VERSION=1.18.2
-FROM golang:$GO_VERSION-alpine
+FROM golang:$GO_VERSION-alpine@sha256:4795c5d21f01e0777707ada02408debe77fe31848be97cf9fa8a1462da78d949
 
 # Support additional root CAs
 COPY config.dev cert.pem* /certs/

@@ -563,6 +563,7 @@ export default function TokenPicker({
                       }
                       disabled={getIsTokenTransferDisabled(
                         chainId,
+                        targetChain,
                         option.mintKey
                       )}
                     >
@@ -589,7 +590,11 @@ export default function TokenPicker({
                   key={
                     option.publicKey + option.mintKey + (option.tokenId || "")
                   }
-                  disabled={getIsTokenTransferDisabled(chainId, option.mintKey)}
+                  disabled={getIsTokenTransferDisabled(
+                    chainId,
+                    targetChain,
+                    option.mintKey
+                  )}
                 >
                   <RenderOption account={option} />
                 </ListItem>
