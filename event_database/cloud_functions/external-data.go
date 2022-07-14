@@ -107,6 +107,8 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 		return "klay-token"
 	case vaa.ChainIDCelo:
 		return "celo"
+	case vaa.ChainIDTerra2:
+		return "" // TODO
 	case vaa.ChainIDEthereumRopsten:
 		return "ethereum"
 	}
