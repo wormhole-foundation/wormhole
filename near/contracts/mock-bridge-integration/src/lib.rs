@@ -16,11 +16,11 @@ use near_sdk::{env, ext_contract, near_bindgen, AccountId, Balance, Promise, Pro
 use near_sdk::utils::is_promise_success;
 
 const BRIDGE_TOKEN_BINARY: &[u8] = include_bytes!(
-    "../../mock-bridge-token/target/wasm32-unknown-unknown/release/mock_bridge_token.wasm"
+    "../../mock-bridge-token/target/wasm32-unknown-unknown/release/near_mock_bridge_token.wasm"
 );
 
 const BRIDGE_NFT_BINARY: &[u8] =
-    include_bytes!("../../nft-wrapped/target/wasm32-unknown-unknown/release/nft.wasm");
+    include_bytes!("../../nft-wrapped/target/wasm32-unknown-unknown/release/near_nft.wasm");
 
 /// Initial balance for the BridgeToken contract to cover storage and related.
 const BRIDGE_TOKEN_INIT_BALANCE: Balance = 5_860_000_000_000_000_000_000;

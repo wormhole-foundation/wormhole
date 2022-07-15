@@ -57,7 +57,7 @@ const CHAIN_ID_NEAR: u16 = 15;
 const CHAIN_ID_SOL: u16 = 1;
 
 const BRIDGE_NFT_BINARY: &[u8] =
-    include_bytes!("../../nft-wrapped/target/wasm32-unknown-unknown/release/nft.wasm");
+    include_bytes!("../../nft-wrapped/target/wasm32-unknown-unknown/release/near_nft.wasm");
 
 /// Initial balance for the BridgeToken contract to cover storage and related.
 const TRANSFER_BUFFER: u128 = 2000;

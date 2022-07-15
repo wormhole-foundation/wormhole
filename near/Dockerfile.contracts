@@ -7,7 +7,7 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certifi
 # git
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
-RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl --no-recommends
+RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl --no-install-recommends
 
 ADD setup-rust.sh .
 RUN ./setup-rust.sh

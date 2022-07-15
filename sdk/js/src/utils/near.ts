@@ -1,4 +1,4 @@
-const nearAPI = require("near-api-js");
+import nearAPI from "near-api-js";
 
 export function logNearGas(result: any, comment: string) {
   const { totalGasBurned, totalTokensBurned } = result.receipts_outcome.reduce(

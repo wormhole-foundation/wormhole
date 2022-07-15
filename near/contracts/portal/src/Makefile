@@ -1,5 +1,5 @@
 
-../target/wasm32-unknown-unknown/release/portal.wasm: *.rs  ../Cargo.toml
+../target/wasm32-unknown-unknown/release/near_portal.wasm: *.rs  ../Cargo.toml
 	(cd ..; cargo build --target wasm32-unknown-unknown --release)
 
 .PHONY: clippy

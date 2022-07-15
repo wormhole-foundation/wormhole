@@ -54,7 +54,7 @@ const CHAIN_ID_NEAR: u16 = 15;
 const CHAIN_ID_SOL: u16 = 1;
 
 const BRIDGE_TOKEN_BINARY: &[u8] =
-    include_bytes!("../../ft/target/wasm32-unknown-unknown/release/ft.wasm");
+    include_bytes!("../../ft/target/wasm32-unknown-unknown/release/near_ft.wasm");
 
 /// Initial balance for the BridgeToken contract to cover storage and related.
 const TRANSFER_BUFFER: u128 = 1000;

@@ -74,10 +74,10 @@ async function initNear() {
       JSON.stringify(await masterAccount.getAccountBalance())
   );
 
-  const wormholeContract = await fs.readFileSync("./wormhole.wasm");
-  const tokenContract = await fs.readFileSync("./portal.wasm");
-  const nftContract = await fs.readFileSync("./nft_bridge.wasm");
-  const testContract = await fs.readFileSync("./mock_bridge_integration.wasm");
+  const wormholeContract = await fs.readFileSync("./near_wormhole.wasm");
+  const tokenContract = await fs.readFileSync("./near_portal.wasm");
+  const nftContract = await fs.readFileSync("./near_nft_bridge.wasm");
+  const testContract = await fs.readFileSync("./near_mock_bridge_integration.wasm");
 
   let wormholeAccount: any;
 

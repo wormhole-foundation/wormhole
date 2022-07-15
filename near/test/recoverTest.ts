@@ -81,7 +81,7 @@ async function createContractUser(
 }
 
 async function initTest() {
-  const contract = await fs.readFile("./target/wasm32-unknown-unknown/release/wormhole.wasm");
+  const contract = await fs.readFile("./target/wasm32-unknown-unknown/release/near_wormhole.wasm");
 
   const _contractAccount = await masterAccount.createAndDeployContract(
     config.contractAccount,

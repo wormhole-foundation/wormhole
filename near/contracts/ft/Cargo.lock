@@ -344,15 +344,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ft"
-version = "0.1.0"
-dependencies = [
- "hex",
- "near-contract-standards",
- "near-sdk",
-]
-
-[[package]]
 name = "funty"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -501,6 +492,15 @@ dependencies = [
  "serde_json",
  "subtle",
  "thiserror",
+]
+
+[[package]]
+name = "near-ft"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "near-contract-standards",
+ "near-sdk",
 ]
 
 [[package]]

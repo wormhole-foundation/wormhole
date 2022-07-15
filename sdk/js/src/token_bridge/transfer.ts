@@ -46,9 +46,10 @@ import {
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { Account as nearAccount } from "near-api-js";
-const BN = require("bn.js");
 import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
-const nearAPI = require("near-api-js");
+import nearAPI from "near-api-js";
+
+const BN = require("bn.js");
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -775,7 +776,7 @@ export async function transferNearFromNear(
       payload: payload,
       message_fee: message_fee,
     },
-    attachedDeposit: new BN(qty.toString(10)) + new BN(message_fee),
+    attachedDeposit: (new BN(qty.toString(10)) + new BN(message_fee)),
     gas: new BN("100000000000000"),
   });
 

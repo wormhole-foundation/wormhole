@@ -36,8 +36,8 @@ import {
 import { hexToNativeString } from "../utils/array";
 import { parseTransferPayload } from "../utils/parseVaa";
 import { Account as nearAccount } from "near-api-js";
-const nearAPI = require("near-api-js");
-const BN = require("bn.js");
+import BN from "bn.js";
+import nearAPI from "near-api-js";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
