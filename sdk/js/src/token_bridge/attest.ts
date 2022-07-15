@@ -10,6 +10,8 @@ import {
   OnApplicationComplete,
   SuggestedParams,
 } from "algosdk";
+import { Account as nearAccount } from "near-api-js";
+const BN = require("bn.js");
 import { ethers, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
 import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
@@ -19,6 +21,10 @@ import { importTokenWasm } from "../solana/wasm";
 import { textToHexString, textToUint8Array, uint8ArrayToHex } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
+import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
+import { logNearGas } from "../utils/near";
+
+import { getIsWrappedAssetNear } from ".";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -196,4 +202,82 @@ export async function attestFromAlgorand(
   txs.push({ tx: appTxn, signer: null });
 
   return txs;
+}
+
+/**
+ * Attest an already created asset
+ * If you create a new asset on near and want to transfer it elsewhere,
+ * you create an attestation for it on near... pass that vaa to the target chain..
+ * submit it.. then you can transfer from near to that target chain
+ * @param client An Near account client
+ * @param coreBridge The account for the core bridge
+ * @param tokenBridge The account for the token bridge
+ * @param asset The account for the asset
+ * @returns [sequenceNumber, emitter]
+ */
+export async function attestTokenFromNear(
+  client: nearAccount,
+  coreBridge: string,
+  tokenBridge: string,
+  asset: string
+): Promise<[number, string]> {
+  let message_fee = await client.viewFunction(coreBridge, "message_fee", {});
+  // Non-signing event
+  if (!getIsWrappedAssetNear(tokenBridge, asset)) {
+    // Non-signing event that hits the RPC
+    let res = await client.viewFunction(tokenBridge, "hash_account", {
+      account: asset,
+    });
+
+    // if res[0] == false, the account has not been
+    // registered... The first user to attest a non-wormhole token
+    // is gonna have to pay for the space
+    if (!res[0]) {
+      // Signing event
+      await client.functionCall({
+        contractId: tokenBridge,
+        methodName: "register_account",
+        args: { account: asset },
+        gas: new BN("100000000000000"),
+        attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
+      });
+    }
+  }
+
+  // Signing event
+  let result = await client.functionCall({
+    contractId: tokenBridge,
+    methodName: "attest_token",
+    args: { token: asset, message_fee: message_fee },
+    attachedDeposit: new BN("3000000000000000000000") + new BN(message_fee), // 0.003 NEAR
+    gas: new BN("100000000000000"),
+  });
+
+  return parseSequenceFromLogNear(result);
+}
+
+/**
+ * Attest NEAR
+ * @param client An Near account client
+ * @param coreBridge The account for the core bridge
+ * @param tokenBridge The account for the token bridge
+ * @returns [sequenceNumber, emitter]
+ */
+export async function attestNearFromNear(
+  client: nearAccount,
+  coreBridge: string,
+  tokenBridge: string
+): Promise<[number, string]> {
+  let message_fee =
+    (await client.viewFunction(coreBridge, "message_fee", {})) + 1;
+
+  let result = await client.functionCall({
+    contractId: tokenBridge,
+    methodName: "attest_near",
+    args: { message_fee: message_fee },
+    attachedDeposit: new BN(message_fee),
+    gas: new BN("100000000000000"),
+  });
+
+  return parseSequenceFromLogNear(result);
 }

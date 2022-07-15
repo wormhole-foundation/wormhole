@@ -3,6 +3,7 @@ import {
   createWrappedOnAlgorand,
   createWrappedOnSolana,
   createWrappedOnTerra,
+  createWrappedOnNear,
 } from ".";
 import { Bridge__factory } from "../ethers-contracts";
 
@@ -23,3 +24,5 @@ export const updateWrappedOnTerra = createWrappedOnTerra;
 export const updateWrappedOnSolana = createWrappedOnSolana;
 
 export const updateWrappedOnAlgorand = createWrappedOnAlgorand;
+
+export const updateWrappedOnNear = createWrappedOnNear;
