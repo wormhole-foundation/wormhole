@@ -1,4 +1,4 @@
-FROM debian as near-contracts
+FROM debian@sha256:2ce44bbc00a79113c296d9d25524e15d423b23303fdbbe20190d2f96e0aeb251 as near-contracts
 
 # Support additional root CAs
 COPY README.md cert.pem* /certs/
