@@ -11,9 +11,6 @@ RUN apk add python3 \
 
 COPY . .
 
-RUN echo $(ls -1 .)
-RUN echo $(less Dockerfile)
-
 WORKDIR ./relayer/spy_relayer
 
 RUN npm ci && \
