@@ -1,0 +1,30 @@
+FROM debian@sha256:2ce44bbc00a79113c296d9d25524e15d423b23303fdbbe20190d2f96e0aeb251 as near-contracts
+
+# Support additional root CAs
+COPY README.md cert.pem* /certs/
+# Debian
+RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
+# git
+RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
+
+RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl --no-recommends
+
+ADD setup-rust.sh .
+RUN ./setup-rust.sh
+
+RUN mkdir -p /.npm /home/node/appa /home/node/.npm
+WORKDIR /home/node/app
+RUN chown -R 1000:1000 /home/node
+RUN chown -R 1000:1000 /.npm
+
+USER 1000
+
+ADD --chown=1000:1000 package.json .
+ADD --chown=1000:1000 package-lock.json .
+ADD --chown=1000:1000 .env .env
+
+RUN npm ci
+
+ADD --chown=1000:1000 devnet_deploy.* .
+ADD --chown=1000:1000 ./contracts/*/target/wasm32-unknown-unknown/release/*.wasm .
+

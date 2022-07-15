@@ -203,6 +203,12 @@
                 "tokenBridgeEmitterAddress": "8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2"
             }
         },
+        "15": {
+            "contracts": {
+                "tokenBridgeEmitterAddress": "e83c99874cb2d60921648a438606f5ffcf60c2e26ef13678b2e57fab3def6a30",
+                "nftBridgeEmitterAddress": "11aaad1c851095bf97ee1be9ed1161a47187aba8b71bf6821efac391d8ee95f7"
+            }
+        },
         "18": {
             "rpcUrlTilt": "http://terra2-terrad:1317",
             "rpcUrlLocal": "http://localhost:1318",
