@@ -82,6 +82,22 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
   },
+  injective: {
+    rpc: undefined,
+    key: undefined,
+  },
+  osmosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  aptos: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sui: {
+    rpc: undefined,
+    key: undefined,
+  },
   moonbeam: {
     rpc: undefined,
     key: undefined,
@@ -167,6 +183,22 @@ const TESTNET = {
     rpc: undefined,
     key: undefined,
   },
+  injective: {
+    rpc: undefined,
+    key: undefined,
+  },
+  osmosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  aptos: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sui: {
+    rpc: undefined,
+    key: undefined,
+  },
   moonbeam: {
     rpc: "https://rpc.api.moonbase.moonbeam.network",
     key: get_env_var("ETH_KEY_TESTNET"),
@@ -249,6 +281,22 @@ const DEVNET = {
     key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   near: {
+    rpc: undefined,
+    key: undefined,
+  },
+  injective: {
+    rpc: undefined,
+    key: undefined,
+  },
+  osmosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  aptos: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sui: {
     rpc: undefined,
     key: undefined,
   },
