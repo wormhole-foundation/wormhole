@@ -634,6 +634,7 @@ export async function transferFromAlgorand(
 /**
  * Transfers an asset from Near to a receiver on another chain
  * @param client
+ * @param coreBridge account 
  * @param tokenBridge account of the token bridge
  * @param assetId account
  * @param qty Quantity to transfer
@@ -641,7 +642,7 @@ export async function transferFromAlgorand(
  * @param chain Reeiving chain
  * @param fee Transfer fee
  * @param payload payload for payload3 transfers
- * @returns Sequence number of confirmation
+ * @returns [Sequence number of confirmation, emitter]
  */
 export async function transferTokenFromNear(
   client: nearAccount,
@@ -743,13 +744,14 @@ export async function transferTokenFromNear(
 /**
  * Transfers NEAR from Near to a receiver on another chain
  * @param client
+ * @param coreBridge account 
  * @param tokenBridge account of the token bridge
  * @param qty Quantity to transfer
  * @param receiver Receiving account
  * @param chain Reeiving chain
  * @param fee Transfer fee
  * @param payload payload for payload3 transfers
- * @returns Sequence number of confirmation
+ * @returns [Sequence number of confirmation, emitter]
  */
 export async function transferNearFromNear(
   client: nearAccount,

@@ -273,7 +273,7 @@ export async function redeemOnNear(
     p.Contract as string
   );
 
-  if (token == "") {
+  if (token === "") {
     throw new Error("Unregistered token (this been attested yet?)");
   }
 
