@@ -116,34 +116,34 @@ func inspectBody(e *Watcher, logger *zap.Logger, block uint64, body gjson.Result
 		}
 		receipts := gjson.ParseBytes(chunk).Get("result.receipts")
 		if !receipts.Exists() {
-			logger.Info("NoReceipts");
-			return nil;
+			logger.Info("NoReceipts")
+			return nil
 		}
 		for _, r := range receipts.Array() {
-			v := r.Get("predecessor_id");
+			v := r.Get("predecessor_id")
 			if !v.Exists() {
-				logger.Info("redecessor_id");
-				return nil;
+				logger.Info("redecessor_id")
+				return nil
 
 			}
 			p := v.String()
 			if strings.HasSuffix(p, e.wormholeContract) {
 				a := r.Get("receipt.Action.actions.#.FunctionCall")
 				if !a.Exists() {
-					logger.Info("receipt.Action.actions.#.FunctionCall");
-					return nil;
+					logger.Info("receipt.Action.actions.#.FunctionCall")
+					return nil
 				}
 				for _, c := range a.Array() {
 					v = c.Get("method_name")
 					if !v.Exists() {
-						logger.Info("method_name");
-						return nil;
+						logger.Info("method_name")
+						return nil
 					}
 					if v.String() == "message_published" {
 						v = c.Get("args")
 						if !v.Exists() {
-							logger.Info("args");
-							return nil;
+							logger.Info("args")
+							return nil
 						}
 						args := v.String()
 						rawDecodedText, err := base64.StdEncoding.DecodeString(args)
@@ -155,32 +155,32 @@ func inspectBody(e *Watcher, logger *zap.Logger, block uint64, body gjson.Result
 
 						v = logs.Get("emitter")
 						if !v.Exists() {
-							logger.Info("emitter");
-							return nil;
+							logger.Info("emitter")
+							return nil
 						}
 
-						em := v.String();
+						em := v.String()
 
-						logger.Info("text", zap.String("text", string(rawDecodedText)), zap.String("emitter", em));
+						logger.Info("text", zap.String("text", string(rawDecodedText)), zap.String("emitter", em))
 
-						emitter, err := hex.DecodeString(em);
+						emitter, err := hex.DecodeString(em)
 						if err != nil {
 							return err
 						}
 
 						if len(emitter) != 32 {
-							logger.Error("wtf");
+							logger.Error("wtf")
 						}
 
 						var a vaa.Address
-						copy(a[:], emitter);
+						copy(a[:], emitter)
 
-						// Still never found the txid in the block...    damn it...  we shall use receipt_id until we know better?  We could 
-                                                // use the chunk_id...  hmmmmm
+						// Still never found the txid in the block...    damn it...  we shall use receipt_id until we know better?  We could
+						// use the chunk_id...  hmmmmm
 						v = r.Get("receipt_id")
 						if !v.Exists() {
-							logger.Info("receipt_id");
-							return nil;
+							logger.Info("receipt_id")
+							return nil
 						}
 
 						id, err := base58.Decode(v.String())
@@ -196,8 +196,8 @@ func inspectBody(e *Watcher, logger *zap.Logger, block uint64, body gjson.Result
 
 						v = logs.Get("data")
 						if !v.Exists() {
-							logger.Info("data");
-							return nil;
+							logger.Info("data")
+							return nil
 						}
 						pl, err := hex.DecodeString(v.String())
 						if err != nil {
@@ -206,10 +206,10 @@ func inspectBody(e *Watcher, logger *zap.Logger, block uint64, body gjson.Result
 
 						v = body.Get("result.header.timestamp")
 						if !v.Exists() {
-							logger.Info("result.header.timestamp");
-							return nil;
+							logger.Info("result.header.timestamp")
+							return nil
 						}
-						ts := uint64(v.Uint()) / 1000000000;
+						ts := uint64(v.Uint()) / 1000000000
 						observation := &common.MessagePublication{
 							TxHash:           txHash,
 							Timestamp:        time.Unix(int64(ts), 0),
@@ -321,16 +321,24 @@ func (e *Watcher) Run(ctx context.Context) error {
 					parsedFinalBody := gjson.ParseBytes(finalBody)
 					lastBlock := parsedFinalBody.Get("result.chunks.0.height_created").Uint()
 
-					logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round));
+					logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round))
 
 					if lastBlock < e.next_round {
-						logger.Info("Went backwards... ");
-						e.next_round = lastBlock;
+						logger.Info("Went backwards... ")
+						e.next_round = lastBlock
 					}
 
 					for ; e.next_round <= lastBlock; e.next_round = e.next_round + 1 {
 						if e.next_round == lastBlock {
-							inspectBody(e, logger, e.next_round, parsedFinalBody)
+							err := inspectBody(e, logger, e.next_round, parsedFinalBody)
+							if err != nil {
+								logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
+
+								p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+								errC <- err
+								return
+
+							}
 						} else {
 							b, err := getBlock(e, e.next_round)
 							if err != nil {
@@ -341,7 +349,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 								return
 
 							} else {
-								inspectBody(e, logger, e.next_round, gjson.ParseBytes(b))
+								err := inspectBody(e, logger, e.next_round, gjson.ParseBytes(b))
+								if err != nil {
+									logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
+
+									p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+									errC <- err
+									return
+
+								}
 							}
 						}
 					}
