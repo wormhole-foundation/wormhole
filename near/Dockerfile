@@ -1,4 +1,4 @@
-FROM rust:1.60 as near-node
+FROM rust:1.60@sha256:48d3b5baf199dc7c378e775c47b0c40aaf7d8b23eaf67e15b095bbdaaecd1f10 as near-node
 
 # Support additional root CAs
 COPY README.md cert.pem* /certs/
