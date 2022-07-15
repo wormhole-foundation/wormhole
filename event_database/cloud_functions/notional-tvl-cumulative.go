@@ -27,10 +27,56 @@ var warmTvlCumulativeCacheFilePath = "tvl-cumulative-cache.json"
 
 var notionalTvlCumulativeResultPath = "notional-tvl-cumulative.json"
 
+var coinGeckoPriceCacheFilePath = "coingecko-price-cache.json"
+var coinGeckoPriceCache = map[string]map[string]float64{}
+var loadedCoinGeckoPriceCache bool
+
 // days to be excluded from the TVL result
 var skipDays = map[string]bool{
 	// for example:
 	// "2022-02-19": true,
+}
+
+func loadAndUpdateCoinGeckoPriceCache(ctx context.Context, coinIds []string, now time.Time) {
+	// at cold-start, load the price cache into memory, and fetch any missing token price histories and add them to the cache
+	if !loadedCoinGeckoPriceCache {
+		// load the price cache
+		loadJsonToInterface(ctx, coinGeckoPriceCacheFilePath, &muWarmTvlCumulativeCache, &coinGeckoPriceCache)
+		loadedCoinGeckoPriceCache = true
+
+		// find tokens missing price history
+		missing := []string{}
+		for _, coinId := range coinIds {
+			found := false
+			for _, prices := range coinGeckoPriceCache {
+				if _, ok := prices[coinId]; ok {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missing = append(missing, coinId)
+			}
+		}
+
+		// fetch missing price histories and add them to the cache
+		priceHistories := fetchTokenPriceHistories(ctx, missing, releaseDay, now)
+		for date, prices := range priceHistories {
+			for coinId, price := range prices {
+				if _, ok := coinGeckoPriceCache[date]; !ok {
+					coinGeckoPriceCache[date] = map[string]float64{}
+				}
+				coinGeckoPriceCache[date][coinId] = price
+			}
+		}
+	}
+
+	// fetch today's latest prices
+	today := now.Format("2006-01-02")
+	coinGeckoPriceCache[today] = fetchTokenPrices(ctx, coinIds)
+
+	// write to the cache file
+	persistInterfaceToJson(ctx, coinGeckoPriceCacheFilePath, &muWarmCumulativeAddressesCache, coinGeckoPriceCache)
 }
 
 // calculates a running total of notional value transferred, by symbol, since the start time specified.
@@ -238,6 +284,22 @@ func ComputeTvlCumulative(w http.ResponseWriter, r *http.Request) {
 
 	transfers := createTvlCumulativeOfInterval(tbl, ctx, start)
 
+	coinIdSet := map[string]bool{}
+	for _, chains := range transfers {
+		for _, assets := range chains {
+			for _, asset := range assets {
+				if asset.CoinGeckoId != "*" {
+					coinIdSet[asset.CoinGeckoId] = true
+				}
+			}
+		}
+	}
+	coinIds := []string{}
+	for coinId := range coinIdSet {
+		coinIds = append(coinIds, coinId)
+	}
+	loadAndUpdateCoinGeckoPriceCache(ctx, coinIds, now)
+
 	// calculate the notional tvl based on the price of the tokens each day
 	for date, chains := range transfers {
 		if _, ok := skipDays[date]; ok {
@@ -265,7 +327,16 @@ func ComputeTvlCumulative(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 
-				notional := asset.Amount * asset.TokenPrice
+				// asset.TokenPrice is the price that was fetched when this token was last transferred, possibly before this date
+				// prefer to use the cached price for this date if it's available, because it might be newer
+				tokenPrice := asset.TokenPrice
+				if prices, ok := coinGeckoPriceCache[date]; ok {
+					if price, ok := prices[asset.CoinGeckoId]; ok {
+						// use the cached price
+						tokenPrice = price
+					}
+				}
+				notional := asset.Amount * tokenPrice
 				if notional <= 0 {
 					continue
 				}

@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -264,6 +265,10 @@ func chainIdStringToType(chainId string) vaa.ChainID {
 	return vaa.ChainIDUnset
 }
 
+func chainIDToNumberString(c vaa.ChainID) string {
+	return strconv.FormatUint(uint64(c), 10)
+}
+
 func makeSummary(row bigtable.Row) *Summary {
 	summary := &Summary{}
 	if _, ok := row[messagePubFam]; ok {
@@ -459,4 +464,20 @@ func isTokenAllowed(chainId string, tokenAddress string) bool {
 		}
 	}
 	return false
+}
+
+// tokens with no trading activity recorded by exchanges integrated on CoinGecko since the specified date
+var inactiveTokens = map[string]map[string]string{
+	chainIDToNumberString(vaa.ChainIDEthereum): {
+		"0x707f9118e33a9b8998bea41dd0d46f38bb963fc8": "2022-06-15", // Anchor bETH token
+	},
+}
+
+func isTokenActive(chainId string, tokenAddress string, date string) bool {
+	if deactivatedDates, ok := inactiveTokens[chainId]; ok {
+		if deactivatedDate, ok := deactivatedDates[tokenAddress]; ok {
+			return date < deactivatedDate
+		}
+	}
+	return true
 }
