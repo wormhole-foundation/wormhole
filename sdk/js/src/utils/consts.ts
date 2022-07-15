@@ -18,8 +18,8 @@ export const CHAINS = {
   moonbeam: 16,
   neon: 17,
   terra2: 18,
-  aptos: 20,
   sui: 21,
+  aptos: 22,
   ropsten: 10001,
 } as const;
 
@@ -456,8 +456,8 @@ export const CHAIN_ID_NEAR = CHAINS["near"];
 export const CHAIN_ID_MOONBEAM = CHAINS["moonbeam"];
 export const CHAIN_ID_NEON = CHAINS["neon"];
 export const CHAIN_ID_TERRA2 = CHAINS["terra2"];
-export const CHAIN_ID_APTOS = CHAINS["aptos"];
 export const CHAIN_ID_SUI = CHAINS["sui"];
+export const CHAIN_ID_APTOS = CHAINS["aptos"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id

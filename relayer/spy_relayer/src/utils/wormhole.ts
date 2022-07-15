@@ -19,7 +19,7 @@ export const chainIDStrings: { [key in ChainId]: string } = {
   15: "NEAR",
   16: "Moonbeam",
   17: "Neon",
-  20: "Aptos",
   21: "Sui",
+  22: "Aptos",
   10001: "Ropsten",
 };
