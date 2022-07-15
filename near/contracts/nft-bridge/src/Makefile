@@ -1,5 +1,5 @@
 
-../target/wasm32-unknown-unknown/release/nft_bridge.wasm: *.rs  ../Cargo.toml
+../target/wasm32-unknown-unknown/release/near_nft_bridge.wasm: *.rs  ../Cargo.toml
 	(cd ..; cargo build --target wasm32-unknown-unknown --release)
 
 .PHONY: clippy

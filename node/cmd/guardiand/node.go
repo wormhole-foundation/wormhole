@@ -125,8 +125,8 @@ var (
 	algorandAlgodToken   *string
 	algorandAppID        *uint64
 
-	nearRPC       *string
-	nearContract  *string
+	nearRPC      *string
+	nearContract *string
 
 	solanaWsRPC *string
 	solanaRPC   *string

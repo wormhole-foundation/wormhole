@@ -1,29 +1,52 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-use near_contract_standards::non_fungible_token::metadata::{
-    NFTContractMetadata, TokenMetadata, NFT_METADATA_SPEC,
+use {
+    near_contract_standards::non_fungible_token::{
+        metadata::{
+            NFTContractMetadata,
+            TokenMetadata,
+            NFT_METADATA_SPEC,
+        },
+        Token,
+        TokenId,
+    },
+    near_sdk::{
+        borsh::{
+            self,
+            BorshDeserialize,
+            BorshSerialize,
+        },
+        env,
+        ext_contract,
+        json_types::{
+            Base64VecU8,
+            U128,
+        },
+        near_bindgen,
+        utils::is_promise_success,
+        AccountId,
+        Balance,
+        Promise,
+        PromiseOrValue,
+    },
 };
-use near_contract_standards::non_fungible_token::{Token, TokenId};
-
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-
-use near_sdk::json_types::Base64VecU8;
-
-use near_sdk::json_types::U128;
-use near_sdk::{env, ext_contract, near_bindgen, AccountId, Balance, Promise, PromiseOrValue};
-
-use near_sdk::utils::is_promise_success;
 
 const BRIDGE_TOKEN_BINARY: &[u8] = include_bytes!(
-    "../../mock-bridge-token/target/wasm32-unknown-unknown/release/mock_bridge_token.wasm"
+    "../../mock-bridge-token/target/wasm32-unknown-unknown/release/near_mock_bridge_token.wasm"
 );
 
 const BRIDGE_NFT_BINARY: &[u8] =
-    include_bytes!("../../nft-wrapped/target/wasm32-unknown-unknown/release/nft.wasm");
+    include_bytes!("../../nft-wrapped/target/wasm32-unknown-unknown/release/near_nft.wasm");
 
 /// Initial balance for the BridgeToken contract to cover storage and related.
 const BRIDGE_TOKEN_INIT_BALANCE: Balance = 5_860_000_000_000_000_000_000;
+
+#[ext_contract(ext_worm_hole)]
+pub trait Wormhole {
+    fn verify_vaa(&self, vaa: String) -> u32;
+    fn publish_message(&self, data: String, nonce: u32) -> u64;
+}
 
 #[ext_contract(ext_ft_contract)]
 pub trait MockFtContract {
@@ -50,18 +73,18 @@ pub trait MockNftContract {
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct PortalTest {
+pub struct TokenBridgeTest {
     cnt: u32,
 }
 
-impl Default for PortalTest {
+impl Default for TokenBridgeTest {
     fn default() -> Self {
         Self { cnt: 0 }
     }
 }
 
 #[near_bindgen]
-impl PortalTest {
+impl TokenBridgeTest {
     #[payable]
     pub fn deploy_ft(&mut self, account: String) -> Promise {
         let a = AccountId::try_from(account).unwrap();
@@ -167,12 +190,12 @@ impl PortalTest {
         let v = BRIDGE_NFT_BINARY.to_vec();
 
         let md = NFTContractMetadata {
-            spec: NFT_METADATA_SPEC.to_string(),
-            name: "RandomNFT".to_string(),
-            symbol: "RNFT".to_string(),
-            icon: None,
-            base_uri: None,
-            reference: None,
+            spec:           NFT_METADATA_SPEC.to_string(),
+            name:           "RandomNFT".to_string(),
+            symbol:         "RNFT".to_string(),
+            icon:           None,
+            base_uri:       None,
+            reference:      None,
             reference_hash: None,
         };
 
@@ -199,17 +222,17 @@ impl PortalTest {
         give_to: AccountId,
     ) -> Promise {
         let md = TokenMetadata {
-            title: Some("Phil ".to_string() + &token_id),
-            description: Some("George ".to_string() + &token_id),
-            media: Some(media.clone()),
-            media_hash: Some(Base64VecU8::from(env::sha256(media.as_bytes()))),
-            copies: Some(1u64),
-            issued_at: None,
-            expires_at: None,
-            starts_at: None,
-            updated_at: None,
-            extra: None,
-            reference: None,
+            title:          Some("Phil ".to_string() + &token_id),
+            description:    Some("George ".to_string() + &token_id),
+            media:          Some(media.clone()),
+            media_hash:     Some(Base64VecU8::from(env::sha256(media.as_bytes()))),
+            copies:         Some(1u64),
+            issued_at:      None,
+            expires_at:     None,
+            starts_at:      None,
+            updated_at:     None,
+            extra:          None,
+            reference:      None,
             reference_hash: None,
         };
 
@@ -237,6 +260,7 @@ impl PortalTest {
         }
     }
 
+
     pub fn payload3(
         amount: u128,
         token_address: Vec<u8>,
@@ -251,5 +275,12 @@ impl PortalTest {
             amount,
             vaa
         ));
+    }
+
+    #[payable]
+    pub fn publish_message(&mut self, core: AccountId, p: String) -> Promise {
+        ext_worm_hole::ext(core)
+            .with_attached_deposit(env::attached_deposit())
+            .publish_message(p, env::block_height() as u32)
     }
 }

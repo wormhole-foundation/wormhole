@@ -176,13 +176,13 @@ async function createContractUser(
 
 async function initTest() {
   const wormholeContract = await fs.readFile(
-    "./contracts/wormhole/target/wasm32-unknown-unknown/release/wormhole.wasm"
+    "./contracts/wormhole/target/wasm32-unknown-unknown/release/near_wormhole.wasm"
   );
   const tokenContract = await fs.readFile(
-    "./contracts/portal/target/wasm32-unknown-unknown/release/portal.wasm"
+    "./contracts/portal/target/wasm32-unknown-unknown/release/near_token_bridge.wasm"
   );
   const testContract = await fs.readFile(
-    "./contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/mock_bridge_integration.wasm"
+    "./contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm"
   );
 
   let randomKey = nearAPI.utils.KeyPair.fromRandom("ed25519");

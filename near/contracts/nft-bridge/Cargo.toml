@@ -1,5 +1,5 @@
 [package]
-name = "nft-bridge"
+name = "near-nft-bridge"
 version = "0.1.0"
 authors = ["Josh Siegel <jsiegel@jumptrading.com>"]
 edition = "2021"

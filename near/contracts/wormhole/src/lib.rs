@@ -178,7 +178,7 @@ fn parse_and_verify_vaa(storage: &Wormhole, data: &[u8]) -> state::ParsedVAA {
         let k = &env::keccak256(&v)[12..32];
         if k != key.bytes {
             env::log_str(&format!(
-                "portal/{}#{}: signature_error: {} != {}",
+                "wormhole/{}#{}: signature_error: {} != {}",
                 file!(),
                 line!(),
                 hex::encode(&k),
@@ -207,7 +207,7 @@ fn vaa_update_contract(
 
     let uh = data.get_bytes32(0);
     env::log_str(&format!(
-        "portal/{}#{}: vaa_update_contract: {}",
+        "wormhole/{}#{}: vaa_update_contract: {}",
         file!(),
         line!(),
         hex::encode(&uh)

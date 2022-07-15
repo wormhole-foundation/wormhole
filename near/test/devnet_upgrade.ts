@@ -73,7 +73,7 @@ async function testDeploy() {
   const userAccount = new nearAPI.Account(near.connection, config.userAccount);
 
   const wormholeContract = await fs.readFileSync(
-    "../contracts/wormhole/target/wasm32-unknown-unknown/release/wormhole.wasm"
+    "../contracts/wormhole/target/wasm32-unknown-unknown/release/near_wormhole.wasm"
   );
 
   //console.log("sending money to cover the cost of deploying this contract.. so that we fail for the right reasons");

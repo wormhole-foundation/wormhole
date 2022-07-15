@@ -224,6 +224,14 @@ def build_node_yaml():
                     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 ]
 
+            if near:
+                container["command"] += [
+                    "--nearRPC",
+                    "http://near:3030",
+                    "--nearContract",
+                    "wormhole.test.near"
+                ]
+
     return encode_yaml_stream(node_yaml)
 
 k8s_yaml_with_ns(build_node_yaml())

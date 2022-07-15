@@ -447,18 +447,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
-name = "mock-bridge-integration"
-version = "0.1.0"
-dependencies = [
- "hex",
- "near-contract-standards",
- "near-sdk",
- "near-sys",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "near-account-id"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -504,6 +492,18 @@ dependencies = [
  "serde_json",
  "subtle",
  "thiserror",
+]
+
+[[package]]
+name = "near-mock-bridge-integration"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "near-contract-standards",
+ "near-sdk",
+ "near-sys",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

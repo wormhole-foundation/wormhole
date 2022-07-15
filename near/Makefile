@@ -4,38 +4,38 @@ test: build node_modules
 
 all: node_modules build nearcore
 
-build:    contracts/ft/target/wasm32-unknown-unknown/release/ft.wasm \
-          contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/mock_bridge_integration.wasm \
-          contracts/mock-bridge-token/target/wasm32-unknown-unknown/release/mock_bridge_token.wasm \
-          contracts/nft-bridge/target/wasm32-unknown-unknown/release/nft_bridge.wasm \
-          contracts/nft-wrapped/target/wasm32-unknown-unknown/release/nft.wasm \
-          contracts/portal/target/wasm32-unknown-unknown/release/portal.wasm \
-          contracts/wormhole/target/wasm32-unknown-unknown/release/wormhole.wasm
+build:    contracts/ft/target/wasm32-unknown-unknown/release/near_ft.wasm \
+          contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm \
+          contracts/mock-bridge-token/target/wasm32-unknown-unknown/release/near_mock_bridge_token.wasm \
+          contracts/nft-bridge/target/wasm32-unknown-unknown/release/near_nft_bridge.wasm \
+          contracts/nft-wrapped/target/wasm32-unknown-unknown/release/near_nft.wasm \
+          contracts/token-bridge/target/wasm32-unknown-unknown/release/near_token_bridge.wasm \
+          contracts/wormhole/target/wasm32-unknown-unknown/release/near_wormhole.wasm
 
-contracts/ft/target/wasm32-unknown-unknown/release/ft.wasm: contracts/ft/src/*.rs  contracts/ft/Cargo.toml
+contracts/ft/target/wasm32-unknown-unknown/release/near_ft.wasm: contracts/ft/src/*.rs  contracts/ft/Cargo.toml
 	cd contracts/ft; cargo build --target wasm32-unknown-unknown --release
 
-contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/mock_bridge_integration.wasm: \
+contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm: \
                 contracts/mock-bridge-integration/src/*.rs  \
                 contracts/mock-bridge-integration/Cargo.toml \
-                contracts/mock-bridge-token/target/wasm32-unknown-unknown/release/mock_bridge_token.wasm \
-                contracts/nft-wrapped/target/wasm32-unknown-unknown/release/nft.wasm
+                contracts/mock-bridge-token/target/wasm32-unknown-unknown/release/near_mock_bridge_token.wasm \
+                contracts/nft-wrapped/target/wasm32-unknown-unknown/release/near_nft.wasm
 
 	cd contracts/mock-bridge-integration; cargo build --target wasm32-unknown-unknown --release
 
-contracts/mock-bridge-token/target/wasm32-unknown-unknown/release/mock_bridge_token.wasm : contracts/mock-bridge-token/src/*.rs  contracts/mock-bridge-token/Cargo.toml
+contracts/mock-bridge-token/target/wasm32-unknown-unknown/release/near_mock_bridge_token.wasm : contracts/mock-bridge-token/src/*.rs  contracts/mock-bridge-token/Cargo.toml
 	cd contracts/mock-bridge-token; cargo build --target wasm32-unknown-unknown --release
 
-contracts/nft-bridge/target/wasm32-unknown-unknown/release/nft_bridge.wasm: contracts/nft-bridge/src/*.rs  contracts/nft-bridge/Cargo.toml  contracts/nft-wrapped/target/wasm32-unknown-unknown/release/nft.wasm
+contracts/nft-bridge/target/wasm32-unknown-unknown/release/near_nft_bridge.wasm: contracts/nft-bridge/src/*.rs  contracts/nft-bridge/Cargo.toml  contracts/nft-wrapped/target/wasm32-unknown-unknown/release/near_nft.wasm
 	cd contracts/nft-bridge; cargo build --target wasm32-unknown-unknown --release
 
-contracts/nft-wrapped/target/wasm32-unknown-unknown/release/nft.wasm: contracts/nft-wrapped/src/*.rs  contracts/nft-wrapped/Cargo.toml
+contracts/nft-wrapped/target/wasm32-unknown-unknown/release/near_nft.wasm: contracts/nft-wrapped/src/*.rs  contracts/nft-wrapped/Cargo.toml
 	cd contracts/nft-wrapped; cargo build --target wasm32-unknown-unknown --release
 
-contracts/portal/target/wasm32-unknown-unknown/release/portal.wasm: contracts/portal/src/*.rs  contracts/portal/Cargo.toml contracts/ft/target/wasm32-unknown-unknown/release/ft.wasm
-	cd contracts/portal; cargo build --target wasm32-unknown-unknown --release
+contracts/token-bridge/target/wasm32-unknown-unknown/release/near_token_bridge.wasm: contracts/token-bridge/src/*.rs  contracts/token-bridge/Cargo.toml contracts/ft/target/wasm32-unknown-unknown/release/near_ft.wasm
+	cd contracts/token-bridge; cargo build --target wasm32-unknown-unknown --release
 
-contracts/wormhole/target/wasm32-unknown-unknown/release/wormhole.wasm: contracts/wormhole/src/*.rs contracts/wormhole/Cargo.toml
+contracts/wormhole/target/wasm32-unknown-unknown/release/near_wormhole.wasm: contracts/wormhole/src/*.rs contracts/wormhole/Cargo.toml
 	cd contracts/wormhole; cargo build --target wasm32-unknown-unknown --release
 
 package-lock.json: package.json

@@ -36,8 +36,8 @@ import {
 import { hexToNativeString } from "../utils/array";
 import { parseTransferPayload } from "../utils/parseVaa";
 import { Account as nearAccount } from "near-api-js";
-const nearAPI = require("near-api-js");
-const BN = require("bn.js");
+import BN from "bn.js";
+import { providers as nearProviders } from "near-api-js";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -287,7 +287,7 @@ export async function redeemOnNear(
 
     if (bal == null) {
       console.log("Registering ", user, " for ", token);
-      bal = nearAPI.providers.getTransactionLastResult(
+      bal = nearProviders.getTransactionLastResult(
         await client.functionCall({
           contractId: token as string,
           methodName: "storage_deposit",
@@ -318,7 +318,7 @@ export async function redeemOnNear(
 
       if (bal == null) {
         console.log("Registering ", client.accountId, " for ", token);
-        bal = nearAPI.providers.getTransactionLastResult(
+        bal = nearProviders.getTransactionLastResult(
           await client.functionCall({
             contractId: token as string,
             methodName: "storage_deposit",
@@ -338,7 +338,7 @@ export async function redeemOnNear(
       vaa: uint8ArrayToHex(vaa),
     },
     attachedDeposit: new BN("100000000000000000000000"),
-    gas: new BN("300000000000000"),
+    gas: new BN("150000000000000"),
   });
 
   result = await client.functionCall({
@@ -348,8 +348,8 @@ export async function redeemOnNear(
       vaa: uint8ArrayToHex(vaa),
     },
     attachedDeposit: new BN("100000000000000000000000"),
-    gas: new BN("300000000000000"),
+    gas: new BN("150000000000000"),
   });
 
-  return nearAPI.providers.getTransactionLastResult(result);
+  return nearProviders.getTransactionLastResult(result);
 }
