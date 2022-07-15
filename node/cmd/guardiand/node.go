@@ -44,6 +44,7 @@ import (
 	cosmwasm "github.com/certusone/wormhole/node/pkg/terra"
 
 	"github.com/certusone/wormhole/node/pkg/algorand"
+	"github.com/certusone/wormhole/node/pkg/near"
 
 	ipfslog "github.com/ipfs/go-log/v2"
 )
@@ -123,6 +124,9 @@ var (
 	algorandAlgodRPC     *string
 	algorandAlgodToken   *string
 	algorandAppID        *uint64
+
+	nearRPC       *string
+	nearContract  *string
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -231,6 +235,9 @@ func init() {
 	algorandAlgodRPC = NodeCmd.Flags().String("algorandAlgodRPC", "", "Algorand Algod RPC URL")
 	algorandAlgodToken = NodeCmd.Flags().String("algorandAlgodToken", "", "Algorand Algod access token")
 	algorandAppID = NodeCmd.Flags().Uint64("algorandAppID", 0, "Algorand app id")
+
+	nearRPC = NodeCmd.Flags().String("nearRPC", "", "near RPC URL")
+	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
@@ -361,6 +368,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *algorandIndexerRPC != "" {
 		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
+		readiness.RegisterComponent(common.ReadinessNearSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
@@ -617,7 +625,12 @@ func runNode(cmd *cobra.Command, args []string) {
 				logger.Fatal("Please specify --algorandAppID")
 			}
 		}
-
+		if *nearRPC == "" {
+			logger.Fatal("Please specify --nearRPC")
+		}
+		if *nearContract == "" {
+			logger.Fatal("Please specify --nearContract")
+		}
 	}
 
 	if *bigTablePersistenceEnabled {
@@ -761,6 +774,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode || *unsafeDevMode {
 		chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDNear] = make(chan *gossipv1.ObservationRequest)
 	}
 	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
@@ -982,6 +996,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *algorandIndexerRPC != "" {
 			if err := supervisor.Run(ctx, "algorandwatch",
 				algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAlgodRPC, *algorandAlgodToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "nearwatch",
+				near.NewWatcher(*nearRPC, *nearContract, lockC, setC, chainObsvReqC[vaa.ChainIDNear]).Run); err != nil {
 				return err
 			}
 		}
