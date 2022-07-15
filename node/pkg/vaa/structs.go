@@ -540,3 +540,13 @@ func StringToAddress(value string) (Address, error) {
 
 	return address, nil
 }
+
+func BytesToAddress(b []byte) (Address, error) {
+	var address Address
+	if len(b) > 32 {
+		return address, fmt.Errorf("value must be no more than 32 bytes")
+	}
+
+	copy(address[32-len(b):], b)
+	return address, nil
+}

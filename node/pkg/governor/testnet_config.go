@@ -16,8 +16,8 @@ func (gov *ChainGovernor) initTestnetConfig() ([]tokenConfigEntry, []chainConfig
 	}
 
 	chains := []chainConfigEntry{
-		chainConfigEntry{emitterChainID: vaa.ChainIDFantom, emitterAddress: "0x599CEa2204B4FaECd584Ab1F2b6aCA137a0afbE8", dailyLimit: 100},
-		chainConfigEntry{emitterChainID: vaa.ChainIDOasis, emitterAddress: "0x88d8004A9BdbfD9D28090A02010C19897a29605c", dailyLimit: 1000000},
+		chainConfigEntry{emitterChainID: vaa.ChainIDFantom, dailyLimit: 100},
+		chainConfigEntry{emitterChainID: vaa.ChainIDOasis, dailyLimit: 1000000},
 	}
 
 	return tokens, chains

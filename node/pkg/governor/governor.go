@@ -60,7 +60,6 @@ type (
 	// Layout of the config data for each chain
 	chainConfigEntry struct {
 		emitterChainID vaa.ChainID
-		emitterAddress string
 		dailyLimit     uint64
 	}
 
@@ -206,19 +205,25 @@ func (gov *ChainGovernor) initConfig() error {
 		return fmt.Errorf("no tokens are configured")
 	}
 
+	emitterMap := &common.KnownTokenbridgeEmitters
+	if gov.env == TestNetMode {
+		emitterMap = &common.KnownTestnetTokenbridgeEmitters
+	} else if gov.env == DevNetMode {
+		emitterMap = &common.KnownDevnetTokenbridgeEmitters
+	}
+
 	for _, cc := range configChains {
 		var emitterAddr vaa.Address
 		var err error
-		if gov.env == MainNetMode {
-			emitterAddr, err = common.GetEmitterAddressForChain(cc.emitterChainID, common.EmitterTokenBridge)
-			if err != nil {
-				return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.emitterChainID)
-			}
-		} else {
-			emitterAddr, err = vaa.StringToAddress(cc.emitterAddress)
-			if err != nil {
-				return fmt.Errorf("failed to convert emitter address for chain: %v, addr: [%v]", cc.emitterChainID, cc.emitterAddress)
-			}
+
+		emitterAddrBytes, exists := (*emitterMap)[cc.emitterChainID]
+		if !exists {
+			return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.emitterChainID)
+		}
+
+		emitterAddr, err = vaa.BytesToAddress(emitterAddrBytes)
+		if err != nil {
+			return fmt.Errorf("failed to convert emitter address for chain: %v", cc.emitterChainID)
 		}
 
 		ce := &chainEntry{emitterChainId: cc.emitterChainID, emitterAddr: emitterAddr, dailyLimit: cc.dailyLimit}
