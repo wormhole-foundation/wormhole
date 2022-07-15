@@ -1,0 +1,17 @@
+# Merge all imports into a clean vertical list of module imports.
+imports_granularity          = "One"
+group_imports                = "One"
+imports_layout               = "Vertical"
+
+# Better grep-ability.
+empty_item_single_line       = false
+
+# Consistent pipe layout.
+match_arm_leading_pipes      = "Preserve"
+
+# Align Fields
+enum_discrim_align_threshold = 80
+struct_field_align_threshold = 80
+
+# Allow up to two blank lines for visual grouping.
+blank_lines_upper_bound      = 2
