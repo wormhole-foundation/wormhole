@@ -368,6 +368,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *algorandIndexerRPC != "" {
 		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
+	}
+	if *nearRPC != "" {
 		readiness.RegisterComponent(common.ReadinessNearSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
@@ -998,8 +1000,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAlgodRPC, *algorandAlgodToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
 				return err
 			}
+		}
+		if *nearRPC != "" {
 			if err := supervisor.Run(ctx, "nearwatch",
-				near.NewWatcher(*nearRPC, *nearContract, lockC, setC, chainObsvReqC[vaa.ChainIDNear]).Run); err != nil {
+				near.NewWatcher(*nearRPC, *nearContract, lockC, chainObsvReqC[vaa.ChainIDNear]).Run); err != nil {
 				return err
 			}
 		}

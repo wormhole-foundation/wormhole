@@ -31,7 +31,6 @@ type (
 		wormholeContract string
 
 		msgChan  chan *common.MessagePublication
-		setChan  chan *common.GuardianSet
 		obsvReqC chan *gossipv1.ObservationRequest
 
 		next_round uint64
@@ -57,14 +56,12 @@ func NewWatcher(
 	nearRPC string,
 	wormholeContract string,
 	lockEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet,
 	obsvReqC chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
 		nearRPC:          nearRPC,
 		wormholeContract: wormholeContract,
 		msgChan:          lockEvents,
-		setChan:          setEvents,
 		obsvReqC:         obsvReqC,
 		next_round:       0,
 		debug:            true,
