@@ -163,7 +163,7 @@ export async function getIsTransferCompletedAlgorand(
 /**
  * <p>Returns true if this transfer was completed on Near</p>
  * @param near account
- * @param appId Most likely the Token bridge ID
+ * @param tokenAccount the Token bridge account
  * @param signedVAA VAA to check
  * @returns true if VAA has been redeemed, false otherwise
  */
