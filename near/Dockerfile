@@ -8,7 +8,7 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certifi
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
 RUN rustup update
-RUN apt-get install python3
+RUN apt-get install python3 --no-install-recommends
 
 COPY node_builder.sh /tmp
 
