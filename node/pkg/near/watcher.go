@@ -6,6 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -18,10 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type (
