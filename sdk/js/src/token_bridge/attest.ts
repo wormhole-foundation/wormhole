@@ -210,9 +210,10 @@ export async function attestFromAlgorand(
  * you create an attestation for it on near... pass that vaa to the target chain..
  * submit it.. then you can transfer from near to that target chain
  * @param client An Near account client
+ * @param coreBridge The account for the core bridge
  * @param tokenBridge The account for the token bridge
  * @param asset The account for the asset
- * @returns sequenceNumber
+ * @returns [sequenceNumber, emitter]
  */
 export async function attestTokenFromNear(
   client: nearAccount,
@@ -258,8 +259,9 @@ export async function attestTokenFromNear(
 /**
  * Attest NEAR
  * @param client An Near account client
+ * @param coreBridge The account for the core bridge
  * @param tokenBridge The account for the token bridge
- * @returns sequenceNumber
+ * @returns [sequenceNumber, emitter]
  */
 export async function attestNearFromNear(
   client: nearAccount,
