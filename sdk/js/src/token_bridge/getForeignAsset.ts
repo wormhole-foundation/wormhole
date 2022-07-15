@@ -16,6 +16,8 @@ import {
   CHAIN_ID_ALGORAND,
   coalesceChainId,
 } from "../utils";
+import { Account as nearAccount } from "near-api-js";
+const BN = require("bn.js");
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -120,4 +122,20 @@ export async function getForeignAssetAlgorand(
       return tmp.readBigUInt64BE(0);
     } else return null;
   }
+}
+
+export async function getForeignAssetNear(
+  client: nearAccount,
+  tokenAccount: string,
+  chain: ChainId | ChainName,
+  contract: string
+): Promise<string | null> {
+  const chainId = coalesceChainId(chain);
+
+  let ret = await client.viewFunction(tokenAccount, "get_foreign_asset", {
+    chain: chainId,
+    address: contract,
+  });
+  if (ret === "") return null;
+  else return ret;
 }

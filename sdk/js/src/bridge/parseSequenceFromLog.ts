@@ -106,3 +106,18 @@ export function parseSequenceFromLogAlgorand(
   }
   return sequence;
 }
+
+export function parseSequenceFromLogNear(result: any): [number, string] {
+  let sequence = "";
+  for (const o of result.receipts_outcome) {
+    for (const l of o.outcome.logs) {
+      if (l.startsWith("EVENT_JSON:")) {
+        const body = JSON.parse(l.slice(11));
+        if (body.standard === "wormhole" && body.event === "publish") {
+          return [body.seq, body.emitter];
+        }
+      }
+    }
+  }
+  return [-1, ""];
+}
