@@ -18,6 +18,10 @@ export const CHAINS = {
   moonbeam: 16,
   neon: 17,
   terra2: 18,
+  injective: 19,
+  osmosis: 20,
+  sui: 21,
+  aptos: 22,
   ropsten: 10001,
 } as const;
 
@@ -137,6 +141,26 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  injective: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  osmosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  aptos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  sui: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   moonbeam: {
     core: undefined,
     token_bridge: undefined,
@@ -237,6 +261,26 @@ const TESTNET = {
     nft_bridge: "0xaCD8190F647a31E56A656748bC30F69259f245Db",
   },
   near: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  injective: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  osmosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  aptos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  sui: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -345,6 +389,26 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  injective: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  osmosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  aptos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  sui: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   moonbeam: {
     core: undefined,
     token_bridge: undefined,
@@ -424,6 +488,10 @@ export const CHAIN_ID_NEAR = CHAINS["near"];
 export const CHAIN_ID_MOONBEAM = CHAINS["moonbeam"];
 export const CHAIN_ID_NEON = CHAINS["neon"];
 export const CHAIN_ID_TERRA2 = CHAINS["terra2"];
+export const CHAIN_ID_INJECTIVE = CHAINS["injective"];
+export const CHAIN_ID_OSMOSIS = CHAINS["osmosis"];
+export const CHAIN_ID_SUI = CHAINS["sui"];
+export const CHAIN_ID_APTOS = CHAINS["aptos"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id

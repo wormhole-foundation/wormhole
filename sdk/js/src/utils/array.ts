@@ -13,6 +13,10 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_NEAR,
+  CHAIN_ID_INJECTIVE,
+  CHAIN_ID_OSMOSIS,
+  CHAIN_ID_SUI,
+  CHAIN_ID_APTOS,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   CHAIN_ID_TERRA2,
@@ -85,6 +89,14 @@ export const tryUint8ArrayToNative = (
     return uint8ArrayToNativeStringAlgorand(a);
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Near not supported yet.");
+  } else if (chainId === CHAIN_ID_INJECTIVE) {
+    throw Error("uint8ArrayToNative: Injective not supported yet.");
+  } else if (chainId === CHAIN_ID_OSMOSIS) {
+    throw Error("uint8ArrayToNative: Osmosis not supported yet.");
+  } else if (chainId === CHAIN_ID_SUI) {
+    throw Error("uint8ArrayToNative: Sui not supported yet.");
+  } else if (chainId === CHAIN_ID_APTOS) {
+    throw Error("uint8ArrayToNative: Aptos not supported yet.");
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("uint8ArrayToNative: Chain id unset");
   } else {
@@ -195,6 +207,14 @@ export const tryNativeToHexString = (
     return nativeStringToHexAlgorand(address);
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("hexToNativeString: Near not supported yet.");
+  } else if (chainId === CHAIN_ID_INJECTIVE) {
+    throw Error("hexToNativeString: Injective not supported yet.");
+  } else if (chainId === CHAIN_ID_OSMOSIS) {
+    throw Error("hexToNativeString: Osmosis not supported yet.");
+  } else if (chainId === CHAIN_ID_SUI) {
+    throw Error("hexToNativeString: Sui not supported yet.");
+  } else if (chainId === CHAIN_ID_APTOS) {
+    throw Error("hexToNativeString: Aptos not supported yet.");
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("hexToNativeString: Chain id unset");
   } else {
