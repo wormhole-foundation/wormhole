@@ -136,6 +136,6 @@ export async function getForeignAssetNear(
     chain: chainId,
     address: contract,
   });
-  if (ret == "") return null;
+  if (ret === "") return null;
   else return ret;
 }
