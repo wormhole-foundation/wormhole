@@ -358,7 +358,7 @@ const DEVNET = {
   terra: {
     core: "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
     token_bridge: "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
-    nft_bridge: undefined,
+    nft_bridge: "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl",
   },
   ethereum: {
     core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
@@ -456,8 +456,9 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   terra2: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+    token_bridge:
+      "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6",
     nft_bridge: undefined,
   },
   arbitrum: {
