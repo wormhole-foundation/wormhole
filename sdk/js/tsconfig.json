@@ -12,5 +12,5 @@
     "lib": ["dom", "es5", "scripthost", "es2020.bigint"]
   },
   "include": ["src", "types"],
-  "exclude": ["node_modules", "**/__tests__/*"]
+  "exclude": ["node_modules", "**/__tests__/*", "**/*.test.ts"]
 }
