@@ -75,7 +75,7 @@ async function initNear() {
   );
 
   const wormholeContract = await fs.readFileSync("./near_wormhole.wasm");
-  const tokenContract = await fs.readFileSync("./near_portal.wasm");
+  const tokenContract = await fs.readFileSync("./near_token_bridge.wasm");
   const nftContract = await fs.readFileSync("./near_nft_bridge.wasm");
   const testContract = await fs.readFileSync("./near_mock_bridge_integration.wasm");
 
@@ -122,7 +122,7 @@ async function initNear() {
   let tokenAccount: any;
 
   if (e == "sandbox") {
-    console.log("Deploying portal contract: " + config.tokenAccount);
+    console.log("Deploying token bridgecontract: " + config.tokenAccount);
     tokenAccount = await masterAccount.createAndDeployContract(
       config.tokenAccount,
       masterKey.getPublicKey(),
@@ -131,7 +131,7 @@ async function initNear() {
     );
   } else {
     // This uses the standard API to redeploy ... we can migrate over to the vaa's later
-    console.log("redeploying portal contract: " + config.tokenAccount);
+    console.log("redeploying token bridge contract: " + config.tokenAccount);
     tokenAccount = new nearAPI.Account(near.connection, config.tokenAccount);
     await tokenAccount.deployContract(tokenContract);
 

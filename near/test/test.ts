@@ -179,7 +179,7 @@ async function initTest() {
     "./contracts/wormhole/target/wasm32-unknown-unknown/release/near_wormhole.wasm"
   );
   const tokenContract = await fs.readFile(
-    "./contracts/portal/target/wasm32-unknown-unknown/release/near_portal.wasm"
+    "./contracts/portal/target/wasm32-unknown-unknown/release/near_token_bridge.wasm"
   );
   const testContract = await fs.readFile(
     "./contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm"

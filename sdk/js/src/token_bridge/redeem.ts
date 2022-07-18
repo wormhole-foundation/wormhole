@@ -37,7 +37,7 @@ import { hexToNativeString } from "../utils/array";
 import { parseTransferPayload } from "../utils/parseVaa";
 import { Account as nearAccount } from "near-api-js";
 import BN from "bn.js";
-import nearAPI from "near-api-js";
+import { providers as nearProviders } from "near-api-js";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -287,7 +287,7 @@ export async function redeemOnNear(
 
     if (bal == null) {
       console.log("Registering ", user, " for ", token);
-      bal = nearAPI.providers.getTransactionLastResult(
+      bal = nearProviders.getTransactionLastResult(
         await client.functionCall({
           contractId: token as string,
           methodName: "storage_deposit",
@@ -318,7 +318,7 @@ export async function redeemOnNear(
 
       if (bal == null) {
         console.log("Registering ", client.accountId, " for ", token);
-        bal = nearAPI.providers.getTransactionLastResult(
+        bal = nearProviders.getTransactionLastResult(
           await client.functionCall({
             contractId: token as string,
             methodName: "storage_deposit",
@@ -351,5 +351,5 @@ export async function redeemOnNear(
     gas: new BN("300000000000000"),
   });
 
-  return nearAPI.providers.getTransactionLastResult(result);
+  return nearProviders.getTransactionLastResult(result);
 }

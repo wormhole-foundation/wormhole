@@ -45,9 +45,8 @@ import {
   uint8ArrayToHex,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
-import { Account as nearAccount } from "near-api-js";
+import { Account as nearAccount, providers as nearProviders } from "near-api-js";
 import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
-import nearAPI from "near-api-js";
 
 const BN = require("bn.js");
 
@@ -685,7 +684,7 @@ export async function transferTokenFromNear(
     if (bal == null) {
       // Looks like we have to stake some storage for this asset
       // for the token bridge...
-      nearAPI.providers.getTransactionLastResult(
+      nearProviders.getTransactionLastResult(
         await client.functionCall({
           contractId: assetId,
           methodName: "storage_deposit",

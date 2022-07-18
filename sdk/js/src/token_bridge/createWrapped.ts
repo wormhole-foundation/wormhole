@@ -7,9 +7,8 @@ import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
-import { Account as nearAccount } from "near-api-js";
+import { Account as nearAccount, providers as nearProviders } from "near-api-js";
 import BN from "bn.js";
-import nearAPI from "near-api-js";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -100,5 +99,5 @@ export async function createWrappedOnNear(
     gas: new BN("300000000000000"),
   });
 
-  return nearAPI.providers.getTransactionLastResult(result);
+  return nearProviders.getTransactionLastResult(result);
 }

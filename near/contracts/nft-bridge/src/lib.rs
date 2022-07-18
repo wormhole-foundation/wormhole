@@ -85,8 +85,8 @@ pub trait NFTContract {
     fn nft_burn(&mut self, token_id: TokenId, from: AccountId, refund_to: AccountId) -> Promise;
 }
 
-#[ext_contract(ext_portal)]
-pub trait ExtPortal {
+#[ext_contract(ext_token_bridge)]
+pub trait ExtTokenBridge {
     fn finish_deploy(&self, token: String, token_id: String);
 }
 
@@ -458,7 +458,7 @@ fn vaa_transfer(
     }
 
     PromiseOrValue::Promise(prom.then(
-        ext_portal::ext(env::current_account_id()).finish_deploy(bridge_token_account, token_id),
+        ext_token_bridge::ext(env::current_account_id()).finish_deploy(bridge_token_account, token_id),
     ))
 }
 
@@ -638,7 +638,7 @@ impl NFTBridge {
     pub fn refunder(&mut self, refund_to: AccountId, amt: Balance) {
         if !is_promise_success() {
             env::log_str(&format!(
-                "portal/{}#{}: refunding {} to {}?",
+                "nft-bridge/{}#{}: refunding {} to {}?",
                 file!(),
                 line!(),
                 amt,
@@ -680,7 +680,7 @@ impl NFTBridge {
         deposit -= required_cost;
 
         env::log_str(&format!(
-            "portal/{}#{}: refunding {} to {}?",
+            "nft-bridge/{}#{}: refunding {} to {}?",
             file!(),
             line!(),
             deposit,

@@ -50,18 +50,18 @@ pub trait MockNftContract {
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct PortalTest {
+pub struct TokenBridgeTest {
     cnt: u32,
 }
 
-impl Default for PortalTest {
+impl Default for TokenBridgeTest {
     fn default() -> Self {
         Self { cnt: 0 }
     }
 }
 
 #[near_bindgen]
-impl PortalTest {
+impl TokenBridgeTest {
     #[payable]
     pub fn deploy_ft(&mut self, account: String) -> Promise {
         let a = AccountId::try_from(account).unwrap();

@@ -112,8 +112,8 @@ pub trait Wormhole {
     fn publish_message(&self, data: String, nonce: u32) -> u64;
 }
 
-#[ext_contract(ext_portal)]
-pub trait ExtPortal {
+#[ext_contract(ext_token_bridge)]
+pub trait ExtTokenBridge {
     fn finish_deploy(&self, token: AccountId, tkey: Vec<u8>, do_clean: bool);
 }
 
@@ -155,7 +155,7 @@ pub struct OldPortal {
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct Portal {
+pub struct TokenBridge {
     booted:               bool,
     core:                 AccountId,
     gov_idx:              u32,
@@ -172,7 +172,7 @@ pub struct Portal {
     bank: LookupMap<AccountId, Balance>,
 }
 
-impl Default for Portal {
+impl Default for TokenBridge {
     fn default() -> Self {
         Self {
             booted:               false,
@@ -194,7 +194,7 @@ impl Default for Portal {
 }
 
 fn vaa_register_chain(
-    storage: &mut Portal,
+    storage: &mut TokenBridge,
     vaa: &state::ParsedVAA,
     mut deposit: Balance,
 ) -> Balance {
@@ -230,7 +230,7 @@ fn vaa_register_chain(
     deposit
 }
 
-fn vaa_upgrade_contract(storage: &mut Portal, vaa: &state::ParsedVAA, deposit: Balance) -> Balance {
+fn vaa_upgrade_contract(storage: &mut TokenBridge, vaa: &state::ParsedVAA, deposit: Balance) -> Balance {
     let data: &[u8] = &vaa.payload;
     let chain = data.get_u16(33);
     if chain != CHAIN_ID_NEAR {
@@ -239,7 +239,7 @@ fn vaa_upgrade_contract(storage: &mut Portal, vaa: &state::ParsedVAA, deposit: B
 
     let uh = data.get_bytes32(0);
     env::log_str(&format!(
-        "portal/{}#{}: vaa_update_contract: {}",
+        "token-bridge/{}#{}: vaa_update_contract: {}",
         file!(),
         line!(),
         hex::encode(&uh)
@@ -249,7 +249,7 @@ fn vaa_upgrade_contract(storage: &mut Portal, vaa: &state::ParsedVAA, deposit: B
 }
 
 fn vaa_governance(
-    storage: &mut Portal,
+    storage: &mut TokenBridge,
     vaa: &state::ParsedVAA,
     gov_idx: u32,
     deposit: Balance,
@@ -277,7 +277,7 @@ fn vaa_governance(
 }
 
 fn vaa_transfer(
-    storage: &mut Portal,
+    storage: &mut TokenBridge,
     vaa: &state::ParsedVAA,
     action: u8,
     deposit: Balance,
@@ -308,7 +308,7 @@ fn vaa_transfer(
     let mr = storage.hash_map.get(&recipient).unwrap();
 
     env::log_str(&format!(
-        "portal/{}#{}: vaa_transfer:  {} {}",
+        "token-bridge/{}#{}: vaa_transfer:  {} {}",
         file!(),
         line!(),
         hex::encode(&token_address),
@@ -321,7 +321,7 @@ fn vaa_transfer(
         let p = token_key(token_address.clone(), token_chain);
 
         env::log_str(&format!(
-            "portal/{}#{}: vaa_transfer:  {}",
+            "token-bridge/{}#{}: vaa_transfer:  {}",
             file!(),
             line!(),
             hex::encode(&p)
@@ -345,7 +345,7 @@ fn vaa_transfer(
     if token_chain == CHAIN_ID_NEAR {
         if token_address == vec![0; 32] {
             env::log_str(&format!(
-                "portal/{}#{}: vaa_transfer:  deposit {}",
+                "token-bridge/{}#{}: vaa_transfer:  deposit {}",
                 file!(),
                 line!(),
                 deposit
@@ -359,7 +359,7 @@ fn vaa_transfer(
             // Once you create a Promise, there is no going back..
             if nfee == 0 {
                 env::log_str(&format!(
-                    "portal/{}#{}: vaa_transfer:  sending {} NEAR to {}",
+                    "token-bridge/{}#{}: vaa_transfer:  sending {} NEAR to {}",
                     file!(),
                     line!(),
                     namount,
@@ -368,14 +368,14 @@ fn vaa_transfer(
                 prom = Promise::new(mr).transfer(namount);
             } else {
                 env::log_str(&format!(
-                    "portal/{}#{}: vaa_transfer:  sending {} NEAR to {}",
+                    "token-bridge/{}#{}: vaa_transfer:  sending {} NEAR to {}",
                     file!(),
                     line!(),
                     namount - nfee,
                     mr
                 ));
                 env::log_str(&format!(
-                    "portal/{}#{}: vaa_transfer:  sending {} NEAR to {}",
+                    "token-bridge/{}#{}: vaa_transfer:  sending {} NEAR to {}",
                     file!(),
                     line!(),
                     nfee,
@@ -403,7 +403,7 @@ fn vaa_transfer(
             let nfee = fee.1 * near_mult;
 
             env::log_str(&format!(
-                "portal/{}#{}: vaa_transfer calling ft_transfer against {} for {} from {} to {}",
+                "token-bridge/{}#{}: vaa_transfer calling ft_transfer against {} for {} from {} to {}",
                 file!(),
                 line!(),
                 account,
@@ -449,7 +449,7 @@ fn vaa_transfer(
 
         if deposit > 0 {
             env::log_str(&format!(
-                "portal/{}#{}: refund {} to {}",
+                "token-bridge/{}#{}: refund {} to {}",
                 file!(),
                 line!(),
                 deposit,
@@ -464,13 +464,13 @@ fn vaa_transfer(
 }
 
 fn vaa_asset_meta(
-    storage: &mut Portal,
+    storage: &mut TokenBridge,
     vaa: &state::ParsedVAA,
     mut deposit: Balance,
     refund_to: AccountId,
 ) -> PromiseOrValue<bool> {
     env::log_str(&format!(
-        "portal/{}#{}: vaa_asset_meta: {} ",
+        "token-bridge/{}#{}: vaa_asset_meta: {} ",
         file!(),
         line!(),
         deposit
@@ -487,7 +487,7 @@ fn vaa_asset_meta(
     let tkey = token_key(data[0..32].to_vec(), token_chain);
 
     env::log_str(&format!(
-        "portal/{}#{}: vaa_asset_meta: {} ",
+        "token-bridge/{}#{}: vaa_asset_meta: {} ",
         file!(),
         line!(),
         hex::encode(&tkey)
@@ -502,7 +502,7 @@ fn vaa_asset_meta(
     if storage.key_map.contains_key(&tkey) {
         bridge_token_account = storage.key_map.get(&tkey).unwrap();
         fresh = false;
-        env::log_str(&format!("portal/{}#{}: vaa_asset_meta", file!(), line!()));
+        env::log_str(&format!("token-bridge/{}#{}: vaa_asset_meta", file!(), line!()));
     } else {
         let storage_used = env::storage_usage();
         storage.last_asset += 1;
@@ -518,7 +518,7 @@ fn vaa_asset_meta(
         };
 
         env::log_str(&format!(
-            "portal/{}#{}: vaa_asset_meta:  {}  ",
+            "token-bridge/{}#{}: vaa_asset_meta:  {}  ",
             file!(),
             line!(),
             bridge_token_account
@@ -562,7 +562,7 @@ fn vaa_asset_meta(
 
     let mut p = if !fresh {
         env::log_str(&format!(
-            "portal/{}#{}: vaa_asset_meta:  !fresh",
+            "token-bridge/{}#{}: vaa_asset_meta:  !fresh",
             file!(),
             line!()
         ));
@@ -573,7 +573,7 @@ fn vaa_asset_meta(
         )
     } else {
         env::log_str(&format!(
-            "portal/{}#{}: vaa_asset_meta:  fresh",
+            "token-bridge/{}#{}: vaa_asset_meta:  fresh",
             file!(),
             line!()
         ));
@@ -611,7 +611,7 @@ fn vaa_asset_meta(
 
     if deposit > 0 {
         env::log_str(&format!(
-            "portal/{}#{}: refund {} to {}",
+            "token-bridge/{}#{}: refund {} to {}",
             file!(),
             line!(),
             deposit,
@@ -621,7 +621,7 @@ fn vaa_asset_meta(
     }
 
     PromiseOrValue::Promise(
-        p.then(ext_portal::ext(env::current_account_id()).finish_deploy(
+        p.then(ext_token_bridge::ext(env::current_account_id()).finish_deploy(
             bridge_token_account.clone(),
             tkey,
             fresh,
@@ -634,7 +634,7 @@ fn token_key(address: Vec<u8>, chain: u16) -> Vec<u8> {
 }
 
 #[near_bindgen]
-impl Portal {
+impl TokenBridge {
     pub fn emitter(&self) -> (String, String) {
         let acct = env::current_account_id();
         let astr = acct.to_string();
@@ -705,7 +705,7 @@ impl Portal {
 
         if deposit > 0 {
             env::log_str(&format!(
-                "portal/{}#{}: refund {} to {}",
+                "token-bridge/{}#{}: refund {} to {}",
                 file!(),
                 line!(),
                 deposit,
@@ -723,7 +723,7 @@ impl Portal {
         require!(
             env::prepaid_gas() >= Gas(100_000_000_000_000),
             &format!(
-                "portal/{}#{}: more gas is required {}",
+                "token-bridge/{}#{}: more gas is required {}",
                 file!(),
                 line!(),
                 serde_json::to_string(&env::prepaid_gas()).unwrap()
@@ -761,7 +761,7 @@ impl Portal {
         require!(
             env::prepaid_gas() >= Gas(100_000_000_000_000),
             &format!(
-                "portal/{}#{}: more gas is required {}",
+                "token-bridge/{}#{}: more gas is required {}",
                 file!(),
                 line!(),
                 serde_json::to_string(&env::prepaid_gas()).unwrap()
@@ -783,7 +783,7 @@ impl Portal {
         require!(
             env::prepaid_gas() >= Gas(100_000_000_000_000),
             &format!(
-                "portal/{}#{}: more gas is required {}",
+                "token-bridge/{}#{}: more gas is required {}",
                 file!(),
                 line!(),
                 serde_json::to_string(&env::prepaid_gas()).unwrap()
@@ -843,7 +843,7 @@ impl Portal {
         require!(
             env::prepaid_gas() >= Gas(100_000_000_000_000),
             &format!(
-                "portal/{}#{}: more gas is required {}",
+                "token-bridge/{}#{}: more gas is required {}",
                 file!(),
                 line!(),
                 serde_json::to_string(&env::prepaid_gas()).unwrap()
@@ -921,7 +921,7 @@ impl Portal {
         require!(
             env::prepaid_gas() >= Gas(100_000_000_000_000),
             &format!(
-                "portal/{}#{}: more gas is required {}",
+                "token-bridge/{}#{}: more gas is required {}",
                 file!(),
                 line!(),
                 serde_json::to_string(&env::prepaid_gas()).unwrap()
@@ -1047,7 +1047,7 @@ impl Portal {
     pub fn refunder(&mut self, refund_to: AccountId, amt: Balance) {
         if !is_promise_success() {
             env::log_str(&format!(
-                "portal/{}#{}: refunding {} to {}?",
+                "token-bridge/{}#{}: refunding {} to {}?",
                 file!(),
                 line!(),
                 amt,
@@ -1089,7 +1089,7 @@ impl Portal {
         deposit -= required_cost;
 
         env::log_str(&format!(
-            "portal/{}#{}: refunding {} to {}?",
+            "token-bridge/{}#{}: refunding {} to {}?",
             file!(),
             line!(),
             deposit,
@@ -1105,7 +1105,7 @@ impl Portal {
         refund_to: AccountId,
     ) -> PromiseOrValue<bool> {
         env::log_str(&format!(
-            "portal/{}#{}: submit_vaa_work: {}  {} used: {}  prepaid: {}",
+            "token-bridge/{}#{}: submit_vaa_work: {}  {} used: {}  prepaid: {}",
             file!(),
             line!(),
             env::attached_deposit(),
@@ -1131,7 +1131,7 @@ impl Portal {
             let bal = vaa_governance(self, pvaa, self.gov_idx, deposit);
             if bal > 0 {
                 env::log_str(&format!(
-                    "portal/{}#{}: refunding {} to {}",
+                    "token-bridge/{}#{}: refunding {} to {}",
                     file!(),
                     line!(),
                     bal,
@@ -1174,7 +1174,7 @@ impl Portal {
         require!(
             env::prepaid_gas() >= Gas(100_000_000_000_000),
             &format!(
-                "portal/{}#{}: more gas is required {}",
+                "token-bridge/{}#{}: more gas is required {}",
                 file!(),
                 line!(),
                 serde_json::to_string(&env::prepaid_gas()).unwrap()
@@ -1216,7 +1216,7 @@ impl Portal {
         if self.is_wormhole(&token) {
             env::panic_str("CannotAttestAWormholeToken")
         } else {
-            env::log_str(&format!("portal/{}#{}", file!(), line!()));
+            env::log_str(&format!("token-bridge/{}#{}", file!(), line!()));
 
             ext_ft_contract::ext(AccountId::try_from(token.clone()).unwrap())
                 .ft_metadata()
@@ -1270,7 +1270,7 @@ impl Portal {
 
         if required_cost > deposit {
             env::log_str(&format!(
-                "portal/{}#{}: attest_token_callback: {} {}",
+                "token-bridge/{}#{}: attest_token_callback: {} {}",
                 file!(),
                 line!(),
                 required_cost,
@@ -1308,7 +1308,7 @@ impl Portal {
 
         if deposit > 0 {
             env::log_str(&format!(
-                "portal/{}#{}: refunding {} to {}",
+                "token-bridge/{}#{}: refunding {} to {}",
                 file!(),
                 line!(),
                 deposit,
@@ -1324,11 +1324,11 @@ impl Portal {
     #[private]
     pub fn finish_deploy(&mut self, token: AccountId, tkey: Vec<u8>, do_clean: bool) -> String {
         if is_promise_success() {
-            env::log_str(&format!("portal/{}#{}: token: {}", file!(), line!(), token));
+            env::log_str(&format!("token-bridge/{}#{}: token: {}", file!(), line!(), token));
 
             token.to_string()
         } else {
-            env::log_str(&format!("portal/{}#{}: token: {}", file!(), line!(), token));
+            env::log_str(&format!("token-bridge/{}#{}: token: {}", file!(), line!(), token));
 
             if do_clean {
                 self.tokens.remove(&token);
@@ -1350,7 +1350,7 @@ impl Portal {
         #[callback_result] ft_info: Result<FungibleTokenMetadata, PromiseError>,
     ) -> PromiseOrValue<U128> {
         env::log_str(&format!(
-            "portal/{}#{}: ft_on_transfer_callback: {} {} {}",
+            "token-bridge/{}#{}: ft_on_transfer_callback: {} {} {}",
             file!(),
             line!(),
             sender_id,
@@ -1441,7 +1441,7 @@ impl Portal {
         #[callback_result] seq: Result<u64, PromiseError>,
     ) -> PromiseOrValue<U128> {
         env::log_str(&format!(
-            "portal/{}#{}: emitter_callback_pov",
+            "token-bridge/{}#{}: emitter_callback_pov",
             file!(),
             line!()
         ));
@@ -1460,7 +1460,7 @@ impl Portal {
         msg: String,
     ) -> PromiseOrValue<U128> {
         env::log_str(&format!(
-            "portal/{}#{}: ft_on_transfer attached_deposit:  {}",
+            "token-bridge/{}#{}: ft_on_transfer attached_deposit:  {}",
             file!(),
             line!(),
             env::attached_deposit()
@@ -1494,7 +1494,7 @@ impl Portal {
         self.core = AccountId::try_from(core).unwrap();
 
         let account_hash = env::sha256(env::current_account_id().to_string().as_bytes());
-        env::log_str(&format!("portal emitter: {}", hex::encode(account_hash)));
+        env::log_str(&format!("token bridge emitter: {}", hex::encode(account_hash)));
     }
 
     #[private]
@@ -1509,7 +1509,7 @@ impl Portal {
         let refund = attached_deposit as i128 - delta;
         if refund > 0 {
             env::log_str(&format!(
-                "portal/{}#{}: update_contract_done: refund {} to {}",
+                "token-bridge/{}#{}: update_contract_done: refund {} to {}",
                 file!(),
                 line!(),
                 refund,
@@ -1528,7 +1528,7 @@ impl Portal {
         let s = env::sha256(&v);
 
         env::log_str(&format!(
-            "portal/{}#{}: update_contract: {}",
+            "token-bridge/{}#{}: update_contract: {}",
             file!(),
             line!(),
             hex::encode(&s)
@@ -1537,7 +1537,7 @@ impl Portal {
         if s.to_vec() != self.upgrade_hash {
             if env::attached_deposit() > 0 {
                 env::log_str(&format!(
-                    "portal/{}#{}: refunding {} to {}",
+                    "token-bridge/{}#{}: refunding {} to {}",
                     file!(),
                     line!(),
                     env::attached_deposit(),
@@ -1568,7 +1568,7 @@ impl Portal {
         if env::signer_account_pk() != old_state.owner_pk {
             env::panic_str("CannotCallMigrate");
         }
-        env::log_str(&format!("portal/{}#{}: migrate", file!(), line!(),));
+        env::log_str(&format!("token-bridge/{}#{}: migrate", file!(), line!(),));
         Self {
             booted:               old_state.booted,
             core:                 old_state.core,
@@ -1597,6 +1597,6 @@ impl Portal {
 #[no_mangle]
 pub extern "C" fn update_contract() {
     env::setup_panic_hook();
-    let mut contract: Portal = env::state_read().expect("Contract is not initialized");
+    let mut contract: TokenBridge = env::state_read().expect("Contract is not initialized");
     contract.update_contract_work(env::input().unwrap());
 }
