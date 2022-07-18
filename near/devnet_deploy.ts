@@ -40,7 +40,7 @@ async function initNear() {
 
   let masterKey: any;
 
-  if (e == "sandbox") {
+  if (e === "sandbox") {
     // Retrieve the validator key directly in the Tilt environment
     const response = await fetch("http://localhost:3031/validator_key.json");
 
@@ -86,7 +86,7 @@ async function initNear() {
   keyStore.setKey(config.networkId, config.tokenAccount, masterKey);
   keyStore.setKey(config.networkId, config.nftAccount, masterKey);
 
-  if (e == "sandbox") {
+  if (e === "sandbox") {
     console.log("Deploying core/wormhole contract: " + config.wormholeAccount);
     wormholeAccount = await masterAccount.createAndDeployContract(
       config.wormholeAccount,
@@ -121,7 +121,7 @@ async function initNear() {
 
   let tokenAccount: any;
 
-  if (e == "sandbox") {
+  if (e === "sandbox") {
     console.log("Deploying token bridgecontract: " + config.tokenAccount);
     tokenAccount = await masterAccount.createAndDeployContract(
       config.tokenAccount,
@@ -150,7 +150,7 @@ async function initNear() {
 
   let nftAccount: any;
 
-  if (e == "sandbox") {
+  if (e === "sandbox") {
     console.log("Deploying nft bridge contract: " + config.nftAccount);
     let nftAccount = await masterAccount.createAndDeployContract(
       config.nftAccount,
@@ -167,7 +167,7 @@ async function initNear() {
 
   let lines: any;
 
-  if (e == "sandbox") {
+  if (e === "sandbox") {
     console.log("Deploying mach contract to " + config.testAccount);
     let testAccount = await masterAccount.createAndDeployContract(
       config.testAccount,
@@ -193,7 +193,7 @@ async function initNear() {
 
   lines.forEach((line: any) => {
     let f = line.split("=");
-    if (f[0] == "INIT_SIGNERS") {
+    if (f[0] === "INIT_SIGNERS") {
       signers = eval(f[1]);
     }
     if (f[0].startsWith("REGISTER_") && f[0].endsWith("TOKEN_BRIDGE_VAA")) {
@@ -215,7 +215,7 @@ async function initNear() {
   console.log(vaasToken);
   console.log(vaasNFT);
 
-  if (e == "sandbox") {
+  if (e === "sandbox") {
     let result = await masterAccount.functionCall({
       contractId: config.wormholeAccount,
       methodName: "boot_wormhole",
