@@ -129,6 +129,8 @@ describe("Bridge Tests", () => {
               ],
               expiration_time: 0,
             },
+            chain_id: 18,
+            fee_denom: "uluna"
           },
           "wormhole"
         );
@@ -148,6 +150,7 @@ describe("Bridge Tests", () => {
             gov_address: governanceAddress,
             wormhole_contract: wormhole,
             wrapped_asset_code_id: wrappedAssetCodeId,
+            chain_id: 18,
           },
           "tokenBridge"
         );

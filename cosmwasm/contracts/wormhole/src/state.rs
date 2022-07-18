@@ -1,6 +1,4 @@
-use schemars::{
-    JsonSchema,
-};
+use schemars::JsonSchema;
 use serde::{
     Deserialize,
     Serialize,
@@ -43,21 +41,56 @@ pub static SEQUENCE_KEY: &[u8] = b"sequence";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
 pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
 
-// Guardian set information
+/// Legacy version of [`ConfigInfo`]. Required for the migration.  In
+/// particular, the last two fields of [`ConfigInfo`] have been added after the
+/// Terra2 contract's deployment, which means that Terra2 needs to be migrated.
+/// See [`crate::contract::migrate`] for details on why this is necessary.
+/// Once the migration has been executed, this struct (and the corresponding
+/// migration logic) can be deleted.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ConfigInfo {
-    // Current active guardian set
+pub struct ConfigInfoLegacy {
+    /// Current active guardian set
     pub guardian_set_index: u32,
 
-    // Period for which a guardian set stays active after it has been replaced
+    /// Period for which a guardian set stays active after it has been replaced.
+    /// The typo is an easter egg.
     pub guardian_set_expirity: u64,
 
-    // governance contract details
+    /// Governance chain (typically Solana, i.e. chain id 1)
     pub gov_chain: u16,
+
+    /// Address of governance contract (typically 0x0000000000000000000000000000000000000000000000000000000000000004)
     pub gov_address: Vec<u8>,
 
     // Message sending fee
     pub fee: Coin,
+}
+
+/// Information about this contract's general parameters.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ConfigInfo {
+    /// Current active guardian set
+    pub guardian_set_index: u32,
+
+    /// Period for which a guardian set stays active after it has been replaced.
+    /// The typo is an easter egg.
+    pub guardian_set_expirity: u64,
+
+    /// Governance chain (typically Solana, i.e. chain id 1)
+    pub gov_chain: u16,
+
+    /// Address of governance contract (typically 0x0000000000000000000000000000000000000000000000000000000000000004)
+    pub gov_address: Vec<u8>,
+
+    // Message sending fee
+    pub fee: Coin,
+
+    /// The wormhole id of the current chain.
+    pub chain_id: u16,
+
+    /// The denom in which transaction fees and wormhole fees are paid.
+    /// Typically the native denom of the current chain.
+    pub fee_denom: String,
 }
 
 // Validator Action Approval(VAA) data
@@ -179,7 +212,6 @@ pub struct GuardianAddress {
     pub bytes: Binary, // 20-byte addresses
 }
 
-use crate::contract::FEE_DENOMINATION;
 #[cfg(test)]
 use hex;
 
@@ -222,6 +254,10 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
 }
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
+    singleton_read(storage, CONFIG_KEY)
+}
+
+pub fn config_read_legacy(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfoLegacy> {
     singleton_read(storage, CONFIG_KEY)
 }
 
@@ -357,10 +393,10 @@ pub struct SetFee {
 }
 
 impl SetFee {
-    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
+    pub fn deserialize(data: &[u8], fee_denom: String) -> StdResult<Self> {
         let (_, amount) = data.get_u256(0);
         let fee = Coin {
-            denom: String::from(FEE_DENOMINATION),
+            denom: fee_denom,
             amount: Uint128::new(amount),
         };
         Ok(SetFee { fee })
@@ -374,12 +410,12 @@ pub struct TransferFee {
 }
 
 impl TransferFee {
-    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
+    pub fn deserialize(data: &[u8], fee_denom: String) -> StdResult<Self> {
         let recipient = data.get_address(0);
 
         let (_, amount) = data.get_u256(32);
         let amount = Coin {
-            denom: String::from(FEE_DENOMINATION),
+            denom: fee_denom,
             amount: Uint128::new(amount),
         };
         Ok(TransferFee { amount, recipient })

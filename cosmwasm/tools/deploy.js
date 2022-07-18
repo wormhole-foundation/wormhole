@@ -165,6 +165,8 @@ addresses["wormhole.wasm"] = await instantiate(
       }),
       expiration_time: 0,
     },
+    chain_id: 18,
+    fee_denom: "uluna",
   },
   "wormhole"
 );
@@ -176,6 +178,7 @@ addresses["token_bridge_terra_2.wasm"] = await instantiate(
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
     wormhole_contract: addresses["wormhole.wasm"],
     wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+    chain_id: 18,
   },
   "tokenBridge"
 );
