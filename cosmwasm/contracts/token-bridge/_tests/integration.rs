@@ -75,6 +75,8 @@ fn do_init(
         },
         guardian_set_expirity: 50,
         wrapped_asset_code_id: 999,
+        chain_id: 18,
+        fee_denom: "uluna".to_string(),
     };
     let env = mock_env_height(&TestAddress::INITIALIZER.value(), height, 0);
     let owner = deps
@@ -95,6 +97,7 @@ fn do_init(
                 wrapped_asset_code_id: 999,
                 owner,
                 fee: Coin::new(10000, "uluna"),
+                chain_id: 18,
             }
         );
         Ok(())
