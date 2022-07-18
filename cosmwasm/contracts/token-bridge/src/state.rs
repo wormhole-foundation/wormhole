@@ -39,15 +39,46 @@ static NATIVE_COUNTER: &[u8] = b"native_counter";
 static BANK_TOKEN_HASHES_KEY: &[u8] = b"bank_token_hashes";
 static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
 
-// Guardian set information
+/// Legacy version of [`ConfigInfo`]. Required for the migration.  In
+/// particular, the last field of [`ConfigInfo`] has been added after the
+/// Terra2 contract's deployment, which means that Terra2 needs to be migrated.
+/// See [`crate::contract::migrate`] for details on why this is necessary.
+/// Once the migration has been executed, this struct (and the corresponding
+/// migration logic) can be deleted.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ConfigInfo {
-    // governance contract details
+pub struct ConfigInfoLegacy {
+    /// Governance chain (typically Solana, i.e. chain id 1)
     pub gov_chain: u16,
+
+    /// Address of governance contract (typically 0x0000000000000000000000000000000000000000000000000000000000000004)
     pub gov_address: Vec<u8>,
 
+    /// Address of the core bridge contract
     pub wormhole_contract: HumanAddr,
+
+    /// Code id of the wrapped token contract. When a new token is attested, the
+    /// token bridge instantiates a new contract from this code id.
     pub wrapped_asset_code_id: u64,
+}
+
+/// Information about this contract's general parameters.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ConfigInfo {
+    /// Governance chain (typically Solana, i.e. chain id 1)
+    pub gov_chain: u16,
+
+    /// Address of governance contract (typically 0x0000000000000000000000000000000000000000000000000000000000000004)
+    pub gov_address: Vec<u8>,
+
+    /// Address of the core bridge contract
+    pub wormhole_contract: HumanAddr,
+
+    /// Code id of the wrapped token contract. When a new token is attested, the
+    /// token bridge instantiates a new contract from this code id.
+    pub wrapped_asset_code_id: u64,
+
+    /// The wormhole id of the current chain.
+    pub chain_id: u16,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
@@ -55,6 +86,10 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
 }
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
+    singleton_read(storage, CONFIG_KEY)
+}
+
+pub fn config_read_legacy(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfoLegacy> {
     singleton_read(storage, CONFIG_KEY)
 }
 

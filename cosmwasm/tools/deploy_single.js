@@ -151,6 +151,8 @@ async function instantiate(codeId, inst_msg) {
 //     ],
 //     expiration_time: 0,
 //   },
+//   chain_id: 18,
+//   fee_denom: "uluna",
 // });
 
 

@@ -61,14 +61,13 @@ fn build_native_and_asset_ids() -> StdResult<()> {
     );
 
     // weth
-    let chain = 2u16;
     let token_address = "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
     let token_address: [u8; 32] = hex::decode(token_address)
         .unwrap()
         .as_slice()
         .try_into()
         .unwrap();
-    let external_id_weth = ExternalTokenId::from_foreign_token(chain, token_address);
+    let external_id_weth = ExternalTokenId::from_foreign_token(token_address);
 
     let expected_asset_id: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194];
     assert_eq!(

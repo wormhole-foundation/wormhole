@@ -37,6 +37,7 @@ use crate::{
     state::{
         config,
         config_read,
+        config_read_legacy,
         guardian_set_get,
         guardian_set_set,
         sequence_read,
@@ -44,6 +45,7 @@ use crate::{
         vaa_archive_add,
         vaa_archive_check,
         ConfigInfo,
+        ConfigInfoLegacy,
         ContractUpgrade,
         GovernancePacket,
         GuardianAddress,
@@ -76,16 +78,66 @@ use std::convert::TryFrom;
 
 type HumanAddr = String;
 
-// Chain ID of Terra 2.0
-const CHAIN_ID: u16 = 18;
-
 // Lock assets fee amount and denomination
 const FEE_AMOUNT: u128 = 0;
-pub const FEE_DENOMINATION: &str = "uluna";
 
+/// Migration code that runs the next time the contract is upgraded.
+/// This function will contain ephemeral code that we want to run once, and thus
+/// can (and should be) safely deleted after the upgrade happened successfully.
+///
+/// Most upgrades won't require any special migration logic. In those cases,
+/// this function can safely be implemented as:
+/// ```ignore
+/// Ok(Response::default())
+/// ```
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    // This migration adds two new fields to the [`ConfigInfo`] struct. The
+    // state stored on chain has the old version, so we first parse it as
+    // [`ConfigInfoLegacy`], then add the new fields, and write it back as [`ConfigInfo`].
+    // Since the only place the contract with the legacy state is deployed is
+    // terra2, we just hardcode the new values here for that chain.
+
+    // 1. make sure this contract doesn't already have the new ConfigInfo struct
+    // in storage. Note that this check is not strictly necessary, as the
+    // upgrade will only be issued for terra2, and no new chains. However, it is
+    // good practice to ensure that migration code cannot be run twice, which
+    // this check achieves.
+    if config_read(deps.storage).load().is_ok() {
+        return Err(StdError::generic_err(
+            "Can't migrate; this contract already has a new ConfigInfo struct",
+        ));
+    }
+
+    // 2. parse old state
+    let ConfigInfoLegacy {
+        guardian_set_index,
+        guardian_set_expirity,
+        gov_chain,
+        gov_address,
+        fee,
+    } = config_read_legacy(deps.storage).load()?;
+
+    // 3. store new state with terra2 values hardcoded
+    let chain_id = 18;
+    let fee_denom = "uluna".to_string();
+
+    let config_info = ConfigInfo {
+        guardian_set_index,
+        guardian_set_expirity,
+        gov_chain,
+        gov_address,
+        fee,
+        chain_id,
+        fee_denom,
+    };
+
+    config(deps.storage).save(&config_info)?;
     Ok(Response::default())
+    // NOTE: once this migration has successfully completed, the contents of
+    // this (`migrate`) function should be deleted, along with the
+    // [`ConfigInfoLegacy`] struct, since it will not be necessary in the
+    // future.
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -101,7 +153,9 @@ pub fn instantiate(
         gov_address: msg.gov_address.as_slice().to_vec(),
         guardian_set_index: 0,
         guardian_set_expirity: msg.guardian_set_expirity,
-        fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
+        fee: Coin::new(FEE_AMOUNT, &msg.fee_denom),
+        chain_id: msg.chain_id,
+        fee_denom: msg.fee_denom,
     };
     config(deps.storage).save(&state)?;
 
@@ -151,6 +205,7 @@ fn handle_submit_vaa(
 
 fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Response> {
     let gov_packet = GovernancePacket::deserialize(data)?;
+    let state = config_read(deps.storage).load()?;
 
     let module = String::from_utf8(gov_packet.module).unwrap();
     let module: String = module.chars().filter(|c| c != &'\0').collect();
@@ -159,7 +214,7 @@ fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<
         return Err(StdError::generic_err("this is not a valid module"));
     }
 
-    if gov_packet.chain != 0 && gov_packet.chain != CHAIN_ID {
+    if gov_packet.chain != 0 && gov_packet.chain != state.chain_id {
         return Err(StdError::generic_err(
             "the governance VAA is for another chain",
         ));
@@ -298,10 +353,10 @@ fn vaa_update_contract(_deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Respo
 }
 
 pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
-    let set_fee_msg = SetFee::deserialize(data)?;
+    let mut state = config_read(deps.storage).load()?;
+    let set_fee_msg = SetFee::deserialize(data, state.fee_denom.clone())?;
 
     // Save new fees
-    let mut state = config_read(deps.storage).load()?;
     state.fee = set_fee_msg.fee;
     config(deps.storage).save(&state)?;
 
@@ -312,7 +367,9 @@ pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Respon
 }
 
 pub fn handle_transfer_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
-    let transfer_msg = TransferFee::deserialize(data)?;
+    let state = config_read(deps.storage).load()?;
+
+    let transfer_msg = TransferFee::deserialize(data, state.fee_denom)?;
 
     Ok(Response::new().add_message(CosmosMsg::Bank(BankMsg::Send {
         to_address: deps.api.addr_humanize(&transfer_msg.recipient)?.to_string(),
@@ -342,7 +399,7 @@ fn handle_post_message(
     Ok(Response::new()
         .add_attribute("message.message", hex::encode(message))
         .add_attribute("message.sender", hex::encode(emitter))
-        .add_attribute("message.chain_id", CHAIN_ID.to_string())
+        .add_attribute("message.chain_id", state.chain_id.to_string())
         .add_attribute("message.nonce", nonce.to_string())
         .add_attribute("message.sequence", sequence.to_string())
         .add_attribute("message.block_time", env.block.time.seconds().to_string()))
