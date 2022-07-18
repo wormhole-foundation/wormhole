@@ -1,7 +1,6 @@
 // npx pretty-quick
 
 const sha256 = require("js-sha256");
-const nearAPI = require("near-api-js");
 const fs = require("fs").promises;
 const assert = require("assert").strict;
 const fetch = require("node-fetch");
@@ -10,7 +9,14 @@ const web3Utils = require("web3-utils");
 import { zeroPad } from "@ethersproject/bytes";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 
-import { Account as nearAccount } from "@certusone/wormhole-sdk/node_modules/near-api-js";
+import {
+  connect as nearConnect,
+  keyStores as nearKeyStores,
+  utils as nearUtils,
+  Account as nearAccount,
+  providers as nearProviders,
+} from "@certusone/wormhole-sdk/node_modules/near-api-js";
+
 const BN = require("bn.js");
 
 import { TestLib } from "./testlib";
@@ -110,14 +116,14 @@ export function logNearGas(result: any, comment: string) {
   const { totalGasBurned, totalTokensBurned } = result.receipts_outcome.reduce(
     (acc: any, receipt: any) => {
       acc.totalGasBurned += receipt.outcome.gas_burnt;
-      acc.totalTokensBurned += nearAPI.utils.format.formatNearAmount(
+      acc.totalTokensBurned += nearUtils.format.formatNearAmount(
         receipt.outcome.tokens_burnt
       );
       return acc;
     },
     {
       totalGasBurned: result.transaction_outcome.outcome.gas_burnt,
-      totalTokensBurned: nearAPI.utils.format.formatNearAmount(
+      totalTokensBurned: nearUtils.format.formatNearAmount(
         result.transaction_outcome.outcome.tokens_burnt
       ),
     }
@@ -154,35 +160,33 @@ async function testNearSDK() {
 
   const keyFile = await response.json();
 
-  let masterKey = nearAPI.utils.KeyPair.fromString(
+  let masterKey = nearUtils.KeyPair.fromString(
     keyFile.secret_key || keyFile.private_key
   );
   let masterPubKey = masterKey.getPublicKey();
 
-  let keyStore = new nearAPI.keyStores.InMemoryKeyStore();
-  keyStore.setKey(config.networkId, config.masterAccount, masterKey);
+  let keyStore = new nearKeyStores.InMemoryKeyStore();
+  keyStore.setKey(config.networkId as string, config.masterAccount as string, masterKey);
 
-  let near = await nearAPI.connect({
+  let near = await nearConnect({
+    headers: {},
     deps: {
       keyStore,
     },
-    networkId: config.networkId,
-    nodeUrl: config.nodeUrl,
+    networkId: config.networkId as string,
+    nodeUrl: config.nodeUrl as string,
   });
-  let masterAccount = new nearAPI.Account(
-    near.connection,
-    config.masterAccount
-  );
+  let masterAccount = new nearAccount(near.connection, config.masterAccount as string);
 
   console.log(
     "Finish init NEAR masterAccount: " +
       JSON.stringify(await masterAccount.getAccountBalance())
   );
 
-  let userKey = nearAPI.utils.KeyPair.fromRandom("ed25519");
-  keyStore.setKey(config.networkId, config.userAccount, userKey);
-  let user2Key = nearAPI.utils.KeyPair.fromRandom("ed25519");
-  keyStore.setKey(config.networkId, config.user2Account, user2Key);
+  let userKey = nearUtils.KeyPair.fromRandom("ed25519");
+  keyStore.setKey(config.networkId as string, config.userAccount as string, userKey);
+  let user2Key = nearUtils.KeyPair.fromRandom("ed25519");
+  keyStore.setKey(config.networkId as string, config.user2Account as string, user2Key);
 
   console.log(
     "creating a user account: " +
@@ -192,11 +196,11 @@ async function testNearSDK() {
   );
 
   await masterAccount.createAccount(
-    config.userAccount,
+    config.userAccount as string,
     userKey.getPublicKey(),
     new BN(10).pow(new BN(27))
   );
-  const userAccount = new nearAPI.Account(near.connection, config.userAccount);
+  const userAccount = new nearAccount(near.connection, config.userAccount as string);
 
   console.log(
     "creating a second user account: " +
@@ -206,27 +210,24 @@ async function testNearSDK() {
   );
 
   await masterAccount.createAccount(
-    config.user2Account,
+    config.user2Account as string,
     user2Key.getPublicKey(),
     new BN(10).pow(new BN(27))
   );
-  const user2Account = new nearAPI.Account(
-    near.connection,
-    config.user2Account
-  );
+  const user2Account = new nearAccount(near.connection, config.user2Account as string);
 
   console.log(
     "Creating new random non-wormhole token and air dropping some tokens to myself"
   );
 
-  let randoToken = nearAPI.providers.getTransactionLastResult(
+  let randoToken = nearProviders.getTransactionLastResult(
     await userAccount.functionCall({
       contractId: "test.test.near",
       methodName: "deploy_ft",
       args: {
         account: userAccount.accountId,
       },
-      gas: 300000000000000,
+      gas: new BN("300000000000000"),
     })
   );
 
@@ -323,7 +324,7 @@ async function testNearSDK() {
 
   console.log("Registering the receiving account");
 
-  let myAddress = nearAPI.providers.getTransactionLastResult(
+  let myAddress = nearProviders.getTransactionLastResult(
     await userAccount.functionCall({
       contractId: token_bridge,
       methodName: "register_account",
@@ -733,16 +734,17 @@ async function testNearSDK() {
     await redeemOnNear(user2Account, token_bridge, transferAlgoToNearNEAR)
   );
 
-  let testAddress = nearAPI.providers.getTransactionLastResult(
+  let userAccount2Address = nearProviders.getTransactionLastResult(
     await userAccount.functionCall({
       contractId: token_bridge,
       methodName: "register_account",
-      args: { account: "test.test.near" },
+      args: { account: user2Account.accountId },
       gas: new BN("100000000000000"),
       attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
     })
   );
-  console.log("testAddress: " + testAddress);
+  console.log("userAccount2Address: " + userAccount2Address);
+
 
   let transferAlgoToNearP3;
   {
@@ -755,7 +757,7 @@ async function testNearSDK() {
       algoWallet.addr,
       nearAssetId,
       BigInt(AmountToTransfer),
-      testAddress,
+      userAccount2Address,
       CHAIN_ID_NEAR,
       BigInt(Fee),
       hexToUint8Array("ff")
@@ -777,7 +779,7 @@ async function testNearSDK() {
     ).vaaBytes;
   }
 
-  if (false) {
+  {
     console.log("redeeming P3 NEAR on Near");
     console.log(
       await redeemOnNear(user2Account, token_bridge, transferAlgoToNearP3)
@@ -795,7 +797,7 @@ async function testNearSDK() {
         algoWallet.addr,
         randoAssetId,
         BigInt(AmountToTransfer),
-        testAddress,
+        userAccount2Address,
         CHAIN_ID_NEAR,
         BigInt(Fee),
         hexToUint8Array("ff")
