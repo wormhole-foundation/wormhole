@@ -1001,7 +1001,7 @@ impl TokenBridge {
             refund_to = Some(env::predecessor_account_id());
         }
 
-        if env::prepaid_gas() < Gas(300_000_000_000_000) {
+        if env::prepaid_gas() < Gas(150_000_000_000_000) {
             env::panic_str("NotEnoughGas");
         }
 

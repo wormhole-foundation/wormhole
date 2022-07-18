@@ -338,7 +338,7 @@ export async function redeemOnNear(
       vaa: uint8ArrayToHex(vaa),
     },
     attachedDeposit: new BN("100000000000000000000000"),
-    gas: new BN("300000000000000"),
+    gas: new BN("150000000000000"),
   });
 
   result = await client.functionCall({
@@ -348,7 +348,7 @@ export async function redeemOnNear(
       vaa: uint8ArrayToHex(vaa),
     },
     attachedDeposit: new BN("100000000000000000000000"),
-    gas: new BN("300000000000000"),
+    gas: new BN("150000000000000"),
   });
 
   return nearProviders.getTransactionLastResult(result);

@@ -88,7 +88,7 @@ export async function createWrappedOnNear(
     methodName: "submit_vaa",
     args: { vaa: vaa },
     attachedDeposit: new BN(res[1]),
-    gas: new BN("300000000000000"),
+    gas: new BN("150000000000000"),
   });
 
   result = await client.functionCall({
@@ -96,7 +96,7 @@ export async function createWrappedOnNear(
     methodName: "submit_vaa",
     args: { vaa: vaa },
     attachedDeposit: new BN(res[1]),
-    gas: new BN("300000000000000"),
+    gas: new BN("150000000000000"),
   });
 
   return nearProviders.getTransactionLastResult(result);
