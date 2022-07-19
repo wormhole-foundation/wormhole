@@ -49,6 +49,9 @@ export type EVMChainName =
   | "celo"
   | "moonbeam"
   | "neon"
+  | "arbitrum"
+  | "optimism"
+  | "gnosis"
   | "ropsten";
 
 export type TerraChainName = "terra" | "terra2";
@@ -654,6 +657,9 @@ export function isEVMChain(
     chainId === CHAIN_ID_CELO ||
     chainId === CHAIN_ID_MOONBEAM ||
     chainId === CHAIN_ID_NEON ||
+    chainId === CHAIN_ID_ARBITRUM ||
+    chainId === CHAIN_ID_OPTIMISM ||
+    chainId === CHAIN_ID_GNOSIS ||
     chainId === CHAIN_ID_ETHEREUM_ROPSTEN
   ) {
     return isEVM(chainId);

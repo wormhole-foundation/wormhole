@@ -20,9 +20,6 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   CHAIN_ID_TERRA2,
-  CHAIN_ID_ARBITRUM,
-  CHAIN_ID_OPTIMISM,
-  CHAIN_ID_GNOSIS,
   CHAIN_ID_UNSET,
   coalesceChainId,
   isEVMChain,
@@ -100,12 +97,6 @@ export const tryUint8ArrayToNative = (
     throw Error("uint8ArrayToNative: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
     throw Error("uint8ArrayToNative: Aptos not supported yet.");
-  } else if (chainId === CHAIN_ID_ARBITRUM) {
-    throw Error("uint8ArrayToNative: Arbitrum not supported yet.");
-  } else if (chainId === CHAIN_ID_OPTIMISM) {
-    throw Error("uint8ArrayToNative: Optimism not supported yet.");
-  } else if (chainId === CHAIN_ID_GNOSIS) {
-    throw Error("uint8ArrayToNative: Gnosis not supported yet.");            
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("uint8ArrayToNative: Chain id unset");
   } else {
@@ -224,12 +215,6 @@ export const tryNativeToHexString = (
     throw Error("hexToNativeString: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
     throw Error("hexToNativeString: Aptos not supported yet.");
-  } else if (chainId === CHAIN_ID_ARBITRUM) {
-    throw Error("hexToNativeString: Arbitrum not supported yet.");
-  } else if (chainId === CHAIN_ID_OPTIMISM) {
-    throw Error("hexToNativeString: Optimism not supported yet.");
-  } else if (chainId === CHAIN_ID_GNOSIS) {
-    throw Error("hexToNativeString: Gnosis not supported yet.");            
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("hexToNativeString: Chain id unset");
   } else {
