@@ -429,7 +429,7 @@ export const getMetaplexData = async (
   mintAddresses: string[],
   chainInfo: ChainConfigInfo
 ) => {
-  const promises = [];
+  const promises: Promise<[PublicKey, number]>[]  = [];
   for (const address of mintAddresses) {
     promises.push(getMetadataAddress(address));
   }

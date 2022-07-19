@@ -5,7 +5,7 @@ import {
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { importCoreWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
-import { getListenerEnvironment } from "../configureEnv";
+import { getListenerEnvironment, TokensArray } from "../configureEnv";
 import { getLogger } from "../helpers/logHelper";
 import {
   connectToRedis,
@@ -36,8 +36,11 @@ export function validateInit(): boolean {
     logger.info("There are no white listed contracts provisioned.");
   }
 
-  logger.info("supported tokens : [" + env.supportedTokens.toString() + "]");
-  if (env.supportedTokens.length) {
+  if (env.supportedTokens === undefined) {
+    logger.info("supported tokens : All Tokens");
+  }
+  logger.info("supported tokens : [" + (<TokensArray>env.supportedTokens).toString() + "]");
+  if (env.supportedTokens && env.supportedTokens.length) {
     env.supportedTokens.forEach((supportedToken) => {
       logger.info(
         "adding allowed contract: chainId: [" +
@@ -105,11 +108,11 @@ export async function parseAndValidateVaa(
   //   return "VAA is not from a monitored contract.";
   // }
 
-  const isCorrectPayloadType = parsedVaa.payload[0] === 1;
+  const isCorrectPayloadType = parsedVaa.payload[0] === 3;
 
   if (!isCorrectPayloadType) {
-    logger.debug("Specified vaa is not payload type 1.");
-    return "Specified vaa is not payload type 1..";
+    logger.debug("Specified vaa is not payload type 3.");
+    return "Specified vaa is not payload type 3..";
   }
 
   let parsedPayload: any = null;
@@ -128,14 +131,18 @@ export async function parseAndValidateVaa(
     parsedPayload.originAddress,
     parsedPayload.originChain
   );
+  logger.debug("%o", originAddressNative)
 
-  const isApprovedToken = env.supportedTokens.find((token) => {
-    return (
-      originAddressNative &&
-      token.address.toLowerCase() === originAddressNative.toLowerCase() &&
-      token.chainId === parsedPayload.originChain
-    );
-  });
+  const isApprovedToken =
+    env.supportedTokens === undefined ||
+    env.supportedTokens.find((token) => {
+      return (
+        originAddressNative &&
+        token.address.toLowerCase() === originAddressNative.toLowerCase() &&
+        token.chainId === parsedPayload.originChain
+      );
+    });
+  logger.debug("%o", originAddressNative)
 
   if (!isApprovedToken) {
     logger.debug("Token transfer is not for an approved token.");
@@ -143,12 +150,12 @@ export async function parseAndValidateVaa(
   }
 
   //TODO configurable
-  const sufficientFee = parsedPayload.fee && parsedPayload.fee > 0;
+  const sufficientFee = parsedPayload.fee && parsedPayload.fee >= 0;
 
-  if (!sufficientFee) {
-    logger.debug("Token transfer does not have a sufficient fee.");
-    return "Token transfer does not have a sufficient fee.";
-  }
+  // if (!sufficientFee) {
+  //   logger.debug("Token transfer does not have a sufficient fee.");
+  //   return "Token transfer does not have a sufficient fee.";
+  // }
 
   const key = getKey(parsedPayload.originChain, originAddressNative as string); //was null checked above
 

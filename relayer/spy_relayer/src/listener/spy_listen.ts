@@ -100,7 +100,7 @@ export async function run(ph: PromHelper) {
   );
 
   const wrappedFilters = { filters: typedFilters };
-
+    
   while (true) {
     let stream: any;
     try {
