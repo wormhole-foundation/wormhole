@@ -31,6 +31,9 @@ enum ChainID {
   CHAIN_ID_OSMOSIS = 20;
   CHAIN_ID_SUI = 21;
   CHAIN_ID_APTOS = 22;
+  CHAIN_ID_ARBITRUM = 23;
+  CHAIN_ID_OPTIMISM = 24;
+  CHAIN_ID_GNOSIS = 25;
   // Special case - Eth has two testnets. CHAIN_ID_ETHEREUM is Goerli,
   // but we also want to connect to Ropsten, so we add a separate chain.
   CHAIN_ID_ETHEREUM_ROPSTEN = 10001;

@@ -111,6 +111,18 @@ const MAINNET = {
     chain_id: "phoenix-1",
     key: get_env_var("TERRA_MNEMONIC"),
   },
+  arbitrum: {
+    rpc: undefined,
+    key: undefined,
+  },
+  optimism: {
+    rpc: undefined,
+    key: undefined,
+  },
+  gnosis: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY"),
@@ -212,6 +224,18 @@ const TESTNET = {
     chain_id: "pisco-1",
     key: get_env_var("TERRA_MNEMONIC"),
   },
+  arbitrum: {
+    rpc: undefined,
+    key: undefined,
+  },
+  optimism: {
+    rpc: undefined,
+    key: undefined,
+  },
+  gnosis: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY_TESTNET"),
@@ -312,6 +336,18 @@ const DEVNET = {
     rpc: "http://localhost:1318",
     chain_id: "phoenix-1",
     key: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius",
+  },
+  arbitrum: {
+    rpc: undefined,
+    key: undefined,
+  },
+  optimism: {
+    rpc: undefined,
+    key: undefined,
+  },
+  gnosis: {
+    rpc: undefined,
+    key: undefined,
   },
   ropsten: {
     rpc: undefined,
