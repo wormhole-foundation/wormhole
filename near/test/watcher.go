@@ -8,12 +8,25 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/tidwall/gjson"
-	"encoding/base64"
+	//	"encoding/base64"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+	//	"encoding/json"
 )
+
+func getTxStatus(tx string, src string) ([]byte, error) {
+	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "EXPERIMENTAL_tx_status", "params": ["%s", "%s"]}`, tx, src)
+	resp, err := http.Post("http://localhost:3030", "application/json", bytes.NewBuffer([]byte(s)))
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
+}
 
 func getBlock(block uint64) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": %d}}`, block)
@@ -56,28 +69,62 @@ func inspectBody(block uint64, body gjson.Result) error {
 	fmt.Printf("block %d\n", block)
 
 	result := body.Get("result.chunks.#.chunk_hash")
+	if !result.Exists() {
+		return nil
+	}
+
 	for _, name := range result.Array() {
 		chunk, err := getChunk(name.String())
-		if (err != nil) {
+		if err != nil {
 			return err
 		}
-		receipts := gjson.ParseBytes(chunk).Get("result.receipts")
-		for _, r := range receipts.Array() {
-			p := r.Get("predecessor_id").String()
-			if strings.HasSuffix(p, "wormhole.test.near") {
-				a := r.Get("receipt.Action.actions.#.FunctionCall")
-				for _, c := range a.Array() {
-					if c.Get("method_name").String() == "message_published" {
-						args := c.Get("args").String()
-						rawDecodedText, err := base64.StdEncoding.DecodeString(args)
-						if err != nil {
-							return err
+
+		txns := gjson.ParseBytes(chunk).Get("result.transactions")
+		if !txns.Exists() {
+			continue
+		}
+		for _, r := range txns.Array() {
+			hash := r.Get("hash")
+			receiver_id := r.Get("receiver_id")
+			if !hash.Exists() || !receiver_id.Exists() {
+				continue
+			}
+
+			t, _ := getTxStatus(hash.String(), receiver_id.String())
+
+			outcomes := gjson.ParseBytes(t).Get("result.receipts_outcome")
+
+			if !outcomes.Exists() {
+				continue
+			}
+
+			for _, o := range outcomes.Array() {
+				outcome := o.Get("outcome")
+				if !outcome.Exists() {
+					continue
+				}
+
+				executor_id := outcome.Get("executor_id")
+				if !executor_id.Exists() {
+					continue
+				}
+				if executor_id.String() == "wormhole.test.near" {
+					l := outcome.Get("logs")
+					if !l.Exists() {
+						continue
+					}
+					for _, log := range l.Array() {
+						event := log.String()
+						if !strings.HasPrefix(event, "EVENT_JSON:") {
+							continue
 						}
-						fmt.Printf("Decoded text: %s\n", rawDecodedText)
+						event_json := gjson.ParseBytes(event[11:])
+						fmt.Printf("log: %s\n", event[11:])
 					}
 				}
 			}
 		}
+
 	}
 	return nil
 }
@@ -89,7 +136,7 @@ func main() {
 	for {
 		finalBody, err := getFinalBlock()
 		if err != nil {
-			fmt.Printf(err.Error());
+			fmt.Printf(err.Error())
 		} else {
 			parsedFinalBody := gjson.ParseBytes(finalBody)
 			lastBlock := parsedFinalBody.Get("result.chunks.0.height_created").Uint()
@@ -99,8 +146,9 @@ func main() {
 					inspectBody(block, parsedFinalBody)
 				} else {
 					b, err := getBlock(block)
+					//					fmt.Printf("block: %s\n", b);
 					if err != nil {
-						fmt.Printf(err.Error());
+						fmt.Printf(err.Error())
 						break
 					} else {
 						inspectBody(block, gjson.ParseBytes(b))
