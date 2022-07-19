@@ -21,7 +21,6 @@ export const hexToUint8Array = (h: string): Uint8Array =>
 export const uint8ArrayToHex = (a: Uint8Array): string =>
   Buffer.from(a).toString("hex");
 
-
 function getConfig(env: any) {
   switch (env) {
     case "sandbox":
@@ -75,6 +74,18 @@ async function testNearMsg() {
       JSON.stringify(await masterAccount.getAccountBalance())
   );
 
+  while (true) {
+    let myAddress = nearAPI.providers.getTransactionLastResult(
+      await masterAccount.functionCall({
+        contractId: "test.test.near",
+        methodName: "publish_message",
+        args: { core: "wormhole.test.near", p: "00" },
+        gas: new BN("100000000000000"),
+        attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
+      })
+    );
+    await new Promise((f) => setTimeout(f, 1000));
+  }
 }
 
 testNearMsg();
