@@ -22,6 +22,9 @@ export const CHAINS = {
   osmosis: 20,
   sui: 21,
   aptos: 22,
+  arbitrum: 23,
+  optimism: 24,
+  gnosis: 25,
   ropsten: 10001,
 } as const;
 
@@ -46,6 +49,9 @@ export type EVMChainName =
   | "celo"
   | "moonbeam"
   | "neon"
+  | "arbitrum"
+  | "optimism"
+  | "gnosis"
   | "ropsten";
 
 export type TerraChainName = "terra" | "terra2";
@@ -177,6 +183,21 @@ const MAINNET = {
       "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",
     nft_bridge: undefined,
   },
+  arbitrum: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  gnosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -299,6 +320,21 @@ const TESTNET = {
     core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
     token_bridge:
       "terra1c02vds4uhgtrmcw7ldlg75zumdqxr8hwf7npseuf2h58jzhpgjxsgmwkvk",
+    nft_bridge: undefined,
+  },
+  arbitrum: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  gnosis: {
+    core: undefined,
+    token_bridge: undefined,
     nft_bridge: undefined,
   },
   ropsten: {
@@ -424,6 +460,21 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  arbitrum: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  gnosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -492,6 +543,9 @@ export const CHAIN_ID_INJECTIVE = CHAINS["injective"];
 export const CHAIN_ID_OSMOSIS = CHAINS["osmosis"];
 export const CHAIN_ID_SUI = CHAINS["sui"];
 export const CHAIN_ID_APTOS = CHAINS["aptos"];
+export const CHAIN_ID_ARBITRUM = CHAINS["arbitrum"];
+export const CHAIN_ID_OPTIMISM = CHAINS["optimism"];
+export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
@@ -603,6 +657,9 @@ export function isEVMChain(
     chainId === CHAIN_ID_CELO ||
     chainId === CHAIN_ID_MOONBEAM ||
     chainId === CHAIN_ID_NEON ||
+    chainId === CHAIN_ID_ARBITRUM ||
+    chainId === CHAIN_ID_OPTIMISM ||
+    chainId === CHAIN_ID_GNOSIS ||
     chainId === CHAIN_ID_ETHEREUM_ROPSTEN
   ) {
     return isEVM(chainId);
