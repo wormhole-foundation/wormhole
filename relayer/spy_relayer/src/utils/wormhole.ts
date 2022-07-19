@@ -1,4 +1,4 @@
-import { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, } from "@certusone/wormhole-sdk";
 import {BigNumber} from "ethers";
 
 export const chainIDStrings: { [key in ChainId]: string } = {
@@ -30,6 +30,17 @@ export const parseTransferPayload = function (arr) { return ({
   targetAddress: arr.slice(67, 67 + 32).toString("hex"),
   targetChain: arr.readUInt16BE(99),
   fromAddress: arr.slice(101, 101 + 32).toString("hex").toLowerCase()
+});
+}
+
+export const parseTransferPayloadWithData = function (arr)  { return ({
+  amount: BigNumber.from(arr.slice(1, 1 + 32)).toBigInt(),
+  originAddress: arr.slice(33, 33 + 32).toString("hex"),
+  originChain: arr.readUInt16BE(65),
+  targetAddress: arr.slice(67, 67 + 32).toString("hex"),
+  targetChain: arr.readUInt16BE(99),
+  fromAddress: arr.slice(101, 101 + 32).toString("hex").toLowerCase(),
+  payload: arr.slice(101+32),
 });
 }
 

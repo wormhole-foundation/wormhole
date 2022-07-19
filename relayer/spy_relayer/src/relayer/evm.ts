@@ -16,16 +16,15 @@ import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import { CeloProvider, CeloWallet } from "@celo-tools/celo-ethers-wrapper";
-import * as lib from "../lib/lib";
 import fs from "fs"
 import * as types from "../xRaydium/solana-proxy/generated_client/types";
 import "@nomiclabs/hardhat-ethers";
 import {ethers} from "hardhat";
 import xRaydium_abi from "../utils/xRaydium_abi.json";
-import {TransferPayload} from "../xRaydium/scripts/lib/lib"
+import * as lib from "../xRaydium/scripts/lib/lib"
+import * as utilities from "../xRaydium/scripts/lib/utilities"
 import {parseTransferPayload} from "../utils/wormhole"
-
-//import * as addrs from "../xRaydium/addrs";
+import { redeemResponseEVM } from "../xRaydium/scripts/relay";
 
 //import ethers from "hardhat";
 //import {ethers} from "../xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
@@ -72,6 +71,9 @@ export async function relayEVM(
     signer = new ethers.Wallet(walletPrivateKey, provider);
   }
 
+  const { parse_vaa } = await importCoreWasm();
+  const parsed = parse_vaa(signedVaaArray);
+
   logger.debug("Checking to see if vaa has already been redeemed.");
   const alreadyRedeemed = await getIsTransferCompletedEth(
     chainConfigInfo.tokenBridgeAddress,
@@ -94,35 +96,22 @@ export async function relayEVM(
   } else {
     logger.info("Will redeem using pubkey: %s", await signer.getAddress());
   }
-  const { parse_vaa } = await importCoreWasm();
-  const parsed = parse_vaa(signedVaaArray);
   
   //@ts-ignore
   let transferPayload = parseTransferPayload(Buffer.from(parsed.payload)) as TransferPayload;
-
   console.log("transferPayload: ", transferPayload)
-
-  console.log("relayEVM fromAddress: ", transferPayload.fromAddress)
-
+  console.log("relayEVM fromAddress: ", transferPayload.originAddress)
   transferPayload["payload3"] = Buffer.from(parsed["payload"].slice(133));
   logger.info(parsed, "Parsed VAA");
 
   // TODO: check sender of payload 3 is solana proxy via sender field 
-
-  // const addrs = JSON.parse(String(fs.readFile("../xRaydium/addrs")));
-
-  //const addrs = JSON.parse(String(await fs.promises.readFile("../xRaydium" + "/addrs")));
-
   //const XRaydiumBridge = await ethers.getContractFactory(xRaydium_abi.abi);
-
   //const contract = await XRaydiumBridge.attach("0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9");
 
-  const contract = new ethers.Contract('0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9', xRaydium_abi.abi, provider);
-
-  const response = types.Response.layout().decode(transferPayload.payload3);
-  logger.info(response, "Response");
-
-  const receipt = await (await contract.connect(signer).receiveResponse(signedVaaArray)).wait();
+  logger.debug("Before load addrs")
+  const addrs = await utilities.loadAddrs()
+  logger.debug("After load addrs")
+  await redeemResponseEVM(signedVaaArray, signer, addrs.fuji.XRaydiumBridge)
   
   logger.info("=============done redeem responses to EVM!!!...!!!")
 

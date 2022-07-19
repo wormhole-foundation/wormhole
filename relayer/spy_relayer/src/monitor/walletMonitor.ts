@@ -95,11 +95,11 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
         }
         // TODO one day this will spin up independent watchers that time themselves
         // purposefully not awaited
-        pullAllEVMTokens(env.supportedTokens, chainInfo, metrics);
+        pullAllEVMTokens(env.gasTokens, chainInfo, metrics);
       } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
         // TODO one day this will spin up independent watchers that time themselves
         // purposefully not awaited
-        pullAllTerraBalances(env.supportedTokens, chainInfo, metrics);
+        pullAllTerraBalances(env.gasTokens, chainInfo, metrics);
       } else {
         logger.error("Invalid chain ID in wallet monitor " + chainInfo.chainId);
       }

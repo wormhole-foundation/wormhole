@@ -85,7 +85,7 @@ export type RelayerEnvironment = {
   redisPort: number;
   clearRedisOnInit: boolean;
   demoteWorkingOnInit: boolean;
-  supportedTokens: { chainId: ChainId; address: string }[];
+  gasTokens: TokensArray;
 };
 
 export type ChainConfigInfo = {
@@ -109,19 +109,17 @@ export type ListenerEnvironment = {
   spyServiceFilters: { chainId: ChainId; emitterAddress: string }[];
   restPort: number;
   numSpyWorkers: number;
-  supportedTokens: { chainId: ChainId; address: string }[];
+  supportedTokens: TokensArray | undefined;
 };
+export type TokensArray = { chainId: ChainId; address: string }[];
 
 let listenerEnv: ListenerEnvironment | undefined = undefined;
 
 export const getListenerEnvironment: () => ListenerEnvironment = () => {
-  if (listenerEnv) {
-    return listenerEnv;
-  } else {
-    const env = createListenerEnvironment();
-    listenerEnv = env;
-    return listenerEnv;
+  if (!listenerEnv) {
+    listenerEnv = createListenerEnvironment();
   }
+  return listenerEnv;
 };
 
 const createListenerEnvironment: () => ListenerEnvironment = () => {
@@ -129,7 +127,7 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
   let spyServiceFilters: { chainId: ChainId; emitterAddress: string }[] = [];
   let restPort: number;
   let numSpyWorkers: number;
-  let supportedTokens: { chainId: ChainId; address: string }[] = [];
+  let supportedTokens: { chainId: ChainId; address: string }[] | undefined = [];
   const logger = getLogger();
 
   if (!process.env.SPY_SERVICE_HOST) {
@@ -181,17 +179,23 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
   }
 
   logger.info("Getting SUPPORTED_TOKENS...");
+  logger.debug("Supported tokens: %o", process.env.SUPPORTED_TOKENS);
   if (!process.env.SUPPORTED_TOKENS) {
     throw new Error("Missing required environment variable: SUPPORTED_TOKENS");
+  } else if (process.env.SUPPORTED_TOKENS.toLowerCase() === "all") {
+    logger.info("All tokens supported");
+    supportedTokens = undefined;
   } else {
     // const array = JSON.parse(process.env.SUPPORTED_TOKENS);
+    logger.debug("eval array");
     const array = eval(process.env.SUPPORTED_TOKENS);
+    logger.debug("below eval");
     if (!array || !Array.isArray(array)) {
       throw new Error("SUPPORTED_TOKENS is not an array.");
     } else {
       array.forEach((token: any) => {
         if (token.chainId && token.address) {
-          supportedTokens.push({
+          (<TokensArray>supportedTokens).push({
             chainId: token.chainId,
             address: token.address,
           });
@@ -201,6 +205,7 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
       });
     }
   }
+  logger.debug("SUPPORTED_TOKENS: %o", supportedTokens);
 
   return {
     spyServiceHost,
@@ -229,7 +234,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
   let redisPort: number;
   let clearRedisOnInit: boolean;
   let demoteWorkingOnInit: boolean;
-  let supportedTokens: { chainId: ChainId; address: string }[] = [];
+  let gasTokens: TokensArray | undefined = [];
 
   if (!process.env.REDIS_HOST) {
     throw new Error("Missing required environment variable: REDIS_HOST");
@@ -269,6 +274,25 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
 
   supportedChains = loadChainConfig();
 
+  // TODO: separate SUPPORTED_TOKENS from GAS_TOKENS to enable bridging any token but keeping warns on for gas tokens
+  // if (process.env.GAS_TOKENS) {
+  //   const array = JSON.parse(process.env.GAS_TOKENS);
+  //   if (!array || !Array.isArray(array)) {
+  //     throw new Error("GAS_TOKENS is not an array.");
+  //   } else {
+  //     array.forEach((token: any) => {
+  //       if (token.chainId && token.address) {
+  //         (<TokensArray>gasTokens).push({
+  //           chainId: token.chainId,
+  //           address: token.address,
+  //         });
+  //       } else {
+  //         throw new Error("Invalid token record. " + token.toString());
+  //       }
+  //     });
+  //   }
+  // }
+
   if (!process.env.SUPPORTED_TOKENS) {
     throw new Error("Missing required environment variable: SUPPORTED_TOKENS");
   } else {
@@ -279,7 +303,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
     } else {
       array.forEach((token: any) => {
         if (token.chainId && token.address) {
-          supportedTokens.push({
+          (<TokensArray>gasTokens).push({
             chainId: token.chainId,
             address: token.address,
           });
@@ -296,7 +320,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
     redisPort,
     clearRedisOnInit,
     demoteWorkingOnInit,
-    supportedTokens,
+    gasTokens,
   };
 };
 

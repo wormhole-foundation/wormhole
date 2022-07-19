@@ -304,6 +304,7 @@ async function processRequest(
     } catch (e: any) {
       if (e.message) {
         logger.error("Failed to relay transfer vaa: %s", e.message);
+        logger.debug("Error obj: %o", e)
       } else {
         logger.error("Failed to relay transfer vaa: %o", e);
       }

@@ -17,76 +17,83 @@ import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
-import {relayToSolana} from "../xRaydium/scripts/relay"
-import {TransferPayload} from "../xRaydium/scripts/lib/lib"
-import {parseTransferPayload} from "../utils/wormhole"
+import { relayToSolana } from "../xRaydium/scripts/relay";
+import * as xRaydiumLib from "../xRaydium/scripts/lib/lib";
+import { parseTransferPayload } from "../utils/wormhole";
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
 export async function relaySolana(
-    chainConfigInfo: ChainConfigInfo,
-    signedVAAString: string,
-    checkOnly: boolean,
-    walletPrivateKey: Uint8Array,
-    relayLogger: ScopedLogger,
-    metrics: PromHelper
+  chainConfigInfo: ChainConfigInfo,
+  signedVAAString: string,
+  checkOnly: boolean,
+  walletPrivateKey: Uint8Array,
+  relayLogger: ScopedLogger,
+  metrics: PromHelper
+) {
+  console.log("signedVAAString: ", signedVAAString);
+  const logger = getScopedLogger(["solana"], relayLogger);
+  console.log("relaySolana chainConfigInfo: ", chainConfigInfo);
+  //TODO native transfer & create associated token account
+  //TODO close connection
+  const signedVaaArray = hexToUint8Array(signedVAAString);
+  const signedVaaBuffer = Buffer.from(signedVaaArray);
+  const connection = new Connection(chainConfigInfo.nodeUrl, "confirmed");
+  if (!chainConfigInfo.bridgeAddress) {
+    // This should never be the case, as enforced by createSolanaChainConfig
+    return { redeemed: false, result: null };
+  }
+
+  console.log("==============in relaySolana.ts==============");
+  console.log(
+    "chainConfigInfo.tokenBridgeAddress: ",
+    chainConfigInfo.tokenBridgeAddress
+  );
+  const alreadyRedeemed = await getIsTransferCompletedSolana(
+    chainConfigInfo.tokenBridgeAddress,
+    signedVaaArray,
+    connection
+  );
+  const { parse_vaa } = await importCoreWasm();
+  const parsedVAA = parse_vaa(signedVaaArray);
+  const payloadBuffer = Buffer.from(parsedVAA.payload);
+  // TODO check if sender is correct, we expect a payload3
+  console.log("before slice payload3.....");
+  let payload3 = parsedVAA["payload"].slice(133);
+  //@ts-ignore
+  let transferPayload = parseTransferPayload(
+    payloadBuffer
+  ) as xRaydiumLib.TransferPayloadWithData;
+  console.log("relaySolana fromAddress: ", transferPayload.originAddress);
+  logger.info("relaySolana myTransferPayload3: ", transferPayload);
+  transferPayload["payload3"] = payload3;
+
+  const opCode = await xRaydiumLib.parsePayload3ToOpCode(
+    transferPayload.payload3
+  );
+  const escrowState = await xRaydiumLib.tryFetchEscrowState(opCode, {silent: true, retries: 2});
+  if (
+    alreadyRedeemed &&
+    escrowState &&
+    escrowState.escrowStateMarker.kind === "Completed" &&
+    escrowState.inputTokens.every((t) => t.hasBeenReturned) &&
+    escrowState.outputTokens.every((t) => t.hasBeenReturned)
   ) {
-    console.log("signedVAAString: ", signedVAAString)
-      const logger = getScopedLogger(["solana"], relayLogger);
-    console.log("relaySolana chainConfigInfo: ", chainConfigInfo)
-    //TODO native transfer & create associated token account
-    //TODO close connection
-    const signedVaaArray = hexToUint8Array(signedVAAString);
-    const signedVaaBuffer = Buffer.from(signedVaaArray);
-    const connection = new Connection(chainConfigInfo.nodeUrl, "confirmed");
-    if (!chainConfigInfo.bridgeAddress) {
-          // This should never be the case, as enforced by createSolanaChainConfig
-          return { redeemed: false, result: null };
-    }
+    logger.info("VAA has already been redeemed!");
+    return { redeemed: true, result: "already redeemed" };
+  }
+  if (checkOnly) {
+    return { redeemed: false, result: "not redeemed" };
+  }
 
-    // const keypair = Keypair.fromSecretKey(walletPrivateKey);
-    // const payerAddress = keypair.publicKey.toString();
-    // logger.info(
-    //   "publicKey: %s, bridgeAddress: %s, tokenBridgeAddress: %s",
-    //   payerAddress,
-    //   chainConfigInfo.bridgeAddress,
-    //   chainConfigInfo.tokenBridgeAddress
-    // );
-    // logger.debug("Checking to see if vaa has already been redeemed.");
-    console.log("==============in relaySolana.ts==============!!!")
-    console.log("chainConfigInfo.tokenBridgeAddress: ", chainConfigInfo.tokenBridgeAddress)
-    const alreadyRedeemed = await getIsTransferCompletedSolana(
-       chainConfigInfo.tokenBridgeAddress,
-       signedVaaArray,
-       connection
-    );
-    if (alreadyRedeemed) {
-       logger.info("VAA has already been redeemed!");
-       return { redeemed: true, result: "already redeemed" };
-    }
-    if (checkOnly) {
-       return { redeemed: false, result: "not redeemed" };
-    }
-    const { parse_vaa } = await importCoreWasm();
-    const parsedVAA = parse_vaa(signedVaaArray);
-    const payloadBuffer = Buffer.from(parsedVAA.payload);
-    // TODO check if sender is correct, we expect a payload3
-    console.log("before slice payload3.....")
-    let payload3 = parsedVAA["payload"].slice(133);
-    //@ts-ignore
-    let myTransferPayload3 = parseTransferPayload(payloadBuffer) as TransferPayload;
-    console.log("relaySolana fromAddress: ", myTransferPayload3.fromAddress)
-    logger.info("relaySolana myTransferPayload3: ", myTransferPayload3)
-    myTransferPayload3["payload3"] = payload3;
+  await relayToSolana(
+    signedVaaArray,
+    parsedVAA,
+    transferPayload
+  );
 
-    const returnSeqs = await relayToSolana(
-        signedVaaArray,
-        parsedVAA,
-        myTransferPayload3,
-    );
-    
-    logger.info("\n\n\n=============done relaying to solana...!!!!!!!\n\n\n")
+  logger.info("\n\n============= Done relaying to solana ============\n\n");
 
-    return { redeemed: true, result: "redeemed" };
+  return { redeemed: true, result: "redeemed" };
 }
 
 //relay solana
