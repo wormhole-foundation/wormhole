@@ -1020,7 +1020,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if gov != nil {
 			err := gov.Run(ctx)
 			if err != nil {
-				log.Fatal("failed to create chain goveneror", zap.Error(err))
+				log.Fatal("failed to create chain governor", zap.Error(err))
 			}
 		}
 

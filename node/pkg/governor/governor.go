@@ -6,11 +6,12 @@
 // its value (as factored into the daily total) is fixed. However the value of pending transfers is computed using the latest price each interval.
 //
 // The governor maintains a rolling 24 hour window of transfers that have been received from a configured chain (emitter)
-// and compares that value to the configured limit for that chain. If a new transfer would exceed the limit, then it is
-// enqueued until it can be published without exceeding the limit. Once the governor has an enqueued transfer, all subsequent
-// transfers are enqueued after it, even if their value would not exceed the threshold.
+// and compares that value to the configured limit for that chain. If a new transfer would exceed the limit, it is enqueued
+// until it can be published without exceeding the limit. Even if the governor has an enqueued transfer, it will still allow
+// additional transfers that do not exceed the threshold.
 //
-// The chain governor checks for pending transfers each minute to see if any can be published yet.
+// The chain governor checks for pending transfers each minute to see if any can be published yet. It will publish any that can be published
+// without exceeding the daily limit, even if one in front of it in the queue is too big.
 //
 // All completed transfers from the last 24 hours and all pending transfers are stored in the Badger DB, and reloaded on start up.
 //
