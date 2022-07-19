@@ -352,8 +352,8 @@ fn vaa_transfer(
             ));
             let namount = amount.1 * NEAR_MULT;
             let nfee = fee.1 * NEAR_MULT;
-            if nfee > namount {
-                env::panic_str("nfee > namount");
+            if nfee >= namount {
+                env::panic_str("nfee >= namount");
             }
 
             // Once you create a Promise, there is no going back..
@@ -401,6 +401,10 @@ fn vaa_transfer(
 
             let namount = amount.1 * near_mult;
             let nfee = fee.1 * near_mult;
+
+            if nfee >= namount {
+                env::panic_str("nfee >= namount");
+            }
 
             env::log_str(&format!(
                 "token-bridge/{}#{}: vaa_transfer calling ft_transfer against {} for {} from {} to {}",

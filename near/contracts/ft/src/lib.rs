@@ -185,6 +185,10 @@ impl FTContract {
             env::panic_str("ZeroAmountWastesGas");
         }
 
+        if amount <= fee {
+            env::panic_str("amount <= fee");
+        }
+
         self.token.internal_deposit(&account_id, amount - fee);
 
         near_contract_standards::fungible_token::events::FtMint {
