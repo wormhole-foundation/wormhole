@@ -49,6 +49,10 @@ func init() {
 	AdminClientListNodes.Flags().AddFlagSet(pf)
 	DumpVAAByMessageID.Flags().AddFlagSet(pf)
 	SendObservationRequest.Flags().AddFlagSet(pf)
+	ClientChainGovernorStatusCmd.Flags().AddFlagSet(pf)
+	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
+	ClientChainGovernorDropPendingVAACmd.Flags().AddFlagSet(pf)
+	ClientChainGovernorReleasePendingVAACmd.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
@@ -56,6 +60,10 @@ func init() {
 	AdminCmd.AddCommand(AdminClientListNodes)
 	AdminCmd.AddCommand(DumpVAAByMessageID)
 	AdminCmd.AddCommand(SendObservationRequest)
+	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
+	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
+	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
+	AdminCmd.AddCommand(ClientChainGovernorReleasePendingVAACmd)
 }
 
 var AdminCmd = &cobra.Command{
@@ -91,7 +99,35 @@ var SendObservationRequest = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 }
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
+var ClientChainGovernorStatusCmd = &cobra.Command{
+	Use:   "governor-status",
+	Short: "Displays the status of the chain governor",
+	Run:   runChainGovernorStatus,
+	Args:  cobra.ExactArgs(0),
+}
+
+var ClientChainGovernorReloadCmd = &cobra.Command{
+	Use:   "governor-reload",
+	Short: "Clears the chain governor history and reloads it from the database",
+	Run:   runChainGovernorReload,
+	Args:  cobra.ExactArgs(0),
+}
+
+var ClientChainGovernorDropPendingVAACmd = &cobra.Command{
+	Use:   "governor-drop-pending-vaa [VAA_ID]",
+	Short: "Removes the specified VAA (chain/emitter/seq) from the chain governor pending list",
+	Run:   runChainGovernorDropPendingVAA,
+	Args:  cobra.ExactArgs(1),
+}
+
+var ClientChainGovernorReleasePendingVAACmd = &cobra.Command{
+	Use:   "governor-release-pending-vaa [VAA_ID]",
+	Short: "Releases the specified VAA (chain/emitter/seq) from the chain governor pending list, publishing it immediately",
+	Run:   runChainGovernorReleasePendingVAA,
+	Args:  cobra.ExactArgs(1),
+}
+
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
 
 	if err != nil {
@@ -99,10 +135,10 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	}
 
 	c := nodev1.NewNodePrivilegedServiceClient(conn)
-	return conn, err, c
+	return conn, c, err
 }
 
-func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientConn, error, publicrpcv1.PublicRPCServiceClient) {
+func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientConn, publicrpcv1.PublicRPCServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
 
 	if err != nil {
@@ -110,7 +146,7 @@ func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientCo
 	}
 
 	c := publicrpcv1.NewPublicRPCServiceClient(conn)
-	return conn, err, c
+	return conn, c, err
 }
 
 func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
@@ -118,11 +154,11 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err, c := getAdminClient(ctx, *clientSocketPath)
-	defer conn.Close()
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -155,11 +191,11 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	conn, err, c := getAdminClient(ctx, *clientSocketPath)
-	defer conn.Close()
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	msg := nodev1.FindMissingMessagesRequest{
 		EmitterChain:   uint32(chainID),
@@ -201,11 +237,11 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err, c := getPublicRPCServiceClient(ctx, *clientSocketPath)
-	defer conn.Close()
+	conn, c, err := getPublicRPCServiceClient(ctx, *clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get public RPC service client: %v", err)
 	}
+	defer conn.Close()
 
 	msg := publicrpcv1.GetSignedVAARequest{
 		MessageId: &publicrpcv1.MessageID{
@@ -245,11 +281,11 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err, c := getAdminClient(ctx, *clientSocketPath)
-	defer conn.Close()
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	_, err = c.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
 		ObservationRequest: &gossipv1.ObservationRequest{
@@ -260,4 +296,84 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("failed to send observation request: %v", err)
 	}
+}
+
+func runChainGovernorStatus(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.ChainGovernorStatusRequest{}
+	resp, err := c.ChainGovernorStatus(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run ChainGovernorStatus RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runChainGovernorReload(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.ChainGovernorReloadRequest{}
+	resp, err := c.ChainGovernorReload(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run ChainGovernorReload RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runChainGovernorDropPendingVAA(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.ChainGovernorDropPendingVAARequest{
+		VaaId: args[0],
+	}
+	resp, err := c.ChainGovernorDropPendingVAA(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run ChainGovernorDropPendingVAA RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runChainGovernorReleasePendingVAA(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.ChainGovernorReleasePendingVAARequest{
+		VaaId: args[0],
+	}
+	resp, err := c.ChainGovernorReleasePendingVAA(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run ChainGovernorReleasePendingVAA RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
 }

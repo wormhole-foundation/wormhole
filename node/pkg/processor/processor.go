@@ -8,6 +8,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
 
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/governor"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -112,6 +113,7 @@ type Processor struct {
 	cleanup *time.Ticker
 
 	notifier *discord.DiscordNotifier
+	governor *governor.ChainGovernor
 }
 
 func NewProcessor(
@@ -130,6 +132,7 @@ func NewProcessor(
 	devnetEthRPC string,
 	attestationEvents *reporter.AttestationEventReporter,
 	notifier *discord.DiscordNotifier,
+	g *governor.ChainGovernor,
 ) *Processor {
 
 	return &Processor{
@@ -150,14 +153,18 @@ func NewProcessor(
 
 		notifier: notifier,
 
-		logger:  supervisor.Logger(ctx),
-		state:   &aggregationState{observationMap{}},
-		ourAddr: crypto.PubkeyToAddress(gk.PublicKey),
+		logger:   supervisor.Logger(ctx),
+		state:    &aggregationState{observationMap{}},
+		ourAddr:  crypto.PubkeyToAddress(gk.PublicKey),
+		governor: g,
 	}
 }
 
 func (p *Processor) Run(ctx context.Context) error {
 	p.cleanup = time.NewTicker(30 * time.Second)
+
+	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
+	govTimer := time.NewTimer(time.Minute)
 
 	for {
 		select {
@@ -169,6 +176,11 @@ func (p *Processor) Run(ctx context.Context) error {
 				zap.Uint32("index", p.gs.Index))
 			p.gst.Set(p.gs)
 		case k := <-p.lockC:
+			if p.governor != nil {
+				if !p.governor.ProcessMsg(k) {
+					continue
+				}
+			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)
@@ -178,6 +190,19 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-p.cleanup.C:
 			p.handleCleanup(ctx)
+		case <-govTimer.C:
+			if p.governor != nil {
+				toBePublished, err := p.governor.CheckPending()
+				if err != nil {
+					return err
+				}
+				if len(toBePublished) != 0 {
+					for _, k := range toBePublished {
+						p.handleMessage(ctx, k)
+					}
+				}
+				govTimer = time.NewTimer(time.Minute)
+			}
 		}
 	}
 }

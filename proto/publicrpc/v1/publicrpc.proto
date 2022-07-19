@@ -72,6 +72,24 @@ service PublicRPCService {
     };
   }
 
+  rpc GovernorGetAvailableNotionalByChain (GovernorGetAvailableNotionalByChainRequest) returns (GovernorGetAvailableNotionalByChainResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/available_notional_by_chain"
+    };
+  }
+
+  rpc GovernorGetEnqueuedVAAs (GovernorGetEnqueuedVAAsRequest) returns (GovernorGetEnqueuedVAAsResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/enqueued_vaas"
+    };
+  }
+
+  rpc GovernorGetTokenList (GovernorGetTokenListRequest) returns (GovernorGetTokenListResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/token_list"
+    };
+  }  
+
 }
 
 message GetSignedVAARequest {
@@ -116,4 +134,47 @@ message GuardianSet {
   uint32 index = 1;
   // List of guardian addresses as human-readable hex-encoded (leading 0x) addresses.
   repeated string addresses = 2;
+}
+
+message GovernorGetAvailableNotionalByChainRequest {
+}
+
+message GovernorGetAvailableNotionalByChainResponse {
+  message Entry {
+    uint32 chain_id = 1;
+    uint64 remaining_available_notional = 2;
+    uint64 notional_limit = 3;
+  }
+
+  // There is an entry for each chain that is being governed.
+  // Chains that are not being governed are not listed, and assumed to be unlimited.
+  repeated Entry entries = 1;
+}
+
+message GovernorGetEnqueuedVAAsRequest {
+}
+
+message GovernorGetEnqueuedVAAsResponse {
+  message Entry {
+  uint32 emitter_chain = 1;
+  string emitter_address = 2; // human-readable hex-encoded (leading 0x)
+  uint64 sequence = 3;
+  }
+
+  // There is an entry for each enqueued vaa.
+  repeated Entry entries = 1;
+}
+
+message GovernorGetTokenListRequest {
+}
+
+message GovernorGetTokenListResponse {
+  message Entry {
+    uint32 origin_chain_id = 1;
+    string origin_address = 2; // human-readable hex-encoded (leading 0x)
+    float price = 3;
+  }
+
+  // There is an entry for each token that applies to the notional TVL calcuation.
+  repeated Entry entries = 1;
 }
