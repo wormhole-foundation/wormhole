@@ -42,5 +42,5 @@ func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
 		zap.String("signature", hex.EncodeToString(s)))
 
 	vaaInjectionsTotal.Inc()
-	p.broadcastSignature(v, s, nil)
+	p.broadcastSignature(&VAA{VAA: *v}, s, nil)
 }
