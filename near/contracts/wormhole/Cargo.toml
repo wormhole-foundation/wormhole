@@ -1,0 +1,28 @@
+[package]
+name = "near-wormhole"
+version = "0.1.0"
+authors = ["Josh Siegel <jsiegel@jumptrading.com>"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+near-sdk = { version = "4.0.0", features = ["unstable"] }
+hex = { version = "0.4.3" }
+bs58 = "*"
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+lto = true
+debug = false
+panic = "abort"
+# Opt into extra safety checks on arithmetic operations https://stackoverflow.com/a/64136471/249801
+overflow-checks = true
+
+[workspace]
+members = []
