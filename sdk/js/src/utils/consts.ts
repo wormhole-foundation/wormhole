@@ -184,17 +184,17 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   arbitrum: {
-    core: undefined,
+    core: "0xa5f208e072434bC67592E4C49C1B991BA79BCA46",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
   optimism: {
-    core: undefined,
+    core: "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
   gnosis: {
-    core: undefined,
+    core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -323,17 +323,17 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   arbitrum: {
-    core: undefined,
+    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
   optimism: {
-    core: undefined,
+    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
   gnosis: {
-    core: undefined,
+    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
