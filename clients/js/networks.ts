@@ -112,16 +112,16 @@ const MAINNET = {
     key: get_env_var("TERRA_MNEMONIC"),
   },
   arbitrum: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://arb1.arbitrum.io/rpc",
+    key: get_env_var("ETH_KEY"),
   },
   optimism: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://mainnet.optimism.io",
+    key: get_env_var("ETH_KEY"),
   },
   gnosis: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://rpc.gnosischain.com/",
+    key: get_env_var("ETH_KEY"),
   },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
@@ -225,16 +225,16 @@ const TESTNET = {
     key: get_env_var("TERRA_MNEMONIC"),
   },
   arbitrum: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://rinkeby.arbitrum.io/rpc",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   optimism: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://goerli.optimism.io",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   gnosis: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://sokol.poa.network/",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,

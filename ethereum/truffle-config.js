@@ -281,6 +281,60 @@ module.exports = {
       gas: 3000000000,
       gasPrice: 443065000000,
     },
+    arbitrum: { // Note that arbitrum did not work with our standard version of truffle (5.3.14), but it did work with the latest (5.5.22)
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://arb1.arbitrum.io/rpc"
+        );
+      },
+      network_id: 42161,
+    },
+    arbitrum_testnet: { // Note that arbitrum did not work with our standard version of truffle (5.3.14), but it did work with the latest (5.5.22)
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rinkeby.arbitrum.io/rpc"
+        );
+      },
+      network_id: '*',
+    },
+    optimism: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://mainnet.optimism.io"
+        );
+      },
+      network_id: 10,
+    },
+    optimism_goerli: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://goerli.optimism.io"
+        );
+      },
+      network_id: 420,
+    },
+    gnosis: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.gnosischain.com/"
+        );
+      },
+      network_id: 100,
+    },
+    gnosis_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://sokol.poa.network/"
+        );
+      },
+      network_id: 77,
+    },
   },
 
   compilers: {
