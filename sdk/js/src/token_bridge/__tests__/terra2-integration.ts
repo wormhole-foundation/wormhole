@@ -21,16 +21,13 @@ import {
   updateWrappedOnEth,
 } from "../..";
 import { tryNativeToUint8Array } from "../../utils";
-import { CHAIN_ID_ETH, CHAIN_ID_TERRA2 } from "../../utils/consts";
+import { CHAIN_ID_ETH, CHAIN_ID_TERRA2, CONTRACTS } from "../../utils/consts";
 import { attestFromEth, attestFromTerra } from "../attest";
 import { approveEth, transferFromEth, transferFromTerra } from "../transfer";
 import {
-  ETH_CORE_BRIDGE_ADDRESS,
   ETH_NODE_URL,
   ETH_PRIVATE_KEY2,
-  ETH_TOKEN_BRIDGE_ADDRESS,
   TERRA2_GAS_PRICES_URL,
-  TERRA2_TOKEN_BRIDGE_ADDRESS,
   TERRA2_PRIVATE_KEY,
   TEST_ERC20,
 } from "./consts";
@@ -47,7 +44,9 @@ const terraWalletAddress = terraWallet.key.accAddress;
 
 const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
 const signer = new ethers.Wallet(ETH_PRIVATE_KEY2, provider);
-const ethEmitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+const ethEmitterAddress = getEmitterAddressEth(
+  CONTRACTS.DEVNET.ethereum.token_bridge
+);
 const ethTransferAmount = parseUnits("1", 18);
 
 let ethWalletAddress: string;
@@ -56,7 +55,7 @@ let terraEmitterAddress: string;
 beforeAll(async () => {
   ethWalletAddress = await signer.getAddress();
   terraEmitterAddress = await getEmitterAddressTerra(
-    TERRA2_TOKEN_BRIDGE_ADDRESS
+    CONTRACTS.DEVNET.terra2.token_bridge
   );
 });
 
@@ -96,7 +95,10 @@ const terraBroadcastTxAndGetSignedVaa = async (msgs: Msg[], wallet: Wallet) => {
 };
 
 const ethParseLogAndGetSignedVaa = async (receipt: ethers.ContractReceipt) => {
-  const sequence = parseSequenceFromLogEth(receipt, ETH_CORE_BRIDGE_ADDRESS);
+  const sequence = parseSequenceFromLogEth(
+    receipt,
+    CONTRACTS.DEVNET.ethereum.core
+  );
   return await getSignedVAABySequence(
     CHAIN_ID_ETH,
     sequence,
@@ -107,7 +109,7 @@ const ethParseLogAndGetSignedVaa = async (receipt: ethers.ContractReceipt) => {
 test("Attest and transfer token from Terra2 to Ethereum", async () => {
   // Attest
   const attestMsg = await attestFromTerra(
-    TERRA2_TOKEN_BRIDGE_ADDRESS,
+    CONTRACTS.DEVNET.terra2.token_bridge,
     terraWalletAddress,
     "uluna"
   );
@@ -116,14 +118,22 @@ test("Attest and transfer token from Terra2 to Ethereum", async () => {
     terraWallet
   );
   try {
-    await createWrappedOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, attestSignedVaa);
+    await createWrappedOnEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      signer,
+      attestSignedVaa
+    );
   } catch {
-    await updateWrappedOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, attestSignedVaa);
+    await updateWrappedOnEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      signer,
+      attestSignedVaa
+    );
   }
   // Transfer
   const transferMsgs = await transferFromTerra(
     terraWalletAddress,
-    TERRA2_TOKEN_BRIDGE_ADDRESS,
+    CONTRACTS.DEVNET.terra2.token_bridge,
     "uluna",
     "1000000",
     CHAIN_ID_ETH,
@@ -133,32 +143,36 @@ test("Attest and transfer token from Terra2 to Ethereum", async () => {
     transferMsgs,
     terraWallet
   );
-  await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, transferSignedVaa);
+  await redeemOnEth(
+    CONTRACTS.DEVNET.ethereum.token_bridge,
+    signer,
+    transferSignedVaa
+  );
 });
 
 test("Attest and transfer token from Ethereum to Terra2", async () => {
   // Attest
   const attestReceipt = await attestFromEth(
-    ETH_TOKEN_BRIDGE_ADDRESS,
+    CONTRACTS.DEVNET.ethereum.token_bridge,
     signer,
     TEST_ERC20
   );
   const attestSignedVaa = await ethParseLogAndGetSignedVaa(attestReceipt);
   const createWrappedMsg = await createWrappedOnTerra(
-    TERRA2_TOKEN_BRIDGE_ADDRESS,
+    CONTRACTS.DEVNET.terra2.token_bridge,
     terraWalletAddress,
     attestSignedVaa
   );
   await terraBroadcastAndWaitForExecution([createWrappedMsg], terraWallet);
   // Transfer
   await approveEth(
-    ETH_TOKEN_BRIDGE_ADDRESS,
+    CONTRACTS.DEVNET.ethereum.token_bridge,
     TEST_ERC20,
     signer,
     ethTransferAmount
   );
   const transferReceipt = await transferFromEth(
-    ETH_TOKEN_BRIDGE_ADDRESS,
+    CONTRACTS.DEVNET.ethereum.token_bridge,
     signer,
     TEST_ERC20,
     ethTransferAmount,
@@ -167,14 +181,14 @@ test("Attest and transfer token from Ethereum to Terra2", async () => {
   );
   const transferSignedVaa = await ethParseLogAndGetSignedVaa(transferReceipt);
   const redeemMsg = await redeemOnTerra(
-    TERRA2_TOKEN_BRIDGE_ADDRESS,
+    CONTRACTS.DEVNET.terra2.token_bridge,
     terraWalletAddress,
     transferSignedVaa
   );
   await terraBroadcastAndWaitForExecution([redeemMsg], terraWallet);
   expect(
     await getIsTransferCompletedTerra(
-      TERRA2_TOKEN_BRIDGE_ADDRESS,
+      CONTRACTS.DEVNET.terra2.token_bridge,
       transferSignedVaa,
       lcd,
       TERRA2_GAS_PRICES_URL

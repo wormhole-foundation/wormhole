@@ -252,6 +252,8 @@ const (
 	// More details here: https://docs.wormholenetwork.com/wormhole/vaas
 	minVAALength        = 57
 	SupportedVAAVersion = 0x01
+
+	InternalTruncatedPayloadSafetyLimit = 1000
 )
 
 // Unmarshal deserializes the binary representation of a VAA
@@ -327,7 +329,7 @@ func Unmarshal(data []byte) (*VAA, error) {
 		return nil, fmt.Errorf("failed to read commitment: %w", err)
 	}
 
-	payload := make([]byte, 1000)
+	payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
 	n, err := reader.Read(payload)
 	if err != nil || n == 0 {
 		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
@@ -528,9 +530,7 @@ func StringToAddress(value string) (Address, error) {
 	}
 
 	// Trim any preceding "0x" to the address
-	if value[0:2] == "0x" {
-		value = value[2:]
-	}
+	value = strings.TrimPrefix(value, "0x")
 
 	// Decode the string from hex to binary
 	res, err := hex.DecodeString(value)
@@ -544,5 +544,15 @@ func StringToAddress(value string) (Address, error) {
 	}
 	copy(address[32-len(res):], res)
 
+	return address, nil
+}
+
+func BytesToAddress(b []byte) (Address, error) {
+	var address Address
+	if len(b) > 32 {
+		return address, fmt.Errorf("value must be no more than 32 bytes")
+	}
+
+	copy(address[32-len(b):], b)
 	return address, nil
 }

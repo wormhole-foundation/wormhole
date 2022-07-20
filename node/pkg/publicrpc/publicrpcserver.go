@@ -7,6 +7,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"go.uber.org/zap"
@@ -20,17 +21,20 @@ type PublicrpcServer struct {
 	logger *zap.Logger
 	db     *db.Database
 	gst    *common.GuardianSetState
+	gov    *governor.ChainGovernor
 }
 
 func NewPublicrpcServer(
 	logger *zap.Logger,
 	db *db.Database,
 	gst *common.GuardianSetState,
+	gov *governor.ChainGovernor,
 ) *PublicrpcServer {
 	return &PublicrpcServer{
 		logger: logger.Named("publicrpcserver"),
 		db:     db,
 		gst:    gst,
+		gov:    gov,
 	}
 }
 
@@ -109,6 +113,42 @@ func (s *PublicrpcServer) GetCurrentGuardianSet(ctx context.Context, req *public
 
 	for i, v := range gs.Keys {
 		resp.GuardianSet.Addresses[i] = v.Hex()
+	}
+
+	return resp, nil
+}
+
+func (s *PublicrpcServer) GovernorGetAvailableNotionalByChain(ctx context.Context, req *publicrpcv1.GovernorGetAvailableNotionalByChainRequest) (*publicrpcv1.GovernorGetAvailableNotionalByChainResponse, error) {
+	resp := &publicrpcv1.GovernorGetAvailableNotionalByChainResponse{}
+
+	if s.gov != nil {
+		resp.Entries = s.gov.GetAvailableNotionalByChain()
+	} else {
+		resp.Entries = make([]*publicrpcv1.GovernorGetAvailableNotionalByChainResponse_Entry, 0)
+	}
+
+	return resp, nil
+}
+
+func (s *PublicrpcServer) GovernorGetEnqueuedVAAs(ctx context.Context, req *publicrpcv1.GovernorGetEnqueuedVAAsRequest) (*publicrpcv1.GovernorGetEnqueuedVAAsResponse, error) {
+	resp := &publicrpcv1.GovernorGetEnqueuedVAAsResponse{}
+
+	if s.gov != nil {
+		resp.Entries = s.gov.GetEnqueuedVAAs()
+	} else {
+		resp.Entries = make([]*publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry, 0)
+	}
+
+	return resp, nil
+}
+
+func (s *PublicrpcServer) GovernorGetTokenList(ctx context.Context, req *publicrpcv1.GovernorGetTokenListRequest) (*publicrpcv1.GovernorGetTokenListResponse, error) {
+	resp := &publicrpcv1.GovernorGetTokenListResponse{}
+
+	if s.gov != nil {
+		resp.Entries = s.gov.GetTokenList()
+	} else {
+		resp.Entries = make([]*publicrpcv1.GovernorGetTokenListResponse_Entry, 0)
 	}
 
 	return resp, nil

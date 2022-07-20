@@ -306,6 +306,9 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	now := time.Now().UTC()
+	todaysDateStr := now.Format("2006-01-02")
+
 	getNotionalAmounts := func(ctx context.Context, tokensLocked map[string]map[string]LockedAsset) map[string]map[string]LockedAsset {
 		// create a map of all the coinIds
 		seenCoinIds := map[string]bool{}
@@ -340,6 +343,9 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 				Address: "*",
 			}
 			for address, lockedAsset := range tokens {
+				if !isTokenActive(chain, address, todaysDateStr) {
+					continue
+				}
 
 				coinId := lockedAsset.CoinGeckoId
 				amount := lockedAsset.Amount
@@ -391,7 +397,6 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 	go func() {
 		last24HourInterval := -time.Duration(24) * time.Hour
-		now := time.Now().UTC()
 		start := now.Add(last24HourInterval)
 		defer wg.Done()
 		transfers := tvlForInterval(tbl, ctx, start, now)
