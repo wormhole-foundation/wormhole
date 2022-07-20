@@ -18,6 +18,8 @@ import (
 
 func getTxStatus(tx string, src string) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "EXPERIMENTAL_tx_status", "params": ["%s", "%s"]}`, tx, src)
+	fmt.Printf("%s\n", s)
+
 	resp, err := http.Post("http://localhost:3030", "application/json", bytes.NewBuffer([]byte(s)))
 
 	if err != nil {
@@ -91,6 +93,7 @@ func inspectBody(block uint64, body gjson.Result) error {
 			}
 
 			t, _ := getTxStatus(hash.String(), receiver_id.String())
+			fmt.Printf("outcome:  %s\n", t)
 
 			outcomes := gjson.ParseBytes(t).Get("result.receipts_outcome")
 
@@ -118,7 +121,7 @@ func inspectBody(block uint64, body gjson.Result) error {
 						if !strings.HasPrefix(event, "EVENT_JSON:") {
 							continue
 						}
-						event_json := gjson.ParseBytes(event[11:])
+//						event_json := gjson.ParseBytes(event[11:])
 						fmt.Printf("log: %s\n", event[11:])
 					}
 				}
