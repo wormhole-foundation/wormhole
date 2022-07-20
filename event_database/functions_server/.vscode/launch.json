@@ -20,6 +20,9 @@
                 "CACHE_BUCKET": "cloud-function-cache-mainnet",
                 "TOKEN_ALLOWLIST": "token-allowlist-mainnet.json",
                 "GOOGLE_APPLICATION_CREDENTIALS": "/home/you/path/to/your/service-account.json",
+                // LOAD_CACHE sets whether or not previously computed results should be loaded and used in calculations
+                // can be set to false to effectively rebuild the cache
+                // "LOAD_CACHE": "true",
                 // CoinGecko API key if you have one. will work without - rate limit is lower.
                 // "COINGECKO_API_KEY": "your-key-here",
                 // SolanaBeach API key if you have one. will work without - rate limit is lower.

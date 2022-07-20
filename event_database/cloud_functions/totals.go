@@ -66,7 +66,7 @@ func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string
 }
 
 func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int, keySegments int) (map[string]map[string]int, error) {
-	if _, ok := warmTotalsCache["2021-09-13"]; !ok {
+	if _, ok := warmTotalsCache["2021-09-13"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmTotalsCacheFilePath, &muWarmTotalsCache, &warmTotalsCache)
 	}
 

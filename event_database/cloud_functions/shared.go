@@ -40,6 +40,8 @@ var solanaTokens = map[string]SolanaToken{}
 
 var releaseDay = time.Date(2021, 9, 13, 0, 0, 0, 0, time.UTC)
 
+var loadCache = true
+
 // init runs during cloud function initialization. So, this will only run during an
 // an instance's cold start.
 // https://cloud.google.com/functions/docs/bestpractices/networking#accessing_google_apis
@@ -89,6 +91,12 @@ func init() {
 	tokenAllowlistFilePath := os.Getenv("TOKEN_ALLOWLIST")
 	if tokenAllowlistFilePath != "" {
 		loadJsonToInterface(context.Background(), tokenAllowlistFilePath, &sync.RWMutex{}, &tokenAllowlist)
+	}
+
+	loadCacheStr := os.Getenv("LOAD_CACHE")
+	if val, err := strconv.ParseBool(loadCacheStr); err == nil {
+		loadCache = val
+		log.Printf("loadCache set to %v\n", loadCache)
 	}
 }
 

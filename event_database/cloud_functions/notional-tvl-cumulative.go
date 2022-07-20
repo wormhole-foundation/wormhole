@@ -41,8 +41,10 @@ func loadAndUpdateCoinGeckoPriceCache(ctx context.Context, coinIds []string, now
 	// at cold-start, load the price cache into memory, and fetch any missing token price histories and add them to the cache
 	if !loadedCoinGeckoPriceCache {
 		// load the price cache
-		loadJsonToInterface(ctx, coinGeckoPriceCacheFilePath, &muWarmTvlCumulativeCache, &coinGeckoPriceCache)
-		loadedCoinGeckoPriceCache = true
+		if loadCache {
+			loadJsonToInterface(ctx, coinGeckoPriceCacheFilePath, &muWarmTvlCumulativeCache, &coinGeckoPriceCache)
+			loadedCoinGeckoPriceCache = true
+		}
 
 		// find tokens missing price history
 		missing := []string{}
@@ -81,7 +83,7 @@ func loadAndUpdateCoinGeckoPriceCache(ctx context.Context, coinIds []string, now
 
 // calculates a running total of notional value transferred, by symbol, since the start time specified.
 func createTvlCumulativeOfInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) map[string]map[string]map[string]LockedAsset {
-	if len(warmTvlCumulativeCache) == 0 {
+	if len(warmTvlCumulativeCache) == 0 && loadCache {
 		loadJsonToInterface(ctx, warmTvlCumulativeCacheFilePath, &muWarmTvlCumulativeCache, &warmTvlCumulativeCache)
 	}
 
@@ -271,8 +273,7 @@ func ComputeTvlCumulative(w http.ResponseWriter, r *http.Request) {
 	// days since launch day
 	queryDays := int(time.Now().UTC().Sub(releaseDay).Hours() / 24)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	dailyTvl := map[string]map[string]map[string]LockedAsset{}
 

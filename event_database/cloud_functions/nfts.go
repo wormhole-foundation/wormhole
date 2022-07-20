@@ -51,7 +51,7 @@ func fetchNFTRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 }
 
 func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int, keySegments int) (map[string]map[string]int, error) {
-	if _, ok := warmNFTCache["2021-09-13"]; !ok {
+	if _, ok := warmNFTCache["2021-09-13"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmNFTCacheFilePath, &muWarmNFTCache, &warmNFTCache)
 	}
 

@@ -24,7 +24,7 @@ var transfersFromFilePath = "notional-transferred-from.json"
 
 // finds the daily amount transferred from each chain from the specified start to the present.
 func createTransfersFromOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) {
-	if len(transfersFromCache.Daily) == 0 {
+	if len(transfersFromCache.Daily) == 0 && loadCache {
 		loadJsonToInterface(ctx, transfersFromFilePath, &muTransfersFromCache, &transfersFromCache)
 	}
 
@@ -67,6 +67,9 @@ func createTransfersFromOfInterval(tbl *bigtable.Table, ctx context.Context, pre
 				}
 			}
 			// no cache for this query, initialize the map
+			if transfersFromCache.Daily == nil {
+				transfersFromCache.Daily = map[string]map[string]float64{}
+			}
 			transfersFromCache.Daily[dateStr] = map[string]float64{"*": 0}
 			muTransfersFromCache.Unlock()
 
@@ -119,9 +122,7 @@ func ComputeNotionalTransferredFrom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
+	ctx := context.Background()
 	createTransfersFromOfInterval(tbl, ctx, "", releaseDay)
 
 	w.WriteHeader(http.StatusOK)

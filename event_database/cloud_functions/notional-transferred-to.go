@@ -135,7 +135,7 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 
 // finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
 func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
-	if _, ok := warmTransfersToCache["*"]; !ok {
+	if _, ok := warmTransfersToCache["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmTransfersToCacheFilePath, &muWarmTransfersToCache, &warmTransfersToCache)
 	}
 

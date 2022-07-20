@@ -35,7 +35,7 @@ var addressesToUpToYesterdayFilePath = "addresses-transferred-to-up-to-yesterday
 
 // finds all the unique addresses that have received tokens since a particular moment.
 func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
-	if _, ok := addressesToUpToYesterday["*"]; !ok {
+	if _, ok := addressesToUpToYesterday["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, &addressesToUpToYesterday)
 	}
 
@@ -125,7 +125,7 @@ func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefi
 
 // calcuates a map of recepient address to notional value received, by chain, since the start time specified.
 func createCumulativeAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
-	if _, ok := warmCumulativeAddressesCache["*"]; !ok {
+	if _, ok := warmCumulativeAddressesCache["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmCumulativeAddressesCacheFilePath, &muWarmCumulativeAddressesCache, &warmCumulativeAddressesCache)
 	}
 
