@@ -343,7 +343,7 @@ impl Wormhole {
     }
 
     #[payable]
-    pub fn publish_message(&mut self, data: String, nonce: u32) -> Promise {
+    pub fn publish_message(&mut self, data: String, nonce: u32) -> u64 {
         require!(
             env::prepaid_gas() >= Gas(10_000_000_000_000),
             &format!(
@@ -378,28 +378,12 @@ impl Wormhole {
 
         self.emitters.insert(&s, &(seq + 1));
 
-        Self::ext(env::current_account_id()).message_published(
-            data,
-            nonce,
-            hex::encode(env::sha256(s.as_bytes())),
-            seq,
-        )
-    }
-
-    #[private]
-    pub fn message_published(
-        &mut self,
-        data: String,
-        nonce: u32,
-        emitter: String,
-        seq: u64,
-    ) -> u64 {
         WormholeEvent {
             standard: "wormhole".to_string(),
             event: "publish".to_string(),
             data,
             nonce,
-            emitter,
+            emitter: hex::encode(env::sha256(s.as_bytes())),
             seq,
             block: env::block_height(),
         }
