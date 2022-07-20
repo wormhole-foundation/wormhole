@@ -313,7 +313,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					panic("invalid chain ID")
 				}
 
-				txHash := hex.EncodeToString(r.TxHash)
+				txHash := base58.Encode(r.TxHash)
 
 				logger.Info("Received obsv request", zap.String("tx_hash", txHash))
 
