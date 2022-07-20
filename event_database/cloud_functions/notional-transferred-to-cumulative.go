@@ -35,7 +35,7 @@ var transferredToUpToYesterdayFilePath = "notional-transferred-to-up-to-yesterda
 
 // calculates the amount of each symbol transfered to each chain.
 func transferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
-	if _, ok := transferredToUpToYesterday["*"]; !ok {
+	if _, ok := transferredToUpToYesterday["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, transferredToUpToYesterdayFilePath, &muTransferredToUpToYesterday, &transferredToUpToYesterday)
 	}
 
@@ -145,7 +145,7 @@ func getDaysInRange(start, end time.Time) []string {
 
 // calcuates a running total of notional value transferred, by symbol, since the start time specified.
 func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
-	if _, ok := warmCumulativeCache["*"]; !ok {
+	if _, ok := warmCumulativeCache["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmCumulativeCacheFilePath, &muWarmCumulativeCache, &warmCumulativeCache)
 	}
 

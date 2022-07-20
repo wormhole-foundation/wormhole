@@ -38,7 +38,7 @@ type LockedAsset struct {
 
 // finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
 func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) map[string]map[string]map[string]LockedAsset {
-	if len(warmTvlCache) == 0 {
+	if len(warmTvlCache) == 0 && loadCache {
 		loadJsonToInterface(ctx, warmTvlFilePath, &muWarmTvlCache, &warmTvlCache)
 	}
 
@@ -303,8 +303,7 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	now := time.Now().UTC()
 	todaysDateStr := now.Format("2006-01-02")
