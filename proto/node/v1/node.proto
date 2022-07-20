@@ -28,6 +28,18 @@ service NodePrivilegedService {
   // using the node's guardian key. The network rate limits these requests to one per second.
   // Requests at higher rates will fail silently.
   rpc SendObservationRequest (SendObservationRequestRequest) returns (SendObservationRequestResponse);
+
+  // ChainGovernorStatus displays the status of the chain governor.
+  rpc ChainGovernorStatus (ChainGovernorStatusRequest) returns (ChainGovernorStatusResponse);
+
+  // ChainGovernorReload clears the chain governor history and reloads it from the database.
+  rpc ChainGovernorReload (ChainGovernorReloadRequest) returns (ChainGovernorReloadResponse);
+
+  // ChainGovernorDropPendingVAA drops a VAA from the chain governor pending list.
+  rpc ChainGovernorDropPendingVAA (ChainGovernorDropPendingVAARequest) returns (ChainGovernorDropPendingVAAResponse);
+
+  // ChainGovernorReleasePendingVAA release a VAA from the chain governor pending list, publishing it immediately.
+  rpc ChainGovernorReleasePendingVAA (ChainGovernorReleasePendingVAARequest) returns (ChainGovernorReleasePendingVAAResponse);
 }
 
 message InjectGovernanceVAARequest {
@@ -149,3 +161,31 @@ message SendObservationRequestRequest {
 }
 
 message SendObservationRequestResponse {}
+
+message ChainGovernorStatusRequest {}
+
+message ChainGovernorStatusResponse {
+  string response = 1;
+}
+
+message ChainGovernorReloadRequest {}
+
+message ChainGovernorReloadResponse {
+  string response = 1;
+}
+
+message ChainGovernorDropPendingVAARequest {
+  string vaa_id = 1;
+}
+
+message ChainGovernorDropPendingVAAResponse {
+  string response = 1;
+}
+
+message ChainGovernorReleasePendingVAARequest {
+  string vaa_id = 1;
+}
+
+message ChainGovernorReleasePendingVAAResponse {
+  string response = 1;
+}

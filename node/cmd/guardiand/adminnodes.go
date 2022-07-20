@@ -36,11 +36,11 @@ var AdminClientListNodes = &cobra.Command{
 
 func runListNodes(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, err, c := getPublicRPCServiceClient(ctx, *clientSocketPath)
-	defer conn.Close()
+	conn, c, err := getPublicRPCServiceClient(ctx, *clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get publicrpc client: %v", err)
 	}
+	defer conn.Close()
 
 	lastHeartbeats, err := c.GetLastHeartbeats(ctx, &publicrpcv1.GetLastHeartbeatsRequest{})
 	if err != nil {

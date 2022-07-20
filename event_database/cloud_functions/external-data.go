@@ -343,11 +343,80 @@ func fetchTokenPrices(ctx context.Context, coinIds []string) map[string]float64 
 			allPrices[coinId] = price
 		}
 
-		// CoinGecko rate limit is low (5/second), be very cautious about bursty requests
-		time.Sleep(time.Millisecond * 200)
+		coinGeckoRateLimitSleep()
 	}
 
 	return allPrices
+}
+
+func coinGeckoRateLimitSleep() {
+	// CoinGecko rate limit is low (5/second), be very cautious about bursty requests
+	time.Sleep(time.Millisecond * 200)
+}
+
+// fetchTokenPriceHistories returns the daily prices for coinIds from start to end
+func fetchTokenPriceHistories(ctx context.Context, coinIds []string, start time.Time, end time.Time) map[string]map[string]float64 {
+	log.Printf("Fetching price history for %d tokens\n", len(coinIds))
+	priceHistories := map[string]map[string]float64{}
+	baseUrl := cgBaseUrl
+	cgApiKey := os.Getenv("COINGECKO_API_KEY")
+	if cgApiKey != "" {
+		baseUrl = cgProBaseUrl
+	}
+	startTimestamp := start.Unix()
+	endTimestamp := end.Unix()
+	for _, coinId := range coinIds {
+		defer coinGeckoRateLimitSleep()
+		url := fmt.Sprintf("%vcoins/%v/market_chart/range?vs_currency=usd&from=%v&to=%v", baseUrl, coinId, startTimestamp, endTimestamp)
+		req, reqErr := http.NewRequest("GET", url, nil)
+		if reqErr != nil {
+			log.Fatalf("failed coins request, err: %v\n", reqErr)
+		}
+		if cgApiKey != "" {
+			req.Header.Set("X-Cg-Pro-Api-Key", cgApiKey)
+		}
+
+		res, resErr := http.DefaultClient.Do(req)
+		if resErr != nil {
+			log.Fatalf("failed get coins response, err: %v\n", resErr)
+		}
+		defer res.Body.Close()
+		if res.StatusCode >= 400 {
+			errorMsg := fmt.Sprintf("failed to get CoinGecko price history for %s, Status: %s", coinId, res.Status)
+			if res.StatusCode == 404 {
+				log.Println(errorMsg)
+				continue
+			} else {
+				log.Fatalln(errorMsg)
+			}
+		}
+
+		body, bodyErr := ioutil.ReadAll(res.Body)
+		if bodyErr != nil {
+			log.Fatalf("failed decoding coins body, err: %v\n", bodyErr)
+		}
+
+		var parsed CoinGeckoMarketRes
+		parseErr := json.Unmarshal(body, &parsed)
+		if parseErr != nil {
+			log.Printf("fetchTokenPriceHistories failed parsing body. err %v\n", parseErr)
+			var errRes CoinGeckoErrorRes
+			if err := json.Unmarshal(body, &errRes); err == nil {
+				log.Println("Failed calling CoinGecko, got err", errRes.Error)
+			}
+		} else {
+			for _, market := range parsed.Prices {
+				seconds := int64(market[0]) / 1e3
+				date := time.Unix(seconds, 0).Format("2006-01-02")
+				price := market[1]
+				if _, ok := priceHistories[date]; !ok {
+					priceHistories[date] = map[string]float64{}
+				}
+				priceHistories[date][coinId] = price
+			}
+		}
+	}
+	return priceHistories
 }
 
 const solanaTokenListURL = "https://raw.githubusercontent.com/solana-labs/token-list/main/src/tokens/solana.tokenlist.json"
