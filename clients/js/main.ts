@@ -521,12 +521,6 @@ yargs(hideBin(process.argv))
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
         throw Error("APTOS is not supported yet");
-      } else if (chain === "arbitrum") {
-        throw Error("ARBITRUM is not supported yet");
-      } else if (chain === "optimism") {
-        throw Error("OPTIMISM is not supported yet");
-      } else if (chain === "gnosis") {
-        throw Error("GNOSIS is not supported yet");                        
       } else {
         // If you get a type error here, hover over `chain`'s type and it tells you
         // which cases are not handled
@@ -565,12 +559,6 @@ function parseAddress(chain: ChainName, address: string): string {
     throw Error("SUI is not supported yet")
   } else if (chain === "aptos") {
     throw Error("APTOS is not supported yet")
-  } else if (chain === "arbitrum") {
-    throw Error("ARBITRUM is not supported yet")
-  } else if (chain === "optimism") {
-    throw Error("OPTIMISM is not supported yet")
-  } else if (chain === "gnosis") {
-    throw Error("GNOSIS is not supported yet")            
   } else {
     impossible(chain)
   }

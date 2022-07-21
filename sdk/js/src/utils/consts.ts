@@ -168,7 +168,7 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   moonbeam: {
-    core: undefined,
+    core: "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3",
     token_bridge: undefined,
     nft_bridge: undefined,
   },

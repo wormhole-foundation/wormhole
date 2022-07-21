@@ -99,8 +99,8 @@ const MAINNET = {
     key: undefined,
   },
   moonbeam: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://rpc.api.moonbeam.network",
+    key: get_env_var("ETH_KEY"),
   },
   neon: {
     rpc: undefined,
