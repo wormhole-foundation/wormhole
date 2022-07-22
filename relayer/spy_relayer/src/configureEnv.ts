@@ -234,7 +234,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
   let redisPort: number;
   let clearRedisOnInit: boolean;
   let demoteWorkingOnInit: boolean;
-  let gasTokens: TokensArray | undefined = [];
+  let gasTokens: TokensArray = [];
 
   if (!process.env.REDIS_HOST) {
     throw new Error("Missing required environment variable: REDIS_HOST");
@@ -274,45 +274,32 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
 
   supportedChains = loadChainConfig();
 
-  // TODO: separate SUPPORTED_TOKENS from GAS_TOKENS to enable bridging any token but keeping warns on for gas tokens
-  // if (process.env.GAS_TOKENS) {
-  //   const array = JSON.parse(process.env.GAS_TOKENS);
-  //   if (!array || !Array.isArray(array)) {
-  //     throw new Error("GAS_TOKENS is not an array.");
-  //   } else {
-  //     array.forEach((token: any) => {
-  //       if (token.chainId && token.address) {
-  //         (<TokensArray>gasTokens).push({
-  //           chainId: token.chainId,
-  //           address: token.address,
-  //         });
-  //       } else {
-  //         throw new Error("Invalid token record. " + token.toString());
-  //       }
-  //     });
-  //   }
-  // }
-
-  if (!process.env.SUPPORTED_TOKENS) {
-    throw new Error("Missing required environment variable: SUPPORTED_TOKENS");
-  } else {
-    // const array = JSON.parse(process.env.SUPPORTED_TOKENS);
-    const array = eval(process.env.SUPPORTED_TOKENS);
+  let gasTokensRawArray: Array<any>;
+  if (process.env.GAS_TOKENS) {
+    const array = JSON.parse(process.env.GAS_TOKENS);
+    if (!array || !Array.isArray(array)) {
+      throw new Error("GAS_TOKENS is not an array.");
+    }
+    gasTokensRawArray = array;
+  } else if (process.env.SUPPORTED_TOKENS) {
+    const array = JSON.parse(process.env.SUPPORTED_TOKENS);
     if (!array || !Array.isArray(array)) {
       throw new Error("SUPPORTED_TOKENS is not an array.");
-    } else {
-      array.forEach((token: any) => {
-        if (token.chainId && token.address) {
-          (<TokensArray>gasTokens).push({
-            chainId: token.chainId,
-            address: token.address,
-          });
-        } else {
-          throw new Error("Invalid token record. " + token.toString());
-        }
-      });
     }
+    gasTokensRawArray = array;
+  } else {
+    throw new Error("Missing required environment variables: one of SUPPORTED_TOKENS or GAS_TOKENS");
   }
+  gasTokensRawArray.forEach((token: any) => {
+    if (token.chainId && token.address) {
+      (<TokensArray>gasTokens).push({
+        chainId: token.chainId,
+        address: token.address,
+      });
+    } else {
+      throw new Error("Invalid token record. " + token.toString());
+    }
+  });
 
   return {
     supportedChains,

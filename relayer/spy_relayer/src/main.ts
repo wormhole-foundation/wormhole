@@ -24,7 +24,7 @@ const logger = getLogger();
 let runListen: boolean = true;
 let runWorker: boolean = true;
 let runRest: boolean = true;
-let runWalletMonitor: boolean = false; // todo cleanup
+let runWalletMonitor: boolean = true; // todo cleanup
 let foundOne: boolean = false;
 let error: string = "";
 
