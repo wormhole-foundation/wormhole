@@ -5,16 +5,16 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.40"
-borsh = "=0.9.1"
+borsh = "=0.9.3"
 token-bridge = { path = "../program", features = ["client"] }
 clap = "2.33.0"
 rand = "0.7.3"
 shellexpand = "2.1.0"
-solana-client = "=1.9.4"
-solana-program = "=1.9.4"
-solana-sdk = "=1.9.4"
-solana-cli-config = "=1.9.4"
+solana-client = "=1.10.31"
+solana-program = "=1.10.31"
+solana-sdk = "=1.10.31"
+solana-cli-config = "=1.10.31"
 solitaire = { path = "../../../solitaire/program" }
-solana-clap-utils = "=1.9.4"
+solana-clap-utils = "=1.10.31"
 hex = "0.4.3"
 spl-token-metadata = { path = "../token-metadata" }

@@ -1,5 +1,5 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
-FROM ghcr.io/certusone/solana:1.9.4@sha256:5389eccba0ba59ae119bc1438b61be8904707e26df8f0732116a8dce0f64eb52 AS solana
+FROM ghcr.io/certusone/solana:1.10.31@sha256:d31e8db926a1d3fbaa9d9211d9979023692614b7b64912651aba0383e8c01bad AS solana
 
 # Support additional root CAs
 COPY cert.pem* /certs/
@@ -49,20 +49,24 @@ RUN [ -n "${BRIDGE_ADDRESS}" ]
 
 # This is a pre-built contract.
 RUN --mount=type=cache,target=target,id=test \
+    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
     mkdir -p target/deploy && \
     cp modules/token_bridge/token-metadata/spl_token_metadata.so target/deploy/
 
 RUN --mount=type=cache,target=target,id=test \
+    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
     cargo test-bpf \
         --manifest-path bridge/program/Cargo.toml \
         --features trace,instructions
 
 RUN --mount=type=cache,target=target,id=test \
+    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
     cargo test-bpf \
         --manifest-path modules/token_bridge/program/Cargo.toml \
         --features trace,instructions
 
 RUN --mount=type=cache,target=target,id=test \
+    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
     cargo test-bpf \
         --manifest-path modules/nft_bridge/program/Cargo.toml \
         --features trace,instructions
