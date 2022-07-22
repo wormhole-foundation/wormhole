@@ -21,6 +21,7 @@ use solana_program::{
 use solana_program_test::{
     BanksClient,
     ProgramTest,
+    BanksClientError,
 };
 use solana_sdk::{
     commitment_config::CommitmentLevel,
@@ -32,7 +33,6 @@ use solana_sdk::{
     },
     signers::Signers,
     transaction::Transaction,
-    transport::TransportError,
 };
 use std::{
     env,
@@ -61,7 +61,7 @@ pub async fn execute<T: Signers>(
     signers: &T,
     instructions: &[Instruction],
     commitment_level: CommitmentLevel,
-) -> Result<(), TransportError> {
+) -> Result<(), BanksClientError> {
     let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
     let recent_blockhash = client.get_latest_blockhash().await?;
     transaction.sign(signers, recent_blockhash);
@@ -199,7 +199,7 @@ mod helpers {
         program: Pubkey,
         payer: &Keypair,
         initial_guardians: &[[u8; 20]],
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -223,7 +223,7 @@ mod helpers {
         from: &Keypair,
         to: &Pubkey,
         lamports: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             from,
@@ -239,7 +239,7 @@ mod helpers {
         program: Pubkey,
         payer: &Keypair,
         bridge: Pubkey,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::initialize(program, payer.pubkey(), bridge)
             .expect("Could not create Initialize instruction");
 
@@ -265,7 +265,7 @@ mod helpers {
         message: &Keypair,
         mint: Pubkey,
         nonce: u32,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::attest(
             program,
             bridge,
@@ -301,7 +301,7 @@ mod helpers {
         from_owner: &Keypair,
         mint: Pubkey,
         amount: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::transfer_native(
             program,
             bridge,
@@ -356,7 +356,7 @@ mod helpers {
         token_chain: u16,
         token_address: Address,
         amount: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::transfer_wrapped(
             program,
             bridge,
@@ -409,7 +409,7 @@ mod helpers {
         vaa: PostVAAData,
         payload: PayloadGovernanceRegisterChain,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::register_chain(
             program,
             bridge,
@@ -443,7 +443,7 @@ mod helpers {
         vaa: PostVAAData,
         payload: PayloadTransfer,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::complete_native(
             program,
             bridge,
@@ -479,7 +479,7 @@ mod helpers {
         vaa: PostVAAData,
         payload: PayloadTransfer,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let to = Pubkey::new(&payload.to[..]);
 
         let instruction = instructions::complete_wrapped(
@@ -519,7 +519,7 @@ mod helpers {
         to: Pubkey,
         redeemer: &Keypair,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::complete_native_with_payload(
             program,
             bridge,
@@ -556,7 +556,7 @@ mod helpers {
         vaa: PostVAAData,
         payload: PayloadAssetMeta,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::create_wrapped(
             program,
             bridge,
@@ -587,7 +587,7 @@ mod helpers {
         payer: &Keypair,
         mint_authority: &Pubkey,
         mint: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let mint_key = mint.pubkey();
         execute(
             client,
@@ -625,7 +625,7 @@ mod helpers {
         update_authority: Pubkey,
         name: String,
         symbol: String,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -656,7 +656,7 @@ mod helpers {
         token_acc: &Keypair,
         token_authority: &Pubkey,
         mint: &Pubkey,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let token_key = token_acc.pubkey();
         execute(
             client,
@@ -690,7 +690,7 @@ mod helpers {
         mint: &Keypair,
         token_account: &Pubkey,
         amount: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -771,7 +771,7 @@ mod helpers {
         body: [u8; 32],
         secret_keys: &[SecretKey],
         guardian_set_version: u32,
-    ) -> Result<Pubkey, TransportError> {
+    ) -> Result<Pubkey, BanksClientError> {
         let signature_set = Keypair::new();
         let tx_signers = [payer, &signature_set];
         // Push Secp256k1 instructions for each signature we want to verify.
@@ -809,7 +809,7 @@ mod helpers {
         payer: &Keypair,
         signature_set: Pubkey,
         vaa: PostVAAData,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction =
             bridge::instructions::post_vaa(program, payer.pubkey(), signature_set, vaa);
 
@@ -838,7 +838,7 @@ mod helpers {
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, &program);
 

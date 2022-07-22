@@ -363,6 +363,7 @@ fn main() {
                         preflight_commitment: None,
                         encoding: None,
                         max_retries: None,
+                        min_context_slot: None,
                     },
                 )?;
             println!("Signature: {}", signature);

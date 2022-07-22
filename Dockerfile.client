@@ -1,18 +1,13 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
-FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5
+FROM ghcr.io/certusone/solana:1.10.31@sha256:d31e8db926a1d3fbaa9d9211d9979023692614b7b64912651aba0383e8c01bad AS solana
 
-RUN apt-get update && apt-get install -yq libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang ncat
+# libudev is needed by spl-token-cli, and ncat is needed by the devnet setup
+# script to be able to signal a health status for tilt
+RUN apt-get update && apt-get install -yq libudev-dev ncat
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
-RUN curl -sSfL https://release.solana.com/v1.9.4/install | sh
-
-RUN rustup default nightly-2022-01-02
-RUN rustup component add rustfmt
 
 RUN --mount=type=cache,target=/root/.cache \
-    cargo install --version =2.0.12 spl-token-cli
-
-ENV SOLANA_BIN_PATH="/root/.local/share/solana/install/active_release/bin"
-ENV PATH="$SOLANA_BIN_PATH:$PATH"
+    cargo install --version =2.0.12 --locked spl-token-cli
 
 WORKDIR /usr/src/clients/js
 COPY clients/js/package.json clients/js/package-lock.json ./

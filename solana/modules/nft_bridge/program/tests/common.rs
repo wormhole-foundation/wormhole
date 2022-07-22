@@ -18,6 +18,7 @@ use solana_program::{
 };
 use solana_program_test::{
     BanksClient,
+    BanksClientError,
     ProgramTest,
 };
 use solana_sdk::{
@@ -30,7 +31,6 @@ use solana_sdk::{
     },
     signers::Signers,
     transaction::Transaction,
-    transport::TransportError,
 };
 use solitaire::processors::seeded::Seeded;
 use std::{
@@ -56,7 +56,7 @@ pub async fn execute<T: Signers>(
     signers: &T,
     instructions: &[Instruction],
     commitment_level: CommitmentLevel,
-) -> Result<(), TransportError> {
+) -> Result<(), BanksClientError> {
     let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
     let recent_blockhash = client.get_latest_blockhash().await?;
     transaction.sign(signers, recent_blockhash);
@@ -163,7 +163,7 @@ mod helpers {
         program: Pubkey,
         payer: &Keypair,
         initial_guardians: &[[u8; 20]],
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -186,7 +186,7 @@ mod helpers {
         program: Pubkey,
         payer: &Keypair,
         bridge: Pubkey,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::initialize(program, payer.pubkey(), bridge)
             .expect("Could not create Initialize instruction");
 
@@ -210,7 +210,7 @@ mod helpers {
         from: &Keypair,
         from_owner: &Keypair,
         mint: Pubkey,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::transfer_native(
             program,
             bridge,
@@ -259,7 +259,7 @@ mod helpers {
         token_chain: u16,
         token_address: Address,
         token_id: U256,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::transfer_wrapped(
             program,
             bridge,
@@ -307,7 +307,7 @@ mod helpers {
         vaa: PostVAAData,
         payload: PayloadGovernanceRegisterChain,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::register_chain(
             program,
             bridge,
@@ -340,7 +340,7 @@ mod helpers {
         payer: &Keypair,
         to_authority: Pubkey,
         mint: Pubkey,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::complete_native(
             program,
             bridge,
@@ -373,7 +373,7 @@ mod helpers {
         payload: PayloadTransfer,
         to: Pubkey,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::complete_wrapped(
             program,
             bridge,
@@ -404,7 +404,7 @@ mod helpers {
         vaa: PostVAAData,
         payload: PayloadTransfer,
         payer: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction = instructions::complete_wrapped_meta(
             program,
             bridge,
@@ -431,7 +431,7 @@ mod helpers {
         payer: &Keypair,
         mint_authority: &Pubkey,
         mint: &Keypair,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let mint_key = mint.pubkey();
         execute(
             client,
@@ -465,7 +465,7 @@ mod helpers {
         token_acc: &Keypair,
         token_authority: &Pubkey,
         mint: &Pubkey,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let token_key = token_acc.pubkey();
         execute(
             client,
@@ -503,7 +503,7 @@ mod helpers {
         name: String,
         symbol: String,
         uri: String,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -535,7 +535,7 @@ mod helpers {
         mint: &Keypair,
         token_account: &Pubkey,
         amount: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -616,7 +616,7 @@ mod helpers {
         body: [u8; 32],
         secret_keys: &[SecretKey],
         guardian_set_version: u32,
-    ) -> Result<Pubkey, TransportError> {
+    ) -> Result<Pubkey, BanksClientError> {
         let signature_set = Keypair::new();
         let tx_signers = [payer, &signature_set];
         // Push Secp256k1 instructions for each signature we want to verify.
@@ -654,7 +654,7 @@ mod helpers {
         payer: &Keypair,
         signature_set: Pubkey,
         vaa: PostVAAData,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         let instruction =
             bridge::instructions::post_vaa(program, payer.pubkey(), signature_set, vaa);
 
@@ -680,7 +680,7 @@ mod helpers {
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, &program);
 

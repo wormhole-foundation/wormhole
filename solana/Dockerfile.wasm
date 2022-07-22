@@ -3,7 +3,6 @@ FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965b
 
 RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
 RUN rustup component add rustfmt
-RUN rustup default nightly-2022-01-02
 
 WORKDIR /usr/src/bridge
 
@@ -18,6 +17,7 @@ ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime:
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
+COPY rust-toolchain .
 COPY bridge bridge
 COPY modules modules
 COPY solitaire solitaire
