@@ -1,15 +1,5 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
-# FROM ghcr.io/certusone/solana:1.9.4@sha256:5389eccba0ba59ae119bc1438b61be8904707e26df8f0732116a8dce0f64eb52 AS solana
-FROM rust:1.60 as solana
-
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
-RUN curl -sSfL https://release.solana.com/v1.10.31/install | sh
-
-ENV SOLANA_BIN_PATH="/root/.local/share/solana/install/active_release/bin"
-ENV PATH="$SOLANA_BIN_PATH:$PATH"
-
-RUN rustup default nightly-2022-07-12
-RUN rustup component add rustfmt
+FROM ghcr.io/certusone/solana:1.10.31@sha256:a652032ebb27aecf1a0aafcaa0d43dd6c2e4f808a795102f7d521b7450842cfe AS solana
 
 # Support additional root CAs
 COPY cert.pem* /certs/
