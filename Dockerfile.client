@@ -1,15 +1,17 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
-FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5
+FROM docker.io/library/rust:1.60@sha256:48d3b5baf199dc7c378e775c47b0c40aaf7d8b23eaf67e15b095bbdaaecd1f10
 
 RUN apt-get update && apt-get install -yq libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang ncat
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
-RUN curl -sSfL https://release.solana.com/v1.9.4/install | sh
+RUN curl -sSfL https://release.solana.com/v1.10.31/install | sh
 
-RUN rustup default nightly-2022-01-02
-RUN rustup component add rustfmt
-
+RUN rustup default nightly-2022-02-01
 RUN --mount=type=cache,target=/root/.cache \
     cargo install --version =2.0.12 spl-token-cli
+
+RUN rustup default nightly-2022-07-12
+RUN rustup component add rustfmt
+
 
 ENV SOLANA_BIN_PATH="/root/.local/share/solana/install/active_release/bin"
 ENV PATH="$SOLANA_BIN_PATH:$PATH"
