@@ -24,6 +24,7 @@ import {
   coalesceChainId,
   isEVMChain,
   isTerraChain,
+  CHAIN_ID_PYTHNET,
 } from "./consts";
 
 /**
@@ -72,7 +73,7 @@ export const tryUint8ArrayToNative = (
   const chainId = coalesceChainId(chain);
   if (isEVMChain(chainId)) {
     return hexZeroPad(hexValue(a), 20);
-  } else if (chainId === CHAIN_ID_SOLANA) {
+  } else if (chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_PYTHNET) {
     return new PublicKey(a).toString();
   } else if (isTerraChain(chainId)) {
     const h = uint8ArrayToHex(a);
@@ -188,7 +189,7 @@ export const tryNativeToHexString = (
   const chainId = coalesceChainId(chain);
   if (isEVMChain(chainId)) {
     return uint8ArrayToHex(zeroPad(arrayify(address), 32));
-  } else if (chainId === CHAIN_ID_SOLANA) {
+  } else if (chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_PYTHNET) {
     return uint8ArrayToHex(zeroPad(new PublicKey(address).toBytes(), 32));
   } else if (chainId === CHAIN_ID_TERRA) {
     if (isNativeDenom(address)) {

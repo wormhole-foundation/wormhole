@@ -31,6 +31,12 @@ type SolanaWatcher struct {
 	messageEvent chan *common.MessagePublication
 	obsvReqC     chan *gossipv1.ObservationRequest
 	rpcClient    *rpc.Client
+	// Readiness component
+	readiness readiness.Component
+	// VAA ChainID of the network we're connecting to.
+	chainID vaa.ChainID
+	// Human readable name of network
+	networkName string
 }
 
 var (
@@ -38,27 +44,27 @@ var (
 		prometheus.CounterOpts{
 			Name: "wormhole_solana_connection_errors_total",
 			Help: "Total number of Solana connection errors",
-		}, []string{"commitment", "reason"})
+		}, []string{"solana_network", "commitment", "reason"})
 	solanaAccountSkips = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_solana_account_updates_skipped_total",
 			Help: "Total number of account updates skipped due to invalid data",
-		}, []string{"reason"})
-	solanaMessagesConfirmed = promauto.NewCounter(
+		}, []string{"solana_network", "reason"})
+	solanaMessagesConfirmed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_solana_observations_confirmed_total",
 			Help: "Total number of verified Solana observations found",
-		})
+		}, []string{"solana_network"})
 	currentSolanaHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "wormhole_solana_current_height",
 			Help: "Current Solana slot height",
-		}, []string{"commitment"})
+		}, []string{"solana_network", "commitment"})
 	queryLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "wormhole_solana_query_latency",
 			Help: "Latency histogram for Solana RPC calls",
-		}, []string{"operation", "commitment"})
+		}, []string{"solana_network", "operation", "commitment"})
 )
 
 const rpcTimeout = time.Second * 5
@@ -105,7 +111,9 @@ func NewSolanaWatcher(
 	contractAddress solana.PublicKey,
 	messageEvents chan *common.MessagePublication,
 	obsvReqC chan *gossipv1.ObservationRequest,
-	commitment rpc.CommitmentType) *SolanaWatcher {
+	commitment rpc.CommitmentType,
+	readiness readiness.Component,
+	chainID vaa.ChainID) *SolanaWatcher {
 	return &SolanaWatcher{
 		contract: contractAddress,
 		wsUrl:    wsUrl, rpcUrl: rpcUrl,
@@ -113,13 +121,16 @@ func NewSolanaWatcher(
 		obsvReqC:     obsvReqC,
 		commitment:   commitment,
 		rpcClient:    rpc.New(rpcUrl),
+		readiness:    readiness,
+		chainID:      chainID,
+		networkName:  vaa.ChainID(chainID).String(),
 	}
 }
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	contractAddr := base58.Encode(s.contract[:])
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
+	p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
 		ContractAddress: contractAddr,
 	})
 
@@ -136,7 +147,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case m := <-s.obsvReqC:
-				if m.ChainId != uint32(vaa.ChainIDSolana) {
+				if m.ChainId != uint32(s.chainID) {
 					panic("unexpected chain id")
 				}
 
@@ -152,19 +163,19 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				start := time.Now()
 				slot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
 				cancel()
-				queryLatency.WithLabelValues("get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
+				queryLatency.WithLabelValues(s.networkName, "get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
 				if err != nil {
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-					solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_slot_error").Inc()
+					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_slot_error").Inc()
 					errC <- err
 					return
 				}
 				if lastSlot == 0 {
 					lastSlot = slot - 1
 				}
-				currentSolanaHeight.WithLabelValues(string(s.commitment)).Set(float64(slot))
-				readiness.SetReady(common.ReadinessSolanaSyncing)
-				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
+				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
+				readiness.SetReady(s.readiness)
+				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
 					Height:          int64(slot),
 					ContractAddress: contractAddr,
 				})
@@ -240,7 +251,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		Commitment:         s.commitment,
 	})
 
-	queryLatency.WithLabelValues("get_confirmed_block", string(s.commitment)).Observe(time.Since(start).Seconds())
+	queryLatency.WithLabelValues(s.networkName, "get_confirmed_block", string(s.commitment)).Observe(time.Since(start).Seconds())
 	if err != nil {
 		var rpcErr *jsonrpc.RPCError
 		if errors.As(err, &rpcErr) && (rpcErr.Code == -32007 /* SLOT_SKIPPED */ || rpcErr.Code == -32004 /* BLOCK_NOT_AVAILABLE */) {
@@ -268,17 +279,17 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		} else {
 			logger.Error("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
 				zap.String("commitment", string(s.commitment)))
-			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-			solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_block_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_block_error").Inc()
 		}
 		return false
 	}
 
 	if out == nil {
-		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_block_error").Inc()
+		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_block_error").Inc()
 		logger.Error("nil response when requesting block", zap.Error(err), zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
+		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return false
 	}
 
@@ -340,10 +351,10 @@ OUTER:
 			Commitment: s.commitment,
 		})
 		cancel()
-		queryLatency.WithLabelValues("get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
+		queryLatency.WithLabelValues(s.networkName, "get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
 		if err != nil {
-			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-			solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_transaction_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_transaction_error").Inc()
 			logger.Error("failed to request transaction",
 				zap.Error(err),
 				zap.Uint64("slot", slot),
@@ -464,10 +475,10 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 		Encoding:   solana.EncodingBase64,
 		Commitment: s.commitment,
 	})
-	queryLatency.WithLabelValues("get_account_info", string(s.commitment)).Observe(time.Since(start).Seconds())
+	queryLatency.WithLabelValues(s.networkName, "get_account_info", string(s.commitment)).Observe(time.Since(start).Seconds())
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_account_info_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_account_info_error").Inc()
 		logger.Error("failed to request account",
 			zap.Error(err),
 			zap.Uint64("slot", slot),
@@ -477,8 +488,8 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	}
 
 	if !info.Value.Owner.Equals(s.contract) {
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-		solanaConnectionErrors.WithLabelValues(string(s.commitment), "account_owner_mismatch").Inc()
+		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_owner_mismatch").Inc()
 		logger.Error("account has invalid owner",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
@@ -489,8 +500,8 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 
 	data := info.Value.Data.GetBinary()
 	if string(data[:3]) != "msg" && string(data[:3]) != "msu" {
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-		solanaConnectionErrors.WithLabelValues(string(s.commitment), "bad_account_data").Inc()
+		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "bad_account_data").Inc()
 		logger.Error("account is not a message account",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
@@ -511,7 +522,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, acc solana.PublicKey) {
 	proposal, err := ParseMessagePublicationAccount(data)
 	if err != nil {
-		solanaAccountSkips.WithLabelValues("parse_transfer_out").Inc()
+		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
 		logger.Error(
 			"failed to parse transfer proposal",
 			zap.Stringer("account", acc),
@@ -528,13 +539,13 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
 		Nonce:            proposal.Nonce,
 		Sequence:         proposal.Sequence,
-		EmitterChain:     vaa.ChainIDSolana,
+		EmitterChain:     s.chainID,
 		EmitterAddress:   proposal.EmitterAddress,
 		Payload:          proposal.Payload,
 		ConsistencyLevel: proposal.ConsistencyLevel,
 	}
 
-	solanaMessagesConfirmed.Inc()
+	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
 
 	logger.Info("message observed",
 		zap.Stringer("account", acc),

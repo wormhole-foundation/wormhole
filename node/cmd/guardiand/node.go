@@ -128,6 +128,10 @@ var (
 	solanaWsRPC *string
 	solanaRPC   *string
 
+	pythnetContract *string
+	pythnetWsRPC    *string
+	pythnetRPC      *string
+
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -237,6 +241,10 @@ func init() {
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
+
+	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
+	pythnetWsRPC = NodeCmd.Flags().String("pythnetWS", "", "PythNet Websocket URL (required")
+	pythnetRPC = NodeCmd.Flags().String("pythnetRPC", "", "PythNet RPC URL (required")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -357,6 +365,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	if *solanaWsRPC != "" {
 		readiness.RegisterComponent(common.ReadinessSolanaSyncing)
+	}
+	if *pythnetWsRPC != "" {
+		readiness.RegisterComponent(common.ReadinessPythNetSyncing)
 	}
 	if *terraWS != "" {
 		readiness.RegisterComponent(common.ReadinessTerraSyncing)
@@ -621,6 +632,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			if *algorandAppID == 0 {
 				logger.Fatal("Please specify --algorandAppID")
 			}
+
+			if *pythnetContract == "" {
+				logger.Fatal("Please specify --pythnetContract")
+			}
+			if *pythnetWsRPC == "" {
+				logger.Fatal("Please specify --pythnetWsUrl")
+			}
+			if *pythnetRPC == "" {
+				logger.Fatal("Please specify --pythnetUrl")
+			}
 		}
 
 	}
@@ -683,6 +704,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
+	}
+	var pythnetAddress solana_types.PublicKey
+	if *testnetMode {
+		pythnetAddress, err = solana_types.PublicKeyFromBase58(*pythnetContract)
+		if err != nil {
+			logger.Fatal("invalid PythNet contract address", zap.Error(err))
+		}
 	}
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
@@ -778,6 +806,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest)
 	}
 
 	// Multiplex observation requests to the appropriate chain
@@ -1007,12 +1036,24 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if *solanaWsRPC != "" {
 			if err := supervisor.Run(ctx, "solwatch-confirmed",
-				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed).Run); err != nil {
+				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessSolanaSyncing, vaa.ChainIDSolana).Run); err != nil {
 				return err
 			}
 
 			if err := supervisor.Run(ctx, "solwatch-finalized",
-				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized).Run); err != nil {
+				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized, common.ReadinessSolanaSyncing, vaa.ChainIDSolana).Run); err != nil {
+				return err
+			}
+		}
+
+		if *pythnetWsRPC != "" {
+			if err := supervisor.Run(ctx, "pythwatch-confirmed",
+				solana.NewSolanaWatcher(*pythnetWsRPC, *pythnetRPC, pythnetAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
+				return err
+			}
+
+			if err := supervisor.Run(ctx, "pythwatch-finalized",
+				solana.NewSolanaWatcher(*pythnetWsRPC, *pythnetRPC, pythnetAddress, lockC, chainObsvReqC[vaa.ChainIDPythNet], rpc.CommitmentFinalized, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
 				return err
 			}
 		}

@@ -25,6 +25,7 @@ export const CHAINS = {
   arbitrum: 23,
   optimism: 24,
   gnosis: 25,
+  pythnet: 26,
   ropsten: 10001,
 } as const;
 
@@ -198,6 +199,11 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  pythnet: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -334,6 +340,11 @@ const TESTNET = {
   },
   gnosis: {
     core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  pythnet: {
+    core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -476,6 +487,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  pythnet: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -547,6 +563,7 @@ export const CHAIN_ID_APTOS = CHAINS["aptos"];
 export const CHAIN_ID_ARBITRUM = CHAINS["arbitrum"];
 export const CHAIN_ID_OPTIMISM = CHAINS["optimism"];
 export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
+export const CHAIN_ID_PYTHNET = CHAINS["pythnet"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
