@@ -1,5 +1,5 @@
 module Wormhole::VAA {
-    use sui::id::VersionedID;
+    use sui::id::{Self, VersionedID};
     use Wormhole::Deserialize;
     use Wormhole::Serialize;
     //use Wormhole::GuardianSet;
@@ -17,7 +17,7 @@ module Wormhole::VAA {
         version:            u8,
         guardian_set_index: u64,
         signatures:         vector<vector<u8>>,
-
+        
         // Body
         timestamp:          u64,
         nonce:              u64,
@@ -36,12 +36,12 @@ module Wormhole::VAA {
         let (signatures_len, bytes) = Deserialize::deserialize_u8(bytes);
         let signatures = vector::empty();
 
-        assert!(signatures_len <= 19, 0);
+        assert!(signatures_len <= 19, 0); 
 
         while ({
             spec { 
-                invariant signatures_len >  0;
-                invariant signatures_len <= 19;
+                invariant signatures_len >  0; 
+                invariant signatures_len <= 19; 
             };
             signatures_len > 0
         }) {
@@ -73,6 +73,29 @@ module Wormhole::VAA {
             consistency_level:  consistency_level,
             payload:            payload,
         }
+    }
+
+     public fun get_payload(vaa: &mut VAA): vector<u8>{
+         vaa.payload
+     }
+
+    public fun destroy(vaa: VAA): vector<u8>{
+         let VAA {
+            id,
+            version,
+            guardian_set_index,
+            signatures,
+            timestamp,
+            nonce,
+            emitter_chain,
+            emitter_address,
+            sequence,
+            consistency_level,
+            payload,
+         } = vaa;
+         //(id, version, guardian_set_index, signatures, timestamp, nonce, emitter_chain, emitter_address, sequence, consistency_level, payload)
+        id::delete(id); //delete VersionedID
+        payload
     }
 
     //TODO: verify vaa

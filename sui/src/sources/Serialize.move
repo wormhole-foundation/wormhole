@@ -56,7 +56,7 @@ module Wormhole::TestSerialize{
         vector::push_back<u8>(&mut x, 0x78);
         let (u, _) = Deserialize::deserialize_u64(x);
         assert!(u==0x1234567812345678, 0);
-
+        
         // serialize then deserialize test
         let s = vector::empty();
         Serialize::serialize_u64(&mut s, u);
