@@ -34,6 +34,7 @@ export async function relayTerra(
     URL: chainConfigInfo.nodeUrl,
     chainID: chainConfigInfo.terraChainId,
     name: chainConfigInfo.terraName,
+    isClassic: chainConfigInfo.isTerraClassic,
   };
   const lcd = new LCDClient(lcdConfig);
   const mk = new MnemonicKey({

@@ -94,7 +94,7 @@ async function spawnAuditorThread(workerInfo: WorkerInfo) {
 
   //At present, due to the try catch inside the while loop, this thread should never crash.
   const auditorPromise = getBackend()
-    .relayer.runAuditor(workerInfo)
+    .relayer.runAuditor(workerInfo, metrics)
     .catch(async (error: Error) => {
       logger.error(
         `Fatal crash on auditor thread ${workerInfo.targetChainName}-${workerInfo.index}`
@@ -243,7 +243,8 @@ async function doWorkerThread(workerInfo: WorkerInfo) {
           await backend.process(
             workItem.key,
             workerInfo.walletPrivateKey,
-            relayLogger
+            relayLogger,
+            metrics
           );
         } else {
           relayLogger.error(

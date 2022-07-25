@@ -18,7 +18,7 @@ export function init(): boolean {
     env = getListenerEnvironment();
     vaaUriPrelude =
       "http://localhost:" +
-      (process.env.REST_PORT ? process.env.REST_PORT : "4200") +
+      (process.env.REST_PORT ? process.env.REST_PORT : "4201") +
       "/relayvaa/";
   } catch (e) {
     logger.error("Error initializing listener environment: " + e);
@@ -76,7 +76,7 @@ export async function run(ph: PromHelper) {
       logger.error("spy service threw an exception: %o", e);
     }
 
-    stream.end;
+    stream.destroy()
     await sleep(5 * 1000);
     logger.info("attempting to reconnect to the spy service");
   }

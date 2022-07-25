@@ -70,6 +70,7 @@ test("should pull Terra token balances", async () => {
     URL: terraChainConfig.nodeUrl,
     chainID: terraChainConfig.terraChainId,
     name: terraChainConfig.terraName,
+    isClassic: true,
   };
   const lcd = new LCDClient(lcdConfig);
   const localAddresses = await calcLocalAddressesTerra(

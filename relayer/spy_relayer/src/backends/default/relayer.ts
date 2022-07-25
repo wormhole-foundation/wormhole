@@ -7,6 +7,7 @@ import {
   importCoreWasm,
   isEVMChain,
   parseTransferPayload,
+  CHAIN_ID_UNSET,
 } from "@certusone/wormhole-sdk";
 
 import { REDIS_RETRY_MS, AUDIT_INTERVAL_MS, Relayer } from "../definitions";
@@ -29,8 +30,6 @@ import { relaySolana } from "../../relayer/solana";
 import { relayEVM } from "../../relayer/evm";
 import { getRelayerEnvironment } from "../../configureEnv";
 
-let metrics: PromHelper;
-
 function getChainConfigInfo(chainId: ChainId) {
   const env = getRelayerEnvironment();
   return env.supportedChains.find((x) => x.chainId === chainId);
@@ -42,7 +41,8 @@ export class TokenBridgeRelayer implements Relayer {
   async process(
     key: string,
     privateKey: any,
-    relayLogger: ScopedLogger
+    relayLogger: ScopedLogger,
+    metrics: PromHelper
   ): Promise<void> {
     const logger = getScopedLogger(["TokenBridgeRelayer.process"], relayLogger);
     try {
@@ -98,8 +98,7 @@ export class TokenBridgeRelayer implements Relayer {
       }
 
       const MAX_RETRIES = 10;
-      // ChainId 0 denotes an undefined chain
-      let targetChain: ChainId = 0;
+      let targetChain: ChainId = CHAIN_ID_UNSET;
       try {
         const { parse_vaa } = await importCoreWasm();
         const parsedVAA = parse_vaa(hexToUint8Array(payload.vaa_bytes));
@@ -146,7 +145,7 @@ export class TokenBridgeRelayer implements Relayer {
   }
 
   /** Run one audit thread per worker so that auditors can not block other auditors or workers */
-  async runAuditor(workerInfo: WorkerInfo): Promise<void> {
+  async runAuditor(workerInfo: WorkerInfo, metrics: PromHelper): Promise<void> {
     const auditLogger = getScopedLogger([
       `audit-worker-${workerInfo.targetChainName}-${workerInfo.index}`,
     ]);
@@ -260,10 +259,10 @@ export class TokenBridgeRelayer implements Relayer {
         }
         redisClient.quit();
         // metrics.setDemoWalletBalance(now.getUTCSeconds());
-        await sleep(AUDIT_INTERVAL_MS);
       } catch (e) {
         auditLogger.error("spawnAuditorThread: caught exception: " + e);
       }
+      await sleep(AUDIT_INTERVAL_MS);
     }
   }
   /** Parse the target chain id from the payload */

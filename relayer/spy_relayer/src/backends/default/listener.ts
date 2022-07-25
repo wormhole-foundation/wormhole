@@ -19,7 +19,6 @@ import {
 } from "../../listener/validation";
 import { TypedFilter, Listener } from "../definitions";
 import {
-  getKey,
   initPayloadWithVAA,
   storeInRedis,
   checkQueue,
@@ -243,9 +242,8 @@ export class TokenBridgeListener implements Listener {
       return;
     }
 
-    const key = getKey(parsedVaa.payload.originChain, originAddressNative);
-
-    const isQueued = await checkQueue(key);
+    const redisKey: StoreKey = storeKeyFromParsedVAA(parsedVaa);
+    const isQueued = await checkQueue(storeKeyToJson(redisKey));
     if (isQueued) {
       this.logger.error(`Not storing in redis: ${isQueued}`);
       return;
@@ -273,7 +271,6 @@ export class TokenBridgeListener implements Listener {
         ", "
     );
 
-    const redisKey: StoreKey = storeKeyFromParsedVAA(parsedVaa);
     const redisPayload: StorePayload = initPayloadWithVAA(
       uint8ArrayToHex(rawVaa)
     );

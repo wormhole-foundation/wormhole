@@ -48,10 +48,10 @@ export interface Relayer {
   ): Promise<RelayResult>;
 
   /** Process the request to relay a message */
-  process(key: string, privKey: any, logger: ScopedLogger): Promise<void>;
+  process(key: string, privKey: any, logger: ScopedLogger, metrics: PromHelper): Promise<void>;
 
   /** Run an auditor to ensure the relay was not rolled back due to a chain reorg */
-  runAuditor(workerInfo: WorkerInfo): Promise<void>;
+  runAuditor(workerInfo: WorkerInfo, metrics: PromHelper): Promise<void>;
 }
 
 /** Backend is the interface necessary to implement for custom relayers */

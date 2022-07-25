@@ -34,7 +34,7 @@ export const TEST_ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";
 export const TEST_SOLANA_TOKEN = "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";
 export const WORMHOLE_RPC_HOSTS = ["http://localhost:7071"];
 
-export const SPY_RELAY_URL = "http://localhost:4200";
+export const SPY_RELAY_URL = "http://localhost:4201";
 
 describe("consts should exist", () => {
   it("has Solana test token", () => {

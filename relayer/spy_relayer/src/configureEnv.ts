@@ -102,6 +102,7 @@ export type ChainConfigInfo = {
   terraCoin?: string;
   terraGasPriceUrl?: string;
   wrappedAsset?: string | null;
+  isTerraClassic?: boolean;
 };
 
 export type ListenerEnvironment = {
@@ -447,6 +448,7 @@ function createTerraChainConfig(
   let terraChainId: string;
   let terraCoin: string;
   let terraGasPriceUrl: string;
+  let isTerraClassic = false;
 
   if (!config.chainId) {
     throw new Error("Missing required field in chain config: chainId");
@@ -493,6 +495,7 @@ function createTerraChainConfig(
   terraChainId = config.terraChainId;
   terraCoin = config.terraCoin;
   terraGasPriceUrl = config.terraGasPriceUrl;
+  isTerraClassic = config.isTerraClassic || false;
 
   return {
     chainId,
@@ -505,6 +508,7 @@ function createTerraChainConfig(
     terraChainId,
     terraCoin,
     terraGasPriceUrl,
+    isTerraClassic,
   };
 }
 

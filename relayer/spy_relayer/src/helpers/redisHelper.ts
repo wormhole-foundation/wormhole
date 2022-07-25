@@ -156,11 +156,6 @@ export async function addToRedis(
   }
 }
 
-/** Redis key name for storing VAAs in the memory queue */
-export function getKey(chainId: ChainId, address: string) {
-  return chainId + ":" + address;
-}
-
 export enum Status {
   Pending = 1,
   Completed = 2,
@@ -403,12 +398,7 @@ export async function checkQueue(key: string): Promise<string | null> {
       logger.error("Failed to connect to redis");
       return null;
     }
-    /**
-     * TODO: Pretty sure this code never ever worked for checking if a key is in redis.
-     *
-     * The `key` variable is `chainId + ":" + address`, but the actual redis keys come
-     * from serializing the StoreKey type into a stringified json representation.
-     */
+
     await rClient.select(RedisTables.INCOMING);
     const record1 = await rClient.get(key);
 

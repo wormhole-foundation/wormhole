@@ -499,6 +499,7 @@ async function pullAllTerraBalances(
     URL: chainConfig.nodeUrl,
     chainID: chainConfig.terraChainId,
     name: chainConfig.terraName,
+    isClassic: chainConfig.isTerraClassic,
   };
   const lcd = new LCDClient(lcdConfig);
   const localAddresses = await calcLocalAddressesTerra(
