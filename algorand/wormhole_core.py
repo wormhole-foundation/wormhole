@@ -245,7 +245,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # Make sure it is different and we can only walk forward
                         If(isBoot == Int(0), Seq(
                                 MagicAssert(Txn.accounts[3] != Txn.accounts[2]),
-                                MagicAssert(idx.load() > (set.load()))
+                                MagicAssert(idx.load() == (set.load() + Int(1)))
                         )),
 
                         # Write this away till the next time
