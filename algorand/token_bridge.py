@@ -173,16 +173,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
     @Subroutine(TealType.uint64)
     def getFactor(dec: Expr):
         return Cond(
-            [dec == Int(9),  Int(10)],
-            [dec == Int(10), Int(100)],
-            [dec == Int(11), Int(1000)],
-            [dec == Int(12), Int(10000)],
-            [dec == Int(13), Int(100000)],
-            [dec == Int(14), Int(1000000)],
-            [dec == Int(15), Int(10000000)],
-            [dec == Int(16), Int(100000000)],
-            [dec >  Int(16), Seq(Reject(), Int(1))],
-            [dec < Int(9), Int(1)]
+            [dec < Int(9), Int(1)],
+            [dec > Int(19), Seq(Reject(), Int(1))],
+            [Int(1), Exp(Int(10), dec - Int(8))]
         )
 
     @Subroutine(TealType.bytes)
