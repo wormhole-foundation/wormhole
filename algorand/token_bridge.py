@@ -759,13 +759,14 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             MagicAssert(And(
                 Len(Address.load()) <= Int(32),
                 Len(FromChain.load()) == Int(2),
-                Len(Txn.application_args[3]) <= Int(32)
+                Len(Txn.application_args[3]) <= Int(32),
+                Txn.application_args.length() <= Int(7)
             )),
 
             p.store(Concat(
-                If(Txn.application_args.length() == Int(6),
-                   Bytes("base16", "01"),
-                   Bytes("base16", "03")),
+                If(Txn.application_args.length() == Int(7),
+                   Bytes("base16", "03"),
+                   Bytes("base16", "01")),
                 Extract(zb.load(), Int(0), Int(24)),
                 Itob(amount.load()),  # 8 bytes
                 Extract(zb.load(), Int(0), Int(32) - Len(Address.load())),
