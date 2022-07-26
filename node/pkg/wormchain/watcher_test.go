@@ -1,10 +1,11 @@
 package wormchain
 
 import (
+	"testing"
+
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestStringToUInt(t *testing.T) {
