@@ -213,7 +213,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # What is the target of this governance message?
                 tchain.store(Extract(Txn.application_args[1], off.load() + Int(1), Int(2))),
                 # Needs to point at us or to all chains
-                MagicAssert(Or(tchain.load() == Bytes("base16", "0008"), tchain.load() == Bytes("base16", "0000"))),
 
                 a.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
                 Cond( 
@@ -222,6 +221,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # 
                         # In the case of Algorand, it contains the hash of the program that we are allowed to upgrade ourselves to.  We would then run the upgrade program itself
                         # to perform the actual upgrade
+                        MagicAssert(tchain.load() == Bytes("base16", "0008")),
+                        
                         off.store(off.load() + Int(3)),
 
                         App.globalPut(Bytes("validUpdateApproveHash"), Extract(Txn.application_args[1], off.load(), Int(32)))
@@ -230,6 +231,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # We are updating the guardian set
 
                         # This should point at all chains
+
+                        MagicAssert(Or(tchain.load() == Bytes("base16", "0008"), tchain.load() == Bytes("base16", "0000"))),
 
                         # move off to point at the NewGuardianSetIndex and grab it
                         off.store(off.load() + Int(3)),
