@@ -26,7 +26,7 @@ Implement a safeguard that facilitate the enabling or disabling of Token Bridge 
 * Solving for 24/7 monitoring to trigger the control
 ## Overview
 
-The shutdown functionality aims to extend existing wormhole smart contracts that enable Token and NFT bridge functionality to enable/disable send and receive capability during an existential threat scenario.
+The shutdown functionality aims to extend existing Token and NFT bridges to enable/disable send and receive capability during an existential threat scenario.
 
 During an existential threat scenario where Guardians believe there is a need to disable send/receive transactions on the Token/NFT Bridge they would send a message to the relevant smart contract(s) to indicate their vote to disable send/receive transactions.  Once these smart contracts receive a quorum (2/3rd+) set of votes to shutdown then the contracts will no longer perform transactions.  Similarly, if the guardian votes lose a super minority the contract will begin processing transactions again allowing for a quicker return to service.
 
