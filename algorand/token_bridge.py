@@ -370,9 +370,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             Symbol.store(              Extract(Txn.application_args[1], off.load() + Int(36), Int(32))),
             Name.store(                Extract(Txn.application_args[1], off.load() + Int(68), Int(32))),
 
-            # Lets trim this... seems these are limited to 7 characters
+            # Lets trim this... seems these are limited to 8 characters
             Symbol.store(trim_bytes(Symbol.load())),
-            If (Len(Symbol.load()) > Int(7), Symbol.store(Extract(Symbol.load(), Int(0), Int(7)))),
+            If (Len(Symbol.load()) > Int(8), Symbol.store(Extract(Symbol.load(), Int(0), Int(8)))),
             Name.store(Concat(trim_bytes(Name.load()), Bytes(" (Wormhole)"))),
 
             # Due to constrains on some supported chains, all token
