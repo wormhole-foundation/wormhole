@@ -681,7 +681,7 @@ export async function transferTokenFromNear(
     let bal = await client.viewFunction(assetId, "storage_balance_of", {
       account_id: tokenBridge,
     });
-    if (bal == null) {
+    if (bal === null) {
       // Looks like we have to stake some storage for this asset
       // for the token bridge...
       nearProviders.getTransactionLastResult(

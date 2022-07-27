@@ -68,7 +68,7 @@ func NewWatcher(
 	}
 }
 
-func getBlock(e *Watcher, block uint64) ([]byte, error) {
+func (e *Watcher) getBlock(block uint64) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": %d}}`, block)
 	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
 
@@ -80,7 +80,7 @@ func getBlock(e *Watcher, block uint64) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func getFinalBlock(e *Watcher) ([]byte, error) {
+func (e *Watcher) getFinalBlock() ([]byte, error) {
 	s := `{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"finality": "final"}}`
 	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
 
@@ -92,7 +92,7 @@ func getFinalBlock(e *Watcher) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func getChunk(e *Watcher, chunk string) ([]byte, error) {
+func (e *Watcher) getChunk(chunk string) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "chunk", "params": {"chunk_id": "%s"}}`, chunk)
 
 	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
@@ -105,7 +105,7 @@ func getChunk(e *Watcher, chunk string) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func getTxStatus(e *Watcher, logger *zap.Logger, tx string, src string) ([]byte, error) {
+func (e *Watcher) getTxStatus(logger *zap.Logger, tx string, src string) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "EXPERIMENTAL_tx_status", "params": ["%s", "%s"]}`, tx, src)
 
 	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
@@ -118,8 +118,8 @@ func getTxStatus(e *Watcher, logger *zap.Logger, tx string, src string) ([]byte,
 	return ioutil.ReadAll(resp.Body)
 }
 
-func inspectStatus(e *Watcher, logger *zap.Logger, hash string, receiver_id string, ts uint64) error {
-	t, err := getTxStatus(e, logger, hash, receiver_id)
+func (e *Watcher) inspectStatus(logger *zap.Logger, hash string, receiver_id string, ts uint64) error {
+	t, err := e.getTxStatus(logger, hash, receiver_id)
 
 	if err != nil {
 		return err
@@ -173,10 +173,6 @@ func inspectStatus(e *Watcher, logger *zap.Logger, hash string, receiver_id stri
 				emitter, err := hex.DecodeString(em.String())
 				if err != nil {
 					return err
-				}
-				//
-				if len(emitter) != 32 {
-					logger.Error("wtf")
 				}
 
 				var a vaa.Address
@@ -236,7 +232,7 @@ func inspectStatus(e *Watcher, logger *zap.Logger, hash string, receiver_id stri
 	return nil
 }
 
-func inspectBody(e *Watcher, logger *zap.Logger, block uint64, body gjson.Result) error {
+func (e *Watcher) inspectBody(logger *zap.Logger, block uint64, body gjson.Result) error {
 	logger.Info("inspectBody", zap.Uint64("block", block))
 
 	result := body.Get("result.chunks.#.chunk_hash")
@@ -246,13 +242,12 @@ func inspectBody(e *Watcher, logger *zap.Logger, block uint64, body gjson.Result
 
 	v := body.Get("result.header.timestamp")
 	if !v.Exists() {
-		logger.Info("result.header.timestamp")
 		return nil
 	}
 	ts := uint64(v.Uint()) / 1000000000
 
 	for _, name := range result.Array() {
-		chunk, err := getChunk(e, name.String())
+		chunk, err := e.getChunk(name.String())
 		if err != nil {
 			return err
 		}
@@ -268,7 +263,7 @@ func inspectBody(e *Watcher, logger *zap.Logger, block uint64, body gjson.Result
 				continue
 			}
 
-			err = inspectStatus(e, logger, hash.String(), receiver_id.String(), ts)
+			err = e.inspectStatus(logger, hash.String(), receiver_id.String(), ts)
 			if err != nil {
 				return err
 			}
@@ -290,11 +285,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
 
 	go func() {
-		timer := time.NewTicker(time.Second * 1)
-		defer timer.Stop()
-
 		if e.next_round == 0 {
-			finalBody, err := getFinalBlock(e)
+			finalBody, err := e.getFinalBlock()
 			if err != nil {
 				logger.Error("StatusAfterBlock", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
@@ -303,6 +295,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 			e.next_round = gjson.ParseBytes(finalBody).Get("result.chunks.0.height_created").Uint()
 		}
+
+		timer := time.NewTicker(time.Second * 1)
+		defer timer.Stop()
 
 		for {
 			select {
@@ -317,61 +312,59 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				logger.Info("Received obsv request", zap.String("tx_hash", txHash))
 
-				err := inspectStatus(e, logger, txHash, e.wormholeContract, 0)
+				err := e.inspectStatus(logger, txHash, e.wormholeContract, 0)
 				if err != nil {
 					logger.Error(fmt.Sprintf("near obsvReqC: %s", err.Error()))
 				}
 
 			case <-timer.C:
-				finalBody, err := getFinalBlock(e)
+				finalBody, err := e.getFinalBlock()
 				if err != nil {
 					logger.Error(fmt.Sprintf("nearClient.Status: %s", err.Error()))
 
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 					errC <- err
 					return
-				} else {
-					parsedFinalBody := gjson.ParseBytes(finalBody)
-					lastBlock := parsedFinalBody.Get("result.chunks.0.height_created").Uint()
+				}
+				parsedFinalBody := gjson.ParseBytes(finalBody)
+				lastBlock := parsedFinalBody.Get("result.chunks.0.height_created").Uint()
 
-					logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round))
+				logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round))
 
-					if lastBlock < e.next_round {
-						logger.Info("Went backwards... ")
-						e.next_round = lastBlock
-					}
+				if lastBlock < e.next_round {
+					logger.Error("Went backwards... ")
+					e.next_round = lastBlock
+				}
 
-					for ; e.next_round <= lastBlock; e.next_round = e.next_round + 1 {
-						if e.next_round == lastBlock {
-							err := inspectBody(e, logger, e.next_round, parsedFinalBody)
-							if err != nil {
-								logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
+				for ; e.next_round <= lastBlock; e.next_round = e.next_round + 1 {
+					if e.next_round == lastBlock {
+						err := e.inspectBody(logger, e.next_round, parsedFinalBody)
+						if err != nil {
+							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
 
-								p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-								errC <- err
-								return
+							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+							errC <- err
+							return
 
-							}
-						} else {
-							b, err := getBlock(e, e.next_round)
-							if err != nil {
-								logger.Error(fmt.Sprintf("nearClient.Status: %s", err.Error()))
+						}
+					} else {
+						b, err := e.getBlock(e.next_round)
+						if err != nil {
+							logger.Error(fmt.Sprintf("nearClient.Status: %s", err.Error()))
 
-								p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-								errC <- err
-								return
+							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+							errC <- err
+							return
 
-							} else {
-								err := inspectBody(e, logger, e.next_round, gjson.ParseBytes(b))
-								if err != nil {
-									logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
+						}
+						err = e.inspectBody(logger, e.next_round, gjson.ParseBytes(b))
+						if err != nil {
+							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
 
-									p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-									errC <- err
-									return
+							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+							errC <- err
+							return
 
-								}
-							}
 						}
 					}
 				}

@@ -94,6 +94,28 @@ async function initNear() {
       wormholeContract,
       new BN("20000000000000000000000000")
     );
+
+      await wormholeAccount.functionCall({
+        contractId: config.wormholeAccount,
+        methodName: "register_emitter",
+        args: {emitter: config.tokenAccount},
+        attachedDeposit: new BN("30000000000000000000000"),
+        gas: new BN("100000000000000"),
+      })
+      await wormholeAccount.functionCall({
+        contractId: config.wormholeAccount,
+        methodName: "register_emitter",
+        args: {emitter: config.testAccount},
+        attachedDeposit: new BN("30000000000000000000000"),
+        gas: new BN("100000000000000"),
+      })
+      await wormholeAccount.functionCall({
+        contractId: config.wormholeAccount,
+        methodName: "register_emitter",
+        args: {emitter: config.nftAccount},
+        attachedDeposit: new BN("30000000000000000000000"),
+        gas: new BN("100000000000000"),
+      })
   } else {
     // This uses the standard API to redeploy ... we can migrate over to the vaa's later
     console.log(

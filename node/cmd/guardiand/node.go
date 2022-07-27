@@ -632,12 +632,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				logger.Fatal("Please specify --algorandAppID")
 			}
 		}
-		if *nearRPC == "" {
-			logger.Fatal("Please specify --nearRPC")
-		}
-		if *nearContract == "" {
-			logger.Fatal("Please specify --nearContract")
-		}
 	}
 
 	if *bigTablePersistenceEnabled {

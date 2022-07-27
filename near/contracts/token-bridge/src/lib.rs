@@ -499,12 +499,12 @@ fn vaa_asset_meta(
 
     let fresh;
 
-    let bridge_token_account;
+    let asset_token_account;
 
     let mut decimals = data.get_u8(34);
 
     if storage.key_map.contains_key(&tkey) {
-        bridge_token_account = storage.key_map.get(&tkey).unwrap();
+        asset_token_account = storage.key_map.get(&tkey).unwrap();
         fresh = false;
         env::log_str(&format!("token-bridge/{}#{}: vaa_asset_meta", file!(), line!()));
     } else {
@@ -512,7 +512,7 @@ fn vaa_asset_meta(
         storage.last_asset += 1;
         let asset_id = storage.last_asset;
         let account_name = format!("{}.{}", asset_id, env::current_account_id());
-        bridge_token_account = AccountId::new_unchecked(account_name.clone());
+        asset_token_account = AccountId::new_unchecked(account_name.clone());
 
         let d = TokenData {
             meta: data.to_vec(),
@@ -525,14 +525,14 @@ fn vaa_asset_meta(
             "token-bridge/{}#{}: vaa_asset_meta:  {}  ",
             file!(),
             line!(),
-            bridge_token_account
+            asset_token_account
         ));
 
-        storage.tokens.insert(&bridge_token_account, &d);
-        storage.key_map.insert(&tkey, &bridge_token_account);
+        storage.tokens.insert(&asset_token_account, &d);
+        storage.key_map.insert(&tkey, &asset_token_account);
         storage
             .hash_map
-            .insert(&env::sha256(account_name.as_bytes()), &bridge_token_account);
+            .insert(&env::sha256(account_name.as_bytes()), &asset_token_account);
 
         fresh = true;
 
@@ -570,7 +570,7 @@ fn vaa_asset_meta(
             file!(),
             line!()
         ));
-        ext_ft_contract::ext(bridge_token_account.clone()).update_ft(
+        ext_ft_contract::ext(asset_token_account.clone()).update_ft(
             ft,
             data.to_vec(),
             vaa.sequence,
@@ -595,7 +595,7 @@ fn vaa_asset_meta(
             seq_number: vaa.sequence,
         };
 
-        Promise::new(bridge_token_account.clone())
+        Promise::new(asset_token_account.clone())
             .create_account()
             .transfer(cost)
             .add_full_access_key(storage.owner_pk.clone())
@@ -626,7 +626,7 @@ fn vaa_asset_meta(
 
     PromiseOrValue::Promise(
         p.then(ext_token_bridge::ext(env::current_account_id()).finish_deploy(
-            bridge_token_account.clone(),
+            asset_token_account.clone(),
             tkey,
             fresh,
         )),
@@ -1248,7 +1248,7 @@ impl TokenBridge {
 
         let ft = ft_info.unwrap();
 
-        let bridge_token_account = AccountId::new_unchecked(token.clone());
+        let asset_token_account = AccountId::new_unchecked(token.clone());
         let account_hash = env::sha256(token.as_bytes());
         let tkey = token_key(account_hash.to_vec(), CHAIN_ID_NEAR);
 
@@ -1256,18 +1256,18 @@ impl TokenBridge {
 
         let storage_used = env::storage_usage();
 
-        if !self.tokens.contains_key(&bridge_token_account) {
+        if !self.tokens.contains_key(&asset_token_account) {
             let d = TokenData {
                 meta:     b"".to_vec(),
                 decimals: ft.decimals,
                 address:  hex::encode(&account_hash),
                 chain:    CHAIN_ID_NEAR,
             };
-            self.tokens.insert(&bridge_token_account, &d);
+            self.tokens.insert(&asset_token_account, &d);
         }
 
-        self.key_map.insert(&tkey, &bridge_token_account);
-        self.hash_map.insert(&account_hash, &bridge_token_account);
+        self.key_map.insert(&tkey, &asset_token_account);
+        self.hash_map.insert(&account_hash, &asset_token_account);
 
         let required_cost =
             (Balance::from(env::storage_usage() - storage_used)) * env::storage_byte_cost();

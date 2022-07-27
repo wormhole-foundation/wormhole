@@ -250,7 +250,7 @@ export async function redeemOnNear(
 ): Promise<String> {
   let p = _parseVAAAlgorand(vaa);
 
-  if (p.ToChain != CHAIN_ID_NEAR) {
+  if (p.ToChain !== CHAIN_ID_NEAR) {
     throw new Error("Not destined for NEAR");
   }
 
@@ -278,14 +278,14 @@ export async function redeemOnNear(
   }
 
   if (
-    (p.Contract as string) !=
+    (p.Contract as string) !==
     "0000000000000000000000000000000000000000000000000000000000000000"
   ) {
     let bal = await client.viewFunction(token as string, "storage_balance_of", {
       account_id: user,
     });
 
-    if (bal == null) {
+    if (bal === null) {
       console.log("Registering ", user, " for ", token);
       bal = nearProviders.getTransactionLastResult(
         await client.functionCall({
@@ -316,7 +316,7 @@ export async function redeemOnNear(
         }
       );
 
-      if (bal == null) {
+      if (bal === null) {
         console.log("Registering ", client.accountId, " for ", token);
         bal = nearProviders.getTransactionLastResult(
           await client.functionCall({
