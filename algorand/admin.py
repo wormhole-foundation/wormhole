@@ -310,7 +310,7 @@ class PortalCore:
             return encode_single(type, val).hex()[64-(32):64]
         if type == 'uint256' or type == 'bytes32':
             return encode_single(type, val).hex()[64-(64):64]
-        raise Exception("you suck")
+        raise Exception("invalid type")
 
     def devnetUpgradeVAA(self):
         v = self.genUpgradePayload()

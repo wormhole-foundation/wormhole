@@ -79,7 +79,7 @@ class GenTest:
             return encode_single(type, val).hex()[64-(32):64]
         if type == 'uint256' or type == 'bytes32':
             return encode_single(type, val).hex()[64-(64):64]
-        raise Exception("you suck")
+        raise Exception("invalid type")
 
     def createSignedVAA(self, guardianSetIndex, signers, ts, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, target, payload):
         print("createSignedVAA: " + str(signers))
@@ -167,7 +167,7 @@ class GenTest:
             return "000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7"
         if chain == 5:
             return "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde"
-        raise Exception("you suck")
+        raise Exception("invalid chain")
         
     def genRegisterChain(self, signers, guardianSet, nonce, seq, chain, addr = None):
         b  = self.zeroPadBytes[0:((32 -11)*2)]
