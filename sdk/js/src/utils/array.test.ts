@@ -1,6 +1,6 @@
 import { zeroPad } from "ethers/lib/utils";
-import { tryUint8ArrayToNative } from "./array";
 import { canonicalAddress } from "../cosmos";
+import { tryUint8ArrayToNative, tryNativeToHexString } from "./array";
 
 test("terra address conversion", () => {
   const human = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
@@ -17,4 +17,13 @@ test("terra address conversion", () => {
   const nativeContract = tryUint8ArrayToNative(canonicalContract, "terra2");
   expect(nativeContract).toBe(nativeContract);
   // TODO: native to hex is wrong, which we should correct
+});
+
+test("wormchain address conversion", () => {
+    const human = "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl";
+    const canonical = "000000000000000000000000e868c4707417d0481dd7e213944e758e776ed35e";
+    const native = tryUint8ArrayToNative(new Uint8Array(Buffer.from(canonical, "hex")), "wormholechain");
+    expect(native).toBe(human);
+
+    expect(tryNativeToHexString(human, "wormholechain")).toBe(canonical)
 });
