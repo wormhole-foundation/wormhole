@@ -21,6 +21,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   CHAIN_ID_TERRA2,
+  CHAIN_ID_WORMHOLE_CHAIN,
   CHAIN_ID_UNSET,
   coalesceChainId,
   isEVMChain,
@@ -89,6 +90,9 @@ export const tryUint8ArrayToNative = (
     }
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);
+  } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
+      // wormhole-chain addresses are always 20 bytes.
+      return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Near not supported yet.");
   } else if (chainId === CHAIN_ID_INJECTIVE) {
@@ -207,6 +211,8 @@ export const tryNativeToHexString = (
     return buildTokenId(address);
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);
+  } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
+      return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("hexToNativeString: Near not supported yet.");
   } else if (chainId === CHAIN_ID_INJECTIVE) {
