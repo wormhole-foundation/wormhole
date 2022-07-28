@@ -217,11 +217,6 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 			nativeTokenAddress = string(item.Value)
 		}
 	}
-	if coinId == "" {
-		log.Printf("no coinId for symbol: %v, nothing to lookup.\n", symbol)
-		// no coinId for this asset, cannot get price from coingecko.
-		return nil
-	}
 
 	// transfers created by the bridge UI will have at most 8 decimals.
 	if decimals > 8 {
@@ -238,12 +233,6 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 
 	timestamp := signedVaa.Timestamp.UTC()
 	price, _ := fetchCoinGeckoPrice(coinId, timestamp)
-
-	if price == 0 {
-		// no price found, don't save
-		log.Printf("no price for symbol: %v, name: %v, address: %v, at: %v. rowKey: %v\n", symbol, name, nativeTokenAddress, timestamp.String(), rowKey)
-		return nil
-	}
 
 	// convert the amount string so it can be used for math
 	amountFloat, convErr := strconv.ParseFloat(calculatedAmount, 64)
