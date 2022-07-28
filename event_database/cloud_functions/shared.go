@@ -463,15 +463,16 @@ func useCache(date string) bool {
 }
 
 // tokens allowed in TVL calculation
-var tokenAllowlist = map[string]map[string]bool{}
+var tokenAllowlist = map[string]map[string]string{}
 
-func isTokenAllowed(chainId string, tokenAddress string) bool {
+// isTokenAllowed returns whether or not the token is in the allowlist along with its CoinGecko ID
+func isTokenAllowed(chainId string, tokenAddress string) (bool, string) {
 	if tokenAddresses, ok := tokenAllowlist[chainId]; ok {
-		if _, ok := tokenAddresses[tokenAddress]; ok {
-			return true
+		if coinGeckoCoinId, ok := tokenAddresses[tokenAddress]; ok {
+			return true, coinGeckoCoinId
 		}
 	}
-	return false
+	return false, ""
 }
 
 // tokens with no trading activity recorded by exchanges integrated on CoinGecko since the specified date

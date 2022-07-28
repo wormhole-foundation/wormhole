@@ -103,9 +103,14 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 			keyParts := strings.Split(row.Key(), ":")
 			t.LeavingChain = keyParts[0]
 
-			transferDateStr := t.TransferTimestamp[0:10]
-			if isTokenAllowed(t.OriginChain, t.TokenAddress) && isTokenActive(t.OriginChain, t.TokenAddress, transferDateStr) {
-				rows = append(rows, *t)
+			isAllowed, coinGeckoCoinId := isTokenAllowed(t.OriginChain, t.TokenAddress)
+			if isAllowed && coinGeckoCoinId != "" {
+				transferDateStr := t.TransferTimestamp[0:10]
+				if isTokenActive(t.OriginChain, t.TokenAddress, transferDateStr) {
+					// use the CoinGeckoCoinId specified in the allowlist
+					t.CoinGeckoCoinId = coinGeckoCoinId
+					rows = append(rows, *t)
+				}
 			}
 		}
 

@@ -102,10 +102,6 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 
 			// iterate through the rows and increment the count
 			for _, row := range queryResult {
-				if row.CoinGeckoCoinId == "" {
-					log.Printf("skipping row without CoinGeckoCoinId. symbol: %v, amount %v", row.TokenSymbol, row.TokenAmount)
-					continue
-				}
 				if row.TokenAddress == "" {
 					// if the token address is missing, skip
 					continue
@@ -247,12 +243,13 @@ func tvlForInterval(tbl *bigtable.Table, ctx context.Context, start, end time.Ti
 		}
 		if _, ok := result[row.OriginChain][row.TokenAddress]; !ok {
 			result[row.OriginChain][row.TokenAddress] = LockedAsset{
-				Symbol:      row.TokenSymbol,
-				Name:        row.TokenName,
-				Address:     row.TokenAddress,
-				CoinGeckoId: row.CoinGeckoCoinId,
-				Amount:      0,
-				Notional:    0,
+				Symbol:        row.TokenSymbol,
+				Name:          row.TokenName,
+				Address:       row.TokenAddress,
+				CoinGeckoId:   row.CoinGeckoCoinId,
+				Amount:        0,
+				Notional:      0,
+				TokenDecimals: row.TokenDecimals,
 			}
 		}
 
