@@ -132,6 +132,8 @@ func (c ChainID) String() string {
 		return "terra2"
 	case ChainIDInjective:
 		return "injective"
+	case ChainIDPythNet:
+		return "pythnet"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -179,6 +181,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDTerra2, nil
 	case "injective":
 		return ChainIDInjective, nil
+	case "pythnet":
+		return ChainIDPythNet, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -222,6 +226,8 @@ const (
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
+	// ChainIDPythNet is the ChainID of PythNet
+	ChainIDPythNet ChainID = 26
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
