@@ -6,8 +6,9 @@ import {
   nativeStringToHexAlgorand,
   uint8ArrayToNativeStringAlgorand,
 } from "../algorand";
+import { canonicalAddress, humanAddress } from "../cosmos"
 import { buildTokenId } from "../cosmwasm/address";
-import { canonicalAddress, humanAddress, isNativeDenom } from "../terra";
+import { isNativeDenom } from "../terra";
 import {
   ChainId,
   ChainName,
@@ -82,9 +83,9 @@ export const tryUint8ArrayToNative = (
     } else {
       if (chainId === CHAIN_ID_TERRA2 && !isLikely20ByteTerra(h)) {
         // terra 2 has 32 byte addresses for contracts and 20 for wallets
-        return humanAddress(a);
+        return humanAddress("terra", a);
       }
-      return humanAddress(a.slice(-20));
+      return humanAddress("terra", a.slice(-20));
     }
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);

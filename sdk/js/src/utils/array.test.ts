@@ -1,6 +1,6 @@
 import { zeroPad } from "ethers/lib/utils";
-import { canonicalAddress } from "../terra";
 import { tryUint8ArrayToNative } from "./array";
+import { canonicalAddress } from "../cosmos";
 
 test("terra address conversion", () => {
   const human = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
