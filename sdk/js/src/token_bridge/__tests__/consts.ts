@@ -36,6 +36,9 @@ export const SOLANA_PRIVATE_KEY = new Uint8Array([
 export const TERRA_NODE_URL = ci
   ? "http://terra-terrad:1317"
   : "http://localhost:1317";
+export const TERRA2_NODE_URL = ci
+  ? "http://terra2-terrad:1317"
+  : "http://localhost:1318";
 export const TERRA_CHAIN_ID = "localterra";
 export const TERRA_GAS_PRICES_URL = ci
   ? "http://terra-fcd:3060/v1/txs/gas_prices"
@@ -44,7 +47,9 @@ export const TERRA2_GAS_PRICES_URL = ci
   ? "http://terra2-fcd:3060/v1/txs/gas_prices"
   : "http://localhost:3061/v1/txs/gas_prices";
 export const TERRA_PRIVATE_KEY =
-  "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius";
+  "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"; // test1
+export const TERRA_PRIVATE_KEY2 =
+  "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty"; // test2
 export const TERRA2_PRIVATE_KEY =
   "symbol force gallery make bulk round subway violin worry mixture penalty kingdom boring survey tool fringe patrol sausage hard admit remember broken alien absorb"; // test3
 export const TEST_ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";
