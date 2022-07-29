@@ -708,8 +708,8 @@ fn handle_complete_transfer(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = TransferInfo::deserialize(&data)?;
-    match transfer_info.token_address.as_slice()[0] {
-        1 => handle_complete_transfer_token_native(
+    if transfer_info.token_address.as_slice()[0] == 1 && transfer_info.token_chain == CHAIN_ID {
+        handle_complete_transfer_token_native(
             deps,
             env,
             info,
@@ -718,8 +718,9 @@ fn handle_complete_transfer(
             transfer_type,
             data,
             relayer_address,
-        ),
-        _ => handle_complete_transfer_token(
+        )
+    } else {
+        handle_complete_transfer_token(
             deps,
             env,
             info,
@@ -728,7 +729,7 @@ fn handle_complete_transfer(
             transfer_type,
             data,
             relayer_address,
-        ),
+        )
     }
 }
 
