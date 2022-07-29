@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Run the upgrade simulation (./simulate_upgrade) against each contract twice
+# against the ethereum mainnet state. Running the upgrade twice ensures that the
+# contract is still upgradeable after the first upgrade.
+
 ANVIL_PID=""
 function clean_up () {
     ARG=$?
@@ -11,9 +15,10 @@ function clean_up () {
 trap clean_up EXIT
 
 echo "🍴 Forking mainnet..."
-anvil --base-fee 0 --fork-url "$(worm rpc mainnet ethereum)" --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect" > /dev/null &
+./anvil_fork ethereum > /dev/null &
 ANVIL_PID=$!
 
+# Sleep for 10 seconds here to give some time for the fork to complete.
 sleep 10
 
 echo "========================= Updating core contract #1 ============================"

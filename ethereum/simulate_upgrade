@@ -2,6 +2,15 @@
 
 set -euo pipefail
 
+# This script ensures that the EVM contracts can be safely upgraded to without
+# bricking the contracts. It does this by simulating contract upgrades against
+# the mainnet state, and checks that the state is consistent after the upgrade.
+#
+# By default, the script will compile the contracts and run the upgrade. It's
+# possible to simulate an upgrade against an already deployed implementation
+# contract (which is useful for independent verification of a governance
+# proposal) -- see the usage instructions below.
+
 function usage() {
 cat <<EOF >&2
 Usage:
@@ -61,13 +70,15 @@ while getopts ':hm:c:a:xkdl:' option; do
 done
 shift $((OPTIND - 1))
 
+# Check that we have the required arguments
 [ -z "$chain_name" ] && usage
 [ -z "$module" ] && usage
 
+# Get core contract address
 CORE=$(worm contract mainnet "$chain_name" Core)
 echo "core: $CORE"
 
-
+# Use the local devnet guardian key (this is not a production key)
 GUARDIAN_ADDRESS=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
 GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
 
@@ -82,12 +93,12 @@ trap clean_up EXIT
 
 
 #TODO: make RPC an optional argument
-HOST="http://localhost"
+HOST="http://0.0.0.0"
 PORT="8545"
 RPC="$HOST:$PORT"
 
 if [[ $run_anvil = true ]]; then
-    anvil --port $PORT --fork-url "$(worm rpc mainnet $chain_name)" --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect" > "$anvil_out" &
+    ./anvil_fork "$chain_name"
     ANVIL_PID=$!
     echo "🍴 Forking mainnet..."
     echo "Anvil logs in $anvil_out"
@@ -117,6 +128,8 @@ esac
 
 CONTRACT=$(worm contract mainnet "$chain_name" "$MODULE")
 
+# Step 1) Figure out the contract address depending on the flags -- either use
+# an address passed in as an argument, or use the most recent contract in the repo.
 if [[ -n "$address" ]]; then
     new_implementation="$address"
 else
@@ -129,20 +142,33 @@ else
     new_implementation=$(echo "$deploy_output" | grep "address:" | cut -d' ' -f3)
 fi
 printf " %s\n" "$new_implementation"
+
+# Step 2) generate upgrade VAA using the local guardian key
 vaa=$(worm generate upgrade -c "$chain_name" -a "$new_implementation" -m $MODULE -g "$GUARDIAN_SECRET")
 
+# Step 3) the VAA we just signed in Step 2) is not compatible with the guardian
+# set on mainnet (since that corresponds to a mainnet guardian network). We need
+# to thus locally replace the guardian set with the local guardian key.
 echo "💂 Overriding guardian set with $GUARDIAN_ADDRESS"
 worm evm hijack -g "$GUARDIAN_ADDRESS" -i 0 -a "$CORE" --rpc "$RPC"> /dev/null
 
+# Step 4) query state before upgrade
 echo "🔍 Querying old contract state"
 worm evm info -c "$chain_name" -m $MODULE -n devnet -a "$CONTRACT" --rpc "$RPC" | grep -v '"implementation":' > "$before"
+
+# Step 5) upgrade contract
 echo "🤝 Submitting VAA"
 worm submit "$vaa" -n devnet -a "$CONTRACT" --rpc "$RPC" > /dev/null
+
+# Step 6) query state after upgrade
 echo "🔍 Querying new contract state"
 worm evm info -c "$chain_name" -m $MODULE -n devnet -a "$CONTRACT" --rpc "$RPC" | grep -v '"implementation":' > "$after"
 
+# Step 7) compare old and new state and exit with error if they differ
 git diff --no-index "$before" "$after" --exit-code && echo "✅ Upgrade simulation successful" || exit 1
 
+# Anvil can be kept alive by setting the -k flag. This is useful for interacting
+# with the contract after it has been upgraded.
 if [[ $keepalive_anvil = true ]]; then
     echo "Listening on $RPC"
     # tail -f "$anvil_out"
