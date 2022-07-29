@@ -20,10 +20,14 @@ test("terra address conversion", () => {
 });
 
 test("wormchain address conversion", () => {
-    const human = "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl";
-    const canonical = "000000000000000000000000e868c4707417d0481dd7e213944e758e776ed35e";
-    const native = tryUint8ArrayToNative(new Uint8Array(Buffer.from(canonical, "hex")), "wormholechain");
-    expect(native).toBe(human);
+  const human = "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl";
+  const canonical =
+    "000000000000000000000000e868c4707417d0481dd7e213944e758e776ed35e";
+  const native = tryUint8ArrayToNative(
+    new Uint8Array(Buffer.from(canonical, "hex")),
+    "wormholechain"
+  );
+  expect(native).toBe(human);
 
-    expect(tryNativeToHexString(human, "wormholechain")).toBe(canonical)
+  expect(tryNativeToHexString(human, "wormholechain")).toBe(canonical);
 });

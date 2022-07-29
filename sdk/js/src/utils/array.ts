@@ -6,7 +6,7 @@ import {
   nativeStringToHexAlgorand,
   uint8ArrayToNativeStringAlgorand,
 } from "../algorand";
-import { canonicalAddress, humanAddress } from "../cosmos"
+import { canonicalAddress, humanAddress } from "../cosmos";
 import { buildTokenId } from "../cosmwasm/address";
 import { isNativeDenom } from "../terra";
 import {
@@ -91,8 +91,8 @@ export const tryUint8ArrayToNative = (
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
-      // wormhole-chain addresses are always 20 bytes.
-      return humanAddress("wormhole", a.slice(-20));
+    // wormhole-chain addresses are always 20 bytes.
+    return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Near not supported yet.");
   } else if (chainId === CHAIN_ID_INJECTIVE) {
@@ -212,7 +212,7 @@ export const tryNativeToHexString = (
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
-      return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
+    return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("hexToNativeString: Near not supported yet.");
   } else if (chainId === CHAIN_ID_INJECTIVE) {

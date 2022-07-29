@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+
+Wormhole chain devnet support
+
+human-readable part parameter to `humanAddress` function
+
+### Changed
+
+`canonicalAddress` and `humanAddress` functions moved from terra to cosmos module
+
 ## 0.5.2
 
 ### Added
