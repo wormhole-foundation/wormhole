@@ -50,6 +50,7 @@ config.define_bool("e2e", False, "Enable E2E testing stack")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("bridge_ui_hot", False, "Enable hot loading bridge_ui")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
+config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -69,6 +70,7 @@ spy_relayer = cfg.get("spy_relayer", ci)
 e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
+node_metrics = cfg.get("node_metrics", False)
 
 bridge_ui_hot = not ci
 
@@ -259,6 +261,47 @@ if num_guardians >= 2 and ci == False:
         labels = ["guardian"],
         trigger_mode = trigger_mode,
     )
+
+
+# grafana + prometheus for node metrics
+if node_metrics:
+
+    dashboard = read_json("dashboards/Wormhole.json")
+
+    dashboard_yaml =  {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+            "name": "grafana-dashboards-json"
+        },
+        "data": {
+            "wormhole.json": encode_json(dashboard)
+        }
+    }
+    k8s_yaml_with_ns(encode_yaml(dashboard_yaml))
+
+    k8s_yaml_with_ns("devnet/node-metrics.yaml")
+
+    k8s_resource(
+        "prometheus-server",
+        resource_deps = ["guardian"],
+        port_forwards = [
+            port_forward(9099, name = "Prometheus [:9099]", host = webHost),
+        ],
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_resource(
+        "grafana",
+        resource_deps = ["prometheus-server"],
+        port_forwards = [
+            port_forward(3033, name = "Grafana UI [:3033]", host = webHost),
+        ],
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
+
 
 # spy
 k8s_yaml_with_ns("devnet/spy.yaml")
