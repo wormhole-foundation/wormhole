@@ -17,6 +17,7 @@ use solana_program::{
 use solana_program_test::{
     BanksClient,
     ProgramTest,
+    BanksClientError,
 };
 use solana_sdk::{
     commitment_config::CommitmentLevel,
@@ -27,7 +28,6 @@ use solana_sdk::{
     },
     signers::Signers,
     transaction::Transaction,
-    transport::TransportError,
 };
 use std::{
     env,
@@ -58,7 +58,7 @@ pub async fn execute<T: Signers>(
     signers: &T,
     instructions: &[Instruction],
     commitment_level: CommitmentLevel,
-) -> Result<(), TransportError> {
+) -> Result<(), BanksClientError> {
     let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
     let recent_blockhash = client.get_latest_blockhash().await?;
     transaction.sign(signers, recent_blockhash);
@@ -208,7 +208,7 @@ mod helpers {
         payer: &Keypair,
         initial_guardians: &[[u8; 20]],
         fee: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -236,7 +236,7 @@ mod helpers {
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
-    ) -> Result<Pubkey, TransportError> {
+    ) -> Result<Pubkey, BanksClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
@@ -283,7 +283,7 @@ mod helpers {
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
@@ -319,7 +319,7 @@ mod helpers {
         body: [u8; 32],
         secret_keys: &[SecretKey],
         guardian_set_version: u32,
-    ) -> Result<Pubkey, TransportError> {
+    ) -> Result<Pubkey, BanksClientError> {
         let signature_set = Keypair::new();
         let tx_signers = [payer, &signature_set];
         // Push Secp256k1 instructions for each signature we want to verify.
@@ -357,7 +357,7 @@ mod helpers {
         payer: &Keypair,
         signature_set: Pubkey,
         vaa: PostVAAData,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -383,7 +383,7 @@ mod helpers {
         old_index: u32,
         new_index: u32,
         sequence: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -412,7 +412,7 @@ mod helpers {
         new_contract: Pubkey,
         spill: Pubkey,
         sequence: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -438,7 +438,7 @@ mod helpers {
         message: Pubkey,
         emitter: Pubkey,
         sequence: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
@@ -463,7 +463,7 @@ mod helpers {
         emitter: Pubkey,
         recipient: Pubkey,
         sequence: u64,
-    ) -> Result<(), TransportError> {
+    ) -> Result<(), BanksClientError> {
         execute(
             client,
             payer,
