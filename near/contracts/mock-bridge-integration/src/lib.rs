@@ -74,12 +74,16 @@ pub trait MockNftContract {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct TokenBridgeTest {
-    cnt: u32,
+    cnt:     u32,
+    ft_name: String,
 }
 
 impl Default for TokenBridgeTest {
     fn default() -> Self {
-        Self { cnt: 0 }
+        Self {
+            cnt:     0,
+            ft_name: "".to_string(),
+        }
     }
 }
 
@@ -89,29 +93,41 @@ impl TokenBridgeTest {
     pub fn deploy_ft(&mut self, account: String) -> Promise {
         let a = AccountId::try_from(account).unwrap();
 
-        let name = format!("b{}", env::block_height());
+        if self.ft_name == "" {
+            let name = format!("b{}", env::block_height());
 
-        let bridge_token_account = format!("{}.{}", name, env::current_account_id());
 
-        let bridge_token_account_id: AccountId =
-            AccountId::new_unchecked(bridge_token_account.clone());
+            let bridge_token_account = format!("{}.{}", name, env::current_account_id());
 
-        let v = BRIDGE_TOKEN_BINARY.to_vec();
+            self.ft_name = bridge_token_account.clone();
 
-        Promise::new(bridge_token_account_id.clone())
-            .create_account()
-            .transfer(BRIDGE_TOKEN_INIT_BALANCE + (v.len() as u128 * env::storage_byte_cost()))
-            .add_full_access_key(env::signer_account_pk())
-            .deploy_contract(v)
-            // Lets initialize it with useful stuff
-            .then(ext_ft_contract::ext(bridge_token_account_id.clone()).new())
-            .then(
-                ext_ft_contract::ext(bridge_token_account_id)
-                    .with_attached_deposit(BRIDGE_TOKEN_INIT_BALANCE)
-                    .airdrop(a, BRIDGE_TOKEN_INIT_BALANCE),
-            )
-            // And then lets tell us we are done!
-            .then(Self::ext(env::current_account_id()).finish_deploy(bridge_token_account))
+            let bridge_token_account_id: AccountId =
+                AccountId::new_unchecked(bridge_token_account.clone());
+
+            let v = BRIDGE_TOKEN_BINARY.to_vec();
+
+            Promise::new(bridge_token_account_id.clone())
+                .create_account()
+                .transfer(BRIDGE_TOKEN_INIT_BALANCE + (v.len() as u128 * env::storage_byte_cost()))
+                .add_full_access_key(env::signer_account_pk())
+                .deploy_contract(v)
+                // Lets initialize it with useful stuff
+                .then(ext_ft_contract::ext(bridge_token_account_id.clone()).new())
+                .then(
+                    ext_ft_contract::ext(bridge_token_account_id)
+                        .with_attached_deposit(BRIDGE_TOKEN_INIT_BALANCE)
+                        .airdrop(a, BRIDGE_TOKEN_INIT_BALANCE),
+                )
+                // And then lets tell us we are done!
+                .then(Self::ext(env::current_account_id()).finish_deploy(bridge_token_account))
+        } else {
+            let bridge_token_account_id: AccountId = AccountId::new_unchecked(self.ft_name.clone());
+
+            ext_ft_contract::ext(bridge_token_account_id)
+                .with_attached_deposit(BRIDGE_TOKEN_INIT_BALANCE)
+                .airdrop(a, BRIDGE_TOKEN_INIT_BALANCE)
+                .then(Self::ext(env::current_account_id()).finish_deploy(self.ft_name.clone()))
+        }
     }
 
     #[payable]

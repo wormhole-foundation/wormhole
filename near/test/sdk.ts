@@ -143,7 +143,7 @@ export function parseSequenceFromLogNear(result: any): [number, string] {
     for (const l of o.outcome.logs) {
       if (l.startsWith("EVENT_JSON:")) {
         const body = JSON.parse(l.slice(11));
-        if (body.standard == "wormhole" && body.event == "publish") {
+        if (body.standard === "wormhole" && body.event === "publish") {
           return [body.seq, body.emitter];
         }
       }
@@ -166,7 +166,11 @@ async function testNearSDK() {
   let masterPubKey = masterKey.getPublicKey();
 
   let keyStore = new nearKeyStores.InMemoryKeyStore();
-  keyStore.setKey(config.networkId as string, config.masterAccount as string, masterKey);
+  keyStore.setKey(
+    config.networkId as string,
+    config.masterAccount as string,
+    masterKey
+  );
 
   let near = await nearConnect({
     headers: {},
@@ -176,7 +180,10 @@ async function testNearSDK() {
     networkId: config.networkId as string,
     nodeUrl: config.nodeUrl as string,
   });
-  let masterAccount = new nearAccount(near.connection, config.masterAccount as string);
+  let masterAccount = new nearAccount(
+    near.connection,
+    config.masterAccount as string
+  );
 
   console.log(
     "Finish init NEAR masterAccount: " +
@@ -184,9 +191,17 @@ async function testNearSDK() {
   );
 
   let userKey = nearUtils.KeyPair.fromRandom("ed25519");
-  keyStore.setKey(config.networkId as string, config.userAccount as string, userKey);
+  keyStore.setKey(
+    config.networkId as string,
+    config.userAccount as string,
+    userKey
+  );
   let user2Key = nearUtils.KeyPair.fromRandom("ed25519");
-  keyStore.setKey(config.networkId as string, config.user2Account as string, user2Key);
+  keyStore.setKey(
+    config.networkId as string,
+    config.user2Account as string,
+    user2Key
+  );
 
   console.log(
     "creating a user account: " +
@@ -200,7 +215,10 @@ async function testNearSDK() {
     userKey.getPublicKey(),
     new BN(10).pow(new BN(27))
   );
-  const userAccount = new nearAccount(near.connection, config.userAccount as string);
+  const userAccount = new nearAccount(
+    near.connection,
+    config.userAccount as string
+  );
 
   console.log(
     "creating a second user account: " +
@@ -214,7 +232,10 @@ async function testNearSDK() {
     user2Key.getPublicKey(),
     new BN(10).pow(new BN(27))
   );
-  const user2Account = new nearAccount(near.connection, config.user2Account as string);
+  const user2Account = new nearAccount(
+    near.connection,
+    config.user2Account as string
+  );
 
   console.log(
     "Creating new random non-wormhole token and air dropping some tokens to myself"
@@ -286,7 +307,7 @@ async function testNearSDK() {
   let usdc = await createWrappedOnNear(userAccount, token_bridge, usdcvaa);
   console.log(usdc);
 
-  if (usdc == "") {
+  if (usdc === "") {
     console.log("null usdc ... we failed to create it?!");
     process.exit(1);
   }
@@ -305,11 +326,11 @@ async function testNearSDK() {
     usdcp.FromChain as ChainId,
     usdcp.Contract as string
   );
-  if (aname != usdc) {
-    console.log(aname + " != " + usdc);
+  if (aname !== usdc) {
+    console.log(aname + " !== " + usdc);
     process.exit(1);
   } else {
-    console.log(aname + " == " + usdc);
+    console.log(aname + " === " + usdc);
   }
 
   console.log("Creating USDC token on algorand");
@@ -322,18 +343,17 @@ async function testNearSDK() {
   );
   await signSendAndConfirmAlgorand(algoClient, tx, algoWallet);
 
-  console.log("Registering the receiving account");
-
-  let myAddress = nearProviders.getTransactionLastResult(
-    await userAccount.functionCall({
-      contractId: token_bridge,
-      methodName: "register_account",
-      args: { account: userAccount.accountId },
-      gas: new BN("100000000000000"),
-      attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
-    })
+  let account_hash = await userAccount.viewFunction(
+    token_bridge,
+    "hash_account",
+    {
+      account: userAccount.accountId,
+    }
   );
-  console.log("myAddress: " + myAddress);
+
+  console.log(account_hash);
+
+  let myAddress = account_hash[1];
 
   console.log("Airdropping USDC on myself");
   {
@@ -350,6 +370,30 @@ async function testNearSDK() {
       0
     );
     console.log(trans);
+
+    try {
+      console.log(
+        await redeemOnNear(userAccount, token_bridge, hexToUint8Array(trans))
+      );
+      console.log("This should have thrown a exception..");
+      process.exit(1);
+    } catch (error) {
+      console.log("Exception thrown.. nice.. we dont suck");
+      console.log(error);
+    }
+
+    console.log("Registering the receiving account");
+
+    let myAddress2 = nearProviders.getTransactionLastResult(
+      await userAccount.functionCall({
+        contractId: token_bridge,
+        methodName: "register_account",
+        args: { account: userAccount.accountId },
+        gas: new BN("100000000000000"),
+        attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
+      })
+    );
+    console.log("myAddress: " + myAddress2);
 
     console.log(
       await redeemOnNear(userAccount, token_bridge, hexToUint8Array(trans))
@@ -388,8 +432,8 @@ async function testNearSDK() {
       p.FromChain as ChainId,
       p.Contract as string
     );
-    if (a != randoToken) {
-      console.log(a + " != " + randoToken);
+    if (a !== randoToken) {
+      console.log(a + " !== " + randoToken);
       process.exit(1);
     }
 
@@ -450,7 +494,7 @@ async function testNearSDK() {
 
   console.log("Shock and awe...");
 
-  if (usdc == "") {
+  if (usdc === "") {
     console.log("null usdc");
     process.exit(1);
   }
@@ -744,7 +788,6 @@ async function testNearSDK() {
     })
   );
   console.log("userAccount2Address: " + userAccount2Address);
-
 
   let transferAlgoToNearP3;
   {
