@@ -1,9 +1,9 @@
 module Wormhole::Governance {
     use Wormhole::Deserialize;
     use Wormhole::VAA::{Self};
-    use AptosFramework::Signer;
+    use 0x1::signer::{Self};
     //use AptosFramework::Table;
-    use Std::Vector;
+    use 0x1::vector::{Self};
     //use Std::String;
     
     //use sui::transfer;
@@ -33,8 +33,8 @@ module Wormhole::Governance {
 
     public fun init_guardian_set(admin: &signer){
         //let x = Table::new<u8, Guardian>();
-        let x = Vector::empty<Guardian>();
-        let addr = Signer::address_of(admin);
+        let x = vector::empty<Guardian>();
+        let addr = signer::address_of(admin);
         assert!(!exists<GuardianSet>(addr), E_NO_GUARDIAN_SET);
         move_to(admin, GuardianSet {
              index:     0,
@@ -51,7 +51,7 @@ module Wormhole::Governance {
         //VAA::verify(&vaa, &old);
         let payload = VAA::destroy(vaa);
 
-        let addr = Signer::address_of(admin);
+        let addr = signer::address_of(admin);
         assert!(exists<GuardianSet>(addr), E_NO_GUARDIAN_SET);
         let old = borrow_global_mut<GuardianSet>(addr);
 
@@ -73,7 +73,7 @@ module Wormhole::Governance {
 
     public fun parse(admin: &signer, bytes: vector<u8>): GuardianUpdate {
         //let guardians = Table::new<u8, Guardian>();
-        let guardians = Vector::empty<Guardian>();
+        let guardians = vector::empty<Guardian>();
         let (guardian_module, bytes) = Deserialize::deserialize_vector(bytes, 32);
         //TODO: missing chainID?
         let (action, bytes) = Deserialize::deserialize_u8(bytes);
@@ -90,12 +90,12 @@ module Wormhole::Governance {
             guardian_len > 0
         }) { 
             let (key, bytes) = Deserialize::deserialize_vector(bytes, 20);
-            Vector::push_back(&mut guardians, Guardian {key:key});
+            vector::push_back(&mut guardians, Guardian {key:key});
             //Table::add(&mut guardians, guardian_len-1, Guardian { key:key});
             guardian_len = guardian_len - 1;
         };
 
-        assert!(Vector::length(&mut bytes) == 0, E_REMAINING_BYTES);
+        assert!(vector::length(&mut bytes) == 0, E_REMAINING_BYTES);
 
         GuardianUpdate {
             guardian_module:    guardian_module,
@@ -107,7 +107,7 @@ module Wormhole::Governance {
     
     public fun verify(update: &GuardianUpdate, previous: &GuardianSet){
         let (guardian_module, action) = (update.guardian_module, update.action);
-        assert!(Vector::length(&guardian_module) == 32, 0);
+        assert!(vector::length(&guardian_module) == 32, 0);
         assert!(action == 0x02, 0); 
         assert!(update.new_index > previous.index, 0);
     }

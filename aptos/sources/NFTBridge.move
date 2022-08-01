@@ -1,12 +1,10 @@
 module Wormhole::NFTBridge{
-    use AptosFramework::Table::{Self, Table, new, add, borrow, borrow_mut};
-    use AptosFramework::Option;
-    use AptosFramework::Token::{Self, create_unlimited_collection_script}; //Non-fungible token
-    use Std::String;
-    use Std::ACL;
-    use Std::Hash;
-    use Std::Vector;
-    use Std::Signer;
+    use 0x1::table::{Self, Table, new, add, borrow, borrow_mut};
+    use 0x1::token::{Self, create_unlimited_collection_script}; //Non-fungible token
+    //use Std::string::String;
+    //use Std::ACL;
+    use 0x1::vector::{Self};
+    use 0x1::signer::{Self};
     
     struct Transfer has drop, store {
         tokenAddress: vector<u8>, 
@@ -22,8 +20,8 @@ module Wormhole::NFTBridge{
     struct RegisterChain { 
         nft_bridge_module: vector<u8>, 
         action: u8, 
-        chainId: u64, //u16
-        emitterChainID: u64, //u16
+        chainId: u64, //u16 
+        emitterChainID: u64, //u16 
         emitterAddress: vector<u8>,
     }
 
@@ -77,8 +75,6 @@ module Wormhole::NFTBridge{
         splCache: Table<u128, SPLCache>,  //u256 => SPLCache
     }
 
-    // events
-
     public fun setup(
         admin: &signer, 
         implementation: address,
@@ -89,7 +85,7 @@ module Wormhole::NFTBridge{
         tokenImplementation: address, 
         finality: u8,
     ){  
-        assert!(!exists<State>(Signer::address_of(admin)), 0);
+        assert!(!exists<State>(signer::address_of(admin)), 0);
 
         let provider = Provider {
             chainId, 
@@ -124,7 +120,7 @@ module Wormhole::NFTBridge{
     //getters 
     public fun governanceActionIsConsumed(hash: vector<u8>): bool acquires State{
         let inner = &borrow_global<State>(@Wormhole).consumedGovernanceActions;
-        let res = *Table::borrow(inner, hash);
+        let res = *table::borrow(inner, hash);
         res
     } 
     
@@ -133,13 +129,15 @@ module Wormhole::NFTBridge{
     //     return _state.initializedImplementations[impl];
     // }
 
-    // function isTransferCompleted(bytes32 hash) public view returns (bool) {
-    //     return _state.completedTransfers[hash];
-    // }
+    public fun isTransferCompleted(hash: vector<u8>): bool acquires State{
+        let inner = &borrow_global<State>(@Wormhole).completedTransfers;
+        let res = *table::borrow(inner, hash);
+        res
+    }
 
-    // function wormhole() public view returns (IWormhole) {
-    //     return IWormhole(_state.wormhole);
-    // }
+    public fun wormhole(): address acquires State {
+        borrow_global<State>(@Wormhole).wormhole
+    }
 
     public fun chainId():u64 acquires State { //u16
         let state = borrow_global<State>(@Wormhole);
@@ -150,9 +148,9 @@ module Wormhole::NFTBridge{
     //     return _state.provider.governanceChainId;
     // }
 
-    // function governanceContract() public view returns (bytes32){
-    //     return _state.provider.governanceContract;
-    // }
+    public fun governanceContract(): vector<u8> acquires State{
+        borrow_global<State>(@Wormhole).provider.governanceContract
+    }
 
     //public fun wrappedAsset(tokenChainId: u64, tokenAddress: vector<u8>){
     //     return _state.wrappedAssets[tokenChainId][tokenAddress];
@@ -190,7 +188,7 @@ module Wormhole::NFTBridge{
             //symbol = 0x574f524d53504c4e465400000000000000000000000000000000000000000000;
         };
         
-        create_unlimited_collection_script(admin, name, Vector::empty<u8>(), Vector::empty<u8>());
+        create_unlimited_collection_script(admin, name, vector::empty<u8>(), vector::empty<u8>());
 
         // TODO - set wrapped Asset
         //setWrappedAsset(tokenChain, tokenAddress, token);

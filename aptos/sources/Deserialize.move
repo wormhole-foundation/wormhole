@@ -1,23 +1,23 @@
 
 module Wormhole::Deserialize {
     //use Std::Option;
-    use Std::Vector;
+    use 0x1::vector::{Self};
 
     public fun deserialize_u8(bytes: vector<u8>): (u8, vector<u8>){
-        assert!(Vector::length<u8>(&mut bytes)==1, 0);
-        let byte = Vector::pop_back(&mut bytes);
+        assert!(vector::length<u8>(&mut bytes)==1, 0);
+        let byte = vector::pop_back(&mut bytes);
         (byte, bytes)
     }
 
     public fun deserialize_u64(bytes: vector<u8>): (u64, vector<u8>){
         let res = (0 as u64);
         let i = 0; 
-        Vector::reverse<u8>(&mut bytes);
+        vector::reverse<u8>(&mut bytes);
         loop { 
             if (i==8){
                 break
             };
-            let cur = Vector::pop_back<u8>(&mut bytes);
+            let cur = vector::pop_back<u8>(&mut bytes);
             res = res | (cur as u64) << (56 - i * 8);
             i=i+1;
         };
@@ -25,26 +25,26 @@ module Wormhole::Deserialize {
     }
 
     public fun deserialize_vector(bytes: vector<u8>, len: u64): (vector<u8>, vector<u8>) {
-        let result = Vector::empty();
+        let result = vector::empty();
         while ({ 
             spec { 
                 invariant len >= 0;
-                invariant len <  Vector::length(bytes);
+                invariant len <  vector::length(bytes);
             }; 
             len > 0 
         }) { 
-            let byte = Vector::pop_back(&mut bytes);
-            Vector::push_back(&mut result, byte);
+            let byte = vector::pop_back(&mut bytes);
+            vector::push_back(&mut result, byte);
             len = len - 1;
         };
-        Vector::reverse<u8>(&mut result);
+        vector::reverse<u8>(&mut result);
         (result, bytes)
     }
 }
 
 #[test_only]
 module Wormhole::TestDeserialize{
-    use Std::Vector::{push_back, empty};//, //length};
+    use 0x1::vector::{push_back, empty};//, //length};
     use Wormhole::Deserialize::{deserialize_u8, deserialize_u64, deserialize_vector};
 
     #[test]
