@@ -1,5 +1,5 @@
 module Wormhole::VAA{
-    use Std::Vector;
+    use 0x1::vector;
     use Wormhole::Deserialize;
     use Wormhole::Serialize;
 
@@ -18,13 +18,13 @@ module Wormhole::VAA{
             consistency_level:  u8,
             payload:            vector<u8>,
     }
-    
+
     public fun parse(bytes: vector<u8>): VAA {
         let (version, bytes) = Deserialize::deserialize_u8(bytes);
         let (guardian_set_index, bytes) = Deserialize::deserialize_u64(bytes);
 
         let (signatures_len, bytes) = Deserialize::deserialize_u8(bytes);
-        let signatures = Vector::empty<vector<u8>>();
+        let signatures = vector::empty<vector<u8>>();
 
         assert!(signatures_len <= 19, 0); 
 
@@ -36,7 +36,7 @@ module Wormhole::VAA{
             signatures_len > 0
         }) {
             let (signature, _) = Deserialize::deserialize_vector(bytes, 32);
-            Vector::push_back(&mut signatures, signature);
+            vector::push_back(&mut signatures, signature);
             signatures_len = signatures_len - 1;
         };
 
@@ -46,7 +46,7 @@ module Wormhole::VAA{
         let (emitter_address, bytes) = Deserialize::deserialize_vector(bytes, 20);
         let (sequence, bytes) = Deserialize::deserialize_u64(bytes);
         let (consistency_level, bytes) = Deserialize::deserialize_u8(bytes);
-        let remaining_length = Vector::length(&bytes);
+        let remaining_length = vector::length(&bytes);
         let (payload, _) = Deserialize::deserialize_vector(bytes, remaining_length);
 
         VAA {
@@ -103,9 +103,9 @@ module Wormhole::VAA{
     //}
     
     fun hash(vaa: &VAA): vector<u8> {
-        use Std::Hash;
+        use 0x1::hash;
 
-        let bytes = Vector::empty<u8>();
+        let bytes = vector::empty<u8>();
         Serialize::serialize_u64(&mut bytes, vaa.timestamp);
         Serialize::serialize_u64(&mut bytes, vaa.nonce);
         Serialize::serialize_u64(&mut bytes, vaa.emitter_chain);
@@ -114,7 +114,7 @@ module Wormhole::VAA{
         Serialize::serialize_u8(&mut bytes, vaa.consistency_level);
         Serialize::serialize_vector(&mut bytes, vaa.payload);
         
-        Hash::sha3_256(bytes)
+        hash::sha3_256(bytes)
     }
 
 
