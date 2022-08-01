@@ -1,0 +1,10 @@
+[package]
+name = "Aptos"
+version = "0.0.1"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "devnet" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "devnet" }
+
+[addresses]
+Wormhole="f99fef4e49c63ccc450b4d94556e720e7e5a06ad7aa6c8b67c79adbc7c194e96"
