@@ -89,11 +89,10 @@ pub trait FtContract {
     fn vaa_transfer(
         &self,
         amount: u128,
-        token_address: Vec<u8>,
-        token_chain: u16,
         account_id: AccountId,
         recipient_chain: u16,
         fee: u128,
+        refund_to: AccountId,
     );
     fn vaa_withdraw(
         &self,
@@ -230,7 +229,11 @@ fn vaa_register_chain(
     deposit
 }
 
-fn vaa_upgrade_contract(storage: &mut TokenBridge, vaa: &state::ParsedVAA, deposit: Balance) -> Balance {
+fn vaa_upgrade_contract(
+    storage: &mut TokenBridge,
+    vaa: &state::ParsedVAA,
+    deposit: Balance,
+) -> Balance {
     let data: &[u8] = &vaa.payload;
     let chain = data.get_u16(33);
     if chain != CHAIN_ID_NEAR {
@@ -336,10 +339,8 @@ fn vaa_transfer(
 
     let mut prom;
 
-    if action == 3 {
-        if env::predecessor_account_id() != mr {
-            env::panic_str("Payload3 Violation");
-        }
+    if action == 3 && env::predecessor_account_id() != mr {
+        env::panic_str("Payload3 Violation");
     }
 
     if token_chain == CHAIN_ID_NEAR {
@@ -442,26 +443,9 @@ fn vaa_transfer(
     } else {
         // Once you create a Promise, there is no going back..
 
-        prom = ext_ft_contract::ext(account).vaa_transfer(
-            amount.1,
-            token_address,
-            token_chain,
-            mr,
-            recipient_chain,
-            fee.1,
-        );
-
-        if deposit > 0 {
-            env::log_str(&format!(
-                "token-bridge/{}#{}: refund {} to {}",
-                file!(),
-                line!(),
-                deposit,
-                refund_to
-            ));
-
-            prom = prom.then(Promise::new(refund_to).transfer(deposit));
-        }
+        prom = ext_ft_contract::ext(account)
+            .with_attached_deposit(deposit)
+            .vaa_transfer(amount.1, mr, recipient_chain, fee.1, refund_to);
     }
 
     PromiseOrValue::Promise(prom)
@@ -506,7 +490,11 @@ fn vaa_asset_meta(
     if storage.key_map.contains_key(&tkey) {
         asset_token_account = storage.key_map.get(&tkey).unwrap();
         fresh = false;
-        env::log_str(&format!("token-bridge/{}#{}: vaa_asset_meta", file!(), line!()));
+        env::log_str(&format!(
+            "token-bridge/{}#{}: vaa_asset_meta",
+            file!(),
+            line!()
+        ));
     } else {
         let storage_used = env::storage_usage();
         storage.last_asset += 1;
@@ -570,11 +558,7 @@ fn vaa_asset_meta(
             file!(),
             line!()
         ));
-        ext_ft_contract::ext(asset_token_account.clone()).update_ft(
-            ft,
-            data.to_vec(),
-            vaa.sequence,
-        )
+        ext_ft_contract::ext(asset_token_account.clone()).update_ft(ft, data.to_vec(), vaa.sequence)
     } else {
         env::log_str(&format!(
             "token-bridge/{}#{}: vaa_asset_meta:  fresh",
@@ -624,13 +608,13 @@ fn vaa_asset_meta(
         p = p.then(Promise::new(refund_to).transfer(deposit));
     }
 
-    PromiseOrValue::Promise(
-        p.then(ext_token_bridge::ext(env::current_account_id()).finish_deploy(
+    PromiseOrValue::Promise(p.then(
+        ext_token_bridge::ext(env::current_account_id()).finish_deploy(
             asset_token_account.clone(),
             tkey,
             fresh,
-        )),
-    )
+        ),
+    ))
 }
 
 fn token_key(address: Vec<u8>, chain: u16) -> Vec<u8> {
@@ -1033,7 +1017,7 @@ impl TokenBridge {
             let r = refund_to.unwrap();
             PromiseOrValue::Promise(
                 ext_worm_hole::ext(self.core.clone())
-                    .verify_vaa(vaa.clone())
+                    .verify_vaa(vaa)
                     .then(
                         Self::ext(env::current_account_id())
                             .with_unused_gas_weight(10)
@@ -1328,11 +1312,21 @@ impl TokenBridge {
     #[private]
     pub fn finish_deploy(&mut self, token: AccountId, tkey: Vec<u8>, do_clean: bool) -> String {
         if is_promise_success() {
-            env::log_str(&format!("token-bridge/{}#{}: token: {}", file!(), line!(), token));
+            env::log_str(&format!(
+                "token-bridge/{}#{}: token: {}",
+                file!(),
+                line!(),
+                token
+            ));
 
             token.to_string()
         } else {
-            env::log_str(&format!("token-bridge/{}#{}: token: {}", file!(), line!(), token));
+            env::log_str(&format!(
+                "token-bridge/{}#{}: token: {}",
+                file!(),
+                line!(),
+                token
+            ));
 
             if do_clean {
                 self.tokens.remove(&token);
@@ -1498,7 +1492,10 @@ impl TokenBridge {
         self.core = AccountId::try_from(core).unwrap();
 
         let account_hash = env::sha256(env::current_account_id().to_string().as_bytes());
-        env::log_str(&format!("token bridge emitter: {}", hex::encode(account_hash)));
+        env::log_str(&format!(
+            "token bridge emitter: {}",
+            hex::encode(account_hash)
+        ));
     }
 
     #[private]

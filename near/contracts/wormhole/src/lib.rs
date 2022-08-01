@@ -256,7 +256,7 @@ fn vaa_update_guardian_set(
 
     storage
         .guardians
-        .insert(&storage.guardian_set_index, &guardian_set);
+        .insert(&storage.guardian_set_index, guardian_set);
 
     let g = GuardianSetInfo {
         addresses,
@@ -478,9 +478,9 @@ impl Wormhole {
         let payload = &data[35..];
 
         match action {
-            1u8 => vaa_update_contract(self, &vaa, payload, deposit, refund_to.clone()),
-            2u8 => vaa_update_guardian_set(self, &vaa, payload, deposit, refund_to.clone()),
-            3u8 => handle_set_fee(self, &vaa, payload, deposit, refund_to.clone()),
+            1u8 => vaa_update_contract(self, &vaa, payload, deposit, refund_to),
+            2u8 => vaa_update_guardian_set(self, &vaa, payload, deposit, refund_to),
+            3u8 => handle_set_fee(self, &vaa, payload, deposit, refund_to),
             4u8 => handle_transfer_fee(self, &vaa, payload, deposit),
             _ => env::panic_str("InvalidGovernanceAction"),
         }
@@ -567,7 +567,7 @@ impl Wormhole {
     pub fn pass(&mut self) -> bool {
         env::log_str(&format!("wormhole::pass {} {}", file!(), line!()));
 
-        return true;
+        true
     }
 
     #[init(ignore_state)]

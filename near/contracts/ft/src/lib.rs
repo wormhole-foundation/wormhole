@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 use {
     near_contract_standards::fungible_token::{
         metadata::{
@@ -21,6 +19,7 @@ use {
         AccountId,
         Balance,
         PanicOnDefault,
+        Promise,
         PromiseOrValue,
         StorageUsage,
     },
@@ -164,15 +163,15 @@ impl FTContract {
         hex::encode(p)
     }
 
+    #[payable]
     pub fn vaa_transfer(
         &mut self,
         amount: u128,
-        token_address: Vec<u8>,
-        token_chain: u16,
         account_id: AccountId,
         recipient_chain: u16,
         fee: u128,
-    ) {
+        refund_to: AccountId,
+    ) -> Promise {
         if env::predecessor_account_id() != self.controller {
             env::panic_str("CrossContractInvalidCaller");
         }
@@ -187,6 +186,19 @@ impl FTContract {
 
         if amount <= fee {
             env::panic_str("amount <= fee");
+        }
+
+        let mut deposit: Balance = env::attached_deposit();
+
+        if !self.token.accounts.contains_key(&account_id) {
+            let min_balance = self.storage_balance_bounds().min.0;
+            if deposit < min_balance {
+                env::panic_str("The attached deposit is less than the minimum storage balance");
+            }
+
+            self.token.internal_register_account(&account_id);
+
+            deposit -= min_balance;
         }
 
         self.token.internal_deposit(&account_id, amount - fee);
@@ -210,6 +222,8 @@ impl FTContract {
         }
 
         env::log_str("vaa_transfer called in ft");
+
+        Promise::new(refund_to).transfer(deposit)
     }
 
     pub fn account_storage_usage(&self) -> StorageUsage {
