@@ -4,6 +4,7 @@ module Wormhole::Governance {
     use AptosFramework::Signer;
     //use AptosFramework::Table;
     use Std::Vector;
+    //use Std::String;
     
     //use sui::transfer;
     //use sui::vec_map::{Self, VecMap};
@@ -26,8 +27,8 @@ module Wormhole::Governance {
 
     struct GuardianSet has key {
         index:     u64, 
-        //guardians: Table::Table<u8, Guardian>,
         guardians: vector<Guardian>,
+        //expirationTime: u64, //u32
     }
 
     public fun init_guardian_set(admin: &signer){
