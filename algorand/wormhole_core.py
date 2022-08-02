@@ -379,6 +379,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 blob.checkMeta(Int(2), Bytes("guardian")),
                 # Lets grab the total keyset
                 total_guardians.store(blob.get_byte(Int(2), Int(0))),
+                MagicAssert(total_guardians.load() > 0),
+
                 guardian_keys.store(blob.read(Int(2), Int(1), Int(1) + Int(20) * total_guardians.load())),
 
                 # I wonder if this is an expired guardian set
