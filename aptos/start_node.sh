@@ -2,7 +2,5 @@
 
 set -x
 
-sui genesis -f
-sui start &
-sleep 5
-rpc-server --host 0.0.0.0
+cd aptos-core
+CARGO_NET_GIT_FETCH_WITH_CLI=true cargo run -p aptos-node -- --test
