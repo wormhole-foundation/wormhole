@@ -1,25 +1,14 @@
 import {
-  CHAIN_ID_SOLANA,
-  getForeignAssetSolana,
   getIsTransferCompletedSolana,
-  hexToNativeString,
   hexToUint8Array,
-  importCoreWasm,
-  ChainId,
-  postVaaSolanaWithRetry,
-  redeemOnSolana,
 } from "@certusone/wormhole-sdk";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
-import { relayToSolana } from "../xRaydium/scripts/relay";
+import { relayToSolana, relayToSolanaWithFailure } from "../xRaydium/scripts/relay";
 import * as xRaydiumLib from "../xRaydium/scripts/lib/lib";
-import { parseTransferPayload } from "../utils/wormhole";
+
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
 export async function relaySolana(
@@ -36,7 +25,6 @@ export async function relaySolana(
   //TODO native transfer & create associated token account
   //TODO close connection
   const signedVaaArray = hexToUint8Array(signedVAAString);
-  const signedVaaBuffer = Buffer.from(signedVaaArray);
   const connection = new Connection(chainConfigInfo.nodeUrl, "confirmed");
   if (!chainConfigInfo.bridgeAddress) {
     // This should never be the case, as enforced by createSolanaChainConfig
@@ -53,28 +41,19 @@ export async function relaySolana(
     signedVaaArray,
     connection
   );
-  const { parse_vaa } = await importCoreWasm();
-  const parsedVAA = parse_vaa(signedVaaArray);
-  const payloadBuffer = Buffer.from(parsedVAA.payload);
-  // TODO check if sender is correct, we expect a payload3
-  console.log("before slice payload3.....");
-  let payload3 = parsedVAA["payload"].slice(133);
   //@ts-ignore
-  let transferPayload = parseTransferPayload(
-    payloadBuffer
-  ) as xRaydiumLib.TransferPayloadWithData;
-  console.log("relaySolana fromAddress: ", transferPayload.originAddress);
-  logger.info("relaySolana myTransferPayload3: ", transferPayload);
-  transferPayload["payload3"] = payload3;
+  const {transfer, baseVAA} = await xRaydiumLib.parseTransferTokenWithPayload(signedVaaArray)
 
-  const opCode = await xRaydiumLib.parsePayload3ToOpCode(
-    transferPayload.payload3
-  );
-  const escrowState = await xRaydiumLib.tryFetchEscrowState(opCode, {silent: true, retries: 2});
+  const header = await xRaydiumLib.parseHeaderFromPayload3(transfer.payload3);
+  const escrowState = await xRaydiumLib.tryFetchEscrowState(transfer, header, {
+    silent: true,
+    retries: 2,
+  });
   if (
     alreadyRedeemed &&
     escrowState &&
-    escrowState.escrowStateMarker.kind === "Completed" &&
+    (escrowState.escrowStateMarker.kind === "Completed" ||
+      escrowState.escrowStateMarker.kind === "Aborted") &&
     escrowState.inputTokens.every((t) => t.hasBeenReturned) &&
     escrowState.outputTokens.every((t) => t.hasBeenReturned)
   ) {
@@ -85,11 +64,7 @@ export async function relaySolana(
     return { redeemed: false, result: "not redeemed" };
   }
 
-  await relayToSolana(
-    signedVaaArray,
-    parsedVAA,
-    transferPayload
-  );
+  await relayToSolana(signedVaaArray, baseVAA, transfer);
 
   logger.info("\n\n============= Done relaying to solana ============\n\n");
 
