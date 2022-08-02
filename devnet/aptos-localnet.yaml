@@ -8,7 +8,7 @@ spec:
   ports:
     - name: node
       port: 8082
-      targetPort: node
+      targetPort: 8080
     - name: prometheus
       port: 6181
       targetPort: prometheus
@@ -40,7 +40,7 @@ spec:
             - -c
             - /tmp/start_node.sh
           ports:
-            - containerPort: 8082
+            - containerPort: 8080
               name: node
               protocol: TCP
             - containerPort: 6181
