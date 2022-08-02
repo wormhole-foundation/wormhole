@@ -7,10 +7,10 @@ metadata:
 spec:
   ports:
     - name: node
-      port: 5001
+      port: 8082
       targetPort: node
     - name: prometheus
-      port: 9184
+      port: 6181
       targetPort: prometheus
   selector:
     app: aptos
@@ -40,14 +40,14 @@ spec:
             - -c
             - /tmp/start_node.sh
           ports:
-            - containerPort: 5001
+            - containerPort: 8082
               name: node
               protocol: TCP
-            - containerPort: 9184
+            - containerPort: 6181
               name: prometheus
               protocol: TCP
           readinessProbe:
             tcpSocket:
-              port: 5001
+              port: 6181
 
       restartPolicy: Always

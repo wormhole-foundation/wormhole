@@ -1,2 +1,13 @@
-
+ ports:                                                                                                                                                                      
+      - "6182:6182"                                                                                                                                                             
+      - "80:8080"                                                                                                                                                               
+      - "9101:9101"                                                                                                                                                             
+    expose:                                                                                                                                                                     
+      - 6182                                                                                                                                                                    
+      - 80                                                                                                                                                                      
+      - 9101                                                                                                                                                                    
 https://aptos.dev/nodes/run-a-local-testnet/
+
+        REST API endpoint: 0.0.0.0:8080
+        FullNode network: /ip4/0.0.0.0/tcp/6181
+
