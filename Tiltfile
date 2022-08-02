@@ -39,6 +39,7 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
 config.define_bool("near", False, "Enable Near component")
+config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
@@ -60,6 +61,7 @@ bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 webHost = cfg.get("webHost", "localhost")
 algorand = cfg.get("algorand", True)
 near = cfg.get("near", True)
+aptos = cfg.get("aptos", True)
 evm2 = cfg.get("evm2", True)
 solana = cfg.get("solana", True)
 terra_classic = cfg.get("terra_classic", True)
@@ -662,7 +664,7 @@ if terra2:
 
 if algorand:
     k8s_yaml_with_ns("devnet/algorand-devnet.yaml")
-  
+
     docker_build(
         ref = "algorand-algod",
         context = "algorand/sandbox-algorand",
@@ -693,7 +695,7 @@ if algorand:
         labels = ["algorand"],
         trigger_mode = trigger_mode,
     )
-    
+
 
 if near:
     k8s_yaml_with_ns("devnet/near-devnet.yaml")
@@ -719,5 +721,32 @@ if near:
         ],
         resource_deps = ["const-gen"],
         labels = ["near"],
+        trigger_mode = trigger_mode,
+    )
+
+if aptos:
+    k8s_yaml_with_ns("devnet/aptos-localnet.yaml")
+
+    docker_build(
+        ref = "aptos-node",
+        context = "aptos",
+        dockerfile = "aptos/Dockerfile",
+        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
+    )
+
+    docker_build(
+        ref = "aptos-contracts",
+        context = "aptos",
+        dockerfile = "aptos/Dockerfile.contracts",
+    )
+
+    k8s_resource(
+        "aptos",
+        port_forwards = [
+            port_forward(5001, name = "RPC [:5001]", host = webHost),
+            port_forward(9184, name = "Prometheus [:9184]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["aptos"],
         trigger_mode = trigger_mode,
     )
