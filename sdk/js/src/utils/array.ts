@@ -97,6 +97,8 @@ export const tryUint8ArrayToNative = (
     return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Near not supported yet.");
+  } else if (chainId === CHAIN_ID_OSMOSIS) {
+    throw Error("uint8ArrayToNative: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("uint8ArrayToNative: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
@@ -205,14 +207,16 @@ export const tryNativeToHexString = (
     } else {
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
-  } else if (chainId === CHAIN_ID_TERRA2) {
-    return buildTokenId(address);
+  } else if (chainId === CHAIN_ID_TERRA2 || chainId === CHAIN_ID_INJECTIVE) {
+    return buildTokenId(chainId, address);
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
     return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("hexToNativeString: Near not supported yet.");
+  } else if (chainId === CHAIN_ID_OSMOSIS) {
+    throw Error("hexToNativeString: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("hexToNativeString: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {

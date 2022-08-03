@@ -12,7 +12,7 @@ import {
   SuggestedParams,
 } from "algosdk";
 import { ethers, PayableOverrides } from "ethers";
-import { isNativeDenom, isNativeDenomInjective } from "..";
+import { isNativeDenom } from "..";
 import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
@@ -20,6 +20,7 @@ import { importTokenWasm } from "../solana/wasm";
 import { textToHexString, textToUint8Array, uint8ArrayToHex } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
+import { isNativeDenomInjective } from "../cosmwasm";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,

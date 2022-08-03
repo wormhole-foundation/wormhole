@@ -56,7 +56,7 @@ export type EVMChainName =
   | "gnosis"
   | "ropsten";
 
-export type CosmWasmChainName = "terra" | "terra2" | "injective" | "osmosis";
+export type CosmWasmChainName = "terra" | "terra2" | "injective";
 export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
@@ -712,8 +712,7 @@ export function isCosmWasmChain(
   return (
     chainId === CHAIN_ID_TERRA ||
     chainId === CHAIN_ID_TERRA2 ||
-    chainId === CHAIN_ID_INJECTIVE ||
-    chainId === CHAIN_ID_OSMOSIS
+    chainId === CHAIN_ID_INJECTIVE
   );
 }
 

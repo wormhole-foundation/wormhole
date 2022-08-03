@@ -19,8 +19,8 @@ import {
   SuggestedParams,
   Transaction as AlgorandTransaction,
 } from "algosdk";
-import { BigNumber, ethers, Overrides, PayableOverrides } from "ethers";
-import { isNativeDenom, isNativeDenomInjective } from "..";
+import { ethers, Overrides, PayableOverrides } from "ethers";
+import { isNativeDenom } from "..";
 import {
   assetOptinCheck,
   getMessageFee,
@@ -45,6 +45,7 @@ import {
   WSOL_ADDRESS,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
+import { isNativeDenomInjective } from "../cosmwasm";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,

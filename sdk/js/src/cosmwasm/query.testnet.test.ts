@@ -41,7 +41,6 @@ import { CLUSTER } from "../token_bridge/__tests__/consts";
 import algosdk, {
   Account,
   Algodv2,
-  assignGroupID,
   decodeAddress,
   makeApplicationCallTxnFromObject,
   mnemonicToSecretKey,

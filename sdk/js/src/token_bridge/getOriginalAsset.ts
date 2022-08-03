@@ -6,7 +6,7 @@ import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { decodeLocalState } from "../algorand";
-import { buildTokenId } from "../cosmwasm/address";
+import { buildTokenId, isNativeCosmWasmDenom } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId, isNativeDenom } from "../terra";
@@ -19,6 +19,8 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   coalesceChainId,
+  CosmWasmChainId,
+  CosmWasmChainName,
   hexToUint8Array,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
@@ -124,17 +126,17 @@ export async function getOriginalAssetInjective(
 export async function getOriginalAssetCosmWasm(
   client: LCDClient,
   wrappedAddress: string,
-  lookupChain: ChainId | ChainName
+  lookupChain: CosmWasmChainId | CosmWasmChainName
 ): Promise<WormholeWrappedInfo> {
-  const chainId = coalesceChainId(lookupChain);
-  if (isNativeDenom(wrappedAddress)) {
+  const chainId = coalesceChainId(lookupChain) as CosmWasmChainId;
+  if (isNativeCosmWasmDenom(chainId, wrappedAddress)) {
     return {
       isWrapped: false,
       chainId: chainId,
       assetAddress:
         chainId === CHAIN_ID_TERRA
           ? buildNativeId(wrappedAddress)
-          : hexToUint8Array(buildTokenId(wrappedAddress)),
+          : hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
     };
   }
   try {
@@ -161,7 +163,7 @@ export async function getOriginalAssetCosmWasm(
     assetAddress:
       chainId === CHAIN_ID_TERRA
         ? zeroPad(canonicalAddress(wrappedAddress), 32)
-        : hexToUint8Array(buildTokenId(wrappedAddress)),
+        : hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
   };
 }
 
