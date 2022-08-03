@@ -157,17 +157,19 @@ async function initNear() {
     tokenAccount = new nearAPI.Account(near.connection, config.tokenAccount);
     await tokenAccount.deployContract(tokenContract);
 
-    console.log("migrating " + config.tokenAccount);
-    console.log(
-      await tokenAccount.functionCall({
-        contractId: config.tokenAccount,
-        methodName: "migrate",
-        args: {},
-        attachedDeposit: new BN(1),
-        gas: new BN("100000000000000"),
-      })
-    );
-    console.log("done migrating " + config.tokenAccount);
+    console.log( await tokenAccount.viewFunction(config.tokenAccount, "emitter", {}));
+
+//    console.log("migrating " + config.tokenAccount);
+//    console.log(
+//      await tokenAccount.functionCall({
+//        contractId: config.tokenAccount,
+//        methodName: "migrate",
+//        args: {},
+//        attachedDeposit: new BN(1),
+//        gas: new BN("100000000000000"),
+//      })
+//    );
+//    console.log("done migrating " + config.tokenAccount);
   }
 
   let nftAccount: any;
