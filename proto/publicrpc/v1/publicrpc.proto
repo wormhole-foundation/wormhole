@@ -85,6 +85,12 @@ service PublicRPCService {
     };
   }
 
+  rpc GovernorIsVAAEnqueued (GovernorIsVAAEnqueuedRequest) returns (GovernorIsVAAEnqueuedResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/is_vaa_enqueued/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"
+    };
+  }
+
   rpc GovernorGetTokenList (GovernorGetTokenListRequest) returns (GovernorGetTokenListResponse) {
     option (google.api.http) = {
       get: "/v1/governor/token_list"
@@ -164,6 +170,14 @@ message GovernorGetEnqueuedVAAsResponse {
 
   // There is an entry for each enqueued vaa.
   repeated Entry entries = 1;
+}
+
+message GovernorIsVAAEnqueuedRequest {
+  MessageID message_id = 1;
+}
+
+message GovernorIsVAAEnqueuedResponse {
+  bool is_enqueued = 1;
 }
 
 message GovernorGetTokenListRequest {

@@ -30,6 +30,11 @@
 // 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"2"}
 // ]}
 //
+// Query: http://localhost:7071/v1/governor/is_vaa_enqueued/1/c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f/3
+//
+// Returns:
+// {"isEnqueued":true}
+//
 // Query: http://localhost:7071/v1/governor/token_list
 //
 // Returns:
@@ -254,6 +259,29 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 	}
 
 	return resp
+}
+
+// REST query to get the list of enqueued VAAs.
+func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, error) {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	emitterChain := vaa.ChainID(msgId.EmitterChain)
+
+	emitterAddress, err := vaa.StringToAddress(msgId.EmitterAddress)
+	if err != nil {
+		return false, err
+	}
+
+	for _, ce := range gov.chains {
+		for _, pe := range ce.pending {
+			if pe.msg.EmitterChain == emitterChain && pe.msg.EmitterAddress == emitterAddress && pe.msg.Sequence == msgId.Sequence {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
 
 // REST query to get the list of tokens being monitored by the governor.
