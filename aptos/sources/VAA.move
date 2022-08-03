@@ -1,5 +1,6 @@
 module Wormhole::VAA{
     use 0x1::vector;
+    use 0x1::string::{Self, String};
     use Wormhole::Deserialize;
     use Wormhole::Serialize;
 
@@ -16,6 +17,7 @@ module Wormhole::VAA{
             emitter_address:    vector<u8>,
             sequence:           u64,
             consistency_level:  u8,
+            hash:               vector<u8>,
             payload:            vector<u8>,
     }
 
@@ -46,6 +48,8 @@ module Wormhole::VAA{
         let (emitter_address, bytes) = Deserialize::deserialize_vector(bytes, 20);
         let (sequence, bytes) = Deserialize::deserialize_u64(bytes);
         let (consistency_level, bytes) = Deserialize::deserialize_u8(bytes);
+        let (hash, bytes) = Deserialize::deserialize_vector(bytes, 32);
+
         let remaining_length = vector::length(&bytes);
         let (payload, _) = Deserialize::deserialize_vector(bytes, remaining_length);
 
@@ -59,12 +63,21 @@ module Wormhole::VAA{
             emitter_address:    emitter_address,
             sequence:           sequence,
             consistency_level:  consistency_level,
+            hash:               hash,
             payload:            payload,
         }
     }
 
-    public fun get_payload(vaa: &mut VAA): vector<u8>{
+    public fun get_payload(vaa: &VAA): vector<u8>{
          vaa.payload
+    }
+
+    public fun get_hash(vaa: &VAA): vector<u8>{
+         vaa.hash
+    }
+
+    public fun get_emitter_chain(vaa: &VAA): u64{
+         vaa.emitter_chain
     }
 
     public fun destroy(vaa: VAA): vector<u8>{
@@ -78,6 +91,7 @@ module Wormhole::VAA{
             emitter_address,
             sequence,
             consistency_level,
+            hash,
             payload,
          } = vaa;
          //(id, version, guardian_set_index, signatures, timestamp, nonce, emitter_chain, emitter_address, sequence, consistency_level, payload)
@@ -85,7 +99,7 @@ module Wormhole::VAA{
     }
 
     //TODO: verify vaa
-    //public fun verify(vaa: &VAA){//, guardian_set: &GuardianSet::GuardianSet) {
+    public fun verifyVAA(vaa: &VAA): (bool, String){//, guardian_set: &GuardianSet::GuardianSet) {
         // let index = 0;
         // let hash = hash(vaa);
         // let n = vector::length<vector<u8>>(&vaa.signatures);
@@ -100,8 +114,17 @@ module Wormhole::VAA{
         //     //secp256k_verify(&signature, &pubkey, &hash);
         //     i = i + 1;
         // }
-    //}
+        let b = vector::empty<u8>();
+        vector::push_back(&mut b, 0x12);
+        (true, string::utf8(b))
+    }
     
+    public entry fun parseAndVerifyVAA(encodedVM: vector<u8>): (VAA, bool, String) {
+        let vaa = parse(encodedVM);
+        let (valid, reason) = verifyVAA(&vaa);
+        (vaa, valid, reason)
+    }
+
     fun hash(vaa: &VAA): vector<u8> {
         use 0x1::hash;
 

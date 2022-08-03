@@ -1,22 +1,24 @@
 module Wormhole::NFTBridge{
     use 0x1::table::{Self, Table, new, add, borrow, borrow_mut};
     use 0x1::token::{Self, create_unlimited_collection_script}; //Non-fungible token
-    //use Std::string::String;
     //use Std::ACL;
     use 0x1::vector::{Self};
     use 0x1::signer::{Self};
+    use 0x1::string::{Self, String};
+    use Wormhole::Deserialize::{deserialize_u8, deserialize_u64, deserialize_u128, deserialize_vector};
+    use Wormhole::VAA::{parse, parseAndVerifyVAA, get_payload, get_hash, destroy};
     
     struct Transfer has drop, store {
         tokenAddress: vector<u8>, 
-        tokenChain: vector<u8>,  
+        tokenChain: u64,//should be u16 - chain ID of the token  
         symbol: u64, 
         name: vector<u8>,  
-        tokenID: u128, //u256 
-        uri: vector<u8>,  //string 
+        tokenID: u128, //should be u256 
+        uri: String,  
         to: vector<u8>, 
-        toChain: u64, //u16 
+        toChain: u64, //should be u16 
     }
-    
+
     struct RegisterChain { 
         nft_bridge_module: vector<u8>, 
         action: u8, 
@@ -42,14 +44,16 @@ module Wormhole::NFTBridge{
 
     struct Asset has key{
         chainId: u64, //u16 
-        assetAddress: vector<u8>, 
+        assetAddress: vector<u8>,
+        // collection: String, 
+        // creator: address, 
     }
 
     struct SPLCache has key, store{
         name: vector<u8>, 
         symbol: vector<u8>, 
     }
-
+    
     struct State has key{
         wormhole: address,    
         tokenImplementation: address, 
@@ -62,11 +66,11 @@ module Wormhole::NFTBridge{
         // Mapping of initialized implementations
         initializedImplementations: Table<address, bool>,
 
-        // Mapping of wrapped assets (chainID => nativeAddress => wrappedAddress)
-        wrappedAssets: Table<u64, Table<vector<u8>, address>>, 
+        // Mapping of wrapped assets (chainID => nativeAddress => name of asset collection as a string)
+        wrappedAssets: Table<u64, Table<vector<u8>, String>>, 
 
         // Mapping to safely identify wrapped assets
-        isWrappedAsset: Table<address, bool>, 
+        isWrappedAsset: Table<String, bool>, 
 
         // Mapping of bridge contracts on other chains
         bridgeImplementations: Table<u64, vector<u8>>,
@@ -81,7 +85,7 @@ module Wormhole::NFTBridge{
         chainId: u64,
         wormhole: address,
         governanceChainId: u64, 
-        governanceContract: vector<u8>,
+        governanceContract: vector<u8>, 
         tokenImplementation: address, 
         finality: u8,
     ){  
@@ -101,8 +105,8 @@ module Wormhole::NFTBridge{
              consumedGovernanceActions:     new<vector<u8>, bool>(),
              completedTransfers:            new<vector<u8>, bool>(),
              initializedImplementations:    new<address, bool>(),
-             wrappedAssets:                 new<u64, Table<vector<u8>, address>>(),
-             isWrappedAsset:                new<address, bool>(),
+             wrappedAssets:                 new<u64, Table<vector<u8>, String>>(),
+             isWrappedAsset:                new<String, bool>(),
              bridgeImplementations:         new<u64, vector<u8>>(),
              splCache:                      new<u128, SPLCache>(),
         };
@@ -110,10 +114,10 @@ module Wormhole::NFTBridge{
     }
 
     // setters
-    public fun setWrappedAsset(tokenChainId: u64, tokenAddress: vector<u8>, wrapper: address) acquires State{
+    public fun setWrappedAsset(tokenChainId: u64, tokenAddress: vector<u8>, wrapper: String) acquires State{
         let state = borrow_global_mut<State>(@Wormhole);
-        let inner = borrow_mut<u64, Table<vector<u8>, address>>(&mut state.wrappedAssets, tokenChainId);
-        add<vector<u8>, address>(inner, tokenAddress, wrapper);
+        let inner = borrow_mut<u64, Table<vector<u8>, String>>(&mut state.wrappedAssets, tokenChainId);
+        add<vector<u8>, String>(inner, tokenAddress, wrapper);
         add(&mut  state.isWrappedAsset, wrapper, true);
     }
 
@@ -164,7 +168,7 @@ module Wormhole::NFTBridge{
     //     return _state.tokenImplementation;
     // }
 
-    // function isWrappedAsset(address token) public view returns (bool){
+    // public fun isWrappedAsset(address token) public view returns (bool){
     //     return _state.isWrappedAsset[token];
     // }
 
@@ -176,7 +180,36 @@ module Wormhole::NFTBridge{
     //     return _state.provider.finality;
     // }
 
-    public(script) fun createWrapped(admin: &signer, tokenChain: u64, tokenAddress: vector<u8>, name: vector<u8>, symbol: vector<u8>) acquires State{
+    public entry fun transferNFT(collection: String, name: String, recipientChain: u64, recipient:vector<u8>, nonce: u64){
+    
+    }
+
+    public entry fun completeTransfer(admin: &signer, encodedVm: vector<u8>) acquires State{
+
+        //TODO - complete this function
+        
+        let (vaa, valid, reason) = parseAndVerifyVAA(encodedVm);
+        assert!(valid==true, 0);
+
+        let transfer = parseTransfer(get_payload(&vaa));
+
+        assert!(isTransferCompleted(get_hash(&vaa))==false, 0);
+
+        assert!(chainId()==transfer.toChain, 0);
+
+        
+        if (transfer.tokenChain == chainId()){
+            assert!(1==1, 0);
+        } else{
+            createWrapped(admin, transfer.tokenChain, transfer.tokenAddress, transfer.name, transfer.symbol);
+            assert!(1==1, 0);
+        };
+
+        destroy(vaa);
+    }
+
+
+    public(script) fun createWrapped(admin: &signer, tokenChain: u64, tokenAddress: vector<u8>, name: vector<u8>, symbol: u64) acquires State{
         assert!(tokenChain != chainId(), 0);
         //assert!(wrappedAsset(tokenChain, tokenAddress, name) == address(0), 0);
         
@@ -194,4 +227,38 @@ module Wormhole::NFTBridge{
         //setWrappedAsset(tokenChain, tokenAddress, token);
     }
 
+    public entry fun parseTransfer(encoded: vector<u8>): Transfer {
+
+        let (payloadID, encoded) = deserialize_u8(encoded);
+        // require(payloadID == 1, "invalid Transfer");
+
+        let (tokenAddress, encoded) = deserialize_vector(encoded, 32); //should be 32 bytes
+
+        let (tokenChain, encoded) = deserialize_u64(encoded); //should be u16
+
+        let (symbol, encoded) = deserialize_u64(encoded); //should be u32
+
+        let (name, encoded) = deserialize_vector(encoded, 32); //should be u32
+
+        let (tokenID, encoded) = deserialize_u128(encoded); //should be u256
+
+        let n = vector::length(&encoded);
+
+        let (uri, encoded) = deserialize_vector(encoded, n - 34); //uri has variable length?
+
+        let (toChain, encoded) = deserialize_u64(encoded); //should be u16
+
+        let (to, encoded) = deserialize_vector(encoded, 32); //should be 32 bytes
+
+        Transfer {
+            tokenAddress: tokenAddress, 
+            tokenChain: tokenChain,  
+            symbol: symbol, 
+            name: name,  
+            tokenID: tokenID, 
+            uri: string::utf8(uri),  
+            to: to, 
+            toChain: toChain,  
+        }
+    }
 }

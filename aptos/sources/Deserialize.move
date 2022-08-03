@@ -24,6 +24,22 @@ module Wormhole::Deserialize {
         (res, bytes)
     }
 
+
+    public fun deserialize_u128(bytes: vector<u8>): (u128, vector<u8>){
+        let res = (0 as u128);
+        let i = 0; 
+        vector::reverse<u8>(&mut bytes);
+        loop { 
+            if (i==16){
+                break
+            }; 
+            let cur = vector::pop_back<u8>(&mut bytes);
+            res = res | (cur as u128) << (120 - i * 8);
+            i=i+1;
+        };
+        (res, bytes)
+    }
+
     public fun deserialize_vector(bytes: vector<u8>, len: u64): (vector<u8>, vector<u8>) {
         let result = vector::empty();
         while ({ 
