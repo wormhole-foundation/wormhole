@@ -11,6 +11,7 @@ import {
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
+  getSignedVAAWithRetry,
   isEVMChain,
   isTerraChain,
   parseSequenceFromLogAlgorand,
@@ -58,8 +59,8 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
+  WORMHOLE_RPC_HOSTS,
 } from "../utils/consts";
-import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { postWithFees, waitForTerraExecution } from "../utils/terra";
@@ -72,7 +73,6 @@ async function algo(
 ) {
   dispatch(setIsSending(true));
   try {
-    console.log("ALGO", sourceAsset);
     const algodClient = new algosdk.Algodv2(
       ALGORAND_HOST.algodToken,
       ALGORAND_HOST.algodServer,
@@ -102,6 +102,7 @@ async function algo(
       content: <Alert severity="info">Fetching VAA</Alert>,
     });
     const { vaaBytes } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
       CHAIN_ID_ALGORAND,
       emitterAddress,
       sequence
@@ -156,6 +157,7 @@ async function evm(
       content: <Alert severity="info">Fetching VAA</Alert>,
     });
     const { vaaBytes } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
       chainId,
       emitterAddress,
       sequence
@@ -208,6 +210,7 @@ async function solana(
       content: <Alert severity="info">Fetching VAA</Alert>,
     });
     const { vaaBytes } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
       CHAIN_ID_SOLANA,
       emitterAddress,
       sequence
@@ -262,6 +265,7 @@ async function terra(
       content: <Alert severity="info">Fetching VAA</Alert>,
     });
     const { vaaBytes } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
       chainId,
       emitterAddress,
       sequence

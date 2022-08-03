@@ -51,6 +51,7 @@ config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("bridge_ui_hot", False, "Enable hot loading bridge_ui")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
+config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -71,6 +72,7 @@ e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
+guardiand_governor = cfg.get("guardiand_governor", False)
 
 bridge_ui_hot = not ci
 
@@ -222,6 +224,11 @@ def build_node_yaml():
                     "http://algorand:4001",
                     "--algorandAlgodToken",
                     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                ]
+
+            if guardiand_governor:
+                container["command"] += [
+                    "--chainGovernorEnabled"
                 ]
 
     return encode_yaml_stream(node_yaml)

@@ -4,6 +4,7 @@ import {
   CHAIN_ID_SOLANA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
+  getSignedVAAWithRetry,
   hexToUint8Array,
   isEVMChain,
   parseSequenceFromLogEth,
@@ -47,8 +48,8 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
+  WORMHOLE_RPC_HOSTS,
 } from "../utils/consts";
-import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import useNFTTargetAddressHex from "./useNFTTargetAddress";
@@ -96,6 +97,7 @@ async function evm(
       content: <Alert severity="info">Fetching VAA</Alert>,
     });
     const { vaaBytes } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
       chainId,
       emitterAddress,
       sequence.toString()
@@ -162,6 +164,7 @@ async function solana(
       content: <Alert severity="info">Fetching VAA</Alert>,
     });
     const { vaaBytes } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
       CHAIN_ID_SOLANA,
       emitterAddress,
       sequence
