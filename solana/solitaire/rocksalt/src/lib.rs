@@ -53,7 +53,7 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         /// Macro generated implementation of FromAccounts by Solitaire.
         impl #combined_impl_g solitaire::FromAccounts #peel_type_g for #name #type_g {
-            fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &mut std::slice::Iter<'a, solana_program::account_info::AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<Self> {
+            fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &mut std::slice::Iter<'a, solana_program::account_info::AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<Box<Self>> {
                 #from_method
             }
         }
@@ -108,7 +108,9 @@ fn generate_fields(name: &syn::Ident, data: &Data) -> TokenStream2 {
                         use solitaire::trace;
                         trace!("Peeling:");
                         #(#recurse;)*
-                        Ok(#name { #(#names,)* })
+                        // Necessary evil; Helps respect the 4K max
+                        // stack frame size of the BPF VM
+                        Ok(Box::new(#name { #(#names,)* }))
                     }
                 }
 
