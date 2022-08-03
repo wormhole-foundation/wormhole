@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+### Added
+
+Injective testnet support
+
 ## 0.6.0
 
 ### Added
