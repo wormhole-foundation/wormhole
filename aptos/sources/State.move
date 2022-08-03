@@ -116,7 +116,7 @@ module Wormhole::State{
             }
         );
     }
-
+    
     public fun updateGuardianSetIndex(newIndex: u64) acquires WormholeState { //should be u32
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         state.guardianSetIndex = newIndex;
