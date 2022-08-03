@@ -20,7 +20,6 @@ use solana_program_test::{
     BanksClient,
     BanksClientError,
     ProgramTest,
-    BanksClientError,
 };
 use solana_sdk::{
     commitment_config::CommitmentLevel,

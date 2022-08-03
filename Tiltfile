@@ -39,7 +39,6 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
 config.define_bool("algorand", False, "Enable Algorand component")
-config.define_bool("pyth", False, "Enable Pyth") # TODO(sdrozd): remove this before contributing
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
