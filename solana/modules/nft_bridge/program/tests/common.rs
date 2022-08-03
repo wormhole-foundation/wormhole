@@ -18,6 +18,7 @@ use solana_program::{
 };
 use solana_program_test::{
     BanksClient,
+    BanksClientError,
     ProgramTest,
     BanksClientError,
 };
