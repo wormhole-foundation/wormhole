@@ -261,7 +261,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         Pop(blob.write(Int(3), Int(0), Extract(Txn.application_args[1], off.load(), Int(1) + (Int(20) * len.load())))),
 
                         If(Txn.accounts[3] != Txn.accounts[2],
-                           Pop(blob.write(Int(2), Int(1000), Global.latest_timestamp() + Int(86400)))),
+                           Pop(blob.write(Int(2), Int(1000), Itob(Global.latest_timestamp() + Int(86400))))),
                         blob.meta(Int(3), Bytes("guardian"))
                     ])],
                     [a.load() == Int(3), Seq([
