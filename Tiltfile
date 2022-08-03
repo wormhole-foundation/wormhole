@@ -703,7 +703,7 @@ if aptos:
     k8s_resource(
         "aptos",
         port_forwards = [
-            port_forward(8082, name = "RPC [:8082]", host = webHost),
+            port_forward(8081, name = "RPC [:8081]", host = webHost),
             port_forward(6181, name = "FullNode [:6181]", host = webHost),
         ],
         resource_deps = ["const-gen"],
