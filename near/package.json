@@ -1,0 +1,46 @@
+{
+  "private": true,
+  "name": "wormhole-near",
+  "version": "1.0.0",
+  "description": "Wormhole near support code",
+  "keywords": [
+    "near-protocol",
+    "wormhole",
+    "rust",
+    "smart-contract"
+  ],
+  "author": "Josh Siegel",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "file:../sdk/js",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
+    "@openzeppelin/contracts": "^4.6.0",
+    "big.js": "^5.2.2",
+    "bn.js": "^5.2.0",
+    "borsh": "^0.4.0",
+    "bs58": "^5.0.0",
+    "env-cmd": "^10.1.0",
+    "ethers": "^5.6.5",
+    "near-api-js": "^0.43.1",
+    "prop-types": "^15.7.2",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "regenerator-runtime": "^0.13.9",
+    "ts-node": "^10.8.1",
+    "web3": "^1.7.4",
+    "web3-eth-abi": "^1.7.3",
+    "web3-utils": "^1.7.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.14.0",
+    "@babel/preset-env": "^7.14.2",
+    "@babel/preset-react": "^7.13.13",
+    "cssnano": "^5.0.7",
+    "gh-pages": "^3.1.0",
+    "parcel-bundler": "^1.12.5",
+    "postcss": "^8.3.6",
+    "sass": "^1.37.0"
+  },
+  "resolutions": {
+    "@babel/preset-env": "7.13.8"
+  }
+}
