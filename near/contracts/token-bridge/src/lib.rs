@@ -61,12 +61,6 @@ const TRANSFER_BUFFER: u128 = 1000;
 
 const NEAR_MULT: u128 = 10_000_000_000_000_000; // 1e16
 
-/// Gas to initialize BridgeToken contract.
-//const BRIDGE_TOKEN_NEW: Gas = Gas(100_000_000_000_000);
-
-/// Gas to call mint method on bridge token.
-//const MINT_GAS: Gas = Gas(10_000_000_000_000);
-
 #[derive(BorshSerialize, Serialize)]
 struct NewArgs {
     metadata:   FungibleTokenMetadata,
@@ -109,11 +103,6 @@ pub trait FtContract {
 pub trait Wormhole {
     fn verify_vaa(&self, vaa: String) -> u32;
     fn publish_message(&self, data: String, nonce: u32) -> u64;
-}
-
-#[ext_contract(ext_token_bridge)]
-pub trait ExtTokenBridge {
-    fn finish_deploy(&self, token: AccountId, tkey: Vec<u8>, do_clean: bool);
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -173,6 +162,8 @@ pub struct TokenBridge {
 
 impl Default for TokenBridge {
     fn default() -> Self {
+        env::log_str(&format!("token-bridge/{}#{}: default()", file!(), line!()));
+
         Self {
             booted:               false,
             core:                 AccountId::new_unchecked("".to_string()),
@@ -192,182 +183,181 @@ impl Default for TokenBridge {
     }
 }
 
-fn vaa_register_chain(
-    storage: &mut TokenBridge,
-    vaa: &state::ParsedVAA,
-    mut deposit: Balance,
-) -> Balance {
-    let data: &[u8] = &vaa.payload;
-    let target_chain = data.get_u16(33);
-    let chain = data.get_u16(35);
+impl TokenBridge {
+    fn vaa_register_chain(
+        self: &mut TokenBridge,
+        vaa: &state::ParsedVAA,
+        mut deposit: Balance,
+    ) -> Balance {
+        let data: &[u8] = &vaa.payload;
+        let target_chain = data.get_u16(33);
+        let chain = data.get_u16(35);
 
-    if (target_chain != CHAIN_ID_NEAR) && (target_chain != 0) {
-        env::panic_str("InvalidREegisterChainChain");
-    }
-
-    if storage.emitter_registration.contains_key(&chain) {
-        env::panic_str("DuplicateChainRegistration");
-    }
-    let storage_used = env::storage_usage();
-    storage
-        .emitter_registration
-        .insert(&chain, &data[37..69].to_vec());
-    let required_cost =
-        (Balance::from(env::storage_usage() - storage_used)) * env::storage_byte_cost();
-
-    if required_cost > deposit {
-        env::panic_str("DepositUnderflowForRegistration");
-    }
-    deposit -= required_cost;
-
-    env::log_str(&format!(
-        "register chain {} to {}",
-        chain,
-        hex::encode(&data[37..69])
-    ));
-
-    deposit
-}
-
-fn vaa_upgrade_contract(
-    storage: &mut TokenBridge,
-    vaa: &state::ParsedVAA,
-    deposit: Balance,
-) -> Balance {
-    let data: &[u8] = &vaa.payload;
-    let chain = data.get_u16(33);
-    if chain != CHAIN_ID_NEAR {
-        env::panic_str("InvalidContractUpgradeChain");
-    }
-
-    let uh = data.get_bytes32(0);
-    env::log_str(&format!(
-        "token-bridge/{}#{}: vaa_update_contract: {}",
-        file!(),
-        line!(),
-        hex::encode(&uh)
-    ));
-    storage.upgrade_hash = uh.to_vec(); // Too lazy to do proper accounting here...
-    deposit
-}
-
-fn vaa_governance(
-    storage: &mut TokenBridge,
-    vaa: &state::ParsedVAA,
-    gov_idx: u32,
-    deposit: Balance,
-) -> Balance {
-    if gov_idx != vaa.guardian_set_index {
-        env::panic_str("InvalidGovernanceSet");
-    }
-
-    if (CHAIN_ID_SOL != vaa.emitter_chain)
-        || (hex::decode("0000000000000000000000000000000000000000000000000000000000000004")
-            .unwrap()
-            != vaa.emitter_address)
-    {
-        env::panic_str("InvalidGovernanceEmitter");
-    }
-
-    let data: &[u8] = &vaa.payload;
-    let action = data.get_u8(32);
-
-    match action {
-        1u8 => vaa_register_chain(storage, vaa, deposit),
-        2u8 => vaa_upgrade_contract(storage, vaa, deposit),
-        _ => env::panic_str("InvalidGovernanceAction"),
-    }
-}
-
-fn vaa_transfer(
-    storage: &mut TokenBridge,
-    vaa: &state::ParsedVAA,
-    action: u8,
-    deposit: Balance,
-    refund_to: AccountId,
-) -> PromiseOrValue<bool> {
-    env::log_str(&hex::encode(&vaa.payload));
-
-    let data: &[u8] = &vaa.payload[1..];
-
-    let amount = data.get_u256(0);
-    let token_address = data.get_bytes32(32).to_vec();
-    let token_chain = data.get_u16(64);
-    let recipient = data.get_bytes32(66).to_vec();
-    let recipient_chain = data.get_u16(98);
-    let fee: (u128, u128) = if action == 1 {
-        data.get_u256(100)
-    } else {
-        (0, 0)
-    };
-
-    if recipient_chain != CHAIN_ID_NEAR {
-        env::panic_str("InvalidRecipientChain");
-    }
-
-    if !storage.hash_map.contains_key(&recipient) {
-        env::panic_str("UnregisteredReceipient");
-    }
-    let mr = storage.hash_map.get(&recipient).unwrap();
-
-    env::log_str(&format!(
-        "token-bridge/{}#{}: vaa_transfer:  {} {}",
-        file!(),
-        line!(),
-        hex::encode(&token_address),
-        token_chain
-    ));
-
-    let account = if token_chain == CHAIN_ID_NEAR && token_address == vec![0; 32] {
-        env::current_account_id()
-    } else {
-        let p = token_key(token_address.clone(), token_chain);
-
-        env::log_str(&format!(
-            "token-bridge/{}#{}: vaa_transfer:  {}",
-            file!(),
-            line!(),
-            hex::encode(&p)
-        ));
-
-        if !storage.key_map.contains_key(&p) {
-            env::panic_str("AssetNotAttested");
+        if (target_chain != CHAIN_ID_NEAR) && (target_chain != 0) {
+            env::panic_str("InvalidREegisterChainChain");
         }
 
-        storage.key_map.get(&p).unwrap()
-    };
+        if self.emitter_registration.contains_key(&chain) {
+            env::panic_str("DuplicateChainRegistration");
+        }
+        let storage_used = env::storage_usage();
+        self.emitter_registration
+            .insert(&chain, &data[37..69].to_vec());
+        let required_cost =
+            (Balance::from(env::storage_usage() - storage_used)) * env::storage_byte_cost();
 
-    let mut prom;
+        if required_cost > deposit {
+            env::panic_str("DepositUnderflowForRegistration");
+        }
+        deposit -= required_cost;
 
-    if action == 3 && env::predecessor_account_id() != mr {
-        env::panic_str("Payload3 Violation");
+        env::log_str(&format!(
+            "register chain {} to {}",
+            chain,
+            hex::encode(&data[37..69])
+        ));
+
+        deposit
     }
 
-    if token_chain == CHAIN_ID_NEAR {
-        if token_address == vec![0; 32] {
+    fn vaa_upgrade_contract(
+        self: &mut TokenBridge,
+        vaa: &state::ParsedVAA,
+        deposit: Balance,
+    ) -> Balance {
+        let data: &[u8] = &vaa.payload;
+        let chain = data.get_u16(33);
+        if chain != CHAIN_ID_NEAR {
+            env::panic_str("InvalidContractUpgradeChain");
+        }
+
+        let uh = data.get_bytes32(35);
+        env::log_str(&format!(
+            "token-bridge/{}#{}: vaa_update_contract: {}",
+            file!(),
+            line!(),
+            hex::encode(&uh)
+        ));
+        self.upgrade_hash = uh.to_vec(); // Too lazy to do proper accounting here...
+        deposit
+    }
+
+    fn vaa_governance(
+        self: &mut TokenBridge,
+        vaa: &state::ParsedVAA,
+        gov_idx: u32,
+        deposit: Balance,
+    ) -> Balance {
+        if gov_idx != vaa.guardian_set_index {
+            env::panic_str("InvalidGovernanceSet");
+        }
+
+        if (CHAIN_ID_SOL != vaa.emitter_chain)
+            || (hex::decode("0000000000000000000000000000000000000000000000000000000000000004")
+                .unwrap()
+                != vaa.emitter_address)
+        {
+            env::panic_str("InvalidGovernanceEmitter");
+        }
+
+        let data: &[u8] = &vaa.payload;
+        let action = data.get_u8(32);
+
+        match action {
+            1u8 => self.vaa_register_chain(vaa, deposit),
+            2u8 => self.vaa_upgrade_contract(vaa, deposit),
+            _ => env::panic_str("InvalidGovernanceAction"),
+        }
+    }
+
+    fn vaa_transfer(
+        self: &mut TokenBridge,
+        vaa: &state::ParsedVAA,
+        action: u8,
+        deposit: Balance,
+        refund_to: AccountId,
+    ) -> PromiseOrValue<bool> {
+        env::log_str(&format!(
+            "token-bridge/{}#{}: prepaid_gas: {}   used_gas: {}  delta: {}",
+            file!(),
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+        ));
+
+        env::log_str(&hex::encode(&vaa.payload));
+
+        let data: &[u8] = &vaa.payload[1..];
+
+        let amount = data.get_u256(0);
+        let token_address = data.get_bytes32(32).to_vec();
+        let token_chain = data.get_u16(64);
+        let recipient = data.get_bytes32(66).to_vec();
+        let recipient_chain = data.get_u16(98);
+        let fee: (u128, u128) = if action == 1 {
+            data.get_u256(100)
+        } else {
+            (0, 0)
+        };
+
+        if recipient_chain != CHAIN_ID_NEAR {
+            env::panic_str("InvalidRecipientChain");
+        }
+
+        if !self.hash_map.contains_key(&recipient) {
+            env::panic_str("UnregisteredReceipient");
+        }
+        let mr = self.hash_map.get(&recipient).unwrap();
+
+        env::log_str(&format!(
+            "token-bridge/{}#{}: vaa_transfer:  {} {}",
+            file!(),
+            line!(),
+            hex::encode(&token_address),
+            token_chain
+        ));
+
+        let account = if token_chain == CHAIN_ID_NEAR && token_address == vec![0; 32] {
+            env::current_account_id()
+        } else {
+            let p = self.token_key(token_address.clone(), token_chain);
+
             env::log_str(&format!(
-                "token-bridge/{}#{}: vaa_transfer:  deposit {}",
+                "token-bridge/{}#{}: vaa_transfer:  {}",
                 file!(),
                 line!(),
-                deposit
+                hex::encode(&p)
             ));
-            let namount = amount.1 * NEAR_MULT;
-            let nfee = fee.1 * NEAR_MULT;
-            if nfee >= namount {
-                env::panic_str("nfee >= namount");
+
+            if !self.key_map.contains_key(&p) {
+                env::panic_str("AssetNotAttested");
             }
 
-            // Once you create a Promise, there is no going back..
-            if nfee == 0 {
+            self.key_map.get(&p).unwrap()
+        };
+
+        let mut prom;
+
+        if action == 3 && env::predecessor_account_id() != mr {
+            env::panic_str("Payload3 Violation");
+        }
+
+        if token_chain == CHAIN_ID_NEAR {
+            if token_address == vec![0; 32] {
                 env::log_str(&format!(
-                    "token-bridge/{}#{}: vaa_transfer:  sending {} NEAR to {}",
+                    "token-bridge/{}#{}: vaa_transfer:  deposit {}",
                     file!(),
                     line!(),
-                    namount,
-                    mr
+                    deposit
                 ));
-                prom = Promise::new(mr).transfer(namount);
-            } else {
+                let namount = amount.1 * NEAR_MULT;
+                let nfee = fee.1 * NEAR_MULT;
+                if nfee >= namount {
+                    env::panic_str("nfee >= namount");
+                }
+
+                // Once you create a Promise, there is no going back..
                 env::log_str(&format!(
                     "token-bridge/{}#{}: vaa_transfer:  sending {} NEAR to {}",
                     file!(),
@@ -379,246 +369,383 @@ fn vaa_transfer(
                     "token-bridge/{}#{}: vaa_transfer:  sending {} NEAR to {}",
                     file!(),
                     line!(),
-                    nfee,
-                    env::signer_account_id()
+                    nfee + deposit,
+                    refund_to
+                ));
+
+                env::log_str(&format!(
+                    "token-bridge/{}#{}: prepaid_gas: {}   used_gas: {}  delta: {}",
+                    file!(),
+                    line!(),
+                    serde_json::to_string(&env::prepaid_gas()).unwrap(),
+                    serde_json::to_string(&env::used_gas()).unwrap(),
+                    serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
                 ));
 
                 prom = Promise::new(mr)
                     .transfer(namount - nfee)
                     .then(Promise::new(refund_to).transfer(nfee + deposit));
-            }
-        } else {
-            let mut near_mult: u128 = 1;
-
-            let td = if !storage.tokens.contains_key(&account) {
-                env::panic_str("AssetNotAttested2");
             } else {
-                storage.tokens.get(&account).unwrap()
-            };
+                let mut near_mult: u128 = 1;
 
-            if td.decimals > 8 {
-                near_mult = 10_u128.pow(td.decimals as u32 - 8);
-            }
+                let td = if !self.tokens.contains_key(&account) {
+                    env::panic_str("AssetNotAttested2");
+                } else {
+                    self.tokens.get(&account).unwrap()
+                };
 
-            let namount = amount.1 * near_mult;
-            let nfee = fee.1 * near_mult;
+                if td.decimals > 8 {
+                    near_mult = 10_u128.pow(td.decimals as u32 - 8);
+                }
 
-            if nfee >= namount {
-                env::panic_str("nfee >= namount");
-            }
+                let namount = amount.1 * near_mult;
+                let nfee = fee.1 * near_mult;
 
-            env::log_str(&format!(
+                if nfee >= namount {
+                    env::panic_str("nfee >= namount");
+                }
+
+                env::log_str(&format!(
                 "token-bridge/{}#{}: vaa_transfer calling ft_transfer against {} for {} from {} to {}",
                 file!(),
                 line!(),
                 account,
                 namount,
                 env::current_account_id(),
-                mr
+                mr));
+
+                if namount == 0 {
+                    env::panic_str("EmptyTransfer");
+                }
+
+                env::log_str(&format!(
+                    "token-bridge/{}#{}: prepaid_gas: {}   used_gas: {}  delta: {}",
+                    file!(),
+                    line!(),
+                    serde_json::to_string(&env::prepaid_gas()).unwrap(),
+                    serde_json::to_string(&env::used_gas()).unwrap(),
+                    serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+                ));
+
+
+                // Once you create a Promise, there is no going back..
+                if nfee == 0 {
+                    prom = ext_ft_contract::ext(account)
+                        .with_attached_deposit(1)
+                        .with_static_gas(Gas(25_000_000_000_000))
+                        .ft_transfer(mr, U128::from(namount), None);
+                } else {
+                    prom = ext_ft_contract::ext(account.clone())
+                        .with_attached_deposit(1)
+                        .with_static_gas(Gas(25_000_000_000_000))
+                        .ft_transfer(mr, U128::from(namount - nfee), None)
+                        .then(
+                            ext_ft_contract::ext(account)
+                                .with_attached_deposit(1)
+                                .with_static_gas(Gas(25_000_000_000_000))
+                                .ft_transfer(refund_to.clone(), U128::from(nfee), None),
+                        );
+                }
+                if deposit > 0 {
+                    prom = prom.then(Promise::new(refund_to).transfer(deposit));
+                }
+            }
+        } else {
+            // Once you create a Promise, there is no going back..
+
+            env::log_str(&format!(
+                "token-bridge/{}#{}: prepaid_gas: {}   used_gas: {}  delta: {}",
+                file!(),
+                line!(),
+                serde_json::to_string(&env::prepaid_gas()).unwrap(),
+                serde_json::to_string(&env::used_gas()).unwrap(),
+                serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
             ));
 
-            if namount == 0 {
-                env::panic_str("EmptyTransfer");
-            }
-
-            // Once you create a Promise, there is no going back..
-            if nfee == 0 {
-                prom = ext_ft_contract::ext(account)
-                    .with_attached_deposit(1)
-                    .ft_transfer(mr, U128::from(namount), None);
-            } else {
-                prom = ext_ft_contract::ext(account.clone())
-                    .with_attached_deposit(1)
-                    .ft_transfer(mr, U128::from(namount - nfee), None)
-                    .then(
-                        ext_ft_contract::ext(account)
-                            .with_attached_deposit(1)
-                            .ft_transfer(refund_to.clone(), U128::from(nfee), None),
-                    );
-            }
-            if deposit > 0 {
-                prom = prom.then(Promise::new(refund_to).transfer(deposit));
-            }
+            prom = ext_ft_contract::ext(account)
+                .with_attached_deposit(deposit)
+                .with_static_gas(Gas(50_000_000_000_000))
+                .vaa_transfer(amount.1, mr, recipient_chain, fee.1, refund_to);
         }
-    } else {
-        // Once you create a Promise, there is no going back..
 
-        prom = ext_ft_contract::ext(account)
-            .with_attached_deposit(deposit)
-            .vaa_transfer(amount.1, mr, recipient_chain, fee.1, refund_to);
+        PromiseOrValue::Promise(prom)
     }
 
-    PromiseOrValue::Promise(prom)
-}
-
-fn vaa_asset_meta(
-    storage: &mut TokenBridge,
-    vaa: &state::ParsedVAA,
-    mut deposit: Balance,
-    refund_to: AccountId,
-) -> PromiseOrValue<bool> {
-    env::log_str(&format!(
-        "token-bridge/{}#{}: vaa_asset_meta: {} ",
-        file!(),
-        line!(),
-        deposit
-    ));
-
-    env::log_str(&hex::encode(&vaa.payload));
-
-    let data: &[u8] = &vaa.payload[1..];
-
-    let token_chain = data.get_u16(32);
-    if token_chain == CHAIN_ID_NEAR {
-        env::panic_str("CannotAttestNearAssets");
-    }
-    let tkey = token_key(data[0..32].to_vec(), token_chain);
-
-    env::log_str(&format!(
-        "token-bridge/{}#{}: vaa_asset_meta: {} ",
-        file!(),
-        line!(),
-        hex::encode(&tkey)
-    ));
-
-    let fresh;
-
-    let asset_token_account;
-
-    let mut decimals = data.get_u8(34);
-
-    if storage.key_map.contains_key(&tkey) {
-        asset_token_account = storage.key_map.get(&tkey).unwrap();
-        fresh = false;
+    fn vaa_asset_meta(
+        self: &mut TokenBridge,
+        vaa: &state::ParsedVAA,
+        mut deposit: Balance,
+        refund_to: AccountId,
+    ) -> PromiseOrValue<bool> {
         env::log_str(&format!(
-            "token-bridge/{}#{}: vaa_asset_meta",
+            "token-bridge/{}#{}: vaa_asset_meta: {} ",
             file!(),
-            line!()
+            line!(),
+            deposit
         ));
-    } else {
-        let storage_used = env::storage_usage();
-        storage.last_asset += 1;
-        let asset_id = storage.last_asset;
-        let account_name = format!("{}.{}", asset_id, env::current_account_id());
-        asset_token_account = AccountId::new_unchecked(account_name.clone());
 
-        let d = TokenData {
-            meta: data.to_vec(),
+        env::log_str(&hex::encode(&vaa.payload));
+
+        let data: &[u8] = &vaa.payload[1..];
+
+        let token_chain = data.get_u16(32);
+        if token_chain == CHAIN_ID_NEAR {
+            env::panic_str("CannotAttestNearAssets");
+        }
+        let tkey = self.token_key(data[0..32].to_vec(), token_chain);
+
+        env::log_str(&format!(
+            "token-bridge/{}#{}: vaa_asset_meta: {} ",
+            file!(),
+            line!(),
+            hex::encode(&tkey)
+        ));
+
+        let fresh;
+
+        let asset_token_account;
+
+        let mut decimals = data.get_u8(34);
+
+        if self.key_map.contains_key(&tkey) {
+            asset_token_account = self.key_map.get(&tkey).unwrap();
+            fresh = false;
+            env::log_str(&format!(
+                "token-bridge/{}#{}: vaa_asset_meta",
+                file!(),
+                line!()
+            ));
+        } else {
+            let storage_used = env::storage_usage();
+            self.last_asset += 1;
+            let asset_id = self.last_asset;
+            let account_name = format!("{}.{}", asset_id, env::current_account_id());
+            asset_token_account = AccountId::new_unchecked(account_name.clone());
+
+            let d = TokenData {
+                meta: data.to_vec(),
+                decimals,
+                address: hex::encode(&data[0..32]),
+                chain: token_chain,
+            };
+
+            env::log_str(&format!(
+                "token-bridge/{}#{}: vaa_asset_meta:  {}  ",
+                file!(),
+                line!(),
+                asset_token_account
+            ));
+
+            self.tokens.insert(&asset_token_account, &d);
+            self.key_map.insert(&tkey, &asset_token_account);
+            self.hash_map
+                .insert(&env::sha256(account_name.as_bytes()), &asset_token_account);
+
+            fresh = true;
+
+            let required_cost = (Balance::from(env::storage_usage()) - Balance::from(storage_used))
+                * env::storage_byte_cost();
+            if required_cost > deposit {
+                env::panic_str("DepositUnderflowForToken");
+            }
+
+            deposit -= required_cost;
+        }
+
+        let symbol = data.get_bytes32(35).to_vec();
+        let name = data.get_bytes32(67).to_vec();
+        let wname = get_string_from_32(&name) + " (Wormhole)";
+
+        // Decimals are capped at 8 in wormhole
+        if decimals > 8 {
+            decimals = 8;
+        }
+
+        let ft = FungibleTokenMetadata {
+            spec: FT_METADATA_SPEC.to_string(),
+            name: wname,
+            symbol: get_string_from_32(&symbol),
+            icon: None,
+            reference: None,
+            reference_hash: None,
             decimals,
-            address: hex::encode(&data[0..32]),
-            chain: token_chain,
         };
 
         env::log_str(&format!(
-            "token-bridge/{}#{}: vaa_asset_meta:  {}  ",
+            "token-bridge/{}#{}: prepaid_gas: {}   used_gas: {}  delta: {}",
             file!(),
             line!(),
-            asset_token_account
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
         ));
 
-        storage.tokens.insert(&asset_token_account, &d);
-        storage.key_map.insert(&tkey, &asset_token_account);
-        storage
-            .hash_map
-            .insert(&env::sha256(account_name.as_bytes()), &asset_token_account);
 
-        fresh = true;
-
-        let required_cost = (Balance::from(env::storage_usage()) - Balance::from(storage_used))
-            * env::storage_byte_cost();
-        if required_cost > deposit {
-            env::panic_str("DepositUnderflowForToken");
-        }
-
-        deposit -= required_cost;
-    }
-
-    let symbol = data.get_bytes32(35).to_vec();
-    let name = data.get_bytes32(67).to_vec();
-    let wname = get_string_from_32(&name) + " (Wormhole)";
-
-    // Decimals are capped at 8 in wormhole
-    if decimals > 8 {
-        decimals = 8;
-    }
-
-    let ft = FungibleTokenMetadata {
-        spec: FT_METADATA_SPEC.to_string(),
-        name: wname,
-        symbol: get_string_from_32(&symbol),
-        icon: None,
-        reference: None,
-        reference_hash: None,
-        decimals,
-    };
-
-    let mut p = if !fresh {
-        env::log_str(&format!(
-            "token-bridge/{}#{}: vaa_asset_meta:  !fresh",
-            file!(),
-            line!()
-        ));
-        ext_ft_contract::ext(asset_token_account.clone()).update_ft(ft, data.to_vec(), vaa.sequence)
-    } else {
-        env::log_str(&format!(
-            "token-bridge/{}#{}: vaa_asset_meta:  fresh",
-            file!(),
-            line!()
-        ));
-        let cost = (TRANSFER_BUFFER + BRIDGE_TOKEN_BINARY.len() as u128) * env::storage_byte_cost();
-
-        if cost > deposit {
-            env::panic_str("PrecheckFailedDepositUnderFlow");
-        }
-
-        deposit -= cost;
-
-        let new_args = NewArgs {
-            metadata:   ft,
-            asset_meta: data.to_vec(),
-            seq_number: vaa.sequence,
-        };
-
-        Promise::new(asset_token_account.clone())
-            .create_account()
-            .transfer(cost)
-            .add_full_access_key(storage.owner_pk.clone())
-            .deploy_contract(BRIDGE_TOKEN_BINARY.to_vec())
-            .function_call(
-                "new".to_string(),
-                serde_json::to_string(&new_args)
-                    .unwrap()
-                    .as_bytes()
-                    .to_vec(),
-                0,
-                Gas(10_000_000_000_000),
+        let mut p = if !fresh {
+            env::log_str(&format!(
+                "token-bridge/{}#{}: vaa_asset_meta:  !fresh",
+                file!(),
+                line!()
+            ));
+            ext_ft_contract::ext(asset_token_account.clone()).update_ft(
+                ft,
+                data.to_vec(),
+                vaa.sequence,
             )
+        } else {
+            env::log_str(&format!(
+                "token-bridge/{}#{}: vaa_asset_meta:  fresh",
+                file!(),
+                line!()
+            ));
+            let cost =
+                (TRANSFER_BUFFER + BRIDGE_TOKEN_BINARY.len() as u128) * env::storage_byte_cost();
 
-        // And then lets tell us we are done!
-    };
+            if cost > deposit {
+                env::panic_str("PrecheckFailedDepositUnderFlow");
+            }
 
-    if deposit > 0 {
-        env::log_str(&format!(
-            "token-bridge/{}#{}: refund {} to {}",
-            file!(),
-            line!(),
-            deposit,
-            env::predecessor_account_id()
-        ));
-        p = p.then(Promise::new(refund_to).transfer(deposit));
+            deposit -= cost;
+
+            let new_args = NewArgs {
+                metadata:   ft,
+                asset_meta: data.to_vec(),
+                seq_number: vaa.sequence,
+            };
+
+            Promise::new(asset_token_account.clone())
+                .create_account()
+                .transfer(cost)
+                .add_full_access_key(self.owner_pk.clone())
+                .deploy_contract(BRIDGE_TOKEN_BINARY.to_vec())
+                .function_call(
+                    "new".to_string(),
+                    serde_json::to_string(&new_args)
+                        .unwrap()
+                        .as_bytes()
+                        .to_vec(),
+                    0,
+                    Gas(10_000_000_000_000),
+                )
+
+            // And then lets tell us we are done!
+        };
+
+        PromiseOrValue::Promise(
+            p.then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(Gas(20_000_000_000_000))
+                    .finish_deploy(asset_token_account.clone(), tkey, fresh, deposit, refund_to),
+            ),
+        )
     }
 
-    PromiseOrValue::Promise(p.then(
-        ext_token_bridge::ext(env::current_account_id()).finish_deploy(
-            asset_token_account.clone(),
-            tkey,
-            fresh,
-        ),
-    ))
-}
+    fn token_key(&self, address: Vec<u8>, chain: u16) -> Vec<u8> {
+        [address, chain.to_be_bytes().to_vec()].concat()
+    }
 
-fn token_key(address: Vec<u8>, chain: u16) -> Vec<u8> {
-    [address, chain.to_be_bytes().to_vec()].concat()
+    fn submit_vaa_work(
+        &mut self,
+        pvaa: &state::ParsedVAA,
+        refund_to: AccountId,
+    ) -> PromiseOrValue<bool> {
+        env::log_str(&format!(
+            "token-bridge/{}#{}: submit_vaa_work: {}  {} used: {}  prepaid: {}",
+            file!(),
+            line!(),
+            env::attached_deposit(),
+            env::predecessor_account_id(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap()
+        ));
+
+        if pvaa.version != 1 {
+            env::panic_str("invalidVersion");
+        }
+
+        let data: &[u8] = &pvaa.payload;
+
+        let governance = data[0..32]
+            == hex::decode("000000000000000000000000000000000000000000546f6b656e427269646765")
+                .unwrap();
+        let action = data.get_u8(0);
+
+        let deposit = env::attached_deposit();
+
+        if governance {
+            let bal = self.vaa_governance(pvaa, self.gov_idx, deposit);
+            if bal > 0 {
+                env::log_str(&format!(
+                    "token-bridge/{}#{}: refunding {} to {}",
+                    file!(),
+                    line!(),
+                    bal,
+                    refund_to
+                ));
+
+                return PromiseOrValue::Promise(Promise::new(refund_to).transfer(bal));
+            }
+            return PromiseOrValue::Value(true);
+        }
+
+        env::log_str(&format!("looking up chain {}", pvaa.emitter_chain));
+
+        if !self.emitter_registration.contains_key(&pvaa.emitter_chain) {
+            env::panic_str("ChainNotRegistered");
+        }
+
+        if self.emitter_registration.get(&pvaa.emitter_chain).unwrap() != pvaa.emitter_address {
+            env::panic_str("InvalidRegistration");
+        }
+
+        env::log_str(&format!(
+            "token-bridge/{}#{}: prepaid_gas: {}   used_gas: {}  delta: {}",
+            file!(),
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+        ));
+
+        match action {
+            1u8 => self.vaa_transfer(pvaa, action, deposit, refund_to),
+            2u8 => self.vaa_asset_meta(pvaa, deposit, refund_to),
+            3u8 => self.vaa_transfer(pvaa, action, deposit, refund_to),
+            _ => {
+                env::panic_str("invalidPortAction");
+            }
+        }
+    }
+
+    fn update_contract_work(&mut self, v: Vec<u8>) -> Promise {
+        let s = env::sha256(&v);
+
+        env::log_str(&format!(
+            "token-bridge/{}#{}: update_contract: {}",
+            file!(),
+            line!(),
+            hex::encode(&s)
+        ));
+
+        if s.to_vec() != self.upgrade_hash {
+            env::panic_str("invalidUpgradeContract");
+        }
+
+        let storage_cost = ((v.len() + 32) as Balance) * env::storage_byte_cost();
+        assert!(
+            env::attached_deposit() >= storage_cost,
+            "DepositUnderFlow:{}",
+            storage_cost
+        );
+
+        Promise::new(env::current_account_id())
+            .deploy_contract(v.to_vec())
+            .then(Self::ext(env::current_account_id()).update_contract_done(
+                env::predecessor_account_id(),
+                env::storage_usage(),
+                env::attached_deposit(),
+            ))
+    }
 }
 
 #[near_bindgen]
@@ -654,7 +781,7 @@ impl TokenBridge {
     }
 
     pub fn get_foreign_asset(&self, address: String, chain: u16) -> String {
-        let p = token_key(hex::decode(address).unwrap(), chain);
+        let p = self.token_key(hex::decode(address).unwrap(), chain);
 
         if self.key_map.contains_key(&p) {
             return self.key_map.get(&p).unwrap().to_string();
@@ -709,7 +836,7 @@ impl TokenBridge {
     #[payable]
     pub fn register_bank(&mut self) -> PromiseOrValue<bool> {
         require!(
-            env::prepaid_gas() >= Gas(100_000_000_000_000),
+            (env::prepaid_gas() - env::used_gas()) >= Gas(90_000_000_000_000),
             &format!(
                 "token-bridge/{}#{}: more gas is required {}",
                 file!(),
@@ -747,7 +874,7 @@ impl TokenBridge {
     #[payable]
     pub fn fill_bank(&mut self) {
         require!(
-            env::prepaid_gas() >= Gas(100_000_000_000_000),
+            (env::prepaid_gas() - env::used_gas()) >= Gas(90_000_000_000_000),
             &format!(
                 "token-bridge/{}#{}: more gas is required {}",
                 file!(),
@@ -769,7 +896,7 @@ impl TokenBridge {
     #[payable]
     pub fn drain_bank(&mut self) -> Promise {
         require!(
-            env::prepaid_gas() >= Gas(100_000_000_000_000),
+            (env::prepaid_gas() - env::used_gas()) >= Gas(90_000_000_000_000),
             &format!(
                 "token-bridge/{}#{}: more gas is required {}",
                 file!(),
@@ -829,7 +956,7 @@ impl TokenBridge {
         message_fee: Balance,
     ) -> Promise {
         require!(
-            env::prepaid_gas() >= Gas(100_000_000_000_000),
+            (env::prepaid_gas() - env::used_gas()) >= Gas(90_000_000_000_000),
             &format!(
                 "token-bridge/{}#{}: more gas is required {}",
                 file!(),
@@ -850,7 +977,7 @@ impl TokenBridge {
         if namount == 0 {
             env::panic_str("EmptyTransfer");
         }
-        //let dust = amount - (namount * NEAR_MULT) - (nfee * NEAR_MULT);
+        let dust = amount - (namount * NEAR_MULT) - (nfee * NEAR_MULT);
 
         let mut p = [
             // PayloadID uint8 = 1
@@ -884,9 +1011,15 @@ impl TokenBridge {
             }
         }
 
-        ext_worm_hole::ext(self.core.clone())
+        let mut prom = ext_worm_hole::ext(self.core.clone())
             .with_attached_deposit(message_fee)
-            .publish_message(hex::encode(p), env::block_height() as u32)
+            .publish_message(hex::encode(p), env::block_height() as u32);
+
+        if dust > 0 {
+            prom = prom.then(Promise::new(env::predecessor_account_id()).transfer(dust));
+        }
+
+        prom
     }
 
     #[payable]
@@ -907,7 +1040,7 @@ impl TokenBridge {
         }
 
         require!(
-            env::prepaid_gas() >= Gas(100_000_000_000_000),
+            (env::prepaid_gas() - env::used_gas()) >= Gas(90_000_000_000_000),
             &format!(
                 "token-bridge/{}#{}: more gas is required {}",
                 file!(),
@@ -918,6 +1051,8 @@ impl TokenBridge {
 
         if self.is_wormhole(&token) {
             ext_ft_contract::ext(AccountId::try_from(token).unwrap())
+                .with_attached_deposit(1)
+                .with_static_gas(Gas(30_000_000_000_000))
                 .vaa_withdraw(
                     env::predecessor_account_id(),
                     amount.parse().unwrap(),
@@ -929,6 +1064,7 @@ impl TokenBridge {
                 .then(
                     Self::ext(env::current_account_id())
                         .with_attached_deposit(env::attached_deposit())
+                        .with_static_gas(Gas(30_000_000_000_000))
                         .send_transfer_token_wormhole_callback(
                             message_fee,
                             env::predecessor_account_id(),
@@ -989,7 +1125,7 @@ impl TokenBridge {
             refund_to = Some(env::predecessor_account_id());
         }
 
-        if env::prepaid_gas() < Gas(150_000_000_000_000) {
+        if (env::prepaid_gas() - env::used_gas()) < Gas(140_000_000_000_000) {
             env::panic_str("NotEnoughGas");
         }
 
@@ -1017,15 +1153,18 @@ impl TokenBridge {
             let r = refund_to.unwrap();
             PromiseOrValue::Promise(
                 ext_worm_hole::ext(self.core.clone())
+                    .with_static_gas(Gas(30_000_000_000_000))
                     .verify_vaa(vaa)
                     .then(
                         Self::ext(env::current_account_id())
-                            .with_unused_gas_weight(10)
+                            .with_static_gas(Gas(30_000_000_000_000))
                             .with_attached_deposit(env::attached_deposit())
                             .verify_vaa_callback(pvaa.hash, r.clone()),
                     )
                     .then(
-                        Self::ext(env::current_account_id()).refunder(r, env::attached_deposit()),
+                        Self::ext(env::current_account_id())
+                            .with_static_gas(Gas(10_000_000_000_000))
+                            .refunder(r, env::attached_deposit()),
                     ),
             )
         }
@@ -1086,71 +1225,6 @@ impl TokenBridge {
         Promise::new(refund_to).transfer(deposit)
     }
 
-    #[private] // So, all of wormhole security rests in this one statement?
-    fn submit_vaa_work(
-        &mut self,
-        pvaa: &state::ParsedVAA,
-        refund_to: AccountId,
-    ) -> PromiseOrValue<bool> {
-        env::log_str(&format!(
-            "token-bridge/{}#{}: submit_vaa_work: {}  {} used: {}  prepaid: {}",
-            file!(),
-            line!(),
-            env::attached_deposit(),
-            env::predecessor_account_id(),
-            serde_json::to_string(&env::used_gas()).unwrap(),
-            serde_json::to_string(&env::prepaid_gas()).unwrap()
-        ));
-
-        if pvaa.version != 1 {
-            env::panic_str("invalidVersion");
-        }
-
-        let data: &[u8] = &pvaa.payload;
-
-        let governance = data[0..32]
-            == hex::decode("000000000000000000000000000000000000000000546f6b656e427269646765")
-                .unwrap();
-        let action = data.get_u8(0);
-
-        let deposit = env::attached_deposit();
-
-        if governance {
-            let bal = vaa_governance(self, pvaa, self.gov_idx, deposit);
-            if bal > 0 {
-                env::log_str(&format!(
-                    "token-bridge/{}#{}: refunding {} to {}",
-                    file!(),
-                    line!(),
-                    bal,
-                    refund_to
-                ));
-
-                return PromiseOrValue::Promise(Promise::new(refund_to).transfer(bal));
-            }
-            return PromiseOrValue::Value(true);
-        }
-
-        env::log_str(&format!("looking up chain {}", pvaa.emitter_chain));
-
-        if !self.emitter_registration.contains_key(&pvaa.emitter_chain) {
-            env::panic_str("ChainNotRegistered");
-        }
-
-        if self.emitter_registration.get(&pvaa.emitter_chain).unwrap() != pvaa.emitter_address {
-            env::panic_str("InvalidRegistration");
-        }
-
-        match action {
-            1u8 => vaa_transfer(self, pvaa, action, deposit, refund_to),
-            2u8 => vaa_asset_meta(self, pvaa, deposit, refund_to),
-            3u8 => vaa_transfer(self, pvaa, action, deposit, refund_to),
-            _ => {
-                env::panic_str("invalidPortAction");
-            }
-        }
-    }
-
     #[payable]
     pub fn attest_near(&mut self, message_fee: Balance) -> Promise {
         if (message_fee > 0) && (env::attached_deposit() < message_fee)
@@ -1160,7 +1234,7 @@ impl TokenBridge {
         }
 
         require!(
-            env::prepaid_gas() >= Gas(100_000_000_000_000),
+            (env::prepaid_gas() - env::used_gas()) > Gas(90_000_000_000_000),
             &format!(
                 "token-bridge/{}#{}: more gas is required {}",
                 file!(),
@@ -1197,7 +1271,7 @@ impl TokenBridge {
             env::panic_str("DepositRequired");
         }
 
-        if env::prepaid_gas() < Gas(100_000_000_000_000) {
+        if (env::prepaid_gas() - env::used_gas()) < Gas(90_000_000_000_000) {
             env::panic_str("MoreGasRequired");
         }
 
@@ -1234,7 +1308,7 @@ impl TokenBridge {
 
         let asset_token_account = AccountId::new_unchecked(token.clone());
         let account_hash = env::sha256(token.as_bytes());
-        let tkey = token_key(account_hash.to_vec(), CHAIN_ID_NEAR);
+        let tkey = self.token_key(account_hash.to_vec(), CHAIN_ID_NEAR);
 
         let mut deposit = env::attached_deposit();
 
@@ -1310,8 +1384,15 @@ impl TokenBridge {
     }
 
     #[private]
-    pub fn finish_deploy(&mut self, token: AccountId, tkey: Vec<u8>, do_clean: bool) -> String {
-        if is_promise_success() {
+    pub fn finish_deploy(
+        &mut self,
+        token: AccountId,
+        tkey: Vec<u8>,
+        do_clean: bool,
+        deposit: Balance,
+        refund_to: AccountId,
+    ) -> String {
+        let ret = if is_promise_success() {
             env::log_str(&format!(
                 "token-bridge/{}#{}: token: {}",
                 file!(),
@@ -1335,7 +1416,14 @@ impl TokenBridge {
                     .remove(&env::sha256(token.to_string().as_bytes()));
             }
             "".to_string()
+        };
+
+        if deposit > 0 {
+            // Lets do this refund async
+            Promise::new(refund_to).transfer(deposit);
         }
+
+        ret
     }
 
     #[private]
@@ -1347,6 +1435,26 @@ impl TokenBridge {
         token: AccountId,
         #[callback_result] ft_info: Result<FungibleTokenMetadata, PromiseError>,
     ) -> PromiseOrValue<U128> {
+        require!(
+            (env::prepaid_gas() - env::used_gas()) >= Gas(25_000_000_000_000),
+            &format!(
+                "token-bridge/{}#{}: more gas is required {}",
+                file!(),
+                line!(),
+                serde_json::to_string(&env::prepaid_gas()).unwrap()
+            )
+        );
+
+        env::log_str(&format!(
+            "token-bridge/{}#{}: ft_on_transfer_callback   prepaid_gas: {}   used_gas: {}  delta: {}",
+            file!(),
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+        ));
+
+
         env::log_str(&format!(
             "token-bridge/{}#{}: ft_on_transfer_callback: {} {} {}",
             file!(),
@@ -1425,11 +1533,26 @@ impl TokenBridge {
             self.bank.insert(&sender_id, &b);
         }
 
+        env::log_str(&format!(
+            "token-bridge/{}#{}: ft_on_transfer_callback   prepaid_gas: {}   used_gas: {}  delta: {}",
+            file!(),
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+        ));
+
+
         PromiseOrValue::Promise(
             ext_worm_hole::ext(self.core.clone())
                 .with_attached_deposit(tp.message_fee)
+                .with_static_gas(Gas(11_000_000_000_000))
                 .publish_message(hex::encode(p), env::block_height() as u32)
-                .then(Self::ext(env::current_account_id()).emitter_callback_pov()),
+                .then(
+                    Self::ext(env::current_account_id())
+                        .with_static_gas(Gas(11_000_000_000_000))
+                        .emitter_callback_pov(),
+                ),
         )
     }
 
@@ -1439,9 +1562,12 @@ impl TokenBridge {
         #[callback_result] seq: Result<u64, PromiseError>,
     ) -> PromiseOrValue<U128> {
         env::log_str(&format!(
-            "token-bridge/{}#{}: emitter_callback_pov",
+            "token-bridge/{}#{}: emitter_callback_pov  prepaid_gas: {}   used_gas: {}  delta: {}",
             file!(),
-            line!()
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
         ));
 
         if seq.is_err() {
@@ -1464,18 +1590,24 @@ impl TokenBridge {
             env::attached_deposit()
         ));
 
-        // require!(env::prepaid_gas() >= GAS_FOR_FT_TRANSFER_CALL, "More gas is required");
+        require!(
+            (env::prepaid_gas() - env::used_gas()) >= Gas(50_000_000_000_000),
+            "More gas is required"
+        );
 
         PromiseOrValue::Promise(
             ext_ft_contract::ext(env::predecessor_account_id())
+                .with_static_gas(Gas(15_000_000_000_000))
                 .ft_metadata()
                 .then(
-                    Self::ext(env::current_account_id()).ft_on_transfer_callback(
-                        sender_id,
-                        amount,
-                        msg,
-                        env::predecessor_account_id(),
-                    ),
+                    Self::ext(env::current_account_id())
+                        .with_static_gas(Gas(30_000_000_000_000))
+                        .ft_on_transfer_callback(
+                            sender_id,
+                            amount,
+                            msg,
+                            env::predecessor_account_id(),
+                        ),
                 ),
         )
     }
@@ -1518,45 +1650,6 @@ impl TokenBridge {
             ));
             Promise::new(refund_to).transfer(refund as u128);
         }
-    }
-
-    #[private]
-    fn update_contract_work(&mut self, v: Vec<u8>) -> Promise {
-        if env::attached_deposit() == 0 {
-            env::panic_str("attach some cash");
-        }
-
-        let s = env::sha256(&v);
-
-        env::log_str(&format!(
-            "token-bridge/{}#{}: update_contract: {}",
-            file!(),
-            line!(),
-            hex::encode(&s)
-        ));
-
-        if s.to_vec() != self.upgrade_hash {
-            if env::attached_deposit() > 0 {
-                env::log_str(&format!(
-                    "token-bridge/{}#{}: refunding {} to {}",
-                    file!(),
-                    line!(),
-                    env::attached_deposit(),
-                    env::predecessor_account_id()
-                ));
-
-                Promise::new(env::predecessor_account_id()).transfer(env::attached_deposit());
-            }
-            env::panic_str("invalidUpgradeContract");
-        }
-
-        Promise::new(env::current_account_id())
-            .deploy_contract(v.to_vec())
-            .then(Self::ext(env::current_account_id()).update_contract_done(
-                env::predecessor_account_id(),
-                env::storage_usage(),
-                env::attached_deposit(),
-            ))
     }
 
     #[init(ignore_state)]

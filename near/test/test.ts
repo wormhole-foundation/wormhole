@@ -179,7 +179,7 @@ async function initTest() {
     "./contracts/wormhole/target/wasm32-unknown-unknown/release/near_wormhole.wasm"
   );
   const tokenContract = await fs.readFile(
-    "./contracts/portal/target/wasm32-unknown-unknown/release/near_token_bridge.wasm"
+    "./contracts/token-bridge/target/wasm32-unknown-unknown/release/near_token_bridge.wasm"
   );
   const testContract = await fs.readFile(
     "./contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm"
@@ -296,14 +296,14 @@ async function test() {
   );
 
   console.log("sending it to the core contract");
-  await wormholeUseContract.submit_vaa({ args: { vaa: vaa } });
+  await wormholeUseContract.submit_vaa({ args: { vaa: vaa }, amount: "30000000000000000000001", gas: 150000000000000 } );
 
   seq = seq + 1;
 
   if (!fastTest) {
     console.log("Its parsed... lets do it again!!");
     try {
-      await wormholeUseContract.submit_vaa({ args: { vaa: vaa } });
+      await wormholeUseContract.submit_vaa({ args: { vaa: vaa }, amount: "30000000000000000000001", gas: 150000000000000 } );
       console.log("This should have thrown a exception..");
       process.exit(1);
     } catch {

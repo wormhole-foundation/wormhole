@@ -21,6 +21,7 @@
     "env-cmd": "^10.1.0",
     "ethers": "^5.6.5",
     "near-api-js": "^0.43.1",
+    "near-seed-phrase": "^0.2.0",
     "prop-types": "^15.7.2",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",

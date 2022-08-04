@@ -127,202 +127,229 @@ impl Default for Wormhole {
     }
 }
 
-// Nothing is mutable...
-fn parse_and_verify_vaa(storage: &Wormhole, data: &[u8]) -> state::ParsedVAA {
-    let vaa = state::ParsedVAA::parse(data);
-    if vaa.version != 1 {
-        env::panic_str("InvalidVersion");
-    }
-    let guardian_set = storage
-        .guardians
-        .get(&vaa.guardian_set_index)
-        .expect("InvalidGuardianSetIndex");
-
-    if guardian_set.expiration_time != 0 && guardian_set.expiration_time < env::block_timestamp() {
-        env::panic_str("GuardianSetExpired");
-    }
-
-    if (vaa.len_signers as usize) < guardian_set.quorum() {
-        env::panic_str("ContractError");
-    }
-
-    // Lets calculate the digest that we are comparing against
-    let mut pos =
-        state::ParsedVAA::HEADER_LEN + (vaa.len_signers * state::ParsedVAA::SIGNATURE_LEN); //  SIGNATURE_LEN: usize = 66;
-    let p1 = env::keccak256(&data[pos..]);
-    let digest = env::keccak256(&p1);
-
-    // Verify guardian signatures
-    let mut last_index: i32 = -1;
-    pos = state::ParsedVAA::HEADER_LEN; // HEADER_LEN: usize = 6;
-
-    for _ in 0..vaa.len_signers {
-        // which guardian signature is this?
-        let index = data.get_u8(pos) as i32;
-
-        // We can't go backwards or use the same guardian over again
-        if index <= last_index {
-            env::panic_str("WrongGuardianIndexOrder");
+impl Wormhole {
+    fn parse_and_verify_vaa(self: &Wormhole, data: &[u8]) -> state::ParsedVAA {
+        let vaa = state::ParsedVAA::parse(data);
+        if vaa.version != 1 {
+            env::panic_str("InvalidVersion");
         }
-        last_index = index;
+        let guardian_set = self
+            .guardians
+            .get(&vaa.guardian_set_index)
+            .expect("InvalidGuardianSetIndex");
 
-        pos += 1; // walk forward
-
-        // Grab the whole signature
-        let signature = &data[(pos)..(pos + state::ParsedVAA::SIG_DATA_LEN)]; // SIG_DATA_LEN: usize = 64;
-        let key = guardian_set.addresses.get(index as usize).unwrap();
-
-        pos += state::ParsedVAA::SIG_DATA_LEN; // SIG_DATA_LEN: usize = 64;
-        let recovery = data.get_u8(pos);
-
-        let v = env::ecrecover(&digest, signature, recovery, true).expect("cannot recover key");
-        let k = &env::keccak256(&v)[12..32];
-        if k != key.bytes {
-            env::log_str(&format!(
-                "wormhole/{}#{}: signature_error: {} != {}",
-                file!(),
-                line!(),
-                hex::encode(&k),
-                hex::encode(&key.bytes),
-            ));
-
-            env::panic_str("GuardianSignatureError");
+        if guardian_set.expiration_time != 0
+            && guardian_set.expiration_time < env::block_timestamp()
+        {
+            env::panic_str("GuardianSetExpired");
         }
-        pos += 1;
+
+        if (vaa.len_signers as usize) < guardian_set.quorum() {
+            env::panic_str("ContractError");
+        }
+
+        // Lets calculate the digest that we are comparing against
+        let mut pos =
+            state::ParsedVAA::HEADER_LEN + (vaa.len_signers * state::ParsedVAA::SIGNATURE_LEN); //  SIGNATURE_LEN: usize = 66;
+        let p1 = env::keccak256(&data[pos..]);
+        let digest = env::keccak256(&p1);
+
+        // Verify guardian signatures
+        let mut last_index: i32 = -1;
+        pos = state::ParsedVAA::HEADER_LEN; // HEADER_LEN: usize = 6;
+
+        for _ in 0..vaa.len_signers {
+            // which guardian signature is this?
+            let index = data.get_u8(pos) as i32;
+
+            // We can't go backwards or use the same guardian over again
+            if index <= last_index {
+                env::panic_str("WrongGuardianIndexOrder");
+            }
+            last_index = index;
+
+            pos += 1; // walk forward
+
+            // Grab the whole signature
+            let signature = &data[(pos)..(pos + state::ParsedVAA::SIG_DATA_LEN)]; // SIG_DATA_LEN: usize = 64;
+            let key = guardian_set.addresses.get(index as usize).unwrap();
+
+            pos += state::ParsedVAA::SIG_DATA_LEN; // SIG_DATA_LEN: usize = 64;
+            let recovery = data.get_u8(pos);
+
+            let v = env::ecrecover(&digest, signature, recovery, true).expect("cannot recover key");
+            let k = &env::keccak256(&v)[12..32];
+            if k != key.bytes {
+                env::log_str(&format!(
+                    "wormhole/{}#{}: signature_error: {} != {}",
+                    file!(),
+                    line!(),
+                    hex::encode(&k),
+                    hex::encode(&key.bytes),
+                ));
+
+                env::panic_str("GuardianSignatureError");
+            }
+            pos += 1;
+        }
+
+        vaa
     }
 
-    vaa
-}
+    fn vaa_update_contract(
+        self: &mut Wormhole,
+        _vaa: &state::ParsedVAA,
+        data: &[u8],
+        deposit: Balance,
+        refund_to: AccountId,
+    ) -> PromiseOrValue<bool> {
+        let uh = data.get_bytes32(0);
+        env::log_str(&format!(
+            "wormhole/{}#{}: vaa_update_contract: {}",
+            file!(),
+            line!(),
+            hex::encode(&uh)
+        ));
+        self.upgrade_hash = uh.to_vec();
 
-fn vaa_update_contract(
-    storage: &mut Wormhole,
-    _vaa: &state::ParsedVAA,
-    data: &[u8],
-    deposit: Balance,
-    refund_to: AccountId,
-) -> PromiseOrValue<bool> {
-    let chain = data.get_u16(33);
-    if chain != CHAIN_ID_NEAR {
-        env::panic_str("InvalidContractUpgradeChain");
+        if deposit > 0 {
+            PromiseOrValue::Promise(Promise::new(refund_to).transfer(deposit))
+        } else {
+            PromiseOrValue::Value(true)
+        }
     }
 
-    let uh = data.get_bytes32(0);
-    env::log_str(&format!(
-        "wormhole/{}#{}: vaa_update_contract: {}",
-        file!(),
-        line!(),
-        hex::encode(&uh)
-    ));
-    storage.upgrade_hash = uh.to_vec();
+    fn vaa_update_guardian_set(
+        self: &mut Wormhole,
+        _vaa: &state::ParsedVAA,
+        data: &[u8],
+        mut deposit: Balance,
+        refund_to: AccountId,
+    ) -> PromiseOrValue<bool> {
+        const ADDRESS_LEN: usize = 20;
+        let new_guardian_set_index = data.get_u32(0);
 
-    if deposit > 0 {
-        PromiseOrValue::Promise(Promise::new(refund_to).transfer(deposit))
-    } else {
-        PromiseOrValue::Value(true)
-    }
-}
+        if self.guardian_set_index + 1 != new_guardian_set_index {
+            env::panic_str("InvalidGovernanceSetIndex");
+        }
 
-fn vaa_update_guardian_set(
-    storage: &mut Wormhole,
-    _vaa: &state::ParsedVAA,
-    data: &[u8],
-    mut deposit: Balance,
-    refund_to: AccountId,
-) -> PromiseOrValue<bool> {
-    const ADDRESS_LEN: usize = 20;
-    let new_guardian_set_index = data.get_u32(0);
+        let n_guardians = data.get_u8(4);
 
-    if storage.guardian_set_index + 1 != new_guardian_set_index {
-        env::panic_str("InvalidGovernanceSetIndex");
-    }
+        let mut addresses = vec![];
 
-    let n_guardians = data.get_u8(4);
+        for i in 0..n_guardians {
+            let pos = 5 + (i as usize) * ADDRESS_LEN;
+            addresses.push(GuardianAddress {
+                bytes: data[pos..pos + ADDRESS_LEN].to_vec(),
+            });
+        }
 
-    let mut addresses = vec![];
+        let guardian_set = &mut self
+            .guardians
+            .get(&self.guardian_set_index)
+            .expect("InvalidPreviousGuardianSetIndex");
 
-    for i in 0..n_guardians {
-        let pos = 5 + (i as usize) * ADDRESS_LEN;
-        addresses.push(GuardianAddress {
-            bytes: data[pos..pos + ADDRESS_LEN].to_vec(),
-        });
-    }
+        guardian_set.expiration_time = env::block_timestamp() + self.guardian_set_expirity;
 
-    let guardian_set = &mut storage
-        .guardians
-        .get(&storage.guardian_set_index)
-        .expect("InvalidPreviousGuardianSetIndex");
+        self.guardians
+            .insert(&self.guardian_set_index, guardian_set);
 
-    guardian_set.expiration_time = env::block_timestamp() + storage.guardian_set_expirity;
+        let g = GuardianSetInfo {
+            addresses,
+            expiration_time: 0,
+        };
 
-    storage
-        .guardians
-        .insert(&storage.guardian_set_index, guardian_set);
+        let storage_used = env::storage_usage();
 
-    let g = GuardianSetInfo {
-        addresses,
-        expiration_time: 0,
-    };
+        self.guardians.insert(&new_guardian_set_index, &g);
+        self.guardian_set_index = new_guardian_set_index;
 
-    let storage_used = env::storage_usage();
+        let required_cost =
+            (Balance::from(env::storage_usage() - storage_used)) * env::storage_byte_cost();
 
-    storage.guardians.insert(&new_guardian_set_index, &g);
-    storage.guardian_set_index = new_guardian_set_index;
+        if required_cost > deposit {
+            env::panic_str("DepositUnderflowForGuardianSet");
+        }
+        deposit -= required_cost;
 
-    let required_cost =
-        (Balance::from(env::storage_usage() - storage_used)) * env::storage_byte_cost();
-
-    if required_cost > deposit {
-        env::panic_str("DepositUnderflowForGuardianSet");
-    }
-    deposit -= required_cost;
-
-    if deposit > 0 {
-        PromiseOrValue::Promise(Promise::new(refund_to).transfer(deposit))
-    } else {
-        PromiseOrValue::Value(true)
-    }
-}
-
-fn handle_set_fee(
-    storage: &mut Wormhole,
-    _vaa: &state::ParsedVAA,
-    payload: &[u8],
-    deposit: Balance,
-    refund_to: AccountId,
-) -> PromiseOrValue<bool> {
-    let (_, amount) = payload.get_u256(0);
-
-    storage.message_fee = amount as u128;
-
-    if deposit > 0 {
-        PromiseOrValue::Promise(Promise::new(refund_to).transfer(deposit))
-    } else {
-        PromiseOrValue::Value(true)
-    }
-}
-
-fn handle_transfer_fee(
-    storage: &mut Wormhole,
-    _vaa: &state::ParsedVAA,
-    payload: &[u8],
-    deposit: Balance,
-) -> PromiseOrValue<bool> {
-    let (_, amount) = payload.get_u256(0);
-    let destination = payload.get_bytes32(32).to_vec();
-
-    if amount > storage.bank {
-        env::panic_str("bankUnderFlow");
+        if deposit > 0 {
+            PromiseOrValue::Promise(Promise::new(refund_to).transfer(deposit))
+        } else {
+            PromiseOrValue::Value(true)
+        }
     }
 
-    // We only support addresses 32 bytes or shorter...  No, we don't
-    // support hash addresses in this governance message
-    let d = AccountId::new_unchecked(get_string_from_32(&destination));
+    fn handle_set_fee(
+        self: &mut Wormhole,
+        _vaa: &state::ParsedVAA,
+        payload: &[u8],
+        deposit: Balance,
+        refund_to: AccountId,
+    ) -> PromiseOrValue<bool> {
+        let (_, amount) = payload.get_u256(0);
 
-    if (deposit + amount) > 0 {
-        storage.bank -= amount;
-        PromiseOrValue::Promise(Promise::new(d).transfer(deposit + amount))
-    } else {
-        PromiseOrValue::Value(true)
+        self.message_fee = amount as u128;
+
+        if deposit > 0 {
+            PromiseOrValue::Promise(Promise::new(refund_to).transfer(deposit))
+        } else {
+            PromiseOrValue::Value(true)
+        }
+    }
+
+    fn handle_transfer_fee(
+        self: &mut Wormhole,
+        _vaa: &state::ParsedVAA,
+        payload: &[u8],
+        deposit: Balance,
+    ) -> PromiseOrValue<bool> {
+        let (_, amount) = payload.get_u256(0);
+        let destination = payload.get_bytes32(32).to_vec();
+
+        if amount > self.bank {
+            env::panic_str("bankUnderFlow");
+        }
+
+        // We only support addresses 32 bytes or shorter...  No, we don't
+        // support hash addresses in this governance message
+        let d = AccountId::new_unchecked(get_string_from_32(&destination));
+
+        if (deposit + amount) > 0 {
+            self.bank -= amount;
+            PromiseOrValue::Promise(Promise::new(d).transfer(deposit + amount))
+        } else {
+            PromiseOrValue::Value(true)
+        }
+    }
+
+    fn update_contract_work(&mut self, v: Vec<u8>) -> Promise {
+        let s = env::sha256(&v);
+
+        env::log_str(&format!(
+            "wormhole/{}#{}: update_contract: {}",
+            file!(),
+            line!(),
+            hex::encode(&s)
+        ));
+
+        if s.to_vec() != self.upgrade_hash {
+            env::panic_str("invalidUpgradeContract");
+        }
+
+        let storage_cost = ((v.len() + 32) as Balance) * env::storage_byte_cost();
+        assert!(
+            env::attached_deposit() >= storage_cost,
+            "DepositUnderFlow:{}",
+            storage_cost
+        );
+
+        Promise::new(env::current_account_id())
+            .deploy_contract(v.to_vec())
+            .then(Self::ext(env::current_account_id()).update_contract_done(
+                env::predecessor_account_id(),
+                env::storage_usage(),
+                env::attached_deposit(),
+            ))
     }
 }
 
@@ -334,7 +361,7 @@ impl Wormhole {
     pub fn verify_vaa(&self, vaa: String) -> u32 {
         let g1 = env::used_gas();
         let h = hex::decode(vaa).expect("invalidVaa");
-        parse_and_verify_vaa(self, &h);
+        self.parse_and_verify_vaa(&h);
         let g2 = env::used_gas();
 
         env::log_str(&format!(
@@ -349,12 +376,16 @@ impl Wormhole {
 
     #[payable]
     pub fn register_emitter(&mut self, emitter: String) -> PromiseOrValue<bool> {
+        if self.emitters.contains_key(&emitter) {
+            env::panic_str("AlreadyRegistered");
+        }
+
         let storage_used = env::storage_usage();
 
         self.emitters.insert(&emitter, &1);
 
         if env::storage_usage() < storage_used {
-            env::panic_str("ImpossibleStorage");
+            env::panic_str("ImpossibleSelf");
         }
 
         let required_cost =
@@ -375,6 +406,16 @@ impl Wormhole {
 
     #[payable]
     pub fn publish_message(&mut self, data: String, nonce: u32) -> u64 {
+        env::log_str(&format!(
+            "wormhole/{}#{}: publish_message  prepaid_gas: {}   used_gas: {}  delta: {}",
+            file!(),
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+        ));
+
+
         require!(
             env::prepaid_gas() >= Gas(10_000_000_000_000),
             &format!(
@@ -416,19 +457,28 @@ impl Wormhole {
 
     #[payable]
     pub fn submit_vaa(&mut self, vaa: String) -> PromiseOrValue<bool> {
+        env::log_str(&format!(
+            "wormhole/{}#{}: submit_vaa   prepaid_gas: {}   used_gas: {}  delta: {}",
+            file!(),
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+        ));
+
         let refund_to = env::predecessor_account_id();
         let mut deposit = env::attached_deposit();
 
         if env::attached_deposit() == 0 {
-            env::panic_str("PayForStorage");
+            env::panic_str("PayForSelf");
         }
 
-        if env::prepaid_gas() < Gas(150_000_000_000_000) {
+        if (env::prepaid_gas() - env::used_gas()) < Gas(140_000_000_000_000) {
             env::panic_str("NotEnoughGas");
         }
 
         let h = hex::decode(vaa).expect("invalidVaa");
-        let vaa = parse_and_verify_vaa(self, &h);
+        let vaa = self.parse_and_verify_vaa(&h);
 
         // Check if VAA with this hash was already accepted
         if self.dups.contains(&vaa.hash) {
@@ -477,11 +527,20 @@ impl Wormhole {
 
         let payload = &data[35..];
 
+        env::log_str(&format!(
+            "wormhole/{}#{}: submit_vaa   prepaid_gas: {}   used_gas: {}  delta: {}",
+            file!(),
+            line!(),
+            serde_json::to_string(&env::prepaid_gas()).unwrap(),
+            serde_json::to_string(&env::used_gas()).unwrap(),
+            serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
+        ));
+
         match action {
-            1u8 => vaa_update_contract(self, &vaa, payload, deposit, refund_to),
-            2u8 => vaa_update_guardian_set(self, &vaa, payload, deposit, refund_to),
-            3u8 => handle_set_fee(self, &vaa, payload, deposit, refund_to),
-            4u8 => handle_transfer_fee(self, &vaa, payload, deposit),
+            1u8 => self.vaa_update_contract(&vaa, payload, deposit, refund_to),
+            2u8 => self.vaa_update_guardian_set(&vaa, payload, deposit, refund_to),
+            3u8 => self.handle_set_fee(&vaa, payload, deposit, refund_to),
+            4u8 => self.handle_transfer_fee(&vaa, payload, deposit),
             _ => env::panic_str("InvalidGovernanceAction"),
         }
     }
@@ -533,34 +592,6 @@ impl Wormhole {
             ));
             Promise::new(refund_to).transfer(refund as u128);
         }
-    }
-
-    #[private]
-    fn update_contract_work(&mut self, v: Vec<u8>) -> Promise {
-        if env::attached_deposit() == 0 {
-            env::panic_str("attach some cash");
-        }
-
-        let s = env::sha256(&v);
-
-        env::log_str(&format!(
-            "wormhole/{}#{}: update_contract: {}",
-            file!(),
-            line!(),
-            hex::encode(&s)
-        ));
-
-        if s.to_vec() != self.upgrade_hash {
-            env::panic_str("invalidUpgradeContract");
-        }
-
-        Promise::new(env::current_account_id())
-            .deploy_contract(v.to_vec())
-            .then(Self::ext(env::current_account_id()).update_contract_done(
-                env::predecessor_account_id(),
-                env::storage_usage(),
-                env::attached_deposit(),
-            ))
     }
 
     #[payable]
