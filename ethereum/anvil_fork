@@ -5,12 +5,6 @@ set -euo pipefail
 # This script forks a chain using anvil with the mnemonic that is used in the
 # testing environment.
 
-# It's a wrapper around anvil using Docker.
-# In an ideal world, we could just use anvil directly, but there are regular
-# upstream breaking changes in the nightly builds, and binaries of older
-# versions are deleted frequently from their GitHub. The Docker releases are
-# available for longer, so we just use those here.
-
 if [ -z "$1" ]; then
   echo "Usage: $0 <chain name>" >&2
   exit 1
@@ -18,7 +12,4 @@ fi
 
 CHAIN_NAME="$1"
 
-# This is a known-to-be-working build.
-DOCKER_IMAGE="ghcr.io/foundry-rs/foundry:nightly-0d4468765c264d00ac961275fe176ce003d3e4ca@sha256:88fe2ea1005b9a3a7f8068645fef4cfb0fa7c16a5dd3b35582c70a1e36d16c25"
-
-docker run --rm -i -p 8545:8545 $DOCKER_IMAGE  "anvil --host 0.0.0.0 --base-fee 0 --fork-url $(worm rpc mainnet $CHAIN_NAME) --mnemonic 'myth like bonus scare over problem client lizard pioneer submit female collect'"
+DOCKER_ARGS="-p 8545:8545" ./foundry anvil --host 0.0.0.0 --base-fee 0 --fork-url $(worm rpc mainnet $CHAIN_NAME) --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect"
