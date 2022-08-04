@@ -242,7 +242,7 @@ function extract3(buffer: Uint8Array, start: number, size: number) {
  * @param vaa The VAA to be parsed
  * @returns The ParsedVAA containing the parsed elements of the VAA
  */
-type ParsedVAA = {
+export type ParsedVAA = {
   version: number;
   index: number;
   siglen: number;
@@ -278,13 +278,18 @@ type ParsedVAA = {
   Decimals?: number;
   Symbol?: Uint8Array;
   Name?: Uint8Array;
+  TokenId?: Uint8Array;
   Amount?: Uint8Array;
   ToAddress?: Uint8Array;
   ToChain?: number;
   Fee?: Uint8Array;
   FromAddress?: Uint8Array;
   Payload?: Uint8Array;
+  Body?: Uint8Array;
+
+  uri?: string;
 };
+
 export function _parseVAAAlgorand(vaa: Uint8Array): ParsedVAA {
   let ret = {} as ParsedVAA;
   let buf = Buffer.from(vaa);
@@ -372,6 +377,8 @@ export function _parseVAAAlgorand(vaa: Uint8Array): ParsedVAA {
   //    ret.len=vaa.slice(off).length)
   //    ret.act=buf.readIntBE(off, 1))
 
+  ret.Body = vaa.slice(off);
+
   if (vaa.slice(off).length === 100 && buf.readIntBE(off, 1) === 2) {
     ret.Meta = "TokenBridge Attest";
     ret.Type = buf.readIntBE(off, 1);
@@ -425,6 +432,30 @@ export function _parseVAAAlgorand(vaa: Uint8Array): ParsedVAA {
     off += 32;
     ret.Payload = vaa.slice(off);
   }
+
+  return ret;
+}
+
+export const METADATA_REPLACE = new RegExp("\u0000", "g");
+
+export function _parseNFTAlgorand(vaa: Uint8Array): ParsedVAA {
+  let ret = _parseVAAAlgorand(vaa);
+
+  let arr = Buffer.from(ret.Body as Uint8Array);
+
+  ret.action = arr.readUInt8(0);
+  ret.Contract = arr.slice(1, 1 + 32).toString("hex");
+  ret.FromChain = arr.readUInt16BE(33);
+  ret.Symbol = Buffer.from(arr.slice(35, 35 + 32));
+  ret.Name = Buffer.from(arr.slice(67, 67 + 32));
+  ret.TokenId = arr.slice(99, 99 + 32);
+  let uri_len = arr.readUInt8(131);
+  ret.uri = Buffer.from(arr.slice(132, 132 + uri_len))
+    .toString("utf8")
+    .replace(METADATA_REPLACE, "");
+  let target_offset = 132 + uri_len;
+  ret.ToAddress = arr.slice(target_offset, target_offset + 32);
+  ret.ToChain = arr.readUInt16BE(target_offset + 32);
 
   return ret;
 }

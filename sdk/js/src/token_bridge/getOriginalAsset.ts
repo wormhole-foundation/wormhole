@@ -1,3 +1,5 @@
+const sha256 = require("js-sha256");
+
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
@@ -13,6 +15,7 @@ import {
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   coalesceChainId,
@@ -22,7 +25,9 @@ import { safeBigIntToNumber } from "../utils/bigint";
 import {
   getIsWrappedAssetAlgorand,
   getIsWrappedAssetEth,
+  getIsWrappedAssetNear,
 } from "./getIsWrappedAsset";
+import { Account as nearAccount } from "near-api-js";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -199,5 +204,32 @@ export async function getOriginalAssetAlgorand(
   const dlsBuffer: Buffer = Buffer.from(dls);
   retVal.chainId = dlsBuffer.readInt16BE(92) as ChainId;
   retVal.assetAddress = new Uint8Array(dlsBuffer.slice(60, 60 + 32));
+  return retVal;
+}
+
+export async function getOriginalAssetNear(
+  client: nearAccount,
+  tokenAccount: string,
+  assetAccount: string
+): Promise<WormholeWrappedInfo> {
+  let retVal: WormholeWrappedInfo = {
+    isWrapped: false,
+    chainId: CHAIN_ID_NEAR,
+    assetAddress: new Uint8Array(),
+  };
+  retVal.isWrapped = await getIsWrappedAssetNear(
+    tokenAccount,
+    assetAccount
+  );
+  if (!retVal.isWrapped) {
+    retVal.assetAddress = sha256.sha256.hex(Buffer.from(assetAccount).toString("hex"));
+    return retVal;
+  }
+
+  let buf = await client.viewFunction(tokenAccount, "get_original_asset", { token: assetAccount });
+
+  retVal.chainId = buf[0];
+  retVal.assetAddress = hexToUint8Array(buf[1]);
+
   return retVal;
 }
