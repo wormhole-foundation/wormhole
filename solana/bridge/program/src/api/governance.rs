@@ -36,7 +36,7 @@ use crate::{
     },
     DeserializePayload,
     PayloadMessage,
-    CHAIN_ID_SOLANA,
+    CHAIN_ID_GOVERANCE,
 };
 
 /// Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
@@ -46,7 +46,7 @@ where
 {
     let expected_emitter = std::env!("EMITTER_ADDRESS");
     let current_emitter = format!("{}", Pubkey::new_from_array(vaa.meta().emitter_address));
-    if expected_emitter != current_emitter || vaa.meta().emitter_chain != CHAIN_ID_SOLANA {
+    if expected_emitter != current_emitter || vaa.meta().emitter_chain != CHAIN_ID_GOVERANCE {
         Err(InvalidGovernanceKey.into())
     } else {
         Ok(())

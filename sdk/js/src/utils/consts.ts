@@ -55,6 +55,13 @@ export type EVMChainName =
   | "optimism"
   | "gnosis"
   | "ropsten";
+  /**
+ *
+ * All the Solana-based chain names that Wormhole supports
+ */
+export type SolanaChainName =
+| "solana"
+| "pythnet";
 
 export type TerraChainName = "terra" | "terra2";
 
@@ -201,7 +208,7 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   pythnet: {
-    core: undefined,
+    core: "H3fxXJ86ADW2PNuDDmZJg6mzTtPxkYCpNuQUTgmJ7AjU",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -350,7 +357,7 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   pythnet: {
-    core: undefined,
+    core: "EUrRARh92Cdc54xrDn6qzaqjA77NRrCcfbr8kPwoTL4z",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
