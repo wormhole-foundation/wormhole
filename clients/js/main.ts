@@ -656,7 +656,7 @@ function parseAddress(chain: ChainName, address: string): string {
     // TODO: is there a better native format for algorand?
     return "0x" + evm_address(address);
   } else if (chain === "near") {
-    return "0x" + evm_address(address);
+    return "0x" + hex(address).substring(2).padStart(64, "0")
   } else if (chain === "injective") {
     throw Error("INJECTIVE is not supported yet");
   } else if (chain === "osmosis") {

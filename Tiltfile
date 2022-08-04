@@ -38,6 +38,7 @@ config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
+config.define_bool("near", False, "Enable Near component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
@@ -60,6 +61,7 @@ gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 webHost = cfg.get("webHost", "localhost")
 algorand = cfg.get("algorand", True)
+near = cfg.get("near", True)
 evm2 = cfg.get("evm2", True)
 solana = cfg.get("solana", True)
 terra_classic = cfg.get("terra_classic", True)
@@ -231,6 +233,14 @@ def build_node_yaml():
                     "--chainGovernorEnabled"
                 ]
 
+            if near:
+                container["command"] += [
+                    "--nearRPC",
+                    "http://near:3030",
+                    "--nearContract",
+                    "wormhole.test.near"
+                ]
+
     return encode_yaml_stream(node_yaml)
 
 k8s_yaml_with_ns(build_node_yaml())
@@ -240,6 +250,8 @@ if evm2:
     guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
 if solana:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
+if near:
+    guardian_resource_deps = guardian_resource_deps + ["near"]
 if terra_classic:
     guardian_resource_deps = guardian_resource_deps + ["terra-terrad"]
 if terra2:
@@ -732,3 +744,30 @@ if algorand:
         trigger_mode = trigger_mode,
     )
     
+
+if near:
+    k8s_yaml_with_ns("devnet/near-devnet.yaml")
+
+    docker_build(
+        ref = "near-node",
+        context = "near",
+        dockerfile = "near/Dockerfile",
+        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
+    )
+
+    docker_build(
+        ref = "near-contracts",
+        context = "near",
+        dockerfile = "near/Dockerfile.contracts",
+    )
+
+    k8s_resource(
+        "near",
+        port_forwards = [
+            port_forward(3030, name = "Node [:3030]", host = webHost),
+            port_forward(3031, name = "webserver [:3031]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["near"],
+        trigger_mode = trigger_mode,
+    )
