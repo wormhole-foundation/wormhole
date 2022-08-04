@@ -142,6 +142,22 @@ func (s *PublicrpcServer) GovernorGetEnqueuedVAAs(ctx context.Context, req *publ
 	return resp, nil
 }
 
+func (s *PublicrpcServer) GovernorIsVAAEnqueued(ctx context.Context, req *publicrpcv1.GovernorIsVAAEnqueuedRequest) (*publicrpcv1.GovernorIsVAAEnqueuedResponse, error) {
+	resp := &publicrpcv1.GovernorIsVAAEnqueuedResponse{}
+
+	if s.gov != nil {
+		var err error
+		resp.IsEnqueued, err = s.gov.IsVAAEnqueued(req.MessageId)
+		if err != nil {
+			return resp, err
+		}
+	} else {
+		resp.IsEnqueued = false
+	}
+
+	return resp, nil
+}
+
 func (s *PublicrpcServer) GovernorGetTokenList(ctx context.Context, req *publicrpcv1.GovernorGetTokenListRequest) (*publicrpcv1.GovernorGetTokenListResponse, error) {
 	resp := &publicrpcv1.GovernorGetTokenListResponse{}
 
