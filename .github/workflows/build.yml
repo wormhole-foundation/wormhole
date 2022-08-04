@@ -65,7 +65,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
-      - run: cd ethereum && make test
+      - run: cd ethereum && ../scripts/install-foundry
+      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ make test
 
   ethereum-upgrade:
     runs-on: ubuntu-20.04
