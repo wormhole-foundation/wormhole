@@ -5,7 +5,7 @@
   "main": "spy_relay.js",
   "scripts": {
     "build": "tsc",
-    "spy_relay": "npx hardhat run lib/main.js --network fuji",
+    "spy_relay": "node lib.main.js",
     "tilt_listener": "SPY_RELAY_CONFIG=.env.tilt.listener node lib/main.js --listen_only",
     "tilt_relayer": "SPY_RELAY_CONFIG=.env.tilt.relayer node lib/main.js --relay_only",
     "tilt_wallet_monitor": "SPY_RELAY_CONFIG=.env.tilt.wallet-monitor node lib/main.js --wallet_monitor_only",
