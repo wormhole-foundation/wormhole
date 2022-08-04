@@ -79,3 +79,16 @@ export async function getIsWrappedAssetAlgorand(
   const wormhole: boolean = creatorAcctInfo["auth-addr"] === tbAddr;
   return wormhole;
 }
+
+/**
+ * Returns whethor or not an asset on Near is a wormhole wrapped asset
+ * @param tokenBridge token bridge account
+ * @param asset Near asset account
+ * @returns true if the asset is wrapped
+ */
+export function getIsWrappedAssetNear(
+  tokenBridge: string,
+  asset: string
+): boolean {
+    return asset.endsWith("." + tokenBridge);
+}

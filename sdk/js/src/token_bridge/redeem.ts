@@ -15,13 +15,29 @@ import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importCoreWasm, importTokenWasm } from "../solana/wasm";
 import {
+  CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
+  ChainId,
+  ChainName,
+  MAX_VAA_DECIMALS,
   WSOL_ADDRESS,
   WSOL_DECIMALS,
-  MAX_VAA_DECIMALS,
+  uint8ArrayToHex
 } from "../utils";
+
+import {
+    getForeignAssetNear
+} from ".";
+
+import {
+  _parseVAAAlgorand,
+} from "../algorand";
+
 import { hexToNativeString } from "../utils/array";
 import { parseTransferPayload } from "../utils/parseVaa";
+import { Account as nearAccount } from "near-api-js";
+import BN from "bn.js";
+import { providers as nearProviders } from "near-api-js";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -218,4 +234,122 @@ export async function redeemOnAlgorand(
     vaa,
     senderAddr
   );
+}
+
+/**
+ * This basically just submits the VAA to Near
+ * @param client
+ * @param tokenBridge Token bridge ID
+ * @param vaa The VAA to be redeemed
+ * @returns Transaction ID(s)
+ */
+export async function redeemOnNear(
+  client: nearAccount,
+  tokenBridge: string,
+  vaa: Uint8Array
+): Promise<String> {
+  let p = _parseVAAAlgorand(vaa);
+
+  if (p.ToChain !== CHAIN_ID_NEAR) {
+    throw new Error("Not destined for NEAR");
+  }
+
+  let user = await client.viewFunction(tokenBridge, "hash_lookup", {
+    hash: uint8ArrayToHex(p.ToAddress as Uint8Array),
+  });
+
+  if (!user[0]) {
+    throw new Error(
+      "Unregistered receiver (receiving account is not registered)"
+    );
+  }
+
+  user = user[1];
+
+  let token = await getForeignAssetNear(
+    client,
+    tokenBridge,
+    p.FromChain as ChainId,
+    p.Contract as string
+  );
+
+  if (token === "") {
+    throw new Error("Unregistered token (this been attested yet?)");
+  }
+
+  if (
+    (p.Contract as string) !==
+    "0000000000000000000000000000000000000000000000000000000000000000"
+  ) {
+    let bal = await client.viewFunction(token as string, "storage_balance_of", {
+      account_id: user,
+    });
+
+    if (bal === null) {
+      console.log("Registering ", user, " for ", token);
+      bal = nearProviders.getTransactionLastResult(
+        await client.functionCall({
+          contractId: token as string,
+          methodName: "storage_deposit",
+          args: { account_id: user, registration_only: true },
+          gas: new BN("100000000000000"),
+          attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
+        })
+      );
+    }
+
+    if (
+      p.Fee !== undefined &&
+      Buffer.compare(
+        p.Fee,
+        Buffer.from(
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "hex"
+        )
+      ) !== 0
+    ) {
+      let bal = await client.viewFunction(
+        token as string,
+        "storage_balance_of",
+        {
+          account_id: client.accountId,
+        }
+      );
+
+      if (bal === null) {
+        console.log("Registering ", client.accountId, " for ", token);
+        bal = nearProviders.getTransactionLastResult(
+          await client.functionCall({
+            contractId: token as string,
+            methodName: "storage_deposit",
+            args: { account_id: client.accountId, registration_only: true },
+            gas: new BN("100000000000000"),
+            attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
+          })
+        );
+      }
+    }
+  }
+
+  let result = await client.functionCall({
+    contractId: tokenBridge,
+    methodName: "submit_vaa",
+    args: {
+      vaa: uint8ArrayToHex(vaa),
+    },
+    attachedDeposit: new BN("100000000000000000000000"),
+    gas: new BN("150000000000000"),
+  });
+
+  result = await client.functionCall({
+    contractId: tokenBridge,
+    methodName: "submit_vaa",
+    args: {
+      vaa: uint8ArrayToHex(vaa),
+    },
+    attachedDeposit: new BN("100000000000000000000000"),
+    gas: new BN("150000000000000"),
+  });
+
+  return nearProviders.getTransactionLastResult(result);
 }
