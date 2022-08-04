@@ -22,7 +22,6 @@ import { textToHexString, textToUint8Array, uint8ArrayToHex } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
 import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
-import { logNearGas } from "../utils/near";
 
 import { getIsWrappedAssetNear } from ".";
 
