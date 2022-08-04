@@ -35,7 +35,13 @@ export async function getIsWrappedAssetTerra(
   return false;
 }
 
-// TODO: make sure this is correct
+/**
+ * Checks if the asset is a wrapped asset
+ * @param tokenBridgeAddress The address of the Injective token bridge contract
+ * @param client Connection/wallet information
+ * @param assetAddress Address of the asset
+ * @returns true if asset is a wormhole wrapped asset
+ */
 export async function getIsWrappedAssetInjective(
   tokenBridgeAddress: string,
   client: ChainGrpcWasmApi,

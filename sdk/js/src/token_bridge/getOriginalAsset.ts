@@ -81,6 +81,11 @@ export async function getOriginalAssetTerra(
   return getOriginalAssetCosmWasm(client, wrappedAddress, CHAIN_ID_TERRA);
 }
 
+/**
+ * Returns information about the asset
+ * @param wrappedAddress Address of the asset in question
+ * @returns Information about the asset
+ */
 export async function getOriginalAssetInjective(
   wrappedAddress: string
 ): Promise<WormholeWrappedInfo> {

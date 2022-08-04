@@ -66,6 +66,14 @@ export async function getForeignAssetTerra(
   }
 }
 
+/**
+ * Returns the address of the foreign asset
+ * @param tokenBridgeAddress Address of token bridge contact
+ * @param client Holds the wallet and signing information
+ * @param originChain The chainId of the origin of the asset
+ * @param originAsset The address of the origin asset
+ * @returns The foreign asset address or null
+ */
 export async function getForeignAssetInjective(
   tokenBridgeAddress: string,
   client: ChainGrpcWasmApi,

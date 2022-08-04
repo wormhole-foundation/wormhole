@@ -236,6 +236,18 @@ export async function transferFromTerra(
       ];
 }
 
+/**
+ * Creates the necessary messages to transfer an asset
+ * @param walletAddress Address of the Inj wallet
+ * @param tokenBridgeAddress Address of the token bridge contract
+ * @param tokenAddress Address of the token being transferred
+ * @param amount Amount of token to be transferred
+ * @param recipientChain Destination chain
+ * @param recipientAddress Destination wallet address
+ * @param relayerFee Relayer fee
+ * @param payload Optional payload
+ * @returns Transfer messages to be sent on chain
+ */
 export async function transferFromInjective(
   walletAddress: string,
   tokenBridgeAddress: string,

@@ -72,7 +72,13 @@ export async function getIsTransferCompletedTerra(
   return false;
 }
 
-// TODO: Is there an Injective address for this?
+/**
+ * Return if the VAA has been redeemed or not
+ * @param tokenBridgeAddress The Injective token bridge contract address
+ * @param signedVAA The VAA that is being checked for redemption
+ * @param walletPKHash Wallet information
+ * @returns true if the VAA has been redeemed.
+ */
 export async function getIsTransferCompletedInjective(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,

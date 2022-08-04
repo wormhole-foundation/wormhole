@@ -33,6 +33,13 @@ export async function createWrappedOnTerra(
   });
 }
 
+/**
+ * Creates wrapped token creation message
+ * @param tokenBridgeAddress Address of Inj token bridge contract
+ * @param walletAddress Address of wallet in inj format
+ * @param signedVAA VAA with the attestation message
+ * @returns Message to be broadcast
+ */
 export async function createWrappedOnInjective(
   tokenBridgeAddress: string,
   walletAddress: string,
