@@ -35,7 +35,6 @@ type (
 		appid        uint64
 
 		msgChan  chan *common.MessagePublication
-		setChan  chan *common.GuardianSet
 		obsvReqC chan *gossipv1.ObservationRequest
 
 		next_round uint64
@@ -64,7 +63,6 @@ func NewWatcher(
 	algodToken string,
 	appid uint64,
 	lockEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet,
 	obsvReqC chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
@@ -74,7 +72,6 @@ func NewWatcher(
 		algodToken:   algodToken,
 		appid:        appid,
 		msgChan:      lockEvents,
-		setChan:      setEvents,
 		obsvReqC:     obsvReqC,
 		next_round:   0,
 		debug:        true,
