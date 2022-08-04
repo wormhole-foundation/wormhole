@@ -89,7 +89,7 @@ function clean_up () {
     [ -n "$ANVIL_PID" ] && kill "$ANVIL_PID"
     exit $ARG
 }
-trap clean_up EXIT
+trap clean_up SIGINT SIGTERM EXIT
 
 
 #TODO: make RPC an optional argument
