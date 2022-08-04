@@ -31,9 +31,9 @@ contract Messages is Getters {
 
        /**
         * @dev Checks whether the guardianSet has zero keys
-        * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure 
+        * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure
         * that guardianSet key size doesn't fall to zero and negatively impact quorum assessment.  If guardianSet
-        * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and 
+        * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
         * signature verification.
         */
         if(guardianSet.keys.length == 0){
@@ -48,7 +48,7 @@ contract Messages is Getters {
        /**
         * @dev We're using a fixed point number transformation with 1 decimal to deal with rounding.
         *   WARNING: This quorum check is critical to assessing whether we have enough Guardian signatures to validate a VM
-        *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and 
+        *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
         *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
         */
         if (vm.signatures.length < quorum(guardianSet.keys.length)){
@@ -73,12 +73,21 @@ contract Messages is Getters {
      */
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) public pure returns (bool valid, string memory reason) {
         uint8 lastIndex = 0;
+        uint256 guardianCount = guardianSet.keys.length;
         for (uint i = 0; i < signatures.length; i++) {
             Structs.Signature memory sig = signatures[i];
 
             /// Ensure that provided signature indices are ascending only
             require(i == 0 || sig.guardianIndex > lastIndex, "signature indices must be ascending");
             lastIndex = sig.guardianIndex;
+
+            /// @dev Ensure that the provided signature index is within the
+            /// bounds of the guardianSet. This is implicitly checked by the array
+            /// index operation below, so this check is technically redundant.
+            /// However, reverting explicitly here ensures that a bug is not
+            /// introduced accidentally later due to the nontrivial storage
+            /// semantics of solidity.
+            require(sig.guardianIndex < guardianCount, "guardian index out of bounds");
 
             /// Check to see if the signer of the signature does not match a specific Guardian key at the provided index
             if(ecrecover(hash, sig.v, sig.r, sig.s) != guardianSet.keys[sig.guardianIndex]){
