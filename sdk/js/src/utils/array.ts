@@ -214,7 +214,7 @@ export const tryNativeToHexString = (
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
     return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
   } else if (chainId === CHAIN_ID_NEAR) {
-    throw Error("hexToNativeString: Near not supported yet.");
+    return uint8ArrayToHex(zeroPad(new Uint8Array(Buffer.from(address, "ascii")), 32))
   } else if (chainId === CHAIN_ID_INJECTIVE) {
     throw Error("hexToNativeString: Injective not supported yet.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {

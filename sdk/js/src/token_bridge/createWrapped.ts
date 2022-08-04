@@ -7,6 +7,8 @@ import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
+import { Account as nearAccount, providers as nearProviders } from "near-api-js";
+import BN from "bn.js";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -69,4 +71,33 @@ export async function createWrappedOnAlgorand(
     attestVAA,
     senderAddr
   );
+}
+
+export async function createWrappedOnNear(
+  client: nearAccount,
+  tokenBridge: string,
+  attestVAA: Uint8Array
+): Promise<string> {
+  // Could we just pass in the vaa already as hex?
+  let vaa = Buffer.from(attestVAA).toString("hex");
+
+  let res = await client.viewFunction(tokenBridge, "deposit_estimates", {});
+
+  let result = await client.functionCall({
+    contractId: tokenBridge,
+    methodName: "submit_vaa",
+    args: { vaa: vaa },
+    attachedDeposit: new BN(res[1]),
+    gas: new BN("150000000000000"),
+  });
+
+  result = await client.functionCall({
+    contractId: tokenBridge,
+    methodName: "submit_vaa",
+    args: { vaa: vaa },
+    attachedDeposit: new BN(res[1]),
+    gas: new BN("150000000000000"),
+  });
+
+  return nearProviders.getTransactionLastResult(result);
 }

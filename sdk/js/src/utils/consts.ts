@@ -450,8 +450,8 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   near: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "wormhole.test.near",
+    token_bridge: "token.test.near",
     nft_bridge: undefined,
   },
   injective: {

@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
+import { Account as nearAccount } from "near-api-js";
 import axios from "axios";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
@@ -162,7 +163,6 @@ async function checkBitsSet(
  * @param client AlgodV2 client
  * @param appId Most likely the Token bridge ID
  * @param signedVAA VAA to check
- * @param wallet The account paying the bill for this (it isn't free)
  * @returns true if VAA has been redeemed, false otherwise
  */
 export async function getIsTransferCompletedAlgorand(
@@ -186,4 +186,26 @@ export async function getIsTransferCompletedAlgorand(
   const seqAddr = lsa.address();
   const retVal: boolean = await checkBitsSet(client, appId, seqAddr, seq);
   return retVal;
+}
+
+/**
+ * <p>Returns true if this transfer was completed on Near</p>
+ * @param near account
+ * @param tokenAccount the Token bridge account
+ * @param signedVAA VAA to check
+ * @returns true if VAA has been redeemed, false otherwise
+ */
+export async function getIsTransferCompletedNear(
+  client: nearAccount,
+  tokenAccount: string,
+  signedVAA: Uint8Array
+): Promise<boolean> {
+  // Could we just pass in the vaa already as hex?
+  let vaa = Buffer.from(signedVAA).toString("hex");
+
+  return (
+    await client.viewFunction(tokenAccount, "is_transfer_completed", {
+      vaa: vaa,
+    })
+  )[1];
 }
