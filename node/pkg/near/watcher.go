@@ -34,7 +34,6 @@ type (
 		obsvReqC chan *gossipv1.ObservationRequest
 
 		next_round uint64
-		debug      bool
 	}
 )
 
@@ -64,7 +63,6 @@ func NewWatcher(
 		msgChan:          lockEvents,
 		obsvReqC:         obsvReqC,
 		next_round:       0,
-		debug:            true,
 	}
 }
 
@@ -183,10 +181,6 @@ func (e *Watcher) inspectStatus(logger *zap.Logger, hash string, receiver_id str
 					return err
 				}
 
-				if e.debug {
-					logger.Error("emitter: " + hex.EncodeToString(a[:]) + " id: " + hex.EncodeToString(id))
-				}
-
 				var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
 
 				v := event_json.Get("data")
@@ -274,7 +268,6 @@ func (e *Watcher) inspectBody(logger *zap.Logger, block uint64, body gjson.Resul
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	// an odd thing to broadcast...
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.wormholeContract,
 	})
