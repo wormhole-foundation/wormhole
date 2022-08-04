@@ -115,6 +115,10 @@ spec:
             # - http://algorand:4001
             # - --algorandAlgodToken
             # - "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            # - --nearRPC
+            # - http://near:3030
+            # - --nearContract
+            # - wormhole.test.near
             - --solanaContract
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             # - --solanaWS
