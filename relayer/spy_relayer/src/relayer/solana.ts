@@ -12,7 +12,6 @@ import {
 } from "../xRaydium/scripts/relay";
 import * as xRaydiumLib from "../xRaydium/scripts/lib/lib";
 import * as whHelpers from '../xRaydium/scripts/lib/wh_helpers'
-import { Libraries } from "hardhat/types";
 import * as devnet_ctx from "../xRaydium/scripts/lib/devnet_ctx";
 import { chainConfigToEvmProviderAndSigner } from "./evm";
 import { providers } from "ethers";

@@ -16,6 +16,7 @@ import {
   Contract,
   providers,
   Signer,
+  ethers,
 } from "ethers";
 //"/Users/leo/Developer/wormhole/relayer/spy_relayer/src/xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
 import { ChainConfigInfo } from "../configureEnv";
@@ -24,15 +25,12 @@ import { PromHelper } from "../helpers/promHelpers";
 import { CeloProvider, CeloWallet } from "@celo-tools/celo-ethers-wrapper";
 import fs from "fs";
 import * as types from "../xRaydium/solana-proxy/generated_client/types";
-import "@nomiclabs/hardhat-ethers";
-import { ethers } from "hardhat";
 import xRaydium_abi from "../utils/xRaydium_abi.json";
 import * as lib from "../xRaydium/scripts/lib/lib";
 import * as utilities from "../xRaydium/scripts/lib/utilities";
 import { parseTransferPayload } from "../utils/wormhole";
 import { redeemResponseEVM } from "../xRaydium/scripts/relay";
 import { getDevNetCtx } from "../xRaydium/scripts/lib/devnet_ctx";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 //import ethers from "hardhat";
 //import {ethers} from "../xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
