@@ -806,10 +806,6 @@ impl NFTBridge {
 
     #[private]
     fn update_contract_work(&mut self, v: Vec<u8>) -> Promise {
-        if env::attached_deposit() == 0 {
-            env::panic_str("attach some cash");
-        }
-
         let s = env::sha256(&v);
 
         env::log_str(&format!(
@@ -820,19 +816,15 @@ impl NFTBridge {
         ));
 
         if s.to_vec() != self.upgrade_hash {
-            if env::attached_deposit() > 0 {
-                env::log_str(&format!(
-                    "nft-bridge/{}#{}: refunding {} to {}",
-                    file!(),
-                    line!(),
-                    env::attached_deposit(),
-                    env::predecessor_account_id()
-                ));
-
-                Promise::new(env::predecessor_account_id()).transfer(env::attached_deposit());
-            }
             env::panic_str("invalidUpgradeContract");
         }
+
+        let storage_cost = ((v.len() + 32) as Balance) * env::storage_byte_cost();
+        assert!(
+            env::attached_deposit() >= storage_cost,
+            "DepositUnderFlow:{}",
+            storage_cost
+        );
 
         Promise::new(env::current_account_id())
             .deploy_contract(v.to_vec())

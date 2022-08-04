@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -33,7 +34,20 @@ type (
 		msgChan  chan *common.MessagePublication
 		obsvReqC chan *gossipv1.ObservationRequest
 
-		next_round uint64
+		next_round  uint64
+		final_round uint64
+
+		pending   map[pendingKey]*pendingMessage
+		pendingMu sync.Mutex
+	}
+
+	pendingKey struct {
+		hash string
+	}
+
+	pendingMessage struct {
+		height uint64
+		ts     uint64
 	}
 )
 
@@ -63,6 +77,8 @@ func NewWatcher(
 		msgChan:          lockEvents,
 		obsvReqC:         obsvReqC,
 		next_round:       0,
+		final_round:      0,
+		pending:          map[pendingKey]*pendingMessage{},
 	}
 }
 
@@ -116,13 +132,7 @@ func (e *Watcher) getTxStatus(logger *zap.Logger, tx string, src string) ([]byte
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (e *Watcher) inspectStatus(logger *zap.Logger, hash string, receiver_id string, ts uint64) error {
-	t, err := e.getTxStatus(logger, hash, receiver_id)
-
-	if err != nil {
-		return err
-	}
-
+func (e *Watcher) parseStatus(logger *zap.Logger, t []byte, hash string, ts uint64) error {
 	outcomes := gjson.ParseBytes(t).Get("result.receipts_outcome")
 
 	if !outcomes.Exists() {
@@ -226,6 +236,82 @@ func (e *Watcher) inspectStatus(logger *zap.Logger, hash string, receiver_id str
 	return nil
 }
 
+func (e *Watcher) inspectStatus(logger *zap.Logger, hash string, receiver_id string, ts uint64) error {
+	t, err := e.getTxStatus(logger, hash, receiver_id)
+
+	if err != nil {
+		return err
+	}
+
+	return e.parseStatus(logger, t, hash, ts)
+}
+
+func (e *Watcher) lastBlock(logger *zap.Logger, hash string, receiver_id string, ts uint64) ([]byte, uint64, error) {
+	t, err := e.getTxStatus(logger, hash, receiver_id)
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	last_block := uint64(0)
+
+	outcomes := gjson.ParseBytes(t).Get("result.receipts_outcome")
+
+	if !outcomes.Exists() {
+		return nil, 0, err
+	}
+
+	for _, o := range outcomes.Array() {
+		outcome := o.Get("outcome")
+		if !outcome.Exists() {
+			continue
+		}
+
+		executor_id := outcome.Get("executor_id")
+		if !executor_id.Exists() {
+			continue
+		}
+
+		if executor_id.String() == e.wormholeContract {
+			l := outcome.Get("logs")
+			if !l.Exists() {
+				continue
+			}
+			for _, log := range l.Array() {
+				event := log.String()
+				if !strings.HasPrefix(event, "EVENT_JSON:") {
+					continue
+				}
+				logger.Info("event", zap.String("event", event[11:]))
+
+				event_json := gjson.ParseBytes([]byte(event[11:]))
+
+				standard := event_json.Get("standard")
+				if !standard.Exists() || standard.String() != "wormhole" {
+					continue
+				}
+				event_type := event_json.Get("event")
+				if !event_type.Exists() || event_type.String() != "publish" {
+					continue
+				}
+
+				block := event_json.Get("block")
+				if !block.Exists() {
+					continue
+				}
+
+				b := block.Uint()
+
+				if b > last_block {
+					last_block = b
+				}
+			}
+		}
+	}
+
+	return t, last_block, nil
+}
+
 func (e *Watcher) inspectBody(logger *zap.Logger, block uint64, body gjson.Result) error {
 	logger.Info("inspectBody", zap.Uint64("block", block))
 
@@ -257,9 +343,31 @@ func (e *Watcher) inspectBody(logger *zap.Logger, block uint64, body gjson.Resul
 				continue
 			}
 
-			err = e.inspectStatus(logger, hash.String(), receiver_id.String(), ts)
+			t, round, err := e.lastBlock(logger, hash.String(), receiver_id.String(), ts)
 			if err != nil {
 				return err
+			}
+			if round != 0 {
+
+				if round <= e.final_round {
+					logger.Info("parseStatus direct", zap.Uint64("block.height", round), zap.Uint64("e.final_round", e.final_round))
+					e.parseStatus(logger, t, hash.String(), ts)
+				} else {
+					logger.Info("pushing pending",
+						zap.Uint64("block.height", round),
+						zap.Uint64("e.final_round", e.final_round),
+					)
+					key := pendingKey{
+						hash: hash.String(),
+					}
+
+					e.pendingMu.Lock()
+					e.pending[key] = &pendingMessage{
+						height: round,
+						ts:     ts,
+					}
+					e.pendingMu.Unlock()
+				}
 			}
 		}
 
@@ -321,6 +429,26 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 				parsedFinalBody := gjson.ParseBytes(finalBody)
 				lastBlock := parsedFinalBody.Get("result.chunks.0.height_created").Uint()
+				e.final_round = lastBlock
+
+				e.pendingMu.Lock()
+				for key, bLock := range e.pending {
+					if bLock.height <= e.final_round {
+						logger.Info("finalBlock",
+							zap.Uint64("block.height", bLock.height),
+							zap.Uint64("e.final_round", e.final_round),
+							zap.String("key.hash", key.hash),
+						)
+
+						err := e.inspectStatus(logger, key.hash, e.wormholeContract, bLock.ts)
+						delete(e.pending, key)
+
+						if err != nil {
+							logger.Error(fmt.Sprintf("inspectStatus", err.Error()))
+						}
+					}
+				}
+				e.pendingMu.Unlock()
 
 				logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round))
 

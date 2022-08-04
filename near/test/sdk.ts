@@ -305,7 +305,7 @@ async function testNearSDK() {
   }
 
   let usdc = await createWrappedOnNear(userAccount, token_bridge, usdcvaa);
-  console.log(usdc);
+  console.log("createWrappedOnNear returned " + usdc);
 
   if (usdc === "") {
     console.log("null usdc ... we failed to create it?!");

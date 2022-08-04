@@ -14,6 +14,7 @@ use {
         },
         collections::LazyOption,
         env,
+        utils::assert_one_yocto,
         json_types::U128,
         near_bindgen,
         AccountId,
@@ -104,6 +105,7 @@ impl FTContract {
         self.meta.replace(&meta);
     }
 
+    #[payable]
     pub fn vaa_withdraw(
         &mut self,
         from: AccountId,
@@ -113,6 +115,8 @@ impl FTContract {
         fee: u128,
         payload: String,
     ) -> String {
+        assert_one_yocto();
+
         if env::predecessor_account_id() != self.controller {
             env::panic_str("CrossContractInvalidCaller");
         }
@@ -189,6 +193,10 @@ impl FTContract {
         }
 
         let mut deposit: Balance = env::attached_deposit();
+
+        if deposit == 0 {
+            env::panic_str("ZeroDepositNotAllowed");
+        }
 
         if !self.token.accounts.contains_key(&account_id) {
             let min_balance = self.storage_balance_bounds().min.0;
