@@ -15,14 +15,12 @@ use sha3::{
     Keccak256,
 };
 
-use crate::{
-    state::{
-        bank_token_hashes,
-        bank_token_hashes_read,
-        native_c20_hashes,
-        native_c20_hashes_read,
-    },
-    CHAIN_ID,
+use crate::state::{
+    bank_token_hashes,
+    bank_token_hashes_read,
+    config_read,
+    native_c20_hashes,
+    native_c20_hashes_read,
 };
 
 /// Represent the external view of a token address.
@@ -94,7 +92,8 @@ impl ExternalTokenId {
 
 impl ExternalTokenId {
     pub fn to_token_id(&self, storage: &dyn Storage, origin_chain: u16) -> StdResult<TokenId> {
-        if origin_chain == CHAIN_ID {
+        let state = config_read(storage).load()?;
+        if origin_chain == state.chain_id {
             let marker_byte = self.bytes[0];
             match marker_byte {
                 1 => {
@@ -124,8 +123,7 @@ impl ExternalTokenId {
         Ok(ExternalTokenId { bytes: hash })
     }
 
-    pub fn from_foreign_token(chain_id: u16, foreign_address: [u8; 32]) -> ExternalTokenId {
-        assert!(chain_id != CHAIN_ID, "Expected a foreign chain id.");
+    pub fn from_foreign_token(foreign_address: [u8; 32]) -> ExternalTokenId {
         ExternalTokenId {
             bytes: foreign_address,
         }
@@ -146,9 +144,9 @@ impl ExternalTokenId {
                     Self::from_native_cw20(contract_address)
                 }
                 ContractId::ForeignToken {
-                    chain_id,
+                    chain_id: _,
                     foreign_address,
-                } => Ok(Self::from_foreign_token(*chain_id, *foreign_address)),
+                } => Ok(Self::from_foreign_token(*foreign_address)),
             },
         }
     }

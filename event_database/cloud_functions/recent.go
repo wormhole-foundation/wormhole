@@ -34,7 +34,7 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 	if prefix == "" {
 		cachePrefix = "*"
 	}
-	if _, ok := warmCache[cachePrefix]; !ok {
+	if _, ok := warmCache[cachePrefix]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmRecentCacheFilePath, &muWarmRecentCache, &warmCache)
 	}
 

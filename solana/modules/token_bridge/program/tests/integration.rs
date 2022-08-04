@@ -40,6 +40,7 @@ use token_bridge::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
+        PayloadTransferWithPayload
     },
     types::Config,
 };
@@ -52,6 +53,9 @@ const GOVERNANCE_KEY: [u8; 64] = [
     197, 18, 102, 115, 0, 31, 205, 127, 188, 191, 56, 171, 228, 20, 247, 149, 170, 141, 231, 147,
     88, 97, 199,
 ];
+
+const CHAIN_ID_SOLANA: u16 = 1;
+const CHAIN_ID_ETH: u16 = 2;
 
 struct Context {
     /// Guardian public keys.
@@ -535,6 +539,81 @@ async fn transfer_wrapped() {
         2,
         [1u8; 32],
         10000000,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn transfer_native_with_payload_in() {
+    let mut context = set_up().await.unwrap();
+    register_chain(&mut context).await;
+    let Context {
+        ref payer,
+        ref mut client,
+        bridge,
+        token_bridge,
+        ref mint,
+        ref token_account,
+        ref token_authority,
+        ref guardian_keys,
+        ..
+    } = context;
+    
+    // Do an initial transfer so that the bridge account has some native tokens. This also creates
+    // the custody account.
+    let message = &Keypair::new();
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        message,
+        token_account,
+        token_authority,
+        mint.pubkey(),
+        100,
+    )
+    .await
+    .unwrap();
+    
+    let nonce = rand::thread_rng().gen();
+    let from_address = Keypair::new().pubkey().to_bytes();
+    let payload: Vec<u8> = vec![1, 2, 3];
+    let payload = PayloadTransferWithPayload {
+        amount: U256::from(100u128),
+        token_address: mint.pubkey().to_bytes(),
+        token_chain: CHAIN_ID_SOLANA,
+        to: token_authority.pubkey().to_bytes(),
+        to_chain: CHAIN_ID_SOLANA,
+        from_address,
+        payload
+    };
+    let message = payload.try_to_vec().unwrap();
+
+    let (vaa, body, _) = common::generate_vaa([0u8; 32], CHAIN_ID_ETH, message, nonce, 1);
+    let signature_set = common::verify_signatures(client, &bridge, payer, body, guardian_keys, 0)
+    .await
+    .unwrap();
+    common::post_vaa(client, bridge, payer, signature_set, vaa.clone())
+    .await
+    .unwrap();
+    let msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: body.to_vec(),
+    };
+    let message_key =
+    PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, &bridge);
+    
+    common::complete_native_with_payload(
+        client,
+        token_bridge,
+        bridge,
+        message_key,
+        vaa,
+        payload,
+        token_account.pubkey(),
+        token_authority,
+        payer,
     )
     .await
     .unwrap();

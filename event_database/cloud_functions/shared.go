@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +39,8 @@ var coinGeckoCoins = map[string][]CoinGeckoCoin{}
 var solanaTokens = map[string]SolanaToken{}
 
 var releaseDay = time.Date(2021, 9, 13, 0, 0, 0, 0, time.UTC)
+
+var loadCache = true
 
 // init runs during cloud function initialization. So, this will only run during an
 // an instance's cold start.
@@ -88,6 +91,12 @@ func init() {
 	tokenAllowlistFilePath := os.Getenv("TOKEN_ALLOWLIST")
 	if tokenAllowlistFilePath != "" {
 		loadJsonToInterface(context.Background(), tokenAllowlistFilePath, &sync.RWMutex{}, &tokenAllowlist)
+	}
+
+	loadCacheStr := os.Getenv("LOAD_CACHE")
+	if val, err := strconv.ParseBool(loadCacheStr); err == nil {
+		loadCache = val
+		log.Printf("loadCache set to %v\n", loadCache)
 	}
 }
 
@@ -256,10 +265,16 @@ func chainIdStringToType(chainId string) vaa.ChainID {
 		return vaa.ChainIDKlaytn
 	case "14":
 		return vaa.ChainIDCelo
+	case "18":
+		return vaa.ChainIDTerra2
 	case "10001":
 		return vaa.ChainIDEthereumRopsten
 	}
 	return vaa.ChainIDUnset
+}
+
+func chainIDToNumberString(c vaa.ChainID) string {
+	return strconv.FormatUint(uint64(c), 10)
 }
 
 func makeSummary(row bigtable.Row) *Summary {
@@ -457,4 +472,20 @@ func isTokenAllowed(chainId string, tokenAddress string) bool {
 		}
 	}
 	return false
+}
+
+// tokens with no trading activity recorded by exchanges integrated on CoinGecko since the specified date
+var inactiveTokens = map[string]map[string]string{
+	chainIDToNumberString(vaa.ChainIDEthereum): {
+		"0x707f9118e33a9b8998bea41dd0d46f38bb963fc8": "2022-06-15", // Anchor bETH token
+	},
+}
+
+func isTokenActive(chainId string, tokenAddress string, date string) bool {
+	if deactivatedDates, ok := inactiveTokens[chainId]; ok {
+		if deactivatedDate, ok := deactivatedDates[tokenAddress]; ok {
+			return date < deactivatedDate
+		}
+	}
+	return true
 }

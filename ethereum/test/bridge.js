@@ -22,7 +22,7 @@ contract("Bridge", function () {
     const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner1PK);
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
     const testChainId = "2";
-    const testFinality = "15";
+    const testFinality = "1";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
     let WETH = process.env.BRIDGE_INIT_WETH;

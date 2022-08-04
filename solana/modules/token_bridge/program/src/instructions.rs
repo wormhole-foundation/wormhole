@@ -433,7 +433,7 @@ fn claimable_vaa(
     message_key: Pubkey,
     vaa: PostVAAData,
 ) -> (AccountMeta, AccountMeta) {
-    let claim_key = Claim::<'_, { AccountState::Initialized }>::key(
+    let claim_key = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: vaa.emitter_address,
             emitter_chain: vaa.emitter_chain,
@@ -872,7 +872,7 @@ pub fn upgrade_contract(
     spill: Pubkey,
     sequence: u64,
 ) -> Instruction {
-    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+    let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,

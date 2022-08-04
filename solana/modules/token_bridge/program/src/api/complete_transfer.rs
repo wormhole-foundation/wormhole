@@ -18,7 +18,11 @@ use crate::{
     INVALID_VAAS,
 };
 use bridge::{
-    vaa::ClaimableVAA,
+    accounts::claim::{
+        self,
+        Claim,
+    },
+    PayloadMessage,
     CHAIN_ID_SOLANA,
 };
 use solana_program::account_info::AccountInfo;
@@ -35,7 +39,8 @@ pub struct CompleteNative<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
-    pub vaa: ClaimableVAA<'b, PayloadTransfer>,
+    pub vaa: PayloadMessage<'b, PayloadTransfer>,
+    pub claim: Mut<Claim<'b>>,
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
@@ -108,13 +113,12 @@ pub fn complete_native(
     if accs.vaa.to != accs.to.info().key.to_bytes() {
         return Err(InvalidRecipient.into());
     }
-    if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
+    if INVALID_VAAS.contains(&&*accs.vaa.info().key.to_string()) {
         return Err(InvalidVAA.into());
     }
 
     // Prevent vaa double signing
-    accs.vaa.verify(ctx.program_id)?;
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     let mut amount = accs.vaa.amount.as_u64();
     let mut fee = accs.vaa.fee.as_u64();
@@ -156,7 +160,8 @@ pub struct CompleteWrapped<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     // Signed message for the transfer
-    pub vaa: ClaimableVAA<'b, PayloadTransfer>,
+    pub vaa: PayloadMessage<'b, PayloadTransfer>,
+    pub claim: Mut<Claim<'b>>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
@@ -227,12 +232,11 @@ pub fn complete_wrapped(
     if accs.vaa.to != accs.to.info().key.to_bytes() {
         return Err(InvalidRecipient.into());
     }
-    if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
+    if INVALID_VAAS.contains(&&*accs.vaa.info().key.to_string()) {
         return Err(InvalidVAA.into());
     }
 
-    accs.vaa.verify(ctx.program_id)?;
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(

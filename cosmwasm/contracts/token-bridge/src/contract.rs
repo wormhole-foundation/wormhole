@@ -88,6 +88,7 @@ use crate::{
         bridge_deposit,
         config,
         config_read,
+        config_read_legacy,
         is_wrapped_asset,
         is_wrapped_asset_read,
         receive_native,
@@ -100,6 +101,7 @@ use crate::{
         Action,
         AssetMeta,
         ConfigInfo,
+        ConfigInfoLegacy,
         RegisterChain,
         TokenBridgeMessage,
         TransferInfo,
@@ -113,7 +115,6 @@ use crate::{
         TokenId,
         WrappedCW20,
     },
-    CHAIN_ID,
 };
 
 type HumanAddr = String;
@@ -123,9 +124,55 @@ pub enum TransferType<A> {
     WithPayload { payload: A },
 }
 
+/// Migration code that runs the next time the contract is upgraded.
+/// This function will contain ephemeral code that we want to run once, and thus
+/// can (and should be) safely deleted after the upgrade happened successfully.
+///
+/// Most upgrades won't require any special migration logic. In those cases,
+/// this function can safely be implemented as:
+/// ```ignore
+/// Ok(Response::default())
+/// ```
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    Ok(Response::new())
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    // This migration adds a new field to the [`ConfigInfo`] struct. The
+    // state stored on chain has the old version, so we first parse it as
+    // [`ConfigInfoLegacy`], then add the new fields, and write it back as [`ConfigInfo`].
+    // Since the only place the contract with the legacy state is deployed is
+    // terra2, we just hardcode the new value here for that chain.
+
+    // 1. make sure this contract doesn't already have the new ConfigInfo struct
+    // in storage. Note that this check is not strictly necessary, as the
+    // upgrade will only be issued for terra2, and no new chains. However, it is
+    // good practice to ensure that migration code cannot be run twice, which
+    // this check achieves.
+    if config_read(deps.storage).load().is_ok() {
+        return Err(StdError::generic_err(
+            "Can't migrate; this contract already has a new ConfigInfo struct",
+        ));
+    }
+
+    // 2. parse old state
+    let ConfigInfoLegacy {
+        gov_chain,
+        gov_address,
+        wormhole_contract,
+        wrapped_asset_code_id,
+    } = config_read_legacy(deps.storage).load()?;
+
+    // 3. store new state with terra2 values hardcoded
+    let chain_id = 18;
+
+    let config_info = ConfigInfo {
+        gov_chain,
+        gov_address,
+        wormhole_contract,
+        wrapped_asset_code_id,
+        chain_id,
+    };
+
+    config(deps.storage).save(&config_info)?;
+    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -141,6 +188,7 @@ pub fn instantiate(
         gov_address: msg.gov_address.into(),
         wormhole_contract: msg.wormhole_contract,
         wrapped_asset_code_id: msg.wrapped_asset_code_id,
+        chain_id: msg.chain_id,
     };
     config(deps.storage).save(&state)?;
 
@@ -525,7 +573,7 @@ fn handle_create_asset_meta_token(
     let token_info: TokenInfoResponse = deps.querier.query(&request)?;
 
     let meta: AssetMeta = AssetMeta {
-        token_chain: CHAIN_ID,
+        token_chain: cfg.chain_id,
         token_address: external_id,
         decimals: token_info.decimals,
         symbol: extend_string_to_32(&token_info.symbol),
@@ -547,7 +595,7 @@ fn handle_create_asset_meta_token(
             // forward coins sent to this message
             funds: info.funds,
         }))
-        .add_attribute("meta.token_chain", CHAIN_ID.to_string())
+        .add_attribute("meta.token_chain", cfg.chain_id.to_string())
         .add_attribute("meta.token", asset_address)
         .add_attribute("meta.nonce", nonce.to_string())
         .add_attribute("meta.block_time", env.block.time.seconds().to_string()))
@@ -567,7 +615,7 @@ fn handle_create_asset_meta_native_token(
     let external_id = token_id.store(deps.storage)?;
 
     let meta: AssetMeta = AssetMeta {
-        token_chain: CHAIN_ID,
+        token_chain: cfg.chain_id,
         token_address: external_id.clone(),
         decimals: 6,
         symbol: extend_string_to_32(&symbol),
@@ -587,7 +635,7 @@ fn handle_create_asset_meta_native_token(
             // forward coins sent to this message
             funds: info.funds,
         }))
-        .add_attribute("meta.token_chain", CHAIN_ID.to_string())
+        .add_attribute("meta.token_chain", cfg.chain_id.to_string())
         .add_attribute("meta.symbol", symbol)
         .add_attribute("meta.asset_id", hex::encode(external_id.serialize()))
         .add_attribute("meta.nonce", nonce.to_string())
@@ -692,13 +740,14 @@ fn handle_governance_payload(
     env: Env,
     gov_packet: &GovernancePacket,
 ) -> StdResult<Response> {
+    let cfg = config_read(deps.storage).load()?;
     let module = get_string_from_32(&gov_packet.module);
 
     if module != "TokenBridge" {
         return Err(StdError::generic_err("this is not a valid module"));
     }
 
-    if gov_packet.chain != 0 && gov_packet.chain != CHAIN_ID {
+    if gov_packet.chain != 0 && gov_packet.chain != cfg.chain_id {
         return Err(StdError::generic_err(
             "the governance VAA is for another chain",
         ));
@@ -798,6 +847,7 @@ fn handle_complete_transfer_token(
     data: &Vec<u8>,
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
+    let cfg = config_read(deps.storage).load()?;
     let transfer_info = match transfer_type {
         TransferType::WithoutPayload => TransferInfo::deserialize(data)?,
         TransferType::WithPayload { payload: _ } => {
@@ -813,7 +863,7 @@ fn handle_complete_transfer_token(
         return Err(StdError::generic_err("invalid emitter"));
     }
 
-    if transfer_info.recipient_chain != CHAIN_ID {
+    if transfer_info.recipient_chain != cfg.chain_id {
         return Err(StdError::generic_err(
             "this transfer is not directed at this chain",
         ));
@@ -943,6 +993,7 @@ fn handle_complete_transfer_token_native(
     data: &Vec<u8>,
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
+    let cfg = config_read(deps.storage).load()?;
     let transfer_info = match transfer_type {
         TransferType::WithoutPayload => TransferInfo::deserialize(data)?,
         TransferType::WithPayload { payload: () } => {
@@ -958,7 +1009,7 @@ fn handle_complete_transfer_token_native(
         return Err(StdError::generic_err("invalid emitter"));
     }
 
-    if transfer_info.recipient_chain != CHAIN_ID {
+    if transfer_info.recipient_chain != cfg.chain_id {
         return Err(StdError::generic_err(
             "this transfer is not directed at this chain",
         ));
@@ -1063,7 +1114,9 @@ fn handle_initiate_transfer_token(
     transfer_type: TransferType<Vec<u8>>,
     nonce: u32,
 ) -> StdResult<Response> {
-    if recipient_chain == CHAIN_ID {
+    let cfg = config_read(deps.storage).load()?;
+
+    if recipient_chain == cfg.chain_id {
         return ContractError::SameSourceAndTarget.std_err();
     }
     if amount.is_zero() {
@@ -1073,7 +1126,6 @@ fn handle_initiate_transfer_token(
     let asset_chain: u16;
     let asset_address: [u8; 32];
 
-    let cfg: ConfigInfo = config_read(deps.storage).load()?;
     let asset_canonical: CanonicalAddr = deps.api.addr_canonicalize(&asset)?;
 
     let mut messages: Vec<CosmosMsg> = vec![];
@@ -1105,9 +1157,10 @@ fn handle_initiate_transfer_token(
             });
             let wrapped_token_info: WrappedAssetInfoResponse = deps.querier.query(&request)?;
             asset_chain = wrapped_token_info.asset_chain;
+            assert!(asset_chain != cfg.chain_id, "Expected a foreign chain id.");
             asset_address = wrapped_token_info.asset_address.to_array()?;
 
-            let external_id = ExternalTokenId::from_foreign_token(asset_chain, asset_address);
+            let external_id = ExternalTokenId::from_foreign_token(asset_address);
 
             let token_bridge_message: TokenBridgeMessage = match transfer_type {
                 TransferType::WithoutPayload => {
@@ -1152,6 +1205,8 @@ fn handle_initiate_transfer_token(
             }));
         }
         Err(_) => {
+            asset_chain = cfg.chain_id;
+
             // normalize amount to 8 decimals when it sent over the wormhole
             let token_info: TokenInfoResponse =
                 deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -1191,7 +1246,6 @@ fn handle_initiate_transfer_token(
             ));
 
             asset_address = extend_address_to_32_array(&asset_canonical);
-            asset_chain = CHAIN_ID;
             let address_human = deps.api.addr_humanize(&asset_canonical)?;
             // we store here just in case the token is transferred out before it's attested
             let external_id = TokenId::Contract(ContractId::NativeCW20 {
@@ -1307,7 +1361,9 @@ fn handle_initiate_transfer_native_token(
     transfer_type: TransferType<Vec<u8>>,
     nonce: u32,
 ) -> StdResult<Response> {
-    if recipient_chain == CHAIN_ID {
+    let cfg = config_read(deps.storage).load()?;
+
+    if recipient_chain == cfg.chain_id {
         return ContractError::SameSourceAndTarget.std_err();
     }
     if amount.is_zero() {
@@ -1325,10 +1381,9 @@ fn handle_initiate_transfer_native_token(
         }
     })?;
 
-    let cfg: ConfigInfo = config_read(deps.storage).load()?;
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    let asset_chain: u16 = CHAIN_ID;
+    let asset_chain: u16 = cfg.chain_id;
     // we store here just in case the token is transferred out before it's attested
     let asset_address = TokenId::Bank { denom }.store(deps.storage)?;
 
@@ -1405,9 +1460,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 fn query_external_id(deps: Deps, external_id: Binary) -> StdResult<ExternalIdResponse> {
+    let cfg = config_read(deps.storage).load()?;
     let external_id = ExternalTokenId::deserialize(external_id.to_array()?);
     Ok(ExternalIdResponse {
-        token_id: external_id.to_token_id(deps.storage, CHAIN_ID)?,
+        token_id: external_id.to_token_id(deps.storage, cfg.chain_id)?,
     })
 }
 

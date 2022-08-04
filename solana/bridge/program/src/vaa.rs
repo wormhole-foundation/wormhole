@@ -7,10 +7,7 @@ use crate::{
         InvalidGovernanceAction,
         InvalidGovernanceChain,
         InvalidGovernanceModule,
-        VAAAlreadyExecuted,
     },
-    Claim,
-    ClaimDerivationData,
     PostedVAAData,
     Result,
     CHAIN_ID_SOLANA,
@@ -28,12 +25,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solitaire::{
-    processors::seeded::Seeded,
-    trace,
     Context,
-    CreationLamports::Exempt,
     Data,
-    ExecutionContext,
     Peel,
     SolitaireError,
     *,
@@ -115,8 +108,8 @@ pub struct PayloadMessage<'b, T: DeserializePayload>(
     T,
 );
 
-impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<'b, T> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
+impl<'a, 'b: 'a, T: DeserializePayload> Peel<'a, 'b> for PayloadMessage<'b, T> {
+    fn peel<I>(ctx: &mut Context<'a, 'b, I>) -> Result<Self>
     where
         Self: Sized,
     {
@@ -145,67 +138,6 @@ impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
 
     pub fn info(&self) -> AccountInfo<'b> {
         self.0.info().clone()
-    }
-}
-
-#[derive(FromAccounts)]
-pub struct ClaimableVAA<'b, T: DeserializePayload> {
-    // Signed message for the transfer
-    pub message: PayloadMessage<'b, T>,
-
-    // Claim account to prevent double spending
-    pub claim: Mut<Claim<'b, { AccountState::Uninitialized }>>,
-}
-
-impl<'b, T: DeserializePayload> Deref for ClaimableVAA<'b, T> {
-    type Target = PayloadMessage<'b, T>;
-    fn deref(&self) -> &Self::Target {
-        &self.message
-    }
-}
-
-impl<'b, T: DeserializePayload> ClaimableVAA<'b, T> {
-    pub fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        trace!("Seq: {}", self.message.meta().sequence);
-
-        // Verify that the claim account is derived correctly
-        self.claim.verify_derivation(
-            program_id,
-            &ClaimDerivationData {
-                emitter_address: self.message.meta().emitter_address,
-                emitter_chain: self.message.meta().emitter_chain,
-                sequence: self.message.meta().sequence,
-            },
-        )?;
-
-        Ok(())
-    }
-}
-
-impl<'b, T: DeserializePayload> ClaimableVAA<'b, T> {
-    pub fn is_claimed(&self) -> bool {
-        self.claim.claimed
-    }
-
-    pub fn claim(&mut self, ctx: &ExecutionContext, payer: &Pubkey) -> Result<()> {
-        if self.is_claimed() {
-            return Err(VAAAlreadyExecuted.into());
-        }
-
-        self.claim.create(
-            &ClaimDerivationData {
-                emitter_address: self.message.meta().emitter_address,
-                emitter_chain: self.message.meta().emitter_chain,
-                sequence: self.message.meta().sequence,
-            },
-            ctx,
-            payer,
-            Exempt,
-        )?;
-
-        self.claim.claimed = true;
-
-        Ok(())
     }
 }
 

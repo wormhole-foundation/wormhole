@@ -112,7 +112,7 @@ func fetchAddressRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix
 
 // finds unique addresses tokens have been sent to, for each day since the start time passed in.
 func createAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
-	if _, ok := warmAddressesCache["*"]; !ok {
+	if _, ok := warmAddressesCache["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmAddressesCacheFilePath, &muWarmAddressesCache, &warmAddressesCache)
 	}
 

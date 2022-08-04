@@ -54,8 +54,7 @@ pub use crate::{
 };
 
 /// Library name and version to print in entrypoint. Must be evaluated in this crate in order to do the right thing
-pub const PKG_NAME_VERSION: &str =
-    concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
+pub const PKG_NAME_VERSION: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
 
 pub struct ExecutionContext<'a, 'b: 'a> {
     /// A reference to the program_id of the current program.
@@ -83,8 +82,8 @@ impl CreationLamports {
 
 /// Trait definition that describes types that can be constructed from a list of solana account
 /// references. A list of dependent accounts is produced as a side effect of the parsing stage.
-pub trait FromAccounts<'a, 'b: 'a, 'c> {
-    fn from<T>(_: &'a Pubkey, _: &'c mut Iter<'a, AccountInfo<'b>>, _: &'a T) -> Result<Self>
+pub trait FromAccounts<'a, 'b: 'a> {
+    fn from<T>(_: &'a Pubkey, _: &mut Iter<'a, AccountInfo<'b>>, _: &'a T) -> Result<Self>
     where
         Self: Sized;
 }

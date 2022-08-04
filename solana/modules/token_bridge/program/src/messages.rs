@@ -131,9 +131,6 @@ impl DeserializePayload for PayloadTransferWithPayload {
 
         let to_chain = v.read_u16::<BigEndian>()?;
 
-        let mut fee_data: [u8; 32] = [0; 32];
-        v.read_exact(&mut fee_data)?;
-
         let mut from_address = Address::default();
         v.read_exact(&mut from_address)?;
 
@@ -380,6 +377,7 @@ mod tests {
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
+        PayloadTransferWithPayload
     };
     use bridge::{
         DeserializePayload,
@@ -456,5 +454,33 @@ mod tests {
         let deser = PayloadGovernanceRegisterChain::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(original, deser);
+    }
+
+    #[test]
+    pub fn test_serde_transfer_with_payload() {
+        let mut token_address = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut token_address);
+        let mut from_address = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut from_address);
+        let mut to = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut to);
+        let payload = vec![0u8; 10];
+        
+        let transfer_original = PayloadTransferWithPayload {
+            amount: U256::from(1003),
+            token_address,
+            token_chain: 8,
+            to,
+            to_chain: 1,
+            from_address,
+            payload
+        };
+        
+        let data = transfer_original.try_to_vec().unwrap();
+        let transfer_deser = PayloadTransferWithPayload::deserialize(
+            &mut data.as_slice()
+        ).unwrap();
+        
+        assert_eq!(transfer_original, transfer_deser);
     }
 }

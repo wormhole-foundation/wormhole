@@ -1,42 +1,15 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
-FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5 AS solana
-
-RUN apt-get update && \
-    apt-get install -y \
-    clang \
-    libssl-dev \
-    libudev-dev \
-    llvm \
-    pkg-config \
-    zlib1g-dev \
-    && \
-    rm -rf /var/lib/apt/lists/* && \
-    rustup component add rustfmt && \
-    rustup default nightly-2021-12-03
+FROM ghcr.io/certusone/solana:1.9.4@sha256:5389eccba0ba59ae119bc1438b61be8904707e26df8f0732116a8dce0f64eb52 AS solana
 
 # Support additional root CAs
-COPY devnet_setup.sh cert.pem* /certs/
+COPY cert.pem* /certs/
 # Debian
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
-
-RUN sh -c "$(curl -sSfL https://release.solana.com/v1.9.4/install)"
-
-ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
-
-# Solana does a questionable download at the beginning of a *first* build-bpf call. Trigger and layer-cache it explicitly.
-RUN cargo init --lib /tmp/decoy-crate && \
-    cd /tmp/decoy-crate && cargo build-bpf && \
-    rm -rf /tmp/decoy-crate
-
-# The strip shell script downloads criterion the first time it runs so cache it here as well.
-RUN touch /tmp/foo.so && \
-    /root/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/strip.sh /tmp/foo.so /tmp/bar.so || \
-    rm /tmp/foo.so
 
 # Add bridge contract sources
 WORKDIR /usr/src/bridge
 
-ADD . .
+COPY . .
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV RUST_BACKTRACE=1
@@ -51,6 +24,7 @@ RUN [ -n "${BRIDGE_ADDRESS}" ]
 
 # Build Wormhole Solana programs
 RUN --mount=type=cache,target=target,id=build \
+    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
     cargo build-bpf --manifest-path "bridge/program/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" -- --locked && \

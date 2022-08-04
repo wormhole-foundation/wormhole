@@ -15,13 +15,19 @@ use crate::state::{
 
 type HumanAddr = String;
 
+/// The instantiation parameters of the token bridge contract. See
+/// [`crate::state::ConfigInfo`] for more details on what these fields mean.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub gov_chain: u16,
     pub gov_address: Binary,
 
+    /// Guardian set to initialise the contract with.
     pub initial_guardian_set: GuardianSetInfo,
     pub guardian_set_expirity: u64,
+
+    pub chain_id: u16,
+    pub fee_denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

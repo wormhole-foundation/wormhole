@@ -33,9 +33,7 @@ static GOV_ADDR: &[u8] = b"GOVERNANCE_ADDRESS";
 
 fn get_config_info<S: Storage>(storage: &S) -> ConfigInfo {
     let key = to_length_prefixed(CONFIG_KEY);
-    let data = storage
-        .get(&key)
-        .expect("data should exist");
+    let data = storage.get(&key).expect("data should exist");
     from_slice(&data).expect("invalid data")
 }
 
@@ -49,6 +47,8 @@ fn do_init(guardians: &[GuardianAddress]) -> OwnedDeps<MockStorage, MockApi, Moc
             expiration_time: 100,
         },
         guardian_set_expirity: 50,
+        chain_id: 18,
+        fee_denom: "uluna".to_string(),
     };
     let env = mock_env();
     let info = mock_info(INITIALIZER, &[]);
@@ -64,6 +64,8 @@ fn do_init(guardians: &[GuardianAddress]) -> OwnedDeps<MockStorage, MockApi, Moc
             gov_chain: 0,
             gov_address: GOV_ADDR.to_vec(),
             fee: Coin::new(0, "uluna"),
+            chain_id: 18,
+            fee_denom: "uluna".to_string(),
         }
     );
     deps

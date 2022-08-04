@@ -31,17 +31,18 @@ var muWarmTransfersToCache sync.RWMutex
 var warmTransfersToCacheFilePath = "notional-transferred-to-cache.json"
 
 type TransferData struct {
-	TokenSymbol      string
-	TokenName        string
-	TokenAddress     string
-	TokenAmount      float64
-	CoinGeckoCoinId  string
-	OriginChain      string
-	LeavingChain     string
-	DestinationChain string
-	Notional         float64
-	TokenPrice       float64
-	TokenDecimals    int
+	TokenSymbol       string
+	TokenName         string
+	TokenAddress      string
+	TokenAmount       float64
+	CoinGeckoCoinId   string
+	OriginChain       string
+	LeavingChain      string
+	DestinationChain  string
+	Notional          float64
+	TokenPrice        float64
+	TokenDecimals     int
+	TransferTimestamp string
 }
 
 // finds all the TokenTransfer rows within the specified period
@@ -83,6 +84,8 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 					t.CoinGeckoCoinId = string(item.Value)
 				case "TokenTransferDetails:Decimals":
 					t.TokenDecimals, _ = strconv.Atoi(string(item.Value))
+				case "TokenTransferDetails:TransferTimestamp":
+					t.TransferTimestamp = string(item.Value)
 				}
 			}
 
@@ -100,7 +103,8 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 			keyParts := strings.Split(row.Key(), ":")
 			t.LeavingChain = keyParts[0]
 
-			if isTokenAllowed(t.OriginChain, t.TokenAddress) {
+			transferDateStr := t.TransferTimestamp[0:10]
+			if isTokenAllowed(t.OriginChain, t.TokenAddress) && isTokenActive(t.OriginChain, t.TokenAddress, transferDateStr) {
 				rows = append(rows, *t)
 			}
 		}
@@ -116,8 +120,8 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 				bigtable.StripValueFilter(),               // no columns/values, just the row.Key()
 			),
 			bigtable.ChainFilters(
-				bigtable.FamilyFilter(fmt.Sprintf("%v|%v", columnFamilies[2], columnFamilies[5])),
-				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginName|OriginChain|TargetChain|CoinGeckoCoinId|OriginTokenAddress|TokenPriceUSD|Decimals"),
+				bigtable.FamilyFilter(fmt.Sprintf("%v|%v", transferPayloadFam, transferDetailsFam)),
+				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginName|OriginChain|TargetChain|CoinGeckoCoinId|OriginTokenAddress|TokenPriceUSD|Decimals|TransferTimestamp"),
 				bigtable.LatestNFilter(1),
 			),
 			bigtable.BlockAllFilter(),
@@ -131,7 +135,7 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 
 // finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
 func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
-	if _, ok := warmTransfersToCache["*"]; !ok {
+	if _, ok := warmTransfersToCache["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmTransfersToCacheFilePath, &muWarmTransfersToCache, &warmTransfersToCache)
 	}
 

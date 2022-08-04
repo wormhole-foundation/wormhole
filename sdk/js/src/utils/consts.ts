@@ -18,6 +18,13 @@ export const CHAINS = {
   moonbeam: 16,
   neon: 17,
   terra2: 18,
+  injective: 19,
+  osmosis: 20,
+  sui: 21,
+  aptos: 22,
+  arbitrum: 23,
+  optimism: 24,
+  gnosis: 25,
   ropsten: 10001,
 } as const;
 
@@ -42,6 +49,9 @@ export type EVMChainName =
   | "celo"
   | "moonbeam"
   | "neon"
+  | "arbitrum"
+  | "optimism"
+  | "gnosis"
   | "ropsten";
 
 export type TerraChainName = "terra" | "terra2";
@@ -137,8 +147,28 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  moonbeam: {
+  injective: {
     core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  osmosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  aptos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  sui: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  moonbeam: {
+    core: "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -151,6 +181,21 @@ const MAINNET = {
     core: "terra12mrnzvhx3rpej6843uge2yyfppfyd3u9c3uq223q8sl48huz9juqffcnhp",
     token_bridge:
       "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",
+    nft_bridge: undefined,
+  },
+  arbitrum: {
+    core: "0xa5f208e072434bC67592E4C49C1B991BA79BCA46",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism: {
+    core: "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  gnosis: {
+    core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
+    token_bridge: undefined,
     nft_bridge: undefined,
   },
   ropsten: {
@@ -241,6 +286,26 @@ const TESTNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  injective: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  osmosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  aptos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  sui: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   moonbeam: {
     core: "0xa5B7D85a8f27dd7907dc8FdC21FA5657D5E2F901",
     token_bridge: "0xbc976D4b9D57E57c3cA52e1Fd136C45FF7955A96",
@@ -255,6 +320,21 @@ const TESTNET = {
     core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
     token_bridge:
       "terra1c02vds4uhgtrmcw7ldlg75zumdqxr8hwf7npseuf2h58jzhpgjxsgmwkvk",
+    nft_bridge: undefined,
+  },
+  arbitrum: {
+    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism: {
+    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  gnosis: {
+    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
+    token_bridge: undefined,
     nft_bridge: undefined,
   },
   ropsten: {
@@ -278,7 +358,7 @@ const DEVNET = {
   terra: {
     core: "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
     token_bridge: "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
-    nft_bridge: undefined,
+    nft_bridge: "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl",
   },
   ethereum: {
     core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
@@ -345,6 +425,26 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  injective: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  osmosis: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  aptos: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  sui: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   moonbeam: {
     core: undefined,
     token_bridge: undefined,
@@ -356,6 +456,22 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   terra2: {
+    core: "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+    token_bridge:
+      "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6",
+    nft_bridge: undefined,
+  },
+  arbitrum: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  optimism: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  gnosis: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -424,6 +540,13 @@ export const CHAIN_ID_NEAR = CHAINS["near"];
 export const CHAIN_ID_MOONBEAM = CHAINS["moonbeam"];
 export const CHAIN_ID_NEON = CHAINS["neon"];
 export const CHAIN_ID_TERRA2 = CHAINS["terra2"];
+export const CHAIN_ID_INJECTIVE = CHAINS["injective"];
+export const CHAIN_ID_OSMOSIS = CHAINS["osmosis"];
+export const CHAIN_ID_SUI = CHAINS["sui"];
+export const CHAIN_ID_APTOS = CHAINS["aptos"];
+export const CHAIN_ID_ARBITRUM = CHAINS["arbitrum"];
+export const CHAIN_ID_OPTIMISM = CHAINS["optimism"];
+export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
@@ -535,6 +658,9 @@ export function isEVMChain(
     chainId === CHAIN_ID_CELO ||
     chainId === CHAIN_ID_MOONBEAM ||
     chainId === CHAIN_ID_NEON ||
+    chainId === CHAIN_ID_ARBITRUM ||
+    chainId === CHAIN_ID_OPTIMISM ||
+    chainId === CHAIN_ID_GNOSIS ||
     chainId === CHAIN_ID_ETHEREUM_ROPSTEN
   ) {
     return isEVM(chainId);

@@ -82,9 +82,25 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
   },
-  moonbeam: {
+  injective: {
     rpc: undefined,
     key: undefined,
+  },
+  osmosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  aptos: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  moonbeam: {
+    rpc: "https://rpc.api.moonbeam.network",
+    key: get_env_var("ETH_KEY"),
   },
   neon: {
     rpc: undefined,
@@ -94,6 +110,18 @@ const MAINNET = {
     rpc: "https://phoenix-lcd.terra.dev",
     chain_id: "phoenix-1",
     key: get_env_var("TERRA_MNEMONIC"),
+  },
+  arbitrum: {
+    rpc: "https://arb1.arbitrum.io/rpc",
+    key: get_env_var("ETH_KEY"),
+  },
+  optimism: {
+    rpc: "https://mainnet.optimism.io",
+    key: get_env_var("ETH_KEY"),
+  },
+  gnosis: {
+    rpc: "https://rpc.gnosischain.com/",
+    key: get_env_var("ETH_KEY"),
   },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
@@ -167,6 +195,22 @@ const TESTNET = {
     rpc: undefined,
     key: undefined,
   },
+  injective: {
+    rpc: undefined,
+    key: undefined,
+  },
+  osmosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  aptos: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sui: {
+    rpc: undefined,
+    key: undefined,
+  },
   moonbeam: {
     rpc: "https://rpc.api.moonbase.moonbeam.network",
     key: get_env_var("ETH_KEY_TESTNET"),
@@ -179,6 +223,18 @@ const TESTNET = {
     rpc: "https://pisco-lcd.terra.dev",
     chain_id: "pisco-1",
     key: get_env_var("TERRA_MNEMONIC"),
+  },
+  arbitrum: {
+    rpc: "https://rinkeby.arbitrum.io/rpc",
+    key: get_env_var("ETH_KEY_TESTNET"),
+  },
+  optimism: {
+    rpc: "https://goerli.optimism.io",
+    key: get_env_var("ETH_KEY_TESTNET"),
+  },
+  gnosis: {
+    rpc: "https://sokol.poa.network/",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
@@ -252,6 +308,22 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
   },
+  injective: {
+    rpc: undefined,
+    key: undefined,
+  },
+  osmosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  aptos: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sui: {
+    rpc: undefined,
+    key: undefined,
+  },
   moonbeam: {
     rpc: undefined,
     key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
@@ -264,6 +336,18 @@ const DEVNET = {
     rpc: "http://localhost:1318",
     chain_id: "phoenix-1",
     key: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius",
+  },
+  arbitrum: {
+    rpc: undefined,
+    key: undefined,
+  },
+  optimism: {
+    rpc: undefined,
+    key: undefined,
+  },
+  gnosis: {
+    rpc: undefined,
+    key: undefined,
   },
   ropsten: {
     rpc: undefined,

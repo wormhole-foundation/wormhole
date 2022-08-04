@@ -27,7 +27,7 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
 
     // Generics lifetimes of the peel type
     let mut peel_g = input.generics.clone();
-    peel_g.params = parse_quote!('a, 'b: 'a, 'c);
+    peel_g.params = parse_quote!('a, 'b: 'a);
     let (_, peel_type_g, _) = peel_g.split_for_impl();
 
     // Params of the instruction context
@@ -53,19 +53,8 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         /// Macro generated implementation of FromAccounts by Solitaire.
         impl #combined_impl_g solitaire::FromAccounts #peel_type_g for #name #type_g {
-            fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &'c mut std::slice::Iter<'a, solana_program::account_info::AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<Self> {
+            fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &mut std::slice::Iter<'a, solana_program::account_info::AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<Self> {
                 #from_method
-            }
-        }
-
-        impl #combined_impl_g solitaire::Peel<'a, 'b, 'c> for #name #type_g {
-            fn peel<I>(ctx: &'c mut solitaire::Context<'a, 'b, 'c, I>) -> solitaire::Result<Self> where Self: Sized {
-                let v: #name #type_g = FromAccounts::from(ctx.this, ctx.iter, ctx.data)?;
-                Ok(v)
-            }
-
-            fn persist(&self, program_id: &solana_program::pubkey::Pubkey) -> solitaire::Result<()> {
-                solitaire::Persist::persist(self, program_id)
             }
         }
 
@@ -102,7 +91,7 @@ fn generate_fields(name: &syn::Ident, data: &Data) -> TokenStream2 {
                             trace!(stringify!(#name));
                             let #name: #ty = solitaire::Peel::peel(&mut solitaire::Context::new(
                                 pid,
-                                iter,
+                                next_account_info(iter)?,
                                 data,
                             ))?;
                         }

@@ -26,6 +26,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/ethereum"
+	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -154,6 +155,8 @@ var (
 	bigTableTableName          *string
 	bigTableTopicName          *string
 	bigTableKeyPath            *string
+
+	chainGovernorEnabled *bool
 )
 
 func init() {
@@ -266,6 +269,8 @@ func init() {
 	bigTableTableName = NodeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
 	bigTableTopicName = NodeCmd.Flags().String("bigTableTopicName", "", "GCP topic name to publish to")
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
+
+	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 }
 
 var (
@@ -858,14 +863,28 @@ func runNode(cmd *cobra.Command, args []string) {
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
 	attestationEvents := reporter.EventListener(logger)
 
-	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst)
+	var gov *governor.ChainGovernor
+	if *chainGovernorEnabled {
+		logger.Info("chain governor is enabled")
+		env := governor.MainNetMode
+		if *testnetMode {
+			env = governor.TestNetMode
+		} else if *unsafeDevMode {
+			env = governor.DevNetMode
+		}
+		gov = governor.NewChainGovernor(logger, db, env)
+	} else {
+		logger.Info("chain governor is disabled")
+	}
+
+	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst, gov)
 
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
 
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst, gov)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
@@ -879,7 +898,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
+			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, gov)); err != nil {
 			return err
 		}
 
@@ -958,7 +977,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *terraWS != "" {
 			logger.Info("Starting Terra watcher")
 			if err := supervisor.Run(ctx, "terrawatch",
-				cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run); err != nil {
+				cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run); err != nil {
 				return err
 			}
 		}
@@ -966,7 +985,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *terra2WS != "" {
 			logger.Info("Starting Terra 2 watcher")
 			if err := supervisor.Run(ctx, "terra2watch",
-				cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
+				cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, lockC, chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run); err != nil {
 				return err
 			}
 		}
@@ -974,7 +993,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *testnetMode {
 			logger.Info("Starting Injective watcher")
 			if err := supervisor.Run(ctx, "injectivewatch",
-				cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, lockC, setC, chainObsvReqC[vaa.ChainIDInjective], common.ReadinessInjectiveSyncing, vaa.ChainIDInjective).Run); err != nil {
+				cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, lockC, chainObsvReqC[vaa.ChainIDInjective], common.ReadinessInjectiveSyncing, vaa.ChainIDInjective).Run); err != nil {
 				return err
 			}
 		}
@@ -998,6 +1017,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		if gov != nil {
+			err := gov.Run(ctx)
+			if err != nil {
+				log.Fatal("failed to create chain governor", zap.Error(err))
+			}
+		}
+
 		p := processor.NewProcessor(ctx,
 			db,
 			lockC,
@@ -1013,6 +1039,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			*ethRPC,
 			attestationEvents,
 			notifier,
+			gov,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err

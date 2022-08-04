@@ -14,10 +14,12 @@ use crate::{
     },
 };
 use bridge::{
-    vaa::{
-        ClaimableVAA,
-        DeserializePayload,
+    accounts::claim::{
+        self,
+        Claim,
     },
+    DeserializePayload,
+    PayloadMessage,
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
@@ -36,17 +38,14 @@ use solitaire::{
 };
 
 // Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
-fn verify_governance<T>(vaa: &ClaimableVAA<T>) -> Result<()>
+fn verify_governance<T>(vaa: &PayloadMessage<T>) -> Result<()>
 where
     T: DeserializePayload,
 {
     let expected_emitter = std::env!("EMITTER_ADDRESS");
-    let current_emitter = format!(
-        "{}",
-        Pubkey::new_from_array(vaa.message.meta().emitter_address)
-    );
+    let current_emitter = format!("{}", Pubkey::new_from_array(vaa.meta().emitter_address));
     // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
-    if expected_emitter != current_emitter || vaa.message.meta().emitter_chain != CHAIN_ID_SOLANA {
+    if expected_emitter != current_emitter || vaa.meta().emitter_chain != CHAIN_ID_SOLANA {
         Err(InvalidGovernanceKey.into())
     } else {
         Ok(())
@@ -59,7 +58,10 @@ pub struct UpgradeContract<'b> {
     pub payer: Mut<Signer<Info<'b>>>,
 
     /// GuardianSet change VAA
-    pub vaa: ClaimableVAA<'b, GovernancePayloadUpgrade>,
+    pub vaa: PayloadMessage<'b, GovernancePayloadUpgrade>,
+
+    /// Claim account representing whether the vaa has already been consumed.
+    pub claim: Mut<Claim<'b>>,
 
     /// PDA authority for the loader
     pub upgrade_authority: Derive<Info<'b>, "upgrade">,
@@ -92,13 +94,11 @@ pub fn upgrade_contract(
     _data: UpgradeContractData,
 ) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    accs.vaa.verify(ctx.program_id)?;
-
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
         ctx.program_id,
-        &accs.vaa.message.new_contract,
+        &accs.vaa.new_contract,
         accs.upgrade_authority.key,
         accs.spill.key,
     );
@@ -117,10 +117,9 @@ pub fn upgrade_contract(
 pub struct RegisterChain<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
-
     pub endpoint: Mut<Endpoint<'b, { AccountState::Uninitialized }>>,
-
-    pub vaa: ClaimableVAA<'b, PayloadGovernanceRegisterChain>,
+    pub vaa: PayloadMessage<'b, PayloadGovernanceRegisterChain>,
+    pub claim: Mut<Claim<'b>>,
 }
 
 impl<'a> From<&RegisterChain<'a>> for EndpointDerivationData {
@@ -146,8 +145,7 @@ pub fn register_chain(
 
     // Claim VAA
     verify_governance(&accs.vaa)?;
-    accs.vaa.verify(ctx.program_id)?;
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     if accs.vaa.chain == CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());

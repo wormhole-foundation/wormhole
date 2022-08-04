@@ -38,7 +38,7 @@ type LockedAsset struct {
 
 // finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
 func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) map[string]map[string]map[string]LockedAsset {
-	if len(warmTvlCache) == 0 {
+	if len(warmTvlCache) == 0 && loadCache {
 		loadJsonToInterface(ctx, warmTvlFilePath, &muWarmTvlCache, &warmTvlCache)
 	}
 
@@ -303,8 +303,10 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
+	ctx := context.Background()
+
+	now := time.Now().UTC()
+	todaysDateStr := now.Format("2006-01-02")
 
 	getNotionalAmounts := func(ctx context.Context, tokensLocked map[string]map[string]LockedAsset) map[string]map[string]LockedAsset {
 		// create a map of all the coinIds
@@ -340,6 +342,9 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 				Address: "*",
 			}
 			for address, lockedAsset := range tokens {
+				if !isTokenActive(chain, address, todaysDateStr) {
+					continue
+				}
 
 				coinId := lockedAsset.CoinGeckoId
 				amount := lockedAsset.Amount
@@ -391,7 +396,6 @@ func ComputeTVL(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 	go func() {
 		last24HourInterval := -time.Duration(24) * time.Hour
-		now := time.Now().UTC()
 		start := now.Add(last24HourInterval)
 		defer wg.Done()
 		transfers := tvlForInterval(tbl, ctx, start, now)

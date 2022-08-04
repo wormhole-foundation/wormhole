@@ -588,6 +588,32 @@ func TestStringToAddress(t *testing.T) {
 	}
 }
 
+func TestBytesToAddress(t *testing.T) {
+	addrStr := "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"
+	expectedAddr, err := StringToAddress(addrStr)
+	assert.NoError(t, err)
+
+	addrBytes, err := hex.DecodeString(addrStr)
+	assert.NoError(t, err)
+
+	addr, err := BytesToAddress(addrBytes)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedAddr, addr)
+
+	// More than 32 bytes should generate an error.
+	tooLongAddrBytes, err := hex.DecodeString("0000" + addrStr)
+	assert.NoError(t, err)
+
+	_, err = BytesToAddress(tooLongAddrBytes)
+	assert.NotNil(t, err)
+	assert.Equal(t, "value must be no more than 32 bytes", err.Error())
+
+	// Less than 32 bytes should get left padded with zeros.
+	shortAddr, err := BytesToAddress(addrBytes[4:])
+	assert.NoError(t, err)
+	assert.Equal(t, expectedAddr, shortAddr)
+}
+
 func TestDecodeTransferPayloadHdr(t *testing.T) {
 	type Test struct {
 		label          string
