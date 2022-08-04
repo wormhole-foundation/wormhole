@@ -157,6 +157,8 @@ async function initNear() {
     tokenAccount = new nearAPI.Account(near.connection, config.tokenAccount);
     await tokenAccount.deployContract(tokenContract);
 
+    console.log( await tokenAccount.viewFunction(config.tokenAccount, "emitter", {}));
+
 //    console.log("migrating " + config.tokenAccount);
 //    console.log(
 //      await tokenAccount.functionCall({
@@ -271,33 +273,33 @@ async function initNear() {
     });
   }
 
-  for (const line of vaasNFT) {
-    console.log("Submitting to " + config.nftAccount + ": " + line);
-
-    try {
-      await masterAccount.functionCall({
-        contractId: config.nftAccount,
-        methodName: "submit_vaa",
-        args: {
-          vaa: line,
-        },
-        attachedDeposit: new BN("30000000000000000000000"),
-        gas: new BN("300000000000000"),
-      });
-
-      await masterAccount.functionCall({
-        contractId: config.nftAccount,
-        methodName: "submit_vaa",
-        args: {
-          vaa: line,
-        },
-        attachedDeposit: new BN("30000000000000000000000"),
-        gas: new BN("300000000000000"),
-      });
-    } catch {
-      console.log("Exception thrown.. ");
-    }
-  }
+//   for (const line of vaasNFT) {
+//     console.log("Submitting to " + config.nftAccount + ": " + line);
+// 
+//     try {
+//       await masterAccount.functionCall({
+//         contractId: config.nftAccount,
+//         methodName: "submit_vaa",
+//         args: {
+//           vaa: line,
+//         },
+//         attachedDeposit: new BN("30000000000000000000000"),
+//         gas: new BN("300000000000000"),
+//       });
+// 
+//       await masterAccount.functionCall({
+//         contractId: config.nftAccount,
+//         methodName: "submit_vaa",
+//         args: {
+//           vaa: line,
+//         },
+//         attachedDeposit: new BN("30000000000000000000000"),
+//         gas: new BN("300000000000000"),
+//       });
+//     } catch {
+//       console.log("Exception thrown.. ");
+//     }
+//   }
 
   console.log("nft bridge booted");
 
