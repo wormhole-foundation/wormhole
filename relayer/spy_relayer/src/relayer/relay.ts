@@ -13,10 +13,11 @@ import {
 import { relayEVM } from "./evm";
 import { relaySolana } from "./solana";
 import { relayTerra } from "./terra";
-import { getRelayerEnvironment } from "../configureEnv";
+import { ChainConfigInfo, getRelayerEnvironment } from "../configureEnv";
 import { RelayResult, Status } from "../helpers/redisHelper";
 import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
+import { _undef } from "../xRaydium/scripts/lib/utilities";
 
 const logger = getLogger();
 
@@ -30,12 +31,12 @@ export async function relay(
   checkOnly: boolean,
   walletPrivateKey: any,
   relayLogger: ScopedLogger,
-  metrics: PromHelper
+  metrics: PromHelper,
 ): Promise<RelayResult> {
   const logger = getScopedLogger(["relay"], relayLogger);
   const { parse_vaa } = await importCoreWasm();
-  const parsedVAA = parse_vaa(hexToUint8Array(signedVAA));
-  console.log("parsedVAA.payload[0] is: ", parsedVAA.payload[0])
+  const parsedVAA: BaseVAA = parse_vaa(hexToUint8Array(signedVAA));
+  console.log("parsedVAA.payload[0] is: ", parsedVAA.payload[0]);
   if (parsedVAA.payload[0] === 3) {
     const transferPayload = parseTransferPayload(
       Buffer.from(parsedVAA.payload)
@@ -52,7 +53,7 @@ export async function relay(
       };
     }
     if (isEVMChain(transferPayload.targetChain)) {
-      console.log("in relay.ts EVM Chain")
+      console.log("in relay.ts EVM Chain");
       const unwrapNative =
         transferPayload.originChain === transferPayload.targetChain &&
         hexToNativeString(
@@ -83,27 +84,25 @@ export async function relay(
     }
 
     if (transferPayload.targetChain === CHAIN_ID_SOLANA) {
-      console.log("in relay.ts CHAIN_ID_SOLANA")
+      console.log("in relay.ts CHAIN_ID_SOLANA");
       let rResult: RelayResult = { status: Status.Error, result: "" };
+      const emitterChainConfig = getChainConfigInfo(parsedVAA.emitter_chain);
+
+      if (!chainConfigInfo) {
+        logger.error(
+          "relay: improper emitter chain ID: " + parsedVAA.emitter_chain
+        );
+        return {
+          status: Status.FatalError,
+          result:
+            "Fatal Error: emitter chain " +
+            parsedVAA.emitter_chain +
+            " not supported",
+        };
+      }
       const retVal = await relaySolana(
         chainConfigInfo,
-        signedVAA,
-        checkOnly,
-        walletPrivateKey,
-        logger,
-        metrics
-      );
-      if (retVal.redeemed) {
-        rResult.status = Status.Completed;
-      }
-      rResult.result = retVal.result;
-      return rResult;
-    }
-
-    if (transferPayload.targetChain === CHAIN_ID_TERRA) {
-      let rResult: RelayResult = { status: Status.Error, result: "" };
-      const retVal = await relayTerra(
-        chainConfigInfo,
+        _undef(emitterChainConfig),
         signedVAA,
         checkOnly,
         walletPrivateKey,
@@ -132,4 +131,16 @@ export async function relay(
     };
   }
   return { status: Status.FatalError, result: "ERROR: Invalid payload type" };
+}
+
+export interface BaseVAA {
+  version: number;
+  guardianSetIndex: number;
+  timestamp: number;
+  nonce: number;
+  emitter_chain: ChainId;
+  emitter_address: Uint8Array; // 32 bytes
+  sequence: number;
+  consistency_level: number;
+  payload: Uint8Array;
 }

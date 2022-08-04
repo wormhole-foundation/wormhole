@@ -8,23 +8,31 @@ import {
   hexToUint8Array,
   redeemOnEth,
   redeemOnEthNative,
-  importCoreWasm
+  importCoreWasm,
 } from "@certusone/wormhole-sdk";
-import { BigNumber, ContractReceipt, Contract } from "ethers";
+import {
+  BigNumber,
+  ContractReceipt,
+  Contract,
+  providers,
+  Signer,
+} from "ethers";
 //"/Users/leo/Developer/wormhole/relayer/spy_relayer/src/xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import { CeloProvider, CeloWallet } from "@celo-tools/celo-ethers-wrapper";
-import fs from "fs"
+import fs from "fs";
 import * as types from "../xRaydium/solana-proxy/generated_client/types";
 import "@nomiclabs/hardhat-ethers";
-import {ethers} from "hardhat";
+import { ethers } from "hardhat";
 import xRaydium_abi from "../utils/xRaydium_abi.json";
-import * as lib from "../xRaydium/scripts/lib/lib"
-import * as utilities from "../xRaydium/scripts/lib/utilities"
-import {parseTransferPayload} from "../utils/wormhole"
+import * as lib from "../xRaydium/scripts/lib/lib";
+import * as utilities from "../xRaydium/scripts/lib/utilities";
+import { parseTransferPayload } from "../utils/wormhole";
 import { redeemResponseEVM } from "../xRaydium/scripts/relay";
+import { getDevNetCtx } from "../xRaydium/scripts/lib/devnet_ctx";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 //import ethers from "hardhat";
 //import {ethers} from "../xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
@@ -33,7 +41,7 @@ import { redeemResponseEVM } from "../xRaydium/scripts/relay";
 export function newProvider(
   url: string,
   batch: boolean = false
-//@ts-ignore
+  //@ts-ignore
 ): ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider {
   // only support http(s), not ws(s) as the websocket constructor can blow up the entire process
   // it uses a nasty setTimeout(()=>{},0) so we are unable to cleanly catch its errors
@@ -44,6 +52,26 @@ export function newProvider(
     return new ethers.providers.JsonRpcProvider(url);
   }
   throw new Error("url does not start with http/https!");
+}
+
+export async function chainConfigToEvmProviderAndSigner(
+  chainConfigInfo: ChainConfigInfo,
+  walletPrivateKey?: string
+): Promise<{ provider: providers.Provider; signer: Signer }> {
+  if (!walletPrivateKey) {
+    walletPrivateKey = utilities._undef(
+      chainConfigInfo.walletPrivateKey,
+      "expected chainConfigInfo to have associated private key"
+    )[0];
+  }
+  if (chainConfigInfo.chainId === CHAIN_ID_CELO) {
+    const provider = new CeloProvider(chainConfigInfo.nodeUrl);
+    await provider.ready;
+    return { provider, signer: new CeloWallet(walletPrivateKey, provider) };
+  } else {
+    const provider = newProvider(chainConfigInfo.nodeUrl);
+    return { provider, signer: new ethers.Wallet(walletPrivateKey, provider) };
+  }
 }
 
 export async function relayEVM(
@@ -60,16 +88,10 @@ export async function relayEVM(
     relayLogger
   );
   const signedVaaArray = hexToUint8Array(signedVAA);
-  let provider;
-  let signer;
-  if (chainConfigInfo.chainId === CHAIN_ID_CELO) {
-    provider = new CeloProvider(chainConfigInfo.nodeUrl);
-    await provider.ready;
-    signer = new CeloWallet(walletPrivateKey, provider);
-  } else {
-    provider = newProvider(chainConfigInfo.nodeUrl);
-    signer = new ethers.Wallet(walletPrivateKey, provider);
-  }
+  const { provider, signer } = await chainConfigToEvmProviderAndSigner(
+    chainConfigInfo,
+    walletPrivateKey
+  );
 
   const { parse_vaa } = await importCoreWasm();
   const parsed = parse_vaa(signedVaaArray);
@@ -96,27 +118,32 @@ export async function relayEVM(
   } else {
     logger.info("Will redeem using pubkey: %s", await signer.getAddress());
   }
-  
+
   //@ts-ignore
-  let transferPayload = parseTransferPayload(Buffer.from(parsed.payload)) as TransferPayload;
-  console.log("transferPayload: ", transferPayload)
-  console.log("relayEVM fromAddress: ", transferPayload.originAddress)
+  let transferPayload = parseTransferPayload(
+    Buffer.from(parsed.payload)
+  ) as lib.TransferPayloadWithData;
+  console.log("transferPayload: ", transferPayload);
+  console.log("relayEVM fromAddress: ", transferPayload.originAddress);
   transferPayload["payload3"] = Buffer.from(parsed["payload"].slice(133));
   logger.info(parsed, "Parsed VAA");
 
-  // TODO: check sender of payload 3 is solana proxy via sender field 
+  // TODO: check sender of payload 3 is solana proxy via sender field
   //const XRaydiumBridge = await ethers.getContractFactory(xRaydium_abi.abi);
   //const contract = await XRaydiumBridge.attach("0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9");
 
-  logger.debug("Before load addrs")
-  const addrs = await utilities.loadAddrs()
-  logger.debug("After load addrs")
-  await redeemResponseEVM(signedVaaArray, signer, addrs.fuji.XRaydiumBridge)
-  
-  logger.info("=============done redeem responses to EVM!!!...!!!")
+  logger.debug("Before load addrs");
+  const addrs = await utilities.loadAddrs();
+  logger.debug("After load addrs");
+  const ctx: lib.Context = getDevNetCtx(
+    signer,
+    chainConfigInfo.chainId,
+    walletPrivateKey
+  );
+  await redeemResponseEVM(ctx.evm, signedVaaArray, addrs.fuji.XRaydiumBridge);
+
+  logger.info("=============done redeem responses to EVM!!!...!!!");
 
   metrics.incSuccesses(chainConfigInfo.chainId);
-  return { redeemed: true, result: "redeemed"};
+  return { redeemed: true, result: "redeemed" };
 }
-
-
