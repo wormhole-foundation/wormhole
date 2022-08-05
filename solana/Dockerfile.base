@@ -1,0 +1,17 @@
+#syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
+FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5 AS solana
+
+RUN sh -c "$(curl -sSfL https://release.solana.com/v1.9.4/install)"
+
+ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
+
+COPY rust-toolchain .
+# Solana does a questionable download at the beginning of a *first* build-bpf call. Trigger and layer-cache it explicitly.
+RUN cargo init --lib /tmp/decoy-crate && \
+    cd /tmp/decoy-crate && cargo build-bpf && \
+    rm -rf /tmp/decoy-crate
+
+# The strip shell script downloads criterion the first time it runs so cache it here as well.
+RUN touch /tmp/foo.so && \
+    /root/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/strip.sh /tmp/foo.so /tmp/bar.so || \
+    rm /tmp/foo.so

@@ -1,19 +1,69 @@
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: ci-tests
+  name: bridge-ui-ci-tests
 spec:
   backoffLimit: 0
   template:
     spec:
       restartPolicy: Never
       containers:
-        - name: ci-tests
-          image: tests-image
+        - name: bridge-ui-ci-tests
+          image: bridge-ui-test-image
           command:
             - /bin/sh
             - -c
-            - "sh /app/testing/allTests.sh && touch /app/testing/success"
+            - "sh /app/testing/bridge_ui.sh && touch /app/testing/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/testing/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: sdk-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: sdk-ci-tests
+          image: sdk-test-image
+          command:
+            - /bin/sh
+            - -c
+            - "sh /app/testing/sdk.sh && touch /app/testing/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/testing/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: spydk-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: spydk-ci-tests
+          image: spydk-test-image
+          command:
+            - /bin/sh
+            - -c
+            - "sh /app/testing/spydk.sh && touch /app/testing/success"
           readinessProbe:
             exec:
               command:

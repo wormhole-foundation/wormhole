@@ -40,8 +40,7 @@ test("Can spy on messages", (done) => {
       }
     });
     // register data callback
-    stream.addListener("data", ({ vaaBytes }: { vaaBytes: any }) => {
-      console.log(vaaBytes);
+    stream.addListener("data", ({}: { vaaBytes: any }) => {
       // cancel the stream to end the test
       stream.cancel();
     });

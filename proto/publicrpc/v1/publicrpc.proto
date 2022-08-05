@@ -28,6 +28,12 @@ enum ChainID {
   CHAIN_ID_NEON = 17;
   CHAIN_ID_TERRA2 = 18;
   CHAIN_ID_INJECTIVE = 19;
+  CHAIN_ID_OSMOSIS = 20;
+  CHAIN_ID_SUI = 21;
+  CHAIN_ID_APTOS = 22;
+  CHAIN_ID_ARBITRUM = 23;
+  CHAIN_ID_OPTIMISM = 24;
+  CHAIN_ID_GNOSIS = 25;
   // Special case - Eth has two testnets. CHAIN_ID_ETHEREUM is Goerli,
   // but we also want to connect to Ropsten, so we add a separate chain.
   CHAIN_ID_ETHEREUM_ROPSTEN = 10001;
@@ -65,6 +71,24 @@ service PublicRPCService {
       get: "/v1/guardianset/current"
     };
   }
+
+  rpc GovernorGetAvailableNotionalByChain (GovernorGetAvailableNotionalByChainRequest) returns (GovernorGetAvailableNotionalByChainResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/available_notional_by_chain"
+    };
+  }
+
+  rpc GovernorGetEnqueuedVAAs (GovernorGetEnqueuedVAAsRequest) returns (GovernorGetEnqueuedVAAsResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/enqueued_vaas"
+    };
+  }
+
+  rpc GovernorGetTokenList (GovernorGetTokenListRequest) returns (GovernorGetTokenListResponse) {
+    option (google.api.http) = {
+      get: "/v1/governor/token_list"
+    };
+  }  
 
 }
 
@@ -110,4 +134,47 @@ message GuardianSet {
   uint32 index = 1;
   // List of guardian addresses as human-readable hex-encoded (leading 0x) addresses.
   repeated string addresses = 2;
+}
+
+message GovernorGetAvailableNotionalByChainRequest {
+}
+
+message GovernorGetAvailableNotionalByChainResponse {
+  message Entry {
+    uint32 chain_id = 1;
+    uint64 remaining_available_notional = 2;
+    uint64 notional_limit = 3;
+  }
+
+  // There is an entry for each chain that is being governed.
+  // Chains that are not being governed are not listed, and assumed to be unlimited.
+  repeated Entry entries = 1;
+}
+
+message GovernorGetEnqueuedVAAsRequest {
+}
+
+message GovernorGetEnqueuedVAAsResponse {
+  message Entry {
+  uint32 emitter_chain = 1;
+  string emitter_address = 2; // human-readable hex-encoded (leading 0x)
+  uint64 sequence = 3;
+  }
+
+  // There is an entry for each enqueued vaa.
+  repeated Entry entries = 1;
+}
+
+message GovernorGetTokenListRequest {
+}
+
+message GovernorGetTokenListResponse {
+  message Entry {
+    uint32 origin_chain_id = 1;
+    string origin_address = 2; // human-readable hex-encoded (leading 0x)
+    float price = 3;
+  }
+
+  // There is an entry for each token that applies to the notional TVL calcuation.
+  repeated Entry entries = 1;
 }

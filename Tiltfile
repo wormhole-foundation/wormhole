@@ -38,6 +38,7 @@ config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
+config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
@@ -58,6 +59,7 @@ gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 webHost = cfg.get("webHost", "localhost")
 algorand = cfg.get("algorand", True)
+aptos = cfg.get("aptos", True)
 evm2 = cfg.get("evm2", True)
 solana = cfg.get("solana", True)
 terra_classic = cfg.get("terra_classic", True)
@@ -100,17 +102,6 @@ local_resource(
 )
 
 local_resource(
-    name = "proto-gen-web",
-    deps = proto_deps + ["buf.gen.web.yaml"],
-    resource_deps = ["proto-gen"],
-    cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
-    env = {"DOCKER_BUILDKIT": "1"},
-    labels = ["protobuf"],
-    allow_parallel = True,
-    trigger_mode = trigger_mode,
-)
-
-local_resource(
     name = "const-gen",
     deps = ["scripts", "clients", "ethereum/.env.test"],
     cmd = 'tilt docker build -- --target const-export -f Dockerfile.const -o type=local,dest=. --build-arg num_guardians=%s .' % (num_guardians),
@@ -118,20 +109,6 @@ local_resource(
     allow_parallel = True,
     trigger_mode = trigger_mode,
 )
-
-# wasm
-
-if solana:
-    local_resource(
-        name = "wasm-gen",
-        deps = ["solana"],
-        dir = "solana",
-        cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
-        env = {"DOCKER_BUILDKIT": "1"},
-        labels = ["solana"],
-        allow_parallel = True,
-        trigger_mode = trigger_mode,
-    )
 
 # node
 
@@ -491,23 +468,51 @@ if ci_tests:
     )
 
     docker_build(
-        ref = "tests-image",
+        ref = "bridge-ui-test-image",
         context = ".",
-        dockerfile = "testing/Dockerfile.tests",
+        dockerfile = "testing/Dockerfile.bridge_ui.test",
+        only = [],
+        live_update = [
+            sync("./testing", "/app/testing"),
+            sync("./bridge_ui/src", "/app/bridge_ui/src"),
+        ],
+    )
+    docker_build(
+        ref = "sdk-test-image",
+        context = ".",
+        dockerfile = "testing/Dockerfile.sdk.test",
+        only = [],
+        live_update = [
+            sync("./sdk/js/src", "/app/sdk/js/src"),
+            sync("./testing", "/app/testing"),
+        ],
+    )
+    docker_build(
+        ref = "spydk-test-image",
+        context = ".",
+        dockerfile = "testing/Dockerfile.spydk.test",
         only = [],
         live_update = [
             sync("./spydk/js/src", "/app/spydk/js/src"),
-            sync("./sdk/js/src", "/app/sdk/js/src"),
             sync("./testing", "/app/testing"),
-            sync("./bridge_ui/src", "/app/bridge_ui/src"),
         ],
     )
 
     k8s_yaml_with_ns("devnet/tests.yaml")
 
+    # separate resources to parallelize docker builds
     k8s_resource(
-        "ci-tests",
-        resource_deps = ["proto-gen-web", "wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "terra2-terrad", "terra2-fcd", "solana-devnet", "spy", "guardian"],
+        "bridge-ui-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+    )
+    k8s_resource(
+        "sdk-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+    )
+    k8s_resource(
+        "spydk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
     )
@@ -679,3 +684,29 @@ if algorand:
         trigger_mode = trigger_mode,
     )
     
+if aptos:
+    k8s_yaml_with_ns("devnet/aptos-localnet.yaml")
+
+    docker_build(
+        ref = "aptos-node",
+        context = "aptos",
+        dockerfile = "aptos/Dockerfile",
+        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
+    )
+
+    docker_build(
+        ref = "aptos-contracts",
+        context = "aptos",
+        dockerfile = "aptos/Dockerfile.contracts",
+    )
+
+    k8s_resource(
+        "aptos",
+        port_forwards = [
+            port_forward(8081, name = "RPC [:8081]", host = webHost),
+            port_forward(6181, name = "FullNode [:6181]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["aptos"],
+        trigger_mode = trigger_mode,
+    )

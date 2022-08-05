@@ -100,6 +100,9 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     // Save general wormhole info
+    // TODO: when (if) this contract is adapted to other cosmwasm chains, the
+    // chain id needs to be moved to the state (see the cosmwasm token-bridge
+    // and core bridge contracts).
     let state = ConfigInfo {
         gov_chain: msg.gov_chain,
         gov_address: msg.gov_address.as_slice().to_vec(),

@@ -8,8 +8,8 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certifi
 
 RUN mkdir /app
 
-ADD tools/build.sh /app/tools/
-ADD tools/go.* /app/tools/
+COPY tools/build.sh /app/tools/
+COPY tools/go.* /app/tools/
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
 	cd /app/tools && CGO_ENABLED=0 ./build.sh
@@ -24,8 +24,8 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certifi
 
 COPY --from=go-tools /app /app
 
-ADD buf.* /app
-ADD proto /app/proto
+COPY buf.* /app
+COPY proto /app/proto
 
 RUN --mount=type=cache,target=/root/.cache \
 	cd /app && \
@@ -41,11 +41,11 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
 
 COPY --from=go-tools /app /app
 
-ADD buf.* /app
-ADD proto /app/proto
+COPY buf.* /app
+COPY proto /app/proto
 
-ADD tools/package.json /app/tools/
-ADD tools/package-lock.json /app/tools/
+COPY tools/package.json /app/tools/
+COPY tools/package-lock.json /app/tools/
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/root/.npm \
  	cd /app/tools && npm ci
@@ -58,5 +58,5 @@ FROM scratch AS go-export
 COPY --from=go-build /app/node/pkg/proto pkg/proto
 
 FROM scratch AS node-export
-COPY --from=node-build /app/sdk/js/src/proto sdk/js/src/proto
-COPY --from=node-build /app/spydk/js/src/proto spydk/js/src/proto
+COPY --from=node-build /app/sdk/js-proto-web/src sdk/js-proto-web/src
+COPY --from=node-build /app/sdk/js-proto-node/src sdk/js-proto-node/src

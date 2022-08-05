@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.4.5",
+  "version": "0.5.1",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormholenetwork.com",
   "main": "./lib/cjs/index.js",
@@ -13,7 +13,7 @@
     "build-contracts": "npm run build --prefix ../../ethereum && node scripts/copyContracts.js && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
     "build-abis": "typechain --target=ethers-v5 --out-dir=src/ethers-contracts/abi src/abi/Wormhole.abi.json",
     "build-deps": "npm run build-abis && npm run build-contracts",
-    "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js && node scripts/copyWasm.js",
+    "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js",
     "build-all": "npm run build-deps && npm run build-lib",
     "test": "jest --config jestconfig.json --verbose",
     "test-ci": "jest --config jestconfig.json --verbose --setupFiles ./ci-config.js --forceExit",
@@ -56,15 +56,14 @@
     "web3": "^1.6.1"
   },
   "dependencies": {
-    "@improbable-eng/grpc-web": "^0.14.0",
+    "@certusone/wormhole-sdk-proto-web": "^0.0.1",
+    "@certusone/wormhole-sdk-wasm": "^0.0.1",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
     "@terra-money/terra.js": "^3.1.3",
     "algosdk": "^1.15.0",
     "axios": "^0.24.0",
     "bech32": "^2.0.0",
-    "js-base64": "^3.6.1",
-    "protobufjs": "^6.11.2",
-    "rxjs": "^7.3.0"
+    "js-base64": "^3.6.1"
   }
 }

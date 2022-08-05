@@ -1,0 +1,32 @@
+{
+  "name": "@certusone/wormhole-sdk-wasm",
+  "version": "0.0.1",
+  "description": "WebAssembly libraries for interacting with Wormhole",
+  "homepage": "https://wormholenetwork.com",
+  "main": "./lib/cjs/index.js",
+  "module": "./lib/esm/index.js",
+  "files": [
+    "lib/"
+  ],
+  "repository": "https://github.com/certusone/wormhole/tree/dev.v2/sdk/js-wasm",
+  "scripts": {
+    "build-deps": "cd ../.. && DOCKER_BUILDKIT=1 docker build -f solana/Dockerfile.wasm -o type=local,dest=. solana",
+    "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyWasm.js",
+    "build-all": "npm run build-deps && npm run build-lib",
+    "build": "npm run build-all"
+  },
+  "keywords": [
+    "wormhole",
+    "sdk",
+    "wasm"
+  ],
+  "author": "certusone",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "@types/long": "^4.0.2",
+    "@types/node": "^18.0.3"
+  }
+}

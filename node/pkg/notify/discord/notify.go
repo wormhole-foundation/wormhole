@@ -2,6 +2,7 @@ package discord
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/diamondburned/arikawa/v3/api"
 	"github.com/diamondburned/arikawa/v3/discord"
+	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 )
 
@@ -96,7 +98,15 @@ func (d *DiscordNotifier) LookupGroupID(groupName string) (string, error) {
 	return "", fmt.Errorf("failed to find group %s", groupName)
 }
 
-func (d *DiscordNotifier) MissingSignaturesOnTransaction(v *vaa.VAA, hasSigs, wantSigs int, quorum bool, missing []string) error {
+// Observation defines the same interface as processor.Observation but redefined
+// here to avoid circular dependencies.
+type Observation interface {
+	GetEmitterChain() vaa.ChainID
+	MessageID() string
+	SigningMsg() common.Hash
+}
+
+func (d *DiscordNotifier) MissingSignaturesOnObservation(o Observation, hasSigs, wantSigs int, quorum bool, missing []string) error {
 	if len(missing) == 0 {
 		panic("no missing nodes specified")
 	}
@@ -132,10 +142,10 @@ func (d *DiscordNotifier) MissingSignaturesOnTransaction(v *vaa.VAA, hasSigs, wa
 			discord.Embed{
 				Title: "Message with missing signatures",
 				Fields: []discord.EmbedField{
-					{Name: "Message ID", Value: wrapCode(v.MessageID()), Inline: true},
-					{Name: "Digest", Value: wrapCode(v.HexDigest()), Inline: true},
+					{Name: "Message ID", Value: wrapCode(o.MessageID()), Inline: true},
+					{Name: "Digest", Value: wrapCode(hex.EncodeToString(o.SigningMsg().Bytes())), Inline: true},
 					{Name: "Quorum", Value: quorumText, Inline: true},
-					{Name: "Source Chain", Value: strings.Title(v.EmitterChain.String()), Inline: false},
+					{Name: "Source Chain", Value: strings.Title(o.GetEmitterChain().String()), Inline: false},
 					{Name: "Missing Guardians", Value: missingText.String(), Inline: false},
 				},
 			},

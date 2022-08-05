@@ -259,6 +259,16 @@ module.exports = {
       },
       network_id: 44787,
     },
+    moonbeam: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.api.moonbeam.network"
+          //"https://moonbeam.api.onfinality.io/public" // When the core was deployed on 7/21/2022, the one above kept timing out but this one worked.
+        );
+      },
+      network_id: 1284,
+    },    
     moonbeam_testnet: {
       provider: () => {
         return new HDWalletProvider(
@@ -270,7 +280,7 @@ module.exports = {
       gasPrice: 3000000000, // 3.0 gwei
       timeoutBlocks: 15000,
     },
-    neon_devnet: {
+    neon_testnet: {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
@@ -280,6 +290,60 @@ module.exports = {
       network_id: "*",
       gas: 3000000000,
       gasPrice: 443065000000,
+    },
+    arbitrum: { // Note that arbitrum did not work with our standard version of truffle (5.3.14), but it did work with the latest (5.5.22)
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://arb1.arbitrum.io/rpc"
+        );
+      },
+      network_id: 42161,
+    },
+    arbitrum_testnet: { // Note that arbitrum did not work with our standard version of truffle (5.3.14), but it did work with the latest (5.5.22)
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rinkeby.arbitrum.io/rpc"
+        );
+      },
+      network_id: '*',
+    },
+    optimism: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://mainnet.optimism.io"
+        );
+      },
+      network_id: 10,
+    },
+    optimism_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://goerli.optimism.io"
+        );
+      },
+      network_id: 420,
+    },
+    gnosis: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.gnosischain.com/"
+        );
+      },
+      network_id: 100,
+    },
+    gnosis_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://sokol.poa.network/"
+        );
+      },
+      network_id: 77,
     },
   },
 

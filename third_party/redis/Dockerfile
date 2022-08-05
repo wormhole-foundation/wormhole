@@ -95,7 +95,7 @@ RUN mkdir /data && chown redis:redis /data
 VOLUME /data
 WORKDIR /data
 
-ADD . .
+COPY . .
 RUN chmod 777 /data/third_party/redis/docker-entrypoint.sh
 RUN cp /data/third_party/redis/docker-entrypoint.sh /usr/local/bin/
 

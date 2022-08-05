@@ -19,7 +19,10 @@ use crate::{
     TokenBridgeError::*,
 };
 use bridge::{
-    vaa::ClaimableVAA,
+    accounts::claim::{
+        self,
+        Claim,
+    },
     PayloadMessage,
     CHAIN_ID_SOLANA,
 };
@@ -44,7 +47,8 @@ pub struct CompleteNative<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
-    pub vaa: ClaimableVAA<'b, PayloadTransfer>,
+    pub vaa: PayloadMessage<'b, PayloadTransfer>,
+    pub claim: Mut<Claim<'b>>,
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Mut<Data<'b, SplAccount, { AccountState::MaybeInitialized }>>,
@@ -119,8 +123,7 @@ pub fn complete_native(
     }
 
     // Prevent vaa double signing
-    accs.vaa.verify(ctx.program_id)?;
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     if !accs.to.is_initialized() {
         let associated_addr = spl_associated_token_account::get_associated_token_address(
@@ -161,7 +164,8 @@ pub struct CompleteWrapped<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     // Signed message for the transfer
-    pub vaa: ClaimableVAA<'b, PayloadTransfer>,
+    pub vaa: PayloadMessage<'b, PayloadTransfer>,
+    pub claim: Mut<Claim<'b>>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
@@ -226,8 +230,7 @@ pub fn complete_wrapped(
         return Err(InvalidRecipient.into());
     }
 
-    accs.vaa.verify(ctx.program_id)?;
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     // Initialize the NFT if it doesn't already exist
     if !accs.meta.is_initialized() {

@@ -20,7 +20,11 @@ use crate::{
     INVALID_VAAS,
 };
 use bridge::{
-    vaa::ClaimableVAA,
+    accounts::claim::{
+        self,
+        Claim,
+    },
+    PayloadMessage,
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
@@ -48,7 +52,8 @@ pub struct CreateWrapped<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
-    pub vaa: ClaimableVAA<'b, PayloadAssetMeta>,
+    pub vaa: PayloadMessage<'b, PayloadAssetMeta>,
+    pub claim: Mut<Claim<'b>>,
 
     // New Wrapped
     pub mint: Mut<WrappedMint<'b, { AccountState::MaybeInitialized }>>,
@@ -111,12 +116,11 @@ pub fn create_wrapped(
     accs.chain_registration
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
-    if INVALID_VAAS.contains(&&*accs.vaa.message.info().key.to_string()) {
+    if INVALID_VAAS.contains(&&*accs.vaa.info().key.to_string()) {
         return Err(InvalidVAA.into());
     }
 
-    accs.vaa.verify(ctx.program_id)?;
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     if accs.mint.is_initialized() {
         update_accounts(ctx, accs, data)

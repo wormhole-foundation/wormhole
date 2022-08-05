@@ -30,7 +30,7 @@ var warmTransfersCacheFilePath = "notional-transferred-cache.json"
 // finds the daily amount of each symbol transferred from each chain, to each chain,
 // from the specified start to the present.
 func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]map[string]float64 {
-	if _, ok := warmTransfersCache["*"]; !ok {
+	if _, ok := warmTransfersCache["*"]; !ok && loadCache {
 		loadJsonToInterface(ctx, warmTransfersCacheFilePath, &muWarmTransfersCache, &warmTransfersCache)
 	}
 

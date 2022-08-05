@@ -35,7 +35,6 @@ type (
 		contract string
 
 		msgChan chan *common.MessagePublication
-		setChan chan *common.GuardianSet
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
@@ -49,6 +48,9 @@ type (
 		contractAddressFilterKey string
 		// Key for contract address in the wasm logs
 		contractAddressLogKey string
+
+		// URL to get the latest block info from
+		latestBlockURL string
 	}
 )
 
@@ -92,7 +94,6 @@ func NewWatcher(
 	urlLCD string,
 	contract string,
 	lockEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet,
 	obsvReqC chan *gossipv1.ObservationRequest,
 	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
@@ -106,7 +107,26 @@ func NewWatcher(
 		contractAddressLogKey = "contract_address"
 	}
 
-	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, contract: contract, msgChan: lockEvents, setChan: setEvents, obsvReqC: obsvReqC, readiness: readiness, chainID: chainID, contractAddressFilterKey: contractAddressFilterKey, contractAddressLogKey: contractAddressLogKey}
+	// Do not add a leading slash
+	latestBlockURL := "blocks/latest"
+
+	// Injective does things slightly differently than terra
+	if chainID == vaa.ChainIDInjective {
+		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
+	}
+
+	return &Watcher{
+		urlWS:                    urlWS,
+		urlLCD:                   urlLCD,
+		contract:                 contract,
+		msgChan:                  lockEvents,
+		obsvReqC:                 obsvReqC,
+		readiness:                readiness,
+		chainID:                  chainID,
+		contractAddressFilterKey: contractAddressFilterKey,
+		contractAddressLogKey:    contractAddressLogKey,
+		latestBlockURL:           latestBlockURL,
+	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -163,9 +183,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		for {
 			<-t.C
-
+			msm := time.Now()
 			// Query and report height and set currentSlotHeight
-			resp, err := client.Get(fmt.Sprintf("%s/blocks/latest", e.urlLCD))
+			resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
 			if err != nil {
 				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 				continue
@@ -178,6 +198,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 				continue
 			}
 			resp.Body.Close()
+
+			// Update the prom metrics with how long the http request took to the rpc
+			queryLatency.WithLabelValues(networkName, "block_latest").Observe(time.Since(msm).Seconds())
 
 			blockJSON := string(blocksBody)
 			latestBlock := gjson.Get(blockJSON, "block.header.height")
@@ -280,51 +303,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 				e.msgChan <- msg
 				messagesConfirmed.WithLabelValues(networkName).Inc()
 			}
-
-			client := &http.Client{
-				Timeout: time.Second * 15,
-			}
-
-			// Query and report guardian set status
-			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.contract)
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				connectionErrors.WithLabelValues(networkName, "guardian_set_req_error").Inc()
-				logger.Error("query guardian set request error", zap.String("network", networkName), zap.Error(err))
-				errC <- err
-				return
-			}
-
-			msm := time.Now()
-			resp, err := client.Do(req)
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				logger.Error("query guardian set response error", zap.String("network", networkName), zap.Error(err))
-				errC <- err
-				return
-			}
-
-			body, err := ioutil.ReadAll(resp.Body)
-			queryLatency.WithLabelValues(networkName, "guardian_set_info").Observe(time.Since(msm).Seconds())
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				logger.Error("query guardian set error", zap.String("network", networkName), zap.Error(err))
-				errC <- err
-				resp.Body.Close()
-				return
-			}
-
-			json = string(body)
-			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
-			addresses := gjson.Get(json, "result.addresses.#.bytes")
-
-			logger.Debug("current guardian set",
-				zap.String("network", networkName),
-				zap.Any("guardianSetIndex", guardianSetIndex),
-				zap.Any("addresses", addresses))
-
-			resp.Body.Close()
 
 			// We do not send guardian changes to the processor - ETH guardians are the source of truth.
 		}

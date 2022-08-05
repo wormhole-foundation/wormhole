@@ -94,15 +94,16 @@ retry token-bridge-client create-bridge "$nft_bridge_address" "$bridge_address"
 
 # pass the chain registration VAAs sourced from .env to the client's execute-governance command:
 pushd /usr/src/clients/js
+make build
 # Register the Token Bridge Endpoint on ETH
-npm start -- submit -c solana -n devnet "$REGISTER_ETH_TOKEN_BRIDGE_VAA"
-npm start -- submit -c solana -n devnet "$REGISTER_TERRA_TOKEN_BRIDGE_VAA"
-npm start -- submit -c solana -n devnet "$REGISTER_BSC_TOKEN_BRIDGE_VAA"
-npm start -- submit -c solana -n devnet "$REGISTER_ALGO_TOKEN_BRIDGE_VAA"
-npm start -- submit -c solana -n devnet "$REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_ETH_TOKEN_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_TERRA_TOKEN_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_BSC_TOKEN_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_ALGO_TOKEN_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
 # Register the NFT Bridge Endpoint on ETH
-npm start -- submit -c solana -n devnet "$REGISTER_ETH_NFT_BRIDGE_VAA"
-npm start -- submit -c solana -n devnet "$REGISTER_TERRA_NFT_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_ETH_NFT_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_TERRA_NFT_BRIDGE_VAA"
 popd
 
 # Let k8s startup probe succeed

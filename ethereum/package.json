@@ -23,6 +23,7 @@
     "migrate": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --to 4",
     "flatten": "mkdir -p node_modules/@poanet/solidity-flattener/contracts && cp -r contracts/* node_modules/@poanet/solidity-flattener/contracts/ && poa-solidity-flattener",
     "deploy-bridge-implementation-only": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 6 --to 6",
+    "deploy-read-only": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 1 --to 2",
     "deploy_weth9": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 9",
     "verify": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify $npm_config_module@$npm_config_contract_address --network $npm_config_network",
     "abigen": "truffle run abigen"

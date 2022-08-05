@@ -20,8 +20,8 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci
 COPY clients/js ./
 
-ADD solana /usr/src/solana
-ADD proto /usr/src/proto
+COPY solana /usr/src/solana
+COPY proto /usr/src/proto
 
 WORKDIR /usr/src/solana
 
@@ -33,6 +33,7 @@ ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=target \
+    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
 	set -xe && \
     cargo build --manifest-path ./Cargo.toml --package bridge_client --release --locked && \
     cargo build --manifest-path ./Cargo.toml --package token_bridge_client --release --locked && \
