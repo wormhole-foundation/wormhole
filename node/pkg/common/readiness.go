@@ -7,6 +7,7 @@ const (
 	ReadinessSolanaSyncing     readiness.Component = "solanaSyncing"
 	ReadinessTerraSyncing      readiness.Component = "terraSyncing"
 	ReadinessAlgorandSyncing   readiness.Component = "algorandSyncing"
+	ReadinessNearSyncing       readiness.Component = "nearSyncing"
 	ReadinessBSCSyncing        readiness.Component = "bscSyncing"
 	ReadinessPolygonSyncing    readiness.Component = "polygonSyncing"
 	ReadinessEthRopstenSyncing readiness.Component = "ethRopstenSyncing"
