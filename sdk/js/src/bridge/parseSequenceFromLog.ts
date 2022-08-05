@@ -69,7 +69,6 @@ export function parseSequencesFromLogTerra(info: TxInfo): string[] {
 
 export function parseSequenceFromLogInjective(info: any): string {
   // Scan for the Sequence attribute in all the outputs of the transaction.
-  // TODO: Make this not horrible.
   let sequence = "";
   const jsonLog = JSON.parse(info.rawLog);
   jsonLog.map((row: any) => {

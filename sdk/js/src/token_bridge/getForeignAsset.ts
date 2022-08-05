@@ -97,11 +97,9 @@ export async function getForeignAssetInjective(
       result = JSON.parse(
         Buffer.from(queryResult.data, "base64").toString("utf-8")
       );
-      console.log("result", result);
     }
     return result.address;
   } catch (e) {
-    console.error("caught an error", e);
     return null;
   }
 }

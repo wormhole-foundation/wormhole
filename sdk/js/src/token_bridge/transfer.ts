@@ -37,6 +37,7 @@ import { importTokenWasm } from "../solana/wasm";
 import {
   ChainId,
   ChainName,
+  CHAIN_ID_INJECTIVE,
   CHAIN_ID_SOLANA,
   coalesceChainId,
   createNonce,
@@ -45,7 +46,7 @@ import {
   WSOL_ADDRESS,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
-import { isNativeDenomInjective } from "../cosmwasm";
+import { isNativeCosmWasmDenom } from "../cosmwasm";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -260,7 +261,7 @@ export async function transferFromInjective(
 ) {
   const recipientChainId = coalesceChainId(recipientChain);
   const nonce = Math.round(Math.random() * 100000);
-  const isNativeAsset = isNativeDenomInjective(tokenAddress);
+  const isNativeAsset = isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, tokenAddress);
   const mk_initiate_transfer = (info: object) =>
     payload
       ? {

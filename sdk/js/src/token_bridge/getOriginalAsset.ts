@@ -90,7 +90,7 @@ export async function getOriginalAssetInjective(
   wrappedAddress: string
 ): Promise<WormholeWrappedInfo> {
   const chainId = CHAIN_ID_INJECTIVE;
-  if (isNativeDenom(wrappedAddress)) {
+  if (isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, wrappedAddress)) {
     return {
       isWrapped: false,
       chainId: chainId,
@@ -111,7 +111,6 @@ export async function getOriginalAssetInjective(
       result = JSON.parse(
         Buffer.from(queryResult.data, "base64").toString("utf-8")
       );
-      console.log("result", result);
       return {
         isWrapped: true,
         chainId: result.asset_chain,

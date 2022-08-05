@@ -1,4 +1,3 @@
-import { bech32 } from "bech32";
 import { keccak256 } from "ethers/lib/utils";
 import { isNativeDenom } from "../terra";
 import {
@@ -7,16 +6,6 @@ import {
   CosmWasmChainId,
   isTerraChain,
 } from "../utils";
-
-export function canonicalAddress(humanAddress: string) {
-  return new Uint8Array(bech32.fromWords(bech32.decode(humanAddress).words));
-}
-export function humanAddress(
-  canonicalAddress: Uint8Array,
-  prefix: string = "terra"
-) {
-  return bech32.encode(prefix, bech32.toWords(canonicalAddress));
-}
 
 export const isNativeDenomInjective = (string = "") =>
   string === "inj" || string.startsWith("peggy0x");

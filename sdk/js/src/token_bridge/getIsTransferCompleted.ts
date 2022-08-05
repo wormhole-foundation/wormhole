@@ -82,7 +82,8 @@ export async function getIsTransferCompletedTerra(
 export async function getIsTransferCompletedInjective(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
-  walletPKHash: string
+  walletPKHash: string,
+  network: any
 ): Promise<boolean> {
   try {
     const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
@@ -95,8 +96,6 @@ export async function getIsTransferCompletedInjective(
       walletInjAddr,
       signedVAA
     );
-    // TODO:  Remove hardcoded network.
-    const network = getNetworkInfo(Network.TestnetK8s);
     const accountDetails = await new ChainRestAuthApi(
       network.sentryHttpApi
     ).fetchAccount(walletInjAddr);
@@ -115,9 +114,7 @@ export async function getIsTransferCompletedInjective(
       ),
       chainId: network.chainId,
     });
-    console.log("txRaw", txRaw);
 
-    console.log("sign transaction...");
     /** Sign transaction */
     const sig = await walletPK.sign(signBytes);
 
@@ -129,7 +126,6 @@ export async function getIsTransferCompletedInjective(
       endpoint: network.sentryGrpcApi,
     });
 
-    console.log("simulate transaction...");
     /** Simulate transaction */
     const simulationResponse = await txService.simulate();
   } catch (e: unknown) {

@@ -144,8 +144,7 @@ test.skip("testnet - injective attest native asset", async () => {
   console.log("result", result.params.msg);
   console.log("token", JSON.stringify(result.params.msg));
   console.log("json", result.toJSON());
-  const walletPKHash =
-    "b4870dd5af532c9b01bca76666be16ab511aa8b659c473264f22ec5ce8381d02";
+  const walletPKHash = process.env.ETH_KEY || "";
   const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
   const walletPublicKey = privateKeyToPublicKeyBase64(
@@ -525,7 +524,8 @@ test.skip("testnet - injective submit a vaa", async () => {
       await getIsTransferCompletedInjective(
         tba,
         signedVaa.vaaBytes,
-        walletPKHash
+        walletPKHash,
+        network
       )
     ).toBe(true);
     {
