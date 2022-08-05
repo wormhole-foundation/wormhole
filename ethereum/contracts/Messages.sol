@@ -108,7 +108,14 @@ contract Messages is Getters {
 
         vm.version = encodedVM.toUint8(index);
         index += 1;
-        require(vm.version == 1, "VM version incompatible");
+        // SECURITY: Note that currently the VM.version is not part of the hash. If we ever in the future decide to 
+        // allow a vm.version other than 1, we would need to start including that in the hash *and* ensure that old hashes
+        // cannot collide with new ones. E.g. if we decide to make the version the first byte of the hash, it could collide
+        // with what is currently the timestamp field. If we make the change on
+        // 1/1/2030, 0:00 =  01 1100001101 1100010010 0100000000
+        // we could set the new version to greater than 0b01110000, e.g. 113, to avoid collisions with any prior VAAs. 
+        // there are other potential solutions, but we'd need to think this through carefully. 
+        require(vm.version == 1, "VM version incompatible"); 
 
         vm.guardianSetIndex = encodedVM.toUint32(index);
         index += 4;
