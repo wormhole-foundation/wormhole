@@ -105,8 +105,8 @@ func (e *EthImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.Ne
 		panic("client is not initialized!")
 	}
 
-	headSink := make(chan *ethTypes.Header, 2)
-	headerSubscription, err := e.client.SubscribeNewHead(ctx, headSink)
+	localSink := make(chan *ethTypes.Header, 2)
+	headerSubscription, err := e.client.SubscribeNewHead(ctx, localSink)
 	if err != nil {
 		return headerSubscription, err
 	}
@@ -117,7 +117,7 @@ func (e *EthImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.Ne
 			select {
 			case <-ctx.Done():
 				return
-			case ev := <-headSink:
+			case ev := <-localSink:
 				if ev == nil {
 					e.logger.Error("new header event is nil", zap.String("eth_network", e.NetworkName))
 					continue

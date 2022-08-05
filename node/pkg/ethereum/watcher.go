@@ -99,6 +99,9 @@ type (
 		// Minimum number of confirmations to accept, regardless of what the contract specifies.
 		minConfirmations uint64
 
+		// Number of blocks we will wait until we abandon a previously observed message that is not on the current chain anymore
+		messageBlocksTillAbandon uint64
+
 		// Interface to the chain specific ethereum library.
 		ethIntf             common.Ethish
 		shouldCheckSafeMode bool
@@ -126,6 +129,7 @@ func NewEthWatcher(
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet,
 	minConfirmations uint64,
+	messageBlocksTillAbandon uint64,
 	obsvReqC chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool) *Watcher {
 
@@ -143,18 +147,19 @@ func NewEthWatcher(
 	}
 
 	return &Watcher{
-		url:                 url,
-		contract:            contract,
-		networkName:         networkName,
-		readiness:           readiness,
-		minConfirmations:    minConfirmations,
-		chainID:             chainID,
-		msgChan:             messageEvents,
-		setChan:             setEvents,
-		obsvReqC:            obsvReqC,
-		pending:             map[pendingKey]*pendingMessage{},
-		ethIntf:             ethIntf,
-		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode)}
+		url:                      url,
+		contract:                 contract,
+		networkName:              networkName,
+		readiness:                readiness,
+		minConfirmations:         minConfirmations,
+		messageBlocksTillAbandon: messageBlocksTillAbandon,
+		chainID:                  chainID,
+		msgChan:                  messageEvents,
+		setChan:                  setEvents,
+		obsvReqC:                 obsvReqC,
+		pending:                  map[pendingKey]*pendingMessage{},
+		ethIntf:                  ethIntf,
+		shouldCheckSafeMode:      (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode)}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -233,14 +238,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 	var currentBlockNumber uint64
 
 	go func() {
+		// this goroutine handles observation requests
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case r := <-e.obsvReqC:
-				// This can't happen unless there is a programming error - the caller
-				// is expected to send us only requests for our chainID.
 				if vaa.ChainID(r.ChainId) != e.chainID {
+					// This can't happen unless there is a programming error - the caller
+					// is expected to send us only requests for our chainID.
 					panic("invalid chain ID")
 				}
 
@@ -316,6 +322,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}()
 
 	go func() {
+		// this goroutine processes event emissions of the core contract from the connected chain as they come in into messageC
 		for {
 			select {
 			case <-ctx.Done():
@@ -337,6 +344,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 					ethConnectionErrors.WithLabelValues(e.networkName, "block_by_number_error").Inc()
 					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 					errC <- fmt.Errorf("failed to request timestamp for block %d: %w", ev.Raw.BlockNumber, err)
+					return
+				}
+
+				if ev.Raw.Address != e.contract {
+					// SECURITY we already filter on our contract address when subscribing to log messages, so this condition should be never true,
+					// but we check again right before constructing the message
+					// TODO security-specific event logging
+					errC <- fmt.Errorf("SECURITY: Processed message that was not actually emitted by the correct contract. TxHash=%s", ev.Raw.TxHash)
 					return
 				}
 
@@ -389,6 +404,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 
 	go func() {
+		// this goroutine processes new block headers as they come in and then goes through all pending messages and
+		// advances the ones who have now reached enough confirmations
 		for {
 			select {
 			case <-ctx.Done():
@@ -424,6 +441,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				e.pendingMu.Lock()
 
+				// update our view of the currentBlockNumber, which is relied upon by the processing of observation requests
 				blockNumberU := ev.Number.Uint64()
 				atomic.StoreUint64(&currentBlockNumber, blockNumberU)
 
@@ -433,8 +451,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 						expectedConfirmations = e.minConfirmations
 					}
 
-					// Transaction was dropped and never picked up again
-					if pLock.height+4*uint64(expectedConfirmations) <= blockNumberU {
+					if pLock.height+expectedConfirmations+e.messageBlocksTillAbandon <= blockNumberU {
+						// The block the transaction was originally included in was not finalized,
+						// so we drop this observation. If the transaction is included in a different block,
+						// that observation will have a different pendingKey and will be handled there.
 						logger.Info("observation timed out",
 							zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("blockhash", key.BlockHash),
@@ -449,8 +469,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 						continue
 					}
 
-					// Transaction is now ready
 					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
+						// Transaction now might be ready, just need to check a few more things
+
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						tx, err := e.ethIntf.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
@@ -473,9 +494,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", e.networkName),
 								zap.Error(err))
-							delete(e.pending, key)
 							ethMessagesOrphaned.WithLabelValues(e.networkName, "not_found").Inc()
-							continue
+							continue // SECURITY CRITICAL
 						}
 
 						// This should never happen - if we got this far, it means that logs were emitted,
@@ -492,8 +512,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.String("eth_network", e.networkName),
 								zap.Error(err))
 							delete(e.pending, key)
+							// TODO add security alerting
 							ethMessagesOrphaned.WithLabelValues(e.networkName, "tx_failed").Inc()
-							continue
+							continue // SECURITY CRITICAL
 						}
 
 						// Any error other than "not found" is likely transient - we retry next block.
@@ -507,13 +528,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", e.networkName),
 								zap.Error(err))
-							continue
+							continue // SECURITY CRITICAL
 						}
 
-						// It's possible for a transaction to be orphaned and then included in a different block
-						// but with the same tx hash. Drop the observation (it will be re-observed and needs to
-						// wait for the full confirmation time again).
-						if tx.BlockHash != key.BlockHash {
+						// SECURITY: It's possible that the block this transaction had originally been included in was not finalized
+						// but that the transaction has been included in a different block and we were thus still able to retrieve it
+						// by the transaction hash. That other block may or may not be finalized, so we need to check the BlockHash
+						// from the original observation against the BlockHash of the block where this transaction is currently included in.
+						if tx.BlockHash != key.BlockHash || tx.BlockHash == (eth_common.Hash{}) || tx.BlockNumber == eth_common.Big0 {
+							// The hashes mismatch and we therefore cannot finalize this observation.
 							logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
 								zap.Stringer("tx", pLock.message.TxHash),
 								zap.Stringer("blockhash", key.BlockHash),
@@ -522,9 +545,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("current_blockhash", currentHash),
 								zap.String("eth_network", e.networkName))
-							delete(e.pending, key)
+
 							ethMessagesOrphaned.WithLabelValues(e.networkName, "blockhash_mismatch").Inc()
-							continue
+							continue // SECURITY CRITICAL
 						}
 
 						logger.Info("observation confirmed",
@@ -535,9 +558,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 							zap.Stringer("current_block", ev.Number),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", e.networkName))
+						ethMessagesConfirmed.WithLabelValues(e.networkName).Inc()
+
+						// SUCCESS! Observation has received enough confirmations and is still valid.
 						delete(e.pending, key)
 						e.msgChan <- pLock.message
-						ethMessagesConfirmed.WithLabelValues(e.networkName).Inc()
 					}
 				}
 
