@@ -1,8 +1,11 @@
 module Wormhole::VAA{
     use 0x1::vector;
     use 0x1::string::{Self, String};
+    use 0x1::signature::{Self};//, secp256k1_ecdsa_recover};
     use Wormhole::Deserialize;
     use Wormhole::Serialize;
+    use Wormhole::Structs::{GuardianSet, Guardian, getKey, getGuardians};
+    use Wormhole::State::{getGuardianSet};
 
     struct VAA has key {
             // Header
@@ -99,21 +102,23 @@ module Wormhole::VAA{
     }
 
     //TODO: verify vaa
-    public fun verifyVAA(vaa: &VAA): (bool, String){//, guardian_set: &GuardianSet::GuardianSet) {
-        // let index = 0;
-        // let hash = hash(vaa);
-        // let n = vector::length<vector<u8>>(&vaa.signatures);
-        // let i = 0;
-        // loop {
-        //     if (i==n){
-        //         break;
-        //     };
-        //     // TODO: secp256k_ecrecover AND secp256k_verify
-        //     //let pubkey = secp256k_ecrecover(&signature);
-        //     //assert!(expected_signers[i] == pubkey, 0);
-        //     //secp256k_verify(&signature, &pubkey, &hash);
-        //     i = i + 1;
-        // }
+    public fun verifyVAA(vaa: &VAA, guardianSet: GuardianSet): (bool, String){//, guardian_set: &GuardianSet::GuardianSet) {
+        let guardians = getGuardians(guardianSet);
+        let hash = hash(vaa);
+        let n = vector::length<vector<u8>>(&vaa.signatures);
+        let i = 0; 
+        loop {
+            if (i==n){
+                break
+            };
+            // TODO: secp256k_ecrecover AND secp256k_verify
+            // let (pubkey, res) = secp256k1_ecdsa_recover(hash, 0, signature);
+            // let cur_guardian = vector::borrow<Guardian>(guardians, i);
+            // let cur_signer = getKey(cur_guardian);
+            // assert!(cur_signer == pubkey, 0);
+            // assert!(res==true, 0);
+            i = i + 1;
+        };
         let b = vector::empty<u8>();
         vector::push_back(&mut b, 0x12);
         (true, string::utf8(b))
@@ -121,13 +126,12 @@ module Wormhole::VAA{
     
     public entry fun parseAndVerifyVAA(encodedVM: vector<u8>): (VAA, bool, String) {
         let vaa = parse(encodedVM);
-        let (valid, reason) = verifyVAA(&vaa);
+        let (valid, reason) = verifyVAA(&vaa, getGuardianSet());
         (vaa, valid, reason)
     }
 
     fun hash(vaa: &VAA): vector<u8> {
         use 0x1::hash;
-
         let bytes = vector::empty<u8>();
         Serialize::serialize_u64(&mut bytes, vaa.timestamp);
         Serialize::serialize_u64(&mut bytes, vaa.nonce);
@@ -136,7 +140,6 @@ module Wormhole::VAA{
         Serialize::serialize_u64(&mut bytes, vaa.sequence);
         Serialize::serialize_u8(&mut bytes, vaa.consistency_level);
         Serialize::serialize_vector(&mut bytes, vaa.payload);
-        
         hash::sha3_256(bytes)
     }
 

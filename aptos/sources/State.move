@@ -2,10 +2,10 @@ module Wormhole::State{
     use 0x1::table::{Self, Table};
     use 0x1::event::{Self, EventHandle};
     use 0x1::signer::{address_of};
+    use 0x1::string::{Self, String};
     //includes getters and setters
-    use Wormhole::Governance::{GuardianSet};
+    use Wormhole::Structs::{GuardianSet};
     
-
     struct GuardianSetChanged has store, drop{
         oldGuardianIndex: u64, //should be u32
         newGuardianIndex: u64, //should be u32
@@ -23,7 +23,7 @@ module Wormhole::State{
         event: EventHandle<WormholeMessage>
     }
 
-     struct GuardianSetChangedHandle has key, store {
+    struct GuardianSetChangedHandle has key, store {
         event: EventHandle<GuardianSetChanged>
     }
 
@@ -85,12 +85,12 @@ module Wormhole::State{
         }
     }
 
-    public fun initMesssageHandles(admin: &signer){
+    public fun initMessageHandles(admin: &signer){
         move_to(admin, createWormholeMessageHandle(event::new_event_handle<WormholeMessage>(admin)));
         move_to(admin, createGuardianSetChangedHandle(event::new_event_handle<GuardianSetChanged>(admin)));
     }
 
-    public fun useSequence(emitter: address): u64 acquires WormholeState{
+    fun useSequence(emitter: address): u64 acquires WormholeState{
         let sequence = nextSequence(emitter);
         setNextSequence(emitter, sequence + 1);
         sequence
@@ -116,18 +116,18 @@ module Wormhole::State{
             }
         );
     }
-    
+
     public fun updateGuardianSetIndex(newIndex: u64) acquires WormholeState { //should be u32
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         state.guardianSetIndex = newIndex;
     }
 
-    // TODO
-    // public fun expireGuardianSet(index: u64){
-    //     let state = borrow_global_mut<WormholeState>(@Wormhole);
-    //     let inner = borrow_mut<u64, Table<vector<u8>, String>>(&mut state.wrappedAssets, tokenChainId);
-    //        _state.guardianSets[index].expirationTime = uint32(block.timestamp) + 86400;
-    // }    
+    public fun expireGuardianSet(index: u64) acquires WormholeState{
+        let state = borrow_global_mut<WormholeState>(@Wormhole);
+        // TODO add expiration time
+        //let inner = table::borrow_mut<u64, Table<vector<u8>, String>>(&mut state.wrappedAssets, tokenChainId);
+        //_state.guardianSets[index].expirationTime = uint32(block.timestamp) + 86400;
+    }    
 
     public fun storeGuardianSet(set: GuardianSet, index: u64) acquires WormholeState{ 
         let state = borrow_global_mut<WormholeState>(@Wormhole);
@@ -166,17 +166,29 @@ module Wormhole::State{
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         state.messageFee = newFee;
     }
-    
-    public fun nextSequence(emitter: address):u64 acquires WormholeState{ 
-        let state = borrow_global_mut<WormholeState>(@Wormhole);
-        *table::borrow(&state.sequences, emitter)
-    }
 
-    public fun setNextSequence(emitter: address, sequence: u64) acquires WormholeState{
+    fun setNextSequence(emitter: address, sequence: u64) acquires WormholeState{
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         if (table::contains(&state.sequences, emitter)){
             table::remove(&mut state.sequences, emitter);
         };
         table::add(&mut state.sequences, emitter, sequence);
+    }
+
+    public fun nextSequence(emitter: address):u64 acquires WormholeState{ 
+        let state = borrow_global_mut<WormholeState>(@Wormhole);
+        *table::borrow(&state.sequences, emitter)
+    }
+
+    // getters
+    public fun getGuardianSetIndex():u64 acquires WormholeState{
+        let state = borrow_global<WormholeState>(@Wormhole);
+        state.guardianSetIndex
+    }
+    
+    public fun getGuardianSet(): GuardianSet acquires WormholeState{
+        let state = borrow_global<WormholeState>(@Wormhole);
+        let ind = state.guardianSetIndex;
+        *table::borrow(&state.guardianSets, ind)
     }
 }

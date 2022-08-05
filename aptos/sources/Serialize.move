@@ -35,7 +35,6 @@ module Wormhole::Serialize {
             vector::push_back(buf, byte);
         }
     }
-
 }
 
 #[test_only]
