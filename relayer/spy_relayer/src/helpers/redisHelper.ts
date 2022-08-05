@@ -156,10 +156,6 @@ export async function addToRedis(
   }
 }
 
-export function getKey(chainId: ChainId, address: string) {
-  return chainId + ":" + address;
-}
-
 export enum Status {
   Pending = 1,
   Completed = 2,
@@ -174,6 +170,7 @@ export type RelayResult = {
 
 export type WorkerInfo = {
   index: number;
+  targetChainName: string;
   targetChainId: number;
   walletPrivateKey: any;
 };
@@ -191,6 +188,7 @@ export type StorePayload = {
   retries: number;
 };
 
+/** Default redis payload */
 export function initPayload(): StorePayload {
   return {
     vaa_bytes: "",
@@ -199,6 +197,7 @@ export function initPayload(): StorePayload {
     retries: 0,
   };
 }
+
 export function initPayloadWithVAA(vaa_bytes: string): StorePayload {
   const sp: StorePayload = initPayload();
   sp.vaa_bytes = vaa_bytes;
@@ -215,6 +214,7 @@ export function storeKeyFromParsedVAA(
   };
 }
 
+/** Stringify the key going into redis as json */
 export function storeKeyToJson(storeKey: StoreKey): string {
   return JSON.stringify(storeKey);
 }
@@ -223,6 +223,7 @@ export function storeKeyFromJson(json: string): StoreKey {
   return JSON.parse(json);
 }
 
+/** Stringify the value going into redis as json */
 export function storePayloadToJson(storePayload: StorePayload): string {
   return JSON.stringify(storePayload);
 }
@@ -233,54 +234,6 @@ export function storePayloadFromJson(json: string): StorePayload {
 
 export function resetPayload(storePayload: StorePayload): StorePayload {
   return initPayloadWithVAA(storePayload.vaa_bytes);
-}
-
-export async function pushVaaToRedis(
-  parsedVAA: ParsedVaa<ParsedTransferPayload>,
-  hexVaa: string
-) {
-  const transferPayload = parsedVAA.payload;
-
-  logger.info(
-    "forwarding vaa to relayer: emitter: [" +
-      parsedVAA.emitterChain +
-      ":" +
-      uint8ArrayToHex(parsedVAA.emitterAddress) +
-      "], seqNum: " +
-      parsedVAA.sequence +
-      ", payload: origin: [" +
-      transferPayload.originAddress +
-      ":" +
-      transferPayload.originAddress +
-      "], target: [" +
-      transferPayload.targetChain +
-      ":" +
-      transferPayload.targetAddress +
-      "],  amount: " +
-      transferPayload.amount +
-      "],  fee: " +
-      transferPayload.fee +
-      ", "
-  );
-  const storeKey = storeKeyFromParsedVAA(parsedVAA);
-  const storePayload = initPayloadWithVAA(hexVaa);
-
-  logger.debug(
-    "storing: key: [" +
-      storeKey.chain_id +
-      "/" +
-      storeKey.emitter_address +
-      "/" +
-      storeKey.sequence +
-      "], payload: [" +
-      storePayloadToJson(storePayload) +
-      "]"
-  );
-
-  await storeInRedis(
-    storeKeyToJson(storeKey),
-    storePayloadToJson(storePayload)
-  );
 }
 
 export async function clearRedis() {
@@ -427,4 +380,45 @@ export async function monitorRedis(metrics: PromHelper) {
     }
     await sleep(TEN_SECONDS);
   }
+}
+
+/** Check to see if a key is in the listener memory queue or redis incoming db */
+export async function checkQueue(key: string): Promise<string | null> {
+  try {
+    const backupQueue = getBackupQueue();
+    const queuedRecord = backupQueue.find((record) => record[0] === key);
+
+    if (queuedRecord) {
+      logger.debug("VAA was already in the listener queue");
+      return "VAA was already in the listener queue";
+    }
+
+    const rClient = await connectToRedis();
+    if (!rClient) {
+      logger.error("Failed to connect to redis");
+      return null;
+    }
+
+    await rClient.select(RedisTables.INCOMING);
+    const record1 = await rClient.get(key);
+
+    if (record1) {
+      logger.debug("VAA was already in INCOMING table");
+      rClient.quit();
+      return "VAA was already in INCOMING table";
+    }
+
+    await rClient.select(RedisTables.WORKING);
+    const record2 = await rClient.get(key);
+    if (record2) {
+      logger.debug("VAA was already in WORKING table");
+      rClient.quit();
+      return "VAA was already in WORKING table";
+    }
+    rClient.quit();
+  } catch (e) {
+    logger.error("Failed to connect to redis");
+  }
+
+  return null;
 }

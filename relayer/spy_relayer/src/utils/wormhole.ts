@@ -19,5 +19,6 @@ export const chainIDStrings: { [key in ChainId]: string } = {
   15: "NEAR",
   16: "Moonbeam",
   17: "Neon",
+  18: "Terra2",
   10001: "Ropsten",
 };

@@ -102,6 +102,7 @@ export type ChainConfigInfo = {
   terraCoin?: string;
   terraGasPriceUrl?: string;
   wrappedAsset?: string | null;
+  isTerraClassic?: boolean;
 };
 
 export type ListenerEnvironment = {
@@ -202,6 +203,8 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
     }
   }
 
+  logger.info("Setting the listener backend...");
+
   return {
     spyServiceHost,
     spyServiceFilters,
@@ -230,6 +233,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
   let clearRedisOnInit: boolean;
   let demoteWorkingOnInit: boolean;
   let supportedTokens: { chainId: ChainId; address: string }[] = [];
+  const logger = getLogger();
 
   if (!process.env.REDIS_HOST) {
     throw new Error("Missing required environment variable: REDIS_HOST");
@@ -289,6 +293,8 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
       });
     }
   }
+
+  logger.info("Setting the relayer backend...");
 
   return {
     supportedChains,
@@ -442,6 +448,7 @@ function createTerraChainConfig(
   let terraChainId: string;
   let terraCoin: string;
   let terraGasPriceUrl: string;
+  let isTerraClassic = false;
 
   if (!config.chainId) {
     throw new Error("Missing required field in chain config: chainId");
@@ -488,6 +495,7 @@ function createTerraChainConfig(
   terraChainId = config.terraChainId;
   terraCoin = config.terraCoin;
   terraGasPriceUrl = config.terraGasPriceUrl;
+  isTerraClassic = config.isTerraClassic || false;
 
   return {
     chainId,
@@ -500,6 +508,7 @@ function createTerraChainConfig(
     terraChainId,
     terraCoin,
     terraGasPriceUrl,
+    isTerraClassic,
   };
 }
 

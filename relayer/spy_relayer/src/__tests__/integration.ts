@@ -19,10 +19,8 @@ import {
   postVaaSolana,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
-  redeemOnSolana,
   transferFromEth,
   transferFromSolana,
-  uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 
 import getSignedVAAWithRetry from "@certusone/wormhole-sdk/lib/cjs/rpc/getSignedVAAWithRetry";
@@ -46,7 +44,6 @@ import {
   ETH_CORE_BRIDGE_ADDRESS,
   ETH_NODE_URL,
   ETH_PRIVATE_KEY,
-  ETH_PUBLIC_KEY,
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_CORE_BRIDGE_ADDRESS,
   SOLANA_HOST,
@@ -91,9 +88,9 @@ test("Verify Spy Relay is running", (done) => {
   })();
 });
 
-var sequence: string;
-var emitterAddress: string;
-var transferSignedVAA: Uint8Array;
+let sequence: string;
+let emitterAddress: string;
+let transferSignedVAA: Uint8Array;
 
 describe("Solana to Ethereum", () => {
   test("Attest Solana SPL to Ethereum", (done) => {
@@ -157,7 +154,6 @@ describe("Solana to Ethereum", () => {
       }
     })();
   });
-
   // TODO: it is attested
   test("Send Solana SPL to Ethereum", (done) => {
     (async () => {
@@ -182,6 +178,7 @@ describe("Solana to Ethereum", () => {
         // transfer the test token
         const connection = new Connection(SOLANA_HOST, "confirmed");
         const amount = parseUnits("1", 9).toBigInt();
+        const fee = parseUnits("1", 3).toBigInt();
         const transaction = await transferFromSolana(
           connection,
           SOLANA_CORE_BRIDGE_ADDRESS,
@@ -189,9 +186,13 @@ describe("Solana to Ethereum", () => {
           payerAddress,
           fromAddress,
           TEST_SOLANA_TOKEN,
-          amount,
+          amount + fee,
           hexToUint8Array(nativeToHexString(targetAddress, CHAIN_ID_ETH) || ""),
-          CHAIN_ID_ETH
+          CHAIN_ID_ETH,
+          Buffer.from(TEST_SOLANA_TOKEN),
+          CHAIN_ID_SOLANA,
+          undefined,
+          fee
         );
         // sign, send, and confirm transaction
         console.log("Sending transaction.");
@@ -234,13 +235,11 @@ describe("Solana to Ethereum", () => {
       }
     })();
   });
-
   test("Spy Relay redeemed on Eth", (done) => {
     (async () => {
       try {
         const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-
-        var success: boolean = false;
+        let success: boolean = false;
         for (let count = 0; count < 5 && !success; ++count) {
           console.log(
             "sleeping before querying spy relay",
@@ -258,51 +257,12 @@ describe("Solana to Ethereum", () => {
             count
           );
         }
-
         expect(success).toBe(true);
-
         provider.destroy();
         done();
       } catch (e) {
         console.error(e);
         done("An error occurred while trying to redeem on Eth");
-      }
-    })();
-  });
-
-  test("Query Spy Relay via REST", (done) => {
-    (async () => {
-      var storeKey: string =
-        CHAIN_ID_SOLANA.toString() +
-        "/" +
-        emitterAddress +
-        "/" +
-        sequence.toString();
-      try {
-        var query: string = SPY_RELAY_URL + "/query/" + storeKey;
-        console.log("Sending query to spy relay, query: [%s]", query);
-        const result = await axios.get(query);
-        console.log(
-          "status: ",
-          result.status,
-          ", statusText: ",
-          result.statusText,
-          ", data: ",
-          result.data
-        );
-
-        expect(result).toHaveProperty("status");
-        expect(result.status).toBe(200);
-        expect(result).toHaveProperty("data");
-        expect(JSON.parse(result.data).vaa_bytes).toBe(
-          uint8ArrayToHex(transferSignedVAA)
-        );
-
-        console.log(result.data);
-        done();
-      } catch (e) {
-        console.error(e);
-        done("An error occurred while trying to send query to spy relay");
       }
     })();
   });
@@ -387,7 +347,6 @@ describe("Ethereum to Solana", () => {
         // create a keypair for Solana
         const connection = new Connection(SOLANA_HOST, "confirmed");
         const keypair = Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
-        const payerAddress = keypair.publicKey.toString();
         // determine destination address - an associated token account
         const solanaMintKey = new PublicKey(
           (await getForeignAssetSolana(
@@ -432,18 +391,26 @@ describe("Ethereum to Solana", () => {
         const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
         const amount = parseUnits("1", 18);
+        const fee = parseUnits("1", 12);
+        const transferAmount = amount.add(fee);
         // approve the bridge to spend tokens
-        await approveEth(ETH_TOKEN_BRIDGE_ADDRESS, TEST_ERC20, signer, amount);
+        await approveEth(
+          ETH_TOKEN_BRIDGE_ADDRESS,
+          TEST_ERC20,
+          signer,
+          transferAmount
+        );
         // transfer tokens
         const receipt = await transferFromEth(
           ETH_TOKEN_BRIDGE_ADDRESS,
           signer,
           TEST_ERC20,
-          amount,
+          transferAmount,
           CHAIN_ID_SOLANA,
           hexToUint8Array(
             nativeToHexString(recipient.toString(), CHAIN_ID_SOLANA) || ""
-          )
+          ),
+          fee
         );
         // get the sequence from the logs (needed to fetch the vaa)
         sequence = parseSequenceFromLogEth(receipt, ETH_CORE_BRIDGE_ADDRESS);
@@ -460,17 +427,6 @@ describe("Ethereum to Solana", () => {
         );
         console.log("Got signed vaa: ", signedVAA);
         transferSignedVAA = signedVAA;
-        // post vaa to Solana
-        // await postVaaSolana(                     // I think this is the redeem!
-        //   connection,
-        //   async (transaction) => {
-        //     transaction.partialSign(keypair);
-        //     return transaction;
-        //   },
-        //   SOLANA_CORE_BRIDGE_ADDRESS,
-        //   payerAddress,
-        //   Buffer.from(signedVAA)
-        // );
         provider.destroy();
         done();
       } catch (e) {
@@ -479,13 +435,11 @@ describe("Ethereum to Solana", () => {
       }
     })();
   });
-
   test("Spy Relay redeemed on Sol", (done) => {
     (async () => {
       try {
         const connection = new Connection(SOLANA_HOST, "confirmed");
-
-        var success: boolean = false;
+        let success: boolean = false;
         for (let count = 0; count < 5 && !success; ++count) {
           console.log(
             "sleeping before querying spy relay",
@@ -503,48 +457,11 @@ describe("Ethereum to Solana", () => {
             count
           );
         }
-
+        expect(success).toBe(true);
         done();
       } catch (e) {
         console.error(e);
         done("An error occurred while trying to redeem on Sol");
-      }
-    })();
-  });
-
-  test("Query Spy Relay via REST", (done) => {
-    (async () => {
-      var storeKey: string =
-        CHAIN_ID_ETH.toString() +
-        "/" +
-        emitterAddress +
-        "/" +
-        sequence.toString();
-      try {
-        var query: string = SPY_RELAY_URL + "/query/" + storeKey;
-        console.log("Sending query to spy relay, query: [%s]", query);
-        const result = await axios.get(query);
-        console.log(
-          "status: ",
-          result.status,
-          ", statusText: ",
-          result.statusText,
-          ", data: ",
-          result.data
-        );
-
-        expect(result).toHaveProperty("status");
-        expect(result.status).toBe(200);
-        expect(result).toHaveProperty("data");
-        expect(JSON.parse(result.data).vaa_bytes).toBe(
-          uint8ArrayToHex(transferSignedVAA)
-        );
-
-        console.log(result.data);
-        done();
-      } catch (e) {
-        console.error(e);
-        done("An error occurred while trying to send query to spy relay");
       }
     })();
   });
@@ -582,6 +499,7 @@ describe("Ethereum to Terra", () => {
         const lcd = new LCDClient({
           URL: TERRA_NODE_URL,
           chainID: TERRA_CHAIN_ID,
+          isClassic: true,
         });
         const mk = new MnemonicKey({
           mnemonic: TERRA_PRIVATE_KEY,
@@ -633,11 +551,19 @@ describe("Ethereum to Terra", () => {
         const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
         const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
         const amount = parseUnits("1", 18);
+        const fee = parseUnits("1", 12);
+        const transferAmount = amount.add(fee);
         // approve the bridge to spend tokens
-        await approveEth(ETH_TOKEN_BRIDGE_ADDRESS, TEST_ERC20, signer, amount);
+        await approveEth(
+          ETH_TOKEN_BRIDGE_ADDRESS,
+          TEST_ERC20,
+          signer,
+          transferAmount
+        );
         const lcd = new LCDClient({
           URL: TERRA_NODE_URL,
           chainID: TERRA_CHAIN_ID,
+          isClassic: true,
         });
         const mk = new MnemonicKey({
           mnemonic: TERRA_PRIVATE_KEY,
@@ -648,11 +574,12 @@ describe("Ethereum to Terra", () => {
           ETH_TOKEN_BRIDGE_ADDRESS,
           signer,
           TEST_ERC20,
-          amount,
+          transferAmount,
           CHAIN_ID_TERRA,
           hexToUint8Array(
             nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA) || ""
-          )
+          ),
+          fee
         );
         // get the sequence from the logs (needed to fetch the vaa)
         sequence = parseSequenceFromLogEth(receipt, ETH_CORE_BRIDGE_ADDRESS);
@@ -669,49 +596,6 @@ describe("Ethereum to Terra", () => {
         );
         console.log("Got signed vaa: ", signedVAA);
         transferSignedVAA = signedVAA;
-        // expect(
-        //   await getIsTransferCompletedTerra(
-        //     TERRA_TOKEN_BRIDGE_ADDRESS,
-        //     signedVAA,
-        //     wallet.key.accAddress,
-        //     lcd,
-        //     TERRA_GAS_PRICES_URL
-        //   )
-        // ).toBe(false);
-        // const msg = await redeemOnTerra(
-        //   TERRA_TOKEN_BRIDGE_ADDRESS,
-        //   wallet.key.accAddress,
-        //   signedVAA
-        // );
-        // const gasPrices = await axios
-        //   .get(TERRA_GAS_PRICES_URL)
-        //   .then((result) => result.data);
-        // const feeEstimate = await lcd.tx.estimateFee(
-        //   wallet.key.accAddress,
-        //   [msg],
-        //   {
-        //     memo: "localhost",
-        //     feeDenoms: ["uluna"],
-        //     gasPrices,
-        //   }
-        // );
-        // const tx = await wallet.createAndSignTx({
-        //   msgs: [msg],
-        //   memo: "localhost",
-        //   feeDenoms: ["uluna"],
-        //   gasPrices,
-        //   fee: feeEstimate,
-        // });
-        // await lcd.tx.broadcast(tx);
-        // expect(
-        //   await getIsTransferCompletedTerra(
-        //     TERRA_TOKEN_BRIDGE_ADDRESS,
-        //     signedVAA,
-        //     wallet.key.accAddress,
-        //     lcd,
-        //     TERRA_GAS_PRICES_URL
-        //   )
-        // ).toBe(true);
         provider.destroy();
         done();
       } catch (e) {
@@ -727,12 +611,8 @@ describe("Ethereum to Terra", () => {
         const lcd = new LCDClient({
           URL: TERRA_NODE_URL,
           chainID: TERRA_CHAIN_ID,
+          isClassic: true,
         });
-        const mk = new MnemonicKey({
-          mnemonic: TERRA_PRIVATE_KEY,
-        });
-        const wallet = lcd.wallet(mk);
-
         var success: boolean = false;
         for (let count = 0; count < 5 && !success; ++count) {
           console.log(
@@ -752,47 +632,13 @@ describe("Ethereum to Terra", () => {
             count
           );
         }
-
+        expect(success).toBe(true);
         done();
       } catch (e) {
         console.error(e);
         done(
           "An error occurred while checking to see if redeem on Terra was successful"
         );
-      }
-    })();
-  });
-
-  test("Query Spy Relay via REST", (done) => {
-    (async () => {
-      var storeKey: string =
-        CHAIN_ID_TERRA.toString() +
-        "/" +
-        emitterAddress +
-        "/" +
-        sequence.toString();
-      try {
-        var query: string = SPY_RELAY_URL + "/query/" + storeKey;
-        console.log("Sending query to spy relay, query: [%s]", query);
-        const result = await axios.get(query);
-        console.log(
-          "status: ",
-          result.status,
-          ", statusText: ",
-          result.statusText,
-          ", data: ",
-          result.data
-        );
-
-        expect(result).toHaveProperty("status");
-        expect(result.status).toBe(200);
-        expect(result).toHaveProperty("data");
-
-        console.log(result.data);
-        done();
-      } catch (e) {
-        console.error(e);
-        done("An error occurred while trying to send query to spy relay");
       }
     })();
   });

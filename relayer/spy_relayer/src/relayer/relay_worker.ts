@@ -9,8 +9,6 @@ import {
   demoteWorkingRedis,
   monitorRedis,
   RedisTables,
-  RelayResult,
-  resetPayload,
   Status,
   StorePayload,
   storePayloadFromJson,
@@ -18,13 +16,11 @@ import {
   WorkerInfo,
 } from "../helpers/redisHelper";
 import { sleep } from "../helpers/utils";
-import { relay } from "./relay";
+import { getBackend } from "../backends";
 
 const WORKER_THREAD_RESTART_MS = 10 * 1000;
 const AUDITOR_THREAD_RESTART_MS = 10 * 1000;
-const AUDIT_INTERVAL_MS = 30 * 1000;
 const WORKER_INTERVAL_MS = 5 * 1000;
-const REDIS_RETRY_MS = 10 * 1000;
 
 let metrics: PromHelper;
 
@@ -36,9 +32,7 @@ type WorkableItem = {
   value: string;
 };
 
-export function init(runWorker: boolean): boolean {
-  if (!runWorker) return true;
-
+export function init(): boolean {
   try {
     relayerEnv = getRelayerEnvironment();
   } catch (e) {
@@ -51,7 +45,8 @@ export function init(runWorker: boolean): boolean {
   return true;
 }
 
-function createWorkerInfos(metrics: PromHelper) {
+/** Initialize metrics for each chain and the worker infos */
+function createWorkerInfos(metrics: PromHelper): WorkerInfo[] {
   let workerArray: WorkerInfo[] = new Array();
   let index = 0;
   relayerEnv.supportedChains.forEach((chain) => {
@@ -65,14 +60,17 @@ function createWorkerInfos(metrics: PromHelper) {
         walletPrivateKey: key,
         index: index,
         targetChainId: chain.chainId,
+        targetChainName: chain.chainName,
       });
       index++;
     });
+    // TODO: Name the solanaprivatekey property the same as the non-solana one
     chain.solanaPrivateKey?.forEach((key) => {
       workerArray.push({
         walletPrivateKey: key,
         index: index,
         targetChainId: chain.chainId,
+        targetChainName: chain.chainName,
       });
       index++;
     });
@@ -81,155 +79,33 @@ function createWorkerInfos(metrics: PromHelper) {
   return workerArray;
 }
 
+/** Spawn relay worker and auditor threads for all chains */
 async function spawnWorkerThreads(workerArray: WorkerInfo[]) {
   workerArray.forEach((workerInfo) => {
     spawnWorkerThread(workerInfo);
     spawnAuditorThread(workerInfo);
   });
 }
-
+/** Spawn an auditor thread for each (chain, wallet) combo from the backend implementation */
 async function spawnAuditorThread(workerInfo: WorkerInfo) {
   logger.info(
-    "Spinning up auditor thread[" +
-      workerInfo.index +
-      "] to handle targetChainId " +
-      workerInfo.targetChainId
+    `Spinning up auditor thread for target chain [${workerInfo.targetChainName}-${workerInfo.index}]`
   );
 
   //At present, due to the try catch inside the while loop, this thread should never crash.
-  const auditorPromise = doAuditorThread(workerInfo).catch(
-    async (error: Error) => {
+  const auditorPromise = getBackend()
+    .relayer.runAuditor(workerInfo, metrics)
+    .catch(async (error: Error) => {
       logger.error(
-        "Fatal crash on auditor thread: index " +
-          workerInfo.index +
-          " chainId " +
-          workerInfo.targetChainId
+        `Fatal crash on auditor thread ${workerInfo.targetChainName}-${workerInfo.index}`
       );
       logger.error("error message: " + error.message);
       logger.error("error trace: " + error.stack);
       await sleep(AUDITOR_THREAD_RESTART_MS);
       spawnAuditorThread(workerInfo);
-    }
-  );
+    });
 
   return auditorPromise;
-}
-
-//One auditor thread should be spawned per worker. This is perhaps overkill, but auditors
-//should not be allowed to block workers, or other auditors.
-async function doAuditorThread(workerInfo: WorkerInfo) {
-  const auditLogger = getScopedLogger([`audit-worker-${workerInfo.index}`]);
-  while (true) {
-    try {
-      let redisClient: any = null;
-      while (!redisClient) {
-        redisClient = await connectToRedis();
-        if (!redisClient) {
-          auditLogger.error("Failed to connect to redis!");
-          await sleep(REDIS_RETRY_MS);
-        }
-      }
-      await redisClient.select(RedisTables.WORKING);
-      for await (const si_key of redisClient.scanIterator()) {
-        const si_value = await redisClient.get(si_key);
-        if (!si_value) {
-          continue;
-        }
-
-        const storePayload: StorePayload = storePayloadFromJson(si_value);
-        try {
-          const { parse_vaa } = await importCoreWasm();
-          const parsedVAA = parse_vaa(hexToUint8Array(storePayload.vaa_bytes));
-          const payloadBuffer: Buffer = Buffer.from(parsedVAA.payload);
-          const transferPayload = parseTransferPayload(payloadBuffer);
-
-          const chain = transferPayload.targetChain;
-          if (chain !== workerInfo.targetChainId) {
-            continue;
-          }
-        } catch (e) {
-          auditLogger.error("Failed to parse a stored VAA: " + e);
-          auditLogger.error("si_value of failure: " + si_value);
-          continue;
-        }
-        auditLogger.debug(
-          "key %s => status: %s, timestamp: %s, retries: %d",
-          si_key,
-          Status[storePayload.status],
-          storePayload.timestamp,
-          storePayload.retries
-        );
-        // Let things sit in here for 10 minutes
-        // After that:
-        //    - Toss totally failed VAAs
-        //    - Check to see if successful transactions were rolled back
-        //    - Put roll backs into INCOMING table
-        //    - Toss legitimately completed transactions
-        const now = new Date();
-        const old = new Date(storePayload.timestamp);
-        const timeDelta = now.getTime() - old.getTime(); // delta is in mS
-        const TEN_MINUTES = 600000;
-        auditLogger.debug(
-          "Checking timestamps:  now: " +
-            now.toISOString() +
-            ", old: " +
-            old.toISOString() +
-            ", delta: " +
-            timeDelta
-        );
-        if (timeDelta > TEN_MINUTES) {
-          // Deal with this item
-          if (storePayload.status === Status.FatalError) {
-            // Done with this failed transaction
-            auditLogger.debug("Discarding FatalError.");
-            await redisClient.del(si_key);
-            continue;
-          } else if (storePayload.status === Status.Completed) {
-            // Check for rollback
-            auditLogger.debug("Checking for rollback.");
-
-            //TODO actually do an isTransferCompleted
-            const rr = await relay(
-              storePayload.vaa_bytes,
-              true,
-              workerInfo.walletPrivateKey,
-              auditLogger,
-              metrics
-            );
-
-            await redisClient.del(si_key);
-            if (rr.status === Status.Completed) {
-              metrics.incConfirmed(workerInfo.targetChainId);
-            } else {
-              auditLogger.info("Detected a rollback on " + si_key);
-              metrics.incRollback(workerInfo.targetChainId);
-              // Remove this item from the WORKING table and move it to INCOMING
-              await redisClient.select(RedisTables.INCOMING);
-              await redisClient.set(
-                si_key,
-                storePayloadToJson(resetPayload(storePayloadFromJson(si_value)))
-              );
-              await redisClient.select(RedisTables.WORKING);
-            }
-          } else if (storePayload.status === Status.Error) {
-            auditLogger.error("Received Error status.");
-            continue;
-          } else if (storePayload.status === Status.Pending) {
-            auditLogger.error("Received Pending status.");
-            continue;
-          } else {
-            auditLogger.error("Unhandled Status of " + storePayload.status);
-            continue;
-          }
-        }
-      }
-      redisClient.quit();
-      // metrics.setDemoWalletBalance(now.getUTCSeconds());
-      await sleep(AUDIT_INTERVAL_MS);
-    } catch (e) {
-      auditLogger.error("spawnAuditorThread: caught exception: " + e);
-    }
-  }
 }
 
 export async function run(ph: PromHelper) {
@@ -252,115 +128,6 @@ export async function run(ph: PromHelper) {
     monitorRedis(metrics);
   } catch (e) {
     logger.error("Failed to kick off monitorRedis: " + e);
-  }
-}
-
-async function processRequest(
-  key: string,
-  myPrivateKey: any,
-  relayLogger: ScopedLogger
-) {
-  const logger = getScopedLogger(["processRequest"], relayLogger);
-  try {
-    logger.debug("Processing request %s...", key);
-    // Get the entry from the working store
-    const rClient = await connectToRedis();
-    if (!rClient) {
-      logger.error("Failed to connect to Redis in processRequest");
-      return;
-    }
-    await rClient.select(RedisTables.WORKING);
-    let value: string | null = await rClient.get(key);
-    if (!value) {
-      logger.error("Could not find key %s", key);
-      return;
-    }
-    let payload: StorePayload = storePayloadFromJson(value);
-    if (payload.status !== Status.Pending) {
-      logger.info("This key %s has already been processed.", key);
-      return;
-    }
-    // Actually do the processing here and update status and time field
-    let relayResult: RelayResult;
-    try {
-      if (payload.retries > 0) {
-        logger.info(
-          "Calling with vaa_bytes %s, retry %d",
-          payload.vaa_bytes,
-          payload.retries
-        );
-      } else {
-        logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
-      }
-      relayResult = await relay(
-        payload.vaa_bytes,
-        false,
-        myPrivateKey,
-        logger,
-        metrics
-      );
-      logger.info("Relay returned: %o", Status[relayResult.status]);
-    } catch (e: any) {
-      if (e.message) {
-        logger.error("Failed to relay transfer vaa: %s", e.message);
-      } else {
-        logger.error("Failed to relay transfer vaa: %o", e);
-      }
-
-      relayResult = {
-        status: Status.Error,
-        result: "Failure",
-      };
-      if (e && e.message) {
-        relayResult.result = e.message;
-      }
-    }
-
-    const MAX_RETRIES = 10;
-    let targetChain: any = 0; // 0 is unspecified, but not covered by the SDK
-    try {
-      const { parse_vaa } = await importCoreWasm();
-      const parsedVAA = parse_vaa(hexToUint8Array(payload.vaa_bytes));
-      const transferPayload = parseTransferPayload(
-        Buffer.from(parsedVAA.payload)
-      );
-      targetChain = transferPayload.targetChain;
-    } catch (e) {}
-    let retry: boolean = false;
-    if (relayResult.status !== Status.Completed) {
-      metrics.incFailures(targetChain);
-      if (payload.retries >= MAX_RETRIES) {
-        relayResult.status = Status.FatalError;
-      }
-      if (relayResult.status === Status.FatalError) {
-        // Invoke fatal error logic here!
-        payload.retries = MAX_RETRIES;
-      } else {
-        // Invoke retry logic here!
-        retry = true;
-      }
-    }
-
-    // Put result back into store
-    payload.status = relayResult.status;
-    payload.timestamp = new Date().toISOString();
-    payload.retries++;
-    value = storePayloadToJson(payload);
-    if (!retry || payload.retries > MAX_RETRIES) {
-      await rClient.set(key, value);
-    } else {
-      // Remove from the working table
-      await rClient.del(key);
-      // Put this back into the incoming table
-      await rClient.select(RedisTables.INCOMING);
-      await rClient.set(key, value);
-    }
-    await rClient.quit();
-  } catch (e: any) {
-    logger.error("Unexpected error in processRequest: " + e.message);
-    logger.error("request key: " + key);
-    logger.error(e);
-    return [];
   }
 }
 
@@ -389,8 +156,7 @@ async function findWorkableItems(
           const { parse_vaa } = await importCoreWasm();
           const parsedVAA = parse_vaa(hexToUint8Array(storePayload.vaa_bytes));
           const payloadBuffer: Buffer = Buffer.from(parsedVAA.payload);
-          const transferPayload = parseTransferPayload(payloadBuffer);
-          const tgtChainId = transferPayload.targetChain;
+          const tgtChainId = getBackend().relayer.targetChainId(payloadBuffer);
           if (tgtChainId !== workerInfo.targetChainId) {
             // Skipping mismatched chainId
             continue;
@@ -428,13 +194,14 @@ async function findWorkableItems(
   }
 }
 
-//One worker should be spawned for each chainId+privateKey combo.
+/** Spin up one worker for each (chainId, privateKey) combo. */
 async function spawnWorkerThread(workerInfo: WorkerInfo) {
   logger.info(
     "Spinning up worker[" +
       workerInfo.index +
-      "] to handle targetChainId " +
-      workerInfo.targetChainId
+      "] to handle target chain " +
+      workerInfo.targetChainId +
+      ` / ${workerInfo.targetChainName}`
   );
 
   const workerPromise = doWorkerThread(workerInfo).catch(async (error) => {
@@ -454,7 +221,10 @@ async function spawnWorkerThread(workerInfo: WorkerInfo) {
 }
 
 async function doWorkerThread(workerInfo: WorkerInfo) {
-  const relayLogger = getScopedLogger([`relay-worker-${workerInfo.index}`]);
+  // relay-worker-solana-1
+  const loggerName = `relay-worker-${workerInfo.targetChainName}-${workerInfo.index}`;
+  const relayLogger = getScopedLogger([loggerName]);
+  const backend = getBackend().relayer;
   while (true) {
     // relayLogger.debug("Finding workable items.");
     const workableItems: WorkableItem[] = await findWorkableItems(
@@ -470,10 +240,11 @@ async function doWorkerThread(workerInfo: WorkerInfo) {
         relayLogger.debug("Moving item: %o", workItem);
         if (await moveToWorking(workItem, relayLogger)) {
           relayLogger.info("Moved key to WORKING table: %s", workItem.key);
-          await processRequest(
+          await backend.process(
             workItem.key,
             workerInfo.walletPrivateKey,
-            relayLogger
+            relayLogger,
+            metrics
           );
         } else {
           relayLogger.error(

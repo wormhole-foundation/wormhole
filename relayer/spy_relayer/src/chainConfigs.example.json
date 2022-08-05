@@ -4,7 +4,7 @@
     "chainName": "Solana",
     "nativeCurrencySymbol": "SOL",
     "nodeUrl": "http://solana-devnet:8899",
-    "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+    "tokenBridgeAddress": "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE",
     "bridgeAddress": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
     "wrappedAsset": "So11111111111111111111111111111111111111112"
   },
@@ -23,9 +23,10 @@
     "nodeUrl": "http://terra-terrad:1317",
     "tokenBridgeAddress": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
     "terraName": "localterra",
-    "terraChainId": "columbus-5",
+    "terraChainId": "localterra",
     "terraCoin": "uluna",
-    "terraGasPriceUrl": "http://terra-fcd:3060/v1/txs/gas_prices"
+    "terraGasPriceUrl": "http://terra-fcd:3060/v1/txs/gas_prices",
+    "isTerraClassic": true
   },
   {
     "chainId": 4,

@@ -28,7 +28,7 @@ Validation criteria:
 Four tables:
 
 - Incoming: These are requests which have been queued by the listener, but have not yet been attempted by the relayer.
-- In-Work: These are requests which have been popped off the 'incoming' stack, but have not yet been successfuly submitted on chain.
+- In-Work: These are requests which have been popped off the 'incoming' stack, but have not yet been successfully submitted on chain.
 - Pending Confirmation: These are requests which have been successfully submitted on chain, and are waiting for a finality check to ensure they were not rolled back.
 - Failed: These are requests which were removed from the In-Work table due to having exceeded their max number of retries.
 
