@@ -87,7 +87,8 @@ export async function getOriginalAssetTerra(
  * @returns Information about the asset
  */
 export async function getOriginalAssetInjective(
-  wrappedAddress: string
+  wrappedAddress: string,
+  network: any
 ): Promise<WormholeWrappedInfo> {
   const chainId = CHAIN_ID_INJECTIVE;
   if (isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, wrappedAddress)) {
@@ -98,7 +99,6 @@ export async function getOriginalAssetInjective(
     };
   }
   try {
-    const network = getNetworkInfo(Network.TestnetK8s);
     const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
     const queryResult = await client.fetchSmartContractState(
       wrappedAddress,
