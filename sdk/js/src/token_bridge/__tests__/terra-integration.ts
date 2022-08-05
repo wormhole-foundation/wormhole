@@ -122,9 +122,7 @@ describe("Terra Integration Tests", () => {
                   },
                 },
                 recipient_chain: CHAIN_ID_ETH,
-                recipient: Buffer.from(await signer.getAddress()).toString(
-                  "base64"
-                ),
+                recipient: Buffer.from(tryNativeToUint8Array(await signer.getAddress(), 'ethereum')).toString('base64'),
                 fee: "0",
                 nonce: Math.round(Math.round(Math.random() * 100000)),
               },

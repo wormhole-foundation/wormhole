@@ -275,7 +275,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             info,
             asset,
             recipient_chain,
-            recipient.into(),
+            recipient.to_array()?,
             fee,
             TransferType::WithoutPayload,
             nonce,
@@ -293,7 +293,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             info,
             asset,
             recipient_chain,
-            recipient.into(),
+            recipient.to_array()?,
             fee,
             TransferType::WithPayload {
                 payload: payload.into(),
@@ -972,7 +972,7 @@ fn handle_initiate_transfer(
     info: MessageInfo,
     asset: Asset,
     recipient_chain: u16,
-    recipient: Vec<u8>,
+    recipient: [u8; 32],
     fee: Uint128,
     transfer_type: TransferType<Vec<u8>>,
     nonce: u32,
@@ -1012,7 +1012,7 @@ fn handle_initiate_transfer_token(
     asset: HumanAddr,
     mut amount: Uint128,
     recipient_chain: u16,
-    recipient: Vec<u8>,
+    recipient: [u8; 32],
     mut fee: Uint128,
     transfer_type: TransferType<Vec<u8>>,
     nonce: u32,
@@ -1063,7 +1063,7 @@ fn handle_initiate_transfer_token(
                 token_address: asset_address.clone(),
                 amount: (0, amount.u128()),
                 recipient_chain,
-                recipient: recipient.clone(),
+                recipient: recipient.to_vec(),
                 fee: (0, fee.u128()),
             };
 
@@ -1143,7 +1143,7 @@ fn handle_initiate_transfer_token(
                 token_address: asset_address.clone(),
                 amount: (0, amount.u128()),
                 recipient_chain,
-                recipient: recipient.clone(),
+                recipient: recipient.to_vec(),
                 fee: (0, fee.u128()),
             };
 
@@ -1229,7 +1229,7 @@ fn handle_initiate_transfer_native_token(
     denom: String,
     amount: Uint128,
     recipient_chain: u16,
-    recipient: Vec<u8>,
+    recipient: [u8; 32],
     fee: Uint128,
     transfer_type: TransferType<Vec<u8>>,
     nonce: u32,
@@ -1269,7 +1269,7 @@ fn handle_initiate_transfer_native_token(
         token_address: asset_address.to_vec(),
         amount: (0, amount.u128()),
         recipient_chain,
-        recipient: recipient.clone(),
+        recipient: recipient.to_vec(),
         fee: (0, fee.u128()),
     };
 
