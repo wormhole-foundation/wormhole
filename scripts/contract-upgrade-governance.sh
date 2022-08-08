@@ -44,6 +44,12 @@ EOF
 exit 1
 }
 
+# Check if guardiand command exists. It's needed for generating the protoxt and
+# computing the digest.
+if ! command -v guardiand >/dev/null 2>&1; then
+  echo "ERROR: guardiand binary not found" >&2
+  exit 1
+fi
 
 ### Parse command line options
 address=""
@@ -149,7 +155,7 @@ case "$chain_name" in
     chain=12
     explorer="https://blockscout.acala.network/address/"
     evm=true
-    ;;    
+    ;;
   klaytn)
     chain=13
     explorer="https://scope.klaytn.com/account/"
@@ -176,52 +182,90 @@ if [ "$chain_name" = "terra" ]; then
   address="\$(printf \"%064x\" $terra_code_id)"
 fi
 
-create_governance=""
-evm_artifact=""
-solana_artifact=""
-terra_artifact=""
-case "$module" in
+# Generate the command to create the governance prototxt
+function create_governance() {
+  case "$module" in
   bridge|core)
-    create_governance="\
+    echo "\
 guardiand template contract-upgrade \\
   --chain-id $chain \\
   --new-address $address"
-
-    evm_artifact="build/contracts/Implementation.json"
-    solana_artifact="artifacts-mainnet/bridge.so"
-    terra_artifact="artifacts/wormhole.wasm"
     ;;
   token_bridge)
-    create_governance="\
+    echo "\
 guardiand template token-bridge-upgrade-contract \\
   --chain-id $chain --module \"TokenBridge\" \\
   --new-address $address"
-
-    evm_artifact="build/contracts/BridgeImplementation.json"
-    solana_artifact="artifacts-mainnet/token_bridge.so"
-    terra_artifact="artifacts/token_bridge_terra.wasm"
     ;;
   nft_bridge)
-    create_governance="\
+    echo "\
 guardiand template token-bridge-upgrade-contract \\
   --chain-id $chain --module \"NFTBridge\" \\
   --new-address $address"
-
-    evm_artifact="build/contracts/NFTBridgeImplementation.json"
-    solana_artifact="artifacts-mainnet/nft_bridge.so"
-    terra_artifact="artifacts/nft_bridge.wasm"
     ;;
   *) echo "unknown module $module" >&2
      usage
      ;;
-esac
+  esac
+}
+
+function evm_artifact() {
+  case "$module" in
+  bridge|core)
+    echo "build/contracts/Implementation.json"
+    ;;
+  token_bridge)
+    echo "build/contracts/BridgeImplementation.json"
+    ;;
+  nft_bridge)
+    echo "build/contracts/NFTBridgeImplementation.json"
+    ;;
+  *) echo "unknown module $module" >&2
+     usage
+     ;;
+  esac
+}
+
+function solana_artifact() {
+  case "$module" in
+  bridge|core)
+    echo "artifacts-mainnet/bridge.so"
+    ;;
+  token_bridge)
+    echo "artifacts-mainnet/token_bridge.so"
+    ;;
+  nft_bridge)
+    echo "artifacts-mainnet/nft_bridge.so"
+    ;;
+  *) echo "unknown module $module" >&2
+     usage
+     ;;
+  esac
+}
+
+function terra_artifact() {
+  case "$module" in
+  bridge|core)
+    echo "artifacts/wormhole.wasm"
+    ;;
+  token_bridge)
+    echo "artifacts/token_bridge_terra.wasm"
+    ;;
+  nft_bridge)
+    echo "artifacts/nft_bridge.wasm"
+    ;;
+  *) echo "unknown module $module" >&2
+     usage
+     ;;
+  esac
+}
 
 ################################################################################
 # Construct the governance proto
 
 echo "# $module upgrade on $chain_name" >> "$gov_msg_file"
 # Append the new governance message to the gov file
-eval "$create_governance" >> "$gov_msg_file"
+eval "$(create_governance)" >> "$gov_msg_file"
 
 # Multiple messages will include multiple 'current_set_index' fields, but the
 # proto format only takes one. This next part cleans up the file so there's only
@@ -275,6 +319,15 @@ EOD
 echo "# Verification steps ($chain_name $module)
 " >> "$instructions_file"
 
+# Print instructions on checking out the current git hash:
+git_hash=$(git rev-parse HEAD)
+echo "
+## Checkout the current git hash
+\`\`\`shell
+git fetch
+git checkout $git_hash
+\`\`\`" >> "$instructions_file"
+
 # Verification steps depend on the chain.
 
 if [ "$evm" = true ]; then
@@ -290,7 +343,7 @@ if [ "$evm" = true ]; then
 	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
 
 	\`\`\`shell
-	wormhole/ethereum $ ./verify -r $(worm rpc mainnet $chain_name) -c $chain_name $evm_artifact $address
+	wormhole/ethereum $ ./verify -r $(worm rpc mainnet $chain_name) -c $chain_name $(evm_artifact) $address
 	\`\`\`
 
 EOF
@@ -311,7 +364,7 @@ elif [ "$chain_name" = "solana" ]; then
 
 	\`\`\`shell
 	# $module
-	wormhole/solana$ ./verify -n mainnet $solana_artifact $address
+	wormhole/solana$ ./verify -n mainnet $(solana_artifact) $address
 	\`\`\`
 EOF
 elif [ "$chain_name" = "terra" ]; then
@@ -330,7 +383,7 @@ elif [ "$chain_name" = "terra" ]; then
 
 	\`\`\`shell
 	# $module
-	wormhole/terra$ ./verify -n mainnet $terra_artifact $terra_code_id
+	wormhole/terra$ ./verify -n mainnet $(terra_artifact) $terra_code_id
 	\`\`\`
 EOF
 else
@@ -343,7 +396,7 @@ fi
 cat <<-EOF >> "$instructions_file"
 	## Create governance
 	\`\`\`shell
-	$create_governance
+	$(create_governance)
 	\`\`\`
 
 EOF
