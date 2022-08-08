@@ -31,8 +31,7 @@ const mockBridgeWasm: string = "mock_bridge_integration_2.wasm";
 const cw20BaseWasm: string = "cw20_base.wasm";
 
 function createWasmFullPath(w: string) {
-  const pathToWasms: string =
-    "/home/pnoel/git/injective/wormhole/cosmwasm/artifacts/";
+  const pathToWasms: string = "path/to/your/cosmwasm/artifacts/";
   return pathToWasms + w;
 }
 
