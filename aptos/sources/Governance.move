@@ -54,7 +54,7 @@ module Wormhole::Governance {
             new_index,  
             guardians,
         } = update;
-
+    
         updateGuardianSetIndex(new_index);
         storeGuardianSet(createGuardianSet(new_index, guardians), new_index);
         expireGuardianSet(new_index-1);

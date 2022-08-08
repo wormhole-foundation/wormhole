@@ -101,7 +101,6 @@ module Wormhole::VAA{
         payload
     }
 
-    //TODO: verify vaa
     public fun verifyVAA(vaa: &VAA, guardianSet: GuardianSet): (bool, String){//, guardian_set: &GuardianSet::GuardianSet) {
         let guardians = getGuardians(guardianSet);
         let hash = hash(vaa);
@@ -111,12 +110,14 @@ module Wormhole::VAA{
             if (i==n){
                 break
             };
-            // TODO: secp256k_ecrecover AND secp256k_verify
-            // let (pubkey, res) = secp256k1_ecdsa_recover(hash, 0, signature);
-            // let cur_guardian = vector::borrow<Guardian>(guardians, i);
-            // let cur_signer = getKey(cur_guardian);
-            // assert!(cur_signer == pubkey, 0);
-            // assert!(res==true, 0);
+            
+            let cur_signature = vector::borrow(&vaa.signatures, i);
+            let (pubkey, res) = signature::secp256k1_ecdsa_recover(hash, 0, *cur_signature);
+            
+            let cur_guardian = vector::borrow<Guardian>(&guardians, i);
+            let cur_signer = getKey(*cur_guardian);
+            assert!(cur_signer == pubkey, 0);
+            assert!(res==true, 0);
             i = i + 1;
         };
         let b = vector::empty<u8>();
@@ -129,7 +130,7 @@ module Wormhole::VAA{
         let (valid, reason) = verifyVAA(&vaa, getGuardianSet());
         (vaa, valid, reason)
     }
-
+    
     fun hash(vaa: &VAA): vector<u8> {
         use 0x1::hash;
         let bytes = vector::empty<u8>();
@@ -140,7 +141,7 @@ module Wormhole::VAA{
         Serialize::serialize_u64(&mut bytes, vaa.sequence);
         Serialize::serialize_u8(&mut bytes, vaa.consistency_level);
         Serialize::serialize_vector(&mut bytes, vaa.payload);
-        hash::sha3_256(bytes)
+        hash::sha3_256(bytes) 
     }
 
 
