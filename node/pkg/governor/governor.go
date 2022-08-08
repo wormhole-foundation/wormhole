@@ -85,7 +85,7 @@ type (
 	// Payload for each enqueued transfer
 	pendingEntry struct {
 		timeStamp time.Time
-		token     *tokenEntry
+		token     *tokenEntry // Store a reference to the token so we can get the current price to compute the value each interval.
 		amount    *big.Int
 		msg       *common.MessagePublication
 	}
@@ -101,7 +101,7 @@ type (
 )
 
 type ChainGovernor struct {
-	db                  *db.Database
+	db                  db.GovernorDB
 	logger              *zap.Logger
 	mutex               sync.Mutex
 	tokens              map[tokenKey]*tokenEntry
@@ -115,7 +115,7 @@ type ChainGovernor struct {
 
 func NewChainGovernor(
 	logger *zap.Logger,
-	db *db.Database,
+	db db.GovernorDB,
 	env int,
 ) *ChainGovernor {
 	return &ChainGovernor{
@@ -129,9 +129,7 @@ func NewChainGovernor(
 }
 
 func (gov *ChainGovernor) Run(ctx context.Context) error {
-	if gov.logger != nil {
-		gov.logger.Info("cgov: starting chain governor")
-	}
+	gov.logger.Info("cgov: starting chain governor")
 
 	if err := gov.initConfig(); err != nil {
 		return err
@@ -187,16 +185,14 @@ func (gov *ChainGovernor) initConfig() error {
 		te := &tokenEntry{cfgPrice: cfgPrice, price: initialPrice, decimals: decimals, symbol: ct.symbol, coinGeckoId: ct.coinGeckoId, token: key}
 		te.updatePrice()
 
-		if gov.logger != nil {
-			gov.logger.Info("cgov: will monitor token:", zap.Stringer("chain", key.chain),
-				zap.Stringer("addr", key.addr),
-				zap.String("symbol", te.symbol),
-				zap.String("coinGeckoId", te.coinGeckoId),
-				zap.String("price", te.price.String()),
-				zap.Int64("decimals", dec),
-				zap.Int64("origDecimals", ct.decimals),
-			)
-		}
+		gov.logger.Info("cgov: will monitor token:", zap.Stringer("chain", key.chain),
+			zap.Stringer("addr", key.addr),
+			zap.String("symbol", te.symbol),
+			zap.String("coinGeckoId", te.coinGeckoId),
+			zap.String("price", te.price.String()),
+			zap.Int64("decimals", dec),
+			zap.Int64("origDecimals", ct.decimals),
+		)
 
 		gov.tokens[key] = te
 		gov.tokensByCoinGeckoId[te.coinGeckoId] = te
@@ -229,11 +225,9 @@ func (gov *ChainGovernor) initConfig() error {
 
 		ce := &chainEntry{emitterChainId: cc.emitterChainID, emitterAddr: emitterAddr, dailyLimit: cc.dailyLimit}
 
-		if gov.logger != nil {
-			gov.logger.Info("cgov: will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
-				zap.Stringer("emitterAddr", ce.emitterAddr),
-				zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)))
-		}
+		gov.logger.Info("cgov: will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
+			zap.Stringer("emitterAddr", ce.emitterAddr),
+			zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)))
 
 		gov.chains[cc.emitterChainID] = ce
 	}
@@ -249,9 +243,7 @@ func (gov *ChainGovernor) initConfig() error {
 func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 	publish, err := gov.ProcessMsgForTime(msg, time.Now())
 	if err != nil {
-		if gov.logger != nil {
-			gov.logger.Error("cgov: failed to process VAA: %v", zap.Error(err))
-		}
+		gov.logger.Error("cgov: failed to process VAA: %v", zap.Error(err))
 		return false
 	}
 
@@ -298,9 +290,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
 	if err != nil {
-		if gov.logger != nil {
-			gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
-		}
+		gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
 
 		return false, err
 	}
@@ -311,42 +301,37 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	}
 
 	newTotalValue := prevTotalValue + value
+	if newTotalValue < prevTotalValue {
+		return false, fmt.Errorf("total value has overflowed")
+	}
 
 	if newTotalValue > ce.dailyLimit {
-		if gov.logger != nil {
-			gov.logger.Error("cgov: enqueuing vaa because it would exceed the daily limit",
-				zap.Uint64("value", value),
-				zap.Uint64("prevTotalValue", prevTotalValue),
-				zap.Uint64("newTotalValue", newTotalValue),
-				zap.String("msgID", msg.MessageIDString()))
-		}
+		gov.logger.Error("cgov: enqueuing vaa because it would exceed the daily limit",
+			zap.Uint64("value", value),
+			zap.Uint64("prevTotalValue", prevTotalValue),
+			zap.Uint64("newTotalValue", newTotalValue),
+			zap.String("msgID", msg.MessageIDString()))
 
 		ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, amount: payload.Amount, msg: msg})
-		if gov.db != nil {
-			err = gov.db.StorePendingMsg(msg)
-			if err != nil {
-				return false, err
-			}
+		err = gov.db.StorePendingMsg(msg)
+		if err != nil {
+			return false, err
 		}
 
 		return false, nil
 	}
 
-	if gov.logger != nil {
-		gov.logger.Info("cgov: posting vaa",
-			zap.Uint64("value", value),
-			zap.Uint64("prevTotalValue", prevTotalValue),
-			zap.Uint64("newTotalValue", newTotalValue),
-			zap.String("msgID", msg.MessageIDString()))
-	}
+	gov.logger.Info("cgov: posting vaa",
+		zap.Uint64("value", value),
+		zap.Uint64("prevTotalValue", prevTotalValue),
+		zap.Uint64("newTotalValue", newTotalValue),
+		zap.String("msgID", msg.MessageIDString()))
 
 	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: msg.EmitterChain, EmitterAddress: msg.EmitterAddress, MsgID: msg.MessageIDString()}
 	ce.transfers = append(ce.transfers, xfer)
-	if gov.db != nil {
-		err = gov.db.StoreTransfer(&xfer)
-		if err != nil {
-			return false, err
-		}
+	err = gov.db.StoreTransfer(&xfer)
+	if err != nil {
+		return false, err
 	}
 
 	return true, nil
@@ -360,6 +345,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
+	// Note: Using Add() with a negative value because Sub() takes a time and returns a duration, which is not what we want.
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 
 	var msgsToPublish []*common.MessagePublication
@@ -375,61 +361,59 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 			foundOne := false
 			prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
 			if err != nil {
-				if gov.logger != nil {
-					gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
-				}
-
-				return msgsToPublish, err
+				gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
+				gov.msgsToPublish = msgsToPublish
+				return nil, err
 			}
 
 			// Keep going until we find something that fits or hit the end.
 			for idx, pe := range ce.pending {
 				value, err := computeValue(pe.amount, pe.token)
 				if err != nil {
-					if gov.logger != nil {
-						gov.logger.Error("cgov: failed to compute value for pending vaa",
-							zap.Stringer("amount", pe.amount),
-							zap.Stringer("price", pe.token.price),
-							zap.String("msgID", pe.msg.MessageIDString()),
-							zap.Error(err),
-						)
-					}
+					gov.logger.Error("cgov: failed to compute value for pending vaa",
+						zap.Stringer("amount", pe.amount),
+						zap.Stringer("price", pe.token.price),
+						zap.String("msgID", pe.msg.MessageIDString()),
+						zap.Error(err),
+					)
 
-					return msgsToPublish, err
+					gov.msgsToPublish = msgsToPublish
+					return nil, err
 				}
 
 				newTotalValue := prevTotalValue + value
+				if newTotalValue < prevTotalValue {
+					gov.msgsToPublish = msgsToPublish
+					return nil, fmt.Errorf("total value has overflowed")
+				}
+
 				if newTotalValue > ce.dailyLimit {
 					// This one won't fit. Keep checking other enqueued ones.
 					continue
 				}
 
 				// If we get here, we found something that fits. Publish it and remove it from the pending list.
-				if gov.logger != nil {
-					gov.logger.Info("cgov: posting pending vaa",
-						zap.Stringer("amount", pe.amount),
-						zap.Stringer("price", pe.token.price),
-						zap.Uint64("value", value),
-						zap.Uint64("prevTotalValue", prevTotalValue),
-						zap.Uint64("newTotalValue", newTotalValue),
-						zap.String("msgID", pe.msg.MessageIDString()))
-				}
+				gov.logger.Info("cgov: posting pending vaa",
+					zap.Stringer("amount", pe.amount),
+					zap.Stringer("price", pe.token.price),
+					zap.Uint64("value", value),
+					zap.Uint64("prevTotalValue", prevTotalValue),
+					zap.Uint64("newTotalValue", newTotalValue),
+					zap.String("msgID", pe.msg.MessageIDString()))
 
 				msgsToPublish = append(msgsToPublish, pe.msg)
 
 				xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr, EmitterChain: pe.msg.EmitterChain, EmitterAddress: pe.msg.EmitterAddress, MsgID: pe.msg.MessageIDString()}
 				ce.transfers = append(ce.transfers, xfer)
 
-				if gov.db != nil {
-					if err := gov.db.StoreTransfer(&xfer); err != nil {
-						return msgsToPublish, err
-					}
+				if err := gov.db.StoreTransfer(&xfer); err != nil {
+					gov.msgsToPublish = msgsToPublish
+					return nil, err
 				}
 
-				if gov.db != nil {
-					if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
-						return msgsToPublish, err
-					}
+				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+					gov.msgsToPublish = msgsToPublish
+					return nil, err
 				}
 
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
@@ -465,12 +449,12 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db *db.Database) (sum uint64, err error) {
+func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db db.GovernorDB) (sum uint64, err error) {
 	sum, ce.transfers, err = TrimAndSumValue(ce.transfers, startTime, db)
 	return sum, err
 }
 
-func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db *db.Database) (uint64, []db.Transfer, error) {
+func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db db.GovernorDB) (uint64, []db.Transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
 	}

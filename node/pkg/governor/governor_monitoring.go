@@ -142,10 +142,8 @@ func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
 					zap.Stringer("timeStamp", pe.timeStamp),
 				)
 
-				if gov.db != nil {
-					if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
-						return "", err
-					}
+				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+					return "", err
 				}
 
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
@@ -176,13 +174,11 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 
 				gov.msgsToPublish = append(gov.msgsToPublish, pe.msg)
 
-				if gov.db != nil {
-					// We delete the pending message from the database, but we don't add it to the transfers
-					// because released messages do not apply to the limit.
+				// We delete the pending message from the database, but we don't add it to the transfers
+				// because released messages do not apply to the limit.
 
-					if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
-						return "", err
-					}
+				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+					return "", err
 				}
 
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
