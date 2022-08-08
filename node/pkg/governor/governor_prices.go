@@ -66,8 +66,6 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 			timer = time.NewTimer(time.Duration(5) * time.Minute)
 		}
 	}
-
-	return nil
 }
 
 // This does not return an error. Instead, it just logs the error and we will try again five minutes later.
