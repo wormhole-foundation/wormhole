@@ -21,6 +21,7 @@ import {
   parseSequenceFromLogSolana,
   transferFromEth,
   transferFromSolana,
+  CHAIN_ID_TERRA2,
 } from "@certusone/wormhole-sdk";
 
 import getSignedVAAWithRetry from "@certusone/wormhole-sdk/lib/cjs/rpc/getSignedVAAWithRetry";
@@ -50,6 +51,9 @@ import {
   SOLANA_PRIVATE_KEY,
   SOLANA_TOKEN_BRIDGE_ADDRESS,
   SPY_RELAY_URL,
+  TERRA2_GAS_PRICES_URL,
+  TERRA2_NODE_URL,
+  TERRA2_TOKEN_BRIDGE_ADDRESS,
   TERRA_CHAIN_ID,
   TERRA_GAS_PRICES_URL,
   TERRA_NODE_URL,
@@ -467,8 +471,8 @@ describe("Ethereum to Solana", () => {
   });
 });
 
-describe("Ethereum to Terra", () => {
-  test("Attest Ethereum ERC-20 to Terra", (done) => {
+describe("Ethereum to Terra Classic", () => {
+  test("Attest Ethereum ERC-20 to Terra Classic", (done) => {
     (async () => {
       try {
         // create a signer for Eth
@@ -539,12 +543,14 @@ describe("Ethereum to Terra", () => {
         done();
       } catch (e) {
         console.error(e);
-        done("An error occurred while trying to attest from Ethereum to Terra");
+        done(
+          "An error occurred while trying to attest from Ethereum to Terra Classic"
+        );
       }
     })();
   });
   // TODO: it is attested
-  test("Send Ethereum ERC-20 to Terra", (done) => {
+  test("Send Ethereum ERC-20 to Terra Classic", (done) => {
     (async () => {
       try {
         // create a signer for Eth
@@ -600,12 +606,14 @@ describe("Ethereum to Terra", () => {
         done();
       } catch (e) {
         console.error(e);
-        done("An error occurred while trying to send from Ethereum to Terra");
+        done(
+          "An error occurred while trying to send from Ethereum to Terra Classic"
+        );
       }
     })();
   });
 
-  test("Spy Relay redeemed on Terra", (done) => {
+  test("Spy Relay redeemed on Terra Classic", (done) => {
     (async () => {
       try {
         const lcd = new LCDClient({
@@ -625,6 +633,183 @@ describe("Ethereum to Terra", () => {
             transferSignedVAA,
             lcd,
             TERRA_GAS_PRICES_URL
+          );
+          console.log(
+            "getIsTransferCompletedTerra returned %d, count is %d",
+            success,
+            count
+          );
+        }
+        expect(success).toBe(true);
+        done();
+      } catch (e) {
+        console.error(e);
+        done(
+          "An error occurred while checking to see if redeem on Terra Classic was successful"
+        );
+      }
+    })();
+  });
+});
+
+describe("Ethereum to Terra", () => {
+  test("Attest Ethereum ERC-20 to Terra", (done) => {
+    (async () => {
+      try {
+        // create a signer for Eth
+        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+        // attest the test token
+        const receipt = await attestFromEth(
+          ETH_TOKEN_BRIDGE_ADDRESS,
+          signer,
+          TEST_ERC20
+        );
+        // get the sequence from the logs (needed to fetch the vaa)
+        const sequence = parseSequenceFromLogEth(
+          receipt,
+          ETH_CORE_BRIDGE_ADDRESS
+        );
+        const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+        // poll until the guardian(s) witness and sign the vaa
+        const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+          WORMHOLE_RPC_HOSTS,
+          CHAIN_ID_ETH,
+          emitterAddress,
+          sequence,
+          {
+            transport: NodeHttpTransport(),
+          }
+        );
+        const lcd = new LCDClient({
+          URL: TERRA2_NODE_URL,
+          chainID: TERRA_CHAIN_ID,
+          isClassic: false,
+        });
+        const mk = new MnemonicKey({
+          mnemonic: TERRA_PRIVATE_KEY,
+        });
+        const wallet = lcd.wallet(mk);
+        const msg = await createWrappedOnTerra(
+          TERRA2_TOKEN_BRIDGE_ADDRESS,
+          wallet.key.accAddress,
+          signedVAA
+        );
+        const gasPrices = await axios
+          .get(TERRA2_GAS_PRICES_URL)
+          .then((result) => result.data);
+        const account = await lcd.auth.accountInfo(wallet.key.accAddress);
+        const feeEstimate = await lcd.tx.estimateFee(
+          [
+            {
+              sequenceNumber: account.getSequenceNumber(),
+              publicKey: account.getPublicKey(),
+            },
+          ],
+          {
+            msgs: [msg],
+            feeDenoms: ["uluna"],
+            gasPrices,
+          }
+        );
+        const tx = await wallet.createAndSignTx({
+          msgs: [msg],
+          memo: "test",
+          feeDenoms: ["uluna"],
+          gasPrices,
+          fee: feeEstimate,
+        });
+        await lcd.tx.broadcast(tx);
+        provider.destroy();
+        done();
+      } catch (e) {
+        console.error(e);
+        done("An error occurred while trying to attest from Ethereum to Terra");
+      }
+    })();
+  });
+  // TODO: it is attested
+  test("Send Ethereum ERC-20 to Terra", (done) => {
+    (async () => {
+      try {
+        // create a signer for Eth
+        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+        const amount = parseUnits("1", 18);
+        const fee = parseUnits("1", 12);
+        const transferAmount = amount.add(fee);
+        // approve the bridge to spend tokens
+        await approveEth(
+          ETH_TOKEN_BRIDGE_ADDRESS,
+          TEST_ERC20,
+          signer,
+          transferAmount
+        );
+        const lcd = new LCDClient({
+          URL: TERRA2_NODE_URL,
+          chainID: TERRA_CHAIN_ID,
+          isClassic: false,
+        });
+        const mk = new MnemonicKey({
+          mnemonic: TERRA_PRIVATE_KEY,
+        });
+        const wallet = lcd.wallet(mk);
+        // transfer tokens
+        const receipt = await transferFromEth(
+          ETH_TOKEN_BRIDGE_ADDRESS,
+          signer,
+          TEST_ERC20,
+          transferAmount,
+          CHAIN_ID_TERRA2,
+          hexToUint8Array(
+            nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA2) || ""
+          ),
+          fee
+        );
+        // get the sequence from the logs (needed to fetch the vaa)
+        sequence = parseSequenceFromLogEth(receipt, ETH_CORE_BRIDGE_ADDRESS);
+        emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+        // poll until the guardian(s) witness and sign the vaa
+        const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+          WORMHOLE_RPC_HOSTS,
+          CHAIN_ID_ETH,
+          emitterAddress,
+          sequence,
+          {
+            transport: NodeHttpTransport(),
+          }
+        );
+        console.log("Got signed vaa: ", signedVAA);
+        transferSignedVAA = signedVAA;
+        provider.destroy();
+        done();
+      } catch (e) {
+        console.error(e);
+        done("An error occurred while trying to send from Ethereum to Terra");
+      }
+    })();
+  });
+
+  test("Spy Relay redeemed on Terra", (done) => {
+    (async () => {
+      try {
+        const lcd = new LCDClient({
+          URL: TERRA2_NODE_URL,
+          chainID: TERRA_CHAIN_ID,
+          isClassic: false,
+        });
+        var success: boolean = false;
+        for (let count = 0; count < 5 && !success; ++count) {
+          console.log(
+            "sleeping before querying spy relay",
+            new Date().toLocaleString()
+          );
+          await sleep(5000);
+          success = await await getIsTransferCompletedTerra(
+            TERRA2_TOKEN_BRIDGE_ADDRESS,
+            transferSignedVAA,
+            lcd,
+            TERRA2_GAS_PRICES_URL
           );
           console.log(
             "getIsTransferCompletedTerra returned %d, count is %d",

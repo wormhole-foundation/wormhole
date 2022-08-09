@@ -18,14 +18,15 @@
   },
   {
     "chainId": 3,
-    "chainName": "Terra",
-    "nativeCurrencySymbol": "LUNA",
-    "nodeUrl": "https://fcd.terra.dev OR SOMETHING ELSE... ALSO UPDATE GAS PRICE URL",
+    "chainName": "Terra Classic",
+    "nativeCurrencySymbol": "LUNC",
+    "nodeUrl": "https://columbus-fcd.terra.dev OR SOMETHING ELSE... ALSO UPDATE GAS PRICE URL",
     "tokenBridgeAddress": "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf",
     "terraName": "mainnet",
     "terraChainId": "columbus-5",
     "terraCoin": "uluna",
-    "terraGasPriceUrl": "https://fcd.terra.dev/v1/txs/gas_prices  <- SHOULD BE SAME AS NODE URL"
+    "terraGasPriceUrl": "https://columbus-fcd.terra.dev/v1/txs/gas_prices  <- SHOULD BE SAME AS NODE URL",
+    "isTerraClassic": true
   },
   {
     "chainId": 4,
@@ -90,5 +91,17 @@
     "nodeUrl":            "https://forno.celo.org",
     "tokenBridgeAddress": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",
     "wrappedAsset":       "0x0000000000000000000000000000000000000000"
+  },
+  {
+    "chainId": 18,
+    "chainName": "Terra",
+    "nativeCurrencySymbol": "LUNA",
+    "nodeUrl": "https://phoenix-fcd.terra.dev OR SOMETHING ELSE... ALSO UPDATE GAS PRICE URL",
+    "tokenBridgeAddress": "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",
+    "terraName": "mainnet",
+    "terraChainId": "phoenix-1",
+    "terraCoin": "uluna",
+    "terraGasPriceUrl": "https://phoenix-fcd.terra.dev/v1/txs/gas_prices  <- SHOULD BE SAME AS NODE URL",
+    "isTerraClassic": false
   }
 ]

@@ -2,13 +2,13 @@
 import {
   ChainId,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   uint8ArrayToHex,
   tryHexToNativeString,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
   parseTransferPayload,
+  isTerraChain,
 } from "@certusone/wormhole-sdk";
 import { getListenerEnvironment } from "../../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../../helpers/logHelper";
@@ -37,7 +37,7 @@ async function encodeEmitterAddress(
     return await getEmitterAddressSolana(emitterAddressStr);
   }
 
-  if (myChainId === CHAIN_ID_TERRA) {
+  if (isTerraChain(myChainId)) {
     return await getEmitterAddressTerra(emitterAddressStr);
   }
 
@@ -228,19 +228,6 @@ export class TokenBridgeListener implements Listener {
       return;
     }
     const parsedVaa: ParsedVaa<ParsedTransferPayload> = validationResults;
-
-    const originChain = parsedVaa.payload.originChain;
-    const originAddress = parsedVaa.payload.originAddress;
-
-    let originAddressNative: string;
-    try {
-      originAddressNative = tryHexToNativeString(originAddress, originChain);
-    } catch (e: any) {
-      this.logger.error(
-        `Failure to convert address "${originAddress}" on chain "${originChain}" to the native address`
-      );
-      return;
-    }
 
     const redisKey: StoreKey = storeKeyFromParsedVAA(parsedVaa);
     const isQueued = await checkQueue(storeKeyToJson(redisKey));

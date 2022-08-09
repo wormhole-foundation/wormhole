@@ -8,6 +8,7 @@ import {
   isEVMChain,
   parseTransferPayload,
   CHAIN_ID_UNSET,
+  isTerraChain,
 } from "@certusone/wormhole-sdk";
 
 import { REDIS_RETRY_MS, AUDIT_INTERVAL_MS, Relayer } from "../definitions";
@@ -357,7 +358,7 @@ export class TokenBridgeRelayer implements Relayer {
         return rResult;
       }
 
-      if (transferPayload.targetChain === CHAIN_ID_TERRA) {
+      if (isTerraChain(transferPayload.targetChain)) {
         let rResult: RelayResult = { status: Status.Error, result: "" };
         const retVal = await relayTerra(
           chainConfigInfo,

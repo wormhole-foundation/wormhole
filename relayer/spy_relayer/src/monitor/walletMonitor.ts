@@ -2,11 +2,12 @@ import {
   Bridge__factory,
   ChainId,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   getForeignAssetTerra,
   hexToUint8Array,
   isEVMChain,
+  isTerraChain,
   nativeToHexString,
+  TerraChainId,
   WSOL_DECIMALS,
 } from "@certusone/wormhole-sdk";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -89,7 +90,7 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
         // TODO one day this will spin up independent watchers that time themselves
         // purposefully not awaited
         pullAllEVMTokens(env.supportedTokens, chainInfo, metrics);
-      } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
+      } else if (isTerraChain(chainInfo.chainId)) {
         // TODO one day this will spin up independent watchers that time themselves
         // purposefully not awaited
         pullAllTerraBalances(env.supportedTokens, chainInfo, metrics);
@@ -118,7 +119,8 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
 export async function pullTerraBalance(
   lcd: LCDClient,
   walletAddress: string,
-  tokenAddress: string
+  tokenAddress: string,
+  chainId: TerraChainId
 ): Promise<WalletBalance | undefined> {
   try {
     const tokenInfo: any = await lcd.wasm.contractQuery(tokenAddress, {
@@ -135,7 +137,7 @@ export async function pullTerraBalance(
     }
 
     return {
-      chainId: CHAIN_ID_TERRA,
+      chainId,
       balanceAbs: balanceInfo?.balance?.toString() || "0",
       balanceFormatted: formatUnits(
         balanceInfo?.balance?.toString() || "0",
@@ -247,7 +249,7 @@ async function pullTerraNativeBalance(
         chainId: chainInfo.chainId,
         balanceAbs: balance[key],
         balanceFormatted: formatUnits(balance[key], 6).toString(),
-        currencyName: formatNativeDenom(key),
+        currencyName: formatNativeDenom(key, chainInfo.chainId as TerraChainId),
         currencyAddressNative: key,
         isNative: true,
         walletAddress: walletAddress,
@@ -518,7 +520,12 @@ async function pullAllTerraBalances(
       ...(await pullTerraNativeBalance(lcd, chainConfig, walletAddress)),
     ];
     for (const address of localAddresses) {
-      const balance = await pullTerraBalance(lcd, walletAddress, address);
+      const balance = await pullTerraBalance(
+        lcd,
+        walletAddress,
+        address,
+        chainConfig.chainId as TerraChainId
+      );
       if (balance) {
         balances.push(balance);
       }
