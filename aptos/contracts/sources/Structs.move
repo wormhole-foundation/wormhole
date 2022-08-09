@@ -1,4 +1,7 @@
 module Wormhole::Structs{
+    use 0x1::timestamp::{Self};
+
+    friend Wormhole::State;
 
     struct Signature has key, store, copy, drop{
         signature: vector<u8>, 
@@ -27,6 +30,10 @@ module Wormhole::Structs{
             guardians: guardians,
             expirationTime: 0,
         }
+    }
+
+    public(friend) fun expireGuardianSet(guardianSet: &mut GuardianSet){
+        guardianSet.expirationTime = timestamp::now_seconds() + 86400;
     }
     
     public fun unpackSignature(s: &Signature): (vector<u8>, u64){
