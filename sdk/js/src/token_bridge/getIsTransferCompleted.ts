@@ -116,7 +116,7 @@ export async function getIsTransferCompletedInjective(
     });
 
     /** Sign transaction */
-    const sig = await walletPK.sign(signBytes);
+    const sig = await walletPK.sign(Buffer.from(signBytes));
 
     /** Append Signatures */
     txRaw.setSignaturesList([sig]);

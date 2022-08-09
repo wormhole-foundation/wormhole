@@ -171,7 +171,7 @@ test.skip("testnet - injective attest native asset", async () => {
   });
   console.log("signing transacion...");
   /** Sign transaction */
-  const signature = await walletPK.sign(signBytes);
+  const signature = await walletPK.sign(Buffer.from(signBytes));
 
   console.log("Appending signatures...");
   /** Append Signatures */
@@ -231,7 +231,7 @@ test.skip("testnet - injective attest foreign asset", async () => {
     chainId: network.chainId,
   });
   /** Sign transaction */
-  const signature = await walletPK.sign(signBytes);
+  const signature = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
   txRaw.setSignaturesList([signature]);
@@ -389,7 +389,7 @@ test.skip("testnet - injective submit a vaa", async () => {
 
     console.log("sign transaction...");
     /** Sign transaction */
-    const signature = await walletPK.sign(signBytes);
+    const signature = await walletPK.sign(Buffer.from(signBytes));
 
     /** Append Signatures */
     txRaw.setSignaturesList([signature]);
@@ -487,7 +487,7 @@ test.skip("testnet - injective submit a vaa", async () => {
 
       console.log("sign transaction...");
       /** Sign transaction */
-      const sig = await walletPK.sign(signBytes);
+      const sig = await walletPK.sign(Buffer.from(signBytes));
 
       /** Append Signatures */
       txRaw.setSignaturesList([sig]);
@@ -630,7 +630,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
 
   console.log("sign transaction...");
   /** Sign transaction */
-  const signedMsg = await walletPK.sign(signBytes);
+  const signedMsg = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
   txRaw.setSignaturesList([signedMsg]);
@@ -758,7 +758,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
 
     console.log("sign transaction...");
     /** Sign transaction */
-    const signedMsg = await walletPK.sign(signBytes);
+    const signedMsg = await walletPK.sign(Buffer.from(signBytes));
 
     /** Append Signatures */
     txRaw.setSignaturesList([signedMsg]);
@@ -816,13 +816,14 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
       algoWallet.addr
     );
     console.log("After redeem...", tids);
+    await signSendAndConfirmAlgorand(algodClient, tids, algoWallet);
     console.log("Checking if isRedeemed...");
     const success = await getIsTransferCompletedAlgorand(
       algodClient,
       TokenBridgeID,
       vaaBytes
     );
-    // expect(success).toBe(true);
+    expect(success).toBe(true);
   }
   const balances = await getBalances(algodClient, algoWallet.addr);
   console.log("Ending balances", balances);

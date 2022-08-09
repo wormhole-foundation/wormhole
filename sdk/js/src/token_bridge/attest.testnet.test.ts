@@ -73,7 +73,7 @@ test.skip("testnet - injective attest native token", async () => {
 
   /** Sign transaction */
   console.log("Sign transaction");
-  const signature = await privateKey.sign(signBytes);
+  const signature = await privateKey.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
   console.log("Append signatures");
