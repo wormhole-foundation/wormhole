@@ -324,11 +324,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round))
 
-				if lastBlock < e.next_round {
-					logger.Error("Went backwards... ")
-					e.next_round = lastBlock
-				}
-
 				for ; e.next_round <= lastBlock; e.next_round = e.next_round + 1 {
 					if e.next_round == lastBlock {
 						err := e.inspectBody(logger, e.next_round, parsedFinalBody)
