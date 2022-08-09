@@ -1,7 +1,7 @@
 module Wormhole::Governance {
     use Wormhole::Deserialize;
     use Wormhole::VAA::{Self};
-    use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, expireGuardianSet, getGuardianSet};
+    use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, expireGuardianSet, getCurrentGuardianSet, getCurrentGuardianSetIndex};
     use Wormhole::Structs::{Guardian, GuardianSet, createGuardian, createGuardianSet, getGuardianSetIndex};
     use 0x1::signer::{Self};
     use 0x1::vector::{Self};
@@ -11,7 +11,7 @@ module Wormhole::Governance {
     const E_NO_GUARDIAN_SET: u64    = 0x2;
 
     struct GuardianUpdate has key{
-        guardian_module:    vector<u8>,
+        guardian_module:    vector<u8>, 
         action:             u8,
         new_index:          u64,
         guardians:          vector<Guardian>,
@@ -25,7 +25,7 @@ module Wormhole::Governance {
         // Verify Governance Update.
         let update = parse(payload);
 
-        verify(&update, getGuardianSet());
+        verify(&update, getCurrentGuardianSet());
 
         let GuardianUpdate {
             guardian_module,

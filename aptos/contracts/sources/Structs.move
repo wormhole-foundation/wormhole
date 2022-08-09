@@ -12,7 +12,7 @@ module Wormhole::Structs{
     struct GuardianSet has key, store, copy, drop {
         index:     u64, 
         guardians: vector<Guardian>,
-        //expirationTime: u64, //u32
+        expirationTime: u64, //u32
     }
 
     public fun createGuardian(key: vector<u8>): Guardian{
@@ -25,9 +25,10 @@ module Wormhole::Structs{
         GuardianSet{
             index: index, 
             guardians: guardians,
+            expirationTime: 0,
         }
     }
-
+    
     public fun unpackSignature(s: &Signature): (vector<u8>, u64){
         (s.signature,  s.guardianIndex)
     }
@@ -49,6 +50,10 @@ module Wormhole::Structs{
 
     public fun getGuardians(guardianSet: GuardianSet): vector<Guardian>{
         guardianSet.guardians
+    }
+
+    public fun getGuardianSetExpiry(guardianSet: GuardianSet): u64{
+        guardianSet.expirationTime
     }
 
 } 
