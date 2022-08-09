@@ -108,13 +108,11 @@ contract Messages is Getters {
 
         vm.version = encodedVM.toUint8(index);
         index += 1;
-        // SECURITY: Note that currently the VM.version is not part of the hash. If we ever in the future decide to 
-        // allow a vm.version other than 1, we would need to start including that in the hash *and* ensure that old hashes
-        // cannot collide with new ones. E.g. if we decide to make the version the first byte of the hash, it could collide
-        // with what is currently the timestamp field. If we make the change on
-        // 1/1/2030, 0:00 =  01 1100001101 1100010010 0100000000
-        // we could set the new version to greater than 0b01110000, e.g. 113, to avoid collisions with any prior VAAs. 
-        // there are other potential solutions, but we'd need to think this through carefully. 
+        // SECURITY: Note that currently the VM.version is not part of the hash 
+        // and for reasons described below it cannot be made part of the hash. 
+        // This means that this field's integrity is not protected and cannot be trusted. 
+        // This is not a problem today since there is only one accepted version, but it 
+        // could be a problem if we wanted to allow other versions in the future. 
         require(vm.version == 1, "VM version incompatible"); 
 
         vm.guardianSetIndex = encodedVM.toUint32(index);
@@ -136,7 +134,13 @@ contract Messages is Getters {
             index += 1;
         }
 
-        // Hash the body
+        /*
+        Hash the body
+
+        SECURITY: Do not change the way the hash of a VM is computed! 
+        Changing it could result into two different hashes for the same observation. 
+        But xDapps rely on the hash of an observation for reply protection.
+        */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
