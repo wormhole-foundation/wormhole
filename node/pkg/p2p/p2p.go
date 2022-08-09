@@ -223,6 +223,11 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 						networks = append(networks, v)
 					}
 
+					features := make([]string, 0)
+					if gov != nil {
+						features = append(features, "governor")
+					}
+
 					heartbeat := &gossipv1.Heartbeat{
 						NodeName:      nodeName,
 						Counter:       ctr,
@@ -231,6 +236,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 						Version:       version.Version(),
 						GuardianAddr:  DefaultRegistry.guardianAddress,
 						BootTimestamp: bootTime.UnixNano(),
+						Features:      features,
 					}
 
 					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
