@@ -1,6 +1,5 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
 import {
-  ChainGrpcWasmApi,
   MsgExecuteContract,
   DEFAULT_STD_FEE,
   privateKeyToPublicKeyBase64,
@@ -11,7 +10,7 @@ import { createTransaction, MsgArg, TxGrpcClient } from "@injectivelabs/tx-ts";
 import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CHAIN_ID_INJECTIVE, CONTRACTS } from "@certusone/wormhole-sdk";
+import { CONTRACTS } from "@certusone/wormhole-sdk";
 
 export async function execute_injective(
   payload: Payload,
