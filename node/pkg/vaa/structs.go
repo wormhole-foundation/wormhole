@@ -436,8 +436,8 @@ func (v *VAA) HexDigest() string {
 }
 
 /*
-SECURITY: Do not change this code! Changing it could result into two different hashes for
-the same observation. But xDapps rely on the hash of an observation for reply protection.
+SECURITY: Do not change this code! Changing it could result in two different hashes for
+the same observation. But xDapps rely on the hash of an observation for replay protection.
 */
 func (v *VAA) serializeBody() []byte {
 	buf := new(bytes.Buffer)

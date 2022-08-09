@@ -139,7 +139,7 @@ contract Messages is Getters {
 
         SECURITY: Do not change the way the hash of a VM is computed! 
         Changing it could result into two different hashes for the same observation. 
-        But xDapps rely on the hash of an observation for reply protection.
+        But xDapps rely on the hash of an observation for replay protection.
         */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
