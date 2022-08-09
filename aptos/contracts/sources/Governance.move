@@ -18,11 +18,8 @@ module Wormhole::Governance {
     }
     
     public fun update_guardian_set(vaa: vector<u8>){
-
-        let vaa = VAA::parse(vaa);
-
-        VAA::verifyVAA(&vaa, getGuardianSet());
-
+        let (vaa, valid, reason) = VAA::parseAndVerifyVAA(vaa);
+        assert!(valid==true, 0);
         let payload = VAA::destroy(vaa);
         
         // Verify Governance Update.
