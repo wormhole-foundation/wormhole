@@ -98,6 +98,14 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
   },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
+  wormholechain: {
+    rpc: undefined,
+    key: undefined,
+  },
   moonbeam: {
     rpc: "https://rpc.api.moonbeam.network",
     key: get_env_var("ETH_KEY"),
@@ -196,18 +204,28 @@ const TESTNET = {
     key: undefined,
   },
   injective: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://k8s.testnet.tm.injective.network:443",
+    chain_id: "injective-888",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   osmosis: {
     rpc: undefined,
-    key: undefined,
+    chain_id: "osmo-test-4",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   aptos: {
     rpc: undefined,
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
@@ -321,6 +339,14 @@ const DEVNET = {
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
