@@ -2,10 +2,11 @@ module Wormhole::VAA{
     use 0x1::vector;
     use 0x1::string::{Self, String};
     use 0x1::signature::{Self};//, secp256k1_ecdsa_recover};
+    use 0x1::timestamp::{Self};
     use Wormhole::Deserialize;
     use Wormhole::Serialize;
-    use Wormhole::Structs::{GuardianSet, Guardian, getKey, getGuardians, Signature, unpackSignature, createSignature};
-    use Wormhole::State::{getGuardianSet};
+    use Wormhole::Structs::{GuardianSet, Guardian, getKey, getGuardians, getGuardianSetIndex, getGuardianSetExpiry, Signature, unpackSignature, createSignature};
+    use Wormhole::State::{getCurrentGuardianSet, getCurrentGuardianSetIndex};
 
     struct VAA has key {
             // Header
@@ -45,7 +46,7 @@ module Wormhole::VAA{
             vector::push_back(&mut signatures, createSignature(signature, guardianIndex));
             signatures_len = signatures_len - 1;
         };
-
+        
         let (timestamp, bytes) = Deserialize::deserialize_u64(bytes);
         let (nonce, bytes) = Deserialize::deserialize_u64(bytes);
         let (emitter_chain, bytes) = Deserialize::deserialize_u64(bytes);
@@ -107,7 +108,15 @@ module Wormhole::VAA{
         let hash = hash(vaa); 
         let n = vector::length<Signature>(&vaa.signatures);
         let m = vector::length<Guardian>(&guardians);
-        assert!(n >= quorum(m), 0); 
+
+        if (n < quorum(m)){
+            return (false, string::utf8(b"Quorum not met"))
+        };
+
+        if (getGuardianSetIndex(guardianSet) != getCurrentGuardianSetIndex() && getGuardianSetExpiry(guardianSet) < timestamp::now_seconds()){
+            return (false, string::utf8(b"Guardian set expired"))
+        };
+
         let i = 0; 
         loop { 
             if (i==n){
@@ -117,18 +126,19 @@ module Wormhole::VAA{
             let (pubkey, res) = signature::secp256k1_ecdsa_recover(hash, 0, sig);
             let cur_guardian = vector::borrow<Guardian>(&guardians, guardianSetIndex);
             let cur_signer = getKey(*cur_guardian);
-            assert!(cur_signer == pubkey, 0);
-            assert!(res==true, 0);
+
+            if (cur_signer != pubkey || res == false){
+                return (false, string::utf8(b"Invalid signature"))
+            };
+
             i = i + 1;
         };
-        let reason = vector::empty<u8>();
-        vector::push_back(&mut reason, 0x12);
-        (true, string::utf8(reason))
+        (true, string::utf8(b""))
     }
     
     public entry fun parseAndVerifyVAA(encodedVM: vector<u8>): (VAA, bool, String) {
         let vaa = parse(encodedVM);
-        let (valid, reason) = verifyVAA(&vaa, getGuardianSet());
+        let (valid, reason) = verifyVAA(&vaa, getCurrentGuardianSet());
         (vaa, valid, reason)
     }
 
