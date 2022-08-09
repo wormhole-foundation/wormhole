@@ -2,7 +2,7 @@
 //
 // The initial prices are read from the static config (tokens.go). After that, prices are
 // queried from CoinGecko. The chain governor then uses the maximum of the static price and
-// the latest CoinGecko price. CoinGecko is polled every five minutes.
+// the latest CoinGecko price. The CoinGecko poll interval is specified by coinGeckoQueryIntervalInMins.
 
 package governor
 
@@ -21,6 +21,8 @@ import (
 )
 
 // An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
+
+const coinGeckoQueryIntervalInMins = 5
 
 func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
 	ids := ""
@@ -55,15 +57,18 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
 }
 
 func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
-	timer := time.NewTimer(time.Millisecond) // Start immediately.
+	// Do a query immediately, then once each interval.
+	gov.queryCoinGecko()
+
+	ticker := time.NewTicker(time.Duration(coinGeckoQueryIntervalInMins) * time.Minute)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-timer.C:
+		case <-ticker.C:
 			gov.queryCoinGecko()
-			timer = time.NewTimer(time.Duration(5) * time.Minute)
 		}
 	}
 }
@@ -133,7 +138,7 @@ func (gov *ChainGovernor) queryCoinGecko() {
 
 			delete(localTokenMap, coinGeckoId)
 		} else {
-			gov.logger.Error("cgov: received a CoinGecko response for an unexpected symbol", zap.String("coinGeckoId", te.coinGeckoId))
+			gov.logger.Error("cgov: received a CoinGecko response for an unexpected symbol", zap.String("coinGeckoId", coinGeckoId))
 		}
 	}
 
