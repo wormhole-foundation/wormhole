@@ -113,7 +113,6 @@ module Wormhole::VAA{
             
             let cur_signature = vector::borrow(&vaa.signatures, i);
             let (pubkey, res) = signature::secp256k1_ecdsa_recover(hash, 0, *cur_signature);
-            
             let cur_guardian = vector::borrow<Guardian>(&guardians, i);
             let cur_signer = getKey(*cur_guardian);
             assert!(cur_signer == pubkey, 0);

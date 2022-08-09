@@ -149,7 +149,7 @@ module Wormhole::State{
         //let inner = table::borrow_mut<u64, Table<vector<u8>, String>>(&mut state.wrappedAssets, tokenChainId);
         //_state.guardianSets[index].expirationTime = uint32(block.timestamp) + 86400;
     }    
-
+    
     public(friend) fun storeGuardianSet(set: GuardianSet, index: u64) acquires WormholeState{ 
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         table::add(&mut state.guardianSets, index, set);
