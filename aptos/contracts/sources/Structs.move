@@ -1,4 +1,7 @@
 module Wormhole::Structs{
+    use 0x1::timestamp::{Self};
+
+    friend Wormhole::State;
 
     struct Signature has key, store, copy, drop{
         signature: vector<u8>, 
@@ -12,7 +15,7 @@ module Wormhole::Structs{
     struct GuardianSet has key, store, copy, drop {
         index:     u64, 
         guardians: vector<Guardian>,
-        //expirationTime: u64, //u32
+        expirationTime: u64, //u32
     }
 
     public fun createGuardian(key: vector<u8>): Guardian{
@@ -25,7 +28,12 @@ module Wormhole::Structs{
         GuardianSet{
             index: index, 
             guardians: guardians,
+            expirationTime: 0,
         }
+    }
+
+    public(friend) fun expireGuardianSet(guardianSet: &mut GuardianSet){
+        guardianSet.expirationTime = timestamp::now_seconds() + 86400;
     }
 
     public fun unpackSignature(s: &Signature): (vector<u8>, u64){
@@ -49,6 +57,10 @@ module Wormhole::Structs{
 
     public fun getGuardians(guardianSet: GuardianSet): vector<Guardian>{
         guardianSet.guardians
+    }
+
+    public fun getGuardianSetExpiry(guardianSet: GuardianSet): u64{
+        guardianSet.expirationTime
     }
 
 } 
