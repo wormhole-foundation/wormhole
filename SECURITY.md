@@ -25,7 +25,7 @@ Places to find out more about existing test coverage and how to run those tests:
 
 - **Guardian Node**
     - Tests: `./node/**/*_test.go`
-    - Run: `cd node && go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...`
+    - Run: `cd node && make test`
 - **Ethereum Smart Contracts**
     - Tests: `./ethereum/test/*.[js|sol]`
     - Run: `cd ethereum && make test`
