@@ -10,3 +10,5 @@ cd aptos-node
 CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build
 cd ../crates/aptos-faucet
 CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build
+
+

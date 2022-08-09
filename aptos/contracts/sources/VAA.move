@@ -100,7 +100,7 @@ module Wormhole::VAA{
          //(id, version, guardian_set_index, signatures, timestamp, nonce, emitter_chain, emitter_address, sequence, consistency_level, payload)
         payload
     }
-
+    
     public fun verifyVAA(vaa: &VAA, guardianSet: GuardianSet): (bool, String){//, guardian_set: &GuardianSet::GuardianSet) {
         let guardians = getGuardians(guardianSet);
         let hash = hash(vaa);
@@ -130,7 +130,7 @@ module Wormhole::VAA{
         let (valid, reason) = verifyVAA(&vaa, getGuardianSet());
         (vaa, valid, reason)
     }
-    
+
     fun hash(vaa: &VAA): vector<u8> {
         use 0x1::hash;
         let bytes = vector::empty<u8>();
@@ -143,10 +143,6 @@ module Wormhole::VAA{
         Serialize::serialize_vector(&mut bytes, vaa.payload);
         hash::sha3_256(bytes) 
     }
-
-
-
-
 
 }
 

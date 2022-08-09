@@ -1,5 +1,4 @@
 module Wormhole::Serialize {
-    
     use 0x1::vector::{Self};
 
     public fun serialize_u8(buf: &mut vector<u8>, v: u8) {

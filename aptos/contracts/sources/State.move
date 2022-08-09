@@ -4,7 +4,6 @@ module Wormhole::State{
     use 0x1::signer::{address_of};
     use 0x1::string::{Self, String};
     use 0x1::vector::{Self};
-    //includes getters and setters
     use Wormhole::Structs::{GuardianSet};
 
     friend Wormhole::Governance;
@@ -156,10 +155,7 @@ module Wormhole::State{
         table::add(&mut state.guardianSets, index, set);
     }
 
-    //TODO: what is analogue of setInitialized?
-    // function setInitialized(address implementatiom) internal {
-    //     _state.initializedImplementations[implementatiom] = true;
-    // }
+    // TODO: setInitialized?
 
     public(friend) fun setGovernanceActionConsumed(hash: vector<u8>) acquires WormholeState{
         let state = borrow_global_mut<WormholeState>(@Wormhole);

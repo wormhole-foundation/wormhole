@@ -1,6 +1,5 @@
 
 module Wormhole::Deserialize {
-    //use Std::Option;
     use 0x1::vector::{Self};
 
     public fun deserialize_u8(bytes: vector<u8>): (u8, vector<u8>){
