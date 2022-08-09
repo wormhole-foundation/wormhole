@@ -35,7 +35,7 @@ module Wormhole::Structs{
     public(friend) fun expireGuardianSet(guardianSet: &mut GuardianSet){
         guardianSet.expirationTime = timestamp::now_seconds() + 86400;
     }
-    
+
     public fun unpackSignature(s: &Signature): (vector<u8>, u64){
         (s.signature,  s.guardianIndex)
     }
