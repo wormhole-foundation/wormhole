@@ -262,45 +262,45 @@ export async function transferFromInjective(
   const recipientChainId = coalesceChainId(recipientChain);
   const nonce = Math.round(Math.random() * 100000);
   const isNativeAsset = isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, tokenAddress);
+  const mk_action = () =>
+    payload ? "initiate_transfer_with_payload" : "initiate_transfer";
   const mk_initiate_transfer = (info: object) =>
     payload
       ? {
-          initiate_transfer_with_payload: {
-            asset: {
-              amount,
-              info,
-            },
-            recipient_chain: recipientChainId,
-            recipient: Buffer.from(recipientAddress).toString("base64"),
-            fee: relayerFee,
-            nonce: nonce,
-            payload: payload,
+          asset: {
+            amount,
+            info,
           },
+          recipient_chain: recipientChainId,
+          recipient: Buffer.from(recipientAddress).toString("base64"),
+          fee: relayerFee,
+          nonce: nonce,
+          payload: payload,
         }
       : {
-          initiate_transfer: {
-            asset: {
-              amount,
-              info,
-            },
-            recipient_chain: recipientChainId,
-            recipient: Buffer.from(recipientAddress).toString("base64"),
-            fee: relayerFee,
-            nonce: nonce,
+          asset: {
+            amount,
+            info,
           },
+          recipient_chain: recipientChainId,
+          recipient: Buffer.from(recipientAddress).toString("base64"),
+          fee: relayerFee,
+          nonce: nonce,
         };
   return isNativeAsset
     ? [
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
-          msg: { deposit_tokens: {} },
+          msg: {},
+          action: "deposit_tokens",
           amount: { denom: "inj", amount: amount },
         }),
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
           msg: mk_initiate_transfer({ native_token: { denom: tokenAddress } }),
+          action: mk_action(),
         }),
       ]
     : [
@@ -308,19 +308,19 @@ export async function transferFromInjective(
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
           msg: {
-            increase_allowance: {
-              spender: tokenBridgeAddress,
-              amount: amount,
-              expires: {
-                never: {},
-              },
+            spender: tokenBridgeAddress,
+            amount: amount,
+            expires: {
+              never: {},
             },
           },
+          action: "increase_allowance",
         }),
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
           msg: mk_initiate_transfer({ token: { contract_addr: tokenAddress } }),
+          action: mk_action(),
         }),
       ];
 }

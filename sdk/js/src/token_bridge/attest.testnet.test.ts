@@ -42,19 +42,18 @@ test.skip("testnet - injective attest native token", async () => {
     contractAddress: CONTRACTS.TESTNET.injective.token_bridge,
     sender: injectiveAddress,
     msg: {
-      create_asset_meta: {
-        asset_info: isNativeAsset
-          ? {
-              native_token: { denom: asset },
-            }
-          : {
-              token: {
-                contract_addr: asset,
-              },
+      asset_info: isNativeAsset
+        ? {
+            native_token: { denom: asset },
+          }
+        : {
+            token: {
+              contract_addr: asset,
             },
-        nonce: nonce,
-      },
+          },
+      nonce: nonce,
     },
+    action: "create_asset_meta",
   });
 
   /** Prepare the Transaction **/
@@ -63,7 +62,7 @@ test.skip("testnet - injective attest native token", async () => {
     message: msg.toDirectSign(),
     memo: "",
     fee: DEFAULT_STD_FEE,
-    pubKey: Buffer.from(publicKey).toString("base64"),
+    pubKey: publicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
       accountDetails.account.base_account.account_number,

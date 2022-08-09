@@ -161,7 +161,7 @@ test.skip("testnet - injective attest native asset", async () => {
     message: result.toDirectSign(),
     memo: "",
     fee: DEFAULT_STD_FEE,
-    pubKey: Buffer.from(walletPublicKey).toString("base64"),
+    pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
       accountDetails.account.base_account.account_number,
@@ -222,7 +222,7 @@ test.skip("testnet - injective attest foreign asset", async () => {
     message: result.toDirectSign(),
     memo: "",
     fee: DEFAULT_STD_FEE,
-    pubKey: Buffer.from(walletPublicKey).toString("base64"),
+    pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
       accountDetails.account.base_account.account_number,
@@ -365,7 +365,7 @@ test.skip("testnet - injective submit a vaa", async () => {
     ).fetchAccount(walletInjAddr);
     console.log("createWrappedOnInjective...", vaaBytes);
     const msg = await createWrappedOnInjective(tba, walletInjAddr, vaaBytes);
-    console.log("cr", msg, msg.params.msg);
+    console.log("cr", msg);
 
     console.log("submit_vaa", JSON.stringify(msg.params.msg));
     /** Prepare the Transaction **/
@@ -377,7 +377,7 @@ test.skip("testnet - injective submit a vaa", async () => {
       message: msg.toDirectSign(),
       memo: "",
       fee: txFee,
-      pubKey: Buffer.from(walletPublicKey).toString("base64"),
+      pubKey: walletPublicKey,
       sequence: parseInt(accountDetails.account.base_account.sequence, 10),
       accountNumber: parseInt(
         accountDetails.account.base_account.account_number,
@@ -475,7 +475,7 @@ test.skip("testnet - injective submit a vaa", async () => {
         message: roi.toDirectSign(),
         memo: "",
         fee: txFee,
-        pubKey: Buffer.from(walletPublicKey).toString("base64"),
+        pubKey: walletPublicKey,
         sequence: parseInt(accountDetails.account.base_account.sequence, 10),
         accountNumber: parseInt(
           accountDetails.account.base_account.account_number,
@@ -618,7 +618,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     message: attestMsg.toDirectSign(),
     memo: "",
     fee: txFee,
-    pubKey: Buffer.from(walletPublicKey).toString("base64"),
+    pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
       accountDetails.account.base_account.account_number,
@@ -743,7 +743,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
       message: xferMsgsSigned,
       memo: "",
       fee: txFee,
-      pubKey: Buffer.from(walletPublicKey).toString("base64"),
+      pubKey: walletPublicKey,
       sequence:
         parseInt(accountDetails.account.base_account.sequence, 10) +
         xferMsgsSigned.length -

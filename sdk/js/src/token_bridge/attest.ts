@@ -77,19 +77,18 @@ export async function attestFromInjective(
     contractAddress: tokenBridgeAddress,
     sender: walletAddress,
     msg: {
-      create_asset_meta: {
-        asset_info: isNativeAsset
-          ? {
-              native_token: { denom: asset },
-            }
-          : {
-              token: {
-                contract_addr: asset,
-              },
+      asset_info: isNativeAsset
+        ? {
+            native_token: { denom: asset },
+          }
+        : {
+            token: {
+              contract_addr: asset,
             },
-        nonce: nonce,
-      },
+          },
+      nonce: nonce,
     },
+    action: "create_asset_meta",
   });
 }
 

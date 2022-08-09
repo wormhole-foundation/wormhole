@@ -106,7 +106,7 @@ export async function getIsTransferCompletedInjective(
       message: roi.toDirectSign(),
       memo: "",
       fee: txFee,
-      pubKey: Buffer.from(walletPublicKey).toString("base64"),
+      pubKey: walletPublicKey,
       sequence: parseInt(accountDetails.account.base_account.sequence, 10),
       accountNumber: parseInt(
         accountDetails.account.base_account.account_number,

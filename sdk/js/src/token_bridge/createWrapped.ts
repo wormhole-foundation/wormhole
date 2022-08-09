@@ -49,10 +49,9 @@ export async function createWrappedOnInjective(
     contractAddress: tokenBridgeAddress,
     sender: walletAddress,
     msg: {
-      submit_vaa: {
-        data: fromUint8Array(signedVAA),
-      },
+      data: fromUint8Array(signedVAA),
     },
+    action: "submit_vaa",
   });
 }
 
