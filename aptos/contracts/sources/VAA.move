@@ -4,14 +4,14 @@ module Wormhole::VAA{
     use 0x1::signature::{Self};//, secp256k1_ecdsa_recover};
     use Wormhole::Deserialize;
     use Wormhole::Serialize;
-    use Wormhole::Structs::{GuardianSet, Guardian, getKey, getGuardians};
+    use Wormhole::Structs::{GuardianSet, Guardian, getKey, getGuardians, Signature, unpackSignature, createSignature};
     use Wormhole::State::{getGuardianSet};
 
     struct VAA has key {
             // Header
             version:            u8,
             guardian_set_index: u64,
-            signatures:         vector<vector<u8>>,
+            signatures:         vector<Signature>,
             
             // Body
             timestamp:          u64,
@@ -29,7 +29,7 @@ module Wormhole::VAA{
         let (guardian_set_index, bytes) = Deserialize::deserialize_u64(bytes);
 
         let (signatures_len, bytes) = Deserialize::deserialize_u8(bytes);
-        let signatures = vector::empty<vector<u8>>();
+        let signatures = vector::empty<Signature>();
 
         assert!(signatures_len <= 19, 0); 
 
@@ -41,7 +41,8 @@ module Wormhole::VAA{
             signatures_len > 0
         }) {
             let (signature, _) = Deserialize::deserialize_vector(bytes, 32);
-            vector::push_back(&mut signatures, signature);
+            let (guardianIndex, _) = Deserialize::deserialize_u64(bytes); 
+            vector::push_back(&mut signatures, createSignature(signature, guardianIndex));
             signatures_len = signatures_len - 1;
         };
 
@@ -103,25 +104,26 @@ module Wormhole::VAA{
     
     public fun verifyVAA(vaa: &VAA, guardianSet: GuardianSet): (bool, String){//, guardian_set: &GuardianSet::GuardianSet) {
         let guardians = getGuardians(guardianSet);
-        let hash = hash(vaa);
-        let n = vector::length<vector<u8>>(&vaa.signatures);
+        let hash = hash(vaa); 
+        let n = vector::length<Signature>(&vaa.signatures);
+        let m = vector::length<Guardian>(&guardians);
+        assert!(n >= quorum(m), 0); 
         let i = 0; 
-        loop {
+        loop { 
             if (i==n){
                 break
             };
-            
-            let cur_signature = vector::borrow(&vaa.signatures, i);
-            let (pubkey, res) = signature::secp256k1_ecdsa_recover(hash, 0, *cur_signature);
-            let cur_guardian = vector::borrow<Guardian>(&guardians, i);
+            let (sig, guardianSetIndex) = unpackSignature(vector::borrow(&vaa.signatures, i));
+            let (pubkey, res) = signature::secp256k1_ecdsa_recover(hash, 0, sig);
+            let cur_guardian = vector::borrow<Guardian>(&guardians, guardianSetIndex);
             let cur_signer = getKey(*cur_guardian);
             assert!(cur_signer == pubkey, 0);
             assert!(res==true, 0);
             i = i + 1;
         };
-        let b = vector::empty<u8>();
-        vector::push_back(&mut b, 0x12);
-        (true, string::utf8(b))
+        let reason = vector::empty<u8>();
+        vector::push_back(&mut reason, 0x12);
+        (true, string::utf8(reason))
     }
     
     public entry fun parseAndVerifyVAA(encodedVM: vector<u8>): (VAA, bool, String) {
@@ -141,6 +143,10 @@ module Wormhole::VAA{
         Serialize::serialize_u8(&mut bytes, vaa.consistency_level);
         Serialize::serialize_vector(&mut bytes, vaa.payload);
         hash::sha3_256(bytes) 
+    }
+
+    public fun quorum(numGuardians: u64): u64 {
+        (numGuardians * 2) / 3 + 1
     }
 
 }
