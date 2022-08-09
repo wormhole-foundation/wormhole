@@ -1,10 +1,8 @@
 module Wormhole::Structs{
 
-    struct Signature {
-        r: vector<u8>, 
-        s: vector<u8>, 
-        v: u8, 
-        guardianIndex: u8, 
+    struct Signature has key, store, copy, drop{
+        signature: vector<u8>, 
+        guardianIndex: u64, 
 	}
 
     struct Guardian has key, store, drop, copy{
@@ -27,6 +25,17 @@ module Wormhole::Structs{
         GuardianSet{
             index: index, 
             guardians: guardians,
+        }
+    }
+
+    public fun unpackSignature(s: &Signature): (vector<u8>, u64){
+        (s.signature,  s.guardianIndex)
+    }
+
+    public fun createSignature(s: vector<u8>, guardianIndex: u64): Signature{
+        Signature{
+            signature:      s, 
+            guardianIndex:  guardianIndex,
         }
     }
 
