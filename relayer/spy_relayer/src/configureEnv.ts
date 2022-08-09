@@ -1,7 +1,7 @@
 import {
   ChainId,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
+  isTerraChain,
   nativeToHexString,
 } from "@certusone/wormhole-sdk";
 import { getLogger } from "./helpers/logHelper";
@@ -345,7 +345,7 @@ export function loadChainConfig(): ChainConfigInfo[] {
       supportedChains.push(
         createSolanaChainConfig(element, privateKeyObj.privateKeys)
       );
-    } else if (element.chainId === CHAIN_ID_TERRA) {
+    } else if (isTerraChain(element.chainId)) {
       supportedChains.push(
         createTerraChainConfig(element, privateKeyObj.privateKeys)
       );

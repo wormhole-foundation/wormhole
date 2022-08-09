@@ -1,7 +1,7 @@
 require("../helpers/loadConfig");
 process.env.LOG_DIR = ".";
 
-import { CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TERRA, CHAIN_ID_TERRA2 } from "@certusone/wormhole-sdk";
 import { jest, test } from "@jest/globals";
 import { LCDClient } from "@terra-money/terra.js";
 import { ChainConfigInfo } from "../configureEnv";
@@ -41,19 +41,69 @@ jest.setTimeout(300000);
 //   }
 // });
 
-const terraChainConfig: ChainConfigInfo = {
+const terraClassicChainConfig: ChainConfigInfo = {
   chainId: CHAIN_ID_TERRA,
-  chainName: "Terra",
-  nativeCurrencySymbol: "UST",
-  nodeUrl: "https://fcd.terra.dev",
+  chainName: "Terra Classic",
+  nativeCurrencySymbol: "LUNC",
+  nodeUrl: "https://columbus-fcd.terra.dev",
   tokenBridgeAddress: "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf",
   terraName: "mainnet",
   terraChainId: "columbus-5",
   terraCoin: "uluna",
-  terraGasPriceUrl: "https://fcd.terra.dev/v1/txs/gas_prices",
+  terraGasPriceUrl: "https://columbus-fcd.terra.dev/v1/txs/gas_prices",
 };
 
 const supportedTokens = require("../../config/mainnet/supportedTokens.json");
+
+test("should pull Terra Classic token balances", async () => {
+  if (
+    !(
+      terraClassicChainConfig.terraChainId &&
+      terraClassicChainConfig.terraCoin &&
+      terraClassicChainConfig.terraGasPriceUrl &&
+      terraClassicChainConfig.terraName
+    )
+  ) {
+    throw new Error(
+      "Terra Classic relay was called without proper instantiation."
+    );
+  }
+  const lcdConfig = {
+    URL: terraClassicChainConfig.nodeUrl,
+    chainID: terraClassicChainConfig.terraChainId,
+    name: terraClassicChainConfig.terraName,
+    isClassic: true,
+  };
+  const lcd = new LCDClient(lcdConfig);
+  const localAddresses = await calcLocalAddressesTerra(
+    lcd,
+    supportedTokens,
+    terraClassicChainConfig
+  );
+  expect(localAddresses.length).toBeGreaterThan(0);
+  for (const tokenAddress of localAddresses) {
+    const balance = await pullTerraBalance(
+      lcd,
+      terraClassicChainConfig.tokenBridgeAddress,
+      tokenAddress,
+      CHAIN_ID_TERRA
+    );
+    console.log(balance);
+    expect(balance).toBeDefined();
+  }
+});
+
+const terraChainConfig: ChainConfigInfo = {
+  chainId: CHAIN_ID_TERRA2,
+  chainName: "Terra",
+  nativeCurrencySymbol: "LUNA",
+  nodeUrl: "https://phoenix-fcd.terra.dev",
+  tokenBridgeAddress: "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",
+  terraName: "mainnet",
+  terraChainId: "phoenix-1",
+  terraCoin: "uluna",
+  terraGasPriceUrl: "https://phoenix-fcd.terra.dev/v1/txs/gas_prices",
+};
 
 test("should pull Terra token balances", async () => {
   if (
@@ -70,7 +120,7 @@ test("should pull Terra token balances", async () => {
     URL: terraChainConfig.nodeUrl,
     chainID: terraChainConfig.terraChainId,
     name: terraChainConfig.terraName,
-    isClassic: true,
+    isClassic: false,
   };
   const lcd = new LCDClient(lcdConfig);
   const localAddresses = await calcLocalAddressesTerra(
@@ -83,7 +133,8 @@ test("should pull Terra token balances", async () => {
     const balance = await pullTerraBalance(
       lcd,
       terraChainConfig.tokenBridgeAddress,
-      tokenAddress
+      tokenAddress,
+      CHAIN_ID_TERRA2
     );
     console.log(balance);
     expect(balance).toBeDefined();
