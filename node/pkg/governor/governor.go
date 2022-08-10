@@ -105,7 +105,7 @@ type ChainGovernor struct {
 	logger              *zap.Logger
 	mutex               sync.Mutex
 	tokens              map[tokenKey]*tokenEntry
-	tokensByCoinGeckoId map[string]*tokenEntry
+	tokensByCoinGeckoId map[string][]*tokenEntry
 	chains              map[vaa.ChainID]*chainEntry
 	msgsToPublish       []*common.MessagePublication
 	dayLengthInMinutes  int
@@ -122,7 +122,7 @@ func NewChainGovernor(
 		db:                  db,
 		logger:              logger,
 		tokens:              make(map[tokenKey]*tokenEntry),
-		tokensByCoinGeckoId: make(map[string]*tokenEntry),
+		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
 		env:                 env,
 	}
@@ -185,6 +185,17 @@ func (gov *ChainGovernor) initConfig() error {
 		te := &tokenEntry{cfgPrice: cfgPrice, price: initialPrice, decimals: decimals, symbol: ct.symbol, coinGeckoId: ct.coinGeckoId, token: key}
 		te.updatePrice()
 
+		gov.tokens[key] = te
+
+		// Multiple tokens can share a CoinGecko price, so we keep an array of tokens per CoinGecko ID.
+		cge, cgExists := gov.tokensByCoinGeckoId[te.coinGeckoId]
+		if !cgExists {
+			gov.tokensByCoinGeckoId[te.coinGeckoId] = []*tokenEntry{te}
+		} else {
+			cge = append(cge, te)
+			gov.tokensByCoinGeckoId[te.coinGeckoId] = cge
+		}
+
 		gov.logger.Info("cgov: will monitor token:", zap.Stringer("chain", key.chain),
 			zap.Stringer("addr", key.addr),
 			zap.String("symbol", te.symbol),
@@ -193,9 +204,6 @@ func (gov *ChainGovernor) initConfig() error {
 			zap.Int64("decimals", dec),
 			zap.Int64("origDecimals", ct.decimals),
 		)
-
-		gov.tokens[key] = te
-		gov.tokensByCoinGeckoId[te.coinGeckoId] = te
 	}
 
 	if len(gov.tokens) == 0 {
