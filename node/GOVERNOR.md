@@ -8,7 +8,7 @@ The Chain Governor feature is disabled by default. Guardians can enable it by pa
 --chainGovernorEnabled=true
 ```
 
-To observe the default chain limits, see `node/pkg/governor/mainnet_chains.go`.  Occasionally, these limits will be adjusted to stay in touch with notional drift associated with certain chains going up/down in notional value.
+To observe the default chain limits, see `node/pkg/governor/mainnet_chains.go`.  Occasionally, these limits will be adjusted to stay in touch with notional drift associated with certain chains going up/down.
 
 ### Checking Status
 
