@@ -2,9 +2,7 @@ module Wormhole::State{
     use 0x1::table::{Self, Table};
     use 0x1::event::{Self, EventHandle};
     use 0x1::signer::{address_of};
-    use 0x1::string::{Self, String};
     use 0x1::vector::{Self};
-    use 0x1::timestamp::{Self};
     use Wormhole::Structs::{Self, GuardianSet};
 
     friend Wormhole::Governance;
