@@ -7,9 +7,7 @@ import (
 )
 
 func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []chainConfigEntry) {
-	if gov.logger != nil {
-		gov.logger.Info("cgov: setting up devnet config")
-	}
+	gov.logger.Info("cgov: setting up devnet config")
 
 	gov.dayLengthInMinutes = 5
 

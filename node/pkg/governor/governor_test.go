@@ -16,6 +16,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/vaa"
+	"go.uber.org/zap"
 )
 
 // This is so we can have consistent config data for unit tests.
@@ -211,7 +212,9 @@ func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 		return nil, fmt.Errorf("ctx is nil")
 	}
 
-	gov := NewChainGovernor(nil, nil, GoTestMode)
+	logger := zap.NewNop()
+	var db db.MockGovernorDB
+	gov := NewChainGovernor(logger, &db, GoTestMode)
 
 	err := gov.Run(ctx)
 	if err != nil {

@@ -132,6 +132,7 @@ spec:
             - /tmp/admin.sock
             - --dataDir
             - /tmp/data
+          # - --chainGovernorEnabled=true
           #            - --logLevel=debug
           securityContext:
             capabilities:

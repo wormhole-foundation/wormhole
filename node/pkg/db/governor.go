@@ -13,6 +13,37 @@ import (
 	"go.uber.org/zap"
 )
 
+type GovernorDB interface {
+	StoreTransfer(t *Transfer) error
+	StorePendingMsg(k *common.MessagePublication) error
+	DeleteTransfer(t *Transfer) error
+	DeletePendingMsg(k *common.MessagePublication) error
+	GetChainGovernorData(logger *zap.Logger) (transfers []*Transfer, pending []*common.MessagePublication, err error)
+}
+
+type MockGovernorDB struct {
+}
+
+func (d *MockGovernorDB) StoreTransfer(t *Transfer) error {
+	return nil
+}
+
+func (d *MockGovernorDB) StorePendingMsg(k *common.MessagePublication) error {
+	return nil
+}
+
+func (d *MockGovernorDB) DeleteTransfer(t *Transfer) error {
+	return nil
+}
+
+func (d *MockGovernorDB) DeletePendingMsg(k *common.MessagePublication) error {
+	return nil
+}
+
+func (d *MockGovernorDB) GetChainGovernorData(logger *zap.Logger) (transfers []*Transfer, pending []*common.MessagePublication, err error) {
+	return nil, nil, nil
+}
+
 type Transfer struct {
 	Timestamp      time.Time
 	Value          uint64

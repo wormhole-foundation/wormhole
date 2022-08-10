@@ -55,6 +55,9 @@ message Heartbeat {
 
   // UNIX boot timestamp.
   int64 boot_timestamp = 7;
+
+  // List of features enabled on this node.
+  repeated string features = 8;
 }
 
 // A SignedObservation is a signed statement by a given guardian node
