@@ -78,7 +78,13 @@ func (gov *ChainGovernor) setTokenForTesting(tokenChainID vaa.ChainID, tokenAddr
 	key := tokenKey{chain: vaa.ChainID(tokenChainID), addr: tokenAddr}
 	te := &tokenEntry{cfgPrice: bigPrice, price: bigPrice, decimals: decimals, symbol: symbol, coinGeckoId: symbol, token: key}
 	gov.tokens[key] = te
-	gov.tokensByCoinGeckoId[symbol] = te
+	cge, cgExists := gov.tokensByCoinGeckoId[te.coinGeckoId]
+	if !cgExists {
+		gov.tokensByCoinGeckoId[te.coinGeckoId] = []*tokenEntry{te}
+	} else {
+		cge = append(cge, te)
+		gov.tokensByCoinGeckoId[te.coinGeckoId] = cge
+	}
 	return nil
 }
 

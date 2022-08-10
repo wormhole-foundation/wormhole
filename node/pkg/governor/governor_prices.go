@@ -109,13 +109,13 @@ func (gov *ChainGovernor) queryCoinGecko() {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	localTokenMap := make(map[string]*tokenEntry)
-	for coinGeckoId, te := range gov.tokensByCoinGeckoId {
-		localTokenMap[coinGeckoId] = te
+	localTokenMap := make(map[string][]*tokenEntry)
+	for coinGeckoId, cge := range gov.tokensByCoinGeckoId {
+		localTokenMap[coinGeckoId] = cge
 	}
 
 	for coinGeckoId, data := range result {
-		te, exists := gov.tokensByCoinGeckoId[coinGeckoId]
+		cge, exists := gov.tokensByCoinGeckoId[coinGeckoId]
 		if exists {
 			price, ok := data.(map[string]interface{})["usd"].(float64)
 			if !ok {
@@ -123,18 +123,21 @@ func (gov *ChainGovernor) queryCoinGecko() {
 				// By continuing, we leave this one in the local map so the price will get reverted below.
 				continue
 			}
-			te.coinGeckoPrice = big.NewFloat(price)
-			te.updatePrice()
-			te.priceTime = now
 
-			gov.logger.Info("cgov: updated price",
-				zap.String("symbol", te.symbol),
-				zap.String("coinGeckoId",
-					te.coinGeckoId),
-				zap.Stringer("price", te.price),
-				zap.Stringer("cfgPrice", te.cfgPrice),
-				zap.Stringer("coinGeckoPrice", te.coinGeckoPrice),
-			)
+			for _, te := range cge {
+				te.coinGeckoPrice = big.NewFloat(price)
+				te.updatePrice()
+				te.priceTime = now
+
+				gov.logger.Info("cgov: updated price",
+					zap.String("symbol", te.symbol),
+					zap.String("coinGeckoId",
+						te.coinGeckoId),
+					zap.Stringer("price", te.price),
+					zap.Stringer("cfgPrice", te.cfgPrice),
+					zap.Stringer("coinGeckoPrice", te.coinGeckoPrice),
+				)
+			}
 
 			delete(localTokenMap, coinGeckoId)
 		} else {
@@ -143,8 +146,29 @@ func (gov *ChainGovernor) queryCoinGecko() {
 	}
 
 	if len(localTokenMap) != 0 {
-		for _, te := range localTokenMap {
-			gov.logger.Error("cgov: did not receive a CoinGecko response for symbol, reverting to configured price",
+		for _, lcge := range localTokenMap {
+			for _, te := range lcge {
+				gov.logger.Error("cgov: did not receive a CoinGecko response for symbol, reverting to configured price",
+					zap.String("symbol", te.symbol),
+					zap.String("coinGeckoId",
+						te.coinGeckoId),
+					zap.Stringer("cfgPrice", te.cfgPrice),
+				)
+
+				te.price = te.cfgPrice
+				// Don't update the timestamp so we'll know when we last received an update from CoinGecko.
+			}
+		}
+	}
+}
+
+func (gov *ChainGovernor) revertAllPrices() {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	for _, cge := range gov.tokensByCoinGeckoId {
+		for _, te := range cge {
+			gov.logger.Error("cgov: reverting to configured price",
 				zap.String("symbol", te.symbol),
 				zap.String("coinGeckoId",
 					te.coinGeckoId),
@@ -154,23 +178,6 @@ func (gov *ChainGovernor) queryCoinGecko() {
 			te.price = te.cfgPrice
 			// Don't update the timestamp so we'll know when we last received an update from CoinGecko.
 		}
-	}
-}
-
-func (gov *ChainGovernor) revertAllPrices() {
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	for _, te := range gov.tokensByCoinGeckoId {
-		gov.logger.Error("cgov: reverting to configured price",
-			zap.String("symbol", te.symbol),
-			zap.String("coinGeckoId",
-				te.coinGeckoId),
-			zap.Stringer("cfgPrice", te.cfgPrice),
-		)
-
-		te.price = te.cfgPrice
-		// Don't update the timestamp so we'll know when we last received an update from CoinGecko.
 	}
 }
 
