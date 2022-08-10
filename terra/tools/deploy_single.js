@@ -1,4 +1,4 @@
-import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
+import { LCDClient, MnemonicKey, RawKey } from "@terra-money/terra.js";
 import {
   MsgInstantiateContract,
   MsgStoreCode,
@@ -23,8 +23,8 @@ const argv = yargs(hideBin(process.argv))
     type: 'string',
     required: true
   })
-  .option('mnemonic', {
-    description: 'Mnemonic (private key)',
+  .option('private-key', {
+    description: 'Private key (hex or mnemonic)',
     type: 'string',
     required: true
   })
@@ -61,12 +61,18 @@ const gasPrices = await axios
   .get(TERRA_GAS_PRICES_URL)
   .then((result) => result.data);
 
-const wallet = lcd.wallet(
-  new MnemonicKey({
-    mnemonic: argv.mnemonic
-  })
-);
-
+let wallet;
+// Try either a private key in hex form or a mnemonic
+try {
+  wallet = lcd.wallet(
+    new RawKey(new Uint8Array(Buffer.from(argv['private-key'], "hex")))
+  );
+} catch {
+  wallet = lcd.wallet(
+    new MnemonicKey({
+      mnemonic: argv['private-key']
+    }))
+}
 await wallet.sequence();
 
 /* Deploy artifacts */
@@ -101,10 +107,17 @@ const tx = await wallet.createAndSignTx({
 });
 
 const rs = await lcd.tx.broadcast(tx);
-const ci = /"code_id","value":"([^"]+)/gm.exec(rs.raw_log)[1];
-codeId = parseInt(ci);
+try {
 
-console.log("Code ID: ", codeId);
+  const ci = /"code_id","value":"([^"]+)/gm.exec(rs.raw_log)[1];
+  codeId = parseInt(ci);
+  
+  console.log("Code ID: ", codeId);
+} catch (e) {
+  console.error("Couldn't parse logs: " + e);
+  console.error(rs.raw_log);
+}
+
 
 /* Instantiate contracts.
  *
@@ -159,3 +172,4 @@ async function instantiate(codeId, inst_msg) {
 function convert_terra_address_to_hex(human_addr) {
   return "0x" + toHex(zeroPad(Bech32.decode(human_addr).data, 32));
 }
+

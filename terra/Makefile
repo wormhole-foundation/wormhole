@@ -25,8 +25,8 @@ endif
 $(WASMS) artifacts/checksums.txt: $(SOURCE_FILES)
 	DOCKER_BUILDKIT=1 docker build --target artifacts -o artifacts .
 
-payer-$(NETWORK).json:
-	$(error Missing private key in payer-$(NETWORK).json)
+payer-$(NETWORK):
+	$(error Missing private key in payer-$(NETWORK))
 
 .PHONY: deploy/bridge
 ## Deploy core bridge
@@ -40,12 +40,12 @@ deploy/token_bridge: token_bridge-code-id-$(NETWORK).txt
 ## Deploy NFT bridge
 deploy/nft_bridge: nft_bridge-code-id-$(NETWORK).txt
 
-%-code-id-$(NETWORK).txt: check-network tools/node_modules payer-$(NETWORK).json artifacts
+%-code-id-$(NETWORK).txt: check-network tools/node_modules payer-$(NETWORK) artifacts
 	@echo "Deploying artifacts/$($*_SOURCE).wasm on $(NETWORK)"
 	@node tools/deploy_single.js \
 		--network $(NETWORK) \
 		--artifact artifacts/$($*_SOURCE).wasm \
-		--mnemonic "$$(cat payer-$(NETWORK).json)" \
+		--private-key "$$(cat payer-$(NETWORK))" \
 		| grep -i "code id" | sed s/[^0-9]//g \
 		> $@
 	@echo "Deployed at code id $$(cat $@) (stored in $@)"
@@ -85,3 +85,4 @@ clean:
 	rm -f artifacts/checksums.txt
 	rm -rf tools/node_modules
 	rm -rf test/node_modules
+
