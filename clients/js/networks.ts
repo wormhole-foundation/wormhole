@@ -80,7 +80,9 @@ const MAINNET = {
   },
   near: {
     rpc: undefined,
-    key: undefined,
+    key: get_env_var("NEAR_KEY"),
+    networkId: "mainnet",
+    baseAccount: "wormhole.mainnet"    
   },
   injective: {
     rpc: undefined,
@@ -99,8 +101,8 @@ const MAINNET = {
     key: undefined,
   },
   pythnet: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://api.pythnet.pyth.network:8899/",
+    key: get_env_var("SOLANA_KEY"),
   },
   wormholechain: {
     rpc: undefined,
@@ -200,8 +202,10 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   near: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://rpc.testnet.near.org",
+    key: get_env_var("NEAR_KEY_TESTNET"),
+    networkId: "testnet",
+    baseAccount: "wormhole.testnet"
   },
   injective: {
     rpc: "https://k8s.testnet.tm.injective.network:443",
@@ -222,8 +226,8 @@ const TESTNET = {
     key: undefined,
   },
   pythnet: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://api.pythtest.pyth.network/",
+    key: get_env_var("SOLANA_KEY"),
   },
   wormholechain: {
     rpc: undefined,
@@ -325,6 +329,8 @@ const DEVNET = {
   near: {
     rpc: undefined,
     key: undefined,
+    networkId: "sandbox",
+    baseAccount: "test.near"    
   },
   injective: {
     rpc: undefined,

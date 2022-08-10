@@ -19,6 +19,7 @@ import {
   setStorageAt,
 } from "./evm";
 import { execute_terra } from "./terra";
+import { execute_near } from "./near";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
 import {
@@ -605,12 +606,12 @@ yargs(hideBin(process.argv))
         );
       } else if (isTerraChain(chain)) {
         await execute_terra(parsed_vaa.payload, buf, network, chain);
-      } else if (chain === "solana") {
-        await execute_solana(parsed_vaa, buf, network);
+      } else if (chain === "solana" || chain === "pythnet") {
+        await execute_solana(parsed_vaa, buf, network, chain);
       } else if (chain === "algorand") {
         throw Error("Algorand is not supported yet");
       } else if (chain === "near") {
-        throw Error("NEAR is not supported yet");
+        await execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
         await execute_injective(parsed_vaa.payload, buf, network);
       } else if (chain === "osmosis") {
@@ -619,8 +620,6 @@ yargs(hideBin(process.argv))
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
         throw Error("APTOS is not supported yet");
-      } else if (chain === "pythnet") {
-        throw Error("pythnet is not supported yet");
       } else if (chain === "wormholechain") {
         throw Error("wormholechain is not supported yet");
       } else {
@@ -646,13 +645,13 @@ function parseAddress(chain: ChainName, address: string): string {
     return "0x" + evm_address(address);
   } else if (isTerraChain(chain)) {
     return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
-  } else if (chain === "solana") {
+  } else if (chain === "solana" || chain === "pythnet") {
     return "0x" + toHex(base58.decode(address)).padStart(64, "0");
   } else if (chain === "algorand") {
     // TODO: is there a better native format for algorand?
     return "0x" + evm_address(address);
   } else if (chain === "near") {
-    throw Error("NEAR is not supported yet");
+    return "0x" + evm_address(address)
   } else if (chain === "injective") {
     return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
   } else if (chain === "osmosis") {
@@ -661,8 +660,6 @@ function parseAddress(chain: ChainName, address: string): string {
     throw Error("SUI is not supported yet");
   } else if (chain === "aptos") {
     throw Error("APTOS is not supported yet");
-  } else if (chain === "pythnet") {
-    throw Error("pythnet is not supported yet");
   } else if (chain === "wormholechain") {
     throw Error("wormholechain is not supported yet");
   } else {
