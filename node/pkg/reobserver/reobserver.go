@@ -1,0 +1,201 @@
+// The purpose of the Reobserver is to detect when a local observation has not reached quorum in a timely manner, and automatically
+// request a reobservation. It works by tracking observations received locally by the watchers, and comparing those to observations
+// that reach quorum. If an observation does not reach quorum in a timely manner (as determined by retryIntervalInMinutes ), a reobservation
+// request is submitted for it. Once 12 hours have elapsed since an observation reaches quorum, it is deleted from the cache.
+//
+// To enable the Reobserver, you must specified the --reobserverEnabled guardiand command line argument.
+
+package reobserver
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/vaa"
+
+	"github.com/ethereum/go-ethereum/common"
+
+	"go.uber.org/zap"
+)
+
+// An observation will be dropped from the map this many minutes after reaches quorum.
+//const expirationIntervalInMinutes = 1 * 60
+
+// We will try sending a reobservation request for an observation this often (until it reaches quorum or we hit the retry limit).
+//const retryIntervalInMinutes = 5
+
+// We will give up after this many reobservation retries.
+//const maxRetries = 10
+
+// We will only send this many reobservation request per interval.
+const maxRetriesPerInterval = 5
+
+// TODO: Get rid of these dev parameters!
+const expirationIntervalInMinutes = 10
+const retryIntervalInMinutes = 2
+const maxRetries = 3
+
+type (
+	// Payload for each observation request
+	observationEntry struct {
+		msgId         string
+		vaa           *vaa.VAA // Note that this reference may be nil if we see the signed vaa with quorum before we see the VAA locally.
+		txHash        common.Hash
+		timeStamp     time.Time
+		numRetries    int
+		quorumReached bool
+	}
+)
+
+type Reobserver struct {
+	logger             *zap.Logger
+	mutex              sync.Mutex
+	observations       map[string]*observationEntry
+	obsvReqSendC       chan *gossipv1.ObservationRequest
+	retryInterval      time.Duration
+	expirationInterval time.Duration
+}
+
+func NewReobserver(
+	logger *zap.Logger,
+	obsvReqSendC chan *gossipv1.ObservationRequest,
+) *Reobserver {
+	return &Reobserver{
+		logger:       logger,
+		observations: make(map[string]*observationEntry),
+		obsvReqSendC: obsvReqSendC,
+	}
+}
+
+func (reob *Reobserver) Run(ctx context.Context) error {
+	reob.mutex.Lock()
+	defer reob.mutex.Unlock()
+
+	reob.retryInterval = time.Minute * time.Duration(retryIntervalInMinutes)
+	reob.expirationInterval = time.Minute * time.Duration(expirationIntervalInMinutes)
+
+	reob.logger.Info("reobserver: starting reobservation monitor",
+		zap.Int("maxRetries", maxRetries),
+		zap.Stringer("retryInterval", reob.retryInterval),
+		zap.Stringer("expirationInterval", reob.expirationInterval),
+	)
+
+	return nil
+}
+
+func (reob *Reobserver) AddMessage(vaa *vaa.VAA, txHash common.Hash) {
+	reob.mutex.Lock()
+	defer reob.mutex.Unlock()
+
+	msgId := vaa.MessageID()
+	now := time.Now()
+
+	oe, exists := reob.observations[msgId]
+	if !exists {
+		oe := &observationEntry{msgId: msgId, vaa: vaa, txHash: txHash, timeStamp: now}
+		reob.observations[msgId] = oe
+		reob.logger.Info("reobserver: adding message", zap.String("msgID", msgId))
+	} else {
+		oe.vaa = vaa
+		oe.timeStamp = now
+		if oe.quorumReached {
+			reob.logger.Info("reobserver: ignoring message because it has already reached quorum", zap.String("msgID", msgId))
+		} else {
+			reob.logger.Info("reobserver: ignoring message because because we have already seen it, although it has not yet reached quorum", zap.String("msgID", msgId))
+		}
+	}
+}
+
+func (reob *Reobserver) QuorumReached(msgId string) {
+	reob.mutex.Lock()
+	defer reob.mutex.Unlock()
+
+	now := time.Now()
+
+	oe, exists := reob.observations[msgId]
+	if !exists {
+		oe := &observationEntry{vaa: nil, timeStamp: now, quorumReached: true}
+		reob.observations[msgId] = oe
+		reob.logger.Info("reobserver: received a quorum notification for a message we don't know about yet, adding it", zap.String("msgID", msgId))
+	} else if oe.quorumReached {
+		reob.logger.Info("reobserver: ignoring a quorum notification because it has already reached quorum", zap.String("msgID", msgId))
+	} else {
+		oe.quorumReached = true
+		oe.timeStamp = now
+		reob.logger.Info("reobserver: received a quorum notification", zap.String("msgID", msgId))
+
+		if oe.numRetries > 0 {
+			metricSuccessfulReobservations.Inc()
+		}
+	}
+}
+
+func (reob *Reobserver) CheckForReobservations() error {
+	reob.mutex.Lock()
+	defer reob.mutex.Unlock()
+
+	reob.logger.Info("reobserver: tick")
+	now := time.Now()
+	entriesToDelete := []*observationEntry{}
+	numRetriesThisInterval := 0
+	for msgId, oe := range reob.observations {
+		if oe.quorumReached {
+			expirationTime := oe.timeStamp.Add(reob.expirationInterval)
+			reob.logger.Info("reobserver: evaluating completed observation", zap.String("msgId", msgId), zap.Stringer("expirationTime", expirationTime))
+			if expirationTime.Before(now) {
+				reob.logger.Info("reobserver: completed observation has expired, dropping it", zap.String("msgId", msgId))
+				entriesToDelete = append(entriesToDelete, oe)
+			}
+		} else if reob.shouldReobserve(oe, now) && numRetriesThisInterval < maxRetriesPerInterval {
+			if oe.vaa == nil {
+				reob.logger.Error("reobserver: unable to request reobservation because we do not have a txHash, this should not happen!", zap.String("msgId", msgId))
+				entriesToDelete = append(entriesToDelete, oe)
+				continue
+			}
+
+			numRetriesThisInterval++
+			oe.numRetries++
+			oe.timeStamp = now
+			reob.logger.Info("reobserver: requesting reobservation", zap.String("msgId", msgId), zap.Int("numRetries", oe.numRetries))
+
+			req := &gossipv1.ObservationRequest{
+				ChainId: uint32(oe.vaa.EmitterChain),
+				TxHash:  oe.txHash.Bytes(),
+			}
+			reob.obsvReqSendC <- req
+		} else if oe.numRetries >= maxRetries {
+			reob.logger.Error("reobserver: giving up on reobservation because the retry limit has been reached",
+				zap.String("msgId", msgId),
+				zap.Int("numRetries", oe.numRetries),
+			)
+
+			entriesToDelete = append(entriesToDelete, oe)
+			metricFailedReobservationAttempts.Inc()
+		}
+	}
+
+	if len(entriesToDelete) != 0 {
+		for _, oe := range entriesToDelete {
+			reob.logger.Info("reobserver: dropping reobservation request",
+				zap.String("msgId", oe.msgId),
+				zap.Stringer("timeCompleted", oe.timeStamp),
+				zap.Int("numRetries", oe.numRetries),
+			)
+
+			delete(reob.observations, oe.msgId)
+		}
+	}
+
+	return nil
+}
+
+func (reob *Reobserver) shouldReobserve(oe *observationEntry, now time.Time) bool {
+	if oe.numRetries >= maxRetries {
+		return false
+	}
+
+	nextRetryTime := now.Add(reob.retryInterval)
+	return now.After(nextRetryTime)
+}

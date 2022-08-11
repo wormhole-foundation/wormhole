@@ -19,6 +19,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
+	"github.com/certusone/wormhole/node/pkg/reobserver"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -38,6 +39,7 @@ type nodePrivilegedService struct {
 	logger       *zap.Logger
 	signedInC    chan *gossipv1.SignedVAAWithQuorum
 	governor     *governor.ChainGovernor
+	reobserve    *reobserver.Reobserver
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -346,7 +348,7 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 }
 
 func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, signedInC chan *gossipv1.SignedVAAWithQuorum, obsvReqSendC chan *gossipv1.ObservationRequest,
-	db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
+	db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor, reobserve *reobserver.Reobserver) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -385,6 +387,7 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 		logger:       logger.Named("adminservice"),
 		signedInC:    signedInC,
 		governor:     gov,
+		reobserve:    reobserve,
 	}
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
@@ -463,6 +466,35 @@ func (s *nodePrivilegedService) ChainGovernorReleasePendingVAA(ctx context.Conte
 	}
 
 	return &nodev1.ChainGovernorReleasePendingVAAResponse{
+		Response: resp,
+	}, nil
+}
+
+func (s *nodePrivilegedService) ReobserverStatus(ctx context.Context, req *nodev1.ReobserverStatusRequest) (*nodev1.ReobserverStatusResponse, error) {
+	if s.reobserve == nil {
+		return nil, fmt.Errorf("reobserver is not enabled")
+	}
+
+	return &nodev1.ReobserverStatusResponse{
+		Response: s.reobserve.Status(),
+	}, nil
+}
+
+func (s *nodePrivilegedService) ReobserverDropVAA(ctx context.Context, req *nodev1.ReobserverDropVAARequest) (*nodev1.ReobserverDropVAAResponse, error) {
+	if s.reobserve == nil {
+		return nil, fmt.Errorf("reobserver is not enabled")
+	}
+
+	if len(req.VaaId) == 0 {
+		return nil, fmt.Errorf("the VAA id must be specified as \"chainId/emitterAddress/seqNum\"")
+	}
+
+	resp, err := s.reobserve.DropVAA(req.VaaId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.ReobserverDropVAAResponse{
 		Response: resp,
 	}, nil
 }

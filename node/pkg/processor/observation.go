@@ -206,6 +206,9 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 		if len(sigs) >= quorum && !p.state.signatures[hash].submitted {
 			p.state.signatures[hash].ourObservation.HandleQuorum(sigs, hash, p)
+			if p.reobserve != nil {
+				p.reobserve.QuorumReached(m.MessageId)
+			}
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",
 				zap.String("digest", hash))
@@ -312,4 +315,8 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 	p.attestationEvents.ReportVAAQuorum(v)
+
+	if p.reobserve != nil {
+		p.reobserve.QuorumReached(v.MessageID())
+	}
 }

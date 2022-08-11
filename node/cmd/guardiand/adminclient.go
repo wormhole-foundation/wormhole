@@ -53,6 +53,8 @@ func init() {
 	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorDropPendingVAACmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReleasePendingVAACmd.Flags().AddFlagSet(pf)
+	ClientReobserverStatusCmd.Flags().AddFlagSet(pf)
+	ClientReobserverDropVAACmd.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
@@ -64,6 +66,8 @@ func init() {
 	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
 	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
 	AdminCmd.AddCommand(ClientChainGovernorReleasePendingVAACmd)
+	AdminCmd.AddCommand(ClientReobserverStatusCmd)
+	AdminCmd.AddCommand(ClientReobserverDropVAACmd)
 }
 
 var AdminCmd = &cobra.Command{
@@ -124,6 +128,20 @@ var ClientChainGovernorReleasePendingVAACmd = &cobra.Command{
 	Use:   "governor-release-pending-vaa [VAA_ID]",
 	Short: "Releases the specified VAA (chain/emitter/seq) from the chain governor pending list, publishing it immediately",
 	Run:   runChainGovernorReleasePendingVAA,
+	Args:  cobra.ExactArgs(1),
+}
+
+var ClientReobserverStatusCmd = &cobra.Command{
+	Use:   "reobserver-status",
+	Short: "Displays the status of the reobserver",
+	Run:   runReobserverStatus,
+	Args:  cobra.ExactArgs(0),
+}
+
+var ClientReobserverDropVAACmd = &cobra.Command{
+	Use:   "reobserver-drop-vaa [VAA_ID]",
+	Short: "Removes the specified VAA (chain/emitter/seq) from the reobserver list",
+	Run:   runReobserverDropVAA,
 	Args:  cobra.ExactArgs(1),
 }
 
@@ -373,6 +391,46 @@ func runChainGovernorReleasePendingVAA(cmd *cobra.Command, args []string) {
 	resp, err := c.ChainGovernorReleasePendingVAA(ctx, &msg)
 	if err != nil {
 		log.Fatalf("failed to run ChainGovernorReleasePendingVAA RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runReobserverStatus(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.ReobserverStatusRequest{}
+	resp, err := c.ReobserverStatus(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run ReobserverStatus RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runReobserverDropVAA(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.ReobserverDropVAARequest{
+		VaaId: args[0],
+	}
+	resp, err := c.ReobserverDropVAA(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run ReobserverDropVAA RPC: %s", err)
 	}
 
 	fmt.Println(resp.Response)

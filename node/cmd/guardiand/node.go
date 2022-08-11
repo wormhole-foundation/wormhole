@@ -31,6 +31,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
+	"github.com/certusone/wormhole/node/pkg/reobserver"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	solana "github.com/certusone/wormhole/node/pkg/solana"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -165,6 +166,7 @@ var (
 	bigTableKeyPath            *string
 
 	chainGovernorEnabled *bool
+	reobserverEnabled    *bool
 )
 
 func init() {
@@ -286,6 +288,7 @@ func init() {
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+	reobserverEnabled = NodeCmd.Flags().Bool("reobserverEnabled", false, "Run the reobservation monitor")
 }
 
 var (
@@ -931,6 +934,14 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Info("chain governor is disabled")
 	}
 
+	var reobserve *reobserver.Reobserver
+	if *reobserverEnabled {
+		logger.Info("reobservation monitor is enabled")
+		reobserve = reobserver.NewReobserver(logger, obsvReqSendC)
+	} else {
+		logger.Info("reobservation monitor is disabled")
+	}
+
 	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst, gov)
 
 	if err != nil {
@@ -938,7 +949,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst, gov)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst, gov, reobserve)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
@@ -952,7 +963,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, gov)); err != nil {
+			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, gov, reobserve)); err != nil {
 			return err
 		}
 
@@ -1096,6 +1107,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		if reobserve != nil {
+			err := reobserve.Run(ctx)
+			if err != nil {
+				log.Fatal("failed to create reobservation monitor", zap.Error(err))
+			}
+		}
+
 		p := processor.NewProcessor(ctx,
 			db,
 			lockC,
@@ -1112,6 +1130,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			attestationEvents,
 			notifier,
 			gov,
+			reobserve,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err

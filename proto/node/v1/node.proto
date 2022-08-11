@@ -40,6 +40,12 @@ service NodePrivilegedService {
 
   // ChainGovernorReleasePendingVAA release a VAA from the chain governor pending list, publishing it immediately.
   rpc ChainGovernorReleasePendingVAA (ChainGovernorReleasePendingVAARequest) returns (ChainGovernorReleasePendingVAAResponse);
+  
+  // ReobserverStatus displays the status of the reobservation monitor.
+  rpc ReobserverStatus (ReobserverStatusRequest) returns (ReobserverStatusResponse);
+
+  // ReobserverDropVAA drops a VAA from the chain governor pending list.
+  rpc ReobserverDropVAA (ReobserverDropVAARequest) returns (ReobserverDropVAAResponse);  
 }
 
 message InjectGovernanceVAARequest {
@@ -187,5 +193,19 @@ message ChainGovernorReleasePendingVAARequest {
 }
 
 message ChainGovernorReleasePendingVAAResponse {
+  string response = 1;
+}
+
+message ReobserverStatusRequest {}
+
+message ReobserverStatusResponse {
+  string response = 1;
+}
+
+message ReobserverDropVAARequest {
+  string vaa_id = 1;
+}
+
+message ReobserverDropVAAResponse {
   string response = 1;
 }

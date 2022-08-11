@@ -161,4 +161,8 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{VAA: v.VAA, InitiatingTxID: k.TxHash})
 
 	p.broadcastSignature(v, s, k.TxHash.Bytes())
+
+	if p.reobserve != nil {
+		p.reobserve.AddMessage(&v.VAA)
+	}
 }

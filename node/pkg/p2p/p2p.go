@@ -10,6 +10,7 @@ import (
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/reobserver"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/ethereum/go-ethereum/common"
@@ -67,7 +68,11 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc, gov *governor.ChainGovernor) func(ctx context.Context) error {
+func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest,
+	sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState,
+	port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc,
+	gov *governor.ChainGovernor, reobserve *reobserver.Reobserver) func(ctx context.Context) error {
+
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -227,6 +232,9 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 					if gov != nil {
 						features = append(features, "governor")
 					}
+					if reobserve != nil {
+						features = append(features, "reobserver")
+					}
 
 					heartbeat := &gossipv1.Heartbeat{
 						NodeName:      nodeName,
@@ -247,6 +255,10 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 
 					if gov != nil {
 						gov.CollectMetrics(heartbeat)
+					}
+
+					if reobserve != nil {
+						reobserve.CollectMetrics(heartbeat)
 					}
 
 					b, err := proto.Marshal(heartbeat)
