@@ -1,7 +1,8 @@
 
 module Wormhole::Bridge {
     use 0x1::type_info::{Self, TypeInfo};
-    use Wormhole::VAA::{Self, parseAndVerifyVAA};
+    use Wormhole::VAA::{Self, VAA, parseAndVerifyVAA};
+    use Wormhole::BridgeState::{setOutstandingBridged, outstandingBridged, bridgeContracts};
 
     public entry fun attestToken<CoinType>(deployer: address){
         
@@ -56,16 +57,23 @@ module Wormhole::Bridge {
     //     setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
     }
 
-    //  function bridgeOut(address token, uint normalizedAmount) internal {
-    //     uint outstanding = outstandingBridged(token);
-    //     require(outstanding + normalizedAmount <= type(uint64).max, "transfer exceeds max outstanding bridged token amount");
-    //     setOutstandingBridged(token, outstanding + normalizedAmount);
-    // }
 
-    // function bridgedIn(address token, uint normalizedAmount) internal {
-    //     setOutstandingBridged(token, outstandingBridged(token) - normalizedAmount);
-    // }
+    fun bridgeOut(token: TypeInfo, normalizedAmount: u128) {
+        let outstanding = outstandingBridged(token);
+        assert!(outstanding + normalizedAmount <= 2<<128 - 1, 0);
+        setOutstandingBridged(token, outstanding + normalizedAmount);
+    }
 
+    fun bridgedIn(token: TypeInfo, normalizedAmount: u128) {
+        setOutstandingBridged(token, outstandingBridged(token) - normalizedAmount);
+    }
+
+    fun verifyBridgeVM(vm: &VAA): bool{
+        if (bridgeContracts(VAA::get_emitter_chain(vm)) == VAA::get_emitter_address(vm)) {
+            return true
+        };
+        return false
+    }
 } 
 
 

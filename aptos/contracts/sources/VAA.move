@@ -73,6 +73,18 @@ module Wormhole::VAA{
         }
     }
 
+    public fun get_version(vaa: &VAA): u8{
+         vaa.version
+    }
+
+    public fun get_guardian_set_index(vaa: &VAA): u64{
+         vaa.guardian_set_index
+    }
+
+    public fun get_timestamp(vaa: &VAA): u64{
+         vaa.timestamp
+    }
+
     public fun get_payload(vaa: &VAA): vector<u8>{
          vaa.payload
     }
@@ -83,6 +95,18 @@ module Wormhole::VAA{
 
     public fun get_emitter_chain(vaa: &VAA): u64{
          vaa.emitter_chain
+    }
+
+    public fun get_emitter_address(vaa: &VAA): vector<u8>{
+         vaa.emitter_address
+    }
+
+    public fun get_sequence(vaa: &VAA): u64{
+         vaa.sequence
+    }
+
+    public fun get_consistency_level(vaa: &VAA): u8{
+        vaa.consistency_level
     }
 
     public fun destroy(vaa: VAA): vector<u8>{
