@@ -28,7 +28,7 @@ Here's a list of strategies we've found helpful for getting started on Wormhole:
     * Check out places were we have unit/integration tests, but we lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
 - Review our different smart contract implementations (eg. Solana, EVM, CosmWasm, Move) and attempt to understand how and why they are different.
     * Does one chain have a safety check that another chain doesn't?
-    * Does one chain have a specific set of nuances gotchas that that we missed?
+    * Does one chain have a specific set of nuances / gotchas that that were missed on another chain?
 - Consider going beyond the source code
     * Review the deployed contracts on chain, is some sort of odd that we missed? 
 
