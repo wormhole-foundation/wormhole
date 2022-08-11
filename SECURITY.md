@@ -34,7 +34,7 @@ Here's a list of strategies we've found helpful for getting started on Wormhole:
 
 We'll continue to iterate on this list of white-hat bootstrap strategies as we grow our lessons learned internally hacking on Wormhole and from other white-hats who have been successful via our bug bounty program.
 
-It's important to remember that this is an iterative process, if you spend the time to come up with a new test case, but didn't actually find a bug, we'd be extremely appreciative if you'd be willing to send a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) with additional positive and negative test cases.  This process has shown repeatedly to improve your ability to understand Wormhole, and will increase your odds of success.
+It's important to remember this is an iterative process. If you spend the time to come up with a new test case, but didn't actually find a bug, we'd be extremely appreciative if you'd be willing to send a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) with additional positive and negative test cases.  This process has shown repeatedly to improve your ability to understand Wormhole, and will increase your odds of success.
 
 ## Guidance to Chain Integrators
 
