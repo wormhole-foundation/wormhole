@@ -87,3 +87,30 @@ You can enable it in VSCode with the following in your `settings.json`.
     }
   },
 ```
+
+# Testing
+
+We believe automated tests ensure the integrity of all Wormhole components. Anyone can verify or extend them transparently and they fit nicely with our software development lifecycle. This ensures Wormhole components operate as expected in both expected and failure cases.
+
+Places to find out more about existing test coverage and how to run those tests:
+
+- **Guardian Node**
+    - Tests: `./node/**/*_test.go`
+    - Run: `cd node && make test`
+- **Ethereum Smart Contracts**
+    - Tests: `./ethereum/test/*.[js|sol]`
+    - Run: `cd ethereum && make test`
+- **Solana Smart Contracts**
+    - Tests: `./solana/bridge/program/tests/*.rs`
+    - Run: `cd solana && make test`
+- **Terra Smart Contracts**
+    - Tests: `./terra/test/*`
+    - Run: `cd terra && make test`
+- **Terra2 Smart Contracts**
+    - Tests: `./cosmwasm/test/*`
+    - Run: `cd cosmwasm && make test`
+- **Algorand Smart Contracts**
+    - Tests: `./algorand/test/*`
+    - Run: `cd algorand && make test`
+
+The best place to understand how we invoke these tests via GitHub Actions on every commit can be found via `./.github/workflows/*.yml` and the best place to observe the results of these builds can be found via [https://github.com/certusone/wormhole/actions](https://github.com/certusone/wormhole/actions).
