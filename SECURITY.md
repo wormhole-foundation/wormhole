@@ -35,3 +35,20 @@ Here's a list of strategies that we've found helpful to hackers getting started 
 We'll continue to iterate on this list of white-hat bootstrap strategies as we grow our lessons learned internally hacking on Wormhole and from other white-hats who have been successful via our bug bounty program.
 
 It's important to remember that this is an iterative process, if you spend the time to come up with a new test case, but didn't actually find a bug, we'd be extremely appreciative if you'd be willing to send a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) with additional positive and negative test cases.  This process has shown repeatedly to improve your ability to understand Wormhole, and will increase your odds of success.
+
+## Guidance to Chain Integrators
+
+As the list of chains connected to Wormhole increases, so does the risk that a given connected could introduce risks to the Wormhole network.  As a result, Wormhole does have a built-in safety feature (see [Governor white-paper](https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0007_governor.md)) to try and coreduce the impact of such case.  That said, a defense in depth strategy is required to do as much as possible to secure the network.  As part of this methodology, the Wormhole project recommends that all connected chains current and future implement robust security programs of their own to do their part in managing chain compromise risk to the wormhole network.
+
+Here are a few ways in which connected chains can help can ensure safety of the Wormhole network by maintaining high security standards:
+
+- Ensure that all relevant source code is open source.
+- Ensure that all relevant source code is audited by an independant third party and that audit reports are made available to the public.
+- Ensure that all relevant source code is included in a public bug bounty program and that the bounty rewards are sufficiently large to incentivize white-hat mindshare in finding security bugs in your code and responsibly disclosing them.
+- Ensure that all relevant source code makes use of branch protection and have a minimum of one independant reviewer to merge code.
+- Ensure that all relevant source code maintains a SECURITY.md in the root of the repository (like this one) to offer guidance and transparency on security relevant topics.
+- Ensure that all relevant source code has sufficient unit test and integration test coverage, which is run on every commit via continuous integration.  Additionally, ensure that the results of those test runs are visible to the public.
+- Ensure that the Wormhole team has sufficient contact information and an associated call or page tree to reach you in the event of a security incident.
+- Ensure that Wormhole has the full upgrade authority on relevant bridge contracts to act quickly in the case of security incident.
+- Ensure that you have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for process.
+- Ensure that when security issues do occur, that the chain makes every attempt to inform affected parties and lead with transparency.
