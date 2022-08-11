@@ -40,7 +40,7 @@ It's important to remember this is an iterative process. If you spend the time t
 
 As the list of chains connected to Wormhole increases, so does the risk that a given connected could introduce risks to the Wormhole network.  As a result, Wormhole does have built-in safety features (e.g.: [Governor white-paper](https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0007_governor.md)) to reduce the "blast radius" of such case. That said, a defense in depth strategy is required to do as much as possible to secure the network. As part of this methodology, the Wormhole project recommends that all connected chains current and future implement robust security programs of their own to do their part in managing chain compromise risk to the wormhole network.
 
-Here are a few ways in which connected chains can help can ensure safety of the Wormhole network by maintaining high security standards:
+Here are a few ways in which connected chains can maintain high security standards:
 
 - Ensure that all relevant source code is open source.
 - Ensure that all relevant source code is audited by an independant third party and that audit reports are made available to the public.
