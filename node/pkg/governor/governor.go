@@ -223,9 +223,7 @@ func (gov *ChainGovernor) initConfig() error {
 
 		emitterAddrBytes, exists := (*emitterMap)[cc.emitterChainID]
 		if !exists {
-			// This could just be because a new chain was added to the governor before the contracts are deployed. Just log an error and continue.
-			gov.logger.Error("cgov: failed to look up token bridge emitter address for chain, will not monitor it", zap.Stringer("chainId", cc.emitterChainID))
-			continue
+			return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.emitterChainID)
 		}
 
 		emitterAddr, err = vaa.BytesToAddress(emitterAddrBytes)

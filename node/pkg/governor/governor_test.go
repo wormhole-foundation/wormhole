@@ -939,3 +939,14 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, 2, numPending)
 	assert.Equal(t, uint64(887309+889084), valuePending)
 }
+
+func TestMainnetConfigIsValid(t *testing.T) {
+	ctx := context.Background()
+
+	logger := zap.NewNop()
+	var db db.MockGovernorDB
+	gov := NewChainGovernor(logger, &db, GoTestMode)
+
+	err := gov.Run(ctx)
+	require.NoError(t, err)
+}
