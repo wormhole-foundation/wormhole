@@ -90,7 +90,7 @@ You can enable it in VSCode with the following in your `settings.json`.
 
 # Testing
 
-We believe that testing that is also transparent is critically important to ensuring the integrity of Wormhole components. It is also critically important that everyone can independantly verify and extend Wormhole test cases, which allow us to further ensure that Wormhole components will operate as expected in both positive and especially negative test case scenarios
+We believe automated tests ensure the integrity of all Wormhole components. Anyone can verify or extend them transparently and they fit nicely with our software development lifecycle. This ensures Wormhole components operate as expected in both expected and failure cases.
 
 Places to find out more about existing test coverage and how to run those tests:
 
