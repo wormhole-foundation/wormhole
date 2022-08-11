@@ -106,6 +106,9 @@ Places to find out more about existing test coverage and how to run those tests:
 - **Terra Smart Contracts**
     - Tests: `./terra/test/*`
     - Run: `cd terra && make test`
+- **Terra2 Smart Contracts**
+    - Tests: `./cosmwasm/test/*`
+    - Run: `cd cosmwasm && make test`
 - **Algorand Smart Contracts**
     - Tests: `./algorand/test/*`
     - Run: `cd algorand && make test`
