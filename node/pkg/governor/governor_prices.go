@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
+// The CoinGecko API is documented here: https://www.coingecko.com/en/api/documentation
 // An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
 
 const coinGeckoQueryIntervalInMins = 5

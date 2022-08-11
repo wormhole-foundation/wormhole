@@ -49,10 +49,16 @@ axios
                     continue
                   }
                   let chainId = parseInt(chain) as ChainId
-                  const wormholeAddr = tryNativeToHexString(
-                    data.Address,
-                    chainId
-                  );
+                  let wormholeAddr: string
+                  try {
+                    wormholeAddr = tryNativeToHexString(
+                      data.Address,
+                      chainId
+                    );
+                  } catch (e) {
+                    console.log("Ignoring symbol \"" + data.Symbol + "\" because the address \"" + data.Address + "\" is invalid")
+                    continue
+                  }
 
                   content += "\t\ttokenConfigEntry { chain: " + chain +
                   ", addr: \"" + wormholeAddr +
