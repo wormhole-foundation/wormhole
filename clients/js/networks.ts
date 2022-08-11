@@ -82,7 +82,7 @@ const MAINNET = {
     rpc: undefined,
     key: get_env_var("NEAR_KEY"),
     networkId: "mainnet",
-    baseAccount: "wormhole.mainnet"    
+    baseAccount: "wormhole.mainnet",
   },
   injective: {
     rpc: undefined,
@@ -174,8 +174,8 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   algorand: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://testnet-api.algonode.cloud",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   fantom: {
     rpc: "https://rpc.testnet.fantom.network",
@@ -205,7 +205,7 @@ const TESTNET = {
     rpc: "https://rpc.testnet.near.org",
     key: get_env_var("NEAR_KEY_TESTNET"),
     networkId: "testnet",
-    baseAccount: "wormhole.testnet"
+    baseAccount: "wormhole.testnet",
   },
   injective: {
     rpc: "https://k8s.testnet.tm.injective.network:443",
@@ -330,7 +330,7 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
     networkId: "sandbox",
-    baseAccount: "test.near"    
+    baseAccount: "test.near",
   },
   injective: {
     rpc: undefined,

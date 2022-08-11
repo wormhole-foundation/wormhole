@@ -30,7 +30,6 @@ export async function execute_injective(
     environment === "MAINNET" ? Network.MainnetK8s : Network.TestnetK8s;
 
   const network = getNetworkInfo(endPoint);
-  // const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
   const walletPKHash = n.key;
   const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
   const walletInjAddr = walletPK.toBech32();

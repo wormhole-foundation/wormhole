@@ -1,4 +1,8 @@
-import { CONTRACTS, redeemOnAlgorand } from "@certusone/wormhole-sdk";
+import {
+  CONTRACTS,
+  getIsTransferCompletedAlgorand,
+  redeemOnAlgorand,
+} from "@certusone/wormhole-sdk";
 import { NETWORKS } from "./networks";
 import { impossible, Payload } from "./vaa";
 import {
@@ -35,7 +39,7 @@ async function signSendAndConfirmAlgorand(
 
 export async function execute_algorand(
   payload: Payload,
-  vaa: Buffer,
+  vaa: Uint8Array,
   environment: "MAINNET" | "TESTNET" | "DEVNET"
 ) {
   const ALGORAND_HOST =
@@ -60,7 +64,7 @@ export async function execute_algorand(
   const chainName = "algorand";
   let n = NETWORKS[environment][chainName];
   if (!n.key) {
-    throw Error("No ${environment} rpc defined for Algorand");
+    throw Error("No " + environment + " rpc defined for Algorand");
   }
   let contracts = CONTRACTS[environment][chainName];
 
@@ -142,15 +146,19 @@ export async function execute_algorand(
   );
   const algoWallet: Account = mnemonicToSecretKey(n.key);
 
+  if (await getIsTransferCompletedAlgorand(algodClient, TOKEN_BRIDGE_ID, vaa)) {
+    console.log("Vaa has already been redeemed.");
+    return;
+  }
+
   // Create transaction
   const txs = await redeemOnAlgorand(
     algodClient,
-    CORE_ID,
     TOKEN_BRIDGE_ID,
+    CORE_ID,
     vaa,
     algoWallet.addr
   );
   // Sign and send transaction
   const result = await signSendAndConfirmAlgorand(algodClient, txs, algoWallet);
-  console.log("result", result);
 }

@@ -9,6 +9,7 @@ import {
   assertEVMChain,
   CONTRACTS,
   setDefaultWasm,
+  hexToUint8Array,
 } from "@certusone/wormhole-sdk";
 import { execute_solana } from "./solana";
 import {
@@ -34,6 +35,7 @@ import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
 import { execute_injective } from "./injective";
+import { execute_algorand } from "./algorand";
 
 setDefaultWasm("node");
 
@@ -609,7 +611,11 @@ yargs(hideBin(process.argv))
       } else if (chain === "solana" || chain === "pythnet") {
         await execute_solana(parsed_vaa, buf, network, chain);
       } else if (chain === "algorand") {
-        throw Error("Algorand is not supported yet");
+        await execute_algorand(
+          parsed_vaa.payload,
+          hexToUint8Array(vaa_hex),
+          network
+        );
       } else if (chain === "near") {
         await execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
@@ -651,7 +657,7 @@ function parseAddress(chain: ChainName, address: string): string {
     // TODO: is there a better native format for algorand?
     return "0x" + evm_address(address);
   } else if (chain === "near") {
-    return "0x" + evm_address(address)
+    return "0x" + evm_address(address);
   } else if (chain === "injective") {
     return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
   } else if (chain === "osmosis") {
