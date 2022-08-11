@@ -2,7 +2,7 @@
 name = "near-token-bridge"
 version = "0.1.0"
 authors = ["Josh Siegel <jsiegel@jumptrading.com>"]
-edition = "2022"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
