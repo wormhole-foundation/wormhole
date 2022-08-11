@@ -38,7 +38,7 @@ It's important to remember that this is an iterative process, if you spend the t
 
 ## Guidance to Chain Integrators
 
-As the list of chains connected to Wormhole increases, so does the risk that a given connected could introduce risks to the Wormhole network.  As a result, Wormhole does have a built-in safety feature (see [Governor white-paper](https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0007_governor.md)) to try and coreduce the impact of such case.  That said, a defense in depth strategy is required to do as much as possible to secure the network.  As part of this methodology, the Wormhole project recommends that all connected chains current and future implement robust security programs of their own to do their part in managing chain compromise risk to the wormhole network.
+As the list of chains connected to Wormhole increases, so does the risk that a given connected could introduce risks to the Wormhole network.  As a result, Wormhole does have a built-in safety feature (see [Governor white-paper](https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0007_governor.md)) to try and reduce the impact of such case.  That said, a defense in depth strategy is required to do as much as possible to secure the network.  As part of this methodology, the Wormhole project recommends that all connected chains current and future implement robust security programs of their own to do their part in managing chain compromise risk to the wormhole network.
 
 Here are a few ways in which connected chains can help can ensure safety of the Wormhole network by maintaining high security standards:
 
