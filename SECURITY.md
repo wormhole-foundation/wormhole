@@ -46,9 +46,9 @@ Here are a few ways in which connected chains can help can ensure safety of the 
 - Ensure that all relevant source code is audited by an independant third party and that audit reports are made available to the public.
 - Ensure that all relevant source code is included in a public bug bounty program and that the bounty rewards are sufficiently large to incentivize white-hat mindshare in finding security bugs in your code and responsibly disclosing them.
 - Ensure that all relevant source code makes use of branch protection and have a minimum of one independant reviewer to merge code.
-- Ensure that all relevant source code maintains a SECURITY.md in the root of the repository (like this one) to offer guidance and transparency on security relevant topics.
+- Ensure that all relevant source code maintains a [SECURITY.md](https://github.com/certusone/wormhole/blob/dev.v2/SECURITY.md) in the root of the repository (like this one) to offer guidance and transparency on security relevant topics.
 - Ensure that all relevant source code has sufficient unit test and integration test coverage, which is run on every commit via continuous integration.  Additionally, ensure that the results of those test runs are visible to the public.
 - Ensure that the Wormhole team has sufficient contact information and an associated call or page tree to reach you in the event of a security incident.
 - Ensure that Wormhole has the full upgrade authority on relevant bridge contracts to act quickly in the case of security incident.
-- Ensure that you have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for process.
+- Ensure that you have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for containment.
 - Ensure that when security issues do occur, that the chain makes every attempt to inform affected parties and lead with transparency.
