@@ -21,7 +21,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 
 We want to lower the bar for White-hat hackers to find security bugs in Wormhole.  Why? The easier we make this process, the more likely it will be for white-hats to find bugs in Wormhole and responsibly disclose them, helping to secure the network.
 
-Here's a list of strategies that we've found helpful to hackers getting started on Wormhole:
+Here's a list of strategies we've found helpful for getting started on Wormhole:
 
 - Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/certusone/wormhole/blob/dev.v2/CONTRIBUTING.md)) and see what we're already testing for.
     * Check out places were we might be missing test coverage entirely.  This could be a ripe spot to look for something we missed.
