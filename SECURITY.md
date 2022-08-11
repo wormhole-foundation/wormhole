@@ -23,7 +23,7 @@ We want to lower the bar for White-hat hackers to find security bugs in Wormhole
 
 Here's a list of strategies that we've found helpful to hackers getting started on Wormhole:
 
-- Review the existing unit and integration testing (found in CONTRIBUTING.md) and see what we're already testing for.
+- Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/certusone/wormhole/blob/dev.v2/CONTRIBUTING.md)) and see what we're already testing for.
     * Check out places were we might be missing test coverage entirely.  This could be a ripe spot to look for something we missed.
     * Check out places were we have unit/integration tests, but we lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
 - Review our different smart contract implementations (eg. Solana, EVM, CosmWasm) and attempt to understand how and why they are different.
