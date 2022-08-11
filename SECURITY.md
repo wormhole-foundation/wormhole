@@ -42,13 +42,17 @@ As the list of chains connected to Wormhole increases, so does the risk that a g
 
 Here are a few ways in which connected chains can maintain high security standards:
 
-- Ensure that all relevant source code is open source.
-- Ensure that all relevant source code is audited by an independant third party and that audit reports are made available to the public.
-- Ensure that all relevant source code is included in a public bug bounty program and that the bounty rewards are sufficiently large to incentivize white-hat mindshare in finding security bugs in your code and responsibly disclosing them.
-- Ensure that all relevant source code makes use of branch protection and have a minimum of one independant reviewer to merge code.
-- Ensure that all relevant source code maintains a [SECURITY.md](https://github.com/certusone/wormhole/blob/dev.v2/SECURITY.md) in the root of the repository (like this one) to offer guidance and transparency on security relevant topics.
-- Ensure that all relevant source code has sufficient unit test and integration test coverage (including negative tests), which is run on every commit via continuous integration.  Additionally, ensure that the results of those test runs are visible to the public.
-- Ensure that the Wormhole team has sufficient contact information and an associated call or page tree to reach you in the event of a security incident.
-- Ensure that Wormhole has the full upgrade authority on relevant bridge contracts to act quickly in the case of security incident.
-- Ensure that you have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for containment.
-- Ensure that when security issues do occur, that the chain makes every attempt to inform affected parties and lead with transparency.
+For source code ensure relevant bits are:
+- All open source
+- Audited by an independent third party with public audit reports
+- Included in a public bug bounty program. The bounty rewards should be sufficiently large to incentivize white-hat mindshare in finding security bugs and responsibly disclosing them
+- Version control systems contain adequate access controls and mandatory code review (e.g.: In github, use of branch protection and a minimum of one independent reviewer to merge code)
+- Maintaining a [SECURITY.md](https://github.com/certusone/wormhole/blob/dev.v2/SECURITY.md) in the root of the repository (like this one) to offer guidance and transparency on security relevant topics
+- Includes sufficient unit and integration test coverage (including negative tests), which are run on every commit via continuous integration. Ensure that the results of those test runs are visible to the public
+
+Additionally, ensure:
+
+- The Wormhole team has sufficient contact information and an associated call or page tree to reach you in the event of a security incident.
+- That Wormhole has the full upgrade authority on relevant bridge contracts to act quickly in the case of a security incident.
+- You have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for containment.
+- When security issues do occur, that the chain makes every attempt to inform affected parties and leads with transparency.
