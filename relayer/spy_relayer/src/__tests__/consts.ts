@@ -22,12 +22,16 @@ export const SOLANA_CORE_BRIDGE_ADDRESS =
 export const SOLANA_TOKEN_BRIDGE_ADDRESS =
   "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
 export const TERRA_NODE_URL = "http://localhost:1317";
+export const TERRA2_NODE_URL = "http://localhost:1318";
 export const TERRA_CHAIN_ID = "localterra";
 export const TERRA_GAS_PRICES_URL = "http://localhost:3060/v1/txs/gas_prices";
+export const TERRA2_GAS_PRICES_URL = "http://localhost:3061/v1/txs/gas_prices";
 export const TERRA_CORE_BRIDGE_ADDRESS =
   "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_TOKEN_BRIDGE_ADDRESS =
   "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
+export const TERRA2_TOKEN_BRIDGE_ADDRESS =
+  "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6";
 export const TERRA_PRIVATE_KEY =
   "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius";
 export const TEST_ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";

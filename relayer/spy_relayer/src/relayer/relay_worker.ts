@@ -1,4 +1,4 @@
-import { hexToUint8Array, parseTransferPayload } from "@certusone/wormhole-sdk";
+import { hexToUint8Array } from "@certusone/wormhole-sdk";
 import { importCoreWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { getRelayerEnvironment, RelayerEnvironment } from "../configureEnv";
 import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
