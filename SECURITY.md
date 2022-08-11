@@ -26,7 +26,7 @@ Here's a list of strategies we've found helpful for getting started on Wormhole:
 - Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/certusone/wormhole/blob/dev.v2/CONTRIBUTING.md)) and see what we're already testing for.
     * Check out places were we might be missing test coverage entirely.  This could be a ripe spot to look for something we missed.
     * Check out places were we have unit/integration tests, but we lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
-- Review our different smart contract implementations (eg. Solana, EVM, CosmWasm) and attempt to understand how and why they are different.
+- Review our different smart contract implementations (eg. Solana, EVM, CosmWasm, Move) and attempt to understand how and why they are different.
     * Does one chain have a safety check that another chain doesn't?
     * Does one chain have a specific set of nuances gotchas that that we missed?
 - Consider going beyond the source code
