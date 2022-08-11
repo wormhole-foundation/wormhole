@@ -17,25 +17,21 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[July 1, 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**
     - **Scopes**: *Ethereum Contracts, Solana Contracts, Terra Contracts, and Guardian*
 
-## Rigorous Testing and Review
+## White-Hat Hacking on Wormhole
 
-We believe that rigorous testing that is also transparent is critically important to ensuring the integrity of Wormhole components. It is also critically important that everyone can independantly verify and extend Wormhole test cases, which allow us to further ensure that Wormhole components will operate as expected in both positive and especially negative test case scenarios.
+We want to lower the bar for White-hat hackers to find security bugs in Wormhole.  Why? The easier we make this process, the more likely it will be for white-hats to find bugs in Wormhole and responsibly disclose them, helping to secure the network.
 
-Places to find out more about existing test coverage and how to run those tests:
+Here's a list of strategies that we've found helpful to hackers getting started on Wormhole:
 
-- **Guardian Node**
-    - Tests: `./node/**/*_test.go`
-    - Run: `cd node && go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...`
-- **Ethereum Smart Contracts**
-    - Tests: `./ethereum/test/*.[js|sol]`
-    - Run: `cd ethereum && make test`
-- **Solana Smart Contracts**
-    - Tests: `./solana/bridge/program/tests/*.rs`
-    - Run: `cd solana && make test`
-- **Terra Smart Contracts**
-    - Tests: `./terra/test/*`
-    - Run: `cd terra && make test`
+- Review the existing unit and integration testing (found in CONTRIBUTING.md) and see what we're already testing for.
+    * Check out places were we might be missing test coverage entirely.  This could be a ripe spot to look for something we missed.
+    * Check out places were we have unit/integration tests, but we lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
+- Review our different smart contract implementations (eg. Solana, EVM, CosmWasm) and attempt to understand how and why they are different.
+    * Does one chain have a safety check that another chain doesn't?
+    * Does one chain have a specific set of nuances gotchas that that we missed?
+- Consider going beyond the source code
+    * Review the deployed contracts on chain, is some sort of odd that we missed? 
 
-We additionally subscribe to a number of linting frameworks, including gosec, golint, cargo check and others to avoid obvious pitfalls and language specific bugs to provide instant feedback to developers on Wormhole.
+We'll continue to iterate on this list of white-hat bootstrap strategies as we grow our lessons learned internally hacking on Wormhole and from other white-hats who have been successful via our bug bounty program.
 
-The best place to understand how we invoke these tests via GitHub Actions on every commit can be found via `./.github/workflows/*.yml` and the best place to observe the results of these builds can be found via [https://github.com/certusone/wormhole/actions](https://github.com/certusone/wormhole/actions).  Additionally, these results are also available to anyone who submits a PR to the Wormhole project inline, and the team has a technical requirement that all builds must pass and a minimum of 2 passing code reviews before the PR can be merged into the main branch.
+It's important to remember that this is an iterative process, if you spend the time to come up with a new test case, but didn't actually find a bug, we'd be extremely appreciative if you'd be willing to send a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) with additional positive and negative test cases.  This process has shown repeatedly to improve your ability to understand Wormhole, and will increase your odds of success.

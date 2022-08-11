@@ -87,3 +87,24 @@ You can enable it in VSCode with the following in your `settings.json`.
     }
   },
 ```
+
+# Testing
+
+We believe that testing that is also transparent is critically important to ensuring the integrity of Wormhole components. It is also critically important that everyone can independantly verify and extend Wormhole test cases, which allow us to further ensure that Wormhole components will operate as expected in both positive and especially negative test case scenarios
+
+Places to find out more about existing test coverage and how to run those tests:
+
+- **Guardian Node**
+    - Tests: `./node/**/*_test.go`
+    - Run: `cd node && make test`
+- **Ethereum Smart Contracts**
+    - Tests: `./ethereum/test/*.[js|sol]`
+    - Run: `cd ethereum && make test`
+- **Solana Smart Contracts**
+    - Tests: `./solana/bridge/program/tests/*.rs`
+    - Run: `cd solana && make test`
+- **Terra Smart Contracts**
+    - Tests: `./terra/test/*`
+    - Run: `cd terra && make test`
+
+The best place to understand how we invoke these tests via GitHub Actions on every commit can be found via `./.github/workflows/*.yml` and the best place to observe the results of these builds can be found via [https://github.com/certusone/wormhole/actions](https://github.com/certusone/wormhole/actions).
