@@ -30,7 +30,7 @@ Here's a list of strategies we've found helpful for getting started on Wormhole:
     * Does one chain have a safety check that another chain doesn't?
     * Does one chain have a specific set of nuances / gotchas that that were missed on another chain?
 - Consider going beyond the source code
-    * Review the deployed contracts on chain, is some sort of odd that we missed? 
+    * Review the deployed contracts on chain. Is something odd that we missed? 
 
 We'll continue to iterate on this list of white-hat bootstrap strategies as we grow our lessons learned internally hacking on Wormhole and from other white-hats who have been successful via our bug bounty program.
 
