@@ -16,19 +16,19 @@ interface IWormhole is Structs {
 
     function parseAndVerifyVM(bytes calldata encodedVM) external view returns (Structs.VM memory vm, bool valid, string memory reason);
 
-    function parseAndVerifyVM2(bytes calldata encodedVM) external view returns (Structs.VM2 memory vm, bool valid, string memory reason);
+    function parseAndVerifyVM2(bytes calldata encodedVM) external returns (Structs.VM2 memory vm, bool valid, string memory reason);
 
     function parseAndVerifyVM3(bytes calldata encodedVM) external view returns (Structs.VM3 memory vm, bool valid, string memory reason);
 
     function parseAndVerifyVAA(bytes calldata encodedVM) external view returns (Structs.Observation memory observation, bool valid, string memory reason);
-       
+
     function verifyVM(Structs.VM memory vm) external view returns (bool valid, string memory reason);
 
-    function verifyVM3(Structs.VM3 memory vm) external view returns (bool valid, string memory reason);
-
-    function verifyBatchHeader(Structs.BatchHeader memory vm) external view returns (bool valid, string memory reason); 
+    function verifyVM2(Structs.BatchHeader memory vm) external view returns (bool valid, string memory reason);
 
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) external pure returns (bool valid, string memory reason) ;
+
+    function clearBatchCache(Structs.BatchHeader memory header) external;
 
     function parseVM(bytes memory encodedVM) external pure returns (Structs.VM memory vm);
 

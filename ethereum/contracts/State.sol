@@ -43,7 +43,6 @@ contract Storage {
         uint256 messageFee;
 
         // Cache of verified hashes
-        // TODO(csongor): we could put more data into the storage slots :thinking:
         mapping(bytes32 => bool) verifiedHashCache;
     }
 }
