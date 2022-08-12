@@ -28,6 +28,17 @@ contract TestMessages is Messages, Test {
     assertEq(quorum(20), 14);
   }
 
+  function testQuorumCanAlwaysBeReached(uint numGuardians) public {
+    if (numGuardians == 0) {
+      return;
+    }
+    if (numGuardians >= 256) {
+      vm.expectRevert("too many guardians");
+    }
+    // test that quorums is never greater than the number of guardians
+    assert(quorum(numGuardians) <= numGuardians);
+  }
+
   // This test ensures that submitting invalid signatures for non-existent
   // guardians fails.
   //
@@ -41,7 +52,7 @@ contract TestMessages is Messages, Test {
     address[] memory keys = new address[](1);
     keys[0] = testGuardianPub;
     Structs.GuardianSet memory guardianSet = Structs.GuardianSet(keys, 0);
-    assertEq(quorum(guardianSet.keys.length), 1);
+    require(quorum(guardianSet.keys.length) == 1, "Quorum should be 1");
 
     // Two invalid signatures, for guardian index 2 and 3 respectively.
     // These guardian indices are out of bounds for the guardian set.
@@ -49,7 +60,7 @@ contract TestMessages is Messages, Test {
     Structs.Signature memory bad1 = Structs.Signature(message, 0, 0, 2);
     Structs.Signature memory bad2 = Structs.Signature(message, 0, 0, 3);
     // ecrecover on an invalid signature returns 0 instead of reverting
-    assertEq(ecrecover(message, bad1.v, bad1.r, bad1.s), address(0));
+    require(ecrecover(message, bad1.v, bad1.r, bad1.s) == address(0), "ecrecover should return the 0 address for an invalid signature");
 
     Structs.Signature[] memory badSigs = new Structs.Signature[](2);
     badSigs[0] = bad1;
