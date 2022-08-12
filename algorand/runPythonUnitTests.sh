@@ -10,8 +10,10 @@ sed -i -e 's@export ALGOD_URL=""@export ALGOD_URL="https://github.com/algorand/g
        -e 's/export ALGOD_BRANCH=""/export ALGOD_BRANCH="v3.6.2-stable"/'   \
        -e 's/export INDEXER_ENABLE_ALL_PARAMETERS="false"/export INDEXER_ENABLE_ALL_PARAMETERS="true"/'  _sandbox/config.dev
 
+cd _sandbox
 ./sandbox clean
 ./sandbox up -v dev
+cd ..
 echo running the tests...
 cd test
 python3 test.py
@@ -22,5 +24,5 @@ if [ $rv -ne 0 ]; then
 	exit 1
 fi
 echo bringing the sandbox down...
-cd ..
+cd ../_sandbox
 ./sandbox down
