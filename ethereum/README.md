@@ -57,3 +57,13 @@ wormhole/ethereum $ ../scripts/install-foundry
 ```
 
 The installer script installs foundry and the appropriate solc version to build the contracts.
+
+### Batched VAAs
+
+To send a transaction that will create multiple VAAs, invoke the `sendMultipleMessages` method of [ethereum/contracts/mock/MockBatchedVAASender.sol](./contracts/mock/MockBatchedVAASender.sol) with the truffle script:
+
+    npx truffle exec scripts/send_batched_vaa.js
+
+or invoke the same script in the tilt devnet:
+
+    minikube kubectl -- exec -n wormhole eth-devnet-0 -c tests --  npx truffle exec scripts/send_batched_vaa.js
