@@ -941,12 +941,21 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 }
 
 func TestMainnetConfigIsValid(t *testing.T) {
-	ctx := context.Background()
-
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, GoTestMode)
 
-	err := gov.Run(ctx)
+	gov.env = MainNetMode
+	err := gov.initConfig()
+	require.NoError(t, err)
+}
+
+func TestTestnetConfigIsValid(t *testing.T) {
+	logger := zap.NewNop()
+	var db db.MockGovernorDB
+	gov := NewChainGovernor(logger, &db, GoTestMode)
+
+	gov.env = TestNetMode
+	err := gov.initConfig()
 	require.NoError(t, err)
 }
