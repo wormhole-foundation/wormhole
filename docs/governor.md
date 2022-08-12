@@ -1,5 +1,6 @@
 # Guardian Chain Governor
-Below are admin controls surfaced to the Guardians for the Governor plugin.
+Below are admin controls surfaced to the Guardians for the Governor plugin. For
+a background on the feature and its objectives, see [the whitepaper](../whitepapers/0007_governor.md).
 
 ## Default Behavior / Limits
 The Chain Governor feature is disabled by default. Guardians can enable it by passing the following flag to the `guardiand` command when starting it up:
@@ -35,7 +36,7 @@ The following data will be shown:
     3. Token chain ID and address
     4. Receive time
     5. Value
-    
+
 
 For example:
 
