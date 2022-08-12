@@ -36,7 +36,7 @@ contract TestMessages is Messages, Test {
   // bounds memory access. In particular, pubkey recovery of an invalid
   // signature returns 0, and in some cases out of bounds memory access also
   // just returns 0.
-  function outOfBoundsSignature() public {
+  function testOutOfBoundsSignature() public {
     // Initialise a guardian set with a single guardian.
     address[] memory keys = new address[](1);
     keys[0] = testGuardianPub;
