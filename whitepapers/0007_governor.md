@@ -2,7 +2,7 @@
 [TOC]
 
 ## Objective
-Provide an optional security layer that enables Guardians to limit the amount of notional value that can be transferred out of a given chain within a sliding time period.
+Provide an optional security layer that enables Guardians to limit the amount of notional value that can be transferred out of a given chain within a sliding time period, with the aim of protecting against external risk such as smart contract exploits or runtime vulnerabilities.
 
 ## Background
 Bridge security is incredibly high stakes — beyond core trust assumptions and high code quality, it is important to have defense in depth to minimize the potential for user harm. Under the assumption of smart contract bugs, the Governor is designed to be a passive security check that individual Guardians can implement to rate limit the notional value of assets that can be transferred out of a given chain to ensure the integrity of the value stored within a token bridge.
@@ -13,10 +13,10 @@ Bridge security is incredibly high stakes — beyond core trust assumptions and 
 
 ## Non-Goals
 * Set a blanket rate limiting on all supported chains for all tokens
-* Prevent any single "bad actor" from blocking other value transfer by generating one large transfer
+* Prevent any single "bad actor" from blocking other value transfer by intentionally exceeding the transfer limit for the given time period
 
 ## Overview
-Each individual Guardian within the Guardian network can employ a set of strategies to verify the validity of a VAA. The Governor is designed to be one of those checks by proposing a notional limit on the value that can be transferred from a given chain within a certain time frame. 
+Each individual Guardian within the Guardian network can employ a set of strategies to verify the validity of a VAA. The Governor is designed to be one of those checks by proposing a notional limit on the value that can be transferred from a given chain within a certain time frame.
 
 There are many other potential variations on the notional value limit and time frame considered (i.e. 4 hour window, 12 hour window, max single transaction size) — this initial implementation is for a 24-hour window with a custom limit per chain that is informed by data-driven analysis from recent chain activity.
 
@@ -27,7 +27,7 @@ The `mainnet_tokens.go` maps a list of tokens with the maximum price between a h
 
 If a node level config parameter is enabled to indicate that the chain governor is enabled, all VAAs will be passed through the `ChainGovernor` to perform a series of additional checks to indicate whether the message can be published or if it should not and be dropped by the processor.
 
-The checks performed include: 
+The checks performed include:
 
 1. Is the source chain of the message one that is listed within `mainnet_chains.go`?
 2. Is the message sent from a goverened emitter?
