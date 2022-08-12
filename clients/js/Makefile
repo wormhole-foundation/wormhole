@@ -3,9 +3,6 @@ SOURCE_FILES:=$(shell find . -name "*.ts" -not -path "./node_modules/*")
 .PHONY: all
 all: build
 
-package-lock.json: package.json
-	npm install
-
 node_modules: package-lock.json
 	@touch -m node_modules
 	npm ci
