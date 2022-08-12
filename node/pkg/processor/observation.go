@@ -206,12 +206,13 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 		if len(sigs) >= quorum && !p.state.signatures[hash].submitted {
 			p.state.signatures[hash].ourObservation.HandleQuorum(sigs, hash, p)
-			if p.reobserve != nil {
-				p.reobserve.QuorumReached(m.MessageId)
-			}
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",
 				zap.String("digest", hash))
+		}
+
+		if p.reobserve != nil && len(sigs) >= quorum {
+			p.reobserve.QuorumReached(m.MessageId)
 		}
 	} else {
 		p.logger.Info("we have not yet seen this observation - temporarily storing signature",
