@@ -630,7 +630,7 @@ class PortalCore:
             )
         ]
 
-        self.sendTxn(client, sender, txns, True)
+        return self.sendTxn(client, sender, txns, True)
 
     def decodeLocalState(self, client, sender, appid, addr):
         app_state = None
@@ -1333,6 +1333,7 @@ class PortalCore:
         self.tokenid = self.args.tokenid
 
     def mainnet(self):
+        #self.ALGOD_ADDRESS = "http://localhost:4001"
         self.ALGOD_ADDRESS = self.args.algod_address = "https://mainnet-api.algonode.cloud"
         self.INDEXER_ADDRESS = self.args.algod_address = "https://mainnet-idx.algonode.cloud"
         self.coreid = self.args.coreid
@@ -1380,6 +1381,7 @@ class PortalCore:
         parser.add_argument('--fund', action='store_true', help='Generate some accounts and fund them')
         parser.add_argument('--testnet', action='store_true', help='Connect to testnet')
         parser.add_argument('--mainnet', action='store_true', help='Connect to mainnet')
+        parser.add_argument('--bootGuardian', type=str, help='Submit the supplied VAA', default="")
     
         args = parser.parse_args()
         self.init(args)
@@ -1484,6 +1486,12 @@ class PortalCore:
             vaa = bytes.fromhex(args.vaa)
             pprint.pprint(self.parseVAA(vaa))
             self.submitVAA(vaa, self.client, self.foundation, int(self.args.appid))
+
+        if args.bootGuardian != "":
+            vaa = bytes.fromhex(args.bootGuardian)
+            pprint.pprint(self.parseVAA(vaa))
+            response = self.bootGuardians(vaa, self.client, self.foundation, self.coreid)
+            pprint.pprint(response.__dict__)
 
 if __name__ == "__main__":
     core = PortalCore()
