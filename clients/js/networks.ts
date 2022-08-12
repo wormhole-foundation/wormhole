@@ -47,8 +47,8 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   algorand: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://mainnet-api.algonode.cloud",
+    key: get_env_var("ALGORAND_KEY"),
   },
   oasis: {
     rpc: "https://emerald.oasis.dev/",
@@ -80,7 +80,9 @@ const MAINNET = {
   },
   near: {
     rpc: undefined,
-    key: undefined,
+    key: get_env_var("NEAR_KEY"),
+    networkId: "mainnet",
+    baseAccount: "wormhole.mainnet",
   },
   injective: {
     rpc: undefined,
@@ -95,6 +97,14 @@ const MAINNET = {
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: "http://api.pythnet.pyth.network:8899/",
+    key: get_env_var("SOLANA_KEY"),
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
@@ -164,8 +174,8 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   algorand: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://testnet-api.algonode.cloud",
+    key: get_env_var("ALGORAND_KEY_TESTNET"),
   },
   fantom: {
     rpc: "https://rpc.testnet.fantom.network",
@@ -192,22 +202,34 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   near: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://rpc.testnet.near.org",
+    key: get_env_var("NEAR_KEY_TESTNET"),
+    networkId: "testnet",
+    baseAccount: "wormhole.testnet",
   },
   injective: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://k8s.testnet.tm.injective.network:443",
+    chain_id: "injective-888",
+    key: get_env_var("INJECTIVE_KEY_TESTNET"),
   },
   osmosis: {
     rpc: undefined,
-    key: undefined,
+    chain_id: "osmo-test-4",
+    key: get_env_var("OSMOSIS_KEY_TESTNET"),
   },
   aptos: {
     rpc: undefined,
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: "https://api.pythtest.pyth.network/",
+    key: get_env_var("SOLANA_KEY"),
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
@@ -277,8 +299,8 @@ const DEVNET = {
     key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   algorand: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://localhost",
+    key: get_env_var("ALGORAND_KEY_DEVNET"),
   },
   fantom: {
     rpc: undefined,
@@ -307,6 +329,8 @@ const DEVNET = {
   near: {
     rpc: undefined,
     key: undefined,
+    networkId: "sandbox",
+    baseAccount: "test.near",
   },
   injective: {
     rpc: undefined,
@@ -321,6 +345,14 @@ const DEVNET = {
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
