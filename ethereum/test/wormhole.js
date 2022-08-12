@@ -5,6 +5,7 @@ const path = require('path');
 const Wormhole = artifacts.require("Wormhole");
 const MockImplementation = artifacts.require("MockImplementation");
 const Implementation = artifacts.require("Implementation");
+const MockBatchedVAASender = artifacts.require("MockBatchedVAASender");
 
 const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
@@ -114,6 +115,34 @@ contract("Wormhole", function () {
         assert.equal(log.events.LogMessagePublished.returnValues.consistencyLevel, 32);
     })
 
+    it("should log sequential sequence numbers for multi-VAA transactions", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
+
+        await mockIntegration.methods.sendMultipleMessages(
+            "0x1",
+            "0x1",
+            32
+            ).send({
+            value: 0, // fees are set to 0 initially
+            from: accounts[0]
+        });
+
+        const events = (await initialized.getPastEvents('LogMessagePublished', {
+            fromBlock: 'latest'
+        }))
+
+        let firstSequence = Number(events[0].returnValues.sequence.toString())
+
+        let secondSequence = Number(events[1].returnValues.sequence.toString())
+        assert.equal(secondSequence, firstSequence + 1);
+
+        let thirdSequence = Number(events[2].returnValues.sequence.toString())
+        assert.equal(thirdSequence, secondSequence + 1);
+    })
+
     it("should increase the sequence for an account", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
@@ -128,6 +157,33 @@ contract("Wormhole", function () {
         })
 
         assert.equal(log.events.LogMessagePublished.returnValues.sequence.toString(), "1");
+    })
+
+    it("should get the same nonce from all VAAs produced by a transaction", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
+
+        const nonce = Math.round(Date.now() / 1000);
+        const nonceHex = nonce.toString(16)
+
+        await mockIntegration.methods.sendMultipleMessages(
+            "0x" + nonceHex,
+            "0x1",
+            32
+            ).send({
+            value: 0, // fees are set to 0 initially
+            from: accounts[0]
+        });
+
+        const events = (await initialized.getPastEvents('LogMessagePublished', {
+            fromBlock: 'latest'
+        }))
+
+        assert.equal(events[0].returnValues.nonce, nonce);
+        assert.equal(events[1].returnValues.nonce, nonce);
+        assert.equal(events[2].returnValues.nonce, nonce);
     })
 
     it("parses VMs correctly", async function () {
