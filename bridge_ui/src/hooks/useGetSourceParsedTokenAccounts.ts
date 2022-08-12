@@ -746,10 +746,6 @@ const getAlgorandParsedTokenAccounts = async (
   dispatch: Dispatch,
   nft: boolean
 ) => {
-  if (nft) {
-    // not supported yet
-    return;
-  }
   dispatch(
     nft ? fetchSourceParsedTokenAccountsNFT() : fetchSourceParsedTokenAccounts()
   );
@@ -763,7 +759,34 @@ const getAlgorandParsedTokenAccounts = async (
       .accountInformation(walletAddress)
       .do();
     const parsedTokenAccounts: ParsedTokenAccount[] = [];
-    parsedTokenAccounts.push(
+    for (const asset of accountInfo.assets) {
+      const assetId = asset["asset-id"];
+      const amount = asset.amount;
+      const metadata = await fetchSingleMetadata(assetId, algodClient);
+      const isNFT: boolean = amount === 1 && metadata.decimals === 0;
+      if (((nft && isNFT) || (!nft && !isNFT)) && amount > 0) {
+        parsedTokenAccounts.push(
+          createParsedTokenAccount(
+            walletAddress,
+            assetId.toString(),
+            amount,
+            metadata.decimals,
+            parseFloat(formatUnits(amount, metadata.decimals)),
+            formatUnits(amount, metadata.decimals).toString(),
+            metadata.symbol,
+            metadata.tokenName,
+            undefined,
+            false
+          )
+        );
+      }
+    }
+    if (nft) {
+      dispatch(receiveSourceParsedTokenAccountsNFT(parsedTokenAccounts));
+      return;
+    }
+    // The ALGOs account is prepended for the non NFT case
+    parsedTokenAccounts.unshift(
       createParsedTokenAccount(
         walletAddress, //publicKey
         "0", //asset ID
@@ -777,25 +800,6 @@ const getAlgorandParsedTokenAccounts = async (
         true
       )
     );
-    for (const asset of accountInfo.assets) {
-      const assetId = asset["asset-id"];
-      const amount = asset.amount;
-      const metadata = await fetchSingleMetadata(assetId, algodClient);
-      parsedTokenAccounts.push(
-        createParsedTokenAccount(
-          walletAddress,
-          assetId.toString(),
-          amount,
-          metadata.decimals,
-          parseFloat(formatUnits(amount, metadata.decimals)),
-          formatUnits(amount, metadata.decimals).toString(),
-          metadata.symbol,
-          metadata.tokenName,
-          undefined,
-          false
-        )
-      );
-    }
     dispatch(receiveSourceParsedTokenAccounts(parsedTokenAccounts));
   } catch (e) {
     console.error(e);
