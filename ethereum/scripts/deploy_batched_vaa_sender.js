@@ -7,6 +7,11 @@ module.exports = async function(callback) {
 
     await MockBatchedVAASender.deploy();
 
+    // devnet contract address should be deterministic
+    if (MockBatchedVAASender.address !== "0xf19a2a01b70519f67adb309a994ec8c69a967e8b") {
+      throw new Error("unexpected batched-VAA contract address");
+    }
+
     const batchedSender = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
     await batchedSender.methods.setup(Wormhole.address).send({from: accounts[0]});
 
