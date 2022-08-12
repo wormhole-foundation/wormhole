@@ -43,7 +43,6 @@ export async function execute_injective(
   switch (payload.module) {
     case "Core":
       target_contract = contracts.core;
-      // sigh...
       execute_msg = {
         submit_v_a_a: {
           vaa: fromUint8Array(vaa),
@@ -62,10 +61,10 @@ export async function execute_injective(
       break;
     case "NFTBridge":
       if (contracts.nft_bridge === undefined) {
-        // NOTE: this code can safely be removed once the terra NFT bridge is
+        // NOTE: this code can safely be removed once the injective NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
-        throw new Error("NFT bridge not supported yet for terra");
+        throw new Error("NFT bridge not supported yet for injective");
       }
       target_contract = contracts.nft_bridge;
       execute_msg = {
