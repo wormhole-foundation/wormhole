@@ -146,7 +146,7 @@ const TESTNET = {
   },
   solana: {
     rpc: "https://api.devnet.solana.com",
-    key: get_env_var("SOLANA_KEY"),
+    key: get_env_var("SOLANA_KEY_TESTNET"),
   },
   terra: {
     rpc: "https://bombay-lcd.terra.dev",
@@ -227,7 +227,7 @@ const TESTNET = {
   },
   pythnet: {
     rpc: "https://api.pythtest.pyth.network/",
-    key: get_env_var("SOLANA_KEY"),
+    key: get_env_var("SOLANA_KEY_TESTNET"),
   },
   wormholechain: {
     rpc: undefined,
