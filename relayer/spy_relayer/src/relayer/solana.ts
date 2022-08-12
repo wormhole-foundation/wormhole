@@ -6,16 +6,9 @@ import { Connection } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
-import {
-  relayToSolana,
-  relayToSolanaWithFailure,
-} from "../xRaydium/scripts/relay";
-import * as xRaydiumLib from "../xRaydium/scripts/lib/lib";
-import * as whHelpers from '../xRaydium/scripts/lib/wh_helpers'
-import * as devnet_ctx from "../xRaydium/scripts/lib/devnet_ctx";
 import { chainConfigToEvmProviderAndSigner } from "./evm";
-import { providers } from "ethers";
-import { _undef } from "../xRaydium/scripts/lib/utilities";
+import * as xRaydiumLib from "../xRaydium/scripts/lib";
+import * as relay from "../xRaydium/scripts/relay";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
@@ -51,19 +44,21 @@ export async function relaySolana(
     connection
   );
   //@ts-ignore
-  const { transfer, baseVAA } = await whHelpers.parseTransferTokenWithPayload(
+  const { transfer, baseVAA } = await xRaydiumLib.parseTransferTokenWithPayload(
     signedVaaArray
   );
 
   const {signer, provider} = await chainConfigToEvmProviderAndSigner(emitterChainConfigInfo)
-  const ctx: xRaydiumLib.Context = devnet_ctx.getDevNetCtx(
+  const addrs = await xRaydiumLib.loadAddrs();
+  const ctx: xRaydiumLib.Context = xRaydiumLib.getDevNetCtx(
     signer, 
     emitterChainConfigInfo.chainId,
-    _undef(emitterChainConfigInfo.walletPrivateKey, "expected emitter chain to have wallet private key")[0],
+    xRaydiumLib._undef(emitterChainConfigInfo.walletPrivateKey, "expected emitter chain to have wallet private key")[0],
+    addrs.fuji.XRaydiumBridge,
     provider,
   );
 
-  const header = await whHelpers.parseHeaderFromPayload3(transfer.payload3);
+  const header = await xRaydiumLib.parseHeaderFromPayload3(transfer.payload3);
   const escrowState = await xRaydiumLib.tryFetchEscrowState(ctx.sol, transfer, header, {
     silent: true,
     retries: 2,
@@ -71,8 +66,8 @@ export async function relaySolana(
   if (
     alreadyRedeemed &&
     escrowState &&
-    (escrowState.escrowStateMarker.kind === "Completed" ||
-      escrowState.escrowStateMarker.kind === "Aborted") &&
+    (escrowState.marker.kind === "Completed" ||
+      escrowState.marker.kind === "Aborted") &&
     escrowState.inputTokens.every((t) => t.hasBeenReturned) &&
     escrowState.outputTokens.every((t) => t.hasBeenReturned)
   ) {
@@ -83,7 +78,7 @@ export async function relaySolana(
     return { redeemed: false, result: "not redeemed" };
   }
 
-  await relayToSolana(ctx, signedVaaArray, baseVAA, transfer);
+  await relay.relayToSolana(ctx, signedVaaArray, baseVAA, transfer);
 
   logger.info("\n\n============= Done relaying to solana ============\n\n");
 
