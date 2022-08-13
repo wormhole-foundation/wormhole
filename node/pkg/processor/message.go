@@ -163,6 +163,6 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	p.broadcastSignature(v, s, k.TxHash.Bytes())
 
 	if p.reobserve != nil {
-		p.reobserve.AddMessage(&v.VAA, k.TxHash)
+		p.reobserve.AddMessage(v.VAA.MessageID(), v.VAA.EmitterChain, k.TxHash)
 	}
 }

@@ -54,6 +54,7 @@ type (
 		timeStamp     time.Time
 		numRetries    int
 		quorumReached bool
+		completed     bool
 	}
 )
 
@@ -97,22 +98,23 @@ func (reob *Reobserver) Run(ctx context.Context) error {
 	return nil
 }
 
-func (reob *Reobserver) AddMessage(vaa *vaa.VAA, txHash common.Hash) {
+func (reob *Reobserver) AddMessage(msgId string, chainId vaa.ChainID, txHash common.Hash) {
 	reob.mutex.Lock()
 	defer reob.mutex.Unlock()
 
-	msgId := vaa.MessageID()
 	now := time.Now()
 
 	oe, exists := reob.observations[msgId]
 	if !exists {
-		oe := &observationEntry{msgId: msgId, chainId: vaa.EmitterChain, txHash: txHash, timeStamp: now}
+		oe := &observationEntry{msgId: msgId, chainId: chainId, txHash: txHash, timeStamp: now}
 		reob.observations[msgId] = oe
 		reob.logger.Info("reobserver: adding message", zap.String("msgID", msgId))
 	} else {
+		oe.chainId = chainId
 		oe.txHash = txHash
 		oe.timeStamp = now
 		if oe.quorumReached {
+			oe.completed = true
 			reob.logger.Info("reobserver: ignoring message because it has already reached quorum", zap.String("msgID", msgId))
 		} else {
 			reob.logger.Info("reobserver: ignoring message because we have already seen it, although it has not yet reached quorum", zap.String("msgID", msgId))
@@ -128,12 +130,13 @@ func (reob *Reobserver) QuorumReached(msgId string) {
 
 	oe, exists := reob.observations[msgId]
 	if !exists {
-		oe := &observationEntry{timeStamp: now, quorumReached: true}
+		oe := &observationEntry{msgId: msgId, timeStamp: now, quorumReached: true}
 		reob.observations[msgId] = oe
 		reob.logger.Info("reobserver: received a quorum notification for a message we don't know about yet, adding it", zap.String("msgID", msgId))
 	} else if oe.quorumReached {
 		reob.logger.Info("reobserver: ignoring a quorum notification because it has already reached quorum", zap.String("msgID", msgId))
 	} else {
+		oe.completed = true
 		oe.quorumReached = true
 		oe.timeStamp = now
 		reob.logger.Info("reobserver: received a quorum notification", zap.String("msgID", msgId), zap.Int("numRetries", oe.numRetries))
@@ -145,15 +148,18 @@ func (reob *Reobserver) QuorumReached(msgId string) {
 }
 
 func (reob *Reobserver) CheckForReobservations() error {
+	return reob.checkForReobservationsForTime(time.Now())
+}
+
+func (reob *Reobserver) checkForReobservationsForTime(now time.Time) error {
 	reob.mutex.Lock()
 	defer reob.mutex.Unlock()
 
 	reob.logger.Info("reobserver: tick")
-	now := time.Now()
 	entriesToDelete := []*observationEntry{}
 	numSentThisInterval := 0
 	for msgId, oe := range reob.observations {
-		if oe.quorumReached {
+		if oe.completed {
 			expirationTime := oe.timeStamp.Add(reob.expirationInterval)
 			reob.logger.Info("reobserver: evaluating completed observation", zap.String("msgId", msgId), zap.Stringer("expirationTime", expirationTime))
 			if expirationTime.Before(now) {
@@ -198,6 +204,10 @@ func (reob *Reobserver) CheckForReobservations() error {
 }
 
 func (reob *Reobserver) shouldReobserve(oe *observationEntry, now time.Time, numSentThisInterval int) bool {
+	if oe.quorumReached {
+		return false
+	}
+
 	if oe.numRetries >= maxRetries {
 		return false
 	}
