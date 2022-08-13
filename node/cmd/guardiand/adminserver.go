@@ -396,7 +396,10 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 }
 
 func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req *nodev1.SendObservationRequestRequest) (*nodev1.SendObservationRequestResponse, error) {
-	s.obsvReqSendC <- req.ObservationRequest
+	if err := common.PostObservationRequest(s.obsvReqSendC, req.ObservationRequest); err != nil {
+		return nil, err
+	}
+
 	s.logger.Info("sent observation request", zap.Any("request", req.ObservationRequest))
 	return &nodev1.SendObservationRequestResponse{}, nil
 }
