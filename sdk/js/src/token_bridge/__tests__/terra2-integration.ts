@@ -14,6 +14,7 @@ import {
   getEmitterAddressEth,
   getEmitterAddressTerra,
   getIsTransferCompletedTerra,
+  getIsTransferCompletedTerra2,
   parseSequenceFromLogEth,
   parseSequenceFromLogTerra,
   redeemOnEth,
@@ -32,7 +33,6 @@ import { approveEth, transferFromEth, transferFromTerra } from "../transfer";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY2,
-  TERRA2_GAS_PRICES_URL,
   TERRA2_NODE_URL,
   TERRA2_PRIVATE_KEY,
   TERRA_CHAIN_ID,
@@ -207,13 +207,19 @@ test("Attest and transfer token from Ethereum to Terra2", async () => {
     terraWalletAddress,
     transferSignedVaa
   );
-  await terraBroadcastAndWaitForExecution([redeemMsg], terraWallet);
   expect(
-    await getIsTransferCompletedTerra(
+    await getIsTransferCompletedTerra2(
       CONTRACTS.DEVNET.terra2.token_bridge,
       transferSignedVaa,
       lcd,
-      TERRA2_GAS_PRICES_URL
+    )
+  ).toBe(false);
+  await terraBroadcastAndWaitForExecution([redeemMsg], terraWallet);
+  expect(
+    await getIsTransferCompletedTerra2(
+      CONTRACTS.DEVNET.terra2.token_bridge,
+      transferSignedVaa,
+      lcd,
     )
   ).toBe(true);
 });
