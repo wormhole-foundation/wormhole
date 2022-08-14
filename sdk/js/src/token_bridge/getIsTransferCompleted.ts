@@ -3,6 +3,7 @@ import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
 import axios from "axios";
 import { ethers } from "ethers";
+import { fromUint8Array } from "js-base64";
 import { redeemOnTerra } from ".";
 import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
 import {
@@ -26,6 +27,9 @@ export async function getIsTransferCompletedEth(
   return await tokenBridge.isTransferCompleted(signedVAAHash);
 }
 
+// Note: this function is the legacy implementation for terra classic.  New
+// cosmwasm sdk functions should instead be based on
+// `getIsTransferCompletedTerra2`.
 export async function getIsTransferCompletedTerra(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
@@ -62,6 +66,30 @@ export async function getIsTransferCompletedTerra(
     return e.response.data.message.includes("VaaAlreadyExecuted");
   }
   return false;
+}
+
+/**
+ * This function is used to check if a VAA has been redeemed on terra2 by
+ * querying the token bridge contract.
+ * @param tokenBridgeAddress The token bridge address (bech32)
+ * @param signedVAA The signed VAA byte array
+ * @param client The LCD client. Only used for querying, not transactions will
+ * be signed
+ */
+export async function getIsTransferCompletedTerra2(
+  tokenBridgeAddress: string,
+  signedVAA: Uint8Array,
+  client: LCDClient,
+): Promise<boolean> {
+  const result: { is_redeemed: boolean } = await client.wasm.contractQuery(
+    tokenBridgeAddress,
+    {
+      is_vaa_redeemed: {
+        vaa: fromUint8Array(signedVAA),
+      },
+    }
+  );
+  return result.is_redeemed;
 }
 
 export async function getIsTransferCompletedSolana(
