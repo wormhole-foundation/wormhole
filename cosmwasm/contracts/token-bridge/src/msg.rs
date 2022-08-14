@@ -87,6 +87,7 @@ pub enum QueryMsg {
     WrappedRegistry { chain: u16, address: Binary },
     TransferInfo { vaa: Binary },
     ExternalId { external_id: Binary },
+    IsVaaRedeemed { vaa: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -111,4 +112,10 @@ pub struct TransferInfoResponse {
 #[serde(rename_all = "snake_case")]
 pub struct ExternalIdResponse {
     pub token_id: TokenId,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct IsVaaRedeemedResponse {
+    pub is_redeemed: bool,
 }
