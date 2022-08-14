@@ -1456,6 +1456,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::TransferInfo { vaa } => to_binary(&query_transfer_info(deps, env, &vaa)?),
         QueryMsg::ExternalId { external_id } => to_binary(&query_external_id(deps, external_id)?),
+        QueryMsg::IsVaaReedemed { vaa } => to_binary(&query_is_vaa_reedemed(deps, env, &vaa)?),
     }
 }
 
@@ -1524,6 +1525,19 @@ fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<Transfer
         }
         other => Err(StdError::generic_err(format!("Invalid action: {}", other))),
     }
+}
+
+fn query_is_vaa_reedemed(deps: Deps, _env: Env, vaa: &Binary) -> StdResult<bool> {
+    // NOTE: `parse_vaa` will call the core bridge, which in turn will not only
+    // parse, but also verify the VAA. It takes in the block time to make sure
+    // the guardian set has not expired yet. Since this function is supposed to
+    // query whether a given VAA has been redeemed, it should be able to answer
+    // yes to old VAAs whose guardian set has expired. For this reason, we do
+    // the query at block time 0, so the query won't fail because the guardian
+    // is expired.
+    let block_time = 0;
+    let vaa = parse_vaa(deps, block_time, vaa)?;
+    Ok(vaa_archive_check(deps.storage, vaa.hash.as_slice()))
 }
 
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {

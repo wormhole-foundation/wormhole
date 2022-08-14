@@ -87,6 +87,7 @@ pub enum QueryMsg {
     WrappedRegistry { chain: u16, address: Binary },
     TransferInfo { vaa: Binary },
     ExternalId { external_id: Binary },
+    IsVaaReedemed { vaa: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
