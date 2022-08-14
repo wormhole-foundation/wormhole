@@ -77,6 +77,7 @@ use crate::{
         ExecuteMsg,
         ExternalIdResponse,
         InstantiateMsg,
+        IsVaaRedeemedResponse,
         MigrateMsg,
         QueryMsg,
         TransferInfoResponse,
@@ -1456,6 +1457,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::TransferInfo { vaa } => to_binary(&query_transfer_info(deps, env, &vaa)?),
         QueryMsg::ExternalId { external_id } => to_binary(&query_external_id(deps, external_id)?),
+        QueryMsg::IsVaaRedeemed { vaa } => to_binary(&query_is_vaa_redeemed(deps, env, &vaa)?),
     }
 }
 
@@ -1524,6 +1526,13 @@ fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<Transfer
         }
         other => Err(StdError::generic_err(format!("Invalid action: {}", other))),
     }
+}
+
+fn query_is_vaa_redeemed(deps: Deps, _env: Env, vaa: &Binary) -> StdResult<IsVaaRedeemedResponse> {
+    let vaa = ParsedVAA::deserialize(vaa)?;
+    Ok(IsVaaRedeemedResponse {
+        is_redeemed: vaa_archive_check(deps.storage, vaa.hash.as_slice()),
+    })
 }
 
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {
