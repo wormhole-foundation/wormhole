@@ -641,23 +641,23 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --terra2Contract")
 		}
 
-		if *testnetMode {
-			if *algorandIndexerRPC == "" {
-				logger.Fatal("Please specify --algorandIndexerRPC")
-			}
-			if *algorandIndexerToken == "" {
-				logger.Fatal("Please specify --algorandIndexerToken")
-			}
-			if *algorandAlgodRPC == "" {
-				logger.Fatal("Please specify --algorandAlgodRPC")
-			}
-			if *algorandAlgodToken == "" {
-				logger.Fatal("Please specify --algorandAlgodToken")
-			}
-			if *algorandAppID == 0 {
-				logger.Fatal("Please specify --algorandAppID")
-			}
+		if *algorandIndexerRPC == "" {
+			logger.Fatal("Please specify --algorandIndexerRPC")
+		}
+		if *algorandIndexerToken == "" {
+			logger.Fatal("Please specify --algorandIndexerToken")
+		}
+		if *algorandAlgodRPC == "" {
+			logger.Fatal("Please specify --algorandAlgodRPC")
+		}
+		if *algorandAlgodToken == "" {
+			logger.Fatal("Please specify --algorandAlgodToken")
+		}
+		if *algorandAppID == 0 {
+			logger.Fatal("Please specify --algorandAppID")
+		}
 
+		if *testnetMode {
 			if *pythnetContract == "" {
 				logger.Fatal("Please specify --pythnetContract")
 			}
@@ -816,9 +816,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
-	if *testnetMode || *unsafeDevMode {
-		chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
-	}
+	chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
 	if *nearRPC != "" {
 		chainObsvReqC[vaa.ChainIDNear] = make(chan *gossipv1.ObservationRequest)
 	}
