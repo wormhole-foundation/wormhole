@@ -1,6 +1,7 @@
 import {
   tryNativeToHexString,
   ChainId,
+  CHAIN_ID_ALGORAND,
 } from "@certusone/wormhole-sdk";
 
 const MinNotional = 1000000
@@ -8,6 +9,24 @@ const MinNotional = 1000000
 const axios = require('axios');
 const fs = require("fs");
 const execSync = require('child_process').execSync;
+
+const IncludeFileName = "./include_list.csv"
+let includedTokens = new Map();
+if (fs.existsSync(IncludeFileName)) {
+  console.log("loading included symbols from file " + IncludeFileName)
+  const data = fs.readFileSync(IncludeFileName, 'utf-8');
+  const lines = data.toString().replace(/\r\n/g,'\n').split('\n');
+  for(let line of lines) {
+    if (line !== "" && line[0] !== '#') {
+      let fields = line.split(",", 10)
+      if (fields.length < 2) {
+        throw Error("line in include list does not contain enough fields")
+      }
+
+      includedTokens.set(fields[0] + ":" + fields[1].toLowerCase(), true)
+    }
+  }
+}
 
 /*
   "2Kc38rfQ49DFaKHQaWbijkE7fcymUMLY5guUiUsDmFfn": {
@@ -44,10 +63,7 @@ axios
             if (addr !== "*") {
                 let data = res.data.AllTime[chain][addr]
                 let notional = parseInt(data.Notional)
-                if (notional > MinNotional) {
-                  if (data.Address == "ust") {
-                    continue
-                  }
+                if ((notional > MinNotional) || (includedTokens.has(chain + ":" + data.Address.toLowerCase()))) {
                   let chainId = parseInt(chain) as ChainId
                   let wormholeAddr: string
                   try {
@@ -56,8 +72,12 @@ axios
                       chainId
                     );
                   } catch (e) {
-                    console.log("Ignoring symbol \"" + data.Symbol + "\" because the address \"" + data.Address + "\" is invalid")
-                    continue
+                    if (chainId === CHAIN_ID_ALGORAND && data.Address === "algo") {
+                      wormholeAddr = "0x0000000000000000000000000000000000000000"
+                    } else {
+                      console.log("Ignoring symbol \"" + data.Symbol + "\" because the address \"" + data.Address + "\" is invalid")
+                      continue
+                    }
                   }
 
                   content += "\t\ttokenConfigEntry { chain: " + chain +
