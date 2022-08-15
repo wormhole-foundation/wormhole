@@ -54,6 +54,7 @@ import {
   selectTransferTargetChain,
 } from "../store/selectors";
 import {
+  setIsVAAPending,
   setIsSending,
   setSignedVAAHex,
   setTransferTx,
@@ -74,6 +75,46 @@ import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { postWithFees, waitForTerraExecution } from "../utils/terra";
 import useTransferTargetAddressHex from "./useTransferTargetAddress";
+
+async function fetchSignedVAA(
+  chainId: ChainId,
+  emitterAddress: string,
+  sequence: string,
+  enqueueSnackbar: any,
+  dispatch: any
+) {
+  enqueueSnackbar(null, {
+    content: <Alert severity="info">Fetching VAA</Alert>,
+  });
+  const { vaaBytes, isPending } = await getSignedVAAWithRetry(
+    chainId,
+    emitterAddress,
+    sequence
+  );
+  if (vaaBytes !== undefined) {
+    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+    dispatch(setIsVAAPending(false));
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
+  } else if (isPending) {
+    dispatch(setIsVAAPending(isPending));
+    enqueueSnackbar(null, {
+      content: <Alert severity="warning">VAA is Pending</Alert>,
+    });
+  } else {
+    throw new Error("Error retrieving VAA info");
+  }
+}
+
+function handleError(e: any, enqueueSnackbar: any, dispatch: any) {
+  console.error(e);
+  enqueueSnackbar(null, {
+    content: <Alert severity="error">{parseError(e)}</Alert>,
+  });
+  dispatch(setIsSending(false));
+  dispatch(setIsVAAPending(false));
+}
 
 async function algo(
   dispatch: any,
@@ -120,24 +161,15 @@ async function algo(
       content: <Alert severity="success">Transaction confirmed</Alert>,
     });
     const emitterAddress = getEmitterAddressAlgorand(ALGORAND_TOKEN_BRIDGE_ID);
-    enqueueSnackbar(null, {
-      content: <Alert severity="info">Fetching VAA</Alert>,
-    });
-    const { vaaBytes } = await getSignedVAAWithRetry(
+    await fetchSignedVAA(
       chainId,
       emitterAddress,
-      sequence
+      sequence,
+      enqueueSnackbar,
+      dispatch
     );
-    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar(null, {
-      content: <Alert severity="success">Fetched Signed VAA</Alert>,
-    });
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    dispatch(setIsSending(false));
+    handleError(e, enqueueSnackbar, dispatch);
   }
 }
 
@@ -205,24 +237,15 @@ async function evm(
     const emitterAddress = getEmitterAddressEth(
       getTokenBridgeAddressForChain(chainId)
     );
-    enqueueSnackbar(null, {
-      content: <Alert severity="info">Fetching VAA</Alert>,
-    });
-    const { vaaBytes } = await getSignedVAAWithRetry(
+    await fetchSignedVAA(
       chainId,
       emitterAddress,
-      sequence.toString()
+      sequence,
+      enqueueSnackbar,
+      dispatch
     );
-    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar(null, {
-      content: <Alert severity="success">Fetched Signed VAA</Alert>,
-    });
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    dispatch(setIsSending(false));
+    handleError(e, enqueueSnackbar, dispatch);
   }
 }
 
@@ -291,25 +314,15 @@ async function solana(
     const emitterAddress = await getEmitterAddressSolana(
       SOL_TOKEN_BRIDGE_ADDRESS
     );
-    enqueueSnackbar(null, {
-      content: <Alert severity="info">Fetching VAA</Alert>,
-    });
-    const { vaaBytes } = await getSignedVAAWithRetry(
+    await fetchSignedVAA(
       CHAIN_ID_SOLANA,
       emitterAddress,
-      sequence
+      sequence,
+      enqueueSnackbar,
+      dispatch
     );
-
-    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar(null, {
-      content: <Alert severity="success">Fetched Signed VAA</Alert>,
-    });
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    dispatch(setIsSending(false));
+    handleError(e, enqueueSnackbar, dispatch);
   }
 }
 
@@ -360,24 +373,15 @@ async function terra(
       throw new Error("Sequence not found");
     }
     const emitterAddress = await getEmitterAddressTerra(tokenBridgeAddress);
-    enqueueSnackbar(null, {
-      content: <Alert severity="info">Fetching VAA</Alert>,
-    });
-    const { vaaBytes } = await getSignedVAAWithRetry(
+    await fetchSignedVAA(
       chainId,
       emitterAddress,
-      sequence
+      sequence,
+      enqueueSnackbar,
+      dispatch
     );
-    enqueueSnackbar(null, {
-      content: <Alert severity="success">Fetched Signed VAA</Alert>,
-    });
-    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    dispatch(setIsSending(false));
+    handleError(e, enqueueSnackbar, dispatch);
   }
 }
 

@@ -1593,3 +1593,9 @@ export const getIsTokenTransferDisabled = (
     ? disabledTransfers.length === 0 || disabledTransfers.includes(targetChain)
     : false;
 };
+
+export const USD_NUMBER_FORMATTER = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});

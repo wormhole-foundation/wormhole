@@ -201,6 +201,8 @@ export const selectTransferTransferTx = (state: RootState) =>
   state.transfer.transferTx;
 export const selectTransferSignedVAAHex = (state: RootState) =>
   state.transfer.signedVAAHex;
+export const selectTransferIsVAAPending = (state: RootState) =>
+  state.transfer.isVAAPending;
 export const selectTransferIsSending = (state: RootState) =>
   state.transfer.isSending;
 export const selectTransferIsRedeeming = (state: RootState) =>

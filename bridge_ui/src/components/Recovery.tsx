@@ -79,6 +79,7 @@ import ButtonWithLoader from "./ButtonWithLoader";
 import ChainSelect from "./ChainSelect";
 import KeyAndBalance from "./KeyAndBalance";
 import RelaySelector from "./RelaySelector";
+import PendingVAAWarning from "./Transfer/PendingVAAWarning";
 
 const useStyles = makeStyles((theme) => ({
   mainCard: {
@@ -96,6 +97,32 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 }));
+
+async function fetchSignedVAA(
+  chainId: ChainId,
+  emitterAddress: string,
+  sequence: string
+) {
+  const { vaaBytes, isPending } = await getSignedVAAWithRetry(
+    chainId,
+    emitterAddress,
+    sequence,
+    WORMHOLE_RPC_HOSTS.length
+  );
+  return {
+    vaa: vaaBytes ? uint8ArrayToHex(vaaBytes) : undefined,
+    isPending,
+    error: null,
+  };
+}
+
+function handleError(e: any, enqueueSnackbar: any) {
+  console.error(e);
+  enqueueSnackbar(null, {
+    content: <Alert severity="error">{parseError(e)}</Alert>,
+  });
+  return { vaa: null, isPending: false, error: parseError(e) };
+}
 
 async function algo(tx: string, enqueueSnackbar: any) {
   try {
@@ -126,19 +153,9 @@ async function algo(tx: string, enqueueSnackbar: any) {
       throw new Error("Sequence not found");
     }
     const emitterAddress = getEmitterAddressAlgorand(ALGORAND_TOKEN_BRIDGE_ID);
-    const { vaaBytes } = await getSignedVAAWithRetry(
-      CHAIN_ID_ALGORAND,
-      emitterAddress,
-      sequence,
-      WORMHOLE_RPC_HOSTS.length
-    );
-    return { vaa: uint8ArrayToHex(vaaBytes), error: null };
+    return fetchSignedVAA(CHAIN_ID_ALGORAND, emitterAddress, sequence);
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    return { vaa: null, error: parseError(e) };
+    return handleError(e, enqueueSnackbar);
   }
 }
 
@@ -160,19 +177,9 @@ async function evm(
         ? getNFTBridgeAddressForChain(chainId)
         : getTokenBridgeAddressForChain(chainId)
     );
-    const { vaaBytes } = await getSignedVAAWithRetry(
-      chainId,
-      emitterAddress,
-      sequence.toString(),
-      WORMHOLE_RPC_HOSTS.length
-    );
-    return { vaa: uint8ArrayToHex(vaaBytes), error: null };
+    return fetchSignedVAA(chainId, emitterAddress, sequence);
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    return { vaa: null, error: parseError(e) };
+    return handleError(e, enqueueSnackbar);
   }
 }
 
@@ -187,19 +194,9 @@ async function solana(tx: string, enqueueSnackbar: any, nft: boolean) {
     const emitterAddress = await getEmitterAddressSolana(
       nft ? SOL_NFT_BRIDGE_ADDRESS : SOL_TOKEN_BRIDGE_ADDRESS
     );
-    const { vaaBytes } = await getSignedVAAWithRetry(
-      CHAIN_ID_SOLANA,
-      emitterAddress,
-      sequence.toString(),
-      WORMHOLE_RPC_HOSTS.length
-    );
-    return { vaa: uint8ArrayToHex(vaaBytes), error: null };
+    return fetchSignedVAA(CHAIN_ID_SOLANA, emitterAddress, sequence);
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    return { vaa: null, error: parseError(e) };
+    return handleError(e, enqueueSnackbar);
   }
 }
 
@@ -214,19 +211,9 @@ async function terra(tx: string, enqueueSnackbar: any, chainId: TerraChainId) {
     const emitterAddress = await getEmitterAddressTerra(
       getTokenBridgeAddressForChain(chainId)
     );
-    const { vaaBytes } = await getSignedVAAWithRetry(
-      chainId,
-      emitterAddress,
-      sequence,
-      WORMHOLE_RPC_HOSTS.length
-    );
-    return { vaa: uint8ArrayToHex(vaaBytes), error: null };
+    return fetchSignedVAA(chainId, emitterAddress, sequence);
   } catch (e) {
-    console.error(e);
-    enqueueSnackbar(null, {
-      content: <Alert severity="error">{parseError(e)}</Alert>,
-    });
-    return { vaa: null, error: parseError(e) };
+    return handleError(e, enqueueSnackbar);
   }
 }
 
@@ -380,6 +367,7 @@ export default function Recovery() {
   const [recoverySourceTxError, setRecoverySourceTxError] = useState("");
   const [recoverySignedVAA, setRecoverySignedVAA] = useState("");
   const [recoveryParsedVAA, setRecoveryParsedVAA] = useState<any>(null);
+  const [isVAAPending, setIsVAAPending] = useState(false);
   const [terra2TokenId, setTerra2TokenId] = useState("");
   const { isReady, statusMessage } = useIsWalletReady(recoverySourceChain);
   const walletConnectError =
@@ -449,7 +437,7 @@ export default function Recovery() {
         setRecoverySourceTxError("");
         setRecoverySourceTxIsLoading(true);
         (async () => {
-          const { vaa, error } = await evm(
+          const { vaa, isPending, error } = await evm(
             provider,
             recoverySourceTx,
             enqueueSnackbar,
@@ -464,13 +452,14 @@ export default function Recovery() {
             if (error) {
               setRecoverySourceTxError(error);
             }
+            setIsVAAPending(isPending);
           }
         })();
       } else if (recoverySourceChain === CHAIN_ID_SOLANA) {
         setRecoverySourceTxError("");
         setRecoverySourceTxIsLoading(true);
         (async () => {
-          const { vaa, error } = await solana(
+          const { vaa, isPending, error } = await solana(
             recoverySourceTx,
             enqueueSnackbar,
             isNFT
@@ -483,6 +472,7 @@ export default function Recovery() {
             if (error) {
               setRecoverySourceTxError(error);
             }
+            setIsVAAPending(isPending);
           }
         })();
       } else if (isTerraChain(recoverySourceChain)) {
@@ -490,7 +480,7 @@ export default function Recovery() {
         setRecoverySourceTxIsLoading(true);
         setTerra2TokenId("");
         (async () => {
-          const { vaa, error } = await terra(
+          const { vaa, isPending, error } = await terra(
             recoverySourceTx,
             enqueueSnackbar,
             recoverySourceChain
@@ -503,13 +493,17 @@ export default function Recovery() {
             if (error) {
               setRecoverySourceTxError(error);
             }
+            setIsVAAPending(isPending);
           }
         })();
       } else if (recoverySourceChain === CHAIN_ID_ALGORAND) {
         setRecoverySourceTxError("");
         setRecoverySourceTxIsLoading(true);
         (async () => {
-          const { vaa, error } = await algo(recoverySourceTx, enqueueSnackbar);
+          const { vaa, isPending, error } = await algo(
+            recoverySourceTx,
+            enqueueSnackbar
+          );
           if (!cancelled) {
             setRecoverySourceTxIsLoading(false);
             if (vaa) {
@@ -518,6 +512,7 @@ export default function Recovery() {
             if (error) {
               setRecoverySourceTxError(error);
             }
+            setIsVAAPending(isPending);
           }
         })();
       }
@@ -701,6 +696,7 @@ export default function Recovery() {
         >
           Recover
         </ButtonWithLoader>
+        {isVAAPending && <PendingVAAWarning />}
         <div className={classes.advancedContainer}>
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMore />}>

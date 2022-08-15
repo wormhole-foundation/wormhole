@@ -8,7 +8,7 @@ import { Alert } from "@material-ui/lab";
 import { ethers } from "ethers";
 import { formatUnits, parseUnits } from "ethers/lib/utils";
 import { useCallback, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import useAllowance from "../../hooks/useAllowance";
 import { useHandleTransfer } from "../../hooks/useHandleTransfer";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -16,6 +16,7 @@ import {
   selectSourceWalletAddress,
   selectTransferAmount,
   selectTransferIsSendComplete,
+  selectTransferIsVAAPending,
   selectTransferRelayerFee,
   selectTransferSourceAsset,
   selectTransferSourceChain,
@@ -23,6 +24,7 @@ import {
   selectTransferTargetError,
   selectTransferTransferTx,
 } from "../../store/selectors";
+import { reset } from "../../store/transferSlice";
 import { CHAINS_BY_ID, CLUSTER } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
@@ -31,10 +33,12 @@ import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import TerraFeeDenomPicker from "../TerraFeeDenomPicker";
 import TransactionProgress from "../TransactionProgress";
+import PendingVAAWarning from "./PendingVAAWarning";
 import SendConfirmationDialog from "./SendConfirmationDialog";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 function Send() {
+  const dispatch = useDispatch();
   const { handleClick, disabled, showLoader } = useHandleTransfer();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const handleTransferClick = useCallback(() => {
@@ -47,6 +51,9 @@ function Send() {
   const handleConfirmClose = useCallback(() => {
     setIsConfirmOpen(false);
   }, []);
+  const handleResetClick = useCallback(() => {
+    dispatch(reset());
+  }, [dispatch]);
 
   const sourceChain = useSelector(selectTransferSourceChain);
   const sourceAsset = useSelector(selectTransferSourceAsset);
@@ -79,6 +86,7 @@ function Send() {
     parseUnits("1", sourceDecimals).toBigInt();
   const transferTx = useSelector(selectTransferTransferTx);
   const isSendComplete = useSelector(selectTransferIsSendComplete);
+  const isVAAPending = useSelector(selectTransferIsVAAPending);
 
   const error = useSelector(selectTransferTargetError);
   const [allowanceError, setAllowanceError] = useState("");
@@ -195,7 +203,7 @@ function Send() {
           <ButtonWithLoader
             disabled={isDisabled}
             onClick={handleTransferClick}
-            showLoader={showLoader}
+            showLoader={showLoader && !isVAAPending}
             error={errorMessage}
           >
             Transfer
@@ -212,8 +220,16 @@ function Send() {
       <TransactionProgress
         chainId={sourceChain}
         tx={transferTx}
-        isSendComplete={isSendComplete}
+        isSendComplete={isSendComplete || isVAAPending}
       />
+      {isVAAPending ? (
+        <>
+          <PendingVAAWarning />
+          <ButtonWithLoader onClick={handleResetClick}>
+            Transfer More Tokens!
+          </ButtonWithLoader>
+        </>
+      ) : null}
     </>
   );
 }

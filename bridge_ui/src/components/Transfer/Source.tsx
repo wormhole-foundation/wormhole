@@ -46,6 +46,8 @@ import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import SourceAssetWarning from "./SourceAssetWarning";
 import ChainWarningMessage from "../ChainWarningMessage";
+import useIsTransferLimited from "../../hooks/useIsTransferLimited";
+import TransferLimitedWarning from "./TransferLimitedWarning";
 
 const useStyles = makeStyles((theme) => ({
   chainSelectWrapper: {
@@ -111,6 +113,7 @@ function Source() {
   const isSourceComplete = useSelector(selectTransferIsSourceComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const { isReady, statusMessage } = useIsWalletReady(sourceChain);
+  const isTransferLimited = useIsTransferLimited();
   const handleMigrationClick = useCallback(() => {
     if (sourceChain === CHAIN_ID_SOLANA) {
       history.push(
@@ -248,11 +251,13 @@ function Source() {
           ) : null}
           <ChainWarningMessage chainId={sourceChain} />
           <ChainWarningMessage chainId={targetChain} />
+          <TransferLimitedWarning isTransferLimited={isTransferLimited} />
           <ButtonWithLoader
             disabled={
               !isSourceComplete ||
               isSourceTransferDisabled ||
-              isTargetTransferDisabled
+              isTargetTransferDisabled ||
+              isTransferLimited.reason === "EXCEEDS_MAX_NOTIONAL"
             }
             onClick={handleNextClick}
             showLoader={false}
