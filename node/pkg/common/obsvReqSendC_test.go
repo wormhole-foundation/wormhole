@@ -1,0 +1,43 @@
+package common
+
+import (
+	"testing"
+	"time"
+
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/vaa"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestObsvReqSendLimitEnforced(t *testing.T) {
+	obsvReqSendC := make(chan *gossipv1.ObservationRequest, ObsvReqChannelSize)
+
+	// If the channel overflows, the write hangs, so use a go routine with a timeout.
+	done := false
+	go func() {
+		// Filling the queue up should work.
+		for count := 1; count <= ObsvReqChannelSize; count++ {
+			req := &gossipv1.ObservationRequest{
+				ChainId: uint32(vaa.ChainIDSolana),
+			}
+			err := PostObservationRequest(obsvReqSendC, req)
+			assert.Nil(t, err)
+		}
+
+		// But one more write should fail.
+		req := &gossipv1.ObservationRequest{
+			ChainId: uint32(vaa.ChainIDSolana),
+		}
+		err := PostObservationRequest(obsvReqSendC, req)
+		assert.NotNil(t, err)
+		assert.Equal(t, ObsvReqChannelFullError, err.Error())
+
+		done = true
+	}()
+
+	time.Sleep(time.Second)
+
+	// Make sure we didn't hang.
+	assert.Equal(t, true, done)
+}

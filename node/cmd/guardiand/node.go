@@ -793,10 +793,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
 
 	// Inbound observation requests from the p2p service (for all chains)
-	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
+	obsvReqC := make(chan *gossipv1.ObservationRequest, common.ObsvReqChannelSize)
 
 	// Outbound observation requests
-	obsvReqSendC := make(chan *gossipv1.ObservationRequest)
+	obsvReqSendC := make(chan *gossipv1.ObservationRequest, common.ObsvReqChannelSize)
 
 	// Injected VAAs (manually generated rather than created via observation)
 	injectC := make(chan *vaa.VAA)
