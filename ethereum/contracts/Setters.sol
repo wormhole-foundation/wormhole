@@ -15,6 +15,10 @@ contract Setters is State {
     }
 
     function storeGuardianSet(Structs.GuardianSet memory set, uint32 index) internal {
+        uint setLength = set.keys.length;
+        for (uint i = 0; i < setLength; i++) {
+            require(set.keys[i] != address(0), "Invalid key");
+        }
         _state.guardianSets[index] = set;
     }
 

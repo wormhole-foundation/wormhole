@@ -490,6 +490,61 @@ contract("Wormhole", function () {
         assert.equal(receiverAfter - receiverBefore, 11);
     })
 
+    it("should revert when submitting a new guardian set with the zero address", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract;
+        const zeroAddress = "0x0000000000000000000000000000000000000000";
+
+        let oldIndex = Number(await initialized.methods.getCurrentGuardianSetIndex().call());
+
+        data = [
+            // Core
+            core,
+            // Action 2 (Guardian Set Upgrade)
+            actionGuardianSetUpgrade,
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("uint32", oldIndex + 1).substring(2 + (64 - 8)),
+            web3.eth.abi.encodeParameter("uint8", 3).substring(2 + (64 - 2)),
+            web3.eth.abi.encodeParameter("address", testSigner1.address).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", testSigner2.address).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", zeroAddress).substring(2 + (64 - 40)),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            2
+        );
+
+        // try to submit a new guardian set including the zero address
+        failed = false;
+        try {
+            await initialized.methods.submitNewGuardianSet("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch (e) {
+            assert.equal(e.message, "Returned error: VM Exception while processing transaction: revert Invalid key");
+            failed = true;
+        }
+
+        assert.ok(failed);
+    })
+
     it("should accept a new guardian set", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
@@ -681,7 +736,7 @@ contract("Wormhole", function () {
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             // Amount
             web3.eth.abi.encodeParameter("uint256", 1).substring(2),
-            // Recipient            
+            // Recipient
             web3.eth.abi.encodeParameter("address", "0x0000000000000000000000000000000000000000").substring(2),
         ].join('')
 
