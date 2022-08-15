@@ -63,6 +63,11 @@ export const CHAINS: ChainInfo[] =
           logo: acalaIcon,
         },
         {
+          id: CHAIN_ID_ALGORAND,
+          name: "Algorand",
+          logo: algorandIcon,
+        },
+        {
           id: CHAIN_ID_AURORA,
           name: "Aurora",
           logo: auroraIcon,
@@ -248,7 +253,8 @@ export const CHAINS: ChainInfo[] =
           logo: terra2Icon,
         },
       ];
-export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
+export const BETA_CHAINS: ChainId[] =
+  CLUSTER === "mainnet" ? [CHAIN_ID_ALGORAND] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -824,10 +830,18 @@ export const TERRA2_TOKEN_BRIDGE_ADDRESS =
     ? CONTRACTS.TESTNET.terra2.token_bridge
     : "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6";
 export const ALGORAND_BRIDGE_ID = BigInt(
-  CLUSTER === "mainnet" ? "0" : CLUSTER === "testnet" ? "86525623" : "4"
+  CLUSTER === "mainnet"
+    ? CONTRACTS.MAINNET.algorand.core
+    : CLUSTER === "testnet"
+    ? CONTRACTS.TESTNET.algorand.core
+    : CONTRACTS.DEVNET.algorand.core
 );
 export const ALGORAND_TOKEN_BRIDGE_ID = BigInt(
-  CLUSTER === "mainnet" ? "0" : CLUSTER === "testnet" ? "86525641" : "6"
+  CLUSTER === "mainnet"
+    ? CONTRACTS.MAINNET.algorand.token_bridge
+    : CLUSTER === "testnet"
+    ? CONTRACTS.TESTNET.algorand.token_bridge
+    : CONTRACTS.DEVNET.algorand.token_bridge
 );
 export const ALGORAND_WAIT_FOR_CONFIRMATIONS =
   CLUSTER === "mainnet" ? 4 : CLUSTER === "testnet" ? 4 : 1;
