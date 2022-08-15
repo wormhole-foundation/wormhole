@@ -4,6 +4,8 @@
 
 ### Added
 
+Algorand mainnet support
+
 Updated consts.ts file
 Exported signSendAndConfirmAlgorand()
 
