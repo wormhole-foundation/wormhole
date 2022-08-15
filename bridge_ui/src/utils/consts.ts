@@ -63,6 +63,11 @@ export const CHAINS: ChainInfo[] =
           logo: acalaIcon,
         },
         {
+          id: CHAIN_ID_ALGORAND,
+          name: "Algorand",
+          logo: algorandIcon,
+        },
+        {
           id: CHAIN_ID_AURORA,
           name: "Aurora",
           logo: auroraIcon,
@@ -248,7 +253,8 @@ export const CHAINS: ChainInfo[] =
           logo: terra2Icon,
         },
       ];
-export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
+export const BETA_CHAINS: ChainId[] =
+  CLUSTER === "mainnet" ? [CHAIN_ID_ALGORAND] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
