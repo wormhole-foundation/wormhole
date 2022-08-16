@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.2
+
+### Added
+
+Algorand mainnet support
+
+Updated consts.ts file
+Exported signSendAndConfirmAlgorand()
+
 ## 0.6.1
 
 ### Added

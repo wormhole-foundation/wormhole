@@ -12,6 +12,7 @@ func chainList() []chainConfigEntry {
 	return []chainConfigEntry{
 		chainConfigEntry{emitterChainID: vaa.ChainIDTerra, dailyLimit: 500000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDOasis, dailyLimit: 500000},
+		chainConfigEntry{emitterChainID: vaa.ChainIDAlgorand, dailyLimit: 500000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDAurora, dailyLimit: 500000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDFantom, dailyLimit: 500000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDKarura, dailyLimit: 500000},

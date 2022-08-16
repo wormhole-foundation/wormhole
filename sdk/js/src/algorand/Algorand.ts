@@ -1,7 +1,9 @@
 // Algorand.ts
 
 import algosdk, {
+  Account,
   Algodv2,
+  assignGroupID,
   bigIntToBytes,
   decodeAddress,
   encodeAddress,
@@ -14,6 +16,7 @@ import algosdk, {
   OnApplicationComplete,
   signLogicSigTransaction,
   Transaction,
+  waitForConfirmation,
 } from "algosdk";
 
 import abi from "algosdk";
@@ -962,4 +965,27 @@ export function hexToNativeAssetBigIntAlgorand(s: string): bigint {
 
 export function hexToNativeAssetStringAlgorand(s: string): string {
   return BigNumber.from(hexToUint8Array(s)).toString();
+}
+
+export async function signSendAndConfirmAlgorand(
+  algodClient: Algodv2,
+  txs: TransactionSignerPair[],
+  wallet: Account
+) {
+  assignGroupID(txs.map((tx) => tx.tx));
+  const signedTxns: Uint8Array[] = [];
+  for (const tx of txs) {
+    if (tx.signer) {
+      signedTxns.push(await tx.signer.signTxn(tx.tx));
+    } else {
+      signedTxns.push(tx.tx.signTxn(wallet.sk));
+    }
+  }
+  await algodClient.sendRawTransaction(signedTxns).do();
+  const result = await waitForConfirmation(
+    algodClient,
+    txs[txs.length - 1].tx.txID(),
+    4
+  );
+  return result;
 }
