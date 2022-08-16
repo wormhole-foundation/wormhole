@@ -4,7 +4,7 @@ import {
   CHAIN_ID_ALGORAND,
 } from "@certusone/wormhole-sdk";
 
-const MinNotional = 1000000
+const MinNotional = 0
 
 const axios = require('axios');
 const fs = require("fs");
