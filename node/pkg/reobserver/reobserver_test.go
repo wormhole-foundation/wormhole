@@ -36,7 +36,8 @@ func TestMsgBeforeQuorum(t *testing.T) {
 	assert.Equal(t, 0, oe.numRetries)
 
 	// Make sure it gets expired.
-	reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	err := reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	assert.Nil(t, err)
 	assert.Equal(t, 0, len(reob.observations))
 }
 
@@ -62,7 +63,8 @@ func TestQuorumBeforeMsg(t *testing.T) {
 	assert.Equal(t, 0, oe.numRetries)
 
 	// Make sure it gets expired.
-	reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	err := reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	assert.Nil(t, err)
 	assert.Equal(t, 0, len(reob.observations))
 }
 
@@ -81,7 +83,8 @@ func TestSuccessAfterRetry(t *testing.T) {
 	assert.Equal(t, 1, len(reob.observations))
 	oe, exists := reob.observations[msgId]
 
-	reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	err := reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	assert.Nil(t, err)
 	assert.Equal(t, 1, len(obsvReqSendC))
 	msg := <-obsvReqSendC
 	assert.NotNil(t, msg)
@@ -97,7 +100,8 @@ func TestSuccessAfterRetry(t *testing.T) {
 	assert.Equal(t, 1, oe.numRetries)
 
 	// Make sure it gets expired.
-	reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	err = reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	assert.Nil(t, err)
 	assert.Equal(t, 0, len(reob.observations))
 }
 
@@ -119,7 +123,8 @@ func TestRetriesFail(t *testing.T) {
 	assert.Equal(t, true, oe.localMsgReceived())
 
 	for count := 1; count <= maxRetries; count++ {
-		reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(count*expirationIntervalInMinutes+1)))
+		err := reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(count*expirationIntervalInMinutes+1)))
+		assert.Nil(t, err)
 		msg := <-obsvReqSendC
 		assert.NotNil(t, msg)
 		assert.Equal(t, count, oe.numRetries)
@@ -132,7 +137,8 @@ func TestRetriesFail(t *testing.T) {
 	assert.Equal(t, maxRetries, oe.numRetries)
 
 	// Make sure it gets expired.
-	reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	err := reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	assert.Nil(t, err)
 	assert.Equal(t, 0, len(reob.observations))
 }
 
@@ -154,15 +160,18 @@ func TestLimitedRetriesPerInterval(t *testing.T) {
 	assert.Equal(t, maxRetriesPerInterval+1, len(reob.observations))
 
 	// Make sure we don't publish anything right away.
-	reob.checkForReobservationsForTime(now)
+	err := reob.checkForReobservationsForTime(now)
+	assert.Nil(t, err)
 	assert.Equal(t, 0, len(obsvReqSendC))
 
 	// Make sure we limit how many we publish in an interval.
-	reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(retryIntervalInMinutes+1)))
+	err = reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(retryIntervalInMinutes+1)))
+	assert.Nil(t, err)
 	assert.Equal(t, maxRetriesPerInterval, len(obsvReqSendC))
 
 	// The next interval, we should publish the remaining one.
-	reob.checkForReobservationsForTime(now.Add(time.Minute))
+	err = reob.checkForReobservationsForTime(now.Add(time.Minute))
+	assert.Nil(t, err)
 	assert.Equal(t, maxRetriesPerInterval+1, len(obsvReqSendC))
 }
 
@@ -192,6 +201,31 @@ func TestExtraNotificationsDoNoHarm(t *testing.T) {
 	assert.Equal(t, 0, oe.numRetries)
 
 	// Make sure it gets expired.
-	reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	err := reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	assert.Nil(t, err)
 	assert.Equal(t, 0, len(reob.observations))
+}
+
+func TestMsgGetsDroppedIfNeverSeeLocalEvent(t *testing.T) {
+	logger := zap.NewNop()
+	obsvReqSendC := make(chan *gossipv1.ObservationRequest, 50)
+	reob := NewReobserver(logger, obsvReqSendC)
+	assert.NotNil(t, reob)
+
+	msgId := "1/c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f/1"
+
+	now := time.Now()
+	reob.QuorumReached(msgId)
+
+	// Make sure nothing happens before it expires.
+	err := reob.checkForReobservationsForTime(now)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(reob.observations))
+	assert.Equal(t, 0, len(obsvReqSendC))
+
+	// It should get dropped when it expires.
+	err = reob.checkForReobservationsForTime(now.Add(time.Minute * time.Duration(expirationIntervalInMinutes+1)))
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(reob.observations))
+	assert.Equal(t, 0, len(obsvReqSendC))
 }

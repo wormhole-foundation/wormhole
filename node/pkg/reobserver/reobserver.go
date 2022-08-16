@@ -28,22 +28,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// An observation will be dropped from the map this many minutes after reaches quorum.
-//const expirationIntervalInMinutes = 60
+// An observation will be dropped from the map this many minutes after it reaches quorum.
+const expirationIntervalInMinutes = 60
 
 // We will try sending a reobservation request for an observation this often (until it reaches quorum or we hit the retry limit).
-//const retryIntervalInMinutes = 5
+const retryIntervalInMinutes = 5
 
 // We will give up after this many reobservation retries.
-//const maxRetries = 10
+const maxRetries = 10
 
 // We will only send this many reobservation request per interval.
 const maxRetriesPerInterval = 5
-
-// TODO: Get rid of these dev parameters!
-const expirationIntervalInMinutes = 10
-const retryIntervalInMinutes = 2
-const maxRetries = 3
 
 type (
 	// Payload for each observation request
@@ -155,13 +150,11 @@ func (reob *Reobserver) checkForReobservationsForTime(now time.Time) error {
 	reob.mutex.Lock()
 	defer reob.mutex.Unlock()
 
-	reob.logger.Info("reobserver: tick")
 	entriesToDelete := []*observationEntry{}
 	numSentThisInterval := 0
 	for msgId, oe := range reob.observations {
 		if oe.completed {
 			expirationTime := oe.timeStamp.Add(reob.expirationInterval)
-			reob.logger.Info("reobserver: evaluating completed observation", zap.String("msgId", msgId), zap.Stringer("expirationTime", expirationTime))
 			if expirationTime.Before(now) {
 				reob.logger.Info("reobserver: completed observation has expired, dropping it", zap.String("msgId", msgId))
 				entriesToDelete = append(entriesToDelete, oe)
@@ -185,6 +178,17 @@ func (reob *Reobserver) checkForReobservationsForTime(now time.Time) error {
 
 			entriesToDelete = append(entriesToDelete, oe)
 			metricFailedReobservationAttempts.Inc()
+		} else if !oe.localMsgReceived() {
+			expirationTime := oe.timeStamp.Add(reob.expirationInterval)
+			if expirationTime.Before(now) {
+				reob.logger.Error("reobserver: giving up on reobservation because we received a quorum notification but never saw the observation locally",
+					zap.String("msgId", msgId),
+					zap.Stringer("timeStamp", oe.timeStamp),
+				)
+
+				entriesToDelete = append(entriesToDelete, oe)
+				metricFailedReobservationAttempts.Inc()
+			}
 		}
 	}
 
@@ -213,7 +217,7 @@ func (reob *Reobserver) shouldReobserve(oe *observationEntry, now time.Time, num
 	}
 
 	if !oe.localMsgReceived() {
-		reob.logger.Error("reobserver: unable to request reobservation because we do not have a txHash, this should not happen!", zap.String("msgId", oe.msgId))
+		// If we haven't seen the message locally, we don't have a txHash, so we can't request reobservation.
 		return false
 	}
 
