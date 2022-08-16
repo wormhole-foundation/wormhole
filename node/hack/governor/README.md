@@ -4,6 +4,10 @@ the governor package with everything over the hard coded minimal notional value.
 
 To update the minimal notional value, edit src/index.ts and change the value of MinNotional.
 
+Additionally, you can create an include_list.csv file in this directory where the contents are
+of the form "<originChain>,<nativeTokenAddress>", and all tokens listed there will be included
+in the generated token list, regardless of their notional value.
+
 To run this tool, do:
 
 ```

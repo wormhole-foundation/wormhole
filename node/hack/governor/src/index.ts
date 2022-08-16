@@ -1,13 +1,32 @@
 import {
   tryNativeToHexString,
   ChainId,
+  CHAIN_ID_ALGORAND,
 } from "@certusone/wormhole-sdk";
 
-const MinNotional = 1000000
+const MinNotional = 0
 
 const axios = require('axios');
 const fs = require("fs");
 const execSync = require('child_process').execSync;
+
+const IncludeFileName = "./include_list.csv"
+let includedTokens = new Map();
+if (fs.existsSync(IncludeFileName)) {
+  console.log("loading included symbols from file " + IncludeFileName)
+  const data = fs.readFileSync(IncludeFileName, 'utf-8');
+  const lines = data.toString().replace(/\r\n/g,'\n').split('\n');
+  for(let line of lines) {
+    if (line !== "" && line[0] !== '#') {
+      let fields = line.split(",", 10)
+      if (fields.length < 2) {
+        throw Error("line in include list does not contain enough fields")
+      }
+
+      includedTokens.set(fields[0] + ":" + fields[1].toLowerCase(), true)
+    }
+  }
+}
 
 /*
   "2Kc38rfQ49DFaKHQaWbijkE7fcymUMLY5guUiUsDmFfn": {
@@ -44,15 +63,40 @@ axios
             if (addr !== "*") {
                 let data = res.data.AllTime[chain][addr]
                 let notional = parseInt(data.Notional)
+                let key = chain + ":" + data.Address.toLowerCase()
+                let includeIt = true;
                 if (notional > MinNotional) {
-                  if (data.Address == "ust") {
-                    continue
+                  includeIt = true
+                } else {
+                  if (includedTokens.has(key)) {
+                    includeIt = true
                   }
+                }
+                if (includeIt) {
+                  includedTokens.delete(key)
                   let chainId = parseInt(chain) as ChainId
-                  const wormholeAddr = tryNativeToHexString(
-                    data.Address,
-                    chainId
-                  );
+                  let wormholeAddr: string
+                  try {
+                    wormholeAddr = tryNativeToHexString(
+                      data.Address,
+                      chainId
+                    );
+                  } catch (e) {
+                    wormholeAddr = ""
+                    if (chainId == CHAIN_ID_ALGORAND) {
+                        if (data.Address === "algo") {
+                        wormholeAddr = "0000000000000000000000000000000000000000000000000000000000000000"
+                      } else if (data.Address === "31566704") {
+                        wormholeAddr = "0000000000000000000000000000000000000000000000000000000001e1ab70"
+                      } else if (data.Address === "312769") {
+                        wormholeAddr = "000000000000000000000000000000000000000000000000000000000004c5c1"
+                      }
+                      if (wormholeAddr === "") {
+                        console.log(`Ignoring symbol '${data.Symbol}' because the address '${data.Address}' is invalid`)
+                        continue
+                      }
+                    }
+                  }
 
                   content += "\t\ttokenConfigEntry { chain: " + chain +
                   ", addr: \"" + wormholeAddr +
@@ -78,6 +122,12 @@ axios
     });
 
     execSync("go fmt ../../pkg/governor/mainnet_tokens.go")
+
+    if (includedTokens.size != 0) {
+      for (let [key, value] of includedTokens) {
+        console.error(`Did not find included token '${key}' in query result!`)
+      }
+    }
   })
   .catch(error => {
     console.error(error);
