@@ -1,41 +1,11 @@
-import {
-  CONTRACTS,
-  getIsTransferCompletedAlgorand,
-  redeemOnAlgorand,
-} from "@certusone/wormhole-sdk";
+import { CONTRACTS } from "@certusone/wormhole-sdk";
 import { NETWORKS } from "./networks";
 import { impossible, Payload } from "./vaa";
+import { Account, Algodv2, mnemonicToSecretKey } from "algosdk";
 import {
-  Account,
-  Algodv2,
-  assignGroupID,
-  mnemonicToSecretKey,
-  waitForConfirmation,
-} from "algosdk";
-import { TransactionSignerPair } from "@certusone/wormhole-sdk/lib/cjs/algorand";
-
-async function signSendAndConfirmAlgorand(
-  algodClient: Algodv2,
-  txs: TransactionSignerPair[],
-  wallet: Account
-) {
-  assignGroupID(txs.map((tx) => tx.tx));
-  const signedTxns: Uint8Array[] = [];
-  for (const tx of txs) {
-    if (tx.signer) {
-      signedTxns.push(await tx.signer.signTxn(tx.tx));
-    } else {
-      signedTxns.push(tx.tx.signTxn(wallet.sk));
-    }
-  }
-  await algodClient.sendRawTransaction(signedTxns).do();
-  const result = await waitForConfirmation(
-    algodClient,
-    txs[txs.length - 1].tx.txID(),
-    1
-  );
-  return result;
-}
+  signSendAndConfirmAlgorand,
+  _submitVAAAlgorand,
+} from "@certusone/wormhole-sdk/lib/cjs/algorand";
 
 export async function execute_algorand(
   payload: Payload,
@@ -68,7 +38,6 @@ export async function execute_algorand(
   switch (payload.module) {
     case "Core":
       target_contract = contracts.core;
-      // sigh...
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set");
@@ -82,7 +51,7 @@ export async function execute_algorand(
       break;
     case "NFTBridge":
       if (contracts.nft_bridge === undefined) {
-        // NOTE: this code can safely be removed once the terra NFT bridge is
+        // NOTE: this code can safely be removed once the algorand NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
         throw new Error("NFT bridge not supported yet for terra");
@@ -141,13 +110,8 @@ export async function execute_algorand(
   );
   const algoWallet: Account = mnemonicToSecretKey(n.key);
 
-  if (await getIsTransferCompletedAlgorand(algodClient, target, vaa)) {
-    console.log("Vaa has already been redeemed.");
-    return;
-  }
-
   // Create transaction
-  const txs = await redeemOnAlgorand(
+  const txs = await _submitVAAAlgorand(
     algodClient,
     target,
     CORE_ID,
