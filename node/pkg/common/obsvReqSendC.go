@@ -10,10 +10,10 @@ const ObsvReqChannelSize = 50
 const ObsvReqChannelFullError = "channel is full"
 
 func PostObservationRequest(obsvReqSendC chan *gossipv1.ObservationRequest, req *gossipv1.ObservationRequest) error {
-	if len(obsvReqSendC) >= cap(obsvReqSendC) {
+	select {
+	case obsvReqSendC <- req:
+		return nil
+	default:
 		return fmt.Errorf(ObsvReqChannelFullError)
 	}
-
-	obsvReqSendC <- req
-	return nil
 }
