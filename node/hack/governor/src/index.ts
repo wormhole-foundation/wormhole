@@ -63,7 +63,17 @@ axios
             if (addr !== "*") {
                 let data = res.data.AllTime[chain][addr]
                 let notional = parseInt(data.Notional)
-                if ((notional > MinNotional) || (includedTokens.has(chain + ":" + data.Address.toLowerCase()))) {
+                let key = chain + ":" + data.Address.toLowerCase()
+                let includeIt = true;
+                if (notional > MinNotional) {
+                  includeIt = true
+                } else {
+                  if (includedTokens.has(key)) {
+                    includeIt = true
+                  }
+                }
+                if (includeIt) {
+                  includedTokens.delete(key)
                   let chainId = parseInt(chain) as ChainId
                   let wormholeAddr: string
                   try {
@@ -72,11 +82,19 @@ axios
                       chainId
                     );
                   } catch (e) {
-                    if (chainId === CHAIN_ID_ALGORAND && data.Address === "algo") {
-                      wormholeAddr = "0x0000000000000000000000000000000000000000"
-                    } else {
-                      console.log("Ignoring symbol \"" + data.Symbol + "\" because the address \"" + data.Address + "\" is invalid")
-                      continue
+                    wormholeAddr = ""
+                    if (chainId == CHAIN_ID_ALGORAND) {
+                        if (data.Address === "algo") {
+                        wormholeAddr = "0000000000000000000000000000000000000000000000000000000000000000"
+                      } else if (data.Address === "31566704") {
+                        wormholeAddr = "0000000000000000000000000000000000000000000000000000000001e1ab70"
+                      } else if (data.Address === "31566704") {
+                        wormholeAddr = "000000000000000000000000000000000000000000000000000000000004c5c1"
+                      }
+                      if (wormholeAddr === "") {
+                        console.log(`Ignoring symbol '${data.Symbol}' because the address '${data.Address}' is invalid`)
+                        continue
+                      }
                     }
                   }
 
@@ -104,6 +122,12 @@ axios
     });
 
     execSync("go fmt ../../pkg/governor/mainnet_tokens.go")
+
+    if (includedTokens.size != 0) {
+      for (let [key, value] of includedTokens) {
+        console.error(`Did not find included token '${key}' in query result!`)
+      }
+    }
   })
   .catch(error => {
     console.error(error);
