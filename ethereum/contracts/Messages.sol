@@ -327,7 +327,7 @@ contract Messages is Getters, Setters {
         vm.header.signatures = parseSignatures(index, signersLen, encodedVM);
         index += 66*signersLen;
 
-        uint8 observationsLen = encodedVM.toUint8(index);
+        uint256 observationsLen = encodedVM.toUint8(index);
         index += 1;
 
         // hash the hashes
