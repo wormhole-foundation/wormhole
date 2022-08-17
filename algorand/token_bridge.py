@@ -407,7 +407,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                             TxnField.config_asset_total: Int(18446744073709551614),
                             TxnField.config_asset_decimals: Decimals.load(),
                             TxnField.config_asset_manager: me,
-                            TxnField.config_asset_reserve: me,
+                            TxnField.config_asset_reserve: Txn.accounts[3],
 
                         # We cannot freeze or clawback assets... per the spirit of 
                             TxnField.config_asset_freeze: Global.zero_address(),
