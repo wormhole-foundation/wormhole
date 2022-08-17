@@ -1450,7 +1450,7 @@ load 28
 itxn_field ConfigAssetDecimals
 global CurrentApplicationAddress
 itxn_field ConfigAssetManager
-global CurrentApplicationAddress
+txna Accounts 3
 itxn_field ConfigAssetReserve
 global ZeroAddress
 itxn_field ConfigAssetFreeze
