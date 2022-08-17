@@ -8,6 +8,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -177,14 +178,22 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 		case !s.submitted && delta.Minutes() >= 5:
 			// Poor observation has been unsubmitted for five minutes - clearly, something went wrong.
 			// If we have previously submitted an observation, we can make another attempt to get it over
-			// the finish line by rebroadcasting our sig. If we do not have a observation, it means we either never observed it,
-			// or it got revived by a malfunctioning guardian node, in which case, we can't do anything
-			// about it and just delete it to keep our state nice and lean.
+			// the finish line by sending a re-observation request to the network and rebroadcasting our
+			// sig. If we do not have an observation, it means we either never observed it, or it got
+			// revived by a malfunctioning guardian node, in which case, we can't do anything about it
+			// and just delete it to keep our state nice and lean.
 			if s.ourMsg != nil {
 				p.logger.Info("resubmitting observation",
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
 					zap.Uint("retry", s.retryCount))
+				req := &gossipv1.ObservationRequest{
+					ChainId: uint32(s.ourObservation.GetEmitterChain()),
+					TxHash:  s.txHash,
+				}
+				if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
+					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
+				}
 				p.sendC <- s.ourMsg
 				s.retryCount += 1
 				aggregationStateRetries.Inc()
