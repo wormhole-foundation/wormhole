@@ -37,7 +37,6 @@ interface Structs {
 		uint8 consistencyLevel;
 		// ^ 51 bytes header
 		bytes payload;
-
 	}
 
 	struct VM {
