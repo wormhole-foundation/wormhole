@@ -737,7 +737,7 @@ if aptos:
     k8s_resource(
         "aptos",
         port_forwards = [
-            port_forward(8081, name = "RPC [:8081]", host = webHost),
+            port_forward(8080, name = "RPC [:8080]", host = webHost),
             port_forward(6181, name = "FullNode [:6181]", host = webHost),
             port_forward(8000, name = "Faucet [:8000]", host = webHost),
         ],
