@@ -59,6 +59,7 @@ func (p *Processor) broadcastSignature(
 
 	p.state.signatures[hash].ourObservation = o
 	p.state.signatures[hash].ourMsg = msg
+	p.state.signatures[hash].txHash = txhash
 	p.state.signatures[hash].source = o.GetEmitterChain().String()
 	p.state.signatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 
