@@ -30,8 +30,7 @@ func TestObsvReqSendLimitEnforced(t *testing.T) {
 			ChainId: uint32(vaa.ChainIDSolana),
 		}
 		err := PostObservationRequest(obsvReqSendC, req)
-		assert.NotNil(t, err)
-		assert.Equal(t, ObsvReqChannelFullError, err.Error())
+		assert.ErrorIs(t, err, ErrChanFull)
 
 		done = true
 	}()
