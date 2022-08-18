@@ -34,6 +34,7 @@ import {
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
+import { execute_algorand } from "./algorand";
 
 setDefaultWasm("node");
 
@@ -609,7 +610,11 @@ yargs(hideBin(process.argv))
       } else if (chain === "solana" || chain === "pythnet") {
         await execute_solana(parsed_vaa, buf, network, chain);
       } else if (chain === "algorand") {
-        throw Error("Algorand is not supported yet");
+        await execute_algorand(
+          parsed_vaa.payload,
+          hexToUint8Array(vaa_hex),
+          network
+        );
       } else if (chain === "near") {
         await execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
