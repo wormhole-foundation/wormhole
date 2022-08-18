@@ -9,6 +9,7 @@ import {
   assertEVMChain,
   CONTRACTS,
   setDefaultWasm,
+  hexToUint8Array,
 } from "@certusone/wormhole-sdk";
 import { execute_solana } from "./solana";
 import {
@@ -32,6 +33,7 @@ import {
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
+import { execute_algorand } from "./algorand";
 
 setDefaultWasm("node");
 
@@ -607,7 +609,11 @@ yargs(hideBin(process.argv))
       } else if (chain === "solana") {
         await execute_solana(parsed_vaa, buf, network);
       } else if (chain === "algorand") {
-        throw Error("Algorand is not supported yet");
+        await execute_algorand(
+          parsed_vaa.payload,
+          hexToUint8Array(vaa_hex),
+          network
+        );
       } else if (chain === "near") {
         throw Error("NEAR is not supported yet");
       } else if (chain === "injective") {
@@ -617,6 +623,10 @@ yargs(hideBin(process.argv))
       } else if (chain === "sui") {
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
+        throw Error("APTOS is not supported yet");
+      } else if (chain === "pythnet") {
+        throw Error("APTOS is not supported yet");
+      } else if (chain === "wormholechain") {
         throw Error("APTOS is not supported yet");
       } else {
         // If you get a type error here, hover over `chain`'s type and it tells you
@@ -655,6 +665,10 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "sui") {
     throw Error("SUI is not supported yet");
   } else if (chain === "aptos") {
+    throw Error("APTOS is not supported yet");
+  } else if (chain === "pythnet") {
+    throw Error("APTOS is not supported yet");
+  } else if (chain === "wormholechain") {
     throw Error("APTOS is not supported yet");
   } else {
     impossible(chain);
