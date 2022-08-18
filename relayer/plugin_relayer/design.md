@@ -24,7 +24,6 @@ Execute:
 - input: wallet toolbox, immutable action state, action
 - output: New actions to enqueue, actions to dequeue
 
-
 ## Redis tables
 Each plugin will get its own redis sandbox, which is isolated from other plugins running on the same relayer.
 Each plugin receives two of the sandboxed tables:
@@ -40,3 +39,17 @@ Each plugin receives two of the sandboxed tables:
   - all providers
   - redis state for plugin that owns this action
 - (later) actions can also be async, relayer will schedule multiple async actions together
+
+## Config 
+### Base Relayer
+- common
+- listener
+- executor 
+
+### Plugin 
+- defines config type
+- bundles config for mainnet and devnet as default
+- plugin constructor gets passed:
+  - which env (to look up in default map)
+  - optionally override configs
+  - common config (cannot know whether it's running in executor or listener process)

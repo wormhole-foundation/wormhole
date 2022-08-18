@@ -40,6 +40,39 @@ interface Executor {
   ) => ActionQueueUpdate;
 }
 
+type CommonEnv = {
+
+}
+
+type ListenerEnv = {
+
+}
+
+type ExecutorEnv = {
+
+}
+
+enum EnvTypes {
+  MAIN_NET,
+  DEV_NET,
+}
+
+abstract class Plugin  {
+  type Config;
+  defaultConfigs: Map<EnvTypes, Plugin.Config>
+
+  constructor(environment: EnvTypes) {
+      
+  }
+}
+
+abstract class Listener {
+  config: Object
+
+  abstract getFilters(): ContractFilter[];
+  abstract listen(vaa: Uint8Array, stagingArea : Uint8Array[] ) : ActionQueueUpdate[]
+}
+
 type ActionQueueUpdate = {
   enqueueActions: WorkerAction[];
   removeActionIds: string[];
