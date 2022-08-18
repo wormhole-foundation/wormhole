@@ -1,8 +1,12 @@
 interface WorkerAction {
   chainId: ChainId;
-  id: string;
+  id: ActionId;
   data: Object;
+  description?: string,
+  depedencies?: ActionId[]
 }
+
+type ActionId = "UUID"; // todo: import real type
 
 type ContractFilter = {
   emitterAddress: string;
@@ -36,7 +40,44 @@ interface Executor {
   ) => ActionQueueUpdate;
 }
 
+type CommonEnv = {
+
+}
+
+type ListenerEnv = {
+
+}
+
+type ExecutorEnv = {
+
+}
+
+enum EnvTypes {
+  MAIN_NET,
+  DEV_NET,
+}
+
+abstract class Plugin  {
+  type Config;
+  defaultConfigs: Map<EnvTypes, Plugin.Config>
+
+  constructor(environment: EnvTypes) {
+      
+  }
+}
+
+abstract class Listener {
+  config: Object
+
+  abstract getFilters(): ContractFilter[];
+  abstract listen(vaa: Uint8Array, stagingArea : Uint8Array[] ) : ActionQueueUpdate[]
+}
+
 type ActionQueueUpdate = {
   enqueueActions: WorkerAction[];
   removeActionIds: string[];
 };
+
+
+// todo: import from sdk
+type ChainId = number
