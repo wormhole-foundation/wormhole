@@ -81,6 +81,8 @@ const MAINNET = {
   near: {
     rpc: undefined,
     key: undefined,
+    networkId: "",
+    baseAccount: "",
   },
   injective: {
     rpc: undefined,
@@ -95,6 +97,14 @@ const MAINNET = {
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: "http://api.pythnet.pyth.network:8899/",
+    key: get_env_var("SOLANA_KEY"),
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
@@ -136,7 +146,7 @@ const TESTNET = {
   },
   solana: {
     rpc: "https://api.devnet.solana.com",
-    key: get_env_var("SOLANA_KEY"),
+    key: get_env_var("SOLANA_KEY_TESTNET"),
   },
   terra: {
     rpc: "https://bombay-lcd.terra.dev",
@@ -192,8 +202,10 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   near: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://rpc.testnet.near.org",
+    key: get_env_var("NEAR_KEY_TESTNET"),
+    networkId: "testnet",
+    baseAccount: "wormhole.testnet",
   },
   injective: {
     rpc: undefined,
@@ -208,6 +220,14 @@ const TESTNET = {
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: "https://api.pythtest.pyth.network/",
+    key: get_env_var("SOLANA_KEY_TESTNET"),
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
@@ -307,6 +327,8 @@ const DEVNET = {
   near: {
     rpc: undefined,
     key: undefined,
+    networkId: "sandbox",
+    baseAccount: "test.near",
   },
   injective: {
     rpc: undefined,
@@ -321,6 +343,14 @@ const DEVNET = {
     key: undefined,
   },
   sui: {
+    rpc: undefined,
+    key: undefined,
+  },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
+  wormholechain: {
     rpc: undefined,
     key: undefined,
   },
