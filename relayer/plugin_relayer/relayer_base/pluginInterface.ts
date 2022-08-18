@@ -1,8 +1,12 @@
 interface WorkerAction {
   chainId: ChainId;
-  id: string;
+  id: ActionId;
   data: Object;
+  description?: string,
+  depedencies?: ActionId[]
 }
+
+type ActionId = "UUID"; // todo: import real type
 
 type ContractFilter = {
   emitterAddress: string;
@@ -40,3 +44,7 @@ type ActionQueueUpdate = {
   enqueueActions: WorkerAction[];
   removeActionIds: string[];
 };
+
+
+// todo: import from sdk
+type ChainId = number
