@@ -7,11 +7,14 @@ metadata:
 spec:
   ports:
     - name: node
-      port: 8082
+      port: 8080
       targetPort: 8080
     - name: prometheus
       port: 6181
       targetPort: prometheus
+    - name: faucet
+      port: 8000
+      targetPort: 8000
   selector:
     app: aptos
 ---
@@ -45,6 +48,9 @@ spec:
               protocol: TCP
             - containerPort: 6181
               name: prometheus
+              protocol: TCP
+            - containerPort: 8000
+              name: faucet
               protocol: TCP
           readinessProbe:
             tcpSocket:
