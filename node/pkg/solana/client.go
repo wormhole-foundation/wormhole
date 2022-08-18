@@ -320,7 +320,7 @@ OUTER:
 			continue
 		}
 
-		logger.Info("found Wormhole transaction",
+		logger.Info("DEBUGz - found Wormhole transaction",
 			zap.Stringer("signature", signature),
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
@@ -363,13 +363,16 @@ OUTER:
 			return false
 		}
 
-		logger.Info("fetched transaction",
+		logger.Info("DEBUGz - fetched transaction",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("signature", signature),
-			zap.Duration("took", time.Since(start)))
+			zap.Duration("took", time.Since(start)),
+			zap.Int("numInstructions", len(tr.Meta.InnerInstructions)),
+		)
 
 		for _, inner := range tr.Meta.InnerInstructions {
+			logger.Info("DEBUGz - inner loop", zap.Int("numInnerInstructions", len(inner.Instructions)))
 			for i, inst := range inner.Instructions {
 				_, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
 				if err != nil {
@@ -396,14 +399,17 @@ OUTER:
 
 func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx rpc.TransactionWithMeta, signature solana.Signature, idx int) (bool, error) {
 	if inst.ProgramIDIndex != programIndex {
+		logger.Info("DEBUGz - programIndex")
 		return false, nil
 	}
 
 	if len(inst.Data) == 0 {
+		logger.Info("DEBUGz - dataLen")
 		return false, nil
 	}
 
 	if inst.Data[0] != postMessageInstructionID && inst.Data[0] != postMessageUnreliableInstructionID {
+		logger.Info("DEBUGz - postMessageInstructionID")
 		return false, nil
 	}
 
@@ -427,13 +433,14 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	}
 
 	if level != s.commitment {
+		logger.Info("DEBUGz - level")
 		return true, nil
 	}
 
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
 	acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
 
-	logger.Info("fetching VAA account", zap.Stringer("acc", acc),
+	logger.Info("DEBUGz - fetching VAA account", zap.Stringer("acc", acc),
 		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
 
 	go s.retryFetchMessageAccount(ctx, logger, acc, slot, 0)
@@ -547,7 +554,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
 
-	logger.Info("message observed",
+	logger.Info("DEBUGz - message observed",
 		zap.Stringer("account", acc),
 		zap.Time("timestamp", observation.Timestamp),
 		zap.Uint32("nonce", observation.Nonce),
