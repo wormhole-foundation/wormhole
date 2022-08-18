@@ -270,21 +270,25 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	// If we don't care about this chain, the VAA can be published.
 	if !exists {
+		gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	// If we don't care about this emitter, the VAA can be published.
 	if msg.EmitterAddress != ce.emitterAddr {
+		gov.logger.Info("cgov: ignoring vaa because the emitter address is not configured", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
+		gov.logger.Info("cgov: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
+		gov.logger.Error("cgov: failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return true, err
 	}
 
@@ -292,24 +296,26 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
+		gov.logger.Info("cgov: ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
 	if err != nil {
-		gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
-
+		gov.logger.Error("cgov: failed to trim transfers", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
+		gov.logger.Error("cgov: failed to compute value of transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
 	newTotalValue := prevTotalValue + value
 	if newTotalValue < prevTotalValue {
+		gov.logger.Error("cgov: total value has overflowed", zap.String("msgID", msg.MessageIDString()), zap.Uint64("prevTotalValue", prevTotalValue), zap.Uint64("newTotalValue", newTotalValue))
 		return false, fmt.Errorf("total value has overflowed")
 	}
 
@@ -323,6 +329,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, amount: payload.Amount, msg: msg})
 		err = gov.db.StorePendingMsg(msg)
 		if err != nil {
+			gov.logger.Error("cgov: failed to store pending vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 			return false, err
 		}
 
@@ -339,6 +346,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	ce.transfers = append(ce.transfers, xfer)
 	err = gov.db.StoreTransfer(&xfer)
 	if err != nil {
+		gov.logger.Error("cgov: failed to store transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
