@@ -2,25 +2,29 @@ import * as web3s from '@solana/web3.js'
 import { NETWORKS } from "./networks";
 import { impossible, Payload, VAA } from "./vaa";
 import base58 from "bs58";
-import { CHAIN_ID_SOLANA, importCoreWasm, importNftWasm, importTokenWasm, ixFromRust } from "@certusone/wormhole-sdk";
+import { CHAINS, importCoreWasm, importNftWasm, importTokenWasm, ixFromRust, SolanaChainName } from "@certusone/wormhole-sdk";
 import { CONTRACTS } from "@certusone/wormhole-sdk"
 import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk"
 
 export async function execute_solana(
   v: VAA<Payload>,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET"
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  chain: SolanaChainName
 ) {
   let ix: web3s.TransactionInstruction
-  let connection = setupConnection(NETWORKS[network].solana.rpc)
-  let bridge_id = new web3s.PublicKey(CONTRACTS[network].solana.core)
-  let token_bridge_id = new web3s.PublicKey(CONTRACTS[network].solana.token_bridge)
-  let nft_bridge_id = new web3s.PublicKey(CONTRACTS[network].solana.nft_bridge)
+  let connection = setupConnection(NETWORKS[network][chain].rpc)
+  let bridge_id = new web3s.PublicKey(CONTRACTS[network][chain].core)
+  let token_bridge_id = CONTRACTS[network][chain].token_bridge && new web3s.PublicKey(CONTRACTS[network][chain].token_bridge)
+  let nft_bridge_id = CONTRACTS[network][chain].nft_bridge && new web3s.PublicKey(CONTRACTS[network][chain].nft_bridge)
 
-  let from = web3s.Keypair.fromSecretKey(base58.decode(NETWORKS[network].solana.key))
+  let from = web3s.Keypair.fromSecretKey(base58.decode(NETWORKS[network][chain].key))
 
   switch (v.payload.module) {
     case "Core":
+      if (bridge_id === undefined) {
+        throw Error("core bridge contract is undefined")
+      }      
       const bridge = await importCoreWasm()
       switch (v.payload.type) {
         case "GuardianSetUpgrade":
@@ -36,6 +40,9 @@ export async function execute_solana(
       }
       break
     case "NFTBridge":
+      if (nft_bridge_id === undefined) {
+        throw Error("nft bridge contract is undefined")
+      }
       const nft_bridge = await importNftWasm()
       switch (v.payload.type) {
         case "ContractUpgrade":
@@ -54,6 +61,9 @@ export async function execute_solana(
       }
       break
     case "TokenBridge":
+      if (token_bridge_id === undefined) {
+        throw Error("token bridge contract is undefined")
+      }
       const token_bridge = await importTokenWasm()
       const payload = v.payload;
       switch (payload.type) {
@@ -67,7 +77,7 @@ export async function execute_solana(
           break
         case "Transfer":
           console.log("Completing transfer")
-          if (payload.tokenChain === CHAIN_ID_SOLANA) {
+          if (payload.tokenChain === CHAINS[chain]) {
             ix = token_bridge.complete_transfer_native_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
           } else {
             ix = token_bridge.complete_transfer_wrapped_ix(token_bridge_id.toString(), bridge_id.toString(), from.publicKey.toString(), vaa)
