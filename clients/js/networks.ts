@@ -80,9 +80,7 @@ const MAINNET = {
   },
   near: {
     rpc: undefined,
-    key: get_env_var("NEAR_KEY"),
-    networkId: "mainnet",
-    baseAccount: "wormhole.mainnet",
+    key: undefined,
   },
   injective: {
     rpc: undefined,
