@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/ethereum/go-ethereum/common"
 )

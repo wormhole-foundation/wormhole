@@ -14,10 +14,10 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/spf13/cobra"
 	"github.com/status-im/keycard-go/hexutils"
@@ -211,7 +211,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 		EmitterChain:   uint32(chainID),
 		EmitterAddress: emitterAddress,
 		RpcBackfill:    *shouldBackfill,
-		BackfillNodes:  common.PublicRPCEndpoints,
+		BackfillNodes:  sdk.PublicRPCEndpoints,
 	}
 	resp, err := c.FindMissingMessages(ctx, &msg)
 	if err != nil {

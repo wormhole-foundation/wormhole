@@ -5,9 +5,9 @@ import (
 	"log"
 	"strings"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 var decodeVaaCmd = &cobra.Command{

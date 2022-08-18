@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/diamondburned/arikawa/v3/api"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 

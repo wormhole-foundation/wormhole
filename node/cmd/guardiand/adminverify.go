@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"

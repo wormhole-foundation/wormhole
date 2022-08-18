@@ -1,8 +1,8 @@
 package ethereum
 
 import (
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // PadAddress creates 32-byte VAA.Address from 20-byte Ethereum addresses by adding 12 0-bytes at the left

@@ -17,6 +17,7 @@ RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   cd tools/ && go build -mod=readonly -o /dlv github.com/go-delve/delve/cmd/dlv
 
 COPY node node
+COPY sdk sdk
 
 ARG GO_BUILD_ARGS=-race
 

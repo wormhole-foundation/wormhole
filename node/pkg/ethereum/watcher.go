@@ -22,7 +22,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 var (

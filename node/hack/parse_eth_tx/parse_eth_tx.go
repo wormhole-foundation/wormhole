@@ -13,8 +13,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/celo"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/ethereum"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 var (

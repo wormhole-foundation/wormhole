@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/certusone/wormhole/node/pkg/common"
-
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/stretchr/testify/assert"
+	"github.com/wormhole-foundation/wormhole/sdk"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func TestTokenListSize(t *testing.T) {
@@ -49,7 +48,7 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
 	/* Assume that all chains within a token bridge will have governed tokens */
-	for e := range common.KnownTokenbridgeEmitters {
+	for e := range sdk.KnownTokenbridgeEmitters {
 		t.Run(vaa.ChainID(e).String(), func(t *testing.T) {
 			found := false
 			for _, tokenConfigEntry := range tokenConfigEntries {
