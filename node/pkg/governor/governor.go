@@ -35,7 +35,8 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
 )
@@ -220,11 +221,11 @@ func (gov *ChainGovernor) initConfig() error {
 		return fmt.Errorf("no tokens are configured")
 	}
 
-	emitterMap := &common.KnownTokenbridgeEmitters
+	emitterMap := &sdk.KnownTokenbridgeEmitters
 	if gov.env == TestNetMode {
-		emitterMap = &common.KnownTestnetTokenbridgeEmitters
+		emitterMap = &sdk.KnownTestnetTokenbridgeEmitters
 	} else if gov.env == DevNetMode {
-		emitterMap = &common.KnownDevnetTokenbridgeEmitters
+		emitterMap = &sdk.KnownDevnetTokenbridgeEmitters
 	}
 
 	for _, cc := range configChains {

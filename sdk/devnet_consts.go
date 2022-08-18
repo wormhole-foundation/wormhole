@@ -1,7 +1,7 @@
-package common
+package sdk
 
 import (
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // KnownDevnetEmitters is a list of known emitters used during development.

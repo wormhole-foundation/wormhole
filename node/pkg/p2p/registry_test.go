@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func TestNewRegistry(t *testing.T) {

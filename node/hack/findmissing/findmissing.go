@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -49,7 +49,7 @@ func main() {
 		}
 	}
 
-	for _, emitter := range common.KnownEmitters {
+	for _, emitter := range sdk.KnownEmitters {
 		if only != vaa.ChainIDUnset {
 			if emitter.ChainID != only {
 				continue
@@ -62,7 +62,7 @@ func main() {
 			EmitterChain:   uint32(emitter.ChainID),
 			EmitterAddress: emitter.Emitter,
 			RpcBackfill:    *shouldBackfill,
-			BackfillNodes:  common.PublicRPCEndpoints,
+			BackfillNodes:  sdk.PublicRPCEndpoints,
 		}
 		resp, err := admin.FindMissingMessages(ctx, &msg)
 		if err != nil {

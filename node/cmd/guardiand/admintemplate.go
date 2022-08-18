@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil/bech32"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
 	"github.com/tendermint/tendermint/libs/rand"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"

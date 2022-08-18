@@ -14,7 +14,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // DevnetGuardianSetVSS returns a VAA signed by guardian-0 that adds all n validators.

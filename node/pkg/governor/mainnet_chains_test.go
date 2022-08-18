@@ -1,9 +1,9 @@
 package governor
 
 import (
-	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/stretchr/testify/assert"
+	"github.com/wormhole-foundation/wormhole/sdk"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"testing"
 )
@@ -50,8 +50,8 @@ func TestChainListChainPresent(t *testing.T) {
 		entries = append(entries, e.emitterChainID)
 	}
 
-	emitters := make([]vaa.ChainID, 0, len(common.KnownTokenbridgeEmitters))
-	for e := range common.KnownTokenbridgeEmitters {
+	emitters := make([]vaa.ChainID, 0, len(sdk.KnownTokenbridgeEmitters))
+	for e := range sdk.KnownTokenbridgeEmitters {
 		emitters = append(emitters, e)
 	}
 

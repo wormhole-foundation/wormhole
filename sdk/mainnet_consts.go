@@ -1,10 +1,10 @@
-package common
+package sdk
 
 import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // PublicRPCEndpoints is a list of known public RPC endpoints for mainnet, operated by
