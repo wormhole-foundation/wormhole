@@ -34,6 +34,7 @@ import {
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
+import { execute_injective } from "./injective";
 
 setDefaultWasm("node");
 
@@ -613,7 +614,7 @@ yargs(hideBin(process.argv))
       } else if (chain === "near") {
         await execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
-        throw Error("INJECTIVE is not supported yet");
+        await execute_injective(parsed_vaa.payload, buf, network);
       } else if (chain === "osmosis") {
         throw Error("OSMOSIS is not supported yet");
       } else if (chain === "sui") {
@@ -653,7 +654,7 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "near") {
     return "0x" + evm_address(address);
   } else if (chain === "injective") {
-    throw Error("INJECTIVE is not supported yet");
+    return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
