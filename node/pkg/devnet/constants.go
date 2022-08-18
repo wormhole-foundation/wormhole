@@ -11,7 +11,7 @@ import (
 
 	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 )
 
 var (

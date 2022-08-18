@@ -14,7 +14,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	spyv1 "github.com/certusone/wormhole/node/pkg/proto/spy/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	ipfslog "github.com/ipfs/go-log/v2"

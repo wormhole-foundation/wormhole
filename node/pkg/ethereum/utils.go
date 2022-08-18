@@ -1,7 +1,7 @@
 package ethereum
 
 import (
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 	"github.com/ethereum/go-ethereum/common"
 )
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )

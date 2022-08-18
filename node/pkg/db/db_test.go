@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"os"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"testing"

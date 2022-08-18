@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk"
+	"github.com/certusone/wormhole/sdk/vaa"
 	abi2 "github.com/ethereum/go-ethereum/accounts/abi"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -292,7 +292,7 @@ func main() {
 		EmitterAddress: ignoreAddress,
 	}
 
-	for _, emitter := range common.KnownEmitters {
+	for _, emitter := range sdk.KnownEmitters {
 		if emitter.ChainID != chainID {
 			continue
 		}
@@ -305,7 +305,7 @@ func main() {
 			EmitterChain:   uint32(chainID),
 			EmitterAddress: emitter.Emitter,
 			RpcBackfill:    true,
-			BackfillNodes:  common.PublicRPCEndpoints,
+			BackfillNodes:  sdk.PublicRPCEndpoints,
 		}
 		resp, err := admin.FindMissingMessages(ctx, &msg)
 		if err != nil {
@@ -472,7 +472,7 @@ func main() {
 				log.Printf("verifying %d", seq)
 				req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 					"%s/v1/signed_vaa/%d/%s/%d",
-					common.PublicRPCEndpoints[0],
+					sdk.PublicRPCEndpoints[0],
 					chainID,
 					hex.EncodeToString(eth_common.LeftPadBytes(emitter.Bytes(), 32)),
 					seq), nil)

@@ -69,7 +69,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
 	"github.com/prometheus/client_golang/prometheus"

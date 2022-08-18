@@ -15,7 +15,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"

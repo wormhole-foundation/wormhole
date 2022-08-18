@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 )
 
 var (

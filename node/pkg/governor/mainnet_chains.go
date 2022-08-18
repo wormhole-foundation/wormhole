@@ -5,7 +5,7 @@
 package governor
 
 import (
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/certusone/wormhole/sdk/vaa"
 )
 
 func chainList() []chainConfigEntry {

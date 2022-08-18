@@ -10,8 +10,8 @@ import (
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
+	"github.com/certusone/wormhole/sdk/vaa"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
