@@ -24,6 +24,8 @@ module Wormhole::VAA{
             hash:               vector<u8>,
             payload:            vector<u8>,
     }
+    
+    //break 
 
     public fun parse(bytes: vector<u8>): VAA {
         let (version, bytes) = Deserialize::deserialize_u8(bytes);
@@ -109,6 +111,9 @@ module Wormhole::VAA{
         vaa.consistency_level
     }
 
+
+    //  break 
+
     public fun destroy(vaa: VAA): vector<u8>{
          let VAA {
             version,
@@ -147,13 +152,13 @@ module Wormhole::VAA{
                 break
             };
             let (sig, guardianSetIndex) = unpackSignature(vector::borrow(&vaa.signatures, i));
-            let (pubkey, res) = signature::secp256k1_ecdsa_recover(hash, 0, sig);
+            //let (pubkey, res) = signature::secp256k1_ecdsa_recover(hash, 0, sig);
             let cur_guardian = vector::borrow<Guardian>(&guardians, guardianSetIndex);
             let cur_signer = getKey(*cur_guardian);
 
-            if (cur_signer != pubkey || res == false){
-                return (false, string::utf8(b"Invalid signature"))
-            };
+            //if (cur_signer != pubkey || res == false){
+            //    return (false, string::utf8(b"Invalid signature"))
+            //};
 
             i = i + 1;
         };

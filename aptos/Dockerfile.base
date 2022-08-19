@@ -9,3 +9,6 @@ WORKDIR /tmp
 RUN ./node_builder.sh
 
 COPY start_node.sh  /tmp
+
+
+

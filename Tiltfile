@@ -693,7 +693,7 @@ if aptos:
         dockerfile = "aptos/Dockerfile",
         only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
     )
-
+    
     k8s_resource(
         "aptos",
         port_forwards = [

@@ -7,6 +7,8 @@ module Wormhole::State{
 
     friend Wormhole::Governance;
     friend Wormhole::Wormhole;
+    friend Wormhole::VAA;
+
     
     struct GuardianSetChanged has store, drop{
         oldGuardianIndex: u64, //should be u32

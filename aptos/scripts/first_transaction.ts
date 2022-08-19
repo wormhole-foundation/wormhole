@@ -1,8 +1,8 @@
 // Copyright (c) The Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-export const NODE_URL = "http://127.0.0.1:8080/v1";
-export const FAUCET_URL = "http://127.0.0.1:8000";
+export const NODE_URL = "http://localhost:8080/v1";
+export const FAUCET_URL = "http://localhost:8081";
 
 //:!:>section_1
 
