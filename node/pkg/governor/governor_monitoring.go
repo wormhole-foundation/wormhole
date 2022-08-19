@@ -8,6 +8,7 @@
 //   - governor-reload - reloads the state of the chain governor from the database.
 //   - governor-drop-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and discards it.
 //   - governor-release-pending-vaa [VAA_ID] - removes the specified transfer from the pending list and publishes it, without regard to the threshold.
+//   - governor-reset-release-timer - resets the release timer for the specified VAA to the configured maximum.
 //
 // The VAA_ID is of the form "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/3", which is "emitter chain / emitter address / sequence number".
 
@@ -92,8 +93,8 @@ func (gov *ChainGovernor) Status() string {
 		if len(ce.pending) != 0 {
 			for idx, pe := range ce.pending {
 				value, _ := computeValue(pe.amount, pe.token)
-				s1 := fmt.Sprintf("chain: %v, pending[%v], value: %v, vaa: %v, time: %v", ce.emitterChainId, idx, value,
-					pe.msg.MessageIDString(), pe.timeStamp.String())
+				s1 := fmt.Sprintf("chain: %v, pending[%v], value: %v, vaa: %v, timeStamp: %v, releaseTime: %v", ce.emitterChainId, idx, value,
+					pe.dbData.Msg.MessageIDString(), pe.dbData.Msg.Timestamp.String(), pe.dbData.ReleaseTime.String())
 				s2 := fmt.Sprintf("cgov: %v", s1)
 				gov.logger.Info(s2)
 				resp += "   " + s1 + "\n"
@@ -133,16 +134,16 @@ func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
 
 	for _, ce := range gov.chains {
 		for idx, pe := range ce.pending {
-			msgId := pe.msg.MessageIDString()
+			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
 				value, _ := computeValue(pe.amount, pe.token)
 				gov.logger.Info("cgov: dropping pending vaa",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
-					zap.Stringer("timeStamp", pe.timeStamp),
+					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
 				)
 
-				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
 					return "", err
 				}
 
@@ -163,26 +164,56 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 
 	for _, ce := range gov.chains {
 		for idx, pe := range ce.pending {
-			msgId := pe.msg.MessageIDString()
+			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
 				value, _ := computeValue(pe.amount, pe.token)
 				gov.logger.Info("cgov: releasing pending vaa, should be published soon",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
-					zap.Stringer("timeStamp", pe.timeStamp),
+					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
 				)
 
-				gov.msgsToPublish = append(gov.msgsToPublish, pe.msg)
+				gov.msgsToPublish = append(gov.msgsToPublish, &pe.dbData.Msg)
 
 				// We delete the pending message from the database, but we don't add it to the transfers
 				// because released messages do not apply to the limit.
 
-				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
 					return "", err
 				}
 
 				ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
 				str := fmt.Sprintf("pending vaa \"%v\" has been released and will be published soon", msgId)
+				return str, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("vaa not found in the pending list")
+}
+
+// Admin command to reset the release timer for a pending VAA, extending it to the configured limit.
+func (gov *ChainGovernor) ResetReleaseTimer(vaaId string) (string, error) {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+
+	for _, ce := range gov.chains {
+		for _, pe := range ce.pending {
+			msgId := pe.dbData.Msg.MessageIDString()
+			if msgId == vaaId {
+				pe.dbData.ReleaseTime = time.Now().Add(time.Duration(time.Hour * maxEnqueuedTimeInHours))
+				gov.logger.Info("cgov: updating the release time due to admin command",
+					zap.String("msgId", msgId),
+					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
+					zap.Stringer("newReleaseTime", pe.dbData.ReleaseTime),
+				)
+
+				if err := gov.db.StorePendingMsg(&pe.dbData); err != nil {
+					gov.logger.Error("cgov: failed to store updated pending vaa", zap.String("msgID", msgId), zap.Error(err))
+					return "", err
+				}
+
+				str := fmt.Sprintf("release time on pending vaa \"%v\" has been updated to %v", msgId, pe.dbData.ReleaseTime.String())
 				return str, nil
 			}
 		}
@@ -247,9 +278,10 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 	for _, ce := range gov.chains {
 		for _, pe := range ce.pending {
 			resp = append(resp, &publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry{
-				EmitterChain:   uint32(pe.msg.EmitterChain),
-				EmitterAddress: pe.msg.EmitterAddress.String(),
-				Sequence:       pe.msg.Sequence,
+				EmitterChain:   uint32(pe.dbData.Msg.EmitterChain),
+				EmitterAddress: pe.dbData.Msg.EmitterAddress.String(),
+				Sequence:       pe.dbData.Msg.Sequence,
+				ReleaseTime:    uint32(pe.dbData.ReleaseTime.Unix()),
 			})
 		}
 	}
@@ -257,7 +289,7 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 	return resp
 }
 
-// REST query to get the list of enqueued VAAs.
+// REST query to see if a VAA is enqueued.
 func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
@@ -271,7 +303,7 @@ func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, err
 
 	for _, ce := range gov.chains {
 		for _, pe := range ce.pending {
-			if pe.msg.EmitterChain == emitterChain && pe.msg.EmitterAddress == emitterAddress && pe.msg.Sequence == msgId.Sequence {
+			if pe.dbData.Msg.EmitterChain == emitterChain && pe.dbData.Msg.EmitterAddress == emitterAddress && pe.dbData.Msg.Sequence == msgId.Sequence {
 				return true, nil
 			}
 		}

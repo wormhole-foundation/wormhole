@@ -163,9 +163,10 @@ message GovernorGetEnqueuedVAAsRequest {
 
 message GovernorGetEnqueuedVAAsResponse {
   message Entry {
-  uint32 emitter_chain = 1;
-  string emitter_address = 2; // human-readable hex-encoded (leading 0x)
-  uint64 sequence = 3;
+    uint32 emitter_chain = 1;
+    string emitter_address = 2; // human-readable hex-encoded (leading 0x)
+    uint64 sequence = 3;
+    uint32 release_time = 4;
   }
 
   // There is an entry for each enqueued vaa.
