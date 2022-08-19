@@ -3,7 +3,7 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
-import { Bech32, fromBech32, toHex } from "@cosmjs/encoding";
+import { fromBech32, toHex } from "@cosmjs/encoding";
 import {
   isTerraChain,
   assertEVMChain,
@@ -14,6 +14,7 @@ import {
   getEmitterAddressTerra,
   getEmitterAddressEth,
   getEmitterAddressAlgorand,
+  isCosmWasmChain,
 } from "@certusone/wormhole-sdk";
 import { execute_solana } from "./solana";
 import {
@@ -698,7 +699,7 @@ function parseAddress(chain: ChainName, address: string): string {
     throw Error("Chain unset");
   } else if (isEVMChain(chain)) {
     return "0x" + evm_address(address);
-  } else if (isTerraChain(chain)) {
+  } else if (isCosmWasmChain(chain)) {
     return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
   } else if (chain === "solana" || chain === "pythnet") {
     return "0x" + toHex(base58.decode(address)).padStart(64, "0");
@@ -707,8 +708,6 @@ function parseAddress(chain: ChainName, address: string): string {
     return "0x" + evm_address(address);
   } else if (chain === "near") {
     return "0x" + hex(address).substring(2).padStart(64, "0");
-  } else if (chain === "injective") {
-    return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
