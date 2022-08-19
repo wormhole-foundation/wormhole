@@ -56,7 +56,7 @@ func TestPendingMsgID(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	assert.Equal(t, []byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
+	assert.Equal(t, []byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
 }
 
 func TestTransferMsgID(t *testing.T) {
@@ -92,13 +92,13 @@ func TestIsTransfer(t *testing.T) {
 }
 
 func TestIsPendingMsg(t *testing.T) {
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING:")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING:"+"1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING:"+"1/1/1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1/1/1")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING2:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
 	assert.Equal(t, false, IsPendingMsg([]byte{0x01, 0x02, 0x03, 0x04}))
 	assert.Equal(t, false, IsPendingMsg([]byte{}))
 }
@@ -116,7 +116,7 @@ func TestGetChainGovernorData(t *testing.T) {
 	transfers, pending, err2 := db.GetChainGovernorData(logger)
 
 	assert.Equal(t, []*Transfer(nil), transfers)
-	assert.Equal(t, []*common.MessagePublication(nil), pending)
+	assert.Equal(t, []*PendingTransfer(nil), pending)
 	require.NoError(t, err2)
 }
 
@@ -201,7 +201,9 @@ func TestStorePendingMsg(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	err3 := db.StorePendingMsg(msg)
+	pending := &PendingTransfer{ReleaseTime: msg.Timestamp.Add(time.Duration(time.Hour * 72)), Msg: *msg}
+
+	err3 := db.StorePendingMsg(pending)
 	require.NoError(t, err3)
 }
 
@@ -227,9 +229,11 @@ func TestDeletePendingMsg(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	err3 := db.StorePendingMsg(msg)
+	pending := &PendingTransfer{ReleaseTime: msg.Timestamp.Add(time.Duration(time.Hour * 72)), Msg: *msg}
+
+	err3 := db.StorePendingMsg(pending)
 	require.NoError(t, err3)
 
-	err4 := db.DeletePendingMsg(msg)
+	err4 := db.DeletePendingMsg(pending)
 	assert.Nil(t, err4)
 }

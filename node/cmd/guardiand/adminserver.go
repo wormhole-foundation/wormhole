@@ -466,3 +466,22 @@ func (s *nodePrivilegedService) ChainGovernorReleasePendingVAA(ctx context.Conte
 		Response: resp,
 	}, nil
 }
+
+func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Context, req *nodev1.ChainGovernorResetReleaseTimerRequest) (*nodev1.ChainGovernorResetReleaseTimerResponse, error) {
+	if s.governor == nil {
+		return nil, fmt.Errorf("chain governor is not enabled")
+	}
+
+	if len(req.VaaId) == 0 {
+		return nil, fmt.Errorf("the VAA id must be specified as \"chainId/emitterAddress/seqNum\"")
+	}
+
+	resp, err := s.governor.ResetReleaseTimer(req.VaaId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.ChainGovernorResetReleaseTimerResponse{
+		Response: resp,
+	}, nil
+}
