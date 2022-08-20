@@ -17,9 +17,25 @@ module Wormhole::Wormhole {
         setGovernanceContract(governanceContract);
     }
 
-    public entry fun testInit(admin: &signer){ 
-        setChainId(3);
+    public entry fun testInitWormholeState(admin: &signer){ 
+        initWormholeState(admin);
     }
+
+    public entry fun testInitMessageHandles(admin: &signer){ 
+         initMessageHandles(admin);
+    }
+
+    public entry fun testSetChainId(admin: &signer){ 
+        setChainId(1);
+    }
+
+    public entry fun testSetGovernanceChainId(admin: &signer){ 
+        setGovernanceChainId(0);
+    }
+
+    //public entry fun testInitMessageHandles(admin: &signer){ 
+    //    initWormholeState(admin);
+    //}
 
     public entry fun doNothing(admin: &signer){ 
         //setChainId(3);
