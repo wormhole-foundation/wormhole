@@ -135,7 +135,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 		zap.Stringer("Amount", payload.Amount),
 	)
 
-	ce.pending = append(ce.pending, pendingEntry{token: token, amount: payload.Amount, dbData: *pending})
+	ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: *pending})
 }
 
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, startTime time.Time) {
@@ -183,5 +183,5 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 		zap.String("MsgID", xfer.MsgID),
 	)
 
-	ce.transfers = append(ce.transfers, *xfer)
+	ce.transfers = append(ce.transfers, xfer)
 }

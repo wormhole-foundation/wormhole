@@ -178,7 +178,7 @@ func PendingMsgID(k *common.MessagePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", pending, k.MessageIDString()))
 }
 
-func OldPendingMsgID(k *common.MessagePublication) []byte {
+func oldPendingMsgID(k *common.MessagePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", oldPending, k.MessageIDString()))
 }
 
@@ -190,7 +190,7 @@ func IsPendingMsg(keyBytes []byte) bool {
 	return (len(keyBytes) >= pendingLen+minMsgIdLen) && (string(keyBytes[0:pendingLen]) == pending)
 }
 
-func IsOldPendingMsg(keyBytes []byte) bool {
+func isOldPendingMsg(keyBytes []byte) bool {
 	return (len(keyBytes) >= oldPendingLen+minMsgIdLen) && (string(keyBytes[0:oldPendingLen]) == oldPending)
 }
 
@@ -224,7 +224,7 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 				}
 
 				transfers = append(transfers, v)
-			} else if IsOldPendingMsg(key) {
+			} else if isOldPendingMsg(key) {
 				msg, err := common.UnmarshalMessagePublication(val)
 				if err != nil {
 					return err
@@ -244,7 +244,7 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 					return fmt.Errorf("failed to write new pending msg for key [%v]: %w", pending.Msg.MessageIDString(), err)
 				}
 
-				key := OldPendingMsgID(&pending.Msg)
+				key := oldPendingMsgID(&pending.Msg)
 				err = d.db.DropPrefix(key)
 				if err != nil {
 					return fmt.Errorf("failed to delete old pending msg for key [%v]: %w", pending.Msg.MessageIDString(), err)
