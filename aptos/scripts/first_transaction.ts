@@ -1,8 +1,13 @@
 // Copyright (c) The Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+<<<<<<< HEAD
 export const NODE_URL = "http://localhost:8080/v1";
 export const FAUCET_URL = "http://localhost:8081";
+=======
+const NODE_URL = "http://127.0.0.1:8080/v1";
+const FAUCET_URL = "http://127.0.0.1:8000";
+>>>>>>> upstream/aptos/integration
 
 //:!:>section_1
 
@@ -58,8 +63,13 @@ export async function accountBalance(accountAddress: MaybeHexString): Promise<nu
 async function transfer(accountFrom: AptosAccount, recipient: MaybeHexString, amount: number): Promise<string> {
   const token = new TxnBuilderTypes.TypeTagStruct(TxnBuilderTypes.StructTag.fromString("0x1::aptos_coin::AptosCoin"));
 
+<<<<<<< HEAD
   const scriptFunctionPayload = new TxnBuilderTypes.TransactionPayloadEntryFunction(
     TxnBuilderTypes.EntryFunction.natural(
+=======
+  const scriptFunctionPayload = new TxnBuilderTypes.TransactionPayloadScriptFunction(
+    TxnBuilderTypes.ScriptFunction.natural(
+>>>>>>> upstream/aptos/integration
       "0x1::coin",
       "transfer",
       [token],
@@ -76,8 +86,13 @@ async function transfer(accountFrom: AptosAccount, recipient: MaybeHexString, am
     TxnBuilderTypes.AccountAddress.fromHex(accountFrom.address()),
     BigInt(sequenceNumber),
     scriptFunctionPayload,
+<<<<<<< HEAD
     BigInt(1000),
     BigInt(1),
+=======
+    1000n,
+    1n,
+>>>>>>> upstream/aptos/integration
     BigInt(Math.floor(Date.now() / 1000) + 10),
     new TxnBuilderTypes.ChainId(chainId),
   );
