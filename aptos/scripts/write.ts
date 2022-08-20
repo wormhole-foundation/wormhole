@@ -41,9 +41,9 @@ async function initWormhole(contractAddress: HexString, accountFrom: AptosAccoun
         "init",
         [],
         [
-         BCS.bcsSerializeUint64(0),
-         BCS.bcsSerializeUint64(0), 
-         BCS.bcsSerializeBytes(Buffer.from("0x123232")),
+         BCS.bcsSerializeUint64(101),
+         BCS.bcsSerializeUint64(202), 
+         BCS.bcsSerializeBytes(Buffer.from("0x12323aaa11111aaaaaaa2")),
         ]
       ),
     );
@@ -92,10 +92,64 @@ async function testInit(contractAddress: HexString, accountFrom: AptosAccount){
       BigInt(Math.floor(Date.now() / 1000) + 10),
       new TxnBuilderTypes.ChainId(chainId),
     );
-    // console.log("here3")
-    // console.log("sequenceNumber: ", sequenceNumber)
-    // console.log("chainId: ", chainId)
-    // console.log("rawTxn: ", rawTxn)
+    const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
+    const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
+    console.log(transactionRes);
+    return transactionRes.hash;
+  }
+
+
+  //testSetChainId
+  async function testSetChainId(contractAddress: HexString, accountFrom: AptosAccount){
+    const scriptFunctionPayload = new TxnBuilderTypes.TransactionPayloadEntryFunction(
+      TxnBuilderTypes.EntryFunction.natural(
+        `${contractAddress.toString()}::Wormhole`,
+        "testSetChainId",
+        [],
+        [],
+      ),
+    );
+    const [{ sequence_number: sequenceNumber }, chainId] = await Promise.all([
+      client.getAccount(accountFrom.address()),
+      client.getChainId(),
+    ]);
+    const rawTxn = new TxnBuilderTypes.RawTransaction(
+      TxnBuilderTypes.AccountAddress.fromHex(accountFrom.address()),
+      BigInt(sequenceNumber),
+      scriptFunctionPayload,
+      BigInt(1000),
+      BigInt(1),
+      BigInt(Math.floor(Date.now() / 1000) + 10),
+      new TxnBuilderTypes.ChainId(chainId),
+    );
+    const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
+    const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
+    console.log(transactionRes);
+    return transactionRes.hash;
+  }
+
+  async function testInitMessageHandles(contractAddress: HexString, accountFrom: AptosAccount){
+    const scriptFunctionPayload = new TxnBuilderTypes.TransactionPayloadEntryFunction(
+      TxnBuilderTypes.EntryFunction.natural(
+        `${contractAddress.toString()}::Wormhole`,
+        "testInitMessageHandles",
+        [],
+        [],
+      ),
+    );
+    const [{ sequence_number: sequenceNumber }, chainId] = await Promise.all([
+      client.getAccount(accountFrom.address()),
+      client.getChainId(),
+    ]);
+    const rawTxn = new TxnBuilderTypes.RawTransaction(
+      TxnBuilderTypes.AccountAddress.fromHex(accountFrom.address()),
+      BigInt(sequenceNumber),
+      scriptFunctionPayload,
+      BigInt(1000),
+      BigInt(1),
+      BigInt(Math.floor(Date.now() / 1000) + 10),
+      new TxnBuilderTypes.ChainId(chainId),
+    );
     const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
     const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
     console.log(transactionRes);
@@ -136,6 +190,8 @@ async function testInit(contractAddress: HexString, accountFrom: AptosAccount){
     console.log("account address: ", accountAddress);
     let hash = await initWormhole(accountAddress, accountFrom);
     //let hash = await testInit(accountAddress, accountFrom);
+    //let hash = await testSetChainId(accountAddress, accountFrom);
+    //let hash = await testInitMessageHandles(accountAddress, accountFrom);
     //let hash = await testInitWormholeState(accountAddress, accountFrom);
     //let hash = await testDoNothing(accountAddress, accountFrom);
     console.log("tx hash: ", hash);

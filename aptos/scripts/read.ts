@@ -50,7 +50,7 @@ async function getTransaction(hash: string) {
     console.log("resources: ", resources);
     
     //get specific transaction
-    let tx = await getTransaction("0xfbc4f4e03408d311c4d64e0e6447131c982947fdff46af5ed1850a74273e9e8a");
+    let tx = await getTransaction("0xa57632e308a9c2d404ffcce977fdc7bc6b7c138244f1247efa9cfe431d40ea76");
     console.log("my tx is:", tx)
 
     //@ts-ignore
