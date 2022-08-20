@@ -100,8 +100,8 @@ type (
 		bigTransactionSize      uint64
 		checkForBigTransactions bool
 
-		transfers []db.Transfer
-		pending   []pendingEntry
+		transfers []*db.Transfer
+		pending   []*pendingEntry
 	}
 )
 
@@ -364,7 +364,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	if enqueueIt {
 		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
-		ce.pending = append(ce.pending, pendingEntry{token: token, amount: payload.Amount, dbData: dbData})
+		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: dbData})
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
 			gov.logger.Error("cgov: failed to store pending vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
@@ -381,7 +381,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.String("msgID", msg.MessageIDString()))
 
 	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: msg.EmitterChain, EmitterAddress: msg.EmitterAddress, MsgID: msg.MessageIDString()}
-	ce.transfers = append(ce.transfers, xfer)
+	ce.transfers = append(ce.transfers, &xfer)
 	err = gov.db.StoreTransfer(&xfer)
 	if err != nil {
 		gov.logger.Error("cgov: failed to store transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
@@ -483,7 +483,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 				if countsTowardsTransfers {
 					xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr,
 						EmitterChain: pe.dbData.Msg.EmitterChain, EmitterAddress: pe.dbData.Msg.EmitterAddress, MsgID: pe.dbData.Msg.MessageIDString()}
-					ce.transfers = append(ce.transfers, xfer)
+					ce.transfers = append(ce.transfers, &xfer)
 
 					if err := gov.db.StoreTransfer(&xfer); err != nil {
 						gov.msgsToPublish = msgsToPublish
@@ -534,7 +534,7 @@ func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db db.GovernorDB) (su
 	return sum, err
 }
 
-func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db db.GovernorDB) (uint64, []db.Transfer, error) {
+func TrimAndSumValue(transfers []*db.Transfer, startTime time.Time, db db.GovernorDB) (uint64, []*db.Transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
 	}
@@ -553,7 +553,7 @@ func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db db.Governo
 	if trimIdx >= 0 {
 		if db != nil {
 			for idx := 0; idx <= trimIdx; idx++ {
-				if err := db.DeleteTransfer(&transfers[idx]); err != nil {
+				if err := db.DeleteTransfer(transfers[idx]); err != nil {
 					return 0, transfers, err
 				}
 			}
