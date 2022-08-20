@@ -91,7 +91,7 @@ module Wormhole::State{
                 sequence:sequence, 
                 nonce:nonce, 
                 payload:payload, 
-                consistencyLevel:consistencyLevel
+                consistencyLevel:consistencyLevel 
             } 
     }
 
@@ -118,7 +118,7 @@ module Wormhole::State{
         sequence
     }
 
-    public fun publishMessage(
+    public entry fun publishMessage(
         sender: &signer,
         nonce: u64, //should be u32
         payload: vector<u8>,
@@ -185,7 +185,7 @@ module Wormhole::State{
         state.messageFee = newFee;
     }
 
-    fun setNextSequence(emitter: address, sequence: u64) acquires WormholeState{
+    public entry fun setNextSequence(emitter: address, sequence: u64) acquires WormholeState{
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         if (table::contains(&state.sequences, emitter)){
             table::remove(&mut state.sequences, emitter);
@@ -195,9 +195,12 @@ module Wormhole::State{
 
     // getters
 
-    public fun nextSequence(emitter: address):u64 acquires WormholeState{ 
+    public entry fun nextSequence(emitter: address):u64 acquires WormholeState{ 
         let state = borrow_global_mut<WormholeState>(@Wormhole);
-        *table::borrow(&state.sequences, emitter)
+        if (table::contains(&state.sequences, emitter)){
+            return *table::borrow(&state.sequences, emitter)
+        }; 
+        return 0
     }
 
     public fun getCurrentGuardianSetIndex():u64 acquires WormholeState{

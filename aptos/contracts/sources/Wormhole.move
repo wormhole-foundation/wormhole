@@ -1,8 +1,9 @@
 module Wormhole::Wormhole {
     use 0x1::signer::{address_of};
+    use 0x1::vector::{Self};
     //use 0x1::vector::{Self};
     //use Wormhole::Governance::{init_guardian_set};
-    //use Wormhole::Structs::{GuardianSet, createGuardianSet};
+    use Wormhole::Structs::{createGuardianSet};
     use Wormhole::State::{initMessageHandles, initWormholeState, storeGuardianSet, setChainId, setGovernanceChainId, setGovernanceContract};
 
     public entry fun init(admin: &signer, chainId: u64, governanceChainId: u64, governanceContract: vector<u8>) {
@@ -10,7 +11,7 @@ module Wormhole::Wormhole {
         //assert!(address_of(admin)==@Wormhole, 0);
         initWormholeState(admin);
         initMessageHandles(admin);
-        //storeGuardianSet(createGuardianSet(0, vector::empty()), 0);
+        storeGuardianSet(createGuardianSet(0, vector::empty()), 0);
         // initial guardian set index is 0, which is the default value of the storage slot anyways
         setChainId(chainId);
         setGovernanceChainId(governanceChainId);

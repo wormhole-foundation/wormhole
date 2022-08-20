@@ -3,6 +3,7 @@ module Wormhole::Structs{
 
     friend Wormhole::State;
     friend Wormhole::VAA;
+    friend Wormhole::Wormhole;
 
     //friend Wormhole::Governance;
     //friend Wormhole::Wormhole;
