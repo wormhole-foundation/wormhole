@@ -1334,6 +1334,11 @@ export const ETH_MIGRATION_ASSET_MAP = new Map<string, string>(
           getAddress("0xa47c8bf37f92aBed4A126BDA807A7b7498661acD"),
           getAddress("0xF39C29d8f6851d87c40c83b61078EB7384f7Cb51"),
         ],
+        [
+          // CELO
+          getAddress("0xE452E6Ea2dDeB012e20dB73bf5d3863A3Ac8d77a"),
+          getAddress("0x857acfba0b2c4f4044b1d3a80972db1b3dceb1c4"),
+        ],
       ]
     : CLUSTER === "testnet"
     ? []
