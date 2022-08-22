@@ -366,7 +366,7 @@ class PortalCore:
         b += self.encoder("uint16", 8)
 
         b += decode_address(approval["hash"]).hex()
-        print("core " + decode_address(approval["hash"]).hex())
+        print("core hash: " + decode_address(approval["hash"]).hex())
 
         ret = [b]
 
@@ -389,7 +389,7 @@ class PortalCore:
         b += self.encoder("uint8", 2)  # action
         b += self.encoder("uint16", 8) # target chain
         b += decode_address(approval["hash"]).hex()
-        print("token " + decode_address(approval["hash"]).hex())
+        print("token hash: " + decode_address(approval["hash"]).hex())
 
         ret.append(b)
         return ret

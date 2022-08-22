@@ -94,7 +94,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
         return MagicAssert(And(
             e.rekey_to() == Global.zero_address(),
             e.close_remainder_to() == Global.zero_address(),
-            e.asset_close_to() == Global.zero_address()
+            e.asset_close_to() == Global.zero_address(),
+            e.on_completion() == OnComplete.NoOp
         ))
 
     @Subroutine(TealType.none)
@@ -240,6 +241,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                 verifyVAA.application_id() == App.globalGet(Bytes("coreid")),
                 verifyVAA.application_args[0] == Bytes("verifyVAA"),
                 verifyVAA.sender() == Txn.sender(),
+                verifyVAA.on_completion() == OnComplete.NoOp,
 
                 # Lets see if the vaa we are about to process was actually verified by the core
                 verifyVAA.application_args[1] == Txn.application_args[1],
@@ -305,12 +307,14 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             checkForDuplicate(),
 
             tidx.store(Txn.group_index() - Int(4)),
+
             MagicAssert(And(
                 # Lets see if the vaa we are about to process was actually verified by the core
                 Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
                 Gtxn[tidx.load()].application_id() == App.globalGet(Bytes("coreid")),
                 Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
                 Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].on_completion() == OnComplete.NoOp,
 
                 # we are all taking about the same vaa?
                 Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
@@ -466,6 +470,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                 Gtxn[tidx.load()].application_id() == App.globalGet(Bytes("coreid")),
                 Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
                 Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].on_completion() == OnComplete.NoOp,
 
                 # Lets see if the vaa we are about to process was actually verified by the core
                 Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
@@ -981,7 +986,12 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             algo_seed.amount() == Int(seed_amt),
             # Check that its an opt in to us
             optin.type_enum() == TxnType.ApplicationCall,
-            optin.on_completion() == OnComplete.OptIn
+            optin.on_completion() == OnComplete.OptIn,
+
+            optin.application_id() == Global.current_application_id(),
+
+            algo_seed.receiver() == optin.sender(),
+            optin.rekey_to() == Global.current_application_address()
         )
 
         return Seq(

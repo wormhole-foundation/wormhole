@@ -132,6 +132,9 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 optin.on_completion() == OnComplete.OptIn,
                 # Not strictly necessary since we wouldn't be seeing this unless it was us, but...
                 optin.application_id() == Global.current_application_id(),
+
+                algo_seed.receiver() == optin.sender(),
+                optin.rekey_to() == Global.current_application_address()
             )
     
             return Seq(
@@ -314,10 +317,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             ])
 
         def verifySigs():
-            return Seq([
-                Approve(),
-            ])
-
+            return Return (Txn.sender() == STATELESS_LOGIC_HASH)
 
         @Subroutine(TealType.none)
         def checkForDuplicate():
@@ -513,6 +513,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("verifyVAA"),
                     Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
                     Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+                    Gtxn[Txn.group_index() - Int(1)].on_completion() == OnComplete.NoOp,
 
                     # Lets see if the vaa we are about to process was actually verified by the core
                     Gtxn[Txn.group_index() - Int(1)].application_args[1] == Txn.application_args[1],
