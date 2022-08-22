@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -86,6 +88,13 @@ func TestGetWrappedCoinMeta(t *testing.T) {
 			tokenChain:   0,
 			tokenAddress: [32]byte{},
 			wrapped:      false,
+		},
+		{
+			name:         "base denom",
+			identifier:   fmt.Sprintf("bwh/00008/%s", hex.EncodeToString(testToken[:])),
+			tokenChain:   8,
+			tokenAddress: testToken,
+			wrapped:      true,
 		},
 	}
 	for _, tt := range tests {

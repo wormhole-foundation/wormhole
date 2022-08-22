@@ -101,7 +101,7 @@ func GetWrappedCoinMeta(identifier string) (tokenChain uint16, tokenAddress [32]
 	if len(parts) != 3 {
 		return 0, [32]byte{}, false
 	}
-	if parts[0] != "wh" {
+	if parts[0] != "wh" && parts[0] != "bwh" {
 		return 0, [32]byte{}, false
 	}
 	if len(parts[1]) != 5 {
