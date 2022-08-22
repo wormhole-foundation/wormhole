@@ -230,7 +230,7 @@ func GetGuardianSetIDBytes(id uint32) []byte {
 	return bz
 }
 
-// GetGuardianSetIDFromBytes returns ID in uint64 format from a byte array
+// GetGuardianSetIDFromBytes returns ID in uint32 format from a byte array
 func GetGuardianSetIDFromBytes(bz []byte) uint32 {
 	return binary.BigEndian.Uint32(bz)
 }
