@@ -151,6 +151,7 @@ message GovernorGetAvailableNotionalByChainResponse {
     uint32 chain_id = 1;
     uint64 remaining_available_notional = 2;
     uint64 notional_limit = 3;
+    uint64 big_transaction_size = 4;
   }
 
   // There is an entry for each chain that is being governed.
