@@ -43,6 +43,7 @@
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
+    "load-plugin": "^5.0.0",
     "prom-client": "^14.0.1",
     "redis": "^4.0.1",
     "winston": "^3.3.3"
