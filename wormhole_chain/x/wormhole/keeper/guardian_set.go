@@ -19,7 +19,7 @@ func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.Guardian
 		return types.ErrNoConfig
 	}
 
-	oldSet, exists := k.GetGuardianSet(ctx, k.GetGuardianSetCount(ctx)-1)
+	oldSet, exists := k.GetGuardianSet(ctx, k.GetLatestGuardianSetIndex(ctx))
 	if !exists {
 		return types.ErrGuardianSetNotFound
 	}
@@ -136,11 +136,7 @@ func (k Keeper) AppendGuardianSet(
 		return 0, types.ErrGuardianSetNotSequential
 	}
 
-	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.GuardianSetKey))
-	appendedValue := k.cdc.MustMarshal(&guardianSet)
-	store.Set(GetGuardianSetIDBytes(guardianSet.Index), appendedValue)
-
-	// Update guardianSet count
+	k.setGuardianSet(ctx, guardianSet)
 	k.setGuardianSetCount(ctx, count+1)
 
 	return count, nil
