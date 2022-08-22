@@ -149,7 +149,7 @@ func (gov *ChainGovernor) Run(ctx context.Context) error {
 			return err
 		}
 
-		if err := gov.initCoinGecko(ctx); err != nil {
+		if err := gov.initCoinGecko(ctx, true); err != nil {
 			return err
 		}
 	}
