@@ -80,6 +80,13 @@ func TestGetWrappedCoinMeta(t *testing.T) {
 			tokenAddress: [32]byte{},
 			wrapped:      false,
 		},
+		{
+			name:         "negative chain id",
+			identifier:   "wh/-0222/165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa300",
+			tokenChain:   0,
+			tokenAddress: [32]byte{},
+			wrapped:      false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
