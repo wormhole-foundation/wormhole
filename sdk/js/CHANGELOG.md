@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+### Added
+
+getIsTransferCompletedTerra2 function
+
 ## 0.6.2
 
 ### Added
