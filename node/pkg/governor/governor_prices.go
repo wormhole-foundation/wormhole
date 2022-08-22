@@ -63,7 +63,9 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 
 func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 	// Do a query immediately, then once each interval.
-	gov.queryCoinGecko()
+	// We ignore the error because an error would already have been logged, and we don't want to bring down the
+	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
+	_ = gov.queryCoinGecko()
 
 	ticker := time.NewTicker(time.Duration(coinGeckoQueryIntervalInMins) * time.Minute)
 	defer ticker.Stop()
@@ -73,8 +75,6 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			// We ignore the error here because an error would already have been logged, and we don't want to bring down the
-			// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
 			_ = gov.queryCoinGecko()
 		}
 	}
