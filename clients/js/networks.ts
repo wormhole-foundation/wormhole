@@ -47,8 +47,8 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   algorand: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://mainnet-api.algonode.cloud",
+    key: get_env_var("ALGORAND_KEY"),
   },
   oasis: {
     rpc: "https://emerald.oasis.dev/",
@@ -174,8 +174,8 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   algorand: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://testnet-api.algonode.cloud",
+    key: get_env_var("ALGORAND_KEY_TESTNET"),
   },
   fantom: {
     rpc: "https://rpc.testnet.fantom.network",
@@ -297,8 +297,8 @@ const DEVNET = {
     key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
   algorand: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://localhost",
+    key: get_env_var("ALGORAND_KEY_DEVNET"),
   },
   fantom: {
     rpc: undefined,
@@ -338,19 +338,19 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
   },
-  aptos: {
-    rpc: undefined,
-    key: undefined,
-  },
-  sui: {
-    rpc: undefined,
-    key: undefined,
-  },
   pythnet: {
     rpc: undefined,
     key: undefined,
   },
   wormholechain: {
+    rpc: undefined,
+    key: undefined,
+  },
+  aptos: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sui: {
     rpc: undefined,
     key: undefined,
   },
