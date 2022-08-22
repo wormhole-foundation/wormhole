@@ -1,6 +1,5 @@
 *.log
 build
-/aptos/aptos-core
 **/node_modules
 .idea
 .dccache
