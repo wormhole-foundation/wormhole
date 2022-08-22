@@ -18,17 +18,17 @@
 //
 // Returns:
 // {"entries":[
-//	{"chainId":1,"remainingAvailableNotional":"96217","notionalLimit":"100000"},
-//  {"chainId":2,"remainingAvailableNotional":"100000","notionalLimit":"100000"},
-//  {"chainId":5,"remainingAvailableNotional":"275000","notionalLimit":"275000"}
+//	{"chainId":1,"remainingAvailableNotional":"96217","notionalLimit":"100000","bigTransactionSize":"10000"},
+//  {"chainId":2,"remainingAvailableNotional":"100000","notionalLimit":"100000","bigTransactionSize":"10000"},
+//  {"chainId":5,"remainingAvailableNotional":"275000","notionalLimit":"275000","bigTransactionSize":"20000"}
 // ]}
 //
 // Query: http://localhost:7071/v1/governor/enqueued_vaas
 //
 // Returns:
 // {"entries":[
-// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"1"},
-// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"2"}
+// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"1", "releaseTime":1661442345}},
+// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"2", "releaseTime":1661442347}}
 // ]}
 //
 // Query: http://localhost:7071/v1/governor/is_vaa_enqueued/1/c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f/3
@@ -262,6 +262,7 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() []*publicrpcv1.GovernorG
 			ChainId:                    uint32(ce.emitterChainId),
 			RemainingAvailableNotional: value,
 			NotionalLimit:              ce.dailyLimit,
+			BigTransactionSize:         ce.bigTransactionSize,
 		})
 	}
 
