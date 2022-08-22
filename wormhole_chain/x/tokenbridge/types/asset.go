@@ -111,7 +111,7 @@ func GetWrappedCoinMeta(identifier string) (tokenChain uint16, tokenAddress [32]
 		return 0, [32]byte{}, false
 	}
 
-	tokenChain64, err := strconv.ParseInt(parts[1], 10, 16)
+	tokenChain64, err := strconv.ParseUint(parts[1], 10, 16)
 	if err != nil {
 		return 0, [32]byte{}, false
 	}
