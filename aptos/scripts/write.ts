@@ -202,4 +202,3 @@ async function testInit(contractAddress: HexString, accountFrom: AptosAccount){
   }
 
   //<:!:section_7
-
