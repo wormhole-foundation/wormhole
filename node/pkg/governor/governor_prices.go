@@ -129,15 +129,6 @@ func (gov *ChainGovernor) queryCoinGecko() {
 				te.coinGeckoPrice = big.NewFloat(price)
 				te.updatePrice()
 				te.priceTime = now
-
-				gov.logger.Info("cgov: updated price",
-					zap.String("symbol", te.symbol),
-					zap.String("coinGeckoId",
-						te.coinGeckoId),
-					zap.Stringer("price", te.price),
-					zap.Stringer("cfgPrice", te.cfgPrice),
-					zap.Stringer("coinGeckoPrice", te.coinGeckoPrice),
-				)
 			}
 
 			delete(localTokenMap, coinGeckoId)
