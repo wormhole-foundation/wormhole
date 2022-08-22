@@ -3,8 +3,8 @@ module Wormhole::Governance {
     use Wormhole::VAA::{Self};
     use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, expireGuardianSet, getCurrentGuardianSet, getCurrentGuardianSetIndex};
     use Wormhole::Structs::{Guardian, GuardianSet, createGuardian, createGuardianSet, getGuardianSetIndex};
-    use 0x1::signer::{Self};
     use 0x1::vector::{Self};
+    use 0x1::string::{Self, String};
 
     const E_WRONG_GUARDIAN_LEN: u64 = 0x0;
     const E_REMAINING_BYTES: u64    = 0x1;
@@ -17,11 +17,15 @@ module Wormhole::Governance {
         guardians:          vector<Guardian>,
     }
     
-    public fun update_guardian_set(vaa: vector<u8>){
+    public entry fun update_guardian_set(vaa: vector<u8>): (bool, String){
         let (vaa, valid, reason) = VAA::parseAndVerifyVAA(vaa);
-        assert!(valid==true, 0);
+
         let payload = VAA::destroy(vaa);
         
+        if (valid==false){
+            return (false, reason)
+        };
+
         // Verify Governance Update.
         let update = parse(payload);
 
@@ -29,7 +33,7 @@ module Wormhole::Governance {
 
         let GuardianUpdate {
             guardian_module,
-            action,
+            action, //action
             new_index,  
             guardians,
         } = update;
@@ -37,9 +41,10 @@ module Wormhole::Governance {
         updateGuardianSetIndex(new_index);
         storeGuardianSet(createGuardianSet(new_index, guardians), new_index);
         expireGuardianSet(new_index-1);
+        return (true, string::utf8(b""))
     }
 
-    public fun parse(bytes: vector<u8>): GuardianUpdate {
+    public entry fun parse(bytes: vector<u8>): GuardianUpdate {
         let guardians = vector::empty<Guardian>();
         let (guardian_module, bytes) = Deserialize::deserialize_vector(bytes, 32);
         //TODO: missing chainID?
@@ -71,7 +76,7 @@ module Wormhole::Governance {
         }
     }
     
-    public fun verify(update: &GuardianUpdate, previous: GuardianSet){
+    public entry fun verify(update: &GuardianUpdate, previous: GuardianSet){
         let (guardian_module, action) = (update.guardian_module, update.action);
         assert!(vector::length(&guardian_module) == 32, 0);
         assert!(action == 0x02, 0); 

@@ -27,4 +27,3 @@ RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 np
 
 #ADD --chown=1000:1000 devnet_deploy.* .
 #ADD --chown=1000:1000 ./contracts/*/target/wasm32-unknown-unknown/release/*.wasm .
-

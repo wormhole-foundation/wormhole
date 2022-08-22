@@ -9,6 +9,6 @@ AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "
 AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token/", rev = "devnet" }
 
 [addresses]
-Wormhole="f99fef4e49c63ccc450b4d94556e720e7e5a06ad7aa6c8b67c79adbc7c194e96"
+Wormhole="277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"
 
 
