@@ -15,4 +15,9 @@ npm ci
 npm run start
 ```
 
+To verify that the Coin Gecko query still works with the new token list, do:
+```
+go run CheckQuery.go
+```
+
 You can then commit the updated version of node/pkg/governor/tokens.go.
