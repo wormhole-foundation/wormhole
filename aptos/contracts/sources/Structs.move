@@ -2,6 +2,11 @@ module Wormhole::Structs{
     use 0x1::timestamp::{Self};
 
     friend Wormhole::State;
+    friend Wormhole::VAA;
+    friend Wormhole::Wormhole;
+
+    //friend Wormhole::Governance;
+    //friend Wormhole::Wormhole;
 
     struct Signature has key, store, copy, drop{
         signature: vector<u8>, 
