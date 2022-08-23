@@ -132,6 +132,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 optin.on_completion() == OnComplete.OptIn,
                 # Not strictly necessary since we wouldn't be seeing this unless it was us, but...
                 optin.application_id() == Global.current_application_id(),
+                optin.application_args.length() == Int(0)
             )
     
             return Seq(
@@ -459,6 +460,9 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                     
                                     # What signatures did this verifySigs check?
                                     s.store(Gtxn[i.load()].application_args[1]),
+
+                                    # Make sure we bale earlier on incorrect arguments...
+                                    MagicAssert(Len(s.load()) > Int(0)),
 
                                     # Look at the vaa and confirm those were the expected signatures we should have been checking
                                     # at this point in the process

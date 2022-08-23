@@ -981,7 +981,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             algo_seed.amount() == Int(seed_amt),
             # Check that its an opt in to us
             optin.type_enum() == TxnType.ApplicationCall,
-            optin.on_completion() == OnComplete.OptIn
+            optin.on_completion() == OnComplete.OptIn,
+            optin.application_args.length() == Int(0)
         )
 
         return Seq(
