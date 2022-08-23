@@ -472,6 +472,17 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         _completeTransfer(encodedVm, true);
     }
 
+    /*
+     * @dev Truncate a 32 byte array to a 20 byte address.
+     *      Reverts if the array contains non-0 bytes in the first 12 bytes.
+     *
+     * @param bytes32 bytes The 32 byte array to be converted.
+     */
+    function _truncateAddress(bytes32 b) internal pure returns (address) {
+        require(bytes12(b) == 0, "invalid EVM address");
+        return address(uint160(uint256(b)));
+    }
+
     // Execute a Transfer message
     function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal returns (bytes memory) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
@@ -482,7 +493,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         BridgeStructs.Transfer memory transfer = _parseTransferCommon(vm.payload);
 
         // payload 3 must be redeemed by the designated proxy contract
-        address transferRecipient = address(uint160(uint256(transfer.to)));
+        address transferRecipient = _truncateAddress(transfer.to);
         if (transfer.payloadID == 3) {
             require(msg.sender == transferRecipient, "invalid sender");
         }
@@ -494,7 +505,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         IERC20 transferToken;
         if (transfer.tokenChain == chainId()) {
-            transferToken = IERC20(address(uint160(uint256(transfer.tokenAddress))));
+            transferToken = IERC20(_truncateAddress(transfer.tokenAddress));
 
             // track outstanding token amounts
             bridgedIn(address(transferToken), transfer.amount);
