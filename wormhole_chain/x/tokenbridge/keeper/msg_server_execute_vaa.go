@@ -52,7 +52,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 	// Check if emitter is a registered chain
 	registration, found := k.GetChainRegistration(ctx, uint32(v.EmitterChain))
 	if !found {
-		return nil, types.ErrUnregisteredEmitter
+		return nil, types.ErrUnregisteredChain
 	}
 	if !bytes.Equal(v.EmitterAddress[:], registration.EmitterAddress) {
 		return nil, types.ErrUnregisteredEmitter
@@ -198,6 +198,10 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 		if types.IsWORMToken(tokenChain, tokenAddress) {
 			return nil, types.ErrNativeAssetRegistration
+		}
+
+		if _, found := k.GetChainRegistration(ctx, uint32(tokenChain)); !found {
+			return nil, types.ErrUnregisteredEmitter
 		}
 
 		identifier := types.GetWrappedCoinIdentifier(tokenChain, tokenAddress)
