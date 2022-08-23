@@ -118,6 +118,9 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		if err != nil {
 			return nil, err
 		}
+		if fee.Sign() == -1 {
+			return nil, types.ErrNegativeFee
+		}
 
 		if wrapped {
 			err = k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{
