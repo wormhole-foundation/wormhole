@@ -8,11 +8,9 @@ import (
 
 // x/wormhole module sentinel errors
 var (
-	ErrSample                         = sdkerrors.Register(ModuleName, 1100, "sample error")
 	ErrGuardianSetNotFound            = sdkerrors.Register(ModuleName, 1101, "guardian set not found")
 	ErrSignaturesInvalid              = sdkerrors.Register(ModuleName, 1102, "invalid signatures on VAA")
 	ErrNoQuorum                       = sdkerrors.Register(ModuleName, 1103, "no quorum on VAA")
-	ErrVAAUnmarshal                   = sdkerrors.Register(ModuleName, 1104, "error decoding vaa")
 	ErrUnknownGovernanceModule        = sdkerrors.Register(ModuleName, 1105, "invalid governance module")
 	ErrNoConfig                       = sdkerrors.Register(ModuleName, 1106, "config not set")
 	ErrInvalidGovernanceEmitter       = sdkerrors.Register(ModuleName, 1107, "invalid governance emitter")
