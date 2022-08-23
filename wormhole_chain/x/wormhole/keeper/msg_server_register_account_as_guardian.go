@@ -46,6 +46,12 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	// we don't allow registration of arbitrary public keys, since that would
 	// enable a DoS vector
 	latestGuardianSetIndex := k.Keeper.GetLatestGuardianSetIndex(ctx)
+	consensusGuardianSetIndex, found := k.GetConsensusGuardianSetIndex(ctx)
+
+	if found && latestGuardianSetIndex == consensusGuardianSetIndex.Index {
+		return nil, types.ErrConsensusSetNotUpdatable
+	}
+
 	latestGuardianSet, found := k.Keeper.GetGuardianSet(ctx, latestGuardianSetIndex)
 
 	if !found {
