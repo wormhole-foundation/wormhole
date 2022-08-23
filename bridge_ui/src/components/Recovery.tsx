@@ -153,7 +153,7 @@ async function algo(tx: string, enqueueSnackbar: any) {
       throw new Error("Sequence not found");
     }
     const emitterAddress = getEmitterAddressAlgorand(ALGORAND_TOKEN_BRIDGE_ID);
-    return fetchSignedVAA(CHAIN_ID_ALGORAND, emitterAddress, sequence);
+    return await fetchSignedVAA(CHAIN_ID_ALGORAND, emitterAddress, sequence);
   } catch (e) {
     return handleError(e, enqueueSnackbar);
   }
@@ -177,7 +177,7 @@ async function evm(
         ? getNFTBridgeAddressForChain(chainId)
         : getTokenBridgeAddressForChain(chainId)
     );
-    return fetchSignedVAA(chainId, emitterAddress, sequence);
+    return await fetchSignedVAA(chainId, emitterAddress, sequence);
   } catch (e) {
     return handleError(e, enqueueSnackbar);
   }
@@ -194,7 +194,7 @@ async function solana(tx: string, enqueueSnackbar: any, nft: boolean) {
     const emitterAddress = await getEmitterAddressSolana(
       nft ? SOL_NFT_BRIDGE_ADDRESS : SOL_TOKEN_BRIDGE_ADDRESS
     );
-    return fetchSignedVAA(CHAIN_ID_SOLANA, emitterAddress, sequence);
+    return await fetchSignedVAA(CHAIN_ID_SOLANA, emitterAddress, sequence);
   } catch (e) {
     return handleError(e, enqueueSnackbar);
   }
@@ -211,7 +211,7 @@ async function terra(tx: string, enqueueSnackbar: any, chainId: TerraChainId) {
     const emitterAddress = await getEmitterAddressTerra(
       getTokenBridgeAddressForChain(chainId)
     );
-    return fetchSignedVAA(chainId, emitterAddress, sequence);
+    return await fetchSignedVAA(chainId, emitterAddress, sequence);
   } catch (e) {
     return handleError(e, enqueueSnackbar);
   }
