@@ -44,6 +44,9 @@ impl ByteUtils for &[u8] {
     }
     fn get_address(&self, index: usize) -> CanonicalAddr {
         // 32 bytes are reserved for addresses, but only the last 20 bytes are taken by the actual address
+        if self.get_u128_be(index) >> 32 != 0 {
+            panic!("invalid Terra address");
+        }
         CanonicalAddr::from(&self[index + 32 - 20..index + 32])
     }
     fn get_bytes32(&self, index: usize) -> &[u8] {
