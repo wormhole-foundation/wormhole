@@ -9,7 +9,6 @@ import (
 // x/tokenbridge module sentinel errors
 var (
 	ErrUnknownGovernanceModule        = sdkerrors.Register(ModuleName, 1105, "invalid governance module")
-	ErrNoConfig                       = sdkerrors.Register(ModuleName, 1106, "config not set")
 	ErrInvalidGovernanceEmitter       = sdkerrors.Register(ModuleName, 1107, "invalid governance emitter")
 	ErrUnknownGovernanceAction        = sdkerrors.Register(ModuleName, 1108, "unknown governance action")
 	ErrGovernanceHeaderTooShort       = sdkerrors.Register(ModuleName, 1109, "governance header too short")
@@ -25,13 +24,11 @@ var (
 	ErrNativeAssetRegistration        = sdkerrors.Register(ModuleName, 1120, "cannot register native asset")
 	ErrNoDenomMetadata                = sdkerrors.Register(ModuleName, 1121, "denom does not have metadata")
 	ErrAttestWormholeToken            = sdkerrors.Register(ModuleName, 1122, "cannot attest wormhole wrapped asset")
-	ErrDenomTooLong                   = sdkerrors.Register(ModuleName, 1123, "denom is too long for attestation")
 	ErrNameTooLong                    = sdkerrors.Register(ModuleName, 1124, "name too long for attestation")
 	ErrSymbolTooLong                  = sdkerrors.Register(ModuleName, 1125, "symbol too long for attestation")
 	ErrDisplayUnitNotFound            = sdkerrors.Register(ModuleName, 1126, "display denom unit not found")
 	ErrExponentTooLarge               = sdkerrors.Register(ModuleName, 1127, "exponent of display unit must be uint8")
 	ErrInvalidToAddress               = sdkerrors.Register(ModuleName, 1128, "to address is invalid (must be 32 bytes)")
-	ErrChainIDTooLarge                = sdkerrors.Register(ModuleName, 1129, "chain id must be uint16")
 	ErrInvalidFee                     = sdkerrors.Register(ModuleName, 1130, "fee is invalid (must fit in uint256)")
 	ErrInvalidAmount                  = sdkerrors.Register(ModuleName, 1131, "amount is invalid (must fit in uint256)")
 	ErrFeeTooHigh                     = sdkerrors.Register(ModuleName, 1132, "fee must be < amount")
