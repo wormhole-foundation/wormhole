@@ -84,6 +84,10 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		chainId := binary.BigEndian.Uint16(payload[:2])
 		bridgeEmitter := payload[2:34]
 
+		if chainId == uint16(wormholeConfig.ChainId) {
+			return nil, types.ErrRegisterWormholeChain
+		}
+
 		if _, found := k.GetChainRegistration(ctx, uint32(chainId)); found {
 			return nil, types.ErrChainAlreadyRegistered
 		}
