@@ -1,6 +1,7 @@
-use cosmwasm_std::StdResult;
+use cosmwasm_std::{StdResult, CanonicalAddr};
 
 use crate::state::{GuardianAddress, GuardianSetInfo, ParsedVAA};
+use crate::byte_utils::ByteUtils;
 
 #[test]
 fn quardian_set_quorum() {
@@ -55,10 +56,10 @@ fn deserialize_round_1() -> StdResult<()> {
 
     let nonce = 5u32;
     assert_eq!(parsed.nonce, nonce, "parsed.nonce != expected");
-    
+
     let len_signers = 1u8;
     assert_eq!(parsed.len_signers, len_signers, "parsed.len_signers != expected");
-    
+
     let emitter_chain = 2u16;
     assert_eq!(parsed.emitter_chain, emitter_chain, "parsed.emitter_chain != expected");
 
@@ -112,17 +113,17 @@ fn deserialize_round_2() -> StdResult<()> {
 
     let nonce = 0u32;
     assert_eq!(parsed.nonce, nonce, "parsed.nonce != expected");
-    
+
     let len_signers = 1u8;
     assert_eq!(parsed.len_signers, len_signers, "parsed.len_signers != expected");
-    
+
     let emitter_chain = 1u16;
     assert_eq!(parsed.emitter_chain, emitter_chain, "parsed.emitter_chain != expected");
 
     let emitter_address = "000000000000000000000000000000000000000000000000000000000000ffff";
     let emitter_address = hex::decode(emitter_address).unwrap();
     assert_eq!(parsed.emitter_address, emitter_address, "parsed.emitter_address != expected");
-    
+
     let sequence = 0u64;
     assert_eq!(parsed.sequence, sequence, "parsed.sequence != expected");
 
@@ -159,4 +160,29 @@ fn deserialize_round_2() -> StdResult<()> {
     assert_eq!(parsed.hash, hash, "parsed.hash != expected");
 
     Ok(())
+}
+
+#[test]
+fn get_address_test() -> StdResult<()> {
+    let zeros_32: &[u8] = &[0;32];
+    let zeros_20: &[u8] = &[0;20];
+    assert_eq!(zeros_32.get_address(0), CanonicalAddr::from(zeros_20));
+    Ok(())
+}
+
+#[test]
+#[should_panic]
+fn get_address_test_panic() -> () {
+    // panics because of junk in first 12 bytes
+    let ones_32: &[u8] = &[1;32];
+    ones_32.get_address(0);
+}
+
+
+#[test]
+#[should_panic]
+fn get_address_test_panic_2() -> () {
+    // panics because not enough bytes (need at least 32)
+    let short_address: &[u8] = &[0;31];
+    short_address.get_address(0);
 }
