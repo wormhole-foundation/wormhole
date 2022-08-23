@@ -26,6 +26,10 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 		return nil, err
 	}
 
+	if _, found := k.GetChainRegistration(ctx, msg.ToChain); !found {
+		return nil, types.ErrInvalidTargetChain
+	}
+
 	meta, found := k.bankKeeper.GetDenomMetaData(ctx, msg.Amount.Denom)
 	if !found {
 		return nil, types.ErrNoDenomMetadata
