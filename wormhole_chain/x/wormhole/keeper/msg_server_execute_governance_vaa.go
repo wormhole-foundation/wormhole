@@ -80,9 +80,17 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		if len(payload) != 5+20*numGuardians {
 			return nil, types.ErrInvalidGovernancePayloadLength
 		}
+
+		added := make(map[string]bool)
 		var keys [][]byte
 		for i := 0; i < numGuardians; i++ {
-			keys = append(keys, payload[5+i*20:5+i*20+20])
+			k := payload[5+i*20 : 5+i*20+20]
+			sk := string(k)
+			if _, found := added[sk]; found {
+				return nil, types.ErrDuplicateGuardianAddress
+			}
+			keys = append(keys, k)
+			added[sk] = true
 		}
 
 		err := k.UpdateGuardianSet(ctx, types.GuardianSet{
