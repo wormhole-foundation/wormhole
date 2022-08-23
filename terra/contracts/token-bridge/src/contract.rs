@@ -679,12 +679,7 @@ fn handle_complete_transfer_with_payload(
     }
 }
 
-fn submit_vaa(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    data: &Binary,
-) -> StdResult<Response> {
+fn submit_vaa(deps: DepsMut, env: Env, info: MessageInfo, data: &Binary) -> StdResult<Response> {
     let state = config_read(deps.storage).load()?;
 
     let vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), data)?;
@@ -793,17 +788,31 @@ fn handle_complete_transfer(
     relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     let transfer_info = TransferInfo::deserialize(&data)?;
-    if transfer_info.token_address.as_slice()[0] == 1 && transfer_info.token_chain == CHAIN_ID {
-        handle_complete_transfer_token_native(
-            deps,
-            env,
-            info,
-            emitter_chain,
-            emitter_address,
-            transfer_type,
-            data,
-            relayer_address,
-        )
+    let marker_byte = transfer_info.token_address.as_slice()[0];
+    if transfer_info.token_chain == CHAIN_ID {
+        match marker_byte {
+            1 => handle_complete_transfer_token_native(
+                deps,
+                env,
+                info,
+                emitter_chain,
+                emitter_address,
+                transfer_type,
+                data,
+                relayer_address,
+            ),
+            0 => handle_complete_transfer_token(
+                deps,
+                env,
+                info,
+                emitter_chain,
+                emitter_address,
+                transfer_type,
+                data,
+                relayer_address,
+            ),
+            b => Err(StdError::generic_err(format!("Unknown marker byte: {}", b))),
+        }
     } else {
         handle_complete_transfer_token(
             deps,
