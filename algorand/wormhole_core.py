@@ -127,14 +127,14 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # Check that we're paying it
                 algo_seed.type_enum() == TxnType.Payment,
                 algo_seed.amount() == Int(seed_amt),
+                algo_seed.receiver() == optin.sender(),
                 # Check that its an opt in to us
                 optin.type_enum() == TxnType.ApplicationCall,
                 optin.on_completion() == OnComplete.OptIn,
                 # Not strictly necessary since we wouldn't be seeing this unless it was us, but...
                 optin.application_id() == Global.current_application_id(),
-
-                algo_seed.receiver() == optin.sender(),
-                optin.rekey_to() == Global.current_application_address()
+                optin.rekey_to() == Global.current_application_address(),
+                optin.application_args.length() == Int(0)
             )
     
             return Seq(
@@ -459,6 +459,9 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                     
                                     # What signatures did this verifySigs check?
                                     s.store(Gtxn[i.load()].application_args[1]),
+
+                                    # Make sure we bail earlier on incorrect arguments...
+                                    MagicAssert(Len(s.load()) > Int(0)),
 
                                     # Look at the vaa and confirm those were the expected signatures we should have been checking
                                     # at this point in the process
