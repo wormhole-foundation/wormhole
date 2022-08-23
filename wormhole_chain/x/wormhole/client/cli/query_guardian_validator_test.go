@@ -32,7 +32,6 @@ func networkWithGuardianValidatorObjects(t *testing.T, n int) (*network.Network,
 			GuardianKey:   []byte(strconv.Itoa(i)),
 			ValidatorAddr: []byte(strconv.Itoa(i)),
 		}
-		nullify.Fill(&guardianValidator)
 		state.GuardianValidatorList = append(state.GuardianValidatorList, guardianValidator)
 	}
 	buf, err := cfg.Codec.MarshalJSON(&state)
