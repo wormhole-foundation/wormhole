@@ -615,10 +615,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --solanaContract")
 		}
 		if *solanaWsRPC == "" {
-			logger.Fatal("Please specify --solanaWsUrl")
+			logger.Fatal("Please specify --solanaWS")
 		}
 		if *solanaRPC == "" {
-			logger.Fatal("Please specify --solanaUrl")
+			logger.Fatal("Please specify --solanaRPC")
 		}
 
 		if *terraWS == "" {
