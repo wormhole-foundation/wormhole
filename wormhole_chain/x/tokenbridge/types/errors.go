@@ -39,4 +39,5 @@ var (
 	ErrAssetMetaRollback              = sdkerrors.Register(ModuleName, 1134, "asset meta must have a higher sequence than the last update")
 	ErrNegativeFee                    = sdkerrors.Register(ModuleName, 1135, "fee cannot be negative")
 	ErrRegisterWormholeChain          = sdkerrors.Register(ModuleName, 1136, "cannot register an emitter for wormhole-chain on wormhole-chain")
+	ErrUnregisteredChain              = sdkerrors.Register(ModuleName, 1138, "chain is not registered")
 )
