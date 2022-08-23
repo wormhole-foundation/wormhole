@@ -984,14 +984,14 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
             # Check that we're paying it
             algo_seed.type_enum() == TxnType.Payment,
             algo_seed.amount() == Int(seed_amt),
+            algo_seed.receiver() == optin.sender(),
+
             # Check that its an opt in to us
             optin.type_enum() == TxnType.ApplicationCall,
             optin.on_completion() == OnComplete.OptIn,
-
             optin.application_id() == Global.current_application_id(),
-
-            algo_seed.receiver() == optin.sender(),
-            optin.rekey_to() == Global.current_application_address()
+            optin.rekey_to() == Global.current_application_address(),
+            optin.application_args.length() == Int(0)
         )
 
         return Seq(
