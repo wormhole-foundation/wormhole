@@ -9,6 +9,7 @@ import (
 	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/holiman/uint256"
 )
 
@@ -30,11 +31,18 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 		return nil, types.ErrNoDenomMetadata
 	}
 
-	// Collect coins in module account
-	// TODO: why not burn?
-	err = k.bankKeeper.SendCoins(ctx, userAcc, k.accountKeeper.GetModuleAddress(types.ModuleName), sdk.Coins{msg.Amount})
-	if err != nil {
-		return nil, err
+	moduleAddress := k.accountKeeper.GetModuleAddress(types.ModuleName)
+	_, _, wrapped := types.GetWrappedCoinMeta(msg.Amount.Denom)
+	if wrapped {
+		// We previously minted these coins so just burn them now.
+		if err := k.bankKeeper.BurnCoins(ctx, types.ModuleName, sdk.Coins{msg.Amount}); err != nil {
+			return nil, sdkerrors.Wrap(err, "failed to burn wrapped coins")
+		}
+	} else {
+		// Collect coins in the module account.
+		if err := k.bankKeeper.SendCoins(ctx, userAcc, moduleAddress, sdk.Coins{msg.Amount}); err != nil {
+			return nil, sdkerrors.Wrap(err, "failed to send coins to module account")
+		}
 	}
 
 	// Parse fees
@@ -107,7 +115,6 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 
 	// Post message
-	moduleAddress := k.accountKeeper.GetModuleAddress(types.ModuleName)
 	emitterAddress := whtypes.EmitterAddressFromAccAddress(moduleAddress)
 	err = k.wormholeKeeper.PostMessage(ctx, emitterAddress, 0, buf.Bytes())
 	if err != nil {
