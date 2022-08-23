@@ -29,4 +29,5 @@ var (
 	ErrGuardianSetExpired             = sdkerrors.Register(ModuleName, 1118, "guardian set expired")
 	ErrNewGuardianSetHasExpiry        = sdkerrors.Register(ModuleName, 1119, "new guardian set should not have expiry time")
 	ErrDuplicateGuardianAddress       = sdkerrors.Register(ModuleName, 1120, "guardian set has duplicate addresses")
+	ErrSignerAlreadyRegistered        = sdkerrors.Register(ModuleName, 1121, "transaction signer already registered as a guardian validator")
 )

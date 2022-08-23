@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -53,6 +54,13 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 
 	if !latestGuardianSet.ContainsKey(guardianKeyAddr) {
 		return nil, types.ErrGuardianNotFound
+	}
+
+	// Check if the tx signer was already registered as a guardian validator.
+	for _, gv := range k.GetAllGuardianValidator(ctx) {
+		if bytes.Equal(gv.ValidatorAddr, signer) {
+			return nil, types.ErrSignerAlreadyRegistered
+		}
 	}
 
 	// register validator in store for guardian
