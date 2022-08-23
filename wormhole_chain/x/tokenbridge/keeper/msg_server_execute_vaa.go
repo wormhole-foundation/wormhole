@@ -200,6 +200,10 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			return nil, types.ErrNativeAssetRegistration
 		}
 
+		if _, found := k.GetChainRegistration(ctx, uint32(tokenChain)); !found {
+			return nil, types.ErrUnregisteredEmitter
+		}
+
 		identifier := types.GetWrappedCoinIdentifier(tokenChain, tokenAddress)
 		rollBackProtection, found := k.GetCoinMetaRollbackProtection(ctx, identifier)
 		if found && rollBackProtection.LastUpdateSequence >= v.Sequence {
