@@ -92,17 +92,40 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 			// Let's prevent our peer from having too many
 			// connections by attaching a connection manager.
 			libp2p.ConnectionManager(connmgr.NewConnManager(
-				100,         // Lowwater
+				100,         // LowWater
 				400,         // HighWater,
 				time.Minute, // GracePeriod
 			)),
 
 			// Let this host use the DHT to find other hosts
 			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+				logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
+				bootstrappers := make([]peer.AddrInfo, 0)
+				for _, addr := range strings.Split(bootstrapPeers, ",") {
+					if addr == "" {
+						continue
+					}
+					ma, err := multiaddr.NewMultiaddr(addr)
+					if err != nil {
+						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+						continue
+					}
+					pi, err := peer.AddrInfoFromP2pAddr(ma)
+					if err != nil {
+						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+						continue
+					}
+					if pi.ID == h.ID() {
+						logger.Info("We're a bootstrap node")
+						continue
+					}
+					bootstrappers = append(bootstrappers, *pi)
+				}
 				// TODO(leo): Persistent data store (i.e. address book)
 				idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
 					// This intentionally makes us incompatible with the global IPFS DHT
 					dht.ProtocolPrefix(protocol.ID("/"+networkID)),
+					dht.BootstrapPeers(bootstrappers...),
 				)
 				return idht, err
 			}),
@@ -117,8 +140,6 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 			logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
 			rootCtxCancel()
 		}()
-
-		logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
@@ -136,49 +157,6 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 		sub, err := th.Subscribe()
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
-		}
-
-		// Add our own bootstrap nodes
-
-		// Count number of successful connection attempts. If we fail to connect to any bootstrap peer, kill
-		// the service and have supervisor retry it.
-		successes := 0
-		// Are we a bootstrap node? If so, it's okay to not have any peers.
-		bootstrapNode := false
-
-		for _, addr := range strings.Split(bootstrapPeers, ",") {
-			if addr == "" {
-				continue
-			}
-			ma, err := multiaddr.NewMultiaddr(addr)
-			if err != nil {
-				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-				continue
-			}
-			pi, err := peer.AddrInfoFromP2pAddr(ma)
-			if err != nil {
-				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-				continue
-			}
-
-			if pi.ID == h.ID() {
-				logger.Info("We're a bootstrap node")
-				bootstrapNode = true
-				continue
-			}
-
-			if err = h.Connect(ctx, *pi); err != nil {
-				logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
-			} else {
-				successes += 1
-			}
-		}
-
-		// TODO: continually reconnect to bootstrap nodes?
-		if successes == 0 && !bootstrapNode {
-			return fmt.Errorf("failed to connect to any bootstrap peer")
-		} else {
-			logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
 		}
 
 		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
