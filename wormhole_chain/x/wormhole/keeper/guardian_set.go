@@ -51,11 +51,7 @@ func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.Guardian
 		return err
 	}
 
-	err = k.TrySwitchToNewConsensusGuardianSet(ctx)
-	if err != nil {
-		return err
-	}
-	return err
+	return k.TrySwitchToNewConsensusGuardianSet(ctx)
 }
 
 func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
