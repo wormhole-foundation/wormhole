@@ -1,9 +1,10 @@
 package governor
 
 import (
+	"testing"
+
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestTokenListSize(t *testing.T) {
