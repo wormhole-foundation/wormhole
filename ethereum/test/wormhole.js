@@ -7,7 +7,6 @@ const Wormhole = artifacts.require("Wormhole");
 const MockImplementation = artifacts.require("MockImplementation");
 const Implementation = artifacts.require("Implementation");
 const MockBatchedVAASender = artifacts.require("MockBatchedVAASender");
-const MockIntegration = artifacts.require("MockBatchMessageIntegration");
 
 const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
@@ -136,8 +135,16 @@ contract("Wormhole", function () {
 
         await mockIntegration.methods.sendMultipleMessages(
             "0x1",
-            "0x1",
-            32
+            [
+                "0x1",
+                "0x2",
+                "0x3"
+            ],
+            [
+                32,
+                32,
+                32
+            ]
         ).send({
             value: 0, // fees are set to 0 initially
             from: accounts[0]
@@ -183,8 +190,16 @@ contract("Wormhole", function () {
 
         await mockIntegration.methods.sendMultipleMessages(
             "0x" + nonceHex,
-            "0x1",
-            32
+            [
+                "0x1",
+                "0x2",
+                "0x3"
+            ],
+            [
+                32,
+                32,
+                32
+            ]
         ).send({
             value: 0, // fees are set to 0 initially
             from: accounts[0]
@@ -1199,27 +1214,27 @@ contract("Wormhole VM2 & VM3s", function () {
             index += 2;
 
             // timestamp
-            assert.equal(parseInt(parsedObservation.substring(index, index+8), 16), testObservation.timestamp);
+            assert.equal(parseInt(parsedObservation.substring(index, index + 8), 16), testObservation.timestamp);
             index += 8;
 
             // nonce
-            assert.equal(parseInt(parsedObservation.substring(index, index+8), 16), testObservation.nonce);
+            assert.equal(parseInt(parsedObservation.substring(index, index + 8), 16), testObservation.nonce);
             index += 8;
 
             // emitterChainId
-            assert.equal(parseInt(parsedObservation.substring(index, index+4), 16), testObservation.emitterChainId);
+            assert.equal(parseInt(parsedObservation.substring(index, index + 4), 16), testObservation.emitterChainId);
             index += 4;
 
             // emitterAddress
-            assert.equal(parsedObservation.substring(index, index+64), testObservation.emitterAddress.substring(2));
+            assert.equal(parsedObservation.substring(index, index + 64), testObservation.emitterAddress.substring(2));
             index += 64;
 
             // sequence
-            assert.equal(parseInt(parsedObservation.substring(index, index+16), 16), testObservation.sequence);
+            assert.equal(parseInt(parsedObservation.substring(index, index + 16), 16), testObservation.sequence);
             index += 16;
 
             // consistencyLevel
-            assert.equal(parseInt(parsedObservation.substring(index, index+2), 16), testObservation.consistencyLevel);
+            assert.equal(parseInt(parsedObservation.substring(index, index + 2), 16), testObservation.consistencyLevel);
             index += 2;
 
             // payload
@@ -1233,7 +1248,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const accounts = await web3.eth.getAccounts();
 
         // deploy the mock integration contract
-        const integrationContract = await deployMockIntegrationContract(accounts[0]);
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
 
         // simulate signing the VM2
         const vm2 = await signAndEncodeVM2(
@@ -1251,7 +1266,7 @@ contract("Wormhole VM2 & VM3s", function () {
         // properly. parseAndVerifyVM2 modifies state, so the valid status (and parsed VM2) is not returned
         // when calling from JS.
         try {
-            await integrationContract.methods.parseAndVerifyVM2("0x" + vm2).send({
+            await mockIntegration.methods.parseAndVerifyVM2("0x" + vm2).send({
                 value: 0,
                 from: accounts[0],
                 gasLimit: 2000000
@@ -1274,7 +1289,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const accounts = await web3.eth.getAccounts();
 
         // deploy the mock integration contract
-        const integrationContract = await deployMockIntegrationContract(accounts[0]);
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
 
         // simulate signing the VM2
         const vm2 = await signAndEncodeVM2(
@@ -1289,7 +1304,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const parsedVM2 = await initialized.methods.parseVM2("0x" + vm2).call();
 
         // parse and verify the batch of observations
-        await integrationContract.methods.parseAndVerifyVM2("0x" + vm2).send({
+        await mockIntegration.methods.parseAndVerifyVM2("0x" + vm2).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -1318,7 +1333,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const accounts = await web3.eth.getAccounts();
 
         // deploy the mock integration contract
-        const integrationContract = await deployMockIntegrationContract(accounts[0]);
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
 
         // simulate signing the VM2
         const vm2 = await signAndEncodeVM2(
@@ -1333,7 +1348,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const parsedVM2 = await initialized.methods.parseVM2("0x" + vm2).call();
 
         // parse and verify the batch of observations
-        await integrationContract.methods.parseAndVerifyVM2("0x" + vm2).send({
+        await mockIntegration.methods.parseAndVerifyVM2("0x" + vm2).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -1352,7 +1367,8 @@ contract("Wormhole VM2 & VM3s", function () {
                 if (i == 0) {
                     assert.ok(hashIsCached);
                 } else {
-                    assert.ok(!hashIsCached);                }
+                    assert.ok(!hashIsCached);
+                }
             }
 
             // clear the batch cache after completing the first loop
@@ -1430,8 +1446,8 @@ contract("Wormhole VM2 & VM3s", function () {
         // try to verify the modified VM2
         failed = false;
         try {
-            const integrationContract = await deployMockIntegrationContract(accounts[0]);
-            await integrationContract.methods.parseAndVerifyVM2("0x" + endingVM2).send({
+            const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
+            await mockIntegration.methods.parseAndVerifyVM2("0x" + endingVM2).send({
                 value: 0,
                 from: accounts[0],
                 gasLimit: 2000000
@@ -1505,8 +1521,8 @@ contract("Wormhole VM2 & VM3s", function () {
         // try to verify the modified VM2
         failed = false;
         try {
-            const integrationContract = await deployMockIntegrationContract(accounts[0]);
-            await integrationContract.methods.parseAndVerifyVM2("0x" + endingVM2).send({
+            const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
+            await mockIntegration.methods.parseAndVerifyVM2("0x" + endingVM2).send({
                 value: 0,
                 from: accounts[0],
                 gasLimit: 2000000
@@ -1573,8 +1589,8 @@ contract("Wormhole VM2 & VM3s", function () {
         // try to verify the modified VM2
         failed = false;
         try {
-            const integrationContract = await deployMockIntegrationContract(accounts[0]);
-            await integrationContract.methods.parseAndVerifyVM2("0x" + endingVM2).send({
+            const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
+            await mockIntegration.methods.parseAndVerifyVM2("0x" + endingVM2).send({
                 value: 0,
                 from: accounts[0],
                 gasLimit: 2000000
@@ -1595,7 +1611,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const accounts = await web3.eth.getAccounts();
 
         // deploy the mock integration contract
-        const integrationContract = await deployMockIntegrationContract(accounts[0]);
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
 
         // simulate signing the VM2
         const vm2 = await signAndEncodeVM2(
@@ -1609,7 +1625,7 @@ contract("Wormhole VM2 & VM3s", function () {
         // Parse and verify the batch header so the observation hashes are stored
         // and VM3s can be verified.
         const parsedVM2 = await initialized.methods.parseVM2("0x" + vm2).call();
-        await integrationContract.methods.parseAndVerifyVM2("0x" + vm2).send({
+        await mockIntegration.methods.parseAndVerifyVM2("0x" + vm2).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -1654,7 +1670,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const accounts = await web3.eth.getAccounts();
 
         // deploy the mock integration contract
-        const integrationContract = await deployMockIntegrationContract(accounts[0]);
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
 
         // simulate signing the VM2
         const vm2 = await signAndEncodeVM2(
@@ -1668,7 +1684,7 @@ contract("Wormhole VM2 & VM3s", function () {
         // Parse and verify the batch header so the observation hashes are stored
         // and VM3s can be verified.
         const parsedVM2 = await initialized.methods.parseVM2("0x" + vm2).call();
-        await integrationContract.methods.parseAndVerifyVM2("0x" + vm2).send({
+        await mockIntegration.methods.parseAndVerifyVM2("0x" + vm2).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -1694,7 +1710,7 @@ contract("Wormhole VM2 & VM3s", function () {
         });
 
         const result = await initialized.methods.parseAndVerifyVAA(
-            parsedVM2.observations[parsedVM2.length-1]
+            parsedVM2.observations[parsedVM2.length - 1]
         ).call();
 
         assert.equal(result.reason, "Could not find hash in cache");
@@ -1706,7 +1722,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const accounts = await web3.eth.getAccounts();
 
         // deploy the mock integration contract
-        const integrationContract = await deployMockIntegrationContract(accounts[0]);
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
 
         // simulate signing the VM2
         const vm2 = await signAndEncodeVM2(
@@ -1721,7 +1737,7 @@ contract("Wormhole VM2 & VM3s", function () {
         // and then parse and verify each VM3 separately. It stores each VM3 payload
         // in an array to verify that the VM3 was parsed correctly.
         try {
-            await integrationContract.methods.consumeBatchVAA("0x" + vm2).send({
+            await mockIntegration.methods.consumeBatchVAA("0x" + vm2).send({
                 value: 0,
                 from: accounts[0],
                 gasLimit: 2000000
@@ -1731,19 +1747,19 @@ contract("Wormhole VM2 & VM3s", function () {
             assert.fail("consumeBatchVAA failed");
         }
 
-        // fetch the payloads that are stored in the mock integration contract
-        const payloadResults = await integrationContract.methods.getPayloads().call();
-
         for (let i = 0; i < TEST_OBSERVATIONS.length; i++) {
-            // validate payloads
-            assert.equal(payloadResults[i], TEST_OBSERVATIONS[i].payload);
-
             // confirm that the batch cache was cleared
             const observationHash = doubleKeccak256(encodeObservation(TEST_OBSERVATIONS[i]));
 
             // query the contract using the hash
             const hashIsCached = await initialized.methods.verifiedHashCached(observationHash).call();
             assert.ok(!hashIsCached);
+
+            // fetch the payload that is stored in the mock integration contract
+            const queriedPayload = await mockIntegration.methods.getPayload(observationHash).call();
+
+            // validate payloads
+            assert.equal(queriedPayload, TEST_OBSERVATIONS[i].payload);
         }
     })
 
@@ -1794,7 +1810,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const signers = [testSigner1PK];
 
         // deploy the mock integration contract
-        const integrationContract = await deployMockIntegrationContract(accounts[0]);
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
 
         // simulate signing the VM2
         const vm2 = await signAndEncodeVM2(
@@ -1819,7 +1835,7 @@ contract("Wormhole VM2 & VM3s", function () {
         // Parse and verify the batch header so the observation hashes are stored
         // and VM3s can be verified.
         const parsedVM2 = await initialized.methods.parseVM2("0x" + vm2).call();
-        await integrationContract.methods.parseAndVerifyVM2("0x" + vm2).send({
+        await mockIntegration.methods.parseAndVerifyVM2("0x" + vm2).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -1875,8 +1891,8 @@ function copySignaturesToVM2(fromVM, toVM) {
     let index = 10;
 
     // grab the number of signatures for each VM
-    sigCountFrom = parseInt(fromVM.slice(index, index+2), 16);
-    sigCountTo = parseInt(toVM.slice(index, index+2), 16);
+    sigCountFrom = parseInt(fromVM.slice(index, index + 2), 16);
+    sigCountTo = parseInt(toVM.slice(index, index + 2), 16);
     index += 2
 
     // grab the signatures for the startVM (each signature is 66 bytes (132 string representation))
@@ -1885,17 +1901,6 @@ function copySignaturesToVM2(fromVM, toVM) {
     // create a new VAA with the signatures from startVM
     const resultVM = toVM.slice(0, index) + fromVMSigs + toVM.slice(index + (132 * sigCountTo));
     return resultVM;
-}
-
-async function deployMockIntegrationContract(account) {
-    // deploy and intialize mock integration contract
-    const mockIntegrationAddress = (await MockIntegration.new()).address;
-    const integrationContract = new web3.eth.Contract(MockIntegration.abi, mockIntegrationAddress);
-    await integrationContract.methods.setup(Wormhole.address).send({
-        value: 0,
-        from: account
-    });
-    return integrationContract;
 }
 
 function doubleKeccak256(bytes) {
