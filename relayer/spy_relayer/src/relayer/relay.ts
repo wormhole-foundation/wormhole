@@ -17,7 +17,7 @@ import { ChainConfigInfo, getRelayerEnvironment } from "../configureEnv";
 import { RelayResult, Status } from "../helpers/redisHelper";
 import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
-import { _undef } from "../xRaydium/scripts/lib/utilities";
+import { _undef } from "../xRaydium/scripts/lib";
 
 const logger = getLogger();
 

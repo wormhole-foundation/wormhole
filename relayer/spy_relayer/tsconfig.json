@@ -9,7 +9,7 @@
     "allowJs": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
+    "noFallthroughCasesInSwitch": false,
     "resolveJsonModule": true,
     "isolatedModules": false,
     "downlevelIteration": true,

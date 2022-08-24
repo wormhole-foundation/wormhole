@@ -18,23 +18,15 @@ import {
   Signer,
   ethers,
 } from "ethers";
-//"/Users/leo/Developer/wormhole/relayer/spy_relayer/src/xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import { CeloProvider, CeloWallet } from "@celo-tools/celo-ethers-wrapper";
-import fs from "fs";
 import * as types from "../xRaydium/solana-proxy/generated_client/types";
 import xRaydium_abi from "../utils/xRaydium_abi.json";
-import * as lib from "../xRaydium/scripts/lib/lib";
-import * as utilities from "../xRaydium/scripts/lib/utilities";
+import * as xApp from "../xRaydium/scripts/lib";
 import { parseTransferPayload } from "../utils/wormhole";
 import { redeemResponseEVM } from "../xRaydium/scripts/relay";
-import { getDevNetCtx } from "../xRaydium/scripts/lib/devnet_ctx";
-
-//import ethers from "hardhat";
-//import {ethers} from "../xRaydium/node_modules/hardhat/internal/lib/hardhat-lib"
-//xRaydium/node_modules/hardhat/internal/lib/hardhat-lib
 
 export function newProvider(
   url: string,
@@ -57,7 +49,7 @@ export async function chainConfigToEvmProviderAndSigner(
   walletPrivateKey?: string
 ): Promise<{ provider: providers.Provider; signer: Signer }> {
   if (!walletPrivateKey) {
-    walletPrivateKey = utilities._undef(
+    walletPrivateKey = xApp._undef(
       chainConfigInfo.walletPrivateKey,
       "expected chainConfigInfo to have associated private key"
     )[0];
@@ -120,7 +112,7 @@ export async function relayEVM(
   //@ts-ignore
   let transferPayload = parseTransferPayload(
     Buffer.from(parsed.payload)
-  ) as lib.TransferPayloadWithData;
+  ) as xApp.TransferPayloadWithData;
   console.log("transferPayload: ", transferPayload);
   console.log("relayEVM fromAddress: ", transferPayload.originAddress);
   transferPayload["payload3"] = Buffer.from(parsed["payload"].slice(133));
@@ -131,14 +123,15 @@ export async function relayEVM(
   //const contract = await XRaydiumBridge.attach("0xD768Ffbc3904F89f53Af2A640e3b6C640D85D6B9");
 
   logger.debug("Before load addrs");
-  const addrs = await utilities.loadAddrs();
+  const addrs = await xApp.loadAddrs();
   logger.debug("After load addrs");
-  const ctx: lib.Context = getDevNetCtx(
+  const ctx: xApp.Context = xApp.getDevNetCtx(
     signer,
     chainConfigInfo.chainId,
-    walletPrivateKey
+    walletPrivateKey,
+    addrs.fuji.XRaydiumBridge
   );
-  await redeemResponseEVM(ctx.evm, signedVaaArray, addrs.fuji.XRaydiumBridge);
+  await redeemResponseEVM(ctx.evm, signedVaaArray);
 
   logger.info("=============done redeem responses to EVM!!!...!!!");
 
