@@ -1,8 +1,9 @@
 package governor
 
 import (
-	"github.com/certusone/wormhole/node/pkg/common"
 	"testing"
+
+	"github.com/certusone/wormhole/node/pkg/common"
 
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/stretchr/testify/assert"
