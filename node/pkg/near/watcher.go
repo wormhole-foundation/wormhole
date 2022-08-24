@@ -351,7 +351,10 @@ func (e *Watcher) inspectBody(logger *zap.Logger, block uint64, body gjson.Resul
 
 				if round <= e.final_round {
 					logger.Info("parseStatus direct", zap.Uint64("block.height", round), zap.Uint64("e.final_round", e.final_round))
-					e.parseStatus(logger, t, hash.String(), ts)
+					err := e.parseStatus(logger, t, hash.String(), ts)
+					if err != nil {
+						return err
+					}
 				} else {
 					logger.Info("pushing pending",
 						zap.Uint64("block.height", round),
@@ -444,7 +447,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 						delete(e.pending, key)
 
 						if err != nil {
-							logger.Error(fmt.Sprintf("inspectStatus", err.Error()))
+							logger.Error("inspectStatus", zap.Error(err))
 						}
 					}
 				}
