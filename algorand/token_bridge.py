@@ -1043,3 +1043,14 @@ def get_token_bridge(genTeal, approve_name, clear_name, client: AlgodClient, see
     CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, client, clear_token_bridge(), clear_name, devMode)
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM
+
+def cli(output_approval, output_clear):
+    seed_amt = 1002000
+    tmpl_sig = TmplSig("sig")
+
+    client = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
+
+    approval, clear = get_token_bridge(True, output_approval, output_clear, client, seed_amt, tmpl_sig, False)
+
+if __name__ == "__main__":
+    cli(sys.argv[1], sys.argv[2])
