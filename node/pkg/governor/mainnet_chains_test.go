@@ -1,6 +1,7 @@
 package governor
 
 import (
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/stretchr/testify/assert"
 
@@ -19,11 +20,18 @@ func TestChainListSize(t *testing.T) {
 func TestChainDailyLimitRange(t *testing.T) {
 	chainConfigEntries := chainList()
 
+	/* These are not hard limits, we can adjust them as we see fit,
+	   but setting something sane such that if we accidentially go
+	   too high or too low that the unit tests will make sure it's
+	   intentional */
+	min_daily_limit := uint64(0)
+	max_daily_limit := uint64(50000001)
+
 	/* Assuming that a governed chains should always be more than zero and less than 50,000,001 */
 	for _, chainConfigEntry := range chainConfigEntries {
 		t.Run(chainConfigEntry.emitterChainID.String(), func(t *testing.T) {
-			assert.Greater(t, chainConfigEntry.dailyLimit, uint64(0))
-			assert.Less(t, chainConfigEntry.dailyLimit, uint64(50000001))
+			assert.Greater(t, chainConfigEntry.dailyLimit, uint64(min_daily_limit))
+			assert.Less(t, chainConfigEntry.dailyLimit, uint64(max_daily_limit))
 		})
 	}
 }
@@ -31,20 +39,15 @@ func TestChainDailyLimitRange(t *testing.T) {
 func TestChainListChainPresent(t *testing.T) {
 	chainConfigEntries := chainList()
 
-	chains := []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 18}
-
-	/* Assume that all chains will have governed tokens */
-	for _, chain := range chains {
-		t.Run(vaa.ChainID(chain).String(), func(t *testing.T) {
-			found := false
-			for _, chainConfigEntry := range chainConfigEntries {
-				if chainConfigEntry.emitterChainID == vaa.ChainID(chain) {
-					found = true
-					break
-				}
-			}
-
-			assert.Equal(t, found, true)
-		})
+	entries := make([]vaa.ChainID, 0, len(chainConfigEntries))
+	for _, e := range chainConfigEntries {
+		entries = append(entries, e.emitterChainID)
 	}
+
+	emitters := make([]vaa.ChainID, 0, len(common.KnownTokenbridgeEmitters))
+	for e := range common.KnownTokenbridgeEmitters {
+		emitters = append(emitters, e)
+	}
+
+	assert.ElementsMatch(t, entries, emitters)
 }

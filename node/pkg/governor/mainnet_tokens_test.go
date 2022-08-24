@@ -1,6 +1,7 @@
 package governor
 
 import (
+	"github.com/certusone/wormhole/node/pkg/common"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/vaa"
@@ -45,14 +46,12 @@ func TestTokenListAddressSize(t *testing.T) {
 func TestTokenListChainTokensPresent(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
-	chains := []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 18}
-
 	/* Assume that all chains will have governed tokens */
-	for _, chain := range chains {
+	for chain, _ := range common.KnownTokenbridgeEmitters {
 		t.Run(vaa.ChainID(chain).String(), func(t *testing.T) {
 			found := false
 			for _, tokenConfigEntry := range tokenConfigEntries {
-				if tokenConfigEntry.chain == chain {
+				if tokenConfigEntry.chain == uint16(chain) {
 					found = true
 					break
 				}
@@ -67,15 +66,10 @@ func TestTokenListTokenAddressDuplicates(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
 	/* Assume that all governed token entry addresses won't include duplicates */
-	for x, tokenConfigEntry1 := range tokenConfigEntries {
-		for y, tokenConfigEntry2 := range tokenConfigEntries {
-			if x == y {
-				// don't flag duplicates at the same index
-				continue
-			}
-
-			assert.NotEqual(t, tokenConfigEntry1.addr, tokenConfigEntry2.addr)
-		}
+	addrs := make(map[string]bool)
+	for _, e := range tokenConfigEntries {
+		assert.False(t, addrs[e.addr])
+		addrs[e.addr] = true
 	}
 }
 
@@ -84,9 +78,8 @@ func TestTokenListDecimalRange(t *testing.T) {
 
 	/* Assume that all governed token entries will have decimals of 6 or 8 */
 	for _, tokenConfigEntry := range tokenConfigEntries {
-		assert.Less(t, tokenConfigEntry.decimals, int64(9))
-		assert.NotEqual(t, tokenConfigEntry.decimals, int64(7))
-		assert.Greater(t, tokenConfigEntry.decimals, int64(5))
+		d := tokenConfigEntry.decimals
+		assert.Condition(t, func() bool { return d == 6 || d == 8 })
 	}
 }
 
