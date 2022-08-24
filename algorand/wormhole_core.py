@@ -333,15 +333,20 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             b = ScratchVar()
             byte_offset = ScratchVar()
 
+            vaa = Txn.application_args[1]
+
+            def vaa_get_version(vaa: Expr) -> Expr:
+                return Btoi(Extract(vaa, Int(0), Int(1)))
+
             return Seq(
                 # VM only is version 1
-                MagicAssert(Btoi(Extract(Txn.application_args[1], Int(0), Int(1))) == Int(1)),
+                MagicAssert(vaa_get_version(vaa) == Int(1)),
 
-                off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), # The offset of the emitter
+                off.store(Btoi(Extract(vaa, Int(5), Int(1))) * Int(66) + Int(14)), # The offset of the emitter
 
                 # emitter is chain/contract-address
-                emitter.store(Extract(Txn.application_args[1], off.load(), Int(34))),
-                sequence.store(Btoi(Extract(Txn.application_args[1], off.load() + Int(34), Int(8)))),
+                emitter.store(Extract(vaa, off.load(), Int(34))),
+                sequence.store(Btoi(Extract(vaa, off.load() + Int(34), Int(8)))),
 
                 # They passed us the correct account?  In this case, byte_offset points at the whole block
                 byte_offset.store(sequence.load() / Int(max_bits)),

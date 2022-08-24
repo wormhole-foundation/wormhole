@@ -123,7 +123,7 @@ class TmplSig:
                 Assert(Txn.on_completion() == OnComplete.OptIn),
                 Assert(Txn.application_id() == Tmpl.Int("TMPL_I_APP_ID")),
                 # NOTE: This could be calculated instead of passed as a parameter
-                Assert(Txn.rekey_to() == Tmpl.Addr("TMPL_A_APP_ADDRESS")),
+                Assert(Txn.rekey_to() == Tmpl.Bytes("TMPL_BN_APP_ADDRESS")),
 
                 Assert(Txn.fee() == Int(0)),
                 Assert(Txn.close_remainder_to() == Global.zero_address()),
@@ -136,8 +136,6 @@ class TmplSig:
 
 if __name__ == '__main__':
     core = TmplSig("sig")
-#    client =  AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "http://localhost:4001")
-#    pprint.pprint(client.compile( core.get_sig_tmpl()))
 
     if len(sys.argv) == 1:
         file_name = "sig.tmpl.teal"
@@ -146,4 +144,3 @@ if __name__ == '__main__':
     
     with open(file_name, "w") as f:
         f.write(core.get_sig_tmpl())
-
