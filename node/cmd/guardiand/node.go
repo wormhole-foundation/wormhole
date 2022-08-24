@@ -3,7 +3,6 @@ package guardiand
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
@@ -833,24 +833,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest)
 	}
-
-	// Multiplex observation requests to the appropriate chain
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case req := <-obsvReqC:
-				if channel, ok := chainObsvReqC[vaa.ChainID(req.ChainId)]; ok {
-					channel <- req
-				} else {
-					logger.Error("unknown chain ID for reobservation request",
-						zap.Uint32("chain_id", req.ChainId),
-						zap.String("tx_hash", hex.EncodeToString(req.TxHash)))
-				}
-			}
-		}
-	}()
+	go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
 	var notifier *discord.DiscordNotifier
 	if *discordToken != "" {
