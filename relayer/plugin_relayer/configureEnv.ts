@@ -4,6 +4,7 @@ import {
   isTerraChain,
   nativeToHexString,
 } from "@certusone/wormhole-sdk";
+import { CommonEnvironment } from "plugin_interface";
 import { getLogger } from "./helpers/logHelper";
 
 export type SupportedToken = {
@@ -11,22 +12,6 @@ export type SupportedToken = {
   address: string;
 };
 
-export type CommonEnvironment = {
-  logLevel: string;
-  promPort: number;
-  readinessPort?: number;
-  logDir?: string;
-  redisHost: string;
-  redisPort: number;
-  pluginUris: string[] // todo: wire up
-  plugins: {[key: string]: any}
-  envType: EnvTypes | string
-};
-
-export enum EnvTypes {
-  MAIN_NET,
-  DEV_NET,
-}
 
 let loggingEnv: CommonEnvironment | undefined = undefined;
 

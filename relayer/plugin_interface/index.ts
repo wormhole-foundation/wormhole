@@ -1,4 +1,25 @@
-import { PromHelper } from "./helpers/promHelpers";
+import { Metric } from "prom-client";
+
+export type CommonEnvironment = {
+  logLevel: string;
+  promPort: number;
+  readinessPort?: number;
+  logDir?: string;
+  redisHost: string;
+  redisPort: number;
+  plugins: [
+    {
+      uri: string;
+      overrides: { [key: string]: any };
+    }
+  ];
+  envType: EnvTypes | string;
+};
+
+export enum EnvTypes {
+  MAIN_NET,
+  DEV_NET,
+}
 
 export interface WorkerAction {
   chainId: ChainId;
@@ -46,17 +67,17 @@ export type ListenerEnv = {};
 
 export type ExecutorEnv = {};
 
-export type IPlugin = Listener & Executor;
+export type Plugin = Listener & Executor;
+export interface PluginFactory {
+  create(config: CommonEnvironment, overrides?: any): Plugin;
+}
 
-import {Metric} from 'prom-client'
-import { CommonEnvironment } from "./configureEnv";
-
-export abstract class Plugin implements IPlugin {
-  defaultConfigs: Map<EnvTypes, any> = new Map([]);
+export abstract class DefaultPlugin implements Plugin {
+  defaultConfigs: Map<EnvTypes | string, any> = new Map([]);
   environment: any;
-  name: string
+  name: string;
 
-  constructor(promHelper: PromHelper, config: CommonEnvironment, overrides?: any) {
+  constructor(config: CommonEnvironment, overrides?: any) {
     const env = {
       ...this.defaultConfigs.get(config.envType),
       ...overrides,
@@ -71,7 +92,10 @@ export abstract class Plugin implements IPlugin {
   abstract defineMetrics<T extends string>(): Metric<T>[];
 
   abstract getFilters(): ContractFilter[];
-  abstract consumeEvent(vaa: Uint8Array, stagingArea: Uint8Array[]): ActionQueueUpdate[];
+  abstract consumeEvent(
+    vaa: Uint8Array,
+    stagingArea: Uint8Array[]
+  ): ActionQueueUpdate[];
   relayEvmAction?:
     | ((
         walletToolbox: EVMToolbox,

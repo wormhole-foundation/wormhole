@@ -1,0 +1,13 @@
+{
+  "name": "plugin_interface",
+  "version": "0.0.1",
+  "description": "Plugin interfaces used in plugin_relayer",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Joe Howarth",
+  "license": "ISC",
+  "dependencies": {
+    "prom-client": "^14.1.0"
+  }
+}

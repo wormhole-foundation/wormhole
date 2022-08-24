@@ -10,7 +10,7 @@
 import { getCommonEnvironment, getListenerEnvironment } from './configureEnv'
 import { getLogger, getScopedLogger } from './helpers/logHelper'
 import * as redisHelper from './helpers/redisHelper'
-import {IPlugin} from './pluginInterface'
+import {IPlugin} from '../plugin_interface/pluginInterface'
 
 const logger = getScopedLogger(["listenerHarness"], getLogger())
 const commonEnv = getCommonEnvironment()
