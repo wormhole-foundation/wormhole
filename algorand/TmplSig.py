@@ -116,13 +116,14 @@ class TmplSig:
             return Seq(
                 # Just putting adding this as a tmpl var to make the address unique and deterministic
                 # We don't actually care what the value is, pop it
-                Pop(Tmpl.Int("TMPL_ADDR_IDX")),
-                Pop(Tmpl.Bytes("TMPL_EMITTER_ID")),
+                Pop(Tmpl.Int("TMPL_I_ADDR_IDX")),
+                Pop(Tmpl.Bytes("TMPL_B33_EMITTER_ID")),
                 
                 Assert(Txn.type_enum() == TxnType.ApplicationCall),
                 Assert(Txn.on_completion() == OnComplete.OptIn),
-                Assert(Txn.application_id() == Tmpl.Int("TMPL_APP_ID")),
-                Assert(Txn.rekey_to() == Tmpl.Bytes("TMPL_APP_ADDRESS")),
+                Assert(Txn.application_id() == Tmpl.Int("TMPL_I_APP_ID")),
+                # NOTE: This could be calculated instead of passed as a parameter
+                Assert(Txn.rekey_to() == Tmpl.Addr("TMPL_A_APP_ADDRESS")),
 
                 Assert(Txn.fee() == Int(0)),
                 Assert(Txn.close_remainder_to() == Global.zero_address()),
@@ -138,6 +139,11 @@ if __name__ == '__main__':
 #    client =  AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "http://localhost:4001")
 #    pprint.pprint(client.compile( core.get_sig_tmpl()))
 
-    with open("sig.tmpl.teal", "w") as f:
+    if len(sys.argv) == 1:
+        file_name = "sig.tmpl.teal"
+    else:
+        file_name = sys.argv[1]
+    
+    with open(file_name, "w") as f:
         f.write(core.get_sig_tmpl())
 
