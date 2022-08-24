@@ -12,9 +12,9 @@ import (
 func TestTokenListSize(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
-	/* Assuming that governed tokens will not go down over time,
-	   lets set a floor to avoid parsing or loading regressions */
-	assert.Greater(t, len(tokenConfigEntries), 122)
+	/* Assuming that governed tokens will need to be updated every time
+	   we regenerate it */
+	assert.Equal(t, len(tokenConfigEntries), 123)
 }
 
 func TestTokenListFloor(t *testing.T) {
@@ -47,7 +47,7 @@ func TestTokenListAddressSize(t *testing.T) {
 func TestTokenListChainTokensPresent(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
-	/* Assume that all chains will have governed tokens */
+	/* Assume that all chains within a token bridge will have governed tokens */
 	for chain, _ := range common.KnownTokenbridgeEmitters {
 		t.Run(vaa.ChainID(chain).String(), func(t *testing.T) {
 			found := false
@@ -87,7 +87,7 @@ func TestTokenListDecimalRange(t *testing.T) {
 func TestTokenListEmptySymbols(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
-	/* Assume that all governed token entry strings will be greater than zero */
+	/* Assume that all governed token entry symbol strings will be greater than zero */
 	for _, tokenConfigEntry := range tokenConfigEntries {
 		assert.Greater(t, len(tokenConfigEntry.symbol), 0)
 	}
@@ -96,7 +96,7 @@ func TestTokenListEmptySymbols(t *testing.T) {
 func TestTokenListEmptyCoinGeckoId(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
-	/* Assume that all governed token entry strings will be greater than zero */
+	/* Assume that all governed token entry coingecko id strings will be greater than zero */
 	for _, tokenConfigEntry := range tokenConfigEntries {
 		assert.Greater(t, len(tokenConfigEntry.coinGeckoId), 0)
 	}

@@ -24,6 +24,9 @@ func TestChainDailyLimitRange(t *testing.T) {
 	   basically mean no value moment is allowed for that chain*/
 	min_daily_limit := uint64(0)
 
+	// Do not remove this assertion
+	assert.Greater(t, min_daily_limit, uint64(0))
+
 	/* These IS NOT a hard limit, we can adjust them as we see fit,
 	   but setting something sane such that if we accidentially go
 	   too high or too low that the unit tests will make sure it's
