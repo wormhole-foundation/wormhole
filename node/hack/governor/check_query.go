@@ -1,5 +1,5 @@
 // This tool can be used to confirm that the CoinkGecko price query still works after the token list is updated.
-// Usage: go run CheckQuery.go
+// Usage: go run check_query.go
 
 package main
 

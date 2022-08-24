@@ -129,7 +129,7 @@ axios
       }
     }
 
-    console.log("\nPlease do \"go run CheckQuery.go\" to verify the Coin Gecko query still works before doing a commit.")
+    console.log("\nPlease do \"go run check_query.go\" to verify the Coin Gecko query still works before doing a commit.")
   })
   .catch(error => {
     console.error(error);
