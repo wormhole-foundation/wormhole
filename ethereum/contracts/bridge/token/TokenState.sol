@@ -41,7 +41,6 @@ contract TokenState {
     uint256 _cachedChainId;
     address _cachedThis;
 
-    //bytes32 _hashedName;
     bytes32 _hashedTokenChain;
     bytes32 _hashedNativeContract;
     bytes32 _hashedVersion;

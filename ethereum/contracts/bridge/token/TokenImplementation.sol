@@ -195,7 +195,6 @@ contract TokenImplementation is TokenState, Context {
         if (address(this) == _cachedThis && block.chainid == _cachedChainId) {
             return _cachedDomainSeparator;
         } else {
-            //return _buildDomainSeparator(_typeHash, _hashedName, _hashedVersion);
             return _buildNativeDomainSeparator(_typeHash, _hashedTokenChain, _hashedNativeContract, _hashedVersion);
         }
     }
