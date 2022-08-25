@@ -36,4 +36,5 @@ var (
 	ErrAssetMetaRollback              = sdkerrors.Register(ModuleName, 1134, "asset meta must have a higher sequence than the last update")
 	ErrNegativeFee                    = sdkerrors.Register(ModuleName, 1135, "fee cannot be negative")
 	ErrRegisterWormholeChain          = sdkerrors.Register(ModuleName, 1136, "cannot register an emitter for wormhole-chain on wormhole-chain")
+	ErrChangeDecimals                 = sdkerrors.Register(ModuleName, 1137, "cannot change decimals of registered asset metadata")
 )
