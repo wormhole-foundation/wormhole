@@ -49,15 +49,9 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 		}
 	}
 
-	// Parse fees
-	feeBig, ok := new(big.Int).SetString(msg.Fee, 10)
-	if !ok || feeBig.Sign() == -1 {
-		return nil, types.ErrInvalidFee
-	}
-
 	bridgeBalance := new(big.Int).Set(k.bankKeeper.GetBalance(ctx, k.accountKeeper.GetModuleAddress(types.ModuleName), msg.Amount.Denom).Amount.BigInt())
 	amount := new(big.Int).Set(msg.Amount.Amount.BigInt())
-	fees := new(big.Int).Set(feeBig)
+	fees := new(big.Int).Set(msg.Fee.Amount.BigInt())
 
 	truncAmount, err := types.Truncate(amount, meta)
 	if err != nil {

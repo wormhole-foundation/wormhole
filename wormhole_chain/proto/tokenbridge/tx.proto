@@ -47,7 +47,7 @@ message MsgTransfer {
   [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
   uint32 toChain = 3;
   bytes toAddress = 4;
-  string fee = 5;
+  cosmos.base.v1beta1.Coin fee = 5 [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
 }
 
 message MsgTransferResponse {
