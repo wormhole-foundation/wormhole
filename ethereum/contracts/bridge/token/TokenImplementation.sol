@@ -7,6 +7,7 @@ import "./TokenState.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Based on the OpenZepplin ERC20 implementation, licensed under MIT
 contract TokenImplementation is TokenState, Context {
@@ -18,12 +19,33 @@ contract TokenImplementation is TokenState, Context {
         string memory symbol_,
         uint8 decimals_,
         uint64 sequence_,
-
         address owner_,
-
         uint16 chainId_,
         bytes32 nativeContract_
     ) initializer public {
+        _initializeNativeToken(
+            name_,
+            symbol_,
+            decimals_,
+            sequence_,
+            owner_,
+            chainId_,
+            nativeContract_
+        );
+
+        // initialize w/ EIP712 state variables for domain separator
+        _initializePermitStateIfNeeded();
+    }
+
+    function _initializeNativeToken(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint64 sequence_,
+        address owner_,
+        uint16 chainId_,
+        bytes32 nativeContract_
+    ) internal {
         _state.name = name_;
         _state.symbol = symbol_;
         _state.decimals = decimals_;
@@ -33,6 +55,21 @@ contract TokenImplementation is TokenState, Context {
 
         _state.chainId = chainId_;
         _state.nativeContract = nativeContract_;
+    }
+
+    function _initializePermitStateIfNeeded() internal {
+        if (!permitInitialized()) {
+            _state.hashedTokenChain = _hashedTokenChain();
+            _state.hashedNativeContract = _hashedNativeContract();
+            _state.hashedVersion = _hashedDomainVersion();
+            _state.typeHash = _hashedDomainType();
+            _state.cachedChainId = block.chainid;
+            _state.cachedDomainSeparator = _buildNativeDomainSeparator(
+                _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
+            );
+            _state.cachedThis = address(this);
+            _state.permitInitialized = true;
+        }
     }
 
     function name() public view returns (string memory) {
@@ -173,5 +210,109 @@ contract TokenImplementation is TokenState, Context {
         _state.initialized = true;
 
         _;
+    }
+
+    /**
+     * @dev Returns the domain separator for the current chain.
+     */
+    function _domainSeparatorV4() internal view returns (bytes32) {
+        if (address(this) == _state.cachedThis && block.chainid == _state.cachedChainId) {
+            return _state.cachedDomainSeparator;
+        } else {
+            return _buildNativeDomainSeparator(
+                _hashedDomainType(),
+                _hashedTokenChain(),
+                _hashedNativeContract(),
+                _hashedDomainVersion()
+            );
+        }
+    }
+
+    function _buildNativeDomainSeparator(
+        bytes32 typeHash,
+        bytes32 tokenChainHash,
+        bytes32 nativeContractHash,
+        bytes32 versionHash
+    ) internal view returns (bytes32) {
+        return keccak256(abi.encode(typeHash, tokenChainHash, nativeContractHash, versionHash, block.chainid, address(this)));
+    }
+
+    /**
+     * @dev Given an already https://eips.ethereum.org/EIPS/eip-712#definition-of-hashstruct[hashed struct], this
+     * function returns the hash of the fully encoded EIP712 message for this domain.
+     *
+     * This hash can be used together with {ECDSA-recover} to obtain the signer of a message. For example:
+     *
+     * ```solidity
+     * bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(
+     *     keccak256("Mail(address to,string contents)"),
+     *     mailTo,
+     *     keccak256(bytes(mailContents))
+     * )));
+     * address signer = ECDSA.recover(digest, signature);
+     * ```
+     */
+    function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
+        return ECDSA.toTypedDataHash(_domainSeparatorV4(), structHash);
+    }
+
+    /**
+     * @dev See {IERC20Permit-permit}.
+     */
+    function permit(
+        address owner_,
+        address spender_,
+        uint256 value_,
+        uint256 deadline_,
+        uint8 v_,
+        bytes32 r_,
+        bytes32 s_
+    ) public {
+        // for those tokens that have been initialized before permit, we need to set
+        // the permit state variables if they have not been set before
+        _initializePermitStateIfNeeded();
+
+        // permit is only allowed before the signature's deadline
+        require(block.timestamp <= deadline_, "ERC20Permit: expired deadline");
+
+        bytes32 structHash = keccak256(
+            abi.encode(_hashedPermitType(), owner_, spender_, value_, _useNonce(owner_), deadline_)
+        );
+
+        bytes32 message = _hashTypedDataV4(structHash);
+        address signer = ECDSA.recover(message, v_, r_, s_);
+
+        // if we cannot recover the token owner, signature is invalid
+        require(signer == owner_, "ERC20Permit: invalid signature");
+
+        _approve(owner_, spender_, value_);
+    }
+
+    /**
+     * @dev See {IERC20Permit-DOMAIN_SEPARATOR}.
+     */
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
+    function _hashedTokenChain() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(_state.chainId));
+    }
+
+    function _hashedNativeContract() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(_state.nativeContract));
+    }
+
+    function _hashedDomainVersion() internal pure returns (bytes32) {
+        return keccak256(bytes("1"));
+    }
+
+    function _hashedDomainType() internal pure returns (bytes32) {
+        return keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    }
+
+    function _hashedPermitType() internal pure returns (bytes32) {
+        return keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     }
 }
