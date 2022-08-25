@@ -215,7 +215,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		}
 
 		k.bankKeeper.SetDenomMetaData(ctx, btypes.Metadata{
-			Description: fmt.Sprintf("Wormhole wrapped asset from chain %d with address %x", tokenChain, tokenAddress),
+			Description: fmt.Sprintf("Portal wrapped asset from chain %d with address %x", tokenChain, tokenAddress),
 			DenomUnits: []*btypes.DenomUnit{
 				{
 					Denom:    baseDenom,
