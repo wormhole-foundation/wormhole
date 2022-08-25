@@ -2,7 +2,7 @@
 module Wormhole::Deserialize {
     use 0x1::vector::{Self};
 
-    public fun deserialize_u8(bytes: vector<u8>): (u8, vector<u8>){
+    public fun deserialize_u8(bytes: vector<u8>): (u8, vector<u8>) {
         assert!(vector::length<u8>(&mut bytes)==1, 0);
         let byte = vector::pop_back(&mut bytes);
         (byte, bytes)
@@ -10,12 +10,9 @@ module Wormhole::Deserialize {
 
     public fun deserialize_u64(bytes: vector<u8>): (u64, vector<u8>){
         let res = (0 as u64);
-        let i = 0; 
+        let i = 0;
         vector::reverse<u8>(&mut bytes);
-        loop { 
-            if (i==8){
-                break
-            };
+        while (i < 8) {
             let cur = vector::pop_back<u8>(&mut bytes);
             res = res | (cur as u64) << (56 - i * 8);
             i=i+1;
@@ -26,12 +23,9 @@ module Wormhole::Deserialize {
 
     public fun deserialize_u128(bytes: vector<u8>): (u128, vector<u8>){
         let res = (0 as u128);
-        let i = 0; 
+        let i = 0;
         vector::reverse<u8>(&mut bytes);
-        loop { 
-            if (i==16){
-                break
-            }; 
+        while (i < 16) {
             let cur = vector::pop_back<u8>(&mut bytes);
             res = res | (cur as u128) << (120 - i * 8);
             i=i+1;
@@ -41,13 +35,13 @@ module Wormhole::Deserialize {
 
     public fun deserialize_vector(bytes: vector<u8>, len: u64): (vector<u8>, vector<u8>) {
         let result = vector::empty();
-        while ({ 
-            spec { 
+        while ({
+            spec {
                 invariant len >= 0;
                 invariant len <  vector::length(bytes);
-            }; 
-            len > 0 
-        }) { 
+            };
+            len > 0
+        }) {
             let byte = vector::pop_back(&mut bytes);
             vector::push_back(&mut result, byte);
             len = len - 1;
@@ -65,20 +59,20 @@ module Wormhole::TestDeserialize{
     #[test]
     fun test_one(){
         // test deserialize u8 vector
-        let x = empty(); 
+        let x = empty();
         push_back(&mut x, 0x99);
         let (byte, _) = deserialize_u8(x);
         assert!(byte==0x99, 0);
 
         // deserialize u64 vector
-        let v = empty(); 
+        let v = empty();
         push_back(&mut v, 0x13);
         push_back(&mut v, 0x00);
         push_back(&mut v, 0x00);
         push_back(&mut v, 0x00);
-        push_back(&mut v, 0x25);  
-        push_back(&mut v, 0x00); 
-        push_back(&mut v, 0x00); 
+        push_back(&mut v, 0x25);
+        push_back(&mut v, 0x00);
+        push_back(&mut v, 0x00);
         push_back(&mut v, 0x01);
         let (u, _) = deserialize_u64(v);
         assert!(u==(0x1300000025000001 as u64), 0);
