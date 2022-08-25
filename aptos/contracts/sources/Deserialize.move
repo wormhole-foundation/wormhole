@@ -1,39 +1,35 @@
 
 module Wormhole::Deserialize {
     use 0x1::vector::{Self};
+    use Wormhole::cursor::{Self, Cursor};
 
-    public fun deserialize_u8(bytes: vector<u8>): (u8, vector<u8>) {
-        assert!(vector::length<u8>(&mut bytes)==1, 0);
-        let byte = vector::pop_back(&mut bytes);
-        (byte, bytes)
+    public fun deserialize_u8(cur: &mut Cursor<u8>): u8 {
+        cursor::poke(cur)
     }
 
-    public fun deserialize_u64(bytes: vector<u8>): (u64, vector<u8>){
-        let res = (0 as u64);
+    public fun deserialize_u64(cur: &mut Cursor<u8>): u64 {
+        let res: u64 = 0;
         let i = 0;
-        vector::reverse<u8>(&mut bytes);
         while (i < 8) {
-            let cur = vector::pop_back<u8>(&mut bytes);
-            res = res | (cur as u64) << (56 - i * 8);
-            i=i+1;
+            let b = cursor::poke(cur);
+            res = (res << 8) | (b as u64);
+            i = i + 1;
         };
-        (res, bytes)
+        res
     }
 
-
-    public fun deserialize_u128(bytes: vector<u8>): (u128, vector<u8>){
-        let res = (0 as u128);
+    public fun deserialize_u128(cur: &mut Cursor<u8>): u128 {
+        let res: u128 = 0;
         let i = 0;
-        vector::reverse<u8>(&mut bytes);
         while (i < 16) {
-            let cur = vector::pop_back<u8>(&mut bytes);
-            res = res | (cur as u128) << (120 - i * 8);
-            i=i+1;
+            let b = cursor::poke(cur);
+            res = (res << 8) | (b as u128);
+            i = i + 1;
         };
-        (res, bytes)
+        res
     }
 
-    public fun deserialize_vector(bytes: vector<u8>, len: u64): (vector<u8>, vector<u8>) {
+    public fun deserialize_vector(cur: &mut Cursor<u8>, len: u64): vector<u8> {
         let result = vector::empty();
         while ({
             spec {
@@ -42,12 +38,10 @@ module Wormhole::Deserialize {
             };
             len > 0
         }) {
-            let byte = vector::pop_back(&mut bytes);
-            vector::push_back(&mut result, byte);
+            vector::push_back(&mut result, cursor::poke(cur));
             len = len - 1;
         };
-        vector::reverse<u8>(&mut result);
-        (result, bytes)
+        result
     }
 }
 
@@ -55,14 +49,17 @@ module Wormhole::Deserialize {
 module Wormhole::TestDeserialize{
     use 0x1::vector::{push_back, empty};//, //length};
     use Wormhole::Deserialize::{deserialize_u8, deserialize_u64, deserialize_vector};
+    use Wormhole::cursor::{Self};
 
     #[test]
     fun test_one(){
         // test deserialize u8 vector
         let x = empty();
         push_back(&mut x, 0x99);
-        let (byte, _) = deserialize_u8(x);
+        let cur = cursor::init(x);
+        let byte = deserialize_u8(&mut cur);
         assert!(byte==0x99, 0);
+        cursor::destroy_empty(cur);
 
         // deserialize u64 vector
         let v = empty();
@@ -74,10 +71,12 @@ module Wormhole::TestDeserialize{
         push_back(&mut v, 0x00);
         push_back(&mut v, 0x00);
         push_back(&mut v, 0x01);
-        let (u, _) = deserialize_u64(v);
+        let cur = cursor::init(v);
+        let u = deserialize_u64(&mut cur);
         assert!(u==(0x1300000025000001 as u64), 0);
-        let (p, _) = deserialize_vector(v, 8);
-        let (q, _) = deserialize_u64(p);
+        let p = deserialize_vector(&mut cur, 8);
+        let q = deserialize_u64(&mut cur);
+        cursor::destroy_empty(cur);
         assert!(q==(u as u64), 0);
     }
 }

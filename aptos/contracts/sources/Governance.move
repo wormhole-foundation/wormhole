@@ -1,28 +1,28 @@
 module Wormhole::Governance {
     use Wormhole::Deserialize;
+    use Wormhole::cursor::{Self};
     use Wormhole::VAA::{Self};
-    use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, expireGuardianSet, getCurrentGuardianSet, getCurrentGuardianSetIndex};
+    use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, expireGuardianSet, getCurrentGuardianSet};
     use Wormhole::Structs::{Guardian, GuardianSet, createGuardian, createGuardianSet, getGuardianSetIndex};
     use 0x1::vector::{Self};
     use 0x1::string::{Self, String};
 
     const E_WRONG_GUARDIAN_LEN: u64 = 0x0;
-    const E_REMAINING_BYTES: u64    = 0x1;
-    const E_NO_GUARDIAN_SET: u64    = 0x2;
+    const E_NO_GUARDIAN_SET: u64    = 0x1;
 
     struct GuardianUpdate has key{
-        guardian_module:    vector<u8>, 
+        guardian_module:    vector<u8>,
         action:             u8,
         new_index:          u64,
         guardians:          vector<Guardian>,
     }
-    
-    public entry fun update_guardian_set(vaa: vector<u8>): (bool, String){
+
+    public entry fun update_guardian_set(vaa: vector<u8>): (bool, String) {
         let (vaa, valid, reason) = VAA::parseAndVerifyVAA(vaa);
 
         let payload = VAA::destroy(vaa);
-        
-        if (valid==false){
+
+        if (!valid) {
             return (false, reason)
         };
 
@@ -34,7 +34,7 @@ module Wormhole::Governance {
         let GuardianUpdate {
             guardian_module,
             action, //action
-            new_index,  
+            new_index,
             guardians,
         } = update;
 
@@ -45,12 +45,13 @@ module Wormhole::Governance {
     }
 
     public entry fun parse(bytes: vector<u8>): GuardianUpdate {
+        let cur = cursor::init(bytes);
         let guardians = vector::empty<Guardian>();
-        let (guardian_module, bytes) = Deserialize::deserialize_vector(bytes, 32);
+        let guardian_module = Deserialize::deserialize_vector(&mut cur, 32);
         //TODO: missing chainID?
-        let (action, bytes) = Deserialize::deserialize_u8(bytes);
-        let (new_index, bytes) = Deserialize::deserialize_u64(bytes);
-        let (guardian_len, bytes) = Deserialize::deserialize_u8(bytes);
+        let action = Deserialize::deserialize_u8(&mut cur);
+        let new_index = Deserialize::deserialize_u64(&mut cur);
+        let guardian_len = Deserialize::deserialize_u8(&mut cur);
 
         assert!(guardian_len < 19, E_WRONG_GUARDIAN_LEN);
 
@@ -60,13 +61,13 @@ module Wormhole::Governance {
                 invariant guardian_len < 19;
             };
             guardian_len > 0
-        }) { 
-            let (key, bytes) = Deserialize::deserialize_vector(bytes, 20);
+        }) {
+            let key = Deserialize::deserialize_vector(&mut cur, 20);
             vector::push_back(&mut guardians, createGuardian(key));
             guardian_len = guardian_len - 1;
         };
 
-        assert!(vector::length(&mut bytes) == 0, E_REMAINING_BYTES);
+        cursor::destroy_empty(cur);
 
         GuardianUpdate {
             guardian_module:    guardian_module,
@@ -75,11 +76,11 @@ module Wormhole::Governance {
             guardians:          guardians,
         }
     }
-    
+
     public entry fun verify(update: &GuardianUpdate, previous: GuardianSet){
         let (guardian_module, action) = (update.guardian_module, update.action);
         assert!(vector::length(&guardian_module) == 32, 0);
-        assert!(action == 0x02, 0); 
+        assert!(action == 0x02, 0);
         assert!(update.new_index > getGuardianSetIndex(previous), 0);
     }
 }
