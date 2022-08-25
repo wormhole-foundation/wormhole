@@ -36,19 +36,6 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 
 	moduleAddress := k.accountKeeper.GetModuleAddress(types.ModuleName)
-	_, _, wrapped := types.GetWrappedCoinMeta(msg.Amount.Denom)
-	if wrapped {
-		// We previously minted these coins so just burn them now.
-		if err := k.bankKeeper.BurnCoins(ctx, types.ModuleName, sdk.Coins{msg.Amount}); err != nil {
-			return nil, sdkerrors.Wrap(err, "failed to burn wrapped coins")
-		}
-	} else {
-		// Collect coins in the module account.
-		if err := k.bankKeeper.SendCoins(ctx, userAcc, moduleAddress, sdk.Coins{msg.Amount}); err != nil {
-			return nil, sdkerrors.Wrap(err, "failed to send coins to module account")
-		}
-	}
-
 	bridgeBalance, err := types.Truncate(k.bankKeeper.GetBalance(ctx, moduleAddress, msg.Amount.Denom), meta)
 	if err != nil {
 		return nil, fmt.Errorf("failed to truncate bridge balance: %w", err)
@@ -74,6 +61,19 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	// Check that the total outflow of this asset does not exceed u64
 	if !bridgeBalance.Add(amount).Amount.IsUint64() {
 		return nil, types.ErrAmountTooHigh
+	}
+
+	_, _, wrapped := types.GetWrappedCoinMeta(msg.Amount.Denom)
+	if wrapped {
+		// We previously minted these coins so just burn them now.
+		if err := k.bankKeeper.BurnCoins(ctx, types.ModuleName, sdk.Coins{amount}); err != nil {
+			return nil, sdkerrors.Wrap(err, "failed to burn wrapped coins")
+		}
+	} else {
+		// Collect coins in the module account.
+		if err := k.bankKeeper.SendCoins(ctx, userAcc, moduleAddress, sdk.Coins{amount}); err != nil {
+			return nil, sdkerrors.Wrap(err, "failed to send coins to module account")
+		}
 	}
 
 	buf := new(bytes.Buffer)
