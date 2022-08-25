@@ -247,6 +247,87 @@ export class TestLib {
     );
   }
 
+  genCoreUpdate(
+    signers: any,
+    guardianSet: number,
+    nonce: number,
+    seq: number,
+    tchain: number,
+    hash: string
+  ) {
+    const b = [
+      "0x",
+      this.zeroBytes.slice(0, 28 * 2),
+      this.encoder("uint8", this.ord("C")),
+      this.encoder("uint8", this.ord("o")),
+      this.encoder("uint8", this.ord("r")),
+      this.encoder("uint8", this.ord("e")),
+      this.encoder("uint8", 1),
+      this.encoder("uint16", tchain),
+      hash
+    ];
+
+    let emitter = "0x" + this.zeroBytes.slice(0, 31 * 2) + "04";
+
+    var seconds = Math.floor(new Date().getTime() / 1000.0);
+
+    return this.createSignedVAA(
+      guardianSet,
+      signers,
+      seconds,
+      nonce,
+      1,
+      emitter,
+      seq,
+      32,
+      b.join("")
+    );
+  }
+
+  genTokenUpdate(
+    signers: any,
+    guardianSet: number,
+    nonce: number,
+    seq: number,
+    tchain: number,
+    hash: string
+  ) {
+    const b = [
+      "0x",
+      this.zeroBytes.slice(0, (32 - 11) * 2),
+      this.encoder("uint8", this.ord("T")),
+      this.encoder("uint8", this.ord("o")),
+      this.encoder("uint8", this.ord("k")),
+      this.encoder("uint8", this.ord("e")),
+      this.encoder("uint8", this.ord("n")),
+      this.encoder("uint8", this.ord("B")),
+      this.encoder("uint8", this.ord("r")),
+      this.encoder("uint8", this.ord("i")),
+      this.encoder("uint8", this.ord("d")),
+      this.encoder("uint8", this.ord("g")),
+      this.encoder("uint8", this.ord("e")),
+      this.encoder("uint8", 2),
+      this.encoder("uint16", tchain),
+      hash
+    ];
+
+    let emitter = "0x" + this.zeroBytes.slice(0, 31 * 2) + "04";
+
+    var seconds = Math.floor(new Date().getTime() / 1000.0);
+
+    return this.createSignedVAA(
+      guardianSet,
+      signers,
+      seconds,
+      nonce,
+      1,
+      emitter,
+      seq,
+      32,
+      b.join("")
+    );
+  }
+
   getTokenEmitter(chain: number): string {
     if (chain === CHAIN_ID_SOLANA) {
       return "c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f";
