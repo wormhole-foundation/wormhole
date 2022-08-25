@@ -109,42 +109,39 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			}
 		}
 
-		amount, err := types.Untruncate(unnormalizedAmount, meta)
+		amt := sdk.NewCoin(identifier, sdk.NewIntFromBigInt(unnormalizedAmount))
+		if err := amt.Validate(); err != nil {
+			return nil, fmt.Errorf("%w: %s", types.ErrInvalidAmount, err)
+		}
+		amount, err := types.Untruncate(amt, meta)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to untruncate amount: %w", err)
 		}
 
-		fee, err := types.Untruncate(unnormalizedFee, meta)
-		if err != nil {
-			return nil, err
+		f := sdk.NewCoin(identifier, sdk.NewIntFromBigInt(unnormalizedFee))
+		if err := f.Validate(); err != nil {
+			return nil, fmt.Errorf("%w: %s", types.ErrInvalidFee, err)
 		}
-		if fee.Sign() == -1 {
-			return nil, types.ErrNegativeFee
+		fee, err := types.Untruncate(f, meta)
+		if err != nil {
+			return nil, fmt.Errorf("failed to untruncate fee: %w", err)
+		}
+
+		if amount.IsLT(fee) {
+			return nil, types.ErrFeeTooHigh
 		}
 
 		if wrapped {
-			err = k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{
-				{
-					Denom:  identifier,
-					Amount: sdk.NewIntFromBigInt(amount),
-				},
-			})
-			if err != nil {
-				return nil, err
+			if err := k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{amount}); err != nil {
+				return nil, fmt.Errorf("failed to mint coins (%s): %w", amount, err)
 			}
 		}
 
 		moduleAccount := k.accountKeeper.GetModuleAddress(types.ModuleName)
 
-		amtLessFees := sdk.Coins{
-			{
-				Denom:  identifier,
-				Amount: sdk.NewIntFromBigInt(new(big.Int).Sub(amount, fee)),
-			},
-		}
+		amtLessFees := amount.Sub(fee)
 
-		err = k.bankKeeper.SendCoins(ctx, moduleAccount, to[:], amtLessFees)
-		if err != nil {
+		if err := k.bankKeeper.SendCoins(ctx, moduleAccount, to[:], sdk.Coins{amtLessFees}); err != nil {
 			return nil, err
 		}
 
@@ -153,15 +150,9 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			return nil, err
 		}
 		// Transfer fee to tx sender if it is not 0
-		if fee.Sign() == 1 {
-			err = k.bankKeeper.SendCoins(ctx, moduleAccount, txSender, sdk.Coins{
-				{
-					Denom:  identifier,
-					Amount: sdk.NewIntFromBigInt(fee),
-				},
-			})
-			if err != nil {
-				return nil, err
+		if fee.IsPositive() {
+			if err := k.bankKeeper.SendCoins(ctx, moduleAccount, txSender, sdk.Coins{fee}); err != nil {
+				return nil, fmt.Errorf("failed to send fees (%s) to tx sender: %w", fee, err)
 			}
 		}
 
@@ -170,8 +161,8 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			TokenAddress: tokenAddress[:],
 			To:           sdk.AccAddress(to[:]).String(),
 			FeeRecipient: txSender.String(),
-			Amount:       amount.String(),
-			Fee:          fee.String(),
+			Amount:       amount.Amount.String(),
+			Fee:          fee.Amount.String(),
 			LocalDenom:   identifier,
 		})
 		if err != nil {

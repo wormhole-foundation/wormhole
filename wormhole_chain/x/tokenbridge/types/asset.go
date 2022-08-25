@@ -9,27 +9,30 @@ import (
 	"strings"
 
 	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	btypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 // Truncate an amount
-func Truncate(amount *big.Int, meta btypes.Metadata) (normalized *big.Int, err error) {
+func Truncate(coin sdk.Coin, meta btypes.Metadata) (normalized sdk.Coin, err error) {
 	factor, err := truncFactor(meta)
 	if err != nil {
-		return new(big.Int), err
+		return normalized, err
 	}
 
-	return new(big.Int).Div(amount, factor), nil
+	amt := new(big.Int).Div(coin.Amount.BigInt(), factor)
+	return sdk.NewCoin(coin.Denom, sdk.NewIntFromBigInt(amt)), nil
 }
 
 // Untruncate an amount
-func Untruncate(amount *big.Int, meta btypes.Metadata) (normalized *big.Int, err error) {
+func Untruncate(coin sdk.Coin, meta btypes.Metadata) (normalized sdk.Coin, err error) {
 	factor, err := truncFactor(meta)
 	if err != nil {
-		return new(big.Int), err
+		return normalized, err
 	}
 
-	return new(big.Int).Mul(amount, factor), nil
+	amt := new(big.Int).Mul(coin.Amount.BigInt(), factor)
+	return sdk.NewCoin(coin.Denom, sdk.NewIntFromBigInt(amt)), nil
 }
 
 // Compute truncation factor for a given token meta.
@@ -55,7 +58,7 @@ func truncFactor(meta btypes.Metadata) (factor *big.Int, err error) {
 	if displayDenom.Exponent > 8 {
 		return new(big.Int).SetInt64(int64(math.Pow10(int(displayDenom.Exponent - 8)))), nil
 	} else {
-		return new(big.Int).SetInt64(1), nil
+		return big.NewInt(1), nil
 	}
 }
 

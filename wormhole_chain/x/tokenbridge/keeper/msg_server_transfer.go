@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/holiman/uint256"
 )
 
 func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*types.MsgTransferResponse, error) {
@@ -49,31 +49,30 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 		}
 	}
 
-	bridgeBalance := new(big.Int).Set(k.bankKeeper.GetBalance(ctx, k.accountKeeper.GetModuleAddress(types.ModuleName), msg.Amount.Denom).Amount.BigInt())
-	amount := new(big.Int).Set(msg.Amount.Amount.BigInt())
-	fees := new(big.Int).Set(msg.Fee.Amount.BigInt())
-
-	truncAmount, err := types.Truncate(amount, meta)
+	bridgeBalance, err := types.Truncate(k.bankKeeper.GetBalance(ctx, moduleAddress, msg.Amount.Denom), meta)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to truncate bridge balance: %w", err)
+	}
+	amount, err := types.Truncate(msg.Amount, meta)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", types.ErrInvalidAmount, err)
 	}
 
-	truncFees, err := types.Truncate(fees, meta)
+	fees, err := types.Truncate(msg.Fee, meta)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", types.ErrInvalidFee, err)
 	}
 
-	truncBridgeBalance, err := types.Truncate(bridgeBalance, meta)
-	if err != nil {
-		return nil, err
+	if amount.IsLT(fees) {
+		return nil, types.ErrFeeTooHigh
 	}
 
-	if !truncAmount.IsUint64() || !bridgeBalance.IsUint64() {
+	if !amount.Amount.IsUint64() || !bridgeBalance.Amount.IsUint64() {
 		return nil, types.ErrAmountTooHigh
 	}
 
 	// Check that the total outflow of this asset does not exceed u64
-	if !new(big.Int).Add(truncAmount, truncBridgeBalance).IsUint64() {
+	if !bridgeBalance.Add(amount).Amount.IsUint64() {
 		return nil, types.ErrAmountTooHigh
 	}
 
@@ -81,11 +80,7 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	// PayloadID
 	buf.WriteByte(1)
 	// Amount
-	tokenAmount, overflow := uint256.FromBig(truncAmount)
-	if overflow {
-		return nil, types.ErrInvalidAmount
-	}
-	tokenAmountBytes32 := tokenAmount.Bytes32()
+	tokenAmountBytes32 := bytes32(amount.Amount.BigInt())
 	buf.Write(tokenAmountBytes32[:])
 	tokenChain, tokenAddress, err := types.GetTokenMeta(wormholeConfig, msg.Amount.Denom)
 	if err != nil {
@@ -100,17 +95,8 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	// ToChain
 	MustWrite(buf, binary.BigEndian, uint16(msg.ToChain))
 	// Fee
-	fee, overflow := uint256.FromBig(truncFees)
-	if overflow {
-		return nil, types.ErrInvalidFee
-	}
-	feeBytes32 := fee.Bytes32()
+	feeBytes32 := bytes32(fees.Amount.BigInt())
 	buf.Write(feeBytes32[:])
-
-	// Check that the amount is sufficient to cover the fee
-	if truncAmount.Cmp(truncFees) != 1 {
-		return nil, types.ErrFeeTooHigh
-	}
 
 	// Post message
 	emitterAddress := whtypes.EmitterAddressFromAccAddress(moduleAddress)
@@ -120,4 +106,12 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 
 	return &types.MsgTransferResponse{}, nil
+}
+
+func bytes32(i *big.Int) [32]byte {
+	var out [32]byte
+
+	i.FillBytes(out[:])
+
+	return out
 }
