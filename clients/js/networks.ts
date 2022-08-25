@@ -79,9 +79,9 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   near: {
-    rpc: undefined,
-    key: undefined,
-    networkId: "",
+    rpc: "https://rpc.mainnet.near.org",
+    key: get_env_var("NEAR_KEY"),
+    networkId: "mainnet",
     baseAccount: "",
   },
   injective: {

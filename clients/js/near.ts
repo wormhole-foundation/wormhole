@@ -20,7 +20,7 @@ export async function execute_near(
       if (contracts.core === undefined) {
         throw new Error("Core bridge not supported yet for near");
       }
-      account = "wormhole." + n.baseAccount;
+      account = contracts.core;
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set");
@@ -36,7 +36,7 @@ export async function execute_near(
       if (contracts.nft_bridge === undefined) {
         throw new Error("NFT bridge not supported yet for near");
       }
-      account = "nft." + n.baseAccount;
+      account = contracts.nft_bridge;
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -52,7 +52,10 @@ export async function execute_near(
       }
       break;
     case "TokenBridge":
-      account = "token." + n.baseAccount;
+      if (contracts.token_bridge === undefined) {
+        throw new Error("Token bridge not supported yet for near");
+      }
+      account = contracts.token_bridge;
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -78,6 +81,12 @@ export async function execute_near(
   }
 
   let target_contract = account;
+  
+  console.log("RPC: ", n.rpc)
+  console.log("networkId: " + n.networkId)
+  console.log("account: " + account)
+  console.log("key: ", n.key)
+  console.log("target_contract: " + target_contract)
 
   let key = nearAPI.utils.KeyPair.fromString(n.key);
 
