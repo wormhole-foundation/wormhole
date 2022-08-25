@@ -3,7 +3,7 @@ import { isNativeDenom } from "../terra";
 import {
   CHAIN_ID_INJECTIVE,
   CHAIN_ID_TERRA,
-  coalesceChainId,
+  coalesceCosmWasmChainId,
   CosmWasmChainId,
   CosmWasmChainName,
   isTerraChain,
@@ -28,7 +28,7 @@ export function buildTokenId(
   >,
   address: string
 ) {
-  const chainId: CosmWasmChainId = coalesceChainId(chain) as CosmWasmChainId;
+  const chainId: CosmWasmChainId = coalesceCosmWasmChainId(chain);
   return (
     (isNativeCosmWasmDenom(chainId, address) ? "01" : "00") +
     keccak256(Buffer.from(address, "utf-8")).substring(4)

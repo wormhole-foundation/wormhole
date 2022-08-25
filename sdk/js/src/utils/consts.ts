@@ -55,13 +55,11 @@ export type EVMChainName =
   | "optimism"
   | "gnosis"
   | "ropsten";
-  /**
+/**
  *
  * All the Solana-based chain names that Wormhole supports
  */
-export type SolanaChainName =
-| "solana"
-| "pythnet";
+export type SolanaChainName = "solana" | "pythnet";
 
 export type CosmWasmChainName = "terra" | "terra2" | "injective";
 export type TerraChainName = "terra" | "terra2";
@@ -662,6 +660,22 @@ export function toChainId(chainName: ChainName): ChainId {
 
 export function toChainName(chainId: ChainId): ChainName {
   return CHAIN_ID_TO_NAME[chainId];
+}
+
+export function toCosmWasmChainId(
+  chainName: CosmWasmChainName
+): CosmWasmChainId {
+  return CHAINS[chainName];
+}
+
+export function coalesceCosmWasmChainId(
+  chain: CosmWasmChainId | CosmWasmChainName
+): CosmWasmChainId {
+  // this is written in a way that for invalid inputs (coming from vanilla
+  // javascript or someone doing type casting) it will always return undefined.
+  return typeof chain === "number" && isCosmWasmChain(chain)
+    ? chain
+    : toCosmWasmChainId(chain);
 }
 
 export function coalesceChainId(chain: ChainId | ChainName): ChainId {

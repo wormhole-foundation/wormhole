@@ -25,6 +25,7 @@ import {
   CosmWasmChainId,
   CosmWasmChainName,
   hexToUint8Array,
+  coalesceCosmWasmChainId,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -88,7 +89,7 @@ export async function getOriginalAssetTerra(
 
 /**
  * Returns information about the asset
- * @param wrappedAddress Address of the asset in question
+ * @param wrappedAddress Address of the asset in wormhole wrapped format
  * @param client WASM api client
  * @returns Information about the asset
  */
@@ -101,7 +102,7 @@ export async function getOriginalAssetInjective(
     return {
       isWrapped: false,
       chainId: chainId,
-      assetAddress: buildNativeId(wrappedAddress),
+      assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
     };
   }
   try {
@@ -124,11 +125,13 @@ export async function getOriginalAssetInjective(
         ),
       };
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("getOriginalAssetInjective() failed:", e);
+  }
   return {
     isWrapped: false,
     chainId: chainId,
-    assetAddress: zeroPad(canonicalAddress(wrappedAddress), 32),
+    assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
   };
 }
 
@@ -137,7 +140,7 @@ export async function getOriginalAssetCosmWasm(
   wrappedAddress: string,
   lookupChain: CosmWasmChainId | CosmWasmChainName
 ): Promise<WormholeWrappedInfo> {
-  const chainId = coalesceChainId(lookupChain) as CosmWasmChainId;
+  const chainId = coalesceCosmWasmChainId(lookupChain);
   if (isNativeCosmWasmDenom(chainId, wrappedAddress)) {
     return {
       isWrapped: false,

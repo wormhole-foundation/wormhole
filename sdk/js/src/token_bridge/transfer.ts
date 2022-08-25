@@ -37,7 +37,6 @@ import { importTokenWasm } from "../solana/wasm";
 import {
   ChainId,
   ChainName,
-  CHAIN_ID_INJECTIVE,
   WSOL_ADDRESS,
   coalesceChainId,
   createNonce,
@@ -47,7 +46,7 @@ import {
   CHAIN_ID_SOLANA,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
-import { isNativeCosmWasmDenom } from "../cosmwasm";
+import { isNativeDenomInjective } from "../cosmwasm";
 import {
   Account as nearAccount,
   providers as nearProviders,
@@ -269,9 +268,10 @@ export async function transferFromInjective(
 ) {
   const recipientChainId = coalesceChainId(recipientChain);
   const nonce = Math.round(Math.random() * 100000);
-  const isNativeAsset = isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, tokenAddress);
-  const mk_action = () =>
-    payload ? "initiate_transfer_with_payload" : "initiate_transfer";
+  const isNativeAsset = isNativeDenomInjective(tokenAddress);
+  const mk_action: string = payload
+    ? "initiate_transfer_with_payload"
+    : "initiate_transfer";
   const mk_initiate_transfer = (info: object) =>
     payload
       ? {
@@ -308,7 +308,7 @@ export async function transferFromInjective(
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
           msg: mk_initiate_transfer({ native_token: { denom: tokenAddress } }),
-          action: mk_action(),
+          action: mk_action,
         }),
       ]
     : [
@@ -328,7 +328,7 @@ export async function transferFromInjective(
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
           msg: mk_initiate_transfer({ token: { contract_addr: tokenAddress } }),
-          action: mk_action(),
+          action: mk_action,
         }),
       ];
 }
