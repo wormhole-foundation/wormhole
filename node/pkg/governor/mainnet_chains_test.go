@@ -20,18 +20,18 @@ func TestChainListSize(t *testing.T) {
 func TestChainDailyLimitRange(t *testing.T) {
 	chainConfigEntries := chainList()
 
-	/* These IS a hard limit, if daily limit is set to zero it would
-	   basically mean no value moment is allowed for that chain*/
+	/* This IS a hard limit, if daily limit is set to zero it would
+	   basically mean no value movement is allowed for that chain*/
 	min_daily_limit := uint64(0)
 
-	// Do not remove this assertion
-	assert.Greater(t, min_daily_limit, uint64(0))
-
-	/* These IS NOT a hard limit, we can adjust them as we see fit,
+	/* This IS NOT a hard limit, we can adjust it up as we see fit,
 	   but setting something sane such that if we accidentially go
-	   too high or too low that the unit tests will make sure it's
+	   too high that the unit tests will make sure it's
 	   intentional */
 	max_daily_limit := uint64(50000001)
+
+	// Do not remove this assertion
+	assert.NotEqual(t, max_daily_limit, uint64(0))
 
 	/* Assuming that a governed chains should always be more than zero and less than 50,000,001 */
 	for _, chainConfigEntry := range chainConfigEntries {
