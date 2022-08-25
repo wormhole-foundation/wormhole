@@ -4,6 +4,14 @@ test: build node_modules
 
 all: node_modules build nearcore
 
+.PHONY: artifacts
+artifacts:
+	mkdir -p $@
+	@echo "Building artifacts for near"
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile.build -t near-builder -o type=local,dest=$@ .
+	cd $@ && ls | xargs sha256sum > checksums.txt
+
+
 build:    contracts/ft/target/wasm32-unknown-unknown/release/near_ft.wasm \
           contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm \
           contracts/mock-bridge-token/target/wasm32-unknown-unknown/release/near_mock_bridge_token.wasm \

@@ -601,30 +601,28 @@ impl Wormhole {
         true
     }
 
-    #[init(ignore_state)]
-    #[payable]
-    pub fn migrate() -> Self {
-        // call migrate on self
-        if env::attached_deposit() != 1 {
-            env::panic_str("Need money");
-        }
-        let old_state: OldWormhole = env::state_read().expect("failed");
-        if env::signer_account_pk() != old_state.owner_pk {
-            env::panic_str("CannotCallMigrate");
-        }
-        env::log_str(&format!("wormhole/{}#{}: migrate", file!(), line!(),));
-        Self {
-            guardians:             old_state.guardians,
-            dups:                  old_state.dups,
-            emitters:              old_state.emitters,
-            guardian_set_expirity: old_state.guardian_set_expirity,
-            guardian_set_index:    old_state.guardian_set_index,
-            owner_pk:              old_state.owner_pk,
-            upgrade_hash:          old_state.upgrade_hash,
-            message_fee:           old_state.message_fee,
-            bank:                  old_state.bank,
-        }
-    }
+//    #[init(ignore_state)]
+//    #[payable]
+//    #[private]
+//    pub fn migrate() -> Self {
+//        // call migrate on self
+//        if env::attached_deposit() != 1 {
+//            env::panic_str("Need money");
+//        }
+//        let old_state: OldWormhole = env::state_read().expect("failed");
+//        env::log_str(&format!("wormhole/{}#{}: migrate", file!(), line!(),));
+//        Self {
+//            guardians:             old_state.guardians,
+//            dups:                  old_state.dups,
+//            emitters:              old_state.emitters,
+//            guardian_set_expirity: old_state.guardian_set_expirity,
+//            guardian_set_index:    old_state.guardian_set_index,
+//            owner_pk:              old_state.owner_pk,
+//            upgrade_hash:          old_state.upgrade_hash,
+//            message_fee:           old_state.message_fee,
+//            bank:                  old_state.bank,
+//        }
+//    }
 }
 
 //  let result = await userAccount.functionCall({

@@ -587,7 +587,9 @@ impl TokenBridge {
                 file!(),
                 line!()
             ));
-            ext_ft_contract::ext(asset_token_account.clone()).update_ft(
+            ext_ft_contract::ext(asset_token_account.clone())
+                .with_static_gas(Gas(10_000_000_000_000))
+                .update_ft(
                 ft,
                 data.to_vec(),
                 vaa.sequence,
@@ -802,7 +804,7 @@ impl TokenBridge {
             Promise::new(refund_to).transfer(env::attached_deposit());
             return ret;
         }
-        let a = AccountId::new_unchecked(account);
+        let a = AccountId::try_from(account).unwrap();
         self.hash_map.insert(&account_hash, &a);
 
         if env::storage_usage() < storage_used {
@@ -1652,32 +1654,30 @@ impl TokenBridge {
         }
     }
 
-    #[init(ignore_state)]
-    #[payable]
-    pub fn migrate() -> Self {
-        if env::attached_deposit() != 1 {
-            env::panic_str("Need money");
-        }
-        let old_state: OldPortal = env::state_read().expect("failed");
-        if env::signer_account_pk() != old_state.owner_pk {
-            env::panic_str("CannotCallMigrate");
-        }
-        env::log_str(&format!("token-bridge/{}#{}: migrate", file!(), line!(),));
-        Self {
-            booted:               old_state.booted,
-            core:                 old_state.core,
-            gov_idx:              0,
-            dups:                 LookupMap::new(b"d".to_vec()),
-            owner_pk:             old_state.owner_pk,
-            emitter_registration: old_state.emitter_registration,
-            last_asset:           old_state.last_asset,
-            upgrade_hash:         old_state.upgrade_hash,
-            tokens:               old_state.tokens,
-            key_map:              old_state.key_map,
-            hash_map:             old_state.hash_map,
-            bank:                 old_state.bank,
-        }
-    }
+//    #[init(ignore_state)]
+//    #[payable]
+//    #[private]
+//    pub fn migrate() -> Self {
+//        if env::attached_deposit() != 1 {
+//            env::panic_str("Need money");
+//        }
+//        let old_state: OldPortal = env::state_read().expect("failed");
+//        env::log_str(&format!("token-bridge/{}#{}: migrate", file!(), line!(),));
+//        Self {
+//            booted:               old_state.booted,
+//            core:                 old_state.core,
+//            gov_idx:              0,
+//            dups:                 LookupMap::new(b"d".to_vec()),
+//            owner_pk:             old_state.owner_pk,
+//            emitter_registration: old_state.emitter_registration,
+//            last_asset:           old_state.last_asset,
+//            upgrade_hash:         old_state.upgrade_hash,
+//            tokens:               old_state.tokens,
+//            key_map:              old_state.key_map,
+//            hash_map:             old_state.hash_map,
+//            bank:                 old_state.bank,
+//        }
+//    }
 }
 
 //  let result = await userAccount.functionCall({
