@@ -7,7 +7,7 @@ module Wormhole::cursor {
     ///
     /// This setup statically guarantees that the parsing methods consume the
     /// full input.
-    struct Cursor<T> has store {
+    struct Cursor<T> {
         data: vector<T>,
     }
 
