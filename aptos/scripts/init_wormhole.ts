@@ -1,6 +1,6 @@
 import { AptosAccount, TxnBuilderTypes, BCS, HexString, MaybeHexString, AptosClient, FaucetClient, AptosAccountObject } from "aptos";
 import {aptosAccountObject} from "./constants";
-export const NODE_URL = "http://localhost:8080/v1";
+export const NODE_URL = "http://localhost:8080";
 export const FAUCET_URL = "http://localhost:8081";
 
 const client = new AptosClient(NODE_URL);

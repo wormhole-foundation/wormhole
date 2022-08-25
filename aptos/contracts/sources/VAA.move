@@ -1,7 +1,7 @@
 module Wormhole::VAA{
     use 0x1::vector;
     use 0x1::string::{Self, String};
-    use 0x1::signature::{Self};//, secp256k1_ecdsa_recover};
+    //use 0x1::signature::{Self};//, secp256k1_ecdsa_recover};
     use 0x1::timestamp::{Self};
     use Wormhole::Deserialize;
     use Wormhole::Serialize;
