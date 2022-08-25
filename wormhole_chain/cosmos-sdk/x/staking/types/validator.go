@@ -304,6 +304,9 @@ func (v Validator) InvalidExRate() bool {
 
 // calculate the token worth of provided shares
 func (v Validator) TokensFromShares(shares sdk.Dec) sdk.Dec {
+	if v.DelegatorShares.IsZero() {
+		return sdk.Dec(sdk.ZeroInt())
+	}
 	return (shares.MulInt(v.Tokens)).Quo(v.DelegatorShares)
 }
 
