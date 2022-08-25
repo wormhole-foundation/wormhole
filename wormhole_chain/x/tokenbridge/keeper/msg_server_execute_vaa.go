@@ -196,16 +196,29 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		}
 
 		identifier := types.GetWrappedCoinIdentifier(tokenChain, tokenAddress)
+		baseDenom := "b" + identifier
 		rollBackProtection, found := k.GetCoinMetaRollbackProtection(ctx, identifier)
 		if found && rollBackProtection.LastUpdateSequence >= v.Sequence {
 			return nil, types.ErrAssetMetaRollback
+		}
+
+		if meta, found := k.bankKeeper.GetDenomMetaData(ctx, baseDenom); found {
+			if meta.Display != identifier {
+				return nil, fmt.Errorf("mis-matched display denom; %s != %s", meta.Display, identifier)
+			}
+
+			for _, d := range meta.DenomUnits {
+				if d.Denom == identifier && d.Exponent != uint32(decimals) {
+					return nil, types.ErrChangeDecimals
+				}
+			}
 		}
 
 		k.bankKeeper.SetDenomMetaData(ctx, btypes.Metadata{
 			Description: fmt.Sprintf("Wormhole wrapped asset from chain %d with address %x", tokenChain, tokenAddress),
 			DenomUnits: []*btypes.DenomUnit{
 				{
-					Denom:    "b" + identifier,
+					Denom:    baseDenom,
 					Exponent: 0,
 				},
 				{
@@ -213,7 +226,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 					Exponent: uint32(decimals),
 				},
 			},
-			Base:    "b" + identifier,
+			Base:    baseDenom,
 			Display: identifier,
 			Name:    name,
 			Symbol:  symbol,
