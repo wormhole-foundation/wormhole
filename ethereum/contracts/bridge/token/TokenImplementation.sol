@@ -7,6 +7,7 @@ import "./TokenState.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Based on the OpenZepplin ERC20 implementation, licensed under MIT
 contract TokenImplementation is TokenState, Context {
@@ -33,10 +34,22 @@ contract TokenImplementation is TokenState, Context {
 
         _state.chainId = chainId_;
         _state.nativeContract = nativeContract_;
+
+        // EIP712 for domain separator
+        _version = "1";
+        _hashedTokenChain = keccak256(abi.encodePacked(_state.chainId));
+        _hashedNativeContract = keccak256(abi.encodePacked(_state.nativeContract));
+        _hashedVersion = keccak256(bytes(_version));
+        _typeHash = keccak256(
+            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+        );
+        _cachedChainId = block.chainid;
+        _cachedDomainSeparator = _buildNativeDomainSeparator(_typeHash, _hashedTokenChain, _hashedNativeContract, _hashedVersion);
+        _cachedThis = address(this);
     }
 
     function name() public view returns (string memory) {
-        return string(abi.encodePacked(_state.name, " (Wormhole)"));
+        return string(abi.encodePacked(_state.name, " (Wormhole)")); // TODO: should we remove this suffix?
     }
 
     function symbol() public view returns (string memory) {
@@ -173,5 +186,77 @@ contract TokenImplementation is TokenState, Context {
         _state.initialized = true;
 
         _;
+    }
+
+    /**
+     * @dev Returns the domain separator for the current chain.
+     */
+    function _domainSeparatorV4() internal view returns (bytes32) {
+        if (address(this) == _cachedThis && block.chainid == _cachedChainId) {
+            return _cachedDomainSeparator;
+        } else {
+            //return _buildDomainSeparator(_typeHash, _hashedName, _hashedVersion);
+            return _buildNativeDomainSeparator(_typeHash, _hashedTokenChain, _hashedNativeContract, _hashedVersion);
+        }
+    }
+
+    function _buildNativeDomainSeparator(
+        bytes32 typeHash,
+        bytes32 tokenChainHash,
+        bytes32 nativeContractHash,
+        bytes32 versionHash
+    ) private view returns (bytes32) {
+        return keccak256(abi.encode(typeHash, tokenChainHash, nativeContractHash, versionHash, block.chainid, address(this)));
+    }
+
+    /**
+     * @dev Given an already https://eips.ethereum.org/EIPS/eip-712#definition-of-hashstruct[hashed struct], this
+     * function returns the hash of the fully encoded EIP712 message for this domain.
+     *
+     * This hash can be used together with {ECDSA-recover} to obtain the signer of a message. For example:
+     *
+     * ```solidity
+     * bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(
+     *     keccak256("Mail(address to,string contents)"),
+     *     mailTo,
+     *     keccak256(bytes(mailContents))
+     * )));
+     * address signer = ECDSA.recover(digest, signature);
+     * ```
+     */
+    function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
+        return ECDSA.toTypedDataHash(_domainSeparatorV4(), structHash);
+    }
+
+    /**
+     * @dev See {IERC20Permit-permit}.
+     */
+    function permit(
+        address owner_,
+        address spender_,
+        uint256 value_,
+        uint256 deadline_,
+        uint8 v_,
+        bytes32 r_,
+        bytes32 s_
+    ) public {
+        require(block.timestamp <= deadline_, "ERC20Permit: expired deadline");
+
+        bytes32 structHash = keccak256(abi.encode(_PERMIT_TYPEHASH, owner_, spender_, value_, _useNonce(owner_), deadline_));
+
+        bytes32 message = _hashTypedDataV4(structHash);
+
+        address signer = ECDSA.recover(message, v_, r_, s_);
+        require(signer == owner_, "ERC20Permit: invalid signature");
+
+        _approve(owner_, spender_, value_);
+    }
+
+    /**
+     * @dev See {IERC20Permit-DOMAIN_SEPARATOR}.
+     */
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        return _domainSeparatorV4();
     }
 }
