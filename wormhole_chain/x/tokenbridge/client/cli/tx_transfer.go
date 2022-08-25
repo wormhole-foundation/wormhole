@@ -3,9 +3,9 @@ package cli
 import (
 	"encoding/hex"
 	"fmt"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"math/big"
 	"strconv"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/spf13/cobra"
 
@@ -43,9 +43,9 @@ func CmdTransfer() *cobra.Command {
 				return fmt.Errorf("to address invalid: %w", err)
 			}
 
-			fee, ok := new(big.Int).SetString(args[3], 10)
-			if !ok {
-				return fmt.Errorf("invalid fee (must be a number)")
+			fee, err := sdk.ParseCoinNormalized(args[3])
+			if err != nil {
+				return fmt.Errorf("invalid fee: %w", err)
 			}
 
 			msg := types.NewMsgTransfer(
