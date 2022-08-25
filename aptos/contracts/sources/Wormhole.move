@@ -1,5 +1,4 @@
 module Wormhole::Wormhole {
-    use 0x1::signer::{address_of};
     use 0x1::vector::{Self};
     //use 0x1::vector::{Self};
     //use Wormhole::Governance::{init_guardian_set};
@@ -18,31 +17,31 @@ module Wormhole::Wormhole {
         setGovernanceContract(governanceContract);
     }
 
-    public entry fun testInitWormholeState(admin: &signer){ 
+    public entry fun testInitWormholeState(admin: &signer){
         initWormholeState(admin);
     }
 
-    public entry fun testInitMessageHandles(admin: &signer){ 
+    public entry fun testInitMessageHandles(admin: &signer){
          initMessageHandles(admin);
     }
 
-    public entry fun testSetChainId(admin: &signer){ 
+    public entry fun testSetChainId(_admin: &signer){
         setChainId(1);
     }
 
-    public entry fun testSetGovernanceChainId(admin: &signer){ 
+    public entry fun testSetGovernanceChainId(_admin: &signer){
         setGovernanceChainId(0);
     }
 
-    //public entry fun testInitMessageHandles(admin: &signer){ 
+    //public entry fun testInitMessageHandles(admin: &signer){
     //    initWormholeState(admin);
     //}
 
-    public entry fun doNothing(admin: &signer){ 
+    public entry fun doNothing(_admin: &signer){
         //setChainId(3);
     }
 
-    // public entry fun testEntry2(){ 
+    // public entry fun testEntry2(){
     //     setChainId(4);
     // }
 }

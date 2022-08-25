@@ -5,6 +5,7 @@ module Wormhole::VAA{
     use 0x1::hash::{Self};
     use 0x1::timestamp::{Self};
     use Wormhole::Deserialize;
+    use Wormhole::cursor::{Self};
     use Wormhole::Serialize;
     use Wormhole::Structs::{GuardianSet, Guardian, getAddress, getGuardians, getGuardianSetIndex, getGuardianSetExpiry, Signature, unpackSignature, createSignature};
     use Wormhole::State::{getCurrentGuardianSet, getCurrentGuardianSetIndex};
@@ -29,10 +30,11 @@ module Wormhole::VAA{
     //break
 
     public fun parse(bytes: vector<u8>): VAA {
-        let (version, bytes) = Deserialize::deserialize_u8(bytes);
-        let (guardian_set_index, bytes) = Deserialize::deserialize_u64(bytes);
+        let cur = cursor::init(bytes);
+        let version = Deserialize::deserialize_u8(&mut cur);
+        let guardian_set_index = Deserialize::deserialize_u64(&mut cur);
 
-        let (signatures_len, bytes) = Deserialize::deserialize_u8(bytes);
+        let signatures_len = Deserialize::deserialize_u8(&mut cur);
         let signatures = vector::empty<Signature>();
 
         assert!(signatures_len <= 19, 0);
@@ -44,22 +46,24 @@ module Wormhole::VAA{
             };
             signatures_len > 0
         }) {
-            let (signature, _) = Deserialize::deserialize_vector(bytes, 32);
-            let (guardianIndex, _) = Deserialize::deserialize_u64(bytes);
+            let signature = Deserialize::deserialize_vector(&mut cur, 32);
+            let guardianIndex = Deserialize::deserialize_u64(&mut cur);
             vector::push_back(&mut signatures, createSignature(signature, guardianIndex));
             signatures_len = signatures_len - 1;
         };
 
-        let (timestamp, bytes) = Deserialize::deserialize_u64(bytes);
-        let (nonce, bytes) = Deserialize::deserialize_u64(bytes);
-        let (emitter_chain, bytes) = Deserialize::deserialize_u64(bytes);
-        let (emitter_address, bytes) = Deserialize::deserialize_vector(bytes, 20);
-        let (sequence, bytes) = Deserialize::deserialize_u64(bytes);
-        let (consistency_level, bytes) = Deserialize::deserialize_u8(bytes);
-        let (hash, bytes) = Deserialize::deserialize_vector(bytes, 32);
+        let timestamp = Deserialize::deserialize_u64(&mut cur);
+        let nonce = Deserialize::deserialize_u64(&mut cur);
+        let emitter_chain = Deserialize::deserialize_u64(&mut cur);
+        let emitter_address = Deserialize::deserialize_vector(&mut cur, 20);
+        let sequence = Deserialize::deserialize_u64(&mut cur);
+        let consistency_level = Deserialize::deserialize_u8(&mut cur);
+        let hash = Deserialize::deserialize_vector(&mut cur, 32);
 
         let remaining_length = vector::length(&bytes);
-        let (payload, _) = Deserialize::deserialize_vector(bytes, remaining_length);
+        let payload = Deserialize::deserialize_vector(&mut cur, remaining_length);
+
+        cursor::destroy_empty(cur);
 
         VAA {
             version:            version,
