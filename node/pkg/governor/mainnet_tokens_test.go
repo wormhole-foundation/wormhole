@@ -48,11 +48,11 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
 	/* Assume that all chains within a token bridge will have governed tokens */
-	for chain, _ := range common.KnownTokenbridgeEmitters {
-		t.Run(vaa.ChainID(chain).String(), func(t *testing.T) {
+	for e := range common.KnownTokenbridgeEmitters {
+		t.Run(vaa.ChainID(e).String(), func(t *testing.T) {
 			found := false
 			for _, tokenConfigEntry := range tokenConfigEntries {
-				if tokenConfigEntry.chain == uint16(chain) {
+				if tokenConfigEntry.chain == uint16(e) {
 					found = true
 					break
 				}
