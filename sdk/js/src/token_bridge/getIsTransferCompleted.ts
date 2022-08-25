@@ -116,13 +116,13 @@ export async function getIsTransferCompletedInjective(
       })
     ).toString("base64")
   );
-  let result: any = null;
   if (typeof queryResult.data === "string") {
-    result = JSON.parse(
+    const result = JSON.parse(
       Buffer.from(queryResult.data, "base64").toString("utf-8")
     );
+    return result.is_redeemed;
   }
-  return result.is_redeemed;
+  return false;
 }
 
 export async function getIsTransferCompletedSolana(
