@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"testing"
@@ -57,14 +58,14 @@ func TestShowGuardianValidator(t *testing.T) {
 	}{
 		{
 			desc:          "found",
-			idGuardianKey: string(objs[0].GuardianKey),
+			idGuardianKey: hex.EncodeToString(objs[0].GuardianKey),
 
 			args: common,
 			obj:  objs[0],
 		},
 		{
 			desc:          "not found",
-			idGuardianKey: strconv.Itoa(100000),
+			idGuardianKey: "0x100000",
 
 			args: common,
 			err:  status.Error(codes.InvalidArgument, "not found"),
