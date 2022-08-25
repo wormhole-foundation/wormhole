@@ -45,11 +45,9 @@ config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
 config.define_bool("explorer", False, "Enable explorer component")
-config.define_bool("bridge_ui", False, "Enable bridge UI component")
 config.define_bool("spy_relayer", False, "Enable spy relayer")
 config.define_bool("e2e", False, "Enable E2E testing stack")
 config.define_bool("ci_tests", False, "Enable tests runner component")
-config.define_bool("bridge_ui_hot", False, "Enable hot loading bridge_ui")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
@@ -68,15 +66,12 @@ terra_classic = cfg.get("terra_classic", True)
 terra2 = cfg.get("terra2", True)
 ci = cfg.get("ci", False)
 explorer = cfg.get("explorer", ci)
-bridge_ui = cfg.get("bridge_ui", ci)
 spy_relayer = cfg.get("spy_relayer", ci)
 e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
-
-bridge_ui_hot = not ci
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -484,36 +479,6 @@ if evm2:
         trigger_mode = trigger_mode,
     )
 
-if bridge_ui:
-    entrypoint = "npm run build && /app/node_modules/.bin/serve -s build -n"
-    live_update = []
-    if bridge_ui_hot:
-        entrypoint = "npm start"
-        live_update = [
-            sync("./bridge_ui/public", "/app/public"),
-            sync("./bridge_ui/src", "/app/src"),
-        ]
-
-    docker_build(
-        ref = "bridge-ui",
-        context = ".",
-        only = ["./bridge_ui"],
-        dockerfile = "bridge_ui/Dockerfile",
-        entrypoint = entrypoint,
-        live_update = live_update,
-    )
-
-    k8s_yaml_with_ns("devnet/bridge-ui.yaml")
-
-    k8s_resource(
-        "bridge-ui",
-        resource_deps = [],
-        port_forwards = [
-            port_forward(3000, name = "Bridge UI [:3000]", host = webHost),
-        ],
-        labels = ["portal"],
-        trigger_mode = trigger_mode,
-    )
 
 if ci_tests:
     local_resource(
@@ -527,16 +492,6 @@ if ci_tests:
         trigger_mode = trigger_mode,
     )
 
-    docker_build(
-        ref = "bridge-ui-test-image",
-        context = ".",
-        dockerfile = "testing/Dockerfile.bridge_ui.test",
-        only = [],
-        live_update = [
-            sync("./testing", "/app/testing"),
-            sync("./bridge_ui/src", "/app/bridge_ui/src"),
-        ],
-    )
     docker_build(
         ref = "sdk-test-image",
         context = ".",
@@ -561,11 +516,6 @@ if ci_tests:
     k8s_yaml_with_ns("devnet/tests.yaml")
 
     # separate resources to parallelize docker builds
-    k8s_resource(
-        "bridge-ui-ci-tests",
-        labels = ["ci"],
-        trigger_mode = trigger_mode,
-    )
     k8s_resource(
         "sdk-ci-tests",
         labels = ["ci"],
