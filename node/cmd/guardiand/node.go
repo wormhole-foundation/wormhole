@@ -532,14 +532,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *celoContract == "" && !*unsafeDevMode {
 		logger.Fatal("Please specify --celoContract")
 	}
-	if *testnetMode || *unsafeDevMode {
-		if *nearRPC != "" {
-			if *nearContract == "" {
-				logger.Fatal("If --nearRPC is specified, then --nearContract must be specified")
-			}
-		} else if *nearContract != "" {
-			logger.Fatal("If --nearContract is specified, then --nearRPC must be specified")
+	if *nearRPC != "" {
+		if *nearContract == "" {
+			logger.Fatal("If --nearRPC is specified, then --nearContract must be specified")
 		}
+	} else if *nearContract != "" {
+		logger.Fatal("If --nearContract is specified, then --nearRPC must be specified")
 	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
@@ -596,12 +594,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --injectiveContract")
-		}
-		if *nearRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --nearRPC")
-		}
-		if *nearContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --nearContract")
 		}
 	}
 	if *nodeName == "" {
