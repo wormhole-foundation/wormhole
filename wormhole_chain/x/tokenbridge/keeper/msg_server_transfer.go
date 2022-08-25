@@ -16,6 +16,9 @@ import (
 func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*types.MsgTransferResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
+	msg.Amount = sdk.NormalizeCoin(msg.Amount)
+	msg.Fee = sdk.NormalizeCoin(msg.Fee)
+
 	wormholeConfig, ok := k.wormholeKeeper.GetConfig(ctx)
 	if !ok {
 		return nil, whtypes.ErrNoConfig
