@@ -44,6 +44,7 @@ import {
   hexToUint8Array,
   textToUint8Array,
   uint8ArrayToHex,
+  CHAIN_ID_SOLANA,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { isNativeCosmWasmDenom } from "../cosmwasm";
