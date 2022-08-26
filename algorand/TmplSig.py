@@ -36,7 +36,7 @@ class TmplSig:
 #            self.map = json.loads(f.read())
 
 
-        self.map = {"name":"lsig.teal","version":6,"source":"","bytecode":"BiABAYEASIAASDEQgQYSRDEZIhJEMRiBABJEMSCAABJEMQGBABJEMQkyAxJEMRUyAxJEIg==",
+        self.map = {"name":"lsig.teal","version":6,"source":"","bytecode":"BiABAYEASIAASDEQgQYSRDEZIhJEMRiBABJEMSCAABJEMQGBABJEMQkyAxJEMRUyAxJEIkM=",
                     "template_labels":{
                         "TMPL_ADDR_IDX":{"source_line":3,"position":5,"bytes":False},
                         "TMPL_EMITTER_ID":{"source_line":5,"position":8,"bytes":True},
