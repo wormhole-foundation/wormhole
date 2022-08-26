@@ -182,26 +182,6 @@ module Wormhole::VAA{
         (vaa, valid, reason)
     }
 
-    /// Converts a 64 byte secpk256k1 public key into an EVM-style 20 byte address.
-    ///
-    /// The address is derived by taking the last 20 bytes of the keccak256 hash
-    /// of the public key.
-    /// TODO: add tests for this
-    fun addresFromPubkey(pubkey: &secp256k1::ECDSARawPublicKey): vector<u8> {
-        let bytes = secp256k1::ecdsa_raw_public_key_to_bytes(pubkey);
-        let hash = hash::sha3_256(bytes);
-        let address = vector::empty<u8>();
-        let i = 0;
-        // the hash is 32 bytes, but can't hurt to compute it
-        let len = vector::length(&hash);
-        let start = len - 20 - 1;
-        while (i < 20) {
-            vector::push_back(&mut address, *vector::borrow(&hash, start + i));
-            i = i + 1;
-        };
-        address
-    }
-
     //TODO: we shouldn't reserialise the VAA to copmute its hash. However, this
     // functions might be useful in testing
     fun hash(vaa: &VAA): vector<u8> {
