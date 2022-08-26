@@ -1,20 +1,23 @@
 module Wormhole::Structs{
     use Wormhole::Uints::{U32, zero_u32};
+    use 0x1::secp256k1::{Self};
 
     friend Wormhole::State;
     friend Wormhole::VAA;
     friend Wormhole::Wormhole;
+    use Wormhole::guardian_pubkey::{Self};
 
     //friend Wormhole::Governance;
     //friend Wormhole::Wormhole;
 
     struct Signature has key, store, copy, drop{
-        signature: vector<u8>,
+        sig: secp256k1::ECDSASignature,
+        recovery_id: u8,
         guardianIndex: U32,
     }
 
     struct Guardian has key, store, drop, copy {
-        address: vector<u8>,
+        address: guardian_pubkey::Address
     }
 
     struct GuardianSet has key, store, copy, drop {
@@ -25,7 +28,7 @@ module Wormhole::Structs{
 
     public fun createGuardian(address: vector<u8>): Guardian {
         Guardian{
-            address: address
+            address: guardian_pubkey::from_bytes(address)
         }
     }
 
@@ -42,22 +45,23 @@ module Wormhole::Structs{
         //guardianSet.expirationTime = timestamp::now_seconds() + 86400;
     }
 
-    public fun unpackSignature(s: &Signature): (vector<u8>, U32){
-        (s.signature,  s.guardianIndex)
+    public fun unpackSignature(s: &Signature): (secp256k1::ECDSASignature, u8, U32) {
+        (s.sig, s.recovery_id, s.guardianIndex)
     }
 
-    public fun createSignature(s: vector<u8>, guardianIndex: U32): Signature{
-        Signature{
-            signature:      s,
-            guardianIndex:  guardianIndex,
-        }
+    public fun createSignature(
+        sig: secp256k1::ECDSASignature,
+        recovery_id: u8,
+        guardianIndex: U32
+    ): Signature {
+        Signature{ sig, recovery_id, guardianIndex }
     }
 
-    public fun getAddress(guardian: Guardian): vector<u8> {
+    public fun getAddress(guardian: Guardian): guardian_pubkey::Address {
         guardian.address
     }
 
-    public fun getGuardianSetIndex(guardianSet: GuardianSet): U32{
+    public fun getGuardianSetIndex(guardianSet: GuardianSet): U32 {
         guardianSet.index
     }
 
