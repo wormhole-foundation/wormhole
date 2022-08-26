@@ -32,8 +32,8 @@ module Wormhole::Governance {
         verify(&update, getCurrentGuardianSet());
 
         let GuardianUpdate {
-            guardian_module,
-            action, //action
+            guardian_module: _,
+            action: _, //action
             new_index,
             guardians,
         } = update;

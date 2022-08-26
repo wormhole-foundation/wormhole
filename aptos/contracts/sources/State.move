@@ -144,7 +144,7 @@ module Wormhole::State{
         state.guardianSetIndex = newIndex;
     }
 
-    public(friend) fun expireGuardianSet(index: u64) acquires WormholeState {
+    public(friend) fun expireGuardianSet(_index: u64) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         let guardianSet = table::borrow_mut<u64, GuardianSet>(&mut state.guardianSets, state.guardianSetIndex);
         Structs::expireGuardianSet(guardianSet);
