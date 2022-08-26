@@ -2,8 +2,8 @@ FROM rust:1.62@sha256:5777f201f507075309c4d2d1c1e8d8219e654ae1de154c844341050016
 
 RUN apt-get update && apt-get -y install libclang-dev jq cmake curl python3 --no-install-recommends
 
-COPY node_builder.sh /tmp
-
 WORKDIR /tmp
 
-RUN ./node_builder.sh
+RUN cargo install --git https://github.com/aptos-labs/aptos-core.git aptos --branch devnet
+
+COPY start_node.sh  /tmp
