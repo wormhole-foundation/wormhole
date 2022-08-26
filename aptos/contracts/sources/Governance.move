@@ -4,6 +4,7 @@ module Wormhole::Governance {
     use Wormhole::VAA::{Self};
     use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, expireGuardianSet, getCurrentGuardianSet};
     use Wormhole::Structs::{Guardian, GuardianSet, createGuardian, createGuardianSet, getGuardianSetIndex};
+    use Wormhole::Uints::{U32};
     use 0x1::vector::{Self};
     use 0x1::string::{Self, String};
 
@@ -13,7 +14,7 @@ module Wormhole::Governance {
     struct GuardianUpdate has key{
         guardian_module:    vector<u8>,
         action:             u8,
-        new_index:          u64,
+        new_index:          U32,
         guardians:          vector<Guardian>,
     }
 
@@ -40,7 +41,8 @@ module Wormhole::Governance {
 
         updateGuardianSetIndex(new_index);
         storeGuardianSet(createGuardianSet(new_index, guardians), new_index);
-        expireGuardianSet(new_index-1);
+        // TODO: when subtraction is implemented for U32, expire prev guardian set
+        //expireGuardianSet(new_index-1);
         return (true, string::utf8(b""))
     }
 
@@ -49,11 +51,12 @@ module Wormhole::Governance {
         let guardians = vector::empty<Guardian>();
         let guardian_module = Deserialize::deserialize_vector(&mut cur, 32);
         //TODO: missing chainID?
-        let action = Deserialize::deserialize_u8(&mut cur);
-        let new_index = Deserialize::deserialize_u64(&mut cur);
+        let action  = Deserialize::deserialize_u8(&mut cur);
+        let new_index = Deserialize::deserialize_u32(&mut cur);
         let guardian_len = Deserialize::deserialize_u8(&mut cur);
 
-        assert!(guardian_len < 19, E_WRONG_GUARDIAN_LEN);
+        // TODO - the following assert when we can compare U16 types using (<, >, =)
+        //assert!(guardian_len < 19, E_WRONG_GUARDIAN_LEN);
 
         while ({
             spec {
@@ -81,6 +84,8 @@ module Wormhole::Governance {
         let (guardian_module, action) = (update.guardian_module, update.action);
         assert!(vector::length(&guardian_module) == 32, 0);
         assert!(action == 0x02, 0);
-        assert!(update.new_index > getGuardianSetIndex(previous), 0);
+
+        //TODO: compare indices once comparison operator is implemented for U32
+        //assert!(update.new_index > getGuardianSetIndex(previous), 0);
     }
 }

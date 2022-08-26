@@ -1,5 +1,7 @@
 module Wormhole::Structs{
     use 0x1::timestamp::{Self};
+    use 0x1::vector::{Self};
+    use Wormhole::Uints::{U16, U32, zero_u32};
 
     friend Wormhole::State;
     friend Wormhole::VAA;
@@ -8,19 +10,19 @@ module Wormhole::Structs{
     //friend Wormhole::Governance;
     //friend Wormhole::Wormhole;
 
-    struct Signature has key, store, copy, drop {
+    struct Signature has key, store, copy, drop{
         signature: vector<u8>,
-        guardianIndex: u64,
-    }
+        guardianIndex: U32,
+	}
 
     struct Guardian has key, store, drop, copy {
         address: vector<u8>,
     }
 
     struct GuardianSet has key, store, copy, drop {
-        index:     u64,
+        index:     U32,
         guardians: vector<Guardian>,
-        expirationTime: u64, //u32
+        expirationTime: U32,
     }
 
     public fun createGuardian(address: vector<u8>): Guardian {
@@ -29,23 +31,24 @@ module Wormhole::Structs{
         }
     }
 
-    public fun createGuardianSet(index: u64, guardians: vector<Guardian>): GuardianSet {
+    public fun createGuardianSet(index: U32, guardians: vector<Guardian>): GuardianSet{
         GuardianSet{
             index: index,
             guardians: guardians,
-            expirationTime: 0,
+            expirationTime: zero_u32(), // represents 0 as a U32
         }
     }
 
-    public(friend) fun expireGuardianSet(guardianSet: &mut GuardianSet) {
-        guardianSet.expirationTime = timestamp::now_seconds() + 86400;
+    public(friend) fun expireGuardianSet(guardianSet: &mut GuardianSet){
+        // TODO - right now U32 addition not supported
+        //guardianSet.expirationTime = timestamp::now_seconds() + 86400;
     }
 
-    public fun unpackSignature(s: &Signature): (vector<u8>, u64) {
+    public fun unpackSignature(s: &Signature): (vector<u8>, U32){
         (s.signature,  s.guardianIndex)
     }
 
-    public fun createSignature(s: vector<u8>, guardianIndex: u64): Signature {
+    public fun createSignature(s: vector<u8>, guardianIndex: U32): Signature{
         Signature{
             signature:      s,
             guardianIndex:  guardianIndex,
@@ -56,7 +59,7 @@ module Wormhole::Structs{
         guardian.address
     }
 
-    public fun getGuardianSetIndex(guardianSet: GuardianSet): u64 {
+    public fun getGuardianSetIndex(guardianSet: GuardianSet): U32{
         guardianSet.index
     }
 
@@ -64,7 +67,7 @@ module Wormhole::Structs{
         guardianSet.guardians
     }
 
-    public fun getGuardianSetExpiry(guardianSet: GuardianSet): u64 {
+    public fun getGuardianSetExpiry(guardianSet: GuardianSet): U32{
         guardianSet.expirationTime
     }
 

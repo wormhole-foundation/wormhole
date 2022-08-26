@@ -1,8 +1,37 @@
 module Wormhole::Serialize {
     use 0x1::vector::{Self};
+    use Wormhole::Uints::{U16, U32, U256, get_bytes_array_u16, get_bytes_array_u32, get_bytes_array_u256};
 
     public fun serialize_u8(buf: &mut vector<u8>, v: u8) {
         vector::push_back<u8>(buf, v);
+    }
+
+    public fun serialize_u16(buf: &mut vector<u8>, v: U16) {
+        let arr = get_bytes_array_u16(*&v);
+        vector::reverse(&mut arr);
+        let i=0;
+        loop {
+            if (i==4){
+                break
+            };
+            let cur = vector::pop_back<u8>(&mut arr);
+            vector::push_back<u8>(buf, cur);
+            i=i+1;
+        };
+    }
+
+    public fun serialize_u32(buf: &mut vector<u8>, v: U32) {
+        let arr = get_bytes_array_u32(*&v);
+        vector::reverse(&mut arr);
+        let i=0;
+        loop {
+            if (i==8){
+                break
+            };
+            let cur = vector::pop_back<u8>(&mut arr);
+            vector::push_back<u8>(buf, cur);
+            i=i+1;
+        };
     }
 
     public fun serialize_u64(buf: &mut vector<u8>, v: u64) {
@@ -19,6 +48,20 @@ module Wormhole::Serialize {
     public fun serialize_u128(buf: &mut vector<u8>, v: u128) {
         serialize_u64(buf, ((v >> 64) as u64));
         serialize_u64(buf, ((v % 2<<64) as u64))
+    }
+
+    public fun serialize_u256(buf: &mut vector<u8>, v: U256) {
+        let arr = get_bytes_array_u256(*&v);
+        vector::reverse(&mut arr);
+        let i=0;
+        loop {
+            if (i==32){
+                break
+            };
+            let cur = vector::pop_back<u8>(&mut arr);
+            vector::push_back<u8>(buf, cur);
+            i=i+1;
+        };
     }
 
     public fun serialize_vector(buf: &mut vector<u8>, v: vector<u8>){
