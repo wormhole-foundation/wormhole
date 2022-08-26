@@ -1,3 +1,3 @@
-FROM ghcr.io/certusone/aptos:0.1@sha256:54a142cb25f0223c92f980882a4516b143c988c806d1f94a79d987205eadfe95 as aptos-node
+FROM ghcr.io/wormhole-foundation/aptos:0.3.2@sha256:d7d223ba0445866228eb5ca945691d55714666e4b80134bf37230781715e766c as aptos-node
 
-COPY start_node.sh  /tmp
+
