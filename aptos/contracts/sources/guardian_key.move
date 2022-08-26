@@ -31,13 +31,11 @@ module Wormhole::guardian_pubkey {
         let hash = hash::sha3_256(bytes);
         let address = vector::empty<u8>();
         let i = 0;
-        // the hash is 32 bytes, but can't hurt to compute it
-        let len = vector::length(&hash);
-        let start = len - 20 - 1;
         while (i < 20) {
-            vector::push_back(&mut address, *vector::borrow(&hash, start + i));
+            vector::push_back(&mut address, vector::pop_back(&mut hash));
             i = i + 1;
         };
+        vector::reverse(&mut address);
         Address { bytes: address }
     }
 
