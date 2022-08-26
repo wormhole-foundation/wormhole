@@ -54,6 +54,6 @@ spec:
               protocol: TCP
           readinessProbe:
             tcpSocket:
-              port: 6181
+              port: 8081
 
       restartPolicy: Always
