@@ -12,7 +12,7 @@ RUN apk add python3 \
 COPY . .
 
 
-LABEL org.opencontainers.image.source="https://github.com/certusone/wormhole/tree/dev.v2/relayer/spy_relayer#readme"
+LABEL org.opencontainers.image.source="https://github.com/wormhole-foundation/wormhole/tree/dev.v2/relayer/spy_relayer#readme"
 
 WORKDIR ./relayer/spy_relayer
 

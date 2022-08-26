@@ -1,6 +1,6 @@
 ---
 version: v1beta1
-name: buf.build/certusone/wormhole
+name: buf.build/wormhole-foundation/wormhole
 deps:
   - buf.build/googleapis/googleapis
   - buf.build/grpc-ecosystem/grpc-gateway

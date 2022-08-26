@@ -4,7 +4,7 @@ set -euo pipefail
 
 (
   cd third_party/abigen
-  docker build -t localhost/certusone/wormhole-abigen:latest .
+  docker build -t localhost/wormhole-foundation/wormhole-abigen:latest .
 )
 
 function gen() {
@@ -14,7 +14,7 @@ function gen() {
   kubectl exec -c tests eth-devnet-0 -- npx truffle@5.4.1 run abigen $name
 
   kubectl exec -c tests eth-devnet-0 -- cat abigenBindings/abi/${name}.abi | \
-    docker run --rm -i localhost/certusone/wormhole-abigen:latest /bin/abigen --abi - --pkg ${pkg} > \
+    docker run --rm -i localhost/wormhole-foundation/wormhole-abigen:latest /bin/abigen --abi - --pkg ${pkg} > \
     node/pkg/ethereum/${pkg}/abi.go
 }
 

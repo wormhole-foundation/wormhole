@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: certusone/guardiand
+  IMAGE_NAME: wormhole-foundation/guardiand
 
 jobs:
   build-and-push-image:

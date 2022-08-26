@@ -383,39 +383,50 @@ export class TestLib {
     );
   }
 
-    genTransfer( signers :any, guardianSet :number, nonce:number, seq:number, amount:number, tokenAddress:string, tokenChain:number, toAddress:string, toChain:number, fee:number) {
-        const b = [
-            "0x",
-            this.encoder("uint8", 1),
-            this.encoder("uint256", Math.floor(amount * 100000000)),
-            this.zeroBytes.slice(0, (64 - tokenAddress.length)),
-            tokenAddress,
-            this.encoder("uint16", tokenChain),
-            this.zeroBytes.slice(0, (64 - toAddress.length)),
-            toAddress,
-            this.encoder("uint16", toChain),
-            this.encoder("uint256", Math.floor(fee * 100000000)),
-        ];
+  genTransfer(
+    signers: any,
+    guardianSet: number,
+    nonce: number,
+    seq: number,
+    amount: number,
+    tokenAddress: string,
+    tokenChain: number,
+    toAddress: string,
+    toChain: number,
+    fee: number
+  ) {
+    const b = [
+      "0x",
+      this.encoder("uint8", 1),
+      this.encoder("uint256", Math.floor(amount * 100000000)),
+      this.zeroBytes.slice(0, 64 - tokenAddress.length),
+      tokenAddress,
+      this.encoder("uint16", tokenChain),
+      this.zeroBytes.slice(0, 64 - toAddress.length),
+      toAddress,
+      this.encoder("uint16", toChain),
+      this.encoder("uint256", Math.floor(fee * 100000000)),
+    ];
 
-        let emitter = "0x" + this.getTokenEmitter(tokenChain);
-        let seconds = Math.floor(new Date().getTime() / 1000.0);
+    let emitter = "0x" + this.getTokenEmitter(tokenChain);
+    let seconds = Math.floor(new Date().getTime() / 1000.0);
 
-        return this.createSignedVAA(
-            guardianSet,
-            signers,
-            seconds,
-            nonce,
-            tokenChain,
-            emitter,
-            seq,
-            32,
-            b.join("")
-        );
-      }
+    return this.createSignedVAA(
+      guardianSet,
+      signers,
+      seconds,
+      nonce,
+      tokenChain,
+      emitter,
+      seq,
+      32,
+      b.join("")
+    );
+  }
 
   /**
    * Create a packed and signed VAA for testing.
-   * See https://github.com/certusone/wormhole/blob/dev.v2/design/0001_generic_message_passing.md
+   * See https://github.com/wormhole-foundation/wormhole/blob/dev.v2/design/0001_generic_message_passing.md
    *
    * @param {} guardianSetIndex  The guardian set index
    * @param {*} signers The list of private keys for signing the VAA

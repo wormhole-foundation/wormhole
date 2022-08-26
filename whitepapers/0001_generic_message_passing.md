@@ -12,7 +12,7 @@ functionality from the core protocol.
 Wormhole was originally designed to support a very specific kind of cross-chain message passing - token wrapping/swaps
 between Solana and Ethereum. Read more about the original design and its goals in
 the [announcement blog post](https://medium.com/certus-one/introducing-the-wormhole-bridge-24911b7335f7) and
-the [protocol documentation](https://github.com/certusone/wormhole/blob/48b3c0a3f8b35818952f61c38d89850eb8924b55/docs/protocol.md)
+the [protocol documentation](https://github.com/wormhole-foundation/wormhole/blob/48b3c0a3f8b35818952f61c38d89850eb8924b55/docs/protocol.md)
 
 Since then, it has become clear that there is strong demand for using Wormhole's simple cross-chain state attestation
 model for applications beyond its original design. This includes third-party projects wanting to transfer tokens other
@@ -25,16 +25,16 @@ from the application logic.
 The core problem that both the current and future Wormhole design is solving is that of **enabling contracts on one
 chain to verify messages from a different chain**. Smart contract engines on chains are often insufficiently powerful to
 independently verify expensive state proofs from other chains due to the amount of storage and compute required. They
-therefore need to rely on off-chain oracles to observe and verify messages and then re-sign them such that they *can* be
+therefore need to rely on off-chain oracles to observe and verify messages and then re-sign them such that they _can_ be
 verified on any of the connected chains, by trusting the oracle network as an intermediary rather than trusting the
 remote chain.
 
 We previously designed a similar protocol extension for the current Wormhole design, called EE-VAAs, which is the
 precursor to this fully generic design:
 
-- [External Entity VAAs](https://github.com/certusone/wormhole/issues/147)
-- [External Entity: Account State Attestation](https://github.com/certusone/wormhole/issues/149)
-- [External Entity: Relayer mode](https://github.com/certusone/wormhole/issues/150)
+- [External Entity VAAs](https://github.com/wormhole-foundation/wormhole/issues/147)
+- [External Entity: Account State Attestation](https://github.com/wormhole-foundation/wormhole/issues/149)
+- [External Entity: Relayer mode](https://github.com/wormhole-foundation/wormhole/issues/150)
 
 This design doc assumes basic familiarity with the current design of Wormhole.
 
@@ -89,7 +89,7 @@ VAA struct {
 	// --------------------------------------------------------------------
 	// HEADER - these values are not part of the observation and instead
 	// carry metadata used to interpret the observation. It is not signed.
-	
+
 	// Protocol version of the entire VAA.
 	Version uint8
 
@@ -143,7 +143,7 @@ VAA struct {
     //
     // The semantic meaning of this field is specific to the target
     // chain (like a commitment level on Solana, number of
-    // confirmations on Ethereum, or no meaning with instant finality). 
+    // confirmations on Ethereum, or no meaning with instant finality).
     ConsistencyLevel uint8 // <-- NEW
 
 	// Payload of the message.
@@ -240,7 +240,7 @@ A peg zone is the closest analogy to Wormhole in the IBC model, with some import
   security properties. Nodes cannot initiate consensus on their own.
 
 - By only reacting to finalized state on chains, each with strong finality guarantees, the Wormhole protocol does not
-  need complex consensus, finality or leader election. It signs *observations* of finalized state, which all nodes do
+  need complex consensus, finality or leader election. It signs _observations_ of finalized state, which all nodes do
   synchronously, and broadcasts them to a peer-to-peer network. There's no possibility of equivocation or eclipse
   attacks leading to disagreements.
 

@@ -16,7 +16,7 @@ However, while this design worked great for v1 which was bridging only two chain
 
 - It adds an unnecessary point of failure. A Solana outage would also prevent token transfers between unrelated chains (it's called mainnet-beta for a reason!). Messages would also incur unnecessary extra latency waiting for Solana to include the transaction. At the time of writing, this is exacerbated by high mainnet-beta skip rate which causes a significant percentage of transactions to fail to be included within a reasonable interval.
 
-- It puts extra strain on Solana's network. In particular, for messages *originating* from Solana, it would cause write amplification.
+- It puts extra strain on Solana's network. In particular, for messages _originating_ from Solana, it would cause write amplification.
 
 - The race mechanism would be too expensive at scale and hard to incentivize, since we cannot use preflight and nodes would pay for failed messages, likely unequally. A leader selection mechanism would have to be implemented.
 
@@ -76,7 +76,7 @@ Locally persisted state is crucial to maintain data availability across the netw
 
 We can't rely on gossip to provide atomic or reliable broadcast - messages may be lost, or nodes may be down. We need to assume that nodes can and will lose all of their local state, and be down for maintenance, including nodes used to serve a public API. Clients relying on the API therefore have to rely on multiple nodes to provide fault tolerance. Typically, clients would implement this by rotating through a set of known API endpoints operated by different service providers, alternating or randomizing them while polling for VAA completion.
 
-Each individual API endpoint may in turn be backed by multiple nodes operated behind a load balancer operated by each API endpoint's service provider.  
+Each individual API endpoint may in turn be backed by multiple nodes operated behind a load balancer operated by each API endpoint's service provider.
 
 To facilitate this, a new "non-voting" mode will be added to guardiand to allow operators to run read-only nodes that listen to the gossip network and locally persist any signed VAA they receive.
 
@@ -100,7 +100,7 @@ Nodes could do idempotent writes to a single shared K/V store (like Bigtable or 
 
 However, we decided against this approach:
 
-- It creates a false sense of security by allowing clients to rely on a single API service provider, reducing the network's overall level of fault tolerance. 
+- It creates a false sense of security by allowing clients to rely on a single API service provider, reducing the network's overall level of fault tolerance.
 
 - We want to mitigate gossip message propagation issues or operational mistakes that could affect many nodes.
 
@@ -142,8 +142,8 @@ This proposal affects only data availability of data that was already validated 
 
 API endpoints may be subject to denial of service attacks. If an attacker manages to take down all public API endpoints, clients would be unable to retrieve signed messages.
 
-VAAs would still be persisted locally during such an attack and can be requested once availability is restored. 
+VAAs would still be persisted locally during such an attack and can be requested once availability is restored.
 
 We believe this risk is easily mitigated - protecting web APIs from denial of service attacks is a well-understood problem, with a robust ecosystem of both technological solutions and service providers.
 
-(robustness of libp2p pubsub itself against flooding by non-guardian nodes is an orthogonal concern tracked in https://github.com/certusone/wormhole/issues/22 as well as the [official libp2p docs](https://docs.libp2p.io/concepts/security-considerations/))
+(robustness of libp2p pubsub itself against flooding by non-guardian nodes is an orthogonal concern tracked in https://github.com/wormhole-foundation/wormhole/issues/22 as well as the [official libp2p docs](https://docs.libp2p.io/concepts/security-considerations/))

@@ -84,7 +84,7 @@ First, create an SSH key on the VM:
 
 You can then [add your public key on GitHub](https://github.com/settings/keys) and clone the repository:
 
-    git clone git@github.com:certusone/wormhole.git
+    git clone git@github.com:wormhole-foundation/wormhole.git
 
 Configure your Git identity:
 
