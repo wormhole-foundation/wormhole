@@ -4,6 +4,8 @@ module Wormhole::VAA{
     use 0x1::secp256k1::{Self};
     use 0x1::hash::{Self};
     use 0x1::timestamp::{Self};
+
+    use Wormhole::Uints::{U16, U32};
     use Wormhole::Deserialize;
     use Wormhole::cursor::{Self};
     use Wormhole::Serialize;
@@ -13,26 +15,27 @@ module Wormhole::VAA{
     struct VAA has key {
             // Header
             version:            u8,
-            guardian_set_index: u64,
+            guardian_set_index: U32,
             signatures:         vector<Signature>,
 
             // Body
-            timestamp:          u64,
-            nonce:              u64,
-            emitter_chain:      u64,
+            timestamp:          U32,
+            nonce:              U32,
+            emitter_chain:      U16,
             emitter_address:    vector<u8>,
             sequence:           u64,
             consistency_level:  u8,
-            hash:               vector<u8>,
-            payload:            vector<u8>,
+            hash:               vector<u8>, // 32 bytes
+            payload:            vector<u8>, // variable bytes
     }
 
     //break
 
     public fun parse(bytes: vector<u8>): VAA {
+
         let cur = cursor::init(bytes);
         let version = Deserialize::deserialize_u8(&mut cur);
-        let guardian_set_index = Deserialize::deserialize_u64(&mut cur);
+        let guardian_set_index = Deserialize::deserialize_u32(&mut cur);
 
         let signatures_len = Deserialize::deserialize_u8(&mut cur);
         let signatures = vector::empty<Signature>();
@@ -47,14 +50,14 @@ module Wormhole::VAA{
             signatures_len > 0
         }) {
             let signature = Deserialize::deserialize_vector(&mut cur, 32);
-            let guardianIndex = Deserialize::deserialize_u64(&mut cur);
+            let guardianIndex = Deserialize::deserialize_u32(&mut cur);
             vector::push_back(&mut signatures, createSignature(signature, guardianIndex));
             signatures_len = signatures_len - 1;
         };
 
-        let timestamp = Deserialize::deserialize_u64(&mut cur);
-        let nonce = Deserialize::deserialize_u64(&mut cur);
-        let emitter_chain = Deserialize::deserialize_u64(&mut cur);
+        let timestamp = Deserialize::deserialize_u32(&mut cur);
+        let nonce = Deserialize::deserialize_u32(&mut cur);
+        let emitter_chain = Deserialize::deserialize_u16(&mut cur);
         let emitter_address = Deserialize::deserialize_vector(&mut cur, 20);
         let sequence = Deserialize::deserialize_u64(&mut cur);
         let consistency_level = Deserialize::deserialize_u8(&mut cur);
@@ -84,11 +87,11 @@ module Wormhole::VAA{
          vaa.version
     }
 
-    public fun get_guardian_set_index(vaa: &VAA): u64{
+    public fun get_guardian_set_index(vaa: &VAA): U32{
          vaa.guardian_set_index
     }
 
-    public fun get_timestamp(vaa: &VAA): u64{
+    public fun get_timestamp(vaa: &VAA): U32{
          vaa.timestamp
     }
 
@@ -100,7 +103,7 @@ module Wormhole::VAA{
          vaa.hash
     }
 
-    public fun get_emitter_chain(vaa: &VAA): u64{
+    public fun get_emitter_chain(vaa: &VAA): U16{
          vaa.emitter_chain
     }
 
@@ -115,7 +118,6 @@ module Wormhole::VAA{
     public fun get_consistency_level(vaa: &VAA): u8 {
         vaa.consistency_level
     }
-
 
     //  break
 
@@ -148,9 +150,10 @@ module Wormhole::VAA{
             return (false, string::utf8(b"Quorum not met"))
         };
 
-        if (getGuardianSetIndex(guardianSet) != getCurrentGuardianSetIndex() && getGuardianSetExpiry(guardianSet) < timestamp::now_seconds()){
-            return (false, string::utf8(b"Guardian set expired"))
-        };
+        // TODO: check expiration time once comparison operation is implemented for U32 type
+        //if (getGuardianSetIndex(guardianSet) != getCurrentGuardianSetIndex() && getGuardianSetExpiry(guardianSet) < timestamp::now_seconds()){
+        //    return (false, string::utf8(b"Guardian set expired"))
+        //};
 
         let i = 0;
         while (i < n) {
@@ -161,12 +164,13 @@ module Wormhole::VAA{
             let pubkey = std::option::extract(&mut pubkey);
             let address = addresFromPubkey(&pubkey);
 
-            let cur_guardian = vector::borrow<Guardian>(&guardians, guardianSetIndex);
-            let cur_address = getAddress(*cur_guardian);
+            // TODO - index into guardians and check pubkey
+            // let cur_guardian = vector::borrow<Guardian>(&guardians, guardianSetIndex);
+            // let cur_address = getAddress(*cur_guardian);
 
-            if (cur_address != address) {
-               return (false, string::utf8(b"Invalid signature"))
-            };
+            // if (cur_address != address) {
+            //    return (false, string::utf8(b"Invalid signature"))
+            // };
 
             i = i + 1;
         };
@@ -203,9 +207,9 @@ module Wormhole::VAA{
     // functions might be useful in testing
     fun hash(vaa: &VAA): vector<u8> {
         let bytes = vector::empty<u8>();
-        Serialize::serialize_u64(&mut bytes, vaa.timestamp);
-        Serialize::serialize_u64(&mut bytes, vaa.nonce);
-        Serialize::serialize_u64(&mut bytes, vaa.emitter_chain);
+        Serialize::serialize_u32(&mut bytes, vaa.timestamp);
+        Serialize::serialize_u32(&mut bytes, vaa.nonce);
+        Serialize::serialize_u16(&mut bytes, vaa.emitter_chain);
         Serialize::serialize_vector(&mut bytes, vaa.emitter_address);
         Serialize::serialize_u64(&mut bytes, vaa.sequence);
         Serialize::serialize_u8(&mut bytes, vaa.consistency_level);

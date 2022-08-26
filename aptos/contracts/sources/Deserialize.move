@@ -1,10 +1,32 @@
-
 module Wormhole::Deserialize {
     use 0x1::vector::{Self};
     use Wormhole::cursor::{Self, Cursor};
+    use Wormhole::Uints::{U16, U32, U256, into_u16, into_u32, into_u256};
 
     public fun deserialize_u8(cur: &mut Cursor<u8>): u8 {
         cursor::poke(cur)
+    }
+
+     public fun deserialize_u16(cur: &mut Cursor<u8>): U16 {
+        let res = vector::empty();
+        let i = 0;
+        while (i < 2) {
+            let b = cursor::poke(cur);
+            vector::push_back(&mut res, b);
+            i = i + 1;
+        };
+        into_u16(res)
+    }
+
+    public fun deserialize_u32(cur: &mut Cursor<u8>): U32 {
+        let res = vector::empty();
+        let i = 0;
+        while (i < 4) {
+            let b = cursor::poke(cur);
+            vector::push_back(&mut res, b);
+            i = i + 1;
+        };
+        into_u32(res)
     }
 
     public fun deserialize_u64(cur: &mut Cursor<u8>): u64 {
@@ -27,6 +49,17 @@ module Wormhole::Deserialize {
             i = i + 1;
         };
         res
+    }
+
+     public fun deserialize_u256(cur: &mut Cursor<u8>): U256 {
+        let res = vector::empty();
+        let i = 0;
+        while (i < 32) {
+            let b = cursor::poke(cur);
+            vector::push_back(&mut res, b);
+            i = i + 1;
+        };
+        into_u256(res)
     }
 
     public fun deserialize_vector(cur: &mut Cursor<u8>, len: u64): vector<u8> {

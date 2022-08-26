@@ -4,21 +4,22 @@ module Wormhole::State{
     use 0x1::signer::{address_of};
     use 0x1::vector::{Self};
     use Wormhole::Structs::{Self, GuardianSet};
+    use Wormhole::Uints::{U16, U32, zero_u16, zero_u32};
 
     friend Wormhole::Governance;
     friend Wormhole::Wormhole;
     friend Wormhole::VAA;
 
-
     struct GuardianSetChanged has store, drop {
-        oldGuardianIndex: u64, //should be u32
-        newGuardianIndex: u64, //should be u32
+        oldGuardianIndex: U32,
+        newGuardianIndex: U32,
     }
 
-    struct WormholeMessage has store, drop{
+    struct WormholeMessage has store, drop {
         sender: address,
         sequence: u64,
-        nonce: u64, //should be u32
+        nonce: U32,
+
         payload: vector<u8>,
         consistencyLevel: u8,
     }
@@ -32,8 +33,8 @@ module Wormhole::State{
     }
 
     struct Provider has key, store {
-        chainId: u64, // u16
-        governanceChainId: u64, // U16
+        chainId: U16,
+        governanceChainId: U16,
         governanceContract: vector<u8>, //bytes32
     }
 
@@ -44,10 +45,10 @@ module Wormhole::State{
         guardianSets: Table<u64, GuardianSet>,
 
         // Current active guardian set index
-        guardianSetIndex: u64,  //should be u32
+        guardianSetIndex: U32,  //should be u32
 
         // Period for which a guardian set stays active after it has been replaced
-        guardianSetExpiry: u64, //should be u32 - unused?
+        guardianSetExpiry: U32, //should be u32 - unused?
 
         // Sequence numbers per emitter
         sequences: Table<address, u64>,
@@ -65,13 +66,13 @@ module Wormhole::State{
     public(friend) fun initWormholeState(admin: &signer) {
         move_to(admin, WormholeState{
             provider: Provider {
-                chainId: 0,
-                governanceChainId: 0,
+                chainId: zero_u16(),
+                governanceChainId: zero_u16(),
                 governanceContract: vector::empty<u8>()
             },
             guardianSets: table::new<u64, GuardianSet>(),
-            guardianSetIndex: 0,
-            guardianSetExpiry: 0,
+            guardianSetIndex: zero_u32(),
+            guardianSetExpiry: zero_u32(),
             sequences: table::new<address, u64>(),
             consumedGovernanceActions: table::new<vector<u8>, bool>(),
             initializedImplementations: table::new<address, bool>(),
@@ -82,7 +83,7 @@ module Wormhole::State{
     public fun createWormholeMessage(
         sender: address,
         sequence: u64,
-        nonce: u64, //should be u32
+        nonce: U32,
         payload: vector<u8>,
         consistencyLevel: u8
         ): WormholeMessage {
@@ -120,7 +121,7 @@ module Wormhole::State{
 
     public entry fun publishMessage (
         sender: &signer,
-        nonce: u64, //should be u32
+        nonce: U32,
         payload: vector<u8>,
         consistencyLevel: u8,
      ) acquires WormholeState, WormholeMessageHandle{
@@ -139,20 +140,22 @@ module Wormhole::State{
         );
     }
 
-    public(friend) fun updateGuardianSetIndex(newIndex: u64) acquires WormholeState { //should be u32
+    public(friend) fun updateGuardianSetIndex(newIndex: U32) acquires WormholeState { //should be u32
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         state.guardianSetIndex = newIndex;
     }
 
     public(friend) fun expireGuardianSet(_index: u64) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@Wormhole);
-        let guardianSet = table::borrow_mut<u64, GuardianSet>(&mut state.guardianSets, state.guardianSetIndex);
-        Structs::expireGuardianSet(guardianSet);
+        //TODO: expire guardian set, when we can index into guardianSets with state.guardianSetIndex (a U32)
+        //let guardianSet = table::borrow_mut<u64, GuardianSet>(&mut state.guardianSets, state.guardianSetIndex);
+        //Structs::expireGuardianSet(guardianSet);
     }
 
-    public(friend) fun storeGuardianSet(set: GuardianSet, index: u64) acquires WormholeState {
+    public(friend) fun storeGuardianSet(set: GuardianSet, index: U32) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@Wormhole);
-        table::add(&mut state.guardianSets, index, set);
+        //TODO: store guardian set under index (U32)
+        //table::add(&mut state.guardianSets, index, set);
     }
 
     // TODO: setInitialized?
@@ -162,13 +165,13 @@ module Wormhole::State{
         table::add(&mut state.consumedGovernanceActions, hash, true);
     }
 
-    public(friend) fun setChainId(chaindId: u64) acquires WormholeState {
+    public(friend) fun setChainId(chaindId: U16) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         let provider = &mut state.provider;
         provider.chainId = chaindId;
     }
 
-    public(friend) fun setGovernanceChainId(chainId: u64) acquires WormholeState {
+    public(friend) fun setGovernanceChainId(chainId: U16) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         let provider = &mut state.provider;
         provider.governanceChainId = chainId;
@@ -203,7 +206,7 @@ module Wormhole::State{
         return 0
     }
 
-    public fun getCurrentGuardianSetIndex():u64 acquires WormholeState {
+    public fun getCurrentGuardianSetIndex():U32 acquires WormholeState {
         let state = borrow_global<WormholeState>(@Wormhole);
         state.guardianSetIndex
     }
@@ -211,6 +214,8 @@ module Wormhole::State{
     public fun getCurrentGuardianSet(): GuardianSet acquires WormholeState {
         let state = borrow_global<WormholeState>(@Wormhole);
         let ind = state.guardianSetIndex;
-        *table::borrow(&state.guardianSets, ind)
+        //TODO: fetch ind instead of 0
+        //*table::borrow(&state.guardianSets, ind)
+        *table::borrow(&state.guardianSets, 0)
     }
 }
