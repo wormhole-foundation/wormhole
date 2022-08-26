@@ -10,7 +10,7 @@ module Wormhole::Structs{
     //friend Wormhole::Governance;
     //friend Wormhole::Wormhole;
 
-    struct Signature has key, store, copy, drop{
+    struct Signature has key, store, copy, drop {
         sig: secp256k1::ECDSASignature,
         recovery_id: u8,
         guardianIndex: U32,
