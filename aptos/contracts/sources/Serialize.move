@@ -1,37 +1,25 @@
 module Wormhole::Serialize {
     use 0x1::vector::{Self};
-    use Wormhole::Uints::{U16, U32, U256, get_bytes_array_u16, get_bytes_array_u32, get_bytes_array_u256};
+    use Wormhole::u16::{Self, U16};
+    use Wormhole::u32::{Self, U32};
+    use u256::u256::{Self, U256};
 
     public fun serialize_u8(buf: &mut vector<u8>, v: u8) {
         vector::push_back<u8>(buf, v);
     }
 
     public fun serialize_u16(buf: &mut vector<u8>, v: U16) {
-        let arr = get_bytes_array_u16(*&v);
-        vector::reverse(&mut arr);
-        let i=0;
-        loop {
-            if (i==4){
-                break
-            };
-            let cur = vector::pop_back<u8>(&mut arr);
-            vector::push_back<u8>(buf, cur);
-            i=i+1;
-        };
+        let (v0, v1) = u16::split_u8(v);
+        serialize_u8(buf, v0);
+        serialize_u8(buf, v1);
     }
 
     public fun serialize_u32(buf: &mut vector<u8>, v: U32) {
-        let arr = get_bytes_array_u32(*&v);
-        vector::reverse(&mut arr);
-        let i=0;
-        loop {
-            if (i==8){
-                break
-            };
-            let cur = vector::pop_back<u8>(&mut arr);
-            vector::push_back<u8>(buf, cur);
-            i=i+1;
-        };
+        let (v0, v1, v2, v3) = u32::split_u8(v);
+        serialize_u8(buf, v0);
+        serialize_u8(buf, v1);
+        serialize_u8(buf, v2);
+        serialize_u8(buf, v3);
     }
 
     public fun serialize_u64(buf: &mut vector<u8>, v: u64) {
@@ -51,17 +39,10 @@ module Wormhole::Serialize {
     }
 
     public fun serialize_u256(buf: &mut vector<u8>, v: U256) {
-        let arr = get_bytes_array_u256(*&v);
-        vector::reverse(&mut arr);
-        let i=0;
-        loop {
-            if (i==32){
-                break
-            };
-            let cur = vector::pop_back<u8>(&mut arr);
-            vector::push_back<u8>(buf, cur);
-            i=i+1;
-        };
+        serialize_u64(buf, u256::get(&v, 0));
+        serialize_u64(buf, u256::get(&v, 1));
+        serialize_u64(buf, u256::get(&v, 2));
+        serialize_u64(buf, u256::get(&v, 3));
     }
 
     public fun serialize_vector(buf: &mut vector<u8>, v: vector<u8>){

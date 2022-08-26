@@ -4,13 +4,14 @@ module Wormhole::Wormhole {
     //use Wormhole::Governance::{init_guardian_set};
     use Wormhole::Structs::{createGuardianSet};
     use Wormhole::State::{initMessageHandles, initWormholeState, storeGuardianSet, setGovernanceContract};
-    use Wormhole::Uints::{zero_u32};
+    use Wormhole::u32;
+
     public entry fun init(admin: &signer, _chainId: u64, _governanceChainId: u64, governanceContract: vector<u8>) {
         // init_guardian_set(admin); - this function seems unnecessary
         //assert!(address_of(admin)==@Wormhole, 0);
         initWormholeState(admin);
         initMessageHandles(admin);
-        storeGuardianSet(createGuardianSet(zero_u32(), vector::empty()), zero_u32());
+        storeGuardianSet(createGuardianSet(u32::from_u64(0), vector::empty()), u32::from_u64(0));
         // initial guardian set index is 0, which is the default value of the storage slot anyways
 
         //TODO: set chainIds, which are U32 types. These can't be passed into an entry fun atm.

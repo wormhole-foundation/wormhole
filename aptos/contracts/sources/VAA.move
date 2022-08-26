@@ -4,7 +4,8 @@ module Wormhole::VAA{
     use 0x1::hash::{Self};
     // use 0x1::timestamp::{Self};
 
-    use Wormhole::Uints::{U16, U32};
+    use Wormhole::u16::{U16};
+    use Wormhole::u32::{U32};
     use Wormhole::Deserialize;
     use Wormhole::cursor::{Self};
     use Wormhole::guardian_pubkey::{Self};

@@ -4,7 +4,7 @@ module Wormhole::Governance {
     use Wormhole::VAA::{Self};
     use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, getCurrentGuardianSet};
     use Wormhole::Structs::{Guardian, GuardianSet, createGuardian, createGuardianSet};
-    use Wormhole::Uints::{U32};
+    use Wormhole::u32::{U32};
     use 0x1::vector::{Self};
 
     const E_WRONG_GUARDIAN_LEN: u64 = 0x0;

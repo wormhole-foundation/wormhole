@@ -1,5 +1,5 @@
 module Wormhole::Structs{
-    use Wormhole::Uints::{U32, zero_u32};
+    use Wormhole::u32::{Self, U32};
     use 0x1::secp256k1::{Self};
 
     friend Wormhole::State;
@@ -36,7 +36,7 @@ module Wormhole::Structs{
         GuardianSet{
             index: index,
             guardians: guardians,
-            expirationTime: zero_u32(), // represents 0 as a U32
+            expirationTime: u32::from_u64(0),
         }
     }
 
