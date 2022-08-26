@@ -442,11 +442,9 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             fee: fee
         });
 
-        bytes memory encoded = encodeTransfer(transfer);
-
         sequence = wormhole().publishMessage{value: callValue}(
             nonce,
-            encoded,
+            encodeTransfer(transfer),
             finality()
         );
     }
@@ -466,7 +464,6 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint32 nonce,
         bytes memory payload
     ) internal returns (uint64 sequence) {
-
         BridgeStructs.TransferWithPayload memory transfer = BridgeStructs
             .TransferWithPayload({
                 payloadID: 3,
@@ -479,14 +476,13 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
                 payload: payload
             });
 
-        bytes memory encoded = encodeTransferWithPayload(transfer);
-
         sequence = wormhole().publishMessage{value: callValue}(
             nonce,
-            encoded,
+            encodeTransferWithPayload(transfer),
             finality()
         );
     }
+
     function updateWrapped(bytes memory encodedVm) external returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
@@ -709,12 +705,8 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setOutstandingBridged(token, outstandingBridged(token) - normalizedAmount);
     }
 
-    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
-        if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
-            return true;
-        }
-
-        return false;
+    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool) {
+        return bridgeContracts(vm.emitterChainId) == vm.emitterAddress;
     }
 
     function encodeAssetMeta(BridgeStructs.AssetMeta memory meta) public pure returns (bytes memory encoded) {
