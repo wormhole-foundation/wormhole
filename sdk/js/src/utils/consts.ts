@@ -152,8 +152,8 @@ const MAINNET = {
     nft_bridge: "0xA6A377d75ca5c9052c9a77ED1e865Cc25Bd97bf3",
   },
   near: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "contract.wormhole_crypto.near",
+    token_bridge: "contract.portalbridge.near",
     nft_bridge: undefined,
   },
   injective: {
@@ -301,8 +301,8 @@ const TESTNET = {
     nft_bridge: "0xaCD8190F647a31E56A656748bC30F69259f245Db",
   },
   near: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "wormhole.wormhole.testnet",
+    token_bridge: "token.wormhole.testnet",
     nft_bridge: undefined,
   },
   injective: {

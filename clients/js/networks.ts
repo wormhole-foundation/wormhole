@@ -79,10 +79,10 @@ const MAINNET = {
     key: get_env_var("ETH_KEY"),
   },
   near: {
-    rpc: undefined,
-    key: undefined,
-    networkId: "",
-    baseAccount: "",
+    rpc: "https://rpc.mainnet.near.org",
+    key: get_env_var("NEAR_KEY"),
+    networkId: "mainnet",
+    deployerAccount: "85957f38de1768d6db9eab29bee9dd2a01462aff9c8d83daefb9bcd2506c32d2",
   },
   injective: {
     rpc: undefined,
@@ -205,7 +205,7 @@ const TESTNET = {
     rpc: "https://rpc.testnet.near.org",
     key: get_env_var("NEAR_KEY_TESTNET"),
     networkId: "testnet",
-    baseAccount: "wormhole.testnet",
+    deployerAccount: undefined,
   },
   injective: {
     rpc: undefined,
@@ -328,7 +328,7 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
     networkId: "sandbox",
-    baseAccount: "test.near",
+    deployerAccount: "test.near",
   },
   injective: {
     rpc: undefined,
