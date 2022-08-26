@@ -47,36 +47,22 @@ module Wormhole::Deserialize {
 
 #[test_only]
 module Wormhole::TestDeserialize{
-    use 0x1::vector::{push_back, empty};//, //length};
-    use Wormhole::Deserialize::{deserialize_u8, deserialize_u64, deserialize_vector};
+    use Wormhole::Deserialize::{deserialize_u8, deserialize_u64};
     use Wormhole::cursor::{Self};
 
     #[test]
-    fun test_one(){
-        // test deserialize u8 vector
-        let x = empty();
-        push_back(&mut x, 0x99);
-        let cur = cursor::init(x);
+    fun test_deserialize_u8() {
+        let cur = cursor::init(x"99");
         let byte = deserialize_u8(&mut cur);
         assert!(byte==0x99, 0);
         cursor::destroy_empty(cur);
+    }
 
-        // deserialize u64 vector
-        let v = empty();
-        push_back(&mut v, 0x13);
-        push_back(&mut v, 0x00);
-        push_back(&mut v, 0x00);
-        push_back(&mut v, 0x00);
-        push_back(&mut v, 0x25);
-        push_back(&mut v, 0x00);
-        push_back(&mut v, 0x00);
-        push_back(&mut v, 0x01);
-        let cur = cursor::init(v);
+    #[test]
+    fun test_deserialize_u64() {
+        let cur = cursor::init(x"1300000025000001");
         let u = deserialize_u64(&mut cur);
-        assert!(u==(0x1300000025000001 as u64), 0);
-        let p = deserialize_vector(&mut cur, 8);
-        let q = deserialize_u64(&mut cur);
+        assert!(u==0x1300000025000001, 0);
         cursor::destroy_empty(cur);
-        assert!(q==(u as u64), 0);
     }
 }
