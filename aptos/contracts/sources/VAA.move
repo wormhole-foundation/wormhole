@@ -8,6 +8,7 @@ module Wormhole::VAA{
     use Wormhole::Uints::{U16, U32};
     use Wormhole::Deserialize;
     use Wormhole::cursor::{Self};
+    use Wormhole::guardian_pubkey::{Self};
     use Wormhole::Serialize;
     use Wormhole::Structs::{GuardianSet, Guardian, getGuardians, Signature, unpackSignature, createSignature};
     use Wormhole::State::{getCurrentGuardianSet};
@@ -49,9 +50,11 @@ module Wormhole::VAA{
             };
             signatures_len > 0
         }) {
-            let signature = Deserialize::deserialize_vector(&mut cur, 32);
+            let sig = Deserialize::deserialize_vector(&mut cur, 64);
+            let recovery_id = Deserialize::deserialize_u8(&mut cur);
+            let sig: secp256k1::ECDSASignature = secp256k1::ecdsa_signature_from_bytes(sig);
             let guardianIndex = Deserialize::deserialize_u32(&mut cur);
-            vector::push_back(&mut signatures, createSignature(signature, guardianIndex));
+            vector::push_back(&mut signatures, createSignature(sig, recovery_id, guardianIndex));
             signatures_len = signatures_len - 1;
         };
 
@@ -157,12 +160,8 @@ module Wormhole::VAA{
 
         let i = 0;
         while (i < n) {
-            let (sig, _guardianSetIndex) = unpackSignature(vector::borrow(&vaa.signatures, i));
-            let sig: secp256k1::ECDSASignature = secp256k1::ecdsa_signature_from_bytes(sig);
-
-            let pubkey = secp256k1::ecdsa_recover(hash, 0, &sig);
-            let pubkey = std::option::extract(&mut pubkey);
-            let _address = addresFromPubkey(&pubkey);
+            let (sig, recovery_id, _) = unpackSignature(vector::borrow(&vaa.signatures, i));
+            let _address = guardian_pubkey::from_signature(hash, recovery_id, &sig);
 
             // TODO - index into guardians and check pubkey
             // let cur_guardian = vector::borrow<Guardian>(&guardians, guardianSetIndex);
