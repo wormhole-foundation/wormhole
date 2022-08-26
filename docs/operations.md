@@ -40,7 +40,7 @@ Your Solana RPC node needs the following parameters enabled:
 --enable-cpi-and-log-storage
 ```
 
-`--enable-rpc-transaction-history` enables historic transactions to be retrieved via the *getConfirmedBlock* API,
+`--enable-rpc-transaction-history` enables historic transactions to be retrieved via the _getConfirmedBlock_ API,
 which is required for Wormhole to find transactions.
 
 `--enable-cpi-and-log-storage` stores metadata about CPI calls.
@@ -88,7 +88,7 @@ node can be operated in the full, quick or light modes with no impact on securit
 As long as the node supports the Ethereum JSON RPC API, it will be compatible with the bridge so all major
 implementations will work fine.
 
-Generally, full-nodes will work better and be more reliable than light clients which are susceptible to DoS attacks 
+Generally, full-nodes will work better and be more reliable than light clients which are susceptible to DoS attacks
 since only very few nodes support the light client protocol.
 
 Running a full node typically requires ~500G of SSD storage, 8G of RAM and 4-8 CPU threads (depending on clock
@@ -104,7 +104,7 @@ To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.17.5.
 First, check out the version of the Wormhole repo that you want to deploy:
 
 ```bash
-git clone https://github.com/certusone/wormhole && cd wormhole
+git clone https://github.com/wormhole-foundation/wormhole && cd wormhole
 git checkout v2.0.x
 ```
 
@@ -113,7 +113,7 @@ Then, compile the release binary as an unprivileged build user:
 ```bash
 make node
 ```
-    
+
 You'll end up with a `guardiand` binary in `build/`.
 
 Consider these recommendations, not a tutorial to be followed blindly. You'll want to integrate this with your
@@ -171,7 +171,7 @@ You can use a command line argument to expose it publicly: `--statusAddr=[::]:60
 This endpoint returns a 200 OK status code once the Wormhole node is ready to serve requests. A node is
 considered ready as soon as it has successfully connected to all chains and started processing requests.
 
-This is **only for startup signalling** - it will not tell whether it *stopped*
+This is **only for startup signalling** - it will not tell whether it _stopped_
 processing requests at some later point. Once it's true, it stays true! Use metrics to figure that out.
 
 #### `/metrics`
@@ -231,18 +231,18 @@ This can be accomplished by either adding the capability to the binary (like in 
 
 You'll have to manage the following keys:
 
- - The **guardian key**, which is the bridge consensus key. This key is very critical - your node uses it to certify
-   VAA messages. The public key's hash is stored in the guardian set on all connected chains. It does not accrue rewards.
-   It's your share of the multisig mechanism that protect the Wormhole network. The guardian set can be replaced
-   if a majority of the guardians agree to sign and publish a new guardian set.
-  
- - A **node key**, which identifies it on the gossip network, similar to Solana's node identity or a Tendermint
-   node key. It is used by the peer-to-peer network for routing and transport layer encryption.
-   An attacker could potentially use it to censor your messages on the network. Other than that, it's not very
-   critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
-   While the node key can be replaced, we recommend using a persistent node key. This will make it easier to identify your
-   node in monitoring data and improves p2p connectivity.
- 
+- The **guardian key**, which is the bridge consensus key. This key is very critical - your node uses it to certify
+  VAA messages. The public key's hash is stored in the guardian set on all connected chains. It does not accrue rewards.
+  It's your share of the multisig mechanism that protect the Wormhole network. The guardian set can be replaced
+  if a majority of the guardians agree to sign and publish a new guardian set.
+
+- A **node key**, which identifies it on the gossip network, similar to Solana's node identity or a Tendermint
+  node key. It is used by the peer-to-peer network for routing and transport layer encryption.
+  An attacker could potentially use it to censor your messages on the network. Other than that, it's not very
+  critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
+  While the node key can be replaced, we recommend using a persistent node key. This will make it easier to identify your
+  node in monitoring data and improves p2p connectivity.
+
 For production, we strongly recommend to either encrypt your disks, and/or take care to never have hot guardian keys touch the disk.
 One way to accomplish is to store keys on an in-memory ramfs, which can't be swapped out, and restore it from cold
 storage or an HSM/vault whenever the node is rebooted. You might want to disable swap altogether. None of that is

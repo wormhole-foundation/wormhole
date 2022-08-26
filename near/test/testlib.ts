@@ -264,7 +264,7 @@ export class TestLib {
       this.encoder("uint8", this.ord("e")),
       this.encoder("uint8", 1),
       this.encoder("uint16", tchain),
-      hash
+      hash,
     ];
 
     let emitter = "0x" + this.zeroBytes.slice(0, 31 * 2) + "04";
@@ -308,7 +308,7 @@ export class TestLib {
       this.encoder("uint8", this.ord("e")),
       this.encoder("uint8", 2),
       this.encoder("uint16", tchain),
-      hash
+      hash,
     ];
 
     let emitter = "0x" + this.zeroBytes.slice(0, 31 * 2) + "04";
@@ -567,7 +567,7 @@ export class TestLib {
 
   /**
    * Create a packed and signed VAA for testing.
-   * See https://github.com/certusone/wormhole/blob/dev.v2/design/0001_generic_message_passing.md
+   * See https://github.com/wormhole-foundation/wormhole/blob/dev.v2/design/0001_generic_message_passing.md
    *
    * @param {} guardianSetIndex  The guardian set index
    * @param {*} signers The list of private keys for signing the VAA

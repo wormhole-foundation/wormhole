@@ -18,4 +18,4 @@ stream.on("data", ({ vaaBytes }) => {
 });
 ```
 
-Also see [integration tests](https://github.com/certusone/wormhole/blob/dev.v2/spydk/js/src/__tests__/integration.ts)
+Also see [integration tests](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/spydk/js/src/__tests__/integration.ts)
