@@ -273,7 +273,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 	assert.Equal(t, expectedPendingKey, string(PendingMsgID(&pending2.Msg)))
 }
 
-func TestStoreAnReloadTransfers(t *testing.T) {
+func TestStoreAndReloadTransfers(t *testing.T) {
 	dbPath := t.TempDir()
 	db, err := Open(dbPath)
 	if err != nil {
