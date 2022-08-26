@@ -1,1 +1,3 @@
 FROM ghcr.io/certusone/aptos:0.1@sha256:54a142cb25f0223c92f980882a4516b143c988c806d1f94a79d987205eadfe95 as aptos-node
+
+COPY start_node.sh  /tmp
