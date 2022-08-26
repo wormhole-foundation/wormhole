@@ -3,7 +3,7 @@ module Wormhole::State{
     use 0x1::event::{Self, EventHandle};
     use 0x1::signer::{address_of};
     use 0x1::vector::{Self};
-    use Wormhole::Structs::{Self, GuardianSet};
+    use Wormhole::Structs::{GuardianSet};
     use Wormhole::Uints::{U16, U32, zero_u16, zero_u32};
 
     friend Wormhole::Governance;
@@ -146,14 +146,14 @@ module Wormhole::State{
     }
 
     public(friend) fun expireGuardianSet(_index: u64) acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@Wormhole);
+        let _state = borrow_global_mut<WormholeState>(@Wormhole);
         //TODO: expire guardian set, when we can index into guardianSets with state.guardianSetIndex (a U32)
         //let guardianSet = table::borrow_mut<u64, GuardianSet>(&mut state.guardianSets, state.guardianSetIndex);
         //Structs::expireGuardianSet(guardianSet);
     }
 
-    public(friend) fun storeGuardianSet(set: GuardianSet, index: U32) acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@Wormhole);
+    public(friend) fun storeGuardianSet(_set: GuardianSet, _index: U32) acquires WormholeState {
+        let _state = borrow_global_mut<WormholeState>(@Wormhole);
         //TODO: store guardian set under index (U32)
         //table::add(&mut state.guardianSets, index, set);
     }
@@ -213,7 +213,7 @@ module Wormhole::State{
 
     public fun getCurrentGuardianSet(): GuardianSet acquires WormholeState {
         let state = borrow_global<WormholeState>(@Wormhole);
-        let ind = state.guardianSetIndex;
+        let _ind = state.guardianSetIndex;
         //TODO: fetch ind instead of 0
         //*table::borrow(&state.guardianSets, ind)
         *table::borrow(&state.guardianSets, 0)

@@ -2,8 +2,8 @@ module Wormhole::Governance {
     use Wormhole::Deserialize;
     use Wormhole::cursor::{Self};
     use Wormhole::VAA::{Self};
-    use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, expireGuardianSet, getCurrentGuardianSet};
-    use Wormhole::Structs::{Guardian, GuardianSet, createGuardian, createGuardianSet, getGuardianSetIndex};
+    use Wormhole::State::{updateGuardianSetIndex, storeGuardianSet, getCurrentGuardianSet};
+    use Wormhole::Structs::{Guardian, GuardianSet, createGuardian, createGuardianSet};
     use Wormhole::Uints::{U32};
     use 0x1::vector::{Self};
     use 0x1::string::{Self, String};
@@ -80,7 +80,7 @@ module Wormhole::Governance {
         }
     }
 
-    public entry fun verify(update: &GuardianUpdate, previous: GuardianSet){
+    public entry fun verify(update: &GuardianUpdate, _previous: GuardianSet){
         let (guardian_module, action) = (update.guardian_module, update.action);
         assert!(vector::length(&guardian_module) == 32, 0);
         assert!(action == 0x02, 0);
