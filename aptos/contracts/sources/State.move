@@ -5,7 +5,8 @@ module Wormhole::State{
     use 0x1::vector::{Self};
     use 0x1::account::{Self};
     use Wormhole::Structs::{GuardianSet};
-    use Wormhole::Uints::{U16, U32, zero_u16, zero_u32};
+    use Wormhole::u16::{Self, U16};
+    use Wormhole::u32::{Self, U32};
 
     friend Wormhole::Governance;
     friend Wormhole::Wormhole;
@@ -67,13 +68,13 @@ module Wormhole::State{
     public(friend) fun initWormholeState(admin: &signer) {
         move_to(admin, WormholeState{
             provider: Provider {
-                chainId: zero_u16(),
-                governanceChainId: zero_u16(),
+                chainId: u16::from_u64(0),
+                governanceChainId: u16::from_u64(0),
                 governanceContract: vector::empty<u8>()
             },
             guardianSets: table::new<u64, GuardianSet>(),
-            guardianSetIndex: zero_u32(),
-            guardianSetExpiry: zero_u32(),
+            guardianSetIndex: u32::from_u64(0),
+            guardianSetExpiry: u32::from_u64(0),
             sequences: table::new<address, u64>(),
             consumedGovernanceActions: table::new<vector<u8>, bool>(),
             initializedImplementations: table::new<address, bool>(),
@@ -207,7 +208,7 @@ module Wormhole::State{
         return 0
     }
 
-    public fun getCurrentGuardianSetIndex():U32 acquires WormholeState {
+    public fun getCurrentGuardianSetIndex(): U32 acquires WormholeState {
         let state = borrow_global<WormholeState>(@Wormhole);
         state.guardianSetIndex
     }
