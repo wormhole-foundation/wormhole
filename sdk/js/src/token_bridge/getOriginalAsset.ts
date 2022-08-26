@@ -217,19 +217,20 @@ export async function getOriginalAssetNear(
     chainId: CHAIN_ID_NEAR,
     assetAddress: new Uint8Array(),
   };
-  retVal.isWrapped = await getIsWrappedAssetNear(
-    tokenAccount,
-    assetAccount
-  );
+  retVal.isWrapped = await getIsWrappedAssetNear(tokenAccount, assetAccount);
   if (!retVal.isWrapped) {
-    retVal.assetAddress = sha256.sha256.hex(Buffer.from(assetAccount).toString("hex"));
+    retVal.assetAddress = sha256.sha256.hex(
+      Buffer.from(assetAccount).toString("hex")
+    );
     return retVal;
   }
 
-  let buf = await client.viewFunction(tokenAccount, "get_original_asset", { token: assetAccount });
+  let buf = await client.viewFunction(tokenAccount, "get_original_asset", {
+    token: assetAccount,
+  });
 
-  retVal.chainId = buf[0];
-  retVal.assetAddress = hexToUint8Array(buf[1]);
+  retVal.chainId = buf[1];
+  retVal.assetAddress = hexToUint8Array(buf[0]);
 
   return retVal;
 }
