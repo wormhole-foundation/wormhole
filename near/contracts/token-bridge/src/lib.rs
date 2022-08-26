@@ -1654,6 +1654,10 @@ impl TokenBridge {
         }
     }
 
+//  If/when we ever I have to do migration again, I will bring these back in for the new contract upgrade.  
+//  .. removed it for now out of paranoia
+
+
 //    #[init(ignore_state)]
 //    #[payable]
 //    #[private]
