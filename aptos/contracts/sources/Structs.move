@@ -1,7 +1,5 @@
 module Wormhole::Structs{
-    use 0x1::timestamp::{Self};
-    use 0x1::vector::{Self};
-    use Wormhole::Uints::{U16, U32, zero_u32};
+    use Wormhole::Uints::{U32, zero_u32};
 
     friend Wormhole::State;
     friend Wormhole::VAA;
@@ -13,7 +11,7 @@ module Wormhole::Structs{
     struct Signature has key, store, copy, drop{
         signature: vector<u8>,
         guardianIndex: U32,
-	}
+    }
 
     struct Guardian has key, store, drop, copy {
         address: vector<u8>,
@@ -39,7 +37,7 @@ module Wormhole::Structs{
         }
     }
 
-    public(friend) fun expireGuardianSet(guardianSet: &mut GuardianSet){
+    public(friend) fun expireGuardianSet(_guardianSet: &mut GuardianSet){
         // TODO - right now U32 addition not supported
         //guardianSet.expirationTime = timestamp::now_seconds() + 86400;
     }

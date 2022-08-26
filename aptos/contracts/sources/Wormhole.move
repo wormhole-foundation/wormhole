@@ -3,9 +3,9 @@ module Wormhole::Wormhole {
     //use 0x1::vector::{Self};
     //use Wormhole::Governance::{init_guardian_set};
     use Wormhole::Structs::{createGuardianSet};
-    use Wormhole::State::{initMessageHandles, initWormholeState, storeGuardianSet, setChainId, setGovernanceChainId, setGovernanceContract};
+    use Wormhole::State::{initMessageHandles, initWormholeState, storeGuardianSet, setGovernanceContract};
     use Wormhole::Uints::{zero_u32};
-    public entry fun init(admin: &signer, chainId: u64, governanceChainId: u64, governanceContract: vector<u8>) {
+    public entry fun init(admin: &signer, _chainId: u64, _governanceChainId: u64, governanceContract: vector<u8>) {
         // init_guardian_set(admin); - this function seems unnecessary
         //assert!(address_of(admin)==@Wormhole, 0);
         initWormholeState(admin);
