@@ -273,6 +273,138 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         });
     }
 
+    /*
+     *  @notice Send portal-wrapped ERC20 token through portal with ERC20Permit signature.
+     */
+    function permitAndTransferWrappedTokens(
+        address token,
+        uint256 amount,
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint256 arbiterFee,
+        uint32 nonce,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public payable nonReentrant returns (uint64 sequence) { // TODO: is nonReentrant needed if we have signature?
+        BridgeStructs.TransferResult memory transferResult = _permitAndTransferWrappedTokens(
+            token,
+            amount,
+            arbiterFee,
+            deadline,
+            v,
+            r,
+            s
+        );
+
+        // emit wormhole message
+        sequence = logTransfer(
+            transferResult.tokenChain,
+            transferResult.tokenAddress,
+            transferResult.normalizedAmount,
+            recipientChain,
+            recipient,
+            transferResult.normalizedArbiterFee,
+            transferResult.wormholeFee,
+            nonce
+        );
+    }
+    
+    /*
+     *  @notice Send portal-wrapped ERC20 token through portal with ERC20Permit signature.
+     *
+     *  @dev This type of transfer is called a "contract-controlled transfer".
+     *  There are three differences from a regular token transfer:
+     *  1) Additional arbitrary payload can be attached to the message
+     *  2) Only the recipient (typically a contract) can redeem the transaction
+     *  3) The sender's address (msg.sender) is also included in the transaction payload
+     *
+     *  With these three additional components, xDapps can implement cross-chain
+     *  composable interactions.
+     */
+    function permitAndTransferWrappedTokensWithPayload(
+        address token,
+        uint256 amount,
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint32 nonce,
+        bytes memory payload,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public payable nonReentrant returns (uint64 sequence) { // TODO: is nonReentrant needed if we have signature?
+        BridgeStructs.TransferResult memory transferResult = _permitAndTransferWrappedTokens(
+            token,
+            amount,
+            0,
+            deadline,
+            v,
+            r,
+            s
+        );
+
+        // emit wormhole message
+        sequence = logTransferWithPayload(
+            transferResult.tokenChain,
+            transferResult.tokenAddress,
+            transferResult.normalizedAmount,
+            recipientChain,
+            recipient,
+            transferResult.wormholeFee,
+            nonce,
+            payload
+        );
+    }
+
+    /*
+     *  @notice Initiate a transfer of portal-wrapped tokens using ERC20Permit signature.
+     */
+    function _permitAndTransferWrappedTokens(
+        address token,
+        uint256 amount,
+        uint256 arbiterFee,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )  internal returns (BridgeStructs.TransferResult memory transferResult) {
+        require(isWrappedAsset(token), "token must be token bridge wrapped");
+
+        // query tokens decimals
+        (,bytes memory queriedDecimals) = token.staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+
+        // don't deposit dust that can not be bridged due to the decimal shift
+        amount = deNormalizeAmount(normalizeAmount(amount, decimals), decimals);
+
+        // permit approval for transfer
+        // TODO: set any constraints for deadline?
+        TokenImplementation(token).permit(
+            msg.sender,
+            address(this),
+            amount,
+            deadline,
+            v,
+            r,
+            s
+        );
+
+        // transfer to portal to burn supply
+        SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
+        TokenImplementation(token).burn(address(this), amount);
+
+        // prepare for emitting wormhole message
+        transferResult = BridgeStructs.TransferResult({
+            tokenChain : TokenImplementation(token).chainId(),
+            tokenAddress : TokenImplementation(token).nativeContract(),
+            normalizedAmount : normalizeAmount(amount, decimals),
+            normalizedArbiterFee : normalizeAmount(arbiterFee, decimals),
+            wormholeFee : msg.value
+        });
+    }
+
     function normalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
         if (decimals > 8) {
             amount /= 10 ** (decimals - 8);
