@@ -311,6 +311,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         );
     }
     
+    // TODO: spurious dragon if this is uncommented
     /*
      *  @notice Send portal-wrapped ERC20 token through portal with ERC20Permit signature.
      *
@@ -323,40 +324,40 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *  With these three additional components, xDapps can implement cross-chain
      *  composable interactions.
      */
-    function permitAndTransferWrappedTokensWithPayload(
-        address token,
-        uint256 amount,
-        uint16 recipientChain,
-        bytes32 recipient,
-        uint32 nonce,
-        bytes memory payload,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public payable nonReentrant returns (uint64 sequence) { // TODO: is nonReentrant needed if we have signature?
-        BridgeStructs.TransferResult memory transferResult = _permitAndTransferWrappedTokens(
-            token,
-            amount,
-            0,
-            deadline,
-            v,
-            r,
-            s
-        );
+    // function permitAndTransferWrappedTokensWithPayload(
+    //     address token,
+    //     uint256 amount,
+    //     uint16 recipientChain,
+    //     bytes32 recipient,
+    //     uint32 nonce,
+    //     bytes memory payload,
+    //     uint256 deadline,
+    //     uint8 v,
+    //     bytes32 r,
+    //     bytes32 s
+    // ) public payable nonReentrant returns (uint64 sequence) { // TODO: is nonReentrant needed if we have signature?
+    //     BridgeStructs.TransferResult memory transferResult = _permitAndTransferWrappedTokens(
+    //         token,
+    //         amount,
+    //         0,
+    //         deadline,
+    //         v,
+    //         r,
+    //         s
+    //     );
 
-        // emit wormhole message
-        sequence = logTransferWithPayload(
-            transferResult.tokenChain,
-            transferResult.tokenAddress,
-            transferResult.normalizedAmount,
-            recipientChain,
-            recipient,
-            transferResult.wormholeFee,
-            nonce,
-            payload
-        );
-    }
+    //     // emit wormhole message
+    //     sequence = logTransferWithPayload(
+    //         transferResult.tokenChain,
+    //         transferResult.tokenAddress,
+    //         transferResult.normalizedAmount,
+    //         recipientChain,
+    //         recipient,
+    //         transferResult.wormholeFee,
+    //         nonce,
+    //         payload
+    //     );
+    // }
 
     /*
      *  @notice Initiate a transfer of portal-wrapped tokens using ERC20Permit signature.
