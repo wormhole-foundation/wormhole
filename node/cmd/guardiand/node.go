@@ -615,10 +615,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --solanaContract")
 		}
 		if *solanaWsRPC == "" {
-			logger.Fatal("Please specify --solanaWsUrl")
+			logger.Fatal("Please specify --solanaWS")
 		}
 		if *solanaRPC == "" {
-			logger.Fatal("Please specify --solanaUrl")
+			logger.Fatal("Please specify --solanaRPC")
 		}
 
 		if *terraWS == "" {
@@ -657,16 +657,14 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --algorandAppID")
 		}
 
-		if *testnetMode {
-			if *pythnetContract == "" {
-				logger.Fatal("Please specify --pythnetContract")
-			}
-			if *pythnetWsRPC == "" {
-				logger.Fatal("Please specify --pythnetWsUrl")
-			}
-			if *pythnetRPC == "" {
-				logger.Fatal("Please specify --pythnetUrl")
-			}
+		if *pythnetContract == "" {
+			logger.Fatal("Please specify --pythnetContract")
+		}
+		if *pythnetWsRPC == "" {
+			logger.Fatal("Please specify --pythnetWS")
+		}
+		if *pythnetRPC == "" {
+			logger.Fatal("Please specify --pythnetRPC")
 		}
 	}
 
@@ -730,11 +728,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
 	}
 	var pythnetAddress solana_types.PublicKey
-	if *testnetMode {
-		pythnetAddress, err = solana_types.PublicKeyFromBase58(*pythnetContract)
-		if err != nil {
-			logger.Fatal("invalid PythNet contract address", zap.Error(err))
-		}
+	pythnetAddress, err = solana_types.PublicKeyFromBase58(*pythnetContract)
+	if err != nil {
+		logger.Fatal("invalid PythNet contract address", zap.Error(err))
 	}
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
@@ -826,12 +822,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode {
 		chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest)
-		chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest)
 	}
 	go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
