@@ -47,7 +47,7 @@ module Wormhole::Deserialize {
 
 #[test_only]
 module Wormhole::TestDeserialize{
-    use Wormhole::Deserialize::{deserialize_u8, deserialize_u64, deserialize_u128};
+    use Wormhole::Deserialize::{deserialize_u8, deserialize_u64, deserialize_u128, deserialize_vector};
     use Wormhole::cursor::{Self};
 
     #[test]
@@ -71,6 +71,17 @@ module Wormhole::TestDeserialize{
         let cur = cursor::init(x"130209AB2500FA0113CD00AE25000001");
         let u = deserialize_u128(&mut cur);
         assert!(u==0x130209AB2500FA0113CD00AE25000001, 0);
+        cursor::destroy_empty(cur);
+    }
+
+    #[test]
+    fun test_deserialize_vector() {
+        let cur = cursor::init(b"hello world");
+        let hello = deserialize_vector(&mut cur, 5);
+        deserialize_u8(&mut cur);
+        let world = deserialize_vector(&mut cur, 5);
+        assert!(hello == b"hello", 0);
+        assert!(world == b"world", 0);
         cursor::destroy_empty(cur);
     }
 }
