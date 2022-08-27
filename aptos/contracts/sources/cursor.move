@@ -1,4 +1,4 @@
-module Wormhole::cursor {
+module wormhole::cursor {
     use 0x1::vector::{Self};
 
     /// A cursor allows consuming a vector incrementally for parsing operations.

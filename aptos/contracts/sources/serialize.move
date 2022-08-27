@@ -1,8 +1,8 @@
-module Wormhole::Serialize {
+module wormhole::serialize {
     use 0x1::vector::{Self};
-    use Wormhole::u16::{Self, U16};
-    use Wormhole::u32::{Self, U32};
-    use Wormhole::u256::{Self, U256};
+    use wormhole::u16::{Self, U16};
+    use wormhole::u32::{Self, U32};
+    use wormhole::u256::{Self, U256};
 
     public fun serialize_u8(buf: &mut vector<u8>, v: u8) {
         vector::push_back<u8>(buf, v);
@@ -61,10 +61,10 @@ module Wormhole::Serialize {
 }
 
 #[test_only]
-module Wormhole::TestSerialize{
-    use Wormhole::Serialize;
-    use Wormhole::Deserialize;
-    use Wormhole::cursor::{Self};
+module wormhole::test_serialize{
+    use wormhole::serialize;
+    use wormhole::deserialize;
+    use wormhole::cursor::{Self};
     use 0x1::vector;
 
     #[test]
@@ -79,15 +79,15 @@ module Wormhole::TestSerialize{
         vector::push_back<u8>(&mut x, 0x56);
         vector::push_back<u8>(&mut x, 0x78);
         let cur = cursor::init(x);
-        let u = Deserialize::deserialize_u64(&mut cur);
+        let u = deserialize::deserialize_u64(&mut cur);
         assert!(u==0x1234567812345678, 0);
         cursor::destroy_empty(cur);
 
         // serialize then deserialize test
         let s = vector::empty();
-        Serialize::serialize_u64(&mut s, u);
+        serialize::serialize_u64(&mut s, u);
         let cur = cursor::init(s);
-        let p = Deserialize::deserialize_u64(&mut cur);
+        let p = deserialize::deserialize_u64(&mut cur);
         cursor::destroy_empty(cur);
         assert!(p==u, 0);
     }

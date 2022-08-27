@@ -1,4 +1,4 @@
-module Wormhole::u32 {
+module wormhole::u32 {
 
     const MAX_U32: u64 = (1 << 32) - 1;
 

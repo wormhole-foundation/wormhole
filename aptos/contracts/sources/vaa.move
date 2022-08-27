@@ -1,17 +1,24 @@
-module Wormhole::VAA{
+module wormhole::vaa {
     use 0x1::vector;
     use 0x1::secp256k1::{Self};
     use 0x1::hash::{Self};
     // use 0x1::timestamp::{Self};
 
-    use Wormhole::u16::{U16};
-    use Wormhole::u32::{U32};
-    use Wormhole::Deserialize;
-    use Wormhole::cursor::{Self};
-    use Wormhole::guardian_pubkey::{Self};
-    use Wormhole::Serialize;
-    use Wormhole::Structs::{GuardianSet, Guardian, getGuardians, Signature, unpackSignature, createSignature};
-    use Wormhole::State::{getCurrentGuardianSet};
+    use wormhole::u16::{U16};
+    use wormhole::u32::{U32};
+    use wormhole::deserialize;
+    use wormhole::cursor::{Self};
+    use wormhole::guardian_pubkey::{Self};
+    use wormhole::serialize;
+    use wormhole::structs::{
+        Guardian,
+        GuardianSet,
+        Signature,
+        create_signature,
+        get_guardians,
+        unpack_signature,
+    };
+    use wormhole::state::{get_current_guardian_set};
 
     const E_NO_QUORUM: u64 = 0x0;
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
@@ -38,10 +45,10 @@ module Wormhole::VAA{
     public fun parse(bytes: vector<u8>): VAA {
 
         let cur = cursor::init(bytes);
-        let version = Deserialize::deserialize_u8(&mut cur);
-        let guardian_set_index = Deserialize::deserialize_u32(&mut cur);
+        let version = deserialize::deserialize_u8(&mut cur);
+        let guardian_set_index = deserialize::deserialize_u32(&mut cur);
 
-        let signatures_len = Deserialize::deserialize_u8(&mut cur);
+        let signatures_len = deserialize::deserialize_u8(&mut cur);
         let signatures = vector::empty<Signature>();
 
         assert!(signatures_len <= 19, E_TOO_MANY_SIGNATURES);
@@ -53,24 +60,24 @@ module Wormhole::VAA{
             };
             signatures_len > 0
         }) {
-            let sig = Deserialize::deserialize_vector(&mut cur, 64);
-            let recovery_id = Deserialize::deserialize_u8(&mut cur);
+            let sig = deserialize::deserialize_vector(&mut cur, 64);
+            let recovery_id = deserialize::deserialize_u8(&mut cur);
             let sig: secp256k1::ECDSASignature = secp256k1::ecdsa_signature_from_bytes(sig);
-            let guardianIndex = Deserialize::deserialize_u32(&mut cur);
-            vector::push_back(&mut signatures, createSignature(sig, recovery_id, guardianIndex));
+            let guardianIndex = deserialize::deserialize_u32(&mut cur);
+            vector::push_back(&mut signatures, create_signature(sig, recovery_id, guardianIndex));
             signatures_len = signatures_len - 1;
         };
 
-        let timestamp = Deserialize::deserialize_u32(&mut cur);
-        let nonce = Deserialize::deserialize_u32(&mut cur);
-        let emitter_chain = Deserialize::deserialize_u16(&mut cur);
-        let emitter_address = Deserialize::deserialize_vector(&mut cur, 32);
-        let sequence = Deserialize::deserialize_u64(&mut cur);
-        let consistency_level = Deserialize::deserialize_u8(&mut cur);
-        let hash = Deserialize::deserialize_vector(&mut cur, 32);
+        let timestamp = deserialize::deserialize_u32(&mut cur);
+        let nonce = deserialize::deserialize_u32(&mut cur);
+        let emitter_chain = deserialize::deserialize_u16(&mut cur);
+        let emitter_address = deserialize::deserialize_vector(&mut cur, 32);
+        let sequence = deserialize::deserialize_u64(&mut cur);
+        let consistency_level = deserialize::deserialize_u8(&mut cur);
+        let hash = deserialize::deserialize_vector(&mut cur, 32);
 
         let remaining_length = vector::length(&bytes);
-        let payload = Deserialize::deserialize_vector(&mut cur, remaining_length);
+        let payload = deserialize::deserialize_vector(&mut cur, remaining_length);
 
         cursor::destroy_empty(cur);
 
@@ -142,12 +149,11 @@ module Wormhole::VAA{
             hash: _,
             payload,
          } = vaa;
-         //(id, version, guardian_set_index, signatures, timestamp, nonce, emitter_chain, emitter_address, sequence, consistency_level, payload)
         payload
     }
 
-    public fun verify(vaa: &VAA, guardianSet: GuardianSet) {
-        let guardians = getGuardians(guardianSet);
+    public fun verify(vaa: &VAA, guardian_set: GuardianSet) {
+        let guardians = get_guardians(guardian_set);
         let hash = hash(vaa);
         let n = vector::length<Signature>(&vaa.signatures);
         let m = vector::length<Guardian>(&guardians);
@@ -155,18 +161,18 @@ module Wormhole::VAA{
         assert!(n >= quorum(m), E_NO_QUORUM);
 
         // TODO: check expiration time once comparison operation is implemented for U32 type
-        //if (getGuardianSetIndex(guardianSet) != getCurrentGuardianSetIndex() && getGuardianSetExpiry(guardianSet) < timestamp::now_seconds()){
+        //if (get_guardian_set_index(guardian_set) != get_current_guardian_set_index() && get_guardian_set_expiry(guardianSet) < timestamp::now_seconds()){
         //    return (false, string::utf8(b"Guardian set expired"))
         //};
 
         let i = 0;
         while (i < n) {
-            let (sig, recovery_id, _) = unpackSignature(vector::borrow(&vaa.signatures, i));
+            let (sig, recovery_id, _) = unpack_signature(vector::borrow(&vaa.signatures, i));
             let _address = guardian_pubkey::from_signature(hash, recovery_id, &sig);
 
             // TODO - index into guardians and check pubkey
-            // let cur_guardian = vector::borrow<Guardian>(&guardians, guardianSetIndex);
-            // let cur_address = getAddress(*cur_guardian);
+            // let cur_guardian = vector::borrow<Guardian>(&guardians, guardian_set_index);
+            // let cur_address = get_address(*cur_guardian);
 
             // if (cur_address != address) {
             //    return (false, string::utf8(b"Invalid signature"))
@@ -178,7 +184,7 @@ module Wormhole::VAA{
 
     public entry fun parse_and_verify(bytes: vector<u8>): VAA {
         let vaa = parse(bytes);
-        verify(&vaa, getCurrentGuardianSet());
+        verify(&vaa, get_current_guardian_set());
         vaa
     }
 
@@ -186,18 +192,18 @@ module Wormhole::VAA{
     // functions might be useful in testing
     fun hash(vaa: &VAA): vector<u8> {
         let bytes = vector::empty<u8>();
-        Serialize::serialize_u32(&mut bytes, vaa.timestamp);
-        Serialize::serialize_u32(&mut bytes, vaa.nonce);
-        Serialize::serialize_u16(&mut bytes, vaa.emitter_chain);
-        Serialize::serialize_vector(&mut bytes, vaa.emitter_address);
-        Serialize::serialize_u64(&mut bytes, vaa.sequence);
-        Serialize::serialize_u8(&mut bytes, vaa.consistency_level);
-        Serialize::serialize_vector(&mut bytes, vaa.payload);
+        serialize::serialize_u32(&mut bytes, vaa.timestamp);
+        serialize::serialize_u32(&mut bytes, vaa.nonce);
+        serialize::serialize_u16(&mut bytes, vaa.emitter_chain);
+        serialize::serialize_vector(&mut bytes, vaa.emitter_address);
+        serialize::serialize_u64(&mut bytes, vaa.sequence);
+        serialize::serialize_u8(&mut bytes, vaa.consistency_level);
+        serialize::serialize_vector(&mut bytes, vaa.payload);
         hash::sha3_256(bytes)
     }
 
-    public fun quorum(numGuardians: u64): u64 {
-        (numGuardians * 2) / 3 + 1
+    public fun quorum(num_guardians: u64): u64 {
+        (num_guardians * 2) / 3 + 1
     }
 
 }

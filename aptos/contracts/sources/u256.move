@@ -37,7 +37,7 @@
 /// * Division:
 ///     * Could be improved with div_mod_small (current version probably would took a lot of resources for small numbers).
 ///     * Also could be improved with Knuth, TAOCP, Volume 2, section 4.3.1, Algorithm D (see link to Parity above).
-module Wormhole::u256 {
+module wormhole::u256 {
     // Errors.
     /// When can't cast `U256` to `u128` (e.g. number too large).
     const ECAST_OVERFLOW: u64 = 0;
