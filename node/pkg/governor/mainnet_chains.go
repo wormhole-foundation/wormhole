@@ -22,7 +22,7 @@ func chainList() []chainConfigEntry {
 		chainConfigEntry{emitterChainID: vaa.ChainIDFantom, dailyLimit: 500000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDKarura, dailyLimit: 500000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDAcala, dailyLimit: 500000},
-		chainConfigEntry{emitterChainID: vaa.ChainIDKlaytn, dailyLimit: 500000},
+		chainConfigEntry{emitterChainID: vaa.ChainIDKlaytn, dailyLimit: 1_000_000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDCelo, dailyLimit: 500000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDNear, dailyLimit: 200000},
 		chainConfigEntry{emitterChainID: vaa.ChainIDTerra2, dailyLimit: 500000},
