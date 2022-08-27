@@ -7,6 +7,7 @@ module Wormhole::State{
     use Wormhole::Structs::{GuardianSet};
     use Wormhole::u16::{Self, U16};
     use Wormhole::u32::{Self, U32};
+    use Wormhole::u256::{Self, U256};
 
     friend Wormhole::Governance;
     friend Wormhole::Wormhole;
