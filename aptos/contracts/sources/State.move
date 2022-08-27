@@ -61,7 +61,7 @@ module Wormhole::State{
         // Mapping of initialized implementations
         initializedImplementations: Table<address, bool>,
 
-        messageFee: u128, //should be u256
+        messageFee: U256,
     }
 
     //create some empty tables and stuff...
@@ -78,7 +78,7 @@ module Wormhole::State{
             sequences: table::new<address, u64>(),
             consumedGovernanceActions: table::new<vector<u8>, bool>(),
             initializedImplementations: table::new<address, bool>(),
-            messageFee: 0
+            messageFee: u256::from_u64(0)
         });
     }
 
@@ -185,7 +185,7 @@ module Wormhole::State{
         provider.governanceContract = governanceContract;
     }
 
-    public(friend) fun setMessageFee(newFee: u128) acquires WormholeState {
+    public(friend) fun setMessageFee(newFee: U256) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@Wormhole);
         state.messageFee = newFee;
     }
