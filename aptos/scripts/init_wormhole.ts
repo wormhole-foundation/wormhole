@@ -1,6 +1,6 @@
 import { AptosAccount, TxnBuilderTypes, BCS, HexString, MaybeHexString, AptosClient, FaucetClient, AptosAccountObject } from "aptos";
 import {aptosAccountObject} from "./constants";
-export const NODE_URL = "http://localhost:8080";
+export const NODE_URL = "http://0.0.0.0:8080";
 export const FAUCET_URL = "http://localhost:8081";
 
 const client = new AptosClient(NODE_URL);
@@ -8,12 +8,12 @@ const client = new AptosClient(NODE_URL);
 async function initWormhole(contractAddress: HexString, accountFrom: AptosAccount): Promise<string> {
     const scriptFunctionPayload = new TxnBuilderTypes.TransactionPayloadEntryFunction(
       TxnBuilderTypes.EntryFunction.natural(
-        `${contractAddress.toString()}::Wormhole`,
+        `${contractAddress.toString()}::wormhole`,
         "init",
         [],
         [
-         BCS.bcsSerializeUint64(101), //chainId
-         BCS.bcsSerializeUint64(202), //governanceChainId
+         BCS.bcsSerializeUint64(101), //chain_id
+         BCS.bcsSerializeUint64(202), //governance_chain_id
          BCS.bcsSerializeBytes(Buffer.from("0x12323aaa11111aaaaaaa2")), //governance contract address
         ]
       ),
@@ -31,13 +31,13 @@ async function initWormhole(contractAddress: HexString, accountFrom: AptosAccoun
       BigInt(Math.floor(Date.now() / 1000) + 10),
       new TxnBuilderTypes.ChainId(chainId),
     );
-    
+
     const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
     const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
-    
+
     return transactionRes.hash;
   }
-  
+
   async function main(){
     let accountFrom = AptosAccount.fromAptosAccountObject(aptosAccountObject)
     let accountAddress = accountFrom.address();//new HexString("277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b");

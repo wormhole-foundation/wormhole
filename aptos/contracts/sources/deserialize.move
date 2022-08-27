@@ -1,9 +1,9 @@
-module Wormhole::Deserialize {
+module wormhole::deserialize {
     use 0x1::vector::{Self};
-    use Wormhole::cursor::{Self, Cursor};
-    use Wormhole::u16::{Self, U16};
-    use Wormhole::u32::{Self, U32};
-    use Wormhole::u256::{Self, U256};
+    use wormhole::cursor::{Self, Cursor};
+    use wormhole::u16::{Self, U16};
+    use wormhole::u32::{Self, U32};
+    use wormhole::u256::{Self, U256};
 
     public fun deserialize_u8(cur: &mut Cursor<u8>): u8 {
         cursor::poke(cur)
