@@ -3,7 +3,7 @@ module Wormhole::Deserialize {
     use Wormhole::cursor::{Self, Cursor};
     use Wormhole::u16::{Self, U16};
     use Wormhole::u32::{Self, U32};
-    use u256::u256::{Self, U256};
+    use Wormhole::u256::{Self, U256};
 
     public fun deserialize_u8(cur: &mut Cursor<u8>): u8 {
         cursor::poke(cur)

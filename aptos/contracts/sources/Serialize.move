@@ -2,7 +2,7 @@ module Wormhole::Serialize {
     use 0x1::vector::{Self};
     use Wormhole::u16::{Self, U16};
     use Wormhole::u32::{Self, U32};
-    use u256::u256::{Self, U256};
+    use Wormhole::u256::{Self, U256};
 
     public fun serialize_u8(buf: &mut vector<u8>, v: u8) {
         vector::push_back<u8>(buf, v);
