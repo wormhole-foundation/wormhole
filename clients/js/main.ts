@@ -700,7 +700,10 @@ yargs(hideBin(process.argv))
         impossible(chain);
       }
     }
-  ).argv;
+  )
+  .strict()
+  .demandCommand()
+  .argv;
 
 function hex(x: string): string {
   return ethers.utils.hexlify(x, { allowMissingPrefix: true });
