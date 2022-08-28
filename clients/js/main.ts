@@ -3,7 +3,7 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
-import { Bech32, fromBech32, toHex } from "@cosmjs/encoding";
+import { fromBech32, toHex } from "@cosmjs/encoding";
 import {
   isTerraChain,
   assertEVMChain,
@@ -39,8 +39,13 @@ import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
 import { execute_algorand } from "./algorand";
+import { isOutdated } from "./cmds/update";
 
 setDefaultWasm("node");
+
+if (isOutdated()) {
+    console.error("\x1b[33m%s\x1b[0m", "WARNING: 'worm' is out of date. Run 'worm update' to update.");
+}
 
 const GOVERNANCE_CHAIN = 1;
 const GOVERNANCE_EMITTER =
@@ -69,6 +74,8 @@ function makeVAA(
 }
 
 yargs(hideBin(process.argv))
+  //TODO(csongor): refactor all commands into the directory structure.
+  .commandDir('cmds')
   ////////////////////////////////////////////////////////////////////////////////
   // Generate
   .command(
