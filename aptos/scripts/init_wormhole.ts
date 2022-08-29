@@ -1,5 +1,6 @@
 import { AptosAccount, TxnBuilderTypes, BCS, HexString, MaybeHexString, AptosClient, FaucetClient, AptosAccountObject } from "aptos";
 import {aptosAccountObject} from "./constants";
+import sha3 from 'js-sha3';
 export const NODE_URL = "http://0.0.0.0:8080";
 export const FAUCET_URL = "http://localhost:8081";
 
@@ -32,23 +33,26 @@ async function initWormhole(contractAddress: HexString, accountFrom: AptosAccoun
       new TxnBuilderTypes.ChainId(chainId),
     );
 
+    const sim = await client.simulateTransaction(accountFrom, rawTxn);
+    sim.forEach((tx) => {
+      if (!tx.success) {
+        console.error(JSON.stringify(tx, null, 2));
+        throw new Error(`Transaction failed: ${tx.vm_status}`);
+      }
+    });
     const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
     const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
 
     return transactionRes.hash;
   }
 
-  async function main(){
-    let accountFrom = AptosAccount.fromAptosAccountObject(aptosAccountObject)
-    let accountAddress = accountFrom.address();//new HexString("277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b");
-    console.log("account address: ", accountAddress);
-    // TODO(csongor): the module is now published under the derived resource account
-    let hash = await initWormhole(accountAddress, accountFrom);
+async function main(){
+    let accountFrom = AptosAccount.fromAptosAccountObject(aptosAccountObject);
+    const wormholeAddress = new HexString(sha3.sha3_256(Buffer.concat([accountFrom.address().toBuffer(), Buffer.from('wormhole', 'ascii')])));
+    let hash = await initWormhole(wormholeAddress, accountFrom);
     console.log("tx hash: ", hash);
-  }
+}
 
-  if (require.main === module) {
+if (require.main === module) {
     main().then((resp) => console.log(resp));
-  }
-
-
+}
