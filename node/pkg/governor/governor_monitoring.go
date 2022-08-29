@@ -27,8 +27,8 @@
 //
 // Returns:
 // {"entries":[
-// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"1", "releaseTime":1661442345}},
-// 	{"emitterChain":1, "emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f", "sequence":"2", "releaseTime":1661442347}}
+// 	{"emitterChain":1,"emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f","sequence":"3","releaseTime":1662057609,"notionalValue":"69","txHash":"0xccdb6891688b551c1a182292f93e5a9e9e9671bc902116162f044041cafbdcaf"},
+// 	{"emitterChain":1,"emitterAddress":"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f","sequence":"4","releaseTime":1662057673,"notionalValue":"34","txHash":"0x95641b9b3f9cfdd82ca97f251b9249183d838a096ae3feea60032a22726d6f42"}
 // ]}
 //
 // Query: http://localhost:7071/v1/governor/is_vaa_enqueued/1/c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f/3
@@ -205,7 +205,7 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 		for _, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				pe.dbData.ReleaseTime = now.Add(time.Duration(time.Hour * maxEnqueuedTimeInHours))
+				pe.dbData.ReleaseTime = now.Add(maxEnqueuedTime)
 				gov.logger.Info("cgov: updating the release time due to admin command",
 					zap.String("msgId", msgId),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
@@ -282,11 +282,19 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 
 	for _, ce := range gov.chains {
 		for _, pe := range ce.pending {
+			value, err := computeValue(pe.amount, pe.token)
+			if err != nil {
+				gov.logger.Error("cgov: failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
+				value = 0
+			}
+
 			resp = append(resp, &publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry{
 				EmitterChain:   uint32(pe.dbData.Msg.EmitterChain),
 				EmitterAddress: pe.dbData.Msg.EmitterAddress.String(),
 				Sequence:       pe.dbData.Msg.Sequence,
 				ReleaseTime:    uint32(pe.dbData.ReleaseTime.Unix()),
+				NotionalValue:  value,
+				TxHash:         pe.dbData.Msg.TxHash.String(),
 			})
 		}
 	}

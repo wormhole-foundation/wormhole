@@ -414,12 +414,14 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	err = db.StoreTransfer(xfer2)
 	require.Nil(t, err)
 
+	now := time.Unix(time.Now().Unix(), 0)
+
 	// Write the first pending event in the old format.
 	pending1 := &PendingTransfer{
-		ReleaseTime: time.Unix(int64(1654516435+72*60*60), 0), // Since we are writing this in the old format, this will not get stored, but computed on reload.
+		ReleaseTime: now.Add(time.Duration(time.Hour * 72)), // Since we are writing this in the old format, this will not get stored, but computed on reload.
 		Msg: common.MessagePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-			Timestamp:        time.Unix(int64(1654516435), 0),
+			Timestamp:        now,
 			Nonce:            123456,
 			Sequence:         789101112131417,
 			EmitterChain:     vaa.ChainIDEthereum,
@@ -430,13 +432,16 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	}
 
 	db.storeOldPendingMsg(t, &pending1.Msg)
+	require.Nil(t, err)
+
+	now2 := now.Add(time.Duration(time.Second * 5))
 
 	// Write the second one in the new format.
 	pending2 := &PendingTransfer{
-		ReleaseTime: time.Unix(int64(1654516440+71*60*60), 0), // Setting it to 71 hours so we can confirm it didn't get set to the default.
+		ReleaseTime: now2.Add(time.Duration(time.Hour * 71)), // Setting it to 71 hours so we can confirm it didn't get set to the default.
 		Msg: common.MessagePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-			Timestamp:        time.Unix(int64(1654516440), 0),
+			Timestamp:        now2,
 			Nonce:            123456,
 			Sequence:         789101112131418,
 			EmitterChain:     vaa.ChainIDEthereum,
@@ -450,7 +455,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	require.Nil(t, err)
 
 	logger := zap.NewNop()
-	xfers, pendings, err := db.GetChainGovernorData(logger)
+	xfers, pendings, err := db.GetChainGovernorDataForTime(logger, now)
 
 	require.Nil(t, err)
 	require.Equal(t, 2, len(xfers))
@@ -468,7 +473,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 
 	// Make sure we can reload the updated pendings.
 
-	xfers2, pendings2, err := db.GetChainGovernorData(logger)
+	xfers2, pendings2, err := db.GetChainGovernorDataForTime(logger, now)
 
 	require.Nil(t, err)
 	require.Equal(t, 2, len(xfers2))

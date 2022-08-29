@@ -162,6 +162,10 @@ func UnmarshalPendingTransfer(data []byte) (*PendingTransfer, error) {
 const transfer = "GOV:XFER:"
 const transferLen = len(transfer)
 
+// Since we are changing the DB format of pending entries, we will use a new tag in the pending key field.
+// The first time we run this new release, any existing entries with the "GOV:PENDING" tag will get converted
+// to the new format and given the "GOV:PENDING2" format. In a future release, the "GOV:PENDING" code can be deleted.
+
 const oldPending = "GOV:PENDING:"
 const oldPendingLen = len(oldPending)
 
@@ -196,6 +200,10 @@ func isOldPendingMsg(keyBytes []byte) bool {
 
 // This is called by the chain governor on start up to reload status.
 func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transfer, pending []*PendingTransfer, err error) {
+	return d.GetChainGovernorDataForTime(logger, time.Now())
+}
+
+func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time) (transfers []*Transfer, pending []*PendingTransfer, err error) {
 	oldPendingToUpdate := []*PendingTransfer{}
 	err = d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -230,7 +238,7 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 					return err
 				}
 
-				p := &PendingTransfer{ReleaseTime: msg.Timestamp.Add(time.Duration(time.Hour * 72)), Msg: *msg}
+				p := &PendingTransfer{ReleaseTime: now.Add(time.Duration(time.Hour * 72)), Msg: *msg}
 				pending = append(pending, p)
 				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			}

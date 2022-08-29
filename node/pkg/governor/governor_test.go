@@ -1269,3 +1269,70 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
 }
+
+func TestIsBigTransfer(t *testing.T) {
+	emitterAddr := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+	bigTransactionSize := uint64(5_000_000)
+
+	ce := chainEntry{
+		emitterChainId:          vaa.ChainIDEthereum,
+		emitterAddr:             emitterAddr,
+		dailyLimit:              uint64(50_000_000),
+		bigTransactionSize:      bigTransactionSize,
+		checkForBigTransactions: bigTransactionSize != 0,
+	}
+
+	assert.Equal(t, false, ce.isBigTransfer(uint64(4_999_999)))
+	assert.Equal(t, true, ce.isBigTransfer(uint64(5_000_000)))
+	assert.Equal(t, true, ce.isBigTransfer(uint64(5_000_001)))
+}
+
+func TestTransferPayloadTooShort(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	payloadBytes1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1.25,
+	)
+
+	payloadBytes1 = payloadBytes1[0 : len(payloadBytes1)-1]
+
+	// The first two transfers should be accepted.
+	msg := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	// The low level method should return an error.
+	_, err = gov.ProcessMsgForTime(&msg, time.Now())
+	assert.EqualError(t, err, "buffer too short")
+
+	// The higher level method should false, saying we should not publish.
+	canPost := gov.ProcessMsg(&msg)
+	assert.Equal(t, false, canPost)
+}
