@@ -42,6 +42,7 @@ async function initWormhole(contractAddress: HexString, accountFrom: AptosAccoun
     let accountFrom = AptosAccount.fromAptosAccountObject(aptosAccountObject)
     let accountAddress = accountFrom.address();//new HexString("277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b");
     console.log("account address: ", accountAddress);
+    // TODO(csongor): the module is now published under the derived resource account
     let hash = await initWormhole(accountAddress, accountFrom);
     console.log("tx hash: ", hash);
   }
