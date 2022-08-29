@@ -64,6 +64,9 @@ function readAndUpdateConfig(): Readonly<Config> {
     }
 
     if (write) {
+        if (!fs.existsSync(CONFIG_DIR)){
+            fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        }
         fs.writeFileSync(CONFIG_FILE, json_conf);
     }
 
