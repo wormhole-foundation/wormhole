@@ -4,6 +4,6 @@ RUN apt-get update && apt-get -y install libclang-dev jq cmake curl python3 --no
 
 WORKDIR /tmp
 
-RUN cargo install --git https://github.com/aptos-labs/aptos-core.git aptos --branch devnet
+RUN cargo install --git https://github.com/aptos-labs/aptos-core.git aptos --branch main
 
 COPY start_node.sh  /tmp

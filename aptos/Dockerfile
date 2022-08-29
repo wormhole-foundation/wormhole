@@ -1,3 +1,3 @@
-FROM ghcr.io/wormhole-foundation/aptos:0.3.2@sha256:d7d223ba0445866228eb5ca945691d55714666e4b80134bf37230781715e766c as aptos-node
+FROM ghcr.io/wormhole-foundation/aptos:0.3.2m@sha256:2072b1ec8bb7af75ab81bc66326c2c4c6112265e3c3fd885f712af6b8aa861c1 as aptos-node
 
 
