@@ -1,6 +1,7 @@
 package governor
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -14,7 +15,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, len(tokenConfigEntries), 123)
+	assert.Equal(t, 126, len(tokenConfigEntries))
 }
 
 func TestTokenListFloor(t *testing.T) {
@@ -67,10 +68,13 @@ func TestTokenListTokenAddressDuplicates(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
 	/* Assume that all governed token entry addresses won't include duplicates */
-	addrs := make(map[string]bool)
+	addrs := make(map[string]string)
 	for _, e := range tokenConfigEntries {
-		assert.False(t, addrs[e.addr])
-		addrs[e.addr] = true
+		// In a few cases, the same address exists on multiple chains, so we need to compare both the chain and the address.
+		// Also using that as the map payload so if we do have a duplicate, we can print out something meaningful.
+		key := fmt.Sprintf("%v:%v", e.chain, e.addr)
+		assert.Equal(t, "", addrs[key])
+		addrs[key] = key
 	}
 }
 
