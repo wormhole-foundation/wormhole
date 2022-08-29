@@ -41,36 +41,40 @@ contract MockBatchedVAASender {
 
     function consumeBatchVAA(bytes memory encodedVm2) public {
         // parse and verify a batch VAA
-        IWormhole.VM2 memory vm = parseAndVerifyVM2(encodedVm2);
+        IWormhole.VM2 memory vm = parseAndVerifyBatchVM(encodedVm2, true);
+
+        // save each hash in the batch
+        bytes32[] memory cachedHashes = new bytes32[](vm.indexedObservations.length);
 
         // consume individual VAAs in the batch
-        uint256 observationsLen = vm.observations.length;
+        uint256 observationsLen = vm.indexedObservations.length;
         for (uint256 i = 0; i < observationsLen; i++) {
-            consumeSingleVAA(vm.observations[i]);
+            consumeSingleVAA(vm.indexedObservations[i].observation);
+            cachedHashes[i] = vm.hashes[vm.indexedObservations[i].index];
         }
 
         // clear the batch cache
-        wormholeCore().clearBatchCache(vm.header);
+        wormholeCore().clearBatchCache(cachedHashes);
     }
 
     function consumeSingleVAA(bytes memory encodedVm) public {
-        (IWormhole.Observation memory observation, bool valid, string memory reason) = wormholeCore().parseAndVerifyVAA(encodedVm);
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormholeCore().parseAndVerifyVM(encodedVm);
         require(valid, reason);
 
         // encode the observation
         bytes memory encodedObservation = abi.encodePacked(
-            observation.timestamp,
-            observation.nonce,
-            observation.emitterChainId,
-            observation.emitterAddress,
-            observation.sequence,
-            observation.consistencyLevel,
-            observation.payload
+            vm.timestamp,
+            vm.nonce,
+            vm.emitterChainId,
+            vm.emitterAddress,
+            vm.sequence,
+            vm.consistencyLevel,
+            vm.payload
         );
 
         // save each payload in the verifiedPayloads map
         bytes32 observationHash = keccak256(abi.encodePacked(keccak256(encodedObservation)));
-        verifiedPayloads[observationHash] = observation.payload;
+        verifiedPayloads[observationHash] = vm.payload;
     }
 
     function getPayload(bytes32 hash) public view returns (bytes memory) {
@@ -81,19 +85,19 @@ contract MockBatchedVAASender {
         delete verifiedPayloads[hash];
     }
 
-    function parseAndVerifyVM2(bytes memory encodedVm) public returns (IWormhole.VM2 memory) {
+    function parseAndVerifyBatchVM(bytes memory encodedVm, bool cacheObservations) public returns (IWormhole.VM2 memory) {
         // parse and verify a batch VAA
-        (IWormhole.VM2 memory vm, bool valid, string memory reason) = wormholeCore().parseAndVerifyVM2(encodedVm);
+        (IWormhole.VM2 memory vm, bool valid, string memory reason) = wormholeCore().parseAndVerifyBatchVM(encodedVm, cacheObservations);
         require(valid, reason);
-        require(vm.header.version == 2, "wrong version type");
+        require(vm.version == 2, "wrong version type");
         return vm;
     }
 
-    function parseBatchVAA(bytes memory encodedVm) public view returns (IWormhole.VM2 memory) {
-        return wormholeCore().parseVM2(encodedVm);
+    function parseBatchVM(bytes memory encodedVm) public view returns (IWormhole.VM2 memory) {
+        return wormholeCore().parseBatchVM(encodedVm);
     }
 
-    function parseLegacyVAA(bytes memory encodedVm) public view returns (IWormhole.VM memory) {
+    function parseVM(bytes memory encodedVm) public view returns (IWormhole.VM memory) {
         return wormholeCore().parseVM(encodedVm);
     }
 

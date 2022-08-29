@@ -16,25 +16,19 @@ interface IWormhole is Structs {
 
     function parseAndVerifyVM(bytes calldata encodedVM) external view returns (Structs.VM memory vm, bool valid, string memory reason);
 
-    function parseAndVerifyVM2(bytes calldata encodedVM) external returns (Structs.VM2 memory vm, bool valid, string memory reason);
-
-    function parseAndVerifyVM3(bytes calldata encodedVM) external view returns (Structs.VM3 memory vm, bool valid, string memory reason);
-
-    function parseAndVerifyVAA(bytes calldata encodedVM) external view returns (Structs.Observation memory observation, bool valid, string memory reason);
+    function parseAndVerifyBatchVM(bytes calldata encodedVM, bool cache) external returns (Structs.VM2 memory vm, bool valid, string memory reason);
 
     function verifyVM(Structs.VM memory vm) external view returns (bool valid, string memory reason);
 
-    function verifyVM2(Structs.BatchHeader memory vm) external view returns (bool valid, string memory reason);
+    function verifyBatchVM(Structs.VM2 memory vm, bool cache) external view returns (bool valid, string memory reason);
 
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) external pure returns (bool valid, string memory reason) ;
 
-    function clearBatchCache(Structs.BatchHeader memory header) external;
+    function clearBatchCache(bytes32[] memory hashesToClear) external;
 
     function parseVM(bytes memory encodedVM) external pure returns (Structs.VM memory vm);
 
-    function parseVM2(bytes memory encodedVM)  external pure returns (Structs.VM2 memory vm);
-
-    function parseVM3(bytes memory encodedVM) external pure returns (Structs.VM3 memory vm);
+    function parseBatchVM(bytes memory encodedVM)  external pure returns (Structs.VM2 memory vm);
 
     function getGuardianSet(uint32 index) external view returns (Structs.GuardianSet memory) ;
 
