@@ -1,6 +1,7 @@
 [package]
 name = "Wormhole"
 version = "0.0.1"
+upgrade_policy = "compatible"
 
 #TODO: pin versions before mainnet release
 [dependencies]
@@ -8,6 +9,7 @@ AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir 
 MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "devnet" }
 AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "devnet" }
 AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token/", rev = "devnet" }
+Deployer = { local = "../deployer/" }
 # U256 = { git = "https://github.com/pontem-network/u256", rev = "main"  }
 
 [addresses]
