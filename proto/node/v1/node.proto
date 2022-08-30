@@ -40,6 +40,9 @@ service NodePrivilegedService {
 
   // ChainGovernorReleasePendingVAA release a VAA from the chain governor pending list, publishing it immediately.
   rpc ChainGovernorReleasePendingVAA (ChainGovernorReleasePendingVAARequest) returns (ChainGovernorReleasePendingVAAResponse);
+  
+  // ChainGovernorResetReleaseTimer resets the release timer for a chain governor pending VAA to the configured maximum.
+  rpc ChainGovernorResetReleaseTimer (ChainGovernorResetReleaseTimerRequest) returns (ChainGovernorResetReleaseTimerResponse);
 }
 
 message InjectGovernanceVAARequest {
@@ -187,5 +190,13 @@ message ChainGovernorReleasePendingVAARequest {
 }
 
 message ChainGovernorReleasePendingVAAResponse {
+  string response = 1;
+}
+
+message ChainGovernorResetReleaseTimerRequest {
+  string vaa_id = 1;
+}
+
+message ChainGovernorResetReleaseTimerResponse {
   string response = 1;
 }

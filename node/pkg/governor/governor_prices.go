@@ -9,6 +9,7 @@ package governor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
@@ -25,7 +27,7 @@ import (
 
 const coinGeckoQueryIntervalInMins = 5
 
-func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
+func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	ids := ""
 	first := true
 	for coinGeckoId := range gov.tokensByCoinGeckoId {
@@ -50,8 +52,10 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
 	gov.coinGeckoQuery = "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
 	gov.logger.Info("cgov: coingecko query: ", zap.String("query", gov.coinGeckoQuery))
 
-	if err := supervisor.Run(ctx, "govpricer", gov.PriceQuery); err != nil {
-		return err
+	if run {
+		if err := supervisor.Run(ctx, "govpricer", gov.PriceQuery); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -59,7 +63,9 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context) error {
 
 func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 	// Do a query immediately, then once each interval.
-	gov.queryCoinGecko()
+	// We ignore the error because an error would already have been logged, and we don't want to bring down the
+	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
+	_ = gov.queryCoinGecko()
 
 	ticker := time.NewTicker(time.Duration(coinGeckoQueryIntervalInMins) * time.Minute)
 	defer ticker.Stop()
@@ -69,18 +75,18 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			gov.queryCoinGecko()
+			_ = gov.queryCoinGecko()
 		}
 	}
 }
 
 // This does not return an error. Instead, it just logs the error and we will try again five minutes later.
-func (gov *ChainGovernor) queryCoinGecko() {
+func (gov *ChainGovernor) queryCoinGecko() error {
 	response, err := http.Get(gov.coinGeckoQuery)
 	if err != nil {
 		gov.logger.Error("cgov: failed to query coin gecko, reverting to configured prices", zap.String("query", gov.coinGeckoQuery), zap.Error(err))
 		gov.revertAllPrices()
-		return
+		return fmt.Errorf("failed to query CoinGecko")
 	}
 
 	defer func() {
@@ -96,14 +102,14 @@ func (gov *ChainGovernor) queryCoinGecko() {
 	if err != nil {
 		gov.logger.Error("cgov: failed to parse coin gecko response, reverting to configured prices", zap.Error(err))
 		gov.revertAllPrices()
-		return
+		return fmt.Errorf("failed to parse CoinGecko response")
 	}
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(responseData, &result); err != nil {
 		gov.logger.Error("cgov: failed to unmarshal coin gecko json, reverting to configured prices", zap.Error(err))
 		gov.revertAllPrices()
-		return
+		return fmt.Errorf("failed to unmarshal json")
 	}
 
 	now := time.Now()
@@ -129,15 +135,6 @@ func (gov *ChainGovernor) queryCoinGecko() {
 				te.coinGeckoPrice = big.NewFloat(price)
 				te.updatePrice()
 				te.priceTime = now
-
-				gov.logger.Info("cgov: updated price",
-					zap.String("symbol", te.symbol),
-					zap.String("coinGeckoId",
-						te.coinGeckoId),
-					zap.Stringer("price", te.price),
-					zap.Stringer("cfgPrice", te.cfgPrice),
-					zap.Stringer("coinGeckoPrice", te.coinGeckoPrice),
-				)
 			}
 
 			delete(localTokenMap, coinGeckoId)
@@ -161,6 +158,8 @@ func (gov *ChainGovernor) queryCoinGecko() {
 			}
 		}
 	}
+
+	return nil
 }
 
 func (gov *ChainGovernor) revertAllPrices() {
@@ -189,4 +188,28 @@ func (te tokenEntry) updatePrice() {
 	} else {
 		te.price.Set(te.coinGeckoPrice)
 	}
+}
+
+func CheckQuery(logger *zap.Logger) error {
+	logger.Info("Instantiating governor.")
+	ctx := context.Background()
+	var db db.MockGovernorDB
+	gov := NewChainGovernor(logger, &db, MainNetMode)
+
+	if err := gov.initConfig(); err != nil {
+		return err
+	}
+
+	logger.Info("Building Coin Gecko query.")
+	if err := gov.initCoinGecko(ctx, false); err != nil {
+		return err
+	}
+
+	logger.Info("Initiating Coin Gecko query.")
+	if err := gov.queryCoinGecko(); err != nil {
+		return err
+	}
+
+	logger.Info("Coin Gecko query complete.")
+	return nil
 }

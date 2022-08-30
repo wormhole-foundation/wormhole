@@ -17,7 +17,7 @@ func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []chainConfigE
 	}
 
 	chains := []chainConfigEntry{
-		chainConfigEntry{emitterChainID: vaa.ChainIDSolana, dailyLimit: 100},
+		chainConfigEntry{emitterChainID: vaa.ChainIDSolana, dailyLimit: 100, bigTransactionSize: 75},
 		chainConfigEntry{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 100000},
 	}
 

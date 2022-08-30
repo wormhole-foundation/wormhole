@@ -128,6 +128,8 @@ axios
         console.error(`Did not find included token '${key}' in query result!`)
       }
     }
+
+    console.log("\nPlease do \"go run check_query.go\" to verify the Coin Gecko query still works before doing a commit.")
   })
   .catch(error => {
     console.error(error);

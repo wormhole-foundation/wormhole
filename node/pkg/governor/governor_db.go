@@ -6,7 +6,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 
@@ -29,11 +28,11 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	now := time.Now()
 	if len(pending) != 0 {
 		sort.SliceStable(pending, func(i, j int) bool {
-			return pending[i].Timestamp.Before(pending[j].Timestamp)
+			return pending[i].Msg.Timestamp.Before(pending[j].Msg.Timestamp)
 		})
 
-		for _, k := range pending {
-			gov.reloadPendingTransfer(k, now)
+		for _, p := range pending {
+			gov.reloadPendingTransfer(p, now)
 		}
 	}
 
@@ -57,7 +56,8 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	return nil
 }
 
-func (gov *ChainGovernor) reloadPendingTransfer(msg *common.MessagePublication, now time.Time) {
+func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now time.Time) {
+	msg := &pending.Msg
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
 		gov.logger.Error("cgov: reloaded pending transfer for unsupported chain, dropping it",
@@ -135,7 +135,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(msg *common.MessagePublication, 
 		zap.Stringer("Amount", payload.Amount),
 	)
 
-	ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, amount: payload.Amount, msg: msg})
+	ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: *pending})
 }
 
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, startTime time.Time) {
@@ -183,5 +183,5 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 		zap.String("MsgID", xfer.MsgID),
 	)
 
-	ce.transfers = append(ce.transfers, *xfer)
+	ce.transfers = append(ce.transfers, xfer)
 }

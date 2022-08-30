@@ -47,6 +47,8 @@ const (
 	GoTestMode  = 4
 )
 
+const maxEnqueuedTime = time.Duration(time.Hour * 72)
+
 type (
 	// Layout of the config data for each token
 	tokenConfigEntry struct {
@@ -60,8 +62,9 @@ type (
 
 	// Layout of the config data for each chain
 	chainConfigEntry struct {
-		emitterChainID vaa.ChainID
-		dailyLimit     uint64
+		emitterChainID     vaa.ChainID
+		dailyLimit         uint64
+		bigTransactionSize uint64
 	}
 
 	// Key to the map of the tokens being monitored
@@ -84,21 +87,27 @@ type (
 
 	// Payload for each enqueued transfer
 	pendingEntry struct {
-		timeStamp time.Time
-		token     *tokenEntry // Store a reference to the token so we can get the current price to compute the value each interval.
-		amount    *big.Int
-		msg       *common.MessagePublication
+		token  *tokenEntry // Store a reference to the token so we can get the current price to compute the value each interval.
+		amount *big.Int
+		dbData db.PendingTransfer // This info gets persisted in the DB.
 	}
 
 	// Payload of the map of chains being monitored
 	chainEntry struct {
-		emitterChainId vaa.ChainID
-		emitterAddr    vaa.Address
-		dailyLimit     uint64
-		transfers      []db.Transfer
-		pending        []pendingEntry
+		emitterChainId          vaa.ChainID
+		emitterAddr             vaa.Address
+		dailyLimit              uint64
+		bigTransactionSize      uint64
+		checkForBigTransactions bool
+
+		transfers []*db.Transfer
+		pending   []*pendingEntry
 	}
 )
+
+func (ce *chainEntry) isBigTransfer(value uint64) bool {
+	return value >= ce.bigTransactionSize && ce.checkForBigTransactions
+}
 
 type ChainGovernor struct {
 	db                  db.GovernorDB
@@ -140,7 +149,7 @@ func (gov *ChainGovernor) Run(ctx context.Context) error {
 			return err
 		}
 
-		if err := gov.initCoinGecko(ctx); err != nil {
+		if err := gov.initCoinGecko(ctx, true); err != nil {
 			return err
 		}
 	}
@@ -231,11 +240,20 @@ func (gov *ChainGovernor) initConfig() error {
 			return fmt.Errorf("failed to convert emitter address for chain: %v", cc.emitterChainID)
 		}
 
-		ce := &chainEntry{emitterChainId: cc.emitterChainID, emitterAddr: emitterAddr, dailyLimit: cc.dailyLimit}
+		ce := &chainEntry{
+			emitterChainId:          cc.emitterChainID,
+			emitterAddr:             emitterAddr,
+			dailyLimit:              cc.dailyLimit,
+			bigTransactionSize:      cc.bigTransactionSize,
+			checkForBigTransactions: cc.bigTransactionSize != 0,
+		}
 
 		gov.logger.Info("cgov: will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
 			zap.Stringer("emitterAddr", ce.emitterAddr),
-			zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)))
+			zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)),
+			zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
+			zap.Bool("checkForBigTransactions", ce.checkForBigTransactions),
+		)
 
 		gov.chains[cc.emitterChainID] = ce
 	}
@@ -270,21 +288,25 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	// If we don't care about this chain, the VAA can be published.
 	if !exists {
+		gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	// If we don't care about this emitter, the VAA can be published.
 	if msg.EmitterAddress != ce.emitterAddr {
+		gov.logger.Info("cgov: ignoring vaa because the emitter address is not configured", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
+		gov.logger.Info("cgov: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
+		gov.logger.Error("cgov: failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return true, err
 	}
 
@@ -292,37 +314,60 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
+		gov.logger.Info("cgov: ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
 	if err != nil {
-		gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
-
+		gov.logger.Error("cgov: failed to trim transfers", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
+		gov.logger.Error("cgov: failed to compute value of transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
 	newTotalValue := prevTotalValue + value
 	if newTotalValue < prevTotalValue {
+		gov.logger.Error("cgov: total value has overflowed", zap.String("msgID", msg.MessageIDString()), zap.Uint64("prevTotalValue", prevTotalValue), zap.Uint64("newTotalValue", newTotalValue))
 		return false, fmt.Errorf("total value has overflowed")
 	}
 
-	if newTotalValue > ce.dailyLimit {
+	enqueueIt := false
+	var releaseTime time.Time
+	if ce.isBigTransfer(value) {
+		enqueueIt = true
+		releaseTime = now.Add(maxEnqueuedTime)
+		gov.logger.Error("cgov: enqueuing vaa because it is a big transaction",
+			zap.Uint64("value", value),
+			zap.Uint64("prevTotalValue", prevTotalValue),
+			zap.Uint64("newTotalValue", newTotalValue),
+			zap.String("msgID", msg.MessageIDString()),
+			zap.Stringer("releaseTime", releaseTime),
+			zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
+		)
+	} else if newTotalValue > ce.dailyLimit {
+		enqueueIt = true
+		releaseTime = now.Add(maxEnqueuedTime)
 		gov.logger.Error("cgov: enqueuing vaa because it would exceed the daily limit",
 			zap.Uint64("value", value),
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
-			zap.String("msgID", msg.MessageIDString()))
+			zap.Stringer("releaseTime", releaseTime),
+			zap.String("msgID", msg.MessageIDString()),
+		)
+	}
 
-		ce.pending = append(ce.pending, pendingEntry{timeStamp: now, token: token, amount: payload.Amount, msg: msg})
-		err = gov.db.StorePendingMsg(msg)
+	if enqueueIt {
+		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
+		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: dbData})
+		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
+			gov.logger.Error("cgov: failed to store pending vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 			return false, err
 		}
 
@@ -336,9 +381,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.String("msgID", msg.MessageIDString()))
 
 	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: msg.EmitterChain, EmitterAddress: msg.EmitterAddress, MsgID: msg.MessageIDString()}
-	ce.transfers = append(ce.transfers, xfer)
+	ce.transfers = append(ce.transfers, &xfer)
 	err = gov.db.StoreTransfer(&xfer)
 	if err != nil {
+		gov.logger.Error("cgov: failed to store transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
@@ -381,7 +427,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 					gov.logger.Error("cgov: failed to compute value for pending vaa",
 						zap.Stringer("amount", pe.amount),
 						zap.Stringer("price", pe.token.price),
-						zap.String("msgID", pe.msg.MessageIDString()),
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()),
 						zap.Error(err),
 					)
 
@@ -389,37 +435,63 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 					return nil, err
 				}
 
-				newTotalValue := prevTotalValue + value
-				if newTotalValue < prevTotalValue {
-					gov.msgsToPublish = msgsToPublish
-					return nil, fmt.Errorf("total value has overflowed")
+				countsTowardsTransfers := true
+				if ce.isBigTransfer(value) {
+					if now.Before(pe.dbData.ReleaseTime) {
+						continue // Keep waiting for the timer to expire.
+					}
+
+					countsTowardsTransfers = false
+					gov.logger.Info("cgov: posting pending big vaa because the release time has been reached",
+						zap.Stringer("amount", pe.amount),
+						zap.Stringer("price", pe.token.price),
+						zap.Uint64("value", value),
+						zap.Stringer("releaseTime", pe.dbData.ReleaseTime),
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
+				} else if now.After(pe.dbData.ReleaseTime) {
+					countsTowardsTransfers = false
+					gov.logger.Info("cgov: posting pending vaa because the release time has been reached",
+						zap.Stringer("amount", pe.amount),
+						zap.Stringer("price", pe.token.price),
+						zap.Uint64("value", value),
+						zap.Stringer("releaseTime", pe.dbData.ReleaseTime),
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
+				} else {
+					newTotalValue := prevTotalValue + value
+					if newTotalValue < prevTotalValue {
+						gov.msgsToPublish = msgsToPublish
+						return nil, fmt.Errorf("total value has overflowed")
+					}
+
+					if newTotalValue > ce.dailyLimit {
+						// This one won't fit. Keep checking other enqueued ones.
+						continue
+					}
+
+					gov.logger.Info("cgov: posting pending vaa",
+						zap.Stringer("amount", pe.amount),
+						zap.Stringer("price", pe.token.price),
+						zap.Uint64("value", value),
+						zap.Uint64("prevTotalValue", prevTotalValue),
+						zap.Uint64("newTotalValue", newTotalValue),
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
 				}
 
-				if newTotalValue > ce.dailyLimit {
-					// This one won't fit. Keep checking other enqueued ones.
-					continue
+				// If we get here, publish it and remove it from the pending list.
+				msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
+
+				if countsTowardsTransfers {
+					xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr,
+						EmitterChain: pe.dbData.Msg.EmitterChain, EmitterAddress: pe.dbData.Msg.EmitterAddress, MsgID: pe.dbData.Msg.MessageIDString()}
+					ce.transfers = append(ce.transfers, &xfer)
+
+					if err := gov.db.StoreTransfer(&xfer); err != nil {
+						gov.msgsToPublish = msgsToPublish
+						return nil, err
+					}
 				}
 
-				// If we get here, we found something that fits. Publish it and remove it from the pending list.
-				gov.logger.Info("cgov: posting pending vaa",
-					zap.Stringer("amount", pe.amount),
-					zap.Stringer("price", pe.token.price),
-					zap.Uint64("value", value),
-					zap.Uint64("prevTotalValue", prevTotalValue),
-					zap.Uint64("newTotalValue", newTotalValue),
-					zap.String("msgID", pe.msg.MessageIDString()))
-
-				msgsToPublish = append(msgsToPublish, pe.msg)
-
-				xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr, EmitterChain: pe.msg.EmitterChain, EmitterAddress: pe.msg.EmitterAddress, MsgID: pe.msg.MessageIDString()}
-				ce.transfers = append(ce.transfers, xfer)
-
-				if err := gov.db.StoreTransfer(&xfer); err != nil {
-					gov.msgsToPublish = msgsToPublish
-					return nil, err
-				}
-
-				if err := gov.db.DeletePendingMsg(pe.msg); err != nil {
+				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
 					gov.msgsToPublish = msgsToPublish
 					return nil, err
 				}
@@ -462,7 +534,7 @@ func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db db.GovernorDB) (su
 	return sum, err
 }
 
-func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db db.GovernorDB) (uint64, []db.Transfer, error) {
+func TrimAndSumValue(transfers []*db.Transfer, startTime time.Time, db db.GovernorDB) (uint64, []*db.Transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
 	}
@@ -481,7 +553,7 @@ func TrimAndSumValue(transfers []db.Transfer, startTime time.Time, db db.Governo
 	if trimIdx >= 0 {
 		if db != nil {
 			for idx := 0; idx <= trimIdx; idx++ {
-				if err := db.DeleteTransfer(&transfers[idx]); err != nil {
+				if err := db.DeleteTransfer(transfers[idx]); err != nil {
 					return 0, transfers, err
 				}
 			}

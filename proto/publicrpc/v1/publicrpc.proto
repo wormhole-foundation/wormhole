@@ -151,6 +151,7 @@ message GovernorGetAvailableNotionalByChainResponse {
     uint32 chain_id = 1;
     uint64 remaining_available_notional = 2;
     uint64 notional_limit = 3;
+    uint64 big_transaction_size = 4;
   }
 
   // There is an entry for each chain that is being governed.
@@ -163,9 +164,12 @@ message GovernorGetEnqueuedVAAsRequest {
 
 message GovernorGetEnqueuedVAAsResponse {
   message Entry {
-  uint32 emitter_chain = 1;
-  string emitter_address = 2; // human-readable hex-encoded (leading 0x)
-  uint64 sequence = 3;
+    uint32 emitter_chain = 1;
+    string emitter_address = 2; // human-readable hex-encoded (leading 0x)
+    uint64 sequence = 3;
+    uint32 release_time = 4;
+    uint64 notional_value = 5;
+    string tx_hash = 6;
   }
 
   // There is an entry for each enqueued vaa.
