@@ -43,7 +43,7 @@ format(){
     fi
 
     # Use -exec because of pitfall #1 in http://mywiki.wooledge.org/BashPitfalls
-    GOFMT_OUTPUT="$(find ./node ./event_database -type f -name '*.go' -not -path './node/pkg/proto/*' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
+    GOFMT_OUTPUT="$(find "./sdk" "./node" "./event_database" -type f -name '*.go' -not -path './node/pkg/proto/*' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
 
     if [ -n "$GOFMT_OUTPUT" ]; then
         if [ "$GITHUB_ACTION" == "true" ]; then
@@ -63,6 +63,9 @@ lint(){
     # Do the actual linting!
     cd "$ROOT"/node
     golangci-lint run --skip-dirs pkg/supervisor --timeout=10m --path-prefix=node $GOLANGCI_LINT_ARGS ./...
+
+    cd "${ROOT}/sdk"
+    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
 }
 
 DOCKER="false"
