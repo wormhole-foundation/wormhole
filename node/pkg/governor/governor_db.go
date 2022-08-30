@@ -58,10 +58,11 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 
 func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now time.Time) {
 	msg := &pending.Msg
+	msgId := msg.MessageIDString()
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
 		gov.logger.Error("cgov: reloaded pending transfer for unsupported chain, dropping it",
-			zap.String("MsgID", msg.MessageIDString()),
+			zap.String("MsgID", msgId),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
@@ -75,7 +76,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 
 	if msg.EmitterAddress != ce.emitterAddr {
 		gov.logger.Error("cgov: reloaded pending transfer for unsupported emitter address, dropping it",
-			zap.String("MsgID", msg.MessageIDString()),
+			zap.String("MsgID", msgId),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
@@ -90,7 +91,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
 		gov.logger.Error("cgov: failed to parse payload for reloaded pending transfer, dropping it",
-			zap.String("MsgID", msg.MessageIDString()),
+			zap.String("MsgID", msgId),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
@@ -109,7 +110,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	token, exists := gov.tokens[tk]
 	if !exists {
 		gov.logger.Error("cgov: reloaded pending transfer for unsupported token, dropping it",
-			zap.String("MsgID", msg.MessageIDString()),
+			zap.String("MsgID", msgId),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
@@ -124,7 +125,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	}
 
 	gov.logger.Info("cgov: reloaded pending transfer",
-		zap.String("MsgID", msg.MessageIDString()),
+		zap.String("MsgID", msgId),
 		zap.Stringer("TxHash", msg.TxHash),
 		zap.Stringer("Timestamp", msg.Timestamp),
 		zap.Uint32("Nonce", msg.Nonce),
@@ -136,6 +137,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	)
 
 	ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: *pending})
+	gov.msgsById[msgId] = transferEnqueued
 }
 
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, startTime time.Time) {
@@ -184,4 +186,5 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 	)
 
 	ce.transfers = append(ce.transfers, xfer)
+	gov.msgsById[xfer.MsgID] = transferComplete
 }

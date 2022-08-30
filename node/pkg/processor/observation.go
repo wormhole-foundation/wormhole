@@ -8,6 +8,7 @@ import (
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -218,7 +219,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	}
 }
 
-func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {
+func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum, gov *governor.ChainGovernor) {
 	v, err := vaa.Unmarshal(m.Vaa)
 	if err != nil {
 		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",
@@ -312,4 +313,8 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 	p.attestationEvents.ReportVAAQuorum(v)
+
+	if gov != nil {
+		gov.ProcessInboundQuorum(v)
+	}
 }
