@@ -45,4 +45,9 @@ contract Setters is State {
     function setNextSequence(address emitter, uint64 sequence) internal {
         _state.sequences[emitter] = sequence;
     }
+
+    function setEvmChainId(uint256 evmChainId) internal {
+        require(evmChainId == block.chainid, "invalid evmChainId");
+        _state.evmChainId = evmChainId;
+    }
 }

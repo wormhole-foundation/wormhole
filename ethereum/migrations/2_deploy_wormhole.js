@@ -9,6 +9,7 @@ const initialSigners = JSON.parse(process.env.INIT_SIGNERS);
 const chainId = process.env.INIT_CHAIN_ID;
 const governanceChainId = process.env.INIT_GOV_CHAIN_ID;
 const governanceContract = process.env.INIT_GOV_CONTRACT; // bytes32
+const evmChainId = process.env.INIT_EVM_CHAIN_ID;
 
 module.exports = async function (deployer) {
     // deploy setup
@@ -24,7 +25,8 @@ module.exports = async function (deployer) {
         initialSigners,
         chainId,
         governanceChainId,
-        governanceContract
+        governanceContract,
+        evmChainId
     ).encodeABI();
 
     // deploy proxy

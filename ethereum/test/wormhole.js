@@ -13,7 +13,7 @@ const testSigner3PK = "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3
 const testBadSigner1PK = "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fc";
 
 
-const core = '0x' + Buffer.from("Core").toString("hex").padStart(64,0)
+const core = '0x' + Buffer.from("Core").toString("hex").padStart(64, 0)
 const actionContractUpgrade = "01"
 const actionGuardianSetUpgrade = "02"
 const actionMessageFee = "03"
@@ -68,6 +68,7 @@ contract("Wormhole", function () {
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
     const testSigner3 = web3.eth.accounts.privateKeyToAccount(testSigner3PK);
     const testChainId = "2";
+    const testEvmChainId = "1";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
 
@@ -87,6 +88,10 @@ contract("Wormhole", function () {
         // chain id
         const chainId = await initialized.methods.chainId().call();
         assert.equal(chainId, testChainId);
+
+        // evm chain id
+        const evmChainId = await initialized.methods.evmChainId().call();
+        assert.equal(evmChainId, testEvmChainId);
 
         // governance
         const governanceChainId = await initialized.methods.governanceChainId().call();
@@ -125,7 +130,7 @@ contract("Wormhole", function () {
             "0x1",
             "0x1",
             32
-            ).send({
+        ).send({
             value: 0, // fees are set to 0 initially
             from: accounts[0]
         });
@@ -172,7 +177,7 @@ contract("Wormhole", function () {
             "0x" + nonceHex,
             "0x1",
             32
-            ).send({
+        ).send({
             value: 0, // fees are set to 0 initially
             from: accounts[0]
         });
@@ -856,7 +861,7 @@ const signAndEncodeVM = async function (
     for (let i in signers) {
         const ec = new elliptic.ec("secp256k1");
         const key = ec.keyFromPrivate(signers[i]);
-        const signature = key.sign(hash.substr(2), {canonical: true});
+        const signature = key.sign(hash.substr(2), { canonical: true });
 
         const packSig = [
             web3.eth.abi.encodeParameter("uint8", i).substring(2 + (64 - 2)),
@@ -908,7 +913,7 @@ const signAndEncodeVMFixedIndex = async function (
     for (let i in signers) {
         const ec = new elliptic.ec("secp256k1");
         const key = ec.keyFromPrivate(signers[i]);
-        const signature = key.sign(hash.substr(2), {canonical: true});
+        const signature = key.sign(hash.substr(2), { canonical: true });
 
         const packSig = [
             // Fixing the index to be zero to product a non-monotonic VM

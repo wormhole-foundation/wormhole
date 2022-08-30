@@ -19,8 +19,13 @@ import "./token/NFTImplementation.sol";
 contract NFTBridge is NFTBridgeGovernance {
     using BytesLib for bytes;
 
+    modifier onlyEvmChainId() {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
+        _;
+    }
+
     // Initiate a Transfer
-    function transferNFT(address token, uint256 tokenID, uint16 recipientChain, bytes32 recipient, uint32 nonce) public payable returns (uint64 sequence) {
+    function transferNFT(address token, uint256 tokenID, uint16 recipientChain, bytes32 recipient, uint32 nonce) public payable onlyEvmChainId returns (uint64 sequence) {
         // determine token parameters
         uint16 tokenChain;
         bytes32 tokenAddress;
@@ -97,7 +102,7 @@ contract NFTBridge is NFTBridgeGovernance {
         }(nonce, encoded, finality());
     }
 
-    function completeTransfer(bytes memory encodedVm) public {
+    function completeTransfer(bytes memory encodedVm) public onlyEvmChainId {
         _completeTransfer(encodedVm);
     }
 

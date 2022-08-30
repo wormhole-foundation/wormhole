@@ -58,4 +58,9 @@ contract BridgeSetters is BridgeState {
     function setFinality(uint8 finality) internal {
         _state.provider.finality = finality;
     }
+
+    function setEvmChainId(uint256 evmChainId) internal {
+        require(evmChainId == block.chainid, "invalid evmChainId");
+        _state.evmChainId = evmChainId;
+    }
 }

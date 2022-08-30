@@ -20,6 +20,7 @@ const BridgeImplementationFullABI = jsonfile.readFileSync("build/contracts/Bridg
 contract("Update Bridge", function (accounts) {
     if (config.network === "test") return;
     const testChainId = "2";
+    const testEvmChainId = "1";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
     let WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
@@ -41,7 +42,8 @@ contract("Update Bridge", function (accounts) {
             testGovernanceContract,
             TokenImplementation.address,
             WETH,
-            testFinality
+            testFinality,
+            testEvmChainId
         ).encodeABI();
 
         const deploy = await TokenBridge.new(BridgeSetup.address, initData);
