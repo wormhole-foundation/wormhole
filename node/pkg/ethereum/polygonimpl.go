@@ -1,4 +1,4 @@
-// This implements polling for polygon by reading Root Contract on Ethereum.
+// This implements polling for polygon by reading the Root Chain contract on Ethereum.
 //
 // The root chain proxy contract is deployed on Etherum at the following addresses:
 //    Mainnet: 0x86E4Dc95c7FBdBf52e33D563BbDB00823894C287
@@ -46,18 +46,18 @@ type PolygonImpl struct {
 	rootCaller       *rootAbi.AbiRootChainCaller
 }
 
-var (
-	POLY_RCP_URL           int = 0
-	POLY_RCP_CONTRACT_ADDR int = 1
+const (
+	poly_rcp_url           int = 0
+	poly_rcp_contract_addr int = 1
 )
 
 func UsePolygonRootChain(extraParams []string) bool {
-	return len(extraParams) >= 2 && extraParams[0] != "" && extraParams[1] != ""
+	return len(extraParams) >= 2 && extraParams[poly_rcp_url] != "" && extraParams[poly_rcp_contract_addr] != ""
 }
 
 func (e *PolygonImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
-	e.logger.Info("RCP: using root chain proxy to detect new blocks", zap.String("eth_network", e.BaseEth.NetworkName),
+	e.logger.Info("using root chain proxy to detect new blocks", zap.String("eth_network", e.BaseEth.NetworkName),
 		zap.String("url", e.RootChainUrl), zap.Stringer("contract_address", e.RootChainAddress), zap.Int("delay_in_ms", e.DelayInMs))
 }
 
@@ -143,6 +143,10 @@ func (sub *PolygonPollSubscription) Unsubscribe() {
 }
 
 func (e *PolygonImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+	return e.BaseEth.SubscribeForBlocks(ctx, sink)
+}
+
+func (e *PolygonImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
 	if e.BaseEth.client == nil {
 		panic("client is not initialized!")
 	}
@@ -166,7 +170,7 @@ func (e *PolygonImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *commo
 		return nil, err
 	}
 
-	e.logger.Info("RCP: initial block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Stringer("block", lastConfirmedBlockNum))
+	e.logger.Info("initial block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Stringer("block", lastConfirmedBlockNum))
 
 	var BIG_ONE = big.NewInt(1)
 
@@ -189,7 +193,7 @@ func (e *PolygonImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *commo
 				}
 
 				if newConfirmedBlockNum.Cmp(lastConfirmedBlockNum) > 0 {
-					e.logger.Info("RCP: detected new checkpoint", zap.String("eth_network", e.BaseEth.NetworkName), zap.Stringer("block", newConfirmedBlockNum))
+					e.logger.Info("detected new checkpoint", zap.String("eth_network", e.BaseEth.NetworkName), zap.Stringer("block", newConfirmedBlockNum))
 					blockNum := big.NewInt(0)
 					blockNum.Add(lastConfirmedBlockNum, BIG_ONE)
 					for !(blockNum.Cmp(newConfirmedBlockNum) > 0) {
@@ -231,7 +235,7 @@ func (e *PolygonImpl) getTxHash(ctx context.Context, number *big.Int) (*ethCommo
 	var m Marshaller
 	err := e.rawClient.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
 	if err != nil {
-		e.logger.Error("RCP: failed to get block", zap.String("eth_network", e.BaseEth.NetworkName),
+		e.logger.Error("failed to get block", zap.String("eth_network", e.BaseEth.NetworkName),
 			zap.String("requested_block", numStr), zap.Error(err))
 		return nil, err
 	}

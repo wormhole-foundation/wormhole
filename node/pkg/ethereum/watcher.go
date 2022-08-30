@@ -3,12 +3,14 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -102,6 +104,13 @@ type (
 		// Interface to the chain specific ethereum library.
 		ethIntf             common.Ethish
 		shouldCheckSafeMode bool
+
+		//	For chains that support checkpointing (currently only Polygon):
+		//    if checkpointing is not enabled or consistencyLevel != math.MaxUint8
+		//		 Use the existing logic of monitoring the current block and waiting min confirmations.
+		//	   else
+		//		 Use the checkpointed blocks without adding min confirmations.
+		useCheckpointing bool
 	}
 
 	pendingKey struct {
@@ -131,6 +140,7 @@ func NewEthWatcher(
 	extraParams []string) *Watcher {
 
 	var ethIntf common.Ethish
+	useCheckpointing := false
 	if chainID == vaa.ChainIDCelo && !unsafeDevMode {
 		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
 		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
@@ -140,10 +150,11 @@ func NewEthWatcher(
 	} else if chainID == vaa.ChainIDNeon {
 		ethIntf = NewGetLogsImpl(networkName, contract, 250)
 	} else if chainID == vaa.ChainIDPolygon && UsePolygonRootChain(extraParams) {
+		useCheckpointing = true
 		ethIntf = &PolygonImpl{
 			BaseEth:          EthImpl{NetworkName: networkName},
-			RootChainUrl:     extraParams[0],
-			RootChainAddress: eth_common.HexToAddress(extraParams[1]),
+			RootChainUrl:     extraParams[poly_rcp_url],
+			RootChainAddress: eth_common.HexToAddress(extraParams[poly_rcp_contract_addr]),
 			DelayInMs:        5000,
 		}
 	} else {
@@ -162,7 +173,9 @@ func NewEthWatcher(
 		obsvReqC:            obsvReqC,
 		pending:             map[pendingKey]*pendingMessage{},
 		ethIntf:             ethIntf,
-		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode)}
+		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode),
+		useCheckpointing:    useCheckpointing,
+	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -239,6 +252,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	// Track the current block number so we can compare it to the block number of
 	// the message publication for observation requests.
 	var currentBlockNumber uint64
+	var cpCurrentBlockNumber uint64
 
 	go func() {
 		for {
@@ -265,11 +279,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				// always sends the head before it sends the logs (implicit synchronization
 				// by relying on the same websocket connection).
 				blockNumberU := atomic.LoadUint64(&currentBlockNumber)
-				if blockNumberU == 0 {
-					logger.Error("no block number available, ignoring observation request",
-						zap.String("eth_network", e.networkName))
-					continue
-				}
+				cpBlockNumberU := atomic.LoadUint64(&cpCurrentBlockNumber)
 
 				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 				blockNumber, msgs, err := MessageEventsForTransaction(timeout, e.ethIntf, e.contract, e.chainID, tx)
@@ -282,41 +292,84 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for _, msg := range msgs {
-					expectedConfirmations := uint64(msg.ConsistencyLevel)
-					if expectedConfirmations < e.minConfirmations {
-						expectedConfirmations = e.minConfirmations
-					}
+					if !e.useCheckpointing || msg.ConsistencyLevel != math.MaxUint8 {
+						if blockNumberU == 0 {
+							logger.Error("no block number available, ignoring observation request", zap.String("eth_network", e.networkName))
+							continue
+						}
 
-					// SECURITY: In the recovery flow, we already know which transaction to
-					// observe, and we can assume that it has reached the expected finality
-					// level a long time ago. Therefore, the logic is much simpler than the
-					// primary watcher, which has to wait for finality.
-					//
-					// Instead, we can simply check if the transaction's block number is in
-					// the past by more than the expected confirmation number.
-					//
-					// Ensure that the current block number is at least expectedConfirmations
-					// larger than the message observation's block number.
-					if blockNumber+expectedConfirmations <= blockNumberU {
-						logger.Info("re-observed message publication transaction",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-							zap.String("eth_network", e.networkName),
-						)
-						e.msgChan <- msg
-					} else {
-						logger.Info("ignoring re-observed message publication transaction",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-							zap.Uint64("expected_confirmations", expectedConfirmations),
-							zap.String("eth_network", e.networkName),
-						)
+						expectedConfirmations := uint64(msg.ConsistencyLevel)
+						if expectedConfirmations < e.minConfirmations {
+							expectedConfirmations = e.minConfirmations
+						}
+
+						// SECURITY: In the recovery flow, we already know which transaction to
+						// observe, and we can assume that it has reached the expected finality
+						// level a long time ago. Therefore, the logic is much simpler than the
+						// primary watcher, which has to wait for finality.
+						//
+						// Instead, we can simply check if the transaction's block number is in
+						// the past by more than the expected confirmation number.
+						//
+						// Ensure that the current block number is at least expectedConfirmations
+						// larger than the message observation's block number.
+						if blockNumber+expectedConfirmations <= blockNumberU {
+							logger.Info("re-observed message publication transaction",
+								zap.Stringer("tx", msg.TxHash),
+								zap.Stringer("emitter_address", msg.EmitterAddress),
+								zap.Uint64("sequence", msg.Sequence),
+								zap.Uint64("current_block", blockNumberU),
+								zap.Uint64("observed_block", blockNumber),
+								zap.String("eth_network", e.networkName),
+							)
+							e.msgChan <- msg
+						} else {
+							logger.Info("ignoring re-observed message publication transaction",
+								zap.Stringer("tx", msg.TxHash),
+								zap.Stringer("emitter_address", msg.EmitterAddress),
+								zap.Uint64("sequence", msg.Sequence),
+								zap.Uint64("current_block", blockNumberU),
+								zap.Uint64("observed_block", blockNumber),
+								zap.Uint64("expected_confirmations", expectedConfirmations),
+								zap.String("eth_network", e.networkName),
+							)
+						}
+					} else { // Using checkpointing
+						if cpBlockNumberU == 0 {
+							logger.Error("no checkpoint block number available, ignoring observation request", zap.String("eth_network", e.networkName))
+							continue
+						}
+
+						// SECURITY: In the recovery flow, we already know which transaction to
+						// observe, and we can assume that it has reached the expected finality
+						// level a long time ago. Therefore, the logic is much simpler than the
+						// primary watcher, which has to wait for finality.
+						//
+						// Instead, we can simply check if the transaction's block number is in
+						// the past by more than the expected confirmation number.
+						//
+						// Ensure that the current block number is at least expectedConfirmations
+						// larger than the message observation's block number.
+						if blockNumber <= cpBlockNumberU {
+							logger.Info("re-observed message publication transaction",
+								zap.Stringer("tx", msg.TxHash),
+								zap.Stringer("emitter_address", msg.EmitterAddress),
+								zap.Uint64("sequence", msg.Sequence),
+								zap.Uint64("current_cp_block", cpBlockNumberU),
+								zap.Uint64("observed_block", blockNumber),
+								zap.String("eth_network", e.networkName),
+							)
+							e.msgChan <- msg
+						} else {
+							logger.Info("ignoring re-observed message publication transaction",
+								zap.Stringer("tx", msg.TxHash),
+								zap.Stringer("emitter_address", msg.EmitterAddress),
+								zap.Uint64("sequence", msg.Sequence),
+								zap.Uint64("current_cp_block", cpBlockNumberU),
+								zap.Uint64("observed_block", blockNumber),
+								zap.String("eth_network", e.networkName),
+							)
+						}
 					}
 				}
 			}
@@ -396,6 +449,17 @@ func (e *Watcher) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
 
+	// Watch for checkpoint heaers. If the chain does not support checkpointing, this is a no op.
+	var cpHeadSink chan *common.NewBlock
+	var cpHeaderSubscription ethereum.Subscription
+	cpHeadSink = make(chan *common.NewBlock, 2)
+	cpHeaderSubscription, err = e.ethIntf.SubscribeForCheckpointBlocks(ctx, cpHeadSink)
+	if err != nil {
+		ethConnectionErrors.WithLabelValues(e.networkName, "header_subscribe_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		return fmt.Errorf("failed to subscribe to checkpoint header events: %w", err)
+	}
+
 	go func() {
 		for {
 			select {
@@ -436,6 +500,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 				atomic.StoreUint64(&currentBlockNumber, blockNumberU)
 
 				for key, pLock := range e.pending {
+					if e.useCheckpointing && pLock.message.ConsistencyLevel == math.MaxUint8 {
+						logger.Info("ignoring block because transaction is using checkpointing",
+							zap.Stringer("current_block", ev.Number),
+							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Uint8("consistencyLevel", pLock.message.ConsistencyLevel),
+							zap.String("eth_network", e.networkName),
+						)
+						continue
+					}
 					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)
 					if expectedConfirmations < e.minConfirmations {
 						expectedConfirmations = e.minConfirmations
@@ -551,6 +624,164 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				e.pendingMu.Unlock()
 				logger.Info("processed new header",
+					zap.Stringer("current_block", ev.Number),
+					zap.Stringer("current_blockhash", currentHash),
+					zap.Duration("took", time.Since(start)),
+					zap.String("eth_network", e.networkName))
+			case err := <-cpHeaderSubscription.Err():
+				ethConnectionErrors.WithLabelValues(e.networkName, "header_subscription_error").Inc()
+				errC <- fmt.Errorf("error while processing checkpoint header subscription: %w", err)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+				return
+			case ev := <-cpHeadSink:
+				if !e.useCheckpointing {
+					panic("received a checkpoint when checkpointing is not enabled")
+				}
+				// These two pointers should have been checked before the event was placed on the channel, but just being safe.
+				if ev == nil {
+					logger.Error("new checkpoint header event is nil", zap.String("eth_network", e.networkName))
+					continue
+				}
+				if ev.Number == nil {
+					logger.Error("new checkpoint header block number is nil", zap.String("eth_network", e.networkName))
+					continue
+				}
+
+				start := time.Now()
+				currentHash := ev.Hash
+				logger.Info("processing new checkpoint header",
+					zap.Stringer("current_block", ev.Number),
+					zap.Stringer("current_blockhash", currentHash),
+					zap.String("eth_network", e.networkName))
+
+				e.pendingMu.Lock()
+
+				blockNumberU := ev.Number.Uint64()
+				atomic.StoreUint64(&cpCurrentBlockNumber, blockNumberU)
+
+				for key, pLock := range e.pending {
+					if pLock.message.ConsistencyLevel != math.MaxUint8 {
+						logger.Info("ignoring checkpoint block because transaction is not using them",
+							zap.Stringer("current_block", ev.Number),
+							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Uint8("consistencyLevel", pLock.message.ConsistencyLevel),
+							zap.String("eth_network", e.networkName),
+						)
+						continue
+					}
+
+					// Transaction was dropped and never picked up again
+					if pLock.height+4*uint64(e.minConfirmations) <= blockNumberU { // QUESTION: How long should we wait? minConfirmations is only one in this case, so this probably isn't enough.
+						logger.Info("observation timed out off checkpoint",
+							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Stringer("blockhash", key.BlockHash),
+							zap.Stringer("emitter_address", key.EmitterAddress),
+							zap.Uint64("sequence", key.Sequence),
+							zap.Stringer("current_block", ev.Number),
+							zap.Stringer("current_blockhash", currentHash),
+							zap.String("eth_network", e.networkName),
+						)
+						ethMessagesOrphaned.WithLabelValues(e.networkName, "timeout").Inc()
+						delete(e.pending, key)
+						continue
+					}
+
+					// Transaction is now ready
+					if pLock.height <= blockNumberU {
+						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+						tx, err := e.ethIntf.TransactionReceipt(timeout, pLock.message.TxHash)
+						cancel()
+
+						// QUESTION: I don't think this block of comments is correct for checkpointing. Is it safe that once something is checkpointed, it is finalized, and we can rely on the TX we just read?
+
+						// If the node returns an error after the checkpoint,
+						// it means the chain reorged and the transaction was orphaned. The
+						// TransactionReceipt call is using the same websocket connection than the // QUESTION: This is no longer true!
+						// head notifications, so it's guaranteed to be atomic.
+						//
+						// Check multiple possible error cases - the node seems to return a
+						// "not found" error most of the time, but it could conceivably also
+						// return a nil tx or rpc.ErrNoResult.
+						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
+							logger.Warn("tx was orphaned off checkpoint",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName),
+								zap.Error(err))
+							delete(e.pending, key)
+							ethMessagesOrphaned.WithLabelValues(e.networkName, "not_found").Inc()
+							continue
+						}
+
+						// This should never happen - if we got this far, it means that logs were emitted,
+						// which is only possible if the transaction succeeded. We check it anyway just
+						// in case the EVM implementation is buggy.
+						if tx.Status != 1 {
+							logger.Error("transaction receipt with non-success status off checkpoint",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName),
+								zap.Error(err))
+							delete(e.pending, key)
+							ethMessagesOrphaned.WithLabelValues(e.networkName, "tx_failed").Inc()
+							continue
+						}
+
+						// Any error other than "not found" is likely transient - we retry next block.
+						if err != nil {
+							logger.Warn("transaction could not be fetched off checkpoint",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName),
+								zap.Error(err))
+							continue
+						}
+
+						// It's possible for a transaction to be orphaned and then included in a different block
+						// but with the same tx hash. Drop the observation (it will be re-observed and needs to
+						// wait for the full confirmation time again).
+						if tx.BlockHash != key.BlockHash {
+							logger.Info("tx got dropped and mined in a different block; the message should have been reobserved off checkpoint",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName))
+							delete(e.pending, key)
+							ethMessagesOrphaned.WithLabelValues(e.networkName, "blockhash_mismatch").Inc()
+							continue
+						}
+
+						logger.Info("observation confirmed off checkpoint",
+							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Stringer("blockhash", key.BlockHash),
+							zap.Stringer("emitter_address", key.EmitterAddress),
+							zap.Uint64("sequence", key.Sequence),
+							zap.Stringer("current_block", ev.Number),
+							zap.Stringer("current_blockhash", currentHash),
+							zap.String("eth_network", e.networkName))
+						delete(e.pending, key)
+						e.msgChan <- pLock.message
+						ethMessagesConfirmed.WithLabelValues(e.networkName).Inc()
+					}
+				}
+
+				e.pendingMu.Unlock()
+				logger.Info("processed new checkpoint header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Duration("took", time.Since(start)),

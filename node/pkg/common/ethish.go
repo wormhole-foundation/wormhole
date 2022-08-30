@@ -34,4 +34,5 @@ type Ethish interface {
 	TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error)
 	ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error)
 	SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error)
+	SubscribeForCheckpointBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error)
 }

@@ -4,6 +4,8 @@ package ethereum
 
 import (
 	"context"
+	"errors"
+	"sync"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -135,4 +137,34 @@ func (e *EthImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.Ne
 	}()
 
 	return headerSubscription, err
+}
+
+type CheckpointBlocksSubscription struct {
+	errOnce   sync.Once
+	err       chan error
+	quit      chan error
+	unsubDone chan struct{}
+}
+
+var ErrUnsubscribedCheckpointBlocks = errors.New("unsubscribed")
+
+func (sub *CheckpointBlocksSubscription) Err() <-chan error {
+	return sub.err
+}
+
+func (sub *CheckpointBlocksSubscription) Unsubscribe() {
+	sub.errOnce.Do(func() {
+		select {
+		case sub.quit <- ErrUnsubscribedCheckpointBlocks:
+			<-sub.unsubDone
+		case <-sub.unsubDone:
+		}
+		close(sub.err)
+	})
+}
+
+func (e *EthImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+	return &CheckpointBlocksSubscription{
+		err: make(chan error, 1),
+	}, nil
 }

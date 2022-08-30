@@ -224,6 +224,10 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 	return sub, err
 }
 
+func (e *PollImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+	return e.BaseEth.SubscribeForCheckpointBlocks(ctx, sink)
+}
+
 func (e *PollImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBlock, error) {
 	var numStr string
 	if number != nil {

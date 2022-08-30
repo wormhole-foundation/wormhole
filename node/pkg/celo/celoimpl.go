@@ -4,6 +4,8 @@ package celo
 
 import (
 	"context"
+	"errors"
+	"sync"
 
 	celoBind "github.com/celo-org/celo-blockchain/accounts/abi/bind"
 	celoCommon "github.com/celo-org/celo-blockchain/common"
@@ -181,6 +183,36 @@ func (e *CeloImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 	}()
 
 	return headerSubscription, err
+}
+
+type CheckpointBlocksSubscription struct {
+	errOnce   sync.Once
+	err       chan error
+	quit      chan error
+	unsubDone chan struct{}
+}
+
+var ErrUnsubscribedCheckpointBlocks = errors.New("unsubscribed")
+
+func (sub *CheckpointBlocksSubscription) Err() <-chan error {
+	return sub.err
+}
+
+func (sub *CheckpointBlocksSubscription) Unsubscribe() {
+	sub.errOnce.Do(func() {
+		select {
+		case sub.quit <- ErrUnsubscribedCheckpointBlocks:
+			<-sub.unsubDone
+		case <-sub.unsubDone:
+		}
+		close(sub.err)
+	})
+}
+
+func (e *CeloImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+	return &CheckpointBlocksSubscription{
+		err: make(chan error, 1),
+	}, nil
 }
 
 func convertEventToEth(ev *celoAbi.AbiLogMessagePublished) *ethAbi.AbiLogMessagePublished {

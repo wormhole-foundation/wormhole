@@ -112,6 +112,10 @@ func (e *GetLogsImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *commo
 	return e.BasePoller.SubscribeForBlocks(ctx, sink)
 }
 
+func (e *GetLogsImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+	return e.BasePoller.SubscribeForCheckpointBlocks(ctx, sink)
+}
+
 type GetLogsQuery struct {
 	logger          *zap.Logger
 	networkName     string
