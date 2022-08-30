@@ -21,10 +21,10 @@ module wormhole::state {
     struct WormholeMessage has store, drop {
         sender: address,
         sequence: u64,
-        nonce: U32,
-
+        nonce: u64,
         payload: vector<u8>,
         consistency_level: u8,
+        ts: u64,
     }
 
     struct WormholeMessageHandle has key, store {
@@ -83,22 +83,6 @@ module wormhole::state {
         });
     }
 
-    public fun create_wormhole_message(
-        sender: address,
-        sequence: u64,
-        nonce: U32,
-        payload: vector<u8>,
-        consistency_level: u8
-        ): WormholeMessage {
-        WormholeMessage {
-            sender,
-            sequence,
-            nonce,
-            payload,
-            consistency_level
-        }
-    }
-
     public fun create_wormhole_message_handle(e: EventHandle<WormholeMessage>): WormholeMessageHandle {
         WormholeMessageHandle{
             event: e
@@ -131,14 +115,17 @@ module wormhole::state {
         let addr = address_of(sender);
         let sequence = use_sequence(addr);
         let event_handle = borrow_global_mut<WormholeMessageHandle>(@wormhole);
+        let now = aptos_framework::timestamp::now_seconds();
+
         event::emit_event<WormholeMessage>(
             &mut event_handle.event,
             WormholeMessage {
                 sender: addr,
                 sequence,
-                nonce: u32::from_u64(nonce),
+                nonce: nonce,
                 payload,
                 consistency_level,
+                ts: now
             }
         );
     }
