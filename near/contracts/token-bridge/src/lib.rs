@@ -14,10 +14,7 @@ use {
             BorshDeserialize,
             BorshSerialize,
         },
-        collections::{
-            LookupMap,
-            UnorderedSet,
-        },
+        collections::LookupMap,
         env,
         ext_contract,
         json_types::U128,
@@ -128,7 +125,8 @@ pub struct TokenData {
 pub struct OldPortal {
     booted:               bool,
     core:                 AccountId,
-    dups:                 UnorderedSet<Vec<u8>>,
+    gov_idx:              u32,
+    dups:                 LookupMap<Vec<u8>, bool>,
     owner_pk:             PublicKey,
     emitter_registration: LookupMap<u16, Vec<u8>>,
     last_asset:           u32,
@@ -158,6 +156,7 @@ pub struct TokenBridge {
     hash_map: LookupMap<Vec<u8>, AccountId>,
 
     bank: LookupMap<AccountId, Balance>,
+    idx:  LookupMap<Vec<u8>, u32>,
 }
 
 impl Default for TokenBridge {
@@ -179,6 +178,7 @@ impl Default for TokenBridge {
             hash_map: LookupMap::new(b"a".to_vec()),
 
             bank: LookupMap::new(b"b".to_vec()),
+            idx:  LookupMap::new(b"G".to_vec()),
         }
     }
 }
@@ -246,11 +246,21 @@ impl TokenBridge {
         self: &mut TokenBridge,
         vaa: &state::ParsedVAA,
         gov_idx: u32,
-        deposit: Balance,
+        mut deposit: Balance,
     ) -> Balance {
-        if gov_idx != vaa.guardian_set_index {
+        if !self.idx.contains_key(&vaa.hash) {
+            env::panic_str("MissingGovernanceSet");
+        }
+
+        if gov_idx != self.idx.get(&vaa.hash).unwrap() {
             env::panic_str("InvalidGovernanceSet");
         }
+
+        let storage_used = Balance::from(env::storage_usage());
+        self.idx.remove(&vaa.hash);
+        let refund =
+            (storage_used - Balance::from(env::storage_usage())) * env::storage_byte_cost();
+        deposit += refund;
 
         if (CHAIN_ID_SOL != vaa.emitter_chain)
             || (hex::decode("0000000000000000000000000000000000000000000000000000000000000004")
@@ -427,7 +437,6 @@ impl TokenBridge {
                     serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
                 ));
 
-
                 // Once you create a Promise, there is no going back..
                 if nfee == 0 {
                     prom = ext_ft_contract::ext(account)
@@ -580,7 +589,6 @@ impl TokenBridge {
             serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
         ));
 
-
         let mut p = if !fresh {
             env::log_str(&format!(
                 "token-bridge/{}#{}: vaa_asset_meta:  !fresh",
@@ -589,11 +597,7 @@ impl TokenBridge {
             ));
             ext_ft_contract::ext(asset_token_account.clone())
                 .with_static_gas(Gas(10_000_000_000_000))
-                .update_ft(
-                ft,
-                data.to_vec(),
-                vaa.sequence,
-            )
+                .update_ft(ft, data.to_vec(), vaa.sequence)
         } else {
             env::log_str(&format!(
                 "token-bridge/{}#{}: vaa_asset_meta:  fresh",
@@ -1142,6 +1146,12 @@ impl TokenBridge {
             env::panic_str("invalidVersion");
         }
 
+        let data: &[u8] = &pvaa.payload;
+
+        let governance = data[0..32]
+            == hex::decode("000000000000000000000000000000000000000000546f6b656e427269646765")
+                .unwrap();
+
         // Check if VAA with this hash was already accepted
         if self.dups.contains_key(&pvaa.hash) {
             let e = self.dups.get(&pvaa.hash).unwrap();
@@ -1161,7 +1171,7 @@ impl TokenBridge {
                         Self::ext(env::current_account_id())
                             .with_static_gas(Gas(30_000_000_000_000))
                             .with_attached_deposit(env::attached_deposit())
-                            .verify_vaa_callback(pvaa.hash, r.clone()),
+                            .verify_vaa_callback(pvaa.hash, r.clone(), governance),
                     )
                     .then(
                         Self::ext(env::current_account_id())
@@ -1186,13 +1196,13 @@ impl TokenBridge {
         }
     }
 
-
     #[private] // So, all of wormhole security rests in this one statement?
     #[payable]
     pub fn verify_vaa_callback(
         &mut self,
         hash: Vec<u8>,
         refund_to: AccountId,
+        governance: bool,
         #[callback_result] gov_idx: Result<u32, PromiseError>,
     ) -> Promise {
         if gov_idx.is_err() {
@@ -1209,6 +1219,10 @@ impl TokenBridge {
         let mut deposit = env::attached_deposit();
 
         self.dups.insert(&hash, &false);
+
+        if governance {
+            self.idx.insert(&hash, &self.gov_idx);
+        }
 
         let required_cost =
             (Balance::from(env::storage_usage() - storage_used)) * env::storage_byte_cost();
@@ -1456,7 +1470,6 @@ impl TokenBridge {
             serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
         ));
 
-
         env::log_str(&format!(
             "token-bridge/{}#{}: ft_on_transfer_callback: {} {} {}",
             file!(),
@@ -1543,7 +1556,6 @@ impl TokenBridge {
             serde_json::to_string(&env::used_gas()).unwrap(),
             serde_json::to_string(&(env::prepaid_gas() - env::used_gas())).unwrap()
         ));
-
 
         PromiseOrValue::Promise(
             ext_worm_hole::ext(self.core.clone())
@@ -1639,6 +1651,11 @@ impl TokenBridge {
         storage_used: u64,
         attached_deposit: u128,
     ) {
+        env::log_str(&format!(
+            "token-bridge/{}#{}: update_contract_done",
+            file!(),
+            line!(),
+        ));
         let delta = (env::storage_usage() as i128 - storage_used as i128)
             * env::storage_byte_cost() as i128;
         let refund = attached_deposit as i128 - delta;
@@ -1654,30 +1671,28 @@ impl TokenBridge {
         }
     }
 
-//    #[init(ignore_state)]
-//    #[payable]
-//    #[private]
-//    pub fn migrate() -> Self {
-//        if env::attached_deposit() != 1 {
-//            env::panic_str("Need money");
-//        }
-//        let old_state: OldPortal = env::state_read().expect("failed");
-//        env::log_str(&format!("token-bridge/{}#{}: migrate", file!(), line!(),));
-//        Self {
-//            booted:               old_state.booted,
-//            core:                 old_state.core,
-//            gov_idx:              0,
-//            dups:                 LookupMap::new(b"d".to_vec()),
-//            owner_pk:             old_state.owner_pk,
-//            emitter_registration: old_state.emitter_registration,
-//            last_asset:           old_state.last_asset,
-//            upgrade_hash:         old_state.upgrade_hash,
-//            tokens:               old_state.tokens,
-//            key_map:              old_state.key_map,
-//            hash_map:             old_state.hash_map,
-//            bank:                 old_state.bank,
-//        }
-//    }
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        env::log_str(&format!("token-bridge/{}#{}: migrate", file!(), line!(),));
+        let old_state: OldPortal = env::state_read().expect("failed");
+        Self {
+            booted:               old_state.booted,
+            core:                 old_state.core,
+            gov_idx:              old_state.gov_idx,
+            dups:                 old_state.dups,
+            owner_pk:             old_state.owner_pk,
+            emitter_registration: old_state.emitter_registration,
+            last_asset:           old_state.last_asset,
+            upgrade_hash:         old_state.upgrade_hash,
+
+            tokens:   old_state.tokens,
+            key_map:  old_state.key_map,
+            hash_map: old_state.hash_map,
+
+            bank: old_state.bank,
+            idx:  LookupMap::new(b"G".to_vec()),
+        }
+    }
 }
 
 //  let result = await userAccount.functionCall({
