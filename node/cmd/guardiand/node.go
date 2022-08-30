@@ -46,6 +46,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/algorand"
 	"github.com/certusone/wormhole/node/pkg/near"
+	"github.com/certusone/wormhole/node/pkg/aptos"
 
 	ipfslog "github.com/ipfs/go-log/v2"
 )
@@ -128,6 +129,10 @@ var (
 
 	nearRPC      *string
 	nearContract *string
+
+	aptosRPC      *string
+	aptosAccount  *string
+	aptosHandle  *string
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -245,6 +250,10 @@ func init() {
 
 	nearRPC = NodeCmd.Flags().String("nearRPC", "", "near RPC URL")
 	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
+
+	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
+	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
+	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
@@ -387,6 +396,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *nearRPC != "" {
 		readiness.RegisterComponent(common.ReadinessNearSyncing)
+	}
+	if *aptosRPC != "" {
+		readiness.RegisterComponent(common.ReadinessAptosSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
@@ -541,6 +553,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("If --nearContract is specified, then --nearRPC must be specified")
 		}
 	}
+
+	if *unsafeDevMode {
+		if *aptosRPC != "" {
+			if *aptosAccount == "" {
+				logger.Fatal("If --aptosRPC is specified, then --aptosAccount must be specified")
+			}
+			if *aptosHandle == "" {
+				logger.Fatal("If --aptosRPC is specified, then --aptosHandle must be specified")
+			}
+		}
+	}
+
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
 			logger.Fatal("Please specify --ethRopstenRPC")
@@ -602,6 +626,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *nearContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --nearContract")
+		}
+		if *aptosRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --aptosRPC")
 		}
 	}
 	if *nodeName == "" {
@@ -819,6 +846,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest)
 	if *nearRPC != "" {
 		chainObsvReqC[vaa.ChainIDNear] = make(chan *gossipv1.ObservationRequest)
+	}
+	if *aptosRPC != "" {
+		chainObsvReqC[vaa.ChainIDAptos] = make(chan *gossipv1.ObservationRequest)
 	}
 	chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
@@ -1061,6 +1091,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *nearRPC != "" {
 			if err := supervisor.Run(ctx, "nearwatch",
 				near.NewWatcher(*nearRPC, *nearContract, lockC, chainObsvReqC[vaa.ChainIDNear]).Run); err != nil {
+				return err
+			}
+		}
+		if *aptosRPC != "" {
+			if err := supervisor.Run(ctx, "aptoswatch",
+				aptos.NewWatcher(*aptosRPC, *aptosAccount, *aptosHandle, lockC, chainObsvReqC[vaa.ChainIDAptos]).Run); err != nil {
 				return err
 			}
 		}
