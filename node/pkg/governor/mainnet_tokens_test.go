@@ -14,7 +14,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, len(tokenConfigEntries), 123)
+	assert.Equal(t, len(tokenConfigEntries), 126)
 }
 
 func TestTokenListFloor(t *testing.T) {
@@ -66,11 +66,18 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 func TestTokenListTokenAddressDuplicates(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
-	/* Assume that all governed token entry addresses won't include duplicates */
-	addrs := make(map[string]bool)
+	type governedToken struct {
+		chainId uint16
+		addr    string
+	}
+	addrs := make(map[governedToken]bool)
 	for _, e := range tokenConfigEntries {
-		assert.False(t, addrs[e.addr])
-		addrs[e.addr] = true
+		g := governedToken{
+			chainId: e.chain,
+			addr:    e.addr,
+		}
+		assert.False(t, addrs[g])
+		addrs[g] = true
 	}
 }
 
