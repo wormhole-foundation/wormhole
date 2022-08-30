@@ -172,6 +172,16 @@ def build_node_yaml():
                     gcpProject,
                 ]
 
+            if aptos:
+                container["command"] += [
+                    "--aptosRPC",
+                    "http://aptos:8080",
+                    "--aptosAccount",
+                    "277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b",
+                    "--aptosHandle",
+                    "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::state::WormholeMessageHandle",
+                ]
+
             if evm2:
                 container["command"] += [
                     "--bscRPC",
