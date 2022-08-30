@@ -19,6 +19,7 @@ contract("NFT", function () {
     const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner1PK);
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
     const testChainId = "2";
+    const testEvmChainId = "1";
     const testFinality = "1";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
@@ -42,6 +43,10 @@ contract("NFT", function () {
         // chain id
         const chainId = await initialized.methods.chainId().call();
         assert.equal(chainId, testChainId);
+
+        // evm chain id
+        const evmChainId = await initialized.methods.evmChainId().call();
+        assert.equal(evmChainId, testEvmChainId);
 
         // finality
         const finality = await initialized.methods.finality().call();
@@ -698,7 +703,7 @@ const signAndEncodeVM = async function (
     for (let i in signers) {
         const ec = new elliptic.ec("secp256k1");
         const key = ec.keyFromPrivate(signers[i]);
-        const signature = key.sign(hash.substr(2), {canonical: true});
+        const signature = key.sign(hash.substr(2), { canonical: true });
 
         const packSig = [
             web3.eth.abi.encodeParameter("uint8", i).substring(2 + (64 - 2)),

@@ -46,6 +46,9 @@ contract BridgeStorage {
 
         // Mapping of bridge contracts on other chains
         mapping(uint16 => bytes32) bridgeImplementations;
+
+        // EIP-155 Chain ID
+        uint256 evmChainId;
     }
 }
 

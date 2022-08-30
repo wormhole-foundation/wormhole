@@ -14,7 +14,8 @@ contract Setup is Setters, ERC1967Upgrade {
         address[] memory initialGuardians,
         uint16 chainId,
         uint16 governanceChainId,
-        bytes32 governanceContract
+        bytes32 governanceContract,
+        uint256 evmChainId
     ) public {
         require(initialGuardians.length > 0, "no guardians specified");
 
@@ -30,6 +31,8 @@ contract Setup is Setters, ERC1967Upgrade {
 
         setGovernanceChainId(governanceChainId);
         setGovernanceContract(governanceContract);
+
+        setEvmChainId(evmChainId);
 
         _upgradeTo(implementation);
     }

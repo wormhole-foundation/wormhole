@@ -41,6 +41,9 @@ contract Storage {
         mapping(address => bool) initializedImplementations;
 
         uint256 messageFee;
+
+        // EIP-155 Chain ID
+        uint256 evmChainId;
     }
 }
 

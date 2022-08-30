@@ -22,6 +22,7 @@ contract("Bridge", function () {
     const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner1PK);
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
     const testChainId = "2";
+    const testEvmChainId = "1";
     const testFinality = "1";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
@@ -48,6 +49,10 @@ contract("Bridge", function () {
         // chain id
         const chainId = await initialized.methods.chainId().call();
         assert.equal(chainId, testChainId);
+
+        // evm chain id
+        const evmChainId = await initialized.methods.evmChainId().call();
+        assert.equal(evmChainId, testEvmChainId);
 
         // finality
         const finality = await initialized.methods.finality().call();
@@ -653,7 +658,7 @@ contract("Bridge", function () {
             "10",
             "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
             "234",
-            "0x"+additionalPayload
+            "0x" + additionalPayload
         ).send({
             value: 0,
             from: accounts[0],
@@ -871,7 +876,7 @@ contract("Bridge", function () {
                 from: accounts[1],
                 gasLimit: 2000000
             });
-        } catch(e) {
+        } catch (e) {
             hadSenderError = e.message.includes('revert invalid sender')
         }
         assert.equal(hadSenderError, true)
@@ -1151,7 +1156,7 @@ contract("Bridge", function () {
             "10",
             "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
             "234",
-            "0x"+additionalPayload
+            "0x" + additionalPayload
         ).send({
             value: amount,
             from: accounts[0],
@@ -1343,7 +1348,7 @@ const signAndEncodeVM = async function (
     for (let i in signers) {
         const ec = new elliptic.ec("secp256k1");
         const key = ec.keyFromPrivate(signers[i]);
-        const signature = key.sign(hash.substr(2), {canonical: true});
+        const signature = key.sign(hash.substr(2), { canonical: true });
 
         const packSig = [
             web3.eth.abi.encodeParameter("uint8", i).substring(2 + (64 - 2)),

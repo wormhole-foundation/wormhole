@@ -32,6 +32,31 @@ contract Implementation is Governance {
 
     function initialize() initializer public virtual {
         // this function needs to be exposed for an upgrade to pass
+        uint256 evmChainId;
+        uint16 chain = _state.provider.chainId;
+
+        // Wormhole chain ids explicitly enumerated
+        if        (chain == 2)  { evmChainId = 1;          // ethereum
+        } else if (chain == 4)  { evmChainId = 56;         // bsc
+        } else if (chain == 5)  { evmChainId = 137;        // polygon
+        } else if (chain == 6)  { evmChainId = 43114;      // avalanche
+        } else if (chain == 7)  { evmChainId = 42262;      // oasis
+        } else if (chain == 9)  { evmChainId = 1313161554; // aurora
+        } else if (chain == 10) { evmChainId = 250;        // fantom
+        } else if (chain == 11) { evmChainId = 686;        // karura
+        } else if (chain == 12) { evmChainId = 787;        // acala
+        } else if (chain == 13) { evmChainId = 8217;       // klaytn
+        } else if (chain == 14) { evmChainId = 42220;      // celo
+        } else if (chain == 16) { evmChainId = 1284;       // moonbeam
+        } else if (chain == 17) { evmChainId = 245022934;  // neon
+        } else if (chain == 23) { evmChainId = 42161;      // arbitrum
+        } else if (chain == 24) { evmChainId = 10;         // optimism
+        } else if (chain == 25) { evmChainId = 100;        // gnosis
+        } else {
+            revert("Unknown chain id.");
+        }
+
+        setEvmChainId(evmChainId);
     }
 
     modifier initializer() {
