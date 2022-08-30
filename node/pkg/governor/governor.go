@@ -332,10 +332,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	}
 
 	// If we've already seen this message via quorum, we can publish it.
-	_, exists = gov.msgsById[msgId]
+	xferComplete, exists := gov.msgsById[msgId]
 	if exists {
 		gov.logger.Info("cgov: ignoring vaa because it has already been seen", zap.String("msgID", msgId))
-		return true, nil
+		return xferComplete, nil
 	}
 
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
