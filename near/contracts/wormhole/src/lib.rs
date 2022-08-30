@@ -345,6 +345,7 @@ impl Wormhole {
 
         Promise::new(env::current_account_id())
             .deploy_contract(v.to_vec())
+            .then(Self::ext(env::current_account_id()).migrate())
             .then(Self::ext(env::current_account_id()).update_contract_done(
                 env::predecessor_account_id(),
                 env::storage_usage(),
@@ -601,16 +602,13 @@ impl Wormhole {
         true
     }
 
-//    #[init(ignore_state)]
-//    #[payable]
-//    #[private]
-//    pub fn migrate() -> Self {
-//        // call migrate on self
-//        if env::attached_deposit() != 1 {
-//            env::panic_str("Need money");
-//        }
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        env::log_str(&format!("wormhole/{}#{}: migrate", file!(), line!(),));
+
+        let state: Wormhole = env::state_read().expect("failed");
+        state
 //        let old_state: OldWormhole = env::state_read().expect("failed");
-//        env::log_str(&format!("wormhole/{}#{}: migrate", file!(), line!(),));
 //        Self {
 //            guardians:             old_state.guardians,
 //            dups:                  old_state.dups,
@@ -622,7 +620,7 @@ impl Wormhole {
 //            message_fee:           old_state.message_fee,
 //            bank:                  old_state.bank,
 //        }
-//    }
+    }
 }
 
 //  let result = await userAccount.functionCall({

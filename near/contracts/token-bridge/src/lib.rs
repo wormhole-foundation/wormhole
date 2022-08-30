@@ -14,10 +14,7 @@ use {
             BorshDeserialize,
             BorshSerialize,
         },
-        collections::{
-            LookupMap,
-            UnorderedSet,
-        },
+        collections::LookupMap,
         env,
         ext_contract,
         json_types::U128,
@@ -128,7 +125,8 @@ pub struct TokenData {
 pub struct OldPortal {
     booted:               bool,
     core:                 AccountId,
-    dups:                 UnorderedSet<Vec<u8>>,
+    gov_idx:              u32,
+    dups:                 LookupMap<Vec<u8>, bool>,
     owner_pk:             PublicKey,
     emitter_registration: LookupMap<u16, Vec<u8>>,
     last_asset:           u32,
@@ -589,11 +587,7 @@ impl TokenBridge {
             ));
             ext_ft_contract::ext(asset_token_account.clone())
                 .with_static_gas(Gas(10_000_000_000_000))
-                .update_ft(
-                ft,
-                data.to_vec(),
-                vaa.sequence,
-            )
+                .update_ft(ft, data.to_vec(), vaa.sequence)
         } else {
             env::log_str(&format!(
                 "token-bridge/{}#{}: vaa_asset_meta:  fresh",
@@ -742,6 +736,7 @@ impl TokenBridge {
 
         Promise::new(env::current_account_id())
             .deploy_contract(v.to_vec())
+            .then(Self::ext(env::current_account_id()).migrate())
             .then(Self::ext(env::current_account_id()).update_contract_done(
                 env::predecessor_account_id(),
                 env::storage_usage(),
@@ -1639,6 +1634,11 @@ impl TokenBridge {
         storage_used: u64,
         attached_deposit: u128,
     ) {
+        env::log_str(&format!(
+            "token-bridge/{}#{}: update_contract_done",
+            file!(),
+            line!(),
+        ));
         let delta = (env::storage_usage() as i128 - storage_used as i128)
             * env::storage_byte_cost() as i128;
         let refund = attached_deposit as i128 - delta;
@@ -1654,30 +1654,31 @@ impl TokenBridge {
         }
     }
 
-//    #[init(ignore_state)]
-//    #[payable]
-//    #[private]
-//    pub fn migrate() -> Self {
-//        if env::attached_deposit() != 1 {
-//            env::panic_str("Need money");
-//        }
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        env::log_str(&format!("token-bridge/{}#{}: migrate", file!(), line!(),));
+
+        let state: TokenBridge = env::state_read().expect("failed");
+        state
+
 //        let old_state: OldPortal = env::state_read().expect("failed");
-//        env::log_str(&format!("token-bridge/{}#{}: migrate", file!(), line!(),));
 //        Self {
 //            booted:               old_state.booted,
 //            core:                 old_state.core,
-//            gov_idx:              0,
-//            dups:                 LookupMap::new(b"d".to_vec()),
+//            gov_idx:              old_state.gov_idx,
+//            dups:                 old_state.dups,
 //            owner_pk:             old_state.owner_pk,
 //            emitter_registration: old_state.emitter_registration,
 //            last_asset:           old_state.last_asset,
 //            upgrade_hash:         old_state.upgrade_hash,
-//            tokens:               old_state.tokens,
-//            key_map:              old_state.key_map,
-//            hash_map:             old_state.hash_map,
-//            bank:                 old_state.bank,
+//
+//            tokens:   old_state.tokens,
+//            key_map:  old_state.key_map,
+//            hash_map: old_state.hash_map,
+//
+//            bank: old_state.bank,
 //        }
-//    }
+    }
 }
 
 //  let result = await userAccount.functionCall({
