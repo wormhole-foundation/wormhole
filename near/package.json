@@ -49,6 +49,7 @@
   },
   "scripts": {
     "transferFromNear": "ts-node test/transferFromNear",
-    "transferToNear": "ts-node test/transferToNear"
+    "transferToNear": "ts-node test/transferToNear",
+    "attester": "ts-node test/attester"
   }
 }
