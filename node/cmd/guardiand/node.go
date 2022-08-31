@@ -45,8 +45,8 @@ import (
 	cosmwasm "github.com/certusone/wormhole/node/pkg/terra"
 
 	"github.com/certusone/wormhole/node/pkg/algorand"
-	"github.com/certusone/wormhole/node/pkg/near"
 	"github.com/certusone/wormhole/node/pkg/aptos"
+	"github.com/certusone/wormhole/node/pkg/near"
 
 	ipfslog "github.com/ipfs/go-log/v2"
 )
@@ -130,8 +130,8 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	aptosRPC      *string
-	aptosAccount  *string
+	aptosRPC     *string
+	aptosAccount *string
 	aptosHandle  *string
 
 	solanaWsRPC *string
