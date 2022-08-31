@@ -554,7 +554,7 @@ impl TokenBridge {
 
         let symbol = data.get_bytes32(35).to_vec();
         let name = data.get_bytes32(67).to_vec();
-        let wname = get_string_from_32(&name) + " (Wormhole)";
+        let wname = get_string_from_32(&name);
 
         // Decimals are capped at 8 in wormhole
         if decimals > 8 {
