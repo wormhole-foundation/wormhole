@@ -72,7 +72,7 @@ func NewWatcher(
 }
 
 func (e *Watcher) retrievePayload(s string) ([]byte, error) {
-	res, err := http.Get(s)
+	res, err := http.Get(s) // nolint
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +116,9 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, seq uint64)
 		return
 	}
 
-	ts := data.Get("ts")
+	ts := data.Get("timestamp")
 	if !ts.Exists() {
-		logger.Info("ts")
+		logger.Info("timestamp")
 		return
 	}
 

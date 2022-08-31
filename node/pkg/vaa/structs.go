@@ -242,7 +242,7 @@ const (
 	ChainIDInjective ChainID = 19
 	// ChainIDSui is the ChainID of Sui
 	ChainIDSui ChainID = 21
-	// ChainIDAptos is the ChainID of Sui
+	// ChainIDAptos is the ChainID of Aptos
 	ChainIDAptos ChainID = 22
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
