@@ -118,18 +118,19 @@ async function main() {
 
   // THIS HAS TO BE IN THE ORDER THAT `aptos move compile` OUTPUTS
   const coreModules = [
-    "cursor",
     "u32",
-    "u256",
     "u16",
-    "deserialize",
     "guardian_pubkey",
     "structs",
+    "u256",
     "state",
+    "wormhole",
     "serialize",
+    "cursor",
+    "deserialize",
     "vaa",
-    "governance",
-    "wormhole"
+    "contract_upgrade",
+    "guardian_set_upgrade"
   ]
 
   await deploy(accountFrom, 'deployer_contract', '../contracts/build/Wormhole', coreModules);

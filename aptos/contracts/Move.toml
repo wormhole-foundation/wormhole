@@ -15,4 +15,3 @@ Deployer = { local = "../deployer/" }
 [addresses]
 # derived address from sha3_256(deployer + "wormhole")
 wormhole="0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204"
-# wormhole = "0x0"
