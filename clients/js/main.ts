@@ -24,6 +24,7 @@ import {
   setStorageAt,
 } from "./evm";
 import { execute_terra } from "./terra";
+import { execute_aptos } from "./aptos";
 import { execute_near } from "./near";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
@@ -353,7 +354,6 @@ yargs(hideBin(process.argv))
     },
     async (argv) => {
       assertChain(argv["chain"]);
-      assertEVMChain(argv["chain"]);
       const network = argv.network.toUpperCase();
       if (
         network !== "MAINNET" &&
@@ -676,7 +676,7 @@ yargs(hideBin(process.argv))
       } else if (chain === "sui") {
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
-        throw Error("APTOS is not supported yet");
+        await execute_aptos(parsed_vaa.payload, buf, network, argv["contract-address"]);
       } else if (chain === "wormholechain") {
         throw Error("wormholechain is not supported yet");
       } else {
@@ -719,7 +719,8 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "sui") {
     throw Error("SUI is not supported yet");
   } else if (chain === "aptos") {
-    throw Error("APTOS is not supported yet");
+    // TODO: is there a better native format for aptos?
+    return "0x" + evm_address(address);
   } else if (chain === "wormholechain") {
     throw Error("wormholechain is not supported yet");
   } else {

@@ -167,7 +167,7 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: undefined,
+    core: "0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204",
     token_bridge: undefined,
     nft_bridge: undefined,
   },
