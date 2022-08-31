@@ -347,8 +347,8 @@ const DEVNET = {
     key: undefined,
   },
   aptos: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://localhost:8080",
+    key: "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d",
   },
   sui: {
     rpc: undefined,

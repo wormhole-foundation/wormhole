@@ -2,6 +2,7 @@ import { Parser } from "binary-parser"
 import { BigNumber, ethers } from "ethers"
 import { solidityKeccak256 } from "ethers/lib/utils"
 import * as elliptic from "elliptic"
+import sha3 from 'js-sha3'
 
 export interface Signature {
     guardianSetIndex: number
@@ -174,7 +175,10 @@ export function serialiseVAA(vaa: VAA<Payload>) {
 }
 
 export function vaaDigest(vaa: VAA<Payload | Other>) {
-    return solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + vaaBody(vaa)])])
+    //TODO: since aptos has no keccak256 yet, we have to sign VAAs with sha3_256
+    //instead. This is a temporary solution until we have a keccak256 in aptos.
+    // return solidityKeccak256(["bytes"], [solidityKeccak256(["bytes"], ["0x" + vaaBody(vaa)])])
+    return "0x" + sha3.sha3_256(Buffer.from(sha3.sha3_256(Buffer.from(vaaBody(vaa), "hex")), "hex"))
 }
 
 function vaaBody(vaa: VAA<Payload | Other>) {
