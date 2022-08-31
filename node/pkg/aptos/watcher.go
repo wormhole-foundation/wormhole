@@ -5,20 +5,21 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
+	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
-	"time"
-	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
 type (
@@ -28,7 +29,7 @@ type (
 		aptosAccount string
 		aptosHandle  string
 		aptosQuery   string
-		aptosHealth   string
+		aptosHealth  string
 
 		msgChan  chan *common.MessagePublication
 		obsvReqC chan *gossipv1.ObservationRequest
@@ -63,7 +64,7 @@ func NewWatcher(
 		aptosAccount:  aptosAccount,
 		aptosHandle:   aptosHandle,
 		aptosQuery:    "",
-		aptosHealth:    "",
+		aptosHealth:   "",
 		msgChan:       lockEvents,
 		obsvReqC:      obsvReqC,
 		next_sequence: 0,
@@ -139,7 +140,6 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, seq uint64)
 		return
 	}
 
-
 	observation := &common.MessagePublication{
 		TxHash:           txHash,
 		Timestamp:        time.Unix(int64(ts.Uint()), 0),
@@ -213,24 +213,24 @@ func (e *Watcher) Run(ctx context.Context) error {
 					break
 
 				}
-				
+
 				outcomes := gjson.ParseBytes(body)
 
 				for _, chunk := range outcomes.Array() {
 					newSeq := chunk.Get("sequence_number")
 					if !newSeq.Exists() {
-						break;
+						break
 					}
 
 					if newSeq.Uint() != seq {
-						logger.Error("newSeq != seq");
-						break;
+						logger.Error("newSeq != seq")
+						break
 
 					}
 
 					data := chunk.Get("data")
 					if !data.Exists() {
-						break;
+						break
 					}
 					e.observeData(logger, data, seq)
 				}
@@ -257,7 +257,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					break
 
 				}
-				
+
 				outcomes := gjson.ParseBytes(body)
 
 				for _, chunk := range outcomes.Array() {
@@ -308,7 +308,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					})
 
 					readiness.SetReady(common.ReadinessAptosSyncing)
-				} 
+				}
 			}
 		}
 	}()
