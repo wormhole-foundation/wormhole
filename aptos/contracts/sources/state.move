@@ -2,14 +2,14 @@ module wormhole::state {
     use 0x1::table::{Self, Table};
     use 0x1::event::{Self, EventHandle};
     use 0x1::signer::{address_of};
-    use 0x1::vector::{Self};
-    use 0x1::account::{Self};
-    use wormhole::structs::{GuardianSet};
+    use 0x1::vector;
+    use 0x1::account;
+    use wormhole::structs::{Self, GuardianSet};
     use wormhole::u16::{Self, U16};
     use wormhole::u32::{Self, U32};
     use wormhole::u256::{Self, U256};
 
-    friend wormhole::governance;
+    friend wormhole::guardian_set_upgrade;
     friend wormhole::wormhole;
     friend wormhole::vaa;
 
@@ -107,6 +107,8 @@ module wormhole::state {
     }
 
     public entry fun publish_message(
+        //TODO(csongor): don't require a signer here and instead take an emitter
+        // capability
         sender: &signer,
         nonce: u64,
         payload: vector<u8>,
@@ -142,13 +144,14 @@ module wormhole::state {
         //Structs::expire_guardian_set(guardian_set);
     }
 
-    public(friend) fun store_guardian_set(_set: GuardianSet, _index: U32) acquires WormholeState {
-        let _state = borrow_global_mut<WormholeState>(@wormhole);
+    public(friend) fun store_guardian_set(set: GuardianSet) acquires WormholeState {
+        let state = borrow_global_mut<WormholeState>(@wormhole);
         //TODO: store guardian set under index (U32)
-        //table::add(&mut state.guardian_sets, index, set);
+        //TODO: ensure that the guardian set index is incremental (maybe in the
+        // guardian_set_upgrade function)
+        let index: u64 = u32::to_u64(structs::get_guardian_set_index(set));
+        table::add(&mut state.guardian_sets, index, set);
     }
-
-    // TODO: setInitialized?
 
     public(friend) fun set_governance_action_consumed(hash: vector<u8>) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@wormhole);
@@ -178,6 +181,8 @@ module wormhole::state {
         state.message_fee = new_fee;
     }
 
+    // TODO: we could move the sequence counter into the emitters instead of
+    // having a shared object. That would be more efficient
     public entry fun set_next_sequence(emitter: address, sequence: u64) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@wormhole);
         if (table::contains(&state.sequences, emitter)){
@@ -203,9 +208,7 @@ module wormhole::state {
 
     public fun get_current_guardian_set(): GuardianSet acquires WormholeState {
         let state = borrow_global<WormholeState>(@wormhole);
-        let _ind = state.guardian_set_index;
-        //TODO: fetch ind instead of 0
-        //*table::borrow(&state.guardianSets, ind)
-        *table::borrow(&state.guardian_sets, 0)
+        let ind = u32::to_u64(state.guardian_set_index);
+        *table::borrow(&state.guardian_sets, ind)
     }
 }

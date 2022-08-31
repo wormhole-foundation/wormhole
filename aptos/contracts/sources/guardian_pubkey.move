@@ -28,6 +28,7 @@ module wormhole::guardian_pubkey {
     /// Computes the address from a 64 byte public key.
     public fun from_pubkey(pubkey: &ECDSARawPublicKey): Address {
         let bytes = ecdsa_raw_public_key_to_bytes(pubkey);
+        // TODO: update when keccak256 is implemented
         let hash = hash::sha3_256(bytes);
         let address = vector::empty<u8>();
         let i = 0;
@@ -49,5 +50,37 @@ module wormhole::guardian_pubkey {
         let pubkey = ecdsa_recover(message, recovery_id, sig);
         let pubkey = std::option::extract(&mut pubkey);
         from_pubkey(&pubkey)
+    }
+}
+
+#[test_only]
+module wormhole::guardian_pubkey_test {
+    use wormhole::guardian_pubkey;
+    use 0x1::secp256k1::{
+        ecdsa_raw_public_key_from_64_bytes,
+        ecdsa_signature_from_bytes
+    };
+
+    #[test]
+    public fun from_pubkey_test() {
+        // devnet guardian public key
+        let pubkey = x"d4a4629979f0c9fa0f0bb54edf33f87c8c5a1f42c0350a30d68f7e967023e34e495a8ebf5101036d0fd66e3b0a8c7c61b65fceeaf487ab3cd1b5b7b50beb7970";
+        let pubkey = ecdsa_raw_public_key_from_64_bytes(pubkey);
+        // TODO: with keccak, this would be the address. Update when keccak256 hash is available
+        // 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+        let expected_address = guardian_pubkey::from_bytes(x"61be3d87e39e7cc9c29ac62f0ceef9bc1939e810");
+
+        let address = guardian_pubkey::from_pubkey(&pubkey);
+
+        assert!(address == expected_address, 0);
+    }
+
+    #[test]
+    public fun from_signature() {
+        let sig = ecdsa_signature_from_bytes(x"38535089d6eec412a00066f84084212316ee3451145a75591dbd4a1c2a2bff442223f81e58821bfa4e8ffb80a881daf7a37500b04dfa5719fff25ed4cec8dda3");
+        let msg = x"43f3693ccdcb4400e1d1c5c8cec200153bd4b3d167e5b9fe5400508cf8717880";
+        let addr = guardian_pubkey::from_signature(msg, 1, &sig);
+        let expected_addr = guardian_pubkey::from_bytes(x"61be3d87e39e7cc9c29ac62f0ceef9bc1939e810");
+        assert!(addr == expected_addr, 0);
     }
 }

@@ -3,11 +3,12 @@
 .PHONY: artifacts
 artifacts: build
 
-## Build contract
 .PHONY: build
+## Build contract
 build:
 	aptos move compile --save-metadata
 
 .PHONY: test
+## Run tests
 test:
 	aptos move test

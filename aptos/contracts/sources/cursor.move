@@ -27,6 +27,18 @@ module wormhole::cursor {
         vector::destroy_empty(data);
     }
 
+    /// Consumes the rest of the cursor (thus destroying it) and returns the
+    /// remaining bytes.
+    /// NOTE: Only use this function if you intend to consume the rest of the
+    /// bytes. Since the result is a vector, which can be dropped, it is not
+    /// possible to statically guarantee that the rest will be used.
+    public fun rest<T>(cur: Cursor<T>): vector<T> {
+        let Cursor { data } = cur;
+        // re-reverse the data so it is in the same order as the original input
+        vector::reverse(&mut data);
+        data
+    }
+
     /// Returns the first element of the cursor and advances it.
     public fun poke<T>(cur: &mut Cursor<T>): T {
         vector::pop_back(&mut cur.data)

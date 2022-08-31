@@ -17,11 +17,13 @@ module wormhole::vaa {
         create_signature,
         get_guardians,
         unpack_signature,
+        get_address,
     };
     use wormhole::state::{get_current_guardian_set};
 
     const E_NO_QUORUM: u64 = 0x0;
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
+    const E_INVALID_SIGNATURE: u64 = 0x2;
 
     struct VAA has key {
         // Header
@@ -51,22 +53,28 @@ module wormhole::vaa {
         let signatures_len = deserialize::deserialize_u8(&mut cur);
         let signatures = vector::empty<Signature>();
 
+        // TODO(csongor): I don't think we should assert this
         assert!(signatures_len <= 19, E_TOO_MANY_SIGNATURES);
 
-         while ({
+        while ({
             spec {
                 invariant signatures_len >  0;
                 invariant signatures_len <= 19;
             };
             signatures_len > 0
         }) {
+            let guardian_index = deserialize::deserialize_u8(&mut cur);
             let sig = deserialize::deserialize_vector(&mut cur, 64);
             let recovery_id = deserialize::deserialize_u8(&mut cur);
             let sig: secp256k1::ECDSASignature = secp256k1::ecdsa_signature_from_bytes(sig);
-            let guardianIndex = deserialize::deserialize_u32(&mut cur);
-            vector::push_back(&mut signatures, create_signature(sig, recovery_id, guardianIndex));
+            vector::push_back(&mut signatures, create_signature(sig, recovery_id, guardian_index));
             signatures_len = signatures_len - 1;
         };
+
+        let body = cursor::rest(cur);
+        let hash = hash::sha3_256(hash::sha3_256(body));
+
+        let cur = cursor::init(body);
 
         let timestamp = deserialize::deserialize_u32(&mut cur);
         let nonce = deserialize::deserialize_u32(&mut cur);
@@ -74,25 +82,21 @@ module wormhole::vaa {
         let emitter_address = deserialize::deserialize_vector(&mut cur, 32);
         let sequence = deserialize::deserialize_u64(&mut cur);
         let consistency_level = deserialize::deserialize_u8(&mut cur);
-        let hash = deserialize::deserialize_vector(&mut cur, 32);
 
-        let remaining_length = vector::length(&bytes);
-        let payload = deserialize::deserialize_vector(&mut cur, remaining_length);
-
-        cursor::destroy_empty(cur);
+        let payload = cursor::rest(cur);
 
         VAA {
-            version:            version,
-            guardian_set_index: guardian_set_index,
-            signatures:         signatures,
-            timestamp:          timestamp,
-            nonce:              nonce,
-            emitter_chain:      emitter_chain,
-            emitter_address:    emitter_address,
-            sequence:           sequence,
-            consistency_level:  consistency_level,
-            hash:               hash,
-            payload:            payload,
+            version,
+            guardian_set_index,
+            signatures,
+            timestamp,
+            nonce,
+            emitter_chain,
+            emitter_address,
+            sequence,
+            consistency_level,
+            hash,
+            payload,
         }
     }
 
@@ -134,7 +138,6 @@ module wormhole::vaa {
 
     //  break
 
-    //TODO: why does this return the payload?
     public fun destroy(vaa: VAA): vector<u8> {
          let VAA {
             version: _,
@@ -154,7 +157,7 @@ module wormhole::vaa {
 
     public fun verify(vaa: &VAA, guardian_set: GuardianSet) {
         let guardians = get_guardians(guardian_set);
-        let hash = hash(vaa);
+        let hash = vaa.hash;
         let n = vector::length<Signature>(&vaa.signatures);
         let m = vector::length<Guardian>(&guardians);
 
@@ -165,18 +168,16 @@ module wormhole::vaa {
         //    return (false, string::utf8(b"Guardian set expired"))
         //};
 
+        // TODO(csongor): check that the guardian indices are strictly increasing
         let i = 0;
         while (i < n) {
-            let (sig, recovery_id, _) = unpack_signature(vector::borrow(&vaa.signatures, i));
-            let _address = guardian_pubkey::from_signature(hash, recovery_id, &sig);
+            let (sig, recovery_id, guardian_index) = unpack_signature(vector::borrow(&vaa.signatures, i));
+            let address = guardian_pubkey::from_signature(hash, recovery_id, &sig);
 
-            // TODO - index into guardians and check pubkey
-            // let cur_guardian = vector::borrow<Guardian>(&guardians, guardian_set_index);
-            // let cur_address = get_address(*cur_guardian);
+            let cur_guardian = vector::borrow<Guardian>(&guardians, (guardian_index as u64));
+            let cur_address = get_address(*cur_guardian);
 
-            // if (cur_address != address) {
-            //    return (false, string::utf8(b"Invalid signature"))
-            // };
+            assert!(address == cur_address, E_INVALID_SIGNATURE);
 
             i = i + 1;
         };
