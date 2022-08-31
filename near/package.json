@@ -48,6 +48,7 @@
     "@babel/preset-env": "7.13.8"
   },
   "scripts": {
-    "transferFromNear": "ts-node test/transferFromNear"
+    "transferFromNear": "ts-node test/transferFromNear",
+    "transferToNear": "ts-node test/transferToNear"
   }
 }
