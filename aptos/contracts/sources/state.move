@@ -24,7 +24,7 @@ module wormhole::state {
         nonce: u64,
         payload: vector<u8>,
         consistency_level: u8,
-        ts: u64,
+        timestamp: u64,
     }
 
     struct WormholeMessageHandle has key, store {
@@ -125,7 +125,7 @@ module wormhole::state {
                 nonce: nonce,
                 payload,
                 consistency_level,
-                ts: now
+                timestamp: now
             }
         );
     }
