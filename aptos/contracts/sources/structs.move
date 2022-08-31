@@ -10,7 +10,7 @@ module wormhole::structs {
     struct Signature has key, store, copy, drop {
         sig: secp256k1::ECDSASignature,
         recovery_id: u8,
-        guardian_index: U32,
+        guardian_index: u8,
     }
 
     struct Guardian has key, store, drop, copy {
@@ -42,14 +42,14 @@ module wormhole::structs {
         //guardian_set.expiration_time = timestamp::now_seconds() + 86400;
     }
 
-    public fun unpack_signature(s: &Signature): (secp256k1::ECDSASignature, u8, U32) {
+    public fun unpack_signature(s: &Signature): (secp256k1::ECDSASignature, u8, u8) {
         (s.sig, s.recovery_id, s.guardian_index)
     }
 
     public fun create_signature(
         sig: secp256k1::ECDSASignature,
         recovery_id: u8,
-        guardian_index: U32
+        guardian_index: u8
     ): Signature {
         Signature{ sig, recovery_id, guardian_index }
     }

@@ -52,6 +52,8 @@ module wormhole::serialize {
             spec {
                 invariant len >  0;
             };
+            // TODO(csongor): this does not work, as len never changes, so this
+            // will never terminate
             len > 0
         }) {
             let byte = vector::pop_back(&mut v);
