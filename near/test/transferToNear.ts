@@ -281,7 +281,7 @@ async function transferTest() {
 
   const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
     WORMHOLE_RPC_HOSTS,
-    CHAIN_ID_ETH,
+    CHAIN_ID,
     emitterAddress,
     sequence,
     {
