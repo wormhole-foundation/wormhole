@@ -25,6 +25,8 @@ module wormhole::vaa {
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
     const E_INVALID_SIGNATURE: u64 = 0x2;
 
+    // TODO(csongor): add method to verify governance VAAs and use it in all the
+    // governance VAA handlers
     struct VAA has key {
         // Header
         version:            u8,

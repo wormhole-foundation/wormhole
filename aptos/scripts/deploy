@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# TODO: this address is the devnet guardian's address (which is normally
+# 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe), but derived using sha3_256
+# instead of keccak_256 because the latter is not available in the current
+# version of the runtime.
+GUARDIAN_ADDR=0x61be3d87e39e7cc9c29ac62f0ceef9bc1939e810
+CONTRACT_ADDR=0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204
+
+make -C .. build && ts-node deploy.ts
+worm aptos init-wormhole --network devnet -g $GUARDIAN_ADDR --contract-address $CONTRACT_ADDR

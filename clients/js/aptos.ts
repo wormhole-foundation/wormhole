@@ -17,12 +17,6 @@ export async function execute_aptos(
   serializer.serializeBytes(vaa);
   const bcsVAA = serializer.getBytes();
 
-  let key: string | undefined = NETWORKS[network][chain].key;
-  if (key === undefined) {
-    throw new Error(`No key for ${chain}`);
-  }
-  const accountFrom = new AptosAccount(new Uint8Array(Buffer.from(key, "hex")));
-
   switch (payload.module) {
     case "Core":
       contract = contract ?? CONTRACTS[network][chain]["core"];
@@ -36,7 +30,7 @@ export async function execute_aptos(
           break
         case "ContractUpgrade":
           console.log("Upgrading core contract")
-          callEntryFunc(accountFrom, network, `${contract}::contract_upgrade`, "submit_upgrade", [bcsVAA]);
+          callEntryFunc(network, `${contract}::contract_upgrade`, "submit_vaa", [bcsVAA]);
           break
         default:
           impossible(payload)
@@ -80,13 +74,18 @@ export async function execute_aptos(
 
 }
 
-async function callEntryFunc(
-  accountFrom: AptosAccount,
+export async function callEntryFunc(
   network: "MAINNET" | "TESTNET" | "DEVNET",
   module: string,
   func: string,
   args: Seq<Bytes>,
 ) {
+  let key: string | undefined = NETWORKS[network]["aptos"].key;
+  if (key === undefined) {
+    throw new Error("No key for aptos");
+  }
+  const accountFrom = new AptosAccount(new Uint8Array(Buffer.from(key, "hex")));
+
   const client = new AptosClient(NETWORKS[network]["aptos"].rpc);
   const [{ sequence_number: sequenceNumber }, chainId] = await Promise.all([
     client.getAccount(accountFrom.address()),

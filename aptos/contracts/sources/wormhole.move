@@ -28,7 +28,8 @@ module wormhole::wormhole {
         deployer: &signer,
         chainId: u64,
         governance_chain_id: u64,
-        governance_contract: vector<u8>
+        governance_contract: vector<u8>,
+        initial_guardian: vector<u8>
     ) {
         // account::SignerCapability can't be copied, so once it's stored into
         // WormholeCapability, the init function can no longer be called (since
@@ -39,13 +40,7 @@ module wormhole::wormhole {
 
         init_wormhole_state(&wormhole);
         init_message_handles(&wormhole);
-        // NOTE: this address is the devnet guardian's address (which is
-        // normally 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe), but derived
-        // using sha3_256 instead of keccak_256 because the latter is not
-        // available in the current version of the runtime.
-        //TODO: take guardian set as input instead of hardcoding it here
-        let hardcoded_devnet_guardian = create_guardian(x"61be3d87e39e7cc9c29ac62f0ceef9bc1939e810");
-        store_guardian_set(create_guardian_set(u32::from_u64(0), vector[hardcoded_devnet_guardian]));
+        store_guardian_set(create_guardian_set(u32::from_u64(0), vector[create_guardian(initial_guardian)]));
         // initial guardian set index is 0, which is the default value of the storage slot anyways
 
         set_chain_id(u16::from_u64(chainId));
