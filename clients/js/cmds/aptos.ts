@@ -1,10 +1,25 @@
 import { CHAIN_ID_APTOS, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { AptosAccount, BCS, FaucetClient } from "aptos";
+import { BCS, FaucetClient } from "aptos";
 import { ethers } from "ethers";
 import yargs from "yargs";
 import { callEntryFunc } from "../aptos";
+import { spawnSync } from 'child_process';
+import { config } from '../config';
+import fs from 'fs';
+import sha3 from 'js-sha3';
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
+
+interface Package {
+  meta_file: string,
+  mv_files: string[]
+}
+
+interface PackageBCS {
+  meta: Uint8Array,
+  bytecodes: Uint8Array,
+  codeHash: Uint8Array
+}
 
 const network_options = {
   alias: "n",
@@ -82,9 +97,50 @@ exports.builder = function (y: typeof yargs) {
 
       await callEntryFunc(network, `${contract_address}::wormhole`, "init", args);
     })
-    .command("deploy", "Deploy an Aptos package", (_yargs) => {
+    .command("deploy <package-dir>", "Deploy an Aptos package", (yargs) => {
+      return yargs
+        .positional("package-dir", {
+          type: "string"
+        })
+        .option("network", network_options)
     }, (argv) => {
-      console.log("hi")
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      checkAptosBinary();
+      const p = buildPackage(argv["package-dir"]);
+      const b = serializePackage(p);
+
+      callEntryFunc(network, "0x1::code", "publish_package_txn", [b.meta, b.bytecodes])
+      console.log("Deployed:", p.mv_files)
+    })
+    .command("deploy-resource <seed> <package-dir>", "Deploy an Aptos package using a resource account", (yargs) => {
+      return yargs
+        .positional("seed", {
+          type: "string"
+        })
+        .positional("package-dir", {
+          type: "string"
+        })
+        .option("network", network_options)
+    }, (argv) => {
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      checkAptosBinary();
+      const p = buildPackage(argv["package-dir"]);
+      const b = serializePackage(p);
+      const seed = Buffer.from(argv["seed"], "ascii")
+
+      // TODO(csongor): use deployer address from sdk (when it's there)
+      callEntryFunc(
+        network,
+        "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer",
+        "deploy_derived",
+        [
+          b.meta,
+          b.bytecodes,
+          BCS.bcsSerializeBytes(seed)
+        ])
+      console.log("Deployed:", p.mv_files)
     })
     .command("upgrade", "Upgrade an Aptos package", (_yargs) => {
     }, (argv) => {
@@ -108,4 +164,59 @@ function hex(x: string): string {
 }
 function evm_address(x: string): string {
   return hex(x).substring(2).padStart(64, "0");
+}
+
+export function checkAptosBinary(): void {
+  const dir = `${config.wormholeDir}/aptos`;
+  const aptos = spawnSync("aptos", ["--version"]);
+  if (aptos.status !== 0) {
+    console.error("aptos is not installed. Please install aptos and try again.");
+    console.error(`See ${dir}/README.md for instructions.`);
+    process.exit(1);
+  }
+}
+
+function buildPackage(dir: string): Package {
+  const aptos = spawnSync("aptos", ["move", "compile", "--save-metadata", "--package-dir", dir])
+  if (aptos.status !== 0) {
+    console.error(aptos.stderr.toString('utf8'))
+    console.error(aptos.stdout.toString('utf8'))
+    process.exit(1)
+  }
+
+  const result: any = JSON.parse(aptos.stdout.toString('utf8'))
+  const buildDirs =
+    fs.readdirSync(`${dir}/build`, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name)
+  if (buildDirs.length !== 1) {
+    console.error(`Unexpected directory structure in ${dir}/build: expected a single directory`)
+    process.exit(1)
+  }
+  const buildDir = `${dir}/build/${buildDirs[0]}`
+  return {
+    meta_file: `${buildDir}/package-metadata.bcs`,
+    mv_files: result["Result"].map((mod: string) => `${buildDir}/bytecode_modules/${mod.split("::")[1]}.mv`)
+  }
+}
+
+function serializePackage(p: Package): PackageBCS {
+  const metaBytes = fs.readFileSync(p.meta_file);
+  const packageMetadataSerializer = new BCS.Serializer();
+  packageMetadataSerializer.serializeBytes(metaBytes)
+  const serializedPackageMetadata = packageMetadataSerializer.getBytes();
+
+  const modules = p.mv_files.map(file => fs.readFileSync(file))
+  const serializer = new BCS.Serializer();
+  serializer.serializeU32AsUleb128(modules.length);
+  modules.forEach(module => serializer.serializeBytes(module));
+  const serializedModules = serializer.getBytes();
+
+  const codeHash = Buffer.from(sha3.sha3_256(Buffer.concat(modules)), "hex")
+
+  return {
+    meta: serializedPackageMetadata,
+    bytecodes: serializedModules,
+    codeHash: codeHash
+  }
 }

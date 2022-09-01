@@ -72,10 +72,8 @@ module deployer::deployer {
         deployer: address,
     }
 
-    public entry fun deploy_derived(deployer: &signer, metadata_serialized: vector<u8>, code: vector<vector<u8>>) {
-        //TODO(csongor): turn the seed into a parameter. It will require
-        // tweaking the deploy script (which is in need of a refactor anyway)
-        let (wormhole, signer_cap) = account::create_resource_account(deployer, b"wormhole");
+    public entry fun deploy_derived(deployer: &signer, metadata_serialized: vector<u8>, code: vector<vector<u8>>, seed: vector<u8>) {
+        let (wormhole, signer_cap) = account::create_resource_account(deployer, seed);
         let deployer = signer::address_of(deployer);
         move_to(&wormhole, DeployingSignerCapability { signer_cap, deployer });
         code::publish_package_txn(&wormhole, metadata_serialized, code);

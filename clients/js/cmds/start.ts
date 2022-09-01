@@ -1,6 +1,7 @@
 import yargs from "yargs";
 import { spawnSync } from 'child_process';
 import { config } from '../config';
+import { checkAptosBinary } from "./aptos";
 
 exports.command = 'start-validator';
 exports.desc = 'Start a local validator';
@@ -14,13 +15,7 @@ exports.builder = function(y: typeof yargs) {
     }).command("aptos", "Start a local aptos validator", (_yargs) => {
     }, (argv) => {
         const dir = `${config.wormholeDir}/aptos`;
-        // check if aptos is installed
-        const aptos = spawnSync("aptos", ["--version"]);
-        if (aptos.status !== 0) {
-            console.error("aptos is not installed. Please install aptos and try again.");
-            console.error(`See ${dir}/README.md for instructions.`);
-            process.exit(1);
-        }
+        checkAptosBinary();
         const cmd = `cd ${dir} && aptos node run-local-testnet --with-faucet --force-restart --assume-yes`;
         runCommand(cmd, argv['validator-args']);
     }).command("evm", "Start a local EVM validator", (_yargs) => {
