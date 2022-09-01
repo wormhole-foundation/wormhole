@@ -39,7 +39,7 @@ module wormhole::contract_upgrade {
         hash
     }
 
-    public entry fun submit_upgrade(
+    public entry fun submit_vaa(
         vaa: vector<u8>
     ) acquires UpgradeAuthorized {
         let vaa = vaa::parse_and_verify(vaa);
