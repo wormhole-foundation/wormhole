@@ -142,9 +142,43 @@ exports.builder = function (y: typeof yargs) {
         ])
       console.log("Deployed:", p.mv_files)
     })
-    .command("upgrade", "Upgrade an Aptos package", (_yargs) => {
+    .command("hash-contracts <package-dir>", "Hash contract bytecodes for upgrade", (yargs) => {
+      return yargs
+        .positional("seed", {
+          type: "string"
+        })
+        .positional("package-dir", {
+          type: "string"
+        })
     }, (argv) => {
-      console.log("hi")
+      checkAptosBinary();
+      const p = buildPackage(argv["package-dir"]);
+      const b = serializePackage(p);
+      console.log(Buffer.from(b.codeHash).toString("hex"));
+    })
+    .command("upgrade <package-dir>", "Perform upgrade after VAA has been submitted", (_yargs) => {
+      return yargs
+        .positional("package-dir", {
+          type: "string"
+        })
+        .option("network", network_options)
+    }, (argv) => {
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      checkAptosBinary();
+      const p = buildPackage(argv["package-dir"]);
+      const b = serializePackage(p);
+
+      // TODO(csongor): use deployer address from sdk (when it's there)
+      callEntryFunc(
+        network,
+        "0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204::contract_upgrade",
+        "upgrade",
+        [
+          b.meta,
+          b.bytecodes,
+        ])
+      console.log("Deployed:", p.mv_files)
     })
     .command("faucet", "Request money from the faucet for the deployer wallet (only local validator)", (_yargs) => {
     }, async (_argv) => {
