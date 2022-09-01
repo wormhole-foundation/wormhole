@@ -34,12 +34,10 @@ ts-node publish_wormhole_message.ts
 
 ### Upgrades
 
-TODO(csongor): add VAA stuff here
-
 Make a change to the contract, then rebuild and run the upgrade script:
 
 ``` shell
-make -C .. build && ts-node upgrade.ts
+./upgrade-core
 ```
 
 ### RPC
