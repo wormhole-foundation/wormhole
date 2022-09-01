@@ -45,6 +45,11 @@ module wormhole::wormhole {
 // -----------------------------------------------------------------------------
 // Contract initialization
 
+    /// Initializes the contract. Note that this function takes additional
+    /// arguments, so the native `init_module` function (which takes no
+    /// arguments) cannot be used.
+    /// Can only be called by the deployer (checked by the
+    /// `deployer::claim_signer_capability` function).
     public entry fun init(
         deployer: &signer,
         chain_id: u64,

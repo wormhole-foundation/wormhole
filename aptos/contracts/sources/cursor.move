@@ -39,6 +39,10 @@ module wormhole::cursor {
         data
     }
 
+    public fun length<T>(cur: &Cursor<T>):u64 {
+        vector::length<T>(&cur.data)
+    }
+
     /// Returns the first element of the cursor and advances it.
     public fun poke<T>(cur: &mut Cursor<T>): T {
         vector::pop_back(&mut cur.data)
