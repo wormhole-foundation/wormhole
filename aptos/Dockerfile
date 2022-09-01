@@ -9,6 +9,7 @@ FROM aptos as tests
 WORKDIR /tmp
 
 COPY contracts/ contracts
+COPY token_bridge/ token_bridge
 COPY deployer/ deployer
 COPY examples/ examples
 COPY Makefile Makefile
