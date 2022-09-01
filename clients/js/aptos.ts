@@ -105,7 +105,7 @@ export async function callEntryFunc(
     TxnBuilderTypes.AccountAddress.fromHex(accountFrom.address()),
     BigInt(sequenceNumber),
     txPayload,
-    BigInt(5000), //max gas to be used. TODO(csongor): we could compute this from the simulation below...
+    BigInt(10000), //max gas to be used. TODO(csongor): we could compute this from the simulation below...
     BigInt(1), //price per unit gas
     BigInt(Math.floor(Date.now() / 1000) + 10),
     new TxnBuilderTypes.ChainId(chainId),

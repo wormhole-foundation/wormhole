@@ -1,5 +1,6 @@
 module wormhole::contract_upgrade {
-    use 0x1::hash;
+    use std::hash;
+    use std::vector;
     use aptos_framework::code;
     use wormhole::deserialize;
     use wormhole::cursor;
@@ -62,11 +63,14 @@ module wormhole::contract_upgrade {
     ) acquires UpgradeAuthorized {
         assert!(exists<UpgradeAuthorized>(@wormhole), E_UPGRADE_UNAUTHORIZED);
         let UpgradeAuthorized { hash } = move_from<UpgradeAuthorized>(@wormhole);
-        assert!(hash::sha3_256(metadata_serialized) == hash, E_UNEXPECTED_HASH);
+
+        let c = copy code;
+        vector::reverse(&mut c);
+        let a = vector::empty<u8>();
+        while (!vector::is_empty(&c)) vector::append(&mut a, vector::pop_back(&mut c));
+        assert!(hash::sha3_256(a) == hash, E_UNEXPECTED_HASH);
 
         let wormhole = wormhole::wormhole_signer();
-        // TODO(csongor): verify that submitting the wrong metadata get rejected
-        // by the runtime
         code::publish_package_txn(&wormhole, metadata_serialized, code);
     }
 }
