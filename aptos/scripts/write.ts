@@ -7,6 +7,7 @@ export const FAUCET_URL = "http://localhost:8081";
 //:!:>section_3
 const client = new AptosClient(NODE_URL);
 
+
 async function testInitWormholeState(contractAddress: HexString, accountFrom: AptosAccount): Promise<string> {
   const scriptFunctionPayload = new TxnBuilderTypes.TransactionPayloadEntryFunction(
     TxnBuilderTypes.EntryFunction.natural(

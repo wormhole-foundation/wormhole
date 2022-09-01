@@ -18,18 +18,15 @@
 ///
 ///     resource_address = sha3_256(tx_sender + seed)
 ///
-/// The `aptos_framework::create_resource_account` function creates such an
+/// The `aptos_framework::account::create_resource_account` function creates such an
 /// account, and returns a newly created signer and a `SignerCapability`, which
 /// is an affine resource (i.e. can be dropped but not copied). Holding a
 /// `SignerCapability` (which can be stored) grants the ability to recover the
 /// signer (which cannot be stored). Thus, the program will need to hold its own
 /// `SignerCapability` in storage. It is crucial that this capability is kept
 /// "securely", i.e. gated behind proper access control, which essentially means
-/// in a struct with a private field. There's a chicken-and-egg problem here,
-/// because the new program needs to be able to create and store that struct,
-/// but it just got deployed with the newly created signer, and it's not
-/// possible to execute bytecode in the same transaction that deployed the
-/// bytecode.
+/// in a struct with a private field. This capability is retrieved and stored in
+/// the module's initializer.
 ///
 /// So the strategy is as follows:
 ///
@@ -39,16 +36,28 @@
 /// `SignerCapability` in `DeployingSignerCapability` together with the deployer
 /// account's address.
 ///
-/// 2. In a separate transaction, the deployer account calls the initialization
-/// method of the newly deployed program. In the initialization method, the
-/// program may call `claim_signer_capability` which destroys the
-/// `DeployingSignerCability` and extracts the `SignerCapability` from it.
-/// Note that this can _only_ be called by the deployer account.
+/// Then there are two options:
+/// 2.a. The module has an `init_module` entry point. This is a special function
+/// that gets called by the runtime immediately after the module is deployed.
+/// The only argument passed to this function is the module account's signer, in
+/// this case the resource account itself. The resource account can call
+/// `claim_signer_capability` and retrieve the signer capability to store it in
+/// storage for later. This destroys the `DeployingSignerCapability`.
+///
+/// 2.b  The module has a custom initializer function. This might be necessary
+/// if the initializer needs additional arguments, which is not supported by
+/// `init_module`. This initializer will have to be called in a separate
+/// transaction (since after deploying a module, it cannot be called in the same
+/// transaction). The initializer may call `claim_signer_capability` which
+/// destroys the `DeployingSignerCability` and extracts the `SignerCapability`
+/// from it. Note that this can _only_ be called by the deployer account.
+///
+/// The `claim_signer_capability` function checks that it's called _either_ by
+/// the resource account itself or the deployer of the resource account.
 ///
 /// 3. After the `SignerCapability` is extracted, the program can now recover
 /// the signer from it and store the capability in its own storage in a secure
 /// resource type.
-///
 ///
 /// Note that the fact that `SignerCapability` has no copy ability means that
 /// it's guaranteed to be globally unique for a given resource account (since
@@ -72,7 +81,12 @@ module deployer::deployer {
         deployer: address,
     }
 
-    public entry fun deploy_derived(deployer: &signer, metadata_serialized: vector<u8>, code: vector<vector<u8>>, seed: vector<u8>) {
+    public entry fun deploy_derived(
+        deployer: &signer,
+        metadata_serialized: vector<u8>,
+        code: vector<vector<u8>>,
+        seed: vector<u8>
+    ) {
         let (wormhole, signer_cap) = account::create_resource_account(deployer, seed);
         let deployer = signer::address_of(deployer);
         move_to(&wormhole, DeployingSignerCapability { signer_cap, deployer });
@@ -80,12 +94,16 @@ module deployer::deployer {
     }
 
     public fun claim_signer_capability(
-        user: &signer,
+        caller: &signer,
         resource: address
     ): account::SignerCapability acquires DeployingSignerCapability {
         assert!(exists<DeployingSignerCapability>(resource), E_NO_DEPLOYING_SIGNER_CAPABILITY);
         let DeployingSignerCapability { signer_cap, deployer } = move_from(resource);
-        assert!(signer::address_of(user) == deployer, E_INVALID_DEPLOYER);
+        let caller_addr = signer::address_of(caller);
+        assert!(
+            caller_addr == deployer || caller_addr == resource,
+            E_INVALID_DEPLOYER
+        );
         signer_cap
     }
 }

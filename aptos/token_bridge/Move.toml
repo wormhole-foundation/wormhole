@@ -1,0 +1,18 @@
+[package]
+name = "TokenBridge"
+version = "0.0.1"
+
+#TODO: pin versions before mainnet release
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "alin/move-keccak" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "alin/move-keccak" }
+AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "alin/move-keccak" }
+AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token/", rev = "alin/move-keccak" }
+Wormhole = { local = "../contracts/" }
+Deployer = { local = "../deployer/" }
+
+# U256 = { git = "https://github.com/pontem-network/u256", rev = "main"  }
+
+[addresses]
+# derived address from sha3_256(deployer + "token_bridge")
+token_bridge="4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed"

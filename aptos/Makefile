@@ -1,4 +1,4 @@
-CONTRACT_DIRS := deployer contracts examples
+CONTRACT_DIRS := deployer contracts token_bridge examples
 
 TARGETS := build test
 
