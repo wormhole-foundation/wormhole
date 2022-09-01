@@ -27,17 +27,14 @@ contract TokenStorage {
         bytes32 nativeContract;
 
         // EIP712
-        // Cache the domain separator as an immutable value, but also store the chain id that it corresponds to, in order to
-        // invalidate the cached domain separator if the chain id changes.
-        bool permitInitialized;
+        // Cache the domain separator and salt, but also store the chain id that 
+        // it corresponds to, in order to invalidate the cached domain separator
+        // if the chain id changes.
         bytes32 cachedDomainSeparator;
         uint256 cachedChainId;
         address cachedThis;
-
-        bytes32 hashedTokenChain;
-        bytes32 hashedNativeContract;
-        bytes32 hashedVersion;
-        bytes32 typeHash;
+        bytes32 cachedSalt;
+        bytes32 cachedHashedName;
 
         // ERC20Permit draft
         mapping(address => Counters.Counter) nonces;
@@ -63,9 +60,5 @@ contract TokenState {
         Counters.Counter storage nonce = _state.nonces[owner_];
         current = nonce.current();
         nonce.increment();
-    }
-
-    function permitInitialized() public view returns (bool) {
-        return _state.permitInitialized;
     }
 }
