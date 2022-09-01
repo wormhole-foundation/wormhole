@@ -23,13 +23,7 @@ worm start-validator aptos
 Then build & deploy the contracts
 
 ``` shell
-make -C .. build && ts-node deploy.ts
-```
-
-Next, initialise the core bridge
-
-``` shell
-ts-node init.ts
+./deploy
 ```
 
 At this point you can send messages by running
