@@ -746,6 +746,7 @@ impl TokenBridge {
 
         Promise::new(env::current_account_id())
             .deploy_contract(v.to_vec())
+            .then(Self::ext(env::current_account_id()).migrate()
             .then(Self::ext(env::current_account_id()).update_contract_done(
                 env::predecessor_account_id(),
                 env::storage_usage(),
