@@ -46,8 +46,7 @@ module wormhole::vaa {
 
     //break
 
-    public fun parse(bytes: vector<u8>): VAA {
-
+    fun parse(bytes: vector<u8>): VAA {
         let cur = cursor::init(bytes);
         let version = deserialize::deserialize_u8(&mut cur);
         let guardian_set_index = deserialize::deserialize_u32(&mut cur);
@@ -185,7 +184,7 @@ module wormhole::vaa {
         };
     }
 
-    public entry fun parse_and_verify(bytes: vector<u8>): VAA {
+    public fun parse_and_verify(bytes: vector<u8>): VAA {
         let vaa = parse(bytes);
         verify(&vaa, get_current_guardian_set());
         vaa

@@ -5,7 +5,7 @@ module wormhole::contract_upgrade {
     use wormhole::deserialize;
     use wormhole::cursor;
     use wormhole::vaa;
-    use wormhole::wormhole;
+    use wormhole::state;
 
     const E_UPGRADE_UNAUTHORIZED: u64 = 0;
     const E_UNEXPECTED_HASH: u64 = 1;
@@ -48,7 +48,7 @@ module wormhole::contract_upgrade {
 
         let hash = parse_payload(payload);
 
-        let wormhole = wormhole::wormhole_signer();
+        let wormhole = state::wormhole_signer();
         if (exists<UpgradeAuthorized>(@wormhole)) {
             // TODO(csongor): here we're dropping the upgrade hash, in case an
             // upgrade fails for some reason. Should we emit a log or something?
@@ -70,7 +70,7 @@ module wormhole::contract_upgrade {
         while (!vector::is_empty(&c)) vector::append(&mut a, vector::pop_back(&mut c));
         assert!(aptos_hash::keccak256(a) == hash, E_UNEXPECTED_HASH);
 
-        let wormhole = wormhole::wormhole_signer();
+        let wormhole = state::wormhole_signer();
         code::publish_package_txn(&wormhole, metadata_serialized, code);
     }
 }
