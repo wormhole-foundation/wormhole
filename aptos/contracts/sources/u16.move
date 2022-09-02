@@ -18,6 +18,10 @@ module wormhole::u16 {
         u
     }
 
+    public fun to_u64(u: U16): u64 {
+        u.number
+    }
+
     public fun split_u8(number: U16): (u8, u8) {
         let U16 { number } = number;
         let v0: u8 = (number >> 8 & 0xFF as u8);

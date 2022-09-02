@@ -2,14 +2,14 @@ module wormhole::state {
     use 0x1::table::{Self, Table};
     use 0x1::event::{Self, EventHandle};
     use 0x1::signer::{address_of};
-    use 0x1::vector;
     use 0x1::account;
     use wormhole::structs::{Self, GuardianSet};
-    use wormhole::u16::{Self, U16};
+    use wormhole::u16::{U16};
     use wormhole::u32::{Self, U32};
     use wormhole::u256::{Self, U256};
 
     friend wormhole::guardian_set_upgrade;
+    friend wormhole::contract_upgrade;
     friend wormhole::wormhole;
     friend wormhole::vaa;
 
@@ -35,14 +35,15 @@ module wormhole::state {
         event: EventHandle<GuardianSetChanged>
     }
 
-    struct Provider has key, store {
-        chain_id: U16,
-        governance_chain_id: U16,
-        governance_contract: vector<u8>, //bytes32 (TODO: create custom type for wormhole addresses)
-    }
-
     struct WormholeState has key {
-        provider: Provider,
+        // This chain's id
+        chain_id: U16,
+
+        // Governance chain's id
+        governance_chain_id: U16,
+
+        // Address of governance contract on governance chain
+        governance_contract: vector<u8>, //(TODO: create custom type for wormhole addresses)
 
         // Mapping of guardian_set_index => guardian set
         guardian_sets: Table<u64, GuardianSet>,
@@ -59,27 +60,31 @@ module wormhole::state {
         // Mapping of consumed governance actions
         consumed_governance_actions: Table<vector<u8>, bool>,
 
-        // Mapping of initialized implementations
-        initialized_implementations: Table<address, bool>,
-
         message_fee: U256,
+
+        // The signer capability for wormhole itself
+        signer_cap: account::SignerCapability
     }
 
     //create some empty tables and stuff...
-    public(friend) fun init_wormhole_state(admin: &signer) {
-        move_to(admin, WormholeState {
-            provider: Provider {
-                chain_id: u16::from_u64(0),
-                governance_chain_id: u16::from_u64(0),
-                governance_contract: vector::empty<u8>()
-            },
+    public(friend) fun init_wormhole_state(
+        wormhole: &signer,
+        chain_id: U16,
+        governance_chain_id: U16,
+        governance_contract: vector<u8>,
+        signer_cap: account::SignerCapability
+    ) {
+        move_to(wormhole, WormholeState {
+            chain_id,
+            governance_chain_id,
+            governance_contract,
             guardian_sets: table::new<u64, GuardianSet>(),
             guardian_set_index: u32::from_u64(0),
             guardian_set_expiry: u32::from_u64(0),
             sequences: table::new<address, u64>(),
             consumed_governance_actions: table::new<vector<u8>, bool>(),
-            initialized_implementations: table::new<address, bool>(),
-            message_fee: u256::from_u64(0)
+            message_fee: u256::from_u64(0),
+            signer_cap
         });
     }
 
@@ -158,27 +163,20 @@ module wormhole::state {
         table::add(&mut state.consumed_governance_actions, hash, true);
     }
 
-    public(friend) fun set_chain_id(chaind_id: U16) acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@wormhole);
-        let provider = &mut state.provider;
-        provider.chain_id = chaind_id;
+    public(friend) fun set_chain_id(chain_id: U16) acquires WormholeState {
+        borrow_global_mut<WormholeState>(@wormhole).chain_id = chain_id;
     }
 
     public(friend) fun set_governance_chain_id(chain_id: U16) acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@wormhole);
-        let provider = &mut state.provider;
-        provider.governance_chain_id = chain_id;
+        borrow_global_mut<WormholeState>(@wormhole).governance_chain_id = chain_id;
     }
 
     public(friend) fun set_governance_contract(governance_contract: vector<u8>) acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@wormhole);
-        let provider = &mut state.provider;
-        provider.governance_contract = governance_contract;
+        borrow_global_mut<WormholeState>(@wormhole).governance_contract = governance_contract;
     }
 
     public(friend) fun set_message_fee(new_fee: U256) acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@wormhole);
-        state.message_fee = new_fee;
+        borrow_global_mut<WormholeState>(@wormhole).message_fee = new_fee;
     }
 
     // TODO: we could move the sequence counter into the emitters instead of
@@ -210,5 +208,15 @@ module wormhole::state {
         let state = borrow_global<WormholeState>(@wormhole);
         let ind = u32::to_u64(state.guardian_set_index);
         *table::borrow(&state.guardian_sets, ind)
+    }
+
+    public fun get_governance_chain(): U16 acquires WormholeState {
+        borrow_global<WormholeState>(@wormhole).governance_chain_id
+    }
+
+    /// Provide access to the wormhole contract signer. Be *very* careful who
+    /// gets access to this!
+    public(friend) fun wormhole_signer(): signer acquires WormholeState {
+        account::create_signer_with_capability(&borrow_global<WormholeState>(@wormhole).signer_cap)
     }
 }
