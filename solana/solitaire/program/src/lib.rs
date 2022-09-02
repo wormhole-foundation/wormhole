@@ -75,9 +75,11 @@ impl CreationLamports {
     /// Amount of lamports to be paid in account creation
     pub fn amount(self, size: usize) -> Result<u64>  {
         match self {
-            // Rent::get() is implemented by solana Sysvar. It will return Ok on-chain and
-            // in solana testing suite. However, it can return Err in other environments, e.g.,
-            // unit tests. Please use Amount in those environments.
+            // Rent::get() is used over Rent::default() here in case on-chain Rent has diverged from
+            // the Solana defaults. Unlike `default()`, the `get()` call only works on-chain and in
+            // Solana's test framework, it will fail in unit tests. In those environments one can use
+            // the following:
+            // `CreationLamports::Amount(Rent::default().minimum_balance(size))`
             CreationLamports::Exempt => Ok(Rent::get()?.minimum_balance(size)),
             CreationLamports::Amount(v) => Ok(v),
         }
