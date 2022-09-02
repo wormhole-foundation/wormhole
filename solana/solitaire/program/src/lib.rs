@@ -13,6 +13,7 @@ use solana_program::{
     account_info::AccountInfo,
     pubkey::Pubkey,
     rent::Rent,
+    sysvar::Sysvar as SolanaSysvar
 };
 
 use std::slice::Iter;
@@ -72,10 +73,13 @@ pub enum CreationLamports {
 
 impl CreationLamports {
     /// Amount of lamports to be paid in account creation
-    pub fn amount(self, size: usize) -> u64 {
+    pub fn amount(self, size: usize) -> Result<u64>  {
         match self {
-            CreationLamports::Exempt => Rent::default().minimum_balance(size),
-            CreationLamports::Amount(v) => v,
+            // Rent::get() is implemented by solana Sysvar. It will return Ok on-chain and
+            // in solana testing suite. However, it can return Err in other environments, e.g.,
+            // unit tests. Please use Amount in those environments.
+            CreationLamports::Exempt => Ok(Rent::get()?.minimum_balance(size)),
+            CreationLamports::Amount(v) => Ok(v),
         }
     }
 }

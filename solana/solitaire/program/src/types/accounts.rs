@@ -188,7 +188,7 @@ pub fn create_account(
     owner: &Pubkey,
     seeds: IsSigned,
 ) -> Result<()> {
-    let target_rent = lamports.amount(size);
+    let target_rent = lamports.amount(size)?;
     // top up account to target rent
     if account.lamports() < target_rent {
         let transfer_ix =
