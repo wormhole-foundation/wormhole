@@ -1,6 +1,6 @@
 /// Guardian keys are EVM-style 20 byte addresses
 /// That is, they are computed by taking the last 20 bytes of the keccak256
-/// (sha3 256) hash of their 64 byte secp256k1 public key.
+/// hash of their 64 byte secp256k1 public key.
 module wormhole::guardian_pubkey {
     use 0x1::secp256k1::{
         ECDSARawPublicKey,
@@ -8,7 +8,7 @@ module wormhole::guardian_pubkey {
         ecdsa_raw_public_key_to_bytes,
         ecdsa_recover,
     };
-    use 0x1::hash;
+    use 0x1::aptos_hash;
     use 0x1::vector;
 
     /// An error occurred while deserializing, for example due to wrong input size.
@@ -28,8 +28,7 @@ module wormhole::guardian_pubkey {
     /// Computes the address from a 64 byte public key.
     public fun from_pubkey(pubkey: &ECDSARawPublicKey): Address {
         let bytes = ecdsa_raw_public_key_to_bytes(pubkey);
-        // TODO: update when keccak256 is implemented
-        let hash = hash::sha3_256(bytes);
+        let hash = aptos_hash::keccak256(bytes);
         let address = vector::empty<u8>();
         let i = 0;
         while (i < 20) {
@@ -66,9 +65,7 @@ module wormhole::guardian_pubkey_test {
         // devnet guardian public key
         let pubkey = x"d4a4629979f0c9fa0f0bb54edf33f87c8c5a1f42c0350a30d68f7e967023e34e495a8ebf5101036d0fd66e3b0a8c7c61b65fceeaf487ab3cd1b5b7b50beb7970";
         let pubkey = ecdsa_raw_public_key_from_64_bytes(pubkey);
-        // TODO: with keccak, this would be the address. Update when keccak256 hash is available
-        // 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
-        let expected_address = guardian_pubkey::from_bytes(x"61be3d87e39e7cc9c29ac62f0ceef9bc1939e810");
+        let expected_address = guardian_pubkey::from_bytes(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe");
 
         let address = guardian_pubkey::from_pubkey(&pubkey);
 
@@ -80,7 +77,7 @@ module wormhole::guardian_pubkey_test {
         let sig = ecdsa_signature_from_bytes(x"38535089d6eec412a00066f84084212316ee3451145a75591dbd4a1c2a2bff442223f81e58821bfa4e8ffb80a881daf7a37500b04dfa5719fff25ed4cec8dda3");
         let msg = x"43f3693ccdcb4400e1d1c5c8cec200153bd4b3d167e5b9fe5400508cf8717880";
         let addr = guardian_pubkey::from_signature(msg, 1, &sig);
-        let expected_addr = guardian_pubkey::from_bytes(x"61be3d87e39e7cc9c29ac62f0ceef9bc1939e810");
+        let expected_addr = guardian_pubkey::from_bytes(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe");
         assert!(addr == expected_addr, 0);
     }
 }

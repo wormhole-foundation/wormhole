@@ -712,7 +712,7 @@ if terra2:
 
 if algorand:
     k8s_yaml_with_ns("devnet/algorand-devnet.yaml")
-  
+
     docker_build(
         ref = "algorand-algod",
         context = "algorand/sandbox-algorand",
@@ -743,7 +743,7 @@ if algorand:
         labels = ["algorand"],
         trigger_mode = trigger_mode,
     )
-    
+
 if aptos:
     k8s_yaml_with_ns("devnet/aptos-localnet.yaml")
 
@@ -751,6 +751,7 @@ if aptos:
         ref = "aptos-node",
         context = "aptos",
         dockerfile = "aptos/Dockerfile",
+        target = "aptos",
         only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
     )
 
