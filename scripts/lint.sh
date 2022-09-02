@@ -43,7 +43,7 @@ format(){
     fi
 
     # Use -exec because of pitfall #1 in http://mywiki.wooledge.org/BashPitfalls
-    GOFMT_OUTPUT="$(find "./sdk" "./node" "./event_database" -type f -name '*.go' -not -path './node/pkg/proto/*' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
+    GOFMT_OUTPUT="$(find "./sdk" "./node" "./event_database" "./wormhole_chain" -type f -name '*.go' -not -path './node/pkg/proto/*' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
 
     if [ -n "$GOFMT_OUTPUT" ]; then
         if [ "$GITHUB_ACTION" == "true" ]; then
@@ -107,7 +107,7 @@ done
 shift $((OPTIND - 1))
 
 if [ "$#" -ne "1" ]; then
-    echo "Need to specify COMMAND." >&2 
+    echo "Need to specify COMMAND." >&2
     print_help
     exit 1
 fi
@@ -115,15 +115,15 @@ fi
 COMMAND="$1"
 
 if [[ ! " ${VALID_COMMANDS[*]} " == *" $COMMAND "* ]]; then
-    echo "Invalid command $COMMAND." >&2 
+    echo "Invalid command $COMMAND." >&2
     print_help
     exit 1
 fi
 
 # run this script recursively inside docker, if requested
 if [ "$DOCKER" == "true" ]; then
-    # The easy thing to do here would be to use a bind mount to share the code with the container. 
-    # But this doesn't work in scenarios where we are in a container already. 
+    # The easy thing to do here would be to use a bind mount to share the code with the container.
+    # But this doesn't work in scenarios where we are in a container already.
     # But it's easy so we just won't support that case for now.
     # If we wanted to support it, my idea would be to `docker run`, `docker cp`, `docker exec`, `docker rm`.
 

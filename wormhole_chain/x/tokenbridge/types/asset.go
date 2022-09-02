@@ -75,15 +75,14 @@ func IsWORMToken(tokenChain uint16, tokenAddress [32]byte) bool {
 //
 // For most tokens, this looks something like
 //
-//		"wh/00001/165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa300"
+//	"wh/00001/165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa300"
 //
 // where the string "wh" is followed by the token chain (fixed 5 characters)
 // in decimal, followed by the token address in hex (fixed 64 character).
 //
 // For the special case of the wormhole token it returns
 //
-// 		"uworm"
-//
+//	"uworm"
 func GetWrappedCoinIdentifier(tokenChain uint16, tokenAddress [32]byte) string {
 	if IsWORMToken(tokenChain, tokenAddress) {
 		return "uworm"
