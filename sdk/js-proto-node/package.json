@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk-proto-node",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "NodeJS client protobuf for interacting with Wormhole",
   "homepage": "https://wormholenetwork.com",
   "main": "./lib/cjs/index.js",
