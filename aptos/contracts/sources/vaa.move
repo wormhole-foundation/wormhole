@@ -29,6 +29,7 @@ module wormhole::vaa {
     const E_INVALID_GOVERNANCE_CHAIN: u64 = 0x4;
     const E_INVALID_GOVERNANCE_EMITTER: u64 = 0x5;
     const E_WRONG_VERSION: u64 = 0x6;
+    const E_NON_INCREASING_SIGNERS: u64 = 0x7;
 
     struct VAA has key {
         // Header
@@ -158,15 +159,23 @@ module wormhole::vaa {
 
         let guardians = get_guardians(guardian_set);
         let hash = vaa.hash;
-        let n = vector::length<Signature>(&vaa.signatures);
-        let m = vector::length<Guardian>(&guardians);
+        let sigs_len = vector::length<Signature>(&vaa.signatures);
+        let guardians_len = vector::length<Guardian>(&guardians);
 
-        assert!(n >= quorum(m), E_NO_QUORUM);
+        assert!(sigs_len >= quorum(guardians_len), E_NO_QUORUM);
 
-        // TODO(csongor): check that the guardian indices are strictly increasing
-        let i = 0;
-        while (i < n) {
-            let (sig, recovery_id, guardian_index) = unpack_signature(vector::borrow(&vaa.signatures, i));
+        let sig_i = 0;
+        let last_index = 0;
+        while (sig_i < sigs_len) {
+            let (sig, recovery_id, guardian_index) = unpack_signature(vector::borrow(&vaa.signatures, sig_i));
+
+            // Ensure that the provided signatures are strictly increasing.
+            // This check makes sure that no duplicate signers occur. The
+            // increasing order is guaranteed by the guardians, or can always be
+            // reordered by the client.
+            assert!(sig_i == 0 || guardian_index > last_index, E_NON_INCREASING_SIGNERS);
+            last_index = guardian_index;
+
             let address = guardian_pubkey::from_signature(hash, recovery_id, &sig);
 
             let cur_guardian = vector::borrow<Guardian>(&guardians, (guardian_index as u64));
@@ -174,7 +183,7 @@ module wormhole::vaa {
 
             assert!(address == cur_address, E_INVALID_SIGNATURE);
 
-            i = i + 1;
+            sig_i = sig_i + 1;
         };
     }
 
