@@ -87,22 +87,13 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./aptos/contracts
+        working-directory: ./aptos
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Get Aptos
-        uses: pontem-network/get-aptos@main
-        with:
-          version: latest
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build
-        run: aptos move compile
-
-      - name: Test
-        run: aptos move test
+      - name: Run tests via docker
+        run: make test-docker
 
   terra:
     runs-on: ubuntu-20.04
