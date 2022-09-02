@@ -213,6 +213,17 @@ jobs:
           node-version: "16"
       - run: cd clients/js && make test
 
+  # Verify wormhole chain unit tests
+  wormchain:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.19.0'
+      - run: curl https://get.ignite.com/cli@v0.23.0 | bash && mv ignite /usr/local/bin/
+      - run: cd wormhole_chain && make test
+
   # Run Go linters, Go tests and other outside-of-Tilt things.
   lint-and-tests:
     # The linter is slow enough that we want to run it on the self-hosted runner

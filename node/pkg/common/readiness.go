@@ -24,4 +24,5 @@ const (
 	ReadinessTerra2Syncing     readiness.Component = "terra2Syncing"
 	ReadinessInjectiveSyncing  readiness.Component = "injectiveSyncing"
 	ReadinessPythNetSyncing    readiness.Component = "pythnetSyncing"
+	ReadinessWormchainSyncing  readiness.Component = "wormchainSyncing"
 )
