@@ -246,7 +246,7 @@ function serializePackage(p: Package): PackageBCS {
   modules.forEach(module => serializer.serializeBytes(module));
   const serializedModules = serializer.getBytes();
 
-  const codeHash = Buffer.from(sha3.sha3_256(Buffer.concat(modules)), "hex")
+  const codeHash = Buffer.from(sha3.keccak256(Buffer.concat(modules)), "hex")
 
   return {
     meta: serializedPackageMetadata,

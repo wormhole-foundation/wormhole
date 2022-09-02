@@ -1,7 +1,7 @@
 module wormhole::vaa {
     use 0x1::vector;
     use 0x1::secp256k1::{Self};
-    use 0x1::hash::{Self};
+    use 0x1::aptos_hash;
     // use 0x1::timestamp::{Self};
 
     use wormhole::u16::{U16};
@@ -74,7 +74,7 @@ module wormhole::vaa {
         };
 
         let body = cursor::rest(cur);
-        let hash = hash::sha3_256(hash::sha3_256(body));
+        let hash = aptos_hash::keccak256(aptos_hash::keccak256(body));
 
         let cur = cursor::init(body);
 
@@ -202,7 +202,7 @@ module wormhole::vaa {
         serialize::serialize_u64(&mut bytes, vaa.sequence);
         serialize::serialize_u8(&mut bytes, vaa.consistency_level);
         serialize::serialize_vector(&mut bytes, vaa.payload);
-        hash::sha3_256(bytes)
+        aptos_hash::keccak256(bytes)
     }
 
     public fun quorum(num_guardians: u64): u64 {

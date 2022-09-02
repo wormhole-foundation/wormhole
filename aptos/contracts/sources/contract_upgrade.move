@@ -1,5 +1,5 @@
 module wormhole::contract_upgrade {
-    use std::hash;
+    use std::aptos_hash;
     use std::vector;
     use aptos_framework::code;
     use wormhole::deserialize;
@@ -68,7 +68,7 @@ module wormhole::contract_upgrade {
         vector::reverse(&mut c);
         let a = vector::empty<u8>();
         while (!vector::is_empty(&c)) vector::append(&mut a, vector::pop_back(&mut c));
-        assert!(hash::sha3_256(a) == hash, E_UNEXPECTED_HASH);
+        assert!(aptos_hash::keccak256(a) == hash, E_UNEXPECTED_HASH);
 
         let wormhole = wormhole::wormhole_signer();
         code::publish_package_txn(&wormhole, metadata_serialized, code);
