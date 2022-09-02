@@ -67,6 +67,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Injective", output: ChainIDInjective},
 		{input: "Arbitrum", output: ChainIDArbitrum},
 		{input: "Ethereum-ropsten", output: ChainIDEthereumRopsten},
+		{input: "Wormholechain", output: ChainIDWormchain},
+		{input: "wormholechain", output: ChainIDWormchain},
 	}
 
 	// Negative Test Cases
@@ -159,6 +161,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 19, output: "injective"},
 		{input: 23, output: "arbitrum"},
 		{input: 10001, output: "ethereum-ropsten"},
+		{input: 3104, output: "wormholechain"},
 	}
 
 	for _, tc := range tests {

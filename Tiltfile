@@ -51,6 +51,7 @@ config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
+config.define_bool("secondWormchain", False, "Enable a second wormchain node with different validator keys")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -72,6 +73,7 @@ ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
+secondWormchain = cfg.get("secondWormchain", False)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -712,5 +714,40 @@ if near:
         ],
         resource_deps = ["const-gen"],
         labels = ["near"],
+        trigger_mode = trigger_mode,
+    )
+
+docker_build(
+    ref = "wormhole-chaind-image",
+    context = ".",
+    dockerfile = "./wormhole_chain/Dockerfile",
+    only = [],
+    ignore = ["./wormhole_chain/testing", "./wormhole_chain/ts-sdk", "./wormhole_chain/design", "./wormhole_chain/vue", "./wormhole_chain/build/wormhole-chaind"],
+)
+
+k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-guardian-devnet.yaml")
+
+k8s_resource(
+    "guardian-validator",
+    port_forwards = [
+        port_forward(1319, container_port = 1317, name = "REST [:1319]", host = webHost),
+        port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
+    ],
+    resource_deps = [],
+    labels = ["wormchain"],
+    trigger_mode = trigger_mode,
+)
+
+if secondWormchain:
+    k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-validator2-devnet.yaml")
+
+    k8s_resource(
+        "second-validator",
+        port_forwards = [
+            port_forward(1320, container_port = 1317, name = "REST [:1320]", host = webHost),
+            port_forward(26660, container_port = 26657, name = "TENDERMINT [:26660]", host = webHost)
+        ],
+        resource_deps = [],
+        labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )
