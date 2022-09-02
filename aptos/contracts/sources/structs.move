@@ -1,6 +1,7 @@
 module wormhole::structs {
     use wormhole::u32::{Self, U32};
-    use 0x1::secp256k1::{Self};
+    use std::secp256k1;
+    use std::timestamp;
 
     friend wormhole::state;
     friend wormhole::vaa;
@@ -37,9 +38,8 @@ module wormhole::structs {
         }
     }
 
-    public(friend) fun expire_guardian_set(_guardian_set: &mut GuardianSet) {
-        // TODO - right now U32 addition not supported
-        //guardian_set.expiration_time = timestamp::now_seconds() + 86400;
+    public(friend) fun expire_guardian_set(guardian_set: &mut GuardianSet, delta: U32) {
+        guardian_set.expiration_time = u32::from_u64(timestamp::now_seconds() + u32::to_u64(delta));
     }
 
     public fun unpack_signature(s: &Signature): (secp256k1::ECDSASignature, u8, u8) {
@@ -54,19 +54,19 @@ module wormhole::structs {
         Signature{ sig, recovery_id, guardian_index }
     }
 
-    public fun get_address(guardian: Guardian): guardian_pubkey::Address {
+    public fun get_address(guardian: &Guardian): guardian_pubkey::Address {
         guardian.address
     }
 
-    public fun get_guardian_set_index(guardian_set: GuardianSet): U32 {
+    public fun get_guardian_set_index(guardian_set: &GuardianSet): U32 {
         guardian_set.index
     }
 
-    public fun get_guardians(guardian_set: GuardianSet): vector<Guardian> {
+    public fun get_guardians(guardian_set: &GuardianSet): vector<Guardian> {
         guardian_set.guardians
     }
 
-    public fun get_guardian_set_expiry(guardian_set: GuardianSet): U32 {
+    public fun get_guardian_set_expiry(guardian_set: &GuardianSet): U32 {
         guardian_set.expiration_time
     }
 

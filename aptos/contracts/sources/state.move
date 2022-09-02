@@ -1,8 +1,9 @@
 module wormhole::state {
-    use 0x1::table::{Self, Table};
-    use 0x1::event::{Self, EventHandle};
-    use 0x1::signer::{address_of};
-    use 0x1::account;
+    use std::table::{Self, Table};
+    use std::event::{Self, EventHandle};
+    use std::signer::{address_of};
+    use std::account;
+    use std::timestamp;
     use wormhole::structs::{Self, GuardianSet};
     use wormhole::u16::{U16};
     use wormhole::u32::{Self, U32};
@@ -72,6 +73,7 @@ module wormhole::state {
         chain_id: U16,
         governance_chain_id: U16,
         governance_contract: vector<u8>,
+        guardian_set_expiry: U32,
         signer_cap: account::SignerCapability
     ) {
         move_to(wormhole, WormholeState {
@@ -80,7 +82,7 @@ module wormhole::state {
             governance_contract,
             guardian_sets: table::new<u64, GuardianSet>(),
             guardian_set_index: u32::from_u64(0),
-            guardian_set_expiry: u32::from_u64(0),
+            guardian_set_expiry,
             sequences: table::new<address, u64>(),
             consumed_governance_actions: table::new<vector<u8>, bool>(),
             message_fee: u256::from_u64(0),
@@ -137,25 +139,36 @@ module wormhole::state {
         );
     }
 
-    public(friend) fun update_guardian_set_index(newIndex: U32) acquires WormholeState {
+    public(friend) fun update_guardian_set_index(new_index: U32) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@wormhole);
-        state.guardian_set_index= newIndex;
+        state.guardian_set_index= new_index;
     }
 
-    public(friend) fun expire_guardian_set(_index: u64) acquires WormholeState {
-        let _state = borrow_global_mut<WormholeState>(@wormhole);
-        //TODO: expire guardian set, when we can index into guardian_sets with state.guardian_set_index(a U32)
-        //let guardian_set = table::borrow_mut<u64, GuardianSet>(&mut state.guardian_sets, state.guardian_set_index);
-        //Structs::expire_guardian_set(guardian_set);
+    public fun get_guardian_set(index: U32): GuardianSet acquires WormholeState {
+        let state = borrow_global_mut<WormholeState>(@wormhole);
+        *table::borrow<u64, GuardianSet>(&mut state.guardian_sets, u32::to_u64(index))
+    }
+
+    public(friend) fun expire_guardian_set(index: U32) acquires WormholeState {
+        let state = borrow_global_mut<WormholeState>(@wormhole);
+        let guardian_set: &mut GuardianSet = table::borrow_mut<u64, GuardianSet>(&mut state.guardian_sets, u32::to_u64(index));
+        let expiry = state.guardian_set_expiry;
+        structs::expire_guardian_set(guardian_set, expiry);
     }
 
     public(friend) fun store_guardian_set(set: GuardianSet) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@wormhole);
-        //TODO: store guardian set under index (U32)
-        //TODO: ensure that the guardian set index is incremental (maybe in the
-        // guardian_set_upgrade function)
-        let index: u64 = u32::to_u64(structs::get_guardian_set_index(set));
+        let index: u64 = u32::to_u64(structs::get_guardian_set_index(&set));
         table::add(&mut state.guardian_sets, index, set);
+    }
+
+    public fun guardian_set_is_active(guardian_set: &GuardianSet): bool acquires WormholeState {
+        let index = structs::get_guardian_set_index(guardian_set);
+        let current_index = get_current_guardian_set_index();
+        let now = timestamp::now_seconds();
+
+        index == current_index ||
+            u32::to_u64(structs::get_guardian_set_expiry(guardian_set)) > now
     }
 
     public(friend) fun set_governance_action_consumed(hash: vector<u8>) acquires WormholeState {
