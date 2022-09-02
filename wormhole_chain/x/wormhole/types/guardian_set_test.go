@@ -3,10 +3,11 @@ package types
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestKeysAsAddresses(t *testing.T) {
