@@ -17,8 +17,12 @@ module wormhole::contract_upgrade {
         hash: vector<u8>
     }
 
+    struct Hash {
+        hash: vector<u8>
+    }
+
     // TODO(csongor): maybe a parse and verify...?
-    fun parse_payload(payload: vector<u8>): vector<u8> {
+    fun parse_payload(payload: vector<u8>): Hash {
         let cur = cursor::init(payload);
         let target_module = deserialize::deserialize_vector(&mut cur, 32);
 
@@ -37,17 +41,20 @@ module wormhole::contract_upgrade {
 
         cursor::destroy_empty(cur);
 
-        hash
+        Hash { hash }
     }
 
     public entry fun submit_vaa(
         vaa: vector<u8>
     ) acquires UpgradeAuthorized {
         let vaa = vaa::parse_and_verify(vaa);
-        let payload = vaa::destroy(vaa);
+        vaa::assert_governance(&vaa);
 
-        let hash = parse_payload(payload);
+        authorize_upgrade(parse_payload(vaa::destroy(vaa)));
+    }
 
+    fun authorize_upgrade(hash: Hash) acquires UpgradeAuthorized {
+        let Hash { hash } = hash;
         let wormhole = state::wormhole_signer();
         if (exists<UpgradeAuthorized>(@wormhole)) {
             // TODO(csongor): here we're dropping the upgrade hash, in case an

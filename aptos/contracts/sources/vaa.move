@@ -8,7 +8,6 @@ module wormhole::vaa {
     use wormhole::deserialize;
     use wormhole::cursor::{Self};
     use wormhole::guardian_pubkey::{Self};
-    use wormhole::serialize;
     use wormhole::structs::{
         Guardian,
         GuardianSet,
@@ -24,6 +23,8 @@ module wormhole::vaa {
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
     const E_INVALID_SIGNATURE: u64 = 0x2;
     const E_GUARDIAN_SET_EXPIRED: u64 = 0x3;
+    const E_INVALID_GOVERNANCE_CHAIN: u64 = 0x4;
+    const E_INVALID_GOVERNANCE_EMITTER: u64 = 0x5;
 
     // TODO(csongor): add method to verify governance VAAs and use it in all the
     // governance VAA handlers
@@ -187,18 +188,11 @@ module wormhole::vaa {
         vaa
     }
 
-    //TODO: we shouldn't reserialise the VAA to copmute its hash. However, this
-    // functions might be useful in testing
-    fun hash(vaa: &VAA): vector<u8> {
-        let bytes = vector::empty<u8>();
-        serialize::serialize_u32(&mut bytes, vaa.timestamp);
-        serialize::serialize_u32(&mut bytes, vaa.nonce);
-        serialize::serialize_u16(&mut bytes, vaa.emitter_chain);
-        serialize::serialize_vector(&mut bytes, vaa.emitter_address);
-        serialize::serialize_u64(&mut bytes, vaa.sequence);
-        serialize::serialize_u8(&mut bytes, vaa.consistency_level);
-        serialize::serialize_vector(&mut bytes, vaa.payload);
-        aptos_hash::keccak256(bytes)
+    /// Aborts if the VAA is not governance (i.e. sent from the governance
+    /// emitter on the governance chain)
+    public fun assert_governance(vaa: &VAA) {
+        assert!(vaa.emitter_chain == state::get_governance_chain(), E_INVALID_GOVERNANCE_CHAIN);
+        assert!(vaa.emitter_address == state::get_governance_contract(), E_INVALID_GOVERNANCE_EMITTER);
     }
 
     public fun quorum(num_guardians: u64): u64 {
