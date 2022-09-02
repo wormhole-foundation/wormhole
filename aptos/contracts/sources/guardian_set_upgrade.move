@@ -27,6 +27,8 @@ module wormhole::guardian_set_upgrade {
     public entry fun submit_vaa(vaa: vector<u8>) {
         let vaa = vaa::parse_and_verify(vaa);
         vaa::assert_governance(&vaa);
+        vaa::replay_protect(&vaa);
+
         do_upgrade(parse_payload(vaa::destroy(vaa)))
     }
 

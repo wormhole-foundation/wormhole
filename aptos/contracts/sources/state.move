@@ -231,6 +231,10 @@ module wormhole::state {
         borrow_global<WormholeState>(@wormhole).governance_chain_id
     }
 
+    public fun get_chain_id(): U16 acquires WormholeState {
+        borrow_global<WormholeState>(@wormhole).chain_id
+    }
+
     /// Provide access to the wormhole contract signer. Be *very* careful who
     /// gets access to this!
     public(friend) fun wormhole_signer(): signer acquires WormholeState {
