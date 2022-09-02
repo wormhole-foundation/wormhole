@@ -8,16 +8,7 @@ module wormhole::wormhole {
     };
     use deployer::deployer;
     use wormhole::u16;
-    use wormhole::u32;
-
-    // TODO(csongor): maybe merge the different capabilities into the same key
-    // to reduce storage access
-
-    // protect me at all cost
-    // never expose the inner capability publicly
-    struct WormholeCapability has key {
-        signer_cap: account::SignerCapability
-    }
+    use wormhole::u32::{Self, U32};
 
     public entry fun init(
         deployer: &signer,
@@ -30,6 +21,24 @@ module wormhole::wormhole {
         // state, the init function can no longer be called (since
         // the deployer signer capability must have been unlocked).
         let signer_cap = deployer::claim_signer_capability(deployer, @wormhole);
+        init_internal(
+            signer_cap,
+            chain_id,
+            governance_chain_id,
+            governance_contract,
+            initial_guardian,
+            u32::from_u64(86400),
+        )
+    }
+
+    entry fun init_internal(
+        signer_cap: account::SignerCapability,
+        chain_id: u64,
+        governance_chain_id: u64,
+        governance_contract: vector<u8>,
+        initial_guardian: vector<u8>,
+        guardian_set_expiry: U32,
+    ) {
         let wormhole = account::create_signer_with_capability(&signer_cap);
 
         init_wormhole_state(
@@ -37,10 +46,31 @@ module wormhole::wormhole {
             u16::from_u64(chain_id),
             u16::from_u64(governance_chain_id),
             governance_contract,
+            guardian_set_expiry,
             signer_cap
         );
         init_message_handles(&wormhole);
         store_guardian_set(create_guardian_set(u32::from_u64(0), vector[create_guardian(initial_guardian)]));
+    }
+
+    #[test_only]
+    public entry fun init_test(
+        user: &signer,
+        chain_id: u64,
+        governance_chain_id: u64,
+        governance_contract: vector<u8>,
+        initial_guardian: vector<u8>,
+    ): signer {
+        let (wormhole, signer_cap) = account::create_resource_account(user, b"wormhole");
+        init_internal(
+            signer_cap,
+            chain_id,
+            governance_chain_id,
+            governance_contract,
+            initial_guardian,
+            u32::from_u64(86400),
+        );
+        wormhole
     }
 
 }

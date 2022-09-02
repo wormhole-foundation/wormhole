@@ -2,7 +2,6 @@ module wormhole::vaa {
     use 0x1::vector;
     use 0x1::secp256k1::{Self};
     use 0x1::aptos_hash;
-    // use 0x1::timestamp::{Self};
 
     use wormhole::u16::{U16};
     use wormhole::u32::{U32};
@@ -19,11 +18,12 @@ module wormhole::vaa {
         unpack_signature,
         get_address,
     };
-    use wormhole::state::{get_current_guardian_set};
+    use wormhole::state;
 
     const E_NO_QUORUM: u64 = 0x0;
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
     const E_INVALID_SIGNATURE: u64 = 0x2;
+    const E_GUARDIAN_SET_EXPIRED: u64 = 0x3;
 
     // TODO(csongor): add method to verify governance VAAs and use it in all the
     // governance VAA handlers
@@ -156,18 +156,15 @@ module wormhole::vaa {
         payload
     }
 
-    public fun verify(vaa: &VAA, guardian_set: GuardianSet) {
+    public fun verify(vaa: &VAA, guardian_set: &GuardianSet) {
+        assert!(state::guardian_set_is_active(guardian_set), E_GUARDIAN_SET_EXPIRED);
+
         let guardians = get_guardians(guardian_set);
         let hash = vaa.hash;
         let n = vector::length<Signature>(&vaa.signatures);
         let m = vector::length<Guardian>(&guardians);
 
         assert!(n >= quorum(m), E_NO_QUORUM);
-
-        // TODO: check expiration time once comparison operation is implemented for U32 type
-        //if (get_guardian_set_index(guardian_set) != get_current_guardian_set_index() && get_guardian_set_expiry(guardianSet) < timestamp::now_seconds()){
-        //    return (false, string::utf8(b"Guardian set expired"))
-        //};
 
         // TODO(csongor): check that the guardian indices are strictly increasing
         let i = 0;
@@ -176,7 +173,7 @@ module wormhole::vaa {
             let address = guardian_pubkey::from_signature(hash, recovery_id, &sig);
 
             let cur_guardian = vector::borrow<Guardian>(&guardians, (guardian_index as u64));
-            let cur_address = get_address(*cur_guardian);
+            let cur_address = get_address(cur_guardian);
 
             assert!(address == cur_address, E_INVALID_SIGNATURE);
 
@@ -186,7 +183,7 @@ module wormhole::vaa {
 
     public fun parse_and_verify(bytes: vector<u8>): VAA {
         let vaa = parse(bytes);
-        verify(&vaa, get_current_guardian_set());
+        verify(&vaa, &state::get_current_guardian_set());
         vaa
     }
 
