@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+	"github.com/status-im/keycard-go/hexutils"
 )
 
 var AdminClientGovernanceVAAVerifyCmd = &cobra.Command{
@@ -59,7 +60,7 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 			log.Fatalf("invalid update: %v", err)
 		}
 
-		digest := v.SigningMsg()
+		digest := v.SigningMsg().Bytes()
 		if err != nil {
 			panic(err)
 		}
@@ -71,6 +72,6 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 
 		log.Printf("Serialized: %v", hex.EncodeToString(b))
 
-		log.Printf("VAA with digest %s: %+v", digest.Hex(), spew.Sdump(v))
+		log.Printf("VAA with digest %s: %+v", hexutils.BytesToHex(digest), spew.Sdump(v))
 	}
 }
