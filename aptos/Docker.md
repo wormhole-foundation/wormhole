@@ -1,6 +1,6 @@
 # first build the image
-DOCKER_BUILDKIT=1 docker build -f Dockerfile.base -t aptos .
+(cd ..; DOCKER_BUILDKIT=1 docker build -f aptos/Dockerfile.base -t aptos .)
 # tag the image with the appropriate version
-docker tag aptos:latest ghcr.io/wormhole-foundation/aptos:0.3.3
+docker tag aptos:latest ghcr.io/wormhole-foundation/aptos:0.3.3n
 # push to ghcr
-docker push ghcr.io/wormhole-foundation/aptos:0.3.3
+docker push ghcr.io/wormhole-foundation/aptos:0.3.3n
