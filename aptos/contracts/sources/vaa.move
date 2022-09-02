@@ -19,18 +19,19 @@ module wormhole::vaa {
     };
     use wormhole::state;
 
+    friend wormhole::guardian_set_upgrade;
+    friend wormhole::contract_upgrade;
+
     const E_NO_QUORUM: u64 = 0x0;
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
     const E_INVALID_SIGNATURE: u64 = 0x2;
     const E_GUARDIAN_SET_EXPIRED: u64 = 0x3;
     const E_INVALID_GOVERNANCE_CHAIN: u64 = 0x4;
     const E_INVALID_GOVERNANCE_EMITTER: u64 = 0x5;
+    const E_WRONG_VERSION: u64 = 0x6;
 
-    // TODO(csongor): add method to verify governance VAAs and use it in all the
-    // governance VAA handlers
     struct VAA has key {
         // Header
-        version:            u8,
         guardian_set_index: U32,
         signatures:         vector<Signature>,
 
@@ -50,6 +51,7 @@ module wormhole::vaa {
     fun parse(bytes: vector<u8>): VAA {
         let cur = cursor::init(bytes);
         let version = deserialize::deserialize_u8(&mut cur);
+        assert!(version == 1, E_WRONG_VERSION);
         let guardian_set_index = deserialize::deserialize_u32(&mut cur);
 
         let signatures_len = deserialize::deserialize_u8(&mut cur);
@@ -88,7 +90,6 @@ module wormhole::vaa {
         let payload = cursor::rest(cur);
 
         VAA {
-            version,
             guardian_set_index,
             signatures,
             timestamp,
@@ -100,10 +101,6 @@ module wormhole::vaa {
             hash,
             payload,
         }
-    }
-
-    public fun get_version(vaa: &VAA): u8 {
-         vaa.version
     }
 
     public fun get_guardian_set_index(vaa: &VAA): U32 {
@@ -142,7 +139,6 @@ module wormhole::vaa {
 
     public fun destroy(vaa: VAA): vector<u8> {
          let VAA {
-            version: _,
             guardian_set_index: _,
             signatures: _,
             timestamp: _,
@@ -193,6 +189,15 @@ module wormhole::vaa {
     public fun assert_governance(vaa: &VAA) {
         assert!(vaa.emitter_chain == state::get_governance_chain(), E_INVALID_GOVERNANCE_CHAIN);
         assert!(vaa.emitter_address == state::get_governance_contract(), E_INVALID_GOVERNANCE_EMITTER);
+    }
+
+    /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
+    /// the first time around.
+    /// Only to be used for core bridge messages. Protocols should implement
+    /// their own replay protection.
+    public(friend) fun replay_protect(vaa: &VAA) {
+        // this calls table::add which aborts if the key already exists
+        state::set_governance_action_consumed(vaa.hash);
     }
 
     public fun quorum(num_guardians: u64): u64 {
