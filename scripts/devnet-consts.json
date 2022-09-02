@@ -234,6 +234,17 @@
                     "decimals": 6
                 }
             }
+        },
+        "3104": {
+            "rpcUrlTilt": "http://guardian-validator:1317",
+            "rpcUrlLocal": "http://localhost:1319",
+            "rpcPort": "1319",
+            "contracts": {
+                "coreEmitterAddress": "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
+                "coreNativeAddress": "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
+                "tokenBridgeEmitterAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
+                "tokenBridgeNativeAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
+            }
         }
     },
     "gancheDefaults": [

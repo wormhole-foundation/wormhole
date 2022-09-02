@@ -25,4 +25,5 @@ const (
 	ReadinessInjectiveSyncing  readiness.Component = "injectiveSyncing"
 	ReadinessPythNetSyncing    readiness.Component = "pythnetSyncing"
 	ReadinessArbitrumSyncing   readiness.Component = "arbitrumSyncing"
+	ReadinessWormchainSyncing  readiness.Component = "wormchainSyncing"
 )

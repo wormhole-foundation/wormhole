@@ -142,6 +142,8 @@ func (c ChainID) String() string {
 		return "arbitrum"
 	case ChainIDPythNet:
 		return "pythnet"
+	case ChainIDWormchain:
+		return "wormholechain"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -195,6 +197,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDArbitrum, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
+	case "wormholechain":
+		return ChainIDWormchain, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -244,6 +248,8 @@ const (
 	ChainIDArbitrum ChainID = 23
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
+	//ChainIDWormchain is the ChainID of Wormholechain
+	ChainIDWormchain ChainID = 3104
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001

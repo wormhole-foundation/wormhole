@@ -218,6 +218,8 @@ const contract_registrations = {
     process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA,
     // NEAR
     process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
+    // Wormhole Chain
+    process.env.REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA,
   ],
 };
 
