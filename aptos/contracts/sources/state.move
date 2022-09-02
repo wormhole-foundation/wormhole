@@ -223,6 +223,10 @@ module wormhole::state {
         *table::borrow(&state.guardian_sets, ind)
     }
 
+    public fun get_governance_contract(): vector<u8> acquires WormholeState {
+        borrow_global<WormholeState>(@wormhole).governance_contract
+    }
+
     public fun get_governance_chain(): U16 acquires WormholeState {
         borrow_global<WormholeState>(@wormhole).governance_chain_id
     }
