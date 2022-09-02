@@ -751,7 +751,7 @@ if aptos:
         ref = "aptos-node",
         context = "aptos",
         dockerfile = "aptos/Dockerfile",
-        target = "aptos-node",
+        target = "aptos",
         only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
     )
 
