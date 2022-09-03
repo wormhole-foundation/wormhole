@@ -128,6 +128,17 @@ docker run \
 spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt
 ```
 
+To run the spy against mainnet:
+
+```bash
+docker run \
+    --platform=linux/amd64 \
+    -p 7073:7073 \
+    --entrypoint /guardiand \
+    ghcr.io/wormhole-foundation/guardiand:latest \
+spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWQp644DK27fd3d4Km3jr7gHiuJJ5ZGmy8hH4py7fP4FP7
+```
+
 ### Run The Apps
 
 This runs the Spy Listener, REST Listener, Relayer, and Wallet Monitor all in a single process for development and testing purposes:
