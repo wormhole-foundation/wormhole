@@ -10,6 +10,7 @@ WORKDIR /tmp
 
 COPY contracts/ contracts
 COPY deployer/ deployer
+COPY examples/ examples
 COPY Makefile Makefile
 
 RUN make test

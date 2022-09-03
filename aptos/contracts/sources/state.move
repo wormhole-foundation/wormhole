@@ -1,13 +1,13 @@
 module wormhole::state {
     use std::table::{Self, Table};
     use std::event::{Self, EventHandle};
-    use std::signer::{address_of};
     use std::account;
     use std::timestamp;
     use wormhole::structs::{Self, GuardianSet};
     use wormhole::u16::{U16};
     use wormhole::u32::{Self, U32};
     use wormhole::u256::{Self, U256};
+    use wormhole::emitter;
 
     friend wormhole::guardian_set_upgrade;
     friend wormhole::contract_upgrade;
@@ -20,7 +20,7 @@ module wormhole::state {
     }
 
     struct WormholeMessage has store, drop {
-        sender: address,
+        sender: u128,
         sequence: u64,
         nonce: u64,
         payload: vector<u8>,
@@ -37,34 +37,34 @@ module wormhole::state {
     }
 
     struct WormholeState has key {
-        // This chain's id
+        /// This chain's wormhole id
         chain_id: U16,
 
-        // Governance chain's id
+        /// Governance chain's id
         governance_chain_id: U16,
 
-        // Address of governance contract on governance chain
+        /// Address of governance contract on governance chain
         governance_contract: vector<u8>, //(TODO: create custom type for wormhole addresses)
 
-        // Mapping of guardian_set_index => guardian set
+        /// Mapping of guardian_set_index => guardian set
         guardian_sets: Table<u64, GuardianSet>,
 
-        // Current active guardian set index
+        /// Current active guardian set index
         guardian_set_index: U32,
 
-        // Period for which a guardian set stays active after it has been replaced
+        /// Period for which a guardian set stays active after it has been replaced
         guardian_set_expiry: U32,
 
-        // Sequence numbers per emitter
-        sequences: Table<address, u64>,
-
-        // Mapping of consumed governance actions
+        /// Consumed governance actions
         consumed_governance_actions: Table<vector<u8>, bool>,
 
         message_fee: U256,
 
-        // The signer capability for wormhole itself
-        signer_cap: account::SignerCapability
+        /// The signer capability for wormhole itself
+        signer_cap: account::SignerCapability,
+
+        /// Capability for creating new emitters
+        emitter_registry: emitter::EmitterRegistry
     }
 
     //create some empty tables and stuff...
@@ -83,10 +83,10 @@ module wormhole::state {
             guardian_sets: table::new<u64, GuardianSet>(),
             guardian_set_index: u32::from_u64(0),
             guardian_set_expiry,
-            sequences: table::new<address, u64>(),
             consumed_governance_actions: table::new<vector<u8>, bool>(),
             message_fee: u256::from_u64(0),
-            signer_cap
+            signer_cap,
+            emitter_registry: emitter::init_emitter_registry(),
         });
     }
 
@@ -107,29 +107,20 @@ module wormhole::state {
         move_to(admin, create_guardian_set_changed_handle(account::new_event_handle<GuardianSetChanged>(admin)));
     }
 
-    fun use_sequence(emitter: address): u64 acquires WormholeState {
-        let sequence = next_sequence(emitter);
-        set_next_sequence(emitter, sequence + 1);
-        sequence
-    }
-
-    public entry fun publish_message(
-        //TODO(csongor): don't require a signer here and instead take an emitter
-        // capability
-        sender: &signer,
+    public(friend) entry fun publish_event(
+        sender: u128,
+        sequence: u64,
         nonce: u64,
         payload: vector<u8>,
         consistency_level: u8,
-     ) acquires WormholeState, WormholeMessageHandle{
-        let addr = address_of(sender);
-        let sequence = use_sequence(addr);
+     ) acquires WormholeMessageHandle {
         let event_handle = borrow_global_mut<WormholeMessageHandle>(@wormhole);
         let now = aptos_framework::timestamp::now_seconds();
 
         event::emit_event<WormholeMessage>(
             &mut event_handle.event,
             WormholeMessage {
-                sender: addr,
+                sender,
                 sequence,
                 nonce: nonce,
                 payload,
@@ -192,25 +183,7 @@ module wormhole::state {
         borrow_global_mut<WormholeState>(@wormhole).message_fee = new_fee;
     }
 
-    // TODO: we could move the sequence counter into the emitters instead of
-    // having a shared object. That would be more efficient
-    public entry fun set_next_sequence(emitter: address, sequence: u64) acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@wormhole);
-        if (table::contains(&state.sequences, emitter)){
-            table::remove(&mut state.sequences, emitter);
-        };
-        table::add(&mut state.sequences, emitter, sequence);
-    }
-
     // getters
-
-    public entry fun next_sequence(emitter: address):u64 acquires WormholeState {
-        let state = borrow_global_mut<WormholeState>(@wormhole);
-        if (table::contains(&state.sequences, emitter)){
-            return *table::borrow(&state.sequences, emitter)
-        };
-        return 0
-    }
 
     public fun get_current_guardian_set_index(): U32 acquires WormholeState {
         let state = borrow_global<WormholeState>(@wormhole);
@@ -239,5 +212,10 @@ module wormhole::state {
     /// gets access to this!
     public(friend) fun wormhole_signer(): signer acquires WormholeState {
         account::create_signer_with_capability(&borrow_global<WormholeState>(@wormhole).signer_cap)
+    }
+
+    public(friend) fun new_emitter(): emitter::EmitterCapability acquires WormholeState {
+        let registry = &mut borrow_global_mut<WormholeState>(@wormhole).emitter_registry;
+        emitter::new_emitter(registry)
     }
 }
