@@ -1,14 +1,41 @@
 module wormhole::wormhole {
     use aptos_framework::account;
     use wormhole::structs::{create_guardian, create_guardian_set};
-    use wormhole::state::{
-        init_message_handles,
-        init_wormhole_state,
-        store_guardian_set,
-    };
+    use wormhole::state;
     use deployer::deployer;
     use wormhole::u16;
     use wormhole::u32::{Self, U32};
+    use wormhole::emitter;
+
+// -----------------------------------------------------------------------------
+// Sending messages
+
+    public entry fun publish_message(
+        emitter_cap: &mut emitter::EmitterCapability,
+        nonce: u64,
+        payload: vector<u8>,
+        // TODO(csongor): this is an instant finality chain. Does it even make
+        // sense to expose this argument? We could just set it to 0 or 1 internally.
+        consistency_level: u8,
+    ) {
+        state::publish_event(
+            emitter::get_emitter(emitter_cap),
+            emitter::use_sequence(emitter_cap),
+            nonce,
+            payload,
+            consistency_level
+        );
+    }
+
+// -----------------------------------------------------------------------------
+// Emitter registration
+
+    public entry fun register_emitter(): emitter::EmitterCapability {
+        state::new_emitter()
+    }
+
+// -----------------------------------------------------------------------------
+// Contract initialization
 
     public entry fun init(
         deployer: &signer,
@@ -40,8 +67,7 @@ module wormhole::wormhole {
         guardian_set_expiry: U32,
     ) {
         let wormhole = account::create_signer_with_capability(&signer_cap);
-
-        init_wormhole_state(
+        state::init_wormhole_state(
             &wormhole,
             u16::from_u64(chain_id),
             u16::from_u64(governance_chain_id),
@@ -49,11 +75,17 @@ module wormhole::wormhole {
             guardian_set_expiry,
             signer_cap
         );
-        init_message_handles(&wormhole);
-        store_guardian_set(create_guardian_set(u32::from_u64(0), vector[create_guardian(initial_guardian)]));
+        state::init_message_handles(&wormhole);
+        state::store_guardian_set(
+            create_guardian_set(
+                u32::from_u64(0),
+                vector[create_guardian(initial_guardian)]
+            )
+        );
     }
 
     #[test_only]
+    /// Initialise a dummy contract for testing. Returns the wormhole signer.
     public entry fun init_test(
         user: &signer,
         chain_id: u64,

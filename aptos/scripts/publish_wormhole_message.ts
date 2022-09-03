@@ -1,21 +1,18 @@
-import { AptosAccount, TxnBuilderTypes, BCS, HexString, MaybeHexString, AptosClient, FaucetClient, AptosAccountObject } from "aptos";
+import { AptosAccount, TxnBuilderTypes, BCS, HexString, AptosClient } from "aptos";
 import {aptosAccountObject} from "./constants";
-import sha3 from 'js-sha3';
 export const NODE_URL = "http://0.0.0.0:8080/v1";
-export const FAUCET_URL = "http://0.0.0.0:8081";
 
 const client = new AptosClient(NODE_URL);
 
 async function publishWormholeMessage(contractAddress: HexString, accountFrom: AptosAccount): Promise<string> {
     const scriptFunctionPayload = new TxnBuilderTypes.TransactionPayloadEntryFunction(
       TxnBuilderTypes.EntryFunction.natural(
-        `${contractAddress.toString()}::state`,
-        "publish_message",
+        // Send using the sender example program
+        `${contractAddress.toString()}::sender`,
+        "send_message",
         [],
         [
-         BCS.bcsSerializeUint64(1), // nonce
          BCS.bcsSerializeBytes(Buffer.from("hi my name is bob")), // payload
-         BCS.bcsSerializeU8(5), //consistency level
         ]
       ),
     );
@@ -48,8 +45,7 @@ async function publishWormholeMessage(contractAddress: HexString, accountFrom: A
 
   async function main(){
     let accountFrom = AptosAccount.fromAptosAccountObject(aptosAccountObject)
-    const wormholeAddress = new HexString(sha3.sha3_256(Buffer.concat([accountFrom.address().toBuffer(), Buffer.from('wormhole', 'ascii')])));
-    let hash = await publishWormholeMessage(wormholeAddress, accountFrom);
+    let hash = await publishWormholeMessage(accountFrom.address(), accountFrom);
     console.log("tx hash: ", hash);
   }
 
