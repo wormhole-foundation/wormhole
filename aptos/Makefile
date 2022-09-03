@@ -1,10 +1,10 @@
-build:
-	make -C deployer build
-	make -C contracts build
+CONTRACT_DIRS := deployer contracts examples
 
-test:
-	make -C deployer test
-	make -C contracts test
+TARGETS := build test
+
+.PHONY: $(TARGETS)
+$(TARGETS):
+	$(foreach dir,$(CONTRACT_DIRS), make -C $(dir) $@ &&) true
 
 test-docker:
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile --target tests .

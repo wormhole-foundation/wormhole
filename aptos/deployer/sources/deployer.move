@@ -34,10 +34,10 @@
 /// So the strategy is as follows:
 ///
 /// 1. An account calls `deploy_derived` with the bytecode and the address seed
-/// (TODO(csongor): add the seed as an argument). The function will create the
-/// resource account and deploy the bytecode at the resource account's address.
-/// It will then temporarily lock up the `SignerCapability` in
-/// `DeployingSignerCapability` together with the deployer account's address.
+/// The function will create the resource account and deploy the bytecode at the
+/// resource account's address.  It will then temporarily lock up the
+/// `SignerCapability` in `DeployingSignerCapability` together with the deployer
+/// account's address.
 ///
 /// 2. In a separate transaction, the deployer account calls the initialization
 /// method of the newly deployed program. In the initialization method, the
