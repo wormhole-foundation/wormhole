@@ -125,12 +125,17 @@ export async function relayEVM(
   logger.debug("Before load addrs");
   const addrs = await xApp.loadAddrs();
   logger.debug("After load addrs");
-  const ctx: xApp.Context = xApp.getDevNetCtx(
-    signer,
-    chainConfigInfo.chainId,
-    walletPrivateKey,
-    addrs.fuji.XRaydiumBridge
-  );
+  let ctx: xApp.Context;
+  if (process.env.ENV_TYPE === "DEV_NET") {
+    ctx = xApp.getDevNetCtx(
+      signer,
+      chainConfigInfo.chainId,
+      walletPrivateKey,
+      addrs.fuji.XRaydiumBridge
+    );
+  } else {
+    ctx = xApp.getAvaxMainnetCtx(addrs.avax.XRaydiumBridge);
+  }
   await redeemResponseEVM(ctx.evm, signedVaaArray);
 
   logger.info("=============done redeem responses to EVM!!!...!!!");

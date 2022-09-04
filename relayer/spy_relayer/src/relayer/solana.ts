@@ -7,7 +7,7 @@ import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import { chainConfigToEvmProviderAndSigner } from "./evm";
-import * as xRaydiumLib from "../xRaydium/scripts/lib";
+import * as xApp from "../xRaydium/scripts/lib";
 import * as relay from "../xRaydium/scripts/relay";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
@@ -23,7 +23,7 @@ export async function relaySolana(
 ) {
   console.log("signedVAAString: ", signedVAAString);
   const logger = getScopedLogger(["solana"], relayLogger);
-  console.log("relaySolana chainConfigInfo: ", chainConfigInfo);
+  console.log("relaySolana chainConfigInfo: ", {chainConfigInfo, so});
   //TODO native transfer & create associated token account
   //TODO close connection
   const signedVaaArray = hexToUint8Array(signedVAAString);
@@ -44,25 +44,40 @@ export async function relaySolana(
     connection
   );
   //@ts-ignore
-  const { transfer, baseVAA } = await xRaydiumLib.parseTransferTokenWithPayload(
+  const { transfer, baseVAA } = await xApp.parseTransferTokenWithPayload(
     signedVaaArray
   );
 
-  const {signer, provider} = await chainConfigToEvmProviderAndSigner(emitterChainConfigInfo)
-  const addrs = await xRaydiumLib.loadAddrs();
-  const ctx: xRaydiumLib.Context = xRaydiumLib.getDevNetCtx(
-    signer, 
-    emitterChainConfigInfo.chainId,
-    xRaydiumLib._undef(emitterChainConfigInfo.walletPrivateKey, "expected emitter chain to have wallet private key")[0],
-    addrs.fuji.XRaydiumBridge,
-    provider,
+  const { signer, provider } = await chainConfigToEvmProviderAndSigner(
+    emitterChainConfigInfo
   );
+  const addrs = await xApp.loadAddrs();
+  let ctx: xApp.Context;
+  if (process.env.ENV_TYPE === "DEV_NET") {
+    ctx = xApp.getDevNetCtx(
+      signer,
+      emitterChainConfigInfo.chainId,
+      xApp._undef(
+        emitterChainConfigInfo.walletPrivateKey,
+        "expected emitter chain to have wallet private key"
+      )[0],
+      addrs.fuji.XRaydiumBridge,
+      provider
+    );
+  } else {
+    ctx = xApp.getAvaxMainnetCtx(addrs.avax.XRaydiumBridge);
+  }
 
-  const header = await xRaydiumLib.parseHeaderFromPayload3(transfer.payload3);
-  const escrowState = await xRaydiumLib.tryFetchEscrowState(ctx.sol, transfer, header, {
-    silent: true,
-    retries: 2,
-  });
+  const header = await xApp.parseHeaderFromPayload3(transfer.payload3, true);
+  const escrowState = await xApp.tryFetchEscrowState(
+    ctx.sol,
+    transfer,
+    header,
+    {
+      silent: true,
+      retries: 2,
+    }
+  );
   if (
     alreadyRedeemed &&
     escrowState &&
