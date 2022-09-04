@@ -14,4 +14,6 @@ COPY deployer/ deployer
 COPY examples/ examples
 COPY Makefile Makefile
 
-RUN make test
+
+RUN --mount=type=cache,target=/root/.move,id=move_cache \
+    make test
