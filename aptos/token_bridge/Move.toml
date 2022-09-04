@@ -8,7 +8,7 @@ AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir 
 MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "alin/move-keccak" }
 AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "alin/move-keccak" }
 AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token/", rev = "alin/move-keccak" }
-Wormhole = { local = "../contracts/" }
+Wormhole = { local = "../wormhole/" }
 Deployer = { local = "../deployer/" }
 
 # U256 = { git = "https://github.com/pontem-network/u256", rev = "main"  }

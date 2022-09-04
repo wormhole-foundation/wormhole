@@ -8,7 +8,7 @@ FROM aptos as tests
 
 WORKDIR /tmp
 
-COPY contracts/ contracts
+COPY wormhole/ wormhole
 COPY token_bridge/ token_bridge
 COPY deployer/ deployer
 COPY examples/ examples

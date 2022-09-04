@@ -3,7 +3,7 @@
 # This script upgrades the core bridge in local devnet by generating a
 # governance VAA and submitting it
 
-HASH=$(worm aptos hash-contracts ../contracts/)
+HASH=$(worm aptos hash-contracts ../wormhole/)
 # devnet guardian secret..
 GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
 CONTRACT_ADDR=0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204
@@ -12,4 +12,4 @@ VAA=$(worm generate upgrade -c aptos -a $HASH -m Core -g $GUARDIAN_SECRET)
 echo "Submitting VAA: $VAA"
 
 worm submit --network devnet "$VAA" --contract-address $CONTRACT_ADDR
-worm aptos upgrade ../contracts --network devnet
+worm aptos upgrade ../wormhole --network devnet
