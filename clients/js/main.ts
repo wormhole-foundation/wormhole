@@ -315,7 +315,7 @@ yargs(hideBin(process.argv))
     }
   )
   .command(
-    "chain_id <chain>",
+    "chain-id <chain>",
     "Print the wormhole chain ID integer associated with the specified chain name",
     (yargs) => {
       return yargs

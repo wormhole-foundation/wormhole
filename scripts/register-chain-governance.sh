@@ -89,7 +89,7 @@ shift $((OPTIND - 1))
 address=`worm contract --emitter mainnet $chain_name $module`
 [ -z "$address" ] && usage
 
-chain=`worm chain_id $chain_name`
+chain=`worm chain-id $chain_name`
 [ -z "$chain" ] && usage
 
 ### The script constructs the governance proposal in two different steps. First,
