@@ -34,10 +34,6 @@ module core_messages::sender {
         // only batch VAAs)
         let nonce: u64 = 0;
 
-        // How many block confirmations to wait before observing this message.
-        // Since aptos has instant-finality, 0 is fine.
-        let consistency_level: u8 = 0;
-
         let message_fee = wormhole::state::get_message_fee();
         let fee_coins = coin::withdraw(user, message_fee);
 
@@ -45,7 +41,6 @@ module core_messages::sender {
             emitter_cap,
             nonce,
             payload,
-            consistency_level,
             fee_coins
         )
     }

@@ -18,9 +18,6 @@ module wormhole::wormhole {
         emitter_cap: &mut emitter::EmitterCapability,
         nonce: u64,
         payload: vector<u8>,
-        // TODO(csongor): this is an instant finality chain. Does it even make
-        // sense to expose this argument? We could just set it to 0 or 1 internally.
-        consistency_level: u8,
         message_fee: Coin<AptosCoin>
     ) {
         // ensure that provided fee is sufficient to cover message fees
@@ -35,7 +32,6 @@ module wormhole::wormhole {
             emitter::use_sequence(emitter_cap),
             nonce,
             payload,
-            consistency_level
         );
     }
 
@@ -162,7 +158,12 @@ module wormhole::wormhole_test {
 
         let emitter_cap = wormhole::register_emitter();
 
-        wormhole::publish_message(&mut emitter_cap, 0, b"hi mom", 0, fees);
+        wormhole::publish_message(
+            &mut emitter_cap,
+            0,
+            b"hi mom",
+            fees
+        );
 
         wormhole::emitter::destroy_emitter_cap(emitter_cap);
         coin::destroy_mint_cap(mint_cap);
@@ -179,7 +180,6 @@ module wormhole::wormhole_test {
             &mut emitter_cap,
             0,
             b"hi mom",
-            0,
             coin::zero()
         );
         wormhole::emitter::destroy_emitter_cap(emitter_cap);
