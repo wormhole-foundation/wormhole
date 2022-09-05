@@ -10,7 +10,7 @@ module wormhole::wormhole {
 // -----------------------------------------------------------------------------
 // Sending messages
 
-    public entry fun publish_message(
+    public fun publish_message(
         emitter_cap: &mut emitter::EmitterCapability,
         nonce: u64,
         payload: vector<u8>,
@@ -30,7 +30,7 @@ module wormhole::wormhole {
 // -----------------------------------------------------------------------------
 // Emitter registration
 
-    public entry fun register_emitter(): emitter::EmitterCapability {
+    public fun register_emitter(): emitter::EmitterCapability {
         state::new_emitter()
     }
 
@@ -58,7 +58,7 @@ module wormhole::wormhole {
         )
     }
 
-    entry fun init_internal(
+    fun init_internal(
         signer_cap: account::SignerCapability,
         chain_id: u64,
         governance_chain_id: u64,
@@ -86,7 +86,7 @@ module wormhole::wormhole {
 
     #[test_only]
     /// Initialise a dummy contract for testing. Returns the wormhole signer.
-    public entry fun init_test(
+    public fun init_test(
         user: &signer,
         chain_id: u64,
         governance_chain_id: u64,
