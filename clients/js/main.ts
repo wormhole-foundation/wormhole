@@ -268,7 +268,6 @@ yargs(hideBin(process.argv))
     },
     async (argv) => {
       assertChain(argv["chain"]);
-      // assertEVMChain(argv["chain"]);
       const network = argv.network.toUpperCase();
       if (
         network !== "MAINNET" &&
@@ -295,26 +294,40 @@ yargs(hideBin(process.argv))
       }
       if (argv["emitter"]) {
         if (chain === "solana" || chain === "pythnet") { // TODO: Create an isSolanaChain()
-          addr = await getEmitterAddressSolana(addr)
+          addr = await getEmitterAddressSolana(addr);
         } else if (isTerraChain(chain)) {
-          addr = await getEmitterAddressTerra(addr)
+          addr = await getEmitterAddressTerra(addr);
         } else if (chain === "algorand") {
           if (network !== "MAINNET") {
             throw Error(`unable to look up algorand emitter address for ${network}`);
           }
-          addr = "25e716e0618d9f38b603a97cc42db659069c0f5185230e5e61679fa876191ec4"
+          addr = "25e716e0618d9f38b603a97cc42db659069c0f5185230e5e61679fa876191ec4";
         } else if (chain === "near") {
           if (network !== "MAINNET") {
             throw Error(`unable to look up near emitter address for ${network}`);
           }
-          addr = "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7"          
+          addr = "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7";
         } else {
-          addr = getEmitterAddressEth(addr)
+          addr = getEmitterAddressEth(addr);
         }
-
-        addr += " " + toChainId(chain)
       }
-      console.log(addr)
+      console.log(addr);
+    }
+  )
+  .command(
+    "chain_id <chain>",
+    "Print the wormhole chain ID integer associated with the specified chain name",
+    (yargs) => {
+      return yargs
+        .positional("chain", {
+          describe: "Chain to query",
+          type: "string",
+          choices: Object.keys(CHAINS),
+        });
+    },
+    async (argv) => {
+      assertChain(argv["chain"]);   
+      console.log(toChainId(argv["chain"]));
     }
   )
   .command(
