@@ -112,7 +112,6 @@ module wormhole::state {
         sequence: u64,
         nonce: u64,
         payload: vector<u8>,
-        consistency_level: u8,
      ) acquires WormholeMessageHandle {
         let event_handle = borrow_global_mut<WormholeMessageHandle>(@wormhole);
         let now = aptos_framework::timestamp::now_seconds();
@@ -124,7 +123,9 @@ module wormhole::state {
                 sequence,
                 nonce: nonce,
                 payload,
-                consistency_level,
+                // Aptos is an instant finality chain, so we don't need
+                // confirmations
+                consistency_level: 0,
                 timestamp: now
             }
         );
