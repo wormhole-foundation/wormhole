@@ -32,8 +32,8 @@ The Wormhole project wants to lower the bar for White-hat hackers to find securi
 Here's a list of strategies that are helpful for getting started on Wormhole:
 
 - Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/CONTRIBUTING.md)) and see what is already being testing for.
-  - Check out places were there might be missing test coverage entirely. This could be a ripe spot to look for something we missed.
-  - Check out places were there are unit/integration tests, but they lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
+  - Check out places where there might be missing test coverage entirely. This could be a ripe spot to look for something we missed.
+  - Check out places where there are unit/integration tests, but they lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
 - Review different smart contract implementations (eg. Solana, EVM, CosmWasm, Move) and attempt to understand how and why they are different.
   - Does one chain have a safety check that another chain doesn't?
   - Does one chain have a specific set of nuances / gotchas that that were missed on another chain?
