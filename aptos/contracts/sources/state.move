@@ -6,7 +6,6 @@ module wormhole::state {
     use wormhole::structs::{Self, GuardianSet};
     use wormhole::u16::{U16};
     use wormhole::u32::{Self, U32};
-    use wormhole::u256::{Self, U256};
     use wormhole::emitter;
 
     friend wormhole::guardian_set_upgrade;
@@ -58,7 +57,7 @@ module wormhole::state {
         /// Consumed governance actions
         consumed_governance_actions: Table<vector<u8>, bool>,
 
-        message_fee: U256,
+        message_fee: u64,
 
         /// The signer capability for wormhole itself
         signer_cap: account::SignerCapability,
@@ -74,6 +73,7 @@ module wormhole::state {
         governance_chain_id: U16,
         governance_contract: vector<u8>,
         guardian_set_expiry: U32,
+        message_fee: u64,
         signer_cap: account::SignerCapability
     ) {
         move_to(wormhole, WormholeState {
@@ -84,7 +84,7 @@ module wormhole::state {
             guardian_set_index: u32::from_u64(0),
             guardian_set_expiry,
             consumed_governance_actions: table::new<vector<u8>, bool>(),
-            message_fee: u256::from_u64(0),
+            message_fee,
             signer_cap,
             emitter_registry: emitter::init_emitter_registry(),
         });
@@ -179,7 +179,7 @@ module wormhole::state {
         borrow_global_mut<WormholeState>(@wormhole).governance_contract = governance_contract;
     }
 
-    public(friend) fun set_message_fee(new_fee: U256) acquires WormholeState {
+    public(friend) fun set_message_fee(new_fee: u64) acquires WormholeState {
         borrow_global_mut<WormholeState>(@wormhole).message_fee = new_fee;
     }
 
@@ -206,6 +206,10 @@ module wormhole::state {
 
     public fun get_chain_id(): U16 acquires WormholeState {
         borrow_global<WormholeState>(@wormhole).chain_id
+    }
+
+    public fun get_message_fee(): u64 acquires WormholeState {
+        borrow_global<WormholeState>(@wormhole).message_fee
     }
 
     /// Provide access to the wormhole contract signer. Be *very* careful who
