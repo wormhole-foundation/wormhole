@@ -244,9 +244,7 @@ module token_bridge::bridge_structs {
         let to = deserialize_vector(&mut cur, 32);
         let to_chain = deserialize_u16(&mut cur);
         let from_address = deserialize_vector(&mut cur, 32);
-        let n = cursor::length<u8>(&cur);
-        let payload = deserialize_vector(&mut cur, n);
-        cursor::destroy_empty(cur);
+        let payload = cursor::rest(cur);
         TransferWithPayload {
             payload_id,
             amount,
