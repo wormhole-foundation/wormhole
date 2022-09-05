@@ -134,16 +134,16 @@ module wormhole::guardian_set_upgrade_test {
         assert!(expected == guardians, 0);
     }
 
-    #[test(aptos_framework = @aptos_framework, user=@0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b)]
-    public fun test_guardian_set_expiry(aptos_framework: signer, user: &signer) {
+    #[test(aptos_framework = @aptos_framework)]
+    public fun test_guardian_set_expiry(aptos_framework: signer) {
         std::account::create_account_for_test(@aptos_framework);
         std::timestamp::set_time_has_started_for_testing(&aptos_framework);
         let _wormhole = wormhole::init_test(
-            user,
             22,
             1,
             x"0004",
-            x"f93124b7c738843cbb89e864c862c38cddcccf95"
+            x"f93124b7c738843cbb89e864c862c38cddcccf95",
+            0
         );
         let first_index = state::get_current_guardian_set_index();
         let guardian_set = state::get_guardian_set(first_index);
