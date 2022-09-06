@@ -1,7 +1,7 @@
 syntax = "proto3";
 package certusone.wormholechain.tokenbridge;
 
-option go_package = "github.com/certusone/wormhole-chain/x/tokenbridge/types";
+option go_package = "github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types";
 
 
 

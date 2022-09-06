@@ -3,10 +3,10 @@ package types
 import (
 	"testing"
 
-	"github.com/certusone/wormhole-chain/testutil/sample"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole-chain/testutil/sample"
 )
 
 func TestMsgTransfer_ValidateBasic(t *testing.T) {

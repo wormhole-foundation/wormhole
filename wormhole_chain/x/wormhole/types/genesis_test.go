@@ -3,8 +3,8 @@ package types_test
 import (
 	"testing"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 func TestGenesisState_Validate(t *testing.T) {

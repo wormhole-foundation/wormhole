@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 // TODO(csongor): high-level overview of what this does

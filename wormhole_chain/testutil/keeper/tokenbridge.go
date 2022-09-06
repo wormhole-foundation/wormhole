@@ -3,8 +3,6 @@ package keeper
 import (
 	"testing"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/keeper"
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/store"
@@ -14,6 +12,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmdb "github.com/tendermint/tm-db"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 func TokenbridgeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {

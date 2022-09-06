@@ -3,7 +3,7 @@ package certusone.wormholechain.wormhole;
 
 import "wormhole/guardian_set.proto";
 import "gogoproto/gogo.proto";
-option go_package = "github.com/certusone/wormhole-chain/x/wormhole/types";
+option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types";
 
 // GuardianSetUpdateProposal defines a guardian set update governance proposal
 message GuardianSetUpdateProposal {

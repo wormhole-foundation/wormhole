@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"testing"
 
-	keepertest "github.com/certusone/wormhole-chain/testutil/keeper"
-	"github.com/certusone/wormhole-chain/x/tokenbridge/keeper"
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 // Prevent strconv unused error

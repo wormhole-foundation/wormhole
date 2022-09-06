@@ -1,10 +1,10 @@
 package types
 
 import (
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	btypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 type AccountKeeper interface {

@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	btypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	whtypes "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 // Truncate an amount

@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/certusone/wormhole-chain/testutil/network"
-	"github.com/certusone/wormhole-chain/x/wormhole/client/cli"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole-chain/testutil/network"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/client/cli"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 // Prevent strconv unused error

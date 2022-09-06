@@ -5,12 +5,12 @@ import (
 	"context"
 	"encoding/binary"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
 	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
-	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
+	whtypes "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 type GovernanceAction uint8

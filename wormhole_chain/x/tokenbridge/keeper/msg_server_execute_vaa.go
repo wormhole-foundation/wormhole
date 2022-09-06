@@ -8,12 +8,12 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
-	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	btypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
+	whtypes "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 type PayloadID uint8

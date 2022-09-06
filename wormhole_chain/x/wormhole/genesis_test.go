@@ -3,10 +3,10 @@ package wormhole_test
 import (
 	"testing"
 
-	keepertest "github.com/certusone/wormhole-chain/testutil/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/stretchr/testify/require"
+	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 func TestGenesis(t *testing.T) {

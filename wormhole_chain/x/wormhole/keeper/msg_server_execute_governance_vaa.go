@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/binary"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 type GovernanceAction uint8

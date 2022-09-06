@@ -87,14 +87,14 @@ import (
 	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/spm/openapiconsole"
 
-	"github.com/certusone/wormhole-chain/docs"
-	tokenbridgemodule "github.com/certusone/wormhole-chain/x/tokenbridge"
-	tokenbridgemodulekeeper "github.com/certusone/wormhole-chain/x/tokenbridge/keeper"
-	tokenbridgemoduletypes "github.com/certusone/wormhole-chain/x/tokenbridge/types"
-	wormholemodule "github.com/certusone/wormhole-chain/x/wormhole"
-	wormholeclient "github.com/certusone/wormhole-chain/x/wormhole/client"
-	wormholemodulekeeper "github.com/certusone/wormhole-chain/x/wormhole/keeper"
-	wormholemoduletypes "github.com/certusone/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole-chain/docs"
+	tokenbridgemodule "github.com/wormhole-foundation/wormhole-chain/x/tokenbridge"
+	tokenbridgemodulekeeper "github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/keeper"
+	tokenbridgemoduletypes "github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
+	wormholemodule "github.com/wormhole-foundation/wormhole-chain/x/wormhole"
+	wormholeclient "github.com/wormhole-foundation/wormhole-chain/x/wormhole/client"
+	wormholemodulekeeper "github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
+	wormholemoduletypes "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 )
 

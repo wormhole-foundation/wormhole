@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	// "github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 // GetTxCmd returns the transaction commands for this module
