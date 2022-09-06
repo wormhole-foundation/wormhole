@@ -63,6 +63,7 @@ import {
   createWrappedOnAlgorand,
   createWrappedOnNear,
   getEmitterAddressAlgorand,
+  getEmitterAddressNear,
   getForeignAssetAlgorand,
   getForeignAssetNear,
   getIsTransferCompletedNear,
@@ -78,7 +79,7 @@ import {
 
 const wh = require("@certusone/wormhole-sdk");
 
-import { parseSequenceFromLogAlgorand } from "@certusone/wormhole-sdk/lib/cjs/bridge";
+import { parseSequenceFromLogAlgorand, parseSequenceFromLogNear } from "@certusone/wormhole-sdk/lib/cjs/bridge";
 
 import {
   getMessageFee,
@@ -135,21 +136,6 @@ export function logNearGas(result: any, comment: string) {
     "totalTokensBurned",
     totalTokensBurned
   );
-}
-
-export function parseSequenceFromLogNear(result: any): [number, string] {
-  let sequence = "";
-  for (const o of result.receipts_outcome) {
-    for (const l of o.outcome.logs) {
-      if (l.startsWith("EVENT_JSON:")) {
-        const body = JSON.parse(l.slice(11));
-        if (body.standard === "wormhole" && body.event === "publish") {
-          return [body.seq, body.emitter];
-        }
-      }
-    }
-  }
-  return [-1, ""];
 }
 
 async function testNearSDK() {
@@ -560,6 +546,11 @@ async function testNearSDK() {
 
     console.log("vaa: " + Buffer.from(signedVAA).toString("hex"));
     randoTransfer = signedVAA;
+
+    if (s[1] != getEmitterAddressNear(token_bridge)) {
+        console.log("Unexpected emitter address: " + s[1] + "!=" + getEmitterAddressNear(token_bridge));
+        process.exit(1);
+    }
   }
 
   let nearTransfer;
