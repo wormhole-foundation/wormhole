@@ -42,6 +42,8 @@ const BRIDGE_NFT_BINARY: &[u8] =
 /// Initial balance for the BridgeToken contract to cover storage and related.
 const BRIDGE_TOKEN_INIT_BALANCE: Balance = 5_860_000_000_000_000_000_000;
 
+const BRIDGE_TOKEN_AIRDROP: Balance = 100_000_000_000_000_000_000_000_000_000_000_000_000;
+
 #[ext_contract(ext_worm_hole)]
 pub trait Wormhole {
     fn verify_vaa(&self, vaa: String) -> u32;
@@ -116,7 +118,7 @@ impl TokenBridgeTest {
                 .then(
                     ext_ft_contract::ext(bridge_token_account_id)
                         .with_attached_deposit(BRIDGE_TOKEN_INIT_BALANCE)
-                        .airdrop(a, BRIDGE_TOKEN_INIT_BALANCE),
+                        .airdrop(a, BRIDGE_TOKEN_AIRDROP),
                 )
                 // And then lets tell us we are done!
                 .then(Self::ext(env::current_account_id()).finish_deploy(bridge_token_account))

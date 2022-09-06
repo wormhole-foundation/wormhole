@@ -35,7 +35,7 @@ impl MockFTContract {
             icon: Some("".to_string()), // Is there ANY way to supply this?
             reference: None,
             reference_hash: None,
-            decimals: 9,
+            decimals: 18,
         };
 
         Self {

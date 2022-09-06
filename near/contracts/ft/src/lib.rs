@@ -14,9 +14,9 @@ use {
         },
         collections::LazyOption,
         env,
-        utils::assert_one_yocto,
         json_types::U128,
         near_bindgen,
+        utils::assert_one_yocto,
         AccountId,
         Balance,
         PanicOnDefault,
@@ -122,6 +122,14 @@ impl FTContract {
         }
 
         let vaa = self.meta.get().unwrap().vaa;
+
+        if amount > (u64::MAX as u128) || fee > (u64::MAX as u128) {
+            env::panic_str("transfer exceeds max bridged token amount");
+        }
+
+        if fee >= amount {
+            env::panic_str("fee exceeds amount");
+        }
 
         let mut p = [
             // PayloadID uint8 = 1
