@@ -349,8 +349,8 @@ impl TokenBridge {
                     line!(),
                     deposit
                 ));
-                let namount = amount.1 * NEAR_MULT;
-                let nfee = fee.1 * NEAR_MULT;
+                let namount = amount.1.checked_mul(NEAR_MULT).unwrap();
+                let nfee = fee.1.checked_mul(NEAR_MULT).unwrap();
                 if nfee >= namount {
                     env::panic_str("nfee >= namount");
                 }
@@ -396,8 +396,8 @@ impl TokenBridge {
                     near_mult = 10_u128.pow(td.decimals as u32 - 8);
                 }
 
-                let namount = amount.1 * near_mult;
-                let nfee = fee.1 * near_mult;
+                let namount = amount.1.checked_mul(near_mult).unwrap();
+                let nfee = fee.1.checked_mul(near_mult).unwrap();
 
                 if nfee >= namount {
                     env::panic_str("nfee >= namount");
@@ -974,6 +974,15 @@ impl TokenBridge {
         if namount == 0 {
             env::panic_str("EmptyTransfer");
         }
+
+        if nfee >= namount {
+            env::panic_str("TransferFeeExceedsDeposit");
+        }
+
+        if namount > (u64::MAX as u128) || nfee > (u64::MAX as u128) {
+            env::panic_str("transfer exceeds max bridged token amount");
+        }
+
         let dust = amount - (namount * NEAR_MULT) - (nfee * NEAR_MULT);
 
         let mut p = [
@@ -1487,6 +1496,14 @@ impl TokenBridge {
 
         if namount == 0 {
             env::panic_str("EmptyTransfer");
+        }
+
+        if namount > (u64::MAX as u128) || nfee > (u64::MAX as u128) {
+            env::panic_str("transfer exceeds max bridged token amount");
+        }
+
+        if nfee >= namount {
+            env::panic_str("TransferFeeExceedsDeposit");
         }
 
         let mut p = [

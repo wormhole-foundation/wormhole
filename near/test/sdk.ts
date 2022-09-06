@@ -520,6 +520,22 @@ async function testNearSDK() {
     wrappedTransfer = signedVAA;
   }
 
+  console.log(await userAccount.viewFunction(
+    randoToken,
+    "ft_balance_of",
+    {
+      account_id: userAccount.accountId,
+    }
+  ));
+
+  console.log(await userAccount.viewFunction(
+    randoToken,
+    "ft_balance_of",
+    {
+      account_id: token_bridge,
+    }
+  ));
+
   let randoTransfer;
   {
     console.log("transfer rando token from near to algorand");
@@ -528,7 +544,7 @@ async function testNearSDK() {
       core_bridge,
       token_bridge,
       randoToken,
-      BigInt(10000000),
+      BigInt(21) * BigInt("1000000000") * BigInt("1000000000000000000"),
       decodeAddress(algoWallet.addr).publicKey,
       8,
       BigInt(0)
@@ -547,11 +563,30 @@ async function testNearSDK() {
     console.log("vaa: " + Buffer.from(signedVAA).toString("hex"));
     randoTransfer = signedVAA;
 
+    console.log(_parseVAAAlgorand(randoTransfer));
+
     if (s[1] != getEmitterAddressNear(token_bridge)) {
         console.log("Unexpected emitter address: " + s[1] + "!=" + getEmitterAddressNear(token_bridge));
         process.exit(1);
     }
   }
+
+  console.log(await userAccount.viewFunction(
+    randoToken,
+    "ft_balance_of",
+    {
+      account_id: userAccount.accountId,
+    }
+  ));
+
+  console.log(await userAccount.viewFunction(
+    randoToken,
+    "ft_balance_of",
+    {
+      account_id: token_bridge,
+    }
+  ));
+
 
   let nearTransfer;
   {
