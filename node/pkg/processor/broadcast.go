@@ -21,6 +21,11 @@ var (
 			Name: "wormhole_observations_broadcast_total",
 			Help: "Total number of signed observations queued for broadcast",
 		})
+	batchObservationsBroadcastTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_batch_observations_broadcast_total",
+			Help: "Total number of signed batch observations queued for broadcast",
+		})
 )
 
 func (p *Processor) broadcastSignature(
@@ -77,6 +82,72 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 
 	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedVaaWithQuorum{
 		SignedVaaWithQuorum: &gossipv1.SignedVAAWithQuorum{Vaa: b},
+	}}
+
+	msg, err := proto.Marshal(&w)
+	if err != nil {
+		panic(err)
+	}
+
+	p.sendC <- msg
+}
+
+func (p *Processor) broadcastBatchSignature(
+	b Batch,
+	signature []byte,
+	txhash []byte,
+) {
+	digest := b.SigningBatchMsg()
+	obsv := gossipv1.SignedBatchObservation{
+		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
+		Hash:      digest.Bytes(),
+		Signature: signature,
+		TxHash:    txhash,
+		ChainId:   uint32(b.GetEmitterChain()),
+		BatchId:   b.BatchID(),
+	}
+
+	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedBatchObservation{SignedBatchObservation: &obsv}}
+
+	msg, err := proto.Marshal(&w)
+	if err != nil {
+		panic(err)
+	}
+
+	p.sendC <- msg
+
+	// Store our batch VAA
+	hash := hex.EncodeToString(digest.Bytes())
+
+	if p.state.batchSignatures[hash] == nil {
+		p.state.batchSignatures[hash] = &batchState{
+			state: state{
+				firstObserved: time.Now(),
+				signatures:    map[ethcommon.Address][]byte{},
+				source:        "loopback",
+			},
+		}
+	}
+
+	p.state.batchSignatures[hash].ourObservation = b
+	p.state.batchSignatures[hash].ourMsg = msg
+	p.state.batchSignatures[hash].source = b.GetEmitterChain().String()
+	p.state.batchSignatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
+
+	// Fast path for our own signature
+	go func() { p.batchObsvC <- &obsv }()
+
+	batchObservationsBroadcastTotal.Inc()
+}
+
+func (p *Processor) broadcastSignedBatchVAA(v *vaa.BatchVAA) {
+	b, err := v.Marshal()
+	if err != nil {
+		panic(err)
+	}
+
+	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedBatchVaaWithQuorum{
+		SignedBatchVaaWithQuorum: &gossipv1.SignedBatchVAAWithQuorum{BatchVaa: b},
 	}}
 
 	msg, err := proto.Marshal(&w)
