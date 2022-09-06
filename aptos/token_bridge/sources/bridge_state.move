@@ -3,7 +3,7 @@ module token_bridge::bridge_state {
     use std::table::{Self, Table};
     use aptos_framework::type_info::{TypeInfo};
     use aptos_framework::account::{SignerCapability, create_signer_with_capability};
-    use aptos_framework::coin::{Coin};
+    use aptos_framework::coin::{Coin, MintCapability, BurnCapability, FreezeCapability, mint};
     use aptos_framework::aptos_coin::{AptosCoin};
 
     use wormhole::u256::{U256};
@@ -19,6 +19,12 @@ module token_bridge::bridge_state {
     struct Asset has key, store {
         chain_id: U16,
         asset_address: vector<u8>,
+    }
+
+    struct CoinCapabilities<phantom CoinType> has key {
+        mint_cap: MintCapability<CoinType>,
+        freeze_cap: FreezeCapability<CoinType>,
+        burn_cap: BurnCapability<CoinType>,
     }
 
     struct State has key, store {
@@ -116,6 +122,15 @@ module token_bridge::bridge_state {
     public entry fun is_wrapped_asset(token: vector<u8>): bool acquires State {
         let state = borrow_global<State>(@token_bridge);
          *table::borrow(&state.is_wrapped_asset, token)
+    }
+
+    fun mint_wrapped<CoinType>(amount:u64, token: vector<u8>): Coin<CoinType> acquires CoinCapabilities, State{
+        assert!(is_wrapped_asset(token), 0);
+        assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), 0);
+        let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
+        let mint_cap = &caps.mint_cap;
+        let coins = mint<CoinType>(amount, mint_cap);
+        coins
     }
 
     public(friend) fun publish_message(
