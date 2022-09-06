@@ -1,9 +1,9 @@
 package keeper
 
 import (
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 // SetGuardianValidator set a specific guardianValidator in the store from its index

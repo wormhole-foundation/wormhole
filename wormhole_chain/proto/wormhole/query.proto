@@ -12,7 +12,7 @@ import "wormhole/guardian_validator.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/certusone/wormhole-chain/x/wormhole/types";
+option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types";
 
 // Query defines the gRPC querier service.
 service Query {

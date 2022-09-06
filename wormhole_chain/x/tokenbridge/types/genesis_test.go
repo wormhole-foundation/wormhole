@@ -3,8 +3,8 @@ package types_test
 import (
 	"testing"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 func TestGenesisState_Validate(t *testing.T) {

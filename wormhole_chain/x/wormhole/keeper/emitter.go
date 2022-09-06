@@ -3,8 +3,8 @@ package keeper
 import (
 	"encoding/hex"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 func (k Keeper) PostMessage(ctx sdk.Context, emitter types.EmitterAddress, nonce uint32, data []byte) error {

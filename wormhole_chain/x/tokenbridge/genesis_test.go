@@ -3,10 +3,10 @@ package tokenbridge_test
 import (
 	"testing"
 
-	keepertest "github.com/certusone/wormhole-chain/testutil/keeper"
-	"github.com/certusone/wormhole-chain/x/tokenbridge"
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	"github.com/stretchr/testify/require"
+	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 func TestGenesis(t *testing.T) {

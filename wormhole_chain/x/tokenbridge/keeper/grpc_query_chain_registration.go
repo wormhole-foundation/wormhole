@@ -4,10 +4,10 @@ import (
 	"context"
 	"math"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

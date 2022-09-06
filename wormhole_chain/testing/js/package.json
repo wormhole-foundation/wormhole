@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/certusone/wormhole-chain.git"
+    "url": "git+https://github.com/wormhole-foundation/wormhole-chain.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/certusone/wormhole-chain/issues"
+    "url": "https://github.com/wormhole-foundation/wormhole-chain/issues"
   },
-  "homepage": "https://github.com/certusone/wormhole-chain#readme",
+  "homepage": "https://github.com/wormhole-foundation/wormhole-chain#readme",
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.2.0",
     "@cosmjs/cosmwasm-stargate": "^0.27.1",

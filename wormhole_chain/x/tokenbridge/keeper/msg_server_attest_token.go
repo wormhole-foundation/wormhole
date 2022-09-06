@@ -8,11 +8,11 @@ import (
 	"io"
 	"math"
 
-	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	whtypes "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 func (k msgServer) AttestToken(goCtx context.Context, msg *types.MsgAttestToken) (*types.MsgAttestTokenResponse, error) {

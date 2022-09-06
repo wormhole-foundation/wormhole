@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	keepertest "github.com/certusone/wormhole-chain/testutil/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
+	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 func TestCalculateQuorum(t *testing.T) {

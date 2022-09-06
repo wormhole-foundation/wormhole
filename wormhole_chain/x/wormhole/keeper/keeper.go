@@ -5,9 +5,9 @@ import (
 
 	"github.com/tendermint/tendermint/libs/log"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 type (

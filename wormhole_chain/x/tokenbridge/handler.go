@@ -3,10 +3,10 @@ package tokenbridge
 import (
 	"fmt"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/keeper"
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 // NewHandler ...

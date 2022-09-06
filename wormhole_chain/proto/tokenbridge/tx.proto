@@ -6,7 +6,7 @@ import "cosmos/base/v1beta1/coin.proto";
 
 // this line is used by starport scaffolding # proto/tx/import
 
-option go_package = "github.com/certusone/wormhole-chain/x/tokenbridge/types";
+option go_package = "github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types";
 
 // Msg defines the Msg service.
 service Msg {

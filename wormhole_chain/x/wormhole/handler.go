@@ -3,10 +3,10 @@ package wormhole
 import (
 	"fmt"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 // NewHandler ...
