@@ -1,10 +1,12 @@
 module token_bridge::bridge_state {
 
     use std::table::{Self, Table};
-    use aptos_framework::type_info::{TypeInfo};
+    use aptos_framework::type_info::{TypeInfo, type_of, account_address};
     use aptos_framework::account::{SignerCapability, create_signer_with_capability};
-    use aptos_framework::coin::{Coin, MintCapability, BurnCapability, FreezeCapability, mint};
+    use aptos_framework::coin::{Coin, MintCapability, BurnCapability, FreezeCapability, mint, initialize};
     use aptos_framework::aptos_coin::{AptosCoin};
+    use aptos_framework::string::{utf8};
+    use aptos_framework::bcs::{to_bytes};
 
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
@@ -12,16 +14,23 @@ module token_bridge::bridge_state {
     use wormhole::state::{get_chain_id, get_governance_contract};
     use wormhole::wormhole;
     use wormhole::set::{Self, Set};
+    use wormhole::vaa::{Self, parse_and_verify};
+
+    use token_bridge::bridge_structs::{Self, AssetMeta};
+    //use token_bridge::vaa::{parse_verify_and_replay_protect};
 
     friend token_bridge::token_bridge;
     friend token_bridge::bridge_implementation;
+
+    const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
+    const E_COIN_CAP_DOES_NOT_EXIST: u64 = 1;
 
     struct Asset has key, store {
         chain_id: U16,
         asset_address: vector<u8>,
     }
 
-    struct CoinCapabilities<phantom CoinType> has key {
+    struct CoinCapabilities<phantom CoinType> has key, store {
         mint_cap: MintCapability<CoinType>,
         freeze_cap: FreezeCapability<CoinType>,
         burn_cap: BurnCapability<CoinType>,
@@ -125,12 +134,40 @@ module token_bridge::bridge_state {
     }
 
     fun mint_wrapped<CoinType>(amount:u64, token: vector<u8>): Coin<CoinType> acquires CoinCapabilities, State{
-        assert!(is_wrapped_asset(token), 0);
-        assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), 0);
+        assert!(is_wrapped_asset(token), E_IS_NOT_WRAPPED_ASSET);
+        assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
         let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
         let mint_cap = &caps.mint_cap;
         let coins = mint<CoinType>(amount, mint_cap);
         coins
+    }
+
+    // this function is called in tandem with bridge_implementation::create_wrapped_coin_type
+    public entry fun create_wrapped_coin<CoinType>(vaa: vector<u8>) acquires State{
+        //TODO: parse and verify and replay protect
+        //let vaa = parse_verify_and_replay_protect(vaa);
+        let vaa = parse_and_verify(vaa);
+        let _asset_meta: AssetMeta = bridge_structs::parse_asset_meta(vaa::get_payload(&vaa));
+
+        // fetch signer_cap and create signer for CoinType
+        let token_address = account_address(&type_of<CoinType>());
+        let wrapped_coin_signer_caps = &borrow_global<State>(@token_bridge).wrapped_asset_signer_capabilities;
+        let coin_signer_cap = table::borrow(wrapped_coin_signer_caps, to_bytes(&token_address));
+        let coin_signer = create_signer_with_capability(coin_signer_cap);
+
+        // initialize new coin using CoinType
+        let name = bridge_structs::get_name(&_asset_meta);
+        let symbol = bridge_structs::get_symbol(&_asset_meta);
+        let decimals = bridge_structs::get_decimals(&_asset_meta);
+        let monitor_supply = false;
+        let (burn_cap, freeze_cap, mint_cap) = initialize<CoinType>(&coin_signer, utf8(name), utf8(symbol), decimals, monitor_supply);
+
+        // store coin capabilities
+        let _token_bridge_signer = token_bridge_signer();
+        let coin_caps = CoinCapabilities<CoinType> { mint_cap: mint_cap, freeze_cap: freeze_cap, burn_cap: burn_cap};
+        move_to(&_token_bridge_signer, coin_caps);
+
+        vaa::destroy(vaa);
     }
 
     public(friend) fun publish_message(
