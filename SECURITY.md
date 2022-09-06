@@ -40,7 +40,7 @@ Here's a list of strategies that are helpful for getting started on Wormhole:
 - Consider going beyond the source code
   - Review the deployed contracts on chain. Is something odd that may have been missed?
 
-This section will continue to iterate on white-hat bootstrap strategies as lessons are learned hacking on Wormhole and from other white-hat community members.
+This section will continue iterating on white-hat bootstrap strategies as lessons are learned hacking on Wormhole and from community members.
 
 It's important to remember this is an iterative process and stay positive. If you spend the time to come up with a new test case, but didn't actually find a bug, please send a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) with additional positive and negative test cases. This process has shown repeatedly to improve your ability to understand Wormhole, and will increase your odds of finding future bugs.
 
