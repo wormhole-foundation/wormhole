@@ -75,6 +75,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // Admin command to display status to the log.
@@ -378,7 +380,7 @@ var (
 		})
 )
 
-func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat) {
+func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []byte) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -431,4 +433,104 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat) {
 	}
 
 	metricTotalEnqueuedVAAs.Set(float64(totalPending))
+
+	if startTime.After(gov.configPublishTime.Add(time.Minute * time.Duration(5))) {
+		gov.publishConfig(hb, sendC)
+	}
+
+	gov.publishStatus(hb, sendC, startTime)
+}
+
+func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byte) {
+	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
+	for _, ce := range gov.chains {
+		chains = append(chains, &gossipv1.ChainGovernorConfig_Chain{
+			ChainId:            uint32(ce.emitterChainId),
+			NotionalLimit:      ce.dailyLimit,
+			BigTransactionSize: ce.bigTransactionSize,
+		})
+	}
+
+	tokens := make([]*gossipv1.ChainGovernorConfig_Token, 0)
+	for tk, te := range gov.tokens {
+		price, _ := te.price.Float32()
+		tokens = append(tokens, &gossipv1.ChainGovernorConfig_Token{
+			OriginChainId: uint32(tk.chain),
+			OriginAddress: "0x" + tk.addr.String(),
+			Price:         price,
+		})
+	}
+
+	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_ChainGovernorConfig{
+		ChainGovernorConfig: &gossipv1.ChainGovernorConfig{
+			NodeName:  hb.NodeName,
+			Counter:   hb.Counter,
+			Timestamp: hb.Timestamp,
+			Chains:    chains,
+			Tokens:    tokens,
+		},
+	}}
+
+	msg, err := proto.Marshal(&w)
+	if err != nil {
+		panic(err)
+	}
+
+	gov.logger.Info("cgov: publishing a status message")
+	sendC <- msg
+}
+
+func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byte, startTime time.Time) {
+	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
+	for _, ce := range gov.chains {
+		value := sumValue(ce.transfers, startTime)
+		if value >= ce.dailyLimit {
+			value = 0
+		} else {
+			value = ce.dailyLimit - value
+		}
+
+		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
+		for _, pe := range ce.pending {
+			enqueuedVaas = append(enqueuedVaas, &gossipv1.ChainGovernorStatus_EnqueuedVAA{
+				Sequence:      pe.dbData.Msg.Sequence,
+				ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()),
+				NotionalValue: value,
+				TxHash:        pe.dbData.Msg.TxHash.String(),
+			})
+
+			if len(enqueuedVaas) >= 20 {
+				break
+			}
+		}
+
+		emitter := gossipv1.ChainGovernorStatus_Emitter{
+			EmitterAddress:    "0x" + ce.emitterAddr.String(),
+			TotalEnqueuedVaas: uint64(len(ce.pending)),
+			EnqueuedVaas:      enqueuedVaas,
+		}
+
+		chains = append(chains, &gossipv1.ChainGovernorStatus_Chain{
+			ChainId:                    uint32(ce.emitterChainId),
+			RemainingAvailableNotional: value,
+			Emitters:                   []*gossipv1.ChainGovernorStatus_Emitter{&emitter},
+		})
+	}
+
+	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_ChainGovernorStatus{
+		ChainGovernorStatus: &gossipv1.ChainGovernorStatus{
+			NodeName:  hb.NodeName,
+			Counter:   hb.Counter,
+			Timestamp: hb.Timestamp,
+			Chains:    chains,
+		},
+	}}
+
+	msg, err := proto.Marshal(&w)
+	if err != nil {
+		panic(err)
+	}
+
+	gov.logger.Info("cgov: publishing a status message")
+	sendC <- msg
 }

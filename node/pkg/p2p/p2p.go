@@ -229,7 +229,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 					collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 					if gov != nil {
-						gov.CollectMetrics(heartbeat)
+						gov.CollectMetrics(heartbeat, sendC)
 					}
 
 					b, err := proto.Marshal(heartbeat)

@@ -122,6 +122,7 @@ type ChainGovernor struct {
 	dayLengthInMinutes  int
 	coinGeckoQuery      string
 	env                 int
+	configPublishTime   time.Time
 }
 
 func NewChainGovernor(
