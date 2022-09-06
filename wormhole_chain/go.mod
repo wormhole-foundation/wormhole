@@ -1,4 +1,4 @@
-module github.com/certusone/wormhole-chain
+module github.com/wormhole-foundation/wormhole-chain
 
 go 1.16
 

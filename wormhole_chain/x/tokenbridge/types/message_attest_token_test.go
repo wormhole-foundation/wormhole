@@ -3,9 +3,9 @@ package types
 import (
 	"testing"
 
-	"github.com/certusone/wormhole-chain/testutil/sample"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole-chain/testutil/sample"
 )
 
 func TestMsgAttestToken_ValidateBasic(t *testing.T) {

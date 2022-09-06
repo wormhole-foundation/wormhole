@@ -8,7 +8,7 @@ import "tokenbridge/coin_meta_rollback_protection.proto";
 // this line is used by starport scaffolding # genesis/proto/import
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/certusone/wormhole-chain/x/tokenbridge/types";
+option go_package = "github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types";
 
 // GenesisState defines the tokenbridge module's genesis state.
 message GenesisState {

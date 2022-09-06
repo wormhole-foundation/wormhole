@@ -11,14 +11,14 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/certusone/wormhole-chain/x/tokenbridge/client/cli"
-	"github.com/certusone/wormhole-chain/x/tokenbridge/keeper"
-	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/client/cli"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
 )
 
 var (

@@ -3,8 +3,8 @@ package keeper
 import (
 	"context"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

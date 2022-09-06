@@ -3,15 +3,15 @@ package wormhole
 import (
 	"math/rand"
 
-	"github.com/certusone/wormhole-chain/testutil/sample"
-	wormholesimulation "github.com/certusone/wormhole-chain/x/wormhole/simulation"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
+	"github.com/wormhole-foundation/wormhole-chain/testutil/sample"
+	wormholesimulation "github.com/wormhole-foundation/wormhole-chain/x/wormhole/simulation"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 // avoid unused import issue

@@ -3,13 +3,13 @@ package cli
 import (
 	"encoding/hex"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/gov/client/cli"
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/spf13/cobra"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 const FlagGuardianSetKeys = "guardian-set-keys"

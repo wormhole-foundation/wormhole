@@ -18,7 +18,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
 
-	"github.com/certusone/wormhole-chain/app"
+	"github.com/wormhole-foundation/wormhole-chain/app"
 )
 
 type (

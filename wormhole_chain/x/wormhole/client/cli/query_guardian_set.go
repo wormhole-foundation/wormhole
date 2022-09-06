@@ -4,10 +4,10 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 func CmdListGuardianSet() *cobra.Command {
