@@ -2,7 +2,7 @@
 
 ## Bug Bounty Program
 
-The Wormhole project operates two bug bounty programs to financially incentivize independent researchers to find and responsibly disclose security issues in Wormhole.
+The Wormhole project operates two bug bounty programs to financially incentivize independent researchers for finding and responsibly disclosing security issues.
 
 - [Self-Hosted Program](https://wormhole.com/bounty/)
   - **Scopes**: Guardian and Smart Contracts
