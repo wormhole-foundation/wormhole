@@ -782,7 +782,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	injectC := make(chan *vaa.VAA)
 
 	// Guardian set state managed by processor
-	gst := common.NewGuardianSetState()
+	gst := common.NewGuardianSetState(nil)
 
 	// Per-chain observation requests
 	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)

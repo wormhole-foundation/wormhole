@@ -257,7 +257,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
 
 	// Guardian set state managed by processor
-	gst := common.NewGuardianSetState()
+	gst := common.NewGuardianSetState(nil)
 
 	// RPC server
 	s := newSpyServer(logger)
