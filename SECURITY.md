@@ -64,4 +64,4 @@ Additionally, ensure:
 - The Wormhole team has sufficient contact information and an associated call or page tree to reach you in the event of a security incident.
 - That Wormhole has the full upgrade authority on relevant bridge contracts to act quickly in the case of a security incident.
 - You have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for containment.
-- When security issues do occur, that the chain makes every attempt to inform affected parties and leads with transparency.
+- When security issues do occur, please make sure that the chain makes every attempt to inform affected parties and leads with transparency.
