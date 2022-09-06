@@ -39,6 +39,22 @@ type (
 		HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor)
 	}
 
+	// a Batch is a group of messages (Observations) emitted by a single transaction.
+	Batch interface {
+		// GetEmitterChain returns the id of the chain where this event was observed.
+		GetEmitterChain() vaa.ChainID
+		// TransactionID returns the unique identifer of the transaction from the source chain.
+		GetTransactionID() ethcommon.Hash
+		// BatchID returns a human-readable emitter_chain/transaction_id.
+		BatchID() string
+		// SigningMsg returns the hash of the signing body of the observation. This is used
+		// for signature generation and verification.
+		SigningBatchMsg() ethcommon.Hash
+		// HandleQuorum finishes processing the observation once a quorum of signatures have
+		// been received for it.
+		HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor)
+	}
+
 	// state represents the local view of a given observation
 	state struct {
 		// First time this digest was seen (possibly even before we observed it ourselves).
@@ -66,11 +82,32 @@ type (
 		gs *common.GuardianSet
 	}
 
+	batchState struct {
+		state
+		ourObservation Batch
+	}
+
 	observationMap map[string]*state
+
+	// batchMap holds BatchMessages, keyed by BatchID
+	batchMap map[*common.BatchMessageID]*common.BatchMessage
+
+	// batchObservationMap tracks p2p gossip observations,
+	// for progress toward BatchVAA quorum.
+	batchObservationMap map[string]*batchState
+
+	// observationsByTransactionID maps the transaction hash (batchID) to
+	// to the messages within the transaction.
+	// ie. { "BatchID": { "message_id": state } }
+	observationsByTransactionID map[*common.BatchMessageID]map[string]*state // batchState
 
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
 		signatures observationMap
+
+		transactions    observationsByTransactionID // collect messages by transactionID, to identify batch transactions.
+		batches         batchMap                    // source of truth for which messages make up each batch.
+		batchSignatures batchObservationMap         // collects signatures on a fully-observed batch of messages.
 	}
 )
 
@@ -95,6 +132,18 @@ type Processor struct {
 
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC chan *gossipv1.SignedVAAWithQuorum
+
+	// batchC is a ready-only channel of batched message data
+	batchC chan *common.BatchMessage
+
+	// batchReqC is a send-only channel for requesting batch message data
+	batchReqC chan *common.BatchMessageID
+
+	// batchObsvC is a channel of inbound decoded batch observations from p2p
+	batchObsvC chan *gossipv1.SignedBatchObservation
+
+	// batchInC is a channel of inbound signed Batch VAAs from p2p
+	batchSignedInC chan *gossipv1.SignedBatchVAAWithQuorum
 
 	// injectC is a channel of VAAs injected locally.
 	injectC chan *vaa.VAA
@@ -145,6 +194,10 @@ func NewProcessor(
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	injectC chan *vaa.VAA,
 	signedInC chan *gossipv1.SignedVAAWithQuorum,
+	batchC chan *common.BatchMessage,
+	batchReqC chan *common.BatchMessageID,
+	batchObsvC chan *gossipv1.SignedBatchObservation,
+	batchSignedInC chan *gossipv1.SignedBatchVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
 	devnetMode bool,
@@ -163,6 +216,10 @@ func NewProcessor(
 		obsvC:              obsvC,
 		obsvReqSendC:       obsvReqSendC,
 		signedInC:          signedInC,
+		batchC:             batchC,
+		batchReqC:          batchReqC,
+		batchObsvC:         batchObsvC,
+		batchSignedInC:     batchSignedInC,
 		injectC:            injectC,
 		gk:                 gk,
 		gst:                gst,
@@ -177,8 +234,13 @@ func NewProcessor(
 
 		notifier: notifier,
 
-		logger:      supervisor.Logger(ctx),
-		state:       &aggregationState{observationMap{}},
+		logger: supervisor.Logger(ctx),
+		state: &aggregationState{
+			observationMap{},
+			observationsByTransactionID{},
+			batchMap{},
+			batchObservationMap{},
+		},
 		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
 		governor:    g,
 		pythnetVaas: make(map[string]PythNetVaaEntry),
@@ -213,6 +275,12 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleObservation(ctx, m)
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
+		case m := <-p.batchC:
+			p.handleBatchMessage(ctx, m)
+		case m := <-p.batchObsvC:
+			p.handleBatchObservation(ctx, m)
+		case m := <-p.batchSignedInC:
+			p.handleInboundSignedBatchVAAWithQuorum(ctx, m)
 		case <-p.cleanup.C:
 			p.handleCleanup(ctx)
 		case <-govTimer.C:
