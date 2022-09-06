@@ -134,7 +134,7 @@ pub fn complete_native(
             return Err(InvalidAssociatedAccount.into());
         }
         // Create associated token account
-        let ix = spl_associated_token_account::create_associated_token_account(
+        let ix = spl_associated_token_account::instruction::create_associated_token_account(
             accs.payer.info().key,
             accs.to_authority.info().key,
             accs.mint.info().key,
@@ -267,7 +267,7 @@ pub fn complete_wrapped(
             return Err(InvalidAssociatedAccount.into());
         }
         // Create associated token account
-        let ix = spl_associated_token_account::create_associated_token_account(
+        let ix = spl_associated_token_account::instruction::create_associated_token_account(
             accs.payer.info().key,
             accs.to_authority.info().key,
             accs.mint.info().key,
