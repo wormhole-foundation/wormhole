@@ -3,7 +3,7 @@ package devnet
 import (
 	mathrand "math/rand"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 // DeterministicP2PPrivKeyByIndex generates a deterministic libp2p crypto.PrivateKey from a given index.
