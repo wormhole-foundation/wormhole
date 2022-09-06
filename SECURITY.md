@@ -36,7 +36,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **Q3 2022 - Certik (DRAFT)**
   - **Scope**: _Ethereum Contracts, Solana Contracts, Terra Contracts, Guardian, and Solitaire_
 - **Q3 2022 - Trail of Bits (TESTING)**
-  - **Scope**: _Ethereum Contracts and Solana Contracts_
+  - **Scope**: _Ethereum Contracts, Solana Contracts, CosmWasm Contracts_
 - **Q3 2022 - Coinspect (SCHEDULED)**
   - **Scope**: _Algorand Contracts_
 
