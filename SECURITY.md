@@ -24,6 +24,16 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
   - **Scopes**: _Ethereum Contracts, Solana Contracts, Terra Contracts, and Guardian_
 - **[August 16, 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-08-16_kudelski.pdf)**
   - **Scope**: _Algorand Contracts_
+- **Q3 2022 - OtterSec (DRAFT)**
+  - **Scope**: _NEAR Contracts_
+- **Q3 2022 - Halborn (DRAFT)**
+  - **Scope**: _Wormchain and Accounting_
+- **Q3 2022 - Certik (DRAFT)**
+  - **Scope**: _Ethereum Contracts, Solana Contracts, Terra Contracts, Guardian, and Solitaire_
+- **Q3 2022 - Trail of Bits (TESTING)**
+  - **Scope**: _Ethereum Contracts and Solana Contracts_
+- **Q3 2022 - Coinspect (SCHEDULED)**
+  - **Scope**: _Algorand Contracts_
 
 ## White-Hat Hacking on Wormhole
 
