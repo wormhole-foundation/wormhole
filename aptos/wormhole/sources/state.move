@@ -7,6 +7,7 @@ module wormhole::state {
     use wormhole::u16::{U16};
     use wormhole::u32::{Self, U32};
     use wormhole::emitter;
+    use wormhole::set::{Self, Set};
 
     friend wormhole::guardian_set_upgrade;
     friend wormhole::contract_upgrade;
@@ -55,7 +56,7 @@ module wormhole::state {
         guardian_set_expiry: U32,
 
         /// Consumed governance actions
-        consumed_governance_actions: Table<vector<u8>, bool>,
+        consumed_governance_actions: Set<vector<u8>>,
 
         message_fee: u64,
 
@@ -83,7 +84,7 @@ module wormhole::state {
             guardian_sets: table::new<u64, GuardianSet>(),
             guardian_set_index: u32::from_u64(0),
             guardian_set_expiry,
-            consumed_governance_actions: table::new<vector<u8>, bool>(),
+            consumed_governance_actions: set::new<vector<u8>>(),
             message_fee,
             signer_cap,
             emitter_registry: emitter::init_emitter_registry(),
@@ -165,7 +166,7 @@ module wormhole::state {
 
     public(friend) fun set_governance_action_consumed(hash: vector<u8>) acquires WormholeState {
         let state = borrow_global_mut<WormholeState>(@wormhole);
-        table::add(&mut state.consumed_governance_actions, hash, true);
+        set::add(&mut state.consumed_governance_actions, hash);
     }
 
     public(friend) fun set_chain_id(chain_id: U16) acquires WormholeState {

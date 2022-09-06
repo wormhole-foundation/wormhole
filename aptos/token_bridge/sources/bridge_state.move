@@ -11,6 +11,8 @@ module token_bridge::bridge_state {
     use wormhole::emitter::{EmitterCapability};
     use wormhole::state::{get_chain_id, get_governance_contract};
     use wormhole::wormhole;
+    use wormhole::vaa::{Self, VAA};
+    use wormhole::set::{Self, Set};
 
     friend token_bridge::token_bridge;
     friend token_bridge::bridge_implementation;
@@ -24,11 +26,8 @@ module token_bridge::bridge_state {
         governance_chain_id: U16,
         governance_contract: vector<u8>,
 
-        // Mapping of consumed governance actions
-        consumed_governance_actions: Table<vector<u8>, bool>,
-
-        // Mapping of consumed token transfers
-        completed_transfers: Table<vector<u8>, bool>,
+        // Set of consumed governance actions
+        consumed_vaas: Set<vector<u8>>,
 
         // TODO: does this nested mapping setup buy us anything over
         // (chainId, nativeAddress) => wrappedAddress?
@@ -72,14 +71,9 @@ module token_bridge::bridge_state {
 
     // TODO: these shouldn't be entry functions...
 
-    public entry fun governance_action_is_consumed(hash: vector<u8>): bool acquires State {
+    public entry fun vaa_is_consumed(hash: vector<u8>): bool acquires State {
         let state = borrow_global<State>(@token_bridge);
-        return *table::borrow(&state.consumed_governance_actions, hash)
-    }
-
-    public entry fun is_transfer_completed(hash: vector<u8>): bool acquires State {
-        let state = borrow_global<State>(@token_bridge);
-        return *table::borrow(&state.completed_transfers, hash)
+        set::contains(&state.consumed_vaas, hash)
     }
 
     public entry fun governance_chain_id(): U16 acquires State { //should return u16
@@ -146,14 +140,9 @@ module token_bridge::bridge_state {
 
     // setters
 
-    public entry fun set_governance_action_consumed(hash: vector<u8>) acquires State {
+    public entry fun set_vaa_consumed(hash: vector<u8>) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
-        table::upsert(&mut state.consumed_governance_actions, hash, true);
-    }
-
-    public entry fun set_transfer_completed(hash: vector<u8>) acquires State {
-        let state = borrow_global_mut<State>(@token_bridge);
-        table::upsert(&mut state.completed_transfers, hash, true);
+        set::add(&mut state.consumed_vaas, hash);
     }
 
     public entry fun set_governance_chain_id(governance_chain_id: U16) acquires State {
@@ -210,8 +199,7 @@ module token_bridge::bridge_state {
         move_to(token_bridge, State{
             governance_chain_id: get_chain_id(),
             governance_contract: get_governance_contract(),
-            consumed_governance_actions: table::new<vector<u8>, bool>(),
-            completed_transfers: table::new<vector<u8>, bool>(),
+            consumed_vaas: set::new<vector<u8>>(),
             wrapped_assets: table::new<U16, Table<vector<u8>, vector<u8>>>(),
             native_assets: table::new<vector<u8>, TypeInfo>(),
             is_wrapped_asset: table::new<vector<u8>, bool>(),
