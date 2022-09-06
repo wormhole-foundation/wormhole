@@ -16,9 +16,19 @@ Bridge security is incredibly high stakes — beyond core trust assumptions and 
 * Prevent any single "bad actor" from blocking other value transfer by intentionally exceeding the transfer limit for the given time period
 
 ## Overview
-Each individual Guardian within the Guardian network can employ a set of strategies to verify the validity of a VAA. The Governor is designed to be one of those checks by proposing a notional limit on the value that can be transferred from a given chain within a certain time frame.
+Each individual Guardian within the Guardian network should employ a set of strategies to verify the validity of a VAA. The Governor is designed to check VAAs that transfer tokens by enforcing limits on the notional value that can be transferred from a given chain over a specific period of time. 
 
-There are many other potential variations on the notional value limit and time frame considered (i.e. 4 hour window, 12 hour window, max single transaction size) — this initial implementation is for a 24-hour window with a custom limit per chain that is informed by data-driven analysis from recent chain activity.
+The current implementation works on two classes of transaction (large and small) and current configuration can be found [here](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/node/pkg/governor/mainnet_chains.go):
+
+- **Large Transactions**
+    - A transaction is large if it is greater than or equal to the `bigTransactionSize` for a given origin chain.
+    - All large transactions will have a mandatory 72-hour finality delay and will have no affect on the `dailyLimit`.
+- **Small Transactions**
+    - A transaction is small if it is less than the `bigTransactionSize` for a given origin chain.
+    - All small transactions will have no additional finality delay up to the `dailyLimit` defined within a 24hr sliding window.
+    - If a small transaction exceeds the `dailyLimit`it will be delayed until it either
+        - fits inside the `dailyLimit` and will be counted toward the `dailyLimit`
+        - has been delayed for 72-hours and will have no affect on the `dailyLimit`.
 
 ## Detailed Design
 The Governor is implemented as an additional package that defines (1) a `ChainGovernor` object, (2) `mainnet_tokens.go`, a single map of tokens that will be monitored, and (3) `mainnet_chains.go`, a map of chains governed by the chain governor.
@@ -33,13 +43,25 @@ The checks performed include:
 2. Is the message sent from a goverened emitter?
 3. Is the message a known type that transfers value?
 4. Is the token transferred listed within `mainnet_tokens.go`?
-5. Will the transfer amount bring the total notional value transferred within a specified time frame over the limit?
+5. Is the transaction a “large” transaction (ie. greater than or equal to `bigTransactionSize` for this chain)?
+6. Is the transaction a “small” transaction (ie. less than `bigTransactionSize` for this chain)?
 
-If a message does not apply to or passes these checks, `ChainGovernor` will indicate that the message can be published.
+The above checks will produce 3 possible scenarios:
 
-If a message fails these checks, it will be added to a pending list and `ChainGovernor` will indicate that the message should not be published.
+- **Non-Governed Message**: If a message does not pass checks (1-4), `ChainGovernor` will indicate that the message can be published.
+- **Governed Message (Large)**: If a message is “large”, `ChainGovernor` will wait for 72hrs before signing the VAA and place the message in a queue.
+- **Governed Message (Small)**: If a message is “small”, `ChainGovernor` will determine if it fits inside the `dailyLimit` for this chain.  If it does fit, it will be signed immediately.  If it does not fit, it will wait in the queue until it does fit.  If it does not fit in 72hrs, it will be released from the queue.
 
-Messages in this pending list will periodically be checked again to see if they can be posted without exceeding the limit. Guardians can also manually override the Governor and release any pending VAA.
+While messages are enqueued, any Guardian has a window of opportunity to determine if a message is fraudulent using their own processes for fraud detection.  If Guardians determine a message is fraudulent, they can delete the message from the queue from their own independently managed queue.  If a super minority of Guardians (7 of 19) delete a message from their queues, this fraudulent message is effectively censored as it can no longer reach a super-majority quorum.
+
+In this design, there are three mechanisms for enqueued messages to be published:
+
+- A quorum (13/19) of Guardians can manually override the Governor and release any pending messages.
+    - *Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the daily notional limit as maintained by the sliding window.*
+- Guardians will periodically check if a message can be posted without exceeding the daily notional limit as the sliding window and notional value of the transactions change.
+    - *Messages released through this mechanism WOULD be added to the list of processed transactions and thus be counted toward the daily notional limit.*
+- Messages will be automatically released after a maximum time limit (this time limit can be adjusted through governance and is initially set to 72 hours).
+    - *Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the daily notional limit as maintained by the sliding window.*
 
 ## Potential Improvements
 Right now, adding more governed emitters requires modifying guardian code. In the future, it would be ideal to be able to dynamically add new contracts for guardian nodes to observe.
