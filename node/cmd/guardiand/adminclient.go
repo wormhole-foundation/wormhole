@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/status-im/keycard-go/hexutils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
@@ -137,7 +138,7 @@ var ClientChainGovernorResetReleaseTimerCmd = &cobra.Command{
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
@@ -148,7 +149,7 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.
 }
 
 func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientConn, publicrpcv1.PublicRPCServiceClient, error) {
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)

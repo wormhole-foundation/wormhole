@@ -15,6 +15,7 @@ import (
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func allowCORSWrapper(h http.Handler) http.Handler {
@@ -59,7 +60,7 @@ func publicwebServiceRunnable(
 			ctx,
 			fmt.Sprintf("unix:///%s", upstreamAddr),
 			grpc.WithBlock(),
-			grpc.WithInsecure())
+			grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return fmt.Errorf("failed to dial upstream: %s", err)
 		}

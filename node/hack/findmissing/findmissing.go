@@ -10,6 +10,7 @@ import (
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -19,7 +20,7 @@ var (
 )
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
