@@ -125,12 +125,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
     // expanded form to ease auditing.
     let required_consensus_count = {
         let len = accs.guardian_set.keys.len();
-        // Fixed point number transformation with one decimal to deal with rounding.
-        let len = (len * 10) / 3;
-        // Multiplication by two to get a 2/3 quorum.
-        let len = len * 2;
-        // Division to bring number back into range.
-        len / 10 + 1
+        ((len * 2) / 3) + 1
     };
 
     if signature_count < required_consensus_count {

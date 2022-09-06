@@ -182,7 +182,7 @@ impl GuardianSetInfo {
         if self.addresses.is_empty() {
             return 0;
         }
-        ((self.addresses.len() * 10 / 3) * 2) / 10 + 1
+        ((self.addresses.len() * 2) / 3) + 1
     }
 }
 
