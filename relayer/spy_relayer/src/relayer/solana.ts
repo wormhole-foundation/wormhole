@@ -12,6 +12,17 @@ import * as relay from "../xRaydium/scripts/relay";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
+function loggableChainConfig({
+  walletPrivateKey,
+  solanaPrivateKey,
+  ...o
+}: ChainConfigInfo): Omit<
+  Omit<ChainConfigInfo, "solanaPrivateKey">,
+  "walletPrivateKey"
+> {
+  return o;
+}
+
 export async function relaySolana(
   chainConfigInfo: ChainConfigInfo,
   emitterChainConfigInfo: ChainConfigInfo,
@@ -23,7 +34,10 @@ export async function relaySolana(
 ) {
   console.log("signedVAAString: ", signedVAAString);
   const logger = getScopedLogger(["solana"], relayLogger);
-  console.log("relaySolana chainConfigInfo: ", {chainConfigInfo, so});
+  console.log(
+    "relaySolana chainConfigInfo: ",
+    loggableChainConfig(chainConfigInfo)
+  );
   //TODO native transfer & create associated token account
   //TODO close connection
   const signedVaaArray = hexToUint8Array(signedVAAString);
