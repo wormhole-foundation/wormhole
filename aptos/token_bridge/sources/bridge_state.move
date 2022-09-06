@@ -11,7 +11,6 @@ module token_bridge::bridge_state {
     use wormhole::emitter::{EmitterCapability};
     use wormhole::state::{get_chain_id, get_governance_contract};
     use wormhole::wormhole;
-    use wormhole::vaa::{Self, VAA};
     use wormhole::set::{Self, Set};
 
     friend token_bridge::token_bridge;
