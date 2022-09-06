@@ -67,7 +67,7 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc, gov *governor.ChainGovernor, signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
+func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, batchObsvC chan *gossipv1.SignedBatchObservation, batchSignedInC chan *gossipv1.SignedBatchVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc, gov *governor.ChainGovernor, signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
@@ -382,6 +382,12 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
 				signedInC <- m.SignedVaaWithQuorum
 				p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+			case *gossipv1.GossipMessage_SignedBatchObservation:
+				batchObsvC <- m.SignedBatchObservation
+				p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
+			case *gossipv1.GossipMessage_SignedBatchVaaWithQuorum:
+				batchSignedInC <- m.SignedBatchVaaWithQuorum
+				p2pMessagesReceived.WithLabelValues("batch_signed_vaa_with_quorum").Inc()
 			case *gossipv1.GossipMessage_SignedObservationRequest:
 				s := m.SignedObservationRequest
 				gs := gst.Get()

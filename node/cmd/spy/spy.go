@@ -469,6 +469,12 @@ func runSpy(cmd *cobra.Command, args []string) {
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
 
+	// Inbound batch observations
+	batchObsvC := make(chan *gossipv1.SignedBatchObservation, 50)
+
+	// Inbound signed Batch VAAs
+	batchSignedInC := make(chan *gossipv1.SignedBatchVAAWithQuorum, 50)
+
 	// Guardian set state managed by processor
 	gst := common.NewGuardianSetState(nil)
 
@@ -530,7 +536,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		if err := supervisor.Run(ctx, "p2p", p2p.Run(obsvC, obsvReqC, nil, sendC, signedInC, priv, nil, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", false, rootCtxCancel, nil, nil, nil)); err != nil {
+		if err := supervisor.Run(ctx, "p2p", p2p.Run(obsvC, obsvReqC, nil, sendC, signedInC, batchObsvC, batchSignedInC, priv, nil, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", false, rootCtxCancel, nil, nil, nil)); err != nil {
 			return err
 		}
 

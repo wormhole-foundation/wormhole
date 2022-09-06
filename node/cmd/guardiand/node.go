@@ -841,6 +841,15 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Per-chain observation requests
 	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
 
+	// Batch message channel
+	batchC := make(chan *common.BatchMessage)
+
+	// Inbound batch observations
+	batchObsvC := make(chan *gossipv1.SignedBatchObservation, 50)
+
+	// Inbound signed batch VAAs
+	batchSignedInC := make(chan *gossipv1.SignedBatchVAAWithQuorum, 50)
+
 	// Inbound batch data request channel (for all chains)
 	batchReqC := make(chan *common.BatchMessageID, 50)
 
@@ -935,7 +944,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, gov, nil, nil)); err != nil {
+			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, batchObsvC, batchSignedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, gov, nil, nil)); err != nil {
 			return err
 		}
 
