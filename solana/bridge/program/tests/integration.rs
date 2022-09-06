@@ -346,7 +346,7 @@ async fn test_bridge_messages_unreliable() {
         );
 
         // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-        let (vaa, body, body_hash) =
+        let (vaa, body, _body_hash) =
             common::generate_vaa(&emitter, message.to_vec(), nonce, sequence, 0, 1);
         let signature_set =
             common::verify_signatures(client, program, payer, body, &context.secret, 0)
@@ -383,7 +383,7 @@ async fn test_bridge_messages_unreliable() {
         assert_eq!(signatures.hash, body);
         assert_eq!(signatures.guardian_set_index, 0);
 
-        for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
             assert_eq!(*signature, true);
         }
     }
