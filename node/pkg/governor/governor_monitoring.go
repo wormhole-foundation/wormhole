@@ -436,6 +436,7 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []by
 
 	if startTime.After(gov.configPublishTime.Add(time.Minute * time.Duration(5))) {
 		gov.publishConfig(hb, sendC)
+		gov.configPublishTime = startTime
 	}
 
 	gov.publishStatus(hb, sendC, startTime)
@@ -476,7 +477,6 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 		panic(err)
 	}
 
-	gov.logger.Info("cgov: publishing a status message")
 	sendC <- msg
 }
 
@@ -531,6 +531,5 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 		panic(err)
 	}
 
-	gov.logger.Info("cgov: publishing a status message")
 	sendC <- msg
 }
