@@ -1,0 +1,62 @@
+#!/bin/bash
+set -uo pipefail
+
+function usage() {
+cat <<EOF >&2
+Usage:
+
+  $(basename "$0") [-h] [-n network] -- Verify that all deployed contracts match the local build artifact
+
+  where:
+      -h  show this help text
+      -n  set the network (mainnet, testnet, devnet)
+EOF
+exit 1
+}
+
+if ! command -v worm &> /dev/null
+then
+    echo "worm binary could not be found. See installation instructions in clients/js/README.md"
+    exit 1
+fi
+
+network=""
+while getopts ':hn:' option; do
+  case "$option" in
+    h) usage
+       ;;
+    n) network=$OPTARG
+       ;;
+    :) printf "missing argument for -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+   \?) printf "illegal option: -%s\n" "$OPTARG" >&2
+       usage
+       ;;
+  esac
+done
+shift $((OPTIND - 1))
+[ -z "$network" ] && usage
+
+chains=$(worm evm chains)
+modules=(Core TokenBridge NFTBridge)
+
+for module in ${modules[@]}; do
+  for chain in ${chains[@]}; do
+    FILE=""
+    case "$module" in
+        Core)
+            FILE="build/contracts/Implementation.json"
+            ;;
+        TokenBridge)
+            FILE="build/contracts/BridgeImplementation.json"
+            ;;
+        NFTBridge)
+            FILE="build/contracts/NFTBridgeImplementation.json"
+            ;;
+        *) echo "unknown module $module" >&2
+           ;;
+    esac
+    ./verify -n $network -c "$chain" $FILE "$(worm evm info -c $chain -m $module -n $network -i)"
+  done
+done
