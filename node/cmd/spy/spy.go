@@ -18,7 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	ipfslog "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
