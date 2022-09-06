@@ -13,6 +13,7 @@ import {
   getEmitterAddressSolana,
   getEmitterAddressTerra,
   getEmitterAddressEth,
+  getEmitterAddressAlgorand,
 } from "@certusone/wormhole-sdk";
 import { execute_solana } from "./solana";
 import {
@@ -298,10 +299,7 @@ yargs(hideBin(process.argv))
         } else if (isTerraChain(chain)) {
           addr = await getEmitterAddressTerra(addr);
         } else if (chain === "algorand") {
-          if (network !== "MAINNET") {
-            throw Error(`unable to look up algorand emitter address for ${network}`);
-          }
-          addr = "25e716e0618d9f38b603a97cc42db659069c0f5185230e5e61679fa876191ec4";
+          addr = getEmitterAddressAlgorand(BigInt(addr));
         } else if (chain === "near") {
           if (network !== "MAINNET") {
             throw Error(`unable to look up near emitter address for ${network}`);
