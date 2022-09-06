@@ -159,6 +159,18 @@ module token_bridge::bridge_structs {
         }
     }
 
+    // Construct a seed using AssetMeta fields for creating a new resource account 
+    // N.B. seed is product of coin native chain and native address
+    public fun create_seed(asset_meta: &AssetMeta): vector<u8>{
+        let token_chain = get_token_chain(asset_meta);
+        let token_address = get_token_address(asset_meta);
+        let seed = vector::empty<u8>();
+        serialize_u16(&mut seed, token_chain);
+        serialize_vector(&mut seed, b"::");
+        serialize_vector(&mut seed, token_address);
+        seed
+    }
+
     public fun encode_asset_meta(meta: AssetMeta): vector<u8> {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, meta.payload_id);
