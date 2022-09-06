@@ -7,11 +7,16 @@ The Wormhole project operates two bug bounty programs to financially incentivize
 - [Self-Hosted Program](https://wormhole.com/bounty/)
   - **Scopes**: Guardian and Smart Contracts
   - **Rewards**: Up to $10,000,000 USDC
+  - **KYC**: Required
 - [Immunefi-Hosted Program](https://immunefi.com/bounty/wormhole/)
   - **Scopes**: Guardian and Smart Contracts
   - **Rewards**: Up to $10,000,000 USDC
+  - **KYC**: Required
 
-If you find a security issue in Wormhole, please report the issue immediately.
+If you find a security issue in Wormhole, please report the issue immediately using one of the two bug bounty programs above.
+
+If there is a duplicate report, either the same reporter or different reporters, the first of the two by timestamp will be accepted as the official bug report and will be subject to the specific terms of the submitting program.
+
 ## 3rd Party Security Audits
 
 The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
