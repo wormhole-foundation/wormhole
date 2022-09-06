@@ -5,11 +5,9 @@
 //! the transparent repr layout. When each layer is removed the data can be transmuted safely to
 //! the layer below, allowing for optimized recursion.
 
-use std::{
-    ops::{
-        Deref,
-        DerefMut,
-    },
+use std::ops::{
+    Deref,
+    DerefMut,
 };
 
 #[repr(transparent)]

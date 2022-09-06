@@ -40,7 +40,7 @@ use token_bridge::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
-        PayloadTransferWithPayload
+        PayloadTransferWithPayload,
     },
     types::Config,
 };
@@ -559,7 +559,7 @@ async fn transfer_native_with_payload_in() {
         ref guardian_keys,
         ..
     } = context;
-    
+
     // Do an initial transfer so that the bridge account has some native tokens. This also creates
     // the custody account.
     let message = &Keypair::new();
@@ -576,7 +576,7 @@ async fn transfer_native_with_payload_in() {
     )
     .await
     .unwrap();
-    
+
     let nonce = rand::thread_rng().gen();
     let from_address = Keypair::new().pubkey().to_bytes();
     let payload: Vec<u8> = vec![1, 2, 3];
@@ -587,23 +587,23 @@ async fn transfer_native_with_payload_in() {
         to: token_authority.pubkey().to_bytes(),
         to_chain: CHAIN_ID_SOLANA,
         from_address,
-        payload
+        payload,
     };
     let message = payload.try_to_vec().unwrap();
 
     let (vaa, body, _) = common::generate_vaa([0u8; 32], CHAIN_ID_ETH, message, nonce, 1);
     let signature_set = common::verify_signatures(client, &bridge, payer, body, guardian_keys, 0)
-    .await
-    .unwrap();
+        .await
+        .unwrap();
     common::post_vaa(client, bridge, payer, signature_set, vaa.clone())
-    .await
-    .unwrap();
+        .await
+        .unwrap();
     let msg_derivation_data = &PostedVAADerivationData {
         payload_hash: body.to_vec(),
     };
     let message_key =
-    PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, &bridge);
-    
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, &bridge);
+
     common::complete_native_with_payload(
         client,
         token_bridge,

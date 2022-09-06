@@ -5,8 +5,8 @@ use borsh::{
 use solana_program::pubkey::Pubkey;
 use solitaire::{
     processors::seeded::Seeded,
-    AccountState,
     AccountOwner,
+    AccountState,
     Data,
     Owned,
 };
