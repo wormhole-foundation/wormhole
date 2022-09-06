@@ -492,6 +492,12 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 
 		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
 		for _, pe := range ce.pending {
+			value, err := computeValue(pe.amount, pe.token)
+			if err != nil {
+				gov.logger.Error("cgov: failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
+				value = 0
+			}
+
 			enqueuedVaas = append(enqueuedVaas, &gossipv1.ChainGovernorStatus_EnqueuedVAA{
 				Sequence:      pe.dbData.Msg.Sequence,
 				ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()),
