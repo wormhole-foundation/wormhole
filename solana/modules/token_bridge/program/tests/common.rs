@@ -1,6 +1,4 @@
-use borsh::{
-    BorshDeserialize,
-};
+use borsh::BorshDeserialize;
 use byteorder::{
     BigEndian,
     WriteBytesExt,
@@ -11,17 +9,15 @@ use libsecp256k1::{
 };
 use sha3::Digest;
 use solana_program::{
-    instruction::{
-        Instruction,
-    },
+    instruction::Instruction,
     program_pack::Pack,
     pubkey::Pubkey,
     system_instruction,
 };
 use solana_program_test::{
     BanksClient,
-    ProgramTest,
     BanksClientError,
+    ProgramTest,
 };
 use solana_sdk::{
     commitment_config::CommitmentLevel,
@@ -48,9 +44,7 @@ use token_bridge::{
     types::*,
 };
 
-use solitaire::{
-    processors::seeded::Seeded,
-};
+use solitaire::processors::seeded::Seeded;
 
 pub use helpers::*;
 
@@ -73,17 +67,15 @@ pub async fn execute<T: Signers>(
 mod helpers {
     use super::*;
     use bridge::{
-        accounts::{
-            FeeCollector,
-        },
+        accounts::FeeCollector,
         types::ConsistencyLevel,
         PostVAAData,
     };
     use solana_program_test::processor;
     use token_bridge::{
         CompleteNativeData,
-        CompleteWrappedData,
         CompleteNativeWithPayloadData,
+        CompleteWrappedData,
         CreateWrappedData,
         RegisterChainData,
         TransferNativeData,
@@ -94,13 +86,12 @@ mod helpers {
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
-        PayloadTransferWithPayload
+        PayloadTransferWithPayload,
     };
 
     /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key
     /// encoding: 0x0123456789ABCDEF01234
     pub fn generate_keys(count: u8) -> (Vec<[u8; 20]>, Vec<SecretKey>) {
-
         let mut rng = rand::thread_rng();
 
         // Generate Guardian Keys
@@ -140,11 +131,7 @@ mod helpers {
         );
 
         let mut builder = ProgramTest::new("bridge", program, processor!(bridge::solitaire));
-        builder.add_program(
-            "spl_token_metadata",
-            spl_token_metadata::id(),
-            None,
-        );
+        builder.add_program("spl_token_metadata", spl_token_metadata::id(), None);
         builder.add_program(
             "token_bridge",
             token_program,
@@ -533,11 +520,11 @@ mod helpers {
             CompleteNativeWithPayloadData {},
         )
         .expect("Could not create Complete Native With Payload instruction");
-        
+
         for account in instruction.accounts.iter().enumerate() {
             println!("{}: {}", account.0, account.1.pubkey);
         }
-        
+
         execute(
             client,
             payer,

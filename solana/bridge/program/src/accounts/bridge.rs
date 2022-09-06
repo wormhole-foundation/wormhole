@@ -41,8 +41,8 @@ impl Owned for BridgeData {
 #[cfg(feature = "cpi")]
 impl Owned for BridgeData {
     fn owner(&self) -> AccountOwner {
-        use std::str::FromStr;
         use solana_program::pubkey::Pubkey;
+        use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("BRIDGE_ADDRESS")).unwrap())
     }
 }

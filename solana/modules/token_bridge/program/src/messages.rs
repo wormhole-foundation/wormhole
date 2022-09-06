@@ -377,7 +377,7 @@ mod tests {
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
-        PayloadTransferWithPayload
+        PayloadTransferWithPayload,
     };
     use bridge::{
         DeserializePayload,
@@ -465,7 +465,7 @@ mod tests {
         let mut to = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut to);
         let payload = vec![0u8; 10];
-        
+
         let transfer_original = PayloadTransferWithPayload {
             amount: U256::from(1003),
             token_address,
@@ -473,14 +473,12 @@ mod tests {
             to,
             to_chain: 1,
             from_address,
-            payload
+            payload,
         };
-        
+
         let data = transfer_original.try_to_vec().unwrap();
-        let transfer_deser = PayloadTransferWithPayload::deserialize(
-            &mut data.as_slice()
-        ).unwrap();
-        
+        let transfer_deser = PayloadTransferWithPayload::deserialize(&mut data.as_slice()).unwrap();
+
         assert_eq!(transfer_original, transfer_deser);
     }
 }

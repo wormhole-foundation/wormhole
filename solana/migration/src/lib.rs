@@ -1,5 +1,4 @@
 #![allow(incomplete_features)]
-
 #![feature(adt_const_params)]
 
 use api::{

@@ -10,9 +10,7 @@ use crate::{
     Result,
     SolitaireError,
 };
-use borsh::{
-    BorshSerialize,
-};
+use borsh::BorshSerialize;
 use solana_program::{
     entrypoint::ProgramResult,
     instruction::Instruction,

@@ -1,6 +1,4 @@
-use borsh::{
-    BorshDeserialize,
-};
+use borsh::BorshDeserialize;
 use byteorder::{
     BigEndian,
     WriteBytesExt,
