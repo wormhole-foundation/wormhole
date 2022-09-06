@@ -4,6 +4,7 @@ import { bech32 } from "bech32";
 import { arrayify, BytesLike, Hexable, zeroPad } from "ethers/lib/utils";
 import { importTokenWasm } from "../solana/wasm";
 import { uint8ArrayToHex } from "../utils";
+import { sha256 } from  "js-sha256";
 
 export function getEmitterAddressEth(
   contractAddress: number | BytesLike | Hexable
@@ -29,4 +30,8 @@ export function getEmitterAddressAlgorand(appId: bigint): string {
   const decAppAddr: Uint8Array = decodeAddress(appAddr).publicKey;
   const aa: string = uint8ArrayToHex(decAppAddr);
   return aa;
+}
+
+export function getEmitterAddressNear(programAddress: string): string {
+  return sha256.hex(programAddress);
 }
