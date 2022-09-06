@@ -48,6 +48,15 @@ module.exports = {
       },
       network_id: "5",
     },
+    ropsten_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.ankr.com/eth_ropsten"
+        );
+      },
+      network_id: "3",
+    },
     bsc: {
       provider: () => {
         return new HDWalletProvider(
@@ -268,7 +277,7 @@ module.exports = {
         );
       },
       network_id: 1284,
-    },    
+    },
     moonbeam_testnet: {
       provider: () => {
         return new HDWalletProvider(
