@@ -474,7 +474,8 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 
 	msg, err := proto.Marshal(&w)
 	if err != nil {
-		panic(err)
+		gov.logger.Error("cgov: failed to marshal config message", zap.Error(err))
+		return
 	}
 
 	sendC <- msg
@@ -482,6 +483,7 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 
 func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byte, startTime time.Time) {
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
+	numEnqueued := 0
 	for _, ce := range gov.chains {
 		value := sumValue(ce.transfers, startTime)
 		if value >= ce.dailyLimit {
@@ -498,15 +500,14 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 				value = 0
 			}
 
-			enqueuedVaas = append(enqueuedVaas, &gossipv1.ChainGovernorStatus_EnqueuedVAA{
-				Sequence:      pe.dbData.Msg.Sequence,
-				ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()),
-				NotionalValue: value,
-				TxHash:        pe.dbData.Msg.TxHash.String(),
-			})
-
-			if len(enqueuedVaas) >= 20 {
-				break
+			if numEnqueued < 20 {
+				numEnqueued = numEnqueued + 1
+				enqueuedVaas = append(enqueuedVaas, &gossipv1.ChainGovernorStatus_EnqueuedVAA{
+					Sequence:      pe.dbData.Msg.Sequence,
+					ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()),
+					NotionalValue: value,
+					TxHash:        pe.dbData.Msg.TxHash.String(),
+				})
 			}
 		}
 
@@ -534,7 +535,8 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 
 	msg, err := proto.Marshal(&w)
 	if err != nil {
-		panic(err)
+		gov.logger.Error("cgov: failed to marshal status message", zap.Error(err))
+		return
 	}
 
 	sendC <- msg
