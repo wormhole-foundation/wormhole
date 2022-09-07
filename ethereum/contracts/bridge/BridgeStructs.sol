@@ -95,4 +95,17 @@ contract BridgeStructs {
         // Address of the new contract
         bytes32 newContract;
     }
+
+    struct RecoverChainId {
+        // Governance Header
+        // module: "TokenBridge" left-padded
+        bytes32 module;
+        // governance action: 5
+        uint8 action;
+
+        // EIP-155 Chain ID
+        uint256 evmChainId;
+        // Chain ID
+        uint16 newChainId;
+    }
 }

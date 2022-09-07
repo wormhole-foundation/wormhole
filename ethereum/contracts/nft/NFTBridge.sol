@@ -19,13 +19,13 @@ import "./token/NFTImplementation.sol";
 contract NFTBridge is NFTBridgeGovernance {
     using BytesLib for bytes;
 
-    modifier onlyEvmChainId() {
-        require(evmChainId() == block.chainid, "invalid evmChainId");
+    modifier noFork() {
+        require(evmChainId() == block.chainid, "bad fork");
         _;
     }
 
     // Initiate a Transfer
-    function transferNFT(address token, uint256 tokenID, uint16 recipientChain, bytes32 recipient, uint32 nonce) public payable onlyEvmChainId returns (uint64 sequence) {
+    function transferNFT(address token, uint256 tokenID, uint16 recipientChain, bytes32 recipient, uint32 nonce) public payable returns (uint64 sequence) {
         // determine token parameters
         uint16 tokenChain;
         bytes32 tokenAddress;
@@ -102,7 +102,7 @@ contract NFTBridge is NFTBridgeGovernance {
         }(nonce, encoded, finality());
     }
 
-    function completeTransfer(bytes memory encodedVm) public onlyEvmChainId {
+    function completeTransfer(bytes memory encodedVm) public {
         _completeTransfer(encodedVm);
     }
 
@@ -197,7 +197,7 @@ contract NFTBridge is NFTBridgeGovernance {
         setWrappedAsset(tokenChain, tokenAddress, token);
     }
 
-    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
+    function verifyBridgeVM(IWormhole.VM memory vm) internal view noFork returns (bool){
         if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
             return true;
         }

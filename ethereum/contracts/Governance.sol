@@ -37,7 +37,8 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         require(upgrade.module == module, "Invalid Module");
 
         // Verify the VAA is for this chain
-        require(upgrade.chain == chainId(), "Invalid Chain");
+        uint16 chainId = chainId();
+        require(upgrade.chain == chainId && chainId != type(uint16).max, "Invalid Chain");
 
         // Record the governance action as consumed
         setGovernanceActionConsumed(vm.hash);
@@ -136,6 +137,34 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
         // Transfers transfer fees to the recipient
         recipient.transfer(transfer.amount);
+    }
+
+    /**
+    * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
+    */
+    function submitRecoverChainId(bytes memory _vm) public {
+        require(chainId() == type(uint16).max, "invalid chain");
+
+        Structs.VM memory vm = parseVM(_vm);
+
+        // Verify the VAA is valid before processing it
+        (bool isValid, string memory reason) = verifyGovernanceVM(vm);
+        require(isValid, reason);
+
+        GovernanceStructs.RecoverChainId memory rci = parseRecoverChainId(vm.payload);
+
+        // Verify the VAA is for this module
+        require(rci.module == module, "invalid Module");
+
+        // Verify the VAA is for this chain
+        require(rci.evmChainId == block.chainid, "invalid EVM Chain");
+
+        // Record the governance action as consumed to prevent reentry
+        setGovernanceActionConsumed(vm.hash);
+
+        // Update the chainIds
+        setEvmChainId(rci.evmChainId);
+        setChainId(rci.newChainId);
     }
 
     /**
