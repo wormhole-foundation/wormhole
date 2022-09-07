@@ -53,7 +53,6 @@ pub type Claim<'a> = Data<'a, ClaimData, { Uninitialized }>;
 
 /// Consume a claim by initializing the account. Initialized claims act as an indicator proving
 /// that a message has been consumed.
-#[must_use]
 pub fn consume<T>(
     ctx: &ExecutionContext,
     payer: &Pubkey,

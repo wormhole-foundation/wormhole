@@ -396,7 +396,7 @@ async fn test_bridge_messages_unreliable() {
         assert_eq!(signatures.guardian_set_index, 0);
 
         for (signature, _secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-            assert_eq!(*signature, true);
+            assert!(*signature);
         }
     }
 

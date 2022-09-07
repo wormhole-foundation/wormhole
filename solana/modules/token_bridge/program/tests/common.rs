@@ -496,6 +496,7 @@ mod helpers {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn complete_native_with_payload(
         client: &mut BanksClient,
         program: Pubkey,
