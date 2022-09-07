@@ -26,6 +26,26 @@ module token_bridge::bridge_structs {
         // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
         fee: U256, //should be u256
     }
+    public fun create_transfer(
+        payload_id: u8,
+        amount: U256,
+        token_address: vector<u8>,
+        token_chain: U16,
+        to: vector<u8>,
+        to_chain: U16,
+        fee: U256,
+    ): Transfer {
+        Transfer {
+            payload_id,
+            amount,
+            token_address,
+            token_chain,
+            to,
+            to_chain,
+            fee,
+        }
+    }
+
 
     struct TransferWithPayload has key, store, drop {
         // PayloadID uint8 = 3
@@ -54,7 +74,7 @@ module token_bridge::bridge_structs {
         // Amount being transferred (big-endian uint256)
         normalized_amount: U256,
         // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
-        normalized_arbiter_fee: U256, // should be u256
+        normalized_relayer_fee: U256, // should be u256
         // Portion of msg.value to be paid as the core bridge fee
         wormhole_fee: U256,
     }
@@ -63,14 +83,14 @@ module token_bridge::bridge_structs {
         token_chain: U16,
         token_address: vector<u8>,
         normalized_amount: U256,
-        normalized_arbiter_fee: U256,
+        normalized_relayer_fee: U256,
         wormhole_fee: U256,
         ): TransferResult {
             TransferResult {
                 token_chain,
                 token_address,
                 normalized_amount,
-                normalized_arbiter_fee,
+                normalized_relayer_fee,
                 wormhole_fee
             }
     }

@@ -19,20 +19,20 @@ module wormhole::wormhole {
         nonce: u64,
         payload: vector<u8>,
         message_fee: Coin<AptosCoin>
-    ) {
+    ): u64 {
         // ensure that provided fee is sufficient to cover message fees
         let expected_fee = state::get_message_fee();
         assert!(expected_fee <= coin::value(&message_fee), E_INSUFFICIENT_FEE);
-
         // deposit the fees into the wormhole account
         coin::deposit(@wormhole, message_fee);
-
+        let sequence = emitter::use_sequence(emitter_cap);
         state::publish_event(
             emitter::get_emitter(emitter_cap),
-            emitter::use_sequence(emitter_cap),
+            sequence,
             nonce,
             payload,
         );
+        sequence
     }
 
 // -----------------------------------------------------------------------------

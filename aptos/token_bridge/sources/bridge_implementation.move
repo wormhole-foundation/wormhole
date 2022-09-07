@@ -37,7 +37,7 @@ module token_bridge::bridge_implementation {
     // 2. structuring the code in this way makes it very clear what the signer
     //    is needed for (since the signer stuff is forced to be written separately)
     //    -- something not that clear in the current version
-    public fun attest_token<CoinType>(user: &signer) {
+    public fun attest_token<CoinType>(user: &signer): u64 {
         let payload_id = 0;
         let token_address = hash_type_info<CoinType>();
         if (!bridge_state::is_registered_native_asset(token_address) && !bridge_state::is_wrapped_asset(token_address)) {
@@ -90,7 +90,6 @@ module token_bridge::bridge_implementation {
         vaa::destroy(vaa);
         //TODO
     }
-
 
     public entry fun transfer_tokens_with_payload (
         _token: vector<u8>,

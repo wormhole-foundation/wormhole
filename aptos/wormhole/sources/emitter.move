@@ -45,7 +45,6 @@ module wormhole::emitter {
         emitter_cap.sequence = sequence + 1;
         sequence
     }
-
 }
 
 #[test_only]
