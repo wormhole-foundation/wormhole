@@ -602,6 +602,7 @@ impl Wormhole {
         true
     }
 
+    #[private]
     #[init(ignore_state)]
     pub fn migrate() -> Self {
         env::log_str(&format!("wormhole/{}#{}: migrate", file!(), line!(),));
