@@ -81,6 +81,112 @@ jobs:
       - run: cd clients/js && make install
       - run: cd ethereum && make test-upgrade
 
+  solana:
+    runs-on: ubuntu-20.04
+    env:
+      RUSTFLAGS: -Dwarnings
+      EMITTER_ADDRESS: CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr
+      BRIDGE_ADDRESS: Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get rust toolchain version
+        id: toolchain
+        run: |
+          RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' solana/rust-toolchain)"
+          echo "::set-output name=version::${RUST_VERSION}"
+
+      - name: Get solana version
+        id: solana
+        run: |
+          SOLANA_VERSION="$(awk '/solana-program =/ { print substr($3, 3, length($3)-3) }' solana/bridge/program/Cargo.toml)"
+          echo "::set-output name=version::${SOLANA_VERSION}"
+
+      - name: Cache rust toolchain
+        uses: actions/cache@v3
+        env:
+          cache-name: solana-toolchain
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.rustup
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.toolchain.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+            toolchain: ${{ steps.toolchain.outputs.version }}
+            components: "clippy,rustfmt"
+
+      - name: Cache rust packages
+        uses: actions/cache@v3
+        env:
+          cache-name: solana-rust-packages
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('solana/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Run `cargo fmt`
+        run: cargo fmt --check --all --manifest-path solana/Cargo.toml
+
+      - name: Run `cargo check`
+        run: cargo check --workspace --tests --manifest-path solana/Cargo.toml
+             --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+
+      - name: Run `cargo clippy`
+        run: cargo clippy --workspace --tests --manifest-path solana/Cargo.toml
+             --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+
+      - name: Cache solana tools
+        id: cache-solana
+        uses: actions/cache@v3
+        env:
+          cache-name: solana-tools
+        with:
+          path: |
+            ~/.local/share/solana/install/
+            ~/.cache/solana/
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.solana.outputs.version }}
+
+      - if: ${{ steps.cache-solana.outputs.cache-hit != 'true' }}
+        name: Install solana tools
+        env:
+          SOLANA_VERSION: ${{ steps.solana.outputs.version }}
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_VERSION}/install)"
+          ~/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/install.sh
+
+      - name: Run unit tests
+        env:
+          RUST_BACKTRACE: "1"
+        run: |
+          cd solana
+          export BPF_OUT_DIR="$(pwd)/target/deploy"
+          export PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
+
+          mkdir -p "${BPF_OUT_DIR}"
+          cp modules/token_bridge/token-metadata/spl_token_metadata.so "${BPF_OUT_DIR}"
+
+          BPF_PACKAGES=(
+            bridge/program/Cargo.toml
+            modules/token_bridge/program/Cargo.toml
+            modules/nft_bridge/program/Cargo.toml
+          )
+          for p in "${BPF_PACKAGES[@]}"; do
+            cargo build-bpf --manifest-path "${p}"
+          done
+
+          cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+
+
   terra:
     runs-on: ubuntu-20.04
     steps:
