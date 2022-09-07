@@ -4,6 +4,8 @@ module token_bridge::utils {
     use 0x1::bcs::{to_bytes};
     use 0x1::vector::{Self};
 
+    //use wormhole::u256::{Self, U256};
+
     public entry fun hash_type_info<info>(): vector<u8>{
         let type_name = type_name<info>();
         // TODO: let's use keccak256 here?
@@ -11,6 +13,22 @@ module token_bridge::utils {
         assert!(vector::length(&res)==32, 0);
         res
     }
+
+    //TODO - finish and test normalized and denormalize functions
+
+    // public entry fun normalize_amount(amount: U256, decimals: u8): U256 {
+    //     if (decimals > 8) {
+    //         amount = u256::div(amount, 10 ** (decimals - 8));
+    //     };
+    //     amount
+    // }
+
+    // public entry fun denormalize_amount(amount: U256, decimals: u8): U256{
+    //     if (decimals > 8) {
+    //         amount = u256::mul(amount, 10 ** (decimals - 8));
+    //     };
+    //     amount
+    // }
 }
 
     #[test_only]

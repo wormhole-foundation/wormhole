@@ -59,6 +59,22 @@ module token_bridge::bridge_structs {
         wormhole_fee: U256,
     }
 
+    public fun create_transfer_result(
+        token_chain: U16,
+        token_address: vector<u8>,
+        normalized_amount: U256,
+        normalized_arbiter_fee: U256,
+        wormhole_fee: U256,
+        ): TransferResult {
+            TransferResult {
+                token_chain,
+                token_address,
+                normalized_amount,
+                normalized_arbiter_fee,
+                wormhole_fee
+            }
+    }
+
     struct AssetMeta has key, store, drop {
         // PayloadID uint8 = 2
         payload_id: u8,

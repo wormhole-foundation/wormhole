@@ -69,7 +69,7 @@ module token_bridge::bridge_implementation {
         )
     }
 
-    // this function is called in tandem with
+    // this function is called before create_wrapped_coin
     public entry fun create_wrapped_coin_type(vaa: vector<u8>): address {
         let vaa = parse_and_verify(vaa);
         let _asset_meta:AssetMeta = bridge_structs::parse_asset_meta(vaa::get_payload(&vaa));
@@ -83,6 +83,12 @@ module token_bridge::bridge_implementation {
         bridge_state::set_wrapped_asset_signer_capability(to_bytes(&token_address), new_cap);
         vaa::destroy(vaa);
         token_address
+    }
+
+    public entry fun complete_transfer(vaa: vector<u8>) {
+        let vaa = parse_and_verify(vaa);
+        vaa::destroy(vaa);
+        //TODO
     }
 
 
@@ -99,9 +105,15 @@ module token_bridge::bridge_implementation {
 
     /*
      *  @notice Initiate a transfer
+     * assume we can transfer both wrapped tokens and
      */
-    fun transfer_tokens_(_token: TypeInfo, _amount: u128, _arbiterFee: u128) {//returns TransferResult
+    fun transfer_tokens_(
+        _token: TypeInfo,
+        _amount: u128,
+        _arbiterFee: u128
+    ) {//returns TransferResult
         // TODO
+
     }
 
     fun bridge_out(_token: vector<u8>, _normalized_amount: U256) {
