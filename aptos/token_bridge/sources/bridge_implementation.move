@@ -14,7 +14,7 @@ module token_bridge::bridge_implementation {
     use std::string;
     use token_bridge::bridge_state::{Self, token_bridge_signer, set_outstanding_bridged, outstanding_bridged, bridge_contracts, set_native_asset};
     //use Wormhole::bridge_structs::{AssetMeta, Transfer, TransferWithPayload};
-    use token_bridge::bridge_structs::{Self, create_asset_meta, encode_asset_meta, AssetMeta, create_seed};
+    use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::utils::{hash_type_info};
 
     use wormhole::u256::{Self, U256};
@@ -48,7 +48,7 @@ module token_bridge::bridge_implementation {
         let symbol = *string::bytes(&symbol<CoinType>());
         let name = *string::bytes(&name<CoinType>());
 
-        let _asset_meta: AssetMeta = create_asset_meta(
+        let _asset_meta: AssetMeta = asset_meta::create(
             payload_id,
             token_address,
             token_chain,
@@ -57,7 +57,7 @@ module token_bridge::bridge_implementation {
             name
         );
 
-        let payload:vector<u8> = encode_asset_meta(_asset_meta);
+        let payload:vector<u8> = asset_meta::encode(_asset_meta);
         let nonce = 0;
         bridge_state::publish_message(
             nonce,
@@ -69,8 +69,8 @@ module token_bridge::bridge_implementation {
     // this function is called before create_wrapped_coin
     public entry fun create_wrapped_coin_type(vaa: vector<u8>): address {
         let vaa = parse_and_verify(vaa);
-        let _asset_meta:AssetMeta = bridge_structs::parse_asset_meta(vaa::get_payload(&vaa));
-        let seed = create_seed(&_asset_meta);
+        let _asset_meta:AssetMeta = asset_meta::parse(vaa::get_payload(&vaa));
+        let seed = asset_meta::create_seed(&_asset_meta);
 
         //create resource account
         let _token_bridge_signer = token_bridge_signer();
