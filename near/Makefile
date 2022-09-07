@@ -69,7 +69,7 @@ run: nearcore
 
 .PHONY: clean
 clean:
-	rm -rf nearcore node_modules contracts/*/target
+	rm -rf nearcore contracts/*/target
 
 
 .PHONY: reset-force
