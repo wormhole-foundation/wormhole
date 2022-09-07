@@ -1,11 +1,12 @@
 module token_bridge::bridge_state {
     use std::table::{Self, Table};
-    use aptos_framework::type_info::{TypeInfo, type_of, account_address};
+    use aptos_framework::type_info::{TypeInfo, type_of, account_address, type_name};
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability, mint, initialize};
     use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::string::{utf8};
     use aptos_framework::bcs::{to_bytes};
+    use aptos_framework::hash::{sha3_256};
 
     use wormhole::u256::{Self, U256};
     use wormhole::u16::{U16};
@@ -168,9 +169,9 @@ module token_bridge::bridge_state {
         let _asset_meta: AssetMeta = asset_meta::parse(vaa::get_payload(&vaa));
 
         // fetch signer_cap and create signer for CoinType
-        let token_address = account_address(&type_of<CoinType>());
+        let coin_type_deployer = account_address(&type_of<CoinType>());
         let wrapped_coin_signer_caps = &borrow_global<State>(@token_bridge).wrapped_asset_signer_capabilities;
-        let coin_signer_cap = table::borrow(wrapped_coin_signer_caps, to_bytes(&token_address));
+        let coin_signer_cap = table::borrow(wrapped_coin_signer_caps, to_bytes(&coin_type_deployer));
         let coin_signer = create_signer_with_capability(coin_signer_cap);
 
         // initialize new coin using CoinType
@@ -183,9 +184,11 @@ module token_bridge::bridge_state {
         // update the following two mappings in State
         // 1. (native chain, native address) => wrapped address
         // 2. wrapped address => (native chain, native address)
-        let token_address = asset_meta::get_token_address(& _asset_meta);
-        let token_chain = asset_meta::get_token_chain(& _asset_meta);
-        let native_info = OriginInfo {token_address: token_address, token_chain: token_chain};
+        let native_token_address = asset_meta::get_token_address(& _asset_meta);
+        let native_token_chain = asset_meta::get_token_chain(& _asset_meta);
+        let native_info = OriginInfo {token_address: native_token_address, token_chain: native_token_chain};
+
+        let token_address = sha3_256(to_bytes(&type_name<CoinType>()));
         set_native_info(token_address, &native_info);
         set_wrapped_asset(&native_info, token_address);
 
