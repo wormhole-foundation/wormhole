@@ -23,9 +23,12 @@ module token_bridge::bridge_state {
     //use token_bridge::vaa::{parse_verify_and_replay_protect};
 
     friend token_bridge::token_bridge;
+    friend token_bridge::bridge_implementation;
+    friend token_bridge::register_chain;
+    friend token_bridge::vaa;
+
     #[test_only]
     friend token_bridge::token_bridge_test;
-    friend token_bridge::bridge_implementation;
 
     const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
     const E_COIN_CAP_DOES_NOT_EXIST: u64 = 1;
@@ -66,6 +69,7 @@ module token_bridge::bridge_state {
         // we assume it was initialized from the CoinType "deployer::coin::T", where the module and struct
         // names are fixed.
         //
+        // TODO: maybe this should map to TypeInfos
         origin_info_to_wrapped_assets: Table<OriginInfo, vector<u8>>,
 
         wrapped_assets_to_origin_info: Table<vector<u8>, OriginInfo>,
@@ -77,6 +81,7 @@ module token_bridge::bridge_state {
         native_assets: Table<vector<u8>, TypeInfo>,
 
         // Mapping to safely identify wrapped assets from a 32 byte hash of its TypeInfo
+        // TODO: use a Set
         is_wrapped_asset: Table<vector<u8>, bool>,
 
         wrapped_asset_signer_capabilities: Table<vector<u8>, SignerCapability>,
@@ -87,13 +92,14 @@ module token_bridge::bridge_state {
 
         // Mapping to safely identify native assets from a 32 byte hash of its TypeInfo
         // all CoinTypes that aren't Wormhole wrapped assets are presumed native assets...
+        // TODO: use a Set
         is_registered_native_asset: Table<vector<u8>, bool>,
 
         // Mapping of native assets to amount outstanding on other chains
         outstanding_bridged: Table<vector<u8>, U256>, // should be address => u256
 
         // Mapping of bridge contracts on other chains
-        bridge_implementations: Table<U16, vector<u8>>, //should be u16=>vector<u8>
+        registered_emitters: Table<U16, vector<u8>>,
     }
 
     // getters
@@ -130,9 +136,9 @@ module token_bridge::bridge_state {
         *table::borrow(native_assets, token_address)
     }
 
-    public entry fun bridge_contracts(chain_id: U16): vector<u8> acquires State {
+    public entry fun get_registered_emitter(chain_id: U16): vector<u8> acquires State {
         let state = borrow_global<State>(@token_bridge);
-        *table::borrow(&state.bridge_implementations, chain_id)
+        *table::borrow(&state.registered_emitters, chain_id)
     }
 
     public entry fun outstanding_bridged(token: vector<u8>): U256 acquires State {
@@ -289,24 +295,24 @@ module token_bridge::bridge_state {
 
     // setters
 
-    public entry fun set_vaa_consumed(hash: vector<u8>) acquires State {
+    public(friend) fun set_vaa_consumed(hash: vector<u8>) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         set::add(&mut state.consumed_vaas, hash);
     }
 
-    public entry fun set_governance_chain_id(governance_chain_id: U16) acquires State {
+    public(friend) fun set_governance_chain_id(governance_chain_id: U16) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         state.governance_chain_id = governance_chain_id;
     }
 
-    public entry fun set_governance_contract(governance_contract: vector<u8>) acquires State {
+    public(friend) fun set_governance_contract(governance_contract: vector<u8>) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         state.governance_contract = governance_contract;
     }
 
-    public entry fun set_bridge_implementation(chain_id: U16, bridge_contract: vector<u8>) acquires State {
+    public(friend) fun set_registered_emitter(chain_id: U16, bridge_contract: vector<u8>) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
-        table::upsert(&mut state.bridge_implementations, chain_id, bridge_contract);
+        table::upsert(&mut state.registered_emitters, chain_id, bridge_contract);
     }
 
     fun set_wrapped_asset(native_info: &OriginInfo, wrapper: vector<u8>) acquires State {
@@ -366,7 +372,7 @@ module token_bridge::bridge_state {
             emitter_cap: emitter_cap,
             is_registered_native_asset: table::new<vector<u8>, bool>(),
             outstanding_bridged: table::new<vector<u8>, U256>(),
-            bridge_implementations: table::new<U16, vector<u8>>(),
+            registered_emitters: table::new<U16, vector<u8>>(),
             }
         );
     }

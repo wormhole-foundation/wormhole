@@ -12,7 +12,7 @@ module token_bridge::bridge_implementation {
     use aptos_framework::bcs::{to_bytes};
 
     use std::string;
-    use token_bridge::bridge_state::{Self, token_bridge_signer, set_outstanding_bridged, outstanding_bridged, bridge_contracts, set_native_asset};
+    use token_bridge::bridge_state::{Self as state, token_bridge_signer, set_outstanding_bridged, outstanding_bridged, set_native_asset};
     //use Wormhole::bridge_structs::{AssetMeta, Transfer, TransferWithPayload};
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::utils::{hash_type_info};
@@ -39,7 +39,7 @@ module token_bridge::bridge_implementation {
         assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
         let payload_id = 0;
         let token_address = hash_type_info<CoinType>();
-        if (!bridge_state::is_registered_native_asset(token_address) && !bridge_state::is_wrapped_asset(token_address)) {
+        if (!state::is_registered_native_asset(token_address) && !state::is_wrapped_asset(token_address)) {
             // if native asset is not registered, register it in the reverse look-up map
             set_native_asset(token_address, type_of<CoinType>());
         };
@@ -59,7 +59,7 @@ module token_bridge::bridge_implementation {
 
         let payload:vector<u8> = asset_meta::encode(_asset_meta);
         let nonce = 0;
-        bridge_state::publish_message(
+        state::publish_message(
             nonce,
             payload,
             fee_coins
@@ -77,7 +77,7 @@ module token_bridge::bridge_implementation {
         let (new_signer, new_cap) = create_resource_account(&_token_bridge_signer, seed);
         let token_address = address_of(&new_signer);
         deploy_coin(&new_signer);
-        bridge_state::set_wrapped_asset_signer_capability(to_bytes(&token_address), new_cap);
+        state::set_wrapped_asset_signer_capability(to_bytes(&token_address), new_cap);
         vaa::destroy(vaa);
         token_address
     }
@@ -125,7 +125,7 @@ module token_bridge::bridge_implementation {
     }
 
     fun verify_bridge_vm(vm: &VAA): bool{
-        if (bridge_contracts(vaa::get_emitter_chain(vm)) == vaa::get_emitter_address(vm)) {
+        if (state::get_registered_emitter(vaa::get_emitter_chain(vm)) == vaa::get_emitter_address(vm)) {
             return true
         };
         return false

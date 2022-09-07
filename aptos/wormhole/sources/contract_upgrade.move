@@ -7,6 +7,9 @@ module wormhole::contract_upgrade {
     use wormhole::vaa;
     use wormhole::state;
 
+    /// "Core" (left padded)
+    const CORE: vector<u8> = x"00000000000000000000000000000000000000000000000000000000436f7265";
+
     const E_UPGRADE_UNAUTHORIZED: u64 = 0;
     const E_UNEXPECTED_HASH: u64 = 1;
     const E_INVALID_MODULE: u64 = 2;
@@ -27,9 +30,7 @@ module wormhole::contract_upgrade {
         let cur = cursor::init(payload);
         let target_module = deserialize::deserialize_vector(&mut cur, 32);
 
-        // TODO(csongor): refactor this (like deserialize_module_magic or something)
-        let expected_module = x"00000000000000000000000000000000000000000000000000000000436f7265"; // Core
-        assert!(target_module == expected_module, E_INVALID_MODULE);
+        assert!(target_module == CORE, E_INVALID_MODULE);
 
         let action = deserialize::deserialize_u8(&mut cur);
         assert!(action == 0x01, E_INVALID_ACTION);
@@ -96,8 +97,8 @@ module wormhole::contract_upgrade_test {
 
     const UPGRADE_VAA: vector<u8> = x"010000000001000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a30100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000020b10360000000000000000000000000000000000000000000000000000000000436f7265010016d8f30e4a345ea0fa5df11daac4e1866ee368d253209cf9eda012d915a2db09e6";
 
-    fun setup(aptos_framework: signer) {
-        std::account::create_account_for_test(@aptos_framework);
+    fun setup() {
+        let aptos_framework = std::account::create_account_for_test(@aptos_framework);
         std::timestamp::set_time_has_started_for_testing(&aptos_framework);
         wormhole::init_test(
             22,
@@ -108,9 +109,9 @@ module wormhole::contract_upgrade_test {
         );
     }
 
-    #[test(aptos_framework = @aptos_framework)]
-    public fun test_contract_upgrade_authorize(aptos_framework: signer) {
-        setup(aptos_framework);
+    #[test]
+    public fun test_contract_upgrade_authorize() {
+        setup();
 
         contract_upgrade::submit_vaa(UPGRADE_VAA);
         let expected_hash = x"d8f30e4a345ea0fa5df11daac4e1866ee368d253209cf9eda012d915a2db09e6";
@@ -118,20 +119,20 @@ module wormhole::contract_upgrade_test {
         assert!(contract_upgrade::authorized_hash() == expected_hash, 0);
     }
 
-    #[test(aptos_framework = @aptos_framework)]
+    #[test]
     #[expected_failure(abort_code = 0x6407)]
-    public fun test_contract_upgrade_double(aptos_framework: signer) {
-        setup(aptos_framework);
+    public fun test_contract_upgrade_double() {
+        setup();
 
         // make sure we can't replay a VAA
         contract_upgrade::submit_vaa(UPGRADE_VAA);
         contract_upgrade::submit_vaa(UPGRADE_VAA);
     }
 
-    #[test(aptos_framework = @aptos_framework)]
+    #[test]
     #[expected_failure(abort_code = 4)]
-    public fun test_contract_upgrade_wrong_chain(aptos_framework: signer) {
-        setup(aptos_framework);
+    public fun test_contract_upgrade_wrong_chain() {
+        setup();
 
         let eth_upgrade = x"01000000000100d46215cd004a6a9d50114d31efdcba3e769dc559a7550c5e90618cacc5808d1e52d982d68e98369946fcfa46d47ade3ad88d9e4c2634a2d1a564b7aecb33e0d7000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000000c88e420000000000000000000000000000000000000000000000000000000000436f72650100029fc26e02f9bc648d48b7076571f1790049b2049d0101d4c52419c9ab8134ecb6";
         contract_upgrade::submit_vaa(eth_upgrade);

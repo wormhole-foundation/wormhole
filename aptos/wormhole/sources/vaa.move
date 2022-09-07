@@ -32,7 +32,7 @@ module wormhole::vaa {
     const E_NON_INCREASING_SIGNERS: u64 = 0x7;
     const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0x8;
 
-    struct VAA has key {
+    struct VAA {
         // Header
         guardian_set_index: U32,
         signatures:         vector<Signature>,
