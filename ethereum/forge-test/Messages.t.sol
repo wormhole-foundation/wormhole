@@ -7,7 +7,6 @@ import "../contracts/Messages.sol";
 import "../contracts/Structs.sol";
 import "forge-std/Test.sol";
 import "../contracts/libraries/external/BytesLib.sol";
-import {console} from "forge-std/console.sol";
 
 contract TestMessages is Messages, Test {
   using BytesLib for bytes;

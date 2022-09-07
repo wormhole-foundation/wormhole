@@ -119,7 +119,7 @@ contract Messages is Getters, Setters {
     }
 
     /**
-    * @dev verifyVM1 serves to validate an arbitrary VM against a valid Guardian set
+    * @dev verifyVM serves to validate an arbitrary VM against a valid Guardian set
     *  - it aims to make sure the VM is for a known guardianSet
     *  - it aims to ensure the guardianSet is not expired
     *  - it aims to ensure the VM has reached quorum
