@@ -108,7 +108,12 @@ contract Messages is Getters {
 
         vm.version = encodedVM.toUint8(index);
         index += 1;
-        require(vm.version == 1, "VM version incompatible");
+        // SECURITY: Note that currently the VM.version is not part of the hash 
+        // and for reasons described below it cannot be made part of the hash. 
+        // This means that this field's integrity is not protected and cannot be trusted. 
+        // This is not a problem today since there is only one accepted version, but it 
+        // could be a problem if we wanted to allow other versions in the future. 
+        require(vm.version == 1, "VM version incompatible"); 
 
         vm.guardianSetIndex = encodedVM.toUint32(index);
         index += 4;
@@ -129,7 +134,13 @@ contract Messages is Getters {
             index += 1;
         }
 
-        // Hash the body
+        /*
+        Hash the body
+
+        SECURITY: Do not change the way the hash of a VM is computed! 
+        Changing it could result into two different hashes for the same observation. 
+        But xDapps rely on the hash of an observation for replay protection.
+        */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 

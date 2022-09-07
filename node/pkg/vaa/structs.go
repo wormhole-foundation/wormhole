@@ -434,6 +434,10 @@ func (v *VAA) HexDigest() string {
 	return hex.EncodeToString(v.SigningMsg().Bytes())
 }
 
+/*
+SECURITY: Do not change this code! Changing it could result in two different hashes for
+the same observation. But xDapps rely on the hash of an observation for replay protection.
+*/
 func (v *VAA) serializeBody() []byte {
 	buf := new(bytes.Buffer)
 	MustWrite(buf, binary.BigEndian, uint32(v.Timestamp.Unix()))
