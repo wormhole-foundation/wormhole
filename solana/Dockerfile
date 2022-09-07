@@ -37,40 +37,6 @@ RUN --mount=type=cache,target=target,id=build \
     cp target/deploy/nft_bridge.so /opt/solana/deps/nft_bridge.so && \
     cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so
 
-# This stage is skipped in normal builds and needs to be explicitly invoked
-# (like `DOCKER_BUILDKIT=1 docker build --target ci_tests .`).
-FROM solana AS ci_tests
-
-# This emitter address is necessary for the governance tests.
-ENV EMITTER_ADDRESS="CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr"
-
-ARG BRIDGE_ADDRESS
-RUN [ -n "${BRIDGE_ADDRESS}" ]
-
-# This is a pre-built contract.
-RUN --mount=type=cache,target=target,id=test \
-    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
-    mkdir -p target/deploy && \
-    cp modules/token_bridge/token-metadata/spl_token_metadata.so target/deploy/
-
-RUN --mount=type=cache,target=target,id=test \
-    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
-    cargo test-bpf \
-        --manifest-path bridge/program/Cargo.toml \
-        --features trace,instructions
-
-RUN --mount=type=cache,target=target,id=test \
-    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
-    cargo test-bpf \
-        --manifest-path modules/token_bridge/program/Cargo.toml \
-        --features trace,instructions
-
-RUN --mount=type=cache,target=target,id=test \
-    --mount=type=cache,target=/usr/local/cargo/registry,id=cargo_registry \
-    cargo test-bpf \
-        --manifest-path modules/nft_bridge/program/Cargo.toml \
-        --features trace,instructions
-
 FROM scratch AS export-stage
 COPY --from=builder /opt/solana/deps /
 
