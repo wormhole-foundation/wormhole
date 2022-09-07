@@ -5,7 +5,7 @@
 //    Testnet: 0x2890ba17efe978480615e330ecb65333b880928e
 //
 // To generate the golang abi for the root chain contract:
-// - Grab the ABIs from Root Chain contract (not the proxy) (0x17aD93683697CE557Ef7774660394456A7412B00 on Ethereum mainnet) and put it in /tmp/RootChain.abi.
+// - Grab the ABIs from the Root Chain contract (not the proxy) (0x17aD93683697CE557Ef7774660394456A7412B00 on Ethereum mainnet) and put it in /tmp/RootChain.abi.
 // - mkdir node/pkg/ethereum/abi_root_chain
 // - third_party/abigen/abigen --abi /tmp/RootChain.abi --pkg abi_root_chain --out node/pkg/ethereum/abi_root_chain/RootChain.go
 
@@ -51,7 +51,7 @@ const (
 	poly_rcp_contract_addr int = 1
 )
 
-func UsePolygonRootChain(extraParams []string) bool {
+func usePolygonRootChain(extraParams []string) bool {
 	return len(extraParams) >= 2 && extraParams[poly_rcp_url] != "" && extraParams[poly_rcp_contract_addr] != ""
 }
 
@@ -170,7 +170,7 @@ func (e *PolygonImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink cha
 		return nil, err
 	}
 
-	e.logger.Info("initial block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Stringer("block", lastConfirmedBlockNum))
+	e.logger.Info("initial checkpoint block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Stringer("block", lastConfirmedBlockNum))
 
 	var BIG_ONE = big.NewInt(1)
 
@@ -187,8 +187,8 @@ func (e *PolygonImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink cha
 				opts := &ethBind.CallOpts{Context: ctx}
 				newConfirmedBlockNum, err := e.rootCaller.GetLastChildBlock(opts)
 				if err != nil {
-					e.logger.Error("failed to look up latest block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
-					sub.err <- fmt.Errorf("failed to read latest block: %w", err)
+					e.logger.Error("failed to look up latest checkpoint block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
+					sub.err <- fmt.Errorf("failed to read latest checkpoint block: %w", err)
 					break
 				}
 
@@ -200,8 +200,8 @@ func (e *PolygonImpl) SubscribeForCheckpointBlocks(ctx context.Context, sink cha
 						n := big.Int(*blockNum)
 						txHash, err := e.getTxHash(ctx, &n)
 						if err != nil {
-							e.logger.Error("failed to look up tx hash", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
-							sub.err <- fmt.Errorf("failed to read tx hash: %w", err)
+							e.logger.Error("failed to look up tx hash for checkpoint block", zap.String("eth_network", e.BaseEth.NetworkName), zap.Error(err))
+							sub.err <- fmt.Errorf("failed to read tx hash for checkpoint block: %w", err)
 							break
 						}
 
@@ -233,9 +233,8 @@ func (e *PolygonImpl) getTxHash(ctx context.Context, number *big.Int) (*ethCommo
 	}
 
 	var m Marshaller
-	err := e.rawClient.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
-	if err != nil {
-		e.logger.Error("failed to get block", zap.String("eth_network", e.BaseEth.NetworkName),
+	if err := e.rawClient.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false); err != nil {
+		e.logger.Error("failed to get checkpoint block", zap.String("eth_network", e.BaseEth.NetworkName),
 			zap.String("requested_block", numStr), zap.Error(err))
 		return nil, err
 	}

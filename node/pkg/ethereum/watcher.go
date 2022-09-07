@@ -149,7 +149,7 @@ func NewEthWatcher(
 		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
 	} else if chainID == vaa.ChainIDNeon {
 		ethIntf = NewGetLogsImpl(networkName, contract, 250)
-	} else if chainID == vaa.ChainIDPolygon && UsePolygonRootChain(extraParams) {
+	} else if chainID == vaa.ChainIDPolygon && usePolygonRootChain(extraParams) {
 		useCheckpointing = true
 		ethIntf = &PolygonImpl{
 			BaseEth:          EthImpl{NetworkName: networkName},
@@ -449,7 +449,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
 
-	// Watch for checkpoint heaers. If the chain does not support checkpointing, this is a no op.
+	// Watch for checkpoint headers. If the chain does not support checkpointing, this is a no op.
 	var cpHeadSink chan *common.NewBlock
 	var cpHeaderSubscription ethereum.Subscription
 	cpHeadSink = make(chan *common.NewBlock, 2)
@@ -692,7 +692,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 						tx, err := e.ethIntf.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
 
-						// QUESTION: I don't think this block of comments is correct for checkpointing. Is it safe that once something is checkpointed, it is finalized, and we can rely on the TX we just read?
+						// QUESTION: I don't think this block of comments is correct for checkpointing. Is it safe to assume
+						// that once something is checkpointed, it is finalized, and we can rely on the TX we just read?
 
 						// If the node returns an error after the checkpoint,
 						// it means the chain reorged and the transaction was orphaned. The
