@@ -125,7 +125,6 @@ module wormhole::wormhole {
         );
         wormhole
     }
-
 }
 
 #[test_only]
@@ -136,7 +135,8 @@ module wormhole::wormhole_test {
     use aptos_framework::aptos_coin::{Self};
     use aptos_framework::coin;
 
-    fun setup(aptos_framework: &signer) {
+    // public so we an re-use this in token_bridge test
+    public fun setup(aptos_framework: &signer) {
         std::account::create_account_for_test(@aptos_framework);
         std::timestamp::set_time_has_started_for_testing(aptos_framework);
         wormhole::init_test(
@@ -169,6 +169,8 @@ module wormhole::wormhole_test {
             b"hi mom",
             fees
         );
+
+        //TODO - check if event is actually emitted?
 
         wormhole::emitter::destroy_emitter_cap(emitter_cap);
         coin::destroy_mint_cap(mint_cap);

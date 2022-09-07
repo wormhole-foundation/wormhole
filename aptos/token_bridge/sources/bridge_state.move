@@ -1,7 +1,7 @@
 module token_bridge::bridge_state {
     use std::table::{Self, Table};
     use aptos_framework::type_info::{TypeInfo, type_of, account_address};
-    use aptos_framework::account::{SignerCapability, create_signer_with_capability};
+    use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability, mint, initialize};
     use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::string::{utf8};
@@ -20,6 +20,8 @@ module token_bridge::bridge_state {
     //use token_bridge::vaa::{parse_verify_and_replay_protect};
 
     friend token_bridge::token_bridge;
+    #[test_only]
+    friend token_bridge::token_bridge_test;
     friend token_bridge::bridge_implementation;
 
     const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
@@ -240,7 +242,7 @@ module token_bridge::bridge_state {
         transfer_tokens<CoinType>(coins, relayer_fee)
     }
 
-    public fun log_transfer(
+    public(friend) fun log_transfer(
         token_chain: U16,
         token_address: vector<u8>,
         amount: U256,
@@ -302,7 +304,7 @@ module token_bridge::bridge_state {
         table::upsert(&mut state.bridge_implementations, chain_id, bridge_contract);
     }
 
-    public entry fun set_wrapped_asset(native_info: &OriginInfo, wrapper: vector<u8>) acquires State {
+    fun set_wrapped_asset(native_info: &OriginInfo, wrapper: vector<u8>) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         let origin_info_to_wrapped_assets = &mut state.origin_info_to_wrapped_assets;
         table::upsert(origin_info_to_wrapped_assets, *native_info, wrapper);
@@ -310,7 +312,7 @@ module token_bridge::bridge_state {
         table::upsert(is_wrapped_asset, wrapper, true);
     }
 
-    public entry fun set_native_info(wrapper: vector<u8>, native_info: &OriginInfo) acquires State {
+    fun set_native_info(wrapper: vector<u8>, native_info: &OriginInfo) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         let wrapped_assets_to_origin_info = &mut state.wrapped_assets_to_origin_info;
         table::upsert(wrapped_assets_to_origin_info, wrapper, *native_info);
@@ -342,11 +344,11 @@ module token_bridge::bridge_state {
     }
 
     public(friend) fun init_token_bridge_state(
-        token_bridge: &signer,
         signer_cap: SignerCapability,
         emitter_cap: EmitterCapability
     ) {
-        move_to(token_bridge, State{
+        let token_bridge = account::create_signer_with_capability(&signer_cap);
+        move_to(&token_bridge, State{
             governance_chain_id: get_chain_id(),
             governance_contract: get_governance_contract(),
             consumed_vaas: set::new<vector<u8>>(),
