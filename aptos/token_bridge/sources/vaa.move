@@ -1,9 +1,10 @@
 /// Token Bridge VAA utilities
 module token_bridge::vaa {
     use wormhole::vaa::{Self, VAA};
-    use token_bridge::bridge_state::{set_vaa_consumed, bridge_contracts};
+    use token_bridge::bridge_state as state;
 
     friend token_bridge::bridge_implementation;
+    friend token_bridge::register_chain;
 
     const E_UNKNOWN_EMITTER: u64 = 0;
 
@@ -11,13 +12,13 @@ module token_bridge::vaa {
     /// the first time around.
     public(friend) fun replay_protect(vaa: &VAA) {
         // this calls set::add which aborts if the element already exists
-        set_vaa_consumed(vaa::get_hash(vaa));
+        state::set_vaa_consumed(vaa::get_hash(vaa));
     }
 
     /// Asserts that the VAA is from a known token bridge.
     public fun assert_known_emitter(vm: &VAA) {
         assert!(
-            bridge_contracts(vaa::get_emitter_chain(vm)) == vaa::get_emitter_address(vm),
+            state::get_registered_emitter(vaa::get_emitter_chain(vm)) == vaa::get_emitter_address(vm),
             E_UNKNOWN_EMITTER
         );
     }
@@ -35,6 +36,7 @@ module token_bridge::vaa {
     }
 }
 
+#[test_only]
 module token_bridge::vaa_test {
 
 }

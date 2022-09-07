@@ -2,6 +2,7 @@
 module wormhole::emitter {
 
     friend wormhole::state;
+    friend wormhole::wormhole;
 
     #[test_only]
     friend wormhole::emitter_test;
@@ -40,7 +41,7 @@ module wormhole::emitter {
         emitter_cap.emitter
     }
 
-    public fun use_sequence(emitter_cap: &mut EmitterCapability): u64 {
+    public(friend) fun use_sequence(emitter_cap: &mut EmitterCapability): u64 {
         let sequence = emitter_cap.sequence;
         emitter_cap.sequence = sequence + 1;
         sequence
