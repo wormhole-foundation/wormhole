@@ -174,11 +174,11 @@ pub fn post_message_unreliable(
     Ok(())
 }
 
-#[allow(unused_variables)] // message_key is used in `trace!`
+#[allow(clippy::too_many_arguments)]
 fn post_message_internal<'b>(
     ctx: &ExecutionContext,
     bridge: &mut Mut<Bridge<'b, { AccountState::Initialized }>>,
-    message_key: &Pubkey,
+    #[cfg_attr(not(feature = "trace"), allow(unused_variables))] message_key: &Pubkey,
     message: &mut MessageData,
     emitter: &mut Signer<MaybeMut<Info<'b>>>,
     sequence: &mut Mut<Sequence<'b>>,

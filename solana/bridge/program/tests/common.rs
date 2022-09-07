@@ -222,6 +222,7 @@ mod helpers {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn post_message(
         client: &mut BanksClient,
         program: &Pubkey,
@@ -258,7 +259,7 @@ mod helpers {
         execute(
             client,
             payer,
-            &[payer, emitter, &message],
+            &[payer, emitter, message],
             &[
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,
@@ -270,6 +271,7 @@ mod helpers {
         Ok(message.pubkey())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn post_message_unreliable(
         client: &mut BanksClient,
         program: &Pubkey,
@@ -298,7 +300,7 @@ mod helpers {
         execute(
             client,
             payer,
-            &[payer, emitter, &message],
+            &[payer, emitter, message],
             &[
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,

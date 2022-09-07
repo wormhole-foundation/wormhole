@@ -98,7 +98,7 @@ pub fn upgrade_contract(
     _data: UpgradeContractData,
 ) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
         ctx.program_id,
@@ -147,7 +147,7 @@ pub fn upgrade_guardian_set(
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     // Enforce single increments when upgrading.
     if accs.guardian_set_old.index != accs.vaa.new_guardian_set_index - 1 {
@@ -218,7 +218,7 @@ pub struct SetFeesData {}
 
 pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
     accs.bridge.config.fee = accs.vaa.fee.as_u64();
     Ok(())
 }
@@ -256,7 +256,7 @@ pub fn transfer_fees(
     _data: TransferFeesData,
 ) -> Result<()> {
     verify_governance(&accs.vaa)?;
-    claim::consume(ctx, &accs.payer.key, &mut accs.claim, &accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
     // Make sure the account loaded to receive funds is equal to the one the VAA requested.
     if accs.vaa.to != accs.recipient.key.to_bytes() {

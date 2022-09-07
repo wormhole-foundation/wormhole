@@ -86,7 +86,7 @@ impl<'b> RedeemerAccount<'b> {
     /// The `vaa.to` account must own the token account.
     fn verify_recipient_address(&self, recipient: &Pubkey) -> Result<()> {
         if recipient == self.info().key {
-            return Ok(());
+            Ok(())
         } else {
             self.verify_derivation(recipient, ())
         }
