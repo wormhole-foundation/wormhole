@@ -1,5 +1,12 @@
 # Security
 
+## Table of Contents
+- [Bug Bounty Program](#Bug-Bounty-Program)
+- [3rd Party Security Audits](#3rd-Party-Security-Audits)
+- [Trust Assumptions](#Trust-Assumptions)
+- [White Hat Hacking](#White-Hat-Hacking)
+- [Chain Integrators](#Chain-Integrators)
+
 ## Bug Bounty Program
 
 The Wormhole project operates two bug bounty programs to financially incentivize independent researchers for finding and responsibly disclosing security issues.
@@ -39,8 +46,28 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
   - **Scope**: _Ethereum Contracts, Solana Contracts, CosmWasm Contracts_
 - **Q3 2022 - Coinspect (SCHEDULED)**
   - **Scope**: _Algorand Contracts_
+## Trust Assumptions
 
-## White-Hat Hacking on Wormhole
+Consensus on Wormhole is achieved by two subset groups of Guardians (aka: validators) within the Guardian Set, which have the following abilities:
+
+- **Super Majority** (any 2/3+ quorum of Guardians - 13 of 19)
+  * Can pass messages
+    - Core messaging
+    - Token/NFT value movement
+  * Can pass governance
+    - Set fees
+    - Upgrade Contracts
+    - Upgrade Guardian Set
+- **Super Minority** (any 1/3+ quorum of Guardians - 7 of 19)
+  * Can censor messages or governance
+    - Refusing to sign observed message(s)
+    - Refusing to observe the block chain
+    - Refusing to run guardian software
+
+There are 19 Guardians in the current Guardian Set, made up of some of the largest and most reputable staking providers in crypto.  This level of operational security diversity is a useful property in preventing wholesale compromise of the Guardian Set due to operational failures of a single or small number of organizations.
+
+The Guardian Set is expected to grow over time to further decentralize the Wormhole Guardian Set and the Wormhole network.
+## White Hat Hacking
 
 The Wormhole project wants to lower the bar for White-hat hackers to find security bugs in Wormhole. Why? The easier this process, the more likely it will be for white-hats to find bugs in Wormhole and responsibly disclose them, helping to secure the network.
 
@@ -59,7 +86,7 @@ This section will continue iterating on white-hat bootstrap strategies as lesson
 
 It's important to remember this is an iterative process and to stay positive. If you spend the time coming up with a new test case, but didn't actually find a bug, please send a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) with additional positive and negative test cases. This process has shown repeatedly to improve your ability to understand Wormhole, and will increase your odds of finding future bugs.
 
-## Guidance to Chain Integrators
+## Chain Integrators
 
 As the list of chains connected to Wormhole increases, so does the risk that a given connected could introduce risks to the Wormhole network. As a result, Wormhole does have built-in safety features (e.g.: [Governor white-paper](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/whitepapers/0007_governor.md)) to reduce the "blast radius" of such case. That said, a defense in depth strategy is required to do as much as possible to secure the network. As part of this methodology, the Wormhole project recommends that all connected chains current and future implement robust security programs of their own to do their part in managing chain compromise risk to the wormhole network.
 
