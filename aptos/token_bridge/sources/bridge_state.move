@@ -15,7 +15,9 @@ module token_bridge::bridge_state {
     use wormhole::set::{Self, Set};
     use wormhole::vaa::{Self, parse_and_verify};
 
-    use token_bridge::bridge_structs::{Self, AssetMeta, TransferResult, create_transfer_result};
+    use token_bridge::transfer;
+    use token_bridge::transfer_result::{Self, TransferResult};
+    use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::utils::{hash_type_info};
     //use token_bridge::vaa::{parse_verify_and_replay_protect};
 
@@ -163,7 +165,7 @@ module token_bridge::bridge_state {
         //TODO: parse and verify and replay protect
         //let vaa = parse_verify_and_replay_protect(vaa);
         let vaa = parse_and_verify(vaa);
-        let _asset_meta: AssetMeta = bridge_structs::parse_asset_meta(vaa::get_payload(&vaa));
+        let _asset_meta: AssetMeta = asset_meta::parse(vaa::get_payload(&vaa));
 
         // fetch signer_cap and create signer for CoinType
         let token_address = account_address(&type_of<CoinType>());
@@ -172,17 +174,17 @@ module token_bridge::bridge_state {
         let coin_signer = create_signer_with_capability(coin_signer_cap);
 
         // initialize new coin using CoinType
-        let name = bridge_structs::get_name(&_asset_meta);
-        let symbol = bridge_structs::get_symbol(&_asset_meta);
-        let decimals = bridge_structs::get_decimals(&_asset_meta);
+        let name = asset_meta::get_name(&_asset_meta);
+        let symbol = asset_meta::get_symbol(&_asset_meta);
+        let decimals = asset_meta::get_decimals(&_asset_meta);
         let monitor_supply = false;
         let (burn_cap, freeze_cap, mint_cap) = initialize<CoinType>(&coin_signer, utf8(name), utf8(symbol), decimals, monitor_supply);
 
         // update the following two mappings in State
         // 1. (native chain, native address) => wrapped address
         // 2. wrapped address => (native chain, native address)
-        let token_address = bridge_structs::get_token_address(& _asset_meta);
-        let token_chain = bridge_structs::get_token_chain(& _asset_meta);
+        let token_address = asset_meta::get_token_address(& _asset_meta);
+        let token_chain = asset_meta::get_token_chain(& _asset_meta);
         let native_info = OriginInfo {token_address: token_address, token_chain: token_chain};
         set_native_info(token_address, &native_info);
         set_wrapped_asset(&native_info, token_address);
@@ -227,7 +229,7 @@ module token_bridge::bridge_state {
         let normalized_relayer_fee = u256::from_u128(relayer_fee);
         let wormhole_fee = u256::from_u64(0);
 
-        let transfer_result: TransferResult = create_transfer_result(
+        let transfer_result: TransferResult = transfer_result::create(
             origin_chain,
             origin_address,
             normalized_amount,
@@ -255,8 +257,8 @@ module token_bridge::bridge_state {
         let fee_value = coin::value<AptosCoin>(&message_fee);
         assert!(u256::compare(&u256::from_u64(fee_value), &amount)==1, E_FEE_EXCEEDS_AMOUNT);
         // TODO - payloadID is 1 for token transfer?
-        let transfer = bridge_structs::create_transfer(1, amount, token_address, token_chain, recipient, recipient_chain, fee);
-        let payload = bridge_structs::encode_transfer(transfer);
+        let transfer = transfer::create(1, amount, token_address, token_chain, recipient, recipient_chain, fee);
+        let payload = transfer::encode(transfer);
         publish_message(
             nonce,
             payload,
