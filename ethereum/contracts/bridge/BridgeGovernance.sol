@@ -48,9 +48,31 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         BridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
 
-        require(implementation.chainId == chainId(), "wrong chain id");
+        uint16 chainId = chainId();
+        require(implementation.chainId == chainId && chainId != type(uint16).max, "wrong chain id");
 
         upgradeImplementation(address(uint160(uint256(implementation.newContract))));
+    }
+
+    /**
+    * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
+    */
+    function submitRecoverChainId(bytes memory encodedVM) public {
+        require(chainId() == type(uint16).max, "invalid chain");
+
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        require(valid, reason);
+
+        setGovernanceActionConsumed(vm.hash);
+
+        BridgeStructs.RecoverChainId memory rci = parseRecoverChainId(vm.payload);
+
+        // Verify the VAA is for this chain
+        require(rci.evmChainId == block.chainid, "invalid EVM Chain");
+
+        // Update the chainIds
+        setEvmChainId(rci.evmChainId);
+        setChainId(rci.newChainId);
     }
 
     function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason){
@@ -96,11 +118,11 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         chain.module = encoded.toBytes32(index);
         index += 32;
-        require(chain.module == module, "invalid RegisterChain: wrong module");
+        require(chain.module == module, "wrong module");
 
         chain.action = encoded.toUint8(index);
         index += 1;
-        require(chain.action == 1, "invalid RegisterChain: wrong action");
+        require(chain.action == 1, "wrong action");
 
         chain.chainId = encoded.toUint16(index);
         index += 2;
@@ -113,7 +135,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         chain.emitterAddress = encoded.toBytes32(index);
         index += 32;
 
-        require(encoded.length == index, "invalid RegisterChain: wrong length");
+        require(encoded.length == index, "wrong length");
     }
 
     function parseUpgrade(bytes memory encoded) public pure returns (BridgeStructs.UpgradeContract memory chain) {
@@ -123,11 +145,11 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         chain.module = encoded.toBytes32(index);
         index += 32;
-        require(chain.module == module, "invalid UpgradeContract: wrong module");
+        require(chain.module == module, "wrong module");
 
         chain.action = encoded.toUint8(index);
         index += 1;
-        require(chain.action == 2, "invalid UpgradeContract: wrong action");
+        require(chain.action == 2, "wrong action");
 
         chain.chainId = encoded.toUint16(index);
         index += 2;
@@ -137,6 +159,27 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         chain.newContract = encoded.toBytes32(index);
         index += 32;
 
-        require(encoded.length == index, "invalid UpgradeContract: wrong length");
+        require(encoded.length == index, "wrong length");
+    }
+
+    /// @dev Parse a recoverChainId (action 5) with minimal validation
+    function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (BridgeStructs.RecoverChainId memory rci) {
+        uint index = 0;
+
+        rci.module = encodedRecoverChainId.toBytes32(index);
+        index += 32;
+        require(rci.module == module, "wrong module");
+
+        rci.action = encodedRecoverChainId.toUint8(index);
+        index += 1;
+        require(rci.action == 5, "wrong action");
+
+        rci.evmChainId = encodedRecoverChainId.toUint256(index);
+        index += 32;
+
+        rci.newChainId = encodedRecoverChainId.toUint16(index);
+        index += 2;
+
+        require(encodedRecoverChainId.length == index, "wrong length");
     }
 }

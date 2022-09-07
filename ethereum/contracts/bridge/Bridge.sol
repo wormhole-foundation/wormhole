@@ -20,15 +20,15 @@ import "./token/TokenImplementation.sol";
 contract Bridge is BridgeGovernance, ReentrancyGuard {
     using BytesLib for bytes;
 
-    modifier onlyEvmChainId() {
-        require(evmChainId() == block.chainid, "invalid evmChainId");
+    modifier noFork() {
+        require(evmChainId() == block.chainid, "bad fork");
         _;
     }
 
     /*
      *  @dev Produce a AssetMeta message for a given token
      */
-    function attestToken(address tokenAddress, uint32 nonce) public payable onlyEvmChainId returns (uint64 sequence) {
+    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence) {
         // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
         (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
         (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
@@ -71,7 +71,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint256 arbiterFee,
         uint32 nonce
-    ) public payable onlyEvmChainId returns (uint64 sequence) {
+    ) public payable returns (uint64 sequence) {
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(arbiterFee);
         sequence = logTransfer(
@@ -103,7 +103,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint32 nonce,
         bytes memory payload
-    ) public payable onlyEvmChainId returns (uint64 sequence) {
+    ) public payable returns (uint64 sequence) {
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(0);
         sequence = logTransferWithPayload(
@@ -163,7 +163,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint256 arbiterFee,
         uint32 nonce
-    ) public payable nonReentrant onlyEvmChainId returns (uint64 sequence) {
+    ) public payable nonReentrant returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
@@ -200,7 +200,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint32 nonce,
         bytes memory payload
-    ) public payable nonReentrant onlyEvmChainId returns (uint64 sequence) {
+    ) public payable nonReentrant returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
@@ -359,7 +359,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             finality()
         );
     }
-    function updateWrapped(bytes memory encodedVm) external onlyEvmChainId returns (address token) {
+    function updateWrapped(bytes memory encodedVm) external returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -379,7 +379,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         return wrapped;
     }
 
-    function createWrapped(bytes memory encodedVm) external onlyEvmChainId returns (address token) {
+    function createWrapped(bytes memory encodedVm) external returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -489,7 +489,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     }
 
     // Execute a Transfer message
-    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal onlyEvmChainId returns (bytes memory) {
+    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal returns (bytes memory) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -581,7 +581,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setOutstandingBridged(token, outstandingBridged(token) - normalizedAmount);
     }
 
-    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
+    function verifyBridgeVM(IWormhole.VM memory vm) internal view noFork returns (bool){
         if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
             return true;
         }
