@@ -37,12 +37,12 @@ module core_messages::sender {
         let message_fee = wormhole::state::get_message_fee();
         let fee_coins = coin::withdraw(user, message_fee);
 
-        wormhole::publish_message(
+        let _sequence = wormhole::publish_message(
             emitter_cap,
             nonce,
             payload,
             fee_coins
-        )
+        );
     }
 }
 

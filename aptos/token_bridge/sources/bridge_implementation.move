@@ -1,15 +1,15 @@
-//
 // Implementations for wrapped asset creation and token transfers
 // (TokenTransferWithPayload, TokenTransfer, CreateWrapped)
 //
 // TODO: we shouldn't follow the ethereum module layout, it's not great (+ it's
 // EVM specific with the "implementation" setup)
 module token_bridge::bridge_implementation {
-    use 0x1::type_info::{type_of, TypeInfo};
-    use 0x1::coin::{name, symbol, decimals, withdraw};
-    use 0x1::account::{create_resource_account};
-    use 0x1::signer::{address_of};
-    use 0x1::bcs::{to_bytes};
+    use aptos_framework::type_info::{type_of, TypeInfo};
+    use aptos_framework::coin::{Self, Coin, name, symbol, decimals, withdraw};
+    use aptos_framework::aptos_coin::{AptosCoin};
+    use aptos_framework::account::{create_resource_account};
+    use aptos_framework::signer::{address_of};
+    use aptos_framework::bcs::{to_bytes};
 
     use std::string;
     use token_bridge::bridge_state::{Self, token_bridge_signer, set_outstanding_bridged, outstanding_bridged, bridge_contracts, set_native_asset};
@@ -26,18 +26,17 @@ module token_bridge::bridge_implementation {
 
     use token_bridge::deploy_coin::{deploy_coin};
 
-    // TODO: for functions that do take a signer, we should have an equivalent
-    // function that does *not* take a signer, and instead takes explicitly
-    // whatever's needed from the signer. In this case, it would be a version of
-    // `attest_token` that takes a sufficient amount of coins. Then the signer
-    // version could do the withdrawal first and call the other version (which
-    // itself should also be public).
-    // There are multiple benefits:
-    // 1. we have a version of the function that doesn't require a signer
-    // 2. structuring the code in this way makes it very clear what the signer
-    //    is needed for (since the signer stuff is forced to be written separately)
-    //    -- something not that clear in the current version
-    public fun attest_token<CoinType>(user: &signer): u64 {
+    const E_COIN_IS_NOT_INITIALIZED: u64 = 0;
+
+    public fun attest_token_with_signer<CoinType>(user: &signer): u64 {
+        let message_fee = wormhole::state::get_message_fee();
+        let fee_coins = withdraw<AptosCoin>(user, message_fee);
+        attest_token<CoinType>(fee_coins)
+    }
+
+    public fun attest_token<CoinType>(fee_coins: Coin<AptosCoin>): u64 {
+        // you've can't attest an uninitialized token
+        assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
         let payload_id = 0;
         let token_address = hash_type_info<CoinType>();
         if (!bridge_state::is_registered_native_asset(token_address) && !bridge_state::is_wrapped_asset(token_address)) {
@@ -60,8 +59,6 @@ module token_bridge::bridge_implementation {
 
         let payload:vector<u8> = encode_asset_meta(_asset_meta);
         let nonce = 0;
-        let message_fee = wormhole::state::get_message_fee();
-        let fee_coins = withdraw(user, message_fee);
         bridge_state::publish_message(
             nonce,
             payload,

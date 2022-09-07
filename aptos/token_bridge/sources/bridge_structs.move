@@ -7,6 +7,9 @@ module token_bridge::bridge_structs {
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
 
+    friend token_bridge::bridge_implementation;
+    friend token_bridge::bridge_state;
+
     struct Transfer has key, store, drop{
         // TODO: is there a need to store the payload id in the parsed type?
         // It's there in the wire format to instruct which type to deserialise
@@ -26,7 +29,7 @@ module token_bridge::bridge_structs {
         // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
         fee: U256, //should be u256
     }
-    public fun create_transfer(
+    public(friend) fun create_transfer(
         payload_id: u8,
         amount: U256,
         token_address: vector<u8>,
@@ -79,7 +82,7 @@ module token_bridge::bridge_structs {
         wormhole_fee: U256,
     }
 
-    public fun create_transfer_result(
+    public(friend) fun create_transfer_result(
         token_chain: U16,
         token_address: vector<u8>,
         normalized_amount: U256,
@@ -197,7 +200,7 @@ module token_bridge::bridge_structs {
 
     // Construct a seed using AssetMeta fields for creating a new resource account 
     // N.B. seed is product of coin native chain and native address
-    public fun create_seed(asset_meta: &AssetMeta): vector<u8>{
+    public(friend) fun create_seed(asset_meta: &AssetMeta): vector<u8>{
         let token_chain = get_token_chain(asset_meta);
         let token_address = get_token_address(asset_meta);
         let seed = vector::empty<u8>();
