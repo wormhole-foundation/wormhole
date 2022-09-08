@@ -1,8 +1,8 @@
 {
   "name": "@certusone/wormhole-sdk-proto-web",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Web client protobuf for interacting with Wormhole",
-  "homepage": "https://wormholenetwork.com",
+  "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
   "module": "./lib/esm/index.js",
   "files": [
