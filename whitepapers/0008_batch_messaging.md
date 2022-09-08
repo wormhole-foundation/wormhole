@@ -156,13 +156,13 @@ bytes32[] hashes;
 uint8 observationsLen;
 
 // Repeated for observationLen times, bytes[] Observation
-	// Index of the observation
-	uint8 index;
-	// Number of bytes in the Observation
-	uint32 observationBytesLen;
-	// Encoded Observation, see the Structs section
+    // Index of the observation
+    uint8 index;
+    // Number of bytes in the Observation
+    uint32 observationBytesLen;
+    // Encoded Observation, see the Structs section
     // for details on the Observation structure.
-	bytes observation;
+    bytes observation;
 ```
 
 VAAv3:
