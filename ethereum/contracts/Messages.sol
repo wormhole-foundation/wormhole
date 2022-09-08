@@ -31,7 +31,7 @@ contract Messages is Getters, Setters {
 
     /**
      * @dev clearBatchCache serves to reduce gas costs by clearing VM hashes from storage
-     * it must be called in the same transaction as parseAndVerifyBatchVM
+     * it must be called in the same transaction as parseAndVerifyBatchVM to reduce gas usage
      * it only removes hashes from storage that are provided in the hashesToClear argument
      */
     function clearBatchCache(bytes32[] memory hashesToClear) public {
@@ -59,7 +59,7 @@ contract Messages is Getters, Setters {
             require(i == 0 || sig.guardianIndex > lastIndex, "signature indices must be ascending");
             lastIndex = sig.guardianIndex;
 
-            // Ensure that the provided signature index is within the
+            // @dev Ensure that the provided signature index is within the
             // bounds of the guardianSet. This is implicitly checked by the array
             // index operation below, so this check is technically redundant.
             // However, reverting explicitly here ensures that a bug is not
@@ -146,6 +146,7 @@ contract Messages is Getters, Setters {
     }
 
     function verifyVM3(Structs.VM memory vm) internal view returns (bool valid, string memory reason) {
+        // Check to see if the hash has been cached
         if (verifiedHashCached(vm.hash)) {
             return (true, "");
         } else {
@@ -169,10 +170,10 @@ contract Messages is Getters, Setters {
         header.signatures = vm.signatures;
         header.hash = vm.hash;
 
-        // verify the header
+        // Verify the header
         (valid, reason) = verifyHeader(header);
 
-        // verify the hash of each observation
+        // Verify the hash of each observation
         if (valid) {
             uint8 lastIndex;
             uint256 hashesLen = vm.hashes.length;
@@ -182,7 +183,7 @@ contract Messages is Getters, Setters {
                 // bounds of the array of observation hashes.
                 require(vm.indexedObservations[i].index < hashesLen, "observation index out of bounds");
 
-                // ensure that provided observation indices are ascending only
+                // Ensure that provided observation indices are ascending only
                 require(i == 0 || vm.indexedObservations[i].index > lastIndex, "observation indices must be ascending");
                 lastIndex = vm.indexedObservations[i].index;
 
@@ -194,7 +195,8 @@ contract Messages is Getters, Setters {
                 );
                 bytes32 observationHash = keccak256(abi.encodePacked(keccak256(observation)));
 
-                // verify the hash against the array of hashes
+                // Verify the hash against the array of hashes. Bail out if the hash
+                // does not match the hash at the expected index.
                 if (observationHash != vm.hashes[vm.indexedObservations[i].index]) {
                     return (false, "invalid observation");
                 }
@@ -234,7 +236,6 @@ contract Messages is Getters, Setters {
         index += 1;
 
         uint256 consumed = index - start;
-
         require(length >= consumed, "Insufficient observation length");
 
         observation.payload = encodedObservation.slice(index, length - consumed);
@@ -282,12 +283,12 @@ contract Messages is Getters, Setters {
 
         vm.version = encodedVM.toUint8(index);
         index += 1;
-        // SECURITY: Note that currently the VM.version is not part of the hash 
-        // and for reasons described below it cannot be made part of the hash. 
-        // This means that this field's integrity is not protected and cannot be trusted. 
-        // This is not a problem today since there is only one accepted version, but it 
-        // could be a problem if we wanted to allow other versions in the future. 
-        require(vm.version == 1, "VM version incompatible"); 
+        // SECURITY: Note that currently the VM.version is not part of the hash
+        // and for reasons described below it cannot be made part of the hash.
+        // This means that this field's integrity is not protected and cannot be trusted.
+        // This is not a problem today since there is only one accepted version, but it
+        // could be a problem if we wanted to allow other versions in the future.
+        require(vm.version == 1, "VM version incompatible");
 
         vm.guardianSetIndex = encodedVM.toUint32(index);
         index += 4;
@@ -302,8 +303,8 @@ contract Messages is Getters, Setters {
         /*
         Hash the body
 
-        SECURITY: Do not change the way the hash of a VM is computed! 
-        Changing it could result into two different hashes for the same observation. 
+        SECURITY: Do not change the way the hash of a VM is computed!
+        Changing it could result into two different hashes for the same observation.
         But xDapps rely on the hash of an observation for replay protection.
         */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
@@ -328,7 +329,13 @@ contract Messages is Getters, Setters {
         index += 1;
         require(vm.version == 3, "VM version incompatible");
 
-        // Hash the body
+        /*
+        Hash the body
+
+        SECURITY: Do not change the way the hash of a VM is computed!
+        Changing it could result into two different hashes for the same observation.
+        But xDapps rely on the hash of an observation for replay protection.
+        */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
@@ -351,7 +358,7 @@ contract Messages is Getters, Setters {
     function parseBatchVM(bytes memory encodedVM) public pure virtual returns (Structs.VM2 memory vm) {
         uint256 index = 0;
 
-        // parse the header
+        // Parse the header
         vm.version = encodedVM.toUint8(index);
         index += 1;
         require(vm.version == 2, "VM version incompatible");
@@ -359,22 +366,22 @@ contract Messages is Getters, Setters {
         vm.guardianSetIndex = encodedVM.toUint32(index);
         index += 4;
 
-        // parse signatures
+        // Parse signatures
         uint256 signersLen = encodedVM.toUint8(index);
         index += 1;
 
         vm.signatures = parseSignatures(index, signersLen, encodedVM);
         index += 66*signersLen;
 
-        // number of hashes in the full batch
+        // Number of hashes in the full batch
         uint256 hashesLen = encodedVM.toUint8(index);
         index += 1;
 
-        // hash the array of hashes
+        // Hash the array of hashes
         bytes memory body = encodedVM.slice(index, hashesLen * 32);
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
-        // parse hashes
+        // Parse hashes
         vm.hashes = new bytes32[](hashesLen);
         for (uint8 i = 0; i < hashesLen;) {
             vm.hashes[i] = encodedVM.toBytes32(index);
@@ -402,7 +409,12 @@ contract Messages is Getters, Setters {
             observationLen = encodedVM.toUint32(index);
             index += 4;
 
-            // store the IndexedObservation struct
+            /*
+            Store the IndexedObservation struct.
+
+            Prepend uint8(3) to the Observation bytes to signal that the
+            bytes are considered a "Headless" VM3 payload.
+            */
             vm.indexedObservations[i] = Structs.IndexedObservation({
                 index: observationIndex,
                 observation: abi.encodePacked(uint8(3), encodedVM.slice(index, observationLen))
