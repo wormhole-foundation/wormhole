@@ -6,11 +6,13 @@ module token_bridge::token_bridge {
     use token_bridge::bridge_state::{init_token_bridge_state};
     use wormhole::wormhole;
 
-    /// This function automatically gets called when the module is deployed,
-    /// with the signer the account the module is deployed under (i.e. the token
-    /// bridge resource account)
-    entry fun init_module(token_bridge: &signer) {
-        let signer_cap = claim_signer_capability(token_bridge, @token_bridge);
+    /// Initializes the contract.
+    /// The native `init_module` cannot be used, because it runs on each upgrade
+    /// (oddly).
+    /// Can only be called by the deployer (checked by the
+    /// `deployer::claim_signer_capability` function).
+    entry fun init(deployer: &signer) {
+        let signer_cap = claim_signer_capability(deployer, @token_bridge);
         init_internal(signer_cap);
     }
 

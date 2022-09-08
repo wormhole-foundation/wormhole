@@ -22,9 +22,10 @@ module token_bridge::bridge_state {
     use token_bridge::utils::{hash_type_info};
     //use token_bridge::vaa::{parse_verify_and_replay_protect};
 
-    friend token_bridge::token_bridge;
     friend token_bridge::bridge_implementation;
+    friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
+    friend token_bridge::token_bridge;
     friend token_bridge::vaa;
 
     #[test_only]

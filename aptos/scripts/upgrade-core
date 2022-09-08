@@ -12,4 +12,4 @@ VAA=$(worm generate upgrade -c aptos -a $HASH -m Core -g $GUARDIAN_SECRET)
 echo "Submitting VAA: $VAA"
 
 worm submit --network devnet "$VAA" --contract-address $CONTRACT_ADDR
-worm aptos upgrade ../wormhole --network devnet
+worm aptos upgrade ../wormhole --network devnet --contract-address $CONTRACT_ADDR

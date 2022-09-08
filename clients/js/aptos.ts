@@ -50,9 +50,11 @@ export async function execute_aptos(
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
+          callEntryFunc(network, `${contract}::contract_upgrade`, "submit_vaa", [bcsVAA]);
           break
         case "RegisterChain":
           console.log("Registering chain")
+          callEntryFunc(network, `${contract}::register_chain`, "submit_vaa", [bcsVAA]);
           break
         case "Transfer":
           console.log("Completing transfer")
