@@ -6,6 +6,7 @@
 #   URL    - Git repository URL.
 #   BRANCH - Git branch to clone.
 #   SHA    - (optional) Specific commit hash to checkout.
+
 set -e
 
 # Sometimes indexer is disabled, detect the missing build config.
