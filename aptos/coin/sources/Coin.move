@@ -1,3 +1,3 @@
-module 0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::coin { 
+module 0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin {
     struct T has key {}
 }

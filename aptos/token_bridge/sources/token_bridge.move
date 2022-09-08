@@ -39,8 +39,10 @@ module token_bridge::token_bridge_test {
 
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::bridge_state::{Self as state};
-    use token_bridge::bridge_implementation::{attest_token, attest_token_with_signer};
-    use token_bridge::utils::{hash_type_info};
+    use token_bridge::bridge_implementation::{attest_token, attest_token_with_signer, create_wrapped_coin_type};
+    use token_bridge::utils::{hash_type_info, pad_left_32};
+
+    use 0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T;
 
     struct MyCoin has key {}
 
@@ -123,15 +125,32 @@ module token_bridge::token_bridge_test {
         assert!(_sequence==0, 1);
     }
 
-    // #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
-    // fun test_create_wrapped(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
-    //     setup(aptos_framework, deployer);
-    //     //init_my_token(token_bridge);
-    //     //let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
-    //     //let fee_coins = coin::mint(100, &mint_cap);
-    //     //move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
-    //     //coin::register<AptosCoin>(token_bridge); //how important is this registration step and where to check it?
-    //     //let _sequence = attest_token<MyCoin>(fee_coins);
-    //     //assert!(_sequence==0, 1);
-    // }
+    // test create_wrapped_coin_type and create_wrapped_coin
+    #[test(aptos_framework = @aptos_framework, _token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_create_wrapped_coin(aptos_framework: &signer, _token_bridge: &signer, deployer: &signer) {
+        setup(aptos_framework, deployer);
+        let vaa = x"010000000001002952fb15d2178bdacbcf05ac5b0e7536d9f0fa60b01e39df468f1ac38cf861306fe0da22948a401fcb85746250cd2ca4d9d32728d0b5955df77eb3ac56dd2dbe010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000002a8c233000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
+        let _addr = create_wrapped_coin_type(vaa);
+
+        // assert coin is NOT initialized
+        let is_initialized = coin::is_coin_initialized<T>();
+        assert!(is_initialized==false, 0);
+
+        // initialize coin using type T, move caps to token_bridge, sets bridge state variables
+        state::create_wrapped_coin<T>(vaa);
+
+        // assert that coin IS initialized
+        let is_initialized = coin::is_coin_initialized<T>();
+        assert!(is_initialized==true, 0);
+
+        // assert coin info is correct
+        let name = coin::name<T>();
+        let symbol = coin::symbol<T>();
+        let decimals = coin::decimals<T>();
+        assert!(name==utf8(pad_left_32(&b"Beef face Token")), 0);
+        assert!(symbol==utf8(pad_left_32(&b"BEEF")), 0);
+        assert!(decimals==12, 0);
+
+        // TODO - check that State mappings are set properly
+    }
 }
