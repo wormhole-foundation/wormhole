@@ -7,7 +7,7 @@ module token_bridge::bridge_state {
     use aptos_framework::aptos_coin::{AptosCoin};
 
     use wormhole::u256::{Self, U256};
-    use wormhole::u16::{U16};
+    use wormhole::u16::{Self, U16};
     use wormhole::emitter::{EmitterCapability};
     use wormhole::state::{get_chain_id, get_governance_contract};
     use wormhole::wormhole;
@@ -166,21 +166,65 @@ module token_bridge::bridge_state {
         info.token_chain
     }
 
+    public entry fun transfer_tokens_with_signer<CoinType>(
+        sender: &signer,
+        amount: u64,
+        recipient_chain: u64,
+        recipient: vector<u8>,
+        relayer_fee: u64,
+        wormhole_fee: u64,
+        nonce: u64
+        ): u64 acquires State, OriginInfo {
+        let coins = coin::withdraw<CoinType>(sender, amount);
+        //let relayer_fee_coins = coin::withdraw<AptosCoin>(sender, relayer_fee);
+        let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
+        transfer_tokens<CoinType>(coins, u16::from_u64(recipient_chain), recipient, relayer_fee, wormhole_fee_coins, nonce)
+    }
+
+    public fun transfer_tokens<CoinType>(
+        coins: Coin<CoinType>,
+        recipient_chain: U16,
+        recipient: vector<u8>,
+        relayer_fee: u64,
+        wormhole_fee_coins: Coin<AptosCoin>,
+        nonce: u64
+        ): u64 acquires State, OriginInfo {
+        let wormhole_fee = coin::value<AptosCoin>(&wormhole_fee_coins);
+        let result = transfer_tokens_internal<CoinType>(coins, relayer_fee, wormhole_fee);
+        log_transfer(
+            transfer_result::get_token_chain(&result),
+            transfer_result::get_token_address(&result),
+            transfer_result::get_normalized_amount(&result),
+            recipient_chain,
+            recipient,
+            transfer_result::get_normalized_relayer_fee(&result),
+            wormhole_fee_coins,
+            nonce
+        )
+    }
 
     // transfer a native or wraped token from sender to token_bridge
-    public entry fun transfer_tokens<CoinType>(coins: Coin<CoinType>, relayer_fee: u128): TransferResult acquires State, OriginInfo {
+    fun transfer_tokens_internal<CoinType>(
+        coins: Coin<CoinType>,
+        relayer_fee: u64,
+        wormhole_fee: u64,
+        ): TransferResult acquires State, OriginInfo {
         assert!(coin::is_account_registered<CoinType>(@token_bridge), E_COIN_NOT_REGISTERED);
-
         let token_address = token_hash::derive<CoinType>();
-        let amount = coin::value<CoinType>(&coins);
 
-        // transfer tokens from sender to token_bridge
+        // transfer coin to token_bridge
+        if (!coin::is_account_registered<CoinType>(@token_bridge)){
+            coin::register<CoinType>(&token_bridge_signer());
+        };
+        if (!coin::is_account_registered<AptosCoin>(@token_bridge)){
+            coin::register<AptosCoin>(&token_bridge_signer());
+        };
+        let amount = coin::value<CoinType>(&coins);
         coin::deposit<CoinType>(@token_bridge, coins);
 
         // return TransferResult encapsulating details of token transferred
         let origin_chain;
         let origin_address;
-
         if (is_wrapped_asset<CoinType>()) {
             let origin_info = origin_info<CoinType>();
             origin_chain = origin_info.token_chain;
@@ -196,22 +240,16 @@ module token_bridge::bridge_state {
         // TODO - normalize amount by using helpers from utils.move
         let normalized_amount = u256::from_u64(amount);
         // TODO - normalize relayer fee
-        let normalized_relayer_fee = u256::from_u128(relayer_fee);
-        let wormhole_fee = u256::from_u64(0);
+        let normalized_relayer_fee = u256::from_u64(relayer_fee);
 
         let transfer_result: TransferResult = transfer_result::create(
             origin_chain,
             origin_address,
             normalized_amount,
             normalized_relayer_fee,
-            wormhole_fee
+            u256::from_u64(wormhole_fee)
         );
         transfer_result
-    }
-
-    public entry fun transfer_tokens_with_signer<CoinType>(sender: &signer, amount: u64, relayer_fee: u128): TransferResult acquires State, OriginInfo {
-        let coins = coin::withdraw<CoinType>(sender, amount);
-        transfer_tokens<CoinType>(coins, relayer_fee)
     }
 
     public(friend) fun log_transfer(
@@ -221,18 +259,20 @@ module token_bridge::bridge_state {
         recipient_chain: U16,
         recipient: vector<u8>,
         fee: U256,
-        message_fee: Coin<AptosCoin>,
+        wormhole_fee: Coin<AptosCoin>,
         nonce: u64
     ): u64 acquires State{
-        let fee_value = coin::value<AptosCoin>(&message_fee);
-        assert!(u256::compare(&u256::from_u64(fee_value), &amount)==1, E_FEE_EXCEEDS_AMOUNT);
+        // TODO - check fee values
+        //let fee_value = coin::value<AptosCoin>(&wormhole_fee);
+        //assert!(u256::compare(&u256::from_u64(fee_value), &amount)==1, E_FEE_EXCEEDS_AMOUNT);
+
         // TODO - payloadID is 1 for token transfer?
         let transfer = transfer::create(1, amount, token_address, token_chain, recipient, recipient_chain, fee);
         let payload = transfer::encode(transfer);
         publish_message(
             nonce,
             payload,
-            message_fee,
+            wormhole_fee,
         )
     }
 
