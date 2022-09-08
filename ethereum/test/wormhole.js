@@ -668,6 +668,11 @@ contract("Wormhole", function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+
         data = [
             // Core
             core,
@@ -680,16 +685,18 @@ contract("Wormhole", function () {
         ].join('')
 
         const vm = await signAndEncodeVM(
-            0,
-            0,
-            testGovernanceChainId,
-            testGovernanceContract,
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
             0,
             data,
             [
                 testSigner1PK,
+                testSigner2PK,
+                testSigner3PK
             ],
-            0,
+            1,
             2
         );
 

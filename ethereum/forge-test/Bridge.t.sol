@@ -21,18 +21,18 @@ contract TestBridge is Bridge, Test {
         assertEq(chainId(), 1);
         assertEq(evmChainId(), 1);
 
-        vm.expectRevert("invalid evmChainId");
-        setEvmChainId(1337);
-        assertEq(chainId(), 1);
-        assertEq(evmChainId(), 1);
-
         // fork occurs, block.chainid changes
         vm.chainId(10001);
-        assertEq(chainId(), 65520);
+        assertEq(chainId(), type(uint16).max);
         assertEq(evmChainId(), 1);
 
         setEvmChainId(10001);
         assertEq(chainId(), 1);
         assertEq(evmChainId(), 10001);
+
+        // evmChainId must equal block.chainid
+        vm.expectRevert("invalid evmChainId");
+        setEvmChainId(1337);
+
     }
 }
