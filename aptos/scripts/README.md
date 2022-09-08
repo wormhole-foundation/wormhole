@@ -1,7 +1,7 @@
 
 Install `aptos` CLI by running
 ```shell
-cargo install --git https://github.com/aptos-labs/aptos-core.git aptos --branch main
+cargo install --git https://github.com/aptos-labs/aptos-core.git aptos --rev 8ba12c5badeb68d8ff4625a32aceb9043398b16b
 ```
 
 Install `worm` CLI by running
