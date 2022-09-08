@@ -4,6 +4,7 @@ module token_bridge::vaa {
     use token_bridge::bridge_state as state;
 
     friend token_bridge::bridge_implementation;
+    friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
 
     const E_UNKNOWN_EMITTER: u64 = 0;

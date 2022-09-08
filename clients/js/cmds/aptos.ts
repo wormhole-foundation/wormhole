@@ -44,6 +44,24 @@ exports.command = 'aptos';
 exports.desc = 'Aptos utilities ';
 exports.builder = function (y: typeof yargs) {
   return y
+    .command("init-token-bridge", "Init token bridge contract", (yargs) => {
+      return yargs
+        .option("network", network_options)
+        // TODO(csongor): once the sdk has this, just use it from there
+        .option("contract-address", {
+          alias: "a",
+          required: true,
+          describe: "Address where the wormhole module is deployed",
+          type: "string",
+        })
+    }, async (argv) => {
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+
+      const contract_address = evm_address(argv["contract-address"]);
+
+      await callEntryFunc(network, `${contract_address}::token_bridge`, "init", []);
+    })
     .command("init-wormhole", "Init Wormhole core contract", (yargs) => {
       return yargs
         .option("network", network_options)
@@ -103,14 +121,14 @@ exports.builder = function (y: typeof yargs) {
           type: "string"
         })
         .option("network", network_options)
-    }, (argv) => {
+    }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
       const p = buildPackage(argv["package-dir"]);
       const b = serializePackage(p);
 
-      callEntryFunc(network, "0x1::code", "publish_package_txn", [b.meta, b.bytecodes])
+      await callEntryFunc(network, "0x1::code", "publish_package_txn", [b.meta, b.bytecodes])
       console.log("Deployed:", p.mv_files)
     })
     .command("deploy-resource <seed> <package-dir>", "Deploy an Aptos package using a resource account", (yargs) => {
@@ -122,7 +140,7 @@ exports.builder = function (y: typeof yargs) {
           type: "string"
         })
         .option("network", network_options)
-    }, (argv) => {
+    }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
@@ -131,7 +149,7 @@ exports.builder = function (y: typeof yargs) {
       const seed = Buffer.from(argv["seed"], "ascii")
 
       // TODO(csongor): use deployer address from sdk (when it's there)
-      callEntryFunc(
+      await callEntryFunc(
         network,
         "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer",
         "deploy_derived",
@@ -161,8 +179,16 @@ exports.builder = function (y: typeof yargs) {
         .positional("package-dir", {
           type: "string"
         })
+        // TODO(csongor): once the sdk has the addresses, just look that up
+        // based on the module
+        .option("contract-address", {
+          alias: "a",
+          required: true,
+          describe: "Address where the wormhole module is deployed",
+          type: "string",
+        })
         .option("network", network_options)
-    }, (argv) => {
+    }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
@@ -170,15 +196,16 @@ exports.builder = function (y: typeof yargs) {
       const b = serializePackage(p);
 
       // TODO(csongor): use deployer address from sdk (when it's there)
-      callEntryFunc(
+      const hash = await callEntryFunc(
         network,
-        "0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204::contract_upgrade",
+        `${argv["contract-address"]}::contract_upgrade`,
         "upgrade",
         [
           b.meta,
           b.bytecodes,
         ])
       console.log("Deployed:", p.mv_files)
+      console.log(hash)
     })
     .command("faucet", "Request money from the faucet for the deployer wallet (only local validator)", (_yargs) => {
     }, async (_argv) => {
