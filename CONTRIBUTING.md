@@ -66,6 +66,31 @@ Please open a GitHub issue outlining your use case, and we can help you build it
 
 Run `./scripts/lint.sh -d format` and `./scripts/lint.sh lint`.
 
+# Commit Naming Convention
+
+When making commits on Wormhole, it's advised to prefix the commit with the component name.
+
+Example Component Names (generally the root folder of the change in the Wormhole repo):
+- node
+- ethereum
+- sdk
+- solana
+
+Example Full Commit Text:
+- sdk/js-proto*: 0.0.4 version bump
+- node: docs for running a spy against mainnet
+- node: Fix formatting with go 1.19
+
+Example Full Commits:
+- https://github.com/wormhole-foundation/wormhole/commit/5cc2c071572daab876db2fd82e9d16dc4c34aa11
+- https://github.com/wormhole-foundation/wormhole/commit/eeb1682fba9530a8cd8755b53639ba3daefeda36
+
+Resources for writing good commit messages:
+
+- https://www.freecodecamp.org/news/how-to-write-better-git-commit-messages/
+- https://cbea.ms/git-commit/
+- https://reflectoring.io/meaningful-commit-messages/
+
 ## IDE Integration
 
 ### Golang formatting
