@@ -14,6 +14,20 @@ module token_bridge::utils {
         res
     }
 
+    // pad a vector with zeros on the left so that it is 32 bytes
+    public entry fun pad_left_32(input: &vector<u8>): vector<u8>{
+        let len = vector::length<u8>(input);
+        assert!(len <= 32, 0);
+        let ret = vector::empty<u8>();
+        let i = 0;
+        while (i < 32 - len){
+            vector::append<u8>(&mut ret, x"00");
+            i = i+1;
+        };
+        vector::append<u8>(&mut ret, *input);
+        ret
+    }
+
     //TODO - finish and test normalized and denormalize functions
 
     // public entry fun normalize_amount(amount: U256, decimals: u8): U256 {
@@ -35,6 +49,7 @@ module token_bridge::utils {
     module token_bridge::utils_test {
         use aptos_std::type_info::{type_name};
         use std::string;
+        use token_bridge::utils::{pad_left_32};
 
         struct MyCoin has key{}
 
@@ -42,5 +57,8 @@ module token_bridge::utils {
         fun test_utils() {
             let name = type_name<MyCoin>();
             assert!(*string::bytes(&name) == b"0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed::utils_test::MyCoin", 0);
+            let v = x"11";
+            let pad_left_v = pad_left_32(&v);
+            assert!(pad_left_v==x"0000000000000000000000000000000000000000000000000000000000000011", 0);
         }
     }

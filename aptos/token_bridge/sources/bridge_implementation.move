@@ -18,7 +18,6 @@ module token_bridge::bridge_implementation {
     use token_bridge::utils::{hash_type_info};
     use token_bridge::deploy_coin::{deploy_coin};
 
-
     use wormhole::u256::{Self, U256};
     use wormhole::u32::{U32};
     use wormhole::u16::{U16};
@@ -70,7 +69,6 @@ module token_bridge::bridge_implementation {
         let vaa = parse_and_verify(vaa);
         let _asset_meta:AssetMeta = asset_meta::parse(vaa::get_payload(&vaa));
         let seed = asset_meta::create_seed(&_asset_meta);
-
         //create resource account
         let _token_bridge_signer = token_bridge_signer();
         let (new_signer, new_cap) = create_resource_account(&_token_bridge_signer, seed);

@@ -21,3 +21,6 @@ worm aptos init-token-bridge --network devnet --contract-address $TOKEN_BRIDGE_A
 
 # Deploy example program for sending messages
 worm aptos deploy --network devnet ../examples/core_messages
+
+# Deploy coin
+#worm aptos deploy --network devnet ../wormhole
