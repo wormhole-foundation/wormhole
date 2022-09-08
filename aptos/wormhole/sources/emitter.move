@@ -22,7 +22,7 @@ module wormhole::emitter {
         let EmitterRegistry { next_id: _ } = registry;
     }
 
-    public fun new_emitter(registry: &mut EmitterRegistry): EmitterCapability {
+    public(friend) fun new_emitter(registry: &mut EmitterRegistry): EmitterCapability {
         let emitter = registry.next_id;
         registry.next_id = emitter + 1;
         EmitterCapability { emitter, sequence: 0 }

@@ -17,7 +17,7 @@ worm aptos init-wormhole --network devnet -g $GUARDIAN_ADDR --contract-address $
 # Deploy & initialise (with `init_module`) token_bridge
 worm aptos deploy-resource token_bridge --network devnet ../token_bridge
 # Initialise token-bridge
-worm aptos init-token-bridge --network devnet -g $GUARDIAN_ADDR --contract-address $TOKEN_BRIDGE_ADDR
+worm aptos init-token-bridge --network devnet --contract-address $TOKEN_BRIDGE_ADDR
 
 # Deploy example program for sending messages
 worm aptos deploy --network devnet ../examples/core_messages
