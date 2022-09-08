@@ -40,7 +40,8 @@ module token_bridge::token_bridge_test {
 
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::bridge_state::{Self as state};
-    use token_bridge::bridge_implementation::{attest_token, attest_token_with_signer, create_wrapped_coin_type};
+    use token_bridge::bridge_implementation::{create_wrapped_coin_type};
+    use token_bridge::attest_token;
     use token_bridge::utils::{pad_left_32};
     use token_bridge::token_hash;
 
@@ -90,7 +91,7 @@ module token_bridge::token_bridge_test {
         let fee_coins = coin::mint(100, &mint_cap);
         move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
         coin::register<AptosCoin>(token_bridge); //how important is this registration step and where to check it?
-        let _sequence = attest_token<MyCoin>(fee_coins);
+        let _sequence = attest_token::attest_token<MyCoin>(fee_coins);
         assert!(_sequence==0, 1);
     }
 
@@ -104,7 +105,7 @@ module token_bridge::token_bridge_test {
         coin::deposit<AptosCoin>(@deployer, fee_coins);
         move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
         coin::register<AptosCoin>(token_bridge); // where else to check registration?
-        let _sequence = attest_token_with_signer<MyCoin>(deployer);
+        let _sequence = attest_token::attest_token_with_signer<MyCoin>(deployer);
         assert!(_sequence==0, 1);
 
         // check that native asset is registered with State
@@ -112,7 +113,7 @@ module token_bridge::token_bridge_test {
         assert!(state::asset_type_info(token_address)==type_of<MyCoin>(), 0);
 
         // attest same token a second time, should have no change in behavior
-        let _sequence = attest_token_with_signer<MyCoin>(deployer);
+        let _sequence = attest_token::attest_token_with_signer<MyCoin>(deployer);
         assert!(_sequence==1, 2);
     }
 
@@ -125,7 +126,7 @@ module token_bridge::token_bridge_test {
         let fee_coins = coin::mint(0, &mint_cap);
         move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
         coin::register<AptosCoin>(token_bridge); // where else to check registration?
-        let _sequence = attest_token<MyCoin>(fee_coins);
+        let _sequence = attest_token::attest_token<MyCoin>(fee_coins);
         assert!(_sequence==0, 1);
     }
 
