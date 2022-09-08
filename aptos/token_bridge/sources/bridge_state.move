@@ -149,13 +149,23 @@ module token_bridge::bridge_state {
     // given the hash of the TypeInfo of a Coin, this tells us if it is registered with Token Bridge
     public fun is_registered_native_asset(token: vector<u8>): bool acquires State {
         let state = borrow_global<State>(@token_bridge);
-         *table::borrow(&state.is_registered_native_asset, token)
+        //TODO - make is_registered_native_asset a set
+        if (table::contains(&state.is_registered_native_asset, token)){
+            return true
+        } else{
+            return false
+        }
     }
 
     // the input arg is the hash of the TypeInfo of the wrapped asset
     public entry fun is_wrapped_asset(token: vector<u8>): bool acquires State {
         let state = borrow_global<State>(@token_bridge);
-         *table::borrow(&state.is_wrapped_asset, token)
+        //TODO - make is_wrapped_asset a set
+        if (table::contains(&state.is_wrapped_asset, token)){
+            return true
+        } else{
+            return false
+        }
     }
 
     fun mint_wrapped<CoinType>(amount:u64, token: vector<u8>): Coin<CoinType> acquires CoinCapabilities, State{

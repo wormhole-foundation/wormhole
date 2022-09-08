@@ -35,7 +35,7 @@ module wormhole::serialize {
 
     public fun serialize_u128(buf: &mut vector<u8>, v: u128) {
         serialize_u64(buf, ((v >> 64) as u64));
-        serialize_u64(buf, ((v % 2<<64) as u64))
+        serialize_u64(buf, ((v % (2 << 64)) as u64));
     }
 
     public fun serialize_u256(buf: &mut vector<u8>, v: U256) {
@@ -58,6 +58,7 @@ module wormhole::serialize {
         }) {
             let byte = vector::pop_back(&mut v);
             vector::push_back(buf, byte);
+            len = len - 1;
         }
     }
 }
@@ -67,30 +68,73 @@ module wormhole::test_serialize{
     use wormhole::serialize;
     use wormhole::deserialize;
     use wormhole::cursor::{Self};
+    use wormhole::u32::{Self};
+    use wormhole::u16::{Self};
     use 0x1::vector;
 
     #[test]
-    fun test_one(){
-        let x = vector::empty();
-        vector::push_back<u8>(&mut x, 0x12);
-        vector::push_back<u8>(&mut x, 0x34);
-        vector::push_back<u8>(&mut x, 0x56);
-        vector::push_back<u8>(&mut x, 0x78);
-        vector::push_back<u8>(&mut x, 0x12);
-        vector::push_back<u8>(&mut x, 0x34);
-        vector::push_back<u8>(&mut x, 0x56);
-        vector::push_back<u8>(&mut x, 0x78);
-        let cur = cursor::init(x);
-        let u = deserialize::deserialize_u64(&mut cur);
-        assert!(u==0x1234567812345678, 0);
+    fun test_serialize_u8(){
+        let u = 0x12;
+        let s = vector::empty();
+        serialize::serialize_u8(&mut s, u);
+        let cur = cursor::init(s);
+        let p = deserialize::deserialize_u8(&mut cur);
         cursor::destroy_empty(cur);
+        assert!(p==u, 0);
+    }
 
-        // serialize then deserialize test
+    #[test]
+    fun test_serialize_u16(){
+        let u = u16::from_u64((0x1234 as u64));
+        let s = vector::empty();
+        serialize::serialize_u16(&mut s, u);
+        let cur = cursor::init(s);
+        let p = deserialize::deserialize_u16(&mut cur);
+        cursor::destroy_empty(cur);
+        assert!(p==u, 0);
+    }
+
+    #[test]
+    fun test_serialize_u32(){
+        let u = u32::from_u64((0x12345678 as u64));
+        let s = vector::empty();
+        serialize::serialize_u32(&mut s, u);
+        let cur = cursor::init(s);
+        let p = deserialize::deserialize_u32(&mut cur);
+        cursor::destroy_empty(cur);
+        assert!(p==u, 0);
+    }
+
+    #[test]
+    fun test_serialize_u64(){
+        let u = 0x1234567812345678;
         let s = vector::empty();
         serialize::serialize_u64(&mut s, u);
         let cur = cursor::init(s);
         let p = deserialize::deserialize_u64(&mut cur);
         cursor::destroy_empty(cur);
         assert!(p==u, 0);
+    }
+
+     #[test]
+    fun test_serialize_u128(){
+        let u = 0x12345678123456781234567812345678;
+        let s = vector::empty();
+        serialize::serialize_u128(&mut s, u);
+        let cur = cursor::init(s);
+        let p = deserialize::deserialize_u128(&mut cur);
+        cursor::destroy_empty(cur);
+        assert!(p==u, 0);
+    }
+
+    #[test]
+    fun test_serialize_vector(){
+        let x = vector::empty<u8>();
+        let y = vector::empty<u8>();
+        vector::push_back<u8>(&mut x, 0x12);
+        vector::push_back<u8>(&mut x, 0x34);
+        vector::push_back<u8>(&mut x, 0x56);
+        serialize::serialize_vector(&mut y, x);
+        assert!(vector::length<u8>(&y)==3, 0);
     }
 }
