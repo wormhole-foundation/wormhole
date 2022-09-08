@@ -103,7 +103,7 @@ module token_bridge::token_bridge_test {
 
         // check that native asset is registered with State
         let token_address = hash_type_info<MyCoin>();
-        assert!(state::native_asset(token_address)==type_of<MyCoin>(), 0);
+        assert!(state::asset_type_info(token_address)==type_of<MyCoin>(), 0);
 
         // attest same token a second time, should have no change in behavior
         let _sequence = attest_token_with_signer<MyCoin>(deployer);
@@ -122,4 +122,16 @@ module token_bridge::token_bridge_test {
         let _sequence = attest_token<MyCoin>(fee_coins);
         assert!(_sequence==0, 1);
     }
+
+    // #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    // fun test_create_wrapped(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
+    //     setup(aptos_framework, deployer);
+    //     //init_my_token(token_bridge);
+    //     //let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+    //     //let fee_coins = coin::mint(100, &mint_cap);
+    //     //move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
+    //     //coin::register<AptosCoin>(token_bridge); //how important is this registration step and where to check it?
+    //     //let _sequence = attest_token<MyCoin>(fee_coins);
+    //     //assert!(_sequence==0, 1);
+    // }
 }
