@@ -2115,6 +2115,73 @@ contract("Wormhole VM2 & VM3s", function () {
         assert.equal(parsedVM1.vm.consistencyLevel, parsedVM3.vm.consistencyLevel);
         assert.equal(parsedVM1.vm.payload, parsedVM3.vm.payload);
     })
+
+    it("should not verify a VM3 with spoofed version", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+        const signers = [testSigner1PK];
+        const cacheObservations = false;
+
+        // deploy the mock integration contract
+        const mockIntegration = new web3.eth.Contract(MockBatchedVAASender.abi, MockBatchedVAASender.address);
+
+        // simulate signing the VM2
+        const vm2 = await signAndEncodeVM2(
+            TEST_OBSERVATIONS,
+            signers,
+            0
+        );
+
+        // Parse and verify the batch header so the observation hashes are stored
+        // and VM3s can be verified.
+        const parsedVM2 = await initialized.methods.parseBatchVM("0x" + vm2).call();
+
+        // We need to call this from a contract to verify that the batch has been verified
+        // properly. parseAndVerifyBatchVM modifies state, so the valid status (and parsed VM2) is not returned
+        // when calling from JS.
+        try {
+            await mockIntegration.methods.parseAndVerifyBatchVM("0x" + vm2, cacheObservations).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (err) {
+            console.log(err);
+            assert.fail("parseAndVerifyBatchVM failed");
+        }
+
+        // parse and verify the first VM3
+        let parsedVM3 = await initialized.methods.parseVM(
+            parsedVM2.indexedObservations[0].observation
+        ).call();
+
+        // create a spoofed version of the VM1
+        const spoofedVM3 = {
+            version: "1",
+            timestamp: parsedVM3.timestamp,
+            nonce: parsedVM3.timestamp,
+            emitterChainId: parsedVM3.emitterChainId,
+            emitterAddress: parsedVM3.emitterAddress,
+            sequence: parsedVM3.sequence,
+            consistencyLevel: parsedVM3.consistencyLevel,
+            payload: parsedVM3.payload,
+            guardianSetIndex: parsedVM3.guardianSetIndex,
+            signatures: parsedVM3.signatures,
+            hash: parsedVM3.hash
+        }
+
+        // try to verify the spoofed VM3
+        let result;
+        try {
+            result = await initialized.methods.verifyVM(spoofedVM3).call();
+        } catch (err) {
+            console.log(err);
+            assert.fail("verifyVM failed");
+        }
+
+        assert.ok(!result.valid);
+        assert.equal(result.reason, "no quorum");
+    })
 });
 
 function removeObservationFromBatch(indexToRemove, encodedVM) {

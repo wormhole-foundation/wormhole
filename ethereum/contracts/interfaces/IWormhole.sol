@@ -20,7 +20,7 @@ interface IWormhole is Structs {
 
     function verifyVM(Structs.VM memory vm) external view returns (bool valid, string memory reason);
 
-    function verifyBatchVM(Structs.VM2 memory vm, bool cache) external view returns (bool valid, string memory reason);
+    function verifyBatchVM(Structs.VM2 memory vm, bool cache) external returns (bool valid, string memory reason);
 
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) external pure returns (bool valid, string memory reason) ;
 
