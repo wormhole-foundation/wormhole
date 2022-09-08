@@ -49,6 +49,7 @@ module token_bridge::asset_meta {
     }
 
     public(friend) fun create(
+        // TODO: delete payload_id
         payload_id: u8,
         // Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: vector<u8>,

@@ -157,11 +157,11 @@ module token_bridge::token_bridge_test {
 
         // assert origin address, chain, type_info, is_wrapped are correct
         let token_address = token_hash::derive<T>();
-        let origin_info = state::origin_info(token_address);
+        let origin_info = state::origin_info<T>();
         let origin_token_address = state::get_origin_info_token_address(origin_info);
         let origin_token_chain = state::get_origin_info_token_chain(origin_info);
         let wrapped_asset_type_info = state::asset_type_info(token_address);
-        let is_wrapped_asset = state::is_wrapped_asset(token_address);
+        let is_wrapped_asset = state::is_wrapped_asset<T>();
         assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T"), 0);
         assert!(origin_token_chain==u16::from_u64(2), 0);
         assert!(origin_token_address==x"00000000000000000000000000000000000000000000000000000000beefface", 0);

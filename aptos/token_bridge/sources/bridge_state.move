@@ -1,6 +1,6 @@
 module token_bridge::bridge_state {
     use std::table::{Self, Table};
-    use aptos_framework::type_info::{TypeInfo, type_of};
+    use aptos_framework::type_info::{Self, TypeInfo, type_of};
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability, initialize};
     use aptos_framework::aptos_coin::{AptosCoin};
@@ -46,7 +46,7 @@ module token_bridge::bridge_state {
     }
 
     // the native chain and address of a wrapped token
-    struct OriginInfo has store, copy, drop {
+    struct OriginInfo has key, store, copy, drop {
         token_address: vector<u8>,
         token_chain: U16,
     }
@@ -74,17 +74,11 @@ module token_bridge::bridge_state {
         // TODO: maybe this should map to TypeInfos
         origin_info_to_wrapped_assets: Table<OriginInfo, TokenHash>,
 
-        wrapped_assets_to_origin_info: Table<TokenHash, OriginInfo>,
-
         // https://github.com/aptos-labs/aptos-core/blob/devnet/aptos-move/framework/aptos-stdlib/sources/type_info.move
         // Mapping of native asset TypeInfo sha3_256 hash (32 bytes) => TypeInfo
         // We have to identify native assets using a 32 byte identifier, because that is what fits in
         // TokenTransferWithPayload struct, among others.
         assets_to_type_info: Table<TokenHash, TypeInfo>,
-
-        // Mapping to safely identify wrapped assets from a 32 byte hash of its TypeInfo
-        // TODO: use a Set
-        is_wrapped_asset: Table<TokenHash, bool>,
 
         // Mapping to safely identify native assets from a 32 byte hash of its TypeInfo
         // all CoinTypes that aren't Wormhole wrapped assets are presumed native assets...
@@ -129,9 +123,8 @@ module token_bridge::bridge_state {
         *table::borrow(origin_info_to_wrapped_assets, native_info)
     }
 
-    public fun origin_info(token_address: TokenHash): OriginInfo acquires State {
-        let wrapped_assets_to_origin_info = &borrow_global<State>(@token_bridge).wrapped_assets_to_origin_info;
-        *table::borrow(wrapped_assets_to_origin_info, token_address)
+    public fun origin_info<CoinType>(): OriginInfo acquires OriginInfo {
+        *borrow_global<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
     }
 
     public fun asset_type_info(token_address: TokenHash): TypeInfo acquires State {
@@ -150,16 +143,15 @@ module token_bridge::bridge_state {
     }
 
     // given the hash of the TypeInfo of a Coin, this tells us if it is registered with Token Bridge
-    public fun is_registered_native_asset(token: TokenHash): bool acquires State {
+    public fun is_registered_native_asset<CoinType>(): bool acquires State {
+        let token = token_hash::derive<CoinType>();
         let state = borrow_global<State>(@token_bridge);
         //TODO - make is_registered_native_asset a set
         table::contains(&state.is_registered_native_asset, token)
     }
 
-    public fun is_wrapped_asset(token: TokenHash): bool acquires State {
-        let state = borrow_global<State>(@token_bridge);
-        //TODO - make is_wrapped_asset a set
-        table::contains(&state.is_wrapped_asset, token)
+    public fun is_wrapped_asset<CoinType>(): bool {
+        exists<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
     }
 
     public fun get_origin_info_token_address(info: OriginInfo): vector<u8>{
@@ -170,9 +162,8 @@ module token_bridge::bridge_state {
         info.token_chain
     }
 
-    public(friend) fun mint_wrapped<CoinType>(amount:u64): Coin<CoinType> acquires CoinCapabilities, State{
-        let token = token_hash::derive<CoinType>();
-        assert!(is_wrapped_asset(token), E_IS_NOT_WRAPPED_ASSET);
+    public(friend) fun mint_wrapped<CoinType>(amount:u64): Coin<CoinType> acquires CoinCapabilities {
+        assert!(is_wrapped_asset<CoinType>(), E_IS_NOT_WRAPPED_ASSET);
         assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
         let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
         let mint_cap = &caps.mint_cap;
@@ -181,8 +172,7 @@ module token_bridge::bridge_state {
     }
 
     public(friend) fun burn_wrapped<CoinType>(amount:u64) acquires CoinCapabilities, State{
-        let token = token_hash::derive<CoinType>();
-        assert!(is_wrapped_asset(token), E_IS_NOT_WRAPPED_ASSET);
+        assert!(is_wrapped_asset<CoinType>(), E_IS_NOT_WRAPPED_ASSET);
         assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
         let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
         let burn_cap = &caps.burn_cap;
@@ -218,10 +208,8 @@ module token_bridge::bridge_state {
         // update the following two mappings in State
         // 1. (native chain, native address) => wrapped address
         // 2. wrapped address => (native chain, native address)
-
-        let token_address = token_hash::derive<CoinType>();
-        set_origin_info(token_address, &native_info);
-        set_wrapped_asset(&native_info, token_address);
+        move_to(&coin_signer, native_info);
+        set_wrapped_asset<CoinType>(&native_info);
         set_wrapped_asset_type_info<CoinType>();
 
         // store coin capabilities
@@ -233,7 +221,7 @@ module token_bridge::bridge_state {
     }
 
     // transfer a native or wraped token from sender to token_bridge
-    public entry fun transfer_tokens<CoinType>(coins: Coin<CoinType>, relayer_fee: u128): TransferResult acquires State {
+    public entry fun transfer_tokens<CoinType>(coins: Coin<CoinType>, relayer_fee: u128): TransferResult acquires State, OriginInfo {
         assert!(coin::is_account_registered<CoinType>(@token_bridge), E_COIN_NOT_REGISTERED);
 
         let token_address = token_hash::derive<CoinType>();
@@ -246,12 +234,12 @@ module token_bridge::bridge_state {
         let origin_chain;
         let origin_address;
 
-        if (is_wrapped_asset(token_address)) {
-            let origin_info = origin_info(token_address);
+        if (is_wrapped_asset<CoinType>()) {
+            let origin_info = origin_info<CoinType>();
             origin_chain = origin_info.token_chain;
             origin_address = origin_info.token_address;
         } else {
-             if (!is_registered_native_asset(token_address)) {
+             if (!is_registered_native_asset<CoinType>()) {
                 set_native_asset_type_info<CoinType>();
              };
             origin_chain = get_chain_id();
@@ -274,7 +262,7 @@ module token_bridge::bridge_state {
         transfer_result
     }
 
-    public entry fun transfer_tokens_with_signer<CoinType>(sender: &signer, amount: u64, relayer_fee: u128): TransferResult acquires State {
+    public entry fun transfer_tokens_with_signer<CoinType>(sender: &signer, amount: u64, relayer_fee: u128): TransferResult acquires State, OriginInfo {
         let coins = coin::withdraw<CoinType>(sender, amount);
         transfer_tokens<CoinType>(coins, relayer_fee)
     }
@@ -342,21 +330,12 @@ module token_bridge::bridge_state {
     }
 
     // OriginInfo => WrappedAsset
-    fun set_wrapped_asset(native_info: &OriginInfo, wrapper: TokenHash) acquires State {
+    fun set_wrapped_asset<CoinType>(native_info: &OriginInfo) acquires State {
+        let wrapper = token_hash::derive<CoinType>();
+
         let state = borrow_global_mut<State>(@token_bridge);
         let origin_info_to_wrapped_assets = &mut state.origin_info_to_wrapped_assets;
         table::upsert(origin_info_to_wrapped_assets, *native_info, wrapper);
-        let is_wrapped_asset = &mut state.is_wrapped_asset;
-        table::upsert(is_wrapped_asset, wrapper, true);
-    }
-
-    // WrappedAsset => OriginInfo
-    fun set_origin_info(wrapper: TokenHash, origin_info: &OriginInfo) acquires State {
-        let state = borrow_global_mut<State>(@token_bridge);
-        let wrapped_assets_to_origin_info = &mut state.wrapped_assets_to_origin_info;
-        table::upsert(wrapped_assets_to_origin_info, wrapper, *origin_info);
-        let is_wrapped_asset = &mut state.is_wrapped_asset;
-        table::upsert(is_wrapped_asset, wrapper, true);
     }
 
     // 32-byte native asset address => type info
@@ -383,8 +362,6 @@ module token_bridge::bridge_state {
         let state = borrow_global_mut<State>(@token_bridge);
         let assets_to_type_info = &mut state.assets_to_type_info;
         table::add(assets_to_type_info, token_address, type_info);
-        let is_wrapped_asset = &mut state.is_wrapped_asset;
-        table::upsert(is_wrapped_asset, token_address, true);
     }
 
     // TODO: I don't think this is needed.
@@ -409,9 +386,7 @@ module token_bridge::bridge_state {
             governance_contract: get_governance_contract(),
             consumed_vaas: set::new<vector<u8>>(),
             origin_info_to_wrapped_assets: table::new(),
-            wrapped_assets_to_origin_info: table::new(),
             assets_to_type_info: table::new(),
-            is_wrapped_asset: table::new(),
             is_registered_native_asset: table::new(),
             wrapped_asset_signer_capabilities: table::new(),
             signer_cap: signer_cap,

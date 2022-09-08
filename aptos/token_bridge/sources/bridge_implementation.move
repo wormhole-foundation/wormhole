@@ -35,7 +35,7 @@ module token_bridge::bridge_implementation {
         assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
         let payload_id = 0;
         let token_address = token_hash::derive<CoinType>();
-        if (!state::is_registered_native_asset(token_address) && !state::is_wrapped_asset(token_address)) {
+        if (!state::is_registered_native_asset<CoinType>() && !state::is_wrapped_asset<CoinType>()) {
             // if native asset is not registered, register it in the reverse look-up map
             state::set_native_asset_type_info<CoinType>();
         };
