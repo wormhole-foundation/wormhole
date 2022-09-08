@@ -10,6 +10,7 @@ module token_bridge::bridge_implementation {
     use aptos_framework::account::{create_resource_account};
     use aptos_framework::signer::{address_of};
     use aptos_framework::bcs::{to_bytes};
+    use aptos_framework::vector::{Self};
 
     use std::string;
     use token_bridge::bridge_state::{Self as state, token_bridge_signer, set_outstanding_bridged, outstanding_bridged, set_native_asset};
@@ -36,9 +37,11 @@ module token_bridge::bridge_implementation {
 
     public fun attest_token<CoinType>(fee_coins: Coin<AptosCoin>): u64 {
         // you've can't attest an uninitialized token
+        // TODO - throw error if attempt to attest wrapped token?
         assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
         let payload_id = 0;
         let token_address = hash_type_info<CoinType>();
+        assert!(vector::length<u8>(&token_address)==32, 0);
         if (!state::is_registered_native_asset(token_address) && !state::is_wrapped_asset(token_address)) {
             // if native asset is not registered, register it in the reverse look-up map
             set_native_asset(token_address, type_of<CoinType>());
@@ -46,9 +49,9 @@ module token_bridge::bridge_implementation {
         let token_chain = wormhole::state::get_chain_id();
         let decimals = decimals<CoinType>();
         let symbol = *string::bytes(&symbol<CoinType>());
+        // TODO - left pad to be 32 bytes?
         let name = *string::bytes(&name<CoinType>());
-
-        let _asset_meta: AssetMeta = asset_meta::create(
+        let asset_meta: AssetMeta = asset_meta::create(
             payload_id,
             token_address,
             token_chain,
@@ -56,8 +59,7 @@ module token_bridge::bridge_implementation {
             symbol,
             name
         );
-
-        let payload:vector<u8> = asset_meta::encode(_asset_meta);
+        let payload:vector<u8> = asset_meta::encode(asset_meta);
         let nonce = 0;
         state::publish_message(
             nonce,
