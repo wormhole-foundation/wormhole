@@ -36,11 +36,14 @@ module token_bridge::token_bridge_test {
     use aptos_framework::string::{utf8};
     use aptos_framework::type_info::{type_of};
     use aptos_framework::aptos_coin::{Self, AptosCoin};
+    use aptos_framework::option::{Self};
 
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::bridge_state::{Self as state};
     use token_bridge::bridge_implementation::{attest_token, attest_token_with_signer, create_wrapped_coin_type};
     use token_bridge::utils::{hash_type_info, pad_left_32};
+
+    use wormhole::u16::{Self};
 
     use 0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T;
 
@@ -61,7 +64,7 @@ module token_bridge::token_bridge_test {
         let name = utf8(b"mycoindd");
         let symbol = utf8(b"MCdd");
         let decimals = 10;
-        let monitor_supply = false;
+        let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MyCoin>(admin, name, symbol, decimals, monitor_supply);
         move_to(admin, MyCoinCaps {burn_cap, freeze_cap, mint_cap});
     }
@@ -126,8 +129,8 @@ module token_bridge::token_bridge_test {
     }
 
     // test create_wrapped_coin_type and create_wrapped_coin
-    #[test(aptos_framework = @aptos_framework, _token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_create_wrapped_coin(aptos_framework: &signer, _token_bridge: &signer, deployer: &signer) {
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_create_wrapped_coin(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
         setup(aptos_framework, deployer);
         let vaa = x"010000000001002952fb15d2178bdacbcf05ac5b0e7536d9f0fa60b01e39df468f1ac38cf861306fe0da22948a401fcb85746250cd2ca4d9d32728d0b5955df77eb3ac56dd2dbe010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000002a8c233000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
         let _addr = create_wrapped_coin_type(vaa);
@@ -151,6 +154,29 @@ module token_bridge::token_bridge_test {
         assert!(symbol==utf8(pad_left_32(&b"BEEF")), 0);
         assert!(decimals==12, 0);
 
-        // TODO - check that State mappings are set properly
+        // assert origin address, chain, type_info, is_wrapped are correct
+        let token_address = hash_type_info<T>();
+        let origin_info = state::origin_info(token_address);
+        let origin_token_address = state::get_origin_info_token_address(origin_info);
+        let origin_token_chain = state::get_origin_info_token_chain(origin_info);
+        let wrapped_asset_type_info = state::asset_type_info(token_address);
+        let is_wrapped_asset = state::is_wrapped_asset(token_address);
+        assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T"), 0);
+        assert!(origin_token_chain==u16::from_u64(2), 0);
+        assert!(origin_token_address==x"00000000000000000000000000000000000000000000000000000000beefface", 0);
+        assert!(is_wrapped_asset, 0);
+
+        // load beef face token cap and mint some beef face coins to token_bridge, then burn
+        let beef_coins = state::mint_wrapped<T>(10000, token_address);
+        assert!(coin::value(&beef_coins)==10000, 0);
+        coin::register<T>(token_bridge);
+        coin::deposit<T>(@token_bridge, beef_coins);
+        let supply_before = coin::supply<T>();
+        let e = option::borrow(&supply_before);
+        assert!(*e==10000, 0);
+        state::burn_wrapped<T>(5000, token_address);
+        let supply_after = coin::supply<T>();
+        let e = option::borrow(&supply_after);
+        assert!(*e==5000, 0);
     }
 }
