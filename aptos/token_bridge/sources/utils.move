@@ -1,17 +1,9 @@
 module token_bridge::utils {
-    use 0x1::hash::{sha3_256};
-    use 0x1::type_info::{type_name};
-    use 0x1::bcs::{to_bytes};
-    use 0x1::vector::{Self};
+    use 0x1::vector;
 
     //use wormhole::u256::{Self, U256};
 
     const E_VECTOR_TOO_LONG: u64 = 0;
-
-    public entry fun hash_type_info<T>(): vector<u8>{
-        let type_name = type_name<T>();
-        sha3_256(to_bytes(&type_name))
-    }
 
     // pad a vector with zeros on the left so that it is 32 bytes
     public entry fun pad_left_32(input: &vector<u8>): vector<u8>{
@@ -50,7 +42,7 @@ module token_bridge::utils_test {
     use std::string;
     use token_bridge::utils::{pad_left_32};
 
-    struct MyCoin has key{}
+    struct MyCoin {}
 
     #[test]
     fun test_type_name() {
