@@ -404,6 +404,12 @@ impl TokenBridge {
                 }
 
                 env::log_str(&format!(
+                "token-bridge/{}#{}: vaa_transfer {} {} {} {} {}",
+                file!(),
+                line!(),
+                amount.1, fee.1, namount, nfee, near_mult));
+
+                env::log_str(&format!(
                 "token-bridge/{}#{}: vaa_transfer calling ft_transfer against {} for {} from {} to {}",
                 file!(),
                 line!(),
@@ -975,6 +981,10 @@ impl TokenBridge {
             env::panic_str("EmptyTransfer");
         }
 
+        if !payload.is_empty() && nfee != 0 {
+            env::panic_str("Payload3 does not support fees");
+        }
+
         if nfee >= namount {
             env::panic_str("TransferFeeExceedsDeposit");
         }
@@ -1498,6 +1508,10 @@ impl TokenBridge {
             env::panic_str("EmptyTransfer");
         }
 
+        if !tp.payload.is_empty() && nfee != 0 {
+            env::panic_str("Payload3 does not support fees");
+        }
+
         if namount > (u64::MAX as u128) || nfee > (u64::MAX as u128) {
             env::panic_str("transfer exceeds max bridged token amount");
         }
@@ -1529,12 +1543,12 @@ impl TokenBridge {
         if tp.payload.is_empty() {
             p = [p, vec![0; 24], (nfee as u64).to_be_bytes().to_vec()].concat();
             if p.len() != 133 {
-                env::panic_str(&format!("paylod1 formatting errro  len = {}", p.len()));
+                env::panic_str(&format!("payload1 formatting error  len = {}", p.len()));
             }
         } else {
             p = [p, hex::decode(&tp.payload).unwrap()].concat();
             if p.len() != (133 + (tp.payload.len() / 2)) {
-                env::panic_str(&format!("paylod3 formatting errro  len = {}", p.len()));
+                env::panic_str(&format!("payload3 formatting error  len = {}", p.len()));
             }
         }
 
