@@ -6,8 +6,8 @@ module token_bridge::asset_meta {
 
     use wormhole::u16::{U16};
 
-    friend token_bridge::bridge_implementation;
     friend token_bridge::attest_token;
+    friend token_bridge::wrapped;
 
     struct AssetMeta has key, store, drop {
         // PayloadID uint8 = 2

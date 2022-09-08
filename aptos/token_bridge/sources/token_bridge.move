@@ -40,14 +40,22 @@ module token_bridge::token_bridge_test {
 
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::bridge_state::{Self as state};
-    use token_bridge::bridge_implementation::{create_wrapped_coin_type};
+    use token_bridge::wrapped;
     use token_bridge::attest_token;
     use token_bridge::utils::{pad_left_32};
     use token_bridge::token_hash;
 
+    use token_bridge::register_chain;
+
     use wormhole::u16::{Self};
 
     use wrapped_coin::coin::T;
+
+    /// Registration VAA for the etheruem token bridge 0xdeadbeef
+    const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+
+    /// Attestation VAA sent from the ethereum token bridge 0xdeadbeef
+    const ATTESTATION_VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
     struct MyCoin has key {}
 
@@ -130,19 +138,29 @@ module token_bridge::token_bridge_test {
         assert!(_sequence==0, 1);
     }
 
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    #[expected_failure(abort_code = 0)]
+    fun test_create_wrapped_coin_unregistered(aptos_framework: &signer, deployer: &signer) {
+        setup(aptos_framework, deployer);
+
+        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+    }
+
+
     // test create_wrapped_coin_type and create_wrapped_coin
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
     fun test_create_wrapped_coin(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
         setup(aptos_framework, deployer);
-        let vaa = x"010000000001002952fb15d2178bdacbcf05ac5b0e7536d9f0fa60b01e39df468f1ac38cf861306fe0da22948a401fcb85746250cd2ca4d9d32728d0b5955df77eb3ac56dd2dbe010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000002a8c233000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
-        let _addr = create_wrapped_coin_type(vaa);
+        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+
+        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
 
         // assert coin is NOT initialized
         let is_initialized = coin::is_coin_initialized<T>();
         assert!(is_initialized==false, 0);
 
         // initialize coin using type T, move caps to token_bridge, sets bridge state variables
-        state::create_wrapped_coin<T>(vaa);
+        wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
 
         // assert that coin IS initialized
         let is_initialized = coin::is_coin_initialized<T>();
@@ -169,14 +187,14 @@ module token_bridge::token_bridge_test {
         assert!(is_wrapped_asset, 0);
 
         // load beef face token cap and mint some beef face coins to token_bridge, then burn
-        let beef_coins = state::mint_wrapped<T>(10000);
+        let beef_coins = wrapped::mint<T>(10000);
         assert!(coin::value(&beef_coins)==10000, 0);
         coin::register<T>(token_bridge);
         coin::deposit<T>(@token_bridge, beef_coins);
         let supply_before = coin::supply<T>();
         let e = option::borrow(&supply_before);
         assert!(*e==10000, 0);
-        state::burn_wrapped<T>(5000);
+        wrapped::burn<T>(5000);
         let supply_after = coin::supply<T>();
         let e = option::borrow(&supply_after);
         assert!(*e==5000, 0);

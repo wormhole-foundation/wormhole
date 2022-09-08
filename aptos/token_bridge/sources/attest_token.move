@@ -48,6 +48,7 @@ module token_bridge::attest_token {
     }
 }
 
+#[test_only]
 module token_bridge::attest_token_test {
 
 }

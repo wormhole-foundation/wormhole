@@ -72,6 +72,7 @@ module token_bridge::register_chain {
 
 #[test_only]
 module token_bridge::register_chain_test {
+    use std::option;
     use wormhole::u16;
     use token_bridge::register_chain;
     use wormhole::vaa;
@@ -130,7 +131,7 @@ module token_bridge::register_chain_test {
 
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
         let address = state::get_registered_emitter(u16::from_u64(ETH_ID));
-        assert!(address == x"00000000000000000000000000000000000000000000000000000000deadbeef", 0);
+        assert!(address == option::some(x"00000000000000000000000000000000000000000000000000000000deadbeef"), 0);
     }
 
     #[test(deployer = @deployer)]
@@ -143,7 +144,7 @@ module token_bridge::register_chain_test {
         // Easy to change, should be discussed.
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG_2);
         let address = state::get_registered_emitter(u16::from_u64(ETH_ID));
-        assert!(address == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
+        assert!(address == option::some(x"00000000000000000000000000000000000000000000000000000000beefface"), 0);
     }
 
 }

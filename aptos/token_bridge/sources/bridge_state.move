@@ -1,10 +1,10 @@
 module token_bridge::bridge_state {
     use std::table::{Self, Table};
+    use std::option::{Self, Option};
     use aptos_framework::type_info::{Self, TypeInfo, type_of};
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
-    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability, initialize};
+    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::aptos_coin::{AptosCoin};
-    use aptos_framework::string::{utf8};
 
     use wormhole::u256::{Self, U256};
     use wormhole::u16::{U16};
@@ -12,38 +12,27 @@ module token_bridge::bridge_state {
     use wormhole::state::{get_chain_id, get_governance_contract};
     use wormhole::wormhole;
     use wormhole::set::{Self, Set};
-    use wormhole::vaa::{Self, parse_and_verify};
 
     use token_bridge::transfer;
     use token_bridge::token_hash::{Self, TokenHash};
     use token_bridge::transfer_result::{Self, TransferResult};
-    use token_bridge::asset_meta::{Self, AssetMeta};
-    //use token_bridge::vaa::{parse_verify_and_replay_protect};
 
-    friend token_bridge::bridge_implementation;
     friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
     friend token_bridge::token_bridge;
     friend token_bridge::vaa;
     friend token_bridge::attest_token;
+    friend token_bridge::wrapped;
 
     #[test_only]
     friend token_bridge::token_bridge_test;
 
-    const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
-    const E_COIN_CAP_DOES_NOT_EXIST: u64 = 1;
     const E_COIN_NOT_REGISTERED: u64 = 2;
     const E_FEE_EXCEEDS_AMOUNT: u64 = 3;
 
     struct Asset has key, store {
         chain_id: U16,
         asset_address: vector<u8>,
-    }
-
-    struct CoinCapabilities<phantom CoinType> has key, store {
-        mint_cap: MintCapability<CoinType>,
-        freeze_cap: FreezeCapability<CoinType>,
-        burn_cap: BurnCapability<CoinType>,
     }
 
     // the native chain and address of a wrapped token
@@ -133,9 +122,14 @@ module token_bridge::bridge_state {
         *table::borrow(assets_to_type_info, token_address)
     }
 
-    public fun get_registered_emitter(chain_id: U16): vector<u8> acquires State {
+    public fun get_registered_emitter(chain_id: U16): Option<vector<u8>> acquires State {
         let state = borrow_global<State>(@token_bridge);
-        *table::borrow(&state.registered_emitters, chain_id)
+        if (table::contains(&state.registered_emitters, chain_id)) {
+            option::some(*table::borrow(&state.registered_emitters, chain_id))
+        } else {
+            option::none()
+        }
+
     }
 
     public fun outstanding_bridged(token: vector<u8>): U256 acquires State {
@@ -155,6 +149,15 @@ module token_bridge::bridge_state {
         exists<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
     }
 
+    public(friend) fun setup_wrapped<CoinType>(
+        coin_signer: &signer,
+        origin_info: OriginInfo
+    ) acquires State {
+        move_to(coin_signer, origin_info);
+        set_wrapped_asset<CoinType>(&origin_info);
+        set_wrapped_asset_type_info<CoinType>();
+    }
+
     public fun get_origin_info_token_address(info: OriginInfo): vector<u8>{
         info.token_address
     }
@@ -163,63 +166,6 @@ module token_bridge::bridge_state {
         info.token_chain
     }
 
-    public(friend) fun mint_wrapped<CoinType>(amount:u64): Coin<CoinType> acquires CoinCapabilities {
-        assert!(is_wrapped_asset<CoinType>(), E_IS_NOT_WRAPPED_ASSET);
-        assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
-        let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
-        let mint_cap = &caps.mint_cap;
-        let coins = coin::mint<CoinType>(amount, mint_cap);
-        coins
-    }
-
-    public(friend) fun burn_wrapped<CoinType>(amount:u64) acquires CoinCapabilities, State{
-        assert!(is_wrapped_asset<CoinType>(), E_IS_NOT_WRAPPED_ASSET);
-        assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
-        let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
-        let burn_cap = &caps.burn_cap;
-        let coins = coin::withdraw<CoinType>(&token_bridge_signer(), amount);
-        coin::burn<CoinType>(coins, burn_cap);
-    }
-
-    // this function is called in tandem with bridge_implementation::create_wrapped_coin_type
-    // initializes a coin for CoinType, updates mappings in State
-    public entry fun create_wrapped_coin<CoinType>(vaa: vector<u8>) acquires State{
-        //TODO: parse and verify and replay protect
-        //let vaa = parse_verify_and_replay_protect(vaa);
-        let vaa = parse_and_verify(vaa);
-        let asset_meta: AssetMeta = asset_meta::parse(vaa::get_payload(&vaa));
-
-        let native_token_address = asset_meta::get_token_address(&asset_meta);
-        let native_token_chain = asset_meta::get_token_chain(&asset_meta);
-        let native_info = OriginInfo {token_address: native_token_address, token_chain: native_token_chain};
-
-        // fetch signer_cap and create signer for CoinType
-        // TODO: where do we check that CoinType corresponds to the thing in the VAA?
-        let wrapped_coin_signer_caps = &borrow_global<State>(@token_bridge).wrapped_asset_signer_capabilities;
-        let coin_signer_cap = table::borrow(wrapped_coin_signer_caps, native_info);
-        let coin_signer = create_signer_with_capability(coin_signer_cap);
-
-        // initialize new coin using CoinType
-        let name = asset_meta::get_name(&asset_meta);
-        let symbol = asset_meta::get_symbol(&asset_meta);
-        let decimals = asset_meta::get_decimals(&asset_meta);
-        let monitor_supply = true;
-        let (burn_cap, freeze_cap, mint_cap) = initialize<CoinType>(&coin_signer, utf8(name), utf8(symbol), decimals, monitor_supply);
-
-        // update the following two mappings in State
-        // 1. (native chain, native address) => wrapped address
-        // 2. wrapped address => (native chain, native address)
-        move_to(&coin_signer, native_info);
-        set_wrapped_asset<CoinType>(&native_info);
-        set_wrapped_asset_type_info<CoinType>();
-
-        // store coin capabilities
-        let _token_bridge_signer = token_bridge_signer();
-        let coin_caps = CoinCapabilities<CoinType> { mint_cap: mint_cap, freeze_cap: freeze_cap, burn_cap: burn_cap};
-        move_to(&_token_bridge_signer, coin_caps);
-
-        vaa::destroy(vaa);
-    }
 
     // transfer a native or wraped token from sender to token_bridge
     public entry fun transfer_tokens<CoinType>(coins: Coin<CoinType>, relayer_fee: u128): TransferResult acquires State, OriginInfo {
@@ -375,6 +321,13 @@ module token_bridge::bridge_state {
     public(friend) fun set_wrapped_asset_signer_capability(token: OriginInfo, signer_cap: SignerCapability) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         table::upsert(&mut state.wrapped_asset_signer_capabilities, token, signer_cap);
+    }
+
+    public(friend) fun get_wrapped_asset_signer(origin_info: OriginInfo): signer acquires State {
+        let wrapped_coin_signer_caps
+            = &borrow_global<State>(@token_bridge).wrapped_asset_signer_capabilities;
+        let coin_signer_cap = table::borrow(wrapped_coin_signer_caps, origin_info);
+        create_signer_with_capability(coin_signer_cap)
     }
 
     public(friend) fun init_token_bridge_state(
