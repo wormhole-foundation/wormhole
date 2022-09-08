@@ -6,23 +6,22 @@ module token_bridge::utils {
 
     //use wormhole::u256::{Self, U256};
 
-    public entry fun hash_type_info<info>(): vector<u8>{
-        let type_name = type_name<info>();
-        // TODO: let's use keccak256 here?
-        let res = sha3_256(to_bytes(&type_name));
-        assert!(vector::length(&res)==32, 0);
-        res
+    const E_VECTOR_TOO_LONG: u64 = 0;
+
+    public entry fun hash_type_info<T>(): vector<u8>{
+        let type_name = type_name<T>();
+        sha3_256(to_bytes(&type_name))
     }
 
     // pad a vector with zeros on the left so that it is 32 bytes
     public entry fun pad_left_32(input: &vector<u8>): vector<u8>{
         let len = vector::length<u8>(input);
-        assert!(len <= 32, 0);
+        assert!(len <= 32, E_VECTOR_TOO_LONG);
         let ret = vector::empty<u8>();
-        let i = 0;
-        while (i < 32 - len){
-            vector::append<u8>(&mut ret, x"00");
-            i = i+1;
+        let zeros_remaining = 32 - len;
+        while (zeros_remaining > 0){
+            vector::push_back<u8>(&mut ret, 0);
+            zeros_remaining = zeros_remaining - 1;
         };
         vector::append<u8>(&mut ret, *input);
         ret
@@ -45,20 +44,38 @@ module token_bridge::utils {
     // }
 }
 
-    #[test_only]
-    module token_bridge::utils_test {
-        use aptos_std::type_info::{type_name};
-        use std::string;
-        use token_bridge::utils::{pad_left_32};
+#[test_only]
+module token_bridge::utils_test {
+    use aptos_std::type_info::{type_name};
+    use std::string;
+    use token_bridge::utils::{pad_left_32};
 
-        struct MyCoin has key{}
+    struct MyCoin has key{}
 
-        #[test]
-        fun test_utils() {
-            let name = type_name<MyCoin>();
-            assert!(*string::bytes(&name) == b"0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed::utils_test::MyCoin", 0);
-            let v = x"11";
-            let pad_left_v = pad_left_32(&v);
-            assert!(pad_left_v==x"0000000000000000000000000000000000000000000000000000000000000011", 0);
-        }
+    #[test]
+    fun test_type_name() {
+        let name = type_name<MyCoin>();
+        assert!(*string::bytes(&name) == b"0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed::utils_test::MyCoin", 0);
     }
+
+    #[test]
+    fun test_pad_left_short() {
+        let v = x"11";
+        let pad_left_v = pad_left_32(&v);
+        assert!(pad_left_v==x"0000000000000000000000000000000000000000000000000000000000000011", 0);
+    }
+
+    #[test]
+    fun test_pad_left_exact() {
+        let v = x"5555555555555555555555555555555555555555555555555555555555555555";
+        let pad_left_v = pad_left_32(&v);
+        assert!(pad_left_v==x"5555555555555555555555555555555555555555555555555555555555555555", 0);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0)]
+    fun test_pad_left_long() {
+        let v = x"665555555555555555555555555555555555555555555555555555555555555555";
+        pad_left_32(&v);
+    }
+}
