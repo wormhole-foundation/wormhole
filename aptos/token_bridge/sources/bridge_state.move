@@ -2,7 +2,7 @@ module token_bridge::bridge_state {
     use std::table::{Self, Table};
     use aptos_framework::type_info::{TypeInfo, type_of, account_address, type_name};
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
-    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability, mint, initialize};
+    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability, initialize};
     use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::string::{utf8};
     use aptos_framework::bcs::{to_bytes};
@@ -169,13 +169,30 @@ module token_bridge::bridge_state {
         }
     }
 
-    fun mint_wrapped<CoinType>(amount:u64, token: vector<u8>): Coin<CoinType> acquires CoinCapabilities, State{
+    public entry fun get_origin_info_token_address(info: OriginInfo): vector<u8>{
+        info.token_address
+    }
+
+    public entry fun get_origin_info_token_chain(info: OriginInfo): U16{
+        info.token_chain
+    }
+
+    public(friend) fun mint_wrapped<CoinType>(amount:u64, token: vector<u8>): Coin<CoinType> acquires CoinCapabilities, State{
         assert!(is_wrapped_asset(token), E_IS_NOT_WRAPPED_ASSET);
         assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
         let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
         let mint_cap = &caps.mint_cap;
-        let coins = mint<CoinType>(amount, mint_cap);
+        let coins = coin::mint<CoinType>(amount, mint_cap);
         coins
+    }
+
+    public(friend) fun burn_wrapped<CoinType>(amount:u64, token: vector<u8>) acquires CoinCapabilities, State{
+        assert!(is_wrapped_asset(token), E_IS_NOT_WRAPPED_ASSET);
+        assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
+        let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
+        let burn_cap = &caps.burn_cap;
+        let coins = coin::withdraw<CoinType>(&token_bridge_signer(), amount);
+        coin::burn<CoinType>(coins, burn_cap);
     }
 
     // this function is called in tandem with bridge_implementation::create_wrapped_coin_type
@@ -196,7 +213,7 @@ module token_bridge::bridge_state {
         let name = asset_meta::get_name(&_asset_meta);
         let symbol = asset_meta::get_symbol(&_asset_meta);
         let decimals = asset_meta::get_decimals(&_asset_meta);
-        let monitor_supply = false;
+        let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap) = initialize<CoinType>(&coin_signer, utf8(name), utf8(symbol), decimals, monitor_supply);
 
         // update the following two mappings in State
@@ -209,6 +226,7 @@ module token_bridge::bridge_state {
         let token_address = sha3_256(to_bytes(&type_name<CoinType>()));
         set_origin_info(token_address, &native_info);
         set_wrapped_asset(&native_info, token_address);
+        set_wrapped_asset_type_info(token_address, type_of<CoinType>());
 
         // store coin capabilities
         let _token_bridge_signer = token_bridge_signer();
