@@ -4,18 +4,16 @@
 // TODO: we shouldn't follow the ethereum module layout, it's not great (+ it's
 // EVM specific with the "implementation" setup)
 module token_bridge::bridge_implementation {
-    use aptos_framework::type_info::{type_of, TypeInfo};
+    use aptos_framework::type_info::{TypeInfo};
     use aptos_framework::coin::{Self, Coin, name, symbol, decimals, withdraw};
     use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::account::{create_resource_account};
     use aptos_framework::signer::{address_of};
-    use aptos_framework::bcs::{to_bytes};
-    use aptos_framework::vector::{Self};
 
     use std::string;
-    use token_bridge::bridge_state::{Self as state, token_bridge_signer, set_outstanding_bridged, outstanding_bridged, set_native_asset_type_info};
+    use token_bridge::bridge_state as state;
     use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::utils::{hash_type_info};
+    use token_bridge::token_hash;
     use token_bridge::deploy_coin::{deploy_coin};
 
     use wormhole::u256::{Self, U256};
@@ -36,11 +34,10 @@ module token_bridge::bridge_implementation {
         // TODO - throw error if attempt to attest wrapped token?
         assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
         let payload_id = 0;
-        let token_address = hash_type_info<CoinType>();
-        assert!(vector::length<u8>(&token_address)==32, 0);
+        let token_address = token_hash::derive<CoinType>();
         if (!state::is_registered_native_asset(token_address) && !state::is_wrapped_asset(token_address)) {
             // if native asset is not registered, register it in the reverse look-up map
-            set_native_asset_type_info(token_address, type_of<CoinType>());
+            state::set_native_asset_type_info<CoinType>();
         };
         let token_chain = wormhole::state::get_chain_id();
         let decimals = decimals<CoinType>();
@@ -49,7 +46,7 @@ module token_bridge::bridge_implementation {
         let name = *string::bytes(&name<CoinType>());
         let asset_meta: AssetMeta = asset_meta::create(
             payload_id,
-            token_address,
+            token_hash::get_bytes(&token_address),
             token_chain,
             decimals,
             symbol,
@@ -66,17 +63,25 @@ module token_bridge::bridge_implementation {
 
     // this function is called before create_wrapped_coin
     public entry fun create_wrapped_coin_type(vaa: vector<u8>): address {
+        // TODO: verify VAA is from a known emitter + replay protection
         let vaa = parse_and_verify(vaa);
-        let _asset_meta:AssetMeta = asset_meta::parse(vaa::get_payload(&vaa));
-        let seed = asset_meta::create_seed(&_asset_meta);
+        let asset_meta:AssetMeta = asset_meta::parse(vaa::get_payload(&vaa));
+        let seed = asset_meta::create_seed(&asset_meta);
+
         //create resource account
-        let _token_bridge_signer = token_bridge_signer();
-        let (new_signer, new_cap) = create_resource_account(&_token_bridge_signer, seed);
-        let token_address = address_of(&new_signer);
+        let token_bridge_signer = state::token_bridge_signer();
+        let (new_signer, new_cap) = create_resource_account(&token_bridge_signer, seed);
+
+        let token_address = asset_meta::get_token_address(&asset_meta);
+        let token_chain = asset_meta::get_token_chain(&asset_meta);
+        let origin_info = state::create_origin_info(token_address, token_chain);
+
         deploy_coin(&new_signer);
-        state::set_wrapped_asset_signer_capability(to_bytes(&token_address), new_cap);
+        state::set_wrapped_asset_signer_capability(origin_info, new_cap);
         vaa::destroy(vaa);
-        token_address
+
+        // return address of the new signer
+        address_of(&new_signer)
     }
 
     public entry fun complete_transfer(vaa: vector<u8>) {
@@ -118,7 +123,7 @@ module token_bridge::bridge_implementation {
     }
 
     fun bridged_in(token: vector<u8>, normalized_amount: U256) {
-        set_outstanding_bridged(token, u256::sub(outstanding_bridged(token), normalized_amount));
+        state::set_outstanding_bridged(token, u256::sub(state::outstanding_bridged(token), normalized_amount));
     }
 
     fun verify_bridge_vm(vm: &VAA): bool{

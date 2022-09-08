@@ -41,7 +41,8 @@ module token_bridge::token_bridge_test {
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::bridge_state::{Self as state};
     use token_bridge::bridge_implementation::{attest_token, attest_token_with_signer, create_wrapped_coin_type};
-    use token_bridge::utils::{hash_type_info, pad_left_32};
+    use token_bridge::utils::{pad_left_32};
+    use token_bridge::token_hash;
 
     use wormhole::u16::{Self};
 
@@ -107,7 +108,7 @@ module token_bridge::token_bridge_test {
         assert!(_sequence==0, 1);
 
         // check that native asset is registered with State
-        let token_address = hash_type_info<MyCoin>();
+        let token_address = token_hash::derive<MyCoin>();
         assert!(state::asset_type_info(token_address)==type_of<MyCoin>(), 0);
 
         // attest same token a second time, should have no change in behavior
@@ -155,7 +156,7 @@ module token_bridge::token_bridge_test {
         assert!(decimals==12, 0);
 
         // assert origin address, chain, type_info, is_wrapped are correct
-        let token_address = hash_type_info<T>();
+        let token_address = token_hash::derive<T>();
         let origin_info = state::origin_info(token_address);
         let origin_token_address = state::get_origin_info_token_address(origin_info);
         let origin_token_chain = state::get_origin_info_token_chain(origin_info);
@@ -167,14 +168,14 @@ module token_bridge::token_bridge_test {
         assert!(is_wrapped_asset, 0);
 
         // load beef face token cap and mint some beef face coins to token_bridge, then burn
-        let beef_coins = state::mint_wrapped<T>(10000, token_address);
+        let beef_coins = state::mint_wrapped<T>(10000);
         assert!(coin::value(&beef_coins)==10000, 0);
         coin::register<T>(token_bridge);
         coin::deposit<T>(@token_bridge, beef_coins);
         let supply_before = coin::supply<T>();
         let e = option::borrow(&supply_before);
         assert!(*e==10000, 0);
-        state::burn_wrapped<T>(5000, token_address);
+        state::burn_wrapped<T>(5000);
         let supply_after = coin::supply<T>();
         let e = option::borrow(&supply_after);
         assert!(*e==5000, 0);
