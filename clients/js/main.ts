@@ -191,6 +191,89 @@ yargs(hideBin(process.argv))
               console.log(serialiseVAA(v));
             }
           )
+          .command(
+            "attestation",
+            "Generate a token attestation VAA",
+            // TODO: putting 'any' here is a workaround for the following error:
+            //
+            //    Type instantiation is excessively deep and possibly infinite.
+            //
+            // The type of the yargs builder grows too big for typescript's
+            // liking, and there's no way to increase the limit. So we
+            // overapproximate with the 'any' type which reduces the typechecking stack.
+            // This is not a great solution, and instead we should move toward
+            // breaking up the commands into multiple modules in the 'cmds' folder.
+            (yargs: any) => {
+              return yargs
+                .option("emitter-chain", {
+                  alias: "e",
+                  describe: "Emitter chain of the VAA",
+                  type: "string",
+                  choices: Object.keys(CHAINS),
+                  required: true,
+                })
+                .option("emitter-address", {
+                  alias: "f",
+                  describe: "Emitter address of the VAA",
+                  type: "string",
+                  required: true,
+                })
+                .option("chain", {
+                  alias: "c",
+                  describe: "Token's chain",
+                  type: "string",
+                  choices: Object.keys(CHAINS),
+                  required: true,
+                })
+                .option("token-address", {
+                  alias: "a",
+                  describe: "Token's address",
+                  type: "string",
+                  required: true,
+                })
+                .option("decimals", {
+                  alias: "d",
+                  describe: "Token's decimals",
+                  type: "number",
+                  required: true,
+                })
+                .option("symbol", {
+                  alias: "s",
+                  describe: "Token's symbol",
+                  type: "string",
+                  required: true,
+                })
+                .option("name", {
+                  alias: "n",
+                  describe: "Token's name",
+                  type: "string",
+                  required: true,
+                });
+            },
+            (argv) => {
+              let emitter_chain = argv["emitter-chain"] as string;
+              assertChain(argv["chain"]);
+              assertChain(emitter_chain);
+              let payload: vaa.TokenBridgeAttestMeta = {
+                module: "TokenBridge",
+                type: "AttestMeta",
+                chain: 0,
+                // TODO: remove these casts (only here because of the workaround above)
+                tokenAddress: parseAddress(argv["chain"], argv["token-address"] as string),
+                tokenChain: toChainId(argv["chain"]),
+                decimals: argv["decimals"] as number,
+                symbol: argv["symbol"] as string,
+                name: argv["name"] as string
+              }
+              let v = makeVAA(
+                toChainId(emitter_chain),
+                parseAddress(emitter_chain, argv["emitter-address"] as string),
+                argv["guardian-secret"].split(","),
+                payload
+              );
+              console.log(serialiseVAA(v));
+            }
+          )
       );
     },
     (_) => {
@@ -332,7 +415,7 @@ yargs(hideBin(process.argv))
         });
     },
     async (argv) => {
-      assertChain(argv["chain"]);   
+      assertChain(argv["chain"]);
       console.log(toChainId(argv["chain"]));
     }
   )
