@@ -25,6 +25,7 @@ module token_bridge::bridge_state {
     friend token_bridge::register_chain;
     friend token_bridge::token_bridge;
     friend token_bridge::vaa;
+    friend token_bridge::attest_token;
 
     #[test_only]
     friend token_bridge::token_bridge_test;
