@@ -10,9 +10,10 @@ AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "
 AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token/", rev = "alin/move-keccak" }
 Wormhole = { local = "../wormhole/" }
 Deployer = { local = "../deployer/" }
-WrappedCoin = {local = "../coin/"}
 
-# U256 = { git = "https://github.com/pontem-network/u256", rev = "main"  }
+# only included in testing
+[dev-dependencies]
+WrappedCoin = {local = "../coin/"}
 
 [addresses]
 # derived address from sha3_256(deployer + "token_bridge")
