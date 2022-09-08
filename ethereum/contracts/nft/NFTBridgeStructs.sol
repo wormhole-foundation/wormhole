@@ -54,7 +54,7 @@ contract NFTBridgeStructs {
 
     struct RecoverChainId {
         // Governance Header
-        // module: "TokenBridge" left-padded
+        // module: "NFTBridge" left-padded
         bytes32 module;
         // governance action: 5
         uint8 action;
