@@ -23,19 +23,19 @@ module wormhole::serialize {
     }
 
     public fun serialize_u64(buf: &mut vector<u8>, v: u64) {
-        serialize_u8(buf, ((v >> 56) as u8));
-        serialize_u8(buf, ((v >> 48) % (2<<8) as u8));
-        serialize_u8(buf, ((v >> 40) % (2<<8) as u8));
-        serialize_u8(buf, ((v >> 32) % (2<<8) as u8));
-        serialize_u8(buf, ((v >> 24) % (2<<8) as u8));
-        serialize_u8(buf, ((v >> 16) % (2<<8) as u8));
-        serialize_u8(buf, ((v >> 8) % (2<<8) as u8));
-        serialize_u8(buf, ((v % (2<<8)) as u8))
+        serialize_u8(buf, (v >> 56 & 0xFF as u8));
+        serialize_u8(buf, (v >> 48 & 0xFF as u8));
+        serialize_u8(buf, (v >> 40 & 0xFF as u8));
+        serialize_u8(buf, (v >> 32 & 0xFF as u8));
+        serialize_u8(buf, (v >> 24 & 0xFF as u8));
+        serialize_u8(buf, (v >> 16 & 0xFF as u8));
+        serialize_u8(buf, (v >> 8  & 0xFF as u8));
+        serialize_u8(buf, (v       & 0xFF as u8))
     }
 
     public fun serialize_u128(buf: &mut vector<u8>, v: u128) {
-        serialize_u64(buf, ((v >> 64) as u64));
-        serialize_u64(buf, ((v % (2 << 64)) as u64));
+        serialize_u64(buf, (v >> 64 & 0xFFFFFFFFFFFFFFFF as u64));
+        serialize_u64(buf, (v       & 0xFFFFFFFFFFFFFFFF as u64));
     }
 
     public fun serialize_u256(buf: &mut vector<u8>, v: U256) {
@@ -46,20 +46,7 @@ module wormhole::serialize {
     }
 
     public fun serialize_vector(buf: &mut vector<u8>, v: vector<u8>){
-        vector::reverse<u8>(&mut v);
-        let len = vector::length<u8>(&mut v);
-        while ({
-            spec {
-                invariant len >  0;
-            };
-            // TODO(csongor): this does not work, as len never changes, so this
-            // will never terminate
-            len > 0
-        }) {
-            let byte = vector::pop_back(&mut v);
-            vector::push_back(buf, byte);
-            len = len - 1;
-        }
+        vector::append(buf, v)
     }
 }
 
@@ -135,6 +122,6 @@ module wormhole::test_serialize{
         vector::push_back<u8>(&mut x, 0x34);
         vector::push_back<u8>(&mut x, 0x56);
         serialize::serialize_vector(&mut y, x);
-        assert!(vector::length<u8>(&y)==3, 0);
+        assert!(y == x"123456", 0);
     }
 }
