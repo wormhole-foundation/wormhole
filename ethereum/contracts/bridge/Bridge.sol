@@ -20,11 +20,6 @@ import "./token/TokenImplementation.sol";
 contract Bridge is BridgeGovernance, ReentrancyGuard {
     using BytesLib for bytes;
 
-    modifier noFork() {
-        require(evmChainId() == block.chainid, "bad fork");
-        _;
-    }
-
     /*
      *  @dev Produce a AssetMeta message for a given token
      */
@@ -581,7 +576,8 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setOutstandingBridged(token, outstandingBridged(token) - normalizedAmount);
     }
 
-    function verifyBridgeVM(IWormhole.VM memory vm) internal view noFork returns (bool){
+    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
+        require(!isFork(), "bad fork");
         if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
             return true;
         }

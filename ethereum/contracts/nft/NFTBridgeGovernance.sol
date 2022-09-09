@@ -32,14 +32,14 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
 
         NFTBridgeStructs.RegisterChain memory chain = parseRegisterChain(vm.payload);
 
-        require((chain.chainId == chainId() && evmChainId() == block.chainid) || chain.chainId == 0, "invalid chain id");
+        require((chain.chainId == chainId() && !isFork()) || chain.chainId == 0, "invalid chain id");
 
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
     }
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        require(evmChainId() == block.chainid, "bad fork");
+        require(!isFork(), "bad fork");
 
         (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
@@ -57,7 +57,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
     * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
     */
     function submitRecoverChainId(bytes memory encodedVM) public {
-        require(evmChainId() != block.chainid, "not a fork");
+        require(isFork(), "not a fork");
 
         (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);

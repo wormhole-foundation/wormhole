@@ -33,7 +33,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         BridgeStructs.RegisterChain memory chain = parseRegisterChain(vm.payload);
 
-        require((chain.chainId == chainId() && evmChainId() == block.chainid) || chain.chainId == 0, "invalid chain id");
+        require((chain.chainId == chainId() && !isFork()) || chain.chainId == 0, "invalid chain id");
         require(bridgeContracts(chain.emitterChainID) == bytes32(0), "chain already registered");
 
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
@@ -41,7 +41,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        require(evmChainId() == block.chainid, "bad fork");
+        require(!isFork(), "bad fork");
 
         (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
@@ -59,7 +59,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
     */
     function submitRecoverChainId(bytes memory encodedVM) public {
-        require(evmChainId() != block.chainid, "not a fork");
+        require(isFork(), "not a fork");
 
         (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
