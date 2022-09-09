@@ -25,7 +25,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
      * @dev Upgrades a contract via Governance VAA/VM
      */
     function submitContractUpgrade(bytes memory _vm) public {
-        require(!isFork(), "bad fork");
+        require(!isFork(), "invalid fork");
 
         Structs.VM memory vm = parseVM(_vm);
 

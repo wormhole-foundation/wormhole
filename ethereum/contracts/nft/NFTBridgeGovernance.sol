@@ -39,7 +39,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        require(!isFork(), "bad fork");
+        require(!isFork(), "invalid fork");
 
         (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);

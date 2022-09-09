@@ -41,7 +41,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        require(!isFork(), "bad fork");
+        require(!isFork(), "invalid fork");
 
         (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
