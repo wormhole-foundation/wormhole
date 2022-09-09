@@ -19,6 +19,9 @@ module token_bridge::transfer {
 
     friend token_bridge::bridge_state;
 
+    // TODO: change amount to u64, and error in the parser if more comes
+    // through?
+
     struct Transfer has key, store, drop {
         // TODO: is there a need to store the payload id in the parsed type?
         // It's there in the wire format to instruct which type to deserialise
@@ -61,6 +64,10 @@ module token_bridge::transfer {
 
     public fun get_to_chain(a: &Transfer): U16 {
         a.to_chain
+    }
+
+    public fun get_fee(a: &Transfer): U256 {
+        a.fee
     }
 
     public(friend) fun create(

@@ -94,7 +94,7 @@ module token_bridge::transfer_with_payload {
         encoded
     }
 
-    public fun parse_transfer(transfer: vector<u8>): TransferWithPayload {
+    public fun parse(transfer: vector<u8>): TransferWithPayload {
         let cur = cursor::init(transfer);
         let payload_id = deserialize_u8(&mut cur);
         let amount = deserialize_u256(&mut cur);

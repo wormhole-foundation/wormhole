@@ -4,6 +4,8 @@ module token_bridge::vaa {
     use wormhole::vaa::{Self, VAA};
     use token_bridge::bridge_state as state;
 
+    friend token_bridge::complete_transfer;
+    friend token_bridge::complete_transfer_with_payload;
     friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
     friend token_bridge::wrapped;
