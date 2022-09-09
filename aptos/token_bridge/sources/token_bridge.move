@@ -9,6 +9,8 @@ module token_bridge::token_bridge {
     /// Initializes the contract.
     /// The native `init_module` cannot be used, because it runs on each upgrade
     /// (oddly).
+    /// TODO: the above behaviour has been remedied in the Aptos VM, so we could
+    /// use `init_module` now. Let's reconsider before the mainnet launch.
     /// Can only be called by the deployer (checked by the
     /// `deployer::claim_signer_capability` function).
     entry fun init(deployer: &signer) {

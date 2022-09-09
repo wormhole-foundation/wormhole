@@ -16,6 +16,9 @@ module token_bridge::wrapped {
     #[test_only]
     friend token_bridge::token_bridge_test;
 
+    friend token_bridge::complete_transfer;
+    friend token_bridge::complete_transfer_with_payload;
+
     const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
     const E_COIN_CAP_DOES_NOT_EXIST: u64 = 1;
 
@@ -27,7 +30,18 @@ module token_bridge::wrapped {
 
     // this function is called before create_wrapped_coin
     public entry fun create_wrapped_coin_type(vaa: vector<u8>): address {
-        // TODO: verify VAA is from a known emitter + replay protection
+        // NOTE: we do not do replay protection here, only verify that the VAA
+        // comes from a known emitter. This is because `create_wrapped_coin`
+        // itself will need to verify the VAA again in a separate transaction,
+        // and it itself will perform the replay protection.
+        // This function cannot be called twice with the same VAA because it
+        // creates a resource account, which will fail the second time if the
+        // account already exists.
+        // TODO(csongor): should we implement a more explicit replay protection
+        // for this function?
+        // TODO(csongor): we could break this function up a little so it's
+        // better testable. In particular, resource accounts are little hard to
+        // test.
         let vaa = token_bridge_vaa::parse_and_verify(vaa);
         let asset_meta:AssetMeta = asset_meta::parse(vaa::destroy(vaa));
         let seed = asset_meta::create_seed(&asset_meta);

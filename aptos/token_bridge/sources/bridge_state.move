@@ -27,10 +27,14 @@ module token_bridge::bridge_state {
     friend token_bridge::vaa;
     friend token_bridge::attest_token;
     friend token_bridge::wrapped;
+    friend token_bridge::complete_transfer;
+    friend token_bridge::complete_transfer_with_payload;
 
     #[test_only]
     friend token_bridge::token_bridge_test;
 
+    const E_ORIGIN_CHAIN_MISMATCH: u64 = 0;
+    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 1;
     const E_COIN_NOT_REGISTERED: u64 = 2;
     const E_FEE_EXCEEDS_AMOUNT: u64 = 3;
 
@@ -39,12 +43,15 @@ module token_bridge::bridge_state {
         asset_address: vector<u8>,
     }
 
-    // the native chain and address of a wrapped token
+    /// The origin chain and address of a token.  In case of native tokens
+    /// (where the chain is aptos), the token_address is the hash of the token
+    /// info (see token_hash.move for more details)
     struct OriginInfo has key, store, copy, drop {
         token_address: vector<u8>,
         token_chain: U16,
     }
 
+    // TODO(csongor): flip the arguments
     public(friend) fun create_origin_info(
         token_address: vector<u8>,
         token_chain: U16
@@ -95,8 +102,6 @@ module token_bridge::bridge_state {
 
     // getters
 
-    // TODO: these shouldn't be entry functions...
-
     public fun vaa_is_consumed(hash: vector<u8>): bool acquires State {
         let state = borrow_global<State>(@token_bridge);
         set::contains(&state.consumed_vaas, hash)
@@ -117,8 +122,15 @@ module token_bridge::bridge_state {
         *table::borrow(origin_info_to_wrapped_assets, native_info)
     }
 
+    /// Returns the origin information for a CoinType
     public fun origin_info<CoinType>(): OriginInfo acquires OriginInfo {
-        *borrow_global<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
+        if (is_wrapped_asset<CoinType>()) {
+            *borrow_global<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
+        } else {
+            let token_chain = get_chain_id();
+            let token_address = token_hash::get_bytes(&token_hash::derive<CoinType>());
+            OriginInfo { token_chain, token_address }
+        }
     }
 
     public fun asset_type_info(token_address: TokenHash): TypeInfo acquires State {
@@ -271,12 +283,13 @@ module token_bridge::bridge_state {
             // wrapped::burn<CoinType>(amount);
             // problem here is that wrapped imports state, so state can't import wrapped...
         } else {
-             if (!is_registered_native_asset<CoinType>()) {
+            // if we're seeing this native token for the first time, store its
+            // type info
+            if (!is_registered_native_asset<CoinType>()) {
                 set_native_asset_type_info<CoinType>();
-             };
+            };
             origin_chain = get_chain_id();
-            origin_address = token_hash::get_bytes(&token_address);
-        };
+            origin_address = token_hash::get_bytes(&token_address);        };
 
         let decimals_token = coin::decimals<CoinType>();
         let decimals_aptos = coin::decimals<AptosCoin>();
@@ -292,6 +305,15 @@ module token_bridge::bridge_state {
             u256::from_u64(wormhole_fee)
         );
         transfer_result
+    }
+
+    // TODO(csongor): add this check everywhere where a VAA comes in for a token
+    // (complete transfer and create wrapped)
+    // TODO(csongor): should this return some sort of witness proving the origin?
+    public fun assert_coin_origin_info<CoinType>(origin: OriginInfo) acquires OriginInfo {
+        let coin_origin = origin_info<CoinType>();
+        assert!(coin_origin.token_chain == origin.token_chain, E_ORIGIN_CHAIN_MISMATCH);
+        assert!(coin_origin.token_address == origin.token_address, E_ORIGIN_ADDRESS_MISMATCH);
     }
 
     public(friend) fun log_transfer(
@@ -393,6 +415,7 @@ module token_bridge::bridge_state {
     }
 
     // 32-byte native asset address => type info
+    // TODO: call this function register_native_asset
     public(friend) fun set_native_asset_type_info<CoinType>() acquires State {
         let token_address = token_hash::derive<CoinType>();
         let type_info = type_of<CoinType>();
