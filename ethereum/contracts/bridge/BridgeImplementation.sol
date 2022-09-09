@@ -18,7 +18,7 @@ contract BridgeImplementation is Bridge {
     function initialize() initializer public virtual {
         // this function needs to be exposed for an upgrade to pass
         uint256 evmChainId;
-        uint16 chain = _state.provider.chainId;
+        uint16 chain = chainId();
 
         // Wormhole chain ids explicitly enumerated
         if        (chain == 2)  { evmChainId = 1;          // ethereum
