@@ -15,6 +15,14 @@ const WormholeImplementationFullABI = jsonfile.readFileSync("build/contracts/Imp
 const BridgeImplementationFullABI = jsonfile.readFileSync("build/contracts/NFTBridgeImplementation.json").abi
 const NFTImplementationFullABI = jsonfile.readFileSync("build/contracts/NFTImplementation.json").abi
 
+const actionContractUpgrade = "02"
+const actionRecoverChainId = "03"
+
+const fakeChainId = 1337;
+const fakeEvmChainId = 10001;
+
+let lastDeployed;
+
 contract("NFT", function () {
     const testSigner1 = web3.eth.accounts.privateKeyToAccount(testSigner1PK);
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
@@ -149,6 +157,7 @@ contract("NFT", function () {
         let isUpgraded = await mockImpl.methods.testNewImplementationActive().call();
 
         assert.ok(isUpgraded);
+        lastDeployed = mock;
     })
 
     it("bridged tokens should only be mint- and burn-able by owner", async function () {
@@ -672,6 +681,179 @@ contract("NFT", function () {
         } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "ERC721: owner query for nonexistent token")
         }
+    })
+
+    it("should reject smart contract upgrades on forks", async function () {
+        const mockInitialized = new web3.eth.Contract(MockBridgeImplementation.abi, NFTBridge.address);
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockBridgeImplementation.new();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+
+        // simulate a fork
+        await mockInitialized.methods.testOverwriteEVMChainId(fakeChainId, fakeEvmChainId).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 1000000
+        });
+
+        const chainId = await initialized.methods.chainId().call();
+        assert.equal(chainId, fakeChainId);
+
+        const evmChainId = await initialized.methods.evmChainId().call();
+        assert.equal(evmChainId, fakeEvmChainId);
+
+        data = [
+            "0x",
+            "00000000000000000000000000000000000000000000004e4654427269646765",
+            // Action 1 (Contract Upgrade)
+            actionContractUpgrade,
+            // ChainID
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            // New Contract Address
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+            ],
+            0,
+            0
+        );
+
+        try {
+            await initialized.methods.upgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+
+            assert.fail("governance packet accepted")
+        } catch (e) {
+            assert.equal(e.data[Object.keys(e.data)[0]].reason, "invalid fork")
+        }
+    })
+
+    it("should allow recover chain ID governance packets forks", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+
+        const chainId = await initialized.methods.chainId().call();
+        assert.equal(chainId, fakeChainId);
+
+        const evmChainId = await initialized.methods.evmChainId().call();
+        assert.equal(evmChainId, fakeEvmChainId);
+
+        data = [
+            "0x",
+            "00000000000000000000000000000000000000000000004e4654427269646765",
+            // Action 3 (Recover Chain ID)
+            actionRecoverChainId,
+            // EvmChainID
+            web3.eth.abi.encodeParameter("uint256", testEvmChainId).substring(2),
+            // NewChainID
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+            ],
+            0,
+            0
+        );
+
+        await initialized.methods.submitRecoverChainId("0x" + vm).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 1000000
+        });
+
+        const newChainId = await initialized.methods.chainId().call();
+        assert.equal(newChainId, testChainId);
+
+        const newEvmChainId = await initialized.methods.evmChainId().call();
+        assert.equal(newEvmChainId, testEvmChainId);
+    })
+
+    it("should accept smart contract upgrades after chain ID has been recovered", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockBridgeImplementation.new();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+
+        data = [
+            "0x",
+            "00000000000000000000000000000000000000000000004e4654427269646765",
+            // Action 2 (Contract Upgrade)
+            actionContractUpgrade,
+            // ChainID
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            // New Contract Address
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+            ],
+            0,
+            0
+        );
+
+        let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        assert.equal(before.toLowerCase(), lastDeployed.address.toLowerCase());
+
+        let set = await initialized.methods.upgrade("0x" + vm).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 1000000
+        });
+
+        let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        assert.equal(after.toLowerCase(), mock.address.toLowerCase());
+
+        const mockImpl = new web3.eth.Contract(MockBridgeImplementation.abi, NFTBridge.address);
+
+        let isUpgraded = await mockImpl.methods.testNewImplementationActive().call();
+
+        assert.ok(isUpgraded);
     })
 });
 
