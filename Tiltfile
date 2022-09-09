@@ -251,6 +251,8 @@ if terra_classic:
     guardian_resource_deps = guardian_resource_deps + ["terra-terrad"]
 if terra2:
     guardian_resource_deps = guardian_resource_deps + ["terra2-terrad"]
+if algorand:
+    guardian_resource_deps = guardian_resource_deps + ["algorand"]
 
 k8s_resource(
     "guardian",
@@ -520,11 +522,13 @@ if ci_tests:
         "sdk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
+        resource_deps = ["guardian"],
     )
     k8s_resource(
         "spydk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
+        resource_deps = ["guardian"],
     )
 
 # e2e
@@ -662,7 +666,7 @@ if terra2:
 
 if algorand:
     k8s_yaml_with_ns("devnet/algorand-devnet.yaml")
-  
+
     docker_build(
         ref = "algorand-algod",
         context = "algorand/sandbox-algorand",
@@ -693,7 +697,7 @@ if algorand:
         labels = ["algorand"],
         trigger_mode = trigger_mode,
     )
-    
+
 
 if near:
     k8s_yaml_with_ns("devnet/near-devnet.yaml")
