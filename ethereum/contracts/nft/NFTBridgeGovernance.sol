@@ -160,7 +160,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         require(encoded.length == index, "invalid UpgradeContract: wrong length");
     }
 
-    /// @dev Parse a recoverChainId (action 5) with minimal validation
+    /// @dev Parse a recoverChainId (action 3) with minimal validation
     function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (NFTBridgeStructs.RecoverChainId memory rci) {
         uint index = 0;
 
@@ -170,7 +170,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
 
         rci.action = encodedRecoverChainId.toUint8(index);
         index += 1;
-        require(rci.action == 5, "invalid RecoverChainId: wrong action");
+        require(rci.action == 3, "invalid RecoverChainId: wrong action");
 
         rci.evmChainId = encodedRecoverChainId.toUint256(index);
         index += 32;

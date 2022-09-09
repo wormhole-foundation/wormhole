@@ -100,7 +100,7 @@ contract BridgeStructs {
         // Governance Header
         // module: "TokenBridge" left-padded
         bytes32 module;
-        // governance action: 5
+        // governance action: 3
         uint8 action;
 
         // EIP-155 Chain ID

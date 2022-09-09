@@ -163,7 +163,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         require(encoded.length == index, "wrong length");
     }
 
-    /// @dev Parse a recoverChainId (action 5) with minimal validation
+    /// @dev Parse a recoverChainId (action 3) with minimal validation
     function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (BridgeStructs.RecoverChainId memory rci) {
         uint index = 0;
 
@@ -173,7 +173,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         rci.action = encodedRecoverChainId.toUint8(index);
         index += 1;
-        require(rci.action == 5, "wrong action");
+        require(rci.action == 3, "wrong action");
 
         rci.evmChainId = encodedRecoverChainId.toUint256(index);
         index += 32;
