@@ -13,6 +13,7 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::cursor;
 
     const E_INVALID_RECIPIENT: u64 = 0;
+    const E_INVALID_TARGET: u64 = 1;
 
     // TODO(csongor): document this, and create an example contract receiving
     // such a transfer
@@ -22,6 +23,10 @@ module token_bridge::complete_transfer_with_payload {
     ): (Coin<CoinType>, TransferWithPayload) {
         let vaa = vaa::parse_verify_and_replay_protect(vaa);
         let transfer = transfer::parse(wormhole::vaa::destroy(vaa));
+
+        let to_chain = transfer::get_to_chain(&transfer);
+        assert!(to_chain == wormhole::state::get_chain_id(), E_INVALID_TARGET);
+
         let token_chain = transfer::get_token_chain(&transfer);
         let token_address = transfer::get_token_address(&transfer);
         let origin_info = state::create_origin_info(token_address, token_chain);

@@ -19,6 +19,9 @@ module token_bridge::transfer {
 
     friend token_bridge::bridge_state;
 
+    #[test_only]
+    friend token_bridge::complete_transfer_test;
+
     // TODO: change amount to u64, and error in the parser if more comes
     // through?
 

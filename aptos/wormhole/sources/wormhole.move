@@ -136,9 +136,9 @@ module wormhole::wormhole_test {
     use aptos_framework::coin;
 
     // public so we an re-use this in token_bridge test
-    public fun setup(aptos_framework: &signer) {
-        std::account::create_account_for_test(@aptos_framework);
-        std::timestamp::set_time_has_started_for_testing(aptos_framework);
+    public fun setup() {
+        let aptos_framework = std::account::create_account_for_test(@aptos_framework);
+        std::timestamp::set_time_has_started_for_testing(&aptos_framework);
         wormhole::init_test(
             22,
             1,
@@ -156,7 +156,7 @@ module wormhole::wormhole_test {
 
     #[test(aptos_framework = @aptos_framework)]
     public fun test_publish_message(aptos_framework: &signer) {
-        setup(aptos_framework);
+        setup();
 
         let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
         let fees = coin::mint(100, &mint_cap);
@@ -177,10 +177,10 @@ module wormhole::wormhole_test {
         coin::destroy_burn_cap(burn_cap);
     }
 
-    #[test(aptos_framework = @aptos_framework)]
+    #[test]
     #[expected_failure(abort_code = 0x0)]
-    public fun test_publish_message_insufficient_fee(aptos_framework: &signer) {
-        setup(aptos_framework);
+    public fun test_publish_message_insufficient_fee() {
+        setup();
         let emitter_cap = wormhole::register_emitter();
 
         wormhole::publish_message(
