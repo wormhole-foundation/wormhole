@@ -14,7 +14,7 @@ contract TestBridge is Bridge, Test {
         require(converted == b, "truncate does not roundrip");
     }
 
-    function testChainId() public {
+    function testEvmChainId() public {
         vm.chainId(1);
         setChainId(1);
         setEvmChainId(1);
@@ -23,8 +23,6 @@ contract TestBridge is Bridge, Test {
 
         // fork occurs, block.chainid changes
         vm.chainId(10001);
-        assertEq(chainId(), type(uint16).max);
-        assertEq(evmChainId(), 1);
 
         setEvmChainId(10001);
         assertEq(chainId(), 1);
