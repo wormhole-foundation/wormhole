@@ -251,6 +251,8 @@ if terra_classic:
     guardian_resource_deps = guardian_resource_deps + ["terra-terrad"]
 if terra2:
     guardian_resource_deps = guardian_resource_deps + ["terra2-terrad"]
+if algorand:
+    guardian_resource_deps = guardian_resource_deps + ["algorand"]
 
 k8s_resource(
     "guardian",
