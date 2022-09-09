@@ -206,6 +206,20 @@ module token_bridge::bridge_state {
         )
     }
 
+    public fun transfer_tokens_with_payload_with_signer<CoinType>(
+        sender: &signer,
+        amount: u64,
+        wormhole_fee: u64,
+        recipient_chain: U16,
+        recipient: vector<u8>,
+        nonce: u64,
+        payload: vector<u8>
+        ): u64 acquires State, OriginInfo {
+        let coins = coin::withdraw<CoinType>(sender, amount);
+        let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
+        transfer_tokens_with_payload(coins, wormhole_fee_coins, recipient_chain, recipient, nonce, payload)
+    }
+
     public fun transfer_tokens_with_payload<CoinType>(
         coins: Coin<CoinType>,
         wormhole_fee_coins: Coin<AptosCoin>,
