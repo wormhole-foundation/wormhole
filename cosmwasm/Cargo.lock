@@ -1048,6 +1048,50 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
+name = "null-token-bridge-terra-2"
+version = "0.1.0"
+dependencies = [
+ "bigint",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw20",
+ "cw20-base",
+ "cw20-wrapped-2",
+ "generic-array",
+ "hex",
+ "k256 0.9.6",
+ "lazy_static",
+ "null-wormhole-bridge-terra-2",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha3",
+ "terraswap",
+ "thiserror",
+]
+
+[[package]]
+name = "null-wormhole-bridge-terra-2"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw20",
+ "cw20-base",
+ "cw20-wrapped-2",
+ "generic-array",
+ "getrandom 0.2.3",
+ "hex",
+ "k256 0.9.6",
+ "lazy_static",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha3",
+ "thiserror",
+]
+
+[[package]]
 name = "num_cpus"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
