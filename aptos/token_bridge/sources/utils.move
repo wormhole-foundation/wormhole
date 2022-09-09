@@ -1,7 +1,7 @@
 module token_bridge::utils {
     use 0x1::vector;
 
-    //use wormhole::u256::{Self, U256};
+    use wormhole::u256::{Self, U256, from_u64};
 
     const E_VECTOR_TOO_LONG: u64 = 0;
 
@@ -19,28 +19,35 @@ module token_bridge::utils {
         ret
     }
 
-    //TODO - finish and test normalized and denormalize functions
+    public entry fun normalize_amount(amount: U256, decimals: u8): U256 {
+         if (decimals > 8) {
+            let n = decimals - 8;
+            while (n > 0){
+                amount = u256::div(amount, from_u64(10));
+                n = n - 1;
+            }
+         };
+         amount
+    }
 
-    // public entry fun normalize_amount(amount: U256, decimals: u8): U256 {
-    //     if (decimals > 8) {
-    //         amount = u256::div(amount, 10 ** (decimals - 8));
-    //     };
-    //     amount
-    // }
-
-    // public entry fun denormalize_amount(amount: U256, decimals: u8): U256{
-    //     if (decimals > 8) {
-    //         amount = u256::mul(amount, 10 ** (decimals - 8));
-    //     };
-    //     amount
-    // }
+    public entry fun denormalize_amount(amount: U256, decimals: u8): U256{
+         if (decimals > 8) {
+            let n = decimals - 8;
+            while (n > 0){
+                amount = u256::mul(amount, from_u64(10));
+                n = n - 1;
+            }
+         };
+         amount
+    }
 }
 
 #[test_only]
 module token_bridge::utils_test {
     use aptos_std::type_info::{type_name};
     use std::string;
-    use token_bridge::utils::{pad_left_32};
+    use token_bridge::utils::{pad_left_32, normalize_amount, denormalize_amount};
+    use wormhole::u256::{from_u64};
 
     struct MyCoin {}
 
@@ -69,5 +76,18 @@ module token_bridge::utils_test {
     fun test_pad_left_long() {
         let v = x"665555555555555555555555555555555555555555555555555555555555555555";
         pad_left_32(&v);
+    }
+
+    #[test]
+    fun test_normalize_denormalize_amount() {
+        let a = from_u64(12345678910111);
+        let b = normalize_amount(a, 9);
+        let c = denormalize_amount(b, 9);
+        assert!(c==from_u64(12345678910110), 0);
+
+        let x = from_u64(12345678910111);
+        let y = normalize_amount(x, 5);
+        let z = denormalize_amount(y, 5);
+        assert!(z==x, 0);
     }
 }

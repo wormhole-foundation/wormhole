@@ -7,6 +7,8 @@ module token_bridge::transfer_with_payload {
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
 
+    friend token_bridge::bridge_state;
+
     struct TransferWithPayload has key, store, drop {
         // PayloadID uint8 = 3
         payload_id: u8,
@@ -56,6 +58,27 @@ module token_bridge::transfer_with_payload {
 
     public fun get_payload(a: &TransferWithPayload): vector<u8> {
         a.payload
+    }
+
+    public(friend) fun create(
+        amount: U256,
+        token_address: vector<u8>,
+        token_chain: U16,
+        to: vector<u8>,
+        to_chain: U16,
+        from_address: vector<u8>,
+        payload: vector<u8>
+    ): TransferWithPayload {
+        TransferWithPayload {
+            payload_id: 3,
+            amount,
+            token_address,
+            token_chain,
+            to,
+            to_chain,
+            from_address,
+            payload,
+        }
     }
 
     public fun encode(transfer: TransferWithPayload): vector<u8> {
