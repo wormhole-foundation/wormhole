@@ -169,6 +169,7 @@ module token_bridge::bridge_state {
         coin_signer: &signer,
         origin_info: OriginInfo
     ) acquires State {
+        // TODO: ensure that origin chain != current chain
         move_to(coin_signer, origin_info);
         set_wrapped_asset<CoinType>(&origin_info);
         set_wrapped_asset_type_info<CoinType>();

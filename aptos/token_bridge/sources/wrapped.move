@@ -15,6 +15,7 @@ module token_bridge::wrapped {
 
     #[test_only]
     friend token_bridge::token_bridge_test;
+    friend token_bridge::complete_transfer_test;
 
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
@@ -72,26 +73,38 @@ module token_bridge::wrapped {
         let native_info = state::create_origin_info(native_token_address, native_token_chain);
 
         // TODO: where do we check that CoinType corresponds to the thing in the VAA?
+        // I think it's fine because only the correct signer can initialise the
+        // coin, so it would fail, but we should have a test for this.
         let coin_signer = state::get_wrapped_asset_signer(native_info);
+        init_wrapped_coin<CoinType>(&coin_signer, &asset_meta)
+    }
 
+    public(friend) fun init_wrapped_coin<CoinType>(
+        coin_signer: &signer,
+        asset_meta: &AssetMeta,
+    ) {
         // initialize new coin using CoinType
-        let name = asset_meta::get_name(&asset_meta);
-        let symbol = asset_meta::get_symbol(&asset_meta);
-        let decimals = asset_meta::get_decimals(&asset_meta);
+        let name = asset_meta::get_name(asset_meta);
+        let symbol = asset_meta::get_symbol(asset_meta);
+        let decimals = asset_meta::get_decimals(asset_meta);
         let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap)
             = coin::initialize<CoinType>(
-                &coin_signer,
+                coin_signer,
                 string::utf8(name),
                 string::utf8(symbol),
                 decimals,
                 monitor_supply
             );
 
+        let token_address = asset_meta::get_token_address(asset_meta);
+        let token_chain = asset_meta::get_token_chain(asset_meta);
+        let origin_info = state::create_origin_info(token_address, token_chain);
+
         // update the following two mappings in State
         // 1. (native chain, native address) => wrapped address
         // 2. wrapped address => (native chain, native address)
-        state::setup_wrapped<CoinType>(&coin_signer, native_info);
+        state::setup_wrapped<CoinType>(coin_signer, origin_info);
 
         // store coin capabilities
         let token_bridge = state::token_bridge_signer();

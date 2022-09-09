@@ -9,6 +9,9 @@ module token_bridge::asset_meta {
     friend token_bridge::attest_token;
     friend token_bridge::wrapped;
 
+    #[test_only]
+    friend token_bridge::complete_transfer_test;
+
     struct AssetMeta has key, store, drop {
         // PayloadID uint8 = 2
         payload_id: u8,
