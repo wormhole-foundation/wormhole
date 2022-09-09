@@ -24,7 +24,7 @@ nft_bridge_AUTHORITY_devnet=6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J
 
 SOURCE_FILES=$(shell find . -name "*.rs" -or -name "*.lock" -or -name "*.toml" | grep -v "target") Dockerfile
 
-.PHONY: clean all help artifacts deploy/bridge deploy/token_bridge deploy/nft_bridge .FORCE
+.PHONY: clean all help artifacts deploy/bridge deploy/token_bridge deploy/nft_bridge .FORCE fmt check clippy test
 
 -include ../Makefile.help
 
@@ -77,9 +77,23 @@ wasm: $(SOURCE_FILES)
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile.wasm -o type=local,dest=$@ .
 	cp -r $@/* ..
 
-test:
-	@echo "Running integration tests"
-	DOCKER_BUILDKIT=1 docker build -f Dockerfile --target ci_tests --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_devnet} .
+fmt: $(SOURCE_FILES)
+	cargo fmt --check --all --manifest-path Cargo.toml
+
+check: $(SOURCE_FILES)
+	cargo check --workspace --tests --manifest-path Cargo.toml \
+		--features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+
+clippy: $(SOURCE_FILES)
+	cargo clippy --workspace --tests --manifest-path Cargo.toml \
+		--features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+
+test: $(SOURCE_FILES)
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_devnet} \
+		--build-arg EMITTER_ADDRESS=CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr -o target/deploy .
+	BPF_OUT_DIR=$(realpath $(dir $(firstword $(MAKEFILE_LIST))))/target/deploy \
+		cargo test --workspace \
+			--features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
 clean:
 	rm -rf artifacts-mainnet artifacts-testnet artifacts-devnet *-buffer-*.txt
