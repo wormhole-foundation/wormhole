@@ -50,6 +50,9 @@ contract NFTBridgeStorage {
 
         // Mapping of spl token info caches (chainID => nativeAddress => SPLCache)
         mapping(uint256 => SPLCache) splCache;
+
+        // EIP-155 Chain ID
+        uint256 evmChainId;
     }
 }
 

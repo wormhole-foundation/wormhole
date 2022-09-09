@@ -51,4 +51,17 @@ contract NFTBridgeStructs {
         // Address of the new contract
         bytes32 newContract;
     }
+
+    struct RecoverChainId {
+        // Governance Header
+        // module: "NFTBridge" left-padded
+        bytes32 module;
+        // governance action: 3
+        uint8 action;
+
+        // EIP-155 Chain ID
+        uint256 evmChainId;
+        // Chain ID
+        uint16 newChainId;
+    }
 }

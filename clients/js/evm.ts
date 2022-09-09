@@ -51,7 +51,6 @@ export async function query_contract_evm(
       result.isInitialized = await core.isInitialized(result.implementation)
       break
     case "TokenBridge":
-      // TODO: add finality (need new sdk release)
       contract_address = contract_address ? contract_address : contracts.token_bridge;
       if (contract_address === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for ${chain}`)
@@ -63,6 +62,9 @@ export async function query_contract_evm(
       result.isInitialized = await tb.isInitialized(result.implementation)
       result.tokenImplementation = await tb.tokenImplementation()
       result.chainId = await tb.chainId()
+      // TODO: need new sdk release to expose this function in BridgeImplementation
+      const tb2 = new ethers.Contract(contract_address, ["function finality() public view returns (uint8)"], provider)
+      result.finality = await tb2.finality()
       result.governanceChainId = await tb.governanceChainId()
       result.governanceContract = await tb.governanceContract()
       result.WETH = await tb.WETH()
@@ -75,7 +77,6 @@ export async function query_contract_evm(
       }
       break
     case "NFTBridge":
-      // TODO: add finality (need new sdk release)
       contract_address = contract_address ? contract_address : contracts.nft_bridge;
       if (contract_address === undefined) {
         throw Error(`Unknown nft bridge contract on ${network} for ${chain}`)
@@ -87,6 +88,9 @@ export async function query_contract_evm(
       result.isInitialized = await nb.isInitialized(result.implementation)
       result.tokenImplementation = await nb.tokenImplementation()
       result.chainId = await nb.chainId()
+      // TODO: need new sdk release to expose this function in NFTBridgeImplementation
+      const nb2 = new ethers.Contract(contract_address, ["function finality() public view returns (uint8)"], provider)
+      result.finality = await nb2.finality()
       result.governanceChainId = await nb.governanceChainId()
       result.governanceContract = await nb.governanceContract()
       result.registrations = {}

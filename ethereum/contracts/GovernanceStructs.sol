@@ -52,6 +52,14 @@ contract GovernanceStructs {
         bytes32 recipient;
     }
 
+    struct RecoverChainId {
+        bytes32 module;
+        uint8 action;
+
+        uint256 evmChainId;
+        uint16 newChainId;
+    }
+
     /// @dev Parse a contract upgrade (action 1) with minimal validation
     function parseContractUpgrade(bytes memory encodedUpgrade) public pure returns (ContractUpgrade memory cu) {
         uint index = 0;
@@ -150,5 +158,26 @@ contract GovernanceStructs {
         index += 32;
 
         require(encodedTransferFees.length == index, "invalid TransferFees");
+    }
+
+    /// @dev Parse a recoverChainId (action 5) with minimal validation
+    function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (RecoverChainId memory rci) {
+        uint index = 0;
+
+        rci.module = encodedRecoverChainId.toBytes32(index);
+        index += 32;
+
+        rci.action = encodedRecoverChainId.toUint8(index);
+        index += 1;
+
+        require(rci.action == 5, "invalid RecoverChainId");
+
+        rci.evmChainId = encodedRecoverChainId.toUint256(index);
+        index += 32;
+
+        rci.newChainId = encodedRecoverChainId.toUint16(index);
+        index += 2;
+
+        require(encodedRecoverChainId.length == index, "invalid RecoverChainId");
     }
 }

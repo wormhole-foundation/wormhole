@@ -25,6 +25,8 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
      * @dev Upgrades a contract via Governance VAA/VM
      */
     function submitContractUpgrade(bytes memory _vm) public {
+        require(!isFork(), "invalid fork");
+
         Structs.VM memory vm = parseVM(_vm);
 
         // Verify the VAA is valid before processing it
@@ -62,7 +64,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         require(upgrade.module == module, "Invalid Module");
 
         // Verify the VAA is for this chain
-        require(upgrade.chain == chainId(), "Invalid Chain");
+        require(upgrade.chain == chainId() && !isFork(), "Invalid Chain");
 
         // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
@@ -87,7 +89,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         require(upgrade.module == module, "invalid Module");
 
         // Verify the VAA is for this chain
-        require(upgrade.chain == chainId() || upgrade.chain == 0, "invalid Chain");
+        require((upgrade.chain == chainId() && !isFork()) || upgrade.chain == 0, "invalid Chain");
 
         // Verify the Guardian Set keys are not empty, this guards
         // against the accidential upgrade to an empty GuardianSet
@@ -126,7 +128,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         require(transfer.module == module, "invalid Module");
 
         // Verify the VAA is for this chain
-        require(transfer.chain == chainId() || transfer.chain == 0, "invalid Chain");
+        require((transfer.chain == chainId() && !isFork()) || transfer.chain == 0, "invalid Chain");
 
         // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
@@ -136,6 +138,34 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
         // Transfers transfer fees to the recipient
         recipient.transfer(transfer.amount);
+    }
+
+    /**
+    * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
+    */
+    function submitRecoverChainId(bytes memory _vm) public {
+        require(isFork(), "not a fork");
+
+        Structs.VM memory vm = parseVM(_vm);
+
+        // Verify the VAA is valid before processing it
+        (bool isValid, string memory reason) = verifyGovernanceVM(vm);
+        require(isValid, reason);
+
+        GovernanceStructs.RecoverChainId memory rci = parseRecoverChainId(vm.payload);
+
+        // Verify the VAA is for this module
+        require(rci.module == module, "invalid Module");
+
+        // Verify the VAA is for this chain
+        require(rci.evmChainId == block.chainid, "invalid EVM Chain");
+
+        // Record the governance action as consumed to prevent reentry
+        setGovernanceActionConsumed(vm.hash);
+
+        // Update the chainIds
+        setEvmChainId(rci.evmChainId);
+        setChainId(rci.newChainId);
     }
 
     /**
