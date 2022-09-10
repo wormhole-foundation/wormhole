@@ -11,8 +11,6 @@ module token_bridge::wrapped {
     use token_bridge::deploy_coin::{deploy_coin};
     use token_bridge::vaa as token_bridge_vaa;
 
-    //friend token_bridge::token_bridge;
-
     #[test_only]
     friend token_bridge::token_bridge_test;
     friend token_bridge::complete_transfer_test;
@@ -30,6 +28,7 @@ module token_bridge::wrapped {
     }
 
     // this function is called before create_wrapped_coin
+    // TODO(csongor): document why these two are in separate transactions
     public entry fun create_wrapped_coin_type(vaa: vector<u8>): address {
         // NOTE: we do not do replay protection here, only verify that the VAA
         // comes from a known emitter. This is because `create_wrapped_coin`

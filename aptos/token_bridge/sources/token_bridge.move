@@ -69,11 +69,6 @@ module token_bridge::token_bridge_test {
         mint_cap: MintCapability<CoinType>,
     }
 
-    struct AptosCoinCaps has key, store {
-        burn_cap: BurnCapability<AptosCoin>,
-        mint_cap: MintCapability<AptosCoin>,
-    }
-
     fun init_my_token(admin: &signer) {
         let name = utf8(b"mycoindd");
         let symbol = utf8(b"MCdd");
@@ -83,40 +78,42 @@ module token_bridge::token_bridge_test {
         move_to(admin, MyCoinCaps {burn_cap, freeze_cap, mint_cap});
     }
 
-    #[test(deployer=@deployer)]
-    fun setup(deployer: &signer) {
-        wormhole::wormhole_test::setup();
+    fun setup(
+        aptos_framework: &signer,
+        token_bridge: &signer,
+        deployer: &signer,
+    ) {
+        // we initialise the bridge with zero fees to avoid having to mint fee
+        // tokens in these tests. The wormolhe fee handling is already tested
+        // in wormhole.move, so it's unnecessary here.
+        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+        wormhole::wormhole_test::setup(0);
         bridge::init_test(deployer);
+
+        coin::register<AptosCoin>(deployer);
+        coin::register<AptosCoin>(token_bridge); //how important is this registration step and where to check it?
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
     }
 
-    #[test(token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_init_token_bridge(deployer: &signer) {
-        setup(deployer);
+    #[test(aptos_framework=@aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_init_token_bridge(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
+        setup(aptos_framework, token_bridge, deployer);
         let _governance_chain_id = state::governance_chain_id();
     }
 
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
     fun test_attest_token_no_signer(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
-        setup(deployer);
+        setup(aptos_framework, token_bridge, deployer);
         init_my_token(token_bridge);
-        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
-        let fee_coins = coin::mint(100, &mint_cap);
-        move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
-        coin::register<AptosCoin>(token_bridge); //how important is this registration step and where to check it?
-        let _sequence = attest_token::attest_token<MyCoin>(fee_coins);
+        let _sequence = attest_token::attest_token<MyCoin>(coin::zero());
         assert!(_sequence==0, 1);
     }
 
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
     fun test_attest_token_with_signer(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
-        setup(deployer);
+        setup(aptos_framework, token_bridge, deployer);
         init_my_token(token_bridge);
-        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
-        let fee_coins = coin::mint(200, &mint_cap);
-        coin::register<AptosCoin>(deployer);
-        coin::deposit<AptosCoin>(@deployer, fee_coins);
-        move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
-        coin::register<AptosCoin>(token_bridge); // where else to check registration?
         let _sequence = attest_token::attest_token_with_signer<MyCoin>(deployer);
         assert!(_sequence==0, 1);
 
@@ -130,31 +127,18 @@ module token_bridge::token_bridge_test {
     }
 
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
-    #[expected_failure(abort_code = 0x0)]
-    fun test_attest_token_no_signer_insufficient_fee(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
-        setup(deployer);
-        init_my_token(token_bridge);
-        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
-        let fee_coins = coin::mint(0, &mint_cap);
-        move_to(token_bridge, AptosCoinCaps {mint_cap: mint_cap, burn_cap: burn_cap});
-        coin::register<AptosCoin>(token_bridge); // where else to check registration?
-        let _sequence = attest_token::attest_token<MyCoin>(fee_coins);
-        assert!(_sequence==0, 1);
-    }
-
-    #[test(token_bridge=@token_bridge, deployer=@deployer)]
     #[expected_failure(abort_code = 0)]
-    fun test_create_wrapped_coin_unregistered(deployer: &signer) {
-        setup(deployer);
+    fun test_create_wrapped_coin_unregistered(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
+        setup(aptos_framework, token_bridge, deployer);
 
         let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
     }
 
 
     // test create_wrapped_coin_type and create_wrapped_coin
-    #[test(token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_create_wrapped_coin(token_bridge: &signer, deployer: &signer) {
-        setup(deployer);
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_create_wrapped_coin(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
+        setup(aptos_framework, token_bridge, deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
 
         let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
@@ -205,22 +189,22 @@ module token_bridge::token_bridge_test {
     }
 
     // test transfer wrapped coin (with and without payload)
-    #[test(aptos_framework = @aptos_framework, _token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_transfer_wrapped_token(aptos_framework: &signer, _token_bridge: &signer, deployer: &signer) {
-        setup(deployer);
-        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_transfer_wrapped_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
+        setup(aptos_framework, token_bridge, deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
         // TODO(csongor): create a better error message when attestation is missing
         let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        // TODO(csongor): write a blurb about why this test works (something
+        // something static linking)
         // initialize coin using type T, move caps to token_bridge, sets bridge state variables
         wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
 
         // test transfer wrapped tokens
-        let fee_coins = coin::mint(100, &mint_cap);
         let beef_coins = wrapped::mint<T>(10000);
         let _sequence = transfer_tokens::transfer_tokens<T>(
             beef_coins,
-            fee_coins,
+            coin::zero(),
             u16::from_u64(2),
             x"C973E38e87A0571446dC6Ad17C28217F079583C2",
             0,
@@ -228,36 +212,29 @@ module token_bridge::token_bridge_test {
         );
 
         //test transfer wrapped tokens with payload
-        let fee_coins = coin::mint(100, &mint_cap);
         let beef_coins = wrapped::mint<T>(10000);
         let _sequence = transfer_tokens::transfer_tokens_with_payload<T>(
             beef_coins,
-            fee_coins,
+            coin::zero(),
             u16::from_u64(2),
             x"C973E38e87A0571446dC6Ad17C28217F079583C2",
             0,
             x"beeeff",
         );
-
-        // destroy coin caps
-        coin::destroy_burn_cap(burn_cap);
-        coin::destroy_mint_cap(mint_cap);
     }
 
     // test transfer native coin (with and without payload)
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
     fun test_transfer_native_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) acquires MyCoinCaps{
-        setup(deployer);
-        let (aptos_burn_cap, aptos_mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+        setup(aptos_framework, token_bridge, deployer);
         init_my_token(token_bridge);
         let MyCoinCaps {burn_cap, freeze_cap, mint_cap} = move_from<MyCoinCaps<MyCoin>>(signer::address_of(token_bridge));
 
         // test transfer native coins
         let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
-        let fee_coins = coin::mint(100, &aptos_mint_cap);
         let _sequence = transfer_tokens::transfer_tokens<MyCoin>(
             my_coins,
-            fee_coins,
+            coin::zero(),
             u16::from_u64(2),
             x"C973E38e87A0571446dC6Ad17C28217F079583C2",
             0,
@@ -266,10 +243,9 @@ module token_bridge::token_bridge_test {
 
          // test transfer native coins with payload
         let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
-        let fee_coins = coin::mint(100, &aptos_mint_cap);
         let _sequence = transfer_tokens::transfer_tokens_with_payload<MyCoin>(
             my_coins,
-            fee_coins,
+            coin::zero(),
             u16::from_u64(2),
             x"C973E38e87A0571446dC6Ad17C28217F079583C2",
             0,
@@ -277,8 +253,6 @@ module token_bridge::token_bridge_test {
         );
 
         // destroy coin caps
-        coin::destroy_burn_cap<AptosCoin>(aptos_burn_cap);
-        coin::destroy_mint_cap<AptosCoin>(aptos_mint_cap);
         coin::destroy_mint_cap<MyCoin>(mint_cap);
         coin::destroy_burn_cap<MyCoin>(burn_cap);
         coin::destroy_freeze_cap<MyCoin>(freeze_cap);
