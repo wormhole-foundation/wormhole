@@ -7,7 +7,7 @@ module token_bridge::transfer_with_payload {
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
 
-    friend token_bridge::bridge_state;
+    friend token_bridge::transfer_tokens;
 
     struct TransferWithPayload has key, store, drop {
         // PayloadID uint8 = 3
