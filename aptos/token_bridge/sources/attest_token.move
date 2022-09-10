@@ -131,11 +131,11 @@ module token_bridge::attest_token_test {
 
         // check that native asset is registered with State
         let token_address = token_hash::derive<MyCoin>();
-        assert!(state::asset_type_info(token_address) == type_of<MyCoin>(), 0);
+        assert!(state::native_asset_info(token_address) == type_of<MyCoin>(), 0);
 
         // attest same token a second time, should have no change in behavior
         let asset_meta2 = attest_token::attest_token_test<MyCoin>();
         assert!(asset_meta1 == asset_meta2, 0);
-        assert!(state::asset_type_info(token_address) == type_of<MyCoin>(), 0);
+        assert!(state::native_asset_info(token_address) == type_of<MyCoin>(), 0);
     }
 }
