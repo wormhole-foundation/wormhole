@@ -69,9 +69,8 @@ module token_bridge::complete_transfer_test {
     use token_bridge::token_hash;
     use token_bridge::complete_transfer;
     use token_bridge::token_bridge;
-    use token_bridge::wrapped;
-    use token_bridge::asset_meta;
-    use token_bridge::string32;
+
+    use token_bridge::wrapped_test;
 
     use wormhole::u256;
     use wormhole::state;
@@ -92,19 +91,6 @@ module token_bridge::complete_transfer_test {
         coin::register<MyCoin>(admin);
         coin::deposit(signer::address_of(admin), coin::mint(amount, &mint_cap));
         coin::destroy_mint_cap(mint_cap);
-    }
-
-    fun init_wrapped_token() {
-        let token_address = x"00000000000000000000000000000000000000000000000000000000deadbeef";
-        let asset_meta = asset_meta::create(
-            token_address,
-            wormhole::u16::from_u64(2),
-            9,
-            string32::from_bytes(b"foo"),
-            string32::from_bytes(b"Foo bar token")
-        );
-        let wrapped_coin = account::create_account_for_test(@wrapped_coin);
-        wrapped::init_wrapped_coin<wrapped_coin::coin::T>(&wrapped_coin, &asset_meta);
     }
 
     public fun setup(
@@ -128,7 +114,7 @@ module token_bridge::complete_transfer_test {
         coin::register<MyCoin>(fee_recipient);
 
         // initialise wrapped token
-        init_wrapped_token();
+        wrapped_test::init_wrapped_token();
         coin::register<wrapped_coin::coin::T>(to);
         coin::register<wrapped_coin::coin::T>(fee_recipient);
 

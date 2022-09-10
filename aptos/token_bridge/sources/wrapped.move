@@ -135,6 +135,7 @@ module token_bridge::wrapped {
 
 #[test_only]
 module token_bridge::wrapped_test {
+    use aptos_framework::account;
     use aptos_framework::coin;
     use aptos_framework::string::{utf8};
     use aptos_framework::type_info::{type_of};
@@ -145,6 +146,8 @@ module token_bridge::wrapped_test {
     use token_bridge::wrapped;
     use token_bridge::utils::{pad_left_32};
     use token_bridge::token_hash;
+    use token_bridge::asset_meta;
+    use token_bridge::string32;
 
     use token_bridge::register_chain;
 
@@ -164,6 +167,20 @@ module token_bridge::wrapped_test {
         wormhole::wormhole_test::setup(0);
         bridge::init_test(deployer);
     }
+
+    public fun init_wrapped_token() {
+        let token_address = x"00000000000000000000000000000000000000000000000000000000deadbeef";
+        let asset_meta = asset_meta::create(
+            token_address,
+            wormhole::u16::from_u64(2),
+            9,
+            string32::from_bytes(b"foo"),
+            string32::from_bytes(b"Foo bar token")
+        );
+        let wrapped_coin = account::create_account_for_test(@wrapped_coin);
+        wrapped::init_wrapped_coin<wrapped_coin::coin::T>(&wrapped_coin, &asset_meta);
+    }
+
 
     #[test(deployer=@deployer)]
     #[expected_failure(abort_code = 0)]
