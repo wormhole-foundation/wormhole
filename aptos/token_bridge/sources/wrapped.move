@@ -1,5 +1,5 @@
 module token_bridge::wrapped {
-    use aptos_framework::account::{create_resource_account};
+    use aptos_framework::account;
     use aptos_framework::signer::{address_of};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
 
@@ -43,16 +43,13 @@ module token_bridge::wrapped {
         // account already exists.
         // TODO(csongor): should we implement a more explicit replay protection
         // for this function?
-        // TODO(csongor): we could break this function up a little so it's
-        // better testable. In particular, resource accounts are little hard to
-        // test.
         let vaa = token_bridge_vaa::parse_and_verify(vaa);
-        let asset_meta:AssetMeta = asset_meta::parse(vaa::destroy(vaa));
+        let asset_meta = asset_meta::parse(vaa::destroy(vaa));
         let seed = asset_meta::create_seed(&asset_meta);
 
         //create resource account
         let token_bridge_signer = state::token_bridge_signer();
-        let (new_signer, new_cap) = create_resource_account(&token_bridge_signer, seed);
+        let (new_signer, new_cap) = account::create_resource_account(&token_bridge_signer, seed);
 
         let token_address = asset_meta::get_token_address(&asset_meta);
         let token_chain = asset_meta::get_token_chain(&asset_meta);
@@ -111,7 +108,7 @@ module token_bridge::wrapped {
         // update the following two mappings in State
         // 1. (native chain, native address) => wrapped address
         // 2. wrapped address => (native chain, native address)
-        state::setup_wrapped<CoinType>(coin_signer, origin_info);
+        state::setup_wrapped<CoinType>(origin_info);
 
         // store coin capabilities
         let token_bridge = state::token_bridge_signer();
@@ -149,7 +146,6 @@ module token_bridge::wrapped_test {
     use token_bridge::state;
     use token_bridge::wrapped;
     use token_bridge::utils::{pad_left_32};
-    use token_bridge::token_hash;
     use token_bridge::asset_meta;
     use token_bridge::string32;
 
@@ -173,15 +169,22 @@ module token_bridge::wrapped_test {
     }
 
     public fun init_wrapped_token() {
+        let chain = wormhole::u16::from_u64(2);
         let token_address = x"00000000000000000000000000000000000000000000000000000000deadbeef";
         let asset_meta = asset_meta::create(
             token_address,
-            wormhole::u16::from_u64(2),
+            chain,
             9,
             string32::from_bytes(b"foo"),
             string32::from_bytes(b"Foo bar token")
         );
         let wrapped_coin = account::create_account_for_test(@wrapped_coin);
+
+        // set up the signer capability first
+        let signer_cap = account::create_test_signer_cap(@wrapped_coin);
+        let origin_info = state::create_origin_info(chain, token_address);
+        state::set_wrapped_asset_signer_capability(origin_info, signer_cap);
+
         wrapped::init_wrapped_coin<wrapped_coin::coin::T>(&wrapped_coin, &asset_meta);
     }
 
@@ -236,11 +239,10 @@ module token_bridge::wrapped_test {
         assert!(coin::decimals<T>() == 12, 0);
 
         // assert origin address, chain, type_info, is_wrapped are correct
-        let token_address = token_hash::derive<T>();
         let origin_info = state::origin_info<T>();
         let origin_token_address = state::get_origin_info_token_address(&origin_info);
         let origin_token_chain = state::get_origin_info_token_chain(&origin_info);
-        let wrapped_asset_type_info = state::asset_type_info(token_address);
+        let wrapped_asset_type_info = state::wrapped_asset_info(origin_info);
         let is_wrapped_asset = state::is_wrapped_asset<T>();
         assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T"), 0);
         assert!(origin_token_chain == u16::from_u64(2), 0);
