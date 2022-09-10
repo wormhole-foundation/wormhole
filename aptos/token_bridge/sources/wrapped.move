@@ -55,7 +55,7 @@ module token_bridge::wrapped {
 
         let token_address = asset_meta::get_token_address(&asset_meta);
         let token_chain = asset_meta::get_token_chain(&asset_meta);
-        let origin_info = state::create_origin_info(token_address, token_chain);
+        let origin_info = state::create_origin_info(token_chain, token_address);
 
         deploy_coin(&new_signer);
         state::set_wrapped_asset_signer_capability(origin_info, new_cap);
@@ -72,7 +72,7 @@ module token_bridge::wrapped {
 
         let native_token_address = asset_meta::get_token_address(&asset_meta);
         let native_token_chain = asset_meta::get_token_chain(&asset_meta);
-        let native_info = state::create_origin_info(native_token_address, native_token_chain);
+        let native_info = state::create_origin_info(native_token_chain, native_token_address);
 
         // TODO: where do we check that CoinType corresponds to the thing in the VAA?
         // I think it's fine because only the correct signer can initialise the
@@ -101,7 +101,7 @@ module token_bridge::wrapped {
 
         let token_address = asset_meta::get_token_address(asset_meta);
         let token_chain = asset_meta::get_token_chain(asset_meta);
-        let origin_info = state::create_origin_info(token_address, token_chain);
+        let origin_info = state::create_origin_info(token_chain, token_address);
 
         // update the following two mappings in State
         // 1. (native chain, native address) => wrapped address

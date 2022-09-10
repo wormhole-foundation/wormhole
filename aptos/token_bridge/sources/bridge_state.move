@@ -39,14 +39,13 @@ module token_bridge::bridge_state {
     /// (where the chain is aptos), the token_address is the hash of the token
     /// info (see token_hash.move for more details)
     struct OriginInfo has key, store, copy, drop {
-        token_address: vector<u8>,
         token_chain: U16,
+        token_address: vector<u8>,
     }
 
-    // TODO(csongor): flip the arguments
     public(friend) fun create_origin_info(
+        token_chain: U16,
         token_address: vector<u8>,
-        token_chain: U16
     ): OriginInfo {
         OriginInfo { token_address, token_chain }
     }
