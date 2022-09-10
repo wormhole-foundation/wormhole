@@ -156,5 +156,129 @@ module token_bridge::transfer_tokens {
 
 #[test_only]
 module token_bridge::transfer_tokens_test {
+    use aptos_framework::coin::{Self, MintCapability, FreezeCapability, BurnCapability};
+    use aptos_framework::string::{utf8};
+    use aptos_framework::aptos_coin::{Self, AptosCoin};
+    use aptos_framework::signer;
 
+    use token_bridge::token_bridge::{Self as bridge};
+    use token_bridge::transfer_tokens;
+    use token_bridge::wrapped;
+
+    use token_bridge::register_chain;
+
+    use wormhole::u16;
+
+    use wrapped_coin::coin::T;
+
+    /// Registration VAA for the etheruem token bridge 0xdeadbeef
+    const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+
+    /// Attestation VAA sent from the ethereum token bridge 0xdeadbeef
+    const ATTESTATION_VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
+
+    struct MyCoin has key {}
+
+    struct MyCoinCaps<phantom CoinType> has key, store {
+        burn_cap: BurnCapability<CoinType>,
+        freeze_cap: FreezeCapability<CoinType>,
+        mint_cap: MintCapability<CoinType>,
+    }
+
+    fun init_my_token(admin: &signer) {
+        let name = utf8(b"mycoindd");
+        let symbol = utf8(b"MCdd");
+        let decimals = 10;
+        let monitor_supply = true;
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MyCoin>(admin, name, symbol, decimals, monitor_supply);
+        move_to(admin, MyCoinCaps {burn_cap, freeze_cap, mint_cap});
+    }
+
+    fun setup(
+        aptos_framework: &signer,
+        token_bridge: &signer,
+        deployer: &signer,
+    ) {
+        // we initialise the bridge with zero fees to avoid having to mint fee
+        // tokens in these tests. The wormolhe fee handling is already tested
+        // in wormhole.move, so it's unnecessary here.
+        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+        wormhole::wormhole_test::setup(0);
+        bridge::init_test(deployer);
+
+        coin::register<AptosCoin>(deployer);
+        coin::register<AptosCoin>(token_bridge); //how important is this registration step and where to check it?
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+
+    // test transfer wrapped coin (with and without payload)
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_transfer_wrapped_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
+        setup(aptos_framework, token_bridge, deployer);
+        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+        // TODO(csongor): create a better error message when attestation is missing
+        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        // TODO(csongor): write a blurb about why this test works (something
+        // something static linking)
+        // initialize coin using type T, move caps to token_bridge, sets bridge state variables
+        wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
+
+        // test transfer wrapped tokens
+        let beef_coins = wrapped::mint<T>(10000);
+        let _sequence = transfer_tokens::transfer_tokens<T>(
+            beef_coins,
+            coin::zero(),
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            0
+        );
+
+        //test transfer wrapped tokens with payload
+        let beef_coins = wrapped::mint<T>(10000);
+        let _sequence = transfer_tokens::transfer_tokens_with_payload<T>(
+            beef_coins,
+            coin::zero(),
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            x"beeeff",
+        );
+    }
+
+    // test transfer native coin (with and without payload)
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_transfer_native_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) acquires MyCoinCaps{
+        setup(aptos_framework, token_bridge, deployer);
+        init_my_token(token_bridge);
+        let MyCoinCaps {burn_cap, freeze_cap, mint_cap} = move_from<MyCoinCaps<MyCoin>>(signer::address_of(token_bridge));
+
+        // test transfer native coins
+        let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
+        let _sequence = transfer_tokens::transfer_tokens<MyCoin>(
+            my_coins,
+            coin::zero(),
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            0
+        );
+
+         // test transfer native coins with payload
+        let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
+        let _sequence = transfer_tokens::transfer_tokens_with_payload<MyCoin>(
+            my_coins,
+            coin::zero(),
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            x"beeeff",
+        );
+
+        // destroy coin caps
+        coin::destroy_mint_cap<MyCoin>(mint_cap);
+        coin::destroy_burn_cap<MyCoin>(burn_cap);
+        coin::destroy_freeze_cap<MyCoin>(freeze_cap);
+    }
 }
