@@ -13,6 +13,7 @@ module token_bridge::wrapped {
 
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
+    friend token_bridge::transfer_tokens;
 
     #[test_only]
     friend token_bridge::transfer_tokens_test;
@@ -113,7 +114,7 @@ module token_bridge::wrapped {
         move_to(&token_bridge, CoinCapabilities { mint_cap, freeze_cap, burn_cap });
     }
 
-    public(friend) fun mint<CoinType>(amount:u64): Coin<CoinType> acquires CoinCapabilities {
+    public(friend) fun mint<CoinType>(amount: u64): Coin<CoinType> acquires CoinCapabilities {
         assert!(state::is_wrapped_asset<CoinType>(), E_IS_NOT_WRAPPED_ASSET);
         assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
         let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
@@ -122,14 +123,11 @@ module token_bridge::wrapped {
         coins
     }
 
-    public(friend) fun burn<CoinType>(amount:u64) acquires CoinCapabilities {
+    public(friend) fun burn<CoinType>(coins: Coin<CoinType>) acquires CoinCapabilities {
         assert!(state::is_wrapped_asset<CoinType>(), E_IS_NOT_WRAPPED_ASSET);
         assert!(exists<CoinCapabilities<CoinType>>(@token_bridge), E_COIN_CAP_DOES_NOT_EXIST);
         let caps = borrow_global<CoinCapabilities<CoinType>>(@token_bridge);
         let burn_cap = &caps.burn_cap;
-        let token_bridge = state::token_bridge_signer();
-        // TODO: this looks wrong to me. burn should just take the coins to burn.
-        let coins = coin::withdraw<CoinType>(&token_bridge, amount);
         coin::burn<CoinType>(coins, burn_cap);
     }
 
@@ -176,31 +174,26 @@ module token_bridge::wrapped_test {
     }
 
     // test create_wrapped_coin_type and create_wrapped_coin
-    #[test(token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_create_wrapped_coin(token_bridge: &signer, deployer: &signer) {
+    #[test(deployer=@deployer)]
+    fun test_create_wrapped_coin(deployer: &signer) {
         setup(deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
 
         let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
 
         // assert coin is NOT initialized
-        let is_initialized = coin::is_coin_initialized<T>();
-        assert!(is_initialized==false, 0);
+        assert!(!coin::is_coin_initialized<T>(), 0);
 
         // initialize coin using type T, move caps to token_bridge, sets bridge state variables
         wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
 
         // assert that coin IS initialized
-        let is_initialized = coin::is_coin_initialized<T>();
-        assert!(is_initialized==true, 0);
+        assert!(coin::is_coin_initialized<T>(), 0);
 
         // assert coin info is correct
-        let name = coin::name<T>();
-        let symbol = coin::symbol<T>();
-        let decimals = coin::decimals<T>();
-        assert!(name==utf8(pad_left_32(&b"Beef face Token")), 0);
-        assert!(symbol==utf8(pad_left_32(&b"BEEF")), 0);
-        assert!(decimals==12, 0);
+        assert!(coin::name<T>() == utf8(pad_left_32(&b"Beef face Token")), 0);
+        assert!(coin::symbol<T>() == utf8(pad_left_32(&b"BEEF")), 0);
+        assert!(coin::decimals<T>() == 12, 0);
 
         // assert origin address, chain, type_info, is_wrapped are correct
         let token_address = token_hash::derive<T>();
@@ -214,17 +207,11 @@ module token_bridge::wrapped_test {
         assert!(origin_token_address == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
         assert!(is_wrapped_asset, 0);
 
-        // load beef face token cap and mint some beef face coins to token_bridge, then burn
+        // load beef face token cap and mint some beef face coins, then burn
         let beef_coins = wrapped::mint<T>(10000);
         assert!(coin::value(&beef_coins)==10000, 0);
-        coin::register<T>(token_bridge);
-        coin::deposit<T>(@token_bridge, beef_coins);
-        let supply_before = coin::supply<T>();
-        let e = option::borrow(&supply_before);
-        assert!(*e==10000, 0);
-        wrapped::burn<T>(5000);
-        let supply_after = coin::supply<T>();
-        let e = option::borrow(&supply_after);
-        assert!(*e==5000, 0);
+        assert!(coin::supply<T>() == option::some(10000), 0);
+        wrapped::burn<T>(beef_coins);
+        assert!(coin::supply<T>() == option::some(0), 0);
     }
 }
