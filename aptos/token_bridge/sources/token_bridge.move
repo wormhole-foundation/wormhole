@@ -185,8 +185,8 @@ module token_bridge::token_bridge_test {
         let wrapped_asset_type_info = state::asset_type_info(token_address);
         let is_wrapped_asset = state::is_wrapped_asset<T>();
         assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T"), 0);
-        assert!(origin_token_chain==u16::from_u64(2), 0);
-        assert!(origin_token_address==x"00000000000000000000000000000000000000000000000000000000beefface", 0);
+        assert!(origin_token_chain == u16::from_u64(2), 0);
+        assert!(origin_token_address == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
         assert!(is_wrapped_asset, 0);
 
         // load beef face token cap and mint some beef face coins to token_bridge, then burn
@@ -206,9 +206,10 @@ module token_bridge::token_bridge_test {
     // test transfer wrapped coin (with and without payload)
     #[test(aptos_framework = @aptos_framework, _token_bridge=@token_bridge, deployer=@deployer)]
     fun test_transfer_wrapped_token(aptos_framework: &signer, _token_bridge: &signer, deployer: &signer) {
-        setup(aptos_framework, deployer);
+        setup(deployer);
         let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+        // TODO(csongor): create a better error message when attestation is missing
         let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
         // initialize coin using type T, move caps to token_bridge, sets bridge state variables
         wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
@@ -245,7 +246,7 @@ module token_bridge::token_bridge_test {
     // test transfer native coin (with and without payload)
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
     fun test_transfer_native_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) acquires MyCoinCaps{
-        setup(aptos_framework, deployer);
+        setup(deployer);
         let (aptos_burn_cap, aptos_mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
         init_my_token(token_bridge);
         let MyCoinCaps {burn_cap, freeze_cap, mint_cap} = move_from<MyCoinCaps<MyCoin>>(signer::address_of(token_bridge));
