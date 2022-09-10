@@ -3,7 +3,7 @@ module token_bridge::attest_token {
     use aptos_framework::coin::{Self, Coin};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
     use token_bridge::token_hash;
     use token_bridge::string32;
 
@@ -61,7 +61,7 @@ module token_bridge::attest_token_test {
     use aptos_framework::type_info::type_of;
 
     use token_bridge::token_bridge::{Self as bridge};
-    use token_bridge::bridge_state::{Self as state};
+    use token_bridge::state;
     use token_bridge::attest_token;
     use token_bridge::token_hash;
     use token_bridge::asset_meta;

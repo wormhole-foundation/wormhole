@@ -1,4 +1,4 @@
-module token_bridge::bridge_state {
+module token_bridge::state {
     use std::table::{Self, Table};
     use std::option::{Self, Option};
     use aptos_framework::type_info::{Self, TypeInfo, type_of};

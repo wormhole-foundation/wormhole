@@ -3,7 +3,7 @@ module token_bridge::complete_transfer_with_payload {
 
     use token_bridge::vaa;
     use token_bridge::transfer_with_payload::{Self as transfer, TransferWithPayload};
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
     use token_bridge::wrapped;
 
     use wormhole::u256;

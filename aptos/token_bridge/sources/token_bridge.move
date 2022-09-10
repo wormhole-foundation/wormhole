@@ -3,7 +3,7 @@ module token_bridge::token_bridge {
     use aptos_framework::account::{Self};
     use aptos_framework::account::{SignerCapability};
     use deployer::deployer::{claim_signer_capability};
-    use token_bridge::bridge_state::{init_token_bridge_state};
+    use token_bridge::state::{init_token_bridge_state};
     use wormhole::wormhole;
 
     /// Initializes the contract.

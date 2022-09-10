@@ -2,7 +2,7 @@
 module token_bridge::vaa {
     use std::option;
     use wormhole::vaa::{Self, VAA};
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
 
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
