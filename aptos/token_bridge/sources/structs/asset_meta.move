@@ -12,7 +12,7 @@ module token_bridge::asset_meta {
     friend token_bridge::wrapped;
 
     #[test_only]
-    friend token_bridge::complete_transfer_test;
+    friend token_bridge::wrapped_test;
 
     const E_INVALID_ACTION: u64 = 0;
 

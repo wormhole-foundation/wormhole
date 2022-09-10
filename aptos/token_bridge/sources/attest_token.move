@@ -8,6 +8,8 @@ module token_bridge::attest_token {
     use token_bridge::string32;
 
     const E_COIN_IS_NOT_INITIALIZED: u64 = 0;
+    /// Wrapped assets can't be attested
+    const E_WRAPPED_ASSET: u64 = 1;
 
     public fun attest_token_with_signer<CoinType>(user: &signer): u64 {
         let message_fee = wormhole::state::get_message_fee();
@@ -32,11 +34,12 @@ module token_bridge::attest_token {
     }
 
     fun attest_token_internal<CoinType>(): AssetMeta {
-        // you've can't attest an uninitialized token
-        // TODO - throw error if attempt to attest wrapped token?
+        // wrapped assets and uninitialised type can't be attested.
+        assert!(!state::is_wrapped_asset<CoinType>(), E_WRAPPED_ASSET);
         assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
+
         let token_address = token_hash::derive<CoinType>();
-        if (!state::is_registered_native_asset<CoinType>() && !state::is_wrapped_asset<CoinType>()) {
+        if (!state::is_registered_native_asset<CoinType>()) {
             // if native asset is not registered, register it in the reverse look-up map
             state::set_native_asset_type_info<CoinType>();
         };
@@ -66,6 +69,7 @@ module token_bridge::attest_token_test {
     use token_bridge::token_hash;
     use token_bridge::asset_meta;
     use token_bridge::string32;
+    use token_bridge::wrapped_test;
 
     struct MyCoin has key {}
 
@@ -109,6 +113,15 @@ module token_bridge::attest_token_test {
         assert!(decimals == 10, 0);
         assert!(symbol == b"Coin with very very very very ve", 0);
         assert!(name == b"Coin with very very very very ve", 0);
+    }
+
+    #[test(token_bridge=@token_bridge, deployer=@deployer)]
+    #[expected_failure(abort_code = 1)]
+    fun test_attest_wrapped_token(token_bridge: &signer, deployer: &signer) {
+        setup(token_bridge, deployer);
+        wrapped_test::init_wrapped_token();
+        // this should fail because T is a wrapped asset
+        let _asset_meta = attest_token::attest_token_test<wrapped_coin::coin::T>();
     }
 
     #[test(token_bridge=@token_bridge, deployer=@deployer)]
