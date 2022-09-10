@@ -73,12 +73,16 @@ module token_bridge::wrapped {
 
         let native_token_address = asset_meta::get_token_address(&asset_meta);
         let native_token_chain = asset_meta::get_token_chain(&asset_meta);
-        let native_info = state::create_origin_info(native_token_chain, native_token_address);
+        let origin_info = state::create_origin_info(native_token_chain, native_token_address);
 
-        // TODO: where do we check that CoinType corresponds to the thing in the VAA?
-        // I think it's fine because only the correct signer can initialise the
-        // coin, so it would fail, but we should have a test for this.
-        let coin_signer = state::get_wrapped_asset_signer(native_info);
+        // The CoinType type variable is instantiated by the caller of the
+        // function, so a malicious actor could try and pass in something other
+        // than what we're expecting based on the VAA. So how do we protect
+        // against this? The signer capability is keyed by the origin info of
+        // the token, and a coin can only be initialised by the signer that owns
+        // the module that defines the CoinType.
+        // See the `test_create_wrapped_coin_bad_type` negative test below.
+        let coin_signer = state::get_wrapped_asset_signer(origin_info);
         init_wrapped_coin<CoinType>(&coin_signer, &asset_meta)
     }
 
@@ -188,6 +192,25 @@ module token_bridge::wrapped_test {
         setup(deployer);
 
         let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+    }
+
+    struct YourCoin {}
+
+    // This test ensures that I can't take a valid attestation VAA and trick the
+    // token bridge to register my own type. I think what that could lead to is
+    // a denial of service in case the 3rd party type is belongs to a module
+    // with an 'arbitrary' upgrade policy which can be deleted in the future.
+    // This upgrade policy is not enabled in the VM as of writing, but that
+    // might well change in the future, so we future proof ourselves here.
+    #[test(deployer=@deployer)]
+    #[expected_failure(abort_code = 65537)] // ECOIN_INFO_ADDRESS_MISMATCH
+    fun test_create_wrapped_coin_bad_type(deployer: &signer) {
+        setup(deployer);
+        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+
+        // initialize coin using type T, move caps to token_bridge, sets bridge state variables
+        wrapped::create_wrapped_coin<YourCoin>(ATTESTATION_VAA);
     }
 
     // test create_wrapped_coin_type and create_wrapped_coin
