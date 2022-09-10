@@ -1,4 +1,6 @@
 /// TODO(csongor): document
+/// TODO(csongor): should we rename emitter to something else? It's used in a
+/// couple of places to authenticate contracts
 module wormhole::emitter {
 
     friend wormhole::state;

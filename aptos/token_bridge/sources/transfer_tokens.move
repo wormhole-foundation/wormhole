@@ -1,11 +1,12 @@
 module token_bridge::transfer_tokens {
     use aptos_framework::aptos_coin::{AptosCoin};
-    use aptos_framework::bcs::to_bytes;
     use aptos_framework::coin::{Self, Coin};
 
     use wormhole::u16::{Self, U16};
     use wormhole::u256;
-    use wormhole::external_address::{Self};
+    use wormhole::external_address;
+    use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::serialize;
 
     use token_bridge::state;
     use token_bridge::transfer;
@@ -57,7 +58,11 @@ module token_bridge::transfer_tokens {
         )
     }
 
+    // TODO: the _signer versions are for EOAs, but
+    // `transfer_tokens_with_payload` is meant to be called by contracts, so
+    // maybe we shouldn't have a _signer version?
     public fun transfer_tokens_with_payload_with_signer<CoinType>(
+        emitter_cap: &EmitterCapability,
         sender: &signer,
         amount: u64,
         wormhole_fee: u64,
@@ -68,10 +73,11 @@ module token_bridge::transfer_tokens {
         ): u64 {
         let coins = coin::withdraw<CoinType>(sender, amount);
         let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
-        transfer_tokens_with_payload(coins, wormhole_fee_coins, recipient_chain, recipient, nonce, payload)
+        transfer_tokens_with_payload(emitter_cap, coins, wormhole_fee_coins, recipient_chain, recipient, nonce, payload)
     }
 
     public fun transfer_tokens_with_payload<CoinType>(
+        emitter_cap: &EmitterCapability,
         coins: Coin<CoinType>,
         wormhole_fee_coins: Coin<AptosCoin>,
         recipient_chain: U16,
@@ -82,13 +88,19 @@ module token_bridge::transfer_tokens {
         let result = transfer_tokens_internal<CoinType>(coins, 0);
         let (token_chain, token_address, normalized_amount, _)
             = transfer_result::destroy(result);
+
+        // TODO: once we have an ExternalAddress type, we should have conversion
+        // functions from/to emitter_cap
+        let emitter_bytes = vector<u8>[];
+        serialize::serialize_u256(&mut emitter_bytes, u256::from_u128(emitter::get_emitter(emitter_cap)));
+
         let transfer = transfer_with_payload::create(
             normalized_amount,
             external_address::get_bytes(&token_address),
             token_chain,
             recipient,
             recipient_chain,
-            to_bytes<address>(&@token_bridge), //TODO - is token bridge the only one who will ever call log_transfer_with_payload? (no)
+            emitter_bytes,
             payload
         );
         let payload = transfer_with_payload::encode(transfer);
