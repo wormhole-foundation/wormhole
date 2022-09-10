@@ -38,7 +38,6 @@ module token_bridge::transfer_tokens {
         let wormhole_fee = coin::value<AptosCoin>(&wormhole_fee_coins);
         let result = transfer_tokens_internal<CoinType>(coins, relayer_fee, wormhole_fee);
         let transfer = transfer::create(
-            1,
             transfer_result::get_normalized_amount(&result),
             transfer_result::get_token_address(&result),
             transfer_result::get_token_chain(&result),

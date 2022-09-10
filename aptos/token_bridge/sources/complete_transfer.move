@@ -97,7 +97,6 @@ module token_bridge::complete_transfer_test {
     fun init_wrapped_token() {
         let token_address = x"00000000000000000000000000000000000000000000000000000000deadbeef";
         let asset_meta = asset_meta::create(
-            0, // ARGH
             token_address,
             wormhole::u16::from_u64(2),
             9,
@@ -156,7 +155,6 @@ module token_bridge::complete_transfer_test {
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            1, // ARGH
             u256::from_u64(amount),
             token_address,
             token_chain,
@@ -193,7 +191,6 @@ module token_bridge::complete_transfer_test {
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            1, // ARGH
             u256::from_u64(amount),
             token_address,
             token_chain,
@@ -225,7 +222,6 @@ module token_bridge::complete_transfer_test {
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            1, // ARGH
             u256::from_u64(amount),
             token_address,
             token_chain,
@@ -258,7 +254,6 @@ module token_bridge::complete_transfer_test {
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            1, // ARGH
             u256::from_u64(amount),
             token_address,
             token_chain,
@@ -289,7 +284,6 @@ module token_bridge::complete_transfer_test {
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            1, // ARGH
             u256::from_u64(amount),
             token_address,
             token_chain,

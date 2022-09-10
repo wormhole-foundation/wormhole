@@ -14,9 +14,9 @@ module token_bridge::asset_meta {
     #[test_only]
     friend token_bridge::complete_transfer_test;
 
+    const E_INVALID_ACTION: u64 = 0;
+
     struct AssetMeta has key, store, drop {
-        // PayloadID uint8 = 2
-        payload_id: u8,
         // Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: vector<u8>,
         // Chain ID of the token
@@ -27,10 +27,6 @@ module token_bridge::asset_meta {
         symbol: String32,
         // Name of the token (UTF-8)
         name: String32,
-    }
-
-    public fun get_payload_id(a: &AssetMeta): u8 {
-        a.payload_id
     }
 
     public fun get_token_address(a: &AssetMeta): vector<u8> {
@@ -54,8 +50,6 @@ module token_bridge::asset_meta {
     }
 
     public(friend) fun create(
-        // TODO: delete payload_id
-        payload_id: u8,
         // Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: vector<u8>,
         // Chain ID of the token
@@ -68,7 +62,6 @@ module token_bridge::asset_meta {
         name: String32,
     ): AssetMeta {
         AssetMeta{
-            payload_id,
             token_address,
             token_chain,
             decimals,
@@ -79,7 +72,7 @@ module token_bridge::asset_meta {
 
     public fun encode(meta: AssetMeta): vector<u8> {
         let encoded = vector::empty<u8>();
-        serialize_u8(&mut encoded, meta.payload_id);
+        serialize_u8(&mut encoded, 2);
         serialize_vector(&mut encoded, meta.token_address);
         serialize_u16(&mut encoded, meta.token_chain);
         serialize_u8(&mut encoded, meta.decimals);
@@ -91,7 +84,8 @@ module token_bridge::asset_meta {
     // TODO: the parse functions should be private I think
     public fun parse(meta: vector<u8>): AssetMeta {
         let cur = cursor::init(meta);
-        let payload_id = deserialize_u8(&mut cur);
+        let action = deserialize_u8(&mut cur);
+        assert!(action == 2, E_INVALID_ACTION);
         let token_address = deserialize_vector(&mut cur, 32);
         let token_chain = deserialize_u16(&mut cur);
         let decimals = deserialize_u8(&mut cur);
@@ -99,7 +93,6 @@ module token_bridge::asset_meta {
         let name = string32::from_bytes(deserialize_vector(&mut cur, 32));
         cursor::destroy_empty(cur);
         AssetMeta {
-            payload_id,
             token_address,
             token_chain,
             decimals,

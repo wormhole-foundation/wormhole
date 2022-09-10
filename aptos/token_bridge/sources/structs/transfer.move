@@ -22,15 +22,9 @@ module token_bridge::transfer {
     #[test_only]
     friend token_bridge::complete_transfer_test;
 
-    // TODO: change amount to u64, and error in the parser if more comes
-    // through?
+    const E_INVALID_ACTION: u64 = 0;
 
     struct Transfer has key, store, drop {
-        // TODO: is there a need to store the payload id in the parsed type?
-        // It's there in the wire format to instruct which type to deserialise
-        // into, but here the type implicitly encodes that information already.
-        // PayloadID uint8 = 1
-        payload_id: u8,
         // Amount being transferred (big-endian uint256)
         amount: U256,
         // Address of the token. Left-zero-padded if shorter than 32 bytes
@@ -43,10 +37,6 @@ module token_bridge::transfer {
         to_chain: U16,
         // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
         fee: U256, //should be u256
-    }
-
-    public fun get_payload_id(a: &Transfer): u8 {
-        a.payload_id
     }
 
     public fun get_amount(a: &Transfer): U256 {
@@ -74,7 +64,6 @@ module token_bridge::transfer {
     }
 
     public(friend) fun create(
-        payload_id: u8,
         amount: U256,
         token_address: vector<u8>,
         token_chain: U16,
@@ -83,7 +72,6 @@ module token_bridge::transfer {
         fee: U256,
     ): Transfer {
         Transfer {
-            payload_id,
             amount,
             token_address,
             token_chain,
@@ -95,7 +83,8 @@ module token_bridge::transfer {
 
     public fun parse(transfer: vector<u8>): Transfer {
         let cur = cursor::init(transfer);
-        let payload_id = deserialize_u8(&mut cur);
+        let action = deserialize_u8(&mut cur);
+        assert!(action == 2, E_INVALID_ACTION);
         let amount = deserialize_u256(&mut cur);
         let token_address = deserialize_vector(&mut cur, 32);
         let token_chain = deserialize_u16(&mut cur);
@@ -104,7 +93,6 @@ module token_bridge::transfer {
         let fee = deserialize_u256(&mut cur);
         cursor::destroy_empty(cur);
         Transfer {
-            payload_id,
             amount,
             token_address,
             token_chain,
@@ -116,7 +104,7 @@ module token_bridge::transfer {
 
     public fun encode(transfer: Transfer): vector<u8> {
         let encoded = vector::empty<u8>();
-        serialize_u8(&mut encoded, transfer.payload_id);
+        serialize_u8(&mut encoded, 1);
         serialize_u256(&mut encoded, transfer.amount);
         serialize_vector(&mut encoded, transfer.token_address);
         serialize_u16(&mut encoded, transfer.token_chain);

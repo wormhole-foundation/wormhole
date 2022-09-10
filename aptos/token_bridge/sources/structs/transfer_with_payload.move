@@ -9,9 +9,9 @@ module token_bridge::transfer_with_payload {
 
     friend token_bridge::transfer_tokens;
 
+    const E_INVALID_ACTION: u64 = 0;
+
     struct TransferWithPayload has key, store, drop {
-        // PayloadID uint8 = 3
-        payload_id: u8,
         // Amount being transferred (big-endian uint256)
         amount: U256,
         // Address of the token. Left-zero-padded if shorter than 32 bytes
@@ -26,10 +26,6 @@ module token_bridge::transfer_with_payload {
         from_address: vector<u8>,
         // An arbitrary payload
         payload: vector<u8>,
-    }
-
-    public fun get_payload_id(a: &TransferWithPayload): u8 {
-        a.payload_id
     }
 
     public fun get_amount(a: &TransferWithPayload): U256 {
@@ -70,7 +66,6 @@ module token_bridge::transfer_with_payload {
         payload: vector<u8>
     ): TransferWithPayload {
         TransferWithPayload {
-            payload_id: 3,
             amount,
             token_address,
             token_chain,
@@ -83,7 +78,7 @@ module token_bridge::transfer_with_payload {
 
     public fun encode(transfer: TransferWithPayload): vector<u8> {
         let encoded = vector::empty<u8>();
-        serialize_u8(&mut encoded, transfer.payload_id);
+        serialize_u8(&mut encoded, 3);
         serialize_u256(&mut encoded, transfer.amount);
         serialize_vector(&mut encoded, transfer.token_address);
         serialize_u16(&mut encoded, transfer.token_chain);
@@ -96,7 +91,8 @@ module token_bridge::transfer_with_payload {
 
     public fun parse(transfer: vector<u8>): TransferWithPayload {
         let cur = cursor::init(transfer);
-        let payload_id = deserialize_u8(&mut cur);
+        let action = deserialize_u8(&mut cur);
+        assert!(action == 3, E_INVALID_ACTION);
         let amount = deserialize_u256(&mut cur);
         let token_address = deserialize_vector(&mut cur, 32);
         let token_chain = deserialize_u16(&mut cur);
@@ -105,7 +101,6 @@ module token_bridge::transfer_with_payload {
         let from_address = deserialize_vector(&mut cur, 32);
         let payload = cursor::rest(cur);
         TransferWithPayload {
-            payload_id,
             amount,
             token_address,
             token_chain,
