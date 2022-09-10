@@ -37,6 +37,7 @@ module token_bridge::token_bridge_test {
     use aptos_framework::type_info::{type_of};
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::option::{Self};
+    use aptos_framework::signer::{Self};
 
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::bridge_state::{Self as state};
@@ -199,4 +200,84 @@ module token_bridge::token_bridge_test {
         let e = option::borrow(&supply_after);
         assert!(*e==5000, 0);
     }
+
+    // test transfer wrapped coin (with and without payload)
+    #[test(aptos_framework = @aptos_framework, _token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_transfer_wrapped_token(aptos_framework: &signer, _token_bridge: &signer, deployer: &signer) {
+        setup(aptos_framework, deployer);
+        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        // initialize coin using type T, move caps to token_bridge, sets bridge state variables
+        wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
+
+        // test transfer wrapped tokens
+        let fee_coins = coin::mint(100, &mint_cap);
+        let beef_coins = wrapped::mint<T>(10000);
+        let _sequence = state::transfer_tokens<T>(
+            beef_coins,
+            fee_coins,
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            0
+        );
+
+        //test transfer wrapped tokens with payload
+        let fee_coins = coin::mint(100, &mint_cap);
+        let beef_coins = wrapped::mint<T>(10000);
+        let _sequence = state::transfer_tokens_with_payload<T>(
+            beef_coins,
+            fee_coins,
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            x"beeeff",
+        );
+
+        // destroy coin caps
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+
+    // test transfer native coin (with and without payload)
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_transfer_native_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) acquires MyCoinCaps{
+        setup(aptos_framework, deployer);
+        let (aptos_burn_cap, aptos_mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+        init_my_token(token_bridge);
+        let MyCoinCaps {burn_cap, freeze_cap, mint_cap} = move_from<MyCoinCaps<MyCoin>>(signer::address_of(token_bridge));
+
+        // test transfer native coins
+        let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
+        let fee_coins = coin::mint(100, &aptos_mint_cap);
+        let _sequence = state::transfer_tokens<MyCoin>(
+            my_coins,
+            fee_coins,
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            0
+        );
+
+         // test transfer native coins with payload
+        let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
+        let fee_coins = coin::mint(100, &aptos_mint_cap);
+        let _sequence = state::transfer_tokens_with_payload<MyCoin>(
+            my_coins,
+            fee_coins,
+            u16::from_u64(2),
+            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
+            0,
+            x"beeeff",
+        );
+
+        // destroy coin caps
+        coin::destroy_burn_cap<AptosCoin>(aptos_burn_cap);
+        coin::destroy_mint_cap<AptosCoin>(aptos_mint_cap);
+        coin::destroy_mint_cap<MyCoin>(mint_cap);
+        coin::destroy_burn_cap<MyCoin>(burn_cap);
+        coin::destroy_freeze_cap<MyCoin>(freeze_cap);
+    }
+
 }

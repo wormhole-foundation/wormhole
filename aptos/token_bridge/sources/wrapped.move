@@ -11,6 +11,8 @@ module token_bridge::wrapped {
     use token_bridge::deploy_coin::{deploy_coin};
     use token_bridge::vaa as token_bridge_vaa;
 
+    //friend token_bridge::token_bridge;
+
     #[test_only]
     friend token_bridge::token_bridge_test;
 

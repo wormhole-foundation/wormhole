@@ -19,6 +19,7 @@ module token_bridge::bridge_state {
     use token_bridge::token_hash::{Self, TokenHash};
     use token_bridge::transfer_result::{Self, TransferResult};
     use token_bridge::utils::{Self};
+    //use token_bridge::wrapped::{Self};
 
     friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
@@ -247,7 +248,6 @@ module token_bridge::bridge_state {
         relayer_fee: u64,
         wormhole_fee: u64,
         ): TransferResult acquires State, OriginInfo {
-        assert!(coin::is_account_registered<CoinType>(@token_bridge), E_COIN_NOT_REGISTERED);
         let token_address = token_hash::derive<CoinType>();
 
         // transfer coin to token_bridge
@@ -266,6 +266,10 @@ module token_bridge::bridge_state {
             let origin_info = origin_info<CoinType>();
             origin_chain = origin_info.token_chain;
             origin_address = origin_info.token_address;
+            // now we burn the wrapped coins to remove them from circulation
+            // TODO - wrapped::burn<CoinType>(amount);
+            // wrapped::burn<CoinType>(amount);
+            // problem here is that wrapped imports state, so state can't import wrapped...
         } else {
              if (!is_registered_native_asset<CoinType>()) {
                 set_native_asset_type_info<CoinType>();
