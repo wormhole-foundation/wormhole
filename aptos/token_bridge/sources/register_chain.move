@@ -6,7 +6,7 @@ module token_bridge::register_chain {
     use wormhole::vaa;
 
     use token_bridge::vaa as token_bridge_vaa;
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
 
     /// "TokenBridge" (left padded)
     const TOKEN_BRIDGE: vector<u8> = x"000000000000000000000000000000000000000000546f6b656e427269646765";
@@ -78,7 +78,7 @@ module token_bridge::register_chain_test {
     use wormhole::vaa;
     use wormhole::wormhole;
     use token_bridge::token_bridge;
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
 
     /// Registration VAA for the etheruem token bridge 0xdeadbeef
     const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";

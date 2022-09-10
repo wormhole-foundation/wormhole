@@ -6,7 +6,7 @@ module token_bridge::transfer_tokens {
     use wormhole::u16::{Self, U16};
     use wormhole::u256;
 
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
     use token_bridge::transfer;
     use token_bridge::transfer_result::{Self, TransferResult};
     use token_bridge::transfer_with_payload;

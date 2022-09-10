@@ -8,7 +8,7 @@ module token_bridge::contract_upgrade {
     use wormhole::state as core;
 
     use token_bridge::vaa as token_bridge_vaa;
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
 
     /// "TokenBridge" (left padded)
     const TOKEN_BRIDGE: vector<u8> = x"000000000000000000000000000000000000000000546f6b656e427269646765";

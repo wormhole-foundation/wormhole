@@ -5,7 +5,7 @@ module token_bridge::wrapped {
 
     use wormhole::vaa;
 
-    use token_bridge::bridge_state as state;
+    use token_bridge::state;
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::deploy_coin::{deploy_coin};
     use token_bridge::vaa as token_bridge_vaa;
@@ -141,7 +141,7 @@ module token_bridge::wrapped_test {
     use aptos_framework::option;
 
     use token_bridge::token_bridge::{Self as bridge};
-    use token_bridge::bridge_state::{Self as state};
+    use token_bridge::state;
     use token_bridge::wrapped;
     use token_bridge::utils::{pad_left_32};
     use token_bridge::token_hash;
