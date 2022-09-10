@@ -12,6 +12,8 @@ module token_bridge::transfer_tokens {
     use token_bridge::transfer_with_payload;
     use token_bridge::utils;
 
+    const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
+
     public entry fun transfer_tokens_with_signer<CoinType>(
         sender: &signer,
         amount: u64,
@@ -35,15 +37,16 @@ module token_bridge::transfer_tokens {
         relayer_fee: u64,
         nonce: u64
         ): u64 {
-        let wormhole_fee = coin::value<AptosCoin>(&wormhole_fee_coins);
-        let result = transfer_tokens_internal<CoinType>(coins, relayer_fee, wormhole_fee);
+        let result = transfer_tokens_internal<CoinType>(coins, relayer_fee);
+        let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
+            = transfer_result::destroy(result);
         let transfer = transfer::create(
-            transfer_result::get_normalized_amount(&result),
-            transfer_result::get_token_address(&result),
-            transfer_result::get_token_chain(&result),
+            normalized_amount,
+            token_address,
+            token_chain,
             recipient,
             recipient_chain,
-            transfer_result::get_normalized_relayer_fee(&result),
+            normalized_relayer_fee,
         );
         state::publish_message(
             nonce,
@@ -74,14 +77,16 @@ module token_bridge::transfer_tokens {
         nonce: u64,
         payload: vector<u8>
         ): u64 {
-        let result = transfer_tokens_internal<CoinType>(coins, 0, 0); // TODO: the wormhole fee 0 is sus
+        let result = transfer_tokens_internal<CoinType>(coins, 0);
+        let (token_chain, token_address, normalized_amount, _)
+            = transfer_result::destroy(result);
         let transfer = transfer_with_payload::create(
-            transfer_result::get_normalized_amount(&result),
-            transfer_result::get_token_address(&result),
-            transfer_result::get_token_chain(&result),
+            normalized_amount,
+            token_address,
+            token_chain,
             recipient,
             recipient_chain,
-            to_bytes<address>(&@token_bridge), //TODO - is token bridge the only one who will ever call log_transfer_with_payload?
+            to_bytes<address>(&@token_bridge), //TODO - is token bridge the only one who will ever call log_transfer_with_payload? (no)
             payload
         );
         let payload = transfer_with_payload::encode(transfer);
@@ -96,16 +101,14 @@ module token_bridge::transfer_tokens {
     public fun transfer_tokens_test<CoinType>(
         coins: Coin<CoinType>,
         relayer_fee: u64,
-        wormhole_fee: u64
     ): TransferResult {
-        transfer_tokens_internal(coins, relayer_fee, wormhole_fee)
+        transfer_tokens_internal(coins, relayer_fee)
     }
 
     // transfer a native or wraped token from sender to token_bridge
     fun transfer_tokens_internal<CoinType>(
         coins: Coin<CoinType>,
         relayer_fee: u64,
-        wormhole_fee: u64,
         ): TransferResult {
 
         // transfer coin to token_bridge
@@ -115,8 +118,10 @@ module token_bridge::transfer_tokens {
         if (!coin::is_account_registered<AptosCoin>(@token_bridge)){
             coin::register<AptosCoin>(&state::token_bridge_signer());
         };
-        // TODO: check that fee <= amount
+
         let amount = coin::value<CoinType>(&coins);
+        assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
+
         coin::deposit<CoinType>(@token_bridge, coins);
 
         if (state::is_wrapped_asset<CoinType>()) {
@@ -146,7 +151,6 @@ module token_bridge::transfer_tokens {
             token_address,
             normalized_amount,
             normalized_relayer_fee,
-            u256::from_u64(wormhole_fee)
         );
         transfer_result
     }
@@ -164,10 +168,10 @@ module token_bridge::transfer_tokens_test {
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::transfer_tokens;
     use token_bridge::wrapped;
+    use token_bridge::transfer_result;
+    use token_bridge::token_hash;
 
     use token_bridge::register_chain;
-
-    use wormhole::u16;
 
     use wrapped_coin::coin::T;
 
@@ -188,7 +192,7 @@ module token_bridge::transfer_tokens_test {
     fun init_my_token(admin: &signer) {
         let name = utf8(b"mycoindd");
         let symbol = utf8(b"MCdd");
-        let decimals = 10;
+        let decimals = 6;
         let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MyCoin>(admin, name, symbol, decimals, monitor_supply);
         move_to(admin, MyCoinCaps {burn_cap, freeze_cap, mint_cap});
@@ -212,7 +216,7 @@ module token_bridge::transfer_tokens_test {
         coin::destroy_mint_cap(mint_cap);
     }
 
-    // test transfer wrapped coin (with and without payload)
+    // test transfer wrapped coin
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
     fun test_transfer_wrapped_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
         setup(aptos_framework, token_bridge, deployer);
@@ -225,29 +229,45 @@ module token_bridge::transfer_tokens_test {
         wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
 
         // test transfer wrapped tokens
-        let beef_coins = wrapped::mint<T>(10000);
-        let _sequence = transfer_tokens::transfer_tokens<T>(
+        let beef_coins = wrapped::mint<T>(100000);
+        assert!(coin::supply<T>() == std::option::some(100000), 0);
+        let result = transfer_tokens::transfer_tokens_test<T>(
             beef_coins,
-            coin::zero(),
-            u16::from_u64(2),
-            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
-            0,
-            0
+            2,
         );
+        let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
+            = transfer_result::destroy(result);
+        // TODO: fix burn
+        assert!(coin::supply<T>() == std::option::some(100000), 0);
 
-        //test transfer wrapped tokens with payload
-        let beef_coins = wrapped::mint<T>(10000);
-        let _sequence = transfer_tokens::transfer_tokens_with_payload<T>(
-            beef_coins,
-            coin::zero(),
-            u16::from_u64(2),
-            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
-            0,
-            x"beeeff",
-        );
+        assert!(token_chain == wormhole::u16::from_u64(2), 0);
+        assert!(token_address == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
+        // the coin has 12 decimals, so the amount gets scaled by a factor 10^-4
+        // since the normalised amounts are 8 decimals
+        assert!(normalized_amount == wormhole::u256::from_u64(10), 0);
+        assert!(normalized_relayer_fee == wormhole::u256::from_u64(0), 0);
     }
 
-    // test transfer native coin (with and without payload)
+    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
+    #[expected_failure(abort_code = 0)]
+    fun test_transfer_wrapped_token_too_much_relayer_fee(
+        aptos_framework: &signer,
+        token_bridge: &signer,
+        deployer: &signer
+    ) {
+        setup(aptos_framework, token_bridge, deployer);
+        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
+
+        // this will fail because the relayer fee exceeds the amount
+        let beef_coins = wrapped::mint<T>(100000);
+        assert!(coin::supply<T>() == std::option::some(100000), 0);
+        let result = transfer_tokens::transfer_tokens_test<T>(beef_coins, 200000);
+        let (_, _, _, _) = transfer_result::destroy(result);
+    }
+
+    // test transfer native coin
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
     fun test_transfer_native_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) acquires MyCoinCaps{
         setup(aptos_framework, token_bridge, deployer);
@@ -256,25 +276,16 @@ module token_bridge::transfer_tokens_test {
 
         // test transfer native coins
         let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
-        let _sequence = transfer_tokens::transfer_tokens<MyCoin>(
-            my_coins,
-            coin::zero(),
-            u16::from_u64(2),
-            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
-            0,
-            0
-        );
+        let result = transfer_tokens::transfer_tokens_test<MyCoin>(my_coins, 500);
 
-         // test transfer native coins with payload
-        let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
-        let _sequence = transfer_tokens::transfer_tokens_with_payload<MyCoin>(
-            my_coins,
-            coin::zero(),
-            u16::from_u64(2),
-            x"C973E38e87A0571446dC6Ad17C28217F079583C2",
-            0,
-            x"beeeff",
-        );
+        let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
+            = transfer_result::destroy(result);
+
+        assert!(token_chain == wormhole::state::get_chain_id(), 0);
+        assert!(token_address == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
+        // the coin has 6 decimals, so the amount doesn't get scaled
+        assert!(normalized_amount == wormhole::u256::from_u64(10000), 0);
+        assert!(normalized_relayer_fee == wormhole::u256::from_u64(500), 0);
 
         // destroy coin caps
         coin::destroy_mint_cap<MyCoin>(mint_cap);
