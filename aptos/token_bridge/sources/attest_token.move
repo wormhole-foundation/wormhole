@@ -16,6 +16,22 @@ module token_bridge::attest_token {
     }
 
     public fun attest_token<CoinType>(fee_coins: Coin<AptosCoin>): u64 {
+        let asset_meta: AssetMeta = attest_token_internal<CoinType>();
+        let payload:vector<u8> = asset_meta::encode(asset_meta);
+        let nonce = 0;
+        state::publish_message(
+            nonce,
+            payload,
+            fee_coins
+        )
+    }
+
+    #[test_only]
+    public fun attest_token_test<CoinType>(): AssetMeta {
+        attest_token_internal<CoinType>()
+    }
+
+    fun attest_token_internal<CoinType>(): AssetMeta {
         // you've can't attest an uninitialized token
         // TODO - throw error if attempt to attest wrapped token?
         assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
@@ -30,25 +46,86 @@ module token_bridge::attest_token {
         let symbol = *string::bytes(&coin::symbol<CoinType>());
         // TODO - left pad to be 32 bytes?
         let name = *string::bytes(&coin::name<CoinType>());
-        let asset_meta: AssetMeta = asset_meta::create(
+        asset_meta::create(
             payload_id,
             token_hash::get_bytes(&token_address),
             token_chain,
             decimals,
             symbol,
             name
-        );
-        let payload:vector<u8> = asset_meta::encode(asset_meta);
-        let nonce = 0;
-        state::publish_message(
-            nonce,
-            payload,
-            fee_coins
         )
     }
 }
 
 #[test_only]
 module token_bridge::attest_token_test {
+    use aptos_framework::coin;
+    use aptos_framework::string::utf8;
+    use aptos_framework::type_info::type_of;
 
+    use token_bridge::token_bridge::{Self as bridge};
+    use token_bridge::bridge_state::{Self as state};
+    use token_bridge::attest_token;
+    use token_bridge::token_hash;
+    use token_bridge::asset_meta;
+
+    struct MyCoin has key {}
+
+    fun setup(
+        token_bridge: &signer,
+        deployer: &signer,
+    ) {
+        // we initialise the bridge with zero fees to avoid having to mint fee
+        // tokens in these tests. The wormolhe fee handling is already tested
+        // in wormhole.move, so it's unnecessary here.
+        wormhole::wormhole_test::setup(0);
+        bridge::init_test(deployer);
+
+        init_my_token(token_bridge);
+    }
+
+    fun init_my_token(admin: &signer) {
+        let name = utf8(b"Coin with very very very very very very very very very very very very very long name");
+        let symbol = utf8(b"Coin with very very very very very very very very very very very very very long symbol");
+        let decimals = 10;
+        let monitor_supply = true;
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MyCoin>(admin, name, symbol, decimals, monitor_supply);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+
+    #[test(token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_attest_token(token_bridge: &signer, deployer: &signer) {
+        setup(token_bridge, deployer);
+        let asset_meta = attest_token::attest_token_test<MyCoin>();
+
+        let token_address = asset_meta::get_token_address(&asset_meta);
+        let token_chain = asset_meta::get_token_chain(&asset_meta);
+        let decimals = asset_meta::get_decimals(&asset_meta);
+        let symbol = asset_meta::get_symbol(&asset_meta);
+        let name = asset_meta::get_name(&asset_meta);
+
+        assert!(token_address == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
+        assert!(token_chain == wormhole::u16::from_u64(22), 0);
+        assert!(decimals == 10, 0);
+        // TODO(csongor): wrong. these should be trunaced
+        assert!(symbol == b"Coin with very very very very very very very very very very very very very long symbol", 0);
+        assert!(name == b"Coin with very very very very very very very very very very very very very long name", 0);
+    }
+
+    #[test(token_bridge=@token_bridge, deployer=@deployer)]
+    fun test_attest_token_with_signer(token_bridge: &signer, deployer: &signer) {
+        setup(token_bridge, deployer);
+        let asset_meta1 = attest_token::attest_token_test<MyCoin>();
+
+        // check that native asset is registered with State
+        let token_address = token_hash::derive<MyCoin>();
+        assert!(state::asset_type_info(token_address) == type_of<MyCoin>(), 0);
+
+        // attest same token a second time, should have no change in behavior
+        let asset_meta2 = attest_token::attest_token_test<MyCoin>();
+        assert!(asset_meta1 == asset_meta2, 0);
+        assert!(state::asset_type_info(token_address) == type_of<MyCoin>(), 0);
+    }
 }

@@ -45,7 +45,6 @@ module token_bridge::token_bridge_test {
     use token_bridge::bridge_state::{Self as state};
     use token_bridge::transfer_tokens;
     use token_bridge::wrapped;
-    use token_bridge::attest_token;
     use token_bridge::utils::{pad_left_32};
     use token_bridge::token_hash;
 
@@ -100,30 +99,6 @@ module token_bridge::token_bridge_test {
     fun test_init_token_bridge(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
         setup(aptos_framework, token_bridge, deployer);
         let _governance_chain_id = state::governance_chain_id();
-    }
-
-    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_attest_token_no_signer(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
-        setup(aptos_framework, token_bridge, deployer);
-        init_my_token(token_bridge);
-        let _sequence = attest_token::attest_token<MyCoin>(coin::zero());
-        assert!(_sequence==0, 1);
-    }
-
-    #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_attest_token_with_signer(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
-        setup(aptos_framework, token_bridge, deployer);
-        init_my_token(token_bridge);
-        let _sequence = attest_token::attest_token_with_signer<MyCoin>(deployer);
-        assert!(_sequence==0, 1);
-
-        // check that native asset is registered with State
-        let token_address = token_hash::derive<MyCoin>();
-        assert!(state::asset_type_info(token_address)==type_of<MyCoin>(), 0);
-
-        // attest same token a second time, should have no change in behavior
-        let _sequence = attest_token::attest_token_with_signer<MyCoin>(deployer);
-        assert!(_sequence==1, 2);
     }
 
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
