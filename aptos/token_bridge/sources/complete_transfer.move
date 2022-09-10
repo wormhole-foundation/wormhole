@@ -71,6 +71,7 @@ module token_bridge::complete_transfer_test {
     use token_bridge::token_bridge;
     use token_bridge::wrapped;
     use token_bridge::asset_meta;
+    use token_bridge::string32;
 
     use wormhole::u256;
     use wormhole::state;
@@ -100,8 +101,8 @@ module token_bridge::complete_transfer_test {
             token_address,
             wormhole::u16::from_u64(2),
             9,
-            b"foo",
-            b"Foo bar token"
+            string32::from_bytes(b"foo"),
+            string32::from_bytes(b"Foo bar token")
         );
         let wrapped_coin = account::create_account_for_test(@wrapped_coin);
         wrapped::init_wrapped_coin<wrapped_coin::coin::T>(&wrapped_coin, &asset_meta);
