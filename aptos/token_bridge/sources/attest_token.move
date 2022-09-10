@@ -1,11 +1,11 @@
 module token_bridge::attest_token {
     use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::coin::{Self, Coin};
-    use std::string;
 
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::bridge_state as state;
     use token_bridge::token_hash;
+    use token_bridge::string32;
 
     const E_COIN_IS_NOT_INITIALIZED: u64 = 0;
 
@@ -43,9 +43,8 @@ module token_bridge::attest_token {
         };
         let token_chain = wormhole::state::get_chain_id();
         let decimals = coin::decimals<CoinType>();
-        let symbol = *string::bytes(&coin::symbol<CoinType>());
-        // TODO - left pad to be 32 bytes?
-        let name = *string::bytes(&coin::name<CoinType>());
+        let symbol = string32::from_string(&coin::symbol<CoinType>());
+        let name = string32::from_string(&coin::name<CoinType>());
         asset_meta::create(
             payload_id,
             token_hash::get_bytes(&token_address),
@@ -68,6 +67,7 @@ module token_bridge::attest_token_test {
     use token_bridge::attest_token;
     use token_bridge::token_hash;
     use token_bridge::asset_meta;
+    use token_bridge::string32;
 
     struct MyCoin has key {}
 
@@ -103,15 +103,14 @@ module token_bridge::attest_token_test {
         let token_address = asset_meta::get_token_address(&asset_meta);
         let token_chain = asset_meta::get_token_chain(&asset_meta);
         let decimals = asset_meta::get_decimals(&asset_meta);
-        let symbol = asset_meta::get_symbol(&asset_meta);
-        let name = asset_meta::get_name(&asset_meta);
+        let symbol = string32::to_bytes(&asset_meta::get_symbol(&asset_meta));
+        let name = string32::to_bytes(&asset_meta::get_name(&asset_meta));
 
         assert!(token_address == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
         assert!(token_chain == wormhole::u16::from_u64(22), 0);
         assert!(decimals == 10, 0);
-        // TODO(csongor): wrong. these should be trunaced
-        assert!(symbol == b"Coin with very very very very very very very very very very very very very long symbol", 0);
-        assert!(name == b"Coin with very very very very very very very very very very very very very long name", 0);
+        assert!(symbol == b"Coin with very very very very ve", 0);
+        assert!(name == b"Coin with very very very very ve", 0);
     }
 
     #[test(token_bridge=@token_bridge, deployer=@deployer)]

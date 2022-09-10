@@ -2,7 +2,6 @@ module token_bridge::wrapped {
     use aptos_framework::account::{create_resource_account};
     use aptos_framework::signer::{address_of};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
-    use aptos_framework::string;
 
     use wormhole::vaa;
 
@@ -10,6 +9,7 @@ module token_bridge::wrapped {
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::deploy_coin::{deploy_coin};
     use token_bridge::vaa as token_bridge_vaa;
+    use token_bridge::string32;
 
     #[test_only]
     friend token_bridge::token_bridge_test;
@@ -90,8 +90,8 @@ module token_bridge::wrapped {
         let (burn_cap, freeze_cap, mint_cap)
             = coin::initialize<CoinType>(
                 coin_signer,
-                string::utf8(name),
-                string::utf8(symbol),
+                string32::to_string(&name),
+                string32::to_string(&symbol),
                 decimals,
                 monitor_supply
             );
