@@ -17,7 +17,7 @@ module token_bridge::transfer {
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
 
-    friend token_bridge::bridge_state;
+    friend token_bridge::transfer_tokens;
 
     #[test_only]
     friend token_bridge::complete_transfer_test;

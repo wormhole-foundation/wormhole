@@ -3,6 +3,7 @@ module token_bridge::transfer_result {
     use wormhole::u16::{U16};
 
     friend token_bridge::bridge_state;
+    friend token_bridge::transfer_tokens;
 
     struct TransferResult has key, store, drop {
         // Chain ID of the token

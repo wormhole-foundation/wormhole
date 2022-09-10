@@ -43,6 +43,7 @@ module token_bridge::token_bridge_test {
 
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::bridge_state::{Self as state};
+    use token_bridge::transfer_tokens;
     use token_bridge::wrapped;
     use token_bridge::attest_token;
     use token_bridge::utils::{pad_left_32};
@@ -180,8 +181,8 @@ module token_bridge::token_bridge_test {
         // assert origin address, chain, type_info, is_wrapped are correct
         let token_address = token_hash::derive<T>();
         let origin_info = state::origin_info<T>();
-        let origin_token_address = state::get_origin_info_token_address(origin_info);
-        let origin_token_chain = state::get_origin_info_token_chain(origin_info);
+        let origin_token_address = state::get_origin_info_token_address(&origin_info);
+        let origin_token_chain = state::get_origin_info_token_chain(&origin_info);
         let wrapped_asset_type_info = state::asset_type_info(token_address);
         let is_wrapped_asset = state::is_wrapped_asset<T>();
         assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T"), 0);
@@ -217,7 +218,7 @@ module token_bridge::token_bridge_test {
         // test transfer wrapped tokens
         let fee_coins = coin::mint(100, &mint_cap);
         let beef_coins = wrapped::mint<T>(10000);
-        let _sequence = state::transfer_tokens<T>(
+        let _sequence = transfer_tokens::transfer_tokens<T>(
             beef_coins,
             fee_coins,
             u16::from_u64(2),
@@ -229,7 +230,7 @@ module token_bridge::token_bridge_test {
         //test transfer wrapped tokens with payload
         let fee_coins = coin::mint(100, &mint_cap);
         let beef_coins = wrapped::mint<T>(10000);
-        let _sequence = state::transfer_tokens_with_payload<T>(
+        let _sequence = transfer_tokens::transfer_tokens_with_payload<T>(
             beef_coins,
             fee_coins,
             u16::from_u64(2),
@@ -254,7 +255,7 @@ module token_bridge::token_bridge_test {
         // test transfer native coins
         let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
         let fee_coins = coin::mint(100, &aptos_mint_cap);
-        let _sequence = state::transfer_tokens<MyCoin>(
+        let _sequence = transfer_tokens::transfer_tokens<MyCoin>(
             my_coins,
             fee_coins,
             u16::from_u64(2),
@@ -266,7 +267,7 @@ module token_bridge::token_bridge_test {
          // test transfer native coins with payload
         let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
         let fee_coins = coin::mint(100, &aptos_mint_cap);
-        let _sequence = state::transfer_tokens_with_payload<MyCoin>(
+        let _sequence = transfer_tokens::transfer_tokens_with_payload<MyCoin>(
             my_coins,
             fee_coins,
             u16::from_u64(2),
