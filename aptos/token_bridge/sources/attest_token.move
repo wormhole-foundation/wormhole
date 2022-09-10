@@ -35,7 +35,6 @@ module token_bridge::attest_token {
         // you've can't attest an uninitialized token
         // TODO - throw error if attempt to attest wrapped token?
         assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
-        let payload_id = 0;
         let token_address = token_hash::derive<CoinType>();
         if (!state::is_registered_native_asset<CoinType>() && !state::is_wrapped_asset<CoinType>()) {
             // if native asset is not registered, register it in the reverse look-up map
@@ -46,7 +45,6 @@ module token_bridge::attest_token {
         let symbol = string32::from_string(&coin::symbol<CoinType>());
         let name = string32::from_string(&coin::name<CoinType>());
         asset_meta::create(
-            payload_id,
             token_hash::get_bytes(&token_address),
             token_chain,
             decimals,
