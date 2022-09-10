@@ -6,7 +6,6 @@ module token_bridge::state {
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::coin::Coin;
 
-    use wormhole::u256::U256;
     use wormhole::u16::U16;
     use wormhole::emitter::EmitterCapability;
     use wormhole::state;
@@ -41,6 +40,14 @@ module token_bridge::state {
         token_address: vector<u8>,
     }
 
+    public fun get_origin_info_token_address(info: &OriginInfo): vector<u8> {
+        info.token_address
+    }
+
+    public fun get_origin_info_token_chain(info: &OriginInfo): U16 {
+        info.token_chain
+    }
+
     public(friend) fun create_origin_info(
         token_chain: U16,
         token_address: vector<u8>,
@@ -71,9 +78,6 @@ module token_bridge::state {
         signer_cap: SignerCapability,
 
         emitter_cap: EmitterCapability,
-
-        // Mapping of native assets to amount outstanding on other chains
-        outstanding_bridged: Table<vector<u8>, U256>, // should be address => u256
 
         // Mapping of bridge contracts on other chains
         registered_emitters: Table<U16, vector<u8>>,
@@ -129,11 +133,6 @@ module token_bridge::state {
 
     }
 
-    public fun outstanding_bridged(token: vector<u8>): U256 acquires State {
-        let state = borrow_global<State>(@token_bridge);
-        *table::borrow(&state.outstanding_bridged, token)
-    }
-
     // given the hash of the TypeInfo of a Coin, this tells us if it is registered with Token Bridge
     public fun is_registered_native_asset<CoinType>(): bool acquires State {
         let token = token_hash::derive<CoinType>();
@@ -157,14 +156,6 @@ module token_bridge::state {
 
         wrapped_info.type_info = option::some(type_of<CoinType>());
 
-    }
-
-    public fun get_origin_info_token_address(info: &OriginInfo): vector<u8>{
-        info.token_address
-    }
-
-    public fun get_origin_info_token_chain(info: &OriginInfo): U16{
-        info.token_chain
     }
 
     public fun assert_coin_origin_info<CoinType>(origin: OriginInfo) acquires OriginInfo {
@@ -214,7 +205,6 @@ module token_bridge::state {
     }
 
     // 32-byte native asset address => type info
-    // TODO: call this function register_native_asset
     public(friend) fun set_native_asset_type_info<CoinType>() acquires State {
         let token_address = token_hash::derive<CoinType>();
         let type_info = type_of<CoinType>();
@@ -226,13 +216,6 @@ module token_bridge::state {
             table::remove(native_infos, token_address);
         };
         table::add(native_infos, token_address, type_info);
-    }
-
-    // TODO: I don't think this is needed.
-    public(friend) fun set_outstanding_bridged(token: vector<u8>, outstanding: U256) acquires State {
-        let state = borrow_global_mut<State>(@token_bridge);
-        let outstanding_bridged = &mut state.outstanding_bridged;
-        table::upsert(outstanding_bridged, token, outstanding);
     }
 
     public(friend) fun set_wrapped_asset_signer_capability(token: OriginInfo, signer_cap: SignerCapability) acquires State {
@@ -264,7 +247,6 @@ module token_bridge::state {
             native_infos: table::new(),
             signer_cap: signer_cap,
             emitter_cap: emitter_cap,
-            outstanding_bridged: table::new(),
             registered_emitters: table::new(),
             }
         );
