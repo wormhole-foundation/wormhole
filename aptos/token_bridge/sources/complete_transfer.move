@@ -115,7 +115,7 @@ module token_bridge::complete_transfer_test {
         amount: u64,
     ) {
         // initialise wormhole and token bridge
-        wormhole_test::setup();
+        wormhole_test::setup(0);
         token_bridge::init_test(deployer);
 
         // initialise MyToken
