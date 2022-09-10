@@ -29,7 +29,7 @@ module token_bridge::complete_transfer_with_payload {
 
         let token_chain = transfer::get_token_chain(&transfer);
         let token_address = transfer::get_token_address(&transfer);
-        let origin_info = state::create_origin_info(token_address, token_chain);
+        let origin_info = state::create_origin_info(token_chain, token_address);
 
         state::assert_coin_origin_info<CoinType>(origin_info);
 
