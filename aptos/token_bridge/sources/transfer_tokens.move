@@ -11,6 +11,7 @@ module token_bridge::transfer_tokens {
     use token_bridge::transfer_result::{Self, TransferResult};
     use token_bridge::transfer_with_payload;
     use token_bridge::utils;
+    use token_bridge::wrapped;
 
     const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
 
@@ -122,14 +123,11 @@ module token_bridge::transfer_tokens {
         let amount = coin::value<CoinType>(&coins);
         assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
 
-        coin::deposit<CoinType>(@token_bridge, coins);
-
         if (state::is_wrapped_asset<CoinType>()) {
             // now we burn the wrapped coins to remove them from circulation
-            // TODO - wrapped::burn<CoinType>(amount);
-            // wrapped::burn<CoinType>(amount);
-            // problem here is that wrapped imports state, so state can't import wrapped...
+            wrapped::burn<CoinType>(coins);
         } else {
+            coin::deposit<CoinType>(@token_bridge, coins);
             // if we're seeing this native token for the first time, store its
             // type info
             if (!state::is_registered_native_asset<CoinType>()) {
@@ -160,10 +158,9 @@ module token_bridge::transfer_tokens {
 
 #[test_only]
 module token_bridge::transfer_tokens_test {
-    use aptos_framework::coin::{Self, MintCapability, FreezeCapability, BurnCapability};
+    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::string::{utf8};
     use aptos_framework::aptos_coin::{Self, AptosCoin};
-    use aptos_framework::signer;
 
     use token_bridge::token_bridge::{Self as bridge};
     use token_bridge::transfer_tokens;
@@ -183,19 +180,17 @@ module token_bridge::transfer_tokens_test {
 
     struct MyCoin has key {}
 
-    struct MyCoinCaps<phantom CoinType> has key, store {
-        burn_cap: BurnCapability<CoinType>,
-        freeze_cap: FreezeCapability<CoinType>,
-        mint_cap: MintCapability<CoinType>,
-    }
-
-    fun init_my_token(admin: &signer) {
+    fun init_my_token(admin: &signer, amount: u64): Coin<MyCoin> {
         let name = utf8(b"mycoindd");
         let symbol = utf8(b"MCdd");
         let decimals = 6;
         let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MyCoin>(admin, name, symbol, decimals, monitor_supply);
-        move_to(admin, MyCoinCaps {burn_cap, freeze_cap, mint_cap});
+        let coins = coin::mint<MyCoin>(amount, &mint_cap);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+        coin::destroy_freeze_cap(freeze_cap);
+        coins
     }
 
     fun setup(
@@ -237,8 +232,9 @@ module token_bridge::transfer_tokens_test {
         );
         let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
             = transfer_result::destroy(result);
-        // TODO: fix burn
-        assert!(coin::supply<T>() == std::option::some(100000), 0);
+
+        // make sure the wrapped assets have been burned
+        assert!(coin::supply<T>() == std::option::some(0), 0);
 
         assert!(token_chain == wormhole::u16::from_u64(2), 0);
         assert!(token_address == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
@@ -269,14 +265,18 @@ module token_bridge::transfer_tokens_test {
 
     // test transfer native coin
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
-    fun test_transfer_native_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) acquires MyCoinCaps{
+    fun test_transfer_native_token(aptos_framework: &signer, token_bridge: &signer, deployer: &signer) {
         setup(aptos_framework, token_bridge, deployer);
-        init_my_token(token_bridge);
-        let MyCoinCaps {burn_cap, freeze_cap, mint_cap} = move_from<MyCoinCaps<MyCoin>>(signer::address_of(token_bridge));
 
-        // test transfer native coins
-        let my_coins = coin::mint<MyCoin>(10000, &mint_cap);
+        let my_coins = init_my_token(token_bridge, 10000);
+
+        // make sure the token bridge is not registered yet for this coin
+        assert!(!coin::is_account_registered<MyCoin>(@token_bridge), 0);
+
         let result = transfer_tokens::transfer_tokens_test<MyCoin>(my_coins, 500);
+
+        // the token bridge should now be registered and hold the balance
+        assert!(coin::balance<MyCoin>(@token_bridge) == 10000, 0);
 
         let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
             = transfer_result::destroy(result);
@@ -286,10 +286,5 @@ module token_bridge::transfer_tokens_test {
         // the coin has 6 decimals, so the amount doesn't get scaled
         assert!(normalized_amount == wormhole::u256::from_u64(10000), 0);
         assert!(normalized_relayer_fee == wormhole::u256::from_u64(500), 0);
-
-        // destroy coin caps
-        coin::destroy_mint_cap<MyCoin>(mint_cap);
-        coin::destroy_burn_cap<MyCoin>(burn_cap);
-        coin::destroy_freeze_cap<MyCoin>(freeze_cap);
     }
 }
