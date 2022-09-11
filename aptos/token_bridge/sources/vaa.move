@@ -56,5 +56,86 @@ module token_bridge::vaa {
 
 #[test_only]
 module token_bridge::vaa_test {
-    // Note: the above functions are tested in register_chain.move
+    use token_bridge::vaa;
+    use token_bridge::state;
+    use token_bridge::token_bridge;
+
+    use wormhole::vaa as core_vaa;
+    use wormhole::wormhole;
+    use wormhole::u16;
+    use wormhole::external_address;
+
+    /// VAA sent from the ethereum token bridge 0xdeadbeef
+    const VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
+
+    fun setup(deployer: &signer) {
+        let aptos_framework = std::account::create_account_for_test(@aptos_framework);
+        std::timestamp::set_time_has_started_for_testing(&aptos_framework);
+        wormhole::init_test(
+            22,
+            1,
+            x"0000000000000000000000000000000000000000000000000000000000000004",
+            x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+            0
+        );
+        token_bridge::init_test(deployer);
+    }
+
+    #[test(deployer = @deployer)]
+    #[expected_failure(abort_code = 0)] // E_UNKNOWN_CHAIN
+    public fun test_unknown_chain(deployer: &signer) {
+        setup(deployer);
+        let vaa = vaa::parse_verify_and_replay_protect(VAA);
+        core_vaa::destroy(vaa);
+    }
+
+    #[test(deployer = @deployer)]
+    #[expected_failure(abort_code = 1)] // E_UNKNOWN_EMITTER
+    public fun test_unknown_emitter(deployer: &signer) {
+        setup(deployer);
+        state::set_registered_emitter(
+            u16::from_u64(2),
+            external_address::from_bytes(x"deadbeed"), // not deadbeef
+        );
+        let vaa = vaa::parse_verify_and_replay_protect(VAA);
+        core_vaa::destroy(vaa);
+    }
+
+    #[test(deployer = @deployer)]
+    public fun test_known_emitter(deployer: &signer) {
+        setup(deployer);
+        state::set_registered_emitter(
+            u16::from_u64(2),
+            external_address::from_bytes(x"deadbeef"),
+        );
+        let vaa = vaa::parse_verify_and_replay_protect(VAA);
+        core_vaa::destroy(vaa);
+    }
+
+    #[test(deployer = @deployer)]
+    #[expected_failure(abort_code = 25607)] // add_box error
+    public fun test_replay_protect(deployer: &signer) {
+        setup(deployer);
+        state::set_registered_emitter(
+            u16::from_u64(2),
+            external_address::from_bytes(x"deadbeef"),
+        );
+        let vaa = vaa::parse_verify_and_replay_protect(VAA);
+        core_vaa::destroy(vaa);
+        let vaa = vaa::parse_verify_and_replay_protect(VAA);
+        core_vaa::destroy(vaa);
+    }
+
+    #[test(deployer = @deployer)]
+    public fun test_can_verify_after_replay_protect(deployer: &signer) {
+        setup(deployer);
+        state::set_registered_emitter(
+            u16::from_u64(2),
+            external_address::from_bytes(x"deadbeef"),
+        );
+        let vaa = vaa::parse_verify_and_replay_protect(VAA);
+        core_vaa::destroy(vaa);
+        let vaa = vaa::parse_and_verify(VAA);
+        core_vaa::destroy(vaa);
+    }
 }

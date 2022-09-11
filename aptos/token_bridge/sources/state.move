@@ -27,6 +27,8 @@ module token_bridge::state {
 
     #[test_only]
     friend token_bridge::wrapped_test;
+    #[test_only]
+    friend token_bridge::vaa_test;
 
     const E_ORIGIN_CHAIN_MISMATCH: u64 = 0;
     const E_ORIGIN_ADDRESS_MISMATCH: u64 = 1;
