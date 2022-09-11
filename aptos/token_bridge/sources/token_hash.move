@@ -5,13 +5,15 @@ module token_bridge::token_hash {
     use std::hash;
     use std::string;
 
+    use wormhole::external_address::{Self, ExternalAddress};
+
     struct TokenHash has drop, copy, store {
         // 32 bytes
         hash: vector<u8>,
     }
 
-    public fun get_bytes(a: &TokenHash): vector<u8> {
-        a.hash
+    public fun get_external_address(a: &TokenHash): ExternalAddress {
+        external_address::from_bytes(a.hash)
     }
 
     /// Get the 32 token address of an arbitary CoinType
@@ -26,6 +28,7 @@ module token_bridge::token_hash {
 #[test_only]
 module token_bridge::token_hash_test {
     use token_bridge::token_hash;
+    use wormhole::external_address;
 
     use std::type_info;
     use std::string;
@@ -42,6 +45,6 @@ module token_bridge::token_hash_test {
     public fun test_derive() {
         let t = token_hash::derive<MyCoin>();
         let expected = x"a5839f5bd57edea609a0ea0f8a58df8bf245e24624c1675cf6fa18c569356b1b";
-        assert!(token_hash::get_bytes(&t) == expected, 0);
+        assert!(token_hash::get_external_address(&t) == external_address::from_bytes(expected), 0);
     }
 }

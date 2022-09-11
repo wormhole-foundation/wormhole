@@ -93,13 +93,13 @@ module wormhole::state {
     }
 
     public fun create_wormhole_message_handle(e: EventHandle<WormholeMessage>): WormholeMessageHandle {
-        WormholeMessageHandle{
+        WormholeMessageHandle {
             event: e
         }
     }
 
     public fun create_guardian_set_changed_handle(e: EventHandle<GuardianSetChanged>): GuardianSetChangedHandle {
-        GuardianSetChangedHandle{
+        GuardianSetChangedHandle {
             event: e
         }
     }

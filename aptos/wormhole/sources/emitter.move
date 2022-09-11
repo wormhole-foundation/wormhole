@@ -3,6 +3,9 @@
 /// couple of places to authenticate contracts
 module wormhole::emitter {
 
+    use wormhole::serialize;
+    use wormhole::external_address::{Self, ExternalAddress};
+
     friend wormhole::state;
     friend wormhole::wormhole;
 
@@ -31,16 +34,31 @@ module wormhole::emitter {
     }
 
     struct EmitterCapability has store {
+        /// Unique identifier of the emitter
         emitter: u128,
+        /// Sequence number of the next wormhole message
         sequence: u64
     }
 
+    /// Destroys an emitter capability.
+    ///
+    /// Note that this operation removes the ability to send messages using the
+    /// emitter id, and is irreversible.
     public fun destroy_emitter_cap(emitter_cap: EmitterCapability) {
         let EmitterCapability { emitter: _, sequence: _ } = emitter_cap;
     }
 
     public fun get_emitter(emitter_cap: &EmitterCapability): u128 {
         emitter_cap.emitter
+    }
+
+    /// Returns the external address of the emitter.
+    ///
+    /// The 16 byte (u128) emitter id left-padded to u256
+    public fun get_external_address(emitter_cap: &EmitterCapability): ExternalAddress {
+        let emitter_bytes = vector<u8>[];
+        serialize::serialize_u128(&mut emitter_bytes, emitter_cap.emitter);
+        external_address::from_bytes(emitter_bytes)
     }
 
     public(friend) fun use_sequence(emitter_cap: &mut EmitterCapability): u64 {

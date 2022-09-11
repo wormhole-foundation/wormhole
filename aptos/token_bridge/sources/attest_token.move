@@ -19,7 +19,7 @@ module token_bridge::attest_token {
 
     public fun attest_token<CoinType>(fee_coins: Coin<AptosCoin>): u64 {
         let asset_meta: AssetMeta = attest_token_internal<CoinType>();
-        let payload:vector<u8> = asset_meta::encode(asset_meta);
+        let payload: vector<u8> = asset_meta::encode(asset_meta);
         let nonce = 0;
         state::publish_message(
             nonce,
@@ -48,7 +48,7 @@ module token_bridge::attest_token {
         let symbol = string32::from_string(&coin::symbol<CoinType>());
         let name = string32::from_string(&coin::name<CoinType>());
         asset_meta::create(
-            token_hash::get_bytes(&token_address),
+            token_hash::get_external_address(&token_address),
             token_chain,
             decimals,
             symbol,
@@ -70,8 +70,6 @@ module token_bridge::attest_token_test {
     use token_bridge::asset_meta;
     use token_bridge::string32;
     use token_bridge::wrapped_test;
-
-    use wormhole::external_address::{Self};
 
     struct MyCoin has key {}
 
@@ -110,7 +108,7 @@ module token_bridge::attest_token_test {
         let symbol = string32::to_bytes(&asset_meta::get_symbol(&asset_meta));
         let name = string32::to_bytes(&asset_meta::get_name(&asset_meta));
 
-        assert!(external_address::get_bytes(&token_address) == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
+        assert!(token_address == token_hash::get_external_address(&token_hash::derive<MyCoin>()), 0);
         assert!(token_chain == wormhole::u16::from_u64(22), 0);
         assert!(decimals == 10, 0);
         assert!(symbol == b"Coin with very very very very ve", 0);

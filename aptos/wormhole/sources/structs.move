@@ -4,8 +4,6 @@ module wormhole::structs {
     use std::timestamp;
 
     friend wormhole::state;
-    friend wormhole::vaa;
-    friend wormhole::wormhole;
     use wormhole::guardian_pubkey::{Self};
 
     struct Signature has key, store, copy, drop {
@@ -25,13 +23,13 @@ module wormhole::structs {
     }
 
     public fun create_guardian(address: vector<u8>): Guardian {
-        Guardian{
+        Guardian {
             address: guardian_pubkey::from_bytes(address)
         }
     }
 
     public fun create_guardian_set(index: U32, guardians: vector<Guardian>): GuardianSet {
-        GuardianSet{
+        GuardianSet {
             index: index,
             guardians: guardians,
             expiration_time: u32::from_u64(0),

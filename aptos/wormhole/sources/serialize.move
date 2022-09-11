@@ -51,7 +51,7 @@ module wormhole::serialize {
 }
 
 #[test_only]
-module wormhole::test_serialize{
+module wormhole::test_serialize {
     use wormhole::serialize;
     use wormhole::deserialize;
     use wormhole::cursor::{Self};

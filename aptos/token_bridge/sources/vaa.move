@@ -10,6 +10,9 @@ module token_bridge::vaa {
     friend token_bridge::register_chain;
     friend token_bridge::wrapped;
 
+    #[test_only]
+    friend token_bridge::vaa_test;
+
     /// We have no registration for this chain
     const E_UNKNOWN_CHAIN: u64 = 0;
     /// We have a registration, but it's different from what's given
@@ -53,5 +56,5 @@ module token_bridge::vaa {
 
 #[test_only]
 module token_bridge::vaa_test {
-
+    // Note: the above functions are tested in register_chain.move
 }

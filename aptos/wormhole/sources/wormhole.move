@@ -88,7 +88,7 @@ module wormhole::wormhole {
             &wormhole,
             u16::from_u64(chain_id),
             u16::from_u64(governance_chain_id),
-            external_address::from_vector(governance_contract),
+            external_address::from_bytes(governance_contract),
             guardian_set_expiry,
             message_fee,
             signer_cap

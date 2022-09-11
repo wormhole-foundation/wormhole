@@ -12,7 +12,7 @@ module token_bridge::utils {
          amount
     }
 
-    public entry fun denormalize_amount(amount: U256, decimals: u8): U256{
+    public entry fun denormalize_amount(amount: U256, decimals: u8): U256 {
          if (decimals > 8) {
             let n = decimals - 8;
             while (n > 0){
