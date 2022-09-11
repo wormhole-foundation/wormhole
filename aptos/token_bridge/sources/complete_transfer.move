@@ -76,7 +76,7 @@ module token_bridge::complete_transfer_test {
     use wormhole::u256;
     use wormhole::state;
     use wormhole::wormhole_test;
-    use wormhole::external_address::from_vector;
+    use wormhole::external_address;
 
     struct MyCoin {}
 
@@ -138,15 +138,15 @@ module token_bridge::complete_transfer_test {
 
         setup(deployer, token_bridge, to, fee_recipient, amount);
 
-        let token_address = token_hash::get_bytes(&token_hash::derive<MyCoin>());
+        let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = state::get_chain_id();
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            from_vector(token_address),
+            token_address,
             token_chain,
-            from_vector(bcs::to_bytes(&to)),
+            external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -174,15 +174,15 @@ module token_bridge::complete_transfer_test {
 
         setup(deployer, token_bridge, to, fee_recipient, amount);
 
-        let token_address = token_hash::get_bytes(&token_hash::derive<MyCoin>());
+        let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = state::get_chain_id();
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            from_vector(token_address),
+            token_address,
             token_chain,
-            from_vector(bcs::to_bytes(&to)),
+            external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -205,15 +205,15 @@ module token_bridge::complete_transfer_test {
 
         setup(deployer, token_bridge, to, fee_recipient, amount);
 
-        let token_address = token_hash::get_bytes(&token_hash::derive<MyCoin>());
+        let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = state::get_chain_id();
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            from_vector(token_address),
+            token_address,
             token_chain,
-            from_vector(bcs::to_bytes(&to)),
+            external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -237,15 +237,15 @@ module token_bridge::complete_transfer_test {
 
         setup(deployer, token_bridge, to, fee_recipient, amount);
 
-        let token_address = token_hash::get_bytes(&token_hash::derive<MyCoin>());
+        let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = wormhole::u16::from_u64(10); // FAIL: wrong origin chain (MyCoin is native)
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            from_vector(token_address),
+            token_address,
             token_chain,
-            from_vector(bcs::to_bytes(&to)),
+            external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -267,15 +267,15 @@ module token_bridge::complete_transfer_test {
 
         setup(deployer, token_bridge, to, fee_recipient, amount);
 
-        let token_address = x"00000000000000000000000000000000000000000000000000000000deadbeef";
+        let token_address = external_address::from_bytes(x"deadbeef");
         let token_chain = wormhole::u16::from_u64(2);
         let to_chain = state::get_chain_id();
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            from_vector(token_address),
+            token_address,
             token_chain,
-            from_vector(bcs::to_bytes(&to)),
+            external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );

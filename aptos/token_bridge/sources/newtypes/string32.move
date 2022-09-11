@@ -7,6 +7,10 @@ module token_bridge::string32 {
     use std::option;
     use std::vector;
 
+    use wormhole::cursor::Cursor;
+    use wormhole::deserialize;
+    use wormhole::serialize;
+
     const E_STRING_TOO_LONG: u64 = 0;
 
     /// A `String32` holds a ut8 string which is guaranteed to be 32 bytes long.
@@ -68,6 +72,15 @@ module token_bridge::string32 {
 
     public fun to_bytes(s: &String32): vector<u8> {
         *string::bytes(&s.string)
+    }
+
+    public fun deserialize(cur: &mut Cursor<u8>): String32 {
+        let bytes = deserialize::deserialize_vector(cur, 32);
+        from_bytes(bytes)
+    }
+
+    public fun serialize(buf: &mut vector<u8>, e: String32) {
+        serialize::serialize_vector(buf, to_bytes(&e))
     }
 
 }

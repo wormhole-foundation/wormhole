@@ -18,15 +18,15 @@ module token_bridge::asset_meta {
     const E_INVALID_ACTION: u64 = 0;
 
     struct AssetMeta has key, store, drop {
-        // Address of the token. Left-zero-padded if shorter than 32 bytes
+        /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
-        // Chain ID of the token
+        /// Chain ID of the token
         token_chain: U16,
-        // Number of decimals of the token (big-endian uint256)
+        /// Number of decimals of the token (big-endian uint256)
         decimals: u8,
-        // Symbol of the token (UTF-8)
+        /// Symbol of the token (UTF-8)
         symbol: String32,
-        // Name of the token (UTF-8)
+        /// Name of the token (UTF-8)
         name: String32,
     }
 
@@ -51,19 +51,14 @@ module token_bridge::asset_meta {
     }
 
     public(friend) fun create(
-        // Address of the token. Left-zero-padded if shorter than 32 bytes
-        token_address: vector<u8>,
-        // Chain ID of the token
+        token_address: ExternalAddress,
         token_chain: U16,
-        // Number of decimals of the token (big-endian uint256)
         decimals: u8,
-        // Symbol of the token (UTF-8)
         symbol: String32,
-        // Name of the token (UTF-8)
         name: String32,
     ): AssetMeta {
-        AssetMeta{
-            token_address: external_address::from_vector(token_address),
+        AssetMeta {
+            token_address,
             token_chain,
             decimals,
             symbol,
@@ -77,8 +72,8 @@ module token_bridge::asset_meta {
         serialize_vector(&mut encoded, external_address::get_bytes(&meta.token_address));
         serialize_u16(&mut encoded, meta.token_chain);
         serialize_u8(&mut encoded, meta.decimals);
-        serialize_vector(&mut encoded, string32::to_bytes(&meta.symbol));
-        serialize_vector(&mut encoded, string32::to_bytes(&meta.name));
+        string32::serialize(&mut encoded, meta.symbol);
+        string32::serialize(&mut encoded, meta.name);
         encoded
     }
 
@@ -90,11 +85,11 @@ module token_bridge::asset_meta {
         let token_address = deserialize_vector(&mut cur, 32);
         let token_chain = deserialize_u16(&mut cur);
         let decimals = deserialize_u8(&mut cur);
-        let symbol = string32::from_bytes(deserialize_vector(&mut cur, 32));
-        let name = string32::from_bytes(deserialize_vector(&mut cur, 32));
+        let symbol = string32::deserialize(&mut cur);
+        let name = string32::deserialize(&mut cur);
         cursor::destroy_empty(cur);
         AssetMeta {
-            token_address: external_address::from_vector(token_address),
+            token_address: external_address::from_bytes(token_address),
             token_chain,
             decimals,
             symbol,
@@ -116,7 +111,7 @@ module token_bridge::asset_meta {
         // confusing. We should either make it ASCII, or just drop these
         // characters.
         serialize_vector(&mut seed, b"::");
-        serialize_vector(&mut seed, external_address::get_bytes(&token_address));
+        external_address::serialize(&mut seed, token_address);
         seed
     }
 

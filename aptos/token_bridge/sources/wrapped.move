@@ -18,8 +18,6 @@ module token_bridge::wrapped {
     #[test_only]
     friend token_bridge::transfer_tokens_test;
     #[test_only]
-    friend token_bridge::complete_transfer_test;
-    #[test_only]
     friend token_bridge::wrapped_test;
 
     const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
@@ -169,7 +167,7 @@ module token_bridge::wrapped_test {
 
     public fun init_wrapped_token() {
         let chain = wormhole::u16::from_u64(2);
-        let token_address = x"00000000000000000000000000000000000000000000000000000000deadbeef";
+        let token_address = external_address::from_bytes(x"deadbeef");
         let asset_meta = asset_meta::create(
             token_address,
             chain,
@@ -181,7 +179,7 @@ module token_bridge::wrapped_test {
 
         // set up the signer capability first
         let signer_cap = account::create_test_signer_cap(@wrapped_coin);
-        let origin_info = state::create_origin_info(chain, external_address::from_vector(token_address));
+        let origin_info = state::create_origin_info(chain, token_address);
         state::set_wrapped_asset_signer_capability(origin_info, signer_cap);
 
         wrapped::init_wrapped_coin<wrapped_coin::coin::T>(&wrapped_coin, &asset_meta);

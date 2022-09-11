@@ -11,7 +11,7 @@ module token_bridge::state {
     use wormhole::state;
     use wormhole::wormhole;
     use wormhole::set::{Self, Set};
-    use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::external_address::ExternalAddress;
 
     use token_bridge::token_hash::{Self, TokenHash};
 
@@ -81,7 +81,7 @@ module token_bridge::state {
         emitter_cap: EmitterCapability,
 
         // Mapping of bridge contracts on other chains
-        registered_emitters: Table<U16, vector<u8>>,
+        registered_emitters: Table<U16, ExternalAddress>,
     }
 
     // getters
@@ -119,12 +119,12 @@ module token_bridge::state {
             *borrow_global<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
         } else {
             let token_chain = state::get_chain_id();
-            let token_address = external_address::from_vector(token_hash::get_bytes(&token_hash::derive<CoinType>()));
+            let token_address = token_hash::get_external_address(&token_hash::derive<CoinType>());
             OriginInfo { token_chain, token_address }
         }
     }
 
-    public fun get_registered_emitter(chain_id: U16): Option<vector<u8>> acquires State {
+    public fun get_registered_emitter(chain_id: U16): Option<ExternalAddress> acquires State {
         let state = borrow_global<State>(@token_bridge);
         if (table::contains(&state.registered_emitters, chain_id)) {
             option::some(*table::borrow(&state.registered_emitters, chain_id))
@@ -200,7 +200,7 @@ module token_bridge::state {
         state.governance_contract = governance_contract;
     }
 
-    public(friend) fun set_registered_emitter(chain_id: U16, bridge_contract: vector<u8>) acquires State {
+    public(friend) fun set_registered_emitter(chain_id: U16, bridge_contract: ExternalAddress) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         table::upsert(&mut state.registered_emitters, chain_id, bridge_contract);
     }
@@ -240,7 +240,7 @@ module token_bridge::state {
         emitter_cap: EmitterCapability
     ) {
         let token_bridge = account::create_signer_with_capability(&signer_cap);
-        move_to(&token_bridge, State{
+        move_to(&token_bridge, State {
             governance_chain_id: state::get_chain_id(),
             governance_contract: state::get_governance_contract(),
             consumed_vaas: set::new<vector<u8>>(),

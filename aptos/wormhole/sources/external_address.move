@@ -3,6 +3,10 @@
 module wormhole::external_address {
     use aptos_framework::vector;
 
+    use wormhole::cursor::Cursor;
+    use wormhole::deserialize;
+    use wormhole::serialize;
+
     const E_VECTOR_TOO_LONG: u64 = 0;
 
     struct ExternalAddress has drop, copy, store {
@@ -31,15 +35,24 @@ module wormhole::external_address {
         ExternalAddress { external_address: padded_vector}
     }
 
-    public fun from_vector(bytes: vector<u8>): ExternalAddress {
+    public fun from_bytes(bytes: vector<u8>): ExternalAddress {
         left_pad(&bytes)
+    }
+
+    public fun deserialize(cur: &mut Cursor<u8>): ExternalAddress {
+        let bytes = deserialize::deserialize_vector(cur, 32);
+        from_bytes(bytes)
+    }
+
+    public fun serialize(buf: &mut vector<u8>, e: ExternalAddress) {
+        serialize::serialize_vector(buf, e.external_address)
     }
 
 }
 
 #[test_only]
 module wormhole::external_address_test {
-    use wormhole::external_address::{get_bytes, left_pad, from_vector, pad_left_32};
+    use wormhole::external_address::{get_bytes, left_pad, from_bytes, pad_left_32};
     use aptos_framework::vector::{Self};
 
     // test get_bytes and left_pad
@@ -71,9 +84,9 @@ module wormhole::external_address_test {
     }
 
     #[test]
-    public fun test_from_vector() {
+    public fun test_from_bytes() {
         let v = x"1234";
-        let ea = from_vector(v);
+        let ea = from_bytes(v);
         let bytes = get_bytes(&ea);
         let w = x"000000000000000000000000000000000000000000000000000000000000";
         vector::append(&mut w, v);
@@ -82,9 +95,9 @@ module wormhole::external_address_test {
 
     #[test]
     #[expected_failure(abort_code = 0)]
-    public fun test_from_vector_over_32_bytes() {
+    public fun test_from_bytes_over_32_bytes() {
         let v = x"00000000000000000000000000000000000000000000000000000000000000001234";
-        let ea = from_vector(v);
+        let ea = from_bytes(v);
         let _bytes = get_bytes(&ea);
     }
 
