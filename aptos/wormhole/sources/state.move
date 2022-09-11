@@ -45,7 +45,7 @@ module wormhole::state {
         governance_chain_id: U16,
 
         /// Address of governance contract on governance chain
-        governance_contract: ExternalAddress, //(TODO: create custom type for wormhole addresses)
+        governance_contract: ExternalAddress,
 
         /// Mapping of guardian_set_index => guardian set
         guardian_sets: Table<u64, GuardianSet>,

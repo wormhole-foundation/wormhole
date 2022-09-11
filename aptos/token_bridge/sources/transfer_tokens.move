@@ -5,7 +5,7 @@ module token_bridge::transfer_tokens {
 
     use wormhole::u16::{Self, U16};
     use wormhole::u256;
-    use wormhole::external_address::{from_vector, get_bytes};
+    use wormhole::external_address::{Self};
 
     use token_bridge::state;
     use token_bridge::transfer;
@@ -46,7 +46,7 @@ module token_bridge::transfer_tokens {
             normalized_amount,
             token_address,
             token_chain,
-            from_vector(recipient),
+            external_address::from_vector(recipient),
             recipient_chain,
             normalized_relayer_fee,
         );
@@ -84,7 +84,7 @@ module token_bridge::transfer_tokens {
             = transfer_result::destroy(result);
         let transfer = transfer_with_payload::create(
             normalized_amount,
-            get_bytes(&token_address),
+            external_address::get_bytes(&token_address),
             token_chain,
             recipient,
             recipient_chain,
@@ -147,7 +147,7 @@ module token_bridge::transfer_tokens {
 
         let transfer_result: TransferResult = transfer_result::create(
             token_chain,
-            get_bytes(&token_address),
+            external_address::get_bytes(&token_address),
             normalized_amount,
             normalized_relayer_fee,
         );
@@ -170,7 +170,7 @@ module token_bridge::transfer_tokens_test {
     use token_bridge::token_hash;
     use token_bridge::register_chain;
 
-    use wormhole::external_address::{get_bytes};
+    use wormhole::external_address::{Self};
 
     use wrapped_coin::coin::T;
 
@@ -239,7 +239,7 @@ module token_bridge::transfer_tokens_test {
         assert!(coin::supply<T>() == std::option::some(0), 0);
 
         assert!(token_chain == wormhole::u16::from_u64(2), 0);
-        assert!(get_bytes(&token_address) == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
+        assert!(external_address::get_bytes(&token_address) == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
         // the coin has 12 decimals, so the amount gets scaled by a factor 10^-4
         // since the normalised amounts are 8 decimals
         assert!(normalized_amount == wormhole::u256::from_u64(10), 0);
@@ -284,7 +284,7 @@ module token_bridge::transfer_tokens_test {
             = transfer_result::destroy(result);
 
         assert!(token_chain == wormhole::state::get_chain_id(), 0);
-        assert!(get_bytes(&token_address) == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
+        assert!(external_address::get_bytes(&token_address) == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
         // the coin has 6 decimals, so the amount doesn't get scaled
         assert!(normalized_amount == wormhole::u256::from_u64(10000), 0);
         assert!(normalized_relayer_fee == wormhole::u256::from_u64(500), 0);

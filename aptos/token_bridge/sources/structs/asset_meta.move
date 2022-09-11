@@ -5,7 +5,7 @@ module token_bridge::asset_meta {
     use wormhole::cursor::{Self};
 
     use wormhole::u16::{U16};
-    use wormhole::external_address::{ExternalAddress, from_vector, get_bytes};
+    use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::string32::{Self, String32};
 
@@ -63,7 +63,7 @@ module token_bridge::asset_meta {
         name: String32,
     ): AssetMeta {
         AssetMeta{
-            token_address:from_vector(token_address),
+            token_address: external_address::from_vector(token_address),
             token_chain,
             decimals,
             symbol,
@@ -74,7 +74,7 @@ module token_bridge::asset_meta {
     public fun encode(meta: AssetMeta): vector<u8> {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 2);
-        serialize_vector(&mut encoded, get_bytes(&meta.token_address));
+        serialize_vector(&mut encoded, external_address::get_bytes(&meta.token_address));
         serialize_u16(&mut encoded, meta.token_chain);
         serialize_u8(&mut encoded, meta.decimals);
         serialize_vector(&mut encoded, string32::to_bytes(&meta.symbol));
@@ -94,7 +94,7 @@ module token_bridge::asset_meta {
         let name = string32::from_bytes(deserialize_vector(&mut cur, 32));
         cursor::destroy_empty(cur);
         AssetMeta {
-            token_address: from_vector(token_address),
+            token_address: external_address::from_vector(token_address),
             token_chain,
             decimals,
             symbol,
@@ -116,7 +116,7 @@ module token_bridge::asset_meta {
         // confusing. We should either make it ASCII, or just drop these
         // characters.
         serialize_vector(&mut seed, b"::");
-        serialize_vector(&mut seed, get_bytes(&token_address));
+        serialize_vector(&mut seed, external_address::get_bytes(&token_address));
         seed
     }
 

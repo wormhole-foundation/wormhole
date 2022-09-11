@@ -11,7 +11,7 @@ module token_bridge::state {
     use wormhole::state;
     use wormhole::wormhole;
     use wormhole::set::{Self, Set};
-    use wormhole::external_address::{ExternalAddress, from_vector};
+    use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::token_hash::{Self, TokenHash};
 
@@ -119,7 +119,7 @@ module token_bridge::state {
             *borrow_global<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
         } else {
             let token_chain = state::get_chain_id();
-            let token_address = from_vector(token_hash::get_bytes(&token_hash::derive<CoinType>()));
+            let token_address = external_address::from_vector(token_hash::get_bytes(&token_hash::derive<CoinType>()));
             OriginInfo { token_chain, token_address }
         }
     }

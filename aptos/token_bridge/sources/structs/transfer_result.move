@@ -1,7 +1,7 @@
 module token_bridge::transfer_result {
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
-    use wormhole::external_address::{ExternalAddress, from_vector};
+    use wormhole::external_address::{Self, ExternalAddress};
 
     friend token_bridge::transfer_tokens;
 
@@ -34,7 +34,7 @@ module token_bridge::transfer_result {
         ): TransferResult {
             TransferResult {
                 token_chain,
-                token_address: from_vector(token_address),
+                token_address: external_address::from_vector(token_address),
                 normalized_amount,
                 normalized_relayer_fee,
             }

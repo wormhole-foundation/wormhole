@@ -6,7 +6,7 @@ module token_bridge::transfer_with_payload {
 
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
-    use wormhole::external_address::{ExternalAddress, from_vector, get_bytes};
+    use wormhole::external_address::{Self, ExternalAddress};
 
     friend token_bridge::transfer_tokens;
 
@@ -68,7 +68,7 @@ module token_bridge::transfer_with_payload {
     ): TransferWithPayload {
         TransferWithPayload {
             amount,
-            token_address: from_vector(token_address),
+            token_address: external_address::from_vector(token_address),
             token_chain,
             to,
             to_chain,
@@ -81,7 +81,7 @@ module token_bridge::transfer_with_payload {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 3);
         serialize_u256(&mut encoded, transfer.amount);
-        serialize_vector(&mut encoded, get_bytes(&transfer.token_address));
+        serialize_vector(&mut encoded, external_address::get_bytes(&transfer.token_address));
         serialize_u16(&mut encoded, transfer.token_chain);
         serialize_vector(&mut encoded, transfer.to);
         serialize_u16(&mut encoded, transfer.to_chain);
@@ -103,7 +103,7 @@ module token_bridge::transfer_with_payload {
         let payload = cursor::rest(cur);
         TransferWithPayload {
             amount,
-            token_address: from_vector(token_address),
+            token_address: external_address::from_vector(token_address),
             token_chain,
             to,
             to_chain,

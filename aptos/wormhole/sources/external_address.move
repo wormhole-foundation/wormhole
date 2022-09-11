@@ -31,33 +31,15 @@ module wormhole::external_address {
         ExternalAddress { external_address: padded_vector}
     }
 
-    fun take_32(bytes: vector<u8>): vector<u8> {
-        let res = vector::empty<u8>();
-        let length = vector::length<u8>(&bytes);
-        let i = 0;
-        while (i < length) {
-            if ((length-i)<=32){
-                vector::push_back(&mut res, *vector::borrow(&bytes, i));
-            };
-            i = i +1;
-        };
-        res
-    }
-
     public fun from_vector(bytes: vector<u8>): ExternalAddress {
-        left_pad(&take_32(bytes))
-    }
-
-    #[test_only]
-    public fun test_take_32(bytes: vector<u8>): vector<u8> {
-        take_32(bytes)
+        left_pad(&bytes)
     }
 
 }
 
 #[test_only]
 module wormhole::external_address_test {
-    use wormhole::external_address::{get_bytes, left_pad, test_take_32, from_vector, pad_left_32};
+    use wormhole::external_address::{get_bytes, left_pad, from_vector, pad_left_32};
     use aptos_framework::vector::{Self};
 
     // test get_bytes and left_pad
@@ -89,13 +71,6 @@ module wormhole::external_address_test {
     }
 
     #[test]
-    public fun test_take_32_() {
-        let v = x"123456789123456789123456789123451234567891234567891234567891234500"; //33 bytes
-        let bytes = test_take_32(v);
-        assert!(bytes==x"3456789123456789123456789123451234567891234567891234567891234500", 0);
-    }
-
-    #[test]
     public fun test_from_vector() {
         let v = x"1234";
         let ea = from_vector(v);
@@ -106,14 +81,11 @@ module wormhole::external_address_test {
     }
 
     #[test]
+    #[expected_failure(abort_code = 0)]
     public fun test_from_vector_over_32_bytes() {
         let v = x"00000000000000000000000000000000000000000000000000000000000000001234";
         let ea = from_vector(v);
-        let bytes = get_bytes(&ea);
-        let w = x"0000000000000000000000000000000000000000000000000000000000001234";
-        //print(&bytes);
-        //print(&w);
-        assert!(bytes==w, 0);
+        let _bytes = get_bytes(&ea);
     }
 
     #[test]

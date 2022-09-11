@@ -13,7 +13,7 @@ module token_bridge::transfer {
         deserialize_vector
     };
     use wormhole::cursor::{Self};
-    use wormhole::external_address::{ExternalAddress, from_vector, get_bytes};
+    use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
 
@@ -72,12 +72,12 @@ module token_bridge::transfer {
         fee: U256,
     ): Transfer {
         Transfer {
-            amount: amount,
-            token_address: token_address,
-            token_chain: token_chain,
-            to: to,
-            to_chain: to_chain,
-            fee: fee,
+            amount,
+            token_address,
+            token_chain,
+            to,
+            to_chain,
+            fee,
         }
     }
 
@@ -94,9 +94,9 @@ module token_bridge::transfer {
         cursor::destroy_empty(cur);
         Transfer {
             amount: amount,
-            token_address: from_vector(token_address),
+            token_address: external_address::from_vector(token_address),
             token_chain: token_chain,
-            to: from_vector(to),
+            to: external_address::from_vector(to),
             to_chain: to_chain,
             fee: fee
         }
@@ -106,9 +106,9 @@ module token_bridge::transfer {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 1);
         serialize_u256(&mut encoded, transfer.amount);
-        serialize_vector(&mut encoded, get_bytes(&transfer.token_address));
+        serialize_vector(&mut encoded, external_address::get_bytes(&transfer.token_address));
         serialize_u16(&mut encoded, transfer.token_chain);
-        serialize_vector(&mut encoded, get_bytes(&transfer.to));
+        serialize_vector(&mut encoded, external_address::get_bytes(&transfer.to));
         serialize_u16(&mut encoded, transfer.to_chain);
         serialize_u256(&mut encoded, transfer.fee);
         encoded
