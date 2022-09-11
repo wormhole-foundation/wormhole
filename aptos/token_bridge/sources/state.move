@@ -11,6 +11,7 @@ module token_bridge::state {
     use wormhole::state;
     use wormhole::wormhole;
     use wormhole::set::{Self, Set};
+    use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::token_hash::{Self, TokenHash};
 
@@ -37,10 +38,10 @@ module token_bridge::state {
     /// info (see token_hash.move for more details)
     struct OriginInfo has key, store, copy, drop {
         token_chain: U16,
-        token_address: vector<u8>,
+        token_address: ExternalAddress,
     }
 
-    public fun get_origin_info_token_address(info: &OriginInfo): vector<u8> {
+    public fun get_origin_info_token_address(info: &OriginInfo): ExternalAddress {
         info.token_address
     }
 
@@ -50,9 +51,9 @@ module token_bridge::state {
 
     public(friend) fun create_origin_info(
         token_chain: U16,
-        token_address: vector<u8>,
+        token_address: ExternalAddress,
     ): OriginInfo {
-        OriginInfo { token_address, token_chain }
+        OriginInfo { token_address: token_address, token_chain: token_chain }
     }
 
     struct WrappedInfo has store {
@@ -62,7 +63,7 @@ module token_bridge::state {
 
     struct State has key, store {
         governance_chain_id: U16,
-        governance_contract: vector<u8>,
+        governance_contract: ExternalAddress,
 
         /// Set of consumed VAA hashes
         consumed_vaas: Set<vector<u8>>,
@@ -95,7 +96,7 @@ module token_bridge::state {
         return state.governance_chain_id
     }
 
-    public fun governance_contract(): vector<u8> acquires State {
+    public fun governance_contract(): ExternalAddress acquires State {
         let state = borrow_global<State>(@token_bridge);
         return state.governance_contract
     }
@@ -118,7 +119,7 @@ module token_bridge::state {
             *borrow_global<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
         } else {
             let token_chain = state::get_chain_id();
-            let token_address = token_hash::get_bytes(&token_hash::derive<CoinType>());
+            let token_address = external_address::from_vector(token_hash::get_bytes(&token_hash::derive<CoinType>()));
             OriginInfo { token_chain, token_address }
         }
     }
@@ -194,7 +195,7 @@ module token_bridge::state {
         state.governance_chain_id = governance_chain_id;
     }
 
-    public(friend) fun set_governance_contract(governance_contract: vector<u8>) acquires State {
+    public(friend) fun set_governance_contract(governance_contract: ExternalAddress) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         state.governance_contract = governance_contract;
     }

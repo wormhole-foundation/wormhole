@@ -71,6 +71,8 @@ module token_bridge::attest_token_test {
     use token_bridge::string32;
     use token_bridge::wrapped_test;
 
+    use wormhole::external_address::{Self};
+
     struct MyCoin has key {}
 
     fun setup(
@@ -108,7 +110,7 @@ module token_bridge::attest_token_test {
         let symbol = string32::to_bytes(&asset_meta::get_symbol(&asset_meta));
         let name = string32::to_bytes(&asset_meta::get_name(&asset_meta));
 
-        assert!(token_address == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
+        assert!(external_address::get_bytes(&token_address) == token_hash::get_bytes(&token_hash::derive<MyCoin>()), 0);
         assert!(token_chain == wormhole::u16::from_u64(22), 0);
         assert!(decimals == 10, 0);
         assert!(symbol == b"Coin with very very very very ve", 0);

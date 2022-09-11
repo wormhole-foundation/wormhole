@@ -18,6 +18,7 @@ module wormhole::vaa {
         get_address,
     };
     use wormhole::state;
+    use wormhole::external_address::{get_bytes};
 
     friend wormhole::guardian_set_upgrade;
     friend wormhole::contract_upgrade;
@@ -209,7 +210,7 @@ module wormhole::vaa {
         let latest_guardian_set_index = state::get_current_guardian_set_index();
         assert!(vaa.guardian_set_index == latest_guardian_set_index, E_OLD_GUARDIAN_SET_GOVERNANCE);
         assert!(vaa.emitter_chain == state::get_governance_chain(), E_INVALID_GOVERNANCE_CHAIN);
-        assert!(vaa.emitter_address == state::get_governance_contract(), E_INVALID_GOVERNANCE_EMITTER);
+        assert!(vaa.emitter_address == get_bytes(&state::get_governance_contract()), E_INVALID_GOVERNANCE_EMITTER);
     }
 
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
