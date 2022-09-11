@@ -152,7 +152,7 @@ module token_bridge::wrapped_test {
 
     use wormhole::u16::{Self};
     use wrapped_coin::coin::T;
-    use wormhole::external_address::{pad_left_32};
+    use wormhole::external_address::{pad_left_32, from_vector, get_bytes};
 
     /// Registration VAA for the etheruem token bridge 0xdeadbeef
     const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
@@ -181,7 +181,7 @@ module token_bridge::wrapped_test {
 
         // set up the signer capability first
         let signer_cap = account::create_test_signer_cap(@wrapped_coin);
-        let origin_info = state::create_origin_info(chain, token_address);
+        let origin_info = state::create_origin_info(chain, from_vector(token_address));
         state::set_wrapped_asset_signer_capability(origin_info, signer_cap);
 
         wrapped::init_wrapped_coin<wrapped_coin::coin::T>(&wrapped_coin, &asset_meta);
@@ -245,7 +245,7 @@ module token_bridge::wrapped_test {
         let is_wrapped_asset = state::is_wrapped_asset<T>();
         assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T"), 0);
         assert!(origin_token_chain == u16::from_u64(2), 0);
-        assert!(origin_token_address == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
+        assert!(get_bytes(&origin_token_address) == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
         assert!(is_wrapped_asset, 0);
 
         // load beef face token cap and mint some beef face coins, then burn

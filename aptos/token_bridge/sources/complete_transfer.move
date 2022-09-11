@@ -8,6 +8,7 @@ module token_bridge::complete_transfer {
     use token_bridge::wrapped;
 
     use wormhole::u256;
+    use wormhole::external_address::get_bytes;
 
     const E_INVALID_TARGET: u64 = 0;
 
@@ -37,7 +38,7 @@ module token_bridge::complete_transfer {
         let amount = u256::as_u64(transfer::get_amount(transfer));
         let fee_amount = u256::as_u64(transfer::get_fee(transfer));
 
-        let recipient = from_bcs::to_address(transfer::get_to(transfer));
+        let recipient = from_bcs::to_address(get_bytes(&transfer::get_to(transfer)));
 
         let recipient_coins: Coin<CoinType>;
 
@@ -75,6 +76,7 @@ module token_bridge::complete_transfer_test {
     use wormhole::u256;
     use wormhole::state;
     use wormhole::wormhole_test;
+    use wormhole::external_address::from_vector;
 
     struct MyCoin {}
 
@@ -142,9 +144,9 @@ module token_bridge::complete_transfer_test {
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            token_address,
+            from_vector(token_address),
             token_chain,
-            bcs::to_bytes(&to),
+            from_vector(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -178,9 +180,9 @@ module token_bridge::complete_transfer_test {
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            token_address,
+            from_vector(token_address),
             token_chain,
-            bcs::to_bytes(&to),
+            from_vector(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -209,9 +211,9 @@ module token_bridge::complete_transfer_test {
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            token_address,
+            from_vector(token_address),
             token_chain,
-            bcs::to_bytes(&to),
+            from_vector(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -241,9 +243,9 @@ module token_bridge::complete_transfer_test {
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            token_address,
+            from_vector(token_address),
             token_chain,
-            bcs::to_bytes(&to),
+            from_vector(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );
@@ -271,9 +273,9 @@ module token_bridge::complete_transfer_test {
         let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
             u256::from_u64(amount),
-            token_address,
+            from_vector(token_address),
             token_chain,
-            bcs::to_bytes(&to),
+            from_vector(bcs::to_bytes(&to)),
             to_chain,
             fee,
         );

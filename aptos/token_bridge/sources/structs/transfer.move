@@ -13,7 +13,7 @@ module token_bridge::transfer {
         deserialize_vector
     };
     use wormhole::cursor::{Self};
-
+    use wormhole::external_address::{ExternalAddress, from_vector, get_bytes};
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
 
@@ -28,11 +28,11 @@ module token_bridge::transfer {
         // Amount being transferred (big-endian uint256)
         amount: U256,
         // Address of the token. Left-zero-padded if shorter than 32 bytes
-        token_address: vector<u8>,
+        token_address: ExternalAddress,
         // Chain ID of the token
         token_chain: U16,
         // Address of the recipient. Left-zero-padded if shorter than 32 bytes
-        to: vector<u8>,
+        to: ExternalAddress,
         // Chain ID of the recipient
         to_chain: U16,
         // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
@@ -43,7 +43,7 @@ module token_bridge::transfer {
         a.amount
     }
 
-    public fun get_token_address(a: &Transfer): vector<u8> {
+    public fun get_token_address(a: &Transfer): ExternalAddress {
         a.token_address
     }
 
@@ -51,7 +51,7 @@ module token_bridge::transfer {
         a.token_chain
     }
 
-    public fun get_to(a: &Transfer): vector<u8> {
+    public fun get_to(a: &Transfer): ExternalAddress {
         a.to
     }
 
@@ -65,19 +65,19 @@ module token_bridge::transfer {
 
     public(friend) fun create(
         amount: U256,
-        token_address: vector<u8>,
+        token_address: ExternalAddress,
         token_chain: U16,
-        to: vector<u8>,
+        to: ExternalAddress,
         to_chain: U16,
         fee: U256,
     ): Transfer {
         Transfer {
-            amount,
-            token_address,
-            token_chain,
-            to,
-            to_chain,
-            fee,
+            amount: amount,
+            token_address: token_address,
+            token_chain: token_chain,
+            to: to,
+            to_chain: to_chain,
+            fee: fee,
         }
     }
 
@@ -93,12 +93,12 @@ module token_bridge::transfer {
         let fee = deserialize_u256(&mut cur);
         cursor::destroy_empty(cur);
         Transfer {
-            amount,
-            token_address,
-            token_chain,
-            to,
-            to_chain,
-            fee
+            amount: amount,
+            token_address: from_vector(token_address),
+            token_chain: token_chain,
+            to: from_vector(to),
+            to_chain: to_chain,
+            fee: fee
         }
     }
 
@@ -106,9 +106,9 @@ module token_bridge::transfer {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 1);
         serialize_u256(&mut encoded, transfer.amount);
-        serialize_vector(&mut encoded, transfer.token_address);
+        serialize_vector(&mut encoded, get_bytes(&transfer.token_address));
         serialize_u16(&mut encoded, transfer.token_chain);
-        serialize_vector(&mut encoded, transfer.to);
+        serialize_vector(&mut encoded, get_bytes(&transfer.to));
         serialize_u16(&mut encoded, transfer.to_chain);
         serialize_u256(&mut encoded, transfer.fee);
         encoded

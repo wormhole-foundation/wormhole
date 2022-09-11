@@ -5,6 +5,7 @@ module token_bridge::asset_meta {
     use wormhole::cursor::{Self};
 
     use wormhole::u16::{U16};
+    use wormhole::external_address::{ExternalAddress, from_vector, get_bytes};
 
     use token_bridge::string32::{Self, String32};
 
@@ -18,7 +19,7 @@ module token_bridge::asset_meta {
 
     struct AssetMeta has key, store, drop {
         // Address of the token. Left-zero-padded if shorter than 32 bytes
-        token_address: vector<u8>,
+        token_address: ExternalAddress,
         // Chain ID of the token
         token_chain: U16,
         // Number of decimals of the token (big-endian uint256)
@@ -29,7 +30,7 @@ module token_bridge::asset_meta {
         name: String32,
     }
 
-    public fun get_token_address(a: &AssetMeta): vector<u8> {
+    public fun get_token_address(a: &AssetMeta): ExternalAddress {
         a.token_address
     }
 
@@ -62,7 +63,7 @@ module token_bridge::asset_meta {
         name: String32,
     ): AssetMeta {
         AssetMeta{
-            token_address,
+            token_address:from_vector(token_address),
             token_chain,
             decimals,
             symbol,
@@ -73,7 +74,7 @@ module token_bridge::asset_meta {
     public fun encode(meta: AssetMeta): vector<u8> {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 2);
-        serialize_vector(&mut encoded, meta.token_address);
+        serialize_vector(&mut encoded, get_bytes(&meta.token_address));
         serialize_u16(&mut encoded, meta.token_chain);
         serialize_u8(&mut encoded, meta.decimals);
         serialize_vector(&mut encoded, string32::to_bytes(&meta.symbol));
@@ -93,7 +94,7 @@ module token_bridge::asset_meta {
         let name = string32::from_bytes(deserialize_vector(&mut cur, 32));
         cursor::destroy_empty(cur);
         AssetMeta {
-            token_address,
+            token_address: from_vector(token_address),
             token_chain,
             decimals,
             symbol,
@@ -115,7 +116,7 @@ module token_bridge::asset_meta {
         // confusing. We should either make it ASCII, or just drop these
         // characters.
         serialize_vector(&mut seed, b"::");
-        serialize_vector(&mut seed, token_address);
+        serialize_vector(&mut seed, get_bytes(&token_address));
         seed
     }
 

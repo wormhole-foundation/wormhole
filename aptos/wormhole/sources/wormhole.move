@@ -8,6 +8,7 @@ module wormhole::wormhole {
     use wormhole::u16;
     use wormhole::u32::{Self, U32};
     use wormhole::emitter;
+    use wormhole::external_address::{from_vector};
 
     const E_INSUFFICIENT_FEE: u64 = 0;
 
@@ -87,7 +88,7 @@ module wormhole::wormhole {
             &wormhole,
             u16::from_u64(chain_id),
             u16::from_u64(governance_chain_id),
-            governance_contract,
+            from_vector(governance_contract),
             guardian_set_expiry,
             message_fee,
             signer_cap

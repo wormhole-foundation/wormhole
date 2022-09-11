@@ -8,6 +8,7 @@ module wormhole::state {
     use wormhole::u32::{Self, U32};
     use wormhole::emitter;
     use wormhole::set::{Self, Set};
+    use wormhole::external_address::{ExternalAddress};
 
     friend wormhole::guardian_set_upgrade;
     friend wormhole::contract_upgrade;
@@ -44,7 +45,7 @@ module wormhole::state {
         governance_chain_id: U16,
 
         /// Address of governance contract on governance chain
-        governance_contract: vector<u8>, //(TODO: create custom type for wormhole addresses)
+        governance_contract: ExternalAddress, //(TODO: create custom type for wormhole addresses)
 
         /// Mapping of guardian_set_index => guardian set
         guardian_sets: Table<u64, GuardianSet>,
@@ -72,7 +73,7 @@ module wormhole::state {
         wormhole: &signer,
         chain_id: U16,
         governance_chain_id: U16,
-        governance_contract: vector<u8>,
+        governance_contract: ExternalAddress,
         guardian_set_expiry: U32,
         message_fee: u64,
         signer_cap: account::SignerCapability
@@ -177,7 +178,7 @@ module wormhole::state {
         borrow_global_mut<WormholeState>(@wormhole).governance_chain_id = chain_id;
     }
 
-    public(friend) fun set_governance_contract(governance_contract: vector<u8>) acquires WormholeState {
+    public(friend) fun set_governance_contract(governance_contract: ExternalAddress) acquires WormholeState {
         borrow_global_mut<WormholeState>(@wormhole).governance_contract = governance_contract;
     }
 
@@ -198,7 +199,7 @@ module wormhole::state {
         *table::borrow(&state.guardian_sets, ind)
     }
 
-    public fun get_governance_contract(): vector<u8> acquires WormholeState {
+    public fun get_governance_contract(): ExternalAddress acquires WormholeState {
         borrow_global<WormholeState>(@wormhole).governance_contract
     }
 

@@ -6,6 +6,7 @@ module token_bridge::transfer_with_payload {
 
     use wormhole::u256::{U256};
     use wormhole::u16::{U16};
+    use wormhole::external_address::{ExternalAddress, from_vector, get_bytes};
 
     friend token_bridge::transfer_tokens;
 
@@ -15,7 +16,7 @@ module token_bridge::transfer_with_payload {
         // Amount being transferred (big-endian uint256)
         amount: U256,
         // Address of the token. Left-zero-padded if shorter than 32 bytes
-        token_address: vector<u8>,
+        token_address: ExternalAddress,
         // Chain ID of the token
         token_chain: U16,
         // Address of the recipient. Left-zero-padded if shorter than 32 bytes
@@ -32,7 +33,7 @@ module token_bridge::transfer_with_payload {
         a.amount
     }
 
-    public fun get_token_address(a: &TransferWithPayload): vector<u8> {
+    public fun get_token_address(a: &TransferWithPayload): ExternalAddress {
         a.token_address
     }
 
@@ -67,7 +68,7 @@ module token_bridge::transfer_with_payload {
     ): TransferWithPayload {
         TransferWithPayload {
             amount,
-            token_address,
+            token_address: from_vector(token_address),
             token_chain,
             to,
             to_chain,
@@ -80,7 +81,7 @@ module token_bridge::transfer_with_payload {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 3);
         serialize_u256(&mut encoded, transfer.amount);
-        serialize_vector(&mut encoded, transfer.token_address);
+        serialize_vector(&mut encoded, get_bytes(&transfer.token_address));
         serialize_u16(&mut encoded, transfer.token_chain);
         serialize_vector(&mut encoded, transfer.to);
         serialize_u16(&mut encoded, transfer.to_chain);
@@ -102,7 +103,7 @@ module token_bridge::transfer_with_payload {
         let payload = cursor::rest(cur);
         TransferWithPayload {
             amount,
-            token_address,
+            token_address: from_vector(token_address),
             token_chain,
             to,
             to_chain,
