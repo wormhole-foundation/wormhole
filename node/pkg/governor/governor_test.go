@@ -1113,8 +1113,8 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
 
-	// 24 hours after the big transaction is enqueued, it should still be there.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 3, 2022 at 2:01am (CST)")
+	// 23 hours after the big transaction is enqueued, it should still be there.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 3, 2022 at 1:01am (CST)")
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
@@ -1126,25 +1126,12 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
 
-	// 48 hours after the big transaction is enqueued, it should still be there.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 4, 2022 at 2:01am (CST)")
-	toBePublished, err = gov.CheckPendingForTime(now)
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(toBePublished))
-
-	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
-	require.NoError(t, err)
-	assert.Equal(t, 0, numTrans)
-	assert.Equal(t, uint64(0), valueTrans)
-	assert.Equal(t, 1, numPending)
-	assert.Equal(t, uint64(177461), valuePending)
-
-	// But then the operator resets the release time.
+	// // But then the operator resets the release time.
 	_, err = gov.resetReleaseTimerForTime(msg3.MessageIDString(), now)
 	require.NoError(t, err)
 
-	// So now, 72 hours after the big transaction is enqueued, it still won't get released.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 5, 2022 at 2:01am (CST)")
+	// So now, 12 hours later the big transaction is enqueued, it still won't get released.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 3, 2022 at 1:00pm (CST)")
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
@@ -1156,21 +1143,8 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
 
-	// And 24 hours later, it still won't get released.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 6, 2022 at 2:01am (CST)")
-	toBePublished, err = gov.CheckPendingForTime(now)
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(toBePublished))
-
-	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
-	require.NoError(t, err)
-	assert.Equal(t, 0, numTrans)
-	assert.Equal(t, uint64(0), valueTrans)
-	assert.Equal(t, 1, numPending)
-	assert.Equal(t, uint64(177461), valuePending)
-
-	// But finally, one more day later, it should get released.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 7, 2022 at 2:01am (CST)")
+	// But finally, a full 24hrs, it should get released.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 4, 2022 at 1:01am (CST)")
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))
@@ -1243,8 +1217,8 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(88730), valuePending)
 
-	// If we check a day later, nothing should happen.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
+	// If we check 23hrs later, nothing should happen.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 11:00am (CST)")
 	toBePublished, err := gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
@@ -1256,8 +1230,8 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(88730), valuePending)
 
-	// But after three days, it should get released.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 4, 2022 at 12:01pm (CST)")
+	// But after 24hrs, it should get released.
+	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(toBePublished))

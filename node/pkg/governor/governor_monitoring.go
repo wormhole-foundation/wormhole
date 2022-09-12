@@ -205,7 +205,7 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 		for _, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				pe.dbData.ReleaseTime = now.Add(MaxEnqueuedTime)
+				pe.dbData.ReleaseTime = now.Add(maxEnqueuedTime)
 				gov.logger.Info("cgov: updating the release time due to admin command",
 					zap.String("msgId", msgId),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),

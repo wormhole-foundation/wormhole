@@ -471,8 +471,8 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfers[0])
 	assert.Equal(t, xfer2, xfers[1])
-	assert.Equal(t, pending1, pendings[0])
-	assert.Equal(t, pending2, pendings[1])
+	assert.Equal(t, pending1.Msg, pendings[0].Msg)
+	assert.Equal(t, pending2.Msg, pendings[1].Msg)
 
 	// Make sure we can reload the updated pendings.
 
@@ -484,6 +484,6 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfers2[0])
 	assert.Equal(t, xfer2, xfers2[1])
-	assert.Equal(t, pending1, pendings2[0])
-	assert.Equal(t, pending2, pendings2[1])
+	assert.Equal(t, pending1.Msg, pendings2[0].Msg)
+	assert.Equal(t, pending2.Msg, pendings2[1].Msg)
 }
