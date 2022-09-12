@@ -67,7 +67,6 @@ export async function execute_aptos(
         default:
           impossible(payload)
           break
-
       }
       break
     default:
