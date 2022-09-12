@@ -65,7 +65,7 @@ func TestChainListBigTransfers(t *testing.T) {
 		// it's always ideal to have bigTransactionSize be less than dailyLimit
 		assert.Less(t, e.bigTransactionSize, e.dailyLimit)
 
-		// in fact, it's even better for bigTransactionSize not to exceed 1/5th the limit (convention has it at 1/10th to start)
-		assert.Less(t, e.bigTransactionSize, e.dailyLimit/5)
+		// in fact, it's even better for bigTransactionSize not to exceed 1/4th the limit (convention has it at 1/10th to start)
+		assert.Less(t, e.bigTransactionSize, e.dailyLimit/3)
 	}
 }
