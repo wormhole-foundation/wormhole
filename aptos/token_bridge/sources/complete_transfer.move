@@ -6,8 +6,8 @@ module token_bridge::complete_transfer {
     use token_bridge::transfer::{Self, Transfer};
     use token_bridge::state;
     use token_bridge::wrapped;
+    use token_bridge::normalized_amount;
 
-    use wormhole::u256;
     use wormhole::external_address::get_bytes;
 
     const E_INVALID_TARGET: u64 = 0;
@@ -34,9 +34,10 @@ module token_bridge::complete_transfer {
 
         state::assert_coin_origin_info<CoinType>(origin_info);
 
-        // Convert to u64. Aborts in case of overflow
-        let amount = u256::as_u64(transfer::get_amount(transfer));
-        let fee_amount = u256::as_u64(transfer::get_fee(transfer));
+        let decimals = coin::decimals<CoinType>();
+
+        let amount = normalized_amount::denormalize(transfer::get_amount(transfer), decimals);
+        let fee_amount = normalized_amount::denormalize(transfer::get_fee(transfer), decimals);
 
         let recipient = from_bcs::to_address(get_bytes(&transfer::get_to(transfer)));
 
@@ -67,13 +68,16 @@ module token_bridge::complete_transfer_test {
     use aptos_framework::string::{utf8};
 
     use token_bridge::transfer::{Self, Transfer};
+    use token_bridge::transfer_tokens;
     use token_bridge::token_hash;
     use token_bridge::complete_transfer;
     use token_bridge::token_bridge;
+    use token_bridge::wrapped;
+    use token_bridge::transfer_result;
+    use token_bridge::normalized_amount;
 
     use token_bridge::wrapped_test;
 
-    use wormhole::u256;
     use wormhole::state;
     use wormhole::wormhole_test;
     use wormhole::external_address;
@@ -82,10 +86,9 @@ module token_bridge::complete_transfer_test {
 
     struct OtherCoin {}
 
-    fun init_my_token(admin: &signer, amount: u64) {
+    fun init_my_token(admin: &signer, decimals: u8, amount: u64) {
         let name = utf8(b"mycoindd");
         let symbol = utf8(b"MCdd");
-        let decimals = 10;
         let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MyCoin>(admin, name, symbol, decimals, monitor_supply);
         coin::destroy_freeze_cap(freeze_cap);
@@ -100,6 +103,7 @@ module token_bridge::complete_transfer_test {
         token_bridge: &signer,
         to: address,
         fee_recipient: address,
+        decimals: u8,
         amount: u64,
     ) {
         // initialise wormhole and token bridge
@@ -107,7 +111,7 @@ module token_bridge::complete_transfer_test {
         token_bridge::init_test(deployer);
 
         // initialise MyToken
-        init_my_token(token_bridge, amount);
+        init_my_token(token_bridge, decimals, amount);
 
         // initialise 'to' and 'fee_recipient' and register them to accept MyCoins
         let to = &account::create_account_for_test(to);
@@ -127,7 +131,43 @@ module token_bridge::complete_transfer_test {
         deployer = @deployer,
         token_bridge = @token_bridge,
     )]
-    public fun test_native_transfer(
+    public fun test_native_transfer_10_decimals(
+        deployer: &signer,
+        token_bridge: &signer
+    ) {
+        let to = @0x12;
+        let fee_recipient = @0x32;
+        // the dust at the end will be removed during normalisation/denormalisation
+        let amount = 10010;
+        let fee_amount = 4000;
+        let decimals = 10;
+
+        setup(deployer, token_bridge, to, fee_recipient, decimals, amount);
+
+        let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
+        let token_chain = state::get_chain_id();
+        let to_chain = state::get_chain_id();
+        let transfer: Transfer = transfer::create(
+            normalized_amount::normalize(amount, decimals),
+            token_address,
+            token_chain,
+            external_address::from_bytes(bcs::to_bytes(&to)),
+            to_chain,
+            normalized_amount::normalize(fee_amount, decimals),
+        );
+
+        assert!(coin::balance<MyCoin>(to) == 0, 0);
+        assert!(coin::balance<MyCoin>(fee_recipient) == 0, 0);
+        complete_transfer::test<MyCoin>(&transfer, fee_recipient);
+        assert!(coin::balance<MyCoin>(to) == 6000, 0);
+        assert!(coin::balance<MyCoin>(fee_recipient) == 4000, 0);
+    }
+
+    #[test(
+        deployer = @deployer,
+        token_bridge = @token_bridge,
+    )]
+    public fun test_native_transfer_4_decimals(
         deployer: &signer,
         token_bridge: &signer
     ) {
@@ -135,20 +175,21 @@ module token_bridge::complete_transfer_test {
         let fee_recipient = @0x32;
         let amount = 100;
         let fee_amount = 40;
+        let decimals = 4;
 
-        setup(deployer, token_bridge, to, fee_recipient, amount);
+        // the token has 4 decimals, so no scaling is expected
+        setup(deployer, token_bridge, to, fee_recipient, decimals, amount);
 
         let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = state::get_chain_id();
         let to_chain = state::get_chain_id();
-        let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            u256::from_u64(amount),
+            normalized_amount::normalize(amount, decimals),
             token_address,
             token_chain,
             external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
-            fee,
+            normalized_amount::normalize(fee_amount, decimals),
         );
 
         assert!(coin::balance<MyCoin>(to) == 0, 0);
@@ -171,20 +212,20 @@ module token_bridge::complete_transfer_test {
         let fee_recipient = @0x32;
         let amount = 100;
         let fee_amount = 101; // FAIL: too much fee
+        let decimals = 8;
 
-        setup(deployer, token_bridge, to, fee_recipient, amount);
+        setup(deployer, token_bridge, to, fee_recipient, decimals, amount);
 
         let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = state::get_chain_id();
         let to_chain = state::get_chain_id();
-        let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            u256::from_u64(amount),
+            normalized_amount::normalize(amount, decimals),
             token_address,
             token_chain,
             external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
-            fee,
+            normalized_amount::normalize(fee_amount, decimals),
         );
         complete_transfer::test<MyCoin>(&transfer, fee_recipient);
     }
@@ -202,20 +243,20 @@ module token_bridge::complete_transfer_test {
         let fee_recipient = @0x32;
         let amount = 100;
         let fee_amount = 40;
+        let decimals = 8;
 
-        setup(deployer, token_bridge, to, fee_recipient, amount);
+        setup(deployer, token_bridge, to, fee_recipient, decimals, amount);
 
         let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = state::get_chain_id();
         let to_chain = state::get_chain_id();
-        let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            u256::from_u64(amount),
+            normalized_amount::normalize(amount, decimals),
             token_address,
             token_chain,
             external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
-            fee,
+            normalized_amount::normalize(fee_amount, decimals),
         );
         // FAIL: wrong type argument
         complete_transfer::test<OtherCoin>(&transfer, fee_recipient);
@@ -234,22 +275,65 @@ module token_bridge::complete_transfer_test {
         let fee_recipient = @0x32;
         let amount = 100;
         let fee_amount = 40;
+        let decimals = 8;
 
-        setup(deployer, token_bridge, to, fee_recipient, amount);
+        setup(deployer, token_bridge, to, fee_recipient, decimals, amount);
 
         let token_address = token_hash::get_external_address(&token_hash::derive<MyCoin>());
         let token_chain = wormhole::u16::from_u64(10); // FAIL: wrong origin chain (MyCoin is native)
         let to_chain = state::get_chain_id();
-        let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            u256::from_u64(amount),
+            normalized_amount::normalize(amount, decimals),
             token_address,
             token_chain,
             external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
-            fee,
+            normalized_amount::normalize(fee_amount, decimals),
         );
         complete_transfer::test<MyCoin>(&transfer, fee_recipient);
+    }
+
+    #[test(
+        deployer = @deployer,
+        token_bridge = @token_bridge,
+    )]
+    public fun test_wrapped_transfer_roundtrip(
+        deployer: &signer,
+        token_bridge: &signer
+    ) {
+        let to = @0x12;
+        let fee_recipient = @0x32;
+
+        setup(deployer, token_bridge, to, fee_recipient, 8, 0);
+
+        let beef_coins = wrapped::mint<wrapped_coin::coin::T>(100000);
+
+        let result = transfer_tokens::transfer_tokens_test<wrapped_coin::coin::T>(
+            beef_coins,
+            5000
+        );
+
+        let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
+            = transfer_result::destroy(result);
+
+
+        let to_chain = state::get_chain_id();
+        let transfer: Transfer = transfer::create(
+            normalized_amount,
+            token_address,
+            token_chain,
+            external_address::from_bytes(bcs::to_bytes(&to)),
+            to_chain,
+            normalized_relayer_fee,
+        );
+
+        assert!(coin::balance<wrapped_coin::coin::T>(to) == 0, 0);
+        assert!(coin::balance<wrapped_coin::coin::T>(fee_recipient) == 0, 0);
+
+        complete_transfer::test<wrapped_coin::coin::T>(&transfer, fee_recipient);
+
+        assert!(coin::balance<wrapped_coin::coin::T>(to) == 95000, 0);
+        assert!(coin::balance<wrapped_coin::coin::T>(fee_recipient) == 5000, 0);
     }
 
     #[test(
@@ -264,26 +348,29 @@ module token_bridge::complete_transfer_test {
         let fee_recipient = @0x32;
         let amount = 100;
         let fee_amount = 40;
+        let decimals = 8;
 
-        setup(deployer, token_bridge, to, fee_recipient, amount);
+        setup(deployer, token_bridge, to, fee_recipient, decimals, 0);
 
         let token_address = external_address::from_bytes(x"deadbeef");
         let token_chain = wormhole::u16::from_u64(2);
         let to_chain = state::get_chain_id();
-        let fee = u256::from_u64(fee_amount);
         let transfer: Transfer = transfer::create(
-            u256::from_u64(amount),
+            normalized_amount::normalize(amount, decimals),
             token_address,
             token_chain,
             external_address::from_bytes(bcs::to_bytes(&to)),
             to_chain,
-            fee,
+            normalized_amount::normalize(fee_amount, decimals),
         );
 
         assert!(coin::balance<wrapped_coin::coin::T>(to) == 0, 0);
         assert!(coin::balance<wrapped_coin::coin::T>(fee_recipient) == 0, 0);
+
         complete_transfer::test<wrapped_coin::coin::T>(&transfer, fee_recipient);
-        assert!(coin::balance<wrapped_coin::coin::T>(to) == 60, 0);
-        assert!(coin::balance<wrapped_coin::coin::T>(fee_recipient) == 40, 0);
+
+        // the wrapped asset has 9 decimals (see wrapped_test::init_wrapped_token)
+        assert!(coin::balance<wrapped_coin::coin::T>(to) == 600, 0);
+        assert!(coin::balance<wrapped_coin::coin::T>(fee_recipient) == 400, 0);
     }
 }

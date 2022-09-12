@@ -36,7 +36,7 @@ module token_bridge::attest_token {
     fun attest_token_internal<CoinType>(): AssetMeta {
         // wrapped assets and uninitialised type can't be attested.
         assert!(!state::is_wrapped_asset<CoinType>(), E_WRAPPED_ASSET);
-        assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED);
+        assert!(coin::is_coin_initialized<CoinType>(), E_COIN_IS_NOT_INITIALIZED); // not tested
 
         let token_address = token_hash::derive<CoinType>();
         if (!state::is_registered_native_asset<CoinType>()) {

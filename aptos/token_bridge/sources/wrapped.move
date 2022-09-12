@@ -19,6 +19,8 @@ module token_bridge::wrapped {
     friend token_bridge::transfer_tokens_test;
     #[test_only]
     friend token_bridge::wrapped_test;
+    #[test_only]
+    friend token_bridge::complete_transfer_test;
 
     const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
     const E_COIN_CAP_DOES_NOT_EXIST: u64 = 1;
