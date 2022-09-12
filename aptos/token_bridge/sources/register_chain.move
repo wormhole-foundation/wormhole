@@ -53,7 +53,7 @@ module token_bridge::register_chain {
 
     public entry fun submit_vaa(vaa: vector<u8>) {
         let vaa = vaa::parse_and_verify(vaa);
-        vaa::assert_governance(&vaa);
+        vaa::assert_governance(&vaa); // not tested
         token_bridge_vaa::replay_protect(&vaa);
 
         let RegisterChain { emitter_chain_id, emitter_address } = parse_payload(vaa::destroy(vaa));

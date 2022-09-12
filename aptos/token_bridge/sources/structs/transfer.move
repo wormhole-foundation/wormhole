@@ -3,17 +3,16 @@ module token_bridge::transfer {
     use wormhole::serialize::{
         serialize_u8,
         serialize_u16,
-        serialize_u256,
     };
     use wormhole::deserialize::{
         deserialize_u8,
         deserialize_u16,
-        deserialize_u256,
     };
-    use wormhole::cursor::{Self};
+    use wormhole::cursor;
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::u256::{U256};
-    use wormhole::u16::{U16};
+    use wormhole::u16::U16;
+
+    use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
     friend token_bridge::transfer_tokens;
 
@@ -22,9 +21,9 @@ module token_bridge::transfer {
 
     const E_INVALID_ACTION: u64 = 0;
 
-    struct Transfer has key, store, drop {
-        /// Amount being transferred (big-endian uint256)
-        amount: U256,
+    struct Transfer has drop {
+        /// Amount being transferred
+        amount: NormalizedAmount,
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
         /// Chain ID of the token
@@ -33,11 +32,11 @@ module token_bridge::transfer {
         to: ExternalAddress,
         /// Chain ID of the recipient
         to_chain: U16,
-        /// Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
-        fee: U256, //should be u256
+        /// Amount of tokens that the user is willing to pay as relayer fee. Must be <= Amount.
+        fee: NormalizedAmount,
     }
 
-    public fun get_amount(a: &Transfer): U256 {
+    public fun get_amount(a: &Transfer): NormalizedAmount {
         a.amount
     }
 
@@ -57,17 +56,17 @@ module token_bridge::transfer {
         a.to_chain
     }
 
-    public fun get_fee(a: &Transfer): U256 {
+    public fun get_fee(a: &Transfer): NormalizedAmount {
         a.fee
     }
 
     public(friend) fun create(
-        amount: U256,
+        amount: NormalizedAmount,
         token_address: ExternalAddress,
         token_chain: U16,
         to: ExternalAddress,
         to_chain: U16,
-        fee: U256,
+        fee: NormalizedAmount,
     ): Transfer {
         Transfer {
             amount,
@@ -83,12 +82,12 @@ module token_bridge::transfer {
         let cur = cursor::init(transfer);
         let action = deserialize_u8(&mut cur);
         assert!(action == 2, E_INVALID_ACTION);
-        let amount = deserialize_u256(&mut cur);
+        let amount = normalized_amount::deserialize(&mut cur);
         let token_address = external_address::deserialize(&mut cur);
         let token_chain = deserialize_u16(&mut cur);
         let to = external_address::deserialize(&mut cur);
         let to_chain= deserialize_u16(&mut cur);
-        let fee = deserialize_u256(&mut cur);
+        let fee = normalized_amount::deserialize(&mut cur);
         cursor::destroy_empty(cur);
         Transfer {
             amount,
@@ -103,12 +102,12 @@ module token_bridge::transfer {
     public fun encode(transfer: Transfer): vector<u8> {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 1);
-        serialize_u256(&mut encoded, transfer.amount);
+        normalized_amount::serialize(&mut encoded, transfer.amount);
         external_address::serialize(&mut encoded, transfer.token_address);
         serialize_u16(&mut encoded, transfer.token_chain);
         external_address::serialize(&mut encoded, transfer.to);
         serialize_u16(&mut encoded, transfer.to_chain);
-        serialize_u256(&mut encoded, transfer.fee);
+        normalized_amount::serialize(&mut encoded, transfer.fee);
         encoded
     }
 

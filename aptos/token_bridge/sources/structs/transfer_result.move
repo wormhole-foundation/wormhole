@@ -1,7 +1,8 @@
 module token_bridge::transfer_result {
-    use wormhole::u256::U256;
     use wormhole::u16::U16;
     use wormhole::external_address::ExternalAddress;
+
+    use token_bridge::normalized_amount::NormalizedAmount;
 
     friend token_bridge::transfer_tokens;
 
@@ -10,13 +11,13 @@ module token_bridge::transfer_result {
         token_chain: U16,
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
-        /// Amount being transferred (big-endian uint256)
-        normalized_amount: U256,
-        /// Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
-        normalized_relayer_fee: U256,
+        /// Amount being transferred
+        normalized_amount: NormalizedAmount,
+        /// Amount of tokens that the user is willing to pay as relayer fee. Must be <= Amount.
+        normalized_relayer_fee: NormalizedAmount,
     }
 
-    public fun destroy(a: TransferResult): (U16, ExternalAddress, U256, U256) {
+    public fun destroy(a: TransferResult): (U16, ExternalAddress, NormalizedAmount, NormalizedAmount) {
         let TransferResult {
             token_chain,
             token_address,
@@ -29,8 +30,8 @@ module token_bridge::transfer_result {
     public(friend) fun create(
         token_chain: U16,
         token_address: ExternalAddress,
-        normalized_amount: U256,
-        normalized_relayer_fee: U256,
+        normalized_amount: NormalizedAmount,
+        normalized_relayer_fee: NormalizedAmount,
         ): TransferResult {
             TransferResult {
                 token_chain,

@@ -5,8 +5,8 @@ module token_bridge::complete_transfer_with_payload {
     use token_bridge::transfer_with_payload::{Self as transfer, TransferWithPayload};
     use token_bridge::state;
     use token_bridge::wrapped;
+    use token_bridge::normalized_amount;
 
-    use wormhole::u256;
     use wormhole::emitter::{Self, EmitterCapability};
 
     const E_INVALID_RECIPIENT: u64 = 0;
@@ -30,8 +30,9 @@ module token_bridge::complete_transfer_with_payload {
 
         state::assert_coin_origin_info<CoinType>(origin_info);
 
-        // Convert to u64. Aborts in case of overflow
-        let amount = u256::as_u64(transfer::get_amount(&transfer));
+        let decimals = coin::decimals<CoinType>();
+
+        let amount = normalized_amount::denormalize(transfer::get_amount(&transfer), decimals);
 
         // transfers with payload can only be redeemed by the recipient.
         let recipient = transfer::get_to(&transfer);

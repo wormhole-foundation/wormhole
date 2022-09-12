@@ -3,7 +3,6 @@ module token_bridge::transfer_tokens {
     use aptos_framework::coin::{Self, Coin};
 
     use wormhole::u16::{Self, U16};
-    use wormhole::u256;
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::emitter::{Self, EmitterCapability};
 
@@ -11,7 +10,7 @@ module token_bridge::transfer_tokens {
     use token_bridge::transfer;
     use token_bridge::transfer_result::{Self, TransferResult};
     use token_bridge::transfer_with_payload;
-    use token_bridge::utils;
+    use token_bridge::normalized_amount;
     use token_bridge::wrapped;
 
     const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
@@ -136,8 +135,8 @@ module token_bridge::transfer_tokens {
 
         let decimals_token = coin::decimals<CoinType>();
 
-        let normalized_amount = utils::normalize_amount(u256::from_u64(amount), decimals_token);
-        let normalized_relayer_fee = utils::normalize_amount(u256::from_u64(relayer_fee), decimals_token);
+        let normalized_amount = normalized_amount::normalize(amount, decimals_token);
+        let normalized_relayer_fee = normalized_amount::normalize(relayer_fee, decimals_token);
 
         let transfer_result: TransferResult = transfer_result::create(
             token_chain,
@@ -163,6 +162,7 @@ module token_bridge::transfer_tokens_test {
     use token_bridge::transfer_result;
     use token_bridge::token_hash;
     use token_bridge::register_chain;
+    use token_bridge::normalized_amount;
 
     use wormhole::external_address::{Self};
 
@@ -236,8 +236,8 @@ module token_bridge::transfer_tokens_test {
         assert!(external_address::get_bytes(&token_address) == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
         // the coin has 12 decimals, so the amount gets scaled by a factor 10^-4
         // since the normalised amounts are 8 decimals
-        assert!(normalized_amount == wormhole::u256::from_u64(10), 0);
-        assert!(normalized_relayer_fee == wormhole::u256::from_u64(0), 0);
+        assert!(normalized_amount::get_amount(normalized_amount) == 10, 0);
+        assert!(normalized_amount::get_amount(normalized_relayer_fee) == 0, 0);
     }
 
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
@@ -280,7 +280,7 @@ module token_bridge::transfer_tokens_test {
         assert!(token_chain == wormhole::state::get_chain_id(), 0);
         assert!(token_address == token_hash::get_external_address(&token_hash::derive<MyCoin>()), 0);
         // the coin has 6 decimals, so the amount doesn't get scaled
-        assert!(normalized_amount == wormhole::u256::from_u64(10000), 0);
-        assert!(normalized_relayer_fee == wormhole::u256::from_u64(500), 0);
+        assert!(normalized_amount::get_amount(normalized_amount) == 10000, 0);
+        assert!(normalized_amount::get_amount(normalized_relayer_fee) == 500, 0);
     }
 }

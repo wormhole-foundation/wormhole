@@ -1,12 +1,20 @@
 module token_bridge::transfer_with_payload {
-    use 0x1::vector::{Self};
-    use wormhole::serialize::{serialize_u8, serialize_u16, serialize_u256, serialize_vector};
-    use wormhole::deserialize::{deserialize_u8, deserialize_u16, deserialize_u256};
-    use wormhole::cursor::{Self};
+    use std::vector;
+    use wormhole::serialize::{
+        serialize_u8,
+        serialize_u16,
+        serialize_vector,
+    };
+    use wormhole::deserialize::{
+        deserialize_u8,
+        deserialize_u16,
+    };
+    use wormhole::cursor;
 
-    use wormhole::u256::{U256};
-    use wormhole::u16::{U16};
+    use wormhole::u16::U16;
     use wormhole::external_address::{Self, ExternalAddress};
+
+    use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
     friend token_bridge::transfer_tokens;
 
@@ -14,7 +22,7 @@ module token_bridge::transfer_with_payload {
 
     struct TransferWithPayload has key, store, drop {
         /// Amount being transferred (big-endian uint256)
-        amount: U256,
+        amount: NormalizedAmount,
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
         /// Chain ID of the token
@@ -29,7 +37,7 @@ module token_bridge::transfer_with_payload {
         payload: vector<u8>,
     }
 
-    public fun get_amount(a: &TransferWithPayload): U256 {
+    public fun get_amount(a: &TransferWithPayload): NormalizedAmount {
         a.amount
     }
 
@@ -58,7 +66,7 @@ module token_bridge::transfer_with_payload {
     }
 
     public(friend) fun create(
-        amount: U256,
+        amount: NormalizedAmount,
         token_address: ExternalAddress,
         token_chain: U16,
         to: ExternalAddress,
@@ -80,7 +88,7 @@ module token_bridge::transfer_with_payload {
     public fun encode(transfer: TransferWithPayload): vector<u8> {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 3);
-        serialize_u256(&mut encoded, transfer.amount);
+        normalized_amount::serialize(&mut encoded, transfer.amount);
         external_address::serialize(&mut encoded, transfer.token_address);
         serialize_u16(&mut encoded, transfer.token_chain);
         external_address::serialize(&mut encoded, transfer.to);
@@ -94,7 +102,7 @@ module token_bridge::transfer_with_payload {
         let cur = cursor::init(transfer);
         let action = deserialize_u8(&mut cur);
         assert!(action == 3, E_INVALID_ACTION);
-        let amount = deserialize_u256(&mut cur);
+        let amount = normalized_amount::deserialize(&mut cur);
         let token_address = external_address::deserialize(&mut cur);
         let token_chain = deserialize_u16(&mut cur);
         let to = external_address::deserialize(&mut cur);
