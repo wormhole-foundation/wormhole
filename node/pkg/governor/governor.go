@@ -47,7 +47,7 @@ const (
 	GoTestMode  = 4
 )
 
-const maxEnqueuedTime = time.Duration(time.Hour * 72)
+const maxEnqueuedTime = time.Duration(time.Hour * 24)
 
 type (
 	// Layout of the config data for each token
