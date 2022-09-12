@@ -1,3 +1,17 @@
+/// This module implements upgradeability for the wormhole contract.
+///
+/// Contract upgrades are authorised by governance, which means that performing
+/// an upgrade requires a governance VAA signed by a supermajority of the
+/// wormhole guardians.
+///
+/// Upgrades are performed in a commit-reveal scheme, where submitting the VAA
+/// authorises a particular contract hash. Then in a subsequent transaction, the
+/// bytecode is uploaded, and if the hash of the bytecode matches the committed
+/// hash, then the upgrade proceeds.
+///
+/// This two-phase process has the advantage that even if the bytecode can't be
+/// upgraded to for whatever reason, the governance VAA won't be possible to
+/// replay in the future, since the commit transaction replay protects it.
 module wormhole::contract_upgrade {
     use std::aptos_hash;
     use std::vector;
@@ -16,7 +30,9 @@ module wormhole::contract_upgrade {
     const E_INVALID_ACTION: u64 = 3;
     const E_INVALID_TARGET: u64 = 4;
 
-    // TODO(csongor): document how this works
+    /// The `UpgradeAuthorized` type in the global storage represents the fact
+    /// there is an ongoing approved upgrade.
+    /// When the upgrade is finalised in `upgrade`, this object is deleted.
     struct UpgradeAuthorized has key {
         hash: vector<u8>
     }
@@ -25,7 +41,6 @@ module wormhole::contract_upgrade {
         hash: vector<u8>
     }
 
-    // TODO(csongor): maybe a parse and verify...?
     fun parse_payload(payload: vector<u8>): Hash {
         let cur = cursor::init(payload);
         let target_module = deserialize::deserialize_vector(&mut cur, 32);
@@ -44,6 +59,9 @@ module wormhole::contract_upgrade {
 
         Hash { hash }
     }
+
+// -----------------------------------------------------------------------------
+// Commit
 
     public entry fun submit_vaa(
         vaa: vector<u8>
@@ -71,6 +89,9 @@ module wormhole::contract_upgrade {
         let u = borrow_global<UpgradeAuthorized>(@wormhole);
         u.hash
     }
+
+// -----------------------------------------------------------------------------
+// Reveal
 
     public entry fun upgrade(
         metadata_serialized: vector<u8>,
