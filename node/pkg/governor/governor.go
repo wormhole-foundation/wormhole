@@ -47,7 +47,7 @@ const (
 	GoTestMode  = 4
 )
 
-const maxEnqueuedTime = time.Duration(time.Hour * 24)
+const MaxEnqueuedTime = time.Duration(time.Hour * 24)
 
 type (
 	// Layout of the config data for each token
@@ -341,7 +341,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	var releaseTime time.Time
 	if ce.isBigTransfer(value) {
 		enqueueIt = true
-		releaseTime = now.Add(maxEnqueuedTime)
+		releaseTime = now.Add(MaxEnqueuedTime)
 		gov.logger.Error("cgov: enqueuing vaa because it is a big transaction",
 			zap.Uint64("value", value),
 			zap.Uint64("prevTotalValue", prevTotalValue),
@@ -352,7 +352,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		)
 	} else if newTotalValue > ce.dailyLimit {
 		enqueueIt = true
-		releaseTime = now.Add(maxEnqueuedTime)
+		releaseTime = now.Add(MaxEnqueuedTime)
 		gov.logger.Error("cgov: enqueuing vaa because it would exceed the daily limit",
 			zap.Uint64("value", value),
 			zap.Uint64("prevTotalValue", prevTotalValue),

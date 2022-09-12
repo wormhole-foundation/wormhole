@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/dgraph-io/badger/v3"
 
@@ -224,6 +225,14 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 					return err
 				}
 
+				if (p.ReleaseTime.Sub(time.Now()) > governor.MaxEnqueuedTime) {
+					p.ReleaseTime = now.Add(governor.MaxEnqueuedTime)
+					err := d.StorePendingMsg(p)
+					if err != nil {
+						return fmt.Errorf("failed to write new pending msg for key [%v]: %w", p.Msg.MessageIDString(), err)
+					}
+				}
+
 				pending = append(pending, p)
 			} else if IsTransfer(key) {
 				v, err := UnmarshalTransfer(val)
@@ -238,7 +247,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 					return err
 				}
 
-				p := &PendingTransfer{ReleaseTime: now.Add(time.Duration(time.Hour * 72)), Msg: *msg}
+				p := &PendingTransfer{ReleaseTime: now.Add(governor.MaxEnqueuedTime), Msg: *msg}
 				pending = append(pending, p)
 				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			}
