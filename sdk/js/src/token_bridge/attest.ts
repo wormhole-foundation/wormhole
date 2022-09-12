@@ -248,7 +248,7 @@ export async function attestTokenFromNear(
     contractId: tokenBridge,
     methodName: "attest_token",
     args: { token: asset, message_fee: message_fee },
-    attachedDeposit: new BN("3000000000000000000000") + new BN(message_fee), // 0.003 NEAR
+    attachedDeposit: new BN("3000000000000000000000").add(new BN(message_fee)), // 0.003 NEAR
     gas: new BN("100000000000000"),
   });
 
