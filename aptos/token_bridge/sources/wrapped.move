@@ -1,6 +1,5 @@
 module token_bridge::wrapped {
     use aptos_framework::account;
-    use aptos_framework::signer::{address_of};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
 
     use wormhole::vaa;
@@ -33,7 +32,7 @@ module token_bridge::wrapped {
 
     // this function is called before create_wrapped_coin
     // TODO(csongor): document why these two are in separate transactions
-    public entry fun create_wrapped_coin_type(vaa: vector<u8>): address {
+    public entry fun create_wrapped_coin_type(vaa: vector<u8>) {
         // NOTE: we do not do replay protection here, only verify that the VAA
         // comes from a known emitter. This is because `create_wrapped_coin`
         // itself will need to verify the VAA again in a separate transaction,
@@ -57,9 +56,6 @@ module token_bridge::wrapped {
 
         deploy_coin(&new_signer);
         state::set_wrapped_asset_signer_capability(origin_info, new_cap);
-
-        // return address of the new signer
-        address_of(&new_signer)
     }
 
     // this function is called in tandem with bridge_implementation::create_wrapped_coin_type
@@ -193,7 +189,7 @@ module token_bridge::wrapped_test {
     fun test_create_wrapped_coin_unregistered(deployer: &signer) {
         setup(deployer);
 
-        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
     }
 
     struct YourCoin {}
@@ -209,7 +205,7 @@ module token_bridge::wrapped_test {
     fun test_create_wrapped_coin_bad_type(deployer: &signer) {
         setup(deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
-        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
 
         // initialize coin using type T, move caps to token_bridge, sets bridge state variables
         wrapped::create_wrapped_coin<YourCoin>(ATTESTATION_VAA);
@@ -221,7 +217,7 @@ module token_bridge::wrapped_test {
         setup(deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
 
-        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
 
         // assert coin is NOT initialized
         assert!(!coin::is_coin_initialized<T>(), 0);
