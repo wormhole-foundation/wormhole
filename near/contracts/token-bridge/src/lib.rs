@@ -993,7 +993,7 @@ impl TokenBridge {
             env::panic_str("transfer exceeds max bridged token amount");
         }
 
-        let dust = amount - (namount * NEAR_MULT) - (nfee * NEAR_MULT);
+        let dust = amount - (namount * NEAR_MULT);
 
         let mut p = [
             // PayloadID uint8 = 1
