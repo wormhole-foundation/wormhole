@@ -1,7 +1,7 @@
 *.log
 build
 **/node_modules
-**/.aptos/testnet
+/aptos/.aptos/**
 .idea
 .dccache
 .arcconfig

@@ -87,10 +87,10 @@ module deployer::deployer {
         code: vector<vector<u8>>,
         seed: vector<u8>
     ) {
-        let (wormhole, signer_cap) = account::create_resource_account(deployer, seed);
+        let (resource_signer, signer_cap) = account::create_resource_account(deployer, seed);
         let deployer = signer::address_of(deployer);
-        move_to(&wormhole, DeployingSignerCapability { signer_cap, deployer });
-        code::publish_package_txn(&wormhole, metadata_serialized, code);
+        move_to(&resource_signer, DeployingSignerCapability { signer_cap, deployer });
+        code::publish_package_txn(&resource_signer, metadata_serialized, code);
     }
 
     public fun claim_signer_capability(

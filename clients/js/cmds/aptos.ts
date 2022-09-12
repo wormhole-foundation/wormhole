@@ -151,7 +151,8 @@ exports.builder = function (y: typeof yargs) {
       // TODO(csongor): use deployer address from sdk (when it's there)
       await callEntryFunc(
         network,
-        "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer",
+        "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer",
+        //"0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer",
         "deploy_derived",
         [],
         [
