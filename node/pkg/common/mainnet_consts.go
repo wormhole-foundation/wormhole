@@ -112,6 +112,7 @@ var knownTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDKlaytn:    "0000000000000000000000005b08ac39EAED75c0439FC750d9FE7E1F9dD0193F",
 	vaa.ChainIDCelo:      "000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed",
 	vaa.ChainIDNear:      "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7",
+	vaa.ChainIDMoonbeam:  "000000000000000000000000B1731c586ca89a23809861c6103F0b96B3F57D92",
 }
 
 // KnownNFTBridgeEmitters is a list of well-known mainnet emitters for the NFT bridge.
@@ -129,6 +130,7 @@ var knownNFTBridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDAcala:     "000000000000000000000000b91e3638F82A1fACb28690b37e3aAE45d2c33808",
 	vaa.ChainIDKlaytn:    "0000000000000000000000003c3c561757BAa0b78c5C025CdEAa4ee24C1dFfEf",
 	vaa.ChainIDCelo:      "000000000000000000000000A6A377d75ca5c9052c9a77ED1e865Cc25Bd97bf3",
+	vaa.ChainIDMoonbeam:  "000000000000000000000000453cfBe096C0f8D763E8C5F24B441097d577bdE2",
 }
 
 func GetEmitterAddressForChain(chainID vaa.ChainID, emitterType EmitterType) (vaa.Address, error) {

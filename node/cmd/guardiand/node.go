@@ -398,10 +398,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 	readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 	readiness.RegisterComponent(common.ReadinessCeloSyncing)
+	readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
 
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
-		readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
 		readiness.RegisterComponent(common.ReadinessNeonSyncing)
 		readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
 	}
@@ -539,18 +539,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	} else if *nearContract != "" {
 		logger.Fatal("If --nearContract is specified, then --nearRPC must be specified")
 	}
+	if *moonbeamRPC == "" {
+		logger.Fatal("Please specify --moonbeamRPC")
+	}
+	if *moonbeamContract == "" {
+		logger.Fatal("Please specify --moonbeamContract")
+	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
 			logger.Fatal("Please specify --ethRopstenRPC")
 		}
 		if *ethRopstenContract == "" {
 			logger.Fatal("Please specify --ethRopstenContract")
-		}
-		if *moonbeamRPC == "" {
-			logger.Fatal("Please specify --moonbeamRPC")
-		}
-		if *moonbeamContract == "" {
-			logger.Fatal("Please specify --moonbeamContract")
 		}
 		if *neonRPC == "" {
 			logger.Fatal("Please specify --neonRPC")
@@ -573,12 +573,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
-		}
-		if *moonbeamRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --moonbeamRPC")
-		}
-		if *moonbeamContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --moonbeamContract")
 		}
 		if *neonRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonRPC")
@@ -815,8 +809,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest)
 	chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest)
 	if *testnetMode {
-		chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest)
@@ -983,14 +977,14 @@ func runNode(cmd *cobra.Command, args []string) {
 			ethereum.NewEthWatcher(*celoRPC, celoContractAddr, "celo", common.ReadinessCeloSyncing, vaa.ChainIDCelo, lockC, nil, 1, chainObsvReqC[vaa.ChainIDCelo], *unsafeDevMode).Run); err != nil {
 			return err
 		}
+		if err := supervisor.Run(ctx, "moonbeamwatch",
+			ethereum.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", common.ReadinessMoonbeamSyncing, vaa.ChainIDMoonbeam, lockC, nil, 1, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run); err != nil {
+			return err
+		}
 
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
 				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, nil, 1, chainObsvReqC[vaa.ChainIDEthereumRopsten], *unsafeDevMode).Run); err != nil {
-				return err
-			}
-			if err := supervisor.Run(ctx, "moonbeamwatch",
-				ethereum.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", common.ReadinessMoonbeamSyncing, vaa.ChainIDMoonbeam, lockC, nil, 1, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run); err != nil {
 				return err
 			}
 			if err := supervisor.Run(ctx, "neonwatch",
