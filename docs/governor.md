@@ -59,7 +59,8 @@ guardiand admin governor-release-pending-vaa "emitted_chain_ID/address/sequence_
 NOTE: VAAs that are published this way will not affect the rolling 24hr limit.
 
 When a VAA is released, it will be placed in a holding area until the next pending VAA check so there may be some delay for it to actually be published.
-**Warning:** *Releasing a VAA manually should rarely if ever occur.  If Guardians believe a VAA should not be censored, they should abstain from releasing VAAs early.  If a super majority of Guardians either (1) abstain or (2) manually release, the VAA will be signed and published once the time delay is met and super majority agrees to sign and publish.*
+
+**Warning:** *Releasing a VAA manually should rarely if ever occur.  If Guardians believe a VAA is not invalid (i.e. resulting from an exploit), they should abstain from releasing VAAs early.  If a super majority of Guardians either (1) abstain or (2) manually release, the VAA will be signed and published once the time delay is met and super majority agrees to sign and publish.*
 
 ### Dropping VAAs
 
