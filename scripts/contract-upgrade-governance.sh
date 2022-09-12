@@ -166,6 +166,10 @@ case "$chain_name" in
     explorer="https://celoscan.xyz/address/"
     evm=true
     ;;
+  near)
+    chain=15
+    explorer="https://explorer.near.org/accounts/"
+    ;;
   *)
     echo "Unknown chain: $chain_name" >&2
     exit 1
@@ -236,6 +240,20 @@ function solana_artifact() {
     ;;
   nft_bridge)
     echo "artifacts-mainnet/nft_bridge.so"
+    ;;
+  *) echo "unknown module $module" >&2
+     usage
+     ;;
+  esac
+}
+
+function near_artifact() {
+  case "$module" in
+  bridge|core)
+    echo "artifacts/near_wormhole.wasm"
+    ;;
+  token_bridge)
+    echo "artifacts/near_token_bridge.wasm"
     ;;
   *) echo "unknown module $module" >&2
      usage
@@ -365,6 +383,22 @@ elif [ "$chain_name" = "solana" ]; then
 	\`\`\`shell
 	# $module
 	wormhole/solana$ ./verify -n mainnet $(solana_artifact) $address
+	\`\`\`
+EOF
+elif [ "$chain_name" = "near" ]; then
+  cat <<-EOF >> "$instructions_file"
+	## Build
+	\`\`\`shell
+	wormhole/near $ make artifacts
+	\`\`\`
+
+	This command will compile all the contracts into the \`artifacts\` directory using Docker to ensure that the build artifacts are deterministic.
+
+	Next, you can look at the checksums of the built .wasm files
+
+	\`\`\`shell
+	# $module
+	wormhole/near$ sha256sum $(near_artifact)
 	\`\`\`
 EOF
 elif [ "$chain_name" = "terra" ]; then
