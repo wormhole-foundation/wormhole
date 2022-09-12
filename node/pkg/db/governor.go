@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/dgraph-io/badger/v3"
 
 	"go.uber.org/zap"
 )
+
+// WARNING: Change me in ./node/governor as well
+const maxEnqueuedTime = time.Duration(time.Hour * 24)
 
 type GovernorDB interface {
 	StoreTransfer(t *Transfer) error
@@ -225,8 +227,8 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 					return err
 				}
 
-				if (p.ReleaseTime.Sub(time.Now()) > governor.MaxEnqueuedTime) {
-					p.ReleaseTime = now.Add(governor.MaxEnqueuedTime)
+				if p.ReleaseTime.Sub(time.Now()) > maxEnqueuedTime {
+					p.ReleaseTime = now.Add(maxEnqueuedTime)
 					err := d.StorePendingMsg(p)
 					if err != nil {
 						return fmt.Errorf("failed to write new pending msg for key [%v]: %w", p.Msg.MessageIDString(), err)
@@ -247,7 +249,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 					return err
 				}
 
-				p := &PendingTransfer{ReleaseTime: now.Add(governor.MaxEnqueuedTime), Msg: *msg}
+				p := &PendingTransfer{ReleaseTime: now.Add(maxEnqueuedTime), Msg: *msg}
 				pending = append(pending, p)
 				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			}
