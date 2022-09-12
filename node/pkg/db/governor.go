@@ -227,7 +227,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 					return err
 				}
 
-				if p.ReleaseTime.Sub(time.Now()) > maxEnqueuedTime {
+				if time.Until(p.ReleaseTime) > maxEnqueuedTime {
 					p.ReleaseTime = now.Add(maxEnqueuedTime)
 					err := d.StorePendingMsg(p)
 					if err != nil {
