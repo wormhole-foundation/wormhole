@@ -155,30 +155,32 @@ authorise *arbitrary* actions on behalf of the user, such as withdrawing their
 coins:
 
 ``` rust
-public entry fun foo(user: &signer) {
-    use aptos_framework::coin;
-    use aptos_framework::aptos_coin::{AptosCoin};
+use aptos_framework::coin;
+use aptos_framework::aptos_coin::AptosCoin;
 
+public entry fun foo(user: &signer) {
     let coins = coin::withdraw<AptosCoin>(user, 100);
+
     // ...
 }
 ```
 
 The `user` value can even be passed on to other functions down the call stack,
-and thus we consider it an *anti-pattern*. A user has to fully trust `foo` and
-potentially understand its implementation to be sure that the transaction is
-safe to sign. Since the `signer` object can be passed arbitrarily deep into the
-call stack, tracing the exact path is onerous. This hurts composability too,
-because composing contracts that take `signer`s now places additional burden on
-each caller to ensure that the callee contract is non-malicious and trust that
-it won't turn malicious in the future through an upgrade.
+so the user has to fully trust `foo` and potentially understand its
+implementation to be sure that the transaction is safe to sign. Since the
+`signer` object can be passed arbitrarily deep into the call stack, tracing the
+exact path is onerous. This hurts composability too, because composing contracts
+that take `signer`s now places additional burden on each caller to ensure that
+the callee contract is non-malicious and trust that it won't turn malicious in
+the future through an upgrade. Thus we consider taking `signer` arguments an
+*anti-pattern*, and avoid it wherever possible.
 
 Here, `foo` requires the user's `signer` to be able to withdraw 100 aptos coins.
 A clearer and safer way to achieve this is by writing `foo` in the following way:
 
 ``` rust
 use aptos_framework::coin::{Self, Coin};
-use aptos_framework::aptos_coin::{AptosCoin};
+use aptos_framework::aptos_coin::AptosCoin;
 
 public entry fun foo(coins: Coin<AptosCoin>) {
     assert!(coin::value(&coins) == 100, SOME_ERROR_CODE);
@@ -322,8 +324,15 @@ since the caller contract needs to pass in the reference. It is also possible
 for a single application to have multiple emitter identities at the same time,
 which uncovers new use cases that have not been easily possible in other chains.
 
-- TODO: deployment
-- TODO: newtypes
-- TODO: globally unique types
-- TODO: numeric types
-- TODO: chain id into state (better than hardcoding)
+## Contract deployment/upgrades
+
+In order to support security patches and new features, the wormhole contracts
+implement upgradeability through governance. For this to be possible without one
+single entity having full control over the contracts, the contracts need to be
+their own signing authority. For details on how this is implemented, see
+[deployer.move](./deployer/sources/deployer.move) and
+[contract_upgrade.move](./wormhole/sources/contract_upgrade.move).
+
+## Newtypes
+
+TODO
