@@ -213,7 +213,7 @@ module token_bridge::transfer_tokens_test {
         setup(aptos_framework, token_bridge, deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
         // TODO(csongor): create a better error message when attestation is missing
-        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
         // TODO(csongor): write a blurb about why this test works (something
         // something static linking)
         // initialize coin using type T, move caps to token_bridge, sets bridge state variables
@@ -249,7 +249,7 @@ module token_bridge::transfer_tokens_test {
     ) {
         setup(aptos_framework, token_bridge, deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
-        let _addr = wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
+        wrapped::create_wrapped_coin_type(ATTESTATION_VAA);
         wrapped::create_wrapped_coin<T>(ATTESTATION_VAA);
 
         // this will fail because the relayer fee exceeds the amount

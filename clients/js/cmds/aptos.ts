@@ -60,7 +60,7 @@ exports.builder = function (y: typeof yargs) {
 
       const contract_address = evm_address(argv["contract-address"]);
 
-      await callEntryFunc(network, `${contract_address}::token_bridge`, "init", []);
+      await callEntryFunc(network, `${contract_address}::token_bridge`, "init", [], []);
     })
     .command("init-wormhole", "Init Wormhole core contract", (yargs) => {
       return yargs
@@ -113,7 +113,7 @@ exports.builder = function (y: typeof yargs) {
         BCS.bcsSerializeBytes(Buffer.from(guardian_address, "hex"))
       ]
 
-      await callEntryFunc(network, `${contract_address}::wormhole`, "init", args);
+      await callEntryFunc(network, `${contract_address}::wormhole`, "init", [], args);
     })
     .command("deploy <package-dir>", "Deploy an Aptos package", (yargs) => {
       return yargs
@@ -128,7 +128,7 @@ exports.builder = function (y: typeof yargs) {
       const p = buildPackage(argv["package-dir"]);
       const b = serializePackage(p);
 
-      await callEntryFunc(network, "0x1::code", "publish_package_txn", [b.meta, b.bytecodes])
+      await callEntryFunc(network, "0x1::code", "publish_package_txn", [], [b.meta, b.bytecodes])
       console.log("Deployed:", p.mv_files)
     })
     .command("deploy-resource <seed> <package-dir>", "Deploy an Aptos package using a resource account", (yargs) => {
@@ -153,6 +153,7 @@ exports.builder = function (y: typeof yargs) {
         network,
         "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer",
         "deploy_derived",
+        [],
         [
           b.meta,
           b.bytecodes,
@@ -200,6 +201,7 @@ exports.builder = function (y: typeof yargs) {
         network,
         `${argv["contract-address"]}::contract_upgrade`,
         "upgrade",
+        [],
         [
           b.meta,
           b.bytecodes,

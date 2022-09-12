@@ -61,13 +61,7 @@ module wormhole::deserialize {
 
     public fun deserialize_vector(cur: &mut Cursor<u8>, len: u64): vector<u8> {
         let result = vector::empty();
-        while ({
-            spec {
-                invariant len >= 0;
-                invariant len <  vector::length(bytes);
-            };
-            len > 0
-        }) {
+        while (len > 0) {
             vector::push_back(&mut result, cursor::poke(cur));
             len = len - 1;
         };
