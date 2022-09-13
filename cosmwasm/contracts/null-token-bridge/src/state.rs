@@ -22,7 +22,7 @@ use cosmwasm_storage::{
     Singleton,
 };
 
-use wormhole::byte_utils::ByteUtils;
+use null_wormhole::byte_utils::ByteUtils;
 
 use crate::token_address::{ExternalTokenId, WrappedCW20};
 
