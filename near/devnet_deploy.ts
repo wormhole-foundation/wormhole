@@ -5,6 +5,7 @@ const BN = require("bn.js");
 const fs = require("fs");
 const fetch = require("node-fetch");
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
+const { parseSeedPhrase, generateSeedPhrase } = require("near-seed-phrase");
 
 function getConfig(env: any) {
   switch (env) {
@@ -73,6 +74,18 @@ async function initNear() {
     "Finish init NEAR masterAccount: " +
       JSON.stringify(await masterAccount.getAccountBalance())
   );
+
+  if (e === "sandbox") {
+      let da = parseSeedPhrase("weather opinion slam purpose access artefact word orbit matter rice poem badge");
+      console.log(da);
+      let resp = await masterAccount.createAccount(
+          "devnet.test.near",
+          da.publicKey,
+          new BN(10).pow(new BN(25))
+      );
+
+      console.log("devnet.test.near funded");
+  }
 
   const wormholeContract = await fs.readFileSync("./near_wormhole.wasm");
   const tokenContract = await fs.readFileSync("./near_token_bridge.wasm");
