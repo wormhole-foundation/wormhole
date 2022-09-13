@@ -1509,6 +1509,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "shutdown-token-bridge-terra-2"
+version = "0.1.0"
+dependencies = [
+ "bigint",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw20",
+ "cw20-base",
+ "cw20-wrapped-2",
+ "generic-array",
+ "hex",
+ "k256 0.9.6",
+ "lazy_static",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha3",
+ "shutdown-wormhole-bridge-terra-2",
+ "terraswap",
+ "thiserror",
+]
+
+[[package]]
+name = "shutdown-wormhole-bridge-terra-2"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw20",
+ "cw20-base",
+ "cw20-wrapped-2",
+ "generic-array",
+ "getrandom 0.2.3",
+ "hex",
+ "k256 0.9.6",
+ "lazy_static",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha3",
+ "thiserror",
+]
+
+[[package]]
 name = "signature"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
