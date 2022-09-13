@@ -81,7 +81,7 @@ async function initNear() {
       let resp = await masterAccount.createAccount(
           "devnet.test.near",
           da.publicKey,
-          new BN(10).pow(new BN(25))
+          new BN(10).pow(new BN(27))
       );
 
       console.log("devnet.test.near funded");
