@@ -117,7 +117,7 @@ def vaa_verify_program():
         Approve()]
     )
 
-def get_vaa_verify(file_name):
+def get_vaa_verify(file_name = "teal/vaa_verify.teal"):
     teal = compileTeal(vaa_verify_program(), mode=Mode.Signature, version=6)
 
     with open(file_name, "w") as f:
@@ -126,9 +126,7 @@ def get_vaa_verify(file_name):
     return teal
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        file_name = "teal/vaa_verify.teal"
+    if len(sys.argv) == 2:
+        get_vaa_verify(sys.argv[1])
     else:
-        file_name = sys.argv[1]
-    
-    get_vaa_verify(file_name)
+        get_vaa_verify()
