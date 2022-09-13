@@ -26,11 +26,12 @@ constant flux, so these steps are subject to change.
 Install the `aptos` CLI. This tool is used to compile the contracts and run the tests.
 
 ``` sh
-cargo install --git https://github.com/aptos-labs/aptos-core.git aptos --rev 8ba12c5badeb68d8ff4625a32aceb9043398b16b
+$ git clone https://github.com/aptos-labs/aptos-core.git
+$ cd aptos-core
+aptos-core $ cargo build --package aptos --release
+aptos-core $ mv target/release/aptos ~/.cargo/bin/aptos # move the binary to somewhere on your PATH
 ```
 
-Note that we currently build from a known commit that supports the `keccak256`
-hash function needed to verify VAA signatures.
 
 Next, install the [worm](../clients/js/README.md) CLI tool by running
 
