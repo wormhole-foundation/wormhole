@@ -28,8 +28,10 @@ describe('Wormhole', () => {
 
 		const tmplSig = await WormholeTmplSig.compileTmplSig(helper.deployer, sequence, emitterId, coreId)
 		const tmplSigDirect = new WormholeTmplSig(sequence, emitterId, coreId)
-
-		expect(tmplSig.lsig.logic).toEqual(tmplSigDirect.logicSig.lsig.logic)
+		const bytecode = tmplSigDirect.logicSig.lsig.logic
+		const returnOpcode = 0x43
+		const bytecodeWithReturn = new Uint8Array([...bytecode, returnOpcode])
+		expect(tmplSig.lsig.logic).toEqual(bytecodeWithReturn)
 	})
 
 	it('Can sign a VAA', () => {

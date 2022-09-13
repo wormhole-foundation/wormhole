@@ -27,7 +27,7 @@ export class WormholeTmplSig {
 			varint.encode(coreId),
 			decodeBase16('124431208020'),
 			decodeAddress(getApplicationAddress(coreId)).publicKey,
-			decodeBase16('12443101810012443109320312443115320312442243'),
+			decodeBase16('124431018100124431093203124431153203124422'),
 		])
 
 		this._logicSig = new LogicSigAccount(program)
