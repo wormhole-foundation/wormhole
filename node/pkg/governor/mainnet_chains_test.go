@@ -25,10 +25,10 @@ func TestChainDailyLimitRange(t *testing.T) {
 	min_daily_limit := uint64(0)
 
 	/* This IS NOT a hard limit, we can adjust it up as we see fit,
-	   but setting something sane such that if we accidentially go
+	   but setting something sane such that if we accidentally go
 	   too high that the unit tests will make sure it's
 	   intentional */
-	max_daily_limit := uint64(50000001)
+	max_daily_limit := uint64(100_000_001)
 
 	// Do not remove this assertion
 	assert.NotEqual(t, max_daily_limit, uint64(0))
