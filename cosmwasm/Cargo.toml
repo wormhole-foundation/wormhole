@@ -4,6 +4,8 @@ members = [
     "contracts/wormhole",
     "contracts/token-bridge",
     "contracts/mock-bridge-integration",
+    "contracts/shutdown-token-bridge",
+    "contracts/shutdown-wormhole",
 ]
 
 [profile.release]
