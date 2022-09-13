@@ -1,0 +1,55 @@
+#!/bin/bash
+# deployer address = 5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3
+GUARDIAN_ADDR=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+WORMHOLE_ADDR=0x1b1752e26b65fc24971ee5ec9718d2ccdd36bf20486a10b2973ea6dedc6cd197
+TOKEN_BRIDGE_ADDR=0xdd0a2618dc5564ccf38d0eca7877198fef51157fea74a6bc2e5e40b52c2a0a08
+
+# STEP 1) if deployer address is not funded with Aptos tokens,
+#         first fund it using a faucet script or the Aptos CLI
+# aptos account --fund-with-faucet --account ...
+
+# modify deploy Move.toml file
+mv ../deployer/Move.toml ../deployer/Move_temp.toml
+mv ../deployer/Move_testnet.toml ../deployer/Move.toml
+
+# modify Wormhole Move.toml file
+mv ../wormhole/Move.toml ../wormhole/Move_temp.toml
+mv ../wormhole/Move_testnet.toml ../wormhole/Move.toml
+
+# modify TokenBridge Move.toml file
+mv ../token_bridge/Move.toml ../token_bridge/Move_temp.toml
+mv ../token_bridge/Move_testnet.toml ../token_bridge/Move.toml
+
+#================================================================================================
+
+# Deploy deployer contract for creating resource accounts
+worm aptos deploy --network testnet ../Deployer
+
+# Deploy wormhole
+worm aptos deploy-resource wormhole --network testnet ../wormhole
+
+# Initialise wormhole
+worm aptos init-wormhole --network testnet -g $GUARDIAN_ADDR --contract-address $WORMHOLE_ADDR
+
+# Deploy & initialise (with `init_module`) token_bridge
+worm aptos deploy-resource token_bridge --network testnet ../token_bridge
+
+# Initialise token-bridge
+worm aptos init-token-bridge --network testnet --contract-address $TOKEN_BRIDGE_ADDR
+
+# Deploy example program for sending messages
+worm aptos deploy --network testnet ../examples/core_messages
+
+#================================================================================================
+
+# revert Deployer Move.toml file
+mv ../deployer/Move.toml ../deployer/Move_testnet.toml
+mv ../deployer/Move_temp.toml ../deployer/Move.toml
+
+# revert Wormhole Move.toml file
+mv ../wormhole/Move.toml ../wormhole/Move_testnet.toml
+mv ../wormhole/Move_temp.toml ../wormhole/Move.toml
+
+# revert TokenBridge Move.toml file
+mv ../token_bridge/Move.toml ../token_bridge/Move_testnet.toml
+mv ../token_bridge/Move_temp.toml ../token_bridge/Move.toml

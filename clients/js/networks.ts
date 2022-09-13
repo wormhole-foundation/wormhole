@@ -216,8 +216,8 @@ const TESTNET = {
     key: undefined,
   },
   aptos: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://fullnode.devnet.aptoslabs.com/v1",
+    key: get_env_var("APTOS_TESTNET"),
   },
   sui: {
     rpc: undefined,

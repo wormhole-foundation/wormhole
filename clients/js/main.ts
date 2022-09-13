@@ -759,7 +759,7 @@ yargs(hideBin(process.argv))
       } else if (chain === "sui") {
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
-        await execute_aptos(parsed_vaa.payload, buf, network, argv["contract-address"]);
+        await execute_aptos(parsed_vaa.payload, buf, network, argv["contract-address"], argv["rpc"]);
       } else if (chain === "wormholechain") {
         throw Error("wormholechain is not supported yet");
       } else {

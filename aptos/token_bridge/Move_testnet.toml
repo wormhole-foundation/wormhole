@@ -1,7 +1,6 @@
 [package]
-name = "Wormhole"
+name = "TokenBridge"
 version = "0.0.1"
-upgrade_policy = "compatible"
 
 #TODO: pin versions before mainnet release
 [dependencies]
@@ -9,9 +8,14 @@ AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir 
 MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }
 AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "main" }
 AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token/", rev = "main" }
+Wormhole = { local = "../wormhole/" }
 Deployer = { local = "../deployer/" }
-# U256 = { git = "https://github.com/pontem-network/u256", rev = "main"  }
+
+# only included in testing
+[dev-dependencies]
+WrappedCoin = {local = "../coin/"}
 
 [addresses]
-# derived address from sha3_256(deployer + "wormhole")
-wormhole="0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204"
+# derived address from sha3_256(deployer + "token_bridge")
+token_bridge="dd0a2618dc5564ccf38d0eca7877198fef51157fea74a6bc2e5e40b52c2a0a08"
+wrapped_coin="b54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b"
