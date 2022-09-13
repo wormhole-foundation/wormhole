@@ -771,11 +771,11 @@ export async function transferNearFromNear(
     args: {
       receiver: uint8ArrayToHex(receiver),
       chain: chain,
-      fee: fee.toString(),
+      fee: fee.toString(10),
       payload: payload,
       message_fee: message_fee,
     },
-    attachedDeposit: (new BN(qty.toString()).add(new BN(message_fee))),
+    attachedDeposit: (new BN(qty.toString(10)).add(new BN(message_fee))),
     gas: new BN("100000000000000"),
   });
 
