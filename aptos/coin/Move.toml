@@ -4,4 +4,4 @@ version = "0.0.1"
 upgrade_policy = "compatible"
 
 [dependencies]
-MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "alin/move-keccak" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }
