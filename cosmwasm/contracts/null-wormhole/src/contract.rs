@@ -1,7 +1,5 @@
 use cosmwasm_std::{
-    // has_coins,
     to_binary,
-    // BankMsg,
     Binary,
     Coin,
     CosmosMsg,
@@ -28,7 +26,6 @@ use crate::{
     msg::{
         ExecuteMsg,
         GetAddressHexResponse,
-        // GetStateResponse,
         GuardianSetInfoResponse,
         InstantiateMsg,
         MigrateMsg,
@@ -37,23 +34,17 @@ use crate::{
     state::{
         config,
         config_read,
-        // config_read_legacy,
         guardian_set_get,
         guardian_set_set,
-        // sequence_read,
-        // sequence_set,
         vaa_archive_add,
         vaa_archive_check,
         ConfigInfo,
-        // ConfigInfoLegacy,
         ContractUpgrade,
         GovernancePacket,
         GuardianAddress,
         GuardianSetInfo,
         GuardianSetUpgrade,
         ParsedVAA,
-        // SetFee,
-        // TransferFee,
     },
 };
 
@@ -92,52 +83,7 @@ const FEE_AMOUNT: u128 = 0;
 /// ```
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    // This migration adds two new fields to the [`ConfigInfo`] struct. The
-    // state stored on chain has the old version, so we first parse it as
-    // [`ConfigInfoLegacy`], then add the new fields, and write it back as [`ConfigInfo`].
-    // Since the only place the contract with the legacy state is deployed is
-    // terra2, we just hardcode the new values here for that chain.
-
-    // 1. make sure this contract doesn't already have the new ConfigInfo struct
-    // in storage. Note that this check is not strictly necessary, as the
-    // upgrade will only be issued for terra2, and no new chains. However, it is
-    // good practice to ensure that migration code cannot be run twice, which
-    // this check achieves.
-    // if config_read(deps.storage).load().is_ok() {
-    //     return Err(StdError::generic_err(
-    //         "Can't migrate; this contract already has a new ConfigInfo struct",
-    //     ));
-    // }
-
-    // // 2. parse old state
-    // let ConfigInfoLegacy {
-    //     guardian_set_index,
-    //     guardian_set_expirity,
-    //     gov_chain,
-    //     gov_address,
-    //     fee,
-    // } = config_read_legacy(deps.storage).load()?;
-
-    // // 3. store new state with terra2 values hardcoded
-    // let chain_id = 18;
-    // let fee_denom = "uluna".to_string();
-
-    // let config_info = ConfigInfo {
-    //     guardian_set_index,
-    //     guardian_set_expirity,
-    //     gov_chain,
-    //     gov_address,
-    //     fee,
-    //     chain_id,
-    //     fee_denom,
-    // };
-
-    // config(deps.storage).save(&config_info)?;
     Ok(Response::default())
-    // NOTE: once this migration has successfully completed, the contents of
-    // this (`migrate`) function should be deleted, along with the
-    // [`ConfigInfoLegacy`] struct, since it will not be necessary in the
-    // future.
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -172,9 +118,6 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        // ExecuteMsg::PostMessage { message, nonce } => {
-        //     handle_post_message(deps, env, info, message.as_slice(), nonce)
-        // }
         ExecuteMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, info, vaa.as_slice()),
     }
 }
@@ -223,8 +166,6 @@ fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<
     match gov_packet.action {
         1u8 => vaa_update_contract(deps, env, &gov_packet.payload),
         2u8 => vaa_update_guardian_set(deps, env, &gov_packet.payload),
-        // 3u8 => handle_set_fee(deps, env, &gov_packet.payload),
-        // 4u8 => handle_transfer_fee(deps, env, &gov_packet.payload),
         _ => ContractError::InvalidVAAAction.std_err(),
     }
 }
@@ -352,58 +293,6 @@ fn vaa_update_contract(_deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Respo
         .add_attribute("action", "contract_upgrade"))
 }
 
-// pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
-//     let mut state = config_read(deps.storage).load()?;
-//     let set_fee_msg = SetFee::deserialize(data, state.fee_denom.clone())?;
-
-//     // Save new fees
-//     state.fee = set_fee_msg.fee;
-//     config(deps.storage).save(&state)?;
-
-//     Ok(Response::new()
-//         .add_attribute("action", "fee_change")
-//         .add_attribute("new_fee.amount", state.fee.amount)
-//         .add_attribute("new_fee.denom", state.fee.denom))
-// }
-
-// pub fn handle_transfer_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
-//     let state = config_read(deps.storage).load()?;
-
-//     let transfer_msg = TransferFee::deserialize(data, state.fee_denom)?;
-
-//     Ok(Response::new().add_message(CosmosMsg::Bank(BankMsg::Send {
-//         to_address: deps.api.addr_humanize(&transfer_msg.recipient)?.to_string(),
-//         amount: vec![transfer_msg.amount],
-//     })))
-// }
-
-// fn handle_post_message(
-//     deps: DepsMut,
-//     env: Env,
-//     info: MessageInfo,
-//     message: &[u8],
-//     nonce: u32,
-// ) -> StdResult<Response> {
-//     let state = config_read(deps.storage).load()?;
-//     let fee = state.fee;
-
-//     // Check fee
-//     if fee.amount.u128() > 0 && !has_coins(info.funds.as_ref(), &fee) {
-//         return ContractError::FeeTooLow.std_err();
-//     }
-
-//     let emitter = extend_address_to_32(&deps.api.addr_canonicalize(info.sender.as_str())?);
-//     let sequence = sequence_read(deps.storage, emitter.as_slice());
-//     sequence_set(deps.storage, emitter.as_slice(), sequence + 1)?;
-
-//     Ok(Response::new()
-//         .add_attribute("message.message", hex::encode(message))
-//         .add_attribute("message.sender", hex::encode(emitter))
-//         .add_attribute("message.chain_id", state.chain_id.to_string())
-//         .add_attribute("message.nonce", nonce.to_string())
-//         .add_attribute("message.sequence", sequence.to_string())
-//         .add_attribute("message.block_time", env.block.time.seconds().to_string()))
-// }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
@@ -443,12 +332,6 @@ pub fn query_address_hex(deps: Deps, address: &HumanAddr) -> StdResult<GetAddres
         hex: hex::encode(extend_address_to_32(&deps.api.addr_canonicalize(address)?)),
     })
 }
-
-// pub fn query_state(deps: Deps) -> StdResult<GetStateResponse> {
-//     let state = config_read(deps.storage).load()?;
-//     let res = GetStateResponse { fee: state.fee };
-//     Ok(res)
-// }
 
 fn keys_equal(a: &VerifyingKey, b: &GuardianAddress) -> bool {
     let mut hasher = Keccak256::new();
