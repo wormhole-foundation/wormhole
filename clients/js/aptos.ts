@@ -12,6 +12,7 @@ export async function execute_aptos(
   vaa: Buffer,
   network: "MAINNET" | "TESTNET" | "DEVNET",
   contract: string | undefined,
+  rpc: string | undefined
 ) {
   const chain = "aptos";
 
@@ -29,11 +30,11 @@ export async function execute_aptos(
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set")
-          await callEntryFunc(network, `${contract}::guardian_set_upgrade`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::guardian_set_upgrade`, "submit_vaa", [], [bcsVAA]);
           break
         case "ContractUpgrade":
           console.log("Upgrading core contract")
-          await callEntryFunc(network, `${contract}::contract_upgrade`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa", [], [bcsVAA]);
           break
         default:
           impossible(payload)
@@ -53,11 +54,11 @@ export async function execute_aptos(
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
-          await callEntryFunc(network, `${contract}::contract_upgrade`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa", [], [bcsVAA]);
           break
         case "RegisterChain":
           console.log("Registering chain")
-          await callEntryFunc(network, `${contract}::register_chain`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::register_chain`, "submit_vaa", [], [bcsVAA]);
           break
         case "AttestMeta":
           console.log("Creating wrapped token")
@@ -68,7 +69,7 @@ export async function execute_aptos(
           // transaction that deploys a module cannot use that module
           //
           // Tx 1.
-          await callEntryFunc(network, `${contract}::wrapped`, "create_wrapped_coin_type", [], [bcsVAA], "wait");
+          await callEntryFunc(network, rpc, `${contract}::wrapped`, "create_wrapped_coin_type", [], [bcsVAA], "wait");
 
           // We just deployed the module (notice the "wait" argument which makes
           // the previous step block until finality).
@@ -84,12 +85,12 @@ export async function execute_aptos(
           // Tx 2.
           console.log(`Deploying resource account ${wrappedContract}`);
           const token = new TxnBuilderTypes.TypeTagStruct(TxnBuilderTypes.StructTag.fromString(`${wrappedContract}::coin::T`));
-          await callEntryFunc(network, `${contract}::wrapped`, "create_wrapped_coin", [token], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::wrapped`, "create_wrapped_coin", [token], [bcsVAA]);
 
           break
         case "Transfer":
           console.log("Completing transfer")
-          await callEntryFunc(network, `${contract}::complete_transfer`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::complete_transfer`, "submit_vaa", [], [bcsVAA]);
           break
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI")
@@ -116,6 +117,7 @@ export function deriveWrappedAssetAddress(
 
 export async function callEntryFunc(
   network: "MAINNET" | "TESTNET" | "DEVNET",
+  rpc: string | undefined,
   module: string,
   func: string,
   ty_args: Seq<TypeTag>,
@@ -127,8 +129,13 @@ export async function callEntryFunc(
     throw new Error("No key for aptos");
   }
   const accountFrom = new AptosAccount(new Uint8Array(Buffer.from(key, "hex")));
-
-  const client = new AptosClient(NETWORKS[network]["aptos"].rpc);
+  let client;
+  // if rpc arg is passed in, then override default rpc value for that network
+  if (typeof rpc != 'undefined'){
+    client = new AptosClient(rpc);
+  } else {
+    client = new AptosClient(NETWORKS[network]["aptos"].rpc);
+  }
   const [{ sequence_number: sequenceNumber }, chainId] = await Promise.all([
     client.getAccount(accountFrom.address()),
     client.getChainId(),

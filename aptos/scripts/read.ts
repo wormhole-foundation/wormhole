@@ -61,7 +61,7 @@ async function getTransaction(hash: string) {
     let accountFrom = AptosAccount.fromAptosAccountObject(aptosAccountObject)
     let accountAddress = accountFrom.address();
 
-    //resources 
+    //resources
     let resources = await getResources(accountAddress);
     console.log("resources: ", resources);
 
@@ -83,7 +83,7 @@ async function getTransaction(hash: string) {
     //let wormholeState = await getWormholeState(accountAddress, accountAddress);
     //console.log("==========================< Wormhole State >==========================\n", wormholeState);
 }
-  
+
   if (require.main === module) {
     main().then((resp) => console.log(resp));
   }

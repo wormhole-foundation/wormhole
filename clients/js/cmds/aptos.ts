@@ -29,6 +29,13 @@ const network_options = {
   required: true,
 } as const;
 
+const rpc_description = {
+  alias: "r",
+  describe: "override default rpc endpoint url",
+  type: "string",
+  required: false,
+} as const;
+
 // TODO(csongor): this could be useful elsewhere
 function assertNetwork(n: string): asserts n is Network {
   if (
@@ -47,6 +54,7 @@ exports.builder = function (y: typeof yargs) {
     .command("init-token-bridge", "Init token bridge contract", (yargs) => {
       return yargs
         .option("network", network_options)
+        .option("rpc", rpc_description)
         // TODO(csongor): once the sdk has this, just use it from there
         .option("contract-address", {
           alias: "a",
@@ -57,14 +65,14 @@ exports.builder = function (y: typeof yargs) {
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
-
       const contract_address = evm_address(argv["contract-address"]);
-
-      await callEntryFunc(network, `${contract_address}::token_bridge`, "init", [], []);
+      const rpc = argv.rpc;
+      await callEntryFunc(network, rpc, `${contract_address}::token_bridge`, "init", [], []);
     })
     .command("init-wormhole", "Init Wormhole core contract", (yargs) => {
       return yargs
         .option("network", network_options)
+        .option("rpc", rpc_description)
         .option("chain-id", {
           describe: "Chain id",
           type: "number",
@@ -112,8 +120,8 @@ exports.builder = function (y: typeof yargs) {
         BCS.bcsSerializeBytes(Buffer.from(governance_address, "hex")),
         BCS.bcsSerializeBytes(Buffer.from(guardian_address, "hex"))
       ]
-
-      await callEntryFunc(network, `${contract_address}::wormhole`, "init", [], args);
+      const rpc = argv.rpc;
+      await callEntryFunc(network, rpc, `${contract_address}::wormhole`, "init", [], args);
     })
     .command("deploy <package-dir>", "Deploy an Aptos package", (yargs) => {
       return yargs
@@ -121,14 +129,15 @@ exports.builder = function (y: typeof yargs) {
           type: "string"
         })
         .option("network", network_options)
+        .option("rpc", rpc_description)
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
       const p = buildPackage(argv["package-dir"]);
       const b = serializePackage(p);
-
-      await callEntryFunc(network, "0x1::code", "publish_package_txn", [], [b.meta, b.bytecodes])
+      const rpc = argv.rpc;
+      await callEntryFunc(network, rpc, "0x1::code", "publish_package_txn", [], [b.meta, b.bytecodes])
       console.log("Deployed:", p.mv_files)
     })
     .command("deploy-resource <seed> <package-dir>", "Deploy an Aptos package using a resource account", (yargs) => {
@@ -140,6 +149,7 @@ exports.builder = function (y: typeof yargs) {
           type: "string"
         })
         .option("network", network_options)
+        .option("rpc", rpc_description)
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
@@ -149,10 +159,15 @@ exports.builder = function (y: typeof yargs) {
       const seed = Buffer.from(argv["seed"], "ascii")
 
       // TODO(csongor): use deployer address from sdk (when it's there)
+      let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
+      if (network=="TESTNET"){
+        module_name= "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer";
+      }
+      const rpc = argv.rpc;
       await callEntryFunc(
         network,
-        "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer",
-        //"0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer",
+        rpc,
+        module_name,
         "deploy_derived",
         [],
         [
@@ -190,16 +205,18 @@ exports.builder = function (y: typeof yargs) {
           type: "string",
         })
         .option("network", network_options)
+        .option("rpc", rpc_description)
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
       const p = buildPackage(argv["package-dir"]);
       const b = serializePackage(p);
-
+      const rpc = argv.rpc;
       // TODO(csongor): use deployer address from sdk (when it's there)
       const hash = await callEntryFunc(
         network,
+        rpc,
         `${argv["contract-address"]}::contract_upgrade`,
         "upgrade",
         [],
@@ -210,6 +227,7 @@ exports.builder = function (y: typeof yargs) {
       console.log("Deployed:", p.mv_files)
       console.log(hash)
     })
+    // TODO - make faucet support testnet in additional to localnet
     .command("faucet", "Request money from the faucet for the deployer wallet (only local validator)", (_yargs) => {
     }, async (_argv) => {
       const NODE_URL = "http://0.0.0.0:8080/v1";
