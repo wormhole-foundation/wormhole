@@ -193,6 +193,7 @@ contract NFTBridge is NFTBridgeGovernance {
     }
 
     function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
+        require(!isFork(), "invalid fork");
         if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
             return true;
         }

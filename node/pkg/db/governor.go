@@ -13,6 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// WARNING: Change me in ./node/governor as well
+const maxEnqueuedTime = time.Duration(time.Hour * 24)
+
 type GovernorDB interface {
 	StoreTransfer(t *Transfer) error
 	StorePendingMsg(k *PendingTransfer) error
@@ -224,6 +227,14 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 					return err
 				}
 
+				if time.Until(p.ReleaseTime) > maxEnqueuedTime {
+					p.ReleaseTime = now.Add(maxEnqueuedTime)
+					err := d.StorePendingMsg(p)
+					if err != nil {
+						return fmt.Errorf("failed to write new pending msg for key [%v]: %w", p.Msg.MessageIDString(), err)
+					}
+				}
+
 				pending = append(pending, p)
 			} else if IsTransfer(key) {
 				v, err := UnmarshalTransfer(val)
@@ -238,7 +249,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 					return err
 				}
 
-				p := &PendingTransfer{ReleaseTime: now.Add(time.Duration(time.Hour * 72)), Msg: *msg}
+				p := &PendingTransfer{ReleaseTime: now.Add(maxEnqueuedTime), Msg: *msg}
 				pending = append(pending, p)
 				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			}

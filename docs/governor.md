@@ -36,13 +36,14 @@ The following data will be shown:
     3. Token chain ID and address
     4. Receive time
     5. Value
+    6. Release time
 
 
 For example:
 
 ```
 chain: solana, dailyLimit: 100, total: 40, numPending: 1
-   chain: solana, pending[0], value: 200, vaa: 1/c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f/2, time: 2022-08-09 16:29:39.045960153 +0000 UTC m=+8370.131061963
+   chain: solana, pending[0], value: 200, vaa: 1/c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f/2, time: 2022-08-09 16:29:39.045960153 +0000 UTC m=+8370.131061963, releaseTime: 2022-08-12 16:29:39.045960153 +0000 UTC m=+8370.131061963
 chain: ethereum, dailyLimit: 100000, total: 0, numPending: 0
 
 ```
@@ -59,6 +60,8 @@ NOTE: VAAs that are published this way will not affect the rolling 24hr limit.
 
 When a VAA is released, it will be placed in a holding area until the next pending VAA check so there may be some delay for it to actually be published.
 
+**Warning:** *Releasing a VAA manually should rarely if ever occur.  If Guardians believe a VAA is not invalid (i.e. resulting from an exploit), they should abstain from releasing VAAs early.  If a super majority of Guardians either (1) abstain or (2) manually release, the VAA will be signed and published once the time delay is met and super majority agrees to sign and publish.*
+
 ### Dropping VAAs
 
 To manually remove a pending VAA (identified by emitted chain ID / address and sequence number), Guardians can run the `governor-drop-pending-vaa` admin command as follows:
@@ -66,3 +69,13 @@ To manually remove a pending VAA (identified by emitted chain ID / address and s
 ```bash
 guardiand admin governor-drop-pending-vaa "emitted_chain_ID/address/sequence_number" --socket /path/to/admin.sock
 ```
+**Warning:** *Dropping a VAA should only be used in the context of confirmed fraud that directly affects the security of the Wormhole network.  A super minority of Guardians are required to effectively censor a VAA.*
+
+### Resetting Release Timer
+To reset the release timer for a specified VAA to `maxEnqueuedTimeInHours` from the current time, Guardians can run the `governor-reset-release-timer` admin command as follows:
+
+```bash
+guardiand admin governor-reset-release-timer "emitted_chain_ID/address/sequence_number" --socket /path/to/admin.sock
+```
+
+**Warning:** *Resetting a VAA should only be used in the context of needing more time to confirm fraud that directly affects the security of the Wormhole network.  A super minority of Guardians are required to reset the timer for a given VAA.*

@@ -10,6 +10,8 @@ message GossipMessage {
     SignedHeartbeat signed_heartbeat = 3;
     SignedVAAWithQuorum signed_vaa_with_quorum = 4;
     SignedObservationRequest signed_observation_request = 5;
+    SignedBatchObservation signed_batch_observation = 6;
+    SignedBatchVAAWithQuorum signed_batch_vaa_with_quorum = 7;
   }
 }
 
@@ -113,4 +115,33 @@ message SignedObservationRequest {
 message ObservationRequest {
   uint32 chain_id = 1;
   bytes tx_hash = 2;
+}
+
+// A SignedBatchObservation is a signed statement by a given guardian node
+// that they observed a series of messages originating from a transaction.
+//
+// BatcheObervations are emitted when all the Observations from a tx reach quorum.
+//
+// The event is uniquely identified by its hash (made from hashing all the
+// individual Observation hashes).
+//
+// Messages without valid signature are dropped unceremoniously.
+message SignedBatchObservation {
+  // Guardian pubkey as truncated eth address.
+  bytes addr = 1;
+  // The observation batch's deterministic, unique hash.
+  bytes hash = 2;
+  // ECSDA signature of the hash using the node's guardian key.
+  bytes signature = 3;
+  // Transaction hash this observation was made from.
+  bytes tx_hash = 4;
+  // Chain ID for this observation.
+  uint32 chain_id = 5;
+  // Batch ID - emitterChain/transactionID
+  string batch_id = 6;
+}
+
+
+message SignedBatchVAAWithQuorum {
+  bytes batch_vaa = 1;
 }

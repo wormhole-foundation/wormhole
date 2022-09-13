@@ -32,13 +32,15 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
 
         NFTBridgeStructs.RegisterChain memory chain = parseRegisterChain(vm.payload);
 
-        require(chain.chainId == chainId() || chain.chainId == 0, "invalid chain id");
+        require((chain.chainId == chainId() && !isFork()) || chain.chainId == 0, "invalid chain id");
 
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
     }
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
+        require(!isFork(), "invalid fork");
+
         (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
         require(valid, reason);
 
@@ -49,6 +51,27 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         require(implementation.chainId == chainId(), "wrong chain id");
 
         upgradeImplementation(address(uint160(uint256(implementation.newContract))));
+    }
+
+    /**
+    * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
+    */
+    function submitRecoverChainId(bytes memory encodedVM) public {
+        require(isFork(), "not a fork");
+
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        require(valid, reason);
+
+        setGovernanceActionConsumed(vm.hash);
+
+        NFTBridgeStructs.RecoverChainId memory rci = parseRecoverChainId(vm.payload);
+
+        // Verify the VAA is for this chain
+        require(rci.evmChainId == block.chainid, "invalid EVM Chain");
+
+        // Update the chainIds
+        setEvmChainId(rci.evmChainId);
+        setChainId(rci.newChainId);
     }
 
     function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason){
@@ -135,5 +158,26 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
         index += 32;
 
         require(encoded.length == index, "invalid UpgradeContract: wrong length");
+    }
+
+    /// @dev Parse a recoverChainId (action 3) with minimal validation
+    function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (NFTBridgeStructs.RecoverChainId memory rci) {
+        uint index = 0;
+
+        rci.module = encodedRecoverChainId.toBytes32(index);
+        index += 32;
+        require(rci.module == module, "invalid RecoverChainId: wrong module");
+
+        rci.action = encodedRecoverChainId.toUint8(index);
+        index += 1;
+        require(rci.action == 3, "invalid RecoverChainId: wrong action");
+
+        rci.evmChainId = encodedRecoverChainId.toUint256(index);
+        index += 32;
+
+        rci.newChainId = encodedRecoverChainId.toUint16(index);
+        index += 2;
+
+        require(encodedRecoverChainId.length == index, "invalid RecoverChainId");
     }
 }

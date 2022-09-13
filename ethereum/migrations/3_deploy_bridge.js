@@ -11,6 +11,7 @@ const governanceChainId = process.env.BRIDGE_INIT_GOV_CHAIN_ID;
 const governanceContract = process.env.BRIDGE_INIT_GOV_CONTRACT; // bytes32
 const WETH = process.env.BRIDGE_INIT_WETH;
 const finality = process.env.BRIDGE_INIT_FINALITY;
+const evmChainId = process.env.INIT_EVM_CHAIN_ID;
 
 module.exports = async function (deployer) {
     // deploy token implementation
@@ -32,7 +33,8 @@ module.exports = async function (deployer) {
         governanceContract,
         TokenImplementation.address,
         WETH,
-        finality
+        finality,
+        evmChainId
     ).encodeABI();
 
     // deploy proxy

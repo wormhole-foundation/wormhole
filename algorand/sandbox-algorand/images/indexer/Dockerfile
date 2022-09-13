@@ -29,6 +29,7 @@ COPY images/indexer/start.sh /tmp/start.sh
 COPY images/indexer/install.sh /tmp/install.sh
 
 # Install indexer binaries.
+
 RUN /tmp/install.sh
 
 CMD ["/tmp/start.sh"]

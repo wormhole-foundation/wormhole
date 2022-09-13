@@ -17,4 +17,9 @@ contract MockBridgeImplementation is BridgeImplementation {
     function testUpdateWETHAddress(address WETH) external {
         setWETH(WETH);
     }
+
+    function testOverwriteEVMChainId(uint16 fakeChainId, uint256 fakeEvmChainId) external {
+        _state.provider.chainId = fakeChainId;
+        _state.evmChainId = fakeEvmChainId;
+    }
 }
