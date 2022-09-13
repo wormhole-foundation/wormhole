@@ -389,6 +389,28 @@ func (e *Watcher) Run(ctx context.Context) error {
 	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
 
 	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case r := <-e.obsvReqC:
+				if vaa.ChainID(r.ChainId) != vaa.ChainIDNear {
+					panic("invalid chain ID")
+				}
+
+				txHash := base58.Encode(r.TxHash)
+
+				logger.Info("Received obsv request", zap.String("tx_hash", txHash))
+
+				err := e.inspectStatus(logger, txHash, e.wormholeContract, 0)
+				if err != nil {
+					logger.Error(fmt.Sprintf("near obsvReqC: %s", err.Error()))
+				}
+			}
+		}
+	}()
+
+	go func() {
 		if e.next_round == 0 {
 			finalBody, err := e.getFinalBlock()
 			if err != nil {
@@ -407,20 +429,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != vaa.ChainIDNear {
-					panic("invalid chain ID")
-				}
-
-				txHash := base58.Encode(r.TxHash)
-
-				logger.Info("Received obsv request", zap.String("tx_hash", txHash))
-
-				err := e.inspectStatus(logger, txHash, e.wormholeContract, 0)
-				if err != nil {
-					logger.Error(fmt.Sprintf("near obsvReqC: %s", err.Error()))
-				}
-
 			case <-timer.C:
 				finalBody, err := e.getFinalBlock()
 				if err != nil {
@@ -456,6 +464,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round))
 
 				for ; e.next_round <= lastBlock; e.next_round = e.next_round + 1 {
+					currentNearHeight.Set(float64(e.next_round))
+					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
+						Height:          int64(e.next_round),
+						ContractAddress: e.wormholeContract,
+					})
+					readiness.SetReady(common.ReadinessNearSyncing)
+
 					if e.next_round == lastBlock {
 						err := e.inspectBody(logger, e.next_round, parsedFinalBody)
 						if err != nil {
@@ -487,13 +502,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 						}
 					}
 				}
-
-				currentNearHeight.Set(float64(e.next_round - 1))
-				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
-					Height:          int64(e.next_round - 1),
-					ContractAddress: e.wormholeContract,
-				})
-				readiness.SetReady(common.ReadinessNearSyncing)
 			}
 		}
 	}()
