@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./NFTBridgeStructs.sol";
+import "./interfaces/NFTBridgeStructs.sol";
 
 contract NFTBridgeStorage {
     struct Provider {

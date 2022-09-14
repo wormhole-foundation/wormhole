@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-contract NFTBridgeStructs {
+interface NFTBridgeStructs {
     struct Transfer {
         // PayloadID uint8 = 1
         // Address of the token. Left-zero-padded if shorter than 32 bytes

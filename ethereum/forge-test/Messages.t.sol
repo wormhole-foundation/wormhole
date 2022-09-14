@@ -4,7 +4,7 @@
 pragma solidity ^0.8.0;
 
 import "../contracts/Messages.sol";
-import "../contracts/Structs.sol";
+import "../contracts/interfaces/Structs.sol";
 import "forge-std/Test.sol";
 
 contract TestMessages is Messages, Test {

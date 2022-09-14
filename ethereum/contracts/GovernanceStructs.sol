@@ -4,7 +4,7 @@
 pragma solidity ^0.8.0;
 
 import "./libraries/external/BytesLib.sol";
-import "./Structs.sol";
+import "./interfaces/Structs.sol";
 
 /**
  * @dev `GovernanceStructs` defines a set of structs and parsing functions

@@ -10,7 +10,7 @@ import "../libraries/external/BytesLib.sol";
 
 import "./NFTBridgeGetters.sol";
 import "./NFTBridgeSetters.sol";
-import "./NFTBridgeStructs.sol";
+import "./interfaces/NFTBridgeStructs.sol";
 
 import "./token/NFT.sol";
 import "./token/NFTImplementation.sol";

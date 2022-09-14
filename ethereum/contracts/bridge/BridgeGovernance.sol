@@ -11,7 +11,7 @@ import "../libraries/external/BytesLib.sol";
 
 import "./BridgeGetters.sol";
 import "./BridgeSetters.sol";
-import "./BridgeStructs.sol";
+import "./interfaces/BridgeStructs.sol";
 
 import "./token/Token.sol";
 import "./token/TokenImplementation.sol";

@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./Structs.sol";
+import "./interfaces/Structs.sol";
 import "./GovernanceStructs.sol";
 import "./Messages.sol";
 import "./Setters.sol";

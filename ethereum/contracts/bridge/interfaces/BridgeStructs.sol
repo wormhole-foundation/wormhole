@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-contract BridgeStructs {
+interface BridgeStructs {
     struct Transfer {
         // PayloadID uint8 = 1
         uint8 payloadID;

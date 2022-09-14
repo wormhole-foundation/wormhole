@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./BridgeStructs.sol";
+import "./interfaces/BridgeStructs.sol";
 
 contract BridgeStorage {
     struct Provider {
