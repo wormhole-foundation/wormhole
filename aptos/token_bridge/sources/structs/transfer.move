@@ -1,5 +1,5 @@
 module token_bridge::transfer {
-    use 0x1::vector::{Self};
+    use std::vector;
     use wormhole::serialize::{
         serialize_u8,
         serialize_u16,
@@ -18,6 +18,8 @@ module token_bridge::transfer {
 
     #[test_only]
     friend token_bridge::complete_transfer_test;
+    #[test_only]
+    friend token_bridge::transfer_test;
 
     const E_INVALID_ACTION: u64 = 0;
 
@@ -81,12 +83,12 @@ module token_bridge::transfer {
     public fun parse(transfer: vector<u8>): Transfer {
         let cur = cursor::init(transfer);
         let action = deserialize_u8(&mut cur);
-        assert!(action == 2, E_INVALID_ACTION);
+        assert!(action == 1, E_INVALID_ACTION);
         let amount = normalized_amount::deserialize(&mut cur);
         let token_address = external_address::deserialize(&mut cur);
         let token_chain = deserialize_u16(&mut cur);
         let to = external_address::deserialize(&mut cur);
-        let to_chain= deserialize_u16(&mut cur);
+        let to_chain = deserialize_u16(&mut cur);
         let fee = normalized_amount::deserialize(&mut cur);
         cursor::destroy_empty(cur);
         Transfer {
@@ -111,4 +113,37 @@ module token_bridge::transfer {
         encoded
     }
 
+}
+
+#[test_only]
+module token_bridge::transfer_test {
+    use token_bridge::transfer;
+    use token_bridge::normalized_amount;
+    use wormhole::external_address;
+    use wormhole::u16;
+
+    #[test]
+    public fun parse_roundtrip() {
+        let amount = normalized_amount::normalize(100, 8);
+        let token_address = external_address::from_bytes(x"beef");
+        let token_chain = u16::from_u64(1);
+        let to = external_address::from_bytes(x"cafe");
+        let to_chain = u16::from_u64(7);
+        let fee = normalized_amount::normalize(50, 8);
+        let transfer = transfer::create(
+            amount,
+            token_address,
+            token_chain,
+            to,
+            to_chain,
+            fee,
+        );
+        let transfer = transfer::parse(transfer::encode(transfer));
+        assert!(transfer::get_amount(&transfer) == amount, 0);
+        assert!(transfer::get_token_address(&transfer) == token_address, 0);
+        assert!(transfer::get_token_chain(&transfer) == token_chain, 0);
+        assert!(transfer::get_to(&transfer) == to, 0);
+        assert!(transfer::get_to_chain(&transfer) == to_chain, 0);
+        assert!(transfer::get_fee(&transfer) == fee, 0);
+    }
 }

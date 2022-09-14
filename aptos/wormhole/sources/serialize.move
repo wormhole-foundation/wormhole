@@ -39,10 +39,10 @@ module wormhole::serialize {
     }
 
     public fun serialize_u256(buf: &mut vector<u8>, v: U256) {
-        serialize_u64(buf, u256::get(&v, 0));
-        serialize_u64(buf, u256::get(&v, 1));
-        serialize_u64(buf, u256::get(&v, 2));
         serialize_u64(buf, u256::get(&v, 3));
+        serialize_u64(buf, u256::get(&v, 2));
+        serialize_u64(buf, u256::get(&v, 1));
+        serialize_u64(buf, u256::get(&v, 0));
     }
 
     public fun serialize_vector(buf: &mut vector<u8>, v: vector<u8>){
@@ -54,9 +54,10 @@ module wormhole::serialize {
 module wormhole::test_serialize {
     use wormhole::serialize;
     use wormhole::deserialize;
-    use wormhole::cursor::{Self};
-    use wormhole::u32::{Self};
-    use wormhole::u16::{Self};
+    use wormhole::cursor;
+    use wormhole::u32;
+    use wormhole::u16;
+    use wormhole::u256;
     use 0x1::vector;
 
     #[test]
@@ -112,6 +113,15 @@ module wormhole::test_serialize {
         let p = deserialize::deserialize_u128(&mut cur);
         cursor::destroy_empty(cur);
         assert!(p==u, 0);
+    }
+
+    #[test]
+    fun test_serialize_u256(){
+        let u = u256::add(u256::shl(u256::from_u128(0x12345678123456781234567812345678), 128), u256::from_u128(0x9876));
+        let s = vector::empty();
+        serialize::serialize_u256(&mut s, u);
+        let exp = x"1234567812345678123456781234567800000000000000000000000000009876";
+        assert!(s == exp, 0);
     }
 
     #[test]
