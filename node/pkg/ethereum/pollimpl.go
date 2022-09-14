@@ -32,13 +32,13 @@ type PollFinalizer interface {
 }
 
 type PollImpl struct {
-	BaseEth        EthImpl
-	Finalizer      PollFinalizer
-	DelayInMs      int
-	IsEthPoS       bool
-	hasEthSwitched bool
-	logger         *zap.Logger
-	rawClient      *ethRpc.Client
+	BaseEth             EthImpl
+	Finalizer           PollFinalizer
+	DelayInMs           int
+	IsEthPoS            bool
+	hasEthSwitchedToPoS bool
+	logger              *zap.Logger
+	rawClient           *ethRpc.Client
 }
 
 func (e *PollImpl) SetLogger(l *zap.Logger) {
@@ -50,7 +50,7 @@ func (e *PollImpl) SetLogger(l *zap.Logger) {
 }
 
 func (e *PollImpl) SetEthSwitched() {
-	e.hasEthSwitched = true
+	e.hasEthSwitchedToPoS = true
 	e.logger.Info("switching from latest to finalized", zap.String("eth_network", e.BaseEth.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
 }
 
@@ -235,7 +235,7 @@ func (e *PollImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBl
 	var numStr string
 	if number != nil {
 		numStr = ethHexUtils.EncodeBig(number)
-	} else if e.hasEthSwitched {
+	} else if e.hasEthSwitchedToPoS {
 		numStr = "finalized"
 	} else {
 		numStr = "latest"
@@ -261,7 +261,7 @@ func (e *PollImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBl
 		return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
 	}
 	d := big.Int(*m.Difficulty)
-	if !e.hasEthSwitched && d.Cmp(big.NewInt(0)) == 0 {
+	if e.IsEthPoS && !e.hasEthSwitchedToPoS && d.Cmp(big.NewInt(0)) == 0 {
 		e.SetEthSwitched()
 		return e.getBlock(ctx, number)
 	}
