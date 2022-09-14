@@ -20,6 +20,8 @@ const artifacts = [
   "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
   "mock_bridge_integration_2.wasm",
+  "shutdown_wormhole.wasm",
+  "shutdown_token_bridge_terra_2.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
