@@ -134,6 +134,8 @@ func NewEthWatcher(
 		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
 		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
 		ethIntf = &celo.CeloImpl{NetworkName: networkName}
+	} else if chainID == vaa.ChainIDEthereum && !unsafeDevMode {
+		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, DelayInMs: 250, IsEthPoS: true}
 	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
 		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
 	} else if chainID == vaa.ChainIDNeon {
