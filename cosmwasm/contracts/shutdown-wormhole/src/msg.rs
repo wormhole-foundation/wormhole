@@ -34,7 +34,6 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     SubmitVAA { vaa: Binary },
-    // PostMessage { message: Binary, nonce: u32 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -47,7 +46,6 @@ pub struct MigrateMsg {
 pub enum QueryMsg {
     GuardianSetInfo {},
     VerifyVAA { vaa: Binary, block_time: u64 },
-    // GetState {},
     QueryAddressHex { address: HumanAddr },
 }
 

@@ -303,7 +303,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             vaa.as_slice(),
             block_time,
         )?),
-        // QueryMsg::GetState {} => to_binary(&query_state(deps)?),
         QueryMsg::QueryAddressHex { address } => to_binary(&query_address_hex(deps, &address)?),
     }
 }

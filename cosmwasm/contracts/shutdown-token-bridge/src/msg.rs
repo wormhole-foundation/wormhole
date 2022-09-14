@@ -7,13 +7,8 @@ use serde::{
     Deserialize,
     Serialize,
 };
-// use terraswap::asset::{
-//     Asset,
-//     AssetInfo,
-// };
 
 use crate::token_address::{
-    // ExternalTokenId,
     TokenId,
 };
 
@@ -35,46 +30,9 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    // RegisterAssetHook {
-    //     chain: u16,
-    //     token_address: ExternalTokenId,
-    // },
-
-    // DepositTokens {},
-    // WithdrawTokens {
-    //     asset: AssetInfo,
-    // },
-
-    // InitiateTransfer {
-    //     asset: Asset,
-    //     recipient_chain: u16,
-    //     recipient: Binary,
-    //     fee: Uint128,
-    //     nonce: u32,
-    // },
-
-    // InitiateTransferWithPayload {
-    //     asset: Asset,
-    //     recipient_chain: u16,
-    //     recipient: Binary,
-    //     fee: Uint128,
-    //     payload: Binary,
-    //     nonce: u32,
-    // },
-
     SubmitVaa {
         data: Binary,
     },
-
-    // CreateAssetMeta {
-    //     asset_info: AssetInfo,
-    //     nonce: u32,
-    // },
-
-    // CompleteTransferWithPayload {
-    //     data: Binary,
-    //     relayer: HumanAddr,
-    // },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
