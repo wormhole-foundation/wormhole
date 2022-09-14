@@ -89,7 +89,6 @@ use crate::{
         bridge_deposit,
         config,
         config_read,
-        config_read_legacy,
         is_wrapped_asset,
         is_wrapped_asset_read,
         receive_native,
@@ -102,7 +101,6 @@ use crate::{
         Action,
         AssetMeta,
         ConfigInfo,
-        ConfigInfoLegacy,
         RegisterChain,
         TokenBridgeMessage,
         TransferInfo,
@@ -135,44 +133,8 @@ pub enum TransferType<A> {
 /// Ok(Response::default())
 /// ```
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    // This migration adds a new field to the [`ConfigInfo`] struct. The
-    // state stored on chain has the old version, so we first parse it as
-    // [`ConfigInfoLegacy`], then add the new fields, and write it back as [`ConfigInfo`].
-    // Since the only place the contract with the legacy state is deployed is
-    // terra2, we just hardcode the new value here for that chain.
-
-    // 1. make sure this contract doesn't already have the new ConfigInfo struct
-    // in storage. Note that this check is not strictly necessary, as the
-    // upgrade will only be issued for terra2, and no new chains. However, it is
-    // good practice to ensure that migration code cannot be run twice, which
-    // this check achieves.
-    if config_read(deps.storage).load().is_ok() {
-        return Err(StdError::generic_err(
-            "Can't migrate; this contract already has a new ConfigInfo struct",
-        ));
-    }
-
-    // 2. parse old state
-    let ConfigInfoLegacy {
-        gov_chain,
-        gov_address,
-        wormhole_contract,
-        wrapped_asset_code_id,
-    } = config_read_legacy(deps.storage).load()?;
-
-    // 3. store new state with terra2 values hardcoded
-    let chain_id = 18;
-
-    let config_info = ConfigInfo {
-        gov_chain,
-        gov_address,
-        wormhole_contract,
-        wrapped_asset_code_id,
-        chain_id,
-    };
-
-    config(deps.storage).save(&config_info)?;
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    // This migration is not, currently, needed as the upgrade has happened successfully.
     Ok(Response::default())
 }
 
@@ -305,10 +267,17 @@ fn parse_vaa(deps: Deps, block_time: u64, data: &Binary) -> StdResult<ParsedVAA>
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
+        ExecuteMsg::SubmitVaa { data } => submit_vaa(deps, env, info, &data),
+
+        // The following actions are disabled in "shutdown" mode
+
+        #[cfg(feature = "full")]
         ExecuteMsg::RegisterAssetHook {
             chain,
             token_address,
         } => handle_register_asset(deps, env, info, chain, token_address),
+
+        #[cfg(feature = "full")]
         ExecuteMsg::InitiateTransfer {
             asset,
             recipient_chain,
@@ -326,6 +295,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             TransferType::WithoutPayload,
             nonce,
         ),
+
+        #[cfg(feature = "full")]
         ExecuteMsg::InitiateTransferWithPayload {
             asset,
             recipient_chain,
@@ -346,15 +317,26 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             },
             nonce,
         ),
+
+        #[cfg(feature = "full")]
         ExecuteMsg::DepositTokens {} => deposit_tokens(deps, env, info),
+
+        #[cfg(feature = "full")]
         ExecuteMsg::WithdrawTokens { asset } => withdraw_tokens(deps, env, info, asset),
-        ExecuteMsg::SubmitVaa { data } => submit_vaa(deps, env, info, &data),
+
+        #[cfg(feature = "full")]
         ExecuteMsg::CreateAssetMeta { asset_info, nonce } => {
             handle_create_asset_meta(deps, env, info, asset_info, nonce)
         }
+
+        #[cfg(feature = "full")]
         ExecuteMsg::CompleteTransferWithPayload { data, relayer } => {
             handle_complete_transfer_with_payload(deps, env, info, &data, &relayer)
         }
+
+        // When in "shutdown" mode, we reject any other action
+        #[cfg(not(feature = "full"))]
+        _ => Err(StdError::generic_err("Invalid during shutdown mode"))
     }
 }
 
@@ -709,6 +691,9 @@ fn submit_vaa(
     let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
     match payload {
         Either::Left(governance_packet) => handle_governance_payload(deps, env, &governance_packet),
+
+        // In "shutdown" mode, we only handle governance payloads
+        #[cfg(feature = "full")]
         Either::Right(message) => match message.action {
             Action::TRANSFER => {
                 let sender = info.sender.to_string();
@@ -733,6 +718,9 @@ fn submit_vaa(
             ),
             _ => ContractError::InvalidVAAAction.std_err(),
         },
+
+        #[cfg(not(feature = "full"))]
+        _ => ContractError::InvalidVAAAction.std_err(),
     }
 }
 

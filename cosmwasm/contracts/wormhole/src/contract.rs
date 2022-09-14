@@ -37,7 +37,6 @@ use crate::{
     state::{
         config,
         config_read,
-        config_read_legacy,
         guardian_set_get,
         guardian_set_set,
         sequence_read,
@@ -45,7 +44,6 @@ use crate::{
         vaa_archive_add,
         vaa_archive_check,
         ConfigInfo,
-        ConfigInfoLegacy,
         ContractUpgrade,
         GovernancePacket,
         GuardianAddress,
@@ -91,48 +89,8 @@ const FEE_AMOUNT: u128 = 0;
 /// Ok(Response::default())
 /// ```
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    // This migration adds two new fields to the [`ConfigInfo`] struct. The
-    // state stored on chain has the old version, so we first parse it as
-    // [`ConfigInfoLegacy`], then add the new fields, and write it back as [`ConfigInfo`].
-    // Since the only place the contract with the legacy state is deployed is
-    // terra2, we just hardcode the new values here for that chain.
-
-    // 1. make sure this contract doesn't already have the new ConfigInfo struct
-    // in storage. Note that this check is not strictly necessary, as the
-    // upgrade will only be issued for terra2, and no new chains. However, it is
-    // good practice to ensure that migration code cannot be run twice, which
-    // this check achieves.
-    if config_read(deps.storage).load().is_ok() {
-        return Err(StdError::generic_err(
-            "Can't migrate; this contract already has a new ConfigInfo struct",
-        ));
-    }
-
-    // 2. parse old state
-    let ConfigInfoLegacy {
-        guardian_set_index,
-        guardian_set_expirity,
-        gov_chain,
-        gov_address,
-        fee,
-    } = config_read_legacy(deps.storage).load()?;
-
-    // 3. store new state with terra2 values hardcoded
-    let chain_id = 18;
-    let fee_denom = "uluna".to_string();
-
-    let config_info = ConfigInfo {
-        guardian_set_index,
-        guardian_set_expirity,
-        gov_chain,
-        gov_address,
-        fee,
-        chain_id,
-        fee_denom,
-    };
-
-    config(deps.storage).save(&config_info)?;
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    // This migration is not, currently, needed as the upgrade has happened successfully.
     Ok(Response::default())
     // NOTE: once this migration has successfully completed, the contents of
     // this (`migrate`) function should be deleted, along with the
@@ -172,10 +130,16 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
+        #[cfg(feature = "full")]
         ExecuteMsg::PostMessage { message, nonce } => {
             handle_post_message(deps, env, info, message.as_slice(), nonce)
         }
+
         ExecuteMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, info, vaa.as_slice()),
+
+        // When in "shutdown" mode, we reject any other action
+        #[cfg(not(feature = "full"))]
+        _ => Err(StdError::generic_err("Invalid during shutdown mode"))
     }
 }
 
@@ -223,7 +187,9 @@ fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<
     match gov_packet.action {
         1u8 => vaa_update_contract(deps, env, &gov_packet.payload),
         2u8 => vaa_update_guardian_set(deps, env, &gov_packet.payload),
+        #[cfg(feature = "full")]
         3u8 => handle_set_fee(deps, env, &gov_packet.payload),
+        #[cfg(feature = "full")]
         4u8 => handle_transfer_fee(deps, env, &gov_packet.payload),
         _ => ContractError::InvalidVAAAction.std_err(),
     }
