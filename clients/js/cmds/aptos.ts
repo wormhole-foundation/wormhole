@@ -228,7 +228,7 @@ exports.builder = function (y: typeof yargs) {
       console.log(hash)
     })
     // TODO - make faucet support testnet in additional to localnet
-    .command("faucet", "Request money from the faucet for the deployer wallet", (yargs) => {
+    .command("faucet", "Request money from the faucet for a given account", (yargs) => {
       return yargs
         .option("rpc", rpc_description)
         .option("faucet", {
