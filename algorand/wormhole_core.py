@@ -604,7 +604,7 @@ def cli(output_approval, output_clear):
 
     client = AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "https://testnet-api.algonode.cloud")
 
-    approval, clear = getCoreContracts(True, output_approval, output_clear, client, seed_amt, tmpl_sig, False)
+    approval, clear = getCoreContracts(True, output_approval, output_clear, client, seed_amt, tmpl_sig, True)
 
 if __name__ == "__main__":
     cli(sys.argv[1], sys.argv[2])

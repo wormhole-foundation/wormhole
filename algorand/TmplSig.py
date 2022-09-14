@@ -116,14 +116,13 @@ class TmplSig:
             return Seq(
                 # Just putting adding this as a tmpl var to make the address unique and deterministic
                 # We don't actually care what the value is, pop it
-                Pop(Tmpl.Int("TMPL_I_ADDR_IDX")),
-                Pop(Tmpl.Bytes("TMPL_BN_EMITTER_ID")),
+                Pop(Tmpl.Int("TMPL_ADDR_IDX")),
+                Pop(Tmpl.Bytes("TMPL_EMITTER_ID")),
                 
                 Assert(Txn.type_enum() == TxnType.ApplicationCall),
                 Assert(Txn.on_completion() == OnComplete.OptIn),
-                Assert(Txn.application_id() == Tmpl.Int("TMPL_I_APP_ID")),
-                # NOTE: This could be calculated instead of passed as a parameter
-                Assert(Txn.rekey_to() == Tmpl.Bytes("TMPL_B32_APP_ADDRESS")),
+                Assert(Txn.application_id() == Tmpl.Int("TMPL_APP_ID")),
+                Assert(Txn.rekey_to() == Tmpl.Bytes("TMPL_APP_ADDRESS")),
 
                 Assert(Txn.fee() == Int(0)),
                 Assert(Txn.close_remainder_to() == Global.zero_address()),
