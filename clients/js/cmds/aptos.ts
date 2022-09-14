@@ -228,15 +228,40 @@ exports.builder = function (y: typeof yargs) {
       console.log(hash)
     })
     // TODO - make faucet support testnet in additional to localnet
-    .command("faucet", "Request money from the faucet for the deployer wallet (only local validator)", (_yargs) => {
-    }, async (_argv) => {
-      const NODE_URL = "http://0.0.0.0:8080/v1";
-      const FAUCET_URL = "http://0.0.0.0:8081";
-      const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
+    .command("faucet", "Request money from the faucet for the deployer wallet", (yargs) => {
+      return yargs
+        .option("rpc", rpc_description)
+        .option("faucet", {
+          alias: "f",
+          required: false,
+          describe: "faucet url",
+          type: "string",
+        })
+        .option("account", {
+          alias: "a",
+          required: false,
+          describe: "account to fund",
+          type: "string",
+        })
+    },
+      async (argv) => {
+        let NODE_URL = "http://0.0.0.0:8080/v1";
+        let FAUCET_URL = "http://0.0.0.0:8081";
+        let account = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
 
-      const coins = 100000;
-      await faucetClient.fundAccount("0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b", coins);
-      console.log(`Funded account with ${coins} coins`);
+        if (argv.faucet!=undefined){
+          FAUCET_URL = argv.faucet as string;
+        }
+        if (argv.rpc!=undefined){
+          NODE_URL = argv.rpc as string;
+        }
+        if (argv.account!=undefined){
+          account = argv.account as string;
+        }
+        const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
+        const coins = 200000;
+        await faucetClient.fundAccount(account, coins);
+        console.log(`Funded ${account} with ${coins} coins`);
     })
     .strict().demandCommand();
 }
