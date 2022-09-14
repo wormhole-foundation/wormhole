@@ -68,7 +68,7 @@ export class Deployer {
     }
 
     private async compileProgram(program: string, templateValues?: Map<string, AlgorandType>): Promise<Uint8Array> {
-        const [parsedCode,] = Deployer.parseCode(program, templateValues)
+        const parsedCode = Deployer.parseCode(program, templateValues)
         const compileResponse = await this.algodClient.compile(parsedCode).do()
         return new Uint8Array(Buffer.from(compileResponse.result, 'base64'))
     }
@@ -493,48 +493,19 @@ export class Deployer {
         return result
     }
 
-    static parseCode(code: string, templateValues?: Map<string, AlgorandType>): [string, IParameter[]] {
+    static parseCode(code: string, templateValues?: Map<string, AlgorandType>): string {
         const substitutions = templateValues ?? new Map();
-        const result = [...substitutions.entries()].reduce(([acc, params], [key, val]) => {
-            const keyParts = key.split('_');
-            const typeCode = keyParts[1][0];
-            const description = keyParts[1].substring(1);
-            const name = keyParts.slice(2).join('_');
-
-            const typeDict: Record<string, FieldType> = {
-                'I': FieldType.UINT,
-                'B': FieldType.BYTES, // Description = field length, base 10, or 'n' for any length
-                'A': FieldType.ADDRESS,
-                'S': FieldType.STRING,
-            };
-
+        const result = [...substitutions.entries()].reduce((acc, [key, val]) => {
             let printedVal = ""
-            const type = typeDict[typeCode];
-            switch (type) {
-            case FieldType.BYTES: {
-                const buffer = Buffer.from(val);
-                if (description === 'N' || buffer.length === parseInt(description, 10)) {
-                    printedVal = '0x' + buffer.toString('hex');
-                } else {
-                    throw new Error('Size of buffer does not match template size for template variable ' + key)
-                }
-                break;
+            if (typeof val === "string" || typeof val === "number") {
+                printedVal = val.toString()
+            } else if (val instanceof Uint8Array) {
+                printedVal = '0x' + Buffer.from(val).toString('hex')
+            } else {
+                throw new Error(`Unknown template type while parsing code for: ${val}`)
             }
-            case FieldType.STRING:
-                printedVal = '"' + val + '"';
-                break;
-
-            case FieldType.UINT:
-            case FieldType.ADDRESS:
-                printedVal = val.toString();
-                break;
-
-            default:
-                throw new Error('Unknown template type for template variable ' + key);
-            }
-
-            return [acc.split(key).join(printedVal), [...params, { name, description, type }]];
-        }, [code, []]);
+            return acc.split(key).join(printedVal)
+        }, code);
 
         return result;
     }

@@ -61,11 +61,11 @@ export class WormholeTmplSig {
 		const tmplSigPath = path.join(Wormhole.BASE_PATH, 'TmplSig.py')
 	
 		const tmplSigArgs = new Map<string, AlgorandType>([
-			['TMPL_I_ADDR_IDX', sequence],
-			['TMPL_BN_EMITTER_ID', emitterId],
-			['TMPL_I_APP_ID', coreId],
+			['TMPL_ADDR_IDX', sequence],
+			['TMPL_EMITTER_ID', emitterId],
+			['TMPL_APP_ID', coreId],
 			// FIXME: The application address should be generated contract side for security
-			['TMPL_B32_APP_ADDRESS', decodeAddress(getApplicationAddress(coreId)).publicKey],
+			['TMPL_APP_ADDRESS', decodeAddress(getApplicationAddress(coreId)).publicKey],
 		])
 
 		const tmplSigApp = await deployer.compileStateless(tmplSigPath, tmplSigArgs)
