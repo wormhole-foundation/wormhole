@@ -2,7 +2,9 @@
 members = [
     "contracts/cw20-wrapped",
     "contracts/wormhole",
+    "contracts/shutdown-wormhole",
     "contracts/token-bridge",
+    "contracts/shutdown-token-bridge",
     "contracts/mock-bridge-integration",
 ]
 

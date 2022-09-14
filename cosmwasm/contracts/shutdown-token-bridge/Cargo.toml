@@ -1,0 +1,12 @@
+[package]
+name = "shutdown-token-bridge-cosmwasm"
+version = "0.1.0"
+authors = ["Wormhole Project Contributors"]
+edition = "2018"
+description = "Shutdown Wormhole token bridge on cosmwasm"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+token-bridge-terra-2 = { path = "../token-bridge", default-features = false }
