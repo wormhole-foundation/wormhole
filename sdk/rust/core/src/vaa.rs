@@ -88,26 +88,37 @@ pub struct VAA {
     pub payload:           Vec<u8>,
 }
 
-/// Contains the hash, secp256k1 payload, and serialized digest of the VAA. These are used in
-/// various places in Wormhole codebases.
+/// VAADigest contains useful digest data for the VAA.
+///
+/// - The Digest itself.
+/// - A hash of the Digest, which is what a guardian actually signs.
+/// - The secp256k1 message part,  ahash of the hash of the Digest, which can be passed to ecrecover.
 pub struct VAADigest {
-    pub digest: Vec<u8>,
-    pub hash:   [u8; 32],
+    pub digest:  Vec<u8>,
+    pub hash:    [u8; 32],
+    pub message: [u8; 32],
 }
 
 impl VAA {
-    /// Given any argument treatable as a series of bytes, attempt to deserialize into a valid VAA.
+    /// Given a series of bytes, attempt to deserialize into a valid VAA.
     pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, WormholeError> {
         match parse_vaa(input.as_ref()).finish() {
-            Ok(input) => Ok(input.1),
-            Err(e) => Err(WormholeError::ParseError(e.code as usize)),
+            Ok((_, vaa)) => Ok(vaa),
+            Err(e) => Err(ParseFailed(e.code as usize)),
         }
     }
 
+    /// Check if the VAA is a Governance VAA.
+    pub fn is_governance(&self) -> bool {
+        self.emitter_address == crate::GOVERNANCE_EMITTER && self.emitter_chain == Chain::Solana
+    }
+
+    /// VAA Digest Components.
+    ///
     /// A VAA is distinguished by the unique hash of its deterministic components. This method
     /// returns a 256 bit Keccak hash of these components. This hash is utilised in all Wormhole
     /// components for identifying unique VAA's, including the bridge, modules, and core guardian
-    /// software.
+    /// software. See `VAADigest` for more information.
     pub fn digest(&self) -> Option<VAADigest> {
         use byteorder::{
             BigEndian,
@@ -153,7 +164,18 @@ impl VAA {
             h.finalize().into()
         };
 
-        Some(VAADigest { digest: body, hash })
+        // TODO: Explain double hashing reason.
+        let message: [u8; 32] = {
+            let mut h = sha3::Keccak256::default();
+            let _ = h.write(&hash).unwrap();
+            h.finalize().into()
+        };
+
+        Some(VAADigest {
+            digest: body,
+            hash,
+            message,
+        })
     }
 }
 
@@ -212,7 +234,7 @@ fn parse_vaa(input: &[u8]) -> IResult<&[u8], VAA> {
 pub struct GovHeader {
     pub module: [u8; 32],
     pub action: u8,
-    pub chains: Chain,
+    pub target: Chain,
 }
 
 pub trait GovernanceAction: Sized {
@@ -241,7 +263,7 @@ pub trait GovernanceAction: Sized {
                 (&mut module[32 - modlen..]).copy_from_slice(&Self::MODULE);
 
                 // Verify Governance Data.
-                let valid_chain = chain == header.chains || chain == Chain::Any;
+                let valid_chain = chain == header.target || chain == Chain::Any;
                 let valid_action = header.action == Self::ACTION;
                 let valid_module = module == header.module;
                 require!(valid_action, InvalidGovernanceAction);
@@ -266,13 +288,13 @@ pub fn parse_action<A: GovernanceAction>(input: &[u8]) -> IResult<&[u8], (GovHea
 pub fn parse_governance_header<'i, 'a>(input: &'i [u8]) -> IResult<&'i [u8], GovHeader> {
     let (i, module) = parse_fixed(input)?;
     let (i, action) = u8(i)?;
-    let (i, chains) = u16(Endianness::Big)(i)?;
+    let (i, target) = u16(Endianness::Big)(i)?;
     Ok((
         i,
         GovHeader {
             module,
             action,
-            chains: Chain::try_from(chains).unwrap(),
+            target: Chain::try_from(target).unwrap(),
         },
     ))
 }
@@ -301,7 +323,7 @@ mod testing {
         // Confirm Parsed matches Required.
         assert_eq!(&header.module, &module[..]);
         assert_eq!(header.action, 1);
-        assert_eq!(header.chains, Chain::Any);
+        assert_eq!(header.target, Chain::Any);
     }
 
     // Legacy VAA Signature Struct.
