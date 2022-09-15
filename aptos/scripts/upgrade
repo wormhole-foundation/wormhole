@@ -1,0 +1,71 @@
+#!/bin/bash
+
+set -euo pipefail
+
+function usage() {
+cat <<EOF >&2
+Usage:
+
+  $(basename "$0") <devnet|testnet> <Core|TokenBridge> -- Perform a contract upgrade
+EOF
+exit 1
+}
+
+NETWORK=$1 || usage
+MODULE=$2 || usage
+
+if [ "$NETWORK" = testnet ]; then
+    # This script upgrades the core bridge in local devnet by generating a
+    # governance VAA and submitting it
+
+    # TODO: come up with a more robust way to do this (potentially via `worm`)
+    mv ../wormhole/Move.toml ../wormhole/Move_temp.toml
+    mv ../wormhole/Move_testnet.toml ../wormhole/Move.toml
+    mv ../token_bridge/Move.toml ../token_bridge/Move_temp.toml
+    mv ../token_bridge/Move_testnet.toml ../token_bridge/Move.toml
+    mv ../deployer/Move.toml ../deployer/Move_temp.toml
+    mv ../deployer/Move_testnet.toml ../deployer/Move.toml
+
+
+    function clean_up () {
+        ARG=$?
+        mv ../token_bridge/Move.toml ../token_bridge/Move_testnet.toml
+        mv ../token_bridge/Move_temp.toml ../token_bridge/Move.toml
+        mv ../wormhole/Move.toml ../wormhole/Move_testnet.toml
+        mv ../wormhole/Move_temp.toml ../wormhole/Move.toml
+        mv ../deployer/Move.toml ../deployer/Move_testnet.toml
+        mv ../deployer/Move_temp.toml ../deployer/Move.toml
+        exit $ARG
+    }
+    trap clean_up SIGINT SIGTERM EXIT
+
+    [ -z "$GUARDIAN_SECRET" ] && echo "GUARDIAN_SECRET unset" >&2 && exit 1
+
+elif [ "$NETWORK" = devnet ]; then
+    GUARDIAN_SECRET=cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
+else
+    usage
+fi
+
+case "$MODULE" in
+    Core)
+        DIR="../wormhole"
+    ;;
+    TokenBridge)
+        DIR="../token_bridge"
+    ;;
+    *) echo "unsupported module $MODULE" >&2
+       usage
+       ;;
+esac
+
+HASH=$(worm aptos hash-contracts $DIR)
+# devnet guardian secret..
+CONTRACT_ADDR=$(worm contract "$NETWORK" aptos "$MODULE")
+VAA=$(worm generate upgrade -c aptos -a "$HASH" -m "$MODULE" -g $GUARDIAN_SECRET)
+
+echo "Submitting VAA: $VAA"
+
+worm submit --network "$NETWORK" "$VAA" --contract-address "$CONTRACT_ADDR"
+worm aptos upgrade $DIR --network "$NETWORK" --contract-address "$CONTRACT_ADDR"
+worm aptos migrate --network "$NETWORK" --contract-address "$CONTRACT_ADDR"

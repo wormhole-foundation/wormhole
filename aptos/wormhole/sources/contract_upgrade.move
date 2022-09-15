@@ -29,6 +29,7 @@ module wormhole::contract_upgrade {
     const E_INVALID_MODULE: u64 = 2;
     const E_INVALID_ACTION: u64 = 3;
     const E_INVALID_TARGET: u64 = 4;
+    const E_NOT_MIGRATING: u64 = 5;
 
     /// The `UpgradeAuthorized` type in the global storage represents the fact
     /// there is an ongoing approved upgrade.
@@ -108,6 +109,21 @@ module wormhole::contract_upgrade {
 
         let wormhole = state::wormhole_signer();
         code::publish_package_txn(&wormhole, metadata_serialized, code);
+
+        // allow migration to be run.
+        if (!exists<Migrating>(@wormhole)) {
+            move_to(&wormhole, Migrating {});
+        }
+    }
+
+// -----------------------------------------------------------------------------
+// Migration
+
+    struct Migrating has key {}
+
+    public entry fun migrate() acquires Migrating {
+        assert!(exists<Migrating>(@wormhole), E_NOT_MIGRATING);
+        let Migrating { } = move_from<Migrating>(@wormhole);
     }
 }
 

@@ -122,8 +122,8 @@ When you make a change to the contract, you can simply restart the validator and
 run the deploy script again. However, a better way is to run one of the following scripts:
 
 ``` sh
-scripts $ ./upgrade-core # for upgrading the wormhole contract
-scripts $ ./upgrade-token-bridge # for upgarding the token bridge contract
+scripts $ ./upgrade devnet Core # for upgrading the wormhole contract
+scripts $ ./upgrade devnet TokenBridge # for upgarding the token bridge contract
 ```
 
 Behind the scenes, these scripts exercise the whole contract upgrade code path

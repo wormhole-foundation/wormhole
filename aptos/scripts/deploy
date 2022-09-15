@@ -1,8 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail
+
 GUARDIAN_ADDR=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
-WORMHOLE_ADDR=0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204
-TOKEN_BRIDGE_ADDR=0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed
+WORMHOLE_ADDR=$(worm contract devnet aptos Core)
+TOKEN_BRIDGE_ADDR=$(worm contract devnet aptos TokenBridge)
 
 worm aptos faucet
 
@@ -12,12 +14,12 @@ worm aptos deploy --network devnet ../deployer
 # Deploy wormhole
 worm aptos deploy-resource wormhole --network devnet ../wormhole
 # Initialise wormhole
-worm aptos init-wormhole --network devnet -g $GUARDIAN_ADDR --contract-address $WORMHOLE_ADDR
+worm aptos init-wormhole --network devnet -g $GUARDIAN_ADDR --contract-address "$WORMHOLE_ADDR"
 
 # Deploy & initialise (with `init_module`) token_bridge
 worm aptos deploy-resource token_bridge --network devnet ../token_bridge
 # Initialise token-bridge
-worm aptos init-token-bridge --network devnet --contract-address $TOKEN_BRIDGE_ADDR
+worm aptos init-token-bridge --network devnet --contract-address "$TOKEN_BRIDGE_ADDR"
 
 # Deploy example program for sending messages
 worm aptos deploy --network devnet ../examples/core_messages

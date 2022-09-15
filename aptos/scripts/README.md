@@ -37,7 +37,7 @@ ts-node publish_wormhole_message.ts
 Make a change to the contract, then rebuild and run the upgrade script:
 
 ``` shell
-./upgrade-core
+./upgrade devnet Core
 ```
 
 ### RPC

@@ -2,11 +2,12 @@ import { CHAIN_ID_APTOS, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { BCS, FaucetClient } from "aptos";
 import { ethers } from "ethers";
 import yargs from "yargs";
-import { callEntryFunc } from "../aptos";
+import { callEntryFunc, deriveResourceAccount } from "../aptos";
 import { spawnSync } from 'child_process';
 import { config } from '../config';
 import fs from 'fs';
 import sha3 from 'js-sha3';
+import { NETWORKS } from "../networks";
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
 
@@ -66,7 +67,7 @@ exports.builder = function (y: typeof yargs) {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       const contract_address = evm_address(argv["contract-address"]);
-      const rpc = argv.rpc;
+      const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(network, rpc, `${contract_address}::token_bridge`, "init", [], []);
     })
     .command("init-wormhole", "Init Wormhole core contract", (yargs) => {
@@ -120,7 +121,7 @@ exports.builder = function (y: typeof yargs) {
         BCS.bcsSerializeBytes(Buffer.from(governance_address, "hex")),
         BCS.bcsSerializeBytes(Buffer.from(guardian_address, "hex"))
       ]
-      const rpc = argv.rpc;
+      const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(network, rpc, `${contract_address}::wormhole`, "init", [], args);
     })
     .command("deploy <package-dir>", "Deploy an Aptos package", (yargs) => {
@@ -136,7 +137,7 @@ exports.builder = function (y: typeof yargs) {
       checkAptosBinary();
       const p = buildPackage(argv["package-dir"]);
       const b = serializePackage(p);
-      const rpc = argv.rpc;
+      const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(network, rpc, "0x1::code", "publish_package_txn", [], [b.meta, b.bytecodes])
       console.log("Deployed:", p.mv_files)
     })
@@ -161,9 +162,9 @@ exports.builder = function (y: typeof yargs) {
       // TODO(csongor): use deployer address from sdk (when it's there)
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
       if (network=="TESTNET"){
-        module_name= "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer";
+        module_name= "0xdaa5752a46c5b7b5f98c3ec74623da8f44837a28265689dbb03a89dad3516b9d::deployer";
       }
-      const rpc = argv.rpc;
+      const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(
         network,
         rpc,
@@ -176,6 +177,17 @@ exports.builder = function (y: typeof yargs) {
           BCS.bcsSerializeBytes(seed)
         ])
       console.log("Deployed:", p.mv_files)
+    })
+    .command("derive-resource-account <account> <seed>", "Derive resource account address", (yargs) => {
+      return yargs
+        .positional("account", {
+          type: "string"
+        })
+        .positional("seed", {
+          type: "string"
+        })
+    }, async (argv) => {
+      console.log(deriveResourceAccount(Buffer.from(hex(argv['account']).substring(2), 'hex'), argv['seed']))
     })
     .command("hash-contracts <package-dir>", "Hash contract bytecodes for upgrade", (yargs) => {
       return yargs
@@ -212,7 +224,7 @@ exports.builder = function (y: typeof yargs) {
       checkAptosBinary();
       const p = buildPackage(argv["package-dir"]);
       const b = serializePackage(p);
-      const rpc = argv.rpc;
+      const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       // TODO(csongor): use deployer address from sdk (when it's there)
       const hash = await callEntryFunc(
         network,
@@ -225,6 +237,33 @@ exports.builder = function (y: typeof yargs) {
           b.bytecodes,
         ])
       console.log("Deployed:", p.mv_files)
+      console.log(hash)
+    })
+    .command("migrate", "Perform migration after contract upgrade", (_yargs) => {
+      return yargs
+        // TODO(csongor): once the sdk has the addresses, just look that up
+        // based on the module
+        .option("contract-address", {
+          alias: "a",
+          required: true,
+          describe: "Address where the wormhole module is deployed",
+          type: "string",
+        })
+        .option("network", network_options)
+        .option("rpc", rpc_description)
+    }, async (argv) => {
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      checkAptosBinary();
+      const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
+      // TODO(csongor): use deployer address from sdk (when it's there)
+      const hash = await callEntryFunc(
+        network,
+        rpc,
+        `${argv["contract-address"]}::contract_upgrade`,
+        "migrate",
+        [],
+        [])
       console.log(hash)
     })
     // TODO - make faucet support testnet in additional to localnet
@@ -284,7 +323,7 @@ export function checkAptosBinary(): void {
 }
 
 function buildPackage(dir: string): Package {
-  const aptos = spawnSync("aptos", ["move", "compile", "--save-metadata", "--package-dir", dir])
+  const aptos = spawnSync("aptos", ["move", "compile", "--save-metadata", "--included-artifacts", "none", "--package-dir", dir])
   if (aptos.status !== 0) {
     console.error(aptos.stderr.toString('utf8'))
     console.error(aptos.stdout.toString('utf8'))

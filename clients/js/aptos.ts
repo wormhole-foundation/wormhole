@@ -69,7 +69,7 @@ export async function execute_aptos(
           // transaction that deploys a module cannot use that module
           //
           // Tx 1.
-          await callEntryFunc(network, rpc, `${contract}::wrapped`, "create_wrapped_coin_type", [], [bcsVAA], "wait");
+          await callEntryFunc(network, rpc, `${contract}::wrapped`, "create_wrapped_coin_type", [], [bcsVAA]);
 
           // We just deployed the module (notice the "wait" argument which makes
           // the previous step block until finality).
@@ -115,6 +115,13 @@ export function deriveWrappedAssetAddress(
   return sha3_256(Buffer.concat([token_bridge_address, chain, Buffer.from("::", "ascii"), origin_address]));
 }
 
+export function deriveResourceAccount(
+  deployer: Uint8Array, // 32 bytes
+  seed: string,
+) {
+  return sha3_256(Buffer.concat([deployer, Buffer.from(seed, "ascii")]))
+}
+
 export async function callEntryFunc(
   network: "MAINNET" | "TESTNET" | "DEVNET",
   rpc: string | undefined,
@@ -122,14 +129,13 @@ export async function callEntryFunc(
   func: string,
   ty_args: Seq<TypeTag>,
   args: Seq<Bytes>,
-  wait: "wait" | "don't wait" = "don't wait" // should we wait for the transaction to finish?
 ) {
   let key: string | undefined = NETWORKS[network]["aptos"].key;
   if (key === undefined) {
     throw new Error("No key for aptos");
   }
   const accountFrom = new AptosAccount(new Uint8Array(Buffer.from(key, "hex")));
-  let client;
+  let client: AptosClient;
   // if rpc arg is passed in, then override default rpc value for that network
   if (typeof rpc != 'undefined'){
     client = new AptosClient(rpc);
@@ -172,9 +178,7 @@ export async function callEntryFunc(
   const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
   const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
 
-  if (wait === "wait") {
-    await client.waitForTransaction(transactionRes.hash);
-  }
+  await client.waitForTransaction(transactionRes.hash);
   return transactionRes.hash;
 }
 
