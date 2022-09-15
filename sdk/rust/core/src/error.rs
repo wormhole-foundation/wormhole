@@ -5,7 +5,7 @@ macro_rules! require {
         if !$expr {
             return Err($name.into());
         }
-    }
+    };
 }
 
 /// This ErrorCode maps to the nom ParseError, we use an integer because the library is deprecating
@@ -14,9 +14,23 @@ type ErrorCode = usize;
 
 #[derive(Debug)]
 pub enum WormholeError {
+    // Governance Errors
     InvalidGovernanceAction,
     InvalidGovernanceChain,
     InvalidGovernanceModule,
+
+    // VAA Errors
+    GuardianSetExpired,
+    InvalidExpirationTime,
+    InvalidGuardianSet,
+    InvalidSignature,
+    InvalidSignatureKey,
+    InvalidSignaturePosition,
+    InvalidVersion,
+    QuorumNotMet,
+    UnsortedSignatures,
+
+    // Serialization Errors
     DeserializeFailed,
     ParseError(ErrorCode),
 }
