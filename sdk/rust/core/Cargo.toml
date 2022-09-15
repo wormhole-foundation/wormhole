@@ -3,8 +3,8 @@ name    = "wormhole-core"
 version = "0.1.0"
 edition = "2018"
 
-
-[features]
+[lib]
+name = "wormhole"
 
 
 [profile.release]
@@ -13,12 +13,14 @@ lto       = "thin"
 
 
 [dependencies]
+borsh           = "*"
+bstr            = "*"
 byteorder       = "*"
 hex             = "*"
+hex-literal     = "*"
 nom             = { version="7", default-features=false, features=["alloc"] }
 primitive-types = { version="0.9.0", default-features=false }
 sha3            = "0.9.1"
-bstr            = "*"
 
 
 [dev-dependencies]

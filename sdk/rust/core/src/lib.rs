@@ -1,4 +1,12 @@
+//! Core acts as a provider for all the Wormhole primitives. These are utilised within every single
+//! Wormhole Rust project.
+
 #![deny(unused_results)]
+
+use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
+};
 
 pub use chain::*;
 pub use error::*;
@@ -9,6 +17,24 @@ pub mod vaa;
 
 #[macro_use]
 pub mod error;
+
+
+pub const GOVERNANCE_EMITTER: [u8; 32] =
+    hex_literal::hex!("0000000000000000000000000000000000000000000000000000000000000004");
+
+
+#[derive(BorshDeserialize, BorshSerialize, Default)]
+pub struct GuardianSet {
+    pub index:     u32,
+    pub expires:   u32,
+    pub addresses: Vec<[u8; 20]>,
+}
+
+impl GuardianSet {
+    pub fn quorum(&self) -> usize {
+        ((self.addresses.len() * 10 / 3) * 2) / 10 + 1
+    }
+}
 
 
 /// Helper method that attempts to parse and truncate UTF-8 from a byte stream. This is useful when
