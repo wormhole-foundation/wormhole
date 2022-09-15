@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 
@@ -17,7 +16,7 @@ type GovernanceAction uint8
 
 // TokenBridgeModule is the identifier of the TokenBridge module (which is used for governance messages)
 // TODO(csongor): where's the best place to put this? CoreModule is in the node code, why is TokenBridgeModule not?
-var TokenBridgeModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65}
+var TokenBridgeModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65}
 
 var (
 	ActionRegisterChain GovernanceAction = 1
@@ -33,7 +32,7 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 	}
 
 	// Verify VAA
-	err = k.wormholeKeeper.VerifyVAA(ctx, v)
+	action, payload, err := k.wormholeKeeper.VerifyVAAGovernance(ctx, v, TokenBridgeModule)
 	if err != nil {
 		return nil, err
 	}
@@ -43,39 +42,8 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		return nil, whtypes.ErrNoConfig
 	}
 
-	_, known := k.GetReplayProtection(ctx, v.HexDigest())
-	if known {
-		return nil, types.ErrVAAAlreadyExecuted
-	}
-
-	// Check governance emitter
-	if !bytes.Equal(v.EmitterAddress[:], wormholeConfig.GovernanceEmitter) {
-		return nil, types.ErrInvalidGovernanceEmitter
-	}
-	if v.EmitterChain != vaa.ChainID(wormholeConfig.GovernanceChain) {
-		return nil, types.ErrInvalidGovernanceEmitter
-	}
-
-	if len(v.Payload) < 35 {
-		return nil, types.ErrGovernanceHeaderTooShort
-	}
-
-	// Check governance header
-	if !bytes.Equal(v.Payload[:32], TokenBridgeModule) {
-		return nil, types.ErrUnknownGovernanceModule
-	}
-
-	// Decode header
-	action := GovernanceAction(v.Payload[32])
-	chain := binary.BigEndian.Uint16(v.Payload[33:35])
-	payload := v.Payload[35:]
-
-	if chain != 0 && chain != uint16(wormholeConfig.ChainId) {
-		return nil, types.ErrInvalidGovernanceTargetChain
-	}
-
 	// Execute action
-	switch action {
+	switch GovernanceAction(action) {
 	case ActionRegisterChain:
 		if len(payload) != 34 {
 			return nil, types.ErrInvalidGovernancePayloadLength
@@ -110,9 +78,6 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		return nil, types.ErrUnknownGovernanceAction
 
 	}
-
-	// Prevent replay
-	k.SetReplayProtection(ctx, types.ReplayProtection{Index: v.HexDigest()})
 
 	return &types.MsgExecuteGovernanceVAAResponse{}, nil
 }

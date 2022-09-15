@@ -21,14 +21,15 @@ require (
 	github.com/tendermint/tendermint v0.34.21
 	github.com/tendermint/tm-db v0.6.7
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220921004715-3103e59217da
-	google.golang.org/genproto v0.0.0-20220725144611-272f38e5d71b
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
+	google.golang.org/genproto v0.0.0-20220822174746-9e6da59bd2fc
 	google.golang.org/grpc v1.48.0
 	nhooyr.io/websocket v1.8.7 // indirect
 )
 
 replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.1.7-0.20210622111912-ef00f8ac3d76
-	github.com/CosmWasm/wasmd v0.28.0 => github.com/wormhole-foundation/wasmd v0.28.0-wormhole
+	github.com/CosmWasm/wasmd v0.28.0 => github.com/wormhole-foundation/wasmd v0.28.0-wormhole-2
 	github.com/cosmos/cosmos-sdk v0.45.7 => github.com/wormhole-foundation/cosmos-sdk v0.45.7-wormhole
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/wormhole-foundation/wormhole/sdk => ../sdk
