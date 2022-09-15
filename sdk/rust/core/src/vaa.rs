@@ -9,38 +9,40 @@
 //! includes parsers for the core VAA type. Programs targetting wormhole can use this module to
 //! parse and verify incoming VAA's securely.
 
-use nom::combinator::rest;
-use nom::error::{
-    Error,
-    ErrorKind,
-};
-use nom::multi::{
-    count,
-    fill,
-};
-use nom::number::complete::{
-    u16,
-    u32,
-    u64,
-    u8,
-};
-use nom::number::Endianness;
-use nom::{
-    Err,
-    Finish,
-    IResult,
-};
-use std::convert::TryFrom;
-
-use crate::WormholeError::{
-    InvalidGovernanceAction,
-    InvalidGovernanceChain,
-    InvalidGovernanceModule,
-};
-use crate::{
-    require,
-    Chain,
-    WormholeError,
+use {
+    crate::{
+        require,
+        Chain,
+        WormholeError::{
+            self,
+            InvalidGovernanceAction,
+            InvalidGovernanceChain,
+            InvalidGovernanceModule,
+        },
+    },
+    nom::{
+        combinator::rest,
+        error::{
+            Error,
+            ErrorKind,
+        },
+        multi::{
+            count,
+            fill,
+        },
+        number::{
+            complete::{
+                u32,
+                u64,
+                u8,
+            },
+            Endianness,
+        },
+        Err,
+        Finish,
+        IResult,
+    },
+    std::convert::TryFrom,
 };
 
 // Import Module Specific VAAs.
@@ -113,21 +115,17 @@ impl VAA {
         self.emitter_address == crate::GOVERNANCE_EMITTER && self.emitter_chain == Chain::Solana
     }
 
-    /// VAA Digest Components.
-    ///
-    /// A VAA is distinguished by the unique hash of its deterministic components. This method
-    /// returns a 256 bit Keccak hash of these components. This hash is utilised in all Wormhole
-    /// components for identifying unique VAA's, including the bridge, modules, and core guardian
-    /// software. See `VAADigest` for more information.
-    pub fn digest(&self) -> Option<VAADigest> {
-        use byteorder::{
-            BigEndian,
-            WriteBytesExt,
-        };
-        use sha3::Digest;
-        use std::io::{
-            Cursor,
-            Write,
+    /// Extract the body of the VAA, used as the payload for the digest.
+    pub fn body(&self) -> Result<Vec<u8>, Error> {
+        use {
+            byteorder::{
+                BigEndian,
+                WriteBytesExt,
+            },
+            std::io::{
+                Cursor,
+                Write,
+            },
         };
 
         let mut v = Cursor::new(Vec::new());
@@ -335,12 +333,16 @@ mod testing {
 
     // Original VAA Parsing Code. Used to compare current code to old for parity.
     pub fn legacy_deserialize(data: &[u8]) -> std::result::Result<VAA, std::io::Error> {
-        use byteorder::{
-            BigEndian,
-            ReadBytesExt,
+        use {
+            byteorder::{
+                BigEndian,
+                ReadBytesExt,
+            },
+            std::{
+                convert::TryFrom,
+                io::Read,
+            },
         };
-        use std::convert::TryFrom;
-        use std::io::Read;
 
         let mut rdr = std::io::Cursor::new(data);
         let mut v = VAA {
