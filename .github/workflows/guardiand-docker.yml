@@ -36,12 +36,14 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - run: DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
+      - name: Build protobuf
+        run: DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
 
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
-          context: ./node
+          context: .
+          file: ./Dockerfile.node
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           target: export
