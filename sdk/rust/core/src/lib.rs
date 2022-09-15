@@ -21,10 +21,8 @@ pub mod vaa;
 #[macro_use]
 pub mod error;
 
-
 pub const GOVERNANCE_EMITTER: [u8; 32] =
     hex_literal::hex!("0000000000000000000000000000000000000000000000000000000000000004");
-
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct GuardianSet {
@@ -38,7 +36,6 @@ impl GuardianSet {
         ((self.addresses.len() * 10 / 3) * 2) / 10 + 1
     }
 }
-
 
 /// Helper method that attempts to parse and truncate UTF-8 from a byte stream. This is useful when
 /// the wire data is expected to contain UTF-8 that is either already truncated, or needs to be,

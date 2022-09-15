@@ -8,14 +8,17 @@ macro_rules! require {
     };
 }
 
-/// This ErrorCode maps to the nom ParseError, we use an integer because the library is deprecating
-/// the current error type, so we should avoid depending on it for now.
+/// ErrorCode maps to the nom ParseError
+///
+/// We use an integer instead of embedding the type because the library is deprecating the current
+/// error type, so we should avoid depending on it for now. We can always map back to our integer
+/// later if we need to.
 type ErrorCode = usize;
 
 #[derive(Debug)]
 pub enum WormholeError {
     // Governance Errors
-    InvalidGovernanceAction,
+    UnknownGovernanceAction,
     InvalidGovernanceChain,
     InvalidGovernanceModule,
 
@@ -32,5 +35,11 @@ pub enum WormholeError {
 
     // Serialization Errors
     DeserializeFailed,
-    ParseError(ErrorCode),
+    ParseFailed(usize, ErrorCode),
+}
+
+impl WormholeError {
+    pub fn from_parse_error(start: &[u8], end: &[u8], error: ErrorCode) -> Self {
+        WormholeError::ParseFailed(start.len() - end.len(), error)
+    }
 }
