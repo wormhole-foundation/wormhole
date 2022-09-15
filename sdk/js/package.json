@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -56,7 +56,7 @@
     "web3": "^1.6.1"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk-proto-web": "^0.0.3",
+    "@certusone/wormhole-sdk-proto-web": "^0.0.5",
     "@certusone/wormhole-sdk-wasm": "^0.0.1",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
