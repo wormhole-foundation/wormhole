@@ -4,7 +4,6 @@ pub use chain::*;
 pub use error::*;
 pub use vaa::*;
 
-
 pub mod chain;
 pub mod vaa;
 
@@ -19,8 +18,10 @@ pub mod error;
 /// This should be used to parse any Text-over-Wormhole fields that are meant to be human readable.
 pub(crate) fn parse_fixed_utf8<T: AsRef<[u8]>, const N: usize>(s: T) -> Option<String> {
     use bstr::ByteSlice;
-    use std::io::Cursor;
-    use std::io::Read;
+    use std::io::{
+        Cursor,
+        Read,
+    };
 
     // Read Bytes.
     let mut cursor = Cursor::new(s.as_ref());
