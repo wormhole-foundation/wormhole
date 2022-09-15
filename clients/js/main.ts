@@ -4,10 +4,10 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 import { fromBech32, toHex } from "@cosmjs/encoding";
+import { CONTRACTS as SDK_CONTRACTS } from "@certusone/wormhole-sdk";
 import {
   isTerraChain,
   assertEVMChain,
-  CONTRACTS,
   setDefaultWasm,
   hexToUint8Array,
   getEmitterAddressSolana,
@@ -45,12 +45,36 @@ import { isOutdated } from "./cmds/update";
 setDefaultWasm("node");
 
 if (isOutdated()) {
-    console.error("\x1b[33m%s\x1b[0m", "WARNING: 'worm' is out of date. Run 'worm update' to update.");
+  console.error("\x1b[33m%s\x1b[0m", "WARNING: 'worm' is out of date. Run 'worm update' to update.");
 }
 
 const GOVERNANCE_CHAIN = 1;
 const GOVERNANCE_EMITTER =
   "0000000000000000000000000000000000000000000000000000000000000004";
+
+// TODO: put this into the sdk when things have finalised
+const OVERRIDES = {
+  MAINNET: {
+  },
+  TESTNET: {
+    aptos: {
+      token_bridge: "0xb4ec6ea1bff962721cc376be9a9aea840c485f9ceb10f31f523828fd6f4ca95a",
+      core: "0x25de93a587d5dc2d7e673663554b7e1d5b00de5d1d38341a896a2141bba5c5c9"
+    }
+  },
+  DEVNET: {
+    aptos: {
+      token_bridge: "0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed",
+      core: "0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204"
+    }
+  }
+}
+
+const CONTRACTS = {
+  MAINNET: { ...SDK_CONTRACTS.MAINNET, ...OVERRIDES.MAINNET },
+  TESTNET: { ...SDK_CONTRACTS.TESTNET, ...OVERRIDES.TESTNET },
+  DEVNET: { ...SDK_CONTRACTS.DEVNET, ...OVERRIDES.DEVNET },
+};
 
 function makeVAA(
   emitterChain: number,

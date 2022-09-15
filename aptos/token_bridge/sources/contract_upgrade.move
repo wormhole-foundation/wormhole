@@ -32,6 +32,7 @@ module token_bridge::contract_upgrade {
     const E_INVALID_MODULE: u64 = 2;
     const E_INVALID_ACTION: u64 = 3;
     const E_INVALID_TARGET: u64 = 4;
+    const E_NOT_MIGRATING: u64 = 5;
 
     /// The `UpgradeAuthorized` type in the global storage represents the fact
     /// there is an ongoing approved upgrade.
@@ -109,6 +110,21 @@ module token_bridge::contract_upgrade {
 
         let token_bridge = state::token_bridge_signer();
         code::publish_package_txn(&token_bridge, metadata_serialized, code);
+
+        // allow migration to be run.
+        if (!exists<Migrating>(@token_bridge)) {
+            move_to(&token_bridge, Migrating {});
+        }
+    }
+
+// -----------------------------------------------------------------------------
+// Migration
+
+    struct Migrating has key {}
+
+    public entry fun migrate() acquires Migrating {
+        assert!(exists<Migrating>(@token_bridge), E_NOT_MIGRATING);
+        let Migrating { } = move_from<Migrating>(@token_bridge);
     }
 }
 
