@@ -124,7 +124,7 @@ impl VAA {
             let mut v = Cursor::new(Vec::new());
             v.write_u32::<BigEndian>(self.timestamp).ok()?;
             v.write_u32::<BigEndian>(self.nonce).ok()?;
-            v.write_u16::<BigEndian>(self.emitter_chain.clone() as u16).ok()?;
+            v.write_u16::<BigEndian>(self.emitter_chain.into()).ok()?;
             let _ = v.write(&self.emitter_address).ok()?;
             v.write_u64::<BigEndian>(self.sequence).ok()?;
             v.write_u8(self.consistency_level).ok()?;
@@ -141,10 +141,7 @@ impl VAA {
             h.finalize().into()
         };
 
-        Some(VAADigest {
-            digest: body,
-            hash,
-        })
+        Some(VAADigest { digest: body, hash })
     }
 }
 
@@ -224,7 +221,7 @@ pub trait GovernanceAction: Sized {
         match parse_action(input.as_ref()).finish() {
             Ok((_, (header, action))) => {
                 // If no Chain is given, we assume All, which implies always valid.
-                let chain = chain.unwrap_or(Chain::All);
+                let chain = chain.unwrap_or(Chain::Any);
 
                 // Left 0-pad the MODULE in case it is unpadded.
                 let mut module = [0u8; 32];
@@ -232,7 +229,7 @@ pub trait GovernanceAction: Sized {
                 (&mut module[32 - modlen..]).copy_from_slice(&Self::MODULE);
 
                 // Verify Governance Data.
-                let valid_chain = chain == header.chains || chain == Chain::All;
+                let valid_chain = chain == header.chains || chain == Chain::Any;
                 let valid_action = header.action == Self::ACTION;
                 let valid_module = module == header.module;
                 require!(valid_action, InvalidGovernanceAction);
@@ -292,7 +289,7 @@ mod testing {
         // Confirm Parsed matches Required.
         assert_eq!(&header.module, &module[..]);
         assert_eq!(header.action, 1);
-        assert_eq!(header.chains, Chain::All);
+        assert_eq!(header.chains, Chain::Any);
     }
 
     // Legacy VAA Signature Struct.
