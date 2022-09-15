@@ -119,17 +119,29 @@ impl VAA {
             Write,
         };
 
-        // Hash Deterministic Pieces
-        let body = {
-            let mut v = Cursor::new(Vec::new());
-            v.write_u32::<BigEndian>(self.timestamp).ok()?;
-            v.write_u32::<BigEndian>(self.nonce).ok()?;
-            v.write_u16::<BigEndian>(self.emitter_chain.clone() as u16).ok()?;
-            let _ = v.write(&self.emitter_address).ok()?;
-            v.write_u64::<BigEndian>(self.sequence).ok()?;
-            v.write_u8(self.consistency_level).ok()?;
-            let _ = v.write(&self.payload).ok()?;
-            v.into_inner()
+        let mut v = Cursor::new(Vec::new());
+        v.write_u32::<BigEndian>(self.timestamp)?;
+        v.write_u32::<BigEndian>(self.nonce)?;
+        v.write_u16::<BigEndian>(self.emitter_chain.into())?;
+        let _ = v.write(&self.emitter_address)?;
+        v.write_u64::<BigEndian>(self.sequence)?;
+        v.write_u8(self.consistency_level)?;
+        let _ = v.write(&self.payload)?;
+        Ok(v.into_inner())
+    }
+
+    /// VAA Digest Components.
+    ///
+    /// A VAA is distinguished by the unique 256bit Keccak256 hash of its body. This hash is
+    /// utilised in all Wormhole components for identifying unique VAA's, including the bridge,
+    /// modules, and core guardian software. See `VAADigest` for more information.
+    ///
+    /// If efficiency is required, hashing using on-chain built-ins instead is recommended, this
+    /// can be done by calling `body` and hashing manually.
+    pub fn digest(&self) -> Option<VAADigest> {
+        use {
+            sha3::Digest,
+            std::io::Write,
         };
 
         // We hash the body so that secp256k1 signatures are signing the hash instead of the body
@@ -141,10 +153,7 @@ impl VAA {
             h.finalize().into()
         };
 
-        Some(VAADigest {
-            digest: body,
-            hash,
-        })
+        Some(VAADigest { digest: body, hash })
     }
 }
 
@@ -224,7 +233,7 @@ pub trait GovernanceAction: Sized {
         match parse_action(input.as_ref()).finish() {
             Ok((_, (header, action))) => {
                 // If no Chain is given, we assume All, which implies always valid.
-                let chain = chain.unwrap_or(Chain::All);
+                let chain = chain.unwrap_or(Chain::Any);
 
                 // Left 0-pad the MODULE in case it is unpadded.
                 let mut module = [0u8; 32];
@@ -232,7 +241,7 @@ pub trait GovernanceAction: Sized {
                 (&mut module[32 - modlen..]).copy_from_slice(&Self::MODULE);
 
                 // Verify Governance Data.
-                let valid_chain = chain == header.chains || chain == Chain::All;
+                let valid_chain = chain == header.chains || chain == Chain::Any;
                 let valid_action = header.action == Self::ACTION;
                 let valid_module = module == header.module;
                 require!(valid_action, InvalidGovernanceAction);
@@ -292,7 +301,7 @@ mod testing {
         // Confirm Parsed matches Required.
         assert_eq!(&header.module, &module[..]);
         assert_eq!(header.action, 1);
-        assert_eq!(header.chains, Chain::All);
+        assert_eq!(header.chains, Chain::Any);
     }
 
     // Legacy VAA Signature Struct.

@@ -24,3 +24,5 @@ bstr            = "*"
 [dev-dependencies]
 byteorder      = "*"
 hex            = "*"
+strum          = "*"
+strum_macros   = "*"
