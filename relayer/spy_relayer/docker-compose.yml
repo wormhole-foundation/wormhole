@@ -15,7 +15,8 @@ services:
   spy-relayer:
     build:
       context: .
-    image: wormhole-relayer:latest
+      target: application
+    image: wormhole-relayer:dev.v2
     command: ${SPY_RELAYER_COMMAND:-npm run spy_relay}
     environment:
       - SPY_RELAY_CONFIG=/app/.env.docker.sample
