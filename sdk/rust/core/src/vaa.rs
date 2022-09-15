@@ -15,17 +15,14 @@ use {
         Chain,
         WormholeError::{
             self,
-            InvalidGovernanceAction,
             InvalidGovernanceChain,
             InvalidGovernanceModule,
+            UnknownGovernanceAction,
         },
     },
     nom::{
         combinator::rest,
-        error::{
-            Error,
-            ErrorKind,
-        },
+        error::ErrorKind,
         multi::{
             count,
             fill,
@@ -38,7 +35,6 @@ use {
             },
             Endianness,
         },
-        Err,
         Finish,
         IResult,
     },
@@ -50,7 +46,6 @@ use {
 pub mod core;
 pub mod nft;
 pub mod token;
-
 
 /// Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the
 /// following byte layout:
@@ -104,9 +99,10 @@ pub struct VAADigest {
 impl VAA {
     /// Given a series of bytes, attempt to deserialize into a valid VAA.
     pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, WormholeError> {
-        match parse_vaa(input.as_ref()).finish() {
+        let i = input.as_ref();
+        match parse_vaa(i).finish() {
             Ok((_, vaa)) => Ok(vaa),
-            Err(e) => Err(ParseFailed(e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
         }
     }
 
@@ -191,8 +187,11 @@ pub fn parse_fixed<const S: usize>(input: &[u8]) -> IResult<&[u8], [u8; S]> {
 #[inline]
 pub fn parse_chain(input: &[u8]) -> IResult<&[u8], Chain> {
     let (i, chain) = u16(Endianness::Big)(input)?;
-    let chain = Chain::try_from(chain).map_err(|_| Err::Error(Error::new(i, ErrorKind::NoneOf)))?;
-    Ok((i, chain))
+    Ok((
+        i,
+        Chain::try_from(chain)
+            .map_err(|_| nom::Err::Error(nom::error_position!(i, ErrorKind::NoneOf)))?,
+    ))
 }
 
 /// Parse a VAA from a vector of raw bytes. Nom handles situations where the data is either too
@@ -235,73 +234,78 @@ pub struct GovHeader {
     pub target: Chain,
 }
 
-pub trait GovernanceAction: Sized {
-    const ACTION: u8;
-    const MODULE: &'static [u8];
+impl GovHeader {
+    fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+        let (i, module) = parse_fixed(input)?;
+        let (i, action) = u8(i)?;
+        let (i, target) = parse_chain(i)?;
+        Ok((
+            i,
+            GovHeader {
+                module,
+                action,
+                target,
+            },
+        ))
+    }
+}
 
-    /// Implement a nom parser for the Action.
-    fn parse(input: &[u8]) -> IResult<&[u8], Self>;
+pub struct GovAction<A> {
+    pub header: GovHeader,
+    pub action: A,
+}
 
-    /// Serialize to Wormhole wire format.
-    /// fn serialize(&self) -> Result<Vec<u8>, WormholeError>;
+impl<A> GovAction<A>
+where
+    A: Action,
+{
+    #[inline]
+    fn parse<'a>(input: &'a [u8]) -> IResult<&'a [u8], Self> {
+        let (i, header) = GovHeader::parse(input)?;
+        let (i, action) = Action::parse(i, &header)?;
+        Ok((i, GovAction { header, action }))
+    }
 
-    /// Parses an Action from a governance payload securely.
-    fn from_bytes<T: AsRef<[u8]>>(
-        input: T,
-        chain: Option<Chain>,
-    ) -> Result<(GovHeader, Self), WormholeError> {
-        match parse_action(input.as_ref()).finish() {
-            Ok((_, (header, action))) => {
-                // If no Chain is given, we assume All, which implies always valid.
-                let chain = chain.unwrap_or(Chain::Any);
-
-                // Left 0-pad the MODULE in case it is unpadded.
-                let mut module = [0u8; 32];
-                let modlen = Self::MODULE.len();
-                (&mut module[32 - modlen..]).copy_from_slice(&Self::MODULE);
-
-                // Verify Governance Data.
-                let valid_chain = chain == header.target || chain == Chain::Any;
-                let valid_action = header.action == Self::ACTION;
-                let valid_module = module == header.module;
-                require!(valid_action, InvalidGovernanceAction);
-                require!(valid_chain, InvalidGovernanceChain);
-                require!(valid_module, InvalidGovernanceModule);
-
-                Ok((header, action))
+    #[inline]
+    pub fn from_bytes(i: &[u8], chain: Chain) -> Result<Self, WormholeError> {
+        match Self::parse(i).finish() {
+            Ok((_, action)) => {
+                let valid_target = chain == action.header.target || chain == Chain::Any;
+                require!(valid_target, InvalidGovernanceChain);
+                Ok(action)
             }
-            Err(e) => Err(WormholeError::ParseError(e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
         }
     }
 }
 
-#[inline]
-pub fn parse_action<A: GovernanceAction>(input: &[u8]) -> IResult<&[u8], (GovHeader, A)> {
-    let (i, header) = parse_governance_header(input.as_ref())?;
-    let (i, action) = A::parse(i)?;
-    Ok((i, (header, action)))
-}
+pub trait Action: Sized {
+    const MODULE: [u8; 32];
 
-#[inline]
-pub fn parse_governance_header<'i, 'a>(input: &'i [u8]) -> IResult<&'i [u8], GovHeader> {
-    let (i, module) = parse_fixed(input)?;
-    let (i, action) = u8(i)?;
-    let (i, target) = u16(Endianness::Big)(i)?;
-    Ok((
-        i,
-        GovHeader {
-            module,
-            action,
-            target: Chain::try_from(target).unwrap(),
-        },
-    ))
+    /// Parser for the underlying action.
+    fn parse<'a, 'b>(input: &'a [u8], header: &'b GovHeader) -> IResult<&'a [u8], Self>;
+
+    /// Parses an Action from a governance payload securely.
+    #[inline]
+    fn from_bytes(input: impl AsRef<[u8]>, header: &GovHeader) -> Result<Self, WormholeError> {
+        // Don't do anything with Actions not meant for us.
+        require!(header.module == Self::MODULE, InvalidGovernanceModule);
+
+        // Parse and handle unknown Actions and parse errors.
+        let i = input.as_ref();
+        match Self::parse(i, &header).finish() {
+            Ok((_, action)) => Ok(action),
+            Err(e) if e.code == ErrorKind::NoneOf => Err(UnknownGovernanceAction),
+            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
+        }
+    }
 }
 
 #[cfg(test)]
 mod testing {
     use super::{
-        parse_governance_header,
         Chain,
+        GovHeader,
         VAA,
     };
 
@@ -316,7 +320,7 @@ mod testing {
         let vaa = VAA::from_bytes(vaa).unwrap();
 
         // Decode Payload
-        let (_, header) = parse_governance_header(&vaa.payload).unwrap();
+        let (_, header) = GovHeader::parse(&vaa.payload).unwrap();
 
         // Confirm Parsed matches Required.
         assert_eq!(&header.module, &module[..]);

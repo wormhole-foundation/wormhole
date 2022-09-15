@@ -9,7 +9,8 @@ use {
         vaa::{
             parse_chain,
             parse_fixed,
-            GovernanceAction,
+            Action,
+            GovHeader,
             ShortUTFString,
         },
         Chain,
@@ -17,6 +18,7 @@ use {
     },
     nom::{
         combinator::verify,
+        error::ErrorKind,
         multi::fill,
         number::complete::u8,
         Finish,
@@ -50,14 +52,17 @@ pub struct Transfer {
 }
 
 impl Transfer {
-    pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, WormholeError> {
-        match parse_payload_transfer(input.as_ref()).finish() {
-            Ok(input) => Ok(input.1),
-            Err(e) => Err(WormholeError::ParseError(e.code as usize)),
+    #[inline]
+    pub fn from_bytes(input: impl AsRef<[u8]>) -> Result<Self, WormholeError> {
+        let i = input.as_ref();
+        match parse_payload_transfer(i).finish() {
+            Ok((_, transfer)) => Ok(transfer),
+            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
         }
     }
 }
 
+#[inline]
 fn parse_payload_transfer(input: &[u8]) -> IResult<&[u8], Transfer> {
     // Parser Buffers.
     let mut amount = [0u8; 32];
@@ -104,14 +109,17 @@ pub struct AssetMeta {
 }
 
 impl AssetMeta {
-    pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, WormholeError> {
-        match parse_payload_asset_meta(input.as_ref()).finish() {
-            Ok(input) => Ok(input.1),
-            Err(e) => Err(WormholeError::ParseError(e.code as usize)),
+    #[inline]
+    pub fn from_bytes(input: impl AsRef<[u8]>) -> Result<Self, WormholeError> {
+        let i = input.as_ref();
+        match parse_payload_asset_meta(i).finish() {
+            Ok((_, asset_meta)) => Ok(asset_meta),
+            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
         }
     }
 }
 
+#[inline]
 fn parse_payload_asset_meta(input: &[u8]) -> IResult<&[u8], AssetMeta> {
     // Parse Payload.
     let (i, _) = verify(u8, |&s| s == 0x2)(input.as_ref())?;
@@ -138,16 +146,14 @@ fn parse_payload_asset_meta(input: &[u8]) -> IResult<&[u8], AssetMeta> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct GovernanceRegisterChain {
+pub struct RegisterChain {
     pub emitter:          Chain,
     pub endpoint_address: [u8; 32],
 }
 
-impl GovernanceAction for GovernanceRegisterChain {
-    const MODULE: &'static [u8] = b"TokenBridge";
-    const ACTION: u8 = 1;
-    fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (i, emitter) = parse_chain(input)?;
+impl RegisterChain {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        let (i, emitter) = parse_chain(i)?;
         let (i, endpoint_address) = parse_fixed(i)?;
         Ok((
             i,
@@ -160,15 +166,33 @@ impl GovernanceAction for GovernanceRegisterChain {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct GovernanceContractUpgrade {
+pub struct ContractUpgrade {
     pub new_contract: [u8; 32],
 }
 
-impl GovernanceAction for GovernanceContractUpgrade {
-    const MODULE: &'static [u8] = b"TokenBridge";
-    const ACTION: u8 = 2;
-    fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (i, new_contract) = parse_fixed(input)?;
+impl ContractUpgrade {
+    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
+        let (i, new_contract) = parse_fixed(i)?;
         Ok((i, Self { new_contract }))
+    }
+}
+
+pub enum TokenBridgeAction {
+    RegisterChain(RegisterChain),
+    ContractUpgrade(ContractUpgrade),
+}
+
+impl Action for TokenBridgeAction {
+    // Module: 000..TokenBridge
+    const MODULE: [u8; 32] =
+        hex_literal::hex!("000000000000000000000000000000000000000000546f6b656e427269646765");
+
+    fn parse<'a, 'b>(i: &'a [u8], header: &'b GovHeader) -> IResult<&'a [u8], Self> {
+        use TokenBridgeAction as Action;
+        match header.action {
+            1 => RegisterChain::parse(i).map(|(i, r)| (i, Action::RegisterChain(r))),
+            2 => ContractUpgrade::parse(i).map(|(i, r)| (i, Action::ContractUpgrade(r))),
+            _ => Err(nom::Err::Error(nom::error_position!(i, ErrorKind::NoneOf))),
+        }
     }
 }
