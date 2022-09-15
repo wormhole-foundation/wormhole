@@ -7,10 +7,11 @@ use borsh::{
     BorshDeserialize,
     BorshSerialize,
 };
-
-pub use chain::*;
-pub use error::*;
-pub use vaa::*;
+pub use {
+    chain::*,
+    error::*,
+    vaa::*,
+};
 
 pub mod chain;
 pub mod vaa;
@@ -43,10 +44,12 @@ impl GuardianSet {
 ///
 /// This should be used to parse any Text-over-Wormhole fields that are meant to be human readable.
 pub(crate) fn parse_fixed_utf8<T: AsRef<[u8]>, const N: usize>(s: T) -> Option<String> {
-    use bstr::ByteSlice;
-    use std::io::{
-        Cursor,
-        Read,
+    use {
+        bstr::ByteSlice,
+        std::io::{
+            Cursor,
+            Read,
+        },
     };
 
     // Read Bytes.
