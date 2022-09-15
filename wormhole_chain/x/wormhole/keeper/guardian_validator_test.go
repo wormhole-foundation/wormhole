@@ -1,10 +1,12 @@
 package keeper_test
 
 import (
-	"strconv"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
 	"github.com/wormhole-foundation/wormhole-chain/testutil/nullify"
@@ -12,22 +14,43 @@ import (
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
-// Prevent strconv unused error
-var _ = strconv.IntSize
-
-func createNGuardianValidator(keeper *keeper.Keeper, ctx sdk.Context, n int) []types.GuardianValidator {
+// Create N guardians and return both their public and private keys
+func createNGuardianValidator(keeper *keeper.Keeper, ctx sdk.Context, n int) ([]types.GuardianValidator, []*ecdsa.PrivateKey) {
 	items := make([]types.GuardianValidator, n)
+	privKeys := []*ecdsa.PrivateKey{}
 	for i := range items {
-		items[i].GuardianKey = []byte(strconv.Itoa(i))
+		privKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		if err != nil {
+			panic(err)
+		}
+		addr := crypto.PubkeyToAddress(privKey.PublicKey)
+		items[i].GuardianKey = addr[:]
+		privKeys = append(privKeys, privKey)
 
 		keeper.SetGuardianValidator(ctx, items[i])
 	}
-	return items
+	return items, privKeys
+}
+
+func createNewGuardianSet(keeper *keeper.Keeper, ctx sdk.Context, guardians []types.GuardianValidator) *types.GuardianSet {
+	next_index := keeper.GetGuardianSetCount(ctx)
+
+	guardianSet := &types.GuardianSet{
+		Index:          next_index,
+		Keys:           [][]byte{},
+		ExpirationTime: 0,
+	}
+	for _, guardian := range guardians {
+		guardianSet.Keys = append(guardianSet.Keys, guardian.GuardianKey)
+	}
+
+	keeper.AppendGuardianSet(ctx, *guardianSet)
+	return guardianSet
 }
 
 func TestGuardianValidatorGet(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianValidator(keeper, ctx, 10)
+	items, _ := createNGuardianValidator(keeper, ctx, 10)
 	for _, item := range items {
 		rst, found := keeper.GetGuardianValidator(ctx,
 			item.GuardianKey,
@@ -41,7 +64,7 @@ func TestGuardianValidatorGet(t *testing.T) {
 }
 func TestGuardianValidatorRemove(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianValidator(keeper, ctx, 10)
+	items, _ := createNGuardianValidator(keeper, ctx, 10)
 	for _, item := range items {
 		keeper.RemoveGuardianValidator(ctx,
 			item.GuardianKey,
@@ -55,7 +78,7 @@ func TestGuardianValidatorRemove(t *testing.T) {
 
 func TestGuardianValidatorGetAll(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianValidator(keeper, ctx, 10)
+	items, _ := createNGuardianValidator(keeper, ctx, 10)
 	require.ElementsMatch(t,
 		nullify.Fill(items),
 		nullify.Fill(keeper.GetAllGuardianValidator(ctx)),

@@ -441,6 +441,7 @@ func New(
 		supportedFeatures,
 		GetWasmOpts(appOpts)...,
 	)
+	app.WormholeKeeper.SetWasmdKeeper(app.wasmKeeper)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 

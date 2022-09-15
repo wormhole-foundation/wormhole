@@ -1,6 +1,7 @@
 syntax = "proto3";
 package certusone.wormholechain.wormhole;
 
+import "gogoproto/gogo.proto";
 // this line is used by starport scaffolding # proto/tx/import
 import "wormhole/guardian_key.proto";
 
@@ -10,6 +11,12 @@ option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/ty
 service Msg {
       rpc ExecuteGovernanceVAA(MsgExecuteGovernanceVAA) returns (MsgExecuteGovernanceVAAResponse);
   rpc RegisterAccountAsGuardian(MsgRegisterAccountAsGuardian) returns (MsgRegisterAccountAsGuardianResponse);
+
+  // StoreCode to submit Wasm code to the system
+  rpc StoreCode(MsgStoreCode) returns (MsgStoreCodeResponse);
+  //  Instantiate creates a new smart contract instance for the given code id.
+  rpc InstantiateContract(MsgInstantiateContract)
+      returns (MsgInstantiateContractResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
 }
 
@@ -28,6 +35,44 @@ message MsgRegisterAccountAsGuardian {
 }
 
 message MsgRegisterAccountAsGuardianResponse {
+}
+
+// Same as from x/wasmd but with vaa auth
+message MsgStoreCode {
+  // Signer is the that actor that signed the messages
+  string signer = 1;
+  // WASMByteCode can be raw or gzip compressed
+  bytes wasm_byte_code = 2 [ (gogoproto.customname) = "WASMByteCode" ];
+  reserved 3, 4, 5;
+  // vaa must be governance msg with payload containing sha3 256 hash of `wasm_byte_code`
+  bytes vaa = 6;
+}
+
+message MsgStoreCodeResponse {
+  // CodeID is the reference to the stored WASM code
+  uint64 code_id = 1 [ (gogoproto.customname) = "CodeID" ];
+}
+
+// Same as from x/wasmd but with vaa auth
+message MsgInstantiateContract {
+  // Signer is the that actor that signed the messages
+  string signer = 1;
+  // CodeID is the reference to the stored WASM code
+  uint64 code_id = 3 [ (gogoproto.customname) = "CodeID" ];
+  // Label is optional metadata to be stored with a contract instance.
+  string label = 4;
+  // Msg json encoded message to be passed to the contract on instantiation
+  bytes msg = 5;
+  reserved 6;
+  // vaa must be governance msg with payload containing sha3 256 hash of `bigEndian(code_id) || label || msg`
+  bytes vaa = 7;
+}
+
+message MsgInstantiateContractResponse {
+  // Address is the bech32 address of the new contract instance.
+  string address = 1;
+  // Data contains base64-encoded bytes to returned from the contract
+  bytes data = 2;
 }
 
 // this line is used by starport scaffolding # proto/tx/message

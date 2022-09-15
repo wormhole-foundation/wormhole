@@ -29,4 +29,5 @@ var (
 	ErrDuplicateGuardianAddress       = sdkerrors.Register(ModuleName, 1120, "guardian set has duplicate addresses")
 	ErrSignerAlreadyRegistered        = sdkerrors.Register(ModuleName, 1121, "transaction signer already registered as a guardian validator")
 	ErrConsensusSetNotUpdatable       = sdkerrors.Register(ModuleName, 1122, "cannot make changes to active consensus guardian set")
+	ErrInvalidHash                    = sdkerrors.Register(ModuleName, 1123, "could not verify the hash in governance action")
 )

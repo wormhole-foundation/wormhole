@@ -101,8 +101,8 @@ func (b *BankKeeperHandler) SendCoins(ctx sdk.Context, fromAddr sdk.AccAddress, 
 var _ wasmtypes.AccountKeeper = &AccountKeeperHandler{}
 
 func (b *AccountKeeperHandler) NewAccountWithAddress(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI {
-	// new account not permitted, just no-op
-	return &authtypes.BaseAccount{}
+	// New accounts are needed for new contracts
+	return b.AccountKeeper.NewAccountWithAddress(ctx, addr)
 }
 
 // Retrieve an account from the store.
@@ -112,7 +112,8 @@ func (b *AccountKeeperHandler) GetAccount(ctx sdk.Context, addr sdk.AccAddress) 
 
 // Set an account in the store.
 func (b *AccountKeeperHandler) SetAccount(ctx sdk.Context, acc authtypes.AccountI) {
-	// not permitted
+	// New accounts are needed for new contracts
+	b.AccountKeeper.SetAccount(ctx, acc)
 }
 
 var _ wasmtypes.DistributionKeeper = &DistributionKeeperHandler{}

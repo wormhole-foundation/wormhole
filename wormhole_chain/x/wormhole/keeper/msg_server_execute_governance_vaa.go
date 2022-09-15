@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 
@@ -13,6 +12,7 @@ import (
 type GovernanceAction uint8
 
 var (
+	ActionContractUpgrade   GovernanceAction = 1
 	ActionGuardianSetUpdate GovernanceAction = 2
 )
 
@@ -25,50 +25,16 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		return nil, err
 	}
 
+	coreModule := [32]byte{}
+	copy(coreModule[:], vaa.CoreModule)
 	// Verify VAA
-	err = k.VerifyVAA(ctx, v)
+	action, payload, err := k.VerifyVAAGovernance(ctx, v, coreModule)
 	if err != nil {
 		return nil, err
 	}
 
-	config, ok := k.GetConfig(ctx)
-	if !ok {
-		return nil, types.ErrNoConfig
-	}
-
-	_, known := k.GetReplayProtection(ctx, v.HexDigest())
-	if known {
-		return nil, types.ErrVAAAlreadyExecuted
-	}
-
-	// Check governance emitter
-	if !bytes.Equal(v.EmitterAddress[:], config.GovernanceEmitter) {
-		return nil, types.ErrInvalidGovernanceEmitter
-	}
-	if v.EmitterChain != vaa.ChainID(config.GovernanceChain) {
-		return nil, types.ErrInvalidGovernanceEmitter
-	}
-
-	if len(v.Payload) < 35 {
-		return nil, types.ErrGovernanceHeaderTooShort
-	}
-
-	// Check governance header
-	if !bytes.Equal(v.Payload[:32], vaa.CoreModule) {
-		return nil, types.ErrUnknownGovernanceModule
-	}
-
-	// Decode header
-	action := GovernanceAction(v.Payload[32])
-	chain := binary.BigEndian.Uint16(v.Payload[33:35])
-	payload := v.Payload[35:]
-
-	if chain != 0 && chain != uint16(config.ChainId) {
-		return nil, types.ErrInvalidGovernanceTargetChain
-	}
-
 	// Execute action
-	switch action {
+	switch GovernanceAction(action) {
 	case ActionGuardianSetUpdate:
 		if len(payload) < 5 {
 			return nil, types.ErrInvalidGovernancePayloadLength
@@ -104,9 +70,6 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		return nil, types.ErrUnknownGovernanceAction
 
 	}
-
-	// Prevent replay
-	k.SetReplayProtection(ctx, types.ReplayProtection{Index: v.HexDigest()})
 
 	return &types.MsgExecuteGovernanceVAAResponse{}, nil
 }
