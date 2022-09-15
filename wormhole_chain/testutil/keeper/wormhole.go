@@ -16,6 +16,7 @@ import (
 	capabilitykeeper "github.com/cosmos/cosmos-sdk/x/capability/keeper"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	"github.com/wormhole-foundation/wormhole-chain/app"
+	"github.com/wormhole-foundation/wormhole-chain/app/wasm_handlers"
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 
@@ -100,14 +101,14 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		appCodec,
 		keys[wasmtypes.StoreKey],
 		subspaceWasmd,
-		&app.AccountKeeperHandler{AccountKeeper: accountKeeper},
-		&app.BankKeeperHandler{},
-		&app.StakingKeeperHandler{},
-		&app.DistributionKeeperHandler{},
-		&app.ChannelKeeperHandler{},
-		&app.PortKeeperHandler{},
+		&wasm_handlers.AccountKeeperHandler{AccountKeeper: accountKeeper},
+		&wasm_handlers.BankKeeperHandler{},
+		&wasm_handlers.StakingKeeperHandler{},
+		&wasm_handlers.DistributionKeeperHandler{},
+		&wasm_handlers.ChannelKeeperHandler{},
+		&wasm_handlers.PortKeeperHandler{},
 		scopedWasmKeeper,
-		&app.ICS20TransferPortSourceHandler{},
+		&wasm_handlers.ICS20TransferPortSourceHandler{},
 		appapp.MsgServiceRouter(),
 		appapp.GRPCQueryRouter(),
 		wasmDir,
