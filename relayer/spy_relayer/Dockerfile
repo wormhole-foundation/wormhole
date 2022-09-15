@@ -14,8 +14,6 @@ COPY . .
 
 LABEL org.opencontainers.image.source="https://github.com/wormhole-foundation/wormhole/tree/dev.v2/relayer/spy_relayer#readme"
 
-WORKDIR ./relayer/spy_relayer
-
 RUN npm ci && \
     npm run build
 
