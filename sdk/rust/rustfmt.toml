@@ -1,18 +1,17 @@
-# Merge similar crates together to avoid multiple use statements.
-imports_granularity = "Module"
+# Merge all imports into a clean vertical list of module imports.
+imports_granularity          = "One"
+group_imports                = "One"
+imports_layout               = "Vertical"
 
-# Consistency in formatting makes tool based searching/editing better.
-empty_item_single_line = false
+# Better grep-ability.
+empty_item_single_line       = false
 
-# Easier editing when arbitrary mixed use statements do not collapse.
-imports_layout = "Vertical"
-
-# Default rustfmt formatting of match arms with branches is awful.
-match_arm_leading_pipes = "Preserve"
+# Consistent pipe layout.
+match_arm_leading_pipes      = "Preserve"
 
 # Align Fields
 enum_discrim_align_threshold = 80
 struct_field_align_threshold = 80
 
-# Allow up to two blank lines for grouping.
-blank_lines_upper_bound = 2
+# Allow up to two blank lines for visual grouping.
+blank_lines_upper_bound      = 2

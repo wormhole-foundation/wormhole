@@ -3,25 +3,26 @@
 //! parsers can be used to read these VAAs. It also defines the Governance actions that this module
 //! supports, namely contract upgrades and chain registrations.
 
-use nom::combinator::verify;
-use nom::multi::fill;
-use nom::number::complete::u8;
-use nom::{
-    Finish,
-    IResult,
-};
-use primitive_types::U256;
-
-use crate::vaa::{
-    GovernanceAction,
-    parse_chain,
-    parse_fixed,
-    ShortUTFString,
-};
-use crate::{
-    parse_fixed_utf8,
-    Chain,
-    WormholeError,
+use {
+    crate::{
+        parse_fixed_utf8,
+        vaa::{
+            parse_chain,
+            parse_fixed,
+            GovernanceAction,
+            ShortUTFString,
+        },
+        Chain,
+        WormholeError,
+    },
+    nom::{
+        combinator::verify,
+        multi::fill,
+        number::complete::u8,
+        Finish,
+        IResult,
+    },
+    primitive_types::U256,
 };
 
 /// Transfer is a message containing specifics detailing a token lock up on a sending chain. Chains
