@@ -250,6 +250,9 @@ func runSpy(cmd *cobra.Command, args []string) {
 	// Inbound observations
 	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
+	// Inbound observation requests
+	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
+
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
 
@@ -270,6 +273,18 @@ func runSpy(cmd *cobra.Command, args []string) {
 			case <-rootCtx.Done():
 				return
 			case <-obsvC:
+			}
+		}
+	}()
+
+	// Ignore observation requests
+	// Note: without this, the whole program hangs on observation requests
+	go func() {
+		for {
+			select {
+			case <-rootCtx.Done():
+				return
+			case <-obsvReqC:
 			}
 		}
 	}()
@@ -299,7 +314,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		if err := supervisor.Run(ctx, "p2p", p2p.Run(obsvC, nil, nil, sendC, signedInC, priv, nil, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", false, rootCtxCancel, nil)); err != nil {
+		if err := supervisor.Run(ctx, "p2p", p2p.Run(obsvC, obsvReqC, nil, sendC, signedInC, priv, nil, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", false, rootCtxCancel, nil)); err != nil {
 			return err
 		}
 
