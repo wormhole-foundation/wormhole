@@ -77,7 +77,6 @@ module token_bridge::asset_meta {
         encoded
     }
 
-    // TODO: the parse functions should be private I think
     public fun parse(meta: vector<u8>): AssetMeta {
         let cur = cursor::init(meta);
         let action = deserialize_u8(&mut cur);
