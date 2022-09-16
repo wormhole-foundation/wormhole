@@ -1,157 +1,74 @@
-//! This module exposes parsers for NFT bridge VAAs. Token bridging relies on VAA's that indicate
-//! custody/lockup/burn events in order to maintain token parity between multiple chains. These
-//! parsers can be used to read these VAAs. It also defines the Governance actions that this module
-//! supports, namely contract upgrades and chain registrations.
+//! Parsers for NFT bridge VAAs.
+//!
+//! NFT bridging relies on VAA's that indicate custody/lockup/burn events in order to maintain
+//! token parity between multiple chains. Parsers are provided here that can be used to read and
+//! verify these events.
 
 use {
     crate::{
-        parse_fixed_utf8,
-        vaa::{
-            parse_chain,
-            parse_fixed,
-            Action,
-            GovHeader,
-            ShortUTFString,
-        },
+        require,
+        vaa::GovHeader,
         Chain,
-        WormholeError,
+        WormholeError::{
+            self,
+            InvalidGovernanceChain,
+        },
+        VAA,
     },
     nom::{
-        bytes::complete::take,
-        combinator::verify,
-        error::ErrorKind,
+        combinator::{
+            flat_map,
+            verify,
+        },
         number::complete::u8,
-        Finish,
-        IResult,
     },
-    primitive_types::U256,
-    std::str::from_utf8,
 };
 
-/// Transfer is a message containing specifics detailing a token lock up on a sending chain. Chains
-/// that are attempting to initiate a transfer must lock up tokens in some manner, such as in a
-/// custody account or via burning, before emitting this message.
-#[derive(PartialEq, Debug, Clone)]
-pub struct Transfer {
-    /// Address of the token. Left-zero-padded if shorter than 32 bytes
-    pub nft_address: [u8; 32],
+mod contract_upgrade;
+mod register_chain;
+mod transfer;
 
-    /// Chain ID of the token
-    pub nft_chain: Chain,
+pub use {
+    contract_upgrade::*,
+    register_chain::*,
+    transfer::*,
+};
 
-    /// Symbol of the token
-    pub symbol: ShortUTFString,
+const MODULE: [u8; 32] =
+    hex_literal::hex!("00000000000000000000000000000000000000000000004e4654427269646765");
 
-    /// Name of the token
-    pub name: ShortUTFString,
-
-    /// TokenID of the token (big-endian uint256)
-    pub token_id: U256,
-
-    /// URI of the token metadata
-    pub uri: ShortUTFString,
-
-    /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
-    pub to: [u8; 32],
-
-    /// Chain ID of the recipient
-    pub to_chain: Chain,
-}
-
-impl Transfer {
-    #[inline]
-    pub fn from_bytes(input: impl AsRef<[u8]>) -> Result<Self, WormholeError> {
-        let i = input.as_ref();
-        match parse_payload_transfer(i).finish() {
-            Ok((_, transfer)) => Ok(transfer),
-            Err(e) => Err(WormholeError::from_parse_error(e.code)),
-        }
-    }
-}
-
-#[inline]
-fn parse_payload_transfer(input: &[u8]) -> IResult<&[u8], Transfer> {
-    // Parse Payload
-    let (i, _) = verify(u8, |&s| s == 0x1)(input.as_ref())?;
-    let (i, nft_address) = parse_fixed(i)?;
-    let (i, nft_chain) = parse_chain(i)?;
-    let (i, symbol): (_, [u8; 32]) = parse_fixed(i)?;
-    let (i, name): (_, [u8; 32]) = parse_fixed(i)?;
-    let (i, token_id): (_, [u8; 32]) = parse_fixed(i)?;
-    let (i, uri_len) = u8(i)?;
-    let (i, uri) = take(uri_len)(i)?;
-    let (i, to) = parse_fixed(i)?;
-    let (i, to_chain) = parse_chain(i)?;
-
-    // Name/Symbol and URI should be UTF-8 strings, attempt to parse the first two by removing
-    // invalid bytes -- for the latter, assume UTF-8 and fail if unparseable.
-    let name = parse_fixed_utf8::<_, 32>(name).unwrap();
-    let symbol = parse_fixed_utf8::<_, 32>(symbol).unwrap();
-    let uri = from_utf8(uri).unwrap().to_string();
-
-    Ok((
-        i,
-        Transfer {
-            nft_address,
-            nft_chain,
-            symbol,
-            name,
-            token_id: U256::from_big_endian(&token_id),
-            uri,
-            to,
-            to_chain,
-        },
-    ))
-}
-
-pub enum NFTBridgeAction {
+#[derive(Debug, PartialEq, Eq)]
+pub enum Action {
     RegisterChain(RegisterChain),
     ContractUpgrade(ContractUpgrade),
+    Transfer(Transfer),
 }
 
-impl Action for NFTBridgeAction {
-    const MODULE: [u8; 32] = [0u8; 32];
+impl crate::vaa::Action for Action {
     #[inline]
-    fn parse<'a, 'b>(i: &'a [u8], header: &'b GovHeader) -> IResult<&'a [u8], Self> {
-        use NFTBridgeAction as Action;
-        match header.action {
-            1 => RegisterChain::parse(i).map(|(i, r)| (i, Action::RegisterChain(r))),
-            2 => ContractUpgrade::parse(i).map(|(i, r)| (i, Action::ContractUpgrade(r))),
-            _ => Err(nom::Err::Error(nom::error_position!(i, ErrorKind::NoneOf))),
+    fn from_vaa(vaa: &VAA, chain: Chain) -> Result<Self, WormholeError> {
+        // Attempt to parse a GovHeader first as not all actions have one. On failure we know we
+        // instead want to parse a non-governance action.
+        let (i, header) = GovHeader::parse(&vaa.payload)?;
+
+        // Parse Governance Actions.
+        if header.module == MODULE {
+            let valid_target = header.target == chain || header.target == Chain::Any;
+            require!(valid_target, InvalidGovernanceChain);
+
+            // Attempt to parse Governance actions.
+            let (_, action) = match header.action {
+                1 => RegisterChain::parse,
+                2 => ContractUpgrade::parse,
+                _ => return Err(WormholeError::UnknownGovernanceAction),
+            }(i)?;
+
+            Ok(action)
         }
-    }
-}
-
-#[derive(PartialEq, Debug)]
-pub struct RegisterChain {
-    pub emitter:          Chain,
-    pub endpoint_address: [u8; 32],
-}
-
-impl RegisterChain {
-    #[inline]
-    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        let (i, emitter) = parse_chain(i)?;
-        let (i, endpoint_address) = parse_fixed(i)?;
-        Ok((
-            i,
-            Self {
-                emitter,
-                endpoint_address,
-            },
-        ))
-    }
-}
-
-#[derive(PartialEq, Debug)]
-pub struct ContractUpgrade {
-    pub new_contract: [u8; 32],
-}
-
-impl ContractUpgrade {
-    #[inline]
-    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        let (i, new_contract) = parse_fixed(i)?;
-        Ok((i, Self { new_contract }))
+        // Parse non-Governance Actions.
+        else {
+            let (_, action) = flat_map(verify(u8, |&b| b == 1), |_| Transfer::parse)(&vaa.payload)?;
+            Ok(action)
+        }
     }
 }
