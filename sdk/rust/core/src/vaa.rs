@@ -103,7 +103,7 @@ impl VAA {
         let i = input.as_ref();
         match parse_vaa(i).finish() {
             Ok((_, vaa)) => Ok(vaa),
-            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(e.code)),
         }
     }
 
@@ -270,7 +270,7 @@ where
                 require!(valid_target, InvalidGovernanceChain);
                 Ok(action)
             }
-            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(e.code)),
         }
     }
 }
@@ -292,7 +292,7 @@ pub trait Action: Sized {
         match Self::parse(i, &header).finish() {
             Ok((_, action)) => Ok(action),
             Err(e) if e.code == ErrorKind::NoneOf => Err(UnknownGovernanceAction),
-            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(e.code)),
         }
     }
 }
