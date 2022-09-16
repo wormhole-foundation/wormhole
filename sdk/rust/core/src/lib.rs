@@ -1,23 +1,32 @@
-//! Core acts as a provider for all the Wormhole primitives. These are utilised within every single
-//! Wormhole Rust project.
+//! The `core` module provides all the pure Rust Wormhole primitives.
+//!
+//! This crate provides chain-agnostic types from Wormhole for consumption in on-chain contracts
+//! and within other chain-specific Wormhole Rust SDK's. It includes:
+//!
+//! - Constants containing known network data/addresses.
+//! - Parsers for VAA's and Payloads.
+//! - Data types for Wormhole primitives such as GuardianSets and signatures.
+//! - Verification Primitives for securely checking payloads.
 
+#![deny(warnings)]
 #![deny(unused_results)]
 
 use borsh::{
     BorshDeserialize,
     BorshSerialize,
 };
+
+#[macro_use]
+pub mod error;
+pub mod chain;
+pub mod vaa;
+
 pub use {
     chain::*,
     error::*,
     vaa::*,
 };
 
-pub mod chain;
-pub mod vaa;
-
-#[macro_use]
-pub mod error;
 
 pub const GOVERNANCE_EMITTER: [u8; 32] =
     hex_literal::hex!("0000000000000000000000000000000000000000000000000000000000000004");
