@@ -11,22 +11,17 @@
 
 use {
     crate::{
-        require,
+        parse_chain,
+        parse_fixed,
         Chain,
-        WormholeError::{
-            self,
-            InvalidGovernanceChain,
-            InvalidGovernanceModule,
-            UnknownGovernanceAction,
-        },
+        Error,
     },
     nom::{
-        combinator::rest,
-        error::ErrorKind,
-        multi::{
-            count,
-            fill,
+        combinator::{
+            flat_map,
+            rest,
         },
+        multi::count,
         number::{
             complete::{
                 u32,
@@ -35,10 +30,9 @@ use {
             },
             Endianness,
         },
-        Finish,
         IResult,
     },
-    std::convert::TryFrom,
+    std::result::Result,
 };
 
 // Import Module Specific VAAs.
@@ -68,7 +62,7 @@ type ShortUTFString = String;
 /// The core VAA itself. This structure is what is received by a contract on the receiving side of
 /// a wormhole message passing flow. The payload of the message must be parsed separately to the
 /// VAA itself as it is completely user defined.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct VAA {
     // Header
     pub version:            u8,
@@ -97,13 +91,48 @@ pub struct VAADigest {
 }
 
 impl VAA {
-    /// Given a series of bytes, attempt to deserialize into a valid VAA.
-    pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, WormholeError> {
-        let i = input.as_ref();
-        match parse_vaa(i).finish() {
-            Ok((_, vaa)) => Ok(vaa),
-            Err(e) => Err(WormholeError::from_parse_error(e.code)),
-        }
+    /// Given a series of bytes, attempt to deserialize into a valid VAA. Nom handles situations
+    /// where the data is either too short or too long.
+    pub fn from_bytes<T: AsRef<[u8]>>(i: T) -> Result<Self, Error> {
+        let (
+            _,
+            (
+                version,
+                guardian_set_index,
+                signatures,
+                timestamp,
+                nonce,
+                emitter_chain,
+                emitter_address,
+                sequence,
+                consistency_level,
+                payload,
+            ),
+        ) = nom::sequence::tuple((
+            u8,
+            u32(Endianness::Big),
+            flat_map(u8, |c| count(parse_fixed, c.into())),
+            u32(Endianness::Big),
+            u32(Endianness::Big),
+            parse_chain,
+            parse_fixed,
+            u64(Endianness::Big),
+            u8,
+            rest,
+        ))(i.as_ref())?;
+
+        Ok(VAA {
+            version,
+            guardian_set_index,
+            signatures,
+            timestamp,
+            nonce,
+            emitter_chain,
+            emitter_address,
+            sequence,
+            consistency_level,
+            payload: payload.to_vec(),
+        })
     }
 
     /// Check if the VAA is a Governance VAA.
@@ -173,61 +202,8 @@ impl VAA {
     }
 }
 
-/// Using nom, parse a fixed array of bytes without any allocation. Useful for parsing addresses,
-/// signatures, identifiers, etc.
-#[inline]
-pub fn parse_fixed<const S: usize>(input: &[u8]) -> IResult<&[u8], [u8; S]> {
-    let mut buffer = [0u8; S];
-    let (i, _) = fill(u8, &mut buffer)(input)?;
-    Ok((i, buffer))
-}
-
-/// Parse a Chain ID, which is a 16 bit numeric ID. The mapping of network to ID is defined by the
-/// Wormhole standard.
-#[inline]
-pub fn parse_chain(input: &[u8]) -> IResult<&[u8], Chain> {
-    let (i, chain) = u16(Endianness::Big)(input)?;
-    Ok((
-        i,
-        Chain::try_from(chain)
-            .map_err(|_| nom::Err::Error(nom::error_position!(i, ErrorKind::NoneOf)))?,
-    ))
-}
-
-/// Parse a VAA from a vector of raw bytes. Nom handles situations where the data is either too
-/// short or too long.
-#[inline]
-fn parse_vaa(input: &[u8]) -> IResult<&[u8], VAA> {
-    let (i, version) = u8(input)?;
-    let (i, guardian_set_index) = u32(Endianness::Big)(i)?;
-    let (i, signature_count) = u8(i)?;
-    let (i, signatures) = count(parse_fixed, signature_count.into())(i)?;
-    let (i, timestamp) = u32(Endianness::Big)(i)?;
-    let (i, nonce) = u32(Endianness::Big)(i)?;
-    let (i, emitter_chain) = parse_chain(i)?;
-    let (i, emitter_address) = parse_fixed(i)?;
-    let (i, sequence) = u64(Endianness::Big)(i)?;
-    let (i, consistency_level) = u8(i)?;
-    let (i, payload) = rest(i)?;
-    Ok((
-        i,
-        VAA {
-            version,
-            guardian_set_index,
-            signatures,
-            timestamp,
-            nonce,
-            emitter_chain,
-            emitter_address,
-            sequence,
-            consistency_level,
-            payload: payload.to_vec(),
-        },
-    ))
-}
-
-/// All current Wormhole programs using Governance are prefixed with a Governance header with a
-/// consistent format.
+/// All current Wormhole programs using Governance are prefixed with a Governance header.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GovHeader {
     pub module: [u8; 32],
     pub action: u8,
@@ -235,10 +211,11 @@ pub struct GovHeader {
 }
 
 impl GovHeader {
-    fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (i, module) = parse_fixed(input)?;
-        let (i, action) = u8(i)?;
-        let (i, target) = parse_chain(i)?;
+    // Given a Chain and Module, produce a parser for a GovHeader.
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+        let (i, (module, action, target)) =
+            nom::sequence::tuple((parse_fixed, u8, parse_chain))(input)?;
+
         Ok((
             i,
             GovHeader {
@@ -250,167 +227,9 @@ impl GovHeader {
     }
 }
 
-pub struct GovAction<A> {
-    pub header: GovHeader,
-    pub action: A,
-}
-
-impl<A> GovAction<A>
-where
-    A: Action,
-{
-    #[inline]
-    fn parse<'a>(input: &'a [u8]) -> IResult<&'a [u8], Self> {
-        let (i, header) = GovHeader::parse(input)?;
-        let (i, action) = Action::parse(i, &header)?;
-        Ok((i, GovAction { header, action }))
-    }
-
-    #[inline]
-    pub fn from_bytes(i: &[u8], chain: Chain) -> Result<Self, WormholeError> {
-        match Self::parse(i).finish() {
-            Ok((_, action)) => {
-                let valid_target = chain == action.header.target || chain == Chain::Any;
-                require!(valid_target, InvalidGovernanceChain);
-                Ok(action)
-            }
-            Err(e) => Err(WormholeError::from_parse_error(e.code)),
-        }
-    }
-}
-
+/// The Action trait describes functionality that various VAA payload formats used by Wormhole
+/// applications confirm to.
 pub trait Action: Sized {
-    const MODULE: [u8; 32];
-
-    /// Parser for the underlying action.
-    fn parse<'a, 'b>(input: &'a [u8], header: &'b GovHeader) -> IResult<&'a [u8], Self>;
-
-    /// Parses an Action from a governance payload securely.
-    #[inline]
-    fn from_bytes(input: impl AsRef<[u8]>, header: &GovHeader) -> Result<Self, WormholeError> {
-        // Don't do anything with Actions not meant for us.
-        require!(header.module == Self::MODULE, InvalidGovernanceModule);
-
-        // Parse and handle unknown Actions and parse errors.
-        let i = input.as_ref();
-        match Self::parse(i, &header).finish() {
-            Ok((_, action)) => Ok(action),
-            Err(e) if e.code == ErrorKind::NoneOf => Err(UnknownGovernanceAction),
-            Err(e) => Err(WormholeError::from_parse_error(e.code)),
-        }
-    }
-}
-
-#[cfg(test)]
-mod testing {
-    use super::{
-        Chain,
-        GovHeader,
-        VAA,
-    };
-
-    #[test]
-    fn test_valid_gov_header() {
-        let module =
-            hex::decode("000000000000000000000000000000000000000000546f6b656e427269646765")
-                .unwrap();
-
-        // Decode VAA.
-        let vaa = hex::decode("01000000000100b072505b5b999c1d08905c02e2b6b2832ef72c0ba6c8db4f77fe457ef2b3d053410b1e92a9194d9210df24d987ac83d7b6f0c21ce90f8bc1869de0898bda7e980100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000013c1bfa00000000000000000000000000000000000000000000546f6b656e42726964676501000000013b26409f8aaded3f5ddca184695aa6a0fa829b0c85caf84856324896d214ca98").unwrap();
-        let vaa = VAA::from_bytes(vaa).unwrap();
-
-        // Decode Payload
-        let (_, header) = GovHeader::parse(&vaa.payload).unwrap();
-
-        // Confirm Parsed matches Required.
-        assert_eq!(&header.module, &module[..]);
-        assert_eq!(header.action, 1);
-        assert_eq!(header.target, Chain::Any);
-    }
-
-    // Legacy VAA Signature Struct.
-    #[derive(Default, Clone)]
-    pub struct VAASignature {
-        pub signature:      Vec<u8>,
-        pub guardian_index: u8,
-    }
-
-    // Original VAA Parsing Code. Used to compare current code to old for parity.
-    pub fn legacy_deserialize(data: &[u8]) -> std::result::Result<VAA, std::io::Error> {
-        use {
-            byteorder::{
-                BigEndian,
-                ReadBytesExt,
-            },
-            std::{
-                convert::TryFrom,
-                io::Read,
-            },
-        };
-
-        let mut rdr = std::io::Cursor::new(data);
-        let mut v = VAA {
-            ..Default::default()
-        };
-        v.version = rdr.read_u8()?;
-        v.guardian_set_index = rdr.read_u32::<BigEndian>()?;
-        let len_sig = rdr.read_u8()?;
-        let mut sigs: Vec<_> = Vec::with_capacity(len_sig as usize);
-        for _i in 0..len_sig {
-            let mut sig = [0u8; 66];
-            sig[0] = rdr.read_u8()?;
-            rdr.read_exact(&mut sig[1..66])?;
-            sigs.push(sig);
-        }
-        v.signatures = sigs;
-        v.timestamp = rdr.read_u32::<BigEndian>()?;
-        v.nonce = rdr.read_u32::<BigEndian>()?;
-        v.emitter_chain = Chain::try_from(rdr.read_u16::<BigEndian>()?).unwrap();
-        let mut emitter_address = [0u8; 32];
-        rdr.read_exact(&mut emitter_address)?;
-        v.emitter_address = emitter_address;
-        v.sequence = rdr.read_u64::<BigEndian>()?;
-        v.consistency_level = rdr.read_u8()?;
-        let _ = rdr.read_to_end(&mut v.payload)?;
-        Ok(v)
-    }
-
-    #[test]
-    fn test_parse_vaa_parity() {
-        // Decode VAA with old and new parsers, and compare result.
-        let vaa = hex::decode("01000000000100b072505b5b999c1d08905c02e2b6b2832ef72c0ba6c8db4f77fe457ef2b3d053410b1e92a9194d9210df24d987ac83d7b6f0c21ce90f8bc1869de0898bda7e980100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000013c1bfa00000000000000000000000000000000000000000000546f6b656e42726964676501000000013b26409f8aaded3f5ddca184695aa6a0fa829b0c85caf84856324896d214ca98").unwrap();
-        let new = VAA::from_bytes(&vaa).unwrap();
-        let old = legacy_deserialize(&vaa).unwrap();
-        assert_eq!(new, old);
-    }
-
-    #[test]
-    fn test_valid_parse_vaa() {
-        let signers = hex::decode("00b072505b5b999c1d08905c02e2b6b2832ef72c0ba6c8db4f77fe457ef2b3d053410b1e92a9194d9210df24d987ac83d7b6f0c21ce90f8bc1869de0898bda7e9801").unwrap();
-        let payload = hex::decode("000000000000000000000000000000000000000000546f6b656e42726964676501000000013b26409f8aaded3f5ddca184695aa6a0fa829b0c85caf84856324896d214ca98").unwrap();
-        let emitter =
-            hex::decode("0000000000000000000000000000000000000000000000000000000000000004")
-                .unwrap();
-
-        // Decode VAA.
-        let vaa = hex::decode("01000000000100b072505b5b999c1d08905c02e2b6b2832ef72c0ba6c8db4f77fe457ef2b3d053410b1e92a9194d9210df24d987ac83d7b6f0c21ce90f8bc1869de0898bda7e980100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000013c1bfa00000000000000000000000000000000000000000000546f6b656e42726964676501000000013b26409f8aaded3f5ddca184695aa6a0fa829b0c85caf84856324896d214ca98").unwrap();
-        let vaa = VAA::from_bytes(vaa).unwrap();
-
-        // Verify Decoded VAA.
-        assert_eq!(vaa.version, 1);
-        assert_eq!(vaa.guardian_set_index, 0);
-        assert_eq!(vaa.signatures.len(), 1);
-        assert_eq!(vaa.signatures[0][..], signers);
-        assert_eq!(vaa.timestamp, 1);
-        assert_eq!(vaa.nonce, 1);
-        assert_eq!(vaa.emitter_chain, Chain::Solana);
-        assert_eq!(vaa.emitter_address, emitter[..]);
-        assert_eq!(vaa.sequence, 20_716_538);
-        assert_eq!(vaa.consistency_level, 0);
-        assert_eq!(vaa.payload, payload);
-    }
-
-    #[test]
-    fn test_invalid_vaa() {
-    }
+    /// Parse an action from a VAA.
+    fn from_vaa(vaa: &VAA, chain: Chain) -> Result<Self, Error>;
 }

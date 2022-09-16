@@ -1,126 +1,68 @@
-//! This module exposes parsers for core bridge VAAs. The main job of the bridge is to forward
-//! VAA's to other chains, however governance actions are themselves VAAs and as such the bridge
-//! requires parsing Bridge specific VAAs.
+//! Parsers for core bridge VAAs.
 //!
-//! The core bridge does not define any general VAA's, thus all the payloads in this file are
-//! expected to require governance to be executed.
+//! The main job of the bridge is to forward VAA's to other chains, however governance actions are
+//! themselves VAAs and as such the bridge requires parsing Bridge specific VAAs. The core bridge
+//! does not define any general VAA's, thus all the payloads in this file are expected to require
+//! governance to be executed.
 
-use {
-    crate::vaa::{
-        parse_fixed,
-        Action,
-        GovHeader,
+use crate::{
+    require,
+    Chain,
+    Error::{
+        self,
+        InvalidGovernanceChain,
+        InvalidGovernanceModule,
     },
-    nom::{
-        error::ErrorKind,
-        multi::{
-            count,
-            fill,
-        },
-        number::{
-            complete::{
-                u32,
-                u8,
-            },
-            Endianness,
-        },
-        IResult,
-    },
-    primitive_types::U256,
+    GovHeader,
+    VAA,
 };
 
-pub enum CoreAction {
+mod contract_upgrade;
+mod guardian_set_change;
+mod set_message_fee;
+mod transfer_fees;
+
+pub use {
+    contract_upgrade::*,
+    guardian_set_change::*,
+    set_message_fee::*,
+    transfer_fees::*,
+};
+
+// Module: 000..Core in HEX.
+pub const MODULE: [u8; 32] =
+    hex_literal::hex!("00000000000000000000000000000000000000000000000000000000436f7265");
+
+/// Action in core represents a governance action targeted at the wormhole bridge itself.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Action {
     ContractUpgrade(ContractUpgrade),
     GuardianSetChange(GuardianSetChange),
     SetMessageFee(SetMessageFee),
     TransferFees(TransferFees),
 }
 
-impl Action for CoreAction {
-    // Module: 000..Core
-    const MODULE: [u8; 32] =
-        hex_literal::hex!("00000000000000000000000000000000000000000000000000000000436f7265");
-
+impl crate::vaa::Action for Action {
     #[inline]
-    fn parse<'a, 'b>(i: &'a [u8], header: &'b GovHeader) -> IResult<&'a [u8], Self> {
-        match header.action {
-            1 => ContractUpgrade::parse(i).map(|(i, r)| (i, Self::ContractUpgrade(r))),
-            2 => GuardianSetChange::parse(i).map(|(i, r)| (i, Self::GuardianSetChange(r))),
-            3 => SetMessageFee::parse(i).map(|(i, r)| (i, Self::SetMessageFee(r))),
-            4 => TransferFees::parse(i).map(|(i, r)| (i, Self::TransferFees(r))),
-            _ => Err(nom::Err::Error(nom::error_position!(i, ErrorKind::NoneOf))),
-        }
-    }
-}
+    fn from_vaa(vaa: &VAA, chain: Chain) -> Result<Self, Error> {
+        // Parse GovHeader, which is always present in the Core contract.
+        let (i, header) = GovHeader::parse(&vaa.payload)?;
 
-pub struct ContractUpgrade {
-    pub new_contract: [u8; 32],
-}
+        // Verify the `GovHeader` is valid.
+        let valid_target = header.target == chain || header.target == Chain::Any;
+        let valid_module = header.module == MODULE;
+        require!(valid_target, InvalidGovernanceChain);
+        require!(valid_module, InvalidGovernanceModule);
 
-impl ContractUpgrade {
-    #[inline]
-    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        let (i, new_contract) = parse_fixed(i)?;
-        Ok((i, Self { new_contract }))
-    }
-}
+        // Parse the Payload.
+        let (_, action) = match header.action {
+            1 => ContractUpgrade::parse,
+            2 => GuardianSetChange::parse,
+            3 => SetMessageFee::parse,
+            4 => TransferFees::parse,
+            _ => return Err(Error::UnknownGovernanceAction),
+        }(i, header)?;
 
-pub struct GuardianSetChange {
-    pub new_guardian_set_index: u32,
-    pub new_guardian_set:       Vec<[u8; 20]>,
-}
-
-impl GuardianSetChange {
-    #[inline]
-    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        let (i, new_guardian_set_index) = u32(Endianness::Big)(i)?;
-        let (i, guardian_count) = u8(i)?;
-        let (i, new_guardian_set) = count(parse_fixed, guardian_count.into())(i)?;
-        Ok((
-            i,
-            Self {
-                new_guardian_set_index,
-                new_guardian_set,
-            },
-        ))
-    }
-}
-
-pub struct SetMessageFee {
-    pub fee: U256,
-}
-
-impl SetMessageFee {
-    #[inline]
-    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        let mut fee = [0u8; 32];
-        let (i, _) = fill(u8, &mut fee)(i)?;
-        Ok((
-            i,
-            Self {
-                fee: U256::from_big_endian(&fee),
-            },
-        ))
-    }
-}
-
-pub struct TransferFees {
-    pub amount: U256,
-    pub to:     [u8; 32],
-}
-
-impl TransferFees {
-    #[inline]
-    fn parse(i: &[u8]) -> IResult<&[u8], Self> {
-        let mut amount = [0u8; 32];
-        let (i, _) = fill(u8, &mut amount)(i)?;
-        let (i, to) = parse_fixed(i)?;
-        Ok((
-            i,
-            Self {
-                amount: U256::from_big_endian(&amount),
-                to,
-            },
-        ))
+        Ok(action)
     }
 }
