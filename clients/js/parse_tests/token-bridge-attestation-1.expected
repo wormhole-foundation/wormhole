@@ -23,5 +23,5 @@
     symbol: 'WETH',
     name: 'Wrapped ether'
   },
-  digest: '0x4bb52b9a44ff6062ba5db1c47afc40c186f7485c8972b1c6261eb070ce0b1c6e'
+  digest: '0x6793c77cc9283df50ab5f2cdd688637d6ba935d4e6baabf46e07b83c55655461'
 }
