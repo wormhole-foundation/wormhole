@@ -1,9 +1,8 @@
-//! Exposes an API implementation depending on which feature flags have been toggled for the
-//! library. Check submodules for chain runtime specific documentation.
+//! Provide Types and Data about Wormhole's supported chains.
 
 use Chain::*;
 
-/// Chain provides a type-safe way to refer to the different chains that Wormhole supports.
+/// Chain is a mapping of Wormhole supported chains to their u16 representation.
 #[cfg_attr(test, derive(strum_macros::EnumIter))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Chain {
@@ -128,8 +127,10 @@ impl Default for Chain {
 
 #[cfg(test)]
 mod testing {
-    use super::Chain;
-    use strum::IntoEnumIterator;
+    use {
+        super::Chain,
+        strum::IntoEnumIterator,
+    };
 
     #[test]
     fn check_reverse_mapping() {

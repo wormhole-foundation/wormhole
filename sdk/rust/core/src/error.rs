@@ -1,4 +1,9 @@
-/// Ergonomic error handler for use within the Wormhole core/SDK libraries.
+use {
+    nom::error::ErrorKind,
+    thiserror::Error,
+};
+
+/// Error macro to streamline error throwing.
 #[macro_export]
 macro_rules! require {
     ($expr:expr, $name:ident) => {
@@ -8,38 +13,69 @@ macro_rules! require {
     };
 }
 
-/// ErrorCode maps to the nom ParseError
-///
-/// We use an integer instead of embedding the type because the library is deprecating the current
-/// error type, so we should avoid depending on it for now. We can always map back to our integer
-/// later if we need to.
-type ErrorCode = usize;
-
-#[derive(Debug)]
-pub enum WormholeError {
+#[derive(Error, Debug)]
+pub enum Error {
     // Governance Errors
+    #[error("Unknown Governance Chain.")]
     UnknownGovernanceAction,
+    #[error("Invalid Governance Action.")]
     InvalidGovernanceChain,
+    #[error("Invalid Governance Module.")]
     InvalidGovernanceModule,
 
     // VAA Errors
+    #[error("Guardian Set has Expired.")]
     GuardianSetExpired,
+    #[error("Invalid Expiration Time.")]
     InvalidExpirationTime,
+    #[error("Invalid Guardian Set.")]
     InvalidGuardianSet,
+    #[error("Invalid Guardian Signature.")]
     InvalidSignature,
+    #[error("Invalid Guardian Key.")]
     InvalidSignatureKey,
+    #[error("Invalid Signature Position.")]
     InvalidSignaturePosition,
+    #[error("Invalid VAA Version.")]
     InvalidVersion,
+    #[error("Guardian Quorum not met.")]
     QuorumNotMet,
+    #[error("Signatures not sorted.")]
     UnsortedSignatures,
 
     // Serialization Errors
+    #[error("Not enough input data for deserialization.")]
+    ParseError(ErrorKind),
+    #[error("Too much input data for deserialization.")]
+    ParseIncomplete,
+
+    // SDK Errors.
+    #[error("Chain ID does not match any known chain.")]
+    UnknownChain,
+    #[error("Deserialization Failed.")]
     DeserializeFailed,
-    ParseFailed(usize, ErrorCode),
+    #[error("Serialization Failed.")]
+    SerializeFailed,
+
+    // IO Errors, common from serialization libs.
+    #[error("IO Error: {0}")]
+    IoError(#[from] std::io::Error),
 }
 
-impl WormholeError {
-    pub fn from_parse_error(start: &[u8], end: &[u8], error: ErrorCode) -> Self {
-        WormholeError::ParseFailed(start.len() - end.len(), error)
+impl Error {
+    pub fn from_parse_error(error: ErrorKind) -> Self {
+        Error::ParseError(error)
+    }
+}
+
+/// Automatically convert `nom` parsing errors to Wormhole errors.
+impl<I> From<nom::Err<nom::error::Error<I>>> for Error {
+    fn from(err: nom::Err<nom::error::Error<I>>) -> Self {
+        use Error::*;
+        match err {
+            nom::Err::Error(e) => ParseError(e.code),
+            nom::Err::Failure(e) => ParseError(e.code),
+            nom::Err::Incomplete(_) => ParseIncomplete,
+        }
     }
 }

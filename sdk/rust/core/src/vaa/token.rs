@@ -57,7 +57,7 @@ impl Transfer {
         let i = input.as_ref();
         match parse_payload_transfer(i).finish() {
             Ok((_, transfer)) => Ok(transfer),
-            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(e.code)),
         }
     }
 }
@@ -114,7 +114,7 @@ impl AssetMeta {
         let i = input.as_ref();
         match parse_payload_asset_meta(i).finish() {
             Ok((_, asset_meta)) => Ok(asset_meta),
-            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(e.code)),
         }
     }
 }

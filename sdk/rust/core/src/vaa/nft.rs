@@ -64,7 +64,7 @@ impl Transfer {
         let i = input.as_ref();
         match parse_payload_transfer(i).finish() {
             Ok((_, transfer)) => Ok(transfer),
-            Err(e) => Err(WormholeError::from_parse_error(i, e.input, e.code as usize)),
+            Err(e) => Err(WormholeError::from_parse_error(e.code)),
         }
     }
 }
