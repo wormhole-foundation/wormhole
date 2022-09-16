@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import "dotenv/config";
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
 import {
   StdFee,
@@ -9,6 +9,20 @@ import {
 import { readFileSync, readdirSync } from "fs";
 import { Bech32, toHex } from "@cosmjs/encoding";
 import { zeroPad } from "ethers/lib/utils.js";
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function broadcastAndWait(terra, tx) {
+  const response = await terra.tx.broadcast(tx);
+  let currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
+  while (currentHeight <= response.height) {
+    await sleep(100);
+    currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
+  }
+  return response;
+}
 
 /*
   NOTE: Only append to this array: keeping the ordering is crucial, as the
@@ -95,7 +109,7 @@ for (const file of artifacts) {
       memo: "",
     });
 
-    const rs = await terra.tx.broadcast(tx);
+    const rs = await broadcastAndWait(terra, tx);
     const ci = /"code_id","value":"([^"]+)/gm.exec(rs.raw_log)[1];
     codeIds[file] = parseInt(ci);
   } catch (e) {
@@ -131,7 +145,7 @@ async function instantiate(contract, inst_msg) {
       ],
       memo: "",
     })
-    .then((tx) => terra.tx.broadcast(tx))
+    .then((tx) => broadcastAndWait(terra, tx))
     .then((rs) => {
       address = /"contract_address","value":"([^"]+)/gm.exec(rs.raw_log)[1];
     });
@@ -148,9 +162,9 @@ async function instantiate(contract, inst_msg) {
 
 const addresses = {};
 
-const init_guardians = JSON.parse(process.env.INIT_SIGNERS)
+const init_guardians = JSON.parse(process.env.INIT_SIGNERS);
 if (!init_guardians || init_guardians.length === 0) {
-  throw "failed to get initial guardians from .env file."
+  throw "failed to get initial guardians from .env file.";
 }
 
 addresses["wormhole.wasm"] = await instantiate("wormhole.wasm", {
@@ -158,21 +172,24 @@ addresses["wormhole.wasm"] = await instantiate("wormhole.wasm", {
   gov_address: Buffer.from(govAddress, "hex").toString("base64"),
   guardian_set_expirity: 86400,
   initial_guardian_set: {
-    addresses: init_guardians.map(hex => {
+    addresses: init_guardians.map((hex) => {
       return {
-        bytes: Buffer.from(hex, "hex").toString("base64")
-      }
+        bytes: Buffer.from(hex, "hex").toString("base64"),
+      };
     }),
     expiration_time: 0,
   },
 });
 
-addresses["token_bridge_terra.wasm"] = await instantiate("token_bridge_terra.wasm", {
-  gov_chain: govChain,
-  gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-  wormhole_contract: addresses["wormhole.wasm"],
-  wrapped_asset_code_id: codeIds["cw20_wrapped.wasm"],
-});
+addresses["token_bridge_terra.wasm"] = await instantiate(
+  "token_bridge_terra.wasm",
+  {
+    gov_chain: govChain,
+    gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+    wormhole_contract: addresses["wormhole.wasm"],
+    wrapped_asset_code_id: codeIds["cw20_wrapped.wasm"],
+  }
+);
 
 addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
   name: "MOCK",
@@ -222,7 +239,7 @@ async function mint_cw721(token_id, token_uri) {
         uluna: "100000",
       }),
     })
-    .then((tx) => terra.tx.broadcast(tx));
+    .then((tx) => broadcastAndWait(terra, tx));
   console.log(
     `Minted NFT with token_id ${token_id} at ${addresses["cw721_base.wasm"]}`
   );
@@ -284,7 +301,7 @@ for (const [contract, registrations] of Object.entries(
           uluna: "100000",
         }),
       })
-      .then((tx) => terra.tx.broadcast(tx))
+      .then((tx) => broadcastAndWait(terra, tx))
       .then((rs) => console.log(rs));
   }
 }
