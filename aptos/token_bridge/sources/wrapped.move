@@ -92,7 +92,8 @@ module token_bridge::wrapped {
             = coin::initialize<CoinType>(
                 coin_signer,
                 string32::to_string(&name),
-                string32::to_string(&symbol),
+                // take the first 10 characters of the symbol (maximum in aptos)
+                string32::take_utf8(string32::to_string(&symbol), 10),
                 decimals,
                 monitor_supply
             );
@@ -154,7 +155,7 @@ module token_bridge::wrapped_test {
     const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
 
     /// Attestation VAA sent from the ethereum token bridge 0xdeadbeef
-    const ATTESTATION_VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
+    const ATTESTATION_VAA: vector<u8> = x"0100000000010080366065746148420220f25a6275097370e8db40984529a6676b7a5fc9feb11755ec49ca626b858ddfde88d15601f85ab7683c5f161413b0412143241c700aff010000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef000000000150eb23000200000000000000000000000000000000000000000000000000000000beefface00020c424545460000000000000000000000000000000000000000000000000000000042656566206661636520546f6b656e0000000000000000000000000000000000";
 
     fun setup(
         deployer: &signer,
@@ -229,8 +230,8 @@ module token_bridge::wrapped_test {
         assert!(coin::is_coin_initialized<T>(), 0);
 
         // assert coin info is correct
-        assert!(coin::name<T>() == utf8(external_address::pad_left_32(&b"Beef face Token")), 0);
-        assert!(coin::symbol<T>() == utf8(external_address::pad_left_32(&b"BEEF")), 0);
+        assert!(coin::name<T>() == utf8(b"Beef face Token"), 0);
+        assert!(coin::symbol<T>() == utf8(b"BEEF"), 0);
         assert!(coin::decimals<T>() == 12, 0);
 
         // assert origin address, chain, type_info, is_wrapped are correct

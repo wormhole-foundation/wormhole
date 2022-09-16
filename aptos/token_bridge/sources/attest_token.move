@@ -87,8 +87,8 @@ module token_bridge::attest_token_test {
     }
 
     fun init_my_token(admin: &signer) {
-        let name = utf8(b"Coin with very very very very very very very very very very very very very long name");
-        let symbol = utf8(b"Coin with very very very very very very very very very very very very very long symbol");
+        let name = utf8(b"Some test coin");
+        let symbol = utf8(b"TEST");
         let decimals = 10;
         let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<MyCoin>(admin, name, symbol, decimals, monitor_supply);
@@ -99,20 +99,22 @@ module token_bridge::attest_token_test {
 
     #[test(token_bridge=@token_bridge, deployer=@deployer)]
     fun test_attest_token(token_bridge: &signer, deployer: &signer) {
+        use std::string;
+
         setup(token_bridge, deployer);
         let asset_meta = attest_token::attest_token_test<MyCoin>();
 
         let token_address = asset_meta::get_token_address(&asset_meta);
         let token_chain = asset_meta::get_token_chain(&asset_meta);
         let decimals = asset_meta::get_decimals(&asset_meta);
-        let symbol = string32::to_bytes(&asset_meta::get_symbol(&asset_meta));
-        let name = string32::to_bytes(&asset_meta::get_name(&asset_meta));
+        let symbol = string32::to_string(&asset_meta::get_symbol(&asset_meta));
+        let name = string32::to_string(&asset_meta::get_name(&asset_meta));
 
         assert!(token_address == token_hash::get_external_address(&token_hash::derive<MyCoin>()), 0);
         assert!(token_chain == wormhole::u16::from_u64(22), 0);
         assert!(decimals == 10, 0);
-        assert!(symbol == b"Coin with very very very very ve", 0);
-        assert!(name == b"Coin with very very very very ve", 0);
+        assert!(name == string::utf8(b"Some test coin"), 0);
+        assert!(symbol == string::utf8(b"TEST"), 0);
     }
 
     #[test(token_bridge=@token_bridge, deployer=@deployer)]

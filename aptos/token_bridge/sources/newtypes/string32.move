@@ -40,8 +40,8 @@ module token_bridge::string32 {
     /// bytes, because the original string might have a multi-byte utf8
     /// character at the 32 byte boundary, which, when split, results in an
     /// invalid code point, so we remove it.
-    fun take_32(bytes: vector<u8>): String {
-        while (vector::length(&bytes) > 32) {
+    fun take(bytes: vector<u8>, n: u64): String {
+        while (vector::length(&bytes) > n) {
             vector::pop_back(&mut bytes);
         };
 
@@ -53,23 +53,42 @@ module token_bridge::string32 {
         option::extract(&mut utf8)
     }
 
+    /// Takes the first `n` bytes of a `String`.
+    ///
+    /// Even if the input string is longer than `n`, the resulting string might
+    /// be shorter because the original string might have a multi-byte utf8
+    /// character at the byte boundary, which, when split, results in an invalid
+    /// code point, so we remove it.
+    public fun take_utf8(str: String, n: u64): String {
+        take(*string::bytes(&str), n)
+    }
+
     /// Truncates or right-pads a `String` to a `String32`.
     /// Does not abort.
     public fun from_string(s: &String): String32 {
-        right_pad(&take_32(*string::bytes(s)))
+        right_pad(&take(*string::bytes(s), 32))
     }
 
     /// Truncates or right-pads a byte vector to a `String32`.
     /// Does not abort.
     public fun from_bytes(b: vector<u8>): String32 {
-        right_pad(&take_32(b))
+        right_pad(&take(b, 32))
     }
 
+    /// Converts `String32` to `String`, removing trailing 0s.
     public fun to_string(s: &String32): String {
         let String32 { string } = s;
-        *string
+        let bytes = *string::bytes(string);
+        // keep dropping the last character while it's 0
+        while (!vector::is_empty(&bytes) &&
+               *vector::borrow(&bytes, vector::length(&bytes) - 1) == 0
+        ) {
+            vector::pop_back(&mut bytes);
+        };
+        string::utf8(bytes)
     }
 
+    /// Converts `String32` to a byte vector of length 32.
     public fun to_bytes(s: &String32): vector<u8> {
         *string::bytes(&s.string)
     }
@@ -94,7 +113,7 @@ module token_bridge::string32_test {
     #[test]
     public fun test_right_pad() {
         let result = string32::right_pad(&string::utf8(b"hello"));
-        assert!(string32::to_string(&result) == string::utf8(b"hello\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"), 0)
+        assert!(string32::to_string(&result) == string::utf8(b"hello"), 0)
     }
 
     #[test]
@@ -107,7 +126,7 @@ module token_bridge::string32_test {
     #[test]
     public fun test_from_string_short() {
         let result = string32::from_string(&string::utf8(b"hello"));
-        assert!(string32::to_string(&result) == string::utf8(b"hello\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"), 0)
+        assert!(string32::to_string(&result) == string::utf8(b"hello"), 0)
     }
 
     #[test]
@@ -129,15 +148,15 @@ module token_bridge::string32_test {
         // string length is bytes, not characters
         assert!(string::length(&string) == 34, 0);
         let padded = string32::from_string(&string);
-        // notice that the e0 byte got replaced by a 0 at the end
-        assert!(string32::to_string(&padded) == string::utf8(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\0"), 0)
+        // notice that the e0 byte got dropped at the end
+        assert!(string32::to_string(&padded) == string::utf8(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), 0)
     }
 
     #[test]
     public fun test_from_bytes_invalid_utf8() {
         // invalid utf8
         let bytes = x"e0a0";
-        let result = string::utf8(b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
+        let result = string::utf8(b"");
         assert!(string32::to_string(&string32::from_bytes(bytes)) == result, 0)
     }
 }
