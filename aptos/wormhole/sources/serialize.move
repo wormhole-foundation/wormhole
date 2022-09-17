@@ -1,8 +1,12 @@
 module wormhole::serialize {
-    use 0x1::vector::{Self};
+    use 0x1::vector;
     use wormhole::u16::{Self, U16};
     use wormhole::u32::{Self, U32};
-    use wormhole::u256::{Self, U256};
+    use wormhole::u256::U256;
+
+    // we reuse the native bcs serialiser -- it uses little-endian encoding, and
+    // we need big-endian, so the results are reversed
+    use std::bcs;
 
     public fun serialize_u8(buf: &mut vector<u8>, v: u8) {
         vector::push_back<u8>(buf, v);
@@ -23,26 +27,21 @@ module wormhole::serialize {
     }
 
     public fun serialize_u64(buf: &mut vector<u8>, v: u64) {
-        serialize_u8(buf, (v >> 56 & 0xFF as u8));
-        serialize_u8(buf, (v >> 48 & 0xFF as u8));
-        serialize_u8(buf, (v >> 40 & 0xFF as u8));
-        serialize_u8(buf, (v >> 32 & 0xFF as u8));
-        serialize_u8(buf, (v >> 24 & 0xFF as u8));
-        serialize_u8(buf, (v >> 16 & 0xFF as u8));
-        serialize_u8(buf, (v >> 8  & 0xFF as u8));
-        serialize_u8(buf, (v       & 0xFF as u8))
+        let v = bcs::to_bytes(&v);
+        vector::reverse(&mut v);
+        vector::append(buf, v);
     }
 
     public fun serialize_u128(buf: &mut vector<u8>, v: u128) {
-        serialize_u64(buf, (v >> 64 & 0xFFFFFFFFFFFFFFFF as u64));
-        serialize_u64(buf, (v       & 0xFFFFFFFFFFFFFFFF as u64));
+        let v = bcs::to_bytes(&v);
+        vector::reverse(&mut v);
+        vector::append(buf, v);
     }
 
     public fun serialize_u256(buf: &mut vector<u8>, v: U256) {
-        serialize_u64(buf, u256::get(&v, 3));
-        serialize_u64(buf, u256::get(&v, 2));
-        serialize_u64(buf, u256::get(&v, 1));
-        serialize_u64(buf, u256::get(&v, 0));
+        let v = bcs::to_bytes(&v);
+        vector::reverse(&mut v);
+        vector::append(buf, v);
     }
 
     public fun serialize_vector(buf: &mut vector<u8>, v: vector<u8>){
@@ -117,10 +116,10 @@ module wormhole::test_serialize {
 
     #[test]
     fun test_serialize_u256(){
-        let u = u256::add(u256::shl(u256::from_u128(0x12345678123456781234567812345678), 128), u256::from_u128(0x9876));
+        let u = u256::add(u256::shl(u256::from_u128(0x47386917590997937461700473756125), 128), u256::from_u128(0x9876));
         let s = vector::empty();
         serialize::serialize_u256(&mut s, u);
-        let exp = x"1234567812345678123456781234567800000000000000000000000000009876";
+        let exp = x"4738691759099793746170047375612500000000000000000000000000009876";
         assert!(s == exp, 0);
     }
 

@@ -14,7 +14,7 @@ module wormhole::deserialize {
         let i = 0;
         while (i < 2) {
             let b = cursor::poke(cur);
-            res = (res << 8) | (b as u64);
+            res = (res << 8) + (b as u64);
             i = i + 1;
         };
         u16::from_u64(res)
@@ -25,7 +25,7 @@ module wormhole::deserialize {
         let i = 0;
         while (i < 4) {
             let b = cursor::poke(cur);
-            res = (res << 8) | (b as u64);
+            res = (res << 8) + (b as u64);
             i = i + 1;
         };
         u32::from_u64(res)
@@ -36,7 +36,7 @@ module wormhole::deserialize {
         let i = 0;
         while (i < 8) {
             let b = cursor::poke(cur);
-            res = (res << 8) | (b as u64);
+            res = (res << 8) + (b as u64);
             i = i + 1;
         };
         res
@@ -47,7 +47,7 @@ module wormhole::deserialize {
         let i = 0;
         while (i < 16) {
             let b = cursor::poke(cur);
-            res = (res << 8) | (b as u128);
+            res = (res << 8) + (b as u128);
             i = i + 1;
         };
         res

@@ -131,8 +131,8 @@ module wormhole::wormhole {
 #[test_only]
 module wormhole::wormhole_test {
     use 0x1::hash;
-    use 0x1::aptos_hash;
     use wormhole::wormhole;
+    use wormhole::keccak256::keccak256;
     use aptos_framework::aptos_coin::{Self};
     use aptos_framework::coin;
 
@@ -152,7 +152,7 @@ module wormhole::wormhole_test {
     #[test]
     public fun test_hash() {
         assert!(hash::sha3_256(vector[0]) == x"5d53469f20fef4f8eab52b88044ede69c77a6a68a60728609fc4a65ff531e7d0", 0);
-        assert!(aptos_hash::keccak256(vector[0]) == x"bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a", 0);
+        assert!(keccak256(vector[0]) == x"bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a", 0);
     }
 
     #[test(aptos_framework = @aptos_framework)]

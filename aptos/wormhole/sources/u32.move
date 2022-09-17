@@ -24,10 +24,10 @@ module wormhole::u32 {
 
     public fun split_u8(number: U32): (u8, u8, u8, u8) {
         let U32 { number } = number;
-        let v0: u8 = (number >> 24 & 0xFF as u8);
-        let v1: u8 = (number >> 16 & 0xFF as u8);
-        let v2: u8 = (number >> 8 & 0xFF as u8);
-        let v3: u8 = (number & 0xFF as u8);
+        let v0: u8 = ((number >> 24) % (0xFF + 1) as u8);
+        let v1: u8 = ((number >> 16) % (0xFF + 1) as u8);
+        let v2: u8 = ((number >> 8)  % (0xFF + 1) as u8);
+        let v3: u8 = (number         % (0xFF + 1) as u8);
         (v0, v1, v2, v3)
     }
 

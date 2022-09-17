@@ -288,44 +288,6 @@ module wormhole::u256 {
         ret
     }
 
-    /// Divide `a` by `b`.
-    public fun div(a: U256, b: U256): U256 {
-        let ret = zero();
-
-        let a_bits = bits(&a);
-        let b_bits = bits(&b);
-
-        assert!(b_bits != 0, EDIV_BY_ZERO); // DIVIDE BY ZERO.
-        if (a_bits < b_bits) {
-            // Immidiatelly return.
-            return ret
-        };
-
-        let shift = a_bits - b_bits;
-        b = shl(b, (shift as u8));
-
-        loop {
-            let cmp = compare(&a, &b);
-            if (cmp == GREATER_THAN || cmp == EQUAL) {
-                let index = shift / 64;
-                let m = get(&ret, index);
-                let c = m | 1 << ((shift % 64) as u8);
-                put(&mut ret, index, c);
-
-                a = sub(a, b);
-            };
-
-            b = shr(b, 1);
-            if (shift == 0) {
-                break
-            };
-
-            shift = shift - 1;
-        };
-
-        ret
-    }
-
     /// Shift right `a`  by `shift`.
     public fun shr(a: U256, shift: u8): U256 {
         let ret = zero();
@@ -390,57 +352,6 @@ module wormhole::u256 {
     }
 
     // Private functions.
-    /// Get bits used to store `a`.
-    fun bits(a: &U256): u64 {
-        let i = 1;
-        while (i < WORDS) {
-            let a1 = get(a, WORDS - i);
-            if (a1 > 0) {
-                return ((0x40 * (WORDS - i + 1)) - (leading_zeros_u64(a1) as u64))
-            };
-
-            i = i + 1;
-        };
-
-        let a1 = get(a, 0);
-        0x40 - (leading_zeros_u64(a1) as u64)
-    }
-
-    /// Get leading zeros of a binary representation of `a`.
-    fun leading_zeros_u64(a: u64): u8 {
-        if (a == 0) {
-            return 64
-        };
-
-        let a1 = a & 0xFFFFFFFF;
-        let a2 = a >> 32;
-
-        if (a2 == 0) {
-            let bit = 32;
-
-            while (bit >= 1) {
-                let b = (a1 >> (bit-1)) & 1;
-                if (b != 0) {
-                    break
-                };
-
-                bit = bit - 1;
-            };
-
-            (32 - bit) + 32
-        } else {
-            let bit = 64;
-            while (bit >= 1) {
-                let b = (a >> (bit-1)) & 1;
-                if (b != 0) {
-                    break
-                };
-                bit = bit - 1;
-            };
-
-            64 - bit
-        }
-    }
 
     /// Similar to Rust `overflowing_add`.
     /// Returns a tuple of the addition along with a boolean indicating whether an arithmetic overflow would occur.
@@ -474,7 +385,7 @@ module wormhole::u256 {
     /// Extracts two `u64` from `a` `u128`.
     fun split_u128(a: u128): (u64, u64) {
         let a1 = ((a >> 64) as u64);
-        let a2 = ((a & 0xFFFFFFFFFFFFFFFF) as u64);
+        let a2 = ((a % (0xFFFFFFFFFFFFFFFF + 1)) as u64);
 
         (a1, a2)
     }
@@ -873,12 +784,6 @@ module wormhole::u256 {
         c = as_u128(mul(a, b));
 
         assert!(c == 36893488147419103230, 2);
-
-        a = from_u128(U128_MAX);
-        b = from_u128(U128_MAX);
-
-        let z = mul(a, b);
-        assert!(bits(&z) == 256, 3);
     }
 
     #[test]
@@ -938,48 +843,6 @@ module wormhole::u256 {
     }
 
     #[test]
-    fun test_leading_zeros_u64() {
-        let a = leading_zeros_u64(0);
-        assert!(a == 64, 0);
-
-        let a = leading_zeros_u64(1);
-        assert!(a == 63, 1);
-
-        // TODO: more tests.
-    }
-
-    #[test]
-    fun test_bits() {
-        let a = bits(&from_u128(0));
-        assert!(a == 0, 0);
-
-        a = bits(&from_u128(255));
-        assert!(a == 8, 1);
-
-        a = bits(&from_u128(256));
-        assert!(a == 9, 2);
-
-        a = bits(&from_u128(300));
-        assert!(a == 9, 3);
-
-        a = bits(&from_u128(60000));
-        assert!(a == 16, 4);
-
-        a = bits(&from_u128(70000));
-        assert!(a == 17, 5);
-
-        let b = from_u64(70000);
-        let sh = shl(b, 100);
-        assert!(bits(&sh) == 117, 6);
-
-        let sh = shl(sh, 100);
-        assert!(bits(&sh) == 217, 7);
-
-        let sh = shl(sh, 100);
-        assert!(bits(&sh) == 0, 8);
-    }
-
-    #[test]
     fun test_shift_left() {
         let a = from_u128(100);
         let b = shl(a, 2);
@@ -997,37 +860,6 @@ module wormhole::u256 {
         assert!(as_u128(b) == 25, 0);
 
         // TODO: more shift right tests.
-    }
-
-    #[test]
-    fun test_div() {
-        let a = from_u128(100);
-        let b = from_u128(5);
-        let d = div(a, b);
-
-        assert!(as_u128(d) == 20, 0);
-
-        let a = from_u128(U64_MAX);
-        let b = from_u128(U128_MAX);
-        let d = div(a, b);
-        assert!(as_u128(d) == 0, 1);
-
-        let a = from_u128(U64_MAX);
-        let b = from_u128(U128_MAX);
-        let d = div(a, b);
-        assert!(as_u128(d) == 0, 2);
-
-        let a = from_u128(U128_MAX);
-        let b = from_u128(U64_MAX);
-        let d = div(a, b);
-        assert!(as_u128(d) == 18446744073709551617, 2);
-    }
-
-    #[test]
-    #[expected_failure(abort_code=3)]
-    fun test_div_by_zero() {
-        let a = from_u128(1);
-        let _z = div(a, from_u128(0));
     }
 
     #[test]

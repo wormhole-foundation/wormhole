@@ -24,8 +24,8 @@ module wormhole::u16 {
 
     public fun split_u8(number: U16): (u8, u8) {
         let U16 { number } = number;
-        let v0: u8 = (number >> 8 & 0xFF as u8);
-        let v1: u8 = (number & 0xFF as u8);
+        let v0: u8 = ((number >> 8) % (0xFF + 1) as u8);
+        let v1: u8 = (number        % (0xFF + 1) as u8);
         (v0, v1)
     }
 

@@ -1,7 +1,6 @@
 module wormhole::vaa {
     use 0x1::vector;
     use 0x1::secp256k1;
-    use 0x1::aptos_hash;
 
     use wormhole::u16::{U16};
     use wormhole::u32::{U32};
@@ -19,6 +18,7 @@ module wormhole::vaa {
     };
     use wormhole::state;
     use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::keccak256::keccak256;
 
     friend wormhole::guardian_set_upgrade;
     friend wormhole::contract_upgrade;
@@ -80,7 +80,7 @@ module wormhole::vaa {
         };
 
         let body = cursor::rest(cur);
-        let hash = aptos_hash::keccak256(aptos_hash::keccak256(body));
+        let hash = keccak256(keccak256(body));
 
         let cur = cursor::init(body);
 

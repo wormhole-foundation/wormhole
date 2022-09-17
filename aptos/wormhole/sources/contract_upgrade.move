@@ -13,13 +13,13 @@
 /// upgraded to for whatever reason, the governance VAA won't be possible to
 /// replay in the future, since the commit transaction replay protects it.
 module wormhole::contract_upgrade {
-    use std::aptos_hash;
     use std::vector;
     use aptos_framework::code;
     use wormhole::deserialize;
     use wormhole::cursor;
     use wormhole::vaa;
     use wormhole::state;
+    use wormhole::keccak256::keccak256;
 
     /// "Core" (left padded)
     const CORE: vector<u8> = x"00000000000000000000000000000000000000000000000000000000436f7265";
@@ -105,7 +105,7 @@ module wormhole::contract_upgrade {
         vector::reverse(&mut c);
         let a = vector::empty<u8>();
         while (!vector::is_empty(&c)) vector::append(&mut a, vector::pop_back(&mut c));
-        assert!(aptos_hash::keccak256(a) == hash, E_UNEXPECTED_HASH);
+        assert!(keccak256(a) == hash, E_UNEXPECTED_HASH);
 
         let wormhole = state::wormhole_signer();
         code::publish_package_txn(&wormhole, metadata_serialized, code);
