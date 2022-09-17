@@ -31,10 +31,8 @@ interface Structs {
 	struct IndexedObservation {
 		// Index of the observation in the batch
 		uint8 index;
-		// Observation stored as tightly packed bytes. These bytes
-		// are stored with a prepended uint8 (uint8(3)) to specify that
-		// they represent a VAAv3 payload.
-		bytes observation;
+		// Headless VM3 parsed into the VM struct
+		VM vm3;
 	}
 
 	struct Observation {

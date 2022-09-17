@@ -49,7 +49,7 @@ contract MockBatchedVAASender {
         // consume individual VAAs in the batch
         uint256 observationsLen = vm.indexedObservations.length;
         for (uint256 i = 0; i < observationsLen; i++) {
-            consumeSingleVAA(vm.indexedObservations[i].observation);
+            consumeSingleVAA(vm.indexedObservations[i].vm3);
             cachedHashes[i] = vm.hashes[vm.indexedObservations[i].index];
         }
 
@@ -57,24 +57,12 @@ contract MockBatchedVAASender {
         wormholeCore().clearBatchCache(cachedHashes);
     }
 
-    function consumeSingleVAA(bytes memory encodedVm) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormholeCore().parseAndVerifyVM(encodedVm);
+    function consumeSingleVAA(IWormhole.VM memory vm) public {
+        (bool valid, string memory reason) = wormholeCore().verifyVM(vm);
         require(valid, reason);
 
-        // encode the observation
-        bytes memory encodedObservation = abi.encodePacked(
-            vm.timestamp,
-            vm.nonce,
-            vm.emitterChainId,
-            vm.emitterAddress,
-            vm.sequence,
-            vm.consistencyLevel,
-            vm.payload
-        );
-
-        // save each payload in the verifiedPayloads map
-        bytes32 observationHash = keccak256(abi.encodePacked(keccak256(encodedObservation)));
-        verifiedPayloads[observationHash] = vm.payload;
+        // save the paylaod in the vm
+        verifiedPayloads[vm.hash] = vm.payload;
     }
 
     function getPayload(bytes32 hash) public view returns (bytes memory) {

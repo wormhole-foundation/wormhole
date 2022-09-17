@@ -78,6 +78,32 @@ contract TestMessages is Messages, Test {
     hash = keccak256(abi.encodePacked(keccak256(body)));
   }
 
+  function compareVM3s(Structs.VM memory vm, Structs.VM memory vm2) public {
+    // version
+    assertEq(vm.version, vm2.version);
+
+    // timestamp
+    assertEq(vm.timestamp, vm2.timestamp);
+
+    // nonce
+    assertEq(vm.nonce, vm2.nonce);
+
+    // emitterChainId
+    assertEq(vm.emitterChainId, vm2.emitterChainId);
+
+    // emitterAddress
+    assertEq(vm.emitterAddress, vm2.emitterAddress);
+
+    // sequence
+    assertEq(vm.sequence, vm2.sequence);
+
+    // consistencyLevel
+    assertEq(vm.consistencyLevel, vm2.consistencyLevel);
+
+    // payload
+    assertEq(vm.payload, vm.payload);
+  }
+
   // This test ensures that individual hashes are not cached when a bad encoded VM2
   // is passed to parseAndVerifyBatchVM. The encoded VM2 is not valid in this case, since
   // a valid guardian set has not been stored yet.
@@ -335,11 +361,12 @@ contract TestMessages is Messages, Test {
     // Parse the modifiedVm2 and validate the observation swap
     Structs.VM2 memory parsedModifiedVm2 = parseBatchVM(modifiedVm2);
     assertEq(originalVm2.indexedObservations[0].index, parsedModifiedVm2.indexedObservations[1].index);
-    assertEq(originalVm2.indexedObservations[0].observation, parsedModifiedVm2.indexedObservations[1].observation);
     assertEq(originalVm2.indexedObservations[1].index, parsedModifiedVm2.indexedObservations[0].index);
-    assertEq(originalVm2.indexedObservations[1].observation, parsedModifiedVm2.indexedObservations[0].observation);
     assertEq(originalVm2.indexedObservations[2].index, parsedModifiedVm2.indexedObservations[2].index);
-    assertEq(originalVm2.indexedObservations[2].observation, parsedModifiedVm2.indexedObservations[2].observation);
+
+    compareVM3s(originalVm2.indexedObservations[0].vm3, parsedModifiedVm2.indexedObservations[1].vm3);
+    compareVM3s(originalVm2.indexedObservations[1].vm3, parsedModifiedVm2.indexedObservations[0].vm3);
+    compareVM3s(originalVm2.indexedObservations[2].vm3, parsedModifiedVm2.indexedObservations[2].vm3);
 
     for (uint256 i = 0; i < parsedModifiedVm2.hashes.length; i++) {
       assertEq(originalVm2.hashes[i], parsedModifiedVm2.hashes[i]);
@@ -475,8 +502,8 @@ contract TestMessages is Messages, Test {
     for (uint8 i = 0; i < numObservations; i++) {
       // Observations index
       assertEq(vm2.indexedObservations[i].index, i);
-      // Observations
-      assertEq(vm2.indexedObservations[i].observation, abi.encodePacked(uint8(3), observations[i]));
+      // Compare observations by parsing them into VM structs and comparing the values
+      compareVM3s(vm2.indexedObservations[i].vm3, parseVM(abi.encodePacked(uint8(3), observations[i])));
       // Hash
       assertEq(vm2.hashes[i], observationHashes[i]);
     }
@@ -493,6 +520,11 @@ contract TestMessages is Messages, Test {
     Structs.Observation memory testObservation
   ) public {
     vm.assume(guardianKeys.length <= 19 && guardianKeys.length > 0);
+
+    // make sure the guardian keys are not address(0)
+    for (uint256 i = 0; i < guardianKeys.length; i++) {
+      vm.assume(guardianKeys[i] != address(0));
+    }
 
     // Create a guardian set
     Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({

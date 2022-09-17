@@ -20,12 +20,12 @@ contract Messages is Getters, Setters {
     }
 
     /**
-     * @dev parseAndVerifyVM2 serves to parse an encodedVM that includes a batch of observations
+     * @dev parseAndVerifyVM2 serves to parse an encodedVM2 that includes a batch of observations
      * and wholy validate the batch for consumption
      * it saves the hash of each observation in a cache when `cache` is set to true
      */
-    function parseAndVerifyBatchVM(bytes calldata encodedVM, bool cache) public returns (Structs.VM2 memory vm, bool valid, string memory reason) {
-        vm = parseBatchVM(encodedVM);
+    function parseAndVerifyBatchVM(bytes calldata encodedVM2, bool cache) public returns (Structs.VM2 memory vm, bool valid, string memory reason) {
+        vm = parseBatchVM(encodedVM2);
         (valid, reason) = verifyBatchVM(vm, cache);
     }
 
@@ -164,11 +164,11 @@ contract Messages is Getters, Setters {
      * - it aims to verify each observation's hash
      * - it aims to cache each observation's hash if the `cache` argument is true
      */
-    function verifyBatchVM(Structs.VM2 memory vm, bool cache) public returns (bool valid, string memory reason) {
+    function verifyBatchVM(Structs.VM2 memory vm2, bool cache) public returns (bool valid, string memory reason) {
         Structs.Header memory header;
-        header.guardianSetIndex = vm.guardianSetIndex;
-        header.signatures = vm.signatures;
-        header.hash = vm.hash;
+        header.guardianSetIndex = vm2.guardianSetIndex;
+        header.signatures = vm2.signatures;
+        header.hash = vm2.hash;
 
         // Verify the header
         (valid, reason) = verifyHeader(header);
@@ -176,28 +176,23 @@ contract Messages is Getters, Setters {
         // Verify the hash of each observation
         if (valid) {
             uint8 lastIndex;
-            uint256 hashesLen = vm.hashes.length;
-            uint256 observationsLen = vm.indexedObservations.length;
+            uint256 hashesLen = vm2.hashes.length;
+            uint256 observationsLen = vm2.indexedObservations.length;
             for (uint i = 0; i < observationsLen;) {
                 // Ensure that the provided observation index is within the
                 // bounds of the array of observation hashes.
-                require(vm.indexedObservations[i].index < hashesLen, "observation index out of bounds");
+                require(vm2.indexedObservations[i].index < hashesLen, "observation index out of bounds");
 
                 // Ensure that provided observation indices are ascending only
-                require(i == 0 || vm.indexedObservations[i].index > lastIndex, "observation indices must be ascending");
-                lastIndex = vm.indexedObservations[i].index;
+                require(i == 0 || vm2.indexedObservations[i].index > lastIndex, "observation indices must be ascending");
+                lastIndex = vm2.indexedObservations[i].index;
 
-                // Compute the hash of the observation. Since the first byte contains the Headless VAA (version 3)
-                // version type and is not part of the actual observation, it is removed before computing the hash.
-                bytes memory observation = vm.indexedObservations[i].observation.slice(
-                    1,
-                    vm.indexedObservations[i].observation.length - 1
-                );
-                bytes32 observationHash = keccak256(abi.encodePacked(keccak256(observation)));
+                // Store the hash of the observation
+                bytes32 observationHash = vm2.indexedObservations[i].vm3.hash;
 
                 // Verify the hash against the array of hashes. Bail out if the hash
                 // does not match the hash at the expected index.
-                if (observationHash != vm.hashes[vm.indexedObservations[i].index]) {
+                if (observationHash != vm2.hashes[vm2.indexedObservations[i].index]) {
                     return (false, "invalid observation");
                 }
 
@@ -355,69 +350,72 @@ contract Messages is Getters, Setters {
      * @dev parseVM2 serves to parse an encodedVM into a VM2 struct
      *  - it intentionally performs no validation functions, it simply parses raw into a struct
      */
-    function parseBatchVM(bytes memory encodedVM) public pure virtual returns (Structs.VM2 memory vm) {
+    function parseBatchVM(bytes memory encodedVM2) public pure virtual returns (Structs.VM2 memory vm2) {
         uint256 index = 0;
 
         // Parse the header
-        vm.version = encodedVM.toUint8(index);
+        vm2.version = encodedVM2.toUint8(index);
         index += 1;
-        require(vm.version == 2, "VM version incompatible");
+        require(vm2.version == 2, "VM version incompatible");
 
-        vm.guardianSetIndex = encodedVM.toUint32(index);
+        vm2.guardianSetIndex = encodedVM2.toUint32(index);
         index += 4;
 
         // Parse signatures
-        uint256 signersLen = encodedVM.toUint8(index);
+        uint256 signersLen = encodedVM2.toUint8(index);
         index += 1;
 
-        vm.signatures = parseSignatures(index, signersLen, encodedVM);
+        vm2.signatures = parseSignatures(index, signersLen, encodedVM2);
         index += 66*signersLen;
 
         // Number of hashes in the full batch
-        uint256 hashesLen = encodedVM.toUint8(index);
+        uint256 hashesLen = encodedVM2.toUint8(index);
         index += 1;
 
         // Hash the array of hashes
-        bytes memory body = encodedVM.slice(index, hashesLen * 32);
-        vm.hash = keccak256(abi.encodePacked(keccak256(body)));
+        bytes memory body = encodedVM2.slice(index, hashesLen * 32);
+        vm2.hash = keccak256(abi.encodePacked(keccak256(body)));
 
         // Parse hashes
-        vm.hashes = new bytes32[](hashesLen);
+        vm2.hashes = new bytes32[](hashesLen);
         for (uint8 i = 0; i < hashesLen;) {
-            vm.hashes[i] = encodedVM.toBytes32(index);
+            vm2.hashes[i] = encodedVM2.toBytes32(index);
             index += 32;
             unchecked { i += 1; }
         }
 
         // The number of observations in the batch. This can be less
         // than the number of hashes in the batch if it's a partial batch.
-        uint8 observationsLen = encodedVM.toUint8(index);
+        uint8 observationsLen = encodedVM2.toUint8(index);
         index += 1;
 
         // The batch should have a nonzero number of observations, and shouldn't
         // have more observations than hashes.
         require(observationsLen <= hashesLen && observationsLen > 0, "invalid number of observations");
 
-        // parse each IndexedObservation and store it
-        vm.indexedObservations = new Structs.IndexedObservation[](observationsLen);
+        // Parse each IndexedObservation and store it
+        vm2.indexedObservations = new Structs.IndexedObservation[](observationsLen);
         uint8 observationIndex;
         uint32 observationLen;
         for (uint8 i = 0; i < observationsLen;) {
-            observationIndex = encodedVM.toUint8(index);
+            observationIndex = encodedVM2.toUint8(index);
             index += 1;
 
-            observationLen = encodedVM.toUint32(index);
+            observationLen = encodedVM2.toUint32(index);
             index += 4;
 
             /*
             Store the IndexedObservation struct.
 
             Prepend uint8(3) to the Observation bytes to signal that the
-            bytes are considered a "Headless" VM3 payload.
+            bytes are considered a "Headless" VM3 payload. Parse the headless
+            VM3 into the VM struct.
             */
-            vm.indexedObservations[i] = Structs.IndexedObservation({
+            Structs.VM memory vm3 = parseVM3(abi.encodePacked(uint8(3), encodedVM2.slice(index, observationLen)));
+
+            vm2.indexedObservations[i] = Structs.IndexedObservation({
                 index: observationIndex,
-                observation: abi.encodePacked(uint8(3), encodedVM.slice(index, observationLen))
+                vm3: vm3
             });
 
             index += observationLen;
@@ -426,7 +424,7 @@ contract Messages is Getters, Setters {
 
         // This is necessary to confirm that the observationsLen byte was set correctly
         // for partial batches.
-        require(encodedVM.length == index, "invalid VM2");
+        require(encodedVM2.length == index, "invalid VM2");
     }
 
     /**
