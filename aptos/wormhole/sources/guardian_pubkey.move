@@ -8,8 +8,8 @@ module wormhole::guardian_pubkey {
         ecdsa_raw_public_key_to_bytes,
         ecdsa_recover,
     };
-    use 0x1::aptos_hash;
     use 0x1::vector;
+    use wormhole::keccak256::keccak256;
 
     /// An error occurred while deserializing, for example due to wrong input size.
     const E_DESERIALIZE: u64 = 1;
@@ -28,7 +28,7 @@ module wormhole::guardian_pubkey {
     /// Computes the address from a 64 byte public key.
     public fun from_pubkey(pubkey: &ECDSARawPublicKey): Address {
         let bytes = ecdsa_raw_public_key_to_bytes(pubkey);
-        let hash = aptos_hash::keccak256(bytes);
+        let hash = keccak256(bytes);
         let address = vector::empty<u8>();
         let i = 0;
         while (i < 20) {
