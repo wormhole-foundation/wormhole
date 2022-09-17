@@ -18,6 +18,10 @@ module token_bridge::string32 {
        string: String
     }
 
+    spec String32 {
+        invariant string::length(string) == 32;
+    }
+
     /// Right-pads a `String` to a `String32` with 0 bytes.
     /// Aborts if the string is longer than 32 bytes.
     public fun right_pad(s: &String): String32 {
@@ -25,7 +29,12 @@ module token_bridge::string32 {
         assert!(length <= 32, E_STRING_TOO_LONG);
         let string = *string::bytes(s);
         let zeros = 32 - length;
-        while (zeros > 0) {
+        while ({
+            spec {
+                invariant zeros + vector::length(string) == 32;
+            };
+            zeros > 0
+        }) {
             vector::push_back(&mut string, 0);
             zeros = zeros - 1;
         };
