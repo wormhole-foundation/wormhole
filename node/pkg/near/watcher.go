@@ -388,6 +388,16 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
 
+	if e.next_round == 0 {
+		finalBody, err := e.getFinalBlock()
+		if err != nil {
+			logger.Error("StatusAfterBlock", zap.Error(err))
+			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+			return err
+		}
+		e.next_round = gjson.ParseBytes(finalBody).Get("result.chunks.0.height_created").Uint()
+	}
+
 	go func() {
 		for {
 			select {
@@ -411,17 +421,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}()
 
 	go func() {
-		if e.next_round == 0 {
-			finalBody, err := e.getFinalBlock()
-			if err != nil {
-				logger.Error("StatusAfterBlock", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-				errC <- err
-				return
-			}
-			e.next_round = gjson.ParseBytes(finalBody).Get("result.chunks.0.height_created").Uint()
-		}
-
 		timer := time.NewTicker(time.Second * 1)
 		defer timer.Stop()
 
@@ -435,8 +434,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					logger.Error(fmt.Sprintf("nearClient.Status: %s", err.Error()))
 
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-					errC <- err
-					return
+					continue
 				}
 				parsedFinalBody := gjson.ParseBytes(finalBody)
 				lastBlock := parsedFinalBody.Get("result.chunks.0.height_created").Uint()
@@ -477,8 +475,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
 
 							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-							errC <- err
-							return
+							continue
 
 						}
 					} else {
@@ -487,8 +484,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 							logger.Error(fmt.Sprintf("nearClient.Status: %s", err.Error()))
 
 							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-							errC <- err
-							return
+							continue
 
 						}
 						err = e.inspectBody(logger, e.next_round, gjson.ParseBytes(b))
@@ -496,8 +492,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
 
 							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-							errC <- err
-							return
+							continue
 
 						}
 					}
