@@ -1025,7 +1025,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *nearRPC != "" {
 			if err := supervisor.Run(ctx, "nearwatch",
-				near.NewWatcher(*nearRPC, *nearContract, lockC, chainObsvReqC[vaa.ChainIDNear]).Run); err != nil {
+				near.NewWatcher(*nearRPC, *nearContract, lockC, chainObsvReqC[vaa.ChainIDNear], !(*unsafeDevMode || *testnetMode)).Run); err != nil {
 				return err
 			}
 		}
