@@ -16,7 +16,12 @@ use {
     },
 };
 
-type ConsistencyLevel = u8;
+// Solana-specific Consistency Levels, 1 for optimistic confirmation and 32 for full confirmation.
+#[repr(u8)]
+pub enum ConsistencyLevel {
+    Confirmed = 1,
+    Finalized = 32,
+}
 
 /// A Message data type that can be emitted by Wormhole.
 pub struct Message<'a> {
@@ -42,14 +47,13 @@ impl<'a> Message<'a> {
         account: Pubkey,
         seeds: Option<&'a [&'a [&'a [u8]]]>,
         consistency: ConsistencyLevel,
-        nonce: u32,
         payload: &'a [u8],
     ) -> Self {
         Self {
             account,
             seeds,
             consistency,
-            nonce,
+            nonce: 0,
             payload,
             reliable: true,
         }
@@ -60,14 +64,13 @@ impl<'a> Message<'a> {
         account: Pubkey,
         seeds: Option<&'a [&'a [&'a [u8]]]>,
         consistency: ConsistencyLevel,
-        nonce: u32,
         payload: &'a [u8],
     ) -> Self {
         Self {
             account,
             seeds,
             consistency,
-            nonce,
+            nonce: 0,
             payload,
             reliable: false,
         }
@@ -124,7 +127,7 @@ pub fn post_message(
                 message.account,
                 message.nonce,
                 message.payload,
-                message.consistency,
+                message.consistency as u8,
             )
             .unwrap()
         } else {
@@ -135,7 +138,7 @@ pub fn post_message(
                 message.account,
                 message.nonce,
                 message.payload,
-                message.consistency,
+                message.consistency as u8,
             )
             .unwrap()
         },
@@ -144,4 +147,25 @@ pub fn post_message(
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod testing {
+    use super::*;
+
+    #[test]
+    fn test_message_emission() {
+        let _ = post_message(
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            &[],
+            Message::new(
+                Pubkey::new_unique(),
+                None,
+                ConsistencyLevel::Confirmed,
+                &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            ),
+        );
+    }
 }
