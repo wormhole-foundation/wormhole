@@ -70,6 +70,9 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 	case vaa.ChainIDAlgorand:
 		// TODO
 		return ""
+	case vaa.ChainIDNear:
+		// TODO for now use hex string
+		return address
 	case vaa.ChainIDTerra2:
 		// handle terra2 native assets manually
 		if val, ok := tokenAddressExceptions[address]; ok {

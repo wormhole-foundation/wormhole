@@ -63,8 +63,9 @@ var tokenTransferEmitters = map[string]string{
 	"0000000000000000000000007c9fc5741288cdfdd83ceb07f3ea7e22618d79d2": "0x7c9fc5741288cdfdd83ceb07f3ea7e22618d79d2",                       // fantom
 	"00000000000000000000000051b5123a7b0F9b2bA265f9c4C8de7D78D52f510F": "0x51b5123a7b0F9b2bA265f9c4C8de7D78D52f510F",                       // aurora
 	"000000000000000000000000ae9d7fe007b3327AA64A32824Aaac52C42a6E624": "0xae9d7fe007b3327AA64A32824Aaac52C42a6E624",                       // acala & karura
-	"000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",                       // celo
 	"0000000000000000000000005b08ac39EAED75c0439FC750d9FE7E1F9dD0193F": "0x5b08ac39EAED75c0439FC750d9FE7E1F9dD0193F",                       // klaytn
+	"000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",                       // celo
+	"148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7": "contract.portalbridge.near", // near
 	"a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3": "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9", // terra2
 
 	// devnet
