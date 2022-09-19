@@ -15,13 +15,9 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethHexUtils "github.com/ethereum/go-ethereum/common/hexutil"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	ethEvent "github.com/ethereum/go-ethereum/event"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
 	common "github.com/certusone/wormhole/node/pkg/common"
-	ethAbi "github.com/certusone/wormhole/node/pkg/ethereum/abi"
-
 	"go.uber.org/zap"
 )
 
@@ -32,7 +28,7 @@ type PollFinalizer interface {
 }
 
 type PollImpl struct {
-	BaseEth             EthImpl
+	EthImpl
 	Finalizer           PollFinalizer
 	DelayInMs           int
 	IsEthPoS            bool
@@ -43,15 +39,15 @@ type PollImpl struct {
 
 func (e *PollImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
-	e.logger.Info("using polling to check for new blocks", zap.String("eth_network", e.BaseEth.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
+	e.logger.Info("using polling to check for new blocks", zap.String("eth_network", e.EthImpl.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
 	if e.Finalizer != nil {
-		e.Finalizer.SetLogger(l, e.BaseEth.NetworkName)
+		e.Finalizer.SetLogger(l, e.EthImpl.NetworkName)
 	}
 }
 
 func (e *PollImpl) SetEthSwitched() {
 	e.hasEthSwitchedToPoS = true
-	e.logger.Info("switching from latest to finalized", zap.String("eth_network", e.BaseEth.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
+	e.logger.Info("switching from latest to finalized", zap.String("eth_network", e.EthImpl.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
 }
 
 func (e *PollImpl) DialContext(ctx context.Context, rawurl string) (err error) {
@@ -72,39 +68,7 @@ func (e *PollImpl) DialContext(ctx context.Context, rawurl string) (err error) {
 	}
 
 	// This is used for doing all other go-ethereum calls.
-	return e.BaseEth.DialContext(ctx, rawurl)
-}
-
-func (e *PollImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
-	return e.BaseEth.NewAbiFilterer(address)
-}
-
-func (e *PollImpl) NewAbiCaller(address ethCommon.Address) (err error) {
-	return e.BaseEth.NewAbiCaller(address)
-}
-
-func (e *PollImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
-	return e.BaseEth.GetCurrentGuardianSetIndex(ctx)
-}
-
-func (e *PollImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
-	return e.BaseEth.GetGuardianSet(ctx, index)
-}
-
-func (e *PollImpl) WatchLogMessagePublished(ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
-	return e.BaseEth.WatchLogMessagePublished(ctx, timeout, sink)
-}
-
-func (e *PollImpl) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
-	return e.BaseEth.TransactionReceipt(ctx, txHash)
-}
-
-func (e *PollImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
-	return e.BaseEth.TimeOfBlockByHash(ctx, hash)
-}
-
-func (e *PollImpl) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
-	return e.BaseEth.ParseLogMessagePublished(log)
+	return e.EthImpl.DialContext(ctx, rawurl)
 }
 
 type PollSubscription struct {
@@ -132,7 +96,7 @@ func (sub *PollSubscription) Unsubscribe() {
 }
 
 func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
-	if e.BaseEth.client == nil {
+	if e.EthImpl.client == nil {
 		panic("client is not initialized!")
 	}
 	if e.rawClient == nil {
@@ -170,7 +134,7 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 						tmpLatestBlock, latestBlockErr := e.getBlock(ctx, nil)
 						if latestBlockErr != nil {
 							errorOccurred = true
-							e.logger.Error("failed to look up latest block", zap.String("eth_network", e.BaseEth.NetworkName),
+							e.logger.Error("failed to look up latest block", zap.String("eth_network", e.EthImpl.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(latestBlockErr))
 							break
 						}
@@ -191,7 +155,7 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 						block, err = e.getBlock(ctx, &currentBlockNumber)
 						if err != nil {
 							errorOccurred = true
-							e.logger.Error("failed to get current block", zap.String("eth_network", e.BaseEth.NetworkName),
+							e.logger.Error("failed to get current block", zap.String("eth_network", e.EthImpl.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
 						}
@@ -201,7 +165,7 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 						finalized, err := e.Finalizer.IsBlockFinalized(ctx, block)
 						if err != nil {
 							errorOccurred = true
-							e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.BaseEth.NetworkName),
+							e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.EthImpl.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
 						}
@@ -251,12 +215,12 @@ func (e *PollImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBl
 	var m Marshaller
 	err := e.rawClient.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
 	if err != nil {
-		e.logger.Error("failed to get block", zap.String("eth_network", e.BaseEth.NetworkName),
+		e.logger.Error("failed to get block", zap.String("eth_network", e.EthImpl.NetworkName),
 			zap.String("requested_block", numStr), zap.Error(err))
 		return nil, err
 	}
 	if m.Number == nil {
-		e.logger.Error("failed to unmarshal block", zap.String("eth_network", e.BaseEth.NetworkName),
+		e.logger.Error("failed to unmarshal block", zap.String("eth_network", e.EthImpl.NetworkName),
 			zap.String("requested_block", numStr),
 		)
 		return nil, fmt.Errorf("failed to unmarshal block: Number is nil")

@@ -14,7 +14,6 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
@@ -25,41 +24,25 @@ import (
 )
 
 type GetLogsImpl struct {
-	BasePoller *PollImpl
-	Query      *GetLogsQuery
-	logger     *zap.Logger
+	*PollImpl
+	Query  *GetLogsQuery
+	logger *zap.Logger
 }
 
 func NewGetLogsImpl(networkName string, contract ethCommon.Address, delayInMs int) *GetLogsImpl {
 	query := &GetLogsQuery{ContractAddress: contract}
-	return &GetLogsImpl{BasePoller: &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: query, DelayInMs: delayInMs}, Query: query}
+	return &GetLogsImpl{PollImpl: &PollImpl{EthImpl: EthImpl{NetworkName: networkName}, Finalizer: query, DelayInMs: delayInMs}, Query: query}
 }
 
 func (e *GetLogsImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
-	e.logger.Info("using eth_getLogs api to retreive log events", zap.String("eth_network", e.BasePoller.BaseEth.NetworkName))
-	e.BasePoller.SetLogger(l)
+	e.logger.Info("using eth_getLogs api to retreive log events", zap.String("eth_network", e.PollImpl.EthImpl.NetworkName))
+	e.PollImpl.SetLogger(l)
 }
 
 func (e *GetLogsImpl) DialContext(ctx context.Context, rawurl string) (err error) {
-	e.Query.poller = e.BasePoller
-	return e.BasePoller.DialContext(ctx, rawurl)
-}
-
-func (e *GetLogsImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
-	return e.BasePoller.NewAbiFilterer(address)
-}
-
-func (e *GetLogsImpl) NewAbiCaller(address ethCommon.Address) (err error) {
-	return e.BasePoller.NewAbiCaller(address)
-}
-
-func (e *GetLogsImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
-	return e.BasePoller.GetCurrentGuardianSetIndex(ctx)
-}
-
-func (e *GetLogsImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
-	return e.BasePoller.GetGuardianSet(ctx, index)
+	e.Query.poller = e.PollImpl
+	return e.PollImpl.DialContext(ctx, rawurl)
 }
 
 type GetLogsPollSubscription struct {
@@ -94,22 +77,6 @@ func (e *GetLogsImpl) WatchLogMessagePublished(ctx, timeout context.Context, sin
 	}
 
 	return e.Query.sub, nil
-}
-
-func (e *GetLogsImpl) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
-	return e.BasePoller.TransactionReceipt(ctx, txHash)
-}
-
-func (e *GetLogsImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
-	return e.BasePoller.TimeOfBlockByHash(ctx, hash)
-}
-
-func (e *GetLogsImpl) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
-	return e.BasePoller.ParseLogMessagePublished(log)
-}
-
-func (e *GetLogsImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
-	return e.BasePoller.SubscribeForBlocks(ctx, sink)
 }
 
 type GetLogsQuery struct {
