@@ -12,8 +12,8 @@ message GossipMessage {
     SignedObservationRequest signed_observation_request = 5;
     SignedBatchObservation signed_batch_observation = 6;
     SignedBatchVAAWithQuorum signed_batch_vaa_with_quorum = 7;
-    ChainGovernorConfig chain_governor_config = 8;
-    ChainGovernorStatus chain_governor_status = 9;
+    SignedChainGovernorConfig signed_chain_governor_config = 8;
+    SignedChainGovernorStatus signed_chain_governor_status = 9;
   }
 }
 
@@ -149,6 +149,17 @@ message SignedBatchVAAWithQuorum {
 }
 
 // This message is published every five minutes.
+message SignedChainGovernorConfig {
+  // Serialized ChainGovernorConfig message.
+  bytes config = 1;
+
+  // ECDSA signature using the node's guardian public key.
+  bytes signature = 2;
+
+  // Guardian address that signed this payload (truncated Eth address).
+  bytes guardian_addr = 3;
+}
+
 message ChainGovernorConfig {
   message Chain {
     uint32 chain_id = 1;
@@ -170,6 +181,17 @@ message ChainGovernorConfig {
 }
 
 // This message is published every minute.
+message SignedChainGovernorStatus {
+  // Serialized ChainGovernorStatus message.
+  bytes status = 1;
+
+  // ECDSA signature using the node's guardian public key.
+  bytes signature = 2;
+
+  // Guardian address that signed this payload (truncated Eth address).
+  bytes guardian_addr = 3;
+}
+
 message ChainGovernorStatus {
   message EnqueuedVAA {
     uint64 sequence = 1; // Chain and emitter address are assumed.
