@@ -338,7 +338,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if err != nil {
 					ethConnectionErrors.WithLabelValues(e.networkName, "block_by_number_error").Inc()
 					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d: %w", ev.Raw.BlockNumber, err)
+					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
+						ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
 					return
 				}
 
