@@ -1,29 +1,27 @@
-#![deny(warnings)]
+//! Crate providing Solana specific wormhole data types.
+//!
+//! This crate is a collection of data types used by the Solana implementation of the Wormhole
+//! protocol. These are framework agnostic and can be used to interact with the Wormhole solana
+//! deployment directly.
 
-// Re-Export Contract API/Types.
-pub use bridge::{
-    solitaire as bridge_entrypoint,
-    types::ConsistencyLevel,
-    BridgeConfig,
-    BridgeData,
-    MessageData,
-    PostVAAData,
-    PostedVAAData,
-    VerifySignaturesData,
-};
+#![deny(warnings)]
 
 mod accounts;
 mod message;
 
-// Export Thin Solana API for Wormhole data.
+// Re-export the entire instruction module as a namespace for functions that create wormhole
+// instructions for CPI.
+pub mod instruction;
+
+// Re-export minimal set of specific types/functions to develop contracts. This set acts as the
+// definition of the Wormhole API for Solana.
 pub use {
     accounts::{
-        config,
-        emitter,
-        fee_collector,
-        read_config,
-        read_vaa,
-        sequence,
+        Config,
+        Emitter,
+        FeeCollector,
+        Sequence,
+        VAA,
     },
     message::{
         post_message,

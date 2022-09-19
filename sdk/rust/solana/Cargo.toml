@@ -23,8 +23,3 @@ solana-program  = "1.10.29"
 nom             = { version="7", default-features=false, features=["alloc"] }
 primitive-types = { version="0.11", default-features=false }
 wormhole-core   = { path = "../core" }
-
-[dependencies.wormhole-bridge-solana]
-path     = "../../../solana/bridge/program"
-version  = "*"
-features = [ "no-entrypoint" ]
