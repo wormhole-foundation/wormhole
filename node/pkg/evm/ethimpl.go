@@ -1,6 +1,6 @@
 // This implements the interface to the standard go-ethereum library.
 
-package ethereum
+package evm
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	common "github.com/certusone/wormhole/node/pkg/common"
-	ethAbi "github.com/certusone/wormhole/node/pkg/ethereum/abi"
+	ethAbi "github.com/certusone/wormhole/node/pkg/evm/abi"
 
 	"go.uber.org/zap"
 )

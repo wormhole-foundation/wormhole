@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
+	"github.com/certusone/wormhole/node/pkg/evm/abi"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	abi2 "github.com/ethereum/go-ethereum/accounts/abi"

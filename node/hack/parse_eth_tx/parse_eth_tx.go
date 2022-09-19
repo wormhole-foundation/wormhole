@@ -12,7 +12,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/celo"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -38,7 +37,7 @@ func main() {
 	if chainID == vaa.ChainIDCelo {
 		ethIntf = &celo.CeloImpl{NetworkName: "celo"}
 	} else {
-		ethIntf = &ethereum.EthImpl{NetworkName: "eth"}
+		ethIntf = &evm.EthImpl{NetworkName: "eth"}
 	}
 
 	err := ethIntf.DialContext(ctx, *flagEthRPC)
@@ -54,7 +53,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	block, msgs, err := ethereum.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
+	block, msgs, err := evm.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
 	if err != nil {
 		log.Fatal(err)
 	}

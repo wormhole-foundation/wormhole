@@ -2,7 +2,7 @@
 
 // It can optionally call a chain specific function to verify that the block is finalized.
 
-package ethereum
+package evm
 
 import (
 	"context"

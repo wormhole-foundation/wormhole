@@ -2,7 +2,7 @@
 
 // It works by using the finalizer in the polling implementation to check for log events on each new block.
 
-package ethereum
+package evm
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	common "github.com/certusone/wormhole/node/pkg/common"
-	ethAbi "github.com/certusone/wormhole/node/pkg/ethereum/abi"
+	ethAbi "github.com/certusone/wormhole/node/pkg/evm/abi"
 
 	"go.uber.org/zap"
 )

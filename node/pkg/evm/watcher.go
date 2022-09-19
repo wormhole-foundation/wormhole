@@ -1,9 +1,9 @@
-package ethereum
+package evm
 
 import (
 	"context"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/ethereum/finalizers"
+	"github.com/certusone/wormhole/node/pkg/evm/finalizers"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,7 +20,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/celo"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
+	"github.com/certusone/wormhole/node/pkg/evm/abi"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"

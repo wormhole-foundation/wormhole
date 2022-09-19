@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
+	"github.com/certusone/wormhole/node/pkg/evm/abi"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
