@@ -3,6 +3,7 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/ethereum/finalizers"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -137,7 +138,7 @@ func NewEthWatcher(
 	} else if chainID == vaa.ChainIDEthereum && !unsafeDevMode {
 		ethIntf = &PollImpl{EthImpl: EthImpl{NetworkName: networkName}, DelayInMs: 250, IsEthPoS: true}
 	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
-		ethIntf = &PollImpl{EthImpl: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
+		ethIntf = &PollImpl{EthImpl: EthImpl{NetworkName: networkName}, Finalizer: &finalizers.MoonbeamFinalizer{}, DelayInMs: 250}
 	} else if chainID == vaa.ChainIDNeon {
 		ethIntf = NewGetLogsImpl(networkName, contract, 250)
 	} else {

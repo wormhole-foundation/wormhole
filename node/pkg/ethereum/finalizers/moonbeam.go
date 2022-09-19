@@ -4,7 +4,7 @@
 // query returns true. The assumption is that every block number will eventually be published and finalized, it's just that the contents
 // of the block (and therefore the hash) might change if there is a rollback.
 
-package ethereum
+package finalizers
 
 import (
 	"context"
