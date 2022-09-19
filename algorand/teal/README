@@ -1,8 +1,0 @@
-
-While these are generated files, due to the non-deterministic behavior
-of the pyteal compiler based on what has been done before, we cannot
-reliably recreate the exact same teal file from the exact same pyteal
-source.
-
-As a result, we need to check the generated files in so that we can
-verify the hash of the compiled code while generating upgrade vaa's

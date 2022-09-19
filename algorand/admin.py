@@ -283,12 +283,8 @@ class PortalCore:
     
     # helper function to read app global state
     def read_global_state(self, client, addr, app_id):
-        results = client.account_info(addr)
-        apps_created = results['created-apps']
-        for app in apps_created:
-            if app['id'] == app_id and 'global-state' in app['params']:
-                return self.format_state(app['params']['global-state'])
-        return {}
+        results = self.client.application_info(app_id)
+        return self.format_state(results['params']['global-state'])
 
     def read_state(self, client, addr, app_id):
         results = client.account_info(addr)
@@ -355,8 +351,13 @@ class PortalCore:
         return -1
 
     def genUpgradePayload(self):
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        approval1, clear1 = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
 
+        approval2, clear2 = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+
+        return self.genUpgradePayloadBody(approval1, approval2)
+
+    def genUpgradePayloadBody(self, approval1, approval2):
         b  = self.zeroPadBytes[0:(28*2)]
         b += self.encoder("uint8", ord("C"))
         b += self.encoder("uint8", ord("o"))
@@ -365,13 +366,10 @@ class PortalCore:
         b += self.encoder("uint8", 1)
         b += self.encoder("uint16", 8)
 
-        b += decode_address(approval["hash"]).hex()
-        print("core hash: " + decode_address(approval["hash"]).hex())
+        b += decode_address(approval1["hash"]).hex()
+        print("core hash: " + decode_address(approval1["hash"]).hex())
 
         ret = [b]
-
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
-
 
         b  = self.zeroPadBytes[0:((32 -11)*2)]
         b += self.encoder("uint8", ord("T"))
@@ -388,8 +386,8 @@ class PortalCore:
 
         b += self.encoder("uint8", 2)  # action
         b += self.encoder("uint16", 8) # target chain
-        b += decode_address(approval["hash"]).hex()
-        print("token hash: " + decode_address(approval["hash"]).hex())
+        b += decode_address(approval2["hash"]).hex()
+        print("token hash: " + decode_address(approval2["hash"]).hex())
 
         ret.append(b)
         return ret
@@ -1282,9 +1280,18 @@ class PortalCore:
 
     def updateCore(self) -> None:
         print("Updating the core contracts")
-        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
-
-        print("core " + decode_address(approval["hash"]).hex())
+        if self.args.approve == "" and self.args.clear == "":
+            approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+            print("core approval " + decode_address(approval["hash"]).hex())
+            print("core clear " + decode_address(clear["hash"]).hex())
+        else:
+            pprint.pprint([self.args.approve, self.args.clear])
+            with open(self.args.approve, encoding = 'utf-8') as f:
+                approval = {"result": f.readlines()[0]}
+                pprint.pprint(approval)
+            with open(self.args.clear, encoding = 'utf-8') as f:
+                clear = {"result": f.readlines()[0]}
+                pprint.pprint(clear)
 
         txn = transaction.ApplicationUpdateTxn(
             index=self.coreid,
@@ -1299,6 +1306,7 @@ class PortalCore:
         print("sending transaction")
         self.client.send_transaction(signedTxn)
         resp = self.waitForTransaction(self.client, signedTxn.get_txid())
+        pprint.pprint(resp)
         for x in resp.__dict__["logs"]:
             print(x.hex())
         print("complete")
@@ -1329,10 +1337,30 @@ class PortalCore:
 
     def genTeal(self) -> None:
         print((True, self.args.core_approve, self.args.core_clear, self.client, self.seed_amt, self.tsig, self.devnet or self.args.testnet))
-        approval, clear = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        devmode = (self.devnet or self.args.testnet) and not self.args.prodTeal
+        approval1, clear1 = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = devmode)
         print("Generating the teal for the core contracts")
-        approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
-        print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
+        approval2, clear2 = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = devmode)
+        print("Generating the teal for the token contracts: " + str(len(b64decode(approval2["result"]))))
+
+        if self.devnet:
+            v = self.genUpgradePayloadBody(approval1, approval2)
+            if self.gt == None:
+                self.gt = GenTest(False)
+    
+            emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
+    
+            guardianSet = 0
+    
+            nonce = int(random.random() * 20000)
+            coreVAA = self.gt.createSignedVAA(guardianSet, self.gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[0])
+            tokenVAA = self.gt.createSignedVAA(guardianSet, self.gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[1])
+    
+            with open("teal/core_devnet.vaa", "w") as fout:
+                fout.write(coreVAA)
+    
+            with open("teal/token_devnet.vaa", "w") as fout:
+                fout.write(tokenVAA)
 
     def testnet(self):
         self.ALGOD_ADDRESS = self.args.algod_address = "https://testnet-api.algonode.cloud"
@@ -1343,8 +1371,12 @@ class PortalCore:
     def mainnet(self):
         self.ALGOD_ADDRESS = self.args.algod_address = "https://mainnet-api.algonode.cloud"
         self.INDEXER_ADDRESS = "https://mainnet-idx.algonode.cloud"
-        self.coreid = self.args.coreid
-        self.tokenid = self.args.tokenid
+        self.coreid = 842125965
+        self.tokenid = 842126029
+        if self.args.coreid != 4:
+            self.coreid = self.args.coreid
+        if self.args.coreid != 6:
+            self.tokenid = self.args.tokenid
 
     def setup_args(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
@@ -1384,6 +1416,7 @@ class PortalCore:
         parser.add_argument('--upgradeVAA', action='store_true', help='generate a upgrade vaa for devnet')
         parser.add_argument('--print', action='store_true', help='print')
         parser.add_argument('--genParts', action='store_true', help='Get tssig parts')
+        parser.add_argument('--prodTeal', action='store_true', help='use Production Deal')
         parser.add_argument('--genTeal', action='store_true', help='Generate all the teal from the pyteal')
         parser.add_argument('--fund', action='store_true', help='Generate some accounts and fund them')
         parser.add_argument('--testnet', action='store_true', help='Connect to testnet')
@@ -1392,6 +1425,8 @@ class PortalCore:
         parser.add_argument('--rpc', type=str, help='RPC address', default="")
         parser.add_argument('--guardianKeys', type=str, help='GuardianKeys', default="")
         parser.add_argument('--guardianPrivKeys', type=str, help='guardianPrivKeys', default="")
+        parser.add_argument('--approve', type=str, help='compiled approve contract', default="")
+        parser.add_argument('--clear', type=str, help='compiled clear contract', default="")
 
         args = parser.parse_args()
         self.init(args)
@@ -1413,6 +1448,7 @@ class PortalCore:
             self.ALGOD_ADDRESS = self.args.rpc
             
         self.client = self.getAlgodClient()
+
         if self.devnet or self.args.testnet:
             self.vaa_verify = self.client.compile(get_vaa_verify())
         else:
@@ -1485,12 +1521,31 @@ class PortalCore:
             ret = self.devnetUpgradeVAA()
             pprint.pprint(ret)
             if (args.submit) :
-                print("submitting vaa to upgrade core")
+                print("submitting vaa to upgrade core: " + str(self.coreid))
+                state = self.read_global_state(self.client, self.foundation.addr, self.coreid)
+                pprint.pprint( { 
+                    "validUpdateApproveHash": b64decode(state["validUpdateApproveHash"]).hex(),
+                    "validUpdateClearHash": b64decode(state["validUpdateClearHash"]).hex()
+                })
                 self.submitVAA(bytes.fromhex(ret[0]), self.client, self.foundation, self.coreid)
-                pprint.pprint(self.read_global_state(self.client, self.foundation.addr, self.coreid))
-                print("submitting vaa to upgrade token")
+                state = self.read_global_state(self.client, self.foundation.addr, self.coreid)
+                pprint.pprint( { 
+                    "validUpdateApproveHash": b64decode(state["validUpdateApproveHash"]).hex(),
+                    "validUpdateClearHash": b64decode(state["validUpdateClearHash"]).hex()
+                })
+
+                print("submitting vaa to upgrade token: " + str(self.tokenid))
+                state = self.read_global_state(self.client, self.foundation.addr, self.tokenid)
+                pprint.pprint( { 
+                    "validUpdateApproveHash": b64decode(state["validUpdateApproveHash"]).hex(),
+                    "validUpdateClearHash": b64decode(state["validUpdateClearHash"]).hex()
+                })
                 self.submitVAA(bytes.fromhex(ret[1]), self.client, self.foundation, self.tokenid)
-                pprint.pprint(self.read_global_state(self.client, self.foundation.addr, self.tokenid))
+                state = self.read_global_state(self.client, self.foundation.addr, self.tokenid)
+                pprint.pprint( { 
+                    "validUpdateApproveHash": b64decode(state["validUpdateApproveHash"]).hex(),
+                    "validUpdateClearHash": b64decode(state["validUpdateClearHash"]).hex()
+                })
 
         if args.boot:
             self.boot()

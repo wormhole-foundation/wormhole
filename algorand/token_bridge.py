@@ -25,6 +25,7 @@ from globals import *
 from inlineasm import *
 
 from algosdk.v2client.algod import AlgodClient
+from algosdk.encoding import decode_address
 
 from TmplSig import TmplSig
 from local_blob import LocalBlob
@@ -58,6 +59,12 @@ def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name, dev
             teal = f.read()
 
     response = client.compile(teal)
+
+    with open(name + ".bin", "w") as fout:
+        fout.write(response["result"])
+    with open(name + ".hash", "w") as fout:
+        fout.write(decode_address(response["hash"]).hex())
+
     return response
 
 def clear_token_bridge():
@@ -961,16 +968,11 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
     ])
 
     def getOnUpdate():
-        if devMode:
-            return Seq( [
-                Return(Txn.sender() == Global.creator_address()),
-            ])
-        else:
-            return Seq( [
-                MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
-                MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
-                Return(Int(1))
-            ] )
+        return Seq( [
+            MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
+            MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
+            Return(Int(1))
+        ] )
 
     on_update = getOnUpdate()
 

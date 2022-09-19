@@ -141,6 +141,10 @@ case "$chain_name" in
     explorer="https://aurorascan.dev/address/"
     evm=true
     ;;
+  algorand)
+    chain=8
+    explorer="https://algoexplorer.io/address/"
+    ;;
   fantom)
     chain=10
     explorer="https://ftmscan.com/address/"
@@ -254,6 +258,20 @@ function near_artifact() {
     ;;
   token_bridge)
     echo "artifacts/near_token_bridge.wasm"
+    ;;
+  *) echo "unknown module $module" >&2
+     usage
+     ;;
+  esac
+}
+
+function algorand_artifact() {
+  case "$module" in
+  bridge|core)
+    echo "artifacts/core_approve.teal.hash"
+    ;;
+  token_bridge)
+    echo "artifacts/token_approve.teal.hash"
     ;;
   *) echo "unknown module $module" >&2
      usage
@@ -400,6 +418,18 @@ elif [ "$chain_name" = "near" ]; then
 	# $module
 	wormhole/near$ sha256sum $(near_artifact)
 	\`\`\`
+EOF
+elif [ "$chain_name" = "algorand" ]; then
+  cat <<-EOF >> "$instructions_file"
+	## Build
+	\`\`\`shell
+	wormhole/algorand $ make artifacts
+	\`\`\`
+
+	This command will compile all the contracts into the \`artifacts\` directory using Docker to ensure that the build artifacts are deterministic.
+
+	You can then review $(algorand_artifact) to confirm the supplied hash value
+
 EOF
 elif [ "$chain_name" = "terra" ]; then
   cat <<-EOF >> "$instructions_file"

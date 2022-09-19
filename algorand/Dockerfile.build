@@ -1,0 +1,17 @@
+FROM docker.io/python:3.10@sha256:eeed7cac682f9274d183f8a7533ee1360a26acb3616aa712b2be7896f80d8c5f as algorand-contracts-build
+
+RUN python3 -m pip install virtualenv
+COPY Pipfile.lock Pipfile.lock
+COPY Pipfile Pipfile
+
+RUN python3 -m pip install pipenv
+RUN pipenv install
+RUN mkdir teal
+COPY *.py .
+
+RUN pipenv run python3 admin.py --mainnet --genTeal 
+
+FROM scratch AS algorand-contracts-export
+COPY --from=algorand-contracts-build /teal/* .
+
+

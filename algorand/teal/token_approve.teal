@@ -95,6 +95,11 @@ txn Sender
 ==
 &&
 load 68
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
+load 68
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
@@ -148,6 +153,11 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
+load 68
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
 assert
 txn RekeyTo
 global ZeroAddress
@@ -158,6 +168,10 @@ global ZeroAddress
 &&
 txn AssetCloseTo
 global ZeroAddress
+==
+&&
+txn OnCompletion
+intc_0 // NoOp
 ==
 &&
 assert
@@ -274,6 +288,10 @@ txn AssetCloseTo
 global ZeroAddress
 ==
 &&
+txn OnCompletion
+intc_0 // NoOp
+==
+&&
 assert
 itxn_begin
 txna Accounts 1
@@ -346,6 +364,11 @@ global ZeroAddress
 load 22
 gtxns AssetCloseTo
 global ZeroAddress
+==
+&&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
 ==
 &&
 assert
@@ -589,6 +612,11 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
 assert
 load 22
 gtxns Amount
@@ -628,6 +656,11 @@ txn Sender
 ==
 &&
 load 22
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
+load 22
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
@@ -662,6 +695,11 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
 assert
 txn RekeyTo
 global ZeroAddress
@@ -672,6 +710,10 @@ global ZeroAddress
 &&
 txn AssetCloseTo
 global ZeroAddress
+==
+&&
+txn OnCompletion
+intc_0 // NoOp
 ==
 &&
 assert
@@ -1137,6 +1179,11 @@ txn Sender
 ==
 &&
 load 22
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
+load 22
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
@@ -1169,6 +1216,11 @@ global ZeroAddress
 load 22
 gtxns AssetCloseTo
 global ZeroAddress
+==
+&&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
 ==
 &&
 assert
@@ -1210,6 +1262,11 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
 assert
 txn GroupIndex
 intc_2 // 2
@@ -1247,6 +1304,11 @@ global ZeroAddress
 load 22
 gtxns AssetCloseTo
 global ZeroAddress
+==
+&&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
 ==
 &&
 assert
@@ -1292,6 +1354,11 @@ global ZeroAddress
 load 22
 gtxns AssetCloseTo
 global ZeroAddress
+==
+&&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
 ==
 &&
 assert
@@ -1386,8 +1453,6 @@ bnz main_l76
 main_l71:
 load 30
 callsub trimbytes_13
-pushbytes 0x2028576f726d686f6c6529 // " (Wormhole)"
-concat
 store 30
 load 28
 pushint 8 // 8
@@ -1860,6 +1925,11 @@ gtxns AssetCloseTo
 global ZeroAddress
 ==
 &&
+load 22
+gtxns OnCompletion
+intc_0 // NoOp
+==
+&&
 assert
 checkFeePmt_10_l2:
 retsub
@@ -2188,12 +2258,31 @@ gtxns Amount
 pushint 1002000 // 1002000
 ==
 &&
+txn GroupIndex
+intc_1 // 1
+-
+gtxns Receiver
+txn Sender
+==
+&&
 txn TypeEnum
 pushint 6 // appl
 ==
 &&
 txn OnCompletion
 intc_1 // OptIn
+==
+&&
+txn ApplicationID
+global CurrentApplicationID
+==
+&&
+txn RekeyTo
+global CurrentApplicationAddress
+==
+&&
+txn NumAppArgs
+intc_0 // 0
 ==
 &&
 assert

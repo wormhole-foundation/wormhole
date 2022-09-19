@@ -1,6 +1,6 @@
 #pragma version 6
 intcblock 1 0 127 2 1000 86400 128 255
-bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x6e6f70 0x76657269667953696773 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x766572696679564141 0x767068617368 0x50726f6772616d 0x7075626c6973684d657373616765 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368 0x6d657461
+bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x6e6f70 0x76657269667953696773 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x767068617368 0x766572696679564141 0x50726f6772616d 0x7075626c6973684d657373616765 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368 0x6d657461
 txn ApplicationID
 intc_1 // 0
 ==
@@ -40,7 +40,7 @@ bytec 5 // "verifySigs"
 ==
 bnz main_l51
 txna ApplicationArgs 0
-bytec 8 // "verifyVAA"
+bytec 9 // "verifyVAA"
 ==
 bnz main_l29
 txna ApplicationArgs 0
@@ -67,7 +67,7 @@ txn GroupIndex
 intc_0 // 1
 -
 gtxnsa ApplicationArgs 0
-bytec 8 // "verifyVAA"
+bytec 9 // "verifyVAA"
 ==
 &&
 txn GroupIndex
@@ -82,6 +82,13 @@ intc_0 // 1
 -
 gtxns RekeyTo
 global ZeroAddress
+==
+&&
+txn GroupIndex
+intc_0 // 1
+-
+gtxns OnCompletion
+intc_1 // NoOp
 ==
 &&
 txn GroupIndex
@@ -555,7 +562,7 @@ bytec 4 // "nop"
 ==
 bnz main_l41
 load 11
-bytec 8 // "verifyVAA"
+bytec 9 // "verifyVAA"
 ==
 bnz main_l41
 intc_0 // 1
@@ -576,6 +583,11 @@ main_l42:
 load 10
 gtxnsa ApplicationArgs 1
 store 18
+load 18
+len
+intc_1 // 0
+>
+assert
 txna ApplicationArgs 1
 load 15
 load 18
@@ -602,7 +614,7 @@ load 18
 ==
 load 10
 gtxns Sender
-bytec 9 // "vphash"
+bytec 8 // "vphash"
 app_global_get
 ==
 &&
@@ -676,10 +688,13 @@ load 18
 assert
 b main_l30
 main_l51:
-intc_0 // 1
+txn Sender
+bytec 8 // "vphash"
+app_global_get
+==
 return
 main_l52:
-bytec 9 // "vphash"
+bytec 8 // "vphash"
 txna ApplicationArgs 2
 app_global_put
 txn Sender
@@ -1052,7 +1067,7 @@ main_l75:
 bytec 6 // "MessageFee"
 intc_1 // 0
 app_global_put
-bytec 9 // "vphash"
+bytec 8 // "vphash"
 bytec_0 // ""
 app_global_put
 bytec_3 // "currentGuardianSetIndex"
@@ -1420,6 +1435,10 @@ gtxn 0 Amount
 pushint 1002000 // 1002000
 ==
 &&
+gtxn 0 Receiver
+gtxn 1 Sender
+==
+&&
 gtxn 1 TypeEnum
 pushint 6 // appl
 ==
@@ -1430,6 +1449,14 @@ intc_0 // OptIn
 &&
 gtxn 1 ApplicationID
 global CurrentApplicationID
+==
+&&
+gtxn 1 RekeyTo
+global CurrentApplicationAddress
+==
+&&
+gtxn 1 NumAppArgs
+intc_1 // 0
 ==
 &&
 assert
