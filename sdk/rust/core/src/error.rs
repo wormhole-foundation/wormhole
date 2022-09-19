@@ -54,6 +54,8 @@ pub enum WormholeError {
     UnknownChain,
     #[error("Deserialization Failed.")]
     DeserializeFailed,
+    #[error("Serialization Failed.")]
+    SerializeFailed,
 }
 
 impl WormholeError {
@@ -71,5 +73,12 @@ impl<I> From<nom::Err<nom::error::Error<I>>> for WormholeError {
             nom::Err::Failure(e) => ParseError(e.code),
             nom::Err::Incomplete(_) => ParseIncomplete,
         }
+    }
+}
+
+/// Automatically convert I/O errors to Wormhole errors.
+impl From<std::io::Error> for WormholeError {
+    fn from(_err: std::io::Error) -> Self {
+        WormholeError::SerializeFailed
     }
 }

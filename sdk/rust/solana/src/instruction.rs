@@ -71,7 +71,7 @@ pub fn post_message(
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
         data:       (
-            0,
+            Instruction::PostMessage,
             PostMessageData {
                 nonce,
                 payload,
@@ -109,7 +109,7 @@ pub fn post_message_unreliable(
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
         data: (
-            0,
+            Instruction::PostMessageUnreliable,
             PostMessageData {
                 nonce,
                 payload,

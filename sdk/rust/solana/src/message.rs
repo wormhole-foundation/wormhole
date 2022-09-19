@@ -16,7 +16,12 @@ use {
     },
 };
 
-type ConsistencyLevel = u8;
+/// Solana-specific Consistency Level: 1 for optimistic confirmation, 32 for full confirmation.
+#[repr(u8)]
+pub enum ConsistencyLevel {
+    Confirmed = 1,
+    Finalized = 32,
+}
 
 /// Solana-specific enum describing a Messages on-chain persistence strategy.
 pub enum Reliability {
@@ -52,32 +57,30 @@ impl<'a> Message<'a> {
         account: Pubkey,
         seeds: Option<&'a [&'a [&'a [u8]]]>,
         consistency: ConsistencyLevel,
-        nonce: u32,
         payload: &'a [u8],
     ) -> Self {
         Self {
             account,
             seeds,
             consistency,
-            nonce,
+            nonce: 0,
             payload,
             reliable: Reliability::Permanent,
         }
     }
 
-    /// Create a new (unreliable) message with a given payload.
-    pub fn new_unrelible(
+    /// Create a new (ephemeral) message with a given payload.
+    pub fn new_ephemeral(
         account: Pubkey,
         seeds: Option<&'a [&'a [&'a [u8]]]>,
         consistency: ConsistencyLevel,
-        nonce: u32,
         payload: &'a [u8],
     ) -> Self {
         Self {
             account,
             seeds,
             consistency,
-            nonce,
+            nonce: 0,
             payload,
             reliable: Reliability::Ephemeral,
         }
@@ -140,7 +143,7 @@ pub fn post_message(
                 message.account,
                 message.nonce,
                 message.payload,
-                message.consistency,
+                message.consistency as u8,
             )
             .unwrap(),
 
@@ -151,7 +154,7 @@ pub fn post_message(
                 message.account,
                 message.nonce,
                 message.payload,
-                message.consistency,
+                message.consistency as u8,
             )
             .unwrap(),
         },
@@ -160,4 +163,25 @@ pub fn post_message(
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod testing {
+    use super::*;
+
+    #[test]
+    fn test_message_emission() {
+        let _ = post_message(
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            &[],
+            Message::new(
+                Pubkey::new_unique(),
+                None,
+                ConsistencyLevel::Confirmed,
+                &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            ),
+        );
+    }
 }
