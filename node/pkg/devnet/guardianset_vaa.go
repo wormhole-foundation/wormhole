@@ -3,8 +3,9 @@ package devnet
 import (
 	"context"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	"time"
+
+	"github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

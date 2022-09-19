@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/certusone/wormhole/node/pkg/evm"
 	"log"
 	"net/http"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
 	"path"
 	"strings"
+
+	"github.com/certusone/wormhole/node/pkg/evm"
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"

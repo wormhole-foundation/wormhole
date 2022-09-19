@@ -1,9 +1,9 @@
-// This implements the interface to the standard go-ethereum library.
-
 package connectors
 
 import (
 	"context"
+
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
 	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
@@ -13,77 +13,75 @@ import (
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
-	common "github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
 )
 
+// EthereumConnector implements EVM network query capabilities for go-ethereum based networks and networks supporting
+// the standard web3 rpc.
 type EthereumConnector struct {
-	NetworkName string
+	networkName string
+	address     ethCommon.Address
 	logger      *zap.Logger
-	Client      *ethClient.Client
+	client      *ethClient.Client
+	rawClient   *ethRpc.Client
 	filterer    *ethAbi.AbiFilterer
 	caller      *ethAbi.AbiCaller
 }
 
-func (e *EthereumConnector) SetLogger(l *zap.Logger) {
-	e.logger = l
+func NewEthereumConnector(ctx context.Context, networkName, rawUrl string, address ethCommon.Address, logger *zap.Logger) (*EthereumConnector, error) {
+	rawClient, err := ethRpc.DialContext(ctx, rawUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	client := ethClient.NewClient(rawClient)
+
+	filterer, err := ethAbi.NewAbiFilterer(ethCommon.BytesToAddress(address.Bytes()), client)
+	if err != nil {
+		panic(err)
+	}
+	caller, err := ethAbi.NewAbiCaller(ethCommon.BytesToAddress(address.Bytes()), client)
+	if err != nil {
+		panic(err)
+	}
+
+	return &EthereumConnector{
+		networkName: networkName,
+		address:     address,
+		logger:      logger.With(zap.String("eth_network", networkName)),
+		client:      client,
+		filterer:    filterer,
+		caller:      caller,
+		rawClient:   rawClient,
+	}, nil
 }
 
-func (e *EthereumConnector) DialContext(ctx context.Context, rawurl string) (err error) {
-	e.Client, err = ethClient.DialContext(ctx, rawurl)
-	return
+func (e *EthereumConnector) NetworkName() string {
+	return e.networkName
 }
 
-func (e *EthereumConnector) NewAbiFilterer(address ethCommon.Address) (err error) {
-	e.filterer, err = ethAbi.NewAbiFilterer(address, e.Client)
-	return
-}
-
-func (e *EthereumConnector) NewAbiCaller(address ethCommon.Address) (err error) {
-	e.caller, err = ethAbi.NewAbiCaller(address, e.Client)
-	return
+func (e *EthereumConnector) ContractAddress() ethCommon.Address {
+	return e.address
 }
 
 func (e *EthereumConnector) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
-	if e.caller == nil {
-		panic("caller is not initialized!")
-	}
-
-	opts := &ethBind.CallOpts{Context: ctx}
-	return e.caller.GetCurrentGuardianSetIndex(opts)
+	return e.caller.GetCurrentGuardianSetIndex(&ethBind.CallOpts{Context: ctx})
 }
 
 func (e *EthereumConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
-	if e.caller == nil {
-		panic("caller is not initialized!")
-	}
-
-	opts := &ethBind.CallOpts{Context: ctx}
-	return e.caller.GetGuardianSet(opts, index)
+	return e.caller.GetGuardianSet(&ethBind.CallOpts{Context: ctx}, index)
 }
 
-func (e *EthereumConnector) WatchLogMessagePublished(_ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
-	if e.filterer == nil {
-		panic("filterer is not initialized!")
-	}
-
-	return e.filterer.WatchLogMessagePublished(&ethBind.WatchOpts{Context: timeout}, sink, nil)
+func (e *EthereumConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+	return e.filterer.WatchLogMessagePublished(&ethBind.WatchOpts{Context: ctx}, sink, nil)
 }
 
 func (e *EthereumConnector) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
-	if e.Client == nil {
-		panic("Client is not initialized!")
-	}
-
-	return e.Client.TransactionReceipt(ctx, txHash)
+	return e.client.TransactionReceipt(ctx, txHash)
 }
 
 func (e *EthereumConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
-	if e.Client == nil {
-		panic("Client is not initialized!")
-	}
-
-	block, err := e.Client.BlockByHash(ctx, hash)
+	block, err := e.client.BlockByHash(ctx, hash)
 	if err != nil {
 		return 0, err
 	}
@@ -92,22 +90,14 @@ func (e *EthereumConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommo
 }
 
 func (e *EthereumConnector) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
-	if e.filterer == nil {
-		panic("filterer is not initialized!")
-	}
-
 	return e.filterer.ParseLogMessagePublished(log)
 }
 
-func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
-	if e.Client == nil {
-		panic("Client is not initialized!")
-	}
-
+func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	headSink := make(chan *ethTypes.Header, 2)
-	headerSubscription, err := e.Client.SubscribeNewHead(ctx, headSink)
+	headerSubscription, err := e.client.SubscribeNewHead(ctx, headSink)
 	if err != nil {
-		return headerSubscription, err
+		return nil, err
 	}
 
 	// The purpose of this is to map events from the geth event channel to the new block event channel.
@@ -118,14 +108,14 @@ func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- 
 				return
 			case ev := <-headSink:
 				if ev == nil {
-					e.logger.Error("new header event is nil", zap.String("eth_network", e.NetworkName))
+					e.logger.Error("new header event is nil")
 					continue
 				}
 				if ev.Number == nil {
-					e.logger.Error("new header block number is nil", zap.String("eth_network", e.NetworkName))
+					e.logger.Error("new header block number is nil")
 					continue
 				}
-				sink <- &common.NewBlock{
+				sink <- &NewBlock{
 					Number: ev.Number,
 					Hash:   ev.Hash(),
 				}
@@ -134,4 +124,13 @@ func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- 
 	}()
 
 	return headerSubscription, err
+}
+
+func (e *EthereumConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	return e.rawClient.CallContext(ctx, result, method, args...)
+
+}
+
+func (e *EthereumConnector) Client() *ethClient.Client {
+	return e.client
 }

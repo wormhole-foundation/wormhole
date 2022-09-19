@@ -1,44 +1,33 @@
-// This implements the finality check for Moonbeam.
-//
-// Moonbeam can publish blocks before they are marked final. This means we need to sit on the block until a special "is finalized"
-// query returns true. The assumption is that every block number will eventually be published and finalized, it's just that the contents
-// of the block (and therefore the hash) might change if there is a rollback.
-
 package finalizers
 
 import (
 	"context"
-	"time"
 
-	common "github.com/certusone/wormhole/node/pkg/common"
-	ethRpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/certusone/wormhole/node/pkg/evm/connectors"
 	"go.uber.org/zap"
 )
 
+// MoonbeamFinalizer implements the finality check for Moonbeam.
+// Moonbeam can publish blocks before they are marked final. This means we need to sit on the block until a special "is finalized"
+// query returns true. The assumption is that every block number will eventually be published and finalized, it's just that the contents
+// of the block (and therefore the hash) might change if there is a rollback.
 type MoonbeamFinalizer struct {
-	logger      *zap.Logger
-	networkName string
-	client      *ethRpc.Client
+	logger    *zap.Logger
+	connector connectors.Connector
 }
 
-func (f *MoonbeamFinalizer) SetLogger(l *zap.Logger, netName string) {
-	f.logger = l
-	f.networkName = netName
-	f.logger.Info("using Moonbeam specific finality check", zap.String("eth_network", f.networkName))
+func NewMoonbeamFinalizer(logger *zap.Logger, connector connectors.Connector) *MoonbeamFinalizer {
+	return &MoonbeamFinalizer{
+		logger:    logger,
+		connector: connector,
+	}
 }
 
-func (f *MoonbeamFinalizer) DialContext(ctx context.Context, rawurl string) (err error) {
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	f.client, err = ethRpc.DialContext(timeout, rawurl)
-	return err
-}
-
-func (f *MoonbeamFinalizer) IsBlockFinalized(ctx context.Context, block *common.NewBlock) (bool, error) {
+func (m *MoonbeamFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
 	var finalized bool
-	err := f.client.CallContext(ctx, &finalized, "moon_isBlockFinalized", block.Hash.Hex())
+	err := m.connector.RawCallContext(ctx, &finalized, "moon_isBlockFinalized", block.Hash.Hex())
 	if err != nil {
-		f.logger.Error("failed to check for finality", zap.String("eth_network", f.networkName), zap.Error(err))
+		m.logger.Error("failed to check for finality", zap.String("eth_network", m.connector.NetworkName()), zap.Error(err))
 		return false, err
 	}
 
