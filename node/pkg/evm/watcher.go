@@ -3,6 +3,8 @@ package evm
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	"github.com/certusone/wormhole/node/pkg/evm/finalizers"
 	"sync"
 	"sync/atomic"
@@ -18,9 +20,7 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/node/pkg/celo"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/evm/abi"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -134,15 +134,15 @@ func NewEthWatcher(
 	if chainID == vaa.ChainIDCelo && !unsafeDevMode {
 		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
 		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
-		ethIntf = &celo.CeloImpl{NetworkName: networkName}
+		ethIntf = &connectors.CeloConnector{NetworkName: networkName}
 	} else if chainID == vaa.ChainIDEthereum && !unsafeDevMode {
-		ethIntf = &PollImpl{EthImpl: EthImpl{NetworkName: networkName}, DelayInMs: 250, IsEthPoS: true}
+		ethIntf = &PollImpl{EthereumConnector: connectors.EthereumConnector{NetworkName: networkName}, DelayInMs: 250, IsEthPoS: true}
 	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
-		ethIntf = &PollImpl{EthImpl: EthImpl{NetworkName: networkName}, Finalizer: &finalizers.MoonbeamFinalizer{}, DelayInMs: 250}
+		ethIntf = &PollImpl{EthereumConnector: connectors.EthereumConnector{NetworkName: networkName}, Finalizer: &finalizers.MoonbeamFinalizer{}, DelayInMs: 250}
 	} else if chainID == vaa.ChainIDNeon {
 		ethIntf = NewGetLogsImpl(networkName, contract, 250)
 	} else {
-		ethIntf = &EthImpl{NetworkName: networkName}
+		ethIntf = &connectors.EthereumConnector{NetworkName: networkName}
 	}
 
 	return &Watcher{
@@ -199,7 +199,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	defer cancel()
 
 	// Subscribe to new message publications
-	messageC := make(chan *abi.AbiLogMessagePublished, 2)
+	messageC := make(chan *ethabi.AbiLogMessagePublished, 2)
 	messageSub, err := e.ethIntf.WatchLogMessagePublished(ctx, timeout, messageC)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "subscribe_error").Inc()
@@ -602,7 +602,7 @@ func (e *Watcher) fetchAndUpdateGuardianSet(
 }
 
 // Fetch the current guardian set ID and guardian set from the chain.
-func fetchCurrentGuardianSet(ctx context.Context, ethIntf common.Ethish) (uint32, *abi.StructsGuardianSet, error) {
+func fetchCurrentGuardianSet(ctx context.Context, ethIntf common.Ethish) (uint32, *ethabi.StructsGuardianSet, error) {
 	currentIndex, err := ethIntf.GetCurrentGuardianSetIndex(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("error requesting current guardian set index: %w", err)

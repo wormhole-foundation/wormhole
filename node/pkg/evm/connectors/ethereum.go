@@ -1,10 +1,11 @@
 // This implements the interface to the standard go-ethereum library.
 
-package evm
+package connectors
 
 import (
 	"context"
 
+	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
 	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -13,39 +14,37 @@ import (
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	common "github.com/certusone/wormhole/node/pkg/common"
-	ethAbi "github.com/certusone/wormhole/node/pkg/evm/abi"
-
 	"go.uber.org/zap"
 )
 
-type EthImpl struct {
+type EthereumConnector struct {
 	NetworkName string
 	logger      *zap.Logger
-	client      *ethClient.Client
+	Client      *ethClient.Client
 	filterer    *ethAbi.AbiFilterer
 	caller      *ethAbi.AbiCaller
 }
 
-func (e *EthImpl) SetLogger(l *zap.Logger) {
+func (e *EthereumConnector) SetLogger(l *zap.Logger) {
 	e.logger = l
 }
 
-func (e *EthImpl) DialContext(ctx context.Context, rawurl string) (err error) {
-	e.client, err = ethClient.DialContext(ctx, rawurl)
+func (e *EthereumConnector) DialContext(ctx context.Context, rawurl string) (err error) {
+	e.Client, err = ethClient.DialContext(ctx, rawurl)
 	return
 }
 
-func (e *EthImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
-	e.filterer, err = ethAbi.NewAbiFilterer(address, e.client)
+func (e *EthereumConnector) NewAbiFilterer(address ethCommon.Address) (err error) {
+	e.filterer, err = ethAbi.NewAbiFilterer(address, e.Client)
 	return
 }
 
-func (e *EthImpl) NewAbiCaller(address ethCommon.Address) (err error) {
-	e.caller, err = ethAbi.NewAbiCaller(address, e.client)
+func (e *EthereumConnector) NewAbiCaller(address ethCommon.Address) (err error) {
+	e.caller, err = ethAbi.NewAbiCaller(address, e.Client)
 	return
 }
 
-func (e *EthImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
+func (e *EthereumConnector) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
 	if e.caller == nil {
 		panic("caller is not initialized!")
 	}
@@ -54,7 +53,7 @@ func (e *EthImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error
 	return e.caller.GetCurrentGuardianSetIndex(opts)
 }
 
-func (e *EthImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
+func (e *EthereumConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
 	if e.caller == nil {
 		panic("caller is not initialized!")
 	}
@@ -63,7 +62,7 @@ func (e *EthImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.Stru
 	return e.caller.GetGuardianSet(opts, index)
 }
 
-func (e *EthImpl) WatchLogMessagePublished(_ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *EthereumConnector) WatchLogMessagePublished(_ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	if e.filterer == nil {
 		panic("filterer is not initialized!")
 	}
@@ -71,20 +70,20 @@ func (e *EthImpl) WatchLogMessagePublished(_ctx, timeout context.Context, sink c
 	return e.filterer.WatchLogMessagePublished(&ethBind.WatchOpts{Context: timeout}, sink, nil)
 }
 
-func (e *EthImpl) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
-	if e.client == nil {
-		panic("client is not initialized!")
+func (e *EthereumConnector) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
+	if e.Client == nil {
+		panic("Client is not initialized!")
 	}
 
-	return e.client.TransactionReceipt(ctx, txHash)
+	return e.Client.TransactionReceipt(ctx, txHash)
 }
 
-func (e *EthImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
-	if e.client == nil {
-		panic("client is not initialized!")
+func (e *EthereumConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
+	if e.Client == nil {
+		panic("Client is not initialized!")
 	}
 
-	block, err := e.client.BlockByHash(ctx, hash)
+	block, err := e.Client.BlockByHash(ctx, hash)
 	if err != nil {
 		return 0, err
 	}
@@ -92,7 +91,7 @@ func (e *EthImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (u
 	return block.Time(), err
 }
 
-func (e *EthImpl) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
+func (e *EthereumConnector) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
 	if e.filterer == nil {
 		panic("filterer is not initialized!")
 	}
@@ -100,13 +99,13 @@ func (e *EthImpl) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMess
 	return e.filterer.ParseLogMessagePublished(log)
 }
 
-func (e *EthImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
-	if e.client == nil {
-		panic("client is not initialized!")
+func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+	if e.Client == nil {
+		panic("Client is not initialized!")
 	}
 
 	headSink := make(chan *ethTypes.Header, 2)
-	headerSubscription, err := e.client.SubscribeNewHead(ctx, headSink)
+	headerSubscription, err := e.Client.SubscribeNewHead(ctx, headSink)
 	if err != nil {
 		return headerSubscription, err
 	}

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	ethereum2 "github.com/certusone/wormhole/node/pkg/evm/connectors"
 	"math/big"
 	"sync"
 	"time"
@@ -28,7 +29,7 @@ type PollFinalizer interface {
 }
 
 type PollImpl struct {
-	EthImpl
+	ethereum2.EthereumConnector
 	Finalizer           PollFinalizer
 	DelayInMs           int
 	IsEthPoS            bool
@@ -39,15 +40,15 @@ type PollImpl struct {
 
 func (e *PollImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
-	e.logger.Info("using polling to check for new blocks", zap.String("eth_network", e.EthImpl.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
+	e.logger.Info("using polling to check for new blocks", zap.String("eth_network", e.EthereumConnector.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
 	if e.Finalizer != nil {
-		e.Finalizer.SetLogger(l, e.EthImpl.NetworkName)
+		e.Finalizer.SetLogger(l, e.EthereumConnector.NetworkName)
 	}
 }
 
 func (e *PollImpl) SetEthSwitched() {
 	e.hasEthSwitchedToPoS = true
-	e.logger.Info("switching from latest to finalized", zap.String("eth_network", e.EthImpl.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
+	e.logger.Info("switching from latest to finalized", zap.String("eth_network", e.EthereumConnector.NetworkName), zap.Int("delay_in_ms", e.DelayInMs))
 }
 
 func (e *PollImpl) DialContext(ctx context.Context, rawurl string) (err error) {
@@ -68,7 +69,7 @@ func (e *PollImpl) DialContext(ctx context.Context, rawurl string) (err error) {
 	}
 
 	// This is used for doing all other go-ethereum calls.
-	return e.EthImpl.DialContext(ctx, rawurl)
+	return e.EthereumConnector.DialContext(ctx, rawurl)
 }
 
 type PollSubscription struct {
@@ -96,7 +97,7 @@ func (sub *PollSubscription) Unsubscribe() {
 }
 
 func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
-	if e.EthImpl.client == nil {
+	if e.EthereumConnector.Client == nil {
 		panic("client is not initialized!")
 	}
 	if e.rawClient == nil {
@@ -134,7 +135,7 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 						tmpLatestBlock, latestBlockErr := e.getBlock(ctx, nil)
 						if latestBlockErr != nil {
 							errorOccurred = true
-							e.logger.Error("failed to look up latest block", zap.String("eth_network", e.EthImpl.NetworkName),
+							e.logger.Error("failed to look up latest block", zap.String("eth_network", e.EthereumConnector.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(latestBlockErr))
 							break
 						}
@@ -155,7 +156,7 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 						block, err = e.getBlock(ctx, &currentBlockNumber)
 						if err != nil {
 							errorOccurred = true
-							e.logger.Error("failed to get current block", zap.String("eth_network", e.EthImpl.NetworkName),
+							e.logger.Error("failed to get current block", zap.String("eth_network", e.EthereumConnector.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
 						}
@@ -165,7 +166,7 @@ func (e *PollImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 						finalized, err := e.Finalizer.IsBlockFinalized(ctx, block)
 						if err != nil {
 							errorOccurred = true
-							e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.EthImpl.NetworkName),
+							e.logger.Error("failed to see if block is finalized", zap.String("eth_network", e.EthereumConnector.NetworkName),
 								zap.Uint64("block", currentBlockNumber.Uint64()), zap.Error(err))
 							break
 						}
@@ -215,12 +216,12 @@ func (e *PollImpl) getBlock(ctx context.Context, number *big.Int) (*common.NewBl
 	var m Marshaller
 	err := e.rawClient.CallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
 	if err != nil {
-		e.logger.Error("failed to get block", zap.String("eth_network", e.EthImpl.NetworkName),
+		e.logger.Error("failed to get block", zap.String("eth_network", e.EthereumConnector.NetworkName),
 			zap.String("requested_block", numStr), zap.Error(err))
 		return nil, err
 	}
 	if m.Number == nil {
-		e.logger.Error("failed to unmarshal block", zap.String("eth_network", e.EthImpl.NetworkName),
+		e.logger.Error("failed to unmarshal block", zap.String("eth_network", e.EthereumConnector.NetworkName),
 			zap.String("requested_block", numStr),
 		)
 		return nil, fmt.Errorf("failed to unmarshal block: Number is nil")

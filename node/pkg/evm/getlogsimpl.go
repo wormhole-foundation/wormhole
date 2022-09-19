@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	ethereum2 "github.com/certusone/wormhole/node/pkg/evm/connectors"
+	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	"math/big"
 	"sync"
 	"time"
@@ -18,8 +20,6 @@ import (
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	common "github.com/certusone/wormhole/node/pkg/common"
-	ethAbi "github.com/certusone/wormhole/node/pkg/evm/abi"
-
 	"go.uber.org/zap"
 )
 
@@ -31,12 +31,12 @@ type GetLogsImpl struct {
 
 func NewGetLogsImpl(networkName string, contract ethCommon.Address, delayInMs int) *GetLogsImpl {
 	query := &GetLogsQuery{ContractAddress: contract}
-	return &GetLogsImpl{PollImpl: &PollImpl{EthImpl: EthImpl{NetworkName: networkName}, Finalizer: query, DelayInMs: delayInMs}, Query: query}
+	return &GetLogsImpl{PollImpl: &PollImpl{EthereumConnector: ethereum2.EthereumConnector{NetworkName: networkName}, Finalizer: query, DelayInMs: delayInMs}, Query: query}
 }
 
 func (e *GetLogsImpl) SetLogger(l *zap.Logger) {
 	e.logger = l
-	e.logger.Info("using eth_getLogs api to retreive log events", zap.String("eth_network", e.PollImpl.EthImpl.NetworkName))
+	e.logger.Info("using eth_getLogs api to retreive log events", zap.String("eth_network", e.PollImpl.EthereumConnector.NetworkName))
 	e.PollImpl.SetLogger(l)
 }
 

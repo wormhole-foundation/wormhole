@@ -3,6 +3,7 @@ package devnet
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/node/pkg/evm/abi"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -55,7 +55,7 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 	}
 
 	kt := GetKeyedTransactor(ctx)
-	contract, err := abi.NewAbi(GanacheWormholeContractAddress, c)
+	contract, err := ethabi.NewAbi(GanacheWormholeContractAddress, c)
 	if err != nil {
 		panic(err)
 	}

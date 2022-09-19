@@ -1,9 +1,12 @@
 // This implements the interface to the "go-ethereum-ish" library used by Celo.
 
-package celo
+package connectors
 
 import (
 	"context"
+
+	celoAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/celoabi"
+	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 
 	celoBind "github.com/celo-org/celo-blockchain/accounts/abi/bind"
 	celoCommon "github.com/celo-org/celo-blockchain/common"
@@ -15,14 +18,11 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
-	celoAbi "github.com/certusone/wormhole/node/pkg/celo/abi"
 	common "github.com/certusone/wormhole/node/pkg/common"
-	ethAbi "github.com/certusone/wormhole/node/pkg/evm/abi"
-
 	"go.uber.org/zap"
 )
 
-type CeloImpl struct {
+type CeloConnector struct {
 	NetworkName string
 	logger      *zap.Logger
 	client      *celoClient.Client
@@ -30,27 +30,27 @@ type CeloImpl struct {
 	caller      *celoAbi.AbiCaller
 }
 
-func (e *CeloImpl) SetLogger(l *zap.Logger) {
+func (e *CeloConnector) SetLogger(l *zap.Logger) {
 	e.logger = l
 	e.logger.Info("using celo specific ethereum library", zap.String("eth_network", e.NetworkName))
 }
 
-func (e *CeloImpl) DialContext(ctx context.Context, rawurl string) (err error) {
+func (e *CeloConnector) DialContext(ctx context.Context, rawurl string) (err error) {
 	e.client, err = celoClient.DialContext(ctx, rawurl)
 	return
 }
 
-func (e *CeloImpl) NewAbiFilterer(address ethCommon.Address) (err error) {
+func (e *CeloConnector) NewAbiFilterer(address ethCommon.Address) (err error) {
 	e.filterer, err = celoAbi.NewAbiFilterer(celoCommon.BytesToAddress(address.Bytes()), e.client)
 	return
 }
 
-func (e *CeloImpl) NewAbiCaller(address ethCommon.Address) (err error) {
+func (e *CeloConnector) NewAbiCaller(address ethCommon.Address) (err error) {
 	e.caller, err = celoAbi.NewAbiCaller(celoCommon.BytesToAddress(address.Bytes()), e.client)
 	return
 }
 
-func (e *CeloImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
+func (e *CeloConnector) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
 	if e.caller == nil {
 		panic("caller is not initialized!")
 	}
@@ -59,7 +59,7 @@ func (e *CeloImpl) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, erro
 	return e.caller.GetCurrentGuardianSetIndex(opts)
 }
 
-func (e *CeloImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
+func (e *CeloConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
 	if e.caller == nil {
 		panic("caller is not initialized!")
 	}
@@ -81,7 +81,7 @@ func (e *CeloImpl) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.Str
 	}, err
 }
 
-func (e *CeloImpl) WatchLogMessagePublished(ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *CeloConnector) WatchLogMessagePublished(ctx, timeout context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	if e.filterer == nil {
 		panic("filterer is not initialized!")
 	}
@@ -99,7 +99,7 @@ func (e *CeloImpl) WatchLogMessagePublished(ctx, timeout context.Context, sink c
 			case <-ctx.Done():
 				return
 			case celoEvent := <-messageC:
-				sink <- convertEventToEth(celoEvent)
+				sink <- convertCeloEventToEth(celoEvent)
 			}
 		}
 	}()
@@ -107,7 +107,7 @@ func (e *CeloImpl) WatchLogMessagePublished(ctx, timeout context.Context, sink c
 	return messageSub, err
 }
 
-func (e *CeloImpl) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
+func (e *CeloConnector) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
 	if e.client == nil {
 		panic("client is not initialized!")
 	}
@@ -117,10 +117,10 @@ func (e *CeloImpl) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash
 		return nil, err
 	}
 
-	return convertReceiptToEth(celoReceipt), err
+	return convertCeloReceiptToEth(celoReceipt), err
 }
 
-func (e *CeloImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
+func (e *CeloConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
 	if e.client == nil {
 		panic("client is not initialized!")
 	}
@@ -133,20 +133,20 @@ func (e *CeloImpl) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (
 	return block.Time(), err
 }
 
-func (e *CeloImpl) ParseLogMessagePublished(ethLog ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
+func (e *CeloConnector) ParseLogMessagePublished(ethLog ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
 	if e.filterer == nil {
 		panic("filterer is not initialized!")
 	}
 
-	celoEvent, err := e.filterer.ParseLogMessagePublished(*convertLogFromEth(&ethLog))
+	celoEvent, err := e.filterer.ParseLogMessagePublished(*convertCeloLogFromEth(&ethLog))
 	if err != nil {
 		return nil, err
 	}
 
-	return convertEventToEth(celoEvent), err
+	return convertCeloEventToEth(celoEvent), err
 }
 
-func (e *CeloImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
+func (e *CeloConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *common.NewBlock) (ethereum.Subscription, error) {
 	if e.client == nil {
 		panic("client is not initialized!")
 	}
@@ -183,18 +183,18 @@ func (e *CeloImpl) SubscribeForBlocks(ctx context.Context, sink chan<- *common.N
 	return headerSubscription, err
 }
 
-func convertEventToEth(ev *celoAbi.AbiLogMessagePublished) *ethAbi.AbiLogMessagePublished {
+func convertCeloEventToEth(ev *celoAbi.AbiLogMessagePublished) *ethAbi.AbiLogMessagePublished {
 	return &ethAbi.AbiLogMessagePublished{
 		Sender:           ethCommon.BytesToAddress(ev.Sender.Bytes()),
 		Sequence:         ev.Sequence,
 		Nonce:            ev.Nonce,
 		Payload:          ev.Payload,
 		ConsistencyLevel: ev.ConsistencyLevel,
-		Raw:              *convertLogToEth(&ev.Raw),
+		Raw:              *convertCeloLogToEth(&ev.Raw),
 	}
 }
 
-func convertLogToEth(l *celoTypes.Log) *ethTypes.Log {
+func convertCeloLogToEth(l *celoTypes.Log) *ethTypes.Log {
 	topics := make([]ethCommon.Hash, len(l.Topics))
 	for n, t := range l.Topics {
 		topics[n] = ethCommon.BytesToHash(t.Bytes())
@@ -213,10 +213,10 @@ func convertLogToEth(l *celoTypes.Log) *ethTypes.Log {
 	}
 }
 
-func convertReceiptToEth(celoReceipt *celoTypes.Receipt) *ethTypes.Receipt {
+func convertCeloReceiptToEth(celoReceipt *celoTypes.Receipt) *ethTypes.Receipt {
 	ethLogs := make([]*ethTypes.Log, len(celoReceipt.Logs))
 	for n, l := range celoReceipt.Logs {
-		ethLogs[n] = convertLogToEth(l)
+		ethLogs[n] = convertCeloLogToEth(l)
 	}
 
 	return &ethTypes.Receipt{
@@ -235,7 +235,7 @@ func convertReceiptToEth(celoReceipt *celoTypes.Receipt) *ethTypes.Receipt {
 	}
 }
 
-func convertLogFromEth(l *ethTypes.Log) *celoTypes.Log {
+func convertCeloLogFromEth(l *ethTypes.Log) *celoTypes.Log {
 	topics := make([]celoCommon.Hash, len(l.Topics))
 	for n, t := range l.Topics {
 		topics[n] = celoCommon.BytesToHash(t.Bytes())

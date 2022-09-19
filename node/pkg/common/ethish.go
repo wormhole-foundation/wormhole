@@ -5,14 +5,13 @@ package common
 
 import (
 	"context"
+	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethEvent "github.com/ethereum/go-ethereum/event"
-
-	ethAbi "github.com/certusone/wormhole/node/pkg/evm/abi"
 
 	"go.uber.org/zap"
 )
