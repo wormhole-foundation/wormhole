@@ -8,6 +8,10 @@
 //! - Data types for Wormhole primitives such as GuardianSets and signatures.
 //! - Verification Primitives for securely checking payloads.
 
+// TODO: Add test to bstr/unicode parser for parse_fixed_utf8.
+// TODO: Change GuardianSet quorum calculation.
+
+#![feature(test)]
 #![deny(warnings)]
 #![deny(unused_results)]
 
