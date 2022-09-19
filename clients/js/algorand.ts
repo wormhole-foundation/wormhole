@@ -54,7 +54,7 @@ export async function execute_algorand(
         // NOTE: this code can safely be removed once the algorand NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
-        throw new Error("NFT bridge not supported yet for terra");
+        throw new Error("NFT bridge not supported yet for algorand");
       }
       target_contract = contracts.nft_bridge;
       switch (payload.type) {
