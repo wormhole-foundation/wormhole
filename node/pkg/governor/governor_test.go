@@ -1195,23 +1195,10 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// 23 hours after the big transaction is enqueued, it should still be there.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 3, 2022 at 1:01am (CST)")
-	toBePublished, err = gov.CheckPendingForTime(now)
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(toBePublished))
-
-	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
-	require.NoError(t, err)
-	assert.Equal(t, 0, numTrans)
-	assert.Equal(t, uint64(0), valueTrans)
-	assert.Equal(t, 1, numPending)
-	assert.Equal(t, uint64(177461), valuePending)
-	assert.Equal(t, 1, len(gov.msgsById))
-
-	// 48 hours after the big transaction is enqueued, it should still be there.
-	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 4, 2022 at 2:01am (CST)")
 	toBePublished, err = gov.CheckPendingForTime(now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(toBePublished))
