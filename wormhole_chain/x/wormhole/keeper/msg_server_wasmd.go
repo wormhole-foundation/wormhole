@@ -43,11 +43,13 @@ func (k msgServer) StoreCode(goCtx context.Context, msg *types.MsgStoreCode) (*t
 	}
 
 	// verify payload is the sha3 256 hash of the wasm binary being uploaded
-	expected_hash := sha3.Sum256(msg.WASMByteCode)
+	var expected_hash [32]byte
+	keccak := sha3.NewLegacyKeccak256()
+	keccak.Write(msg.WASMByteCode)
+	keccak.Sum(expected_hash[:0])
 	if !bytes.Equal(payload, expected_hash[:]) {
 		return nil, types.ErrInvalidHash
 	}
-
 	// Execute StoreCode normally
 	senderAddr, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
@@ -96,7 +98,12 @@ func (k msgServer) InstantiateContract(goCtx context.Context, msg *types.MsgInst
 	binary.BigEndian.PutUint64(hash_base, msg.CodeID)
 	hash_base = append(hash_base, []byte(msg.Label)...)
 	hash_base = append(hash_base, msg.Msg...)
-	expected_hash := sha3.Sum256(hash_base)
+
+	var expected_hash [32]byte
+	keccak := sha3.NewLegacyKeccak256()
+	keccak.Write(hash_base)
+	keccak.Sum(expected_hash[:0])
+
 	if !bytes.Equal(payload, expected_hash[:]) {
 		return nil, types.ErrInvalidHash
 	}
