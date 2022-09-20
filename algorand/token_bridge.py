@@ -963,14 +963,13 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
         App.globalPut(Bytes("coreid"), Btoi(Txn.application_args[0])),
         App.globalPut(Bytes("coreAddr"), Txn.application_args[1]),
         App.globalPut(Bytes("validUpdateApproveHash"), Bytes("")),
-        App.globalPut(Bytes("validUpdateClearHash"), Bytes("base16", "73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f")), # empty clear state program
         Return(Int(1))
     ])
 
     def getOnUpdate():
         return Seq( [
             MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
-            MagicAssert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
+            MagicAssert(And(Len(Txn.clear_state_program()) == Int(4), Extract(Txn.clear_state_program(), Int(1), Int(3)) == Bytes("base16", "810143"))),
             Return(Int(1))
         ] )
 
