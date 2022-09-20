@@ -63,11 +63,11 @@
 // The chain governor also publishes the following messages to the gossip network
 //
 // SignedChainGovernorConfig
-// - Published once ever five minutes.
+// - Published once every five minutes.
 // - Contains a list of configured chains, along with the daily limit, big transaction size and current price.
 //
 // - SignedChainGovernorStatus
-//   - Published every heartbeat interval (15 seconds).
+//   - Published once a minute.
 //   - Contains a list of configured chains along with their remaining available notional value, the number of enqueued VAAs
 //     and information on zero or more enqueued VAAs.
 //   - Only the first 20 enqueued VAAs are include, to constrain the message size.
@@ -450,12 +450,15 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []by
 
 	metricTotalEnqueuedVAAs.Set(float64(totalPending))
 
-	if startTime.After(gov.configPublishTime.Add(time.Minute * time.Duration(5))) {
+	if startTime.After(gov.nextConfigPublishTime) {
 		gov.publishConfig(hb, sendC, gk, ourAddr)
-		gov.configPublishTime = startTime
+		gov.nextConfigPublishTime = startTime.Add(time.Minute * time.Duration(5))
 	}
 
-	gov.publishStatus(hb, sendC, startTime, gk, ourAddr)
+	if startTime.After(gov.nextStatusPublishTime) {
+		gov.publishStatus(hb, sendC, startTime, gk, ourAddr)
+		gov.nextStatusPublishTime = startTime.Add(time.Minute)
+	}
 }
 
 var governorMessagePrefix = []byte("governor|")
@@ -480,9 +483,10 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 		})
 	}
 
+	gov.configPublishCounter += 1
 	payload := &gossipv1.ChainGovernorConfig{
 		NodeName:  hb.NodeName,
-		Counter:   hb.Counter,
+		Counter:   gov.configPublishCounter,
 		Timestamp: hb.Timestamp,
 		Chains:    chains,
 		Tokens:    tokens,
@@ -559,9 +563,10 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 		})
 	}
 
+	gov.statusPublishCounter += 1
 	payload := &gossipv1.ChainGovernorStatus{
 		NodeName:  hb.NodeName,
-		Counter:   hb.Counter,
+		Counter:   gov.statusPublishCounter,
 		Timestamp: hb.Timestamp,
 		Chains:    chains,
 	}
