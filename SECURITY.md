@@ -36,7 +36,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
   - **Scopes**: _Ethereum Contracts, Solana Contracts, Terra Contracts, and Guardian_
 - **[August 16, 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-08-16_kudelski.pdf)**
   - **Scope**: _Algorand Contracts_
-- **Q3 2022 - OtterSec (DRAFT)**
+- **[September 15, 2022 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_Near_OtterSec.pdf)**
   - **Scope**: _NEAR Contracts_
 - **Q3 2022 - Halborn (DRAFT)**
   - **Scope**: _Wormchain and Accounting_
