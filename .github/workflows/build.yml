@@ -239,7 +239,7 @@ jobs:
 
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
-        run: cd node && go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
+        run: cd node && go test -v -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
   # Run Rust lints and tests
   rust-lint-and-tests:
