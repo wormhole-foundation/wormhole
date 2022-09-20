@@ -14,9 +14,6 @@ export const ETH_PRIVATE_KEY = "0x6370fd033278c143179d81c5526140625662b8daa446c2
 // abi and addresses for mock integration contracts
 export const MOCK_BATCH_VAA_SENDER_ABI = batchSenderContract.abi;
 export const MOCK_BATCH_VAA_SENDER_ADDRESS = "0xf19a2a01b70519f67adb309a994ec8c69a967e8b";
-export const MOCK_BATCH_VAA_SENDER_ADDRESS_BYTES = ethers.utils.hexlify(
-  "0x" + tryNativeToHexString(MOCK_BATCH_VAA_SENDER_ADDRESS, CHAIN_ID_ETH)
-);
 
 // devnet guardian private key
 export const SIGNER_PRIVATE_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -27,9 +24,7 @@ export const WORMHOLE_MESSAGE_EVENT_ABI = [
 ];
 
 // RPC hosts
-export const WORMHOLE_RPC_HOSTS = ci
-  ? ["http://guardian:7071"]
-  : ["http://localhost:7071"];
+export const WORMHOLE_RPC_HOSTS = ci ? ["http://guardian:7071"] : ["http://localhost:7071"];
 
 describe("Consts Should Exist", () => {
   it("Dummy Test", () => {

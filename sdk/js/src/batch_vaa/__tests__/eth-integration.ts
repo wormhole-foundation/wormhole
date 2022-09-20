@@ -1,20 +1,16 @@
 import {ethers} from "ethers";
 import {describe, expect, test} from "@jest/globals";
-import {CHAIN_ID_ETH, CHAIN_ID_BSC} from "../..";
+import {NodeHttpTransport} from "@improbable-eng/grpc-web-node-http-transport";
+import {CHAIN_ID_ETH, CHAIN_ID_BSC, getSignedBatchVAAWithRetry} from "../..";
 import {
   ETH_NODE_URL,
   BSC_NODE_URL,
   ETH_PRIVATE_KEY,
   MOCK_BATCH_VAA_SENDER_ABI,
   MOCK_BATCH_VAA_SENDER_ADDRESS,
-  MOCK_BATCH_VAA_SENDER_ADDRESS_BYTES,
+  WORMHOLE_RPC_HOSTS,
 } from "./consts";
-import {
-  parseWormholeEventsFromReceipt,
-  getSignedBatchVaaFromReceiptOnEth,
-  getSignedVaaFromReceiptOnEth,
-  removeObservationFromBatch,
-} from "./utils";
+import {parseWormholeEventsFromReceipt, getSignedVaaFromReceiptOnEth, removeObservationFromBatch} from "./utils";
 
 describe("Batch VAAs", () => {
   // The following tests rely on the payloads in batchVAAPayloads.
@@ -38,7 +34,7 @@ describe("Batch VAAs", () => {
   let legacyVAAFromBSC: Uint8Array;
   let encodedPartialBatchVAAForBSC: ethers.BytesLike;
 
-  test("Should Generate a Batch VAA From a Contract on Ethereum", (done) => {
+  test.only("Should Generate a Batch VAA From a Contract on Ethereum", (done) => {
     (async () => {
       try {
         // create a signer for ETH
@@ -71,14 +67,16 @@ describe("Batch VAAs", () => {
           expect(messageEvents[i].args.consistencyLevel).toEqual(batchVAAConsistencyLevels[i]);
         }
 
-        // REVIEW: this will be replaced with a call to fetch the real batch VAA
-        // simulate fetching the batch VAA
-        encodedBatchVAAFromEth = await getSignedBatchVaaFromReceiptOnEth(
-          receipt,
+        // fetch the batch VAA from the guardian
+        const batchVaaRes = await getSignedBatchVAAWithRetry(
+          WORMHOLE_RPC_HOSTS,
           CHAIN_ID_ETH,
-          MOCK_BATCH_VAA_SENDER_ADDRESS_BYTES,
-          0 // guardianSetIndex
+          receipt.transactionHash,
+          {
+            transport: NodeHttpTransport(),
+          }
         );
+        encodedBatchVAAFromEth = batchVaaRes.batchVaaBytes;
 
         // destory the provider and end the test
         provider.destroy();
@@ -165,14 +163,16 @@ describe("Batch VAAs", () => {
         expect(messageEvents[0].args.payload).toEqual(singleVAAPayload);
         expect(messageEvents[0].args.consistencyLevel).toEqual(consistencyLevel);
 
-        // REVIEW: this will be replaced with a call to fetch the real batch VAA
-        // simulate fetching the batch VAA
-        encodedBatchVAAFromBsc = await getSignedBatchVaaFromReceiptOnEth(
-          receipt,
+        // fetch the batch VAA from the guardian
+        const batchVaaRes = await getSignedBatchVAAWithRetry(
+          WORMHOLE_RPC_HOSTS,
           CHAIN_ID_BSC,
-          MOCK_BATCH_VAA_SENDER_ADDRESS_BYTES,
-          0 // guardianSetIndex
+          receipt.transactionHash,
+          {
+            transport: NodeHttpTransport(),
+          }
         );
+        encodedBatchVAAFromBsc = batchVaaRes.batchVaaBytes;
 
         // fetch the legacy VAA for the observation in the batch
         legacyVAAFromBSC = await getSignedVaaFromReceiptOnEth(receipt, CHAIN_ID_BSC, MOCK_BATCH_VAA_SENDER_ADDRESS);
@@ -255,7 +255,7 @@ describe("Batch VAAs", () => {
         const legacyVAAHash = parsedLegacyVAA.hash;
 
         // verify the legacy VAA and confirm that the payload was saved in the contract
-        await contractWithSigner.consumeSingleVAA(legacyVAAFromBSC);
+        await contractWithSigner.consumeSingleVAA(parsedLegacyVAA);
         const payloadFromContract = await contractWithSigner.getPayload(legacyVAAHash);
         expect(payloadFromContract).toEqual(parsedLegacyVAA.payload);
 
@@ -302,8 +302,8 @@ describe("Batch VAAs", () => {
         expect(parsedPartialBatchVAAForBSC.hashes.length).toEqual(parsedBatchVAAFromEth.hashes.length);
 
         for (let i = 0; i < parsedPartialBatchVAAForBSC.indexedObservations.length; i++) {
-          expect(parsedPartialBatchVAAForBSC.indexedObservations[i].observation).toEqual(
-            parsedBatchVAAFromEth.indexedObservations[i].observation
+          expect(parsedPartialBatchVAAForBSC.indexedObservations[i].vm3).toEqual(
+            parsedBatchVAAFromEth.indexedObservations[i].vm3
           );
         }
 
@@ -326,8 +326,8 @@ describe("Batch VAAs", () => {
 
         // Check to see if the remaining observation is the same as the
         // last observation in the orignal batch VAA.
-        expect(parsedPartialBatchVAAForEth.indexedObservations[0].observation).toEqual(
-          parsedBatchVAAFromEth.indexedObservations[parsedBatchVAAFromEth.indexedObservations.length - 1].observation
+        expect(parsedPartialBatchVAAForEth.indexedObservations[0].vm3).toEqual(
+          parsedBatchVAAFromEth.indexedObservations[parsedBatchVAAFromEth.indexedObservations.length - 1].vm3
         );
 
         // destory the provider and end the test

@@ -20,7 +20,7 @@ contract Messages is Getters, Setters {
     }
 
     /**
-     * @dev parseAndVerifyVM2 serves to parse an encodedVM2 that includes a batch of observations
+     * @dev parseAndVerifyBatchVM serves to parse an encodedVM2 that includes a batch of observations
      * and wholy validate the batch for consumption
      * it saves the hash of each observation in a cache when `cache` is set to true
      */
