@@ -4,14 +4,14 @@ import (
 	"encoding/binary"
 	"testing"
 
-	keepertest "github.com/certusone/wormhole-chain/testutil/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/crypto/sha3"
+	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
 
 var GOVERNANCE_EMITTER = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 04}
@@ -21,15 +21,8 @@ var WH_CHAIN_ID = 3104
 func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	// governance message with sha3 of wasmBytes as the payload
 	hashWasm := sha3.Sum256(wasmBytes)
-	payload := []byte{}
-	payload = append(payload, keeper.WasmdModule[:]...)
-	payload = append(payload, byte(keeper.ActionStoreCode))
-	chain_bz := [2]byte{}
-	binary.BigEndian.PutUint16(chain_bz[:], uint16(WH_CHAIN_ID))
-	payload = append(payload, chain_bz[:]...)
-	// custom payload
-	payload = append(payload, hashWasm[:]...)
-	return payload
+	gov_msg := NewGovernanceMessage(keeper.WasmdModule, byte(keeper.ActionStoreCode), uint16(WH_CHAIN_ID), hashWasm[:])
+	return gov_msg.MarshalBinary()
 }
 
 func createWasmInstantiatePayload(code_id uint64, label string, json_msg string) []byte {
@@ -93,7 +86,7 @@ func TestWasmdStoreCode(t *testing.T) {
 		WASMByteCode: keepertest.EXAMPLE_WASM_CONTRACT_GZIP,
 		Vaa:          vBz,
 	})
-	assert.Equal(t, types.ErrVAAAlreadyExecuted, err)
+	assert.ErrorIs(t, err, types.ErrVAAAlreadyExecuted)
 
 	// modified wasm byte code does not verify
 	bad_wasm := make([]byte, len(keepertest.EXAMPLE_WASM_CONTRACT_GZIP))
@@ -107,7 +100,7 @@ func TestWasmdStoreCode(t *testing.T) {
 		WASMByteCode: bad_wasm,
 		Vaa:          vBz,
 	})
-	assert.Equal(t, types.ErrInvalidHash, err)
+	assert.ErrorIs(t, err, types.ErrInvalidHash)
 
 	// Sending to wrong module is error
 	payload_wrong_module := createWasmStoreCodePayload(keepertest.EXAMPLE_WASM_CONTRACT_GZIP)
@@ -120,7 +113,7 @@ func TestWasmdStoreCode(t *testing.T) {
 		WASMByteCode: bad_wasm,
 		Vaa:          vBz,
 	})
-	assert.Equal(t, types.ErrUnknownGovernanceModule, err)
+	assert.ErrorIs(t, err, types.ErrUnknownGovernanceModule)
 }
 
 func TestWasmdInstantiateContract(t *testing.T) {
@@ -193,7 +186,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 		Vaa:    vBz,
 	})
 	// Bad code_id
-	assert.Equal(t, types.ErrInvalidHash, err)
+	assert.ErrorIs(t, err, types.ErrInvalidHash)
 
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
 	vBz, _ = v.Marshal()
@@ -205,7 +198,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 		Vaa:    vBz,
 	})
 	// Bad label
-	assert.Equal(t, types.ErrInvalidHash, err)
+	assert.ErrorIs(t, err, types.ErrInvalidHash)
 
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
 	vBz, _ = v.Marshal()
@@ -217,7 +210,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 		Vaa:    vBz,
 	})
 	// Bad msg
-	assert.Equal(t, types.ErrInvalidHash, err)
+	assert.ErrorIs(t, err, types.ErrInvalidHash)
 
 	// Sending to wrong module is error
 	payload_wrong_module := createWasmInstantiatePayload(code_id, "btc", "{}")
@@ -232,5 +225,5 @@ func TestWasmdInstantiateContract(t *testing.T) {
 		Msg:    []byte("{\"arg\":\"bad\"}"),
 		Vaa:    vBz,
 	})
-	assert.Equal(t, types.ErrUnknownGovernanceModule, err)
+	assert.ErrorIs(t, err, types.ErrUnknownGovernanceModule)
 }

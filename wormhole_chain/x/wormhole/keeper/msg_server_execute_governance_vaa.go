@@ -28,7 +28,7 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 	coreModule := [32]byte{}
 	copy(coreModule[:], vaa.CoreModule)
 	// Verify VAA
-	action, payload, err := k.VerifyVAAGovernance(ctx, v, coreModule)
+	action, payload, err := k.VerifyGovernanceVAA(ctx, v, coreModule)
 	if err != nil {
 		return nil, err
 	}

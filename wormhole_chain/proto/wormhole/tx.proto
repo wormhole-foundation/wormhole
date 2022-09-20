@@ -43,9 +43,8 @@ message MsgStoreCode {
   string signer = 1;
   // WASMByteCode can be raw or gzip compressed
   bytes wasm_byte_code = 2 [ (gogoproto.customname) = "WASMByteCode" ];
-  reserved 3, 4, 5;
   // vaa must be governance msg with payload containing sha3 256 hash of `wasm_byte_code`
-  bytes vaa = 6;
+  bytes vaa = 3;
 }
 
 message MsgStoreCodeResponse {
@@ -63,9 +62,8 @@ message MsgInstantiateContract {
   string label = 4;
   // Msg json encoded message to be passed to the contract on instantiation
   bytes msg = 5;
-  reserved 6;
   // vaa must be governance msg with payload containing sha3 256 hash of `bigEndian(code_id) || label || msg`
-  bytes vaa = 7;
+  bytes vaa = 6;
 }
 
 message MsgInstantiateContractResponse {

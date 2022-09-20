@@ -7,10 +7,6 @@ import (
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 )
 
-// This defines which modules we actually want to expose cosmwasm contracts.
-// Right now we only permit methods that are read-only.
-// See https://github.com/CosmWasm/wasmd/blob/d63bea442bedf5b3055f3821472c7e6cafc3d813/x/wasm/types/expected_keepers.go
-
 type CapabilityKeeperHandler struct {
 	ScopedKeeper capabilitykeeper.ScopedKeeper
 }

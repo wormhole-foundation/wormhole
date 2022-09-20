@@ -443,7 +443,8 @@ func New(
 		supportedFeatures,
 		GetWasmOpts(appOpts)...,
 	)
-	app.WormholeKeeper.SetWasmdKeeper(app.wasmKeeper)
+	permissionedWasmKeeper := wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
+	app.WormholeKeeper.SetWasmdKeeper(permissionedWasmKeeper)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 

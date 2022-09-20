@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 
-	wasmdkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
+	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
@@ -33,7 +33,7 @@ func (k msgServer) StoreCode(goCtx context.Context, msg *types.MsgStoreCode) (*t
 		return nil, err
 	}
 	// Verify VAA
-	action, payload, err := k.VerifyVAAGovernance(ctx, v, WasmdModule)
+	action, payload, err := k.VerifyGovernanceVAA(ctx, v, WasmdModule)
 	if err != nil {
 		return nil, err
 	}
@@ -48,16 +48,22 @@ func (k msgServer) StoreCode(goCtx context.Context, msg *types.MsgStoreCode) (*t
 		return nil, types.ErrInvalidHash
 	}
 
-	// Execute StoreCore normally
-	permissionedKeeper := wasmdkeeper.NewDefaultPermissionKeeper(k.wasmdKeeper)
-	msgServer := wasmdkeeper.NewMsgServerImpl(permissionedKeeper)
-	req := msg.ToWasmd()
-	res, err := msgServer.StoreCode(goCtx, &req)
+	// Execute StoreCode normally
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		return nil, sdkerrors.Wrap(err, "signer")
+	}
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		sdk.EventTypeMessage,
+		sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+		sdk.NewAttribute(sdk.AttributeKeySender, msg.Signer),
+	))
+	codeID, err := k.wasmdKeeper.Create(ctx, senderAddr, msg.WASMByteCode, &wasmdtypes.DefaultUploadAccess)
 	if err != nil {
 		return nil, err
 	}
 	return &types.MsgStoreCodeResponse{
-		CodeID: res.CodeID,
+		CodeID: codeID,
 	}, nil
 }
 
@@ -75,7 +81,7 @@ func (k msgServer) InstantiateContract(goCtx context.Context, msg *types.MsgInst
 	}
 
 	// Verify VAA
-	action, payload, err := k.VerifyVAAGovernance(ctx, v, WasmdModule)
+	action, payload, err := k.VerifyGovernanceVAA(ctx, v, WasmdModule)
 	if err != nil {
 		return nil, err
 	}
@@ -95,15 +101,22 @@ func (k msgServer) InstantiateContract(goCtx context.Context, msg *types.MsgInst
 		return nil, types.ErrInvalidHash
 	}
 
-	permissionedKeeper := wasmdkeeper.NewDefaultPermissionKeeper(k.wasmdKeeper)
-	msgServer := wasmdkeeper.NewMsgServerImpl(permissionedKeeper)
-	req := msg.ToWasmd()
-	res, err := msgServer.InstantiateContract(goCtx, &req)
+	// Execute Instantiate normally
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		return nil, sdkerrors.Wrap(err, "signer")
+	}
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		sdk.EventTypeMessage,
+		sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+		sdk.NewAttribute(sdk.AttributeKeySender, msg.Signer),
+	))
+	contract_addr, data, err := k.wasmdKeeper.Instantiate(ctx, msg.CodeID, senderAddr, sdk.AccAddress{}, msg.Msg, msg.Label, sdk.Coins{})
 	if err != nil {
 		return nil, err
 	}
 	return &types.MsgInstantiateContractResponse{
-		Address: res.Address,
-		Data:    res.Data,
+		Address: contract_addr.String(),
+		Data:    data,
 	}, nil
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/tendermint/tendermint/libs/log"
 
-	wasmdkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
@@ -19,7 +18,7 @@ type (
 
 		accountKeeper types.AccountKeeper
 		bankKeeper    types.BankKeeper
-		wasmdKeeper   wasmdkeeper.Keeper
+		wasmdKeeper   types.WasmdKeeper
 		setWasmd      bool
 	}
 )
@@ -46,7 +45,7 @@ func NewKeeper(
 // 2. add a new module that wraps x/wasmd instead of using x/wormhole.
 // 3. (current) set wasmdKeeper late in init and use guards whenever it's referenced.
 // Opted for (3) as we only reference in two places.
-func (k *Keeper) SetWasmdKeeper(keeper wasmdkeeper.Keeper) {
+func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
 	k.wasmdKeeper = keeper
 	k.setWasmd = true
 }
