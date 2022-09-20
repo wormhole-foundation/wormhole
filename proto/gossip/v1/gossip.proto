@@ -153,7 +153,7 @@ message SignedChainGovernorConfig {
   // Serialized ChainGovernorConfig message.
   bytes config = 1;
 
-  // ECDSA signature using the node's guardian public key.
+  // ECDSA signature using the node's guardian key.
   bytes signature = 2;
 
   // Guardian address that signed this payload (truncated Eth address).
@@ -185,7 +185,7 @@ message SignedChainGovernorStatus {
   // Serialized ChainGovernorStatus message.
   bytes status = 1;
 
-  // ECDSA signature using the node's guardian public key.
+  // ECDSA signature using the node's guardian key.
   bytes signature = 2;
 
   // Guardian address that signed this payload (truncated Eth address).
