@@ -14,7 +14,7 @@ func TestObsvReqSendLimitEnforced(t *testing.T) {
 	obsvReqSendC := make(chan *gossipv1.ObservationRequest, ObsvReqChannelSize)
 
 	// If the channel overflows, the write hangs, so use a go routine with a timeout.
-	done := false
+	done := make(chan struct{})
 	go func() {
 		// Filling the queue up should work.
 		for count := 1; count <= ObsvReqChannelSize; count++ {
@@ -32,11 +32,13 @@ func TestObsvReqSendLimitEnforced(t *testing.T) {
 		err := PostObservationRequest(obsvReqSendC, req)
 		assert.ErrorIs(t, err, ErrChanFull)
 
-		done = true
+		done <- struct{}{}
 	}()
 
-	time.Sleep(time.Second)
-
-	// Make sure we didn't hang.
-	assert.Equal(t, true, done)
+	timeout := time.NewTimer(time.Second)
+	select {
+	case <-timeout.C:
+		assert.Fail(t, "timed out")
+	case <-done:
+	}
 }
