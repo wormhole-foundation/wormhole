@@ -46,6 +46,9 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
   - **Scope**: _Ethereum Contracts, Solana Contracts, CosmWasm Contracts_
 - **Q3 2022 - Coinspect (SCHEDULED)**
   - **Scope**: _Algorand Contracts_
+- **Q3 2022 - Hacken (SCHEDULED)**
+  - **Scope**: _NEAR Contracts_
+
 ## Trust Assumptions
 
 Consensus on Wormhole is achieved by two subset groups of Guardians (aka: validators) within the Guardian Set, which have the following abilities:
