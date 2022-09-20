@@ -29,7 +29,7 @@ func setUpReobservationTest() (reobservationTestContext, func()) {
 
 	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
 	for i := 0; i < 10; i++ {
-		chainObsvReqC[vaa.ChainID(i)] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainID(i)] = make(chan *gossipv1.ObservationRequest, 1)
 	}
 
 	go handleReobservationRequests(ctx, clock, zap.NewNop(), obsvReqC, chainObsvReqC)
@@ -176,4 +176,37 @@ func TestReobservationCacheEviction(t *testing.T) {
 	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
 	require.True(t, ok)
 	assert.Equal(t, req, actual)
+}
+
+func TestBlockingSend(t *testing.T) {
+	ctx, cancel := setUpReobservationTest()
+	defer cancel()
+
+	req := &gossipv1.ObservationRequest{
+		ChainId: 1,
+		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+	}
+
+	// Send one reobservation request but don't drain it from the chain-specific channel.
+	ctx.obsvReqC <- req
+
+	// Now send another request for the same chain id but different tx hash.  This should get dropped.
+	req2 := &gossipv1.ObservationRequest{
+		ChainId: 1,
+		TxHash:  []byte{0x96, 0xe3, 0x94, 0xec, 0x5a, 0x00, 0xfc, 0x8b},
+	}
+	ctx.obsvReqC <- req2
+
+	// This is a bit awkward but we need to wait until the goroutine handling the requests has finished
+	// processing the second request.  If we read from the channel too quickly then we might pop out the
+	// first request too early, unblocking the channel.  Unfortunately there's no easy way for us to detect
+	// when the handler is done without adding unnecessary complexity.
+	time.Sleep(50 * time.Millisecond)
+
+	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	assert.True(t, ok)
+	assert.Equal(t, req, actual)
+
+	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req2.ChainId)])
+	assert.False(t, ok)
 }
