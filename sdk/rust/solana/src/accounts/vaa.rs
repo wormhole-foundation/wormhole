@@ -22,7 +22,7 @@ use {
     wormhole::WormholeError,
 };
 
-#[derive(Debug, Eq, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Eq, PartialEq, BorshSerialize, BorshDeserialize, Clone)]
 pub struct VAA {
     /// Header of the posted VAA
     pub vaa_version:           u8,
