@@ -87,7 +87,6 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
- "block-padding",
  "generic-array",
 ]
 
@@ -99,12 +98,6 @@ checksum = "69cce20737498f97b993470a6e536b8523f0af7892a4f928cceb1ac5e52ebe7e"
 dependencies = [
  "generic-array",
 ]
-
-[[package]]
-name = "block-padding"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "borsh"
@@ -159,14 +152,13 @@ checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
 
 [[package]]
 name = "bstr"
-version = "1.0.1"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fca0852af221f458706eb0725c03e4ed6c46af9ac98e6a689d5e634215d594dd"
+checksum = "ba3569f383e8f1598449f1a423e72e99569137b47740b1da11ef19af3d5c3223"
 dependencies = [
+ "lazy_static",
  "memchr",
- "once_cell",
  "regex-automata",
- "serde",
 ]
 
 [[package]]
@@ -701,16 +693,6 @@ checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
 
 [[package]]
 name = "primitive-types"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06345ee39fbccfb06ab45f3a1a5798d9dafa04cb8921a76d227040003a234b0e"
-dependencies = [
- "fixed-hash",
- "uint",
-]
-
-[[package]]
-name = "primitive-types"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e28720988bff275df1f51b171e1b2a18c30d194c4d2b61defdacecd625a5d94a"
@@ -842,18 +824,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
 
 [[package]]
-name = "rocksalt"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "proc-macro2",
- "quote",
- "sha3 0.9.1",
- "solana-program",
- "syn",
-]
-
-[[package]]
 name = "rustc_version"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -931,18 +901,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest 0.10.3",
-]
-
-[[package]]
-name = "sha3"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
-dependencies = [
- "block-buffer 0.9.0",
- "digest 0.9.0",
- "keccak",
- "opaque-debug",
 ]
 
 [[package]]
@@ -1039,7 +997,7 @@ dependencies = [
  "serde_bytes",
  "serde_derive",
  "sha2 0.10.5",
- "sha3 0.10.4",
+ "sha3",
  "solana-frozen-abi",
  "solana-frozen-abi-macro",
  "solana-sdk-macro",
@@ -1058,17 +1016,6 @@ dependencies = [
  "quote",
  "rustversion",
  "syn",
-]
-
-[[package]]
-name = "solitaire"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "byteorder",
- "rocksalt",
- "sha3 0.9.1",
- "solana-program",
 ]
 
 [[package]]
@@ -1273,19 +1220,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
 
 [[package]]
-name = "wormhole-bridge-solana"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "byteorder",
- "primitive-types 0.9.1",
- "serde",
- "sha3 0.9.1",
- "solana-program",
- "solitaire",
-]
-
-[[package]]
 name = "wormhole-core"
 version = "0.1.0"
 dependencies = [
@@ -1295,8 +1229,8 @@ dependencies = [
  "hex",
  "hex-literal",
  "nom",
- "primitive-types 0.11.1",
- "sha3 0.10.4",
+ "primitive-types",
+ "sha3",
  "thiserror",
 ]
 
@@ -1310,11 +1244,10 @@ dependencies = [
  "hex",
  "hex-literal",
  "nom",
- "primitive-types 0.11.1",
- "sha3 0.10.4",
+ "primitive-types",
+ "sha3",
  "solana-program",
  "thiserror",
- "wormhole-bridge-solana",
  "wormhole-core",
 ]
 
