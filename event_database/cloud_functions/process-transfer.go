@@ -58,7 +58,8 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		vaa.ChainIDKarura,
 		vaa.ChainIDAcala,
 		vaa.ChainIDKlaytn,
-		vaa.ChainIDCelo:
+		vaa.ChainIDCelo,
+		vaa.ChainIDMoonbeam:
 		addr := fmt.Sprintf("0x%v", address[(len(address)-40):])
 		return addr
 	case vaa.ChainIDTerra:

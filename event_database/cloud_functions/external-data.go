@@ -109,6 +109,8 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 		return "celo"
 	case vaa.ChainIDNear:
 		return "near-protocol"
+	case vaa.ChainIDMoonbeam:
+		return "moonbeam"
 	case vaa.ChainIDTerra2:
 		return "" // TODO
 	case vaa.ChainIDEthereumRopsten:
