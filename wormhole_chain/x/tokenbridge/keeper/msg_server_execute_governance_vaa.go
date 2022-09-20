@@ -32,7 +32,7 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 	}
 
 	// Verify VAA
-	action, payload, err := k.wormholeKeeper.VerifyVAAGovernance(ctx, v, TokenBridgeModule)
+	action, payload, err := k.wormholeKeeper.VerifyGovernanceVAA(ctx, v, TokenBridgeModule)
 	if err != nil {
 		return nil, err
 	}

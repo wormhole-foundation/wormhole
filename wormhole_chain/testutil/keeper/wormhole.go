@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/CosmWasm/wasmd/x/wasm"
+	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/store"
@@ -127,8 +128,9 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 	wasmGenState.Params.CodeUploadAccess = wasmtypes.DefaultUploadAccess
 	wasmGenState.Params.InstantiateDefaultPermission = wasmtypes.AccessTypeEverybody
 	wasmKeeper.SetParams(ctx, wasmGenState.Params)
-	appapp.WormholeKeeper.SetWasmdKeeper(wasmKeeper)
-	k.SetWasmdKeeper(wasmKeeper)
+	permissionedWasmKeeper := wasmkeeper.NewDefaultPermissionKeeper(wasmKeeper)
+	appapp.WormholeKeeper.SetWasmdKeeper(permissionedWasmKeeper)
+	k.SetWasmdKeeper(permissionedWasmKeeper)
 
 	return k, ctx
 }

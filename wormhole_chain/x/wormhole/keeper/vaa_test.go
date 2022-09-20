@@ -172,45 +172,45 @@ func TestVerifyVAAGovernance(t *testing.T) {
 	v := generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
 	err := keeper.VerifyVAA(ctx, &v)
 	assert.NoError(t, err)
-	parsed_action, parsed_payload, err := keeper.VerifyVAAGovernance(ctx, &v, our_module)
+	parsed_action, parsed_payload, err := keeper.VerifyGovernanceVAA(ctx, &v, our_module)
 	assert.NoError(t, err)
 	assert.Equal(t, action, parsed_action)
 	assert.Equal(t, custom_payload, parsed_payload)
 
 	// verifying a second time will return error because of replay protection
-	_, _, err = keeper.VerifyVAAGovernance(ctx, &v, our_module)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
 	assert.Equal(t, types.ErrVAAAlreadyExecuted, err)
 
 	// Expect error if module-id is different
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
 	bad_module := [32]byte{}
 	bad_module[31] = 0xff
-	_, _, err = keeper.VerifyVAAGovernance(ctx, &v, bad_module)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, bad_module)
 	assert.Equal(t, types.ErrUnknownGovernanceModule, err)
 
 	// Expect error if we're not using the right governance emitter address
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
 	v.EmitterAddress[5] = 0xff
 	v = resignVaa(v, privateKeys)
-	_, _, err = keeper.VerifyVAAGovernance(ctx, &v, our_module)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
 	assert.Equal(t, types.ErrInvalidGovernanceEmitter, err)
 
 	// Expect error if we're not using the right governance emitter chain
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
 	v.EmitterChain = vaa.ChainIDEthereum
 	v = resignVaa(v, privateKeys)
-	_, _, err = keeper.VerifyVAAGovernance(ctx, &v, our_module)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
 	assert.Equal(t, types.ErrInvalidGovernanceEmitter, err)
 
 	// Expect error if we're using a small payload
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload[:34])
-	_, _, err = keeper.VerifyVAAGovernance(ctx, &v, our_module)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
 	assert.Equal(t, types.ErrGovernanceHeaderTooShort, err)
 
 	// Expect error if we're using a different target chain
 	payload[33] = 0xff
 	payload[34] = 0xff
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
-	_, _, err = keeper.VerifyVAAGovernance(ctx, &v, our_module)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
 	assert.Equal(t, types.ErrInvalidGovernanceTargetChain, err)
 }

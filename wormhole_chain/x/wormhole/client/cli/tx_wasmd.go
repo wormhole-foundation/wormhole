@@ -76,28 +76,28 @@ func CmdStoreCode() *cobra.Command {
 
 func CmdInstantiateContract() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "instantiate [code_id_int64] [json_encoded_init_args] [vaa-hex] --label [text]",
+		Use:   "instantiate [label] [code_id_int64] [json_encoded_init_args] [vaa-hex]",
 		Short: "Register a guardian public key with a wormhole chain address.",
-		Args:  cobra.ExactArgs(3),
+		Args:  cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
 
-			codeId, err := cast.ToUint64E(args[0])
+			labelStr := args[0]
+
+			codeId, err := cast.ToUint64E(args[1])
 			if err != nil {
 				return err
 			}
 
-			initMsg := args[1]
+			initMsg := args[2]
 
-			vaaBz, err := hex.DecodeString(args[2])
+			vaaBz, err := hex.DecodeString(args[3])
 			if err != nil {
 				return err
 			}
-
-			labelStr, _ := cmd.Flags().GetString("label")
 
 			msg := types.MsgInstantiateContract{
 				Signer: clientCtx.GetFromAddress().String(),

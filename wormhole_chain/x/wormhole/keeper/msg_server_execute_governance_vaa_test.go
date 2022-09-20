@@ -5,13 +5,41 @@ import (
 	"encoding/binary"
 	"testing"
 
-	keepertest "github.com/certusone/wormhole-chain/testutil/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
-	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
+	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
 )
+
+type GovernanceMessage struct {
+	Module  [32]byte
+	Action  byte
+	Chain   uint16
+	Payload []byte
+}
+
+func NewGovernanceMessage(module [32]byte, action byte, chain uint16, payload []byte) GovernanceMessage {
+	return GovernanceMessage{
+		Module:  module,
+		Action:  action,
+		Chain:   chain,
+		Payload: payload,
+	}
+}
+
+func (gm *GovernanceMessage) MarshalBinary() []byte {
+	bz := []byte{}
+	bz = append(bz, gm.Module[:]...)
+	bz = append(bz, gm.Action)
+	chain_bz := [2]byte{}
+	binary.BigEndian.PutUint16(chain_bz[:], gm.Chain)
+	bz = append(bz, chain_bz[:]...)
+	// set update payload
+	bz = append(bz, gm.Payload...)
+	return bz
+}
 
 func createExecuteGovernanceVaaPayload(k *keeper.Keeper, ctx sdk.Context, num_guardians byte) ([]byte, []*ecdsa.PrivateKey) {
 	guardians, privateKeys := createNGuardianValidator(k, ctx, int(num_guardians))
@@ -24,15 +52,11 @@ func createExecuteGovernanceVaaPayload(k *keeper.Keeper, ctx sdk.Context, num_gu
 		set_update = append(set_update, guardian.GuardianKey...)
 	}
 	// governance message with sha3 of wasmBytes as the payload
-	payload := []byte{}
-	payload = append(payload, vaa.CoreModule[:]...)
-	payload = append(payload, byte(keeper.ActionGuardianSetUpdate))
-	chain_bz := [2]byte{}
-	binary.BigEndian.PutUint16(chain_bz[:], uint16(WH_CHAIN_ID))
-	payload = append(payload, chain_bz[:]...)
-	// set update payload
-	payload = append(payload, set_update...)
-	return payload, privateKeys
+	module := [32]byte{}
+	copy(module[:], vaa.CoreModule)
+	gov_msg := NewGovernanceMessage(module, byte(keeper.ActionGuardianSetUpdate), uint16(WH_CHAIN_ID), set_update)
+
+	return gov_msg.MarshalBinary(), privateKeys
 }
 
 func TestExecuteGovernanceVAA(t *testing.T) {
@@ -77,7 +101,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 		Signer: signer.String(),
 		Vaa:    vBz,
 	})
-	assert.Equal(t, types.ErrGuardianSetNotSequential, err)
+	assert.ErrorIs(t, err, types.ErrGuardianSetNotSequential)
 
 	// Invalid length
 	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload[:len(payload)-1])
@@ -86,7 +110,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 		Signer: signer.String(),
 		Vaa:    vBz,
 	})
-	assert.Equal(t, types.ErrInvalidGovernancePayloadLength, err)
+	assert.ErrorIs(t, err, types.ErrInvalidGovernancePayloadLength)
 
 	// Include a guardian address twice in an update
 	payload_bad, _ := createExecuteGovernanceVaaPayload(k, ctx, 11)
@@ -97,7 +121,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 		Signer: signer.String(),
 		Vaa:    vBz,
 	})
-	assert.Equal(t, types.ErrDuplicateGuardianAddress, err)
+	assert.ErrorIs(t, err, types.ErrDuplicateGuardianAddress)
 
 	// Change set again with new set update
 	payload, _ = createExecuteGovernanceVaaPayload(k, ctx, 12)

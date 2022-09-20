@@ -57,7 +57,7 @@ func (k Keeper) VerifyVAA(ctx sdk.Context, vaa *vaa.VAA) error {
 // - Check the source chain and address is governance
 // - Check the governance payload is for wormchain and the specified module
 // - return the parsed action and governance payload
-func (k Keeper) VerifyVAAGovernance(ctx sdk.Context, v *vaa.VAA, module [32]byte) (action byte, payload []byte, err error) {
+func (k Keeper) VerifyGovernanceVAA(ctx sdk.Context, v *vaa.VAA, module [32]byte) (action byte, payload []byte, err error) {
 	if err = k.VerifyVAA(ctx, v); err != nil {
 		return
 	}

@@ -25,7 +25,7 @@ type BankKeeper interface {
 type WormholeKeeper interface {
 	// Methods imported from wormhole should be defined here
 	VerifyVAA(ctx sdk.Context, vaa *vaa.VAA) error
-	VerifyVAAGovernance(ctx sdk.Context, v *vaa.VAA, module [32]byte) (action byte, payload []byte, err error)
+	VerifyGovernanceVAA(ctx sdk.Context, v *vaa.VAA, module [32]byte) (action byte, payload []byte, err error)
 	GetConfig(ctx sdk.Context) (val types.Config, found bool)
 	PostMessage(ctx sdk.Context, emitter types.EmitterAddress, nonce uint32, data []byte) error
 }
