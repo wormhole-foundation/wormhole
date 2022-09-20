@@ -20,7 +20,11 @@ var WH_CHAIN_ID = 3104
 
 func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	// governance message with sha3 of wasmBytes as the payload
-	hashWasm := sha3.Sum256(wasmBytes)
+	var hashWasm [32]byte
+	keccak := sha3.NewLegacyKeccak256()
+	keccak.Write(wasmBytes)
+	keccak.Sum(hashWasm[:0])
+
 	gov_msg := NewGovernanceMessage(keeper.WasmdModule, byte(keeper.ActionStoreCode), uint16(WH_CHAIN_ID), hashWasm[:])
 	return gov_msg.MarshalBinary()
 }
@@ -34,7 +38,10 @@ func createWasmInstantiatePayload(code_id uint64, label string, json_msg string)
 	binary.BigEndian.PutUint64(hash_base, code_id)
 	hash_base = append(hash_base, []byte(label)...)
 	hash_base = append(hash_base, []byte(json_msg)...)
-	expected_hash := sha3.Sum256(hash_base)
+	var expected_hash [32]byte
+	keccak := sha3.NewLegacyKeccak256()
+	keccak.Write(hash_base)
+	keccak.Sum(expected_hash[:0])
 
 	payload := []byte{}
 	payload = append(payload, keeper.WasmdModule[:]...)
