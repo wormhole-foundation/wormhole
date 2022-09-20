@@ -80,6 +80,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 			Sequence:         k.Sequence,
 			ConsistencyLevel: k.ConsistencyLevel,
 		},
+		Unreliable: k.Unreliable,
 	}
 
 	// A governance message should never be emitted on-chain

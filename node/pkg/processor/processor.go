@@ -31,6 +31,8 @@ type (
 		// SigningMsg returns the hash of the signing body of the observation. This is used
 		// for signature generation and verification.
 		SigningMsg() ethcommon.Hash
+		// IsReliable returns whether this message is considered reliable meaning it can be reobserved.
+		IsReliable() bool
 		// HandleQuorum finishes processing the observation once a quorum of signatures have
 		// been received for it.
 		HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor)

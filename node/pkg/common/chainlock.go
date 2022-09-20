@@ -21,6 +21,10 @@ type MessagePublication struct {
 	EmitterChain     vaa.ChainID
 	EmitterAddress   vaa.Address
 	Payload          []byte
+
+	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
+	// reobserved.
+	Unreliable bool
 }
 
 func (msg *MessagePublication) MessageID() []byte {

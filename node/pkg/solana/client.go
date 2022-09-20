@@ -96,6 +96,8 @@ const (
 	postMessageInstructionNumAccounts  = 9
 	postMessageInstructionID           = 0x01
 	postMessageUnreliableInstructionID = 0x08
+	accountPrefixReliable              = "msg"
+	accountPrefixUnreliable            = "msu"
 )
 
 // PostMessageData represents the user-supplied, untrusted instruction data
@@ -499,7 +501,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	}
 
 	data := info.Value.Data.GetBinary()
-	if string(data[:3]) != "msg" && string(data[:3]) != "msu" {
+	if string(data[:3]) != accountPrefixReliable && string(data[:3]) != accountPrefixUnreliable {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "bad_account_data").Inc()
 		logger.Error("account is not a message account",
@@ -534,6 +536,16 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	var txHash eth_common.Hash
 	copy(txHash[:], acc[:])
 
+	var reliable bool
+	switch string(data[:3]) {
+	case accountPrefixReliable:
+		reliable = true
+	case accountPrefixUnreliable:
+		reliable = false
+	default:
+		panic("invalid prefix")
+	}
+
 	observation := &common.MessagePublication{
 		TxHash:           txHash,
 		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
@@ -543,6 +555,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		EmitterAddress:   proposal.EmitterAddress,
 		Payload:          proposal.Payload,
 		ConsistencyLevel: proposal.ConsistencyLevel,
+		Unreliable:       !reliable,
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
