@@ -60,7 +60,13 @@ func handleReobservationRequests(
 			cache[r] = clock.Now()
 
 			if channel, ok := chainObsvReqC[r.chainId]; ok {
-				channel <- req
+				select {
+				case channel <- req:
+				default:
+					logger.Warn("reobservation channel is full; dropping request",
+						zap.Uint16("chain_id", uint16(r.chainId)),
+						zap.String("tx_hash", r.txHash))
+				}
 			} else {
 				logger.Error("unknown chain ID for reobservation request",
 					zap.Uint16("chain_id", uint16(r.chainId)),
