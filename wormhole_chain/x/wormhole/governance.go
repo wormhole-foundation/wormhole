@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // NewWormholeGovernanceProposalHandler creates a governance handler to manage new proposal types.
