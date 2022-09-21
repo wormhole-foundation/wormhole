@@ -19,7 +19,7 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
     tokenAddress: string,
     vaa: Uint8Array,
     feeRecipient: string,
-  ) => {
+  ): Promise<string> => {
     assertChain(tokenChain);
     const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
@@ -35,7 +35,7 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
     tokenChain: number,
     tokenAddress: string,
     vaa: Uint8Array,
-  ) => {
+  ): Promise<string> => {
     assertChain(tokenChain);
     const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
@@ -49,7 +49,7 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
   // Deploy coin
 
   // don't need `signer` and `&signer` in argument list because the Move VM will inject them
-  deployCoin = (sender: AptosAccount) => {
+  deployCoin = (sender: AptosAccount): Promise<string> => {
     const payload = {
       function: `${this.address}::deploy_coin::deploy_coin`,
       type_arguments: [],
@@ -60,7 +60,7 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
 
   // Register chain
 
-  registerChain = (sender: AptosAccount, vaa: Uint8Array) => {
+  registerChain = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
     const payload = {
       function: `${this.address}::register_chain::submit_vaa`,
       type_arguments: [],
@@ -81,7 +81,7 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
     relayerFee: number | bigint,
     wormholeFee: number | bigint,
     nonce: number | bigint,
-  ) => {
+  ): Promise<string> => {
     assertChain(tokenChain);
     const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
@@ -94,7 +94,7 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
 
   // Created wrapped coin
 
-  createWrappedCoinType = (sender: AptosAccount, vaa: Uint8Array) => {
+  createWrappedCoinType = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
     const payload = {
       function: `${this.address}::wrapped::create_wrapped_coin_type`,
       type_arguments: [],
@@ -108,7 +108,7 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
     tokenChain: number,
     tokenAddress: string,
     vaa: Uint8Array,
-  ) => {
+  ): Promise<string> => {
     assertChain(tokenChain);
     const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
