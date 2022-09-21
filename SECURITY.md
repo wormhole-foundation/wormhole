@@ -33,7 +33,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **Q3 2022 - Trail of Bits (TESTING)**: _Ethereum Contracts_
 - **Q3 2022 - Trail of Bits (TESTING)**: _Solana Contracts_
 - **Q3 2022 - Trail of Bits (TESTING)**: _CosmWasm Contracts_
-- **Q3 2022 - OtterSec (DRAFT)**: _Aptos Contracts_
+- **Q3 2022 - OtterSec (TESTING)**: _Aptos Contracts_
 - **Q3 2022 - Coinspect (SCHEDULED)**: _Algorand Contracts_
 - **Q3 2022 - Hacken (SCHEDULED)**: _NEAR Contracts_
 
