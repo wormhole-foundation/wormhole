@@ -12,7 +12,7 @@ export class AptosBaseApi {
 
   // Contract upgrade
 
-  authorizeUpgrade = (sender: AptosAccount, vaa: Uint8Array) => {
+  authorizeUpgrade = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
     const payload = {
       function: `${this.address}::contract_upgrade::submit_vaa`,
       type_arguments: [],
@@ -25,7 +25,7 @@ export class AptosBaseApi {
     sender: AptosAccount,
     metadataSerialized: Uint8Array,
     code: Array<Uint8Array>,
-  ) => {
+  ): Promise<string> => {
     const payload = {
       function: `${this.address}::contract_upgrade::upgrade`,
       type_arguments: [],
@@ -34,7 +34,7 @@ export class AptosBaseApi {
     return this.client.executeEntryFunction(sender, payload);
   };
 
-  migrateContract = (sender: AptosAccount) => {
+  migrateContract = (sender: AptosAccount): Promise<string> => {
     const payload = {
       function: `${this.address}::contract_upgrade::migrate`,
       type_arguments: [],

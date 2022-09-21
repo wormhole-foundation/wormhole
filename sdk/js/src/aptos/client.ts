@@ -10,15 +10,15 @@ export class AptosClientWrapper {
   executeEntryFunction = async (
     sender: AptosAccount,
     payload: Types.EntryFunctionPayload,
-    opts?: Partial<Types.SubmitTransactionRequest>
-  ) => {
+    opts?: Partial<Types.SubmitTransactionRequest>,
+  ): Promise<string> => {
     // overwriting `max_gas_amount` default
     // rest of defaults are defined here: https://aptos-labs.github.io/ts-sdk-doc/classes/AptosClient.html#generateTransaction
     const customOpts = Object.assign(
       {
         max_gas_amount: "10000",
       },
-      opts
+      opts,
     );
 
     return (
@@ -36,9 +36,9 @@ export class AptosClientWrapper {
                   console.error(JSON.stringify(tx, null, 2));
                   throw new Error(`Transaction failed: ${tx.vm_status}`);
                 }
-              })
+              }),
             )
-            .then((_) => rawTx)
+            .then((_) => rawTx),
         )
         // sign & submit transaction if simulation is successful
         .then((rawTx) => this.client.signTransaction(sender, rawTx))

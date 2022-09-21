@@ -11,7 +11,7 @@ export class AptosWormholeApi extends AptosBaseApi {
 
   // Guardian set upgrade
 
-  upgradeGuardianSet = (sender: AptosAccount, vaa: Uint8Array) => {
+  upgradeGuardianSet = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
     const payload = {
       function: `${this.address}::guardian_set_upgrade::submit_vaa`,
       type_arguments: [],
@@ -28,7 +28,7 @@ export class AptosWormholeApi extends AptosBaseApi {
     governanceChainId: number,
     governanceContract: Uint8Array,
     initialGuardian: Uint8Array,
-  ) => {
+  ): Promise<string> => {
     const payload = {
       function: `${this.address}::wormhole::init`,
       type_arguments: [],
