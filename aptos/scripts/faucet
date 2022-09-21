@@ -1,7 +1,0 @@
-#!/bin/bash
-
-ACCOUNT=0xdaa5752a46c5b7b5f98c3ec74623da8f44837a28265689dbb03a89dad3516b9d
-RPC='https://fullnode.devnet.aptoslabs.com'
-FAUCET='https://faucet.devnet.aptoslabs.com'
-
-worm aptos faucet --rpc $RPC --account $ACCOUNT --faucet $FAUCET

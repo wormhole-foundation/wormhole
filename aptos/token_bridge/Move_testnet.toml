@@ -17,5 +17,5 @@ WrappedCoin = {local = "../coin/"}
 
 [addresses]
 # derived address from sha3_256(deployer + "token_bridge")
-token_bridge="b4ec6ea1bff962721cc376be9a9aea840c485f9ceb10f31f523828fd6f4ca95a"
+token_bridge="dd0a2618dc5564ccf38d0eca7877198fef51157fea74a6bc2e5e40b52c2a0a08"
 wrapped_coin="b54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b"

@@ -58,8 +58,8 @@ const OVERRIDES = {
   },
   TESTNET: {
     aptos: {
-      token_bridge: "0xb4ec6ea1bff962721cc376be9a9aea840c485f9ceb10f31f523828fd6f4ca95a",
-      core: "0x25de93a587d5dc2d7e673663554b7e1d5b00de5d1d38341a896a2141bba5c5c9"
+      token_bridge: "0xdd0a2618dc5564ccf38d0eca7877198fef51157fea74a6bc2e5e40b52c2a0a08",
+      core: "0x1b1752e26b65fc24971ee5ec9718d2ccdd36bf20486a10b2973ea6dedc6cd197"
     }
   },
   DEVNET: {
