@@ -19,14 +19,10 @@ export class AptosTokenBridgeApi {
     tokenChain: number,
     tokenAddress: string,
     vaa: Uint8Array,
-    feeRecipient: string
+    feeRecipient: string,
   ) => {
     assertChain(tokenChain);
-    const assetContract = deriveWrappedAssetAddress(
-      this.address,
-      tokenChain,
-      tokenAddress
-    );
+    const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
       function: `${this.address}::complete_transfer::submit_vaa`,
       type_arguments: [`${assetContract}::coin::T`],
@@ -39,14 +35,10 @@ export class AptosTokenBridgeApi {
     sender: AptosAccount,
     tokenChain: number,
     tokenAddress: string,
-    vaa: Uint8Array
+    vaa: Uint8Array,
   ) => {
     assertChain(tokenChain);
-    const assetContract = deriveWrappedAssetAddress(
-      this.address,
-      tokenChain,
-      tokenAddress
-    );
+    const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
       function: `${this.address}::complete_transfer_with_payload::submit_vaa`,
       type_arguments: [`${assetContract}::coin::T`],
@@ -69,7 +61,7 @@ export class AptosTokenBridgeApi {
   upgradeContract = (
     sender: AptosAccount,
     metadataSerialized: Uint8Array,
-    code: Array<Uint8Array>
+    code: Array<Uint8Array>,
   ) => {
     const payload = {
       function: `${this.address}::contract_upgrade::upgrade`,
@@ -122,25 +114,14 @@ export class AptosTokenBridgeApi {
     recipient: Uint8Array,
     relayerFee: number | bigint,
     wormholeFee: number | bigint,
-    nonce: number | bigint
+    nonce: number | bigint,
   ) => {
     assertChain(tokenChain);
-    const assetContract = deriveWrappedAssetAddress(
-      this.address,
-      tokenChain,
-      tokenAddress
-    );
+    const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
       function: `${this.address}::transfer_tokens::submit_vaa`,
       type_arguments: [`${assetContract}::coin::T`],
-      arguments: [
-        amount,
-        recipientChain,
-        recipient,
-        relayerFee,
-        wormholeFee,
-        nonce,
-      ],
+      arguments: [amount, recipientChain, recipient, relayerFee, wormholeFee, nonce],
     };
     return this.client.executeEntryFunction(sender, payload);
   };
@@ -160,14 +141,10 @@ export class AptosTokenBridgeApi {
     sender: AptosAccount,
     tokenChain: number,
     tokenAddress: string,
-    vaa: Uint8Array
+    vaa: Uint8Array,
   ) => {
     assertChain(tokenChain);
-    const assetContract = deriveWrappedAssetAddress(
-      this.address,
-      tokenChain,
-      tokenAddress
-    );
+    const assetContract = deriveWrappedAssetAddress(this.address, tokenChain, tokenAddress);
     const payload = {
       function: `${this.address}::wrapped::create_wrapped_coin`,
       type_arguments: [`${assetContract}::coin::T`],
