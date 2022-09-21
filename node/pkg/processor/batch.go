@@ -106,7 +106,7 @@ func (p *Processor) handleBatchMessage(ctx context.Context, k *common.BatchMessa
 		p.logger.Info("no messages from this BatchMessage are in processor.state",
 			zap.String("batchID", batchID.String()),
 		)
-		p.state.transactions[batchID] = map[string]*state{}
+		p.state.transactions[batchID] = map[string]*batchState{}
 	}
 
 	// check to see if we have reached quorum on all messages in the batch
@@ -128,7 +128,7 @@ func (p *Processor) handleBatchPart(o Observation) {
 	digest := o.SigningMsg()
 	hash := hex.EncodeToString(digest.Bytes())
 
-	if _, ok := p.state.signatures[hash]; !ok {
+	if _, ok := p.state.batchSignatures[hash]; !ok {
 		p.logger.Info("no state.signatures[hash] for",
 			zap.String("hash", hash),
 			zap.String("MessageID", messageID),
@@ -136,7 +136,7 @@ func (p *Processor) handleBatchPart(o Observation) {
 
 	}
 
-	sigState := p.state.signatures[hash]
+	sigState := p.state.batchSignatures[hash]
 
 	batchID := &common.BatchMessageID{
 		EmitterChain:  o.GetEmitterChain(),
@@ -148,7 +148,7 @@ func (p *Processor) handleBatchPart(o Observation) {
 	// check state for this transaction
 	if _, ok := p.state.transactions[batchID]; !ok {
 		// initalize state.transactions for this batchID
-		p.state.transactions[batchID] = map[string]*state{}
+		p.state.transactions[batchID] = map[string]*batchState{}
 	}
 	// take the state from signatures, add it to the map by batchID/messageID
 	p.state.transactions[batchID][messageID] = sigState

@@ -99,7 +99,7 @@ type (
 	// observationsByTransactionID maps the transaction hash (batchID) to
 	// to the messages within the transaction.
 	// ie. { "BatchID": { "message_id": state } }
-	observationsByTransactionID map[*common.BatchMessageID]map[string]*state // batchState
+	observationsByTransactionID map[*common.BatchMessageID]map[string]*batchState
 
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
@@ -283,6 +283,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleInboundSignedBatchVAAWithQuorum(ctx, m)
 		case <-p.cleanup.C:
 			p.handleCleanup(ctx)
+			p.handleBatchCleanup(ctx)
 		case <-govTimer.C:
 			if p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
