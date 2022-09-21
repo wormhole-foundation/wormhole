@@ -4,14 +4,14 @@ set -euo pipefail
 
 # TODO: merge this with the ./deploy script (like ./upgrade)
 
-# deployer address = daa5752a46c5b7b5f98c3ec74623da8f44837a28265689dbb03a89dad3516b9d
+DEPLOYER_ADDR=0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3
 GUARDIAN_ADDR=0x13947Bd48b18E53fdAeEe77F3473391aC727C638
 WORMHOLE_ADDR=$(worm contract testnet aptos Core)
 TOKEN_BRIDGE_ADDR=$(worm contract testnet aptos TokenBridge)
 
 # STEP 1) if deployer address is not funded with Aptos tokens,
 #         first fund it using a faucet script or the Aptos CLI
-./faucet
+worm aptos faucet --rpc 'https://fullnode.devnet.aptoslabs.com' --account $DEPLOYER_ADDR --faucet 'https://faucet.devnet.aptoslabs.com'
 
 # modify deploy Move.toml file
 mv ../deployer/Move.toml ../deployer/Move_temp.toml

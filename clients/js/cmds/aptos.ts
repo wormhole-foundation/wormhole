@@ -162,7 +162,7 @@ exports.builder = function (y: typeof yargs) {
       // TODO(csongor): use deployer address from sdk (when it's there)
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
       if (network=="TESTNET"){
-        module_name= "0xdaa5752a46c5b7b5f98c3ec74623da8f44837a28265689dbb03a89dad3516b9d::deployer";
+        module_name= "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer";
       }
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(
@@ -177,6 +177,23 @@ exports.builder = function (y: typeof yargs) {
           BCS.bcsSerializeBytes(seed)
         ])
       console.log("Deployed:", p.mv_files)
+    })
+    .command("send-example-message <message>", "Send example message", (yargs) => {
+      return yargs
+        .positional("message", {
+          type: "string"
+        })
+        .option("network", network_options)
+    }, async (argv) => {
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      const rpc = NETWORKS[network]["aptos"].rpc;
+      // TODO(csongor): use sdk address
+      let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
+      if (network=="TESTNET"){
+        module_name= "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::sender";
+      }
+      await callEntryFunc(network, rpc, module_name, "send_message", [], [BCS.bcsSerializeBytes(Buffer.from(argv["message"], "ascii"))])
     })
     .command("derive-resource-account <account> <seed>", "Derive resource account address", (yargs) => {
       return yargs
@@ -298,7 +315,7 @@ exports.builder = function (y: typeof yargs) {
           account = argv.account as string;
         }
         const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
-        const coins = 200000;
+        const coins = 20000000;
         await faucetClient.fundAccount(account, coins);
         console.log(`Funded ${account} with ${coins} coins`);
     })
