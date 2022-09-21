@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/binary"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/wormhole-foundation/wormhole-chain/x/tokenbridge/types"
