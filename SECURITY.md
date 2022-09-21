@@ -1,11 +1,39 @@
 # Security
 
 ## Table of Contents
-- [Bug Bounty Program](#Bug-Bounty-Program)
 - [3rd Party Security Audits](#3rd-Party-Security-Audits)
+- [Bug Bounty Program](#Bug-Bounty-Program)
 - [Trust Assumptions](#Trust-Assumptions)
 - [White Hat Hacking](#White-Hat-Hacking)
 - [Chain Integrators](#Chain-Integrators)
+## 3rd Party Security Audits
+
+The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
+
+As these 3rd party audits are completed and issues are sufficiently addressed, we make those audit reports public.
+
+- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Ethereum Contracts_
+- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Solana Contracts_
+- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Terra Contracts_
+- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Guardian_
+- **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Solitaire_
+- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Ethereum Contracts
+- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Solana Contracts_
+- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Terra Contracts_
+- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Guardian_
+- **[August 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-08-16_kudelski.pdf)**: _Algorand Contracts_
+- **[September 2022 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_Near_OtterSec.pdf)**: _NEAR Contracts_
+- **Q3 2022 - Halborn (DRAFT)**: _Wormchain_
+- **Q3 2022 - Halborn (DRAFT)**: _Accounting_
+- **Q3 2022 - Certik (DRAFT)**: _Ethereum Contracts_
+- **Q3 2022 - Certik (DRAFT)**: _Solana Contracts_
+- **Q3 2022 - Certik (DRAFT)**: _Terra Contracts_
+- **Q3 2022 - Certik (DRAFT)**: _Guardian_
+- **Q3 2022 - Certik (DRAFT)**: _Solitaire_
+- **Q3 2022 - Trail of Bits (TESTING)**: _Ethereum Contracts_
+- **Q3 2022 - Trail of Bits (TESTING)**: _Solana Contracts_
+- **Q3 2022 - Trail of Bits (TESTING)**: _CosmWasm Contracts_
+- **Q3 2022 - Coinspect (SCHEDULED)**: _Algorand Contracts_
 
 ## Bug Bounty Program
 
@@ -24,28 +52,6 @@ If you find a security issue in Wormhole, please report the issue immediately us
 
 If there is a duplicate report, either the same reporter or different reporters, the first of the two by timestamp will be accepted as the official bug report and will be subject to the specific terms of the submitting program.
 
-## 3rd Party Security Audits
-
-The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
-
-As these 3rd party audits are completed and issues are sufficiently addressed, we make those audit reports public.
-
-- **[January 10, 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**
-  - **Scopes**: _Ethereum Contracts, Solana Contracts, Terra Contracts, Guardian, and Solitaire_
-- **[July 1, 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**
-  - **Scopes**: _Ethereum Contracts, Solana Contracts, Terra Contracts, and Guardian_
-- **[August 16, 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-08-16_kudelski.pdf)**
-  - **Scope**: _Algorand Contracts_
-- **[September 15, 2022 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_Near_OtterSec.pdf)**
-  - **Scope**: _NEAR Contracts_
-- **Q3 2022 - Halborn (DRAFT)**
-  - **Scope**: _Wormchain and Accounting_
-- **Q3 2022 - Certik (DRAFT)**
-  - **Scope**: _Ethereum Contracts, Solana Contracts, Terra Contracts, Guardian, and Solitaire_
-- **Q3 2022 - Trail of Bits (TESTING)**
-  - **Scope**: _Ethereum Contracts, Solana Contracts, CosmWasm Contracts_
-- **Q3 2022 - Coinspect (SCHEDULED)**
-  - **Scope**: _Algorand Contracts_
 ## Trust Assumptions
 
 Consensus on Wormhole is achieved by two subset groups of Guardians (aka: validators) within the Guardian Set, which have the following abilities:
