@@ -10,6 +10,7 @@ WORKDIR /app
 
 COPY ./wormhole_chain/go.mod .
 COPY ./wormhole_chain/go.sum .
+COPY ./sdk /sdk
 RUN go mod download
 
 COPY ./wormhole_chain .
