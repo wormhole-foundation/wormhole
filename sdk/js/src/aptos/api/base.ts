@@ -5,9 +5,9 @@ export class AptosBaseApi {
   protected client: AptosClientWrapper;
   protected address: string;
 
-  constructor(client: AptosClientWrapper, network: string) {
+  constructor(client: AptosClientWrapper) {
     this.client = client;
-    this.address = "";
+    this.address = ""; // placeholder
   }
 
   // Contract upgrade
