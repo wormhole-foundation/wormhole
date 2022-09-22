@@ -17,7 +17,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Terra Contracts_
 - **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Guardian_
 - **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Solitaire_
-- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Ethereum Contracts
+- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Ethereum Contracts_
 - **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Solana Contracts_
 - **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Terra Contracts_
 - **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Guardian_
