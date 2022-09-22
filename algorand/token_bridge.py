@@ -415,7 +415,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                             TxnField.type_enum: TxnType.AssetConfig,
                             TxnField.config_asset_name: Name.load(),
                             TxnField.config_asset_unit_name: Symbol.load(),
-                            TxnField.config_asset_total: Int(18446744073709551614),
+                            TxnField.config_asset_total: Int(18446744073709550000),
                             TxnField.config_asset_decimals: Decimals.load(),
                             TxnField.config_asset_manager: me,
                             TxnField.config_asset_reserve: Txn.accounts[3],
