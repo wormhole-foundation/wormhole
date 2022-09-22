@@ -102,31 +102,32 @@ export class AptosTokenBridgeApi extends AptosBaseApi {
 
   // Created wrapped coin
 
-  createWrappedCoinType = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
-    const payload = {
-      function: `${this.address}::wrapped::create_wrapped_coin_type`,
-      type_arguments: [],
-      arguments: [vaa],
-    };
-    return this.client.executeEntryFunction(sender, payload);
-  };
-
-  createWrappedCoin = (
+  createWrappedCoin = async (
     sender: AptosAccount,
     tokenChain: ChainId | ChainName,
     tokenAddress: string,
     vaa: Uint8Array,
   ): Promise<string> => {
+    const createWrappedCoinTypePayload = {
+      function: `${this.address}::wrapped::create_wrapped_coin_type`,
+      type_arguments: [],
+      arguments: [vaa],
+    };
     const assetContract = deriveWrappedAssetAddress(
       this.address,
       coalesceChainId(tokenChain),
       tokenAddress,
     );
-    const payload = {
+    const createWrappedCoinPayload = {
       function: `${this.address}::wrapped::create_wrapped_coin`,
       type_arguments: [`${assetContract}::coin::T`],
       arguments: [vaa],
     };
-    return this.client.executeEntryFunction(sender, payload);
+
+    // create coin type
+    await this.client.executeEntryFunction(sender, createWrappedCoinTypePayload);
+
+    // create coin
+    return this.client.executeEntryFunction(sender, createWrappedCoinPayload);
   };
 }
