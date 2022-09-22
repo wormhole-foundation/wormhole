@@ -1,12 +1,12 @@
 import { AptosAccount } from "aptos";
+import { CONTRACTS, Network } from "../../utils";
 import { AptosClientWrapper } from "../client";
-import { AptosNetwork, CONTRACT_ADDRESSES } from "../constants";
 import { AptosBaseApi } from "./base";
 
 export class AptosWormholeApi extends AptosBaseApi {
-  constructor(client: AptosClientWrapper, network: AptosNetwork) {
+  constructor(client: AptosClientWrapper, network: Network) {
     super(client);
-    this.address = CONTRACT_ADDRESSES[network].core;
+    this.address = CONTRACTS[network].aptos.core;
   }
 
   // Guardian set upgrade

@@ -1,14 +1,13 @@
 import { AptosAccount } from "aptos";
-import { assertChain } from "../../utils";
+import { assertChain, CONTRACTS, Network } from "../../utils";
 import { AptosClientWrapper } from "../client";
-import { AptosNetwork, CONTRACT_ADDRESSES } from "../constants";
 import { deriveWrappedAssetAddress } from "../utils";
 import { AptosBaseApi } from "./base";
 
 export class AptosTokenBridgeApi extends AptosBaseApi {
-  constructor(client: AptosClientWrapper, network: AptosNetwork) {
+  constructor(client: AptosClientWrapper, network: Network) {
     super(client);
-    this.address = CONTRACT_ADDRESSES[network].token_bridge;
+    this.address = CONTRACTS[network].aptos.token_bridge!;
   }
 
   // Complete transfer
