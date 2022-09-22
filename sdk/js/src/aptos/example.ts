@@ -1,7 +1,7 @@
 import { AptosAccount } from "aptos";
 import { WormholeAptosApi } from ".";
+import { hex } from "../utils";
 import { AptosClientWrapper } from "./client";
-import { hex } from "./utils";
 
 // it's ok if this key is published
 const devnet_key = "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d";

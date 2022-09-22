@@ -1,7 +1,13 @@
 import { AptosAccount } from "aptos";
-import { ChainId, ChainName, coalesceChainId, CONTRACTS, Network } from "../../utils";
+import {
+  ChainId,
+  ChainName,
+  coalesceChainId,
+  CONTRACTS,
+  deriveWrappedAssetAddress,
+  Network
+} from "../../utils";
 import { AptosClientWrapper } from "../client";
-import { deriveWrappedAssetAddress } from "../utils";
 import { WormholeAptosBaseApi } from "./base";
 
 export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
