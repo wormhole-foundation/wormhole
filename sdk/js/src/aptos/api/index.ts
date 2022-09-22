@@ -1,5 +1,5 @@
+import { Network } from "../../utils";
 import { AptosClientWrapper } from "../client";
-import { AptosNetwork } from "../constants";
 import { AptosTokenBridgeApi } from "./tokenBridge";
 import { AptosWormholeApi } from "./wormhole";
 
@@ -9,7 +9,7 @@ export class AptosApi {
 
   private client: AptosClientWrapper;
 
-  constructor(client: AptosClientWrapper, network: AptosNetwork) {
+  constructor(client: AptosClientWrapper, network: Network) {
     this.client = client;
     this.wormhole = new AptosWormholeApi(this.client, network);
     this.tokenBridge = new AptosTokenBridgeApi(this.client, network);
