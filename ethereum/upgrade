@@ -6,7 +6,6 @@ network=$1
 module=$2
 chain=$3
 
-secret=$MNEMONIC
 guardian_secret=""
 
 if [ "$network" = testnet ]; then

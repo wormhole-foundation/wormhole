@@ -20,27 +20,29 @@ contract NFTBridgeImplementation is NFTBridge {
         uint256 evmChainId;
         uint16 chain = chainId();
 
+
         // Wormhole chain ids explicitly enumerated
-        if        (chain == 2)  { evmChainId = 1;          // ethereum
-        } else if (chain == 4)  { evmChainId = 56;         // bsc
-        } else if (chain == 5)  { evmChainId = 137;        // polygon
-        } else if (chain == 6)  { evmChainId = 43114;      // avalanche
-        } else if (chain == 7)  { evmChainId = 42262;      // oasis
-        } else if (chain == 9)  { evmChainId = 1313161554; // aurora
-        } else if (chain == 10) { evmChainId = 250;        // fantom
-        } else if (chain == 11) { evmChainId = 686;        // karura
-        } else if (chain == 12) { evmChainId = 787;        // acala
-        } else if (chain == 13) { evmChainId = 8217;       // klaytn
-        } else if (chain == 14) { evmChainId = 42220;      // celo
-        } else if (chain == 16) { evmChainId = 1284;       // moonbeam
-        } else if (chain == 17) { evmChainId = 245022934;  // neon
-        } else if (chain == 23) { evmChainId = 42161;      // arbitrum
-        } else if (chain == 24) { evmChainId = 10;         // optimism
-        } else if (chain == 25) { evmChainId = 100;        // gnosis
+        if        (chain == 2)  { evmChainId = 5;          // ethereum
+            setFinality(1);
+        } else if (chain == 4)  { evmChainId = 97;         // bsc
+        } else if (chain == 5)  { evmChainId = 80001;      // polygon
+        } else if (chain == 6)  { evmChainId = 43113;      // avalanche
+        } else if (chain == 7)  { evmChainId = 42261;      // oasis
+        } else if (chain == 9)  { evmChainId = 1313161555; // aurora
+        } else if (chain == 10) { evmChainId = 4002;       // fantom
+        } else if (chain == 11) { evmChainId = 596;        // karura
+        } else if (chain == 12) { evmChainId = 597;        // acala
+        } else if (chain == 13) { evmChainId = 1001;       // klaytn
+        } else if (chain == 14) { evmChainId = 44787;      // celo
+        } else if (chain == 16) { evmChainId = 1287;       // moonbeam
+        } else if (chain == 17) { evmChainId = 245022926;  // neon
+        } else if (chain == 23) { evmChainId = 421611;     // arbitrum
+        } else if (chain == 24) { evmChainId = 420;       // optimism
+        } else if (chain == 25) { evmChainId = 77;        // gnosis
+        } else if (chain == 10001) { evmChainId = 3;        // ropsten
         } else {
             revert("Unknown chain id.");
         }
-
         setEvmChainId(evmChainId);
     }
 
