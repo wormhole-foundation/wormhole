@@ -1,5 +1,5 @@
 import { AptosAccount } from "aptos";
-import { CONTRACTS, Network } from "../../utils";
+import { ChainId, CONTRACTS, Network } from "../../utils";
 import { AptosClientWrapper } from "../client";
 import { AptosBaseApi } from "./base";
 
@@ -24,7 +24,7 @@ export class AptosWormholeApi extends AptosBaseApi {
 
   initWormhole = (
     sender: AptosAccount,
-    chainId: number,
+    chainId: ChainId,
     governanceChainId: number,
     governanceContract: Uint8Array,
     initialGuardian: Uint8Array,
