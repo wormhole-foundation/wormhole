@@ -43,6 +43,9 @@ service NodePrivilegedService {
   
   // ChainGovernorResetReleaseTimer resets the release timer for a chain governor pending VAA to the configured maximum.
   rpc ChainGovernorResetReleaseTimer (ChainGovernorResetReleaseTimerRequest) returns (ChainGovernorResetReleaseTimerResponse);
+
+  // PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
+  rpc PurgePythNetVaas (PurgePythNetVaasRequest) returns (PurgePythNetVaasResponse);  
 }
 
 message InjectGovernanceVAARequest {
@@ -198,5 +201,14 @@ message ChainGovernorResetReleaseTimerRequest {
 }
 
 message ChainGovernorResetReleaseTimerResponse {
+  string response = 1;
+}
+
+message PurgePythNetVaasRequest {
+  uint64 days_old = 1;
+  bool log_only = 2;
+}
+
+message PurgePythNetVaasResponse {
   string response = 1;
 }
