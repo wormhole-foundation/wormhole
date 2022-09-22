@@ -2,9 +2,9 @@ import { AptosAccount } from "aptos";
 import { ChainId, ChainName, coalesceChainId, CONTRACTS, Network } from "../../utils";
 import { AptosClientWrapper } from "../client";
 import { deriveWrappedAssetAddress } from "../utils";
-import { AptosBaseApi } from "./base";
+import { WormholeAptosBaseApi } from "./base";
 
-export class AptosTokenBridgeApi extends AptosBaseApi {
+export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
   constructor(client: AptosClientWrapper, network: Network) {
     super(client);
     this.address = CONTRACTS[network].aptos.token_bridge!;

@@ -1,7 +1,7 @@
 import { AptosAccount } from "aptos";
 import { AptosClientWrapper } from "../client";
 
-export class AptosBaseApi {
+export class WormholeAptosBaseApi {
   protected client: AptosClientWrapper;
   protected address: string;
 

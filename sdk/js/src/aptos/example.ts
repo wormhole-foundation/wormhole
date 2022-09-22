@@ -1,7 +1,6 @@
 import { AptosAccount } from "aptos";
-import { AptosApi } from "./api";
+import { WormholeAptosApi } from ".";
 import { AptosClientWrapper } from "./client";
-import { AptosNetwork } from "./constants";
 import { hex } from "./utils";
 
 // it's ok if this key is published
@@ -9,7 +8,7 @@ const devnet_key = "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8
 const rpc = "http://0.0.0.0:8080";
 const sender = new AptosAccount(new Uint8Array(Buffer.from(devnet_key, "hex")));
 const client = new AptosClientWrapper(rpc);
-const api = new AptosApi(client, AptosNetwork.Devnet);
+const api = new WormholeAptosApi(client, "DEVNET");
 
 // requires local validator to be running
 // we expect this to fail if run twice on the same local validator instance
