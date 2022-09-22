@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
@@ -73,6 +74,11 @@ type (
 	}
 )
 
+type PythNetVaaEntry struct {
+	v          *vaa.VAA
+	updateTime time.Time // Used for determining when to delete entries
+}
+
 type Processor struct {
 	// lockC is a channel of observed emitted messages
 	lockC chan *common.MessagePublication
@@ -122,8 +128,9 @@ type Processor struct {
 	// cleanup triggers periodic state cleanup
 	cleanup *time.Ticker
 
-	notifier *discord.DiscordNotifier
-	governor *governor.ChainGovernor
+	notifier    *discord.DiscordNotifier
+	governor    *governor.ChainGovernor
+	pythnetVaas map[string]PythNetVaaEntry
 }
 
 func NewProcessor(
@@ -165,10 +172,11 @@ func NewProcessor(
 
 		notifier: notifier,
 
-		logger:   supervisor.Logger(ctx),
-		state:    &aggregationState{observationMap{}},
-		ourAddr:  crypto.PubkeyToAddress(gk.PublicKey),
-		governor: g,
+		logger:      supervisor.Logger(ctx),
+		state:       &aggregationState{observationMap{}},
+		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
+		governor:    g,
+		pythnetVaas: make(map[string]PythNetVaaEntry),
 	}
 }
 
@@ -217,4 +225,22 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (p *Processor) storePythNetVAA(v *vaa.VAA) {
+	key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
+	p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
+}
+
+func (p *Processor) getPythNetVAA(v *vaa.VAA) (*vaa.VAA, bool) {
+	key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
+	ret, exists := p.pythnetVaas[key]
+	return ret.v, exists
+}
+
+func (p *Processor) deletePythNetVAA(v *vaa.VAA) bool {
+	key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
+	_, exists := p.pythnetVaas[key]
+	delete(p.pythnetVaas, key)
+	return exists
 }

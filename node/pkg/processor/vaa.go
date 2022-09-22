@@ -38,8 +38,12 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 		zap.String("bytes", hex.EncodeToString(vaaBytes)),
 		zap.String("message_id", signed.MessageID()))
 
-	if err := p.db.StoreSignedVAA(signed); err != nil {
-		p.logger.Error("failed to store signed VAA", zap.Error(err))
+	if signed.EmitterChain == vaa.ChainIDPythNet {
+		p.storePythNetVAA(signed)
+	} else {
+		if err := p.db.StoreSignedVAA(signed); err != nil {
+			p.logger.Error("failed to store signed VAA", zap.Error(err))
+		}
 	}
 
 	p.broadcastSignedVAA(signed)
