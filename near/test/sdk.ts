@@ -35,7 +35,6 @@ import algosdk, {
 } from "@certusone/wormhole-sdk/node_modules/algosdk";
 
 import {
-  createAsset,
   getAlgoClient,
   getBalance,
   getBalances,
@@ -114,6 +113,73 @@ function getConfig(env: any) {
       };
   }
   return {};
+}
+
+export async function createAsset(
+  aClient: algosdk.Algodv2,
+  account: Account
+): Promise<any> {
+  const params = await aClient.getTransactionParams().do();
+  const note = undefined; // arbitrary data to be stored in the transaction; here, none is stored
+  // Asset creation specific parameters
+  const addr = account.addr;
+  // Whether user accounts will need to be unfrozen before transacting
+  const defaultFrozen = false;
+  // integer number of decimals for asset unit calculation
+  const decimals = 10;
+  // total number of this asset available for circulation
+  const totalIssuance = 1000000;
+  // Used to display asset units to user
+  const unitName = "NORIUM";
+  // Friendly name of the asset
+  const assetName = "ChuckNorium";
+  // Optional string pointing to a URL relating to the asset
+  // const assetURL = "http://www.chucknorris.com";
+  const assetURL = "";
+  // Optional hash commitment of some sort relating to the asset. 32 character length.
+  // const assetMetadataHash = "16efaa3924a6fd9d3a4824799a4ac65d";
+  const assetMetadataHash = "";
+  // The following parameters are the only ones
+  // that can be changed, and they have to be changed
+  // by the current manager
+  // Specified address can change reserve, freeze, clawback, and manager
+  const manager = account.addr;
+  // Specified address is considered the asset reserve
+  // (it has no special privileges, this is only informational)
+  const reserve = account.addr;
+  // Specified address can freeze or unfreeze user asset holdings
+  const freeze = account.addr;
+  // Specified address can revoke user asset holdings and send
+  // them to other addresses
+  const clawback = account.addr;
+
+  // signing and sending "txn" allows "addr" to create an asset
+  const txn = algosdk.makeAssetCreateTxnWithSuggestedParams(
+    addr,
+    note,
+    totalIssuance,
+    decimals,
+    defaultFrozen,
+    manager,
+    reserve,
+    freeze,
+    clawback,
+    unitName,
+    assetName,
+    assetURL,
+    assetMetadataHash,
+    params
+  );
+
+  const rawSignedTxn = txn.signTxn(account.sk);
+  const tx = await aClient.sendRawTransaction(rawSignedTxn).do();
+
+  // wait for transaction to be confirmed
+  const ptx = await algosdk.waitForConfirmation(aClient, tx.txId, 4);
+  // Get the new asset's information from the creator account
+  const assetID: number = ptx["asset-index"];
+  //Get the completed Transaction
+  return assetID;
 }
 
 export function logNearGas(result: any, comment: string) {
@@ -259,6 +325,109 @@ async function testNearSDK() {
 
   const algoWallet: Account = tempAccts[0];
 
+  let norium = await createAsset(algoClient, algoWallet);
+  console.log("Norum asset-id on algorand", norium);
+
+  const attestTxs = await attestFromAlgorand(
+    algoClient,
+    algoToken,
+    algoCore,
+    algoWallet.addr,
+    BigInt(norium)
+  );
+  const attestResult = await signSendAndConfirmAlgorand(
+    algoClient,
+    attestTxs,
+    algoWallet
+  );
+
+  const attestSn = parseSequenceFromLogAlgorand(attestResult);
+
+  const emitterAddr = getEmitterAddressAlgorand(algoToken);
+
+  const { vaaBytes } = await getSignedVAAWithRetry(
+    ["http://localhost:7071"],
+    CHAIN_ID_ALGORAND,
+    emitterAddr,
+    attestSn,
+    { transport: NodeHttpTransport() }
+  );
+
+  let noriumNear = await createWrappedOnNear(
+    userAccount,
+    token_bridge,
+    vaaBytes
+  );
+  console.log("for norium, createWrappedOnNear returned " + noriumNear);
+
+  let account_hash = await userAccount.viewFunction(
+    token_bridge,
+    "hash_account",
+    {
+      account: userAccount.accountId,
+    }
+  );
+
+  console.log(account_hash);
+
+  let myAddress = account_hash[1];
+
+  // Start transfer from Algorand to Near
+  console.log("Lets send 12300 Norum to near");
+  const AmountToTransfer: number = 12300;
+  const Fee: number = 0;
+  const transferTxs = await transferFromAlgorand(
+    algoClient,
+    algoToken,
+    algoCore,
+    algoWallet.addr,
+    BigInt(norium),
+    BigInt(AmountToTransfer),
+    myAddress,
+    CHAIN_ID_NEAR,
+    BigInt(Fee)
+  );
+  const transferResult = await signSendAndConfirmAlgorand(
+    algoClient,
+    transferTxs,
+    algoWallet
+  );
+  const txSid = parseSequenceFromLogAlgorand(transferResult);
+  const signedVaa = await getSignedVAAWithRetry(
+    ["http://localhost:7071"],
+    CHAIN_ID_ALGORAND,
+    emitterAddr,
+    txSid,
+    { transport: NodeHttpTransport() }
+  );
+
+  console.log("Lets send 5123 ALGO to near");
+
+  const ALGOTxs = await transferFromAlgorand(
+    algoClient,
+    algoToken,
+    algoCore,
+    algoWallet.addr,
+    BigInt(0),
+    BigInt(5123),
+    myAddress,
+    CHAIN_ID_NEAR,
+    BigInt(Fee)
+  );
+  const ALGOResult = await signSendAndConfirmAlgorand(
+    algoClient,
+    ALGOTxs,
+    algoWallet
+  );
+  const ALGOSid = parseSequenceFromLogAlgorand(ALGOResult);
+  const ALGOVaa = await getSignedVAAWithRetry(
+    ["http://localhost:7071"],
+    CHAIN_ID_ALGORAND,
+    emitterAddr,
+    ALGOSid,
+    { transport: NodeHttpTransport() }
+  );
+
   console.log("Creating USDC on Near");
 
   let ts = new TestLib();
@@ -332,18 +501,6 @@ async function testNearSDK() {
   );
   await signSendAndConfirmAlgorand(algoClient, tx, algoWallet);
 
-  let account_hash = await userAccount.viewFunction(
-    token_bridge,
-    "hash_account",
-    {
-      account: userAccount.accountId,
-    }
-  );
-
-  console.log(account_hash);
-
-  let myAddress = account_hash[1];
-
   console.log("Airdropping USDC on myself");
   {
     let trans = ts.genTransfer(
@@ -389,6 +546,9 @@ async function testNearSDK() {
     );
   }
   console.log(".. created some USDC");
+
+  console.log("Redeeming norium on near");
+  await redeemOnNear(userAccount, token_bridge, signedVaa.vaaBytes);
 
   let nativeAttest;
   {
@@ -680,8 +840,6 @@ async function testNearSDK() {
     console.log("NEAR asset id: " + nearAssetId);
   }
 
-  const emitterAddr = getEmitterAddressAlgorand(algoToken);
-
   console.log("wallet addr: " + algoWallet.addr);
   console.log("usdcAssetId: " + usdcAssetId);
 
@@ -877,7 +1035,9 @@ async function testNearSDK() {
       await redeemOnNear(user2Account, token_bridge, transferAlgoToNearP3)
     );
 
-    console.log("YYY P3 transfering rando from Algo To Near... getting the vaa");
+    console.log(
+      "YYY P3 transfering rando from Algo To Near... getting the vaa"
+    );
     let transferAlgoToNearRandoP3;
     {
       const Fee: number = 0;

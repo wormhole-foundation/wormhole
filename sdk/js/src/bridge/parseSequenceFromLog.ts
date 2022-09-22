@@ -111,7 +111,7 @@ export function parseSequenceFromLogAlgorand(
     class iTxn {
       "local-state-delta": [[Object]];
       logs: Buffer[] | undefined;
-      "pool-eror": string;
+      "pool-error": string;
       txn: { txn: [Object] } | undefined;
     }
     innerTxns.forEach((txn: iTxn) => {
