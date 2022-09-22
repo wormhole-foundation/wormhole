@@ -431,7 +431,7 @@ func runPurgePythNetVaas(cmd *cobra.Command, args []string) {
 	logOnly := false
 	if len(args) > 1 {
 		if args[1] != "logonly" {
-			log.Fatalf("invalid option, only \"logonly\" is supported", err)
+			log.Fatalf("invalid option, only \"logonly\" is supported")
 		}
 
 		logOnly = true
