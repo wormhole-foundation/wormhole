@@ -1,1 +1,1 @@
-export { AptosApi } from "./api";
+export { WormholeAptosApi } from "./api";

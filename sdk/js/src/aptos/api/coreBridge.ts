@@ -1,9 +1,9 @@
 import { AptosAccount } from "aptos";
 import { ChainId, CONTRACTS, Network } from "../../utils";
 import { AptosClientWrapper } from "../client";
-import { AptosBaseApi } from "./base";
+import { WormholeAptosBaseApi } from "./base";
 
-export class AptosWormholeApi extends AptosBaseApi {
+export class WormholeAptosCoreBridgeApi extends WormholeAptosBaseApi {
   constructor(client: AptosClientWrapper, network: Network) {
     super(client);
     this.address = CONTRACTS[network].aptos.core;

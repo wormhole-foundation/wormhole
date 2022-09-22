@@ -1,17 +1,17 @@
 import { Network } from "../../utils";
 import { AptosClientWrapper } from "../client";
-import { AptosTokenBridgeApi } from "./tokenBridge";
-import { AptosWormholeApi } from "./wormhole";
+import { WormholeAptosCoreBridgeApi } from "./coreBridge";
+import { AptosTokenBridgeApi as WormholeAptosTokenBridgeApi } from "./tokenBridge";
 
-export class AptosApi {
-  wormhole: AptosWormholeApi;
-  tokenBridge: AptosTokenBridgeApi;
+export class WormholeAptosApi {
+  wormhole: WormholeAptosCoreBridgeApi;
+  tokenBridge: WormholeAptosTokenBridgeApi;
 
   private client: AptosClientWrapper;
 
   constructor(client: AptosClientWrapper, network: Network) {
     this.client = client;
-    this.wormhole = new AptosWormholeApi(this.client, network);
-    this.tokenBridge = new AptosTokenBridgeApi(this.client, network);
+    this.wormhole = new WormholeAptosCoreBridgeApi(this.client, network);
+    this.tokenBridge = new WormholeAptosTokenBridgeApi(this.client, network);
   }
 }
