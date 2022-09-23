@@ -106,10 +106,13 @@ module wormhole::contract_upgrade {
         assert!(exists<UpgradeAuthorized>(@wormhole), E_UPGRADE_UNAUTHORIZED);
         let UpgradeAuthorized { hash } = move_from<UpgradeAuthorized>(@wormhole);
 
+        // we compute the hash of hashes of the metadata and the bytecodes.
+        // the aptos framework appears to perform no validation of the metadata,
+        // so we check it here too.
         let c = copy code;
         vector::reverse(&mut c);
-        let a = vector::empty<u8>();
-        while (!vector::is_empty(&c)) vector::append(&mut a, vector::pop_back(&mut c));
+        let a = keccak256(metadata_serialized);
+        while (!vector::is_empty(&c)) vector::append(&mut a, keccak256(vector::pop_back(&mut c)));
         assert!(keccak256(a) == hash, E_UNEXPECTED_HASH);
 
         let wormhole = state::wormhole_signer();
