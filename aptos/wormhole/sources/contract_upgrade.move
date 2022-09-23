@@ -12,6 +12,11 @@
 /// This two-phase process has the advantage that even if the bytecode can't be
 /// upgraded to for whatever reason, the governance VAA won't be possible to
 /// replay in the future, since the commit transaction replay protects it.
+///
+/// Additionally, there is an optional migration step that may include one-off
+/// logic to be executed after the upgrade. This has to be done in a separate
+/// transaction, because the transaction that uploads bytecode cannot execute
+/// it.
 module wormhole::contract_upgrade {
     use std::vector;
     use aptos_framework::code;
@@ -121,9 +126,24 @@ module wormhole::contract_upgrade {
 
     struct Migrating has key {}
 
+    public fun is_migrating(): bool {
+        exists<Migrating>(@wormhole)
+    }
+
     public entry fun migrate() acquires Migrating {
         assert!(exists<Migrating>(@wormhole), E_NOT_MIGRATING);
         let Migrating { } = move_from<Migrating>(@wormhole);
+
+        // NOTE: put any one-off migration logic here.
+        // Most upgrades likely won't need to do anything, in which case the
+        // rest of this function's body may be empty.
+        // Make sure to delete it after the migration has gone through
+        // successfully.
+        // WARNING: the migration does *not* proceed atomically with the
+        // upgrade (as they are done in separate transactions).
+        // If the nature of your migration absolutely requires the migration to
+        // happen before certain other functionality is available, then guard
+        // that functionality with `assert!(!is_migrating())` (from above).
     }
 }
 
