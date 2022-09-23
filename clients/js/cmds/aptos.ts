@@ -375,11 +375,12 @@ function serializePackage(p: Package): PackageBCS {
   modules.forEach(module => serializer.serializeBytes(module));
   const serializedModules = serializer.getBytes();
 
-  const codeHash = Buffer.from(sha3.keccak256(Buffer.concat(modules)), "hex")
+  const hashes = [metaBytes].concat(modules).map((x) => Buffer.from(sha3.keccak256(x), "hex"));
+  const codeHash = Buffer.from(sha3.keccak256(Buffer.concat(hashes)), "hex")
 
   return {
     meta: serializedPackageMetadata,
     bytecodes: serializedModules,
-    codeHash: codeHash
+    codeHash
   }
 }

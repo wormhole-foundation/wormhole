@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -eo pipefail
 
 function usage() {
 cat <<EOF >&2
@@ -60,7 +60,6 @@ case "$MODULE" in
 esac
 
 HASH=$(worm aptos hash-contracts $DIR)
-# devnet guardian secret..
 CONTRACT_ADDR=$(worm contract "$NETWORK" aptos "$MODULE")
 VAA=$(worm generate upgrade -c aptos -a "$HASH" -m "$MODULE" -g $GUARDIAN_SECRET)
 
