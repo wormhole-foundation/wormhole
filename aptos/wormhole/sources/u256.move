@@ -51,6 +51,13 @@ module wormhole::u256 {
     /// When attempted to divide by zero.
     const EDIV_BY_ZERO: u64 = 3;
 
+    /// TODO: removed some functionality that the prover was breaking on.
+    /// In order to keep the functions backwards compatible, we keep the
+    /// signatures but revert immediately.
+    /// A better solution would be figuring out a way to skip checking them
+    /// in the prover, and just restore the original functionality.
+    const EUNSUPPORTED: u64 = 4;
+
     // Constants.
 
     /// Max `u64` value.
@@ -286,6 +293,10 @@ module wormhole::u256 {
 
         assert!(carry == 0, EOVERFLOW);
         ret
+    }
+
+    public fun div(_a: U256, _b: U256): U256 {
+        abort EUNSUPPORTED
     }
 
     /// Shift right `a`  by `shift`.
