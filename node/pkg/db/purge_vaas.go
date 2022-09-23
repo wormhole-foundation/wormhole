@@ -36,8 +36,10 @@ func (d *Database) PurgeVaas(prefix VAAID, oldestTime time.Time, logOnly bool) (
 				if v.Timestamp.Before(oldestTime) {
 					numDeleted++
 					if !logOnly {
-						err := d.db.DropPrefix(key)
-						if err != nil {
+						if err := d.db.Update(func(txn *badger.Txn) error {
+							err := txn.Delete(key)
+							return err
+						}); err != nil {
 							return fmt.Errorf("failed to delete vaa for key [%v]: %w", key, err)
 						}
 					}

@@ -424,8 +424,8 @@ func runPurgePythNetVaas(cmd *cobra.Command, args []string) {
 		log.Fatalf("invalid DAYS_OLD: %v", err)
 	}
 
-	if daysOld <= 0 {
-		log.Fatalf("DAYS_OLD must be at least one")
+	if daysOld < 0 {
+		log.Fatalf("DAYS_OLD may not be negative")
 	}
 
 	logOnly := false
@@ -437,7 +437,7 @@ func runPurgePythNetVaas(cmd *cobra.Command, args []string) {
 		logOnly = true
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	conn, c, err := getAdminClient(ctx, *clientSocketPath)
