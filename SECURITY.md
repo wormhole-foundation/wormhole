@@ -32,6 +32,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **Q3 2022 - Certik (DRAFT)**: _Terra Contracts_
 - **Q3 2022 - Certik (DRAFT)**: _Guardian_
 - **Q3 2022 - Certik (DRAFT)**: _Solitaire_
+- **Q3 2022 - OtterSec (TESTING)**: _Aptos Contracts_
 - **Q3 2022 - Coinspect (SCHEDULED)**: _Algorand Contracts_
 - **Q3 2022 - Hacken (SCHEDULED)**: _NEAR Contracts_
 - **Q1 2023 - Trail of Bits (SCHEDULED)**: _Guardian_
