@@ -17,7 +17,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Terra Contracts_
 - **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Guardian_
 - **[January 2022 - Neodyme](https://storage.googleapis.com/wormhole-audits/2022-01-10_neodyme.pdf)**: _Solitaire_
-- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Ethereum Contracts
+- **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Ethereum Contracts_
 - **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Solana Contracts_
 - **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Terra Contracts_
 - **[July 2022 - Kudelski](https://storage.googleapis.com/wormhole-audits/2022-07-01_kudelski.pdf)**: _Guardian_
@@ -32,8 +32,6 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **Q3 2022 - Certik (DRAFT)**: _Terra Contracts_
 - **Q3 2022 - Certik (DRAFT)**: _Guardian_
 - **Q3 2022 - Certik (DRAFT)**: _Solitaire_
-- **Q3 2022 - Trail of Bits (TESTING)**: _Solana Contracts_
-- **Q3 2022 - Trail of Bits (TESTING)**: _CosmWasm Contracts_
 - **Q3 2022 - OtterSec (TESTING)**: _Aptos Contracts_
 - **Q3 2022 - Coinspect (SCHEDULED)**: _Algorand Contracts_
 - **Q3 2022 - Hacken (SCHEDULED)**: _NEAR Contracts_
