@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"

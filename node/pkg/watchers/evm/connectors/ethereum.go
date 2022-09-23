@@ -3,9 +3,10 @@ package connectors
 import (
 	"context"
 
+	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
+
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
-	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
 	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethCommon "github.com/ethereum/go-ethereum/common"

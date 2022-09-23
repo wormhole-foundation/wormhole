@@ -20,7 +20,7 @@ import (
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	cosmwasm "github.com/certusone/wormhole/node/pkg/terra"
+	cosmwasm "github.com/certusone/wormhole/node/pkg/watchers/terra"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/tidwall/gjson"

@@ -3,8 +3,8 @@ package connectors
 import (
 	"context"
 
-	celoAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/celoabi"
-	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
+	celoAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/celoabi"
+	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	celoBind "github.com/celo-org/celo-blockchain/accounts/abi/bind"
 	celoCommon "github.com/celo-org/celo-blockchain/common"
