@@ -25,7 +25,6 @@ import (
 
 type SolanaWatcher struct {
 	contract     solana.PublicKey
-	wsUrl        string
 	rpcUrl       string
 	commitment   rpc.CommitmentType
 	messageEvent chan *common.MessagePublication
@@ -107,7 +106,7 @@ type PostMessageData struct {
 }
 
 func NewSolanaWatcher(
-	wsUrl, rpcUrl string,
+	rpcUrl string,
 	contractAddress solana.PublicKey,
 	messageEvents chan *common.MessagePublication,
 	obsvReqC chan *gossipv1.ObservationRequest,
@@ -115,8 +114,8 @@ func NewSolanaWatcher(
 	readiness readiness.Component,
 	chainID vaa.ChainID) *SolanaWatcher {
 	return &SolanaWatcher{
-		contract: contractAddress,
-		wsUrl:    wsUrl, rpcUrl: rpcUrl,
+		rpcUrl:       rpcUrl,
+		contract:     contractAddress,
 		messageEvent: messageEvents,
 		obsvReqC:     obsvReqC,
 		commitment:   commitment,
