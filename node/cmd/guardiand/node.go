@@ -11,7 +11,7 @@ import (
 	"path"
 	"strings"
 
-	cosmwasm "github.com/certusone/wormhole/node/pkg/watchers/terra"
+	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
