@@ -289,18 +289,11 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	if v.EmitterChain == vaa.ChainIDPythNet {
 		_, exists := p.getPythNetVAA(v)
 		if exists {
-			p.logger.Debug("ignored SignedVAAWithQuorum message for pythnet VAA we already store",
-				zap.String("digest", hash),
-			)
+			p.logger.Debug("PYTHNET: ignored SignedVAAWithQuorum message for pythnet VAA we already store", zap.String("message_id", v.MessageID()))
 			return
 		}
 
-		p.logger.Info("storing inbound signed pythnet VAA with quorum",
-			zap.String("digest", hash),
-			zap.Any("vaa", v),
-			zap.String("bytes", hex.EncodeToString(m.Vaa)),
-			zap.String("message_id", v.MessageID()))
-
+		p.logger.Info("PYTHNET: storing inbound signed pythnet VAA with quorum", zap.String("message_id", v.MessageID()))
 		p.storePythNetVAA(v)
 	} else { // Not PythNet
 		_, err = p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v))

@@ -75,7 +75,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			if ourVaa, ok := s.ourObservation.(*VAA); ok {
 				if ourVaa.VAA.EmitterChain == vaa.ChainIDPythNet {
 					if p.deletePythNetVAA(&ourVaa.VAA) {
-						p.logger.Info("Expiring late pythnet VAA", zap.String("digest", hash), zap.Duration("delta", delta))
+						p.logger.Info("PYTHNET: expiring late pythnet VAA", zap.String("message_id", ourVaa.MessageID()), zap.Duration("delta", delta))
 					}
 				} else {
 					if _, err := p.db.GetSignedVAABytes(*db.VaaIDFromVAA(&ourVaa.VAA)); err == nil {
@@ -236,7 +236,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 	oldestTime := time.Now().Add(-time.Hour)
 	for key, pe := range p.pythnetVaas {
 		if pe.updateTime.Before(oldestTime) {
-			p.logger.Info("dropping old pythnet vaa", zap.String("key", key), zap.Stringer("updateTime", pe.updateTime))
+			p.logger.Info("PYTHNET: dropping old pythnet vaa", zap.String("message_id", key), zap.Stringer("updateTime", pe.updateTime))
 			delete(p.pythnetVaas, key)
 		}
 	}

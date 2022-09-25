@@ -106,14 +106,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		existing, exists := p.getPythNetVAA(&v.VAA)
 		if exists {
 			if k.Timestamp.Sub(existing.Timestamp) > settlementTime {
-				p.logger.Info("ignoring pythnet observation since we already have a quorum VAA for it",
-					zap.Stringer("emitter_chain", k.EmitterChain),
-					zap.Stringer("emitter_address", k.EmitterAddress),
-					zap.String("emitter_address_b58", base58.Encode(k.EmitterAddress.Bytes())),
-					zap.Uint32("nonce", k.Nonce),
-					zap.Stringer("txhash", k.TxHash),
-					zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
-					zap.Time("timestamp", k.Timestamp),
+				p.logger.Info("PYTHNET: ignoring pythnet observation since we already have a quorum VAA for it",
 					zap.String("message_id", v.MessageID()),
 					zap.Duration("settlement_time", settlementTime),
 				)
