@@ -971,27 +971,27 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Query_GuardianSet_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"certusone", "wormholechain", "wormhole", "guardianSet", "index"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_GuardianSet_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"wormhole_foundation", "wormholechain", "wormhole", "guardianSet", "index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_GuardianSetAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "wormhole", "guardianSet"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_GuardianSetAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "wormhole", "guardianSet"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_Config_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "wormhole", "config"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_Config_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "wormhole", "config"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_ReplayProtection_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"certusone", "wormholechain", "wormhole", "replayProtection", "index"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ReplayProtection_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"wormhole_foundation", "wormholechain", "wormhole", "replayProtection", "index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_ReplayProtectionAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "wormhole", "replayProtection"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ReplayProtectionAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "wormhole", "replayProtection"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_SequenceCounter_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"certusone", "wormholechain", "wormhole", "sequenceCounter", "index"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_SequenceCounter_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"wormhole_foundation", "wormholechain", "wormhole", "sequenceCounter", "index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_SequenceCounterAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "wormhole", "sequenceCounter"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_SequenceCounterAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "wormhole", "sequenceCounter"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_ConsensusGuardianSetIndex_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "wormhole", "consensus_guardian_set_index"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ConsensusGuardianSetIndex_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "wormhole", "consensus_guardian_set_index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_GuardianValidator_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"certusone", "wormholechain", "wormhole", "guardian_validator", "guardianKey"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_GuardianValidator_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"wormhole_foundation", "wormholechain", "wormhole", "guardian_validator", "guardianKey"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_GuardianValidatorAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "wormhole", "guardian_validator"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_GuardianValidatorAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "wormhole", "guardian_validator"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_LatestGuardianSetIndex_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "wormhole", "latest_guardian_set_index"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_LatestGuardianSetIndex_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "wormhole", "latest_guardian_set_index"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

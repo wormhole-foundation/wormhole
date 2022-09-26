@@ -673,19 +673,19 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Query_Config_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "tokenbridge", "config"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_Config_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "tokenbridge", "config"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_ReplayProtection_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"certusone", "wormholechain", "tokenbridge", "replayProtection", "index"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ReplayProtection_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"wormhole_foundation", "wormholechain", "tokenbridge", "replayProtection", "index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_ReplayProtectionAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "tokenbridge", "replayProtection"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ReplayProtectionAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "tokenbridge", "replayProtection"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_ChainRegistration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"certusone", "wormholechain", "tokenbridge", "chainRegistration", "chainID"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ChainRegistration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"wormhole_foundation", "wormholechain", "tokenbridge", "chainRegistration", "chainID"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_ChainRegistrationAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "tokenbridge", "chainRegistration"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ChainRegistrationAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "tokenbridge", "chainRegistration"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_CoinMetaRollbackProtection_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"certusone", "wormholechain", "tokenbridge", "coinMetaRollbackProtection", "index"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_CoinMetaRollbackProtection_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"wormhole_foundation", "wormholechain", "tokenbridge", "coinMetaRollbackProtection", "index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_CoinMetaRollbackProtectionAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"certusone", "wormholechain", "tokenbridge", "coinMetaRollbackProtection"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_CoinMetaRollbackProtectionAll_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"wormhole_foundation", "wormholechain", "tokenbridge", "coinMetaRollbackProtection"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

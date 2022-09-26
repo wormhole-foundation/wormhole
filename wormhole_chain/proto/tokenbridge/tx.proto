@@ -1,5 +1,5 @@
 syntax = "proto3";
-package certusone.wormholechain.tokenbridge;
+package wormhole_foundation.wormholechain.tokenbridge;
 
 import "gogoproto/gogo.proto";
 import "cosmos/base/v1beta1/coin.proto";
