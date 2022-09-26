@@ -216,6 +216,8 @@ const contract_registrations = {
     process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA,
     // TERRA
     process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA,
+    // NEAR
+    process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
   ],
 };
 

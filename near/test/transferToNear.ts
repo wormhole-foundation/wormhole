@@ -292,11 +292,15 @@ async function transferTest() {
   console.log("VAA received!");
   console.log(uint8ArrayToHex(signedVAA));
 
-  await redeemOnNear(
-    userAccount,
+  const redeemMsgs = await redeemOnNear(
+    userAccount.connection.provider,
+    userAccount.accountId,
     CONTRACTS.MAINNET.near.token_bridge,
     signedVAA
   );
+  for (const msg of redeemMsgs) {
+    await userAccount.functionCall(msg);
+  }
 
   console.log("Redeemed!");
 

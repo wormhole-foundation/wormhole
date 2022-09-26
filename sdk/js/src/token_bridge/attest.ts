@@ -11,21 +11,26 @@ import {
   OnApplicationComplete,
   SuggestedParams,
 } from "algosdk";
-import { Account as nearAccount } from "near-api-js";
-const BN = require("bn.js");
+import BN from "bn.js";
 import { ethers, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
 import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
-import { textToHexString, textToUint8Array, uint8ArrayToHex } from "../utils";
+import {
+  callFunctionNear,
+  hashAccount,
+  textToHexString,
+  textToUint8Array,
+  uint8ArrayToHex,
+} from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
-import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
-
 import { getIsWrappedAssetNear } from ".";
 import { isNativeDenomInjective } from "../cosmwasm";
+import { Provider } from "near-api-js/lib/providers";
+import { FunctionCallOptions } from "near-api-js/lib/account";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -240,37 +245,23 @@ export async function attestFromAlgorand(
   return txs;
 }
 
-/**
- * Attest an already created asset
- * If you create a new asset on near and want to transfer it elsewhere,
- * you create an attestation for it on near... pass that vaa to the target chain..
- * submit it.. then you can transfer from near to that target chain
- * @param client An Near account client
- * @param coreBridge The account for the core bridge
- * @param tokenBridge The account for the token bridge
- * @param asset The account for the asset
- * @returns [sequenceNumber, emitter]
- */
 export async function attestTokenFromNear(
-  client: nearAccount,
+  provider: Provider,
   coreBridge: string,
   tokenBridge: string,
   asset: string
-): Promise<[number, string]> {
-  let message_fee = await client.viewFunction(coreBridge, "message_fee", {});
-  // Non-signing event
+): Promise<FunctionCallOptions[]> {
+  const options: FunctionCallOptions[] = [];
+  const messageFee = await callFunctionNear(
+    provider,
+    coreBridge,
+    "message_fee"
+  );
   if (!getIsWrappedAssetNear(tokenBridge, asset)) {
-    // Non-signing event that hits the RPC
-    let res = await client.viewFunction(tokenBridge, "hash_account", {
-      account: asset,
-    });
-
-    // if res[0] == false, the account has not been
-    // registered... The first user to attest a non-wormhole token
-    // is gonna have to pay for the space
-    if (!res[0]) {
-      // Signing event
-      await client.functionCall({
+    const { isRegistered } = await hashAccount(provider, tokenBridge, asset);
+    if (!isRegistered) {
+      // The account has not been registered. The first user to attest a non-wormhole token pays for the space
+      options.push({
         contractId: tokenBridge,
         methodName: "register_account",
         args: { account: asset },
@@ -279,41 +270,28 @@ export async function attestTokenFromNear(
       });
     }
   }
-
-  // Signing event
-  let result = await client.functionCall({
+  options.push({
     contractId: tokenBridge,
     methodName: "attest_token",
-    args: { token: asset, message_fee: message_fee },
-    attachedDeposit: new BN("3000000000000000000000").add(new BN(message_fee)), // 0.003 NEAR
+    args: { token: asset, message_fee: messageFee },
+    attachedDeposit: new BN("3000000000000000000000").add(new BN(messageFee)), // 0.003 NEAR
     gas: new BN("100000000000000"),
   });
-
-  return parseSequenceFromLogNear(result);
+  return options;
 }
 
-/**
- * Attest NEAR
- * @param client An Near account client
- * @param coreBridge The account for the core bridge
- * @param tokenBridge The account for the token bridge
- * @returns [sequenceNumber, emitter]
- */
 export async function attestNearFromNear(
-  client: nearAccount,
+  provider: Provider,
   coreBridge: string,
   tokenBridge: string
-): Promise<[number, string]> {
-  let message_fee =
-    (await client.viewFunction(coreBridge, "message_fee", {})) + 1;
-
-  let result = await client.functionCall({
+): Promise<FunctionCallOptions> {
+  const messageFee =
+    (await callFunctionNear(provider, coreBridge, "message_fee")) + 1;
+  return {
     contractId: tokenBridge,
     methodName: "attest_near",
-    args: { message_fee: message_fee },
-    attachedDeposit: new BN(message_fee),
+    args: { message_fee: messageFee },
+    attachedDeposit: new BN(messageFee),
     gas: new BN("100000000000000"),
-  });
-
-  return parseSequenceFromLogNear(result);
+  };
 }
