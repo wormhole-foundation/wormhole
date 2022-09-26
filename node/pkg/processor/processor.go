@@ -256,7 +256,7 @@ func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
 	}
 
 	vaa, err := vaa.Unmarshal(vb)
-	if err == nil {
+	if err != nil {
 		panic("failed to unmarshal VAA from db")
 	}
 
