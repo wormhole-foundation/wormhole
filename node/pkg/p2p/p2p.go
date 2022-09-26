@@ -229,7 +229,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 					collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 					if gov != nil {
-						gov.CollectMetrics(heartbeat)
+						gov.CollectMetrics(heartbeat, sendC, gk, ourAddr)
 					}
 
 					b, err := proto.Marshal(heartbeat)
@@ -407,6 +407,10 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 
 					obsvReqC <- r
 				}
+			case *gossipv1.GossipMessage_SignedChainGovernorConfig:
+				logger.Debug("cgov: received config message")
+			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
+				logger.Debug("cgov: received status message")
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
 				logger.Warn("received unknown message type (running outdated software?)",

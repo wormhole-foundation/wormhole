@@ -12,6 +12,8 @@ message GossipMessage {
     SignedObservationRequest signed_observation_request = 5;
     SignedBatchObservation signed_batch_observation = 6;
     SignedBatchVAAWithQuorum signed_batch_vaa_with_quorum = 7;
+    SignedChainGovernorConfig signed_chain_governor_config = 8;
+    SignedChainGovernorStatus signed_chain_governor_status = 9;
   }
 }
 
@@ -144,4 +146,74 @@ message SignedBatchObservation {
 
 message SignedBatchVAAWithQuorum {
   bytes batch_vaa = 1;
+}
+
+// This message is published every five minutes.
+message SignedChainGovernorConfig {
+  // Serialized ChainGovernorConfig message.
+  bytes config = 1;
+
+  // ECDSA signature using the node's guardian key.
+  bytes signature = 2;
+
+  // Guardian address that signed this payload (truncated Eth address).
+  bytes guardian_addr = 3;
+}
+
+message ChainGovernorConfig {
+  message Chain {
+    uint32 chain_id = 1;
+    uint64 notional_limit = 2;
+    uint64 big_transaction_size = 3;
+  }
+
+  message Token {
+    uint32 origin_chain_id = 1;
+    string origin_address = 2; // human-readable hex-encoded (leading 0x)
+    float price = 3;
+  }
+
+  string node_name = 1;
+  int64 counter = 2;
+  int64 timestamp = 3;
+  repeated Chain chains = 4;
+  repeated Token tokens = 5;
+}
+
+// This message is published every minute.
+message SignedChainGovernorStatus {
+  // Serialized ChainGovernorStatus message.
+  bytes status = 1;
+
+  // ECDSA signature using the node's guardian key.
+  bytes signature = 2;
+
+  // Guardian address that signed this payload (truncated Eth address).
+  bytes guardian_addr = 3;
+}
+
+message ChainGovernorStatus {
+  message EnqueuedVAA {
+    uint64 sequence = 1; // Chain and emitter address are assumed.
+    uint32 release_time = 2;
+    uint64 notional_value = 3;
+    string tx_hash = 4;
+  }
+
+  message Emitter {
+    string emitter_address = 1; // human-readable hex-encoded (leading 0x)
+    uint64 total_enqueued_vaas = 2;
+    repeated EnqueuedVAA enqueued_vaas = 3; // Only the first 20 will be included.
+  }
+
+  message Chain {
+    uint32 chain_id = 1;
+    uint64 remaining_available_notional = 2;
+    repeated Emitter emitters = 3;
+  }
+
+  string node_name = 1;
+  int64 counter = 2;
+  int64 timestamp = 3;
+  repeated Chain chains = 4;
 }

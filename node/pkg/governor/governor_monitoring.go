@@ -60,9 +60,22 @@
 // - This is a single metric that indicates the total number of enqueued VAAs across all chains. This provides a quick check if
 //   anything is currently being limited.
 
+// The chain governor also publishes the following messages to the gossip network
+//
+// SignedChainGovernorConfig
+// - Published once every five minutes.
+// - Contains a list of configured chains, along with the daily limit, big transaction size and current price.
+//
+// - SignedChainGovernorStatus
+//   - Published once a minute.
+//   - Contains a list of configured chains along with their remaining available notional value, the number of enqueued VAAs
+//     and information on zero or more enqueued VAAs.
+//   - Only the first 20 enqueued VAAs are include, to constrain the message size.
+
 package governor
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"sort"
 	"time"
@@ -73,8 +86,13 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // Admin command to display status to the log.
@@ -378,7 +396,7 @@ var (
 		})
 )
 
-func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat) {
+func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -431,4 +449,152 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat) {
 	}
 
 	metricTotalEnqueuedVAAs.Set(float64(totalPending))
+
+	if startTime.After(gov.nextConfigPublishTime) {
+		gov.publishConfig(hb, sendC, gk, ourAddr)
+		gov.nextConfigPublishTime = startTime.Add(time.Minute * time.Duration(5))
+	}
+
+	if startTime.After(gov.nextStatusPublishTime) {
+		gov.publishStatus(hb, sendC, startTime, gk, ourAddr)
+		gov.nextStatusPublishTime = startTime.Add(time.Minute)
+	}
+}
+
+var governorMessagePrefix = []byte("governor|")
+
+func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
+	for _, ce := range gov.chains {
+		chains = append(chains, &gossipv1.ChainGovernorConfig_Chain{
+			ChainId:            uint32(ce.emitterChainId),
+			NotionalLimit:      ce.dailyLimit,
+			BigTransactionSize: ce.bigTransactionSize,
+		})
+	}
+
+	tokens := make([]*gossipv1.ChainGovernorConfig_Token, 0)
+	for tk, te := range gov.tokens {
+		price, _ := te.price.Float32()
+		tokens = append(tokens, &gossipv1.ChainGovernorConfig_Token{
+			OriginChainId: uint32(tk.chain),
+			OriginAddress: "0x" + tk.addr.String(),
+			Price:         price,
+		})
+	}
+
+	gov.configPublishCounter += 1
+	payload := &gossipv1.ChainGovernorConfig{
+		NodeName:  hb.NodeName,
+		Counter:   gov.configPublishCounter,
+		Timestamp: hb.Timestamp,
+		Chains:    chains,
+		Tokens:    tokens,
+	}
+
+	b, err := proto.Marshal(payload)
+	if err != nil {
+		gov.logger.Error("cgov: failed to marshal config message", zap.Error(err))
+		return
+	}
+
+	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefix, b...))
+
+	sig, err := ethCrypto.Sign(digest.Bytes(), gk)
+	if err != nil {
+		panic(err)
+	}
+
+	msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedChainGovernorConfig{
+		SignedChainGovernorConfig: &gossipv1.SignedChainGovernorConfig{
+			Config:       b,
+			Signature:    sig,
+			GuardianAddr: ourAddr.Bytes(),
+		}}}
+
+	b, err = proto.Marshal(&msg)
+	if err != nil {
+		panic(err)
+	}
+
+	sendC <- b
+}
+
+func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
+	numEnqueued := 0
+	for _, ce := range gov.chains {
+		value := sumValue(ce.transfers, startTime)
+		if value >= ce.dailyLimit {
+			value = 0
+		} else {
+			value = ce.dailyLimit - value
+		}
+
+		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
+		for _, pe := range ce.pending {
+			value, err := computeValue(pe.amount, pe.token)
+			if err != nil {
+				gov.logger.Error("cgov: failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
+				value = 0
+			}
+
+			if numEnqueued < 20 {
+				numEnqueued = numEnqueued + 1
+				enqueuedVaas = append(enqueuedVaas, &gossipv1.ChainGovernorStatus_EnqueuedVAA{
+					Sequence:      pe.dbData.Msg.Sequence,
+					ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()),
+					NotionalValue: value,
+					TxHash:        pe.dbData.Msg.TxHash.String(),
+				})
+			}
+		}
+
+		emitter := gossipv1.ChainGovernorStatus_Emitter{
+			EmitterAddress:    "0x" + ce.emitterAddr.String(),
+			TotalEnqueuedVaas: uint64(len(ce.pending)),
+			EnqueuedVaas:      enqueuedVaas,
+		}
+
+		chains = append(chains, &gossipv1.ChainGovernorStatus_Chain{
+			ChainId:                    uint32(ce.emitterChainId),
+			RemainingAvailableNotional: value,
+			Emitters:                   []*gossipv1.ChainGovernorStatus_Emitter{&emitter},
+		})
+	}
+
+	gov.statusPublishCounter += 1
+	payload := &gossipv1.ChainGovernorStatus{
+		NodeName:  hb.NodeName,
+		Counter:   gov.statusPublishCounter,
+		Timestamp: hb.Timestamp,
+		Chains:    chains,
+	}
+
+	b, err := proto.Marshal(payload)
+	if err != nil {
+		gov.logger.Error("cgov: failed to marshal status message", zap.Error(err))
+		return
+	}
+
+	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefix, b...))
+
+	sig, err := ethCrypto.Sign(digest.Bytes(), gk)
+	if err != nil {
+		panic(err)
+	}
+
+	msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedChainGovernorStatus{
+		SignedChainGovernorStatus: &gossipv1.SignedChainGovernorStatus{
+			Status:       b,
+			Signature:    sig,
+			GuardianAddr: ourAddr.Bytes(),
+		}}}
+
+	b, err = proto.Marshal(&msg)
+	if err != nil {
+		panic(err)
+	}
+
+	sendC <- b
 }
