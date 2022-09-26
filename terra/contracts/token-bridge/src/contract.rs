@@ -33,6 +33,7 @@ use terra_cosmwasm::TerraQuerier;
 use wormhole::{
     byte_utils::{
         extend_address_to_32,
+        extend_address_to_32_array,
         extend_string_to_32,
         get_string_from_32,
         ByteUtils,
@@ -256,9 +257,12 @@ pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
         Action::TRANSFER_WITH_PAYLOAD => {
             let info = TransferWithPayloadInfo::deserialize(&token_bridge_message.payload)?;
             Ok((
-                info.transfer_info,
+                info.as_transfer_info(),
                 TransferType::WithPayload {
-                    payload: info.payload,
+                    // put both the payload and sender_address into the payload
+                    // field here (which we can do, since [`TransferType`] is
+                    // parametric)
+                    payload: (info.payload, info.sender_address),
                 },
             ))
         }
@@ -296,8 +300,13 @@ pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
         TransferType::WithPayload { payload } => TokenBridgeMessage {
             action: Action::TRANSFER_WITH_PAYLOAD,
             payload: TransferWithPayloadInfo {
-                transfer_info,
-                payload,
+                amount: transfer_info.amount,
+                token_address: transfer_info.token_address,
+                token_chain: transfer_info.token_chain,
+                recipient: transfer_info.recipient,
+                recipient_chain: transfer_info.recipient_chain,
+                sender_address: payload.1,
+                payload: payload.0,
             }
             .serialize(),
         },
@@ -843,7 +852,7 @@ fn handle_complete_transfer_token(
     let transfer_info = match transfer_type {
         TransferType::WithoutPayload => TransferInfo::deserialize(&data)?,
         TransferType::WithPayload { payload: _ } => {
-            TransferWithPayloadInfo::deserialize(&data)?.transfer_info
+            TransferWithPayloadInfo::deserialize(&data)?.as_transfer_info()
         }
     };
 
@@ -988,7 +997,7 @@ fn handle_complete_transfer_token_native(
     let transfer_info = match transfer_type {
         TransferType::WithoutPayload => TransferInfo::deserialize(&data)?,
         TransferType::WithPayload { payload: () } => {
-            TransferWithPayloadInfo::deserialize(&data)?.transfer_info
+            TransferWithPayloadInfo::deserialize(&data)?.as_transfer_info()
         }
     };
 
@@ -1122,13 +1131,17 @@ fn handle_initiate_transfer_token(
     }
 
     let asset_chain: u16;
-    let asset_address: Vec<u8>;
+    let asset_address: [u8; 32];
 
     let cfg: ConfigInfo = config_read(deps.storage).load()?;
     let asset_canonical: CanonicalAddr = deps.api.addr_canonicalize(&asset)?;
 
     let mut messages: Vec<CosmosMsg> = vec![];
     let mut submessages: Vec<SubMsg> = vec![];
+
+    // we'll only need this for payload 3 transfers
+    let sender_address = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    let sender_address = extend_address_to_32_array(&sender_address);
 
     match wrapped_asset_address_read(deps.storage).load(asset_canonical.as_slice()) {
         Ok(_) => {
@@ -1153,30 +1166,38 @@ fn handle_initiate_transfer_token(
             let wrapped_token_info: WrappedAssetInfoResponse =
                 deps.querier.custom_query(&request)?;
             asset_chain = wrapped_token_info.asset_chain;
-            asset_address = wrapped_token_info.asset_address.into();
-
-            let transfer_info = TransferInfo {
-                token_chain: asset_chain,
-                token_address: asset_address.clone(),
-                amount: (0, amount.u128()),
-                recipient_chain,
-                recipient: recipient.to_vec(),
-                fee: (0, fee.u128()),
-            };
+            asset_address = wrapped_token_info.asset_address.to_array()?;
 
             let token_bridge_message: TokenBridgeMessage = match transfer_type {
-                TransferType::WithoutPayload => TokenBridgeMessage {
-                    action: Action::TRANSFER,
-                    payload: transfer_info.serialize(),
-                },
-                TransferType::WithPayload { payload } => TokenBridgeMessage {
-                    action: Action::TRANSFER_WITH_PAYLOAD,
-                    payload: TransferWithPayloadInfo {
-                        transfer_info,
-                        payload,
+                TransferType::WithoutPayload => {
+                    let transfer_info = TransferInfo {
+                        token_chain: asset_chain,
+                        token_address: asset_address,
+                        amount: (0, amount.u128()),
+                        recipient_chain,
+                        recipient,
+                        fee: (0, fee.u128()),
+                    };
+                    TokenBridgeMessage {
+                        action: Action::TRANSFER,
+                        payload: transfer_info.serialize(),
                     }
-                    .serialize(),
-                },
+                }
+                TransferType::WithPayload { payload } => {
+                    let transfer_info = TransferWithPayloadInfo {
+                        token_chain: asset_chain,
+                        token_address: asset_address,
+                        amount: (0, amount.u128()),
+                        recipient_chain,
+                        recipient,
+                        sender_address,
+                        payload,
+                    };
+                    TokenBridgeMessage {
+                        action: Action::TRANSFER_WITH_PAYLOAD,
+                        payload: transfer_info.serialize(),
+                    }
+                }
             };
 
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -1228,21 +1249,12 @@ fn handle_initiate_transfer_token(
                 1,
             ));
 
-            asset_address = extend_address_to_32(&asset_canonical);
+            asset_address = extend_address_to_32_array(&asset_canonical);
             asset_chain = CHAIN_ID;
 
             // convert to normalized amounts before recording & posting vaa
             amount = Uint128::new(amount.u128().checked_div(multiplier).unwrap());
             fee = Uint128::new(fee.u128().checked_div(multiplier).unwrap());
-
-            let transfer_info = TransferInfo {
-                token_chain: asset_chain,
-                token_address: asset_address.clone(),
-                amount: (0, amount.u128()),
-                recipient_chain,
-                recipient: recipient.to_vec(),
-                fee: (0, fee.u128()),
-            };
 
             // Fetch current CW20 Balance pre-transfer.
             let balance: BalanceResponse =
@@ -1264,18 +1276,35 @@ fn handle_initiate_transfer_token(
             assert!(wrapped_transfer_tmp(deps.storage).load().is_err());
 
             let token_bridge_message: TokenBridgeMessage = match transfer_type {
-                TransferType::WithoutPayload => TokenBridgeMessage {
-                    action: Action::TRANSFER,
-                    payload: transfer_info.serialize(),
-                },
-                TransferType::WithPayload { payload } => TokenBridgeMessage {
-                    action: Action::TRANSFER_WITH_PAYLOAD,
-                    payload: TransferWithPayloadInfo {
-                        transfer_info,
-                        payload,
+                TransferType::WithoutPayload => {
+                    let transfer_info = TransferInfo {
+                        amount: (0, amount.u128()),
+                        token_address: asset_address.clone(),
+                        token_chain: asset_chain,
+                        recipient,
+                        recipient_chain,
+                        fee: (0, fee.u128()),
+                    };
+                    TokenBridgeMessage {
+                        action: Action::TRANSFER,
+                        payload: transfer_info.serialize(),
                     }
-                    .serialize(),
-                },
+                }
+                TransferType::WithPayload { payload } => {
+                    let transfer_info = TransferWithPayloadInfo {
+                        amount: (0, amount.u128()),
+                        token_address: asset_address.clone(),
+                        token_chain: asset_chain,
+                        recipient,
+                        recipient_chain,
+                        sender_address,
+                        payload,
+                    };
+                    TokenBridgeMessage {
+                        action: Action::TRANSFER_WITH_PAYLOAD,
+                        payload: transfer_info.serialize(),
+                    }
+                }
             };
 
             // Wrap up state to be captured by the submessage reply.
@@ -1353,36 +1382,46 @@ fn handle_initiate_transfer_native_token(
     let mut messages: Vec<CosmosMsg> = vec![];
 
     let asset_chain: u16 = CHAIN_ID;
-    let mut asset_address: Vec<u8> = build_native_id(&denom);
+    let asset_address: CanonicalAddr = build_native_id(&denom).into();
 
-    send_native(deps.storage, &asset_address[..].into(), amount)?;
+    send_native(deps.storage, &asset_address, amount)?;
 
     // Mark the first byte of the address to distinguish it as native.
-    asset_address = extend_address_to_32(&asset_address.into());
+    let mut asset_address = extend_address_to_32_array(&asset_address);
     asset_address[0] = 1;
 
-    let transfer_info = TransferInfo {
-        token_chain: asset_chain,
-        token_address: asset_address.to_vec(),
-        amount: (0, amount.u128()),
-        recipient_chain,
-        recipient: recipient.to_vec(),
-        fee: (0, fee.u128()),
-    };
-
     let token_bridge_message: TokenBridgeMessage = match transfer_type {
-        TransferType::WithoutPayload => TokenBridgeMessage {
-            action: Action::TRANSFER,
-            payload: transfer_info.serialize(),
-        },
-        TransferType::WithPayload { payload } => TokenBridgeMessage {
-            action: Action::TRANSFER_WITH_PAYLOAD,
-            payload: TransferWithPayloadInfo {
-                transfer_info,
-                payload,
+        TransferType::WithoutPayload => {
+            let transfer_info = TransferInfo {
+                amount: (0, amount.u128()),
+                token_address: asset_address,
+                token_chain: asset_chain,
+                recipient,
+                recipient_chain,
+                fee: (0, fee.u128()),
+            };
+            TokenBridgeMessage {
+                action: Action::TRANSFER,
+                payload: transfer_info.serialize(),
             }
-            .serialize(),
-        },
+        }
+        TransferType::WithPayload { payload } => {
+            let sender_address = deps.api.addr_canonicalize(&info.sender.to_string())?;
+            let sender_address = extend_address_to_32_array(&sender_address);
+            let transfer_info = TransferWithPayloadInfo {
+                amount: (0, amount.u128()),
+                token_address: asset_address,
+                token_chain: asset_chain,
+                recipient,
+                recipient_chain,
+                sender_address,
+                payload,
+            };
+            TokenBridgeMessage {
+                action: Action::TRANSFER_WITH_PAYLOAD,
+                payload: transfer_info.serialize(),
+            }
+        }
     };
 
     let sender = deps.api.addr_canonicalize(&info.sender.as_str())?;
@@ -1447,9 +1486,22 @@ fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<Transfer
     let message = TokenBridgeMessage::deserialize(&data)?;
     match message.action {
         Action::ATTEST_META => ContractError::InvalidVAAAction.std_err(),
-        _ => {
+        Action::TRANSFER => {
+            let core = TransferInfo::deserialize(&message.payload)?;
+
+            Ok(TransferInfoResponse {
+                amount: core.amount.1.into(),
+                token_address: core.token_address,
+                token_chain: core.token_chain,
+                recipient: core.recipient,
+                recipient_chain: core.recipient_chain,
+                fee: core.fee.1.into(),
+                payload: vec![],
+            })
+        }
+        Action::TRANSFER_WITH_PAYLOAD => {
             let info = TransferWithPayloadInfo::deserialize(&message.payload)?;
-            let core = info.transfer_info;
+            let core = info.as_transfer_info();
 
             Ok(TransferInfoResponse {
                 amount: core.amount.1.into(),
@@ -1461,6 +1513,7 @@ fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<Transfer
                 payload: info.payload,
             })
         }
+        other => Err(StdError::generic_err(format!("Invalid action: {}", other))),
     }
 }
 
