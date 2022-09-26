@@ -29,6 +29,7 @@ use terraswap::asset::{
     AssetInfo,
 };
 
+use terra_cosmwasm::TerraQuerier;
 use wormhole::{
     byte_utils::{
         extend_address_to_32,
@@ -58,12 +59,14 @@ use cosmwasm_std::{
     CanonicalAddr,
     Coin,
     CosmosMsg,
+    Decimal,
     Deps,
     DepsMut,
     Empty,
     Env,
     MessageInfo,
     Order,
+    QuerierWrapper,
     QueryRequest,
     Reply,
     Response,
@@ -325,7 +328,7 @@ pub fn coins_after_tax(deps: DepsMut, coins: Vec<Coin>) -> StdResult<Vec<Coin>> 
                 denom: coin.denom.clone(),
             },
         };
-        res.push(asset.deduct_tax(&deps.querier)?);
+        res.push(deduct_tax(&asset, &deps.querier)?);
     }
     Ok(res)
 }
@@ -1484,4 +1487,43 @@ pub fn build_native_id(denom: &str) -> Vec<u8> {
 
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &Vec<u8>) -> bool {
     cfg.gov_chain == emitter_chain && cfg.gov_address == emitter_address.clone()
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Tax calculation
+
+// the code below has been lifted from
+// https://github.com/terraswap/terraswap/blob/7cf47f5e811fe0c4643a7cd09500702c1e7f3a6b/packages/terraswap/src/asset.rs#L25-L64
+// but with luna tax enabled instead of defaulting it to 0
+
+static DECIMAL_FRACTION: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
+
+pub fn compute_tax(asset: &Asset, querier: &QuerierWrapper) -> StdResult<Uint128> {
+    let amount = asset.amount;
+    if let AssetInfo::NativeToken { denom } = &asset.info {
+        let terra_querier = TerraQuerier::new(querier);
+        let tax_rate: Decimal = (terra_querier.query_tax_rate()?).rate;
+        let tax_cap: Uint128 = (terra_querier.query_tax_cap(denom.to_string())?).cap;
+        Ok(std::cmp::min(
+            amount.checked_sub(amount.multiply_ratio(
+                DECIMAL_FRACTION,
+                DECIMAL_FRACTION * tax_rate + DECIMAL_FRACTION,
+            ))?,
+            tax_cap,
+        ))
+    } else {
+        Ok(Uint128::zero())
+    }
+}
+
+pub fn deduct_tax(asset: &Asset, querier: &QuerierWrapper) -> StdResult<Coin> {
+    let amount = asset.amount;
+    if let AssetInfo::NativeToken { denom } = &asset.info {
+        Ok(Coin {
+            denom: denom.to_string(),
+            amount: amount.checked_sub(compute_tax(asset, querier)?)?,
+        })
+    } else {
+        Err(StdError::generic_err("cannot deduct tax from token asset"))
+    }
 }
