@@ -9,6 +9,7 @@ import (
 
 type VAA struct {
 	vaa.VAA
+	Unreliable bool
 }
 
 func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
@@ -44,4 +45,8 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	p.broadcastSignedVAA(signed)
 	p.attestationEvents.ReportVAAQuorum(signed)
 	p.state.signatures[hash].submitted = true
+}
+
+func (v *VAA) IsReliable() bool {
+	return !v.Unreliable
 }

@@ -178,12 +178,19 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			aggregationStateTimeout.Inc()
 		case !s.submitted && delta.Minutes() >= 5 && time.Since(s.lastRetry) >= retryTime:
 			// Poor observation has been unsubmitted for five minutes - clearly, something went wrong.
-			// If we have previously submitted an observation, we can make another attempt to get it over
-			// the finish line by sending a re-observation request to the network and rebroadcasting our
+			// If we have previously submitted an observation, and it was reliable, we can make another attempt to get
+			// it over the finish line by sending a re-observation request to the network and rebroadcasting our
 			// sig. If we do not have an observation, it means we either never observed it, or it got
 			// revived by a malfunctioning guardian node, in which case, we can't do anything about it
 			// and just delete it to keep our state nice and lean.
 			if s.ourMsg != nil {
+				// Unreliable observations cannot be resubmitted and can be considered failed after 5 minutes
+				if !s.ourObservation.IsReliable() {
+					p.logger.Info("expiring unsubmitted unreliable observation", zap.String("digest", hash), zap.Duration("delta", delta))
+					delete(p.state.signatures, hash)
+					aggregationStateTimeout.Inc()
+					break
+				}
 				p.logger.Info("resubmitting observation",
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
