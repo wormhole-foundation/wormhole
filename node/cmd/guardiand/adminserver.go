@@ -485,3 +485,16 @@ func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Conte
 		Response: resp,
 	}, nil
 }
+
+func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev1.PurgePythNetVaasRequest) (*nodev1.PurgePythNetVaasResponse, error) {
+	prefix := db.VAAID{EmitterChain: vaa.ChainIDPythNet}
+	oldestTime := time.Now().Add(-time.Hour * 24 * time.Duration(req.DaysOld))
+	resp, err := s.db.PurgeVaas(prefix, oldestTime, req.LogOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.PurgePythNetVaasResponse{
+		Response: resp,
+	}, nil
+}

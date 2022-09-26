@@ -55,6 +55,7 @@ func init() {
 	ClientChainGovernorDropPendingVAACmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReleasePendingVAACmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorResetReleaseTimerCmd.Flags().AddFlagSet(pf)
+	PurgePythNetVaasCmd.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
@@ -67,6 +68,7 @@ func init() {
 	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
 	AdminCmd.AddCommand(ClientChainGovernorReleasePendingVAACmd)
 	AdminCmd.AddCommand(ClientChainGovernorResetReleaseTimerCmd)
+	AdminCmd.AddCommand(PurgePythNetVaasCmd)
 }
 
 var AdminCmd = &cobra.Command{
@@ -135,6 +137,13 @@ var ClientChainGovernorResetReleaseTimerCmd = &cobra.Command{
 	Short: "Resets the release timer for a chain governor pending VAA, extending it to the configured maximum",
 	Run:   runChainGovernorResetReleaseTimer,
 	Args:  cobra.ExactArgs(1),
+}
+
+var PurgePythNetVaasCmd = &cobra.Command{
+	Use:   "purge-pythnet-vaas [DAYS_OLD] <logonly>",
+	Short: "Deletes PythNet VAAs from the database that are more than [DAYS_OLD] days only (if logonly is specified, doesn't delete anything)",
+	Run:   runPurgePythNetVaas,
+	Args:  cobra.RangeArgs(1, 2),
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
@@ -404,6 +413,46 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	resp, err := c.ChainGovernorResetReleaseTimer(ctx, &msg)
 	if err != nil {
 		log.Fatalf("failed to run ChainGovernorResetReleaseTimer RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runPurgePythNetVaas(cmd *cobra.Command, args []string) {
+	daysOld, err := strconv.Atoi(args[0])
+	if err != nil {
+		log.Fatalf("invalid DAYS_OLD: %v", err)
+	}
+
+	if daysOld < 0 {
+		log.Fatalf("DAYS_OLD may not be negative")
+	}
+
+	logOnly := false
+	if len(args) > 1 {
+		if args[1] != "logonly" {
+			log.Fatalf("invalid option, only \"logonly\" is supported")
+		}
+
+		logOnly = true
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.PurgePythNetVaasRequest{
+		DaysOld: uint64(daysOld),
+		LogOnly: logOnly,
+	}
+	resp, err := c.PurgePythNetVaas(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run PurgePythNetVaas RPC: %s", err)
 	}
 
 	fmt.Println(resp.Response)

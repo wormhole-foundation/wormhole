@@ -61,6 +61,7 @@ func VaaIDFromVAA(v *vaa.VAA) *VAAID {
 
 var (
 	ErrVAANotFound = errors.New("requested VAA not found in store")
+	nullAddr       = vaa.Address{}
 )
 
 func (i *VAAID) Bytes() []byte {
@@ -68,6 +69,9 @@ func (i *VAAID) Bytes() []byte {
 }
 
 func (i *VAAID) EmitterPrefixBytes() []byte {
+	if i.EmitterAddress == nullAddr {
+		return []byte(fmt.Sprintf("signed/%d", i.EmitterChain))
+	}
 	return []byte(fmt.Sprintf("signed/%d/%s", i.EmitterChain, i.EmitterAddress))
 }
 
