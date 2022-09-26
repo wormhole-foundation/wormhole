@@ -129,11 +129,9 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	solanaWsRPC *string
-	solanaRPC   *string
+	solanaRPC *string
 
 	pythnetContract *string
-	pythnetWsRPC    *string
 	pythnetRPC      *string
 
 	logLevel *string
@@ -246,11 +244,9 @@ func init() {
 	nearRPC = NodeCmd.Flags().String("nearRPC", "", "near RPC URL")
 	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
 
-	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
-	pythnetWsRPC = NodeCmd.Flags().String("pythnetWS", "", "PythNet Websocket URL (required")
 	pythnetRPC = NodeCmd.Flags().String("pythnetRPC", "", "PythNet RPC URL (required")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
@@ -373,10 +369,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Register components for readiness checks.
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
-	if *solanaWsRPC != "" {
+	if *solanaRPC != "" {
 		readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	}
-	if *pythnetWsRPC != "" {
+	if *pythnetRPC != "" {
 		readiness.RegisterComponent(common.ReadinessPythNetSyncing)
 	}
 	if *terraWS != "" {
@@ -603,9 +599,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *solanaContract == "" {
 			logger.Fatal("Please specify --solanaContract")
 		}
-		if *solanaWsRPC == "" {
-			logger.Fatal("Please specify --solanaWS")
-		}
 		if *solanaRPC == "" {
 			logger.Fatal("Please specify --solanaRPC")
 		}
@@ -648,9 +641,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if *pythnetContract == "" {
 			logger.Fatal("Please specify --pythnetContract")
-		}
-		if *pythnetWsRPC == "" {
-			logger.Fatal("Please specify --pythnetWS")
 		}
 		if *pythnetRPC == "" {
 			logger.Fatal("Please specify --pythnetRPC")
@@ -1033,26 +1023,26 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *solanaWsRPC != "" {
+		if *solanaRPC != "" {
 			if err := supervisor.Run(ctx, "solwatch-confirmed",
-				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessSolanaSyncing, vaa.ChainIDSolana).Run); err != nil {
+				solana.NewSolanaWatcher(*solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessSolanaSyncing, vaa.ChainIDSolana).Run); err != nil {
 				return err
 			}
 
 			if err := supervisor.Run(ctx, "solwatch-finalized",
-				solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized, common.ReadinessSolanaSyncing, vaa.ChainIDSolana).Run); err != nil {
+				solana.NewSolanaWatcher(*solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized, common.ReadinessSolanaSyncing, vaa.ChainIDSolana).Run); err != nil {
 				return err
 			}
 		}
 
-		if *pythnetWsRPC != "" {
+		if *pythnetRPC != "" {
 			if err := supervisor.Run(ctx, "pythwatch-confirmed",
-				solana.NewSolanaWatcher(*pythnetWsRPC, *pythnetRPC, pythnetAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
+				solana.NewSolanaWatcher(*pythnetRPC, pythnetAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
 				return err
 			}
 
 			if err := supervisor.Run(ctx, "pythwatch-finalized",
-				solana.NewSolanaWatcher(*pythnetWsRPC, *pythnetRPC, pythnetAddress, lockC, chainObsvReqC[vaa.ChainIDPythNet], rpc.CommitmentFinalized, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
+				solana.NewSolanaWatcher(*pythnetRPC, pythnetAddress, lockC, chainObsvReqC[vaa.ChainIDPythNet], rpc.CommitmentFinalized, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
 				return err
 			}
 		}

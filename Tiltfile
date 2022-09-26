@@ -183,8 +183,6 @@ def build_node_yaml():
 
             if solana:
                 container["command"] += [
-                    "--solanaWS",
-                    "ws://solana-devnet:8900",
                     "--solanaRPC",
                     "http://solana-devnet:8899",
                 ]

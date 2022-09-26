@@ -121,14 +121,10 @@ spec:
             # - wormhole.test.near
             - --solanaContract
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
-            # - --solanaWS
-            # - ws://solana-devnet:8900
             # - --solanaRPC
             # - http://solana-devnet:8899
             - --pythnetContract
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
-            # - --pythnetWS
-            # - ws://solana-devnet:8900
             # - --pythnetRPC
             # - http://solana-devnet:8899
             - --unsafeDevMode
