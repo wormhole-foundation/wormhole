@@ -1,5 +1,5 @@
 syntax = "proto3";
-package certusone.wormholechain.wormhole;
+package wormhole_foundation.wormholechain.wormhole;
 
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
@@ -18,55 +18,55 @@ option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/ty
 service Query {
     // Queries a guardianSet by index.
 	rpc GuardianSet(QueryGetGuardianSetRequest) returns (QueryGetGuardianSetResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardianSet/{index}";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/guardianSet/{index}";
 	}
 
 	// Queries a list of guardianSet items.
 	rpc GuardianSetAll(QueryAllGuardianSetRequest) returns (QueryAllGuardianSetResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardianSet";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/guardianSet";
 	}
 
 // Queries a config by index.
 	rpc Config(QueryGetConfigRequest) returns (QueryGetConfigResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/config";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/config";
 	}
 // Queries a replayProtection by index.
 	rpc ReplayProtection(QueryGetReplayProtectionRequest) returns (QueryGetReplayProtectionResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/replayProtection/{index}";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/replayProtection/{index}";
 	}
 
 	// Queries a list of replayProtection items.
 	rpc ReplayProtectionAll(QueryAllReplayProtectionRequest) returns (QueryAllReplayProtectionResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/replayProtection";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/replayProtection";
 	}
 
 // Queries a sequenceCounter by index.
 	rpc SequenceCounter(QueryGetSequenceCounterRequest) returns (QueryGetSequenceCounterResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/sequenceCounter/{index}";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/sequenceCounter/{index}";
 	}
 
 	// Queries a list of sequenceCounter items.
 	rpc SequenceCounterAll(QueryAllSequenceCounterRequest) returns (QueryAllSequenceCounterResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/sequenceCounter";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/sequenceCounter";
 	}
 
 // Queries a ConsensusGuardianSetIndex by index.
 	rpc ConsensusGuardianSetIndex(QueryGetConsensusGuardianSetIndexRequest) returns (QueryGetConsensusGuardianSetIndexResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/consensus_guardian_set_index";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/consensus_guardian_set_index";
 	}
 // Queries a GuardianValidator by index.
 	rpc GuardianValidator(QueryGetGuardianValidatorRequest) returns (QueryGetGuardianValidatorResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardian_validator/{guardianKey}";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/guardian_validator/{guardianKey}";
 	}
 
 	// Queries a list of GuardianValidator items.
 	rpc GuardianValidatorAll(QueryAllGuardianValidatorRequest) returns (QueryAllGuardianValidatorResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardian_validator";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/guardian_validator";
 	}
 
 // Queries a list of LatestGuardianSetIndex items.
 	rpc LatestGuardianSetIndex(QueryLatestGuardianSetIndexRequest) returns (QueryLatestGuardianSetIndexResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/wormhole/latest_guardian_set_index";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/wormhole/latest_guardian_set_index";
 	}
 
 // this line is used by starport scaffolding # 2
