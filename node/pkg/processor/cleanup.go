@@ -81,7 +81,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					p.logger.Info("Expiring late VAA", zap.String("digest", hash), zap.Duration("delta", delta))
 					aggregationStateLate.Inc()
 					delete(p.state.signatures, hash)
-					break
+					continue
 				} else if err != db.ErrVAANotFound {
 					p.logger.Error("failed to look up VAA in database",
 						zap.String("digest", hash),
