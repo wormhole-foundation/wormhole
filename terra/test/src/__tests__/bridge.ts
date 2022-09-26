@@ -60,7 +60,7 @@ const contracts = new Map<string, string>();
     > should handle ETH deposits with payload correctly (uusd)
     > should handle ETH withdrawals with payload correctly (uusd)
     > should revert on transfer out of a total of > max(uint64) tokens
-    
+
 */
 
 describe("Bridge Tests", () => {
@@ -455,7 +455,6 @@ describe("Bridge Tests", () => {
 
         const denom = "uusd";
         const amount = "100000000"; // one benjamin
-        const relayerFee = "1000000"; // one dolla
 
         const walletAddress = wallet.key.accAddress;
 
@@ -471,7 +470,7 @@ describe("Bridge Tests", () => {
           ustAddress,
           encodedTo,
           3,
-          relayerFee,
+          "0",
           additionalPayload
         );
         console.info("vaaPayload", vaaPayload);
@@ -524,33 +523,13 @@ describe("Bridge Tests", () => {
         const receipt = await transactWithoutMemo(client, wallet, [submitVaa]);
         console.info("receipt txHash", receipt.txhash);
 
-        // check wallet (relayer) balance change
-        const walletBalanceAfter = await getNativeBalance(
-          client,
-          walletAddress,
-          denom
-        );
-        const gasPaid = computeGasPaid(receipt);
-        const walletExpectedChange = new Int(relayerFee).sub(gasPaid);
-
-        // due to rounding, we should expect the balances to reconcile
-        // within 1 unit (equivalent to 1e-6 uusd). Best-case scenario
-        // we end up with slightly more balance than expected
-        const reconciled = walletBalanceAfter
-          .minus(walletExpectedChange)
-          .minus(walletBalanceBefore);
-        expect(
-          reconciled.greaterThanOrEqualTo("0") &&
-            reconciled.lessThanOrEqualTo("1")
-        ).toBeTruthy();
-
         // check contract balance change
         const contractBalanceAfter = await getNativeBalance(
           client,
           mockBridgeIntegration,
           denom
         );
-        const contractExpectedChange = new Int(amount).sub(relayerFee);
+        const contractExpectedChange = new Int(amount);
         expect(
           contractBalanceBefore
             .add(contractExpectedChange)

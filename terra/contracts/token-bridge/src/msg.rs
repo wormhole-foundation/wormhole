@@ -89,9 +89,9 @@ pub struct WrappedRegistryResponse {
 #[serde(rename_all = "snake_case")]
 pub struct TransferInfoResponse {
     pub amount: Uint128,
-    pub token_address: Vec<u8>,
+    pub token_address: [u8; 32],
     pub token_chain: u16,
-    pub recipient: Vec<u8>,
+    pub recipient: [u8; 32],
     pub recipient_chain: u16,
     pub fee: Uint128,
     pub payload: Vec<u8>,
