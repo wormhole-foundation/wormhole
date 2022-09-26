@@ -227,20 +227,38 @@ func (p *Processor) Run(ctx context.Context) error {
 	}
 }
 
-func (p *Processor) storePythNetVAA(v *vaa.VAA) {
-	key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
-	p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
+func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
+	if v.EmitterChain == vaa.ChainIDPythNet {
+		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
+		p.logger.Info("PYTHNET: storing pythnet vaa", zap.String("message_id", key))
+		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
+		return nil
+	}
+	return p.db.StoreSignedVAA(v)
 }
 
-func (p *Processor) getPythNetVAA(v *vaa.VAA) (*vaa.VAA, bool) {
-	key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
-	ret, exists := p.pythnetVaas[key]
-	return ret.v, exists
-}
+func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
+	if id.EmitterChain == vaa.ChainIDPythNet {
+		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
+		ret, exists := p.pythnetVaas[key]
+		if exists {
+			p.logger.Info("PYTHNET: found pythnet vaa", zap.String("message_id", key))
+			return ret.v, nil
+		}
 
-func (p *Processor) deletePythNetVAA(v *vaa.VAA) bool {
-	key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
-	_, exists := p.pythnetVaas[key]
-	delete(p.pythnetVaas, key)
-	return exists
+		p.logger.Info("PYTHNET: did not find pythnet vaa", zap.String("message_id", key))
+		return nil, db.ErrVAANotFound
+	}
+
+	vb, err := p.db.GetSignedVAABytes(id)
+	if err != nil {
+		return nil, err
+	}
+
+	vaa, err := vaa.Unmarshal(vb)
+	if err == nil {
+		panic("failed to unmarshal VAA from db")
+	}
+
+	return vaa, err
 }

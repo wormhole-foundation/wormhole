@@ -286,41 +286,30 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	//  - enough signatures are present for the VAA to reach quorum
 
 	// Check if we already store this VAA
-	if v.EmitterChain == vaa.ChainIDPythNet {
-		_, exists := p.getPythNetVAA(v)
-		if exists {
-			p.logger.Debug("PYTHNET: ignored SignedVAAWithQuorum message for pythnet VAA we already store", zap.String("message_id", v.MessageID()))
-			return
-		}
-
-		p.logger.Info("PYTHNET: storing inbound signed pythnet VAA with quorum", zap.String("message_id", v.MessageID()))
-		p.storePythNetVAA(v)
-	} else { // Not PythNet
-		_, err = p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v))
-		if err == nil {
-			p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already store",
-				zap.String("digest", hash),
-			)
-			return
-		} else if err != db.ErrVAANotFound {
-			p.logger.Error("failed to look up VAA in database",
-				zap.String("digest", hash),
-				zap.Error(err),
-			)
-			return
-		}
-
-		// Store signed VAA in database.
-		p.logger.Info("storing inbound signed VAA with quorum",
+	_, err = p.getSignedVAA(*db.VaaIDFromVAA(v))
+	if err == nil {
+		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already store",
 			zap.String("digest", hash),
-			zap.Any("vaa", v),
-			zap.String("bytes", hex.EncodeToString(m.Vaa)),
-			zap.String("message_id", v.MessageID()))
+		)
+		return
+	} else if err != db.ErrVAANotFound {
+		p.logger.Error("failed to look up VAA in database",
+			zap.String("digest", hash),
+			zap.Error(err),
+		)
+		return
+	}
 
-		if err := p.db.StoreSignedVAA(v); err != nil {
-			p.logger.Error("failed to store signed VAA", zap.Error(err))
-			return
-		}
+	// Store signed VAA in database.
+	p.logger.Info("storing inbound signed VAA with quorum",
+		zap.String("digest", hash),
+		zap.Any("vaa", v),
+		zap.String("bytes", hex.EncodeToString(m.Vaa)),
+		zap.String("message_id", v.MessageID()))
+
+	if err := p.storeSignedVAA(v); err != nil {
+		p.logger.Error("failed to store signed VAA", zap.Error(err))
+		return
 	}
 	p.attestationEvents.ReportVAAQuorum(v)
 }

@@ -73,26 +73,20 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// This occurs when we observed a message after the cluster has already reached
 			// consensus on it, causing us to never achieve quorum.
 			if ourVaa, ok := s.ourObservation.(*VAA); ok {
-				if ourVaa.VAA.EmitterChain == vaa.ChainIDPythNet {
-					if p.deletePythNetVAA(&ourVaa.VAA) {
-						p.logger.Info("PYTHNET: expiring late pythnet VAA", zap.String("message_id", ourVaa.MessageID()), zap.Duration("delta", delta))
-					}
-				} else {
-					if _, err := p.db.GetSignedVAABytes(*db.VaaIDFromVAA(&ourVaa.VAA)); err == nil {
-						// If we have a stored quorum VAA, we can safely expire the state.
-						//
-						// This is a rare case, and we can safely expire the state, since we
-						// have a quorum VAA.
-						p.logger.Info("Expiring late VAA", zap.String("digest", hash), zap.Duration("delta", delta))
-						aggregationStateLate.Inc()
-						delete(p.state.signatures, hash)
-						continue
-					} else if err != db.ErrVAANotFound {
-						p.logger.Error("failed to look up VAA in database",
-							zap.String("digest", hash),
-							zap.Error(err),
-						)
-					}
+				if _, err := p.getSignedVAA(*db.VaaIDFromVAA(&ourVaa.VAA)); err == nil {
+					// If we have a stored quorum VAA, we can safely expire the state.
+					//
+					// This is a rare case, and we can safely expire the state, since we
+					// have a quorum VAA.
+					p.logger.Info("Expiring late VAA", zap.String("digest", hash), zap.Duration("delta", delta))
+					aggregationStateLate.Inc()
+					delete(p.state.signatures, hash)
+					break
+				} else if err != db.ErrVAANotFound {
+					p.logger.Error("failed to look up VAA in database",
+						zap.String("digest", hash),
+						zap.Error(err),
+					)
 				}
 			}
 		}

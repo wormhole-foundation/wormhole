@@ -32,19 +32,14 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	}
 
 	// Store signed VAA in database.
-	if signed.EmitterChain == vaa.ChainIDPythNet {
-		p.logger.Info("PYTHNET: storing signed VAA with quorum for pythnet", zap.String("message_id", signed.MessageID()))
-		p.storePythNetVAA(signed)
-	} else {
-		p.logger.Info("signed VAA with quorum",
-			zap.String("digest", hash),
-			zap.Any("vaa", signed),
-			zap.String("bytes", hex.EncodeToString(vaaBytes)),
-			zap.String("message_id", signed.MessageID()))
+	p.logger.Info("signed VAA with quorum",
+		zap.String("digest", hash),
+		zap.Any("vaa", signed),
+		zap.String("bytes", hex.EncodeToString(vaaBytes)),
+		zap.String("message_id", signed.MessageID()))
 
-		if err := p.db.StoreSignedVAA(signed); err != nil {
-			p.logger.Error("failed to store signed VAA", zap.Error(err))
-		}
+	if err := p.storeSignedVAA(signed); err != nil {
+		p.logger.Error("failed to store signed VAA", zap.Error(err))
 	}
 
 	p.broadcastSignedVAA(signed)
