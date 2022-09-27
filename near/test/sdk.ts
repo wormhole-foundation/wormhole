@@ -196,9 +196,7 @@ async function testNearSDK() {
 
   let near = await nearConnect({
     headers: {},
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: config.networkId as string,
     nodeUrl: config.nodeUrl as string,
   });
@@ -319,11 +317,11 @@ async function testNearSDK() {
     { transport: NodeHttpTransport() }
   );
 
-  for (const msg of (await createWrappedOnNear(
+  for (const msg of await createWrappedOnNear(
     provider,
     token_bridge,
     vaaBytes
-  ))) {
+  )) {
     await userAccount.functionCall(msg);
   }
 
@@ -536,7 +534,12 @@ async function testNearSDK() {
   console.log(".. created some USDC");
 
   console.log("Redeeming norium on near");
-  for (const msg of (await redeemOnNear(provider, userAccount.accountId, token_bridge, signedVaa.vaaBytes))) {
+  for (const msg of await redeemOnNear(
+    provider,
+    userAccount.accountId,
+    token_bridge,
+    signedVaa.vaaBytes
+  )) {
     await userAccount.functionCall(msg);
   }
 

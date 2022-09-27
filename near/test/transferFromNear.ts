@@ -87,9 +87,7 @@ async function transferTest() {
   // connect to near...
   let near = await nearConnect({
     headers: {},
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: networkId as string,
     nodeUrl: nearNodeUrl as string,
   });

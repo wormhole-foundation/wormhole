@@ -81,9 +81,7 @@ async function transferTest() {
   // connect to near...
   let near = await nearConnect({
     headers: {},
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: networkId as string,
     nodeUrl: nearNodeUrl as string,
   });
@@ -129,8 +127,8 @@ async function transferTest() {
     console.log("account already registered");
   }
 
-    // like this
-    await redeemOnNear(userAccount, token_bridge, hexToUint8Array(trans))
+  // like this
+  await redeemOnNear(userAccount, token_bridge, hexToUint8Array(trans));
 }
 
 transferTest();
