@@ -293,6 +293,27 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
 
             Approve()
         ])
+
+#    # This blows up an asset on algorand.  This will be added temporarily (and then removed) to clean some stuff before we relaunch
+#    def killAsset():
+#        return Seq([
+#            MagicAssert(Txn.sender() == Global.creator_address()),
+#
+#            blob.zero(Int(1)),
+#
+#            InnerTxnBuilder.Begin(),
+#            InnerTxnBuilder.SetFields(
+#                {
+#                    TxnField.sender: Global.current_application_address(),
+#                    TxnField.type_enum: TxnType.AssetConfig,
+#                    TxnField.config_asset: Btoi(Txn.application_args[1]),
+#                    TxnField.fee: Int(0),
+#                }
+#            ),
+#            InnerTxnBuilder.Submit(),
+#
+#            Approve()
+#        ])
     
     def receiveAttest():
         me = Global.current_application_address()
