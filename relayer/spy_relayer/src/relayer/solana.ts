@@ -97,8 +97,10 @@ export async function relaySolana(
     escrowState &&
     (escrowState.marker.kind === "Completed" ||
       escrowState.marker.kind === "Aborted") &&
-    escrowState.inputTokens.every((t) => t.returnVaaSequence !== null) &&
-    escrowState.outputTokens.every((t) => t.returnVaaSequence !== null)
+    escrowState.inputTokens.every(
+      (t) => t.hasReturned.kind !== "NotReturned"
+    ) &&
+    escrowState.outputTokens.every((t) => t.hasReturned.kind !== "NotReturned")
   ) {
     logger.info("VAA has already been redeemed!");
     return { redeemed: true, result: "already redeemed" };

@@ -27,6 +27,7 @@ import xRaydium_abi from "../utils/xRaydium_abi.json";
 import * as xApp from "../xRaydium/scripts/lib";
 import { parseTransferPayload } from "../utils/wormhole";
 import { redeemResponseEVM } from "../xRaydium/scripts/relay";
+import { info } from "console";
 
 export function newProvider(
   url: string,
@@ -127,6 +128,7 @@ export async function relayEVM(
   logger.debug("After load addrs");
   let ctx: xApp.Context;
   if (process.env.ENV_TYPE === "DEV_NET") {
+    xApp.info(process.env.ENV_TYPE, "ENV_TYPE")
     ctx = xApp.getDevNetCtx(
       signer,
       chainConfigInfo.chainId,
