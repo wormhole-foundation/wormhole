@@ -3,8 +3,8 @@ import { AptosAccount, AptosClient, Types } from "aptos";
 export class AptosClientWrapper {
   client: AptosClient;
 
-  constructor(nodeUrl: string) {
-    this.client = new AptosClient(nodeUrl);
+  constructor(client: AptosClient) {
+    this.client = client;
   }
 
   executeEntryFunction = async (

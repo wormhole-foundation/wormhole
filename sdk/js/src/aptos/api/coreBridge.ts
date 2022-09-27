@@ -1,17 +1,18 @@
 import { AptosAccount } from "aptos";
-import { ChainId, CONTRACTS, Network } from "../../utils";
+import { ChainId } from "../../utils";
 import { AptosClientWrapper } from "../client";
 import { WormholeAptosBaseApi } from "./base";
 
 export class WormholeAptosCoreBridgeApi extends WormholeAptosBaseApi {
-  constructor(client: AptosClientWrapper, network: Network) {
+  constructor(client: AptosClientWrapper, address?: string) {
     super(client);
-    this.address = CONTRACTS[network].aptos.core!;
+    this.address = address;
   }
 
   // Guardian set upgrade
 
   upgradeGuardianSet = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
+    if (!this.address) throw "Need core bridge address.";
     const payload = {
       function: `${this.address}::guardian_set_upgrade::submit_vaa`,
       type_arguments: [],
@@ -29,6 +30,7 @@ export class WormholeAptosCoreBridgeApi extends WormholeAptosBaseApi {
     governanceContract: Uint8Array,
     initialGuardian: Uint8Array,
   ): Promise<string> => {
+    if (!this.address) throw "Need core bridge address.";
     const payload = {
       function: `${this.address}::wormhole::init`,
       type_arguments: [],

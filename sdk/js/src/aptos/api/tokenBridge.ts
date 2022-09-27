@@ -3,17 +3,15 @@ import {
   ChainId,
   ChainName,
   coalesceChainId,
-  CONTRACTS,
-  getAssetFullyQualifiedType,
-  Network,
+  getAssetFullyQualifiedType
 } from "../../utils";
 import { AptosClientWrapper } from "../client";
 import { WormholeAptosBaseApi } from "./base";
 
 export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
-  constructor(client: AptosClientWrapper, network: Network) {
+  constructor(client: AptosClientWrapper, address?: string) {
     super(client);
-    this.address = CONTRACTS[network].aptos.token_bridge!;
+    this.address = address;
   }
 
   // Complete transfer
@@ -25,6 +23,7 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     vaa: Uint8Array,
     feeRecipient: string,
   ): Promise<string> => {
+    if (!this.address) throw "Need token bridge address.";
     const assetType = getAssetFullyQualifiedType(
       this.address,
       coalesceChainId(tokenChain),
@@ -44,6 +43,7 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     tokenAddress: string,
     vaa: Uint8Array,
   ): Promise<string> => {
+    if (!this.address) throw "Need token bridge address.";
     const assetType = getAssetFullyQualifiedType(
       this.address,
       coalesceChainId(tokenChain),
@@ -61,6 +61,7 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
 
   // don't need `signer` and `&signer` in argument list because the Move VM will inject them
   deployCoin = (sender: AptosAccount): Promise<string> => {
+    if (!this.address) throw "Need token bridge address.";
     const payload = {
       function: `${this.address}::deploy_coin::deploy_coin`,
       type_arguments: [],
@@ -72,6 +73,7 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
   // Register chain
 
   registerChain = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
+    if (!this.address) throw "Need token bridge address.";
     const payload = {
       function: `${this.address}::register_chain::submit_vaa`,
       type_arguments: [],
@@ -93,6 +95,7 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     wormholeFee: number | bigint,
     nonce: number | bigint,
   ): Promise<string> => {
+    if (!this.address) throw "Need token bridge address.";
     const assetType = getAssetFullyQualifiedType(
       this.address,
       coalesceChainId(tokenChain),
@@ -114,6 +117,7 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     tokenAddress: string,
     vaa: Uint8Array,
   ): Promise<string> => {
+    if (!this.address) throw "Need token bridge address.";
     const createWrappedCoinTypePayload = {
       function: `${this.address}::wrapped::create_wrapped_coin_type`,
       type_arguments: [],
