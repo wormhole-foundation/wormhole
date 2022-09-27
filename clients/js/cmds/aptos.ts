@@ -37,6 +37,12 @@ const rpc_description = {
   required: false,
 } as const;
 
+const named_addresses = {
+  describe: "named addresses in the format addr1=0x0,addr2=0x1,...",
+  type: "string",
+  require: false
+} as const;
+
 // TODO(csongor): this could be useful elsewhere
 function assertNetwork(n: string): asserts n is Network {
   if (
@@ -131,11 +137,12 @@ exports.builder = function (y: typeof yargs) {
         })
         .option("network", network_options)
         .option("rpc", rpc_description)
+        .option("named-addresses", named_addresses)
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
-      const p = buildPackage(argv["package-dir"]);
+      const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
       const b = serializePackage(p);
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(network, rpc, "0x1::code", "publish_package_txn", [], [b.meta, b.bytecodes])
@@ -151,18 +158,19 @@ exports.builder = function (y: typeof yargs) {
         })
         .option("network", network_options)
         .option("rpc", rpc_description)
+        .option("named-addresses", named_addresses)
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
-      const p = buildPackage(argv["package-dir"]);
+      const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
       const b = serializePackage(p);
       const seed = Buffer.from(argv["seed"], "ascii")
 
       // TODO(csongor): use deployer address from sdk (when it's there)
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
-      if (network=="TESTNET"){
-        module_name= "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer";
+      if (network == "TESTNET") {
+        module_name = "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer";
       }
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(
@@ -190,8 +198,8 @@ exports.builder = function (y: typeof yargs) {
       const rpc = NETWORKS[network]["aptos"].rpc;
       // TODO(csongor): use sdk address
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
-      if (network=="TESTNET"){
-        module_name= "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::sender";
+      if (network == "TESTNET") {
+        module_name = "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::sender";
       }
       await callEntryFunc(network, rpc, module_name, "send_message", [], [BCS.bcsSerializeBytes(Buffer.from(argv["message"], "ascii"))])
     })
@@ -214,9 +222,10 @@ exports.builder = function (y: typeof yargs) {
         .positional("package-dir", {
           type: "string"
         })
+        .option("named-addresses", named_addresses)
     }, (argv) => {
       checkAptosBinary();
-      const p = buildPackage(argv["package-dir"]);
+      const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
       const b = serializePackage(p);
       console.log(Buffer.from(b.codeHash).toString("hex"));
     })
@@ -235,11 +244,12 @@ exports.builder = function (y: typeof yargs) {
         })
         .option("network", network_options)
         .option("rpc", rpc_description)
+        .option("named-addresses", named_addresses)
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       checkAptosBinary();
-      const p = buildPackage(argv["package-dir"]);
+      const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
       const b = serializePackage(p);
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       // TODO(csongor): use deployer address from sdk (when it's there)
@@ -305,20 +315,20 @@ exports.builder = function (y: typeof yargs) {
         let FAUCET_URL = "http://0.0.0.0:8081";
         let account = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
 
-        if (argv.faucet!=undefined){
+        if (argv.faucet != undefined) {
           FAUCET_URL = argv.faucet as string;
         }
-        if (argv.rpc!=undefined){
+        if (argv.rpc != undefined) {
           NODE_URL = argv.rpc as string;
         }
-        if (argv.account!=undefined){
+        if (argv.account != undefined) {
           account = argv.account as string;
         }
         const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
         const coins = 20000000;
         await faucetClient.fundAccount(account, coins);
         console.log(`Funded ${account} with ${coins} coins`);
-    })
+      })
     .strict().demandCommand();
 }
 
@@ -339,8 +349,13 @@ export function checkAptosBinary(): void {
   }
 }
 
-function buildPackage(dir: string): Package {
-  const aptos = spawnSync("aptos", ["move", "compile", "--save-metadata", "--included-artifacts", "none", "--package-dir", dir])
+function buildPackage(dir: string, addrs?: string): Package {
+  const named_addresses =
+    addrs
+      ? ["--named-addresses", addrs]
+      : [];
+  const aptos = spawnSync("aptos",
+    ["move", "compile", "--save-metadata", "--included-artifacts", "none", "--package-dir", dir, ...named_addresses])
   if (aptos.status !== 0) {
     console.error(aptos.stderr.toString('utf8'))
     console.error(aptos.stdout.toString('utf8'))
