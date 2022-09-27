@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
@@ -73,6 +74,11 @@ type (
 	}
 )
 
+type PythNetVaaEntry struct {
+	v          *vaa.VAA
+	updateTime time.Time // Used for determining when to delete entries
+}
+
 type Processor struct {
 	// lockC is a channel of observed emitted messages
 	lockC chan *common.MessagePublication
@@ -122,8 +128,9 @@ type Processor struct {
 	// cleanup triggers periodic state cleanup
 	cleanup *time.Ticker
 
-	notifier *discord.DiscordNotifier
-	governor *governor.ChainGovernor
+	notifier    *discord.DiscordNotifier
+	governor    *governor.ChainGovernor
+	pythnetVaas map[string]PythNetVaaEntry
 }
 
 func NewProcessor(
@@ -165,10 +172,11 @@ func NewProcessor(
 
 		notifier: notifier,
 
-		logger:   supervisor.Logger(ctx),
-		state:    &aggregationState{observationMap{}},
-		ourAddr:  crypto.PubkeyToAddress(gk.PublicKey),
-		governor: g,
+		logger:      supervisor.Logger(ctx),
+		state:       &aggregationState{observationMap{}},
+		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
+		governor:    g,
+		pythnetVaas: make(map[string]PythNetVaaEntry),
 	}
 }
 
@@ -217,4 +225,40 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
+	if v.EmitterChain == vaa.ChainIDPythNet {
+		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
+		p.logger.Info("PYTHNET: storing pythnet vaa", zap.String("message_id", key))
+		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
+		return nil
+	}
+	return p.db.StoreSignedVAA(v)
+}
+
+func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
+	if id.EmitterChain == vaa.ChainIDPythNet {
+		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
+		ret, exists := p.pythnetVaas[key]
+		if exists {
+			p.logger.Info("PYTHNET: found pythnet vaa", zap.String("message_id", key))
+			return ret.v, nil
+		}
+
+		p.logger.Info("PYTHNET: did not find pythnet vaa", zap.String("message_id", key))
+		return nil, db.ErrVAANotFound
+	}
+
+	vb, err := p.db.GetSignedVAABytes(id)
+	if err != nil {
+		return nil, err
+	}
+
+	vaa, err := vaa.Unmarshal(vb)
+	if err != nil {
+		panic("failed to unmarshal VAA from db")
+	}
+
+	return vaa, err
 }

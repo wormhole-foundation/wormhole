@@ -38,7 +38,7 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 		zap.String("bytes", hex.EncodeToString(vaaBytes)),
 		zap.String("message_id", signed.MessageID()))
 
-	if err := p.db.StoreSignedVAA(signed); err != nil {
+	if err := p.storeSignedVAA(signed); err != nil {
 		p.logger.Error("failed to store signed VAA", zap.Error(err))
 	}
 

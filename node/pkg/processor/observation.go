@@ -286,7 +286,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	//  - enough signatures are present for the VAA to reach quorum
 
 	// Check if we already store this VAA
-	_, err = p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v))
+	_, err = p.getSignedVAA(*db.VaaIDFromVAA(v))
 	if err == nil {
 		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already store",
 			zap.String("digest", hash),
@@ -307,7 +307,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		zap.String("bytes", hex.EncodeToString(m.Vaa)),
 		zap.String("message_id", v.MessageID()))
 
-	if err := p.db.StoreSignedVAA(v); err != nil {
+	if err := p.storeSignedVAA(v); err != nil {
 		p.logger.Error("failed to store signed VAA", zap.Error(err))
 		return
 	}

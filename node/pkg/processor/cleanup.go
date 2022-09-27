@@ -73,7 +73,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// This occurs when we observed a message after the cluster has already reached
 			// consensus on it, causing us to never achieve quorum.
 			if ourVaa, ok := s.ourObservation.(*VAA); ok {
-				if _, err := p.db.GetSignedVAABytes(*db.VaaIDFromVAA(&ourVaa.VAA)); err == nil {
+				if _, err := p.getSignedVAA(*db.VaaIDFromVAA(&ourVaa.VAA)); err == nil {
 					// If we have a stored quorum VAA, we can safely expire the state.
 					//
 					// This is a rare case, and we can safely expire the state, since we
@@ -223,6 +223,15 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				delete(p.state.signatures, hash)
 				aggregationStateUnobserved.Inc()
 			}
+		}
+	}
+
+	// Clean up old pythnet VAAs.
+	oldestTime := time.Now().Add(-time.Hour)
+	for key, pe := range p.pythnetVaas {
+		if pe.updateTime.Before(oldestTime) {
+			p.logger.Info("PYTHNET: dropping old pythnet vaa", zap.String("message_id", key), zap.Stringer("updateTime", pe.updateTime))
+			delete(p.pythnetVaas, key)
 		}
 	}
 }
