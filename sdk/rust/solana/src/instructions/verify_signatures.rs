@@ -1,6 +1,5 @@
-use super::Instruction;
-
 use {
+    super::Instruction,
     crate::{
         Account,
         GuardianSet,

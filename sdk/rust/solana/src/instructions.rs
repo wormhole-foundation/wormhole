@@ -32,8 +32,10 @@ pub use {
         post_message,
         post_message_unreliable,
     },
-    post_vaa::post_vaa,
-    post_vaa::PostVAAData,
+    post_vaa::{
+        post_vaa,
+        PostVAAData,
+    },
     set_fees::set_fees,
     verify_signatures::{
         verify_signatures,
