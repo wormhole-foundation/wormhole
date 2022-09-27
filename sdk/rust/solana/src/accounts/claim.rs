@@ -34,7 +34,7 @@ impl Account for Claim {
     fn key(id: &Pubkey, seeds: Self::Seeds) -> Pubkey {
         Pubkey::find_program_address(
             &[
-                &seeds.emitter.as_ref(),
+                seeds.emitter.as_ref(),
                 &u16::from(seeds.chain).to_be_bytes(),
                 &seeds.sequence.to_be_bytes(),
             ],

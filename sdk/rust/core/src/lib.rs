@@ -11,11 +11,8 @@
 // TODO: Add test to bstr/unicode parser for parse_fixed_utf8.
 // TODO: Change GuardianSet quorum calculation.
 
-#![feature(test)]
 #![deny(warnings)]
 #![deny(unused_results)]
-
-extern crate test;
 
 use borsh::{
     BorshDeserialize,

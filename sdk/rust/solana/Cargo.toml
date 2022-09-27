@@ -25,4 +25,9 @@ primitive-types = { version="0.11", default-features=false }
 wormhole-core   = { path = "../core" }
 
 [dev-dependencies]
+solana-program         = "1.10.29"
+solana-program-test    = "1.10.29"
+solana-sdk             = "1.10.29"
 wormhole-bridge-solana = { path = "../../../solana/bridge/program" }
+wormhole-core          = { path = "../core" }
+tokio                  = "1.14.1"

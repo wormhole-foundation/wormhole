@@ -24,8 +24,8 @@ sha3 = "0.10.4"
 thiserror = "1.0.34"
 
 [dev-dependencies]
+base64 = "0.13.0"
 byteorder = "*"
 hex = "*"
 strum = "*"
 strum_macros = "*"
-base64 = "0.13.0"
