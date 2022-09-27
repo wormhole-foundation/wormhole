@@ -1,6 +1,6 @@
 #pragma version 6
 intcblock 1 0 127 2 1000 86400 128 255
-bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x6e6f70 0x76657269667953696773 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x767068617368 0x766572696679564141 0x50726f6772616d 0x7075626c6973684d657373616765 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368 0x6d657461
+bytecblock 0x 0x0008 0x677561726469616e 0x63757272656e74477561726469616e536574496e646578 0x6e6f70 0x76657269667953696773 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x767068617368 0x766572696679564141 0x7075626c6973684d657373616765 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x50726f6772616d 0x6d657461
 txn ApplicationID
 intc_1 // 0
 ==
@@ -24,7 +24,7 @@ bnz main_l6
 err
 main_l6:
 txna ApplicationArgs 0
-bytec 11 // "publishMessage"
+bytec 10 // "publishMessage"
 ==
 bnz main_l69
 txna ApplicationArgs 0
@@ -150,7 +150,7 @@ txna ApplicationArgs 1
 load 21
 intc_3 // 2
 extract3
-bytec 12 // 0x0001
+bytec 11 // 0x0001
 ==
 assert
 txna ApplicationArgs 1
@@ -159,7 +159,7 @@ intc_3 // 2
 +
 pushint 32 // 32
 extract3
-bytec 13 // 0x0000000000000000000000000000000000000000000000000000000000000004
+bytec 12 // 0x0000000000000000000000000000000000000000000000000000000000000004
 ==
 assert
 load 21
@@ -170,7 +170,7 @@ txna ApplicationArgs 1
 load 21
 pushint 32 // 32
 extract3
-bytec 14 // 0x00000000000000000000000000000000000000000000000000000000436f7265
+bytec 13 // 0x00000000000000000000000000000000000000000000000000000000436f7265
 ==
 assert
 load 21
@@ -280,7 +280,7 @@ load 28
 bytec_1 // 0x0008
 ==
 load 28
-bytec 15 // 0x0000
+bytec 14 // 0x0000
 ==
 ||
 assert
@@ -701,12 +701,12 @@ txn Sender
 global CreatorAddress
 ==
 assert
-bytec 16 // "booted"
+bytec 15 // "booted"
 app_global_get
 intc_1 // 0
 ==
 assert
-bytec 16 // "booted"
+bytec 15 // "booted"
 pushbytes 0x74727565 // "true"
 app_global_put
 callsub checkForDuplicate_11
@@ -730,7 +730,7 @@ txna ApplicationArgs 1
 load 2
 intc_3 // 2
 extract3
-bytec 12 // 0x0001
+bytec 11 // 0x0001
 ==
 assert
 txna ApplicationArgs 1
@@ -739,7 +739,7 @@ intc_3 // 2
 +
 pushint 32 // 32
 extract3
-bytec 13 // 0x0000000000000000000000000000000000000000000000000000000000000004
+bytec 12 // 0x0000000000000000000000000000000000000000000000000000000000000004
 ==
 assert
 load 2
@@ -750,7 +750,7 @@ txna ApplicationArgs 1
 load 2
 pushint 32 // 32
 extract3
-bytec 14 // 0x00000000000000000000000000000000000000000000000000000000436f7265
+bytec 13 // 0x00000000000000000000000000000000000000000000000000000000436f7265
 ==
 assert
 load 2
@@ -858,7 +858,7 @@ load 9
 bytec_1 // 0x0008
 ==
 load 9
-bytec 15 // 0x0000
+bytec 14 // 0x0000
 ==
 ||
 assert
@@ -1004,7 +1004,7 @@ pop
 load 0
 log
 intc_0 // 1
-bytec 11 // "publishMessage"
+bytec 10 // "publishMessage"
 callsub meta_5
 intc_0 // 1
 return
@@ -1045,7 +1045,7 @@ main_l73:
 intc_1 // 0
 return
 main_l74:
-bytec 10 // "Program"
+bytec 16 // "Program"
 txn ApprovalProgram
 concat
 sha512_256
@@ -1053,13 +1053,15 @@ bytec 7 // "validUpdateApproveHash"
 app_global_get
 ==
 assert
-bytec 10 // "Program"
 txn ClearStateProgram
-concat
-sha512_256
-bytec 17 // "validUpdateClearHash"
-app_global_get
+len
+pushint 4 // 4
 ==
+txn ClearStateProgram
+extract 1 3
+pushbytes 0x810143 // 0x810143
+==
+&&
 assert
 intc_0 // 1
 return
@@ -1075,9 +1077,6 @@ intc_1 // 0
 app_global_put
 bytec 7 // "validUpdateApproveHash"
 bytec_0 // ""
-app_global_put
-bytec 17 // "validUpdateClearHash"
-pushbytes 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f // 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f
 app_global_put
 intc_0 // 1
 return
@@ -1218,7 +1217,7 @@ retsub
 // meta
 meta_5:
 store 37
-bytec 18 // "meta"
+bytec 17 // "meta"
 load 37
 app_local_put
 retsub
@@ -1226,7 +1225,7 @@ retsub
 // checkMeta
 checkMeta_6:
 store 38
-bytec 18 // "meta"
+bytec 17 // "meta"
 app_local_get
 load 38
 ==
@@ -1390,7 +1389,7 @@ retsub
 getsigaddress_9:
 store 48
 store 47
-bytec 10 // "Program"
+bytec 16 // "Program"
 pushbytes 0x0620010181 // 0x0620010181
 concat
 load 47

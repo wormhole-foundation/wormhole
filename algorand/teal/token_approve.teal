@@ -1,6 +1,6 @@
 #pragma version 6
 intcblock 0 1 2 127 133 128 255
-bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d657373616765 0x6e6f70 0x766572696679564141 0x0008 0x76616c6964557064617465417070726f766548617368 0x50726f6772616d 0x414c474f 0x76616c6964557064617465436c65617248617368 0x636f726541646472
+bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d657373616765 0x6e6f70 0x766572696679564141 0x0008 0x76616c6964557064617465417070726f766548617368 0x414c474f 0x50726f6772616d 0x636f726541646472
 txn ApplicationID
 intc_0 // 0
 ==
@@ -1137,9 +1137,9 @@ b main_l63
 main_l67:
 pushbytes 0x06 // 0x06
 store 35
-bytec 10 // "ALGO"
+bytec 9 // "ALGO"
 store 36
-bytec 10 // "ALGO"
+bytec 9 // "ALGO"
 store 37
 b main_l64
 main_l68:
@@ -1509,7 +1509,7 @@ load 30
 itxn_field ConfigAssetName
 load 29
 itxn_field ConfigAssetUnitName
-pushint 18446744073709551614 // 18446744073709551614
+pushint 18446744073709550000 // 18446744073709550000
 itxn_field ConfigAssetTotal
 load 28
 itxn_field ConfigAssetDecimals
@@ -1517,9 +1517,9 @@ global CurrentApplicationAddress
 itxn_field ConfigAssetManager
 txna Accounts 3
 itxn_field ConfigAssetReserve
-global ZeroAddress
+global CurrentApplicationAddress
 itxn_field ConfigAssetFreeze
-global ZeroAddress
+global CurrentApplicationAddress
 itxn_field ConfigAssetClawback
 intc_0 // 0
 itxn_field Fee
@@ -1555,7 +1555,7 @@ main_l79:
 intc_0 // 0
 return
 main_l80:
-bytec 9 // "Program"
+bytec 10 // "Program"
 txn ApprovalProgram
 concat
 sha512_256
@@ -1563,13 +1563,15 @@ bytec 8 // "validUpdateApproveHash"
 app_global_get
 ==
 assert
-bytec 9 // "Program"
 txn ClearStateProgram
-concat
-sha512_256
-bytec 11 // "validUpdateClearHash"
-app_global_get
+len
+pushint 4 // 4
 ==
+txn ClearStateProgram
+extract 1 3
+pushbytes 0x810143 // 0x810143
+==
+&&
 assert
 intc_1 // 1
 return
@@ -1578,14 +1580,11 @@ bytec_1 // "coreid"
 txna ApplicationArgs 0
 btoi
 app_global_put
-bytec 12 // "coreAddr"
+bytec 11 // "coreAddr"
 txna ApplicationArgs 1
 app_global_put
 bytec 8 // "validUpdateApproveHash"
 bytec_0 // ""
-app_global_put
-bytec 11 // "validUpdateClearHash"
-pushbytes 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f // 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f
 app_global_put
 intc_1 // 1
 return
@@ -1942,7 +1941,7 @@ intc_0 // 0
 bz sendMfee_11_l2
 intc_1 // pay
 itxn_field TypeEnum
-bytec 12 // "coreAddr"
+bytec 11 // "coreAddr"
 app_global_get
 itxn_field Receiver
 load 23
@@ -2067,7 +2066,7 @@ retsub
 getsigaddress_15:
 store 82
 store 81
-bytec 9 // "Program"
+bytec 10 // "Program"
 pushbytes 0x0620010181 // 0x0620010181
 concat
 load 81
