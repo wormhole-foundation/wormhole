@@ -12,7 +12,7 @@ import (
 
 	"net/http"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 const cgBaseUrl = "https://api.coingecko.com/api/v3/"
@@ -107,6 +107,10 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 		return "klay-token"
 	case vaa.ChainIDCelo:
 		return "celo"
+	case vaa.ChainIDNear:
+		return "near-protocol"
+	case vaa.ChainIDMoonbeam:
+		return "moonbeam"
 	case vaa.ChainIDTerra2:
 		return "" // TODO
 	case vaa.ChainIDEthereumRopsten:

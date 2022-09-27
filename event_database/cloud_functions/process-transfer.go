@@ -7,23 +7,27 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"cloud.google.com/go/bigtable"
 
 	"github.com/gagliardetto/solana-go"
 )
 
-// terra native tokens do not have a bech32 address like cw20s do, handle them manually.
 var tokenAddressExceptions = map[string]string{
+	// terra native tokens do not have a bech32 address like cw20s do, handle them manually.
 	// terra (classic)
 	"0100000000000000000000000000000000000000000000000000000075757364": "uusd",
 	"010000000000000000000000000000000000000000000000000000756c756e61": "uluna",
+	// near
+	"0000000000000000000000000000000000000000000000000000000000000000": "near",
+	"67499b7b8f58eaeb3cd81aea1d1ce9f7f722fd7750ceb2bed13e255073c25e2a": "token.sweat",
 	// terra2
 	"01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da": "uluna",
 }
@@ -58,7 +62,8 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		vaa.ChainIDKarura,
 		vaa.ChainIDAcala,
 		vaa.ChainIDKlaytn,
-		vaa.ChainIDCelo:
+		vaa.ChainIDCelo,
+		vaa.ChainIDMoonbeam:
 		addr := fmt.Sprintf("0x%v", address[(len(address)-40):])
 		return addr
 	case vaa.ChainIDTerra:
@@ -68,8 +73,18 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		}
 		return humanAddressTerra(address)
 	case vaa.ChainIDAlgorand:
-		// TODO
-		return ""
+		assetId := big.Int{}
+		_, ok := assetId.SetString(address, 16)
+		if ok {
+			return assetId.String()
+		}
+		return address
+	case vaa.ChainIDNear:
+		if val, ok := tokenAddressExceptions[address]; ok {
+			return val
+		}
+		// TODO for now use hex/wormhole address string, we'll need to do a contract query to get the native address
+		return address
 	case vaa.ChainIDTerra2:
 		// handle terra2 native assets manually
 		if val, ok := tokenAddressExceptions[address]; ok {
@@ -79,8 +94,8 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		if isLikely20ByteTerra(address) {
 			return humanAddressTerra(address)
 		}
-		// TODO: other terra2 asset types
-		return ""
+		// TODO for now use hex/wormhole address string, we'll need to do a contract query to get the native address
+		return address
 	default:
 		log.Println("cannot process address for unknown chain: ", chain)
 		return ""
