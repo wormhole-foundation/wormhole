@@ -247,7 +247,7 @@ const TESTNET = {
     key: get_env_var("TERRA_MNEMONIC"),
   },
   arbitrum: {
-    rpc: "https://rinkeby.arbitrum.io/rpc",
+    rpc: "https://goerli-rollup.arbitrum.io/rpc",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   optimism: {

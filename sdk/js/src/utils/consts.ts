@@ -341,9 +341,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   arbitrum: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
+    token_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
+    nft_bridge: "0xEe3dB83916Ccdc3593b734F7F2d16D630F39F1D0",
   },
   optimism: {
     core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
