@@ -24,6 +24,7 @@ mod initialize;
 mod post_message;
 mod post_vaa;
 mod set_fees;
+mod verify_signatures;
 
 pub use {
     initialize::initialize,
@@ -32,7 +33,12 @@ pub use {
         post_message_unreliable,
     },
     post_vaa::post_vaa,
+    post_vaa::PostVAAData,
     set_fees::set_fees,
+    verify_signatures::{
+        verify_signatures,
+        verify_signatures_txs,
+    },
 };
 
 #[cfg(test)]

@@ -67,11 +67,11 @@ pub fn post_vaa(
     wormhole: Pubkey,
     payer: Pubkey,
     signature_set: Pubkey,
-    vaa: PostVAAData,
+    post_vaa_data: PostVAAData,
 ) -> Result<SolanaInstruction, WormholeError> {
     let bridge = Config::key(&wormhole, ());
-    let guardian_set = GuardianSet::key(&wormhole, vaa.guardian_set_index);
-    let vaa = VAA::key(&wormhole, vaa.hash());
+    let guardian_set = GuardianSet::key(&wormhole, post_vaa_data.guardian_set_index);
+    let vaa = VAA::key(&wormhole, post_vaa_data.hash());
 
     Ok(SolanaInstruction {
         program_id: wormhole,
@@ -85,6 +85,6 @@ pub fn post_vaa(
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data:       (Instruction::PostVAA, vaa).try_to_vec()?,
+        data:       (Instruction::PostVAA, post_vaa_data).try_to_vec()?,
     })
 }
