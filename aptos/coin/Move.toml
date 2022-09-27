@@ -5,3 +5,9 @@ upgrade_policy = "compatible"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }
+
+[dev-addresses]
+wrapped_coin = "0x0"
+
+[addresses]
+wrapped_coin = "_"

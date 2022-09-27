@@ -13,9 +13,14 @@ Deployer = { local = "../deployer/" }
 
 # only included in testing
 [dev-dependencies]
-WrappedCoin = {local = "../coin/"}
+WrappedCoin = { local = "../coin/" }
+
+[dev-addresses]
+# derived address from sha3_256(deployer + "token_bridge")
+token_bridge = "0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed"
+deployer = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"
+wrapped_coin = "0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b"
+wormhole = "0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204"
 
 [addresses]
-# derived address from sha3_256(deployer + "token_bridge")
-token_bridge="4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed"
-wrapped_coin="b54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b"
+token_bridge = "_"
