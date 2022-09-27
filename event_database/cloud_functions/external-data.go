@@ -12,7 +12,7 @@ import (
 
 	"net/http"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 const cgBaseUrl = "https://api.coingecko.com/api/v3/"

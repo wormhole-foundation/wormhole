@@ -7,20 +7,21 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"cloud.google.com/go/bigtable"
 
 	"github.com/gagliardetto/solana-go"
 )
 
-// terra native tokens do not have a bech32 address like cw20s do, handle them manually.
 var tokenAddressExceptions = map[string]string{
+	// terra native tokens do not have a bech32 address like cw20s do, handle them manually.
 	// terra (classic)
 	"0100000000000000000000000000000000000000000000000000000075757364": "uusd",
 	"010000000000000000000000000000000000000000000000000000756c756e61": "uluna",
@@ -72,10 +73,17 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		}
 		return humanAddressTerra(address)
 	case vaa.ChainIDAlgorand:
-		// TODO
-		return ""
+		assetId := big.Int{}
+		_, ok := assetId.SetString(address, 16)
+		if ok {
+			return assetId.String()
+		}
+		return address
 	case vaa.ChainIDNear:
-		// TODO for now use hex string
+		if val, ok := tokenAddressExceptions[address]; ok {
+			return val
+		}
+		// TODO for now use hex/wormhole address string, we'll need to do a contract query to get the native address
 		return address
 	case vaa.ChainIDTerra2:
 		// handle terra2 native assets manually
@@ -86,8 +94,8 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		if isLikely20ByteTerra(address) {
 			return humanAddressTerra(address)
 		}
-		// TODO: other terra2 asset types
-		return ""
+		// TODO for now use hex/wormhole address string, we'll need to do a contract query to get the native address
+		return address
 	default:
 		log.Println("cannot process address for unknown chain: ", chain)
 		return ""

@@ -12,8 +12,8 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/pubsub"
-	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/holiman/uint256"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 type PubSubMessage struct {
@@ -66,9 +66,10 @@ var tokenTransferEmitters = map[string]string{
 	"000000000000000000000000ae9d7fe007b3327AA64A32824Aaac52C42a6E624": "0xae9d7fe007b3327AA64A32824Aaac52C42a6E624",                       // acala & karura
 	"0000000000000000000000005b08ac39EAED75c0439FC750d9FE7E1F9dD0193F": "0x5b08ac39EAED75c0439FC750d9FE7E1F9dD0193F",                       // klaytn
 	"000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",                       // celo
-	"148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7": "contract.portalbridge.near", // near
+	"148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7": "contract.portalbridge.near",                                       // near
 	"000000000000000000000000B1731c586ca89a23809861c6103F0b96B3F57D92": "0xB1731c586ca89a23809861c6103F0b96B3F57D92",                       // moonbeam
 	"a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3": "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9", // terra2
+	"67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45": "842126029",                                                        // algorand
 
 	// devnet
 	"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f": "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE",                     // solana
@@ -80,6 +81,7 @@ var tokenTransferEmitters = map[string]string{
 	"00000000000000000000000088d8004A9BdbfD9D28090A02010C19897a29605c": "0x88d8004A9BdbfD9D28090A02010C19897a29605c",                       // oasis
 	"000000000000000000000000F174F9A837536C449321df1Ca093Bb96948D5386": "0xF174F9A837536C449321df1Ca093Bb96948D5386",                       // ethereum ropsten
 	"9e28beafa966b2407bffb0d48651e94972a56e69f3c0897d9e8facbdaeb98386": "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6", // terra2
+	"8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2": "6",                                                                // algorand
 }
 
 var muTokenTransferEmitters sync.RWMutex

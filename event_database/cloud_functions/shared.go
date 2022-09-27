@@ -17,7 +17,7 @@ import (
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // shared code for the various functions, primarily response formatting.
