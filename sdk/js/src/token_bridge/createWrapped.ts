@@ -8,11 +8,10 @@ import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
 import { submitVAAOnInjective } from "./redeem";
-import {
-  Account as nearAccount,
-  providers as nearProviders,
-} from "near-api-js";
 import BN from "bn.js";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
+import { callFunctionNear } from "../utils";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -80,30 +79,25 @@ export async function createWrappedOnAlgorand(
 }
 
 export async function createWrappedOnNear(
-  client: nearAccount,
+  provider: Provider,
   tokenBridge: string,
   attestVAA: Uint8Array
-): Promise<string> {
-  // Could we just pass in the vaa already as hex?
-  let vaa = Buffer.from(attestVAA).toString("hex");
-
-  let res = await client.viewFunction(tokenBridge, "deposit_estimates", {});
-
-  let result = await client.functionCall({
-    contractId: tokenBridge,
-    methodName: "submit_vaa",
-    args: { vaa: vaa },
-    attachedDeposit: new BN(res[1]),
-    gas: new BN("150000000000000"),
-  });
-
-  result = await client.functionCall({
-    contractId: tokenBridge,
-    methodName: "submit_vaa",
-    args: { vaa: vaa },
-    attachedDeposit: new BN(res[1]),
-    gas: new BN("150000000000000"),
-  });
-
-  return nearProviders.getTransactionLastResult(result);
+): Promise<FunctionCallOptions[]> {
+  const vaa = Buffer.from(attestVAA).toString("hex");
+  const res = await callFunctionNear(
+    provider,
+    tokenBridge,
+    "deposit_estimates"
+  );
+  const msgs = [
+    {
+      contractId: tokenBridge,
+      methodName: "submit_vaa",
+      args: { vaa },
+      attachedDeposit: new BN(res[1]),
+      gas: new BN("150000000000000"),
+    },
+  ];
+  msgs.push({ ...msgs[0] });
+  return msgs;
 }

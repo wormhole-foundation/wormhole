@@ -51,9 +51,7 @@ async function initNear() {
   keyStore.setKey(config.networkId, config.portalAccount, portalMasterKey);
 
   let near = await nearAPI.connect({
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: config.networkId,
     nodeUrl: config.nodeUrl,
   });

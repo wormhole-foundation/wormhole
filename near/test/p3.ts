@@ -1,39 +1,20 @@
 // npx pretty-quick
 
-const sha256 = require("js-sha256");
 const nearAPI = require("near-api-js");
-const fs = require("fs").promises;
-const assert = require("assert").strict;
 const fetch = require("node-fetch");
-const elliptic = require("elliptic");
-const web3Utils = require("web3-utils");
-import { zeroPad } from "@ethersproject/bytes";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 
-import { Account as nearAccount } from "@certusone/wormhole-sdk/node_modules/near-api-js";
 const BN = require("bn.js");
 
 import { TestLib } from "./testlib";
 
 import algosdk, {
   Account,
-  Algodv2,
-  OnApplicationComplete,
-  SuggestedParams,
-  bigIntToBytes,
   decodeAddress,
-  getApplicationAddress,
-  makeApplicationCallTxnFromObject,
-  makePaymentTxnWithSuggestedParamsFromObject,
-  waitForConfirmation,
 } from "@certusone/wormhole-sdk/node_modules/algosdk";
 
 import {
-  createAsset,
   getAlgoClient,
-  getBalance,
-  getBalances,
-  getForeignAssetFromVaaAlgorand,
   getTempAccounts,
   signSendAndConfirmAlgorand,
 } from "./algoHelpers";
@@ -42,44 +23,28 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_NEAR,
   ChainId,
-  ChainName,
-  textToHexString,
-  textToUint8Array,
 } from "@certusone/wormhole-sdk/lib/cjs/utils";
-
-import { safeBigIntToNumber } from "@certusone/wormhole-sdk/lib/cjs/utils/bigint";
 
 import {
   CONTRACTS,
-  attestNearFromNear,
-  attestTokenFromNear,
-  attestFromAlgorand,
   createWrappedOnAlgorand,
   createWrappedOnNear,
   getEmitterAddressAlgorand,
   getForeignAssetAlgorand,
-  getForeignAssetNear,
-  getIsTransferCompletedNear,
-  getIsWrappedAssetNear,
-  getOriginalAssetNear,
   getSignedVAAWithRetry,
   redeemOnAlgorand,
   redeemOnNear,
   transferFromAlgorand,
-  transferNearFromNear,
   transferTokenFromNear,
 } from "@certusone/wormhole-sdk";
 
-const wh = require("@certusone/wormhole-sdk");
-
 import { parseSequenceFromLogAlgorand } from "@certusone/wormhole-sdk/lib/cjs/bridge";
 
+import { _parseVAAAlgorand } from "@certusone/wormhole-sdk/lib/cjs/algorand";
 import {
-  getMessageFee,
-  optin,
-  TransactionSignerPair,
-  _parseVAAAlgorand,
-} from "@certusone/wormhole-sdk/lib/cjs/algorand";
+  getEmitterAddressNear,
+  parseSequenceFromLogNear,
+} from "@certusone/wormhole-sdk/src";
 
 export const uint8ArrayToHex = (a: Uint8Array): string =>
   Buffer.from(a).toString("hex");
@@ -131,21 +96,6 @@ export function logNearGas(result: any, comment: string) {
   );
 }
 
-export function parseSequenceFromLogNear(result: any): [number, string] {
-  let sequence = "";
-  for (const o of result.receipts_outcome) {
-    for (const l of o.outcome.logs) {
-      if (l.startsWith("EVENT_JSON:")) {
-        const body = JSON.parse(l.slice(11));
-        if (body.standard == "wormhole" && body.event == "publish") {
-          return [body.seq, body.emitter];
-        }
-      }
-    }
-  }
-  return [-1, ""];
-}
-
 async function testNearSDK() {
   let config = getConfig(process.env.NEAR_ENV || "sandbox");
 
@@ -157,7 +107,6 @@ async function testNearSDK() {
   let masterKey = nearAPI.utils.KeyPair.fromString(
     keyFile.secret_key || keyFile.private_key
   );
-  let masterPubKey = masterKey.getPublicKey();
 
   let keyStore = new nearAPI.keyStores.InMemoryKeyStore();
   keyStore.setKey(config.networkId, config.masterAccount, masterKey);
@@ -197,6 +146,7 @@ async function testNearSDK() {
     new BN(10).pow(new BN(27))
   );
   const userAccount = new nearAPI.Account(near.connection, config.userAccount);
+  const provider = near.connection.provider;
 
   console.log(
     "creating a second user account: " +
@@ -223,13 +173,8 @@ async function testNearSDK() {
   let algoCore = BigInt(CONTRACTS.DEVNET.algorand.core);
   let algoToken = BigInt(CONTRACTS.DEVNET.algorand.token_bridge);
 
-  const tbAddr: string = getApplicationAddress(algoToken);
-  const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
-  const aa: string = uint8ArrayToHex(decTbAddr);
-
   const algoClient: algosdk.Algodv2 = getAlgoClient();
   const tempAccts: Account[] = await getTempAccounts();
-  const numAccts: number = tempAccts.length;
 
   const algoWallet: Account = tempAccts[0];
 
@@ -253,9 +198,16 @@ async function testNearSDK() {
 
   seq = seq + 1;
 
-  let usdcp = _parseVAAAlgorand(usdcvaa);
-
-  let usdc = await createWrappedOnNear(userAccount, token_bridge, usdcvaa);
+  const createWrappedMsgs = await createWrappedOnNear(
+    provider,
+    token_bridge,
+    usdcvaa
+  );
+  let usdc;
+  for (const msg of createWrappedMsgs) {
+    const tx = await userAccount.functionCall(msg);
+    usdc = nearAPI.providers.getTransactionLastResult(tx);
+  }
   console.log(usdc);
 
   console.log("Creating USDC token on algorand");
@@ -298,7 +250,12 @@ async function testNearSDK() {
     console.log(trans);
 
     console.log(
-      await redeemOnNear(userAccount, token_bridge, hexToUint8Array(trans))
+      await redeemOnNear(
+        provider,
+        userAccount.account_id,
+        token_bridge,
+        hexToUint8Array(trans)
+      )
     );
   }
   console.log(".. created some USDC on near");
@@ -306,8 +263,9 @@ async function testNearSDK() {
   let wrappedTransfer;
   {
     console.log("transfer USDC from near to algorand");
-    let s = await transferTokenFromNear(
-      userAccount,
+    const transferMsg = await transferTokenFromNear(
+      provider,
+      userAccount.account_id,
       core_bridge,
       token_bridge,
       usdc,
@@ -316,12 +274,18 @@ async function testNearSDK() {
       8,
       BigInt(0)
     );
+    const transferOutcome = await userAccount.functionCall(transferMsg);
+    const sequence = parseSequenceFromLogNear(transferOutcome);
+    if (sequence === null) {
+      console.log("sequence is null");
+      return;
+    }
 
     const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
       ["http://localhost:7071"],
       CHAIN_ID_NEAR,
-      s[1],
-      s[0].toString(),
+      getEmitterAddressNear(token_bridge),
+      sequence,
       {
         transport: NodeHttpTransport(),
       }
@@ -407,7 +371,12 @@ async function testNearSDK() {
 
   console.log("redeeming P3 NEAR on Near");
   console.log(
-    await redeemOnNear(user2Account, token_bridge, transferAlgoToNearP3)
+    await redeemOnNear(
+      provider,
+      user2Account.account_id,
+      token_bridge,
+      transferAlgoToNearP3
+    )
   );
 
   console.log("transfering USDC from Algo To Near... getting the vaa");

@@ -59,9 +59,7 @@ async function initNear() {
   keyStore.setKey(config.networkId, config.masterAccount, masterKey);
 
   let near = await nearAPI.connect({
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: config.networkId,
     nodeUrl: config.nodeUrl,
   });
@@ -76,21 +74,25 @@ async function initNear() {
   );
 
   if (e === "sandbox") {
-      let da = parseSeedPhrase("weather opinion slam purpose access artefact word orbit matter rice poem badge");
-      console.log(da);
-      let resp = await masterAccount.createAccount(
-          "devnet.test.near",
-          da.publicKey,
-          new BN(10).pow(new BN(27))
-      );
+    let da = parseSeedPhrase(
+      "weather opinion slam purpose access artefact word orbit matter rice poem badge"
+    );
+    console.log(da);
+    let resp = await masterAccount.createAccount(
+      "devnet.test.near",
+      da.publicKey,
+      new BN(10).pow(new BN(27))
+    );
 
-      console.log("devnet.test.near funded");
+    console.log("devnet.test.near funded");
   }
 
   const wormholeContract = await fs.readFileSync("./near_wormhole.wasm");
   const tokenContract = await fs.readFileSync("./near_token_bridge.wasm");
   const nftContract = await fs.readFileSync("./near_nft_bridge.wasm");
-  const testContract = await fs.readFileSync("./near_mock_bridge_integration.wasm");
+  const testContract = await fs.readFileSync(
+    "./near_mock_bridge_integration.wasm"
+  );
 
   let wormholeAccount: any;
 
@@ -108,27 +110,27 @@ async function initNear() {
       new BN("20000000000000000000000000")
     );
 
-      await wormholeAccount.functionCall({
-        contractId: config.wormholeAccount,
-        methodName: "register_emitter",
-        args: {emitter: config.tokenAccount},
-        attachedDeposit: new BN("30000000000000000000000"),
-        gas: new BN("100000000000000"),
-      })
-      await wormholeAccount.functionCall({
-        contractId: config.wormholeAccount,
-        methodName: "register_emitter",
-        args: {emitter: config.testAccount},
-        attachedDeposit: new BN("30000000000000000000000"),
-        gas: new BN("100000000000000"),
-      })
-      await wormholeAccount.functionCall({
-        contractId: config.wormholeAccount,
-        methodName: "register_emitter",
-        args: {emitter: config.nftAccount},
-        attachedDeposit: new BN("30000000000000000000000"),
-        gas: new BN("100000000000000"),
-      })
+    await wormholeAccount.functionCall({
+      contractId: config.wormholeAccount,
+      methodName: "register_emitter",
+      args: { emitter: config.tokenAccount },
+      attachedDeposit: new BN("30000000000000000000000"),
+      gas: new BN("100000000000000"),
+    });
+    await wormholeAccount.functionCall({
+      contractId: config.wormholeAccount,
+      methodName: "register_emitter",
+      args: { emitter: config.testAccount },
+      attachedDeposit: new BN("30000000000000000000000"),
+      gas: new BN("100000000000000"),
+    });
+    await wormholeAccount.functionCall({
+      contractId: config.wormholeAccount,
+      methodName: "register_emitter",
+      args: { emitter: config.nftAccount },
+      attachedDeposit: new BN("30000000000000000000000"),
+      gas: new BN("100000000000000"),
+    });
   } else {
     // This uses the standard API to redeploy ... we can migrate over to the vaa's later
     console.log(
@@ -140,18 +142,17 @@ async function initNear() {
     );
     await wormholeAccount.deployContract(wormholeContract);
 
-//    console.log("migrating " + config.wormholeAccount);
-//    console.log(
-//      await wormholeAccount.functionCall({
-//        contractId: config.wormholeAccount,
-//        methodName: "migrate",
-//        args: {},
-//        attachedDeposit: new BN(1),
-//        gas: new BN("100000000000000"),
-//      })
-//    );
-//    console.log("done migrating " + config.tokenAccount);
-
+    //    console.log("migrating " + config.wormholeAccount);
+    //    console.log(
+    //      await wormholeAccount.functionCall({
+    //        contractId: config.wormholeAccount,
+    //        methodName: "migrate",
+    //        args: {},
+    //        attachedDeposit: new BN(1),
+    //        gas: new BN("100000000000000"),
+    //      })
+    //    );
+    //    console.log("done migrating " + config.tokenAccount);
   }
 
   let tokenAccount: any;
@@ -170,19 +171,21 @@ async function initNear() {
     tokenAccount = new nearAPI.Account(near.connection, config.tokenAccount);
     await tokenAccount.deployContract(tokenContract);
 
-    console.log( await tokenAccount.viewFunction(config.tokenAccount, "emitter", {}));
+    console.log(
+      await tokenAccount.viewFunction(config.tokenAccount, "emitter", {})
+    );
 
-//    console.log("migrating " + config.tokenAccount);
-//    console.log(
-//      await tokenAccount.functionCall({
-//        contractId: config.tokenAccount,
-//        methodName: "migrate",
-//        args: {},
-//        attachedDeposit: new BN(1),
-//        gas: new BN("100000000000000"),
-//      })
-//    );
-//    console.log("done migrating " + config.tokenAccount);
+    //    console.log("migrating " + config.tokenAccount);
+    //    console.log(
+    //      await tokenAccount.functionCall({
+    //        contractId: config.tokenAccount,
+    //        methodName: "migrate",
+    //        args: {},
+    //        attachedDeposit: new BN(1),
+    //        gas: new BN("100000000000000"),
+    //      })
+    //    );
+    //    console.log("done migrating " + config.tokenAccount);
   }
 
   let nftAccount: any;
@@ -286,33 +289,33 @@ async function initNear() {
     });
   }
 
-//   for (const line of vaasNFT) {
-//     console.log("Submitting to " + config.nftAccount + ": " + line);
-// 
-//     try {
-//       await masterAccount.functionCall({
-//         contractId: config.nftAccount,
-//         methodName: "submit_vaa",
-//         args: {
-//           vaa: line,
-//         },
-//         attachedDeposit: new BN("30000000000000000000000"),
-//         gas: new BN("300000000000000"),
-//       });
-// 
-//       await masterAccount.functionCall({
-//         contractId: config.nftAccount,
-//         methodName: "submit_vaa",
-//         args: {
-//           vaa: line,
-//         },
-//         attachedDeposit: new BN("30000000000000000000000"),
-//         gas: new BN("300000000000000"),
-//       });
-//     } catch {
-//       console.log("Exception thrown.. ");
-//     }
-//   }
+  //   for (const line of vaasNFT) {
+  //     console.log("Submitting to " + config.nftAccount + ": " + line);
+  //
+  //     try {
+  //       await masterAccount.functionCall({
+  //         contractId: config.nftAccount,
+  //         methodName: "submit_vaa",
+  //         args: {
+  //           vaa: line,
+  //         },
+  //         attachedDeposit: new BN("30000000000000000000000"),
+  //         gas: new BN("300000000000000"),
+  //       });
+  //
+  //       await masterAccount.functionCall({
+  //         contractId: config.nftAccount,
+  //         methodName: "submit_vaa",
+  //         args: {
+  //           vaa: line,
+  //         },
+  //         attachedDeposit: new BN("30000000000000000000000"),
+  //         gas: new BN("300000000000000"),
+  //       });
+  //     } catch {
+  //       console.log("Exception thrown.. ");
+  //     }
+  //   }
 
   console.log("nft bridge booted");
 

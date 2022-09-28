@@ -18,14 +18,13 @@ import {
 } from "@certusone/wormhole-sdk/node_modules/near-api-js";
 
 import {
-  CHAIN_ID_ETH,
   CHAIN_ID_NEAR,
   CONTRACTS,
   attestTokenFromNear,
   getSignedVAAWithRetry,
-  hexToUint8Array,
-  transferTokenFromNear,
   uint8ArrayToHex,
+  parseSequenceFromLogNear,
+  getEmitterAddressNear,
 } from "@certusone/wormhole-sdk";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 // @ts-ignore
@@ -75,17 +74,12 @@ async function transferTest() {
   // connect to near...
   let near = await nearConnect({
     headers: {},
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: networkId as string,
     nodeUrl: nearNodeUrl as string,
   });
 
-  console.log(
-    "Attesting",
-    NEAR_TOKEN_ADDRESS,
-  );
+  console.log("Attesting", NEAR_TOKEN_ADDRESS);
 
   prompt.message = "";
   const { input } = await prompt.get({
@@ -104,20 +98,30 @@ async function transferTest() {
     near.connection,
     process.env.NEAR_ACCOUNT as string
   );
+  const provider = near.connection.provider;
 
-  let [sequence, emitterAddress] = await attestTokenFromNear(
-    userAccount,
+  const attestMsgs = await attestTokenFromNear(
+    provider,
     CONTRACTS.MAINNET.near.core,
     CONTRACTS.MAINNET.near.token_bridge,
     NEAR_TOKEN_ADDRESS
   );
-
-  if (sequence === -1) {
+  let attestOutcome;
+  for (const msg of attestMsgs) {
+    attestOutcome = await userAccount.functionCall(msg);
+  }
+  const sequence = parseSequenceFromLogNear(attestOutcome);
+  if (sequence === null) {
     console.log("No sequence found, check above for error");
     process.exit(1);
   }
 
-  console.log("emitterAddress:", emitterAddress, "sequence:", sequence);
+  console.log(
+    "emitterAddress:",
+    getEmitterAddressNear(CONTRACTS.MAINNET.near.token_bridge),
+    "sequence:",
+    sequence
+  );
 
   console.log(
     `If this script hangs, try https://wormhole-v2-mainnet-api.certus.one/v1/signed_vaa/15/${emitterAddress}/${sequence.toString()}`
@@ -126,8 +130,8 @@ async function transferTest() {
   const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
     WORMHOLE_RPC_HOSTS,
     CHAIN_ID_NEAR,
-    emitterAddress,
-    sequence.toString(),
+    getEmitterAddressNear(CONTRACTS.MAINNET.near.token_bridge),
+    sequence,
     {
       transport: NodeHttpTransport(),
     }
