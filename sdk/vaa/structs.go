@@ -134,6 +134,8 @@ func (c ChainID) String() string {
 		return "terra2"
 	case ChainIDInjective:
 		return "injective"
+	case ChainIDArbitrum:
+		return "arbitrum"
 	case ChainIDPythNet:
 		return "pythnet"
 	default:
@@ -185,6 +187,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDTerra2, nil
 	case "injective":
 		return ChainIDInjective, nil
+	case "arbitrum":
+		return ChainIDArbitrum, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
 	default:
@@ -232,6 +236,8 @@ const (
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
+	// ChainIDArbitrum is the ChainID of Arbitrum
+	ChainIDArbitrum ChainID = 23
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
 
