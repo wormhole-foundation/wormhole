@@ -95,8 +95,7 @@ export async function relaySolana(
   if (
     alreadyRedeemed &&
     escrowState &&
-    (escrowState.marker.kind === "Completed" ||
-      escrowState.marker.kind === "Aborted") &&
+    escrowState.marker.kind === "Completed" &&
     escrowState.inputTokens.every(
       (t) => t.hasReturned.kind !== "NotReturned"
     ) &&
