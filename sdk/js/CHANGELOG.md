@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0
+
+### Added
+
+Near mainnet support
+
+Injective testnet support
+
+getSignedBatchVAA
+
+getIsTransferCompletedTerra2
+
 ## 0.6.2
 
 ### Added
