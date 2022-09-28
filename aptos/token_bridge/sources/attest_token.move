@@ -11,7 +11,7 @@ module token_bridge::attest_token {
     /// Wrapped assets can't be attested
     const E_WRAPPED_ASSET: u64 = 1;
 
-    public fun attest_token_with_signer<CoinType>(user: &signer): u64 {
+    public entry fun attest_token_with_signer<CoinType>(user: &signer): u64 {
         let message_fee = wormhole::state::get_message_fee();
         let fee_coins = coin::withdraw<AptosCoin>(user, message_fee);
         attest_token<CoinType>(fee_coins)

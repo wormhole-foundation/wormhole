@@ -18,12 +18,19 @@ import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
-import { textToHexString, textToUint8Array, uint8ArrayToHex } from "../utils";
+import {
+  ChainId,
+  textToHexString,
+  textToUint8Array,
+  uint8ArrayToHex,
+} from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
 import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
 
 import { getIsWrappedAssetNear } from ".";
+import { AptosClient, AptosAccount, Types } from "aptos";
+import { WormholeAptosApi } from "../aptos";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -279,4 +286,17 @@ export async function attestNearFromNear(
   });
 
   return parseSequenceFromLogNear(result);
+}
+
+// TODO: do we want to pass in a single assetAddress (instead of tokenChain and tokenAddress) as
+// with other APIs above and let user derive the wrapped asset address themselves?
+export async function attestFromAptos(
+  client: AptosClient,
+  sender: AptosAccount,
+  tokenBridgeAddress: string,
+  tokenChain: ChainId,
+  tokenAddress: string
+): Promise<Types.Transaction> {
+  const api = new WormholeAptosApi(client, undefined, tokenBridgeAddress);
+  return api.tokenBridge.attestToken(sender, tokenChain, tokenAddress);
 }

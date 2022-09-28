@@ -1,4 +1,4 @@
-import { AptosAccount } from "aptos";
+import { AptosAccount, Types } from "aptos";
 import { AptosClientWrapper } from "../client";
 
 export class WormholeAptosBaseApi {
@@ -11,7 +11,7 @@ export class WormholeAptosBaseApi {
 
   // Contract upgrade
 
-  authorizeUpgrade = (sender: AptosAccount, vaa: Uint8Array): Promise<string> => {
+  authorizeUpgrade = (sender: AptosAccount, vaa: Uint8Array): Promise<Types.Transaction> => {
     if (!this.address) throw "Need bridge address.";
     const payload = {
       function: `${this.address}::contract_upgrade::submit_vaa`,
@@ -25,7 +25,7 @@ export class WormholeAptosBaseApi {
     sender: AptosAccount,
     metadataSerialized: Uint8Array,
     code: Array<Uint8Array>,
-  ): Promise<string> => {
+  ): Promise<Types.Transaction> => {
     if (!this.address) throw "Need bridge address.";
     const payload = {
       function: `${this.address}::contract_upgrade::upgrade`,
@@ -35,7 +35,7 @@ export class WormholeAptosBaseApi {
     return this.client.executeEntryFunction(sender, payload);
   };
 
-  migrateContract = (sender: AptosAccount): Promise<string> => {
+  migrateContract = (sender: AptosAccount): Promise<Types.Transaction> => {
     if (!this.address) throw "Need bridge address.";
     const payload = {
       function: `${this.address}::contract_upgrade::migrate`,
