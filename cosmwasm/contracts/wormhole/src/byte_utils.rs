@@ -71,10 +71,9 @@ pub fn extend_address_to_32(addr: &CanonicalAddr) -> Vec<u8> {
 }
 
 pub fn extend_address_to_32_array(addr: &CanonicalAddr) -> [u8; 32] {
-    let mut v: Vec<u8> = vec![0; 32 - addr.len()];
-    v.extend(addr.as_slice());
-    let mut result: [u8; 32] = [0; 32];
-    result.copy_from_slice(&v);
+    let mut result = [0u8; 32];
+    let start = 32 - addr.len();
+    result[start..].copy_from_slice(addr);
     result
 }
 
@@ -84,10 +83,8 @@ pub fn extend_address_to_32_array(addr: &CanonicalAddr) -> [u8; 32] {
 pub fn string_to_array<const N: usize>(s: &str) -> [u8; N] {
     let bytes = s.as_bytes();
     let len = usize::min(N, bytes.len());
-    let zeros = vec![0; N - len];
-    let padded = [bytes[..len].to_vec(), zeros].concat();
-    let mut result: [u8; N] = [0; N];
-    result.copy_from_slice(&padded);
+    let mut result = [0u8; N];
+    result[..len].copy_from_slice(&bytes[..len]);
     result
 }
 
@@ -98,4 +95,42 @@ pub fn extend_string_to_32(s: &str) -> Vec<u8> {
 pub fn get_string_from_32(v: &[u8]) -> String {
     let s = String::from_utf8_lossy(v);
     s.chars().filter(|c| c != &'\0').collect()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn extend_address() {
+        let addr = [
+            0x04, 0x12, 0x72, 0xf4, 0x8e, 0x2a, 0x0d, 0xdd, 0xb4, 0x4c, 0x2b, 0x84, 0xe7, 0x36,
+            0xe5, 0xd0, 0x0b, 0xbc, 0x94, 0x81, 0x62, 0x35, 0xa7, 0xfc, 0xe3, 0x1c, 0x0b, 0x97,
+            0xe7, 0xac, 0x9f, 0x58,
+        ];
+
+        let zeroes = [0u8; 32];
+
+        for i in 0..=32 {
+            let res = extend_address_to_32_array(&addr[i..].into());
+            assert_eq!(res[i..], addr[i..]);
+            assert_eq!(res[..i], zeroes[..i]);
+        }
+    }
+
+    #[test]
+    fn extend_string() {
+        let src = "f4a9d6346560cfecd57b88121e7cbf23";
+        let zeroes = [0u8; 32];
+
+        for i in 0..=32 {
+            let res = string_to_array::<32>(&src[..i]);
+            assert_eq!(res[..i], src.as_bytes()[..i]);
+            assert_eq!(res[i..], zeroes[i..]);
+        }
+
+        let large = "dc00835f9ebed39b3cd3dc221c4e3fb0efdf46cc4dc7b0d1";
+        let res = string_to_array::<32>(large);
+        assert_eq!(res[..], large.as_bytes()[..32]);
+    }
 }
