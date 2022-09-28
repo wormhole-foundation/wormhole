@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/evm/connectors"
-	"github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
-	"github.com/certusone/wormhole/node/pkg/evm/finalizers"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/finalizers"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
