@@ -4,8 +4,8 @@ import {
   ChainName,
   coalesceChainId,
   CONTRACTS,
-  deriveWrappedAssetAddress,
-  Network
+  getAssetFullyQualifiedType,
+  Network,
 } from "../../utils";
 import { AptosClientWrapper } from "../client";
 import { WormholeAptosBaseApi } from "./base";
@@ -25,14 +25,14 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     vaa: Uint8Array,
     feeRecipient: string,
   ): Promise<string> => {
-    const assetContract = deriveWrappedAssetAddress(
+    const assetType = getAssetFullyQualifiedType(
       this.address,
       coalesceChainId(tokenChain),
       tokenAddress,
     );
     const payload = {
       function: `${this.address}::complete_transfer::submit_vaa`,
-      type_arguments: [`${assetContract}::coin::T`],
+      type_arguments: [assetType],
       arguments: [vaa, feeRecipient],
     };
     return this.client.executeEntryFunction(sender, payload);
@@ -44,14 +44,14 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     tokenAddress: string,
     vaa: Uint8Array,
   ): Promise<string> => {
-    const assetContract = deriveWrappedAssetAddress(
+    const assetType = getAssetFullyQualifiedType(
       this.address,
       coalesceChainId(tokenChain),
       tokenAddress,
     );
     const payload = {
       function: `${this.address}::complete_transfer_with_payload::submit_vaa`,
-      type_arguments: [`${assetContract}::coin::T`],
+      type_arguments: [assetType],
       arguments: [vaa],
     };
     return this.client.executeEntryFunction(sender, payload);
@@ -93,14 +93,14 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     wormholeFee: number | bigint,
     nonce: number | bigint,
   ): Promise<string> => {
-    const assetContract = deriveWrappedAssetAddress(
+    const assetType = getAssetFullyQualifiedType(
       this.address,
       coalesceChainId(tokenChain),
       tokenAddress,
     );
     const payload = {
       function: `${this.address}::transfer_tokens::submit_vaa`,
-      type_arguments: [`${assetContract}::coin::T`],
+      type_arguments: [assetType],
       arguments: [amount, recipientChain, recipient, relayerFee, wormholeFee, nonce],
     };
     return this.client.executeEntryFunction(sender, payload);
@@ -119,14 +119,14 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
       type_arguments: [],
       arguments: [vaa],
     };
-    const assetContract = deriveWrappedAssetAddress(
+    const assetType = getAssetFullyQualifiedType(
       this.address,
       coalesceChainId(tokenChain),
       tokenAddress,
     );
     const createWrappedCoinPayload = {
       function: `${this.address}::wrapped::create_wrapped_coin`,
-      type_arguments: [`${assetContract}::coin::T`],
+      type_arguments: [assetType],
       arguments: [vaa],
     };
 
