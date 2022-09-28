@@ -6,7 +6,7 @@ import { WormholeAptosBaseApi } from "./base";
 export class WormholeAptosCoreBridgeApi extends WormholeAptosBaseApi {
   constructor(client: AptosClientWrapper, network: Network) {
     super(client);
-    this.address = CONTRACTS[network].aptos.core;
+    this.address = CONTRACTS[network].aptos.core!;
   }
 
   // Guardian set upgrade
