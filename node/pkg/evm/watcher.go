@@ -1,4 +1,4 @@
-package ethereum
+package evm
 
 import (
 	"context"
@@ -6,6 +6,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/certusone/wormhole/node/pkg/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
+	"github.com/certusone/wormhole/node/pkg/evm/finalizers"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -17,9 +21,7 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/node/pkg/celo"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -63,7 +65,7 @@ type (
 	Watcher struct {
 		// Ethereum RPC url
 		url string
-		// Address of the Eth contract contract
+		// Address of the Eth contract
 		contract eth_common.Address
 		// Human-readable name of the Eth network, for logging and monitoring.
 		networkName string
@@ -100,8 +102,9 @@ type (
 		minConfirmations uint64
 
 		// Interface to the chain specific ethereum library.
-		ethIntf             common.Ethish
+		ethConn             connectors.Connector
 		shouldCheckSafeMode bool
+		unsafeDevMode       bool
 	}
 
 	pendingKey struct {
@@ -129,21 +132,6 @@ func NewEthWatcher(
 	obsvReqC chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool) *Watcher {
 
-	var ethIntf common.Ethish
-	if chainID == vaa.ChainIDCelo && !unsafeDevMode {
-		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
-		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
-		ethIntf = &celo.CeloImpl{NetworkName: networkName}
-	} else if chainID == vaa.ChainIDEthereum && !unsafeDevMode {
-		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, DelayInMs: 250, IsEthPoS: true}
-	} else if chainID == vaa.ChainIDMoonbeam && !unsafeDevMode {
-		ethIntf = &PollImpl{BaseEth: EthImpl{NetworkName: networkName}, Finalizer: &MoonbeamFinalizer{}, DelayInMs: 250}
-	} else if chainID == vaa.ChainIDNeon {
-		ethIntf = NewGetLogsImpl(networkName, contract, 250)
-	} else {
-		ethIntf = &EthImpl{NetworkName: networkName}
-	}
-
 	return &Watcher{
 		url:                 url,
 		contract:            contract,
@@ -155,42 +143,91 @@ func NewEthWatcher(
 		setChan:             setEvents,
 		obsvReqC:            obsvReqC,
 		pending:             map[pendingKey]*pendingMessage{},
-		ethIntf:             ethIntf,
-		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode)}
+		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode),
+		unsafeDevMode:       unsafeDevMode,
+	}
 }
 
-func (e *Watcher) Run(ctx context.Context) error {
+func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
-	e.ethIntf.SetLogger(logger)
 
-	if e.shouldCheckSafeMode {
-		if err := e.checkForSafeMode(ctx); err != nil {
+	if w.shouldCheckSafeMode {
+		if err := w.checkForSafeMode(ctx); err != nil {
 			return err
 		}
 	}
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
-	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
-		ContractAddress: e.contract.Hex(),
+	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
+		ContractAddress: w.contract.Hex(),
 	})
 
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	err := e.ethIntf.DialContext(timeout, e.url)
-	if err != nil {
-		ethConnectionErrors.WithLabelValues(e.networkName, "dial_error").Inc()
-		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-		return fmt.Errorf("dialing eth client failed: %w", err)
-	}
 
-	err = e.ethIntf.NewAbiFilterer(e.contract)
-	if err != nil {
-		return fmt.Errorf("could not create wormhole contract filter: %w", err)
-	}
-
-	err = e.ethIntf.NewAbiCaller(e.contract)
-	if err != nil {
-		panic(err)
+	var err error
+	if w.chainID == vaa.ChainIDCelo && !w.unsafeDevMode {
+		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
+		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
+		w.ethConn, err = connectors.NewCeloConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDEthereum && !w.unsafeDevMode {
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating block poll connector failed: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDMoonbeam && !w.unsafeDevMode {
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		finalizer := finalizers.NewMoonbeamFinalizer(logger, baseConnector)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating block poll connector failed: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDNeon {
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, false)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating block poll connector failed: %w", err)
+		}
+		w.ethConn, err = connectors.NewLogPollConnector(ctx, pollConnector, baseConnector.Client())
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating poll connector failed: %w", err)
+		}
+	} else {
+		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
 	}
 
 	// Timeout for initializing subscriptions
@@ -198,16 +235,17 @@ func (e *Watcher) Run(ctx context.Context) error {
 	defer cancel()
 
 	// Subscribe to new message publications
-	messageC := make(chan *abi.AbiLogMessagePublished, 2)
-	messageSub, err := e.ethIntf.WatchLogMessagePublished(ctx, timeout, messageC)
+	messageC := make(chan *ethabi.AbiLogMessagePublished, 2)
+	messageSub, err := w.ethConn.WatchLogMessagePublished(timeout, messageC)
+	defer messageSub.Unsubscribe()
 	if err != nil {
-		ethConnectionErrors.WithLabelValues(e.networkName, "subscribe_error").Inc()
-		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		ethConnectionErrors.WithLabelValues(w.networkName, "subscribe_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("failed to subscribe to message publication events: %w", err)
 	}
 
 	// Fetch initial guardian set
-	if err := e.fetchAndUpdateGuardianSet(logger, ctx, e.ethIntf); err != nil {
+	if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
 		return fmt.Errorf("failed to request guardian set: %v", err)
 	}
 
@@ -222,7 +260,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				if err := e.fetchAndUpdateGuardianSet(logger, ctx, e.ethIntf); err != nil {
+				if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
 					errC <- fmt.Errorf("failed to request guardian set: %v", err)
 					return
 				}
@@ -239,16 +277,16 @@ func (e *Watcher) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case r := <-e.obsvReqC:
+			case r := <-w.obsvReqC:
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
-				if vaa.ChainID(r.ChainId) != e.chainID {
+				if vaa.ChainID(r.ChainId) != w.chainID {
 					panic("invalid chain ID")
 				}
 
 				tx := eth_common.BytesToHash(r.TxHash)
 				logger.Info("received observation request",
-					zap.String("eth_network", e.networkName),
+					zap.String("eth_network", w.networkName),
 					zap.String("tx_hash", tx.Hex()))
 
 				// SECURITY: Load the block number before requesting the transaction to avoid a
@@ -261,24 +299,24 @@ func (e *Watcher) Run(ctx context.Context) error {
 				blockNumberU := atomic.LoadUint64(&currentBlockNumber)
 				if blockNumberU == 0 {
 					logger.Error("no block number available, ignoring observation request",
-						zap.String("eth_network", e.networkName))
+						zap.String("eth_network", w.networkName))
 					continue
 				}
 
 				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-				blockNumber, msgs, err := MessageEventsForTransaction(timeout, e.ethIntf, e.contract, e.chainID, tx)
+				blockNumber, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, tx)
 				cancel()
 
 				if err != nil {
 					logger.Error("failed to process observation request",
-						zap.Error(err), zap.String("eth_network", e.networkName))
+						zap.Error(err), zap.String("eth_network", w.networkName))
 					continue
 				}
 
 				for _, msg := range msgs {
 					expectedConfirmations := uint64(msg.ConsistencyLevel)
-					if expectedConfirmations < e.minConfirmations {
-						expectedConfirmations = e.minConfirmations
+					if expectedConfirmations < w.minConfirmations {
+						expectedConfirmations = w.minConfirmations
 					}
 
 					// SECURITY: In the recovery flow, we already know which transaction to
@@ -298,9 +336,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("sequence", msg.Sequence),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
-							zap.String("eth_network", e.networkName),
+							zap.String("eth_network", w.networkName),
 						)
-						e.msgChan <- msg
+						w.msgChan <- msg
 					} else {
 						logger.Info("ignoring re-observed message publication transaction",
 							zap.Stringer("tx", msg.TxHash),
@@ -309,7 +347,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 							zap.Uint64("expected_confirmations", expectedConfirmations),
-							zap.String("eth_network", e.networkName),
+							zap.String("eth_network", w.networkName),
 						)
 					}
 				}
@@ -323,21 +361,21 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case err := <-messageSub.Err():
-				ethConnectionErrors.WithLabelValues(e.networkName, "subscription_error").Inc()
+				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing message publication subscription: %w", err)
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return
 			case ev := <-messageC:
 				// Request timestamp for block
 				msm := time.Now()
 				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-				blockTime, err := e.ethIntf.TimeOfBlockByHash(timeout, ev.Raw.BlockHash)
+				blockTime, err := w.ethConn.TimeOfBlockByHash(timeout, ev.Raw.BlockHash)
 				cancel()
-				queryLatency.WithLabelValues(e.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
+				queryLatency.WithLabelValues(w.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
 
 				if err != nil {
-					ethConnectionErrors.WithLabelValues(e.networkName, "block_by_number_error").Inc()
-					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
 						ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
 					return
@@ -348,7 +386,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					Timestamp:        time.Unix(int64(blockTime), 0),
 					Nonce:            ev.Nonce,
 					Sequence:         ev.Sequence,
-					EmitterChain:     e.chainID,
+					EmitterChain:     w.chainID,
 					EmitterAddress:   PadAddress(ev.Sender),
 					Payload:          ev.Payload,
 					ConsistencyLevel: ev.ConsistencyLevel,
@@ -361,9 +399,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 					zap.Uint64("Sequence", ev.Sequence),
 					zap.Uint32("Nonce", ev.Nonce),
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-					zap.String("eth_network", e.networkName))
+					zap.String("eth_network", w.networkName))
 
-				ethMessagesObserved.WithLabelValues(e.networkName).Inc()
+				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 
 				key := pendingKey{
 					TxHash:         message.TxHash,
@@ -372,22 +410,22 @@ func (e *Watcher) Run(ctx context.Context) error {
 					Sequence:       message.Sequence,
 				}
 
-				e.pendingMu.Lock()
-				e.pending[key] = &pendingMessage{
+				w.pendingMu.Lock()
+				w.pending[key] = &pendingMessage{
 					message: message,
 					height:  ev.Raw.BlockNumber,
 				}
-				e.pendingMu.Unlock()
+				w.pendingMu.Unlock()
 			}
 		}
 	}()
 
 	// Watch headers
-	headSink := make(chan *common.NewBlock, 2)
-	headerSubscription, err := e.ethIntf.SubscribeForBlocks(ctx, headSink)
+	headSink := make(chan *connectors.NewBlock, 2)
+	headerSubscription, err := w.ethConn.SubscribeForBlocks(ctx, headSink)
 	if err != nil {
-		ethConnectionErrors.WithLabelValues(e.networkName, "header_subscribe_error").Inc()
-		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		ethConnectionErrors.WithLabelValues(w.networkName, "header_subscribe_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
 
@@ -397,18 +435,18 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case err := <-headerSubscription.Err():
-				ethConnectionErrors.WithLabelValues(e.networkName, "header_subscription_error").Inc()
+				ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing header subscription: %w", err)
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return
 			case ev := <-headSink:
 				// These two pointers should have been checked before the event was placed on the channel, but just being safe.
 				if ev == nil {
-					logger.Error("new header event is nil", zap.String("eth_network", e.networkName))
+					logger.Error("new header event is nil", zap.String("eth_network", w.networkName))
 					continue
 				}
 				if ev.Number == nil {
-					logger.Error("new header block number is nil", zap.String("eth_network", e.networkName))
+					logger.Error("new header block number is nil", zap.String("eth_network", w.networkName))
 					continue
 				}
 
@@ -417,23 +455,23 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Info("processing new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Stringer("current_blockhash", currentHash),
-					zap.String("eth_network", e.networkName))
-				currentEthHeight.WithLabelValues(e.networkName).Set(float64(ev.Number.Int64()))
-				readiness.SetReady(e.readiness)
-				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
+					zap.String("eth_network", w.networkName))
+				currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
+				readiness.SetReady(w.readiness)
+				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 					Height:          ev.Number.Int64(),
-					ContractAddress: e.contract.Hex(),
+					ContractAddress: w.contract.Hex(),
 				})
 
-				e.pendingMu.Lock()
+				w.pendingMu.Lock()
 
 				blockNumberU := ev.Number.Uint64()
 				atomic.StoreUint64(&currentBlockNumber, blockNumberU)
 
-				for key, pLock := range e.pending {
+				for key, pLock := range w.pending {
 					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)
-					if expectedConfirmations < e.minConfirmations {
-						expectedConfirmations = e.minConfirmations
+					if expectedConfirmations < w.minConfirmations {
+						expectedConfirmations = w.minConfirmations
 					}
 
 					// Transaction was dropped and never picked up again
@@ -445,17 +483,17 @@ func (e *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("sequence", key.Sequence),
 							zap.Stringer("current_block", ev.Number),
 							zap.Stringer("current_blockhash", currentHash),
-							zap.String("eth_network", e.networkName),
+							zap.String("eth_network", w.networkName),
 						)
-						ethMessagesOrphaned.WithLabelValues(e.networkName, "timeout").Inc()
-						delete(e.pending, key)
+						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
+						delete(w.pending, key)
 						continue
 					}
 
 					// Transaction is now ready
 					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						tx, err := e.ethIntf.TransactionReceipt(timeout, pLock.message.TxHash)
+						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
 
 						// If the node returns an error after waiting expectedConfirmation blocks,
@@ -474,10 +512,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", e.networkName),
+								zap.String("eth_network", w.networkName),
 								zap.Error(err))
-							delete(e.pending, key)
-							ethMessagesOrphaned.WithLabelValues(e.networkName, "not_found").Inc()
+							delete(w.pending, key)
+							ethMessagesOrphaned.WithLabelValues(w.networkName, "not_found").Inc()
 							continue
 						}
 
@@ -492,10 +530,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", e.networkName),
+								zap.String("eth_network", w.networkName),
 								zap.Error(err))
-							delete(e.pending, key)
-							ethMessagesOrphaned.WithLabelValues(e.networkName, "tx_failed").Inc()
+							delete(w.pending, key)
+							ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_failed").Inc()
 							continue
 						}
 
@@ -508,7 +546,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", e.networkName),
+								zap.String("eth_network", w.networkName),
 								zap.Error(err))
 							continue
 						}
@@ -524,9 +562,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Uint64("sequence", key.Sequence),
 								zap.Stringer("current_block", ev.Number),
 								zap.Stringer("current_blockhash", currentHash),
-								zap.String("eth_network", e.networkName))
-							delete(e.pending, key)
-							ethMessagesOrphaned.WithLabelValues(e.networkName, "blockhash_mismatch").Inc()
+								zap.String("eth_network", w.networkName))
+							delete(w.pending, key)
+							ethMessagesOrphaned.WithLabelValues(w.networkName, "blockhash_mismatch").Inc()
 							continue
 						}
 
@@ -537,19 +575,19 @@ func (e *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("sequence", key.Sequence),
 							zap.Stringer("current_block", ev.Number),
 							zap.Stringer("current_blockhash", currentHash),
-							zap.String("eth_network", e.networkName))
-						delete(e.pending, key)
-						e.msgChan <- pLock.message
-						ethMessagesConfirmed.WithLabelValues(e.networkName).Inc()
+							zap.String("eth_network", w.networkName))
+						delete(w.pending, key)
+						w.msgChan <- pLock.message
+						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 					}
 				}
 
-				e.pendingMu.Unlock()
+				w.pendingMu.Unlock()
 				logger.Info("processed new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Duration("took", time.Since(start)),
-					zap.String("eth_network", e.networkName))
+					zap.String("eth_network", w.networkName))
 			}
 		}
 	}()
@@ -562,36 +600,36 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-func (e *Watcher) fetchAndUpdateGuardianSet(
+func (w *Watcher) fetchAndUpdateGuardianSet(
 	logger *zap.Logger,
 	ctx context.Context,
-	ethIntf common.Ethish,
+	ethConn connectors.Connector,
 ) error {
 	msm := time.Now()
 	logger.Info("fetching guardian set")
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	idx, gs, err := fetchCurrentGuardianSet(timeout, ethIntf)
+	idx, gs, err := fetchCurrentGuardianSet(timeout, ethConn)
 	if err != nil {
-		ethConnectionErrors.WithLabelValues(e.networkName, "guardian_set_fetch_error").Inc()
-		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		ethConnectionErrors.WithLabelValues(w.networkName, "guardian_set_fetch_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return err
 	}
 
-	queryLatency.WithLabelValues(e.networkName, "get_guardian_set").Observe(time.Since(msm).Seconds())
+	queryLatency.WithLabelValues(w.networkName, "get_guardian_set").Observe(time.Since(msm).Seconds())
 
-	if e.currentGuardianSet != nil && *(e.currentGuardianSet) == idx {
+	if w.currentGuardianSet != nil && *(w.currentGuardianSet) == idx {
 		return nil
 	}
 
 	logger.Info("updated guardian set found",
 		zap.Any("value", gs), zap.Uint32("index", idx),
-		zap.String("eth_network", e.networkName))
+		zap.String("eth_network", w.networkName))
 
-	e.currentGuardianSet = &idx
+	w.currentGuardianSet = &idx
 
-	if e.setChan != nil {
-		e.setChan <- &common.GuardianSet{
+	if w.setChan != nil {
+		w.setChan <- &common.GuardianSet{
 			Keys:  gs.Keys,
 			Index: idx,
 		}
@@ -601,13 +639,13 @@ func (e *Watcher) fetchAndUpdateGuardianSet(
 }
 
 // Fetch the current guardian set ID and guardian set from the chain.
-func fetchCurrentGuardianSet(ctx context.Context, ethIntf common.Ethish) (uint32, *abi.StructsGuardianSet, error) {
-	currentIndex, err := ethIntf.GetCurrentGuardianSetIndex(ctx)
+func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) (uint32, *ethabi.StructsGuardianSet, error) {
+	currentIndex, err := ethConn.GetCurrentGuardianSetIndex(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("error requesting current guardian set index: %w", err)
 	}
 
-	gs, err := ethIntf.GetGuardianSet(ctx, currentIndex)
+	gs, err := ethConn.GetGuardianSet(ctx, currentIndex)
 	if err != nil {
 		return 0, nil, fmt.Errorf("error requesting current guardian set value: %w", err)
 	}
@@ -615,23 +653,23 @@ func fetchCurrentGuardianSet(ctx context.Context, ethIntf common.Ethish) (uint32
 	return currentIndex, &gs, nil
 }
 
-func (e *Watcher) checkForSafeMode(ctx context.Context) error {
+func (w *Watcher) checkForSafeMode(ctx context.Context) error {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	c, err := rpc.DialContext(timeout, e.url)
+	c, err := rpc.DialContext(timeout, w.url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", e.url, err)
+		return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", w.url, err)
 	}
 
 	var safe bool
 	err = c.CallContext(ctx, &safe, "net_isSafeMode")
 	if err != nil {
-		return fmt.Errorf("check for safe mode for url %s failed: %w", e.url, err)
+		return fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
 	}
 
 	if !safe {
-		return fmt.Errorf("url %s is not using safe mode", e.url)
+		return fmt.Errorf("url %s is not using safe mode", w.url)
 	}
 
 	return nil
