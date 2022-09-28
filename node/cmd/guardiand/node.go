@@ -134,6 +134,9 @@ var (
 	pythnetContract *string
 	pythnetRPC      *string
 
+	arbitrumRPC      *string
+	arbitrumContract *string
+
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -248,6 +251,9 @@ func init() {
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
 	pythnetRPC = NodeCmd.Flags().String("pythnetRPC", "", "PythNet RPC URL (required")
+
+	arbitrumRPC = NodeCmd.Flags().String("arbitrumRPC", "", "Arbitrum RPC URL")
+	arbitrumContract = NodeCmd.Flags().String("arbitrumContract", "", "Arbitrum contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -403,6 +409,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 		readiness.RegisterComponent(common.ReadinessNeonSyncing)
 		readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
+		readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -455,6 +462,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		*celoContract = devnet.GanacheWormholeContractAddress.Hex()
 		*moonbeamContract = devnet.GanacheWormholeContractAddress.Hex()
 		*neonContract = devnet.GanacheWormholeContractAddress.Hex()
+		if *arbitrumContract == "" {
+			*neonContract = devnet.GanacheWormholeContractAddress.Hex()
+		}
 	}
 
 	// Verify flags
@@ -566,6 +576,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
 		}
+		if *arbitrumRPC == "" {
+			logger.Fatal("Please specify --arbitrumRPC")
+		}
+		if *arbitrumContract == "" {
+			logger.Fatal("Please specify --arbitrumContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -587,6 +603,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --injectiveContract")
+		}
+		if *arbitrumRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --arbitrumRPC")
+		}
+		if *arbitrumContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --arbitrumContract")
 		}
 	}
 	if *nodeName == "" {
@@ -702,6 +724,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	celoContractAddr := eth_common.HexToAddress(*celoContract)
 	moonbeamContractAddr := eth_common.HexToAddress(*moonbeamContract)
 	neonContractAddr := eth_common.HexToAddress(*neonContract)
+	arbitrumContractAddr := eth_common.HexToAddress(*arbitrumContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -807,6 +830,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+		chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	}
 	go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
@@ -982,6 +1006,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 			if err := supervisor.Run(ctx, "neonwatch",
 				evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, lockC, nil, 32, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "arbitrumwatch",
+				evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", common.ReadinessArbitrumSyncing, vaa.ChainIDArbitrum, lockC, nil, 32, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode).Run); err != nil {
 				return err
 			}
 		}
