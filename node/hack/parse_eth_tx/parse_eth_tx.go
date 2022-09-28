@@ -10,9 +10,10 @@ import (
 	"flag"
 	"log"
 
-	"github.com/certusone/wormhole/node/pkg/celo"
-	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/ethereum"
+	"github.com/certusone/wormhole/node/pkg/evm"
+	"github.com/certusone/wormhole/node/pkg/evm/connectors"
+	"go.uber.org/zap"
+
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -34,27 +35,25 @@ func main() {
 
 	ctx := context.Background()
 
-	var ethIntf common.Ethish
-	if chainID == vaa.ChainIDCelo {
-		ethIntf = &celo.CeloImpl{NetworkName: "celo"}
-	} else {
-		ethIntf = &ethereum.EthImpl{NetworkName: "eth"}
-	}
-
-	err := ethIntf.DialContext(ctx, *flagEthRPC)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	contractAddr := ethCommon.HexToAddress(*flagContractAddr)
+
+	var ethIntf connectors.Connector
+	var err error
+	if chainID == vaa.ChainIDCelo {
+		ethIntf, err = connectors.NewCeloConnector(ctx, "", *flagEthRPC, contractAddr, zap.L())
+		if err != nil {
+			log.Fatalf("dialing eth client failed: %v", err)
+		}
+	} else {
+		ethIntf, err = connectors.NewEthereumConnector(ctx, "", *flagEthRPC, contractAddr, zap.L())
+		if err != nil {
+			log.Fatalf("dialing eth client failed: %v", err)
+		}
+	}
+
 	transactionHash := ethCommon.HexToHash(*flagTx)
 
-	err = ethIntf.NewAbiFilterer(contractAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	block, msgs, err := ethereum.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
+	block, msgs, err := evm.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
 	if err != nil {
 		log.Fatal(err)
 	}

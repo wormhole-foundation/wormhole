@@ -1,4 +1,4 @@
-package ethereum
+package evm
 
 import (
 	"github.com/ethereum/go-ethereum/common"
