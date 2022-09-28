@@ -3,7 +3,7 @@ package finalizers
 import (
 	"context"
 
-	"github.com/certusone/wormhole/node/pkg/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 )
 
 // DefaultFinalizer assumes all blocks to be finalized.

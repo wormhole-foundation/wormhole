@@ -6,7 +6,8 @@ import (
 	"math/big"
 	"time"
 
-	ethAbi "github.com/certusone/wormhole/node/pkg/evm/connectors/ethabi"
+	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
+
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
