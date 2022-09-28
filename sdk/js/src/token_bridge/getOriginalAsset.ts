@@ -1,17 +1,14 @@
-const sha256 = require("js-sha256");
-
-import { getNetworkInfo, Network } from "@injectivelabs/networks";
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
-import { arrayify, zeroPad } from "ethers/lib/utils";
+import { arrayify, sha256, zeroPad } from "ethers/lib/utils";
 import { decodeLocalState } from "../algorand";
 import { buildTokenId, isNativeCosmWasmDenom } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
-import { buildNativeId, isNativeDenom } from "../terra";
+import { buildNativeId } from "../terra";
 import { canonicalAddress } from "../cosmos";
 import {
   ChainId,
@@ -27,6 +24,7 @@ import {
   hexToUint8Array,
   coalesceCosmWasmChainId,
   tryHexToNativeAssetString,
+  callFunctionNear,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -34,7 +32,7 @@ import {
   getIsWrappedAssetEth,
   getIsWrappedAssetNear,
 } from "./getIsWrappedAsset";
-import { Account as nearAccount } from "near-api-js";
+import { Provider } from "near-api-js/lib/providers";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -269,26 +267,31 @@ export async function getOriginalAssetAlgorand(
 }
 
 export async function getOriginalAssetNear(
-  client: nearAccount,
+  provider: Provider,
   tokenAccount: string,
   assetAccount: string
 ): Promise<WormholeWrappedInfo> {
-  let retVal: WormholeWrappedInfo = {
+  const retVal: WormholeWrappedInfo = {
     isWrapped: false,
     chainId: CHAIN_ID_NEAR,
     assetAddress: new Uint8Array(),
   };
   retVal.isWrapped = await getIsWrappedAssetNear(tokenAccount, assetAccount);
   if (!retVal.isWrapped) {
-    retVal.assetAddress = sha256.sha256.hex(
-      Buffer.from(assetAccount).toString("hex")
-    );
+    retVal.assetAddress = assetAccount
+      ? arrayify(sha256(Buffer.from(assetAccount)))
+      : zeroPad(arrayify("0x"), 32);
     return retVal;
   }
 
-  let buf = await client.viewFunction(tokenAccount, "get_original_asset", {
-    token: assetAccount,
-  });
+  const buf = await callFunctionNear(
+    provider,
+    tokenAccount,
+    "get_original_asset",
+    {
+      token: assetAccount,
+    }
+  );
 
   retVal.chainId = buf[1];
   retVal.assetAddress = hexToUint8Array(buf[0]);

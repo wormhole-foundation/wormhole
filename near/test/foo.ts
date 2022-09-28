@@ -1,46 +1,16 @@
 const nearAPI = require("near-api-js");
-const BN = require("bn.js");
-const fs = require("fs");
-const fetch = require("node-fetch");
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 
 import {
-  CONTRACTS,
   attestNearFromNear,
-  attestTokenFromNear,
-  attestFromAlgorand,
-  createWrappedOnAlgorand,
   tryNativeToUint8Array,
-  createWrappedOnNear,
-  getEmitterAddressAlgorand,
-  getForeignAssetAlgorand,
-  getForeignAssetNear,
-  getIsTransferCompletedNear,
-  getIsWrappedAssetNear,
-  getOriginalAssetNear,
   getSignedVAAWithRetry,
-  redeemOnAlgorand,
-  redeemOnNear,
-  transferFromAlgorand,
   transferNearFromNear,
-  transferTokenFromNear,
+  parseSequenceFromLogNear,
+  getEmitterAddressNear,
 } from "@certusone/wormhole-sdk";
 
-const wh = require("@certusone/wormhole-sdk");
-
-import {
-  CHAIN_ID_ALGORAND,
-  CHAIN_ID_NEAR,
-  ChainId,
-  ChainName,
-  textToHexString,
-  textToUint8Array,
-} from "@certusone/wormhole-sdk/lib/cjs/utils";
-
-import {
-  _parseVAAAlgorand,
-} from "@certusone/wormhole-sdk/lib/cjs/algorand";
-
+import { _parseVAAAlgorand } from "@certusone/wormhole-sdk/lib/cjs/algorand";
 
 function getConfig(env: any) {
   switch (env) {
@@ -77,7 +47,6 @@ async function initNear() {
   let masterKey = nearAPI.utils.KeyPair.fromString(
     "ed25519:5dJ7Nsq4DQBdiGvZLPyjRVmhtRaScahsREpEPtaAyE9Z3CgyZFsaBwpybCRBMugiwhbFCUkqHk7PJ3BVcgZZ9Lgk"
   );
-  let masterPubKey = masterKey.getPublicKey();
 
   let keyStore = new nearAPI.keyStores.InMemoryKeyStore();
   keyStore.setKey(config.networkId, config.masterAccount, masterKey);
@@ -93,6 +62,7 @@ async function initNear() {
     near.connection,
     config.masterAccount
   );
+  const provider = near.connection.provider;
 
   console.log(
     "Finish init NEAR masterAccount: " +
@@ -114,13 +84,22 @@ async function initNear() {
   );
 
   console.log("attesting Near itself");
-  let s = await attestNearFromNear(masterAccount, core_bridge, token_bridge);
+  const attestMsg = await attestNearFromNear(
+    provider,
+    core_bridge,
+    token_bridge
+  );
+  const attestOutcome = await masterAccount.functionCall(attestMsg);
+  const attestSeq = parseSequenceFromLogNear(attestOutcome);
+  if (attestSeq === null) {
+    throw new Error("attestSeq is null");
+  }
 
   const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
     ["https://wormhole-v2-testnet-api.certus.one"],
-    CHAIN_ID_NEAR,
-    s[1],
-    s[0].toString(),
+    "near",
+    getEmitterAddressNear(token_bridge),
+    attestSeq,
     {
       transport: NodeHttpTransport(),
     }
@@ -128,21 +107,29 @@ async function initNear() {
 
   console.log("vaa: " + Buffer.from(signedVAA).toString("hex"));
 
-  s = await transferNearFromNear(
-    masterAccount,
+  const transferMsg = await transferNearFromNear(
+    provider,
     core_bridge,
     token_bridge,
     BigInt(1000000000000000000000000),
-    tryNativeToUint8Array("0x3bC7f2e458aC4E55F941C458cfD8c6851a591B4F", "ethereum"),
+    tryNativeToUint8Array(
+      "0x3bC7f2e458aC4E55F941C458cfD8c6851a591B4F",
+      "ethereum"
+    ),
     2,
     BigInt(0)
   );
+  const transferOutcome = await masterAccount.functionCall(transferMsg);
+  const transferSeq = parseSequenceFromLogNear(transferOutcome);
+  if (transferSeq === null) {
+    throw new Error("transferSeq is null");
+  }
 
   const { vaaBytes: signedTrans } = await getSignedVAAWithRetry(
     ["https://wormhole-v2-testnet-api.certus.one"],
-    CHAIN_ID_NEAR,
-    s[1],
-    s[0].toString(),
+    "near",
+    getEmitterAddressNear(token_bridge),
+    transferSeq,
     {
       transport: NodeHttpTransport(),
     }
@@ -150,8 +137,8 @@ async function initNear() {
 
   console.log("vaa: " + Buffer.from(signedTrans).toString("hex"));
 
-    let p = _parseVAAAlgorand(signedTrans);
-    console.log(p);
+  let p = _parseVAAAlgorand(signedTrans);
+  console.log(p);
 }
 
 initNear();

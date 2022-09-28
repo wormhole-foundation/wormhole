@@ -124,6 +124,7 @@ docker_build(
     context = ".",
     dockerfile = "Dockerfile.node",
     target = "build",
+    ignore=["./sdk/js"]
 )
 
 def command_with_dlv(argv):
@@ -697,9 +698,10 @@ if near:
     )
 
     docker_build(
-        ref = "near-contracts",
+        ref = "near-deploy",
         context = "near",
-        dockerfile = "near/Dockerfile.contracts",
+        dockerfile = "near/Dockerfile.deploy",
+        ignore = ["./test"]
     )
 
     k8s_resource(

@@ -1,12 +1,6 @@
 // npx pretty-quick
 
-const sha256 = require("js-sha256");
-const fs = require("fs").promises;
-const assert = require("assert").strict;
 const fetch = require("node-fetch");
-const elliptic = require("elliptic");
-const web3Utils = require("web3-utils");
-import { zeroPad } from "@ethersproject/bytes";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 
 import {
@@ -23,22 +17,12 @@ import { TestLib } from "./testlib";
 
 import algosdk, {
   Account,
-  Algodv2,
-  OnApplicationComplete,
-  SuggestedParams,
-  bigIntToBytes,
   decodeAddress,
   getApplicationAddress,
-  makeApplicationCallTxnFromObject,
-  makePaymentTxnWithSuggestedParamsFromObject,
-  waitForConfirmation,
 } from "@certusone/wormhole-sdk/node_modules/algosdk";
 
 import {
   getAlgoClient,
-  getBalance,
-  getBalances,
-  getForeignAssetFromVaaAlgorand,
   getTempAccounts,
   signSendAndConfirmAlgorand,
 } from "./algoHelpers";
@@ -47,12 +31,7 @@ import {
   CHAIN_ID_ALGORAND,
   CHAIN_ID_NEAR,
   ChainId,
-  ChainName,
-  textToHexString,
-  textToUint8Array,
 } from "@certusone/wormhole-sdk/lib/cjs/utils";
-
-import { safeBigIntToNumber } from "@certusone/wormhole-sdk/lib/cjs/utils/bigint";
 
 import {
   CONTRACTS,
@@ -66,8 +45,6 @@ import {
   getForeignAssetAlgorand,
   getForeignAssetNear,
   getIsTransferCompletedNear,
-  getIsWrappedAssetNear,
-  getOriginalAssetNear,
   getSignedVAAWithRetry,
   redeemOnAlgorand,
   redeemOnNear,
@@ -76,19 +53,10 @@ import {
   transferTokenFromNear,
 } from "@certusone/wormhole-sdk";
 
-const wh = require("@certusone/wormhole-sdk");
+import { parseSequenceFromLogAlgorand } from "@certusone/wormhole-sdk/lib/cjs/bridge";
 
-import {
-  parseSequenceFromLogAlgorand,
-  parseSequenceFromLogNear,
-} from "@certusone/wormhole-sdk/lib/cjs/bridge";
-
-import {
-  getMessageFee,
-  optin,
-  TransactionSignerPair,
-  _parseVAAAlgorand,
-} from "@certusone/wormhole-sdk/lib/cjs/algorand";
+import { _parseVAAAlgorand } from "@certusone/wormhole-sdk/lib/cjs/algorand";
+import { parseSequenceFromLogNear } from "@certusone/wormhole-sdk/src";
 
 export const uint8ArrayToHex = (a: Uint8Array): string =>
   Buffer.from(a).toString("hex");
@@ -218,7 +186,6 @@ async function testNearSDK() {
   let masterKey = nearUtils.KeyPair.fromString(
     keyFile.secret_key || keyFile.private_key
   );
-  let masterPubKey = masterKey.getPublicKey();
 
   let keyStore = new nearKeyStores.InMemoryKeyStore();
   keyStore.setKey(
@@ -229,9 +196,7 @@ async function testNearSDK() {
 
   let near = await nearConnect({
     headers: {},
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: config.networkId as string,
     nodeUrl: config.nodeUrl as string,
   });
@@ -274,6 +239,7 @@ async function testNearSDK() {
     near.connection,
     config.userAccount as string
   );
+  const provider = near.connection.provider;
 
   console.log(
     "creating a second user account: " +
@@ -317,11 +283,9 @@ async function testNearSDK() {
 
   const tbAddr: string = getApplicationAddress(algoToken);
   const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
-  const aa: string = uint8ArrayToHex(decTbAddr);
 
   const algoClient: algosdk.Algodv2 = getAlgoClient();
   const tempAccts: Account[] = await getTempAccounts();
-  const numAccts: number = tempAccts.length;
 
   const algoWallet: Account = tempAccts[0];
 
@@ -353,12 +317,15 @@ async function testNearSDK() {
     { transport: NodeHttpTransport() }
   );
 
-  let noriumNear = await createWrappedOnNear(
-    userAccount,
+  for (const msg of await createWrappedOnNear(
+    provider,
     token_bridge,
     vaaBytes
-  );
-  console.log("for norium, createWrappedOnNear returned " + noriumNear);
+  )) {
+    await userAccount.functionCall(msg);
+  }
+
+  console.log("for norium, createWrappedOnNear returned");
 
   let account_hash = await userAccount.viewFunction(
     token_bridge,
@@ -455,14 +422,22 @@ async function testNearSDK() {
   console.log("calling createWrappedOnNear to create usdc");
 
   if (
-    (await getIsTransferCompletedNear(userAccount, token_bridge, usdcvaa)) ==
-    true
+    (await getIsTransferCompletedNear(provider, token_bridge, usdcvaa)) == true
   ) {
     console.log("getIsTransferCompleted returned incorrect value (true)");
     process.exit(1);
   }
 
-  let usdc = await createWrappedOnNear(userAccount, token_bridge, usdcvaa);
+  const createWrappedMsgs = await createWrappedOnNear(
+    provider,
+    token_bridge,
+    usdcvaa
+  );
+  let usdc;
+  for (const msg of createWrappedMsgs) {
+    const tx = await userAccount.functionCall(msg);
+    usdc = nearProviders.getTransactionLastResult(tx);
+  }
   console.log("createWrappedOnNear returned " + usdc);
 
   if (usdc === "") {
@@ -471,15 +446,14 @@ async function testNearSDK() {
   }
 
   if (
-    (await getIsTransferCompletedNear(userAccount, token_bridge, usdcvaa)) ==
-    false
+    (await getIsTransferCompletedNear(provider, token_bridge, usdcvaa)) == false
   ) {
     console.log("getIsTransferCompleted returned incorrect value (false)");
     process.exit(1);
   }
 
   let aname = await getForeignAssetNear(
-    userAccount,
+    provider,
     token_bridge,
     usdcp.FromChain as ChainId,
     usdcp.Contract as string
@@ -518,9 +492,15 @@ async function testNearSDK() {
     console.log(trans);
 
     try {
-      console.log(
-        await redeemOnNear(userAccount, token_bridge, hexToUint8Array(trans))
+      const redeemMsgs = await redeemOnNear(
+        provider,
+        userAccount.accountId,
+        token_bridge,
+        hexToUint8Array(trans)
       );
+      for (const msg of redeemMsgs) {
+        await userAccount.functionCall(msg);
+      }
       console.log("This should have thrown a exception..");
       process.exit(1);
     } catch (error) {
@@ -541,30 +521,52 @@ async function testNearSDK() {
     );
     console.log("myAddress: " + myAddress2);
 
-    console.log(
-      await redeemOnNear(userAccount, token_bridge, hexToUint8Array(trans))
+    const redeemMsgs = await redeemOnNear(
+      provider,
+      userAccount.accountId,
+      token_bridge,
+      hexToUint8Array(trans)
     );
+    for (const msg of redeemMsgs) {
+      await userAccount.functionCall(msg);
+    }
   }
   console.log(".. created some USDC");
 
   console.log("Redeeming norium on near");
-  await redeemOnNear(userAccount, token_bridge, signedVaa.vaaBytes);
+  for (const msg of await redeemOnNear(
+    provider,
+    userAccount.accountId,
+    token_bridge,
+    signedVaa.vaaBytes
+  )) {
+    await userAccount.functionCall(msg);
+  }
 
   let nativeAttest;
   {
     console.log("attesting: " + randoToken);
-    let s = await attestTokenFromNear(
-      userAccount,
+    const attestMsgs = await attestTokenFromNear(
+      provider,
       core_bridge,
       token_bridge,
       randoToken
     );
-    console.log(s);
+    let sequence;
+    for (const msg of attestMsgs) {
+      const tx = await userAccount.functionCall(msg);
+      sequence = parseSequenceFromLogNear(tx);
+    }
+    if (!sequence) {
+      console.log("sequence is null");
+      process.exit(1);
+    }
+    console.log(getEmitterAddressNear(token_bridge));
     const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
       ["http://localhost:7071"],
       CHAIN_ID_NEAR,
-      s[1],
-      s[0].toString(),
+      getEmitterAddressNear(token_bridge),
+      sequence,
       {
         transport: NodeHttpTransport(),
       }
@@ -576,7 +578,7 @@ async function testNearSDK() {
     console.log(p.FromChain as ChainId, p.Contract as string);
 
     let a = await getForeignAssetNear(
-      userAccount,
+      provider,
       token_bridge,
       p.FromChain as ChainId,
       p.Contract as string
@@ -592,13 +594,22 @@ async function testNearSDK() {
   let nearAttest;
   {
     console.log("attesting Near itself");
-    let s = await attestNearFromNear(userAccount, core_bridge, token_bridge);
-
+    const attestMsg = await attestNearFromNear(
+      provider,
+      core_bridge,
+      token_bridge
+    );
+    const tx = await userAccount.functionCall(attestMsg);
+    const sequence = parseSequenceFromLogNear(tx);
+    if (sequence === null) {
+      console.log("sequence is null");
+      process.exit(1);
+    }
     const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
       ["http://localhost:7071"],
       CHAIN_ID_NEAR,
-      s[1],
-      s[0].toString(),
+      getEmitterAddressNear(token_bridge),
+      sequence,
       {
         transport: NodeHttpTransport(),
       }
@@ -607,7 +618,7 @@ async function testNearSDK() {
     console.log("vaa: " + Buffer.from(signedVAA).toString("hex"));
     let p = _parseVAAAlgorand(signedVAA);
     let a = await getForeignAssetNear(
-      userAccount,
+      provider,
       token_bridge,
       p.FromChain as ChainId,
       p.Contract as string
@@ -658,8 +669,9 @@ async function testNearSDK() {
       usdc
     );
 
-    let s = await transferTokenFromNear(
-      userAccount,
+    const transferMsgs = await transferTokenFromNear(
+      provider,
+      userAccount.accountId,
       core_bridge,
       token_bridge,
       usdc,
@@ -668,12 +680,21 @@ async function testNearSDK() {
       8,
       BigInt(0)
     );
+    let sequence;
+    for (const msg of transferMsgs) {
+      const tx = await userAccount.functionCall(msg);
+      sequence = parseSequenceFromLogNear(tx);
+    }
+    if (!sequence) {
+      console.log("sequence is null");
+      process.exit(1);
+    }
 
     const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
       ["http://localhost:7071"],
       CHAIN_ID_NEAR,
-      s[1],
-      s[0].toString(),
+      getEmitterAddressNear(token_bridge),
+      sequence,
       {
         transport: NodeHttpTransport(),
       }
@@ -698,8 +719,9 @@ async function testNearSDK() {
   let randoTransfer;
   {
     console.log("YYY transfer rando token from near to algorand");
-    let s = await transferTokenFromNear(
-      userAccount,
+    const transferMsgs = await transferTokenFromNear(
+      provider,
+      userAccount.accountId,
       core_bridge,
       token_bridge,
       randoToken,
@@ -708,12 +730,21 @@ async function testNearSDK() {
       8,
       BigInt(0)
     );
+    let sequence;
+    for (const msg of transferMsgs) {
+      const tx = await userAccount.functionCall(msg);
+      sequence = parseSequenceFromLogNear(tx);
+    }
+    if (!sequence) {
+      console.log("sequence is null");
+      process.exit(1);
+    }
 
     const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
       ["http://localhost:7071"],
       CHAIN_ID_NEAR,
-      s[1],
-      s[0].toString(),
+      getEmitterAddressNear(token_bridge),
+      sequence,
       {
         transport: NodeHttpTransport(),
       }
@@ -723,16 +754,6 @@ async function testNearSDK() {
     randoTransfer = signedVAA;
 
     console.log(_parseVAAAlgorand(randoTransfer));
-
-    if (s[1] != getEmitterAddressNear(token_bridge)) {
-      console.log(
-        "Unexpected emitter address: " +
-          s[1] +
-          "!=" +
-          getEmitterAddressNear(token_bridge)
-      );
-      process.exit(1);
-    }
   }
 
   console.log(
@@ -750,8 +771,8 @@ async function testNearSDK() {
   let nearTransfer;
   {
     console.log("transfer near from near to algorand");
-    let s = await transferNearFromNear(
-      userAccount,
+    const transferMsg = await transferNearFromNear(
+      provider,
       core_bridge,
       token_bridge,
       BigInt(1000000000000000000000000),
@@ -759,12 +780,18 @@ async function testNearSDK() {
       8,
       BigInt(0)
     );
+    const tx = await userAccount.functionCall(transferMsg);
+    const sequence = parseSequenceFromLogNear(tx);
+    if (sequence === null) {
+      console.log("sequence is null");
+      process.exit(1);
+    }
 
     const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
       ["http://localhost:7071"],
       CHAIN_ID_NEAR,
-      s[1],
-      s[0].toString(),
+      getEmitterAddressNear(token_bridge),
+      sequence,
       {
         transport: NodeHttpTransport(),
       }
@@ -944,9 +971,15 @@ async function testNearSDK() {
   }
 
   console.log("redeeming USDC on Near");
-  console.log(
-    await redeemOnNear(user2Account, token_bridge, transferAlgoToNearUSDC)
+  let redeemMsgs = await redeemOnNear(
+    provider,
+    user2Account.accountId,
+    token_bridge,
+    transferAlgoToNearUSDC
   );
+  for (const msg of redeemMsgs) {
+    await userAccount.functionCall(msg);
+  }
 
   console.log(
     "YYY redeeming Rando on Near: " + uint8ArrayToHex(transferAlgoToNearRando)
@@ -964,9 +997,15 @@ async function testNearSDK() {
     })
   );
 
-  console.log(
-    await redeemOnNear(user2Account, token_bridge, transferAlgoToNearRando)
+  redeemMsgs = await redeemOnNear(
+    provider,
+    user2Account.accountId,
+    token_bridge,
+    transferAlgoToNearRando
   );
+  for (const msg of redeemMsgs) {
+    await userAccount.functionCall(msg);
+  }
 
   console.log(
     await userAccount.viewFunction(randoToken, "ft_balance_of", {
@@ -981,9 +1020,16 @@ async function testNearSDK() {
   );
 
   console.log("redeeming NEAR on Near");
-  console.log(
-    await redeemOnNear(user2Account, token_bridge, transferAlgoToNearNEAR)
+
+  redeemMsgs = await redeemOnNear(
+    provider,
+    user2Account.accountId,
+    token_bridge,
+    transferAlgoToNearNEAR
   );
+  for (const msg of redeemMsgs) {
+    await userAccount.functionCall(msg);
+  }
 
   let userAccount2Address = nearProviders.getTransactionLastResult(
     await userAccount.functionCall({
@@ -1032,7 +1078,12 @@ async function testNearSDK() {
   {
     console.log("redeeming P3 NEAR on Near");
     console.log(
-      await redeemOnNear(user2Account, token_bridge, transferAlgoToNearP3)
+      await redeemOnNear(
+        provider,
+        user2Account.accountId,
+        token_bridge,
+        transferAlgoToNearP3
+      )
     );
 
     console.log(
@@ -1071,9 +1122,15 @@ async function testNearSDK() {
     }
 
     console.log("YYY redeeming P3 random on Near");
-    console.log(
-      await redeemOnNear(user2Account, token_bridge, transferAlgoToNearRandoP3)
+    const redeemMsgs = await redeemOnNear(
+      provider,
+      user2Account.accountId,
+      token_bridge,
+      transferAlgoToNearRandoP3
     );
+    for (const msg of redeemMsgs) {
+      await user2Account.functionCall(msg);
+    }
   }
 
   console.log(

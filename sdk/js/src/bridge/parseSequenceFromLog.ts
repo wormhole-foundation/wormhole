@@ -1,6 +1,7 @@
 import { TransactionResponse } from "@solana/web3.js";
 import { TxInfo } from "@terra-money/terra.js";
 import { BigNumber, ContractReceipt } from "ethers";
+import { FinalExecutionOutcome } from "near-api-js/lib/providers";
 import { Implementation__factory } from "../ethers-contracts";
 
 export function parseSequenceFromLogEth(
@@ -123,17 +124,20 @@ export function parseSequenceFromLogAlgorand(
   return sequence;
 }
 
-export function parseSequenceFromLogNear(result: any): [number, string] {
-  let sequence = "";
-  for (const o of result.receipts_outcome) {
+const NEAR_EVENT_PREFIX = "EVENT_JSON:";
+
+export function parseSequenceFromLogNear(
+  outcome: FinalExecutionOutcome
+): string | null {
+  for (const o of outcome.receipts_outcome) {
     for (const l of o.outcome.logs) {
-      if (l.startsWith("EVENT_JSON:")) {
-        const body = JSON.parse(l.slice(11));
+      if (l.startsWith(NEAR_EVENT_PREFIX)) {
+        const body = JSON.parse(l.slice(NEAR_EVENT_PREFIX.length));
         if (body.standard === "wormhole" && body.event === "publish") {
-          return [body.seq, body.emitter];
+          return body.seq.toString();
         }
       }
     }
   }
-  return [-1, ""];
+  return null;
 }

@@ -14,7 +14,7 @@ export async function execute_near(
   let contracts = CONTRACTS[network]["near"];
 
   let target_contract = "";
-  let numSubmits = 1
+  let numSubmits = 1;
 
   switch (payload.module) {
     case "Core":
@@ -37,7 +37,7 @@ export async function execute_near(
       if (contracts.nft_bridge === undefined) {
         throw new Error("NFT bridge not supported yet for near");
       }
-      numSubmits = 2
+      numSubmits = 2;
       target_contract = contracts.nft_bridge;
       switch (payload.type) {
         case "ContractUpgrade":
@@ -57,7 +57,7 @@ export async function execute_near(
       if (contracts.token_bridge === undefined) {
         throw new Error("Token bridge not supported yet for near");
       }
-      numSubmits = 2
+      numSubmits = 2;
       target_contract = contracts.token_bridge;
       switch (payload.type) {
         case "ContractUpgrade":
@@ -89,9 +89,7 @@ export async function execute_near(
   keyStore.setKey(n.networkId, n.deployerAccount, key);
 
   let near = await nearAPI.connect({
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: n.networkId,
     nodeUrl: n.rpc,
   });
@@ -111,7 +109,7 @@ export async function execute_near(
 
   if (numSubmits <= 1) {
     console.log("Hash: " + result1.transaction.hash);
-    return
+    return;
   }
 
   // You have to feed a vaa twice into the contract (two submits),

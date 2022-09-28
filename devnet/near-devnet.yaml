@@ -46,12 +46,12 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 3030
-        - name: near-contracts
-          image: near-contracts
+        - name: near-deploy
+          image: near-deploy
           command:
             - /bin/sh
             - -c
-            - "sh devnet_deploy.sh && touch success && sleep infinity"
+            - "sh /app/devnet_deploy.sh && touch success && sleep infinity"
           readinessProbe:
             tcpSocket:
               port: 3030
