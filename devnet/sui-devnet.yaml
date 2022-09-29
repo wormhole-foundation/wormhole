@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: sui
+  name: sui
+spec:
+  ports:
+    - name: node
+      port: 5001
+      targetPort: node
+    - name: prometheus
+      port: 9184
+      targetPort: prometheus
+  selector:
+    app: sui
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: sui
+  name: sui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sui
+  serviceName: sui
+  template:
+    metadata:
+      labels:
+        app: sui
+    spec:
+      containers:
+        - name: sui-node
+          image: sui-node
+          command:
+            - /bin/sh 
+            - -c 
+            - /tmp/start_node.sh
+          ports:
+            - containerPort: 5001
+              name: node
+              protocol: TCP
+            - containerPort: 9184
+              name: prometheus
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 5001
+
+      restartPolicy: Always
