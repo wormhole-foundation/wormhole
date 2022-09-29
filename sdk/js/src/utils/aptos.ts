@@ -9,7 +9,7 @@ export const getAssetFullyQualifiedType = (
   // native asset
   if (originChain === CHAIN_ID_APTOS) {
     // originAddress should be of form address::module::type
-    if ((originAddress.match(/::/g) || []).length !== 2) {
+    if (/(0[xX])?[0-9a-fA-F]+::\w+::\w+/g.test(originAddress)) {
       console.error("Need fully qualified address for native asset");
       return null;
     }
