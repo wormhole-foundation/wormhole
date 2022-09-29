@@ -20,7 +20,7 @@ import {
   Transaction as AlgorandTransaction,
 } from "algosdk";
 import { ethers, Overrides, PayableOverrides } from "ethers";
-import { isNativeDenom } from "..";
+import { getIsWrappedAssetNear, isNativeDenom } from "..";
 import {
   assetOptinCheck,
   getMessageFee,
@@ -44,16 +44,13 @@ import {
   textToUint8Array,
   uint8ArrayToHex,
   CHAIN_ID_SOLANA,
+  callFunctionNear,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { isNativeDenomInjective } from "../cosmwasm";
-import {
-  Account as nearAccount,
-  providers as nearProviders,
-} from "near-api-js";
-import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
-
 const BN = require("bn.js");
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -725,21 +722,9 @@ export async function transferFromAlgorand(
   return txs;
 }
 
-/**
- * Transfers an asset from Near to a receiver on another chain
- * @param client
- * @param coreBridge account
- * @param tokenBridge account of the token bridge
- * @param assetId account
- * @param qty Quantity to transfer
- * @param receiver Receiving account
- * @param chain Reeiving chain
- * @param fee Transfer fee
- * @param payload payload for payload3 transfers
- * @returns [Sequence number of confirmation, emitter]
- */
 export async function transferTokenFromNear(
-  client: nearAccount,
+  provider: Provider,
+  account: string,
   coreBridge: string,
   tokenBridge: string,
   assetId: string,
@@ -748,54 +733,70 @@ export async function transferTokenFromNear(
   chain: ChainId | ChainName,
   fee: bigint,
   payload: string = ""
-): Promise<[number, string]> {
-  let wormhole = assetId.endsWith("." + tokenBridge);
+): Promise<FunctionCallOptions[]> {
+  const isWrapped = getIsWrappedAssetNear(tokenBridge, assetId);
 
-  let result;
+  const messageFee = await callFunctionNear(
+    provider,
+    coreBridge,
+    "message_fee",
+    {}
+  );
 
-  let message_fee = await client.viewFunction(coreBridge, "message_fee", {});
+  chain = coalesceChainId(chain);
 
-  if (wormhole) {
-    result = await client.functionCall({
-      contractId: tokenBridge,
-      methodName: "send_transfer_wormhole_token",
-      args: {
-        token: assetId,
-        amount: qty.toString(10),
-        receiver: uint8ArrayToHex(receiver),
-        chain: chain,
-        fee: fee.toString(10),
-        payload: payload,
-        message_fee: message_fee,
+  if (isWrapped) {
+    return [
+      {
+        contractId: tokenBridge,
+        methodName: "send_transfer_wormhole_token",
+        args: {
+          token: assetId,
+          amount: qty.toString(10),
+          receiver: uint8ArrayToHex(receiver),
+          chain,
+          fee: fee.toString(10),
+          payload: payload,
+          message_fee: messageFee,
+        },
+        attachedDeposit: new BN(messageFee + 1),
+        gas: new BN("100000000000000"),
       },
-      attachedDeposit: new BN(message_fee + 1),
-      gas: new BN("100000000000000"),
-    });
+    ];
   } else {
-    let bal = await client.viewFunction(assetId, "storage_balance_of", {
-      account_id: tokenBridge,
-    });
+    const options: FunctionCallOptions[] = [];
+    const bal = await callFunctionNear(
+      provider,
+      assetId,
+      "storage_balance_of",
+      {
+        account_id: tokenBridge,
+      }
+    );
     if (bal === null) {
       // Looks like we have to stake some storage for this asset
       // for the token bridge...
-      nearProviders.getTransactionLastResult(
-        await client.functionCall({
-          contractId: assetId,
-          methodName: "storage_deposit",
-          args: { account_id: tokenBridge, registration_only: true },
-          gas: new BN("100000000000000"),
-          attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
-        })
-      );
+      options.push({
+        contractId: assetId,
+        methodName: "storage_deposit",
+        args: { account_id: tokenBridge, registration_only: true },
+        gas: new BN("100000000000000"),
+        attachedDeposit: new BN("2000000000000000000000"), // 0.002 NEAR
+      });
     }
 
-    if (message_fee > 0) {
-      let bank = await client.viewFunction(tokenBridge, "bank_balance", {
-        acct: client.accountId,
-      });
+    if (messageFee > 0) {
+      const bank = await callFunctionNear(
+        provider,
+        tokenBridge,
+        "bank_balance",
+        {
+          acct: account,
+        }
+      );
 
       if (!bank[0]) {
-        await client.functionCall({
+        options.push({
           contractId: tokenBridge,
           methodName: "register_bank",
           args: {},
@@ -804,18 +805,18 @@ export async function transferTokenFromNear(
         });
       }
 
-      if (bank[1] < message_fee) {
-        await client.functionCall({
+      if (bank[1] < messageFee) {
+        options.push({
           contractId: tokenBridge,
           methodName: "fill_bank",
           args: {},
           gas: new BN("100000000000000"),
-          attachedDeposit: new BN(message_fee),
+          attachedDeposit: new BN(messageFee),
         });
       }
     }
 
-    result = await client.functionCall({
+    options.push({
       contractId: assetId,
       methodName: "ft_transfer_call",
       args: {
@@ -823,34 +824,22 @@ export async function transferTokenFromNear(
         amount: qty.toString(10),
         msg: JSON.stringify({
           receiver: uint8ArrayToHex(receiver),
-          chain: chain,
+          chain,
           fee: fee.toString(10),
           payload: payload,
-          message_fee: message_fee,
+          message_fee: messageFee,
         }),
       },
       attachedDeposit: new BN(1),
       gas: new BN("100000000000000"),
     });
-  }
 
-  return parseSequenceFromLogNear(result);
+    return options;
+  }
 }
 
-/**
- * Transfers NEAR from Near to a receiver on another chain
- * @param client
- * @param coreBridge account
- * @param tokenBridge account of the token bridge
- * @param qty Quantity to transfer
- * @param receiver Receiving account
- * @param chain Reeiving chain
- * @param fee Transfer fee
- * @param payload payload for payload3 transfers
- * @returns [Sequence number of confirmation, emitter]
- */
 export async function transferNearFromNear(
-  client: nearAccount,
+  provider: Provider,
   coreBridge: string,
   tokenBridge: string,
   qty: bigint,
@@ -858,22 +847,24 @@ export async function transferNearFromNear(
   chain: ChainId | ChainName,
   fee: bigint,
   payload: string = ""
-): Promise<[number, string]> {
-  let message_fee = await client.viewFunction(coreBridge, "message_fee", {});
-
-  let result = await client.functionCall({
+): Promise<FunctionCallOptions> {
+  const messageFee = await callFunctionNear(
+    provider,
+    coreBridge,
+    "message_fee",
+    {}
+  );
+  return {
     contractId: tokenBridge,
     methodName: "send_transfer_near",
     args: {
       receiver: uint8ArrayToHex(receiver),
-      chain: chain,
+      chain: coalesceChainId(chain),
       fee: fee.toString(10),
       payload: payload,
-      message_fee: message_fee,
+      message_fee: messageFee,
     },
-    attachedDeposit: new BN(qty.toString(10)).add(new BN(message_fee)),
+    attachedDeposit: new BN(qty.toString(10)).add(new BN(messageFee)),
     gas: new BN("100000000000000"),
-  });
-
-  return parseSequenceFromLogNear(result);
+  };
 }

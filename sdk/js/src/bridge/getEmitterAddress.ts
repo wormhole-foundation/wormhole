@@ -1,10 +1,15 @@
 import { PublicKey } from "@solana/web3.js";
 import { decodeAddress, getApplicationAddress } from "algosdk";
 import { bech32 } from "bech32";
-import { arrayify, BytesLike, Hexable, zeroPad } from "ethers/lib/utils";
+import {
+  arrayify,
+  sha256,
+  BytesLike,
+  Hexable,
+  zeroPad,
+} from "ethers/lib/utils";
 import { importTokenWasm } from "../solana/wasm";
 import { uint8ArrayToHex } from "../utils";
-import { sha256 } from  "js-sha256";
 
 export function getEmitterAddressEth(
   contractAddress: number | BytesLike | Hexable
@@ -35,5 +40,5 @@ export function getEmitterAddressAlgorand(appId: bigint): string {
 }
 
 export function getEmitterAddressNear(programAddress: string): string {
-  return sha256.hex(programAddress);
+  return uint8ArrayToHex(arrayify(sha256(Buffer.from(programAddress, "utf8"))));
 }

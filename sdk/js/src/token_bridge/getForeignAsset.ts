@@ -1,7 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
-import { getNetworkInfo, Network } from "@injectivelabs/networks";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
@@ -13,13 +12,13 @@ import {
 import { Bridge__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
 import {
+  callFunctionNear,
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
   coalesceChainId,
 } from "../utils";
-import { Account as nearAccount } from "near-api-js";
-const BN = require("bn.js");
+import { Provider } from "near-api-js/lib/providers";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -165,17 +164,19 @@ export async function getForeignAssetAlgorand(
 }
 
 export async function getForeignAssetNear(
-  client: nearAccount,
+  provider: Provider,
   tokenAccount: string,
   chain: ChainId | ChainName,
   contract: string
 ): Promise<string | null> {
-  const chainId = coalesceChainId(chain);
-
-  let ret = await client.viewFunction(tokenAccount, "get_foreign_asset", {
-    chain: chainId,
-    address: contract,
-  });
-  if (ret === "") return null;
-  else return ret;
+  const ret = await callFunctionNear(
+    provider,
+    tokenAccount,
+    "get_foreign_asset",
+    {
+      chain: coalesceChainId(chain),
+      address: contract,
+    }
+  );
+  return ret !== "" ? ret : null;
 }

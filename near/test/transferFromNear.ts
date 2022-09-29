@@ -22,8 +22,10 @@ import {
   CHAIN_ID_NEAR,
   CONTRACTS,
   getEmitterAddressEth,
+  getEmitterAddressNear,
   getSignedVAAWithRetry,
   hexToUint8Array,
+  parseSequenceFromLogNear,
   transferTokenFromNear,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
@@ -85,9 +87,7 @@ async function transferTest() {
   // connect to near...
   let near = await nearConnect({
     headers: {},
-    deps: {
-      keyStore,
-    },
+    keyStore,
     networkId: networkId as string,
     nodeUrl: nearNodeUrl as string,
   });
@@ -120,9 +120,11 @@ async function transferTest() {
     near.connection,
     process.env.NEAR_ACCOUNT as string
   );
+  const provider = userAccount.connection.provider;
 
-  let [sequence, emitterAddress] = await transferTokenFromNear(
-    userAccount,
+  const transferMsgs = await transferTokenFromNear(
+    provider,
+    userAccount.accountId,
     CONTRACTS.MAINNET.near.core,
     CONTRACTS.MAINNET.near.token_bridge,
     NEAR_TOKEN_ADDRESS,
@@ -131,12 +133,19 @@ async function transferTest() {
     CHAIN_ID_ETH,
     BigInt(0)
   );
-
-  if (sequence === -1) {
+  let transferOutcome;
+  for (const msg of transferMsgs) {
+    transferOutcome = await userAccount.functionCall(msg);
+  }
+  const sequence = parseSequenceFromLogNear(transferOutcome);
+  if (sequence === null) {
     console.log("No sequence found, check above for error");
     process.exit(1);
   }
 
+  const emitterAddress = getEmitterAddressNear(
+    CONTRACTS.MAINNET.near.token_bridge
+  );
   console.log("emitterAddress:", emitterAddress, "sequence:", sequence);
 
   console.log(

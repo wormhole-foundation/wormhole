@@ -1312,11 +1312,26 @@ class PortalCore:
         print("complete")
 
     def updateToken(self) -> None:
-        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        if self.args.approve == "" and self.args.clear == "":
+            approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig, devMode = self.devnet or self.args.testnet)
+        else:
+            pprint.pprint([self.args.approve, self.args.clear])
+            with open(self.args.approve, encoding = 'utf-8') as f:
+                approval = {"result": f.readlines()[0]}
+                pprint.pprint(approval)
+            with open(self.args.clear, encoding = 'utf-8') as f:
+                clear = {"result": f.readlines()[0]}
+                pprint.pprint(clear)
 
-        print("token " + decode_address(approval["hash"]).hex())
+#        print("token " + decode_address(approval["hash"]).hex())
 
         print("Updating the token contracts: " + str(len(b64decode(approval["result"]))))
+
+        state = self.read_global_state(self.client, self.foundation.addr, self.tokenid)
+        pprint.pprint( { 
+            "validUpdateApproveHash": b64decode(state["validUpdateApproveHash"]).hex(),
+            "validUpdateClearHash": b64decode(state["validUpdateClearHash"]).hex()
+        })
 
         txn = transaction.ApplicationUpdateTxn(
             index=self.tokenid,
@@ -1375,7 +1390,7 @@ class PortalCore:
         self.tokenid = 842126029
         if self.args.coreid != 4:
             self.coreid = self.args.coreid
-        if self.args.coreid != 6:
+        if self.args.tokenid != 6:
             self.tokenid = self.args.tokenid
 
     def setup_args(self) -> None:
@@ -1491,6 +1506,7 @@ class PortalCore:
         if args.devnet and self.foundation == None:
             print("Generating the foundation account...")
             self.foundation = self.getTemporaryAccount(self.client)
+            print("Foundation account: " + self.foundation.getMnemonic())
 
         if self.args.fund:
             sys.exit(0)

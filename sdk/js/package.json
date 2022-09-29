@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -68,6 +68,6 @@
     "axios": "^0.24.0",
     "bech32": "^2.0.0",
     "js-base64": "^3.6.1",
-    "near-api-js": "^0.45.1"
+    "near-api-js": "^1.0.0"
   }
 }
