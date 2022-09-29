@@ -138,14 +138,21 @@ contract Messages is Getters, Setters {
     }
 
     function verifyVM1(Structs.VM memory vm) internal view returns (bool valid, string memory reason) {
+        // verify hash independently
+        require(vm.hash == keccak256(abi.encodePacked(keccak256(encodeObservation(vm)))), "invalid hash");
+
         Structs.Header memory header;
         header.guardianSetIndex = vm.guardianSetIndex;
         header.signatures = vm.signatures;
         header.hash = vm.hash;
+
         return verifyHeader(header);
     }
 
     function verifyVM3(Structs.VM memory vm) internal view returns (bool valid, string memory reason) {
+        // verify hash independently
+        require(vm.hash == keccak256(abi.encodePacked(keccak256(encodeObservation(vm)))), "invalid hash");
+
         // Check to see if the hash has been cached
         if (verifiedHashCached(vm.hash)) {
             return (true, "");
@@ -187,19 +194,27 @@ contract Messages is Getters, Setters {
                 require(i == 0 || vm2.indexedObservations[i].index > lastIndex, "observation indices must be ascending");
                 lastIndex = vm2.indexedObservations[i].index;
 
-                // Store the hash of the observation
-                bytes32 observationHash = vm2.indexedObservations[i].vm3.hash;
+                /**
+                 Verify the hash of each `Observation` in the batch.
+
+                 WARNING: This check confirms that VM3s included in the batch have not been altered.
+                 This check is necessary for integrators receiving parsed VM2s, since it is possible to
+                 alter the content of a VM3 after each hash is computed in `parseVM3`.
+                */
+                bytes32 verifiedHash = keccak256(abi.encodePacked(keccak256(encodeObservation(vm2.indexedObservations[i].vm3))));
+                require(vm2.indexedObservations[i].vm3.hash == verifiedHash, "invalid hash");
 
                 // Verify the hash against the array of hashes. Bail out if the hash
                 // does not match the hash at the expected index.
-                if (observationHash != vm2.hashes[vm2.indexedObservations[i].index]) {
+                if (verifiedHash != vm2.hashes[vm2.indexedObservations[i].index]) {
                     return (false, "invalid observation");
                 }
 
                 // cache the hash of the observation if `cache` is set to true
                 if (cache) {
-                    updateVerifiedCacheStatus(observationHash, true);
+                    updateVerifiedCacheStatus(verifiedHash, true);
                 }
+
                 unchecked { i += 1; }
             }
         }
@@ -425,6 +440,19 @@ contract Messages is Getters, Setters {
         // This is necessary to confirm that the observationsLen byte was set correctly
         // for partial batches.
         require(encodedVM2.length == index, "invalid VM2");
+    }
+
+    /// @dev encodeObservation encodes an Observation into bytes
+    function encodeObservation(Structs.VM memory vm) public pure returns (bytes memory) {
+        return abi.encodePacked(
+            vm.timestamp,
+            vm.nonce,
+            vm.emitterChainId,
+            vm.emitterAddress,
+            vm.sequence,
+            vm.consistencyLevel,
+            vm.payload
+        );
     }
 
     /**

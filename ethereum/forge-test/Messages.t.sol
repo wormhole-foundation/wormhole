@@ -12,6 +12,9 @@ contract TestMessages is Messages, Test {
   using BytesLib for bytes;
   address constant testGuardianPub = 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe;
 
+  // A valid VM with one signature from the testGuardianPublic key
+  bytes validVM = hex"01000000000100867b55fec41778414f0683e80a430b766b78801b7070f9198ded5e62f48ac7a44b379a6cf9920e42dbd06c5ebf5ec07a934a00a572aefc201e9f91c33ba766d900000003e800000001000b0000000000000000000000000000000000000000000000000000000000000eee00000000000005390faaaa";
+
   // A valid VM2 with three observations and one signature from the testGuardianPublic key
   bytes validVM2 = hex"020000000001005201ab02c31301c4d3a2e27d5acb85272089eefb083cf9873aeff3a9cf54a15461d062b4de222a1aaa6655318b61f3ea5fabba9889afbc6956034174ca0f0a650103b986975c64018680bbeeb010310922cb3cd7dde2dfdcb318dadf60a3b327883766ecba817383d631066944c6f9f69b05db03dde58102eec081c930f5d87b461644ef21cc76eecb6a7670bcc6ceaa2918e60226c0058a8035e38992fb6b57c223030000000035000003e800000001000b0000000000000000000000000000000000000000000000000000000000000eee00000000000005390faaaa0100000036000003e900000001000b0000000000000000000000000000000000000000000000000000000000000eee000000000000053a0fbbbbbb0200000038000003ea00000001000b0000000000000000000000000000000000000000000000000000000000000eee000000000000053b0fcccccccccc";
 
@@ -117,23 +120,125 @@ contract TestMessages is Messages, Test {
     assertEq(getGuardianSet(getCurrentGuardianSetIndex()).keys.length, 0);
 
     // Confirm that the VM2 can be parsed correctly
-    Structs.VM2 memory parsedVM2 = parseBatchVM(validVM2);
+    Structs.VM2 memory parsedVm2 = parseBatchVM(validVM2);
 
     // Sanity check a few values
-    assertEq(parsedVM2.version, expectedVersion);
-    assertEq(parsedVM2.hashes[0], expectedHash1);
-    assertEq(parsedVM2.hashes[1], expectedHash2);
+    assertEq(parsedVm2.version, expectedVersion);
+    assertEq(parsedVm2.hashes[0], expectedHash1);
+    assertEq(parsedVm2.hashes[1], expectedHash2);
 
     // Make sure the parseAndVerifyBatchVM fails
-    ( , bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, true);
+    (, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, true);
     assertEq(valid, false);
     assertEq(reason, "invalid guardian set");
 
     // Confirm that hashes in the batch were not cached
-    uint256 hashLength = parsedVM2.hashes.length;
+    uint256 hashLength = parsedVm2.hashes.length;
     for (uint256 i = 0; i < hashLength; i++) {
-      assertEq(verifiedHashCached(parsedVM2.hashes[i]), false);
+      assertEq(verifiedHashCached(parsedVm2.hashes[i]), false);
     }
+  }
+
+  // This test ensures that a previously parsed VM cannot be verified when
+  // the `Observation` has been altered.
+  function testFailAlteredObservationInVM(
+    Structs.Observation memory observation
+  ) public {
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+        keys : initialGuardians,
+        expirationTime : 0
+    });
+
+    storeGuardianSet(initialGuardianSet, 0);
+
+    // Confirm that the test vm is valid
+    (Structs.VM memory parsedVm, bool valid, string memory reason) = this.parseAndVerifyVM(validVM);
+    require(valid, reason);
+
+    // Alter one of the Observations in the VM2
+    parsedVm.timestamp = observation.timestamp;
+    parsedVm.nonce = observation.nonce;
+    parsedVm.emitterChainId = observation.emitterChainId;
+    parsedVm.emitterAddress = observation.emitterAddress;
+    parsedVm.sequence = observation.sequence;
+    parsedVm.consistencyLevel = observation.consistencyLevel;
+    parsedVm.payload = observation.payload;
+
+    // Try to verify the VM with the altered observations (but the same hash)
+    verifyVM(parsedVm);
+  }
+
+  // This test ensures that previously parsed VM2s cannot be verified when an
+  // `Observation` is altered.
+  function testFailAlteredObservationInVM2(
+    Structs.Observation memory observation
+  ) public {
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+        keys : initialGuardians,
+        expirationTime : 0
+    });
+
+    storeGuardianSet(initialGuardianSet, 0);
+
+    // Confirm that the test vm is valid
+    (Structs.VM2 memory parsedVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
+    require(valid, reason);
+
+    // Alter one of the Observations in the VM2
+    parsedVm2.indexedObservations[0].vm3.timestamp = observation.timestamp;
+    parsedVm2.indexedObservations[0].vm3.nonce = observation.nonce;
+    parsedVm2.indexedObservations[0].vm3.emitterChainId = observation.emitterChainId;
+    parsedVm2.indexedObservations[0].vm3.emitterAddress = observation.emitterAddress;
+    parsedVm2.indexedObservations[0].vm3.sequence = observation.sequence;
+    parsedVm2.indexedObservations[0].vm3.consistencyLevel = observation.consistencyLevel;
+    parsedVm2.indexedObservations[0].vm3.payload = observation.payload;
+
+    // Try to verify the VM with the altered observations (but the same hash)
+    verifyBatchVM(parsedVm2, false);
+  }
+
+  // This test ensures that previously parsed VM3s cannot be verified when an
+  // `Observation` is altered.
+  function testFailAlteredObservationInVM3(
+    Structs.Observation memory observation
+  ) public {
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+        keys : initialGuardians,
+        expirationTime : 0
+    });
+
+    storeGuardianSet(initialGuardianSet, 0);
+
+    // Confirm that the test vm is valid
+    (Structs.VM2 memory parsedVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
+    require(valid, reason);
+
+    // Alter one of the Observations in the VM2
+    parsedVm2.indexedObservations[0].vm3.timestamp = observation.timestamp;
+    parsedVm2.indexedObservations[0].vm3.nonce = observation.nonce;
+    parsedVm2.indexedObservations[0].vm3.emitterChainId = observation.emitterChainId;
+    parsedVm2.indexedObservations[0].vm3.emitterAddress = observation.emitterAddress;
+    parsedVm2.indexedObservations[0].vm3.sequence = observation.sequence;
+    parsedVm2.indexedObservations[0].vm3.consistencyLevel = observation.consistencyLevel;
+    parsedVm2.indexedObservations[0].vm3.payload = observation.payload;
+
+    // Try to verify the VM with the altered observations (but the same hash)
+    verifyVM3(parsedVm2.indexedObservations[0].vm3);
   }
 
   // This test confirms that verifyBatchVM verifies each IndexedObservation's hash correctly.

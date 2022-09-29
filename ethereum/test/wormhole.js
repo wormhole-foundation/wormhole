@@ -2141,7 +2141,7 @@ contract("Wormhole VM2 & VM3s", function () {
         const spoofedVM3 = {
             version: "1",
             timestamp: parsedVM3.timestamp,
-            nonce: parsedVM3.timestamp,
+            nonce: parsedVM3.nonce,
             emitterChainId: parsedVM3.emitterChainId,
             emitterAddress: parsedVM3.emitterAddress,
             sequence: parsedVM3.sequence,
