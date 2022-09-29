@@ -52,10 +52,14 @@ func NewArbitrumFinalizer(logger *zap.Logger, connector connectors.Connector, cl
 	}
 }
 
+// IsBlockFinalized queries the NodeInfrastructure precompiled contract to see if the L2 (Arbitrum) block has appeared
+// in an L1 (Ethereum) block. We don't really care what L2 block it appeared in, just that it has.
 func (a *ArbitrumFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
 	_, err := a.caller.FindBatchContainingBlock(&ethBind.CallOpts{Context: ctx}, block.Number.Uint64())
 	if err != nil {
-		// "requested block 430842 is after latest on-chain block 430820 published in batch 4686"
+		// If it hasn't been published yet, the method returns an error, so we check for that and treat it as
+		// not finalized, rather than as an error. Here's what that looks like:
+		//    "requested block 430842 is after latest on-chain block 430820 published in batch 4686"
 		if strings.ContainsAny(err.Error(), "is after latest on-chain block") {
 			return false, nil
 		}

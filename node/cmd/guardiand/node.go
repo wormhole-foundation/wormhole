@@ -463,7 +463,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*moonbeamContract = devnet.GanacheWormholeContractAddress.Hex()
 		*neonContract = devnet.GanacheWormholeContractAddress.Hex()
 		if *arbitrumContract == "" {
-			*neonContract = devnet.GanacheWormholeContractAddress.Hex()
+			*arbitrumContract = devnet.GanacheWormholeContractAddress.Hex()
 		}
 	}
 
