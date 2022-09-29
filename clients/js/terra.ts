@@ -1,4 +1,6 @@
 import {
+  Coin,
+  Fee,
   LCDClient,
   MnemonicKey,
   MsgExecuteContract,
@@ -7,6 +9,7 @@ import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
 import { CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk";
+import axios from "axios";
 
 export async function execute_terra(
   payload: Payload,
@@ -100,10 +103,10 @@ export async function execute_terra(
           console.log("Creating wrapped token");
           break;
         case "TransferWithPayload":
-          throw Error("Can't complete payload 3 transfer from CLI")
+          throw Error("Can't complete payload 3 transfer from CLI");
         default:
-          impossible(payload)
-          break
+          impossible(payload);
+          break;
       }
       break;
     default:
@@ -118,10 +121,35 @@ export async function execute_terra(
     { uluna: 1000 }
   );
 
+  const feeDenoms = ["uluna"];
+
+  const gasPrices = await axios
+    .get("https://fcd.terra.dev/v1/txs/gas_prices")
+    .then((result) => result.data);
+
+  const feeEstimate = await terra.tx.estimateFee(
+    [
+      {
+        sequenceNumber: await wallet.sequence(),
+        publicKey: wallet.key.publicKey,
+      },
+    ],
+    {
+      msgs: [transaction],
+      memo: "",
+      feeDenoms,
+      gasPrices,
+    }
+  );
+
   wallet
     .createAndSignTx({
       msgs: [transaction],
       memo: "",
+      fee: new Fee(
+        feeEstimate.gas_limit,
+        feeEstimate.amount.add(new Coin("uluna", 12))
+      ),
     })
     .then((tx) => terra.tx.broadcast(tx))
     .then((result) => {
