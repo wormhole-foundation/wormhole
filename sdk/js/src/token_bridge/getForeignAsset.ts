@@ -3,6 +3,7 @@ import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
+import { Account as nearAccount } from "near-api-js";
 import {
   calcLogicSigAccount,
   decodeLocalState,
@@ -15,8 +16,8 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   coalesceChainId,
+  getAssetFullyQualifiedType,
 } from "../utils";
-import { Account as nearAccount } from "near-api-js";
 const BN = require("bn.js");
 
 /**
@@ -138,4 +139,18 @@ export async function getForeignAssetNear(
   });
   if (ret === "") return null;
   else return ret;
+}
+
+export function getForeignAssetAptos(
+  tokenBridgeAddress: string,
+  originChain: ChainId | ChainName,
+  originAddress: string
+): string | null {
+  // TODO: check if asset has been attested
+  const originChainId = coalesceChainId(originChain);
+  return getAssetFullyQualifiedType(
+    tokenBridgeAddress,
+    originChainId,
+    originAddress
+  );
 }
