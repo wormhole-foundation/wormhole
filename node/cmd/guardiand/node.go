@@ -648,9 +648,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *algorandIndexerRPC == "" {
 			logger.Fatal("Please specify --algorandIndexerRPC")
 		}
-		if *algorandIndexerToken == "" {
-			logger.Fatal("Please specify --algorandIndexerToken")
-		}
 		if *algorandAlgodRPC == "" {
 			logger.Fatal("Please specify --algorandAlgodRPC")
 		}
