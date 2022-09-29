@@ -1,7 +1,7 @@
 #!/bin/bash
 
-curl https://raw.githubusercontent.com/MystenLabs/sui/main/doc/utils/sui-setup.sh -o sui-setup.sh
-
-chmod 755 sui-setup.sh
-
-./sui-setup.sh
+git clone https://github.com/MystenLabs/sui.git --branch devnet
+cd sui
+cargo --locked install --path crates/sui
+cargo --locked install --path crates/sui-faucet
+cargo --locked install --path crates/sui-gateway
