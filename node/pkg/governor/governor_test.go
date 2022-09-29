@@ -1677,3 +1677,118 @@ func TestLocalMessageAfterQuorumIsPublishedButNotAddedToTheWindowAgain(t *testin
 	assert.Equal(t, uint64(0), valuePending)
 	assert.Equal(t, 1, len(gov.msgsById))
 }
+
+func TestDontReloadDuplicates(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	emitterAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	emitterAddr, err := vaa.StringToAddress(emitterAddrStr)
+	require.NoError(t, err)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	tokenAddr, err := vaa.StringToAddress(tokenAddrStr)
+	require.NoError(t, err)
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, emitterAddrStr, 1000000, 0)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, emitterAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
+	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+
+	var xfers []*db.Transfer
+
+	xfer1 := &db.Transfer{
+		Timestamp:      startTime.Add(time.Minute * 5),
+		Value:          uint64(1000),
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: emitterAddr,
+		MsgID:          "2/" + emitterAddrStr + "/125",
+	}
+	xfers = append(xfers, xfer1)
+
+	xfer2 := &db.Transfer{
+		Timestamp:      startTime.Add(time.Minute * 5),
+		Value:          uint64(2000),
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: emitterAddr,
+		MsgID:          "2/" + emitterAddrStr + "/126",
+	}
+	xfers = append(xfers, xfer2)
+
+	// Add a duplicate of each transfer
+	xfers = append(xfers, xfer1)
+	xfers = append(xfers, xfer2)
+	assert.Equal(t, 4, len(xfers))
+
+	payload1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1.25,
+	)
+
+	var pendings []*db.PendingTransfer
+	pending1 := &db.PendingTransfer{
+		ReleaseTime: now.Add(time.Hour * 24),
+		Msg: common.MessagePublication{
+			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			Timestamp:        time.Unix(int64(1654543099), 0),
+			Nonce:            uint32(1),
+			Sequence:         uint64(200),
+			EmitterChain:     vaa.ChainIDEthereum,
+			EmitterAddress:   emitterAddr,
+			ConsistencyLevel: uint8(32),
+			Payload:          payload1,
+		},
+	}
+	pendings = append(pendings, pending1)
+
+	pending2 := &db.PendingTransfer{
+		ReleaseTime: now.Add(time.Hour * 24),
+		Msg: common.MessagePublication{
+			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			Timestamp:        time.Unix(int64(1654543099), 0),
+			Nonce:            uint32(1),
+			Sequence:         uint64(201),
+			EmitterChain:     vaa.ChainIDEthereum,
+			EmitterAddress:   emitterAddr,
+			ConsistencyLevel: uint8(32),
+			Payload:          payload1,
+		},
+	}
+	pendings = append(pendings, pending2)
+
+	// Add a duplicate of each pending transfer
+	pendings = append(pendings, pending1)
+	pendings = append(pendings, pending2)
+	assert.Equal(t, 4, len(pendings))
+
+	for _, p := range xfers {
+		gov.reloadTransfer(p, now, startTime)
+	}
+
+	for _, p := range pendings {
+		gov.reloadPendingTransfer(p, now)
+	}
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(3000), valueTrans)
+	assert.Equal(t, 2, numPending)
+	assert.Equal(t, uint64(4436), valuePending)
+}

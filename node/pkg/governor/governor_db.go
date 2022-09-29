@@ -124,20 +124,34 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 		return
 	}
 
-	gov.logger.Info("cgov: reloaded pending transfer",
-		zap.String("MsgID", msgId),
-		zap.Stringer("TxHash", msg.TxHash),
-		zap.Stringer("Timestamp", msg.Timestamp),
-		zap.Uint32("Nonce", msg.Nonce),
-		zap.Uint64("Sequence", msg.Sequence),
-		zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
-		zap.Stringer("EmitterChain", msg.EmitterChain),
-		zap.Stringer("EmitterAddress", msg.EmitterAddress),
-		zap.Stringer("Amount", payload.Amount),
-	)
+	if _, exists := gov.msgsById[msgId]; !exists {
+		gov.logger.Info("cgov: reloaded pending transfer",
+			zap.String("MsgID", msgId),
+			zap.Stringer("TxHash", msg.TxHash),
+			zap.Stringer("Timestamp", msg.Timestamp),
+			zap.Uint32("Nonce", msg.Nonce),
+			zap.Uint64("Sequence", msg.Sequence),
+			zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
+			zap.Stringer("EmitterChain", msg.EmitterChain),
+			zap.Stringer("EmitterAddress", msg.EmitterAddress),
+			zap.Stringer("Amount", payload.Amount),
+		)
 
-	ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: *pending})
-	gov.msgsById[msgId] = transferEnqueued
+		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: *pending})
+		gov.msgsById[msgId] = transferEnqueued
+	} else {
+		gov.logger.Info("cgov: dropping duplicate pending transfer",
+			zap.String("MsgID", msgId),
+			zap.Stringer("TxHash", msg.TxHash),
+			zap.Stringer("Timestamp", msg.Timestamp),
+			zap.Uint32("Nonce", msg.Nonce),
+			zap.Uint64("Sequence", msg.Sequence),
+			zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
+			zap.Stringer("EmitterChain", msg.EmitterChain),
+			zap.Stringer("EmitterAddress", msg.EmitterAddress),
+			zap.Stringer("Amount", payload.Amount),
+		)
+	}
 }
 
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, startTime time.Time) {
@@ -177,14 +191,24 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 		return
 	}
 
-	gov.logger.Info("cgov: reloaded transfer",
-		zap.Stringer("Timestamp", xfer.Timestamp),
-		zap.Uint64("Value", xfer.Value),
-		zap.Stringer("OriginChain", xfer.OriginChain),
-		zap.Stringer("OriginAddress", xfer.OriginAddress),
-		zap.String("MsgID", xfer.MsgID),
-	)
+	if _, exists := gov.msgsById[xfer.MsgID]; !exists {
+		gov.logger.Info("cgov: reloaded transfer",
+			zap.Stringer("Timestamp", xfer.Timestamp),
+			zap.Uint64("Value", xfer.Value),
+			zap.Stringer("OriginChain", xfer.OriginChain),
+			zap.Stringer("OriginAddress", xfer.OriginAddress),
+			zap.String("MsgID", xfer.MsgID),
+		)
 
-	ce.transfers = append(ce.transfers, xfer)
-	gov.msgsById[xfer.MsgID] = transferComplete
+		ce.transfers = append(ce.transfers, xfer)
+		gov.msgsById[xfer.MsgID] = transferComplete
+	} else {
+		gov.logger.Info("cgov: dropping duplicate transfer",
+			zap.Stringer("Timestamp", xfer.Timestamp),
+			zap.Uint64("Value", xfer.Value),
+			zap.Stringer("OriginChain", xfer.OriginChain),
+			zap.Stringer("OriginAddress", xfer.OriginAddress),
+			zap.String("MsgID", xfer.MsgID),
+		)
+	}
 }
