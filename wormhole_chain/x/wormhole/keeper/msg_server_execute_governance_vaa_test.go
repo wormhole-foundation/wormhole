@@ -13,34 +13,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-type GovernanceMessage struct {
-	Module  [32]byte
-	Action  byte
-	Chain   uint16
-	Payload []byte
-}
-
-func NewGovernanceMessage(module [32]byte, action byte, chain uint16, payload []byte) GovernanceMessage {
-	return GovernanceMessage{
-		Module:  module,
-		Action:  action,
-		Chain:   chain,
-		Payload: payload,
-	}
-}
-
-func (gm *GovernanceMessage) MarshalBinary() []byte {
-	bz := []byte{}
-	bz = append(bz, gm.Module[:]...)
-	bz = append(bz, gm.Action)
-	chain_bz := [2]byte{}
-	binary.BigEndian.PutUint16(chain_bz[:], gm.Chain)
-	bz = append(bz, chain_bz[:]...)
-	// set update payload
-	bz = append(bz, gm.Payload...)
-	return bz
-}
-
 func createExecuteGovernanceVaaPayload(k *keeper.Keeper, ctx sdk.Context, num_guardians byte) ([]byte, []*ecdsa.PrivateKey) {
 	guardians, privateKeys := createNGuardianValidator(k, ctx, int(num_guardians))
 	next_index := k.GetGuardianSetCount(ctx)
@@ -54,7 +26,7 @@ func createExecuteGovernanceVaaPayload(k *keeper.Keeper, ctx sdk.Context, num_gu
 	// governance message with sha3 of wasmBytes as the payload
 	module := [32]byte{}
 	copy(module[:], vaa.CoreModule)
-	gov_msg := NewGovernanceMessage(module, byte(keeper.ActionGuardianSetUpdate), uint16(WH_CHAIN_ID), set_update)
+	gov_msg := types.NewGovernanceMessage(module, byte(keeper.ActionGuardianSetUpdate), uint16(WH_CHAIN_ID), set_update)
 
 	return gov_msg.MarshalBinary(), privateKeys
 }

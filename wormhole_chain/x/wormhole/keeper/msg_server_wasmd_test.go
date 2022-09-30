@@ -25,7 +25,7 @@ func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	keccak.Write(wasmBytes)
 	keccak.Sum(hashWasm[:0])
 
-	gov_msg := NewGovernanceMessage(keeper.WasmdModule, byte(keeper.ActionStoreCode), uint16(WH_CHAIN_ID), hashWasm[:])
+	gov_msg := types.NewGovernanceMessage(keeper.WasmdModule, byte(keeper.ActionStoreCode), uint16(WH_CHAIN_ID), hashWasm[:])
 	return gov_msg.MarshalBinary()
 }
 
