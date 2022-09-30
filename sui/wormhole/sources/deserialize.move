@@ -1,5 +1,5 @@
 module wormhole::deserialize {
-    use 0x1::vector::{Self};
+    use std::vector::{Self};
     use wormhole::cursor::{Self, Cursor};
     use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
