@@ -50,7 +50,7 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	processor := Processor{}
 	processor.logger = observedLogger
 
-	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
+	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum, nil)
 
 	// Check to see if we got an error, which we should have,
 	// because a `gs` is not defined on processor
@@ -114,7 +114,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			processor.gs = &guardianSet
 			processor.logger = observedLogger
 
-			processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
+			processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum, nil)
 
 			// Check to see if we got an error, which we should have
 			assert.Equal(t, 1, observedLogs.Len())

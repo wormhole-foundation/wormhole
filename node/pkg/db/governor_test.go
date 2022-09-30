@@ -15,6 +15,13 @@ import (
 	"go.uber.org/zap"
 )
 
+func (d *Database) rowExistsInDB(key []byte) error {
+	return d.db.View(func(txn *badger.Txn) error {
+		_, err := txn.Get(key)
+		return err
+	})
+}
+
 func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
@@ -181,8 +188,14 @@ func TestDeleteTransfer(t *testing.T) {
 	err2 := db.StoreTransfer(xfer1)
 	require.NoError(t, err2)
 
+	// Make sure the xfer exists in the db.
+	assert.NoError(t, db.rowExistsInDB(TransferMsgID(xfer1)))
+
 	err3 := db.DeleteTransfer(xfer1)
 	require.NoError(t, err3)
+
+	// Make sure the xfer is no longer in the db.
+	assert.ErrorIs(t, badger.ErrKeyNotFound, db.rowExistsInDB(TransferMsgID(xfer1)))
 }
 
 func TestStorePendingMsg(t *testing.T) {
@@ -240,8 +253,14 @@ func TestDeletePendingMsg(t *testing.T) {
 	err3 := db.StorePendingMsg(pending)
 	require.NoError(t, err3)
 
+	// Make sure the pending transfer exists in the db.
+	assert.NoError(t, db.rowExistsInDB(PendingMsgID(msg)))
+
 	err4 := db.DeletePendingMsg(pending)
 	assert.Nil(t, err4)
+
+	// Make sure the pending transfer is no longer in the db.
+	assert.ErrorIs(t, badger.ErrKeyNotFound, db.rowExistsInDB(PendingMsgID(msg)))
 }
 
 func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {

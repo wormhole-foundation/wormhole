@@ -111,17 +111,27 @@ func (gov *ChainGovernor) getStatsForAllChains() (numTrans int, valueTrans uint6
 }
 
 func TestTrimEmptyTransfers(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
 	var transfers []*db.Transfer
-	sum, updatedTransfers, err := TrimAndSumValue(transfers, now, nil)
+	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), sum)
 	assert.Equal(t, 0, len(updatedTransfers))
 }
 
 func TestSumAllFromToday(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
@@ -129,13 +139,18 @@ func TestSumAllFromToday(t *testing.T) {
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
 	transfers = append(transfers, &db.Transfer{Value: 125000, Timestamp: transferTime})
-	sum, updatedTransfers, err := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, uint64(125000), sum)
 	assert.Equal(t, 1, len(updatedTransfers))
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
@@ -152,13 +167,18 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	transfers = append(transfers, &db.Transfer{Value: 225000, Timestamp: transferTime2})
 	assert.Equal(t, 2, len(transfers))
 
-	sum, updatedTransfers, err := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(updatedTransfers))
 	assert.Equal(t, uint64(225000), sum)
 }
 
 func TestTrimSeveralTransfers(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
@@ -188,13 +208,18 @@ func TestTrimSeveralTransfers(t *testing.T) {
 
 	assert.Equal(t, 5, len(transfers))
 
-	sum, updatedTransfers, err := TrimAndSumValue(transfers, now.Add(-time.Hour*24), nil)
+	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(updatedTransfers))
 	assert.Equal(t, uint64(465000), sum)
 }
 
 func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
 
@@ -209,7 +234,7 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 	transfers = append(transfers, &db.Transfer{Value: 225000, Timestamp: transferTime2})
 	assert.Equal(t, 2, len(transfers))
 
-	sum, updatedTransfers, err := TrimAndSumValue(transfers, now, nil)
+	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(updatedTransfers))
 	assert.Equal(t, uint64(0), sum)
@@ -292,6 +317,7 @@ func TestVaaForUninterestingEmitterChain(t *testing.T) {
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 0, len(gov.msgsById))
 }
 
 func TestVaaForUninterestingEmitterAddress(t *testing.T) {
@@ -324,6 +350,7 @@ func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 0, len(gov.msgsById))
 }
 
 func TestVaaForUninterestingPayloadType(t *testing.T) {
@@ -356,6 +383,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 0, len(gov.msgsById))
 }
 
 // Note this method assumes 18 decimals for the amount.
@@ -459,6 +487,7 @@ func TestVaaForUninterestingToken(t *testing.T) {
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 0, len(gov.msgsById))
 }
 
 func TestTransfersUpToAndOverTheLimit(t *testing.T) {
@@ -489,7 +518,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	)
 
 	// The first two transfers should be accepted.
-	msg := common.MessagePublication{
+	msg1 := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -500,7 +529,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 		Payload:          payloadBytes1,
 	}
 
-	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
+	canPost, err := gov.ProcessMsgForTime(&msg1, time.Now())
 	require.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
@@ -509,8 +538,20 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	assert.Equal(t, uint64(2218), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
-	canPost, err = gov.ProcessMsgForTime(&msg, time.Now())
+	msg2 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(2),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	canPost, err = gov.ProcessMsgForTime(&msg2, time.Now())
 	require.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
@@ -519,6 +560,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	assert.Equal(t, uint64(4436), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 2, len(gov.msgsById))
 
 	// But the third one should be queued up.
 	payloadBytes2 := buildMockTransferPayloadBytes(1,
@@ -529,9 +571,18 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 		1250,
 	)
 
-	msg.Payload = payloadBytes2
+	msg3 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(3),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes2,
+	}
 
-	canPost, err = gov.ProcessMsgForTime(&msg, time.Now())
+	canPost, err = gov.ProcessMsgForTime(&msg3, time.Now())
 	require.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
@@ -540,10 +591,21 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	assert.Equal(t, uint64(4436), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(2218274), valuePending)
+	assert.Equal(t, 3, len(gov.msgsById))
 
 	// But a small one should still go through.
-	msg.Payload = payloadBytes1
-	canPost, err = gov.ProcessMsgForTime(&msg, time.Now())
+	msg4 := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(4),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	canPost, err = gov.ProcessMsgForTime(&msg4, time.Now())
 	require.NoError(t, err)
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
@@ -552,6 +614,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	assert.Equal(t, uint64(4436+2218), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(2218274), valuePending)
+	assert.Equal(t, 4, len(gov.msgsById))
 }
 
 func TestPendingTransferBeingReleased(t *testing.T) {
@@ -603,6 +666,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// And so should the second.
 	payloadBytes2 := buildMockTransferPayloadBytes(1,
@@ -617,7 +681,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(2),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -634,6 +698,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 2, len(gov.msgsById))
 
 	// But the third one should be queued up.
 	payloadBytes3 := buildMockTransferPayloadBytes(1,
@@ -648,7 +713,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(3),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -665,6 +730,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(496893), valuePending)
+	assert.Equal(t, 3, len(gov.msgsById))
 
 	// And so should the fourth one.
 	payloadBytes4 := buildMockTransferPayloadBytes(1,
@@ -679,7 +745,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(4),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -696,6 +762,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 2, numPending)
 	assert.Equal(t, uint64(496893+532385), valuePending)
+	assert.Equal(t, 4, len(gov.msgsById))
 
 	// If we check pending before noon, nothing should happen.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
@@ -708,6 +775,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 2, numPending)
 	assert.Equal(t, uint64(496893+532385), valuePending)
+	assert.Equal(t, 4, len(gov.msgsById))
 
 	// But at 3pm, the first one should drop off and the first queued one should get posted.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 3:00pm (CST)")
@@ -721,6 +789,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	assert.Equal(t, uint64(488020+496893), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(532385), valuePending)
+	assert.Equal(t, 3, len(gov.msgsById))
 }
 
 func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
@@ -770,13 +839,14 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// And so should the second.
 	msg2 := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(2),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -799,13 +869,14 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 2, len(gov.msgsById))
 
 	// But the third, big one should be queued up.
 	msg3 := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(3),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -828,13 +899,14 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(887309), valuePending)
+	assert.Equal(t, 3, len(gov.msgsById))
 
 	// A fourth, smaller, but still too big one, should get enqueued.
 	msg4 := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(4),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -857,13 +929,14 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 2, numPending)
 	assert.Equal(t, uint64(887309+177461), valuePending)
+	assert.Equal(t, 4, len(gov.msgsById))
 
 	// A fifth, smaller, but still too big one, should also get enqueued.
 	msg5 := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(5),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -886,13 +959,14 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 3, numPending)
 	assert.Equal(t, uint64(887309+177461+179236), valuePending)
+	assert.Equal(t, 5, len(gov.msgsById))
 
 	// A sixth, big one should also get enqueued.
 	msg6 := common.MessagePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(6),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -915,6 +989,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 4, numPending)
 	assert.Equal(t, uint64(887309+177461+179236+889084), valuePending)
+	assert.Equal(t, 6, len(gov.msgsById))
 
 	// If we check pending before noon, nothing should happen.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
@@ -927,6 +1002,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(479147+488020), valueTrans)
 	assert.Equal(t, 4, numPending)
 	assert.Equal(t, uint64(887309+177461+179236+889084), valuePending)
+	assert.Equal(t, 6, len(gov.msgsById))
 
 	// But at 3pm, the first one should drop off. This should result in the second and third, smaller pending ones being posted, but not the two big ones.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 3:00pm (CST)")
@@ -940,6 +1016,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, uint64(488020+177461+179236), valueTrans)
 	assert.Equal(t, 2, numPending)
 	assert.Equal(t, uint64(887309+889084), valuePending)
+	assert.Equal(t, 5, len(gov.msgsById))
 }
 
 func TestMainnetConfigIsValid(t *testing.T) {
@@ -1009,6 +1086,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(88730), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// And so should the second.
 	msg2 := common.MessagePublication{
@@ -1038,6 +1116,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(88730+88730), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 2, len(gov.msgsById))
 
 	// But the third big one should get enqueued.
 	msg3 := common.MessagePublication{
@@ -1067,6 +1146,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(88730+88730), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 3, len(gov.msgsById))
 
 	// If we check pending before noon, nothing should happen.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 9:00am (CST)")
@@ -1080,12 +1160,14 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(88730+88730), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 3, len(gov.msgsById))
 
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
 	assert.Equal(t, 2, numTrans)
 	assert.Equal(t, uint64(88730+88730), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 3, len(gov.msgsById))
 
 	// But just after noon, the first one should drop off. The big pending one should not be affected.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
@@ -1099,6 +1181,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(88730), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 2, len(gov.msgsById))
 
 	// And Just after 6pm, the second one should drop off. The big pending one should still not be affected.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 6:01pm (CST)")
@@ -1112,6 +1195,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// 23 hours after the big transaction is enqueued, it should still be there.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 3, 2022 at 1:01am (CST)")
@@ -1125,8 +1209,9 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
-	// // But then the operator resets the release time.
+	// But then the operator resets the release time.
 	_, err = gov.resetReleaseTimerForTime(msg3.MessageIDString(), now)
 	require.NoError(t, err)
 
@@ -1142,6 +1227,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(177461), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// But finally, a full 24hrs, it should get released.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 4, 2022 at 1:01am (CST)")
@@ -1155,6 +1241,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 0, len(gov.msgsById))
 
 	// But the big transaction should not affect the daily notional.
 	ce, exists := gov.chains[vaa.ChainIDEthereum]
@@ -1216,6 +1303,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(88730), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// If we check 23hrs later, nothing should happen.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 11:00am (CST)")
@@ -1229,6 +1317,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 1, numPending)
 	assert.Equal(t, uint64(88730), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
 
 	// But after 24hrs, it should get released.
 	now, _ = time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
@@ -1242,6 +1331,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	assert.Equal(t, uint64(0), valueTrans)
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 0, len(gov.msgsById))
 }
 
 func TestIsBigTransfer(t *testing.T) {
@@ -1309,4 +1399,396 @@ func TestTransferPayloadTooShort(t *testing.T) {
 	// The higher level method should false, saying we should not publish.
 	canPost := gov.ProcessMsg(&msg)
 	assert.Equal(t, false, canPost)
+}
+
+func TestQuorumAfterTransferCompleteIsIgnored(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	payloadBytes1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1.25,
+	)
+
+	msg := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, true, canPost)
+	assert.Equal(t, 1, numTrans)
+	assert.Equal(t, uint64(2218), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
+
+	v := &vaa.VAA{
+		Version:          vaa.SupportedVAAVersion,
+		GuardianSetIndex: 1,
+		Signatures:       nil,
+		Timestamp:        msg.Timestamp,
+		Nonce:            msg.Nonce,
+		EmitterChain:     msg.EmitterChain,
+		EmitterAddress:   msg.EmitterAddress,
+		Payload:          msg.Payload,
+		Sequence:         msg.Sequence,
+		ConsistencyLevel: msg.ConsistencyLevel,
+	}
+
+	gov.ProcessInboundQuorum(v)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, 1, numTrans)
+	assert.Equal(t, uint64(2218), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
+}
+
+func TestQuorumWhenEnqueuedUpdatesTheWindowAndDropsTheEnqueuedEvent(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	payloadBytes1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1000,
+	)
+
+	msg := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, false, canPost)
+	assert.Equal(t, 0, numTrans)
+	assert.Equal(t, uint64(0), valueTrans)
+	assert.Equal(t, 1, numPending)
+	assert.Equal(t, uint64(1_774_619), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
+
+	v := &vaa.VAA{
+		Version:          vaa.SupportedVAAVersion,
+		GuardianSetIndex: 1,
+		Signatures:       nil,
+		Timestamp:        msg.Timestamp,
+		Nonce:            msg.Nonce,
+		EmitterChain:     msg.EmitterChain,
+		EmitterAddress:   msg.EmitterAddress,
+		Payload:          msg.Payload,
+		Sequence:         msg.Sequence,
+		ConsistencyLevel: msg.ConsistencyLevel,
+	}
+
+	gov.ProcessInboundQuorum(v)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, 1, numTrans)
+	assert.Equal(t, uint64(1_774_619), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
+}
+
+func TestQuorumBeforeLocalMessageUpdatesTheWindow(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	payloadBytes1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1.25,
+	)
+
+	msg := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	v := &vaa.VAA{
+		Version:          vaa.SupportedVAAVersion,
+		GuardianSetIndex: 1,
+		Signatures:       nil,
+		Timestamp:        msg.Timestamp,
+		Nonce:            msg.Nonce,
+		EmitterChain:     msg.EmitterChain,
+		EmitterAddress:   msg.EmitterAddress,
+		Payload:          msg.Payload,
+		Sequence:         msg.Sequence,
+		ConsistencyLevel: msg.ConsistencyLevel,
+	}
+
+	gov.ProcessInboundQuorum(v)
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, 1, numTrans)
+	assert.Equal(t, uint64(2218), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
+}
+
+func TestLocalMessageAfterQuorumIsPublishedButNotAddedToTheWindowAgain(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	payloadBytes1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1.25,
+	)
+
+	msg := common.MessagePublication{
+		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes1,
+	}
+
+	v := &vaa.VAA{
+		Version:          vaa.SupportedVAAVersion,
+		GuardianSetIndex: 1,
+		Signatures:       nil,
+		Timestamp:        msg.Timestamp,
+		Nonce:            msg.Nonce,
+		EmitterChain:     msg.EmitterChain,
+		EmitterAddress:   msg.EmitterAddress,
+		Payload:          msg.Payload,
+		Sequence:         msg.Sequence,
+		ConsistencyLevel: msg.ConsistencyLevel,
+	}
+
+	gov.ProcessInboundQuorum(v)
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, 1, numTrans)
+	assert.Equal(t, uint64(2218), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
+
+	canPost, err := gov.ProcessMsgForTime(&msg, time.Now())
+	require.NoError(t, err)
+
+	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChains()
+	assert.Equal(t, true, canPost)
+	assert.Equal(t, 1, numTrans)
+	assert.Equal(t, uint64(2218), valueTrans)
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsById))
+}
+
+func TestDontReloadDuplicates(t *testing.T) {
+	ctx := context.Background()
+	gov, err := newChainGovernorForTest(ctx)
+
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	emitterAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	emitterAddr, err := vaa.StringToAddress(emitterAddrStr)
+	require.NoError(t, err)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	tokenAddr, err := vaa.StringToAddress(tokenAddrStr)
+	require.NoError(t, err)
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+
+	require.NoError(t, err)
+
+	gov.setDayLengthInMinutes(24 * 60)
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, emitterAddrStr, 1000000, 0)
+	require.NoError(t, err)
+	err = gov.setTokenForTesting(vaa.ChainIDEthereum, emitterAddrStr, "WETH", 1774.62)
+	require.NoError(t, err)
+
+	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
+	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+
+	var xfers []*db.Transfer
+
+	xfer1 := &db.Transfer{
+		Timestamp:      startTime.Add(time.Minute * 5),
+		Value:          uint64(1000),
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: emitterAddr,
+		MsgID:          "2/" + emitterAddrStr + "/125",
+	}
+	xfers = append(xfers, xfer1)
+
+	xfer2 := &db.Transfer{
+		Timestamp:      startTime.Add(time.Minute * 5),
+		Value:          uint64(2000),
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: emitterAddr,
+		MsgID:          "2/" + emitterAddrStr + "/126",
+	}
+	xfers = append(xfers, xfer2)
+
+	// Add a duplicate of each transfer
+	xfers = append(xfers, xfer1)
+	xfers = append(xfers, xfer2)
+	assert.Equal(t, 4, len(xfers))
+
+	payload1 := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		tokenAddrStr,
+		vaa.ChainIDPolygon,
+		toAddrStr,
+		1.25,
+	)
+
+	var pendings []*db.PendingTransfer
+	pending1 := &db.PendingTransfer{
+		ReleaseTime: now.Add(time.Hour * 24),
+		Msg: common.MessagePublication{
+			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			Timestamp:        time.Unix(int64(1654543099), 0),
+			Nonce:            uint32(1),
+			Sequence:         uint64(200),
+			EmitterChain:     vaa.ChainIDEthereum,
+			EmitterAddress:   emitterAddr,
+			ConsistencyLevel: uint8(32),
+			Payload:          payload1,
+		},
+	}
+	pendings = append(pendings, pending1)
+
+	pending2 := &db.PendingTransfer{
+		ReleaseTime: now.Add(time.Hour * 24),
+		Msg: common.MessagePublication{
+			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			Timestamp:        time.Unix(int64(1654543099), 0),
+			Nonce:            uint32(1),
+			Sequence:         uint64(201),
+			EmitterChain:     vaa.ChainIDEthereum,
+			EmitterAddress:   emitterAddr,
+			ConsistencyLevel: uint8(32),
+			Payload:          payload1,
+		},
+	}
+	pendings = append(pendings, pending2)
+
+	// Add a duplicate of each pending transfer
+	pendings = append(pendings, pending1)
+	pendings = append(pendings, pending2)
+	assert.Equal(t, 4, len(pendings))
+
+	for _, p := range xfers {
+		gov.reloadTransfer(p, now, startTime)
+	}
+
+	for _, p := range pendings {
+		gov.reloadPendingTransfer(p, now)
+	}
+
+	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
+	assert.Equal(t, 2, numTrans)
+	assert.Equal(t, uint64(3000), valueTrans)
+	assert.Equal(t, 2, numPending)
+	assert.Equal(t, uint64(4436), valuePending)
 }

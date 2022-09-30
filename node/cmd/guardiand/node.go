@@ -440,13 +440,22 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
 	if *unsafeDevMode {
-		g0key, err := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
-		if err != nil {
-			panic(err)
+		// When running multiple guardians in tilt, we only see p2p traffic from others if they are also bootstrap hosts.
+		p2pStr := ""
+		for idx := 0; idx < int(*devNumGuardians); idx++ {
+			key, err := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(int64(idx)))
+			if err != nil {
+				panic(err)
+			}
+
+			if p2pStr != "" {
+				p2pStr = p2pStr + ","
+			}
+			p2pStr = p2pStr + fmt.Sprintf("/dns4/guardian-%d.guardian/udp/%d/quic/p2p/%s", idx, *p2pPort, key.String())
 		}
 
-		// Use the first guardian node as bootstrap
-		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
+		*p2pBootstrap = p2pStr
+		logger.Info("running in dev mode", zap.Uint("devNumGuardians", *devNumGuardians), zap.String("p2pBootstrap", *p2pBootstrap))
 
 		// Deterministic ganache ETH devnet address.
 		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
