@@ -1,4 +1,5 @@
 # Installation
+Make sure your Cargo version is at least 1.64.0 and then follow the steps below:
 - https://docs.sui.io/build/install
 
 
