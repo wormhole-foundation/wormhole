@@ -102,7 +102,7 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		appCodec,
 		keys[wasmtypes.StoreKey],
 		subspaceWasmd,
-		&wasm_handlers.AccountKeeperHandler{AccountKeeper: accountKeeper},
+		accountKeeper,
 		&wasm_handlers.BankKeeperHandler{},
 		&wasm_handlers.StakingKeeperHandler{},
 		&wasm_handlers.DistributionKeeperHandler{},
