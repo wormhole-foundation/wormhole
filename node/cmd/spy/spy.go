@@ -496,6 +496,17 @@ func runSpy(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	// Ignore batch observations
+	go func() {
+		for {
+			select {
+			case <-rootCtx.Done():
+				return
+			case <-batchObsvC:
+			}
+		}
+	}()
+
 	// Ignore observation requests
 	// Note: without this, the whole program hangs on observation requests
 	go func() {
@@ -521,6 +532,22 @@ func runSpy(cmd *cobra.Command, args []string) {
 					logger.Error("failed to publish signed VAA", zap.Error(err))
 				}
 				if err := s.HandleGossipVAA(v); err != nil {
+					logger.Error("failed to HandleGossipVAA", zap.Error(err))
+				}
+			}
+		}
+	}()
+
+	// Publish batch VAAs
+	go func() {
+		for {
+			select {
+			case <-rootCtx.Done():
+				return
+			case v := <-batchSignedInC:
+				logger.Info("Received signed BatchVAA",
+					zap.Any("vaa", v.BatchVaa))
+				if err := s.HandleGossipBatchVAA(v); err != nil {
 					logger.Error("failed to HandleGossipVAA", zap.Error(err))
 				}
 			}
