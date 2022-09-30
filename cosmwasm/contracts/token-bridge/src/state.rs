@@ -1,24 +1,9 @@
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    Addr,
-    StdError,
-    StdResult,
-    Storage,
-    Uint128,
-};
+use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
-    bucket,
-    bucket_read,
-    singleton,
-    singleton_read,
-    Bucket,
-    ReadonlyBucket,
-    ReadonlySingleton,
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 
@@ -325,7 +310,6 @@ impl TransferWithPayloadInfo {
             sender_address,
             payload,
         })
-
     }
 
     pub fn serialize(&self) -> Vec<u8> {

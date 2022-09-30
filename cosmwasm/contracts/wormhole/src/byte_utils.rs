@@ -46,9 +46,9 @@ impl ByteUtils for &[u8] {
         // 32 bytes are reserved for addresses, but wasmd uses both 32 and 20 bytes
         // https://github.com/CosmWasm/wasmd/blob/ac92fdcf37388cc8dc24535f301f64395f8fb3da/x/wasm/types/types.go#L325
         if self.get_u128_be(index) >> 32 == 0 {
-            return CanonicalAddr::from(&self[index + 12..index + 32])    
+            return CanonicalAddr::from(&self[index + 12..index + 32]);
         }
-        return CanonicalAddr::from(&self[index..index + 32])
+        return CanonicalAddr::from(&self[index..index + 32]);
     }
     fn get_bytes32(&self, index: usize) -> &[u8] {
         &self[index..index + 32]

@@ -1,25 +1,11 @@
-use cosmwasm_std::{
-    Addr,
-    StdError,
-    StdResult,
-    Storage,
-};
+use cosmwasm_std::{Addr, StdError, StdResult, Storage};
 
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use sha3::{
-    Digest,
-    Keccak256,
-};
+use serde::{Deserialize, Serialize};
+use sha3::{Digest, Keccak256};
 
 use crate::state::{
-    bank_token_hashes,
-    bank_token_hashes_read,
-    config_read,
-    native_c20_hashes,
+    bank_token_hashes, bank_token_hashes_read, config_read, native_c20_hashes,
     native_c20_hashes_read,
 };
 
