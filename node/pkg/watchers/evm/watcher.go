@@ -328,6 +328,19 @@ func (w *Watcher) Run(ctx context.Context) error {
 				}
 
 				for _, msg := range msgs {
+					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+						logger.Info("re-observed message publication transaction, publishing it immediately",
+							zap.Stringer("tx", msg.TxHash),
+							zap.Stringer("emitter_address", msg.EmitterAddress),
+							zap.Uint64("sequence", msg.Sequence),
+							zap.Uint64("current_block", blockNumberU),
+							zap.Uint64("observed_block", blockNumber),
+							zap.String("eth_network", w.networkName),
+						)
+						w.msgChan <- msg
+						continue
+					}
+
 					expectedConfirmations := uint64(msg.ConsistencyLevel)
 					if expectedConfirmations < w.minConfirmations {
 						expectedConfirmations = w.minConfirmations
@@ -406,6 +419,23 @@ func (w *Watcher) Run(ctx context.Context) error {
 					ConsistencyLevel: ev.ConsistencyLevel,
 				}
 
+				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
+
+				if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+					logger.Info("found new message publication transaction, publishing it immediately",
+						zap.Stringer("tx", ev.Raw.TxHash),
+						zap.Uint64("block", ev.Raw.BlockNumber),
+						zap.Stringer("blockhash", ev.Raw.BlockHash),
+						zap.Uint64("Sequence", ev.Sequence),
+						zap.Uint32("Nonce", ev.Nonce),
+						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+						zap.String("eth_network", w.networkName))
+
+					w.msgChan <- message
+					ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+					continue
+				}
+
 				logger.Info("found new message publication transaction",
 					zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber),
@@ -414,8 +444,6 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.Uint32("Nonce", ev.Nonce),
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 					zap.String("eth_network", w.networkName))
-
-				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 
 				key := pendingKey{
 					TxHash:         message.TxHash,

@@ -1,7 +1,7 @@
-pragma solidity ^0.6.7;
+pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface TokenBridge {
   function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) external payable returns (uint64);
@@ -15,7 +15,7 @@ contract DoubleTransfer {
     string public purpose = "Double Transfer";
     IERC20 token;
 
-    constructor(address tokenAddress) public {
+    constructor(address tokenAddress) {
       token = IERC20(tokenAddress);
     }
 
