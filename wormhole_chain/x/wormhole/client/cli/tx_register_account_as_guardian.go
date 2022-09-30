@@ -31,6 +31,7 @@ func CmdRegisterAccountAsGuardian() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("malformed signature: %w", err)
 			}
+			fmt.Println("PUBKEY:", hex.EncodeToString(argGuardianPubkey.Key))
 
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
