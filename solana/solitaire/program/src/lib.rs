@@ -13,7 +13,7 @@ use solana_program::{
     account_info::AccountInfo,
     pubkey::Pubkey,
     rent::Rent,
-    sysvar::Sysvar as SolanaSysvar
+    sysvar::Sysvar as SolanaSysvar,
 };
 
 use std::slice::Iter;
@@ -73,7 +73,7 @@ pub enum CreationLamports {
 
 impl CreationLamports {
     /// Amount of lamports to be paid in account creation
-    pub fn amount(self, size: usize) -> Result<u64>  {
+    pub fn amount(self, size: usize) -> Result<u64> {
         match self {
             // Rent::get() is used over Rent::default() here in case on-chain Rent has diverged from
             // the Solana defaults. Unlike `default()`, the `get()` call only works on-chain and in
