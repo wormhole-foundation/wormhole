@@ -53,7 +53,7 @@ pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
 }
 
 fn complete_transfer_with_payload(
-    mut deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     info: MessageInfo,
     data: &Binary,

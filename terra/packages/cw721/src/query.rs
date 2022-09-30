@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cw0::Expiration;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw721QueryMsg {
     /// Return the owner of the given token, error if token does not exist
@@ -94,18 +94,18 @@ pub struct OperatorsResponse {
     pub operators: Vec<Approval>,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 pub struct NumTokensResponse {
     pub count: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 pub struct ContractInfoResponse {
     pub name: String,
     pub symbol: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 pub struct NftInfoResponse<T> {
     /// Universal resource identifier for this NFT
     /// Should point to a JSON file that conforms to the ERC721
@@ -123,7 +123,7 @@ pub struct AllNftInfoResponse<T> {
     pub info: NftInfoResponse<T>,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 pub struct TokensResponse {
     /// Contains all token_ids in lexicographical ordering
     /// If there are more than `limit`, use `start_from` in future queries

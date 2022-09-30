@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{to_binary, Binary, CosmosMsg, StdResult, WasmMsg};
 
 /// Cw721ReceiveMsg should be de/serialized under `Receive()` variant in a ExecuteMsg
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct Cw721ReceiveMsg {
     pub sender: String,

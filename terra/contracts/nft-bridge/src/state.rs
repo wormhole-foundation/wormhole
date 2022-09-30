@@ -21,7 +21,7 @@ pub static TOKEN_ID_HASHES_KEY: &[u8] = b"token_id_hashes";
 pub static SPL_CACHE_KEY: &[u8] = b"spl_cache";
 
 // Guardian set information
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ConfigInfo {
     // governance contract details
     pub gov_chain: u16,
@@ -31,7 +31,7 @@ pub struct ConfigInfo {
     pub wrapped_asset_code_id: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct SplCacheItem {
     pub name: [u8; 32],
     pub symbol: [u8; 32],
@@ -124,7 +124,7 @@ impl TokenBridgeMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[repr(transparent)]
 pub struct BoundedVec<T, const N: usize> {
     vec: Vec<T>,
@@ -159,7 +159,7 @@ impl<T, const N: usize> BoundedVec<T, N> {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferInfo {
     pub nft_address: [u8; 32],
     pub nft_chain: u16,

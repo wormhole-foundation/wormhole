@@ -59,7 +59,7 @@ fn do_mint(
 ) {
     let mint_msg = ExecuteMsg::Mint {
         recipient: recipient.to_string(),
-        amount: amount.clone(),
+        amount: *amount,
     };
     let info = mock_info(INITIALIZER, &[]);
     let handle_response: Response = execute(deps.as_mut(), mock_env(), info, mint_msg).unwrap();
@@ -74,7 +74,7 @@ fn do_transfer(
 ) {
     let transfer_msg = ExecuteMsg::Transfer {
         recipient: recipient.to_string(),
-        amount: amount.clone(),
+        amount: *amount,
     };
     let env = mock_env();
     let info = mock_info(sender.as_str(), &[]);
@@ -116,8 +116,8 @@ fn check_token_details(deps: &OwnedDeps<MockStorage, MockApi, MockQuerier>, supp
 
 #[test]
 fn init_works() {
-    let mut deps = do_init();
-    check_token_details(&mut deps, Uint128::new(0));
+    let deps = do_init();
+    check_token_details(&deps, Uint128::new(0));
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn query_works() {
 
     let query_response = query(deps.as_ref(), mock_env(), QueryMsg::WrappedAssetInfo {}).unwrap();
     assert_eq!(
-        from_slice::<WrappedAssetInfoResponse>(&query_response.as_slice()).unwrap(),
+        from_slice::<WrappedAssetInfoResponse>(query_response.as_slice()).unwrap(),
         WrappedAssetInfoResponse {
             asset_chain: 1,
             asset_address: vec![1; 32].into(),
@@ -172,6 +172,6 @@ fn transfer_works() {
     do_mint(&mut deps, &sender, &Uint128::new(123_123_123));
     do_transfer(&mut deps, &sender, &recipient, &Uint128::new(123_123_000));
 
-    check_balance(&mut deps, &sender, &Uint128::new(123));
-    check_balance(&mut deps, &recipient, &Uint128::new(123_123_000));
+    check_balance(&deps, &sender, &Uint128::new(123));
+    check_balance(&deps, &recipient, &Uint128::new(123_123_000));
 }
