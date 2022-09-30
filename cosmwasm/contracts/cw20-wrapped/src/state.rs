@@ -1,20 +1,8 @@
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    Binary,
-    CanonicalAddr,
-    Storage,
-};
-use cosmwasm_storage::{
-    singleton,
-    singleton_read,
-    ReadonlySingleton,
-    Singleton,
-};
+use cosmwasm_std::{Binary, CanonicalAddr, Storage};
+use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 
 pub const KEY_WRAPPED_ASSET: &[u8] = b"wrappedAsset";
 
@@ -30,8 +18,6 @@ pub fn wrapped_asset_info(storage: &mut dyn Storage) -> Singleton<WrappedAssetIn
     singleton(storage, KEY_WRAPPED_ASSET)
 }
 
-pub fn wrapped_asset_info_read(
-    storage: &dyn Storage,
-) -> ReadonlySingleton<WrappedAssetInfo> {
+pub fn wrapped_asset_info_read(storage: &dyn Storage) -> ReadonlySingleton<WrappedAssetInfo> {
     singleton_read(storage, KEY_WRAPPED_ASSET)
 }

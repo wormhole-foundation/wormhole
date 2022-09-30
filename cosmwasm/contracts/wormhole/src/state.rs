@@ -1,37 +1,15 @@
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    Binary,
-    CanonicalAddr,
-    Coin,
-    StdResult,
-    Storage,
-    Uint128,
-};
+use cosmwasm_std::{Binary, CanonicalAddr, Coin, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
-    bucket,
-    bucket_read,
-    singleton,
-    singleton_read,
-    Bucket,
-    ReadonlyBucket,
-    ReadonlySingleton,
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 
-use crate::{
-    byte_utils::ByteUtils,
-    error::ContractError,
-};
+use crate::{byte_utils::ByteUtils, error::ContractError};
 
-use sha3::{
-    Digest,
-    Keccak256,
-};
+use sha3::{Digest, Keccak256};
 
 type HumanAddr = String;
 
@@ -335,7 +313,7 @@ impl GovernancePacket {
 }
 
 // action 1
-pub struct ContractUpgrade  {
+pub struct ContractUpgrade {
     pub new_contract: u64,
 }
 
@@ -348,9 +326,7 @@ pub struct GuardianSetUpgrade {
 impl ContractUpgrade {
     pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let new_contract = data.get_u64(24);
-        Ok(ContractUpgrade {
-            new_contract,
-        })
+        Ok(ContractUpgrade { new_contract })
     }
 }
 
@@ -421,4 +397,3 @@ impl TransferFee {
         Ok(TransferFee { amount, recipient })
     }
 }
-

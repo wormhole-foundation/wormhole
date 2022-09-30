@@ -1,29 +1,14 @@
 use cosmwasm_std::{
     from_slice,
-    testing::{
-        mock_dependencies,
-        mock_env,
-        mock_info,
-        MockApi,
-        MockQuerier,
-        MockStorage,
-    },
-    Coin,
-    OwnedDeps,
-    Response,
-    Storage,
+    testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
+    Coin, OwnedDeps, Response, Storage,
 };
 use cosmwasm_storage::to_length_prefixed;
 
 use wormhole::{
     contract::instantiate,
     msg::InstantiateMsg,
-    state::{
-        ConfigInfo,
-        GuardianAddress,
-        GuardianSetInfo,
-        CONFIG_KEY,
-    },
+    state::{ConfigInfo, GuardianAddress, GuardianSetInfo, CONFIG_KEY},
 };
 
 use hex;
