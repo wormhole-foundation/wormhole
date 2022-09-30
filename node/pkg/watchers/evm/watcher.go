@@ -634,6 +634,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		}
 	}()
 
+	readiness.SetReady(w.readiness)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
