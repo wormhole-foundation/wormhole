@@ -1,22 +1,23 @@
 module wormhole::structs {
-    use wormhole::u32::{Self, U32};
-    use std::secp256k1;
-    use std::timestamp;
+    use wormhole::myu32::{Self as u32, U32};
+    use sui::tx_context::{Self, TxContext};
+    //use sui::object::{Self, UID};
+    //use sui::transfer::{Self};
 
     friend wormhole::state;
     use wormhole::guardian_pubkey::{Self};
 
-    struct Signature has key, store, copy, drop {
-        sig: secp256k1::ECDSASignature,
+    struct Signature has store, copy, drop {
+        sig: vector<u8>,
         recovery_id: u8,
         guardian_index: u8,
     }
 
-    struct Guardian has key, store, drop, copy {
+    struct Guardian has store, drop, copy {
         address: guardian_pubkey::Address
     }
 
-    struct GuardianSet has key, store, copy, drop {
+    struct GuardianSet has store, copy, drop {
         index:     U32,
         guardians: vector<Guardian>,
         expiration_time: U32,
@@ -29,23 +30,23 @@ module wormhole::structs {
     }
 
     public fun create_guardian_set(index: U32, guardians: vector<Guardian>): GuardianSet {
-        GuardianSet {
+       GuardianSet {
             index: index,
             guardians: guardians,
             expiration_time: u32::from_u64(0),
         }
     }
 
-    public(friend) fun expire_guardian_set(guardian_set: &mut GuardianSet, delta: U32) {
-        guardian_set.expiration_time = u32::from_u64(timestamp::now_seconds() + u32::to_u64(delta));
+    public(friend) fun expire_guardian_set(guardian_set: &mut GuardianSet, delta: U32, ctx: &TxContext) {
+        guardian_set.expiration_time = u32::from_u64(tx_context::epoch(ctx) + u32::to_u64(delta));
     }
 
-    public fun unpack_signature(s: &Signature): (secp256k1::ECDSASignature, u8, u8) {
+    public fun unpack_signature(s: &Signature): (vector<u8>, u8, u8) {
         (s.sig, s.recovery_id, s.guardian_index)
     }
 
     public fun create_signature(
-        sig: secp256k1::ECDSASignature,
+        sig: vector<u8>,
         recovery_id: u8,
         guardian_index: u8
     ): Signature {
