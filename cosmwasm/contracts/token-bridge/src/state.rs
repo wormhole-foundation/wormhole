@@ -12,7 +12,6 @@ use wormhole::byte_utils::ByteUtils;
 use crate::token_address::{ExternalTokenId, WrappedCW20};
 
 type HumanAddr = String;
-
 static CONFIG_KEY: &[u8] = b"config";
 static TRANSFER_TMP_KEY: &[u8] = b"transfer_tmp";
 static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
@@ -30,7 +29,7 @@ static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
 /// See [`crate::contract::migrate`] for details on why this is necessary.
 /// Once the migration has been executed, this struct (and the corresponding
 /// migration logic) can be deleted.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ConfigInfoLegacy {
     /// Governance chain (typically Solana, i.e. chain id 1)
     pub gov_chain: u16,
@@ -47,7 +46,7 @@ pub struct ConfigInfoLegacy {
 }
 
 /// Information about this contract's general parameters.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ConfigInfo {
     /// Governance chain (typically Solana, i.e. chain id 1)
     pub gov_chain: u16,
@@ -144,7 +143,7 @@ type Serialized128 = String;
 
 /// Structure to keep track of an active CW20 transfer, required to pass state through to the reply
 /// handler for submessages during a transfer.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferState {
     pub account: String,
     pub message: Vec<u8>,
@@ -227,7 +226,7 @@ impl TokenBridgeMessage {
 //     98  u16      recipient_chain
 //     100 u256     fee
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferInfo {
     pub amount: (u128, u128),
     pub token_address: ExternalTokenId,
@@ -279,7 +278,7 @@ impl TransferInfo {
 //     100 [u8; 32] sender_address
 //     132 [u8]     payload
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferWithPayloadInfo {
     pub amount: (u128, u128),
     pub token_address: ExternalTokenId,

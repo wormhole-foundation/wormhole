@@ -48,7 +48,7 @@ impl ByteUtils for &[u8] {
         if self.get_u128_be(index) >> 32 == 0 {
             return CanonicalAddr::from(&self[index + 12..index + 32]);
         }
-        return CanonicalAddr::from(&self[index..index + 32]);
+        CanonicalAddr::from(&self[index..index + 32])
     }
     fn get_bytes32(&self, index: usize) -> &[u8] {
         &self[index..index + 32]

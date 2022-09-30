@@ -20,7 +20,7 @@ use wormhole::{
     state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA},
 };
 
-#[allow(unused_imports)]
+#[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
@@ -849,7 +849,7 @@ fn handle_complete_transfer_token(
 
     amount = amount
         .checked_sub(fee)
-        .ok_or(StdError::generic_err("Insufficient funds"))?;
+        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -997,7 +997,7 @@ fn handle_complete_transfer_token_native(
 
     amount = amount
         .checked_sub(fee)
-        .ok_or(StdError::generic_err("Insufficient funds"))?;
+        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1106,7 +1106,7 @@ fn handle_initiate_transfer_token(
     let mut submessages: Vec<SubMsg> = vec![];
 
     // we'll only need this for payload 3 transfers
-    let sender_address = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    let sender_address = deps.api.addr_canonicalize(info.sender.as_ref())?;
     let sender_address = extend_address_to_32_array(&sender_address);
 
     match is_wrapped_asset_read(deps.storage).load(asset_canonical.as_slice()) {
@@ -1197,14 +1197,14 @@ fn handle_initiate_transfer_token(
                 .checked_rem(multiplier)
                 .and_then(|rem| amount.u128().checked_sub(rem))
                 .map(Uint128::new)
-                .ok_or(StdError::generic_err("Insufficient funds"))?;
+                .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
             fee = fee
                 .u128()
                 .checked_rem(multiplier)
                 .and_then(|rem| fee.u128().checked_sub(rem))
                 .map(Uint128::new)
-                .ok_or(StdError::generic_err("Invalid fee"))?;
+                .ok_or_else(|| StdError::generic_err("Invalid fee"))?;
 
             // This is a regular asset, transfer its balance
             submessages.push(SubMsg::reply_on_success(
@@ -1397,7 +1397,7 @@ fn handle_initiate_transfer_native_token(
             }
         }
         TransferType::WithPayload { payload } => {
-            let sender_address = deps.api.addr_canonicalize(&info.sender.to_string())?;
+            let sender_address = deps.api.addr_canonicalize(info.sender.as_ref())?;
             let sender_address = extend_address_to_32_array(&sender_address);
             let transfer_info = TransferWithPayloadInfo {
                 amount: (0, amount.u128()),

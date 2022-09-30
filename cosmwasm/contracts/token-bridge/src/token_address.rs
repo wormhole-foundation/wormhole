@@ -55,7 +55,7 @@ use crate::state::{
 ///
 /// For internal consumption of these addresses, we first convert them to
 /// [`TokenId`] (see below).
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[repr(transparent)]
 pub struct ExternalTokenId {
     bytes: [u8; 32],
@@ -116,7 +116,7 @@ impl ExternalTokenId {
     }
 
     pub fn from_bank_token(denom: &String) -> StdResult<ExternalTokenId> {
-        let mut hash = hash(&denom.as_bytes());
+        let mut hash = hash(denom.as_bytes());
         // override first byte with marker byte
         hash[0] = 1;
         Ok(ExternalTokenId { bytes: hash })
@@ -142,7 +142,7 @@ impl ExternalTokenId {
 /// granular. We do differentiate between bank tokens and CW20 tokens, but in
 /// the latter case, we further differentiate between native CW20s and wrapped
 /// CW20s (see [`ContractId`]).
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub enum TokenId {
     Bank { denom: String },
     Contract(ContractId),
@@ -163,7 +163,7 @@ impl TokenId {
             TokenId::Bank { denom } => bank_token_hashes(storage).save(&external_id.bytes, denom),
             TokenId::Contract(contract) => match contract {
                 ContractId::NativeCW20 { contract_address } => {
-                    native_c20_hashes(storage).save(&external_id.bytes, &contract_address)
+                    native_c20_hashes(storage).save(&external_id.bytes, contract_address)
                 }
                 ContractId::ForeignToken {
                     chain_id: _,
@@ -181,7 +181,7 @@ impl TokenId {
 /// reason we represent the foreign address here instead of storing the wrapped
 /// CW20 contract's address directly is that the wrapped asset might not be
 /// deployed yet.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub enum ContractId {
     NativeCW20 {
         contract_address: Addr,
@@ -193,7 +193,7 @@ pub enum ContractId {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[repr(transparent)]
 pub struct WrappedCW20 {
     pub human_address: Addr,
