@@ -5,7 +5,7 @@ use std::convert::TryFrom; // Remove in 2021
 /// Chain contains a mapping of Wormhole supported chains to their u16 representation. These are
 /// universally defined among all Wormhole contracts.
 #[repr(u16)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Chain {
     All = 0,
     Solana = 1,
