@@ -9,7 +9,7 @@ type HumanAddr = String;
 pub static CONFIG_KEY: &[u8] = b"config";
 
 // Guardian set information
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct Config {
     pub token_bridge_contract: HumanAddr,
 }
