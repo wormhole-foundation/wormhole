@@ -6,23 +6,11 @@
 use nom::combinator::verify;
 use nom::multi::fill;
 use nom::number::complete::u8;
-use nom::{
-    Finish,
-    IResult,
-};
+use nom::{Finish, IResult};
 use primitive_types::U256;
 
-use crate::vaa::{
-    GovernanceAction,
-    parse_chain,
-    parse_fixed,
-    ShortUTFString,
-};
-use crate::{
-    parse_fixed_utf8,
-    Chain,
-    WormholeError,
-};
+use crate::vaa::{parse_chain, parse_fixed, GovernanceAction, ShortUTFString};
+use crate::{parse_fixed_utf8, Chain, WormholeError};
 
 /// Transfer is a message containing specifics detailing a token lock up on a sending chain. Chains
 /// that are attempting to initiate a transfer must lock up tokens in some manner, such as in a
@@ -138,7 +126,7 @@ fn parse_payload_asset_meta(input: &[u8]) -> IResult<&[u8], AssetMeta> {
 
 #[derive(PartialEq, Debug)]
 pub struct GovernanceRegisterChain {
-    pub emitter:          Chain,
+    pub emitter: Chain,
     pub endpoint_address: [u8; 32],
 }
 

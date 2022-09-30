@@ -5,22 +5,13 @@
 //! The core bridge does not define any general VAA's, thus all the payloads in this file are
 //! expected to require governance to be executed.
 
-use nom::multi::{
-    count,
-    fill,
-};
-use nom::number::complete::{
-    u32,
-    u8,
-};
+use nom::multi::{count, fill};
+use nom::number::complete::{u32, u8};
 use nom::number::Endianness;
 use nom::IResult;
 use primitive_types::U256;
 
-use crate::vaa::{
-    parse_fixed,
-    GovernanceAction,
-};
+use crate::vaa::{parse_fixed, GovernanceAction};
 
 pub struct GovernanceContractUpgrade {
     pub new_contract: [u8; 32],
@@ -37,7 +28,7 @@ impl GovernanceAction for GovernanceContractUpgrade {
 
 pub struct GovernanceGuardianSetChange {
     pub new_guardian_set_index: u32,
-    pub new_guardian_set:       Vec<[u8; 20]>,
+    pub new_guardian_set: Vec<[u8; 20]>,
 }
 
 impl GovernanceAction for GovernanceGuardianSetChange {
@@ -78,7 +69,7 @@ impl GovernanceAction for GovernanceSetMessageFee {
 
 pub struct GovernanceTransferFees {
     pub amount: U256,
-    pub to:     [u8; 32],
+    pub to: [u8; 32],
 }
 
 impl GovernanceAction for GovernanceTransferFees {

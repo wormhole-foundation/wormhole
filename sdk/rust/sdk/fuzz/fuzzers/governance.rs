@@ -5,4 +5,3 @@ use wormhole_sdk::VAA;
 fuzz_target!(|data: &[u8]| {
     VAA::from_bytes(data);
 });
-

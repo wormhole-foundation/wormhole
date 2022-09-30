@@ -4,13 +4,11 @@ pub use chain::*;
 pub use error::*;
 pub use vaa::*;
 
-
 pub mod chain;
 pub mod vaa;
 
 #[macro_use]
 pub mod error;
-
 
 /// Helper method that attempts to parse and truncate UTF-8 from a byte stream. This is useful when
 /// the wire data is expected to contain UTF-8 that is either already truncated, or needs to be,
