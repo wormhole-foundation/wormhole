@@ -49,3 +49,26 @@ export async function deploy(
   // @ts-ignore
   return /"_contract_address","value":"([^"]+)/gm.exec(receipt.raw_log)[1];
 }
+
+export async function deployWithCodeID(
+  terra: LCDClient,
+  wallet: Wallet,
+  instantiateMsg: Object,
+  label: string,
+  codeId: number
+): Promise<string> {
+  const msgs = [
+    new MsgInstantiateContract(
+      wallet.key.accAddress,
+      wallet.key.accAddress,
+      codeId,
+      instantiateMsg,
+      undefined,
+      label
+    ),
+  ];
+  const receipt = await transactWithoutMemo(terra, wallet, msgs);
+
+  // @ts-ignore
+  return /"_contract_address","value":"([^"]+)/gm.exec(receipt.raw_log)[1];
+}

@@ -1,6 +1,7 @@
 import { arrayify, zeroPad } from "@ethersproject/bytes";
 import { PublicKey } from "@solana/web3.js";
-import { hexValue, hexZeroPad, stripZeros } from "ethers/lib/utils";
+import { hexValue, hexZeroPad, sha256, stripZeros } from "ethers/lib/utils";
+import { Provider as NearProvider } from "near-api-js/lib/providers";
 import {
   hexToNativeAssetStringAlgorand,
   nativeStringToHexAlgorand,
@@ -28,6 +29,7 @@ import {
   isTerraChain,
   CHAIN_ID_PYTHNET,
 } from "./consts";
+import { hashLookup } from "./near";
 
 /**
  *
@@ -96,7 +98,7 @@ export const tryUint8ArrayToNative = (
     // wormhole-chain addresses are always 20 bytes.
     return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
-    throw Error("uint8ArrayToNative: Near not supported yet.");
+    throw Error("uint8ArrayToNative: Use tryHexToNativeStringNear instead.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("uint8ArrayToNative: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
@@ -110,6 +112,18 @@ export const tryUint8ArrayToNative = (
     const _: never = chainId;
     throw Error("Don't know how to convert address for chain " + chainId);
   }
+};
+
+export const tryHexToNativeStringNear = async (
+  provider: NearProvider,
+  tokenBridge: string,
+  address: string
+): Promise<string> => {
+  const { found, value } = await hashLookup(provider, tokenBridge, address);
+  if (!found) {
+    throw new Error("Address not found");
+  }
+  return value;
 };
 
 /**
@@ -214,9 +228,7 @@ export const tryNativeToHexString = (
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
     return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
   } else if (chainId === CHAIN_ID_NEAR) {
-    return uint8ArrayToHex(
-      zeroPad(new Uint8Array(Buffer.from(address, "ascii")), 32)
-    );
+    return uint8ArrayToHex(arrayify(sha256(Buffer.from(address))));
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("hexToNativeString: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {

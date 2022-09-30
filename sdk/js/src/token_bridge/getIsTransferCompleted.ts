@@ -2,7 +2,6 @@ import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
-import { Account as nearAccount } from "near-api-js";
 import axios from "axios";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
@@ -14,10 +13,12 @@ import {
   MAX_BITS,
   _parseVAAAlgorand,
 } from "../algorand";
+import { callFunctionNear } from "../utils/near";
 import { getSignedVAAHash } from "../bridge";
 import { Bridge__factory } from "../ethers-contracts";
 import { importCoreWasm } from "../solana/wasm";
 import { safeBigIntToNumber } from "../utils/bigint";
+import { Provider } from "near-api-js/lib/providers";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
@@ -220,24 +221,15 @@ export async function getIsTransferCompletedAlgorand(
   return retVal;
 }
 
-/**
- * <p>Returns true if this transfer was completed on Near</p>
- * @param near account
- * @param tokenAccount the Token bridge account
- * @param signedVAA VAA to check
- * @returns true if VAA has been redeemed, false otherwise
- */
 export async function getIsTransferCompletedNear(
-  client: nearAccount,
-  tokenAccount: string,
+  provider: Provider,
+  tokenBridge: string,
   signedVAA: Uint8Array
 ): Promise<boolean> {
-  // Could we just pass in the vaa already as hex?
-  let vaa = Buffer.from(signedVAA).toString("hex");
-
+  const vaa = Buffer.from(signedVAA).toString("hex");
   return (
-    await client.viewFunction(tokenAccount, "is_transfer_completed", {
-      vaa: vaa,
+    await callFunctionNear(provider, tokenBridge, "is_transfer_completed", {
+      vaa,
     })
   )[1];
 }

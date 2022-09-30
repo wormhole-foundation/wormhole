@@ -72,7 +72,8 @@
     "0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e": "yearn-finance",
     "0x1a7e4e63778b4f12a199c062f3efdd288afcbce8": "ageur",
     "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8": "ethereum",
-    "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0": "wrapped-steth"
+    "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0": "wrapped-steth",
+    "0xa2cd3d43c775978a96bdbf12d733d5a1ed94fb18": "chain-2"
   },
   "3": {
     "terra193c42lfwmlkasvcw22l9qqzc5q2dx208tkd7wl": "bitlocus",
@@ -114,7 +115,11 @@
     "0x3223f17957ba502cbe71401d55a0db26e5f7c68f": "ethereum-wormhole",
     "0x21c718c22d52d0f3a789b752d4c2fd5908a8a733": "oasis-network"
   },
-  "8": { "algo": "algorand", "31566704": "usd-coin", "312769": "tether" },
+  "8": {
+    "0": "algorand",
+    "31566704": "usd-coin",
+    "312769": "tether"
+  },
   "9": {
     "0x8BEc47865aDe3B172A928df8f990Bc7f2A3b9f79": "aurora",
     "0xE4B9e004389d91e4134a28F19BD833cBA1d994B6": "frax",
@@ -156,5 +161,14 @@
     "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73": "celo-euro",
     "0x765de816845861e75a25fca122bb6898b8b1282a": "celo-dollar"
   },
-  "18": { "uluna": "terra-luna-2" }
+  "15": {
+    "near": "near",
+    "token.sweat": "sweatcoin"
+  },
+  "16": {
+    "0xacc15dc74880c9944775448304b263d191c6077f": "moonbeam"
+  },
+  "18": {
+    "uluna": "terra-luna-2"
+  }
 }

@@ -1,0 +1,12 @@
+[package]
+name = "shutdown-core-bridge-cosmwasm"
+version = "0.1.0"
+authors = ["Wormhole Project Contributors"]
+edition = "2018"
+description = "Shutdown Wormhole core bridge on cosmwasm"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wormhole-bridge-terra-2 = { path = "../wormhole", default-features = false }

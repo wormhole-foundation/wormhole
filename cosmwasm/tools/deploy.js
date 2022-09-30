@@ -20,6 +20,8 @@ const artifacts = [
   "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
   "mock_bridge_integration_2.wasm",
+  "shutdown_core_bridge_cosmwasm.wasm",
+  "shutdown_token_bridge_cosmwasm.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
@@ -214,6 +216,8 @@ const contract_registrations = {
     process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA,
     // TERRA
     process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA,
+    // NEAR
+    process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
   ],
 };
 

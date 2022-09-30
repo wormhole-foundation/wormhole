@@ -300,14 +300,14 @@ module.exports = {
       },
       network_id: 42161,
     },
-    arbitrum_testnet: { // Note that arbitrum did not work with our standard version of truffle (5.3.14), but it did work with the latest (5.5.22)
+    arbitrum_testnet: {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://rinkeby.arbitrum.io/rpc"
+          "https://goerli-rollup.arbitrum.io/rpc"
         );
       },
-      network_id: '*',
+      network_id: 421613,
     },
     optimism: {
       provider: () => {

@@ -13,6 +13,10 @@ crate-type = ["cdylib", "rlib"]
 backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all init/handle/query exports
 library = []
+# The 'full' feature enables all non-shutdown functionality.  Without the 'full' feature
+# enabled, only shutdown functionality is enabled (basically governance).
+full = []
+default = ["full"]
 
 [dependencies]
 cosmwasm-std = { version = "1.0.0" }

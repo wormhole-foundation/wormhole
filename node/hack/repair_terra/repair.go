@@ -20,7 +20,7 @@ import (
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	cosmwasm "github.com/certusone/wormhole/node/pkg/terra"
+	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/tidwall/gjson"
@@ -111,7 +111,7 @@ func getSequencesForTxhash(txhash string, fcd string, contractAddressLogKey stri
 	return sequences, nil
 }
 
-// This was stolen from pkg/terra/watcher.go
+// This was stolen from pkg/cosmwasm/watcher.go
 func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, chainID vaa.ChainID, contractAddressLogKey string) []*common.MessagePublication {
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {

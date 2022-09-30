@@ -83,6 +83,8 @@ export const TERRA_HOST =
         isClassic: true,
       };
 
+export const NEAR_NODE_URL = ci ? "http://near:3030" : "http://localhost:3030";
+
 describe("consts should exist", () => {
   it("has Solana test token", () => {
     expect.assertions(1);
