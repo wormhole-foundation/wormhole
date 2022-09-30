@@ -31,7 +31,7 @@ export async function relay(
   checkOnly: boolean,
   walletPrivateKey: any,
   relayLogger: ScopedLogger,
-  metrics: PromHelper,
+  metrics: PromHelper
 ): Promise<RelayResult> {
   const logger = getScopedLogger(["relay"], relayLogger);
   const { parse_vaa } = await importCoreWasm();
@@ -42,6 +42,7 @@ export async function relay(
       Buffer.from(parsedVAA.payload)
     );
     const chainConfigInfo = getChainConfigInfo(transferPayload.targetChain);
+    const solanaChainConfigInfo = getChainConfigInfo(CHAIN_ID_SOLANA);
     if (!chainConfigInfo) {
       logger.error("relay: improper chain ID: " + transferPayload.targetChain);
       return {
@@ -50,6 +51,13 @@ export async function relay(
           "Fatal Error: target chain " +
           transferPayload.targetChain +
           " not supported",
+      };
+    }
+    if (!solanaChainConfigInfo) {
+      logger.error("Failed to find solana chainId");
+      return {
+        status: Status.FatalError,
+        result: "Fatal Error: solana not supported",
       };
     }
     if (isEVMChain(transferPayload.targetChain)) {
@@ -70,6 +78,7 @@ export async function relay(
       );
       let evmResult = await relayEVM(
         chainConfigInfo,
+        solanaChainConfigInfo,
         signedVAA,
         unwrapNative,
         checkOnly,

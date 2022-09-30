@@ -28,6 +28,8 @@ import * as xApp from "../xRaydium/scripts/lib";
 import { parseTransferPayload } from "../utils/wormhole";
 import { redeemResponseEVM } from "../xRaydium/scripts/relay";
 import { info } from "console";
+import * as web3 from "@solana/web3.js";
+import { AvaxPIDS, mainnetSolanaRPC } from "./solana";
 
 export function newProvider(
   url: string,
@@ -67,6 +69,7 @@ export async function chainConfigToEvmProviderAndSigner(
 
 export async function relayEVM(
   chainConfigInfo: ChainConfigInfo,
+  solanaChainConfigInfo: ChainConfigInfo,
   signedVAA: string,
   unwrapNative: boolean,
   checkOnly: boolean,
@@ -126,7 +129,7 @@ export async function relayEVM(
   logger.debug("Before load addrs");
   const addrs = await xApp.loadAddrs();
   logger.debug("After load addrs");
-  let ctx: xApp.Context;
+  let ctx: xApp.Context<xApp.EvmContext, xApp.SolanaContextNoSigner>;
   if (process.env.ENV_TYPE === "DEV_NET") {
     xApp.info(process.env.ENV_TYPE, "ENV_TYPE")
     ctx = xApp.getDevNetCtx(
@@ -136,7 +139,7 @@ export async function relayEVM(
       addrs.fuji.XRaydiumBridge
     );
   } else {
-    ctx = xApp.getAvaxMainnetCtx(addrs.avax.XRaydiumBridge);
+    ctx = mainnetEVMContext(walletPrivateKey, chainConfigInfo.xRaydiumAddress, solanaChainConfigInfo.xRaydiumAddress)
   }
   await redeemResponseEVM(ctx.evm, signedVaaArray);
 
@@ -144,4 +147,44 @@ export async function relayEVM(
 
   metrics.incSuccesses(chainConfigInfo.chainId);
   return { redeemed: true, result: "redeemed" };
+}
+
+function mainnetEVMContext(
+  evmWalletPrivateKey: string,
+  xRaydiumEvmAddr: string,
+  xRaydiumSolanaAddr: string
+): xApp.Context<xApp.EvmContext, xApp.SolanaContextNoSigner> {
+  // const avaxKey = parseEnvVar("AVAX_KEY");
+  const evmChainId = 6;
+  const provider = new ethers.providers.JsonRpcProvider(
+    "https://api.avax.network/ext/bc/C/rpc",
+    43114
+  );
+  const signer = new ethers.Wallet(
+    evmWalletPrivateKey,
+    provider
+  );
+  const pids = {
+    ...AvaxPIDS,
+    xRaydiumEvmAddr,
+    solanaProxy: new web3.PublicKey(xRaydiumSolanaAddr),
+  };
+  const evm: xApp.EvmContext = {
+    signer,
+    provider,
+    evmWalletAddr: signer.address,
+    chainId: evmChainId,
+    ...pids,
+  };
+  const overrides = {
+    commitment: "confirmed" as web3.Commitment,
+    skipPreflight: false,
+  };
+  const conn = new web3.Connection(mainnetSolanaRPC, {
+    commitment: overrides.commitment,
+  });
+  return xApp.newContext(
+    new xApp.SolanaContextNoSigner(conn, overrides, pids, true),
+    evm
+  );
 }
