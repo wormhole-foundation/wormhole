@@ -318,7 +318,7 @@ module.exports = {
           "https://goerli-rollup.arbitrum.io/rpc"
         );
       },
-      network_id: "*",
+      network_id: 421613,
     },
     optimism: {
       provider: () => {
