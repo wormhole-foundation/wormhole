@@ -1,6 +1,7 @@
-module wormhole::vaa {
-    use 0x1::vector;
-    use 0x1::secp256k1;
+module wormhole::myvaa {
+    use std::vector;
+    //use sui::tx_context::TxContext;
+    //use 0x1::secp256k1;
 
     use wormhole::myu16::{U16};
     use wormhole::myu32::{U32};
@@ -21,7 +22,7 @@ module wormhole::vaa {
     use wormhole::keccak256::keccak256;
 
     friend wormhole::guardian_set_upgrade;
-    friend wormhole::contract_upgrade;
+    //friend wormhole::contract_upgrade;
 
     const E_NO_QUORUM: u64 = 0x0;
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
@@ -62,7 +63,7 @@ module wormhole::vaa {
     /// object, its signatures must have been verified, because the only public
     /// function that returns a VAA is `parse_and_verify`
     fun parse(bytes: vector<u8>): VAA {
-        let cur = cursor::init(bytes);
+        let cur = cursor::cursor_init(bytes);
         let version = deserialize::deserialize_u8(&mut cur);
         assert!(version == 1, E_WRONG_VERSION);
         let guardian_set_index = deserialize::deserialize_u32(&mut cur);
@@ -74,7 +75,6 @@ module wormhole::vaa {
             let guardian_index = deserialize::deserialize_u8(&mut cur);
             let sig = deserialize::deserialize_vector(&mut cur, 64);
             let recovery_id = deserialize::deserialize_u8(&mut cur);
-            let sig: secp256k1::ECDSASignature = secp256k1::ecdsa_signature_from_bytes(sig);
             vector::push_back(&mut signatures, create_signature(sig, recovery_id, guardian_index));
             signatures_len = signatures_len - 1;
         };
@@ -82,7 +82,7 @@ module wormhole::vaa {
         let body = cursor::rest(cur);
         let hash = keccak256(keccak256(body));
 
-        let cur = cursor::init(body);
+        let cur = cursor::cursor_init(body);
 
         let timestamp = deserialize::deserialize_u32(&mut cur);
         let nonce = deserialize::deserialize_u32(&mut cur);
@@ -182,7 +182,7 @@ module wormhole::vaa {
             assert!(sig_i == 0 || guardian_index > last_index, E_NON_INCREASING_SIGNERS);
             last_index = guardian_index;
 
-            let address = guardian_pubkey::from_signature(hash, recovery_id, &sig);
+            let address = guardian_pubkey::from_signature(hash, recovery_id, sig);
 
             let cur_guardian = vector::borrow<Guardian>(&guardians, (guardian_index as u64));
             let cur_address = get_address(cur_guardian);
@@ -229,215 +229,216 @@ module wormhole::vaa {
 
 }
 
-#[test_only]
-module wormhole::vaa_test {
-    use wormhole::guardian_set_upgrade;
-    use wormhole::wormhole;
-    use wormhole::vaa;
-    use wormhole::structs::{create_guardian};
-    use wormhole::u32;
+// TODO - tests
+// #[test_only]
+// module wormhole::vaa_test {
+//     use wormhole::guardian_set_upgrade;
+//     use wormhole::wormhole;
+//     use wormhole::vaa;
+//     use wormhole::structs::{create_guardian};
+//     use wormhole::myu32::{Self as u32};
 
-    /// A test VAA signed by the first guardian set (index 0) containing guardian a single
-    /// guardian beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
-    /// It's a governance VAA (contract upgrade), so we can test all sorts of
-    /// properties
-    const GOV_VAA: vector<u8> = x"010000000001000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a30100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000020b10360000000000000000000000000000000000000000000000000000000000436f7265010016d8f30e4a345ea0fa5df11daac4e1866ee368d253209cf9eda012d915a2db09e6";
+//     /// A test VAA signed by the first guardian set (index 0) containing guardian a single
+//     /// guardian beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+//     /// It's a governance VAA (contract upgrade), so we can test all sorts of
+//     /// properties
+//     const GOV_VAA: vector<u8> = x"010000000001000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a30100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000020b10360000000000000000000000000000000000000000000000000000000000436f7265010016d8f30e4a345ea0fa5df11daac4e1866ee368d253209cf9eda012d915a2db09e6";
 
-    /// Identical VAA except it's signed by guardian set 1, and double signed by
-    /// beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
-    /// Used to test that a single guardian can't supply multiple signatures
-    const GOV_VAA_DOUBLE_SIGNED: vector<u8> = x"010000000102000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a301000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a30100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000020b10360000000000000000000000000000000000000000000000000000000000436f7265010016d8f30e4a345ea0fa5df11daac4e1866ee368d253209cf9eda012d915a2db09e6";
+//     /// Identical VAA except it's signed by guardian set 1, and double signed by
+//     /// beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+//     /// Used to test that a single guardian can't supply multiple signatures
+//     const GOV_VAA_DOUBLE_SIGNED: vector<u8> = x"010000000102000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a301000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a30100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000020b10360000000000000000000000000000000000000000000000000000000000436f7265010016d8f30e4a345ea0fa5df11daac4e1866ee368d253209cf9eda012d915a2db09e6";
 
-    /// A test VAA signed by the second guardian set (index 1) with the following two guardians:
-    /// 0: beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
-    /// 1: 90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
-    const GOV_VAA_2: vector<u8> = x"0100000001020052da07c7ba7d58661e22922a1130e75732f454e81086330f9a5337797ee7ee9d703fd55aabc257c4d53d8ab1e471e4eb1f2767bf37cc6d3d6774e2ca3ab429eb00018c9859f14027c2a62563028a2a9bbb30464ce5b86d13728b02fb85b34761d258154bb59bad87908c9b09342efa9045d4420d289bb0144729eb368ec50c45e719010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000004cdedc90000000000000000000000000000000000000000000000000000000000436f72650100167759324e86f870265b8648ef8d5ef505b2ae99840a616081eb7adc13995204a4";
+//     /// A test VAA signed by the second guardian set (index 1) with the following two guardians:
+//     /// 0: beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+//     /// 1: 90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
+//     const GOV_VAA_2: vector<u8> = x"0100000001020052da07c7ba7d58661e22922a1130e75732f454e81086330f9a5337797ee7ee9d703fd55aabc257c4d53d8ab1e471e4eb1f2767bf37cc6d3d6774e2ca3ab429eb00018c9859f14027c2a62563028a2a9bbb30464ce5b86d13728b02fb85b34761d258154bb59bad87908c9b09342efa9045d4420d289bb0144729eb368ec50c45e719010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000004cdedc90000000000000000000000000000000000000000000000000000000000436f72650100167759324e86f870265b8648ef8d5ef505b2ae99840a616081eb7adc13995204a4";
 
-    /// Set up wormhole with the initial guardian
-    /// beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
-    fun setup() {
-        let aptos_framework = std::account::create_account_for_test(@aptos_framework);
-        std::timestamp::set_time_has_started_for_testing(&aptos_framework);
-        let _wormhole = wormhole::init_test(
-            22,
-            1,
-            x"0000000000000000000000000000000000000000000000000000000000000004",
-            x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-            0
-        );
-    }
+//     /// Set up wormhole with the initial guardian
+//     /// beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+//     fun setup() {
+//         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
+//         std::timestamp::set_time_has_started_for_testing(&aptos_framework);
+//         let _wormhole = wormhole::init_test(
+//             22,
+//             1,
+//             x"0000000000000000000000000000000000000000000000000000000000000004",
+//             x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+//             0
+//         );
+//     }
 
-    #[test]
-    /// Ensures that the GOV_VAA can still be verified after the guardian set
-    /// upgrade before expiry
-    public fun test_guardian_set_not_expired() {
-        setup();
+//     #[test]
+//     /// Ensures that the GOV_VAA can still be verified after the guardian set
+//     /// upgrade before expiry
+//     public fun test_guardian_set_not_expired() {
+//         setup();
 
-        // do an upgrade
-        guardian_set_upgrade::do_upgrade_test(
-            u32::from_u64(1),
-            vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")]);
+//         // do an upgrade
+//         guardian_set_upgrade::do_upgrade_test(
+//             u32::from_u64(1),
+//             vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")]);
 
-        // fast forward time before expiration
-        std::timestamp::fast_forward_seconds(80000);
+//         // fast forward time before expiration
+//         std::timestamp::fast_forward_seconds(80000);
 
-        // we still expect this to verify
-        vaa::destroy(vaa::parse_and_verify(GOV_VAA));
-    }
+//         // we still expect this to verify
+//         vaa::destroy(vaa::parse_and_verify(GOV_VAA));
+//     }
 
-    #[test]
-    #[expected_failure(abort_code = 3)] // E_GUARDIAN_SET_EXPIRED
-    /// Ensures that the GOV_VAA can no longer be verified after the guardian set
-    /// upgrade after expiry
-    public fun test_guardian_set_expired() {
-        setup();
+//     #[test]
+//     #[expected_failure(abort_code = 3)] // E_GUARDIAN_SET_EXPIRED
+//     /// Ensures that the GOV_VAA can no longer be verified after the guardian set
+//     /// upgrade after expiry
+//     public fun test_guardian_set_expired() {
+//         setup();
 
-        // do an upgrade
-        guardian_set_upgrade::do_upgrade_test(
-            u32::from_u64(1),
-            vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")]);
+//         // do an upgrade
+//         guardian_set_upgrade::do_upgrade_test(
+//             u32::from_u64(1),
+//             vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")]);
 
-        // fast forward time beyond expiration
-        std::timestamp::fast_forward_seconds(90000);
+//         // fast forward time beyond expiration
+//         std::timestamp::fast_forward_seconds(90000);
 
-        // we expect this to fail because the guardian set has expired
-        vaa::destroy(vaa::parse_and_verify(GOV_VAA));
-    }
+//         // we expect this to fail because the guardian set has expired
+//         vaa::destroy(vaa::parse_and_verify(GOV_VAA));
+//     }
 
-    #[test]
-    #[expected_failure(abort_code = 8)] // E_OLD_GUARDIAN_SET_GOVERNANCE
-    /// Ensures that governance GOV_VAAs can only be verified by the latest guardian
-    /// set, even if the signer hasn't expired yet
-    public fun test_governance_guardian_set_latest() {
-        setup();
+//     #[test]
+//     #[expected_failure(abort_code = 8)] // E_OLD_GUARDIAN_SET_GOVERNANCE
+//     /// Ensures that governance GOV_VAAs can only be verified by the latest guardian
+//     /// set, even if the signer hasn't expired yet
+//     public fun test_governance_guardian_set_latest() {
+//         setup();
 
-        // do an upgrade
-        guardian_set_upgrade::do_upgrade_test(
-            u32::from_u64(1),
-            vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")]);
+//         // do an upgrade
+//         guardian_set_upgrade::do_upgrade_test(
+//             u32::from_u64(1),
+//             vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")]);
 
-        // fast forward time before expiration
-        std::timestamp::fast_forward_seconds(80000);
+//         // fast forward time before expiration
+//         std::timestamp::fast_forward_seconds(80000);
 
-        // we still expect this to verify
-        let vaa = vaa::parse_and_verify(GOV_VAA);
+//         // we still expect this to verify
+//         let vaa = vaa::parse_and_verify(GOV_VAA);
 
-        // but fail here
-        vaa::assert_governance(&vaa);
-        vaa::destroy(vaa);
-    }
+//         // but fail here
+//         vaa::assert_governance(&vaa);
+//         vaa::destroy(vaa);
+//     }
 
-    #[test]
-    #[expected_failure(abort_code = 5)] // E_INVALID_GOVERNANCE_EMITTER
-    /// Ensures that governance GOV_VAAs can only be sent from the correct governance emitter
-    public fun test_invalid_governance_emitter() {
-        let aptos_framework = std::account::create_account_for_test(@aptos_framework);
-        std::timestamp::set_time_has_started_for_testing(&aptos_framework);
-        let _wormhole = wormhole::init_test(
-            22,
-            1,
-            // Note the different governance emitter address here
-            x"0000000000000000000000000000000000000000000000000000000000000003",
-            x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-            0
-        );
+//     #[test]
+//     #[expected_failure(abort_code = 5)] // E_INVALID_GOVERNANCE_EMITTER
+//     /// Ensures that governance GOV_VAAs can only be sent from the correct governance emitter
+//     public fun test_invalid_governance_emitter() {
+//         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
+//         std::timestamp::set_time_has_started_for_testing(&aptos_framework);
+//         let _wormhole = wormhole::init_test(
+//             22,
+//             1,
+//             // Note the different governance emitter address here
+//             x"0000000000000000000000000000000000000000000000000000000000000003",
+//             x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+//             0
+//         );
 
-        // we still expect this to verify
-        let vaa = vaa::parse_and_verify(GOV_VAA);
+//         // we still expect this to verify
+//         let vaa = vaa::parse_and_verify(GOV_VAA);
 
-        // but fail here
-        vaa::assert_governance(&vaa);
-        vaa::destroy(vaa);
-    }
+//         // but fail here
+//         vaa::assert_governance(&vaa);
+//         vaa::destroy(vaa);
+//     }
 
-    #[test]
-    #[expected_failure(abort_code = 4)] // E_INVALID_GOVERNANCE_CHAIN
-    /// Ensures that governance GOV_VAAs can only be sent from the correct governance chain
-    public fun test_invalid_governance_chain() {
-        let aptos_framework = std::account::create_account_for_test(@aptos_framework);
-        std::timestamp::set_time_has_started_for_testing(&aptos_framework);
-        let _wormhole = wormhole::init_test(
-            22,
-            // Note the different governance chain here
-            2,
-            x"0000000000000000000000000000000000000000000000000000000000000004",
-            x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-            0
-        );
+//     #[test]
+//     #[expected_failure(abort_code = 4)] // E_INVALID_GOVERNANCE_CHAIN
+//     /// Ensures that governance GOV_VAAs can only be sent from the correct governance chain
+//     public fun test_invalid_governance_chain() {
+//         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
+//         std::timestamp::set_time_has_started_for_testing(&aptos_framework);
+//         let _wormhole = wormhole::init_test(
+//             22,
+//             // Note the different governance chain here
+//             2,
+//             x"0000000000000000000000000000000000000000000000000000000000000004",
+//             x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+//             0
+//         );
 
-        // we still expect this to verify
-        let vaa = vaa::parse_and_verify(GOV_VAA);
+//         // we still expect this to verify
+//         let vaa = vaa::parse_and_verify(GOV_VAA);
 
-        // but fail here
-        vaa::assert_governance(&vaa);
-        vaa::destroy(vaa);
-    }
+//         // but fail here
+//         vaa::assert_governance(&vaa);
+//         vaa::destroy(vaa);
+//     }
 
-    #[test]
-    public fun test_quorum() {
-       setup();
-        // do an upgrade
-        guardian_set_upgrade::do_upgrade_test(
-            u32::from_u64(1),
-            vector[
-                create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
-                create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
-            ]);
+//     #[test]
+//     public fun test_quorum() {
+//        setup();
+//         // do an upgrade
+//         guardian_set_upgrade::do_upgrade_test(
+//             u32::from_u64(1),
+//             vector[
+//                 create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+//                 create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
+//             ]);
 
-        // we expect this to succeed because both guardians signed in the correct order
-        vaa::destroy(vaa::parse_and_verify(GOV_VAA_2));
-    }
+//         // we expect this to succeed because both guardians signed in the correct order
+//         vaa::destroy(vaa::parse_and_verify(GOV_VAA_2));
+//     }
 
-    #[test]
-    #[expected_failure(abort_code = 0)] // NO_QUORUM
-    public fun test_no_quorum() {
-       setup();
-        // do an upgrade
-        guardian_set_upgrade::do_upgrade_test(
-            u32::from_u64(1),
-            vector[
-                create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
-                create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
-                create_guardian(x"5e1487f35515d02a92753504a8d75471b9f49edb")
-            ]);
+//     #[test]
+//     #[expected_failure(abort_code = 0)] // NO_QUORUM
+//     public fun test_no_quorum() {
+//        setup();
+//         // do an upgrade
+//         guardian_set_upgrade::do_upgrade_test(
+//             u32::from_u64(1),
+//             vector[
+//                 create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+//                 create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
+//                 create_guardian(x"5e1487f35515d02a92753504a8d75471b9f49edb")
+//             ]);
 
-        // we expect this to fail because we don't have enough signatures
-        vaa::destroy(vaa::parse_and_verify(GOV_VAA_2));
-    }
+//         // we expect this to fail because we don't have enough signatures
+//         vaa::destroy(vaa::parse_and_verify(GOV_VAA_2));
+//     }
 
-    #[test]
-    #[expected_failure(abort_code = 7)] // E_NON_INCREASING_SIGNERS
-    public fun test_double_signed() {
-       setup();
-        // do an upgrade
-        guardian_set_upgrade::do_upgrade_test(
-            u32::from_u64(1),
-            vector[
-                create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
-                create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
-            ]);
+//     #[test]
+//     #[expected_failure(abort_code = 7)] // E_NON_INCREASING_SIGNERS
+//     public fun test_double_signed() {
+//        setup();
+//         // do an upgrade
+//         guardian_set_upgrade::do_upgrade_test(
+//             u32::from_u64(1),
+//             vector[
+//                 create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+//                 create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
+//             ]);
 
-        // we expect this to fail because
-        // beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe signed this twice
-        vaa::destroy(vaa::parse_and_verify(GOV_VAA_DOUBLE_SIGNED));
-    }
+//         // we expect this to fail because
+//         // beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe signed this twice
+//         vaa::destroy(vaa::parse_and_verify(GOV_VAA_DOUBLE_SIGNED));
+//     }
 
-    #[test]
-    #[expected_failure(abort_code = 2)] // E_INVALID_SIGNATURE
-    public fun test_out_of_order_signers() {
-       setup();
-        // do an upgrade
-        guardian_set_upgrade::do_upgrade_test(
-            u32::from_u64(1),
-            vector[
-                // note that the guardians are set up in the other way arond now
-                create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
-                create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
-            ]);
+//     #[test]
+//     #[expected_failure(abort_code = 2)] // E_INVALID_SIGNATURE
+//     public fun test_out_of_order_signers() {
+//        setup();
+//         // do an upgrade
+//         guardian_set_upgrade::do_upgrade_test(
+//             u32::from_u64(1),
+//             vector[
+//                 // note that the guardians are set up in the other way arond now
+//                 create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
+//                 create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+//             ]);
 
-        // we expect this to fail because
-        // beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe signed this twice
-        vaa::destroy(vaa::parse_and_verify(GOV_VAA_2));
-    }
+//         // we expect this to fail because
+//         // beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe signed this twice
+//         vaa::destroy(vaa::parse_and_verify(GOV_VAA_2));
+//     }
 
-}
+// }

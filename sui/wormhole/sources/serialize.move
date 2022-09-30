@@ -108,7 +108,7 @@ module wormhole::test_serialize {
         let u = 0x12345678123456781234567812345678;
         let s = vector::empty();
         serialize::serialize_u128(&mut s, u);
-        let cur = cursor::cursor_cursor_init(s);
+        let cur = cursor::cursor_init(s);
         let p = deserialize::deserialize_u128(&mut cur);
         cursor::destroy_empty(cur);
         assert!(p==u, 0);
