@@ -27,10 +27,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-const (
-	magicNumberPublishImmediately = uint8(200)
-)
-
 var (
 	ethConnectionErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
@@ -332,7 +328,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				}
 
 				for _, msg := range msgs {
-					if msg.ConsistencyLevel == magicNumberPublishImmediately {
+					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 						logger.Info("re-observed message publication transaction, publishing it immediately",
 							zap.Stringer("tx", msg.TxHash),
 							zap.Stringer("emitter_address", msg.EmitterAddress),
@@ -425,7 +421,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 
-				if message.ConsistencyLevel == magicNumberPublishImmediately {
+				if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 					logger.Info("found new message publication transaction, publishing it immediately",
 						zap.Stringer("tx", ev.Raw.TxHash),
 						zap.Uint64("block", ev.Raw.BlockNumber),

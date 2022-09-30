@@ -70,6 +70,10 @@ type (
 	}
 )
 
+const (
+	ConsistencyLevelPublishImmediately = uint8(200)
+)
+
 func (a Address) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
