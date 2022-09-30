@@ -208,7 +208,7 @@ mod tests {
     use cw20::TokenInfoResponse;
 
     fn get_balance(deps: Deps, address: HumanAddr) -> Uint128 {
-        query_balance(deps, address.into()).unwrap().balance
+        query_balance(deps, address).unwrap().balance
     }
 
     fn do_init(mut deps: DepsMut, creator: &HumanAddr) {
@@ -261,7 +261,7 @@ mod tests {
 
         let env = mock_env();
         let info = mock_info(creator, &[]);
-        let res = execute(deps.branch(), env, info, msg.clone()).unwrap();
+        let res = execute(deps.branch(), env, info, msg).unwrap();
         assert_eq!(0, res.messages.len());
         assert_eq!(get_balance(deps.as_ref(), mint_to.clone(),), amount);
 
@@ -293,10 +293,7 @@ mod tests {
         do_init(deps.as_mut(), &minter);
 
         let amount = Uint128::new(222_222_222);
-        let msg = ExecuteMsg::Mint {
-            recipient: recipient.clone(),
-            amount,
-        };
+        let msg = ExecuteMsg::Mint { recipient, amount };
 
         let other_address = HumanAddr::from("other");
         let env = mock_env();
@@ -326,7 +323,7 @@ mod tests {
 
         let env = mock_env();
         let info = mock_info(&owner, &[]);
-        let res = execute(deps.as_mut(), env, info, msg.clone()).unwrap();
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(0, res.messages.len());
         assert_eq!(get_balance(deps.as_ref(), owner), Uint128::new(222_000_000));
         assert_eq!(get_balance(deps.as_ref(), recipient), amount_transfer);
@@ -344,12 +341,12 @@ mod tests {
         let recipient = HumanAddr::from("recipient");
         let amount_transfer = Uint128::new(222_222);
         let msg = ExecuteMsg::Transfer {
-            recipient: recipient.clone(),
+            recipient,
             amount: amount_transfer,
         };
 
         let env = mock_env();
         let info = mock_info(&owner, &[]);
-        let _ = execute(deps.as_mut(), env, info, msg.clone()).unwrap_err(); // Will panic if no error
+        let _ = execute(deps.as_mut(), env, info, msg).unwrap_err(); // Will panic if no error
     }
 }

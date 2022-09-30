@@ -185,7 +185,7 @@ fn get_address_test() -> StdResult<()> {
 
 #[test]
 #[should_panic]
-fn get_address_test_panic() -> () {
+fn get_address_test_panic() {
     // panics because of junk in first 12 bytes
     let ones_32: &[u8] = &[1; 32];
     ones_32.get_address(0);
@@ -193,7 +193,7 @@ fn get_address_test_panic() -> () {
 
 #[test]
 #[should_panic]
-fn get_address_test_panic_2() -> () {
+fn get_address_test_panic_2() {
     // panics because not enough bytes (need at least 32)
     let short_address: &[u8] = &[0; 31];
     short_address.get_address(0);

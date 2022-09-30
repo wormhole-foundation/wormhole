@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub use cosmwasm_std::to_binary;
 use cosmwasm_std::Empty;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug, Default)]
 pub struct Trait {
     pub display_type: Option<String>,
     pub trait_type: String,

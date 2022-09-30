@@ -7,7 +7,7 @@ use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 pub const KEY_WRAPPED_ASSET: &[u8] = b"wrappedAsset";
 
 // Created at initialization and reference original asset and bridge address
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct WrappedAssetInfo {
     pub asset_chain: u16,      // Asset chain id
     pub asset_address: Binary, // Asset smart contract address on the original chain

@@ -304,11 +304,7 @@ where
 
         // update the approval list (remove any for the same spender before adding)
         let spender_addr = deps.api.addr_validate(spender)?;
-        token.approvals = token
-            .approvals
-            .into_iter()
-            .filter(|apr| apr.spender != spender_addr)
-            .collect();
+        token.approvals.retain(|apr| apr.spender != spender_addr);
 
         // only difference between approve and revoke
         if add {

@@ -7,7 +7,7 @@ use cw721::{
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Cw721Contract(pub Addr);
 
 #[allow(dead_code)]
