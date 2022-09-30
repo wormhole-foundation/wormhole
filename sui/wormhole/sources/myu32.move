@@ -40,4 +40,5 @@ module wormhole::myu32 {
         assert!(v2 == 0x56, 0);
         assert!(v3 == 0x78, 0);
     }
+
 }
