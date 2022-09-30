@@ -10,37 +10,18 @@
 //! parse and verify incoming VAA's securely.
 
 use nom::combinator::rest;
-use nom::error::{
-    Error,
-    ErrorKind,
-};
-use nom::multi::{
-    count,
-    fill,
-};
-use nom::number::complete::{
-    u16,
-    u32,
-    u64,
-    u8,
-};
+use nom::error::{Error, ErrorKind};
+use nom::multi::{count, fill};
+use nom::number::complete::{u16, u32, u64, u8};
 use nom::number::Endianness;
-use nom::{
-    Err,
-    Finish,
-    IResult,
-};
+use nom::{Err, Finish, IResult};
 use std::convert::TryFrom;
 
-use crate::WormholeError::{
-    InvalidGovernanceAction,
-    InvalidGovernanceChain,
-    InvalidGovernanceModule,
-};
 use crate::{
-    require,
-    Chain,
-    WormholeError,
+    require, Chain,
+    WormholeError::{
+        self, InvalidGovernanceAction, InvalidGovernanceChain, InvalidGovernanceModule,
+    },
 };
 
 // Import Module Specific VAAs.
@@ -48,7 +29,6 @@ use crate::{
 pub mod core;
 pub mod nft;
 pub mod token;
-
 
 /// Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the
 /// following byte layout:
@@ -74,25 +54,25 @@ type ShortUTFString = String;
 #[derive(Debug, Default, PartialEq)]
 pub struct VAA {
     // Header
-    pub version:            u8,
+    pub version: u8,
     pub guardian_set_index: u32,
-    pub signatures:         Vec<Signature>,
+    pub signatures: Vec<Signature>,
 
     // Body
-    pub timestamp:         u32,
-    pub nonce:             u32,
-    pub emitter_chain:     Chain,
-    pub emitter_address:   ForeignAddress,
-    pub sequence:          u64,
+    pub timestamp: u32,
+    pub nonce: u32,
+    pub emitter_chain: Chain,
+    pub emitter_address: ForeignAddress,
+    pub sequence: u64,
     pub consistency_level: u8,
-    pub payload:           Vec<u8>,
+    pub payload: Vec<u8>,
 }
 
 /// Contains the hash, secp256k1 payload, and serialized digest of the VAA. These are used in
 /// various places in Wormhole codebases.
 pub struct VAADigest {
     pub digest: Vec<u8>,
-    pub hash:   [u8; 32],
+    pub hash: [u8; 32],
 }
 
 impl VAA {
@@ -109,22 +89,17 @@ impl VAA {
     /// components for identifying unique VAA's, including the bridge, modules, and core guardian
     /// software.
     pub fn digest(&self) -> Option<VAADigest> {
-        use byteorder::{
-            BigEndian,
-            WriteBytesExt,
-        };
+        use byteorder::{BigEndian, WriteBytesExt};
         use sha3::Digest;
-        use std::io::{
-            Cursor,
-            Write,
-        };
+        use std::io::{Cursor, Write};
 
         // Hash Deterministic Pieces
         let body = {
             let mut v = Cursor::new(Vec::new());
             v.write_u32::<BigEndian>(self.timestamp).ok()?;
             v.write_u32::<BigEndian>(self.nonce).ok()?;
-            v.write_u16::<BigEndian>(self.emitter_chain.clone() as u16).ok()?;
+            v.write_u16::<BigEndian>(self.emitter_chain.clone() as u16)
+                .ok()?;
             let _ = v.write(&self.emitter_address).ok()?;
             v.write_u64::<BigEndian>(self.sequence).ok()?;
             v.write_u8(self.consistency_level).ok()?;
@@ -141,10 +116,7 @@ impl VAA {
             h.finalize().into()
         };
 
-        Some(VAADigest {
-            digest: body,
-            hash,
-        })
+        Some(VAADigest { digest: body, hash })
     }
 }
 
@@ -270,11 +242,7 @@ pub fn parse_governance_header<'i, 'a>(input: &'i [u8]) -> IResult<&'i [u8], Gov
 
 #[cfg(test)]
 mod testing {
-    use super::{
-        parse_governance_header,
-        Chain,
-        VAA,
-    };
+    use super::{parse_governance_header, Chain, VAA};
 
     #[test]
     fn test_valid_gov_header() {
@@ -298,16 +266,13 @@ mod testing {
     // Legacy VAA Signature Struct.
     #[derive(Default, Clone)]
     pub struct VAASignature {
-        pub signature:      Vec<u8>,
+        pub signature: Vec<u8>,
         pub guardian_index: u8,
     }
 
     // Original VAA Parsing Code. Used to compare current code to old for parity.
     pub fn legacy_deserialize(data: &[u8]) -> std::result::Result<VAA, std::io::Error> {
-        use byteorder::{
-            BigEndian,
-            ReadBytesExt,
-        };
+        use byteorder::{BigEndian, ReadBytesExt};
         use std::convert::TryFrom;
         use std::io::Read;
 
@@ -374,6 +339,5 @@ mod testing {
     }
 
     #[test]
-    fn test_invalid_vaa() {
-    }
+    fn test_invalid_vaa() {}
 }

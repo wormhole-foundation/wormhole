@@ -2,20 +2,19 @@
 //! library. Check submodules for chain runtime specific documentation.
 use std::convert::TryFrom; // Remove in 2021
 
-
 /// Chain contains a mapping of Wormhole supported chains to their u16 representation. These are
 /// universally defined among all Wormhole contracts.
 #[repr(u16)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Chain {
-    All      = 0,
-    Solana   = 1,
+    All = 0,
+    Solana = 1,
     Ethereum = 2,
-    Terra    = 3,
-    Binance  = 4,
-    Polygon  = 5,
-    AVAX     = 6,
-    Oasis    = 7,
+    Terra = 3,
+    Binance = 4,
+    Polygon = 5,
+    AVAX = 6,
+    Oasis = 7,
 }
 
 impl TryFrom<u16> for Chain {
