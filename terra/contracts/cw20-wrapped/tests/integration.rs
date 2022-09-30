@@ -1,38 +1,14 @@
 use cosmwasm_std::{
     from_slice,
-    testing::{
-        mock_dependencies,
-        mock_env,
-        mock_info,
-        MockApi,
-        MockQuerier,
-        MockStorage,
-    },
-    Addr,
-    Api,
-    OwnedDeps,
-    Response,
-    Storage,
-    Uint128,
+    testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
+    Addr, Api, OwnedDeps, Response, Storage, Uint128,
 };
 use cosmwasm_storage::to_length_prefixed;
 use cw20::TokenInfoResponse;
 use cw20_wrapped::{
-    contract::{
-        execute,
-        instantiate,
-        query,
-    },
-    msg::{
-        ExecuteMsg,
-        InstantiateMsg,
-        QueryMsg,
-        WrappedAssetInfoResponse,
-    },
-    state::{
-        WrappedAssetInfo,
-        KEY_WRAPPED_ASSET,
-    },
+    contract::{execute, instantiate, query},
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg, WrappedAssetInfoResponse},
+    state::{WrappedAssetInfo, KEY_WRAPPED_ASSET},
     ContractError,
 };
 
@@ -42,9 +18,7 @@ static SENDER: &str = "addr3333";
 
 fn get_wrapped_asset_info<S: Storage>(storage: &S) -> WrappedAssetInfo {
     let key = to_length_prefixed(KEY_WRAPPED_ASSET);
-    let data = storage
-        .get(&key)
-        .expect("data should exist");
+    let data = storage.get(&key).expect("data should exist");
     from_slice(&data).expect("invalid data")
 }
 

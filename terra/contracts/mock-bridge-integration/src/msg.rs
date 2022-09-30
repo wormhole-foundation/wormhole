@@ -1,9 +1,6 @@
 use cosmwasm_std::Binary;
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 type HumanAddr = String;
 
@@ -15,9 +12,7 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    CompleteTransferWithPayload {
-        data: Binary,
-    },
+    CompleteTransferWithPayload { data: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

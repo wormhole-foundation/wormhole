@@ -1,21 +1,10 @@
-use cosmwasm_std::{
-    Binary,
-    StdResult,
-};
+use cosmwasm_std::{Binary, StdResult};
 
 use wormhole::state::ParsedVAA;
 
 use crate::{
-    contract::{
-        build_asset_id,
-        build_native_id,
-    },
-    state::{
-        Action,
-        TokenBridgeMessage,
-        TransferInfo,
-        TransferWithPayloadInfo,
-    },
+    contract::{build_asset_id, build_native_id},
+    state::{Action, TokenBridgeMessage, TransferInfo, TransferWithPayloadInfo},
 };
 
 #[test]
@@ -138,27 +127,26 @@ fn deserialize_transfer_vaa() -> StdResult<()> {
 
 #[test]
 fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
-
-// ┌──────────────────────────────────────────────────────────────────────────────┐
-// │ Wormhole VAA v1         │ nonce: 2080370133       │ time: 0                  │
-// │ guardian set #0         │ #4568529024235897313    │ consistency: 32          │
-// ├──────────────────────────────────────────────────────────────────────────────┤
-// │ Signature:                                                                   │
-// │   #0: 2565e7ae10421624fd81118855acda893e752aeeef31c13fbfc417591ada...        │
-// ├──────────────────────────────────────────────────────────────────────────────┤
-// │ Emitter: 11111111111111111111111111111115 (Solana)                           │
-// ╞══════════════════════════════════════════════════════════════════════════════╡
-// │ Token transfer with payload (aka payload 3)                                  │
-// │ Amount: 1.0                                                                  │
-// │ Token: terra1qqqqqqqqqqqqqqqqqqqqqqqqqp6h2umyswfh6y (Terra)                  │
-// │ Recipient: terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh (Terra)              │
-// │ From: 1399a4e782b935d2bb36b97586d3df8747b07dc66902d807eed0ae99e00ed256       │
-// ╞══════════════════════════════════════════════════════════════════════════════╡
-// │ Custom payload:                                                              │
-// │ Length: 30 (0x1e) bytes                                                      │
-// │ 0000:   41 6c 6c 20  79 6f 75 72  20 62 61 73  65 20 61 72   All your base ar│
-// │ 0010:   65 20 62 65  6c 6f 6e 67  20 74 6f 20  75 73         e belong to us  │
-// └──────────────────────────────────────────────────────────────────────────────┘
+    // ┌──────────────────────────────────────────────────────────────────────────────┐
+    // │ Wormhole VAA v1         │ nonce: 2080370133       │ time: 0                  │
+    // │ guardian set #0         │ #4568529024235897313    │ consistency: 32          │
+    // ├──────────────────────────────────────────────────────────────────────────────┤
+    // │ Signature:                                                                   │
+    // │   #0: 2565e7ae10421624fd81118855acda893e752aeeef31c13fbfc417591ada...        │
+    // ├──────────────────────────────────────────────────────────────────────────────┤
+    // │ Emitter: 11111111111111111111111111111115 (Solana)                           │
+    // ╞══════════════════════════════════════════════════════════════════════════════╡
+    // │ Token transfer with payload (aka payload 3)                                  │
+    // │ Amount: 1.0                                                                  │
+    // │ Token: terra1qqqqqqqqqqqqqqqqqqqqqqqqqp6h2umyswfh6y (Terra)                  │
+    // │ Recipient: terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh (Terra)              │
+    // │ From: 1399a4e782b935d2bb36b97586d3df8747b07dc66902d807eed0ae99e00ed256       │
+    // ╞══════════════════════════════════════════════════════════════════════════════╡
+    // │ Custom payload:                                                              │
+    // │ Length: 30 (0x1e) bytes                                                      │
+    // │ 0000:   41 6c 6c 20  79 6f 75 72  20 62 61 73  65 20 61 72   All your base ar│
+    // │ 0010:   65 20 62 65  6c 6f 6e 67  20 74 6f 20  75 73         e belong to us  │
+    // └──────────────────────────────────────────────────────────────────────────────┘
 
     let signed_vaa = "\
         010000000001002565e7ae10421624fd81118855acda893e752aeeef31c13fbf\
@@ -220,7 +208,6 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
         info.recipient_chain, recipient_chain,
         "info.recipient_chain != expected"
     );
-
 
     let transfer_payload = "All your base are belong to us";
     let transfer_payload = transfer_payload.as_bytes();

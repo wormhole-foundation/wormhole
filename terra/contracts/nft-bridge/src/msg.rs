@@ -1,9 +1,6 @@
 use cosmwasm_std::Binary;
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 type HumanAddr = String;
 
@@ -45,7 +42,7 @@ pub struct MigrateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     WrappedRegistry { chain: u16, address: Binary },
-    AllWrappedAssets { },
+    AllWrappedAssets {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
