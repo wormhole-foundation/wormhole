@@ -1,16 +1,6 @@
 use cosmwasm_std::{
-    to_binary,
-    Binary,
-    CosmosMsg,
-    Deps,
-    DepsMut,
-    Env,
-    MessageInfo,
-    Response,
-    StdError,
-    StdResult,
-    Uint128,
-    WasmMsg,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    Uint128, WasmMsg,
 };
 
 #[cfg(not(feature = "library"))]
@@ -19,40 +9,17 @@ use cosmwasm_std::entry_point;
 use cw2::set_contract_version;
 use cw20_legacy::{
     allowances::{
-        execute_burn_from,
-        execute_decrease_allowance,
-        execute_increase_allowance,
-        execute_send_from,
-        execute_transfer_from,
-        query_allowance,
+        execute_burn_from, execute_decrease_allowance, execute_increase_allowance,
+        execute_send_from, execute_transfer_from, query_allowance,
     },
-    contract::{
-        execute_mint,
-        execute_send,
-        execute_transfer,
-        query_balance,
-    },
-    state::{
-        MinterData,
-        TokenInfo,
-        TOKEN_INFO,
-    },
+    contract::{execute_mint, execute_send, execute_transfer, query_balance},
+    state::{MinterData, TokenInfo, TOKEN_INFO},
     ContractError,
 };
 
 use crate::{
-    msg::{
-        ExecuteMsg,
-        InstantiateMsg,
-        MigrateMsg,
-        QueryMsg,
-        WrappedAssetInfoResponse,
-    },
-    state::{
-        wrapped_asset_info,
-        wrapped_asset_info_read,
-        WrappedAssetInfo,
-    },
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, WrappedAssetInfoResponse},
+    state::{wrapped_asset_info, wrapped_asset_info_read, WrappedAssetInfo},
 };
 use cw20::TokenInfoResponse;
 use std::string::String;
@@ -237,11 +204,7 @@ pub fn query_wrapped_asset_info(deps: Deps) -> StdResult<WrappedAssetInfoRespons
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{
-        mock_dependencies,
-        mock_env,
-        mock_info,
-    };
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cw20::TokenInfoResponse;
 
     fn get_balance(deps: Deps, address: HumanAddr) -> Uint128 {

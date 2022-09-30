@@ -1,17 +1,8 @@
-use cosmwasm_std::{
-    Binary,
-    Coin,
-};
+use cosmwasm_std::{Binary, Coin};
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use crate::state::{
-    GuardianAddress,
-    GuardianSetInfo,
-};
+use crate::state::{GuardianAddress, GuardianSetInfo};
 
 type HumanAddr = String;
 
@@ -33,8 +24,7 @@ pub enum ExecuteMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct MigrateMsg {
-}
+pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]

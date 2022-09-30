@@ -1,16 +1,7 @@
-use cosmwasm_std::{
-    Binary,
-    Uint128,
-};
+use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use terraswap::asset::{
-    Asset,
-    AssetInfo,
-};
+use serde::{Deserialize, Serialize};
+use terraswap::asset::{Asset, AssetInfo};
 
 type HumanAddr = String;
 

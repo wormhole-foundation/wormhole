@@ -1,117 +1,44 @@
-use cw20::{
-    BalanceResponse,
-    TokenInfoResponse,
-};
-use cw20_base::msg::{
-    ExecuteMsg as TokenMsg,
-    QueryMsg as TokenQuery,
-};
+use cw20::{BalanceResponse, TokenInfoResponse};
+use cw20_base::msg::{ExecuteMsg as TokenMsg, QueryMsg as TokenQuery};
 use cw20_wrapped::msg::{
-    ExecuteMsg as WrappedMsg,
-    InitHook,
-    InstantiateMsg as WrappedInit,
-    QueryMsg as WrappedQuery,
+    ExecuteMsg as WrappedMsg, InitHook, InstantiateMsg as WrappedInit, QueryMsg as WrappedQuery,
     WrappedAssetInfoResponse,
 };
-use sha3::{
-    Digest,
-    Keccak256,
-};
+use sha3::{Digest, Keccak256};
 use std::{
-    cmp::{
-        max,
-        min,
-    },
+    cmp::{max, min},
     str::FromStr,
 };
-use terraswap::asset::{
-    Asset,
-    AssetInfo,
-};
+use terraswap::asset::{Asset, AssetInfo};
 
 use terra_cosmwasm::TerraQuerier;
 use wormhole::{
     byte_utils::{
-        extend_address_to_32,
-        extend_address_to_32_array,
-        extend_string_to_32,
-        get_string_from_32,
+        extend_address_to_32, extend_address_to_32_array, extend_string_to_32, get_string_from_32,
         ByteUtils,
     },
     error::ContractError,
-    msg::{
-        ExecuteMsg as WormholeExecuteMsg,
-        QueryMsg as WormholeQueryMsg,
-    },
-    state::{
-        vaa_archive_add,
-        vaa_archive_check,
-        GovernancePacket,
-        ParsedVAA,
-    },
+    msg::{ExecuteMsg as WormholeExecuteMsg, QueryMsg as WormholeQueryMsg},
+    state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA},
 };
 
 use cosmwasm_std::{
-    coin,
-    entry_point,
-    to_binary,
-    BankMsg,
-    Binary,
-    CanonicalAddr,
-    Coin,
-    CosmosMsg,
-    Decimal,
-    Deps,
-    DepsMut,
-    Empty,
-    Env,
-    MessageInfo,
-    Order,
-    QuerierWrapper,
-    QueryRequest,
-    Reply,
-    Response,
-    StdError,
-    StdResult,
-    SubMsg,
-    Uint128,
-    WasmMsg,
-    WasmQuery,
+    coin, entry_point, to_binary, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Decimal, Deps,
+    DepsMut, Empty, Env, MessageInfo, Order, QuerierWrapper, QueryRequest, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::{
     msg::{
-        ExecuteMsg,
-        InstantiateMsg,
-        MigrateMsg,
-        QueryMsg,
-        TransferInfoResponse,
+        ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, TransferInfoResponse,
         WrappedRegistryResponse,
     },
     state::{
-        bridge_contracts,
-        bridge_contracts_read,
-        bridge_deposit,
-        config,
-        config_read,
-        receive_native,
-        send_native,
-        wrapped_asset,
-        wrapped_asset_address,
-        wrapped_asset_address_read,
-        wrapped_asset_read,
-        wrapped_asset_seq,
-        wrapped_asset_seq_read,
-        wrapped_transfer_tmp,
-        Action,
-        AssetMeta,
-        ConfigInfo,
-        RegisterChain,
-        TokenBridgeMessage,
-        TransferInfo,
-        TransferState,
-        TransferWithPayloadInfo,
-        UpgradeContract,
+        bridge_contracts, bridge_contracts_read, bridge_deposit, config, config_read,
+        receive_native, send_native, wrapped_asset, wrapped_asset_address,
+        wrapped_asset_address_read, wrapped_asset_read, wrapped_asset_seq, wrapped_asset_seq_read,
+        wrapped_transfer_tmp, Action, AssetMeta, ConfigInfo, RegisterChain, TokenBridgeMessage,
+        TransferInfo, TransferState, TransferWithPayloadInfo, UpgradeContract,
     },
 };
 

@@ -1,15 +1,8 @@
 #![allow(clippy::field_reassign_with_default)]
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    Addr,
-    Binary,
-    Uint128,
-};
+use cosmwasm_std::{Addr, Binary, Uint128};
 use cw20::Expiration;
 
 type HumanAddr = String;

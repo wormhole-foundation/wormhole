@@ -1,15 +1,8 @@
 pub use cw721_base::MintMsg;
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    Addr,
-    Binary,
-    Empty,
-};
+use cosmwasm_std::{Addr, Binary, Empty};
 
 pub use cw721_base::msg::ExecuteMsg;
 
@@ -129,7 +122,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WrappedAssetInfoResponse {
-    pub asset_chain: u16,        // Asset chain id
+    pub asset_chain: u16,      // Asset chain id
     pub asset_address: Binary, // Asset smart contract address in the original chain
-    pub bridge: Addr,            // Bridge address, authorized to mint and burn wrapped tokens
+    pub bridge: Addr,          // Bridge address, authorized to mint and burn wrapped tokens
 }

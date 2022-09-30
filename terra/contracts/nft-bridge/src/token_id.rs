@@ -1,9 +1,5 @@
 use bigint::U256;
-use cosmwasm_std::{
-    StdError,
-    StdResult,
-    Storage,
-};
+use cosmwasm_std::{StdError, StdResult, Storage};
 
 use sha3::{
     digest::{consts::U32, generic_array::GenericArray},
@@ -12,10 +8,7 @@ use sha3::{
 use wormhole::byte_utils::ByteUtils;
 
 use crate::{
-    state::{
-        token_id_hashes,
-        token_id_hashes_read,
-    },
+    state::{token_id_hashes, token_id_hashes_read},
     CHAIN_ID,
 };
 
