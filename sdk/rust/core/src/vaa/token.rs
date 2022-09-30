@@ -15,7 +15,7 @@ use crate::{parse_fixed_utf8, Chain, WormholeError};
 /// Transfer is a message containing specifics detailing a token lock up on a sending chain. Chains
 /// that are attempting to initiate a transfer must lock up tokens in some manner, such as in a
 /// custody account or via burning, before emitting this message.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Transfer {
     /// Amount being transferred (big-endian uint256)
     pub amount: U256,
@@ -72,7 +72,7 @@ fn parse_payload_transfer(input: &[u8]) -> IResult<&[u8], Transfer> {
     ))
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct AssetMeta {
     /// Address of the original token on the source chain.
     pub token_address: [u8; 32],
@@ -101,7 +101,7 @@ impl AssetMeta {
 
 fn parse_payload_asset_meta(input: &[u8]) -> IResult<&[u8], AssetMeta> {
     // Parse Payload.
-    let (i, _) = verify(u8, |&s| s == 0x2)(input.as_ref())?;
+    let (i, _) = verify(u8, |&s| s == 0x2)(input)?;
     let (i, token_address) = parse_fixed(i)?;
     let (i, token_chain) = parse_chain(i)?;
     let (i, decimals) = u8(i)?;
@@ -124,7 +124,7 @@ fn parse_payload_asset_meta(input: &[u8]) -> IResult<&[u8], AssetMeta> {
     ))
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct GovernanceRegisterChain {
     pub emitter: Chain,
     pub endpoint_address: [u8; 32],
@@ -146,7 +146,7 @@ impl GovernanceAction for GovernanceRegisterChain {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct GovernanceContractUpgrade {
     pub new_contract: [u8; 32],
 }

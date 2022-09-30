@@ -17,7 +17,7 @@ use crate::{parse_fixed_utf8, Chain, WormholeError};
 /// Transfer is a message containing specifics detailing a token lock up on a sending chain. Chains
 /// that are attempting to initiate a transfer must lock up tokens in some manner, such as in a
 /// custody account or via burning, before emitting this message.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Transfer {
     /// Address of the token. Left-zero-padded if shorter than 32 bytes
     pub nft_address: [u8; 32],
@@ -55,7 +55,7 @@ impl Transfer {
 
 fn parse_payload_transfer(input: &[u8]) -> IResult<&[u8], Transfer> {
     // Parse Payload
-    let (i, _) = verify(u8, |&s| s == 0x1)(input.as_ref())?;
+    let (i, _) = verify(u8, |&s| s == 0x1)(input)?;
     let (i, nft_address) = parse_fixed(i)?;
     let (i, nft_chain) = parse_chain(i)?;
     let (i, symbol): (_, [u8; 32]) = parse_fixed(i)?;
@@ -87,7 +87,7 @@ fn parse_payload_transfer(input: &[u8]) -> IResult<&[u8], Transfer> {
     ))
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct GovernanceRegisterChain {
     pub emitter: Chain,
     pub endpoint_address: [u8; 32],
@@ -109,7 +109,7 @@ impl GovernanceAction for GovernanceRegisterChain {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct GovernanceContractUpgrade {
     pub new_contract: [u8; 32],
 }

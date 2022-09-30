@@ -51,7 +51,7 @@ type ShortUTFString = String;
 /// The core VAA itself. This structure is what is received by a contract on the receiving side of
 /// a wormhole message passing flow. The payload of the message must be parsed separately to the
 /// VAA itself as it is completely user defined.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct VAA {
     // Header
     pub version: u8,
@@ -201,7 +201,7 @@ pub trait GovernanceAction: Sized {
                 // Left 0-pad the MODULE in case it is unpadded.
                 let mut module = [0u8; 32];
                 let modlen = Self::MODULE.len();
-                (&mut module[32 - modlen..]).copy_from_slice(&Self::MODULE);
+                module[32 - modlen..].copy_from_slice(Self::MODULE);
 
                 // Verify Governance Data.
                 let valid_chain = chain == header.chains || chain == Chain::All;
@@ -220,13 +220,13 @@ pub trait GovernanceAction: Sized {
 
 #[inline]
 pub fn parse_action<A: GovernanceAction>(input: &[u8]) -> IResult<&[u8], (GovHeader, A)> {
-    let (i, header) = parse_governance_header(input.as_ref())?;
+    let (i, header) = parse_governance_header(input)?;
     let (i, action) = A::parse(i)?;
     Ok((i, (header, action)))
 }
 
 #[inline]
-pub fn parse_governance_header<'i, 'a>(input: &'i [u8]) -> IResult<&'i [u8], GovHeader> {
+pub fn parse_governance_header(input: &[u8]) -> IResult<&[u8], GovHeader> {
     let (i, module) = parse_fixed(input)?;
     let (i, action) = u8(i)?;
     let (i, chains) = u16(Endianness::Big)(i)?;
