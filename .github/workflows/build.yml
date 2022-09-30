@@ -117,7 +117,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
         with:
           toolchain: ${{ steps.toolchain.outputs.version }}
           components: "clippy,rustfmt"
@@ -268,33 +268,56 @@ jobs:
   # Run Rust lints and tests
   rust-lint-and-tests:
     runs-on: ubuntu-20.04
+    env:
+      RUSTFLAGS: -Dwarnings
     strategy:
       matrix:
         manifest:
+          - cosmwasm/Cargo.toml
           - terra/Cargo.toml
           - sdk/rust/Cargo.toml
     steps:
       - name: Check out source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Install stable rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
         with:
-          profile: minimal
           toolchain: stable
-          default: true
+          components: "clippy,rustfmt"
 
-      - name: Run `cargo check`
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --manifest-path ${{ matrix.manifest }}
+      - name: Create cache key
+        id: cachekey
+        env:
+          MANIFEST: ${{ matrix.manifest }}
+        run: |
+          LOCKFILE="$(dirname "${MANIFEST}")/Cargo.lock"
+          NAME="${MANIFEST%%/*}"
+          HASH="$(sha256sum "${LOCKFILE}" | awk '{ print $1 }')"
+          echo "::set-output name=name::${NAME}"
+          echo "::set-output name=hash::${HASH}"
 
-      - name: Run `cargo test`
-        uses: actions-rs/cargo@v1
+      - name: Cache rust packages
+        uses: actions/cache@v3
         with:
-          command: test
-          args: --workspace --manifest-path ${{ matrix.manifest }}
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-build-${{ steps.cachekey.outputs.name }}-${{ steps.cachekey.outputs.hash }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ matrix.manifest }}-
+
+      - name: Run `rustfmt`
+        env:
+          MANIFEST: ${{ matrix.manifest }}
+        # In its infinite wisdom, `cargo fmt --all` will also format path-based dependencies so
+        # instead we have to manually format each ".rs" file.
+        run: find "$(dirname "${MANIFEST}")" -name '*.rs' -exec rustfmt --check {} +
+
+      - name: Run `cargo clippy`
+        run: cargo clippy --workspace --tests --locked --manifest-path ${{ matrix.manifest }}
+
+      - name: Run unit tests
+        run: cargo test --workspace --locked --manifest-path ${{ matrix.manifest }}
+
   docker:
     runs-on: ubuntu-latest
     steps:
