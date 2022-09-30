@@ -36,4 +36,5 @@ module wormhole::myu16 {
         assert!(v0 == 0x12, 0);
         assert!(v1 == 0x34, 0);
     }
+
 }
