@@ -29,6 +29,69 @@ Documentation for the in-the-wild deployments lives in the
 
 See [DEVELOP.md](./DEVELOP.md) for more information on how to run the development environment.
 
+## Proposing Changes
+The Wormhole project understands that contributions come in all shapes and sizes and from both from casual contributions (eg. fix a typo) to advanced contributions (eg. add a new chain integration).  Understanding this, the Wormhole project aims to offer the following paths to make contributions to Wormhole.
+### GitHub Pull Request (aka: Casual Contribution)
+**Objective:** Allow any casual contribution to the project using the default tooling provided by GitHub.
+
+**Examples of casual contribution**
+- Adjustments to documentation
+- Adjustments to configuration parameters
+- Fixing a script or otherwise non-mission critical piece of code
+
+**Process**
+
+1. Fork the Wormhole project ([GitHub Official Documentation](https://docs.github.com/en/get-started/quickstart/fork-a-repo)).
+1. Clone the forked repository ([GitHub Official Documentation](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository#cloning-a-repository))
+1. Change directory into the Wormhole repository
+    - `cd ./wormhole`
+1. Create a new branch
+    - `git checkout -b NAME_OF_FEATURE_BRANCH`
+1. Make changes to relevant files
+1. Add your changes
+      - `git add FILE_YOU_CHANGED`
+1. Commit your changes
+      - `git commit -m "docs: updated contributing process"`
+      - *See below for commit message convention guidance*
+1. Push your changes to GitHub
+      - `git push origin NAME_OF_FEATURE_BRANCH"`
+1. On the GitHub PR, Propose 2 core contributors -OR- Wait for 2 core contributors to review and provide feedback.
+1. Iterate with the reviewers to ensure that the necessary changes are made and once all changes are made and reviews are complete a core contributor will merge the code into the dev.v2 branch.
+
+### Gerrit Change Set (aka: Advanced Contribution)
+**Objective:** Allow advanced contributors, often core contributors, to make major changes to the project using a more advanced review toolchain, allowing for more efficient and iterative change sets and preventing re-reviews of code, which has already been reviewed.
+
+**Examples of Advanced contribution**
+- Adding a new chain integration
+- Adding a new core feature to the protocol
+- Initial draft of a protocol specification/whitepaper
+- Any non-config changes to the Guardian/Smart Contracts
+
+**Process**
+
+1. Fork the Wormhole project ([GitHub Official Documentation](https://docs.github.com/en/get-started/quickstart/fork-a-repo))
+1. INSERT_STEPS_TO_GET_SETUP_USING_GERRIT_POSSIBLY_ADDING_A_GERRIT_INSTANCE_FOR_WORMHOLE
+1. Copy the "Clone with commit-msg hook" command from Gerrit to pull down the repository.
+1. Change directory into the Wormhole repository
+    - `cd ./wormhole`
+1. Create a new branch
+    - `git checkout -b NAME_OF_FEATURE_BRANCH`
+1. Make changes to relevant files
+1. Add your changes
+      - `git add FILE_YOU_CHANGED`
+1. Commit your changes
+      - `git commit -m "docs: updated contributing process"`
+      - *See below for commit message convention guidance*
+1. Push your changes to Gerrit
+      - `git push origin HEAD:refs/for/main"`
+1. On the Gerrit Change Set, Propose 2 core contributors -OR- Wait for 2 core contributors to review, provided feedback, and approve your code.
+1. Iterate with the reviewers to ensure that the necessary changes are made and once all changes are made and reviews are complete a core contributor will merge the code into the dev.v2 branch.
+
+## Code Review Principles
+
+- **Must** be reviewed by two independant core contributors to Wormhole, with the same level of rigor and attention to detail.
+- **Must** follow the commit naming convention below in this document.
+
 ## Contributions FAQ
 
 ### Can you add \<random blockchain\>?
