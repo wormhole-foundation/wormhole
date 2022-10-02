@@ -95,13 +95,19 @@ pub fn add_liquidity(
 
     // The share amount should be equal to the amount of from tokens an lp would be getting
     let share_amount = if accs.from_mint.decimals > accs.to_mint.decimals {
-        data.amount
+        match data.amount
             .checked_mul(10u64.pow((accs.from_mint.decimals - accs.to_mint.decimals) as u32))
-            .unwrap()
+        {
+            None => return Result::Err(SolitaireError::InsufficientFunds),
+            Some(value) => value
+        }
     } else {
-        data.amount
+        match data.amount
             .checked_div(10u64.pow((accs.to_mint.decimals - accs.from_mint.decimals) as u32))
-            .unwrap()
+        {
+            None => return Result::Err(SolitaireError::InsufficientFunds),
+            Some(value) => value
+        }
     };
 
     // Mint LP shares

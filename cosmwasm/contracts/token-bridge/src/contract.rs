@@ -922,7 +922,10 @@ fn handle_complete_transfer_token(
     let (not_supported_amount, mut amount) = transfer_info.amount;
     let (not_supported_fee, mut fee) = transfer_info.fee;
 
-    amount = amount.checked_sub(fee).unwrap();
+    amount = match amount.checked_sub(fee) {
+        None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient funds")),
+        Some(value) => value
+    };
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1068,7 +1071,10 @@ fn handle_complete_transfer_token_native(
     let (not_supported_amount, mut amount) = transfer_info.amount;
     let (not_supported_fee, mut fee) = transfer_info.fee;
 
-    amount = amount.checked_sub(fee).unwrap();
+    amount = match amount.checked_sub(fee) {
+        None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient funds")),
+        Some(value) => value
+    };
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1264,16 +1270,22 @@ fn handle_initiate_transfer_token(
 
             // chop off dust
             amount = Uint128::new(
-                amount
+                match amount
                     .u128()
                     .checked_sub(amount.u128().checked_rem(multiplier).unwrap())
-                    .unwrap(),
+                {
+                    None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient Funds")),
+                    Some(value) => value
+                }
             );
 
             fee = Uint128::new(
-                fee.u128()
+                match fee.u128()
                     .checked_sub(fee.u128().checked_rem(multiplier).unwrap())
-                    .unwrap(),
+                {
+                    None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient Funds")),
+                    Some(value) => value
+                }
             );
 
             // This is a regular asset, transfer its balance
