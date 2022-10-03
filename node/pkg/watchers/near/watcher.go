@@ -232,7 +232,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 
 			if job.hasWormholeMsg {
 				// report how long it took to process this transaction
-				e.eventChanTxProcessedDuration <- time.Now().Sub(job.creationTime)
+				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
 			}
 
 			// tell everyone about successful processing
