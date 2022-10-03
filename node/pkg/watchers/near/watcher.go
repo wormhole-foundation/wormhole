@@ -93,6 +93,7 @@ func NewWatcher(
 		transactionProcessingQueue:    *timerqueue.New(),
 		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, quequeSize),
 		eventChanBlockProcessedHeight: make(chan uint64, 10),
+		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
 		eventChan:                     make(chan eventType, 10),
 	}
 }
