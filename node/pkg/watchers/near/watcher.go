@@ -1,15 +1,8 @@
 package near
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -17,540 +10,284 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
+	"github.com/certusone/wormhole/node/pkg/watchers/near/timerqueue"
 	"github.com/mr-tron/base58"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 
-type (
-	// Watcher is responsible for looking over Near blockchain and reporting new transactions to the wormhole contract
-	Watcher struct {
-		mainnet bool
+const (
+	// performance configuration
+	workerCountTxProcessing = 10
+	workerChunkFetching     = 4      // this value should be set to the amount of chunks in a NEAR block, such that they can all be fetched in parallel
+	quequeSize              = 10_000 // size of the queques for chunk processing as well as transaction processing
+	maxFallBehindBlocks     = 200    // if watcher falls behind this many blocks, start over
+	blockPollInterval       = time.Millisecond * 200
+	metricsInterval         = time.Second * 10 // how often you want health metrics reported
 
-		nearRPC          string
-		wormholeContract string
+	txProcRetry = 4 // how often to retry processing a transaction
 
-		msgChan  chan *common.MessagePublication
-		obsvReqC chan *gossipv1.ObservationRequest
+	// how long to initially wait between observing a transaction and attempting to process the transaction.
+	// To successfully process the transaction, all receipts need to be finalized, which typically only occurs two blocks later or so.
+	// transaction processing will be retried with exponential backoff, i.e. transaction may stay in the queque for ca. initialTxProcDelay^(txProcRetry+2) time.
+	initialTxProcDelay = time.Second * 3
 
-		next_round  uint64
-		final_round uint64
-
-		pending   map[pendingKey]*pendingMessage
-		pendingMu sync.Mutex
-	}
-
-	pendingKey struct {
-		hash string
-	}
-
-	pendingMessage struct {
-		height uint64
-	}
+	// the maximum span of gaps in the NEAR blockchain we want to support
+	// lower values yields better performance, but can lead to missed observations if NEAR has larger gaps.
+	// During testing, gaps on NEAR were at most 1 block long.
+	nearBlockchainMaxGaps = 5
 )
 
-var (
-	nearMessagesConfirmed = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_near_observations_confirmed_total",
-			Help: "Total number of verified Near observations found",
-		})
-	currentNearHeight = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "wormhole_near_current_height",
-			Help: "Current Near block height",
-		})
+type (
+	transactionProcessingJob struct {
+		txHash          string
+		senderAccountId string
+		creationTime    time.Time
+		retryCounter    uint
+		delay           time.Duration
+
+		// set during processing
+		hasWormholeMsg         bool   // set during processing; whether this transaction emitted a Wormhole message
+		wormholeMsgBlockHeight uint64 // highest block height of a wormhole message in this transaction
+	}
+
+	Watcher struct {
+		mainnet         bool
+		wormholeAccount string // name of the Wormhole Account on the NEAR blockchain
+		nearRPC         string
+
+		// external channels
+		msgC     chan<- *common.MessagePublication   // validated (SECURITY: and only validated!) observations go into this channel
+		obsvReqC <-chan *gossipv1.ObservationRequest // observation requests are coming from this channel
+
+		// internal queques
+		transactionProcessingQueue timerqueue.Timerqueue
+		chunkProcessingQueue       chan nearapi.ChunkHeader
+
+		// events channels
+		eventChanBlockProcessedHeight chan uint64 // whenever a block is processed, post the height here
+		eventChanTxProcessedDuration  chan time.Duration
+		eventChan                     chan eventType // whenever a messages is confirmed, post true in here
+
+		// sub-components
+		finalizer Finalizer
+		nearAPI   nearapi.NearAPI
+	}
 )
 
 // NewWatcher creates a new Near appid watcher
 func NewWatcher(
 	nearRPC string,
 	wormholeContract string,
-	lockEvents chan *common.MessagePublication,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 	mainnet bool,
 ) *Watcher {
 	return &Watcher{
-		nearRPC:          nearRPC,
-		wormholeContract: wormholeContract,
-		msgChan:          lockEvents,
-		obsvReqC:         obsvReqC,
-		next_round:       0,
-		final_round:      0,
-		pending:          map[pendingKey]*pendingMessage{},
-		mainnet:          mainnet,
+		mainnet:                       mainnet,
+		wormholeAccount:               wormholeContract,
+		nearRPC:                       nearRPC,
+		msgC:                          msgC,
+		obsvReqC:                      obsvReqC,
+		transactionProcessingQueue:    *timerqueue.New(),
+		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, quequeSize),
+		eventChanBlockProcessedHeight: make(chan uint64, 10),
+		eventChan:                     make(chan eventType, 10),
 	}
 }
 
-func (e *Watcher) getBlock(block uint64) ([]byte, error) {
-	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": %d}}`, block)
-	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
-
-	if err != nil {
-		return nil, err
+func newTransactionProcessingJob(txHash string, senderAccountId string) transactionProcessingJob {
+	return transactionProcessingJob{
+		txHash,
+		senderAccountId,
+		time.Now(),
+		0,
+		initialTxProcDelay,
+		false,
+		0,
 	}
-
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
 }
 
-func (e *Watcher) getBlockHash(block_id string) ([]byte, error) {
-	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": "%s"}}`, block_id)
-	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
+func (e *Watcher) runBlockPoll(ctx context.Context) error {
+	logger := supervisor.Logger(ctx)
 
-	if err != nil {
-		// TODO: We should look at the specifics of the error before we try twice
-		resp, err = http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
-}
-
-func (e *Watcher) getFinalBlock() ([]byte, error) {
-	s := `{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"finality": "final"}}`
-	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
-}
-
-func (e *Watcher) getChunk(chunk string) ([]byte, error) {
-	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "chunk", "params": {"chunk_id": "%s"}}`, chunk)
-
-	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
-}
-
-func (e *Watcher) getTxStatus(logger *zap.Logger, tx string, src string) ([]byte, error) {
-	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "EXPERIMENTAL_tx_status", "params": ["%s", "%s"]}`, tx, src)
-
-	resp, err := http.Post(e.nearRPC, "application/json", bytes.NewBuffer([]byte(s)))
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
-}
-
-func (e *Watcher) parseStatus(logger *zap.Logger, t []byte, hash string) error {
-	outcomes := gjson.ParseBytes(t).Get("result.receipts_outcome")
-
-	if !outcomes.Exists() {
-		return nil
-	}
-
-	for _, o := range outcomes.Array() {
-		outcome := o.Get("outcome")
-		if !outcome.Exists() {
-			continue
-		}
-
-		executor_id := outcome.Get("executor_id")
-		if !executor_id.Exists() {
-			continue
-		}
-
-		if executor_id.String() == e.wormholeContract {
-			l := outcome.Get("logs")
-			if !l.Exists() {
-				continue
-			}
-			block_hash := o.Get("block_hash")
-			if !block_hash.Exists() {
-				logger.Error("block_hash key not found")
-				continue
-			}
-			for _, log := range l.Array() {
-				event := log.String()
-				if !strings.HasPrefix(event, "EVENT_JSON:") {
-					continue
-				}
-				logger.Info("event", zap.String("event", event[11:]))
-
-				event_json := gjson.ParseBytes([]byte(event[11:]))
-
-				standard := event_json.Get("standard")
-				if !standard.Exists() || standard.String() != "wormhole" {
-					continue
-				}
-				event_type := event_json.Get("event")
-				if !event_type.Exists() || event_type.String() != "publish" {
-					continue
-				}
-
-				em := event_json.Get("emitter")
-				if !em.Exists() {
-					continue
-				}
-
-				emitter, err := hex.DecodeString(em.String())
-				if err != nil {
-					return err
-				}
-
-				var a vaa.Address
-				copy(a[:], emitter)
-
-				id, err := base58.Decode(hash)
-				if err != nil {
-					return err
-				}
-
-				var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
-
-				v := event_json.Get("data")
-				if !v.Exists() {
-					logger.Info("data")
-					return nil
-				}
-
-				pl, err := hex.DecodeString(v.String())
-				if err != nil {
-					return err
-				}
-
-				block_hash_str := block_hash.String()
-
-				txBlock, err := e.getBlockHash(block_hash_str)
-				if err != nil {
-					return err
-				}
-				body := gjson.ParseBytes(txBlock)
-				if !body.Exists() {
-					return errors.New("block parse error")
-				}
-				ts_nanosec := body.Get("result.header.timestamp")
-				if !ts_nanosec.Exists() {
-					return errors.New("block parse error, missing timestamp")
-				}
-				ts := uint64(ts_nanosec.Uint()) / 1000000000
-
-				if e.mainnet {
-					height := body.Get("result.header.height")
-					if height.Exists() && height.Uint() < 74473147 {
-						return errors.New("test missing observe")
-					}
-				}
-
-				observation := &common.MessagePublication{
-					TxHash:           txHash,
-					Timestamp:        time.Unix(int64(ts), 0),
-					Nonce:            uint32(event_json.Get("nonce").Uint()), // uint32
-					Sequence:         event_json.Get("seq").Uint(),
-					EmitterChain:     vaa.ChainIDNear,
-					EmitterAddress:   a,
-					Payload:          pl,
-					ConsistencyLevel: 0,
-				}
-
-				nearMessagesConfirmed.Inc()
-
-				logger.Info("message observed",
-					zap.Uint64("ts", ts),
-					zap.Time("timestamp", observation.Timestamp),
-					zap.Uint32("nonce", observation.Nonce),
-					zap.Uint64("sequence", observation.Sequence),
-					zap.Stringer("emitter_chain", observation.EmitterChain),
-					zap.Stringer("emitter_address", observation.EmitterAddress),
-					zap.Binary("payload", observation.Payload),
-					zap.Uint8("consistency_level", observation.ConsistencyLevel),
-				)
-
-				e.msgChan <- observation
-			}
-		}
-	}
-
-	return nil
-}
-
-func (e *Watcher) inspectStatus(logger *zap.Logger, hash string, receiver_id string) error {
-	t, err := e.getTxStatus(logger, hash, receiver_id)
-
-	if err != nil {
+	// As we start, get the height of the latest finalized block. We won't be processing any blocks before that.
+	finalBlock, err := e.nearAPI.GetFinalBlock(ctx)
+	if err != nil || finalBlock.Header.Height == 0 {
+		logger.Error("failed to start NEAR block poll")
 		return err
 	}
 
-	return e.parseStatus(logger, t, hash)
-}
+	highestFinalBlockHeightObserved := finalBlock.Header.Height - 1 // minues one because we still want to process this block, just no blocks before it
 
-func (e *Watcher) lastBlock(logger *zap.Logger, hash string, receiver_id string) ([]byte, uint64, error) {
-	t, err := e.getTxStatus(logger, hash, receiver_id)
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-	if err != nil {
-		return nil, 0, err
-	}
+	timer := time.NewTimer(time.Nanosecond) // this is just for the first iteration.
 
-	last_block := uint64(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
 
-	outcomes := gjson.ParseBytes(t).Get("result.receipts_outcome")
-
-	if !outcomes.Exists() {
-		return nil, 0, err
-	}
-
-	for _, o := range outcomes.Array() {
-		outcome := o.Get("outcome")
-		if !outcome.Exists() {
-			continue
-		}
-
-		executor_id := outcome.Get("executor_id")
-		if !executor_id.Exists() {
-			continue
-		}
-
-		if executor_id.String() == e.wormholeContract {
-			l := outcome.Get("logs")
-			if !l.Exists() {
-				continue
-			}
-			for _, log := range l.Array() {
-				event := log.String()
-				if !strings.HasPrefix(event, "EVENT_JSON:") {
-					continue
-				}
-				logger.Info("event", zap.String("event", event[11:]))
-
-				event_json := gjson.ParseBytes([]byte(event[11:]))
-
-				standard := event_json.Get("standard")
-				if !standard.Exists() || standard.String() != "wormhole" {
-					continue
-				}
-				event_type := event_json.Get("event")
-				if !event_type.Exists() || event_type.String() != "publish" {
-					continue
-				}
-
-				block := event_json.Get("block")
-				if !block.Exists() {
-					continue
-				}
-
-				b := block.Uint()
-
-				if b > last_block {
-					last_block = b
-				}
-			}
-		}
-	}
-
-	return t, last_block, nil
-}
-
-func (e *Watcher) inspectBody(logger *zap.Logger, block uint64, body gjson.Result) error {
-	logger.Info("inspectBody", zap.Uint64("block", block))
-
-	result := body.Get("result.chunks.#.chunk_hash")
-	if !result.Exists() {
-		return nil
-	}
-
-	for _, name := range result.Array() {
-		chunk, err := e.getChunk(name.String())
-		if err != nil {
-			return err
-		}
-
-		txns := gjson.ParseBytes(chunk).Get("result.transactions")
-		if !txns.Exists() {
-			continue
-		}
-		for _, r := range txns.Array() {
-			hash := r.Get("hash")
-			receiver_id := r.Get("receiver_id")
-			if !hash.Exists() || !receiver_id.Exists() {
-				continue
-			}
-
-			t, round, err := e.lastBlock(logger, hash.String(), receiver_id.String())
+		case <-timer.C:
+			highestFinalBlockHeightObserved, err = e.ReadFinalChunksSince(ctx, highestFinalBlockHeightObserved, e.chunkProcessingQueue)
 			if err != nil {
-				return err
+				logger.Warn("NEAR poll error", zap.String("error", err.Error()))
 			}
-			if round != 0 {
+			timer.Reset(blockPollInterval)
+		}
+	}
+}
 
-				if round <= e.final_round {
-					logger.Info("parseStatus direct", zap.Uint64("block.height", round), zap.Uint64("e.final_round", e.final_round))
-					err := e.parseStatus(logger, t, hash.String())
-					if err != nil {
-						return err
-					}
-				} else {
-					logger.Info("pushing pending",
-						zap.Uint64("block.height", round),
-						zap.Uint64("e.final_round", e.final_round),
-					)
-					key := pendingKey{
-						hash: hash.String(),
-					}
+func (e *Watcher) runChunkFetcher(ctx context.Context) error {
+	logger := supervisor.Logger(ctx)
 
-					e.pendingMu.Lock()
-					e.pending[key] = &pendingMessage{
-						height: round,
-					}
-					e.pendingMu.Unlock()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+
+		case chunkHeader := <-e.chunkProcessingQueue:
+			newJobs, err := e.parseChunk(ctx, chunkHeader)
+			if err != nil {
+				logger.Error("near.processChunk failed", zap.String("error", err.Error()))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+				continue
+			}
+			for i := 0; i < len(newJobs); i++ {
+				if e.transactionProcessingQueue.Len() > quequeSize {
+					logger.Error("NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.")
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+					continue
 				}
+				e.transactionProcessingQueue.Schedule(newJobs[i], time.Now().Add(newJobs[i].delay))
 			}
 		}
-
 	}
-	return nil
+}
+
+func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
+	logger := supervisor.Logger(ctx)
+
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case r := <-e.obsvReqC:
+			if vaa.ChainID(r.ChainId) != vaa.ChainIDNear {
+				panic("invalid chain ID")
+			}
+
+			txHash := base58.Encode(r.TxHash)
+
+			logger.Info("Received obsv request", zap.String("tx_hash", txHash))
+
+			// TODO !!!! IMPORTANT !!!! e.wormholeContract is not the correct value for senderAccountId.
+			// This may work for now, but eventually we could end up hitting the wrong shard, leading to errors.
+			// we also need to know the block height. I think if we don't know it we could just set it to 0, but need to think more about that.
+			job := newTransactionProcessingJob(txHash, e.wormholeAccount)
+			e.transactionProcessingQueue.Schedule(job, time.Now())
+		}
+	}
+}
+
+func (e *Watcher) runTxProcessor(ctx context.Context) error {
+	logger := supervisor.Logger(ctx)
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+	ticker := time.NewTicker(time.Microsecond * 100)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case <-ticker.C:
+			j, readyTime := e.transactionProcessingQueue.PeekFirst()
+			if j == nil || readyTime.After(time.Now()) {
+				continue
+			}
+
+			job := j.(transactionProcessingJob)
+
+			err := e.processTx(logger, ctx, &job)
+			if err != nil {
+				// transaction processing unsuccessful. Retry if retry_counter not exceeded.
+
+				if job.retryCounter < txProcRetry {
+					// Warn and retry with exponential backoff
+					logger.Warn("near.processTx", zap.String("error", err.Error()))
+					job.retryCounter++
+					job.delay *= 2
+					e.transactionProcessingQueue.Schedule(job, time.Now().Add(job.delay))
+				} else {
+					// Error and do not retry
+					logger.Error("near.processTx", zap.String("error", err.Error()))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+				}
+			}
+
+			if job.hasWormholeMsg {
+				// report how long it took to process this transaction
+				e.eventChanTxProcessedDuration <- time.Now().Sub(job.creationTime)
+			}
+
+			// tell everyone about successful processing
+			e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
+		}
+	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
-		ContractAddress: e.wormholeContract,
-	})
+	// TODO should be later?
+	readiness.SetReady(common.ReadinessNearSyncing)
 
 	logger := supervisor.Logger(ctx)
-	errC := make(chan error)
+
+	e.nearAPI = nearapi.NewNearAPI(e.nearRPC)
+	e.finalizer = newFinalizer(e.eventChan, e.nearAPI, e.mainnet)
+
+	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
+		ContractAddress: e.wormholeAccount,
+	})
 
 	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != vaa.ChainIDNear {
-					panic("invalid chain ID")
-				}
-
-				txHash := base58.Encode(r.TxHash)
-
-				logger.Info("Received obsv request", zap.String("tx_hash", txHash))
-
-				err := e.inspectStatus(logger, txHash, e.wormholeContract)
-				if err != nil {
-					logger.Error(fmt.Sprintf("near obsvReqC: %s", err.Error()))
-				}
-			}
-		}
-	}()
-
-	go func() {
-		if e.next_round == 0 {
-			finalBody, err := e.getFinalBlock()
-			if err != nil {
-				logger.Error("StatusAfterBlock", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-				errC <- err
-				return
-			}
-			e.next_round = gjson.ParseBytes(finalBody).Get("result.chunks.0.height_created").Uint()
-		}
-
-		timer := time.NewTicker(time.Second * 1)
-		defer timer.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				finalBody, err := e.getFinalBlock()
-				if err != nil {
-					logger.Error(fmt.Sprintf("nearClient.Status: %s", err.Error()))
-
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-					errC <- err
-					return
-				}
-				parsedFinalBody := gjson.ParseBytes(finalBody)
-				lastBlock := parsedFinalBody.Get("result.chunks.0.height_created").Uint()
-				e.final_round = lastBlock
-
-				e.pendingMu.Lock()
-				for key, bLock := range e.pending {
-					if bLock.height <= e.final_round {
-						logger.Info("finalBlock",
-							zap.Uint64("block.height", bLock.height),
-							zap.Uint64("e.final_round", e.final_round),
-							zap.String("key.hash", key.hash),
-						)
-
-						err := e.inspectStatus(logger, key.hash, e.wormholeContract)
-						delete(e.pending, key)
-
-						if err != nil {
-							logger.Error("inspectStatus", zap.Error(err))
-						}
-					}
-				}
-				e.pendingMu.Unlock()
-
-				logger.Info("lastBlock", zap.Uint64("lastBlock", lastBlock), zap.Uint64("next_round", e.next_round))
-
-				for ; e.next_round <= lastBlock; e.next_round = e.next_round + 1 {
-					currentNearHeight.Set(float64(e.next_round))
-					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
-						Height:          int64(e.next_round),
-						ContractAddress: e.wormholeContract,
-					})
-					readiness.SetReady(common.ReadinessNearSyncing)
-
-					if e.next_round == lastBlock {
-						err := e.inspectBody(logger, e.next_round, parsedFinalBody)
-						if err != nil {
-							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
-
-							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-							errC <- err
-							return
-
-						}
-					} else {
-						b, err := e.getBlock(e.next_round)
-						if err != nil {
-							logger.Error(fmt.Sprintf("nearClient.Status: %s", err.Error()))
-
-							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-							errC <- err
-							return
-
-						}
-						err = e.inspectBody(logger, e.next_round, gjson.ParseBytes(b))
-						if err != nil {
-							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
-
-							p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-							errC <- err
-							return
-
-						}
-					}
-				}
-			}
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-errC:
+	// start metrics reporter
+	err := supervisor.Run(ctx, "metrics", e.runMetrics)
+	if err != nil {
 		return err
 	}
+	// start one poller
+	err = supervisor.Run(ctx, "blockPoll", e.runBlockPoll)
+	if err != nil {
+		return err
+	}
+	// start one obsvReqC runner
+	err = supervisor.Run(ctx, "obsvReqProcessor", e.runObsvReqProcessor)
+	if err != nil {
+		return err
+	}
+	// start `workerCount` many transactionProcessing runners
+	for i := 0; i < workerChunkFetching; i++ {
+		err := supervisor.Run(ctx, fmt.Sprintf("chunk_fetcher_%d", i), e.runChunkFetcher)
+		if err != nil {
+			return err
+		}
+	}
+	// start `workerCount` many transactionProcessing runners
+	for i := 0; i < workerCountTxProcessing; i++ {
+		err := supervisor.Run(ctx, fmt.Sprintf("txProcessor_%d", i), e.runTxProcessor)
+		if err != nil {
+			return err
+		}
+	}
+
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+	<-ctx.Done()
+	return ctx.Err()
 }
