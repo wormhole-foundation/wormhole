@@ -31,3 +31,22 @@ Determining finality of blocks:
 
 Unfortunately NEAR does not (yet?) provide a mechanism to subscribe to a particular contract.
 There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the block contained any receipts that touch your account, but there is no way of knowing in which block the transaction started. Even if there was, you'd still need to process all transactions in the block and we are expecting there to be a Wormhole transaction in most blocks.
+
+## Logging
+* log_msg_type (enum)
+	* tx_processing_retry: A transaction was not successfully processed and will be retried.
+	* tx_processing_retries_exceeded: A transaction was not successfully processed even after `txProcRetry` retries and was dropped
+	* tx_processing_error: Transaction processing failed
+	* startup_error: Watcher was unable to start up.
+	* block_poll_error: Generic error when polling for new blocks
+	* chunk_processing_failed
+	* tx_proc_queue_full: The transaction processing queue is full but there are new transaction. This means that the Guardian is not able to catch up with block production on NEAR. This is a critical error that needs to be investigated. `chunk_id` is the ID of the chunk from which all or some transactions have been dropped.
+	* obsv_req_received: Observation request received
+	* info_process_tx: Transaction processing is being attempted. Includes `tx_hash`
+	* wormhole_event: A Wormhole event is being processed
+	* wormhole_event_success: A Wormhole event has been successfully processed
+	* watcher_behind: The NEAR watcher fell behind too much and skipped blocks.
+* tx_hash: Transaction hash
+
+
+zap.String("log_msg_type", "tx_processing_retry"),

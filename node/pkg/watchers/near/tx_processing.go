@@ -38,7 +38,7 @@ func (e *Watcher) processTx(logger *zap.Logger, ctx context.Context, job *transa
 	if err != nil {
 		return err
 	}
-	logger.Info("processTx", zap.String("hash", job.txHash))
+	logger.Info("processTx", zap.String("log_msg_type", "info_process_tx"), zap.String("tx_hash", job.txHash))
 
 	receiptOutcomes := gjson.ParseBytes(tx_receipts).Get("result.receipts_outcome")
 
@@ -56,13 +56,13 @@ func (e *Watcher) processTx(logger *zap.Logger, ctx context.Context, job *transa
 func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *transactionProcessingJob, receiptOutcome gjson.Result) error {
 	outcome := receiptOutcome.Get("outcome")
 	if !outcome.Exists() {
-		logger.Warn("NEAR RPC malformed response: receipts_outcome.outcome does not exist")
+		logger.Warn("NEAR RPC malformed response: receipts_outcome.outcome does not exist", zap.String("json", receiptOutcome.Str))
 		return errors.New("NEAR RPC malformed response")
 	}
 
 	executor_id := outcome.Get("executor_id")
 	if !executor_id.Exists() {
-		logger.Warn("NEAR RPC malformed response: receipts_outcome.outcome does not exist")
+		logger.Warn("NEAR RPC malformed response: receipts_outcome.outcome does not exist", zap.String("json", receiptOutcome.Str))
 		return errors.New("NEAR RPC malformed response: receipts_outcome.outcome does not exist")
 	}
 
@@ -76,13 +76,13 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 
 	outcomeBlockHash := receiptOutcome.Get("block_hash")
 	if !outcomeBlockHash.Exists() {
-		logger.Warn("NEAR RPC malformed response: receipts_outcome.block_hash does not exist")
+		logger.Warn("NEAR RPC malformed response: receipts_outcome.block_hash does not exist", zap.String("json", receiptOutcome.Str))
 		return errors.New("NEAR RPC malformed response: receipts_outcome.block_hash does not exist")
 	}
 
 	l := outcome.Get("logs")
 	if !l.Exists() {
-		logger.Warn("NEAR RPC malformed response: receipts_outcome.outcome.logs does not exist")
+		logger.Warn("NEAR RPC malformed response: receipts_outcome.outcome.logs does not exist", zap.String("json", receiptOutcome.Str))
 		return errors.New("NEAR RPC malformed response: receipts_outcome.outcome.logs does not exist")
 	}
 
@@ -99,7 +99,7 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	}
 
 	for _, log := range l.Array() {
-		err := e.processLog(logger, ctx, job, outcomeBlockHeader, successValue.String(), log)
+		err := e.processWormholeLog(logger, ctx, job, outcomeBlockHeader, successValue.String(), log)
 		if err != nil {
 			// SECURITY defense-in-depth: If one of the logs is malformed, we skip processing the other logs for defense in depth
 			return err
@@ -108,7 +108,7 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	return nil // SUCCESS
 }
 
-func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *transactionProcessingJob, outcomeBlockHeader nearapi.BlockHeader, successValue string, log gjson.Result) error {
+func (e *Watcher) processWormholeLog(logger *zap.Logger, ctx context.Context, job *transactionProcessingJob, outcomeBlockHeader nearapi.BlockHeader, successValue string, log gjson.Result) error {
 	event := log.String()
 
 	// SECURITY CRITICAL: Ensure that we're reading a correct log message.
@@ -119,7 +119,7 @@ func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *trans
 
 	eventJsonStr := event[11:]
 
-	logger.Info("event", zap.String("event", eventJsonStr))
+	logger.Info("event", zap.String("log_msg_type", "wormhole_event"), zap.String("event", eventJsonStr))
 
 	// SECURITY: Wormhole is following NEP-297 (https://nomicon.io/Standards/EventsFormat)
 	// First, check that we're looking at a "publish" event type from the "wormhole" standard.
@@ -146,6 +146,7 @@ func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *trans
 	if err != nil || successValueInt == 0 || uint64(successValueInt) != pubEvent.Seq {
 		logger.Error(
 			"SuccessValue does not match sequence number",
+			zap.String("log_msg_type", "tx_processing_error"),
 			zap.String("SuccessValue", successValue),
 			zap.Int("int(SuccessValue)", successValueInt),
 			zap.Uint64("log.seq", pubEvent.Seq),
@@ -157,6 +158,7 @@ func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *trans
 	if pubEvent.BlockHeight != outcomeBlockHeader.Height {
 		logger.Error(
 			"Wormhole publish event.block does not equal receipt_outcome[x].block_height",
+			zap.String("log_msg_type", "tx_processing_error"),
 			zap.Uint64("event.block", pubEvent.BlockHeight),
 			zap.Uint64("receipt_outcome[x].block_height", outcomeBlockHeader.Height),
 		)
@@ -171,7 +173,12 @@ func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *trans
 
 	// emitter is sha256(account_name), so it should be 32 bytes long.
 	if len(emitter) != 32 {
-		logger.Error("Wormhole publish event malformed", zap.String("json", eventJsonStr), zap.String("field", "emitter"))
+		logger.Error(
+			"Wormhole publish event malformed",
+			zap.String("log_msg_type", "tx_processing_error"),
+			zap.String("json", eventJsonStr),
+			zap.String("field", "emitter"),
+		)
 		return errors.New("Wormhole publish event malformed")
 	}
 
@@ -185,7 +192,11 @@ func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *trans
 	}
 
 	if len(txHashBytes) != 32 {
-		logger.Error("Transaction hash is not 32 bytes", zap.String("txHash", job.txHash))
+		logger.Error(
+			"Transaction hash is not 32 bytes",
+			zap.String("log_msg_type", "tx_processing_error"),
+			zap.String("txHash", job.txHash),
+		)
 		return errors.New("Transaction hash is not 32 bytes")
 	}
 
@@ -197,7 +208,12 @@ func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *trans
 	}
 
 	if len(pl)*2 != len(pubEvent.Data) {
-		logger.Error("Wormhole publish event malformed", zap.String("field", "data"), zap.String("data", pubEvent.Data))
+		logger.Error(
+			"Wormhole publish event malformed",
+			zap.String("log_msg_type", "tx_processing_error"),
+			zap.String("field", "data"),
+			zap.String("data", pubEvent.Data),
+		)
 		return errors.New("Wormhole publish event malformed")
 	}
 
@@ -224,6 +240,7 @@ func (e *Watcher) processLog(logger *zap.Logger, ctx context.Context, job *trans
 	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED
 
 	logger.Info("message observed",
+		zap.String("log_msg_type", "wormhole_event_success"),
 		zap.Uint64("ts", ts),
 		zap.Time("timestamp", observation.Timestamp),
 		zap.Uint32("nonce", observation.Nonce),
@@ -254,7 +271,7 @@ func successValueToInt(successValue string) (int, error) {
 
 func isWormholePublishEvent(logger *zap.Logger, eventJsonStr string) bool {
 	if !gjson.Valid(eventJsonStr) {
-		logger.Error("event is invalid json", zap.String("json", eventJsonStr))
+		logger.Error("event is invalid json", zap.String("log_msg_type", "tx_processing_error"), zap.String("json", eventJsonStr))
 		return false
 	}
 

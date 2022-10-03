@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 )
 
 type eventType int
@@ -102,7 +103,7 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 			case EVENT_NEAR_MESSAGE_CONFIRMED:
 				nearMessagesConfirmed.Inc()
 			case EVENT_NEAR_WATCHER_TOO_FAR_BEHIND:
-				logger.Error("NEAR Watcher fell behind too far")
+				logger.Error("NEAR Watcher fell behind too far", zap.String("log_msg_type", "watcher_behind"))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 			case EVENT_NEAR_API_HTTP_ERR:
 				nearRpcErrorCounter.Inc()

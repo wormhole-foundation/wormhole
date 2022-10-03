@@ -9,9 +9,6 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
-
-	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"go.uber.org/zap"
 )
 
 const (
@@ -77,9 +74,6 @@ func (n *NearAPI) GetBlock(ctx context.Context, blockId string) (Block, error) {
 	if err != nil {
 		return Block{}, err
 	}
-	// TODO cleanup
-	logger := supervisor.Logger(ctx)
-	logger.Debug("block json", zap.String("json", string(blockBytes)))
 
 	return newBlockFromBytes(blockBytes)
 }

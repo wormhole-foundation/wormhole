@@ -116,7 +116,7 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 	// As we start, get the height of the latest finalized block. We won't be processing any blocks before that.
 	finalBlock, err := e.nearAPI.GetFinalBlock(ctx)
 	if err != nil || finalBlock.Header.Height == 0 {
-		logger.Error("failed to start NEAR block poll")
+		logger.Error("failed to start NEAR block poll", zap.String("log_msg_type", "startup_error"))
 		return err
 	}
 
@@ -134,7 +134,7 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 		case <-timer.C:
 			highestFinalBlockHeightObserved, err = e.ReadFinalChunksSince(ctx, highestFinalBlockHeightObserved, e.chunkProcessingQueue)
 			if err != nil {
-				logger.Warn("NEAR poll error", zap.String("error", err.Error()))
+				logger.Warn("NEAR poll error", zap.String("log_msg_type", "block_poll_error"), zap.String("error", err.Error()))
 			}
 			timer.Reset(blockPollInterval)
 		}
@@ -152,15 +152,19 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 		case chunkHeader := <-e.chunkProcessingQueue:
 			newJobs, err := e.fetchAndParseChunk(logger, ctx, chunkHeader)
 			if err != nil {
-				logger.Error("near.processChunk failed", zap.String("error", err.Error()))
+				logger.Error("near.processChunk failed", zap.String("log_msg_type", "chunk_processing_failed"), zap.String("error", err.Error()))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				continue
 			}
 			for i := 0; i < len(newJobs); i++ {
 				if e.transactionProcessingQueue.Len() > quequeSize {
-					logger.Error("NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.")
+					logger.Error(
+						"NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.",
+						zap.String("log_msg_type", "tx_proc_queue_full"),
+						zap.String("chunk_id", chunkHeader.Hash),
+					)
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-					continue
+					break
 				}
 				e.transactionProcessingQueue.Schedule(newJobs[i], time.Now().Add(newJobs[i].delay))
 			}
@@ -184,7 +188,7 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 
 			txHash := base58.Encode(r.TxHash)
 
-			logger.Info("Received obsv request", zap.String("tx_hash", txHash))
+			logger.Info("Received obsv request", zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", txHash))
 
 			// TODO !!!! IMPORTANT !!!! e.wormholeContract is not the correct value for senderAccountId.
 			// This may work for now, but eventually we could end up hitting the wrong shard, leading to errors.
@@ -220,13 +224,23 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 
 				if job.retryCounter < txProcRetry {
 					// Warn and retry with exponential backoff
-					logger.Warn("near.processTx", zap.String("error", err.Error()))
+					logger.Warn(
+						"near.processTx",
+						zap.String("log_msg_type", "tx_processing_retry"),
+						zap.String("tx_hash", job.txHash),
+						zap.String("error", err.Error()),
+					)
 					job.retryCounter++
 					job.delay *= 2
 					e.transactionProcessingQueue.Schedule(job, time.Now().Add(job.delay))
 				} else {
 					// Error and do not retry
-					logger.Error("near.processTx", zap.String("error", err.Error()))
+					logger.Error(
+						"near.processTx",
+						zap.String("log_msg_type", "tx_processing_retries_exceeded"),
+						zap.String("tx_hash", job.txHash),
+						zap.String("error", err.Error()),
+					)
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				}
 			}
