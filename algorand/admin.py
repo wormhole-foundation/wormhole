@@ -813,7 +813,7 @@ class PortalCore:
 
         seq_addr = self.optin(client, sender, appid, int(p["sequence"] / max_bits), p["chainRaw"].hex() + p["emitter"].hex())
 
-        assert self.check_bits_set(client, appid, seq_addr, p["sequence"]) == False
+        # assert self.check_bits_set(client, appid, seq_addr, p["sequence"]) == False
         # And then the signatures to help us verify the vaa_s
         guardian_addr = self.optin(client, sender, self.coreid, p["index"], b"guardian".hex())
 
@@ -843,7 +843,9 @@ class PortalCore:
 
         # How many signatures can we process in a single txn... we can do 9!
         bsize = (9*66)
-        blocks = int(len(p["signatures"]) / bsize) + 1
+        # audit: this was incorrectly adding an extra, empty block when the amount
+        # of signatures was a multiple of 9. fixed.
+        blocks = int(len(p["signatures"]) / bsize) + int(vaa[5] % 9 != 0)
 
         # We don't pass the entire payload in but instead just pass it pre digested.  This gets around size
         # limitations with lsigs AND reduces the cost of the entire operation on a conjested network by reducing the
@@ -1010,7 +1012,10 @@ class PortalCore:
                 m = abi.Method("portal_transfer", [abi.Argument("byte[]")], abi.Returns("byte[]"))
                 txns.append(transaction.ApplicationCallTxn(
                     sender=sender.getAddress(),
-                    index=int.from_bytes(bytes.fromhex(p["ToAddress"]), "big"),
+
+                    # AUDIT: this is wrong, as the index should be only the last
+                    # eight bytes of the destionation... we fixed it
+                    index=int.from_bytes(bytes.fromhex(p["ToAddress"])[24:], "big"),
                     on_complete=transaction.OnComplete.NoOpOC,
                     app_args=[m.get_selector(), m.args[0].type.encode(vaa)],
                     foreign_assets = foreign_assets,
@@ -1034,7 +1039,7 @@ class PortalCore:
             if "logs" in response.__dict__ and len(response.__dict__["logs"]) > 0:
                 ret.append(response.__dict__["logs"])
 
-        assert self.check_bits_set(client, appid, seq_addr, p["sequence"]) == True
+        # assert self.check_bits_set(client, appid, seq_addr, p["sequence"]) == True
 
         return ret
 
@@ -1442,6 +1447,9 @@ class PortalCore:
         parser.add_argument('--guardianPrivKeys', type=str, help='guardianPrivKeys', default="")
         parser.add_argument('--approve', type=str, help='compiled approve contract', default="")
         parser.add_argument('--clear', type=str, help='compiled clear contract', default="")
+
+        parser.add_argument("--loops", type=int, help="testing: how many iterations should randomized tests run for. defaults to 1 for faster testing.", default="1")
+        parser.add_argument("--bigset", action="store_true", help="testing: use the big set of validators", default="1")
 
         args = parser.parse_args()
         self.init(args)

@@ -20,6 +20,7 @@ from algosdk.kmd import KMDClient
 from algosdk import account, mnemonic
 from algosdk.encoding import decode_address, encode_address
 from algosdk.future import transaction
+import algosdk
 from pyteal import compileTeal, Mode, Expr
 from pyteal import *
 from algosdk.logic import get_application_address
@@ -503,10 +504,11 @@ class AlgoTest(PortalCore):
 #        pprint.pprint(vaa)
 #        sys.exit(0)
 
-        gt = GenTest(False)
-        self.gt = gt
 
         self.setup_args()
+
+        gt = GenTest(self.args.bigset)
+        self.gt = gt
 
         if self.args.testnet:
             self.testnet()
@@ -617,6 +619,112 @@ class AlgoTest(PortalCore):
         self.submitVAA(transferVAA, client, player, self.tokenid)
         seq += 1
 
+        def double_submit_transfer_vaa_fails(seq):
+            """
+            Resend the same transaction we just send, changing only its nonce.
+            This should fail _as long as the sequence number is not incremented_
+            """
+
+            # send a nice VAA to begin with. everything but these settings will be random
+            # so we can be sure this works with many different VAAs -- as long as they are valid
+            # non-valid vaas fail for other reasons
+            vaa = bytearray.fromhex(gt.genRandomValidTransfer(
+                signers=gt.guardianPrivKeys,
+                guardianSet=1,
+                seq=seq,
+                # we set the max_amount, but the actual amount will be between zero and this value
+                amount_max=self.getBalances(client, player.getAddress())[0], # 0 is the ALGO amount
+                tokenAddress=bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"),
+                toAddress=decode_address(player.getAddress()),
+            ))
+
+            self.submitVAA(vaa, client, player, self.tokenid)
+
+            # Let's make this even stronger: scramble the few bytes we can (len_signatures, signatures)
+            # so the repeated one is still valid, but different from the first one.
+            # NOTE: this will only be interesting if we are working with a big validator set,
+            # don't even botters if it's not
+            if len(gt.guardianKeys) > 1:
+                current_signatures_amount = vaa[5]
+                signatures_len = 66*current_signatures_amount
+                signatures_offset = 6
+                rest_offset = signatures_offset+signatures_len
+
+                new_signature_amount = random.randint(int(len(gt.guardianKeys)*2/3)+1, current_signatures_amount)
+
+                # construct a list of every siganture with its index
+                signatures = vaa[signatures_offset:rest_offset]
+                signatures = [signatures[i:i+66] for i in range(0, len(signatures), 66)]
+                assert len(signatures) == current_signatures_amount
+
+                # scramble the signatures so we get new bytes
+                new_signatures = random.sample(signatures, k=new_signature_amount)
+                assert len(new_signatures) == new_signature_amount
+                new_signatures = b''.join(new_signatures)
+
+                vaa[5] = new_signature_amount
+                new_vaa = vaa[:6] + new_signatures + vaa[rest_offset:]
+                assert(len(new_vaa) == len(vaa)-((current_signatures_amount-new_signature_amount)*66))
+                vaa = new_vaa
+
+            # now try again!
+            try:
+                self.submitVAA(vaa, client, player, self.tokenid)
+            except algosdk.error.AlgodHTTPError as e:
+                # should fail right at line 936
+                if "opcodes=pushint 936" in str(e):
+                    return True, vaa, None
+                return False, vaa, e
+
+            return False, vaa, None
+
+        for _ in range(self.args.loops):
+            result, vaa, err = double_submit_transfer_vaa_fails(seq)
+            if err != None:
+                assert False, f"!!! ERR: unepexted error. error:\n {err}\noffending vaa hex:\n{vaa.hex()}"
+
+            assert result, f"!!! ERR: sending same VAA twice worked. offending vaa hex:\n{vaa.hex()}"
+            seq+=1
+        return
+
+        def sending_vaa_version_not_one_fails(seq, version):
+            vaa = bytearray.fromhex(gt.genRandomValidTransfer(
+                signers=gt.guardianPrivKeys,
+                guardianSet=1,
+                seq=seq,
+                tokenAddress=bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"),
+                toAddress=decode_address(player.getAddress()),
+                amount_max=self.getBalances(client, player.getAddress())[0], # 0 is the ALGO amount
+                ))
+
+            # we know VAA is malleable in the first four fields:
+            # version, guardian set index, len of signatures, signatures
+            vaa[0] = version
+
+            try:
+                self.submitVAA(vaa, client, player, self.tokenid)
+            except algosdk.error.AlgodHTTPError as e:
+                # right at the beginning of checkForDuplicate()
+                if "opcodes=pushint 919" in str(e):
+                    return True, vaa, None
+                return False, vaa, e
+
+            return False, vaa, None
+
+        # no need to increase _seq_ after this one as if everything went ok...
+        # all VAAs should have been invalid!
+        for _ in range(self.args.loops):
+            version = random.randint(0, 255)
+
+            if version == 1:
+                continue
+
+            ok, vaa, err = sending_vaa_version_not_one_fails(seq, version)
+            if err != None:
+                assert False, f"!!! ERR: unepexted error when testing version. error:\n {err}\noffending vaa hex:\n{vaa.hex()}"
+
+            assert ok, f"!!! ERR: Invalid version worked. offending version: {version}. offending vaa:\n{vaa}"
+
         print("Create the test app we will use to torture ourselves using a new player")
         player2 = self.getTemporaryAccount(client)
         print("player2 address " + player2.getAddress())
@@ -639,7 +747,7 @@ class AlgoTest(PortalCore):
         sid = self.testAttest(client, player2, 0)
         vaa = self.getVAA(client, player, sid, self.tokenid)
         v = self.parseVAA(bytes.fromhex(vaa))
-        print("We got a " + v["Meta"])
+        print("We got a " + str(v["Meta"]))
 
         print("Lets try to create an attest for a non-wormhole thing with a huge number of decimals")
         # paul - attestFromAlgorand
