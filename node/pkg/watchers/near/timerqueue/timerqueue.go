@@ -102,6 +102,22 @@ func (q *Timerqueue) PopFirst() (t Timer, tm time.Time) {
 	return nil, time.Time{}
 }
 
+// PopFirstIfReady removes and returns the next timer *if* it is ready
+// the time at which it is scheduled to run.
+func (q *Timerqueue) PopFirstIfReady() (Timer, time.Time, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if len(q.heap) > 0 {
+		if q.heap[0].time.After(time.Now()) {
+			// first job is ready. Pop it.
+			data := heap.Pop(&q.heap).(*timerData)
+			delete(q.table, data.timer)
+			return data.timer, data.time, nil
+		}
+	}
+	return nil, time.Time{}, errors.New("no job ready")
+}
+
 // PeekFirst returns the next timer to be scheduled and the time
 // at which it is scheduled to run. It does not modify the contents
 // of the timer queue.

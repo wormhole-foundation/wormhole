@@ -207,14 +207,14 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 			return ctx.Err()
 
 		case <-ticker.C:
-			j, readyTime := e.transactionProcessingQueue.PeekFirst()
-			if j == nil || readyTime.After(time.Now()) {
+			j, _, err := e.transactionProcessingQueue.PopFirstIfReady()
+			if err != nil {
 				continue
 			}
 
 			job := j.(transactionProcessingJob)
 
-			err := e.processTx(logger, ctx, &job)
+			err = e.processTx(logger, ctx, &job)
 			if err != nil {
 				// transaction processing unsuccessful. Retry if retry_counter not exceeded.
 
