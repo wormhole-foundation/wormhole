@@ -46,6 +46,9 @@ There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the blo
 	* wormhole_event: A Wormhole event is being processed
 	* wormhole_event_success: A Wormhole event has been successfully processed
 	* watcher_behind: The NEAR watcher fell behind too much and skipped blocks.
+	* height: The highest height of a block from which at least one transaction has been processed. Includes `height`.
+	* block_poll: A block has been successfully polled. Includes `height`.
+	* polling_attempt: There are new final blocks available and the watcher is starting to poll them. Includes `previous_height` (the height of the previously highest block that we polled) and `newest_final_height` (the height of the latest block that is final).
 * tx_hash: Transaction hash
 
 

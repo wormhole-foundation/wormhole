@@ -95,6 +95,8 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 					ContractAddress: e.wormholeAccount,
 				})
 				readiness.SetReady(common.ReadinessNearSyncing)
+
+				logger.Info("newHeight", zap.String("log_msg_type", "obsv_req_received"), zap.Uint64("height", height))
 			}
 		case event := <-e.eventChan:
 			switch event {

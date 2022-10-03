@@ -132,7 +132,7 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 			return nil
 
 		case <-timer.C:
-			highestFinalBlockHeightObserved, err = e.ReadFinalChunksSince(ctx, highestFinalBlockHeightObserved, e.chunkProcessingQueue)
+			highestFinalBlockHeightObserved, err = e.ReadFinalChunksSince(logger, ctx, highestFinalBlockHeightObserved, e.chunkProcessingQueue)
 			if err != nil {
 				logger.Warn("NEAR poll error", zap.String("log_msg_type", "block_poll_error"), zap.String("error", err.Error()))
 			}
