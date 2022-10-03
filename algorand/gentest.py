@@ -1,11 +1,12 @@
 from eth_abi import encode_single, encode_abi
 import sys
+import string
 import pprint
 import time
 from Cryptodome.Hash import keccak
 import coincurve
 import base64
-from random import random
+import random
 from algosdk.encoding import decode_address
 
 class GenTest:
@@ -81,8 +82,24 @@ class GenTest:
             return encode_single(type, val).hex()[64-(64):64]
         raise Exception("invalid type")
 
-    def createSignedVAA(self, guardianSetIndex, signers, ts, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, target, payload):
-        print("createSignedVAA: " + str(signers))
+    def createTrashVAA(self, guardianSetIndex, ts, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, target, payload, version=1):
+        return self.createSignedVAA(
+            guardianSetIndex,
+            # set the minimum amount of trash as signature for this to pass validations
+            [random.randbytes(32).hex() for _ in range(int(len(self.guardianKeys)*2/3)+1)],
+            ts,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            consistencyLevel,
+            target,
+            payload,
+            version
+        )
+
+
+    def createSignedVAA(self, guardianSetIndex, signers, ts, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, target, payload, version=1):
         b = ""
 
         b += self.encoder("uint32", ts)
@@ -104,13 +121,95 @@ class GenTest:
             signature = key.sign_recoverable(hash, hasher=None)
             signatures += signature.hex()
 
-        ret  = self.encoder("uint8", 1)
+        ret  = self.encoder("uint8", version)
         ret += self.encoder("uint32", guardianSetIndex)
         ret += self.encoder("uint8", len(signers))
         ret += signatures
         ret += b
 
+        print(ret)
         return ret
+
+    def createValidRandomSignedVAA(self, guardianSetIndex, signers, sequence):
+        ts = random.randint(0, 2**32-1)
+        nonce = random.randint(0, 2**32-1)
+        emitterChainId = random.randint(0, 2**16-1)
+        emitterAddress = random.randbytes(32)
+        consitencyLevel = random.randint(0, 2**8-1)
+        payload = self.createRandomValidPayload().hex()
+
+        return self.createSignedVAA(
+            guardianSetIndex, # guardian set index needs to be fixed so contract knows where to look into
+            signers,
+            ts,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            consitencyLevel,
+            0, #target = not used?
+            payload,
+            1, # only version 1 VAA
+        )
+
+    def createRandomValidPayload(self):
+        action = (0x03).to_bytes(1, byteorder="big")
+        # action = random.choice([0x01, 0x03]).to_bytes(1, byteorder="big")
+        amount = random.randint(0, 2**128-1).to_bytes(32, byteorder="big")
+
+        # TODO: we should support more addresses than this one, but this
+        # is hardcoded in the tests and probably used in the deploy, so we
+        # will make do. same goes for the token_address
+        some_token_address = b"4523c3F29447d1f32AEa95BEBD00383c4640F1b4"
+        tokenAddress = some_token_address
+        # TODO: same goes for the token chain, just use what's available for now
+        try:
+            tokenChain = bytes.fromhex(self.getEmitter(1))
+        except:
+            raise
+        to = random.randbytes(32)
+        toChain = random.randint(0, 2**16-1).to_bytes(2, byteorder="big")
+
+        payload = action + amount + tokenAddress + tokenChain + to + toChain
+
+        if action == 0x01:
+            fee = random.randint(0, 2**256-1).to_bytes(32, byteorder="big")
+            payload += fee
+
+        if action == 0x03:
+            fromAddress = random.randbytes(2)
+            arbitraryPayload = random.randbytes(random.randint(0,4))
+            payload += fromAddress + arbitraryPayload
+
+        return payload
+
+
+
+    def createRandomSignedVAA(self, guardianSetIndex, signers):
+        ts = random.randint(0, 2**32-1)
+        nonce = random.randint(0, 2**32-1)
+        emitterChainId = random.randint(0, 2**16-1)
+        emitterAddress = random.randbytes(32)
+        sequence = random.randint(0, 2**64-1)
+        consitencyLevel = random.randint(0, 2**8-1)
+        # payload = ''.join(random.choices(string.ascii_uppercase + string.digits, k=random.randint(0,500)))
+        payload = random.randbytes(random.randint(0,496)).hex()
+
+        version = random.randint(0,10)
+
+        return self.createSignedVAA(
+            guardianSetIndex, # guardian set index needs to be fixed so contract knows where to look into
+            signers,
+            ts,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            consitencyLevel,
+            0, #target = not used?
+            payload,
+            version,
+        )
 
     def genGuardianSetUpgrade(self, signers, guardianSet, targetSet, nonce, seq):
         b  = self.zeroPadBytes[0:(28*2)]
@@ -206,6 +305,35 @@ class GenTest:
         emitter = bytes.fromhex(self.getEmitter(chain))
         return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
 
+    def genRandomValidTransfer(self,
+                               signers,
+                               guardianSet,
+                               seq,
+                               tokenAddress,
+                               toAddress,
+                               amount_max):
+        amount = random.randint(0, int(amount_max / 100000000))
+        fee = random.randint(0, amount) # fee must be lower than amount for VAA to be valid
+        return self.genTransfer(
+            signers=signers,
+            guardianSet=guardianSet,
+            nonce=random.randint(0, 2**32-1),
+            seq=seq,
+            # amount gets encoded as an uint256, but it's actually clearly
+            # to only eight bytes. all other bytes _must_ be zero.
+            amount=amount,
+            # token address must be registed on the bridge
+            tokenAddress=tokenAddress,
+            # tokenAddress=random.randbytes(32),
+            tokenChain=1,
+            toAddress=toAddress,
+            # must be directed at algorand chain
+            toChain=8,
+            # fee is in the same situation as amount
+            fee=fee,
+        )
+
+
     def genTransfer(self, signers, guardianSet, nonce, seq, amount, tokenAddress, tokenChain, toAddress, toChain, fee):
         b  = self.encoder("uint8", 1)
         b += self.encoder("uint256", int(amount * 100000000))
@@ -226,7 +354,7 @@ class GenTest:
         return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
 
     def genVaa(self, emitter, seq, payload):
-        nonce = int(random() * 4000000.0)
+        nonce = int(random.random() * 4000000.0)
         return self.createSignedVAA(1, self.guardianPrivKeys, int(time.time()), nonce, 8, emitter, seq, 32, 0, payload.hex())
 
     def test(self):
