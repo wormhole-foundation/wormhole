@@ -38,7 +38,7 @@ func (e *Watcher) processTx(logger *zap.Logger, ctx context.Context, job *transa
 	if err != nil {
 		return err
 	}
-	logger.Info("txReceipts", zap.String("hash", job.txHash))
+	logger.Info("processTx", zap.String("hash", job.txHash))
 
 	receiptOutcomes := gjson.ParseBytes(tx_receipts).Get("result.receipts_outcome")
 

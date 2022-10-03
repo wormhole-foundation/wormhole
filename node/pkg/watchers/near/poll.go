@@ -5,10 +5,13 @@ import (
 	"errors"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
+	"go.uber.org/zap"
 )
 
-// parseChunk goes through all transactions in a chunk and returns a list of transactionProcessingJob
-func (e *Watcher) parseChunk(ctx context.Context, chunkHeader nearapi.ChunkHeader) ([]transactionProcessingJob, error) {
+// fetchAndParseChunk goes through all transactions in a chunk and returns a list of transactionProcessingJob
+func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, chunkHeader nearapi.ChunkHeader) ([]transactionProcessingJob, error) {
+	logger.Debug("near.fetchAndParseChunk", zap.String("chunk_hash", chunkHeader.Hash))
+
 	result := []transactionProcessingJob{}
 
 	chunk, err := e.nearAPI.GetChunk(ctx, chunkHeader)

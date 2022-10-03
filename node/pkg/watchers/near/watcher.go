@@ -150,7 +150,7 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 			return nil
 
 		case chunkHeader := <-e.chunkProcessingQueue:
-			newJobs, err := e.parseChunk(ctx, chunkHeader)
+			newJobs, err := e.fetchAndParseChunk(logger, ctx, chunkHeader)
 			if err != nil {
 				logger.Error("near.processChunk failed", zap.String("error", err.Error()))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
