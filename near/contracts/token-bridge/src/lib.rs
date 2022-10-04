@@ -404,10 +404,15 @@ impl TokenBridge {
                 }
 
                 env::log_str(&format!(
-                "token-bridge/{}#{}: vaa_transfer {} {} {} {} {}",
-                file!(),
-                line!(),
-                amount.1, fee.1, namount, nfee, near_mult));
+                    "token-bridge/{}#{}: vaa_transfer {} {} {} {} {}",
+                    file!(),
+                    line!(),
+                    amount.1,
+                    fee.1,
+                    namount,
+                    nfee,
+                    near_mult
+                ));
 
                 env::log_str(&format!(
                 "token-bridge/{}#{}: vaa_transfer calling ft_transfer against {} for {} from {} to {}",
@@ -618,7 +623,6 @@ impl TokenBridge {
             Promise::new(asset_token_account.clone())
                 .create_account()
                 .transfer(cost)
-                .add_full_access_key(self.owner_pk.clone())
                 .deploy_contract(BRIDGE_TOKEN_BINARY.to_vec())
                 .function_call(
                     "new".to_string(),
@@ -1021,7 +1025,18 @@ impl TokenBridge {
                 env::panic_str("Payload1 formatting error");
             }
         } else {
-            p = [p, hex::decode(&payload).unwrap()].concat();
+            let account_hash = env::sha256(env::predecessor_account_id().as_bytes());
+            if !self.hash_map.contains_key(&account_hash) {
+                env::log_str(&format!(
+                    "token-bridge/{}#{}: default(): {}",
+                    file!(),
+                    line!(),
+                    env::predecessor_account_id()
+                ));
+                env::panic_str("UnregisteredSender1");
+            }
+
+            p = [p, account_hash, hex::decode(&payload).unwrap()].concat();
             if p.len() != (133 + (payload.len() / 2)) {
                 env::panic_str("Payload3 formatting error");
             }
@@ -1066,6 +1081,17 @@ impl TokenBridge {
         );
 
         if self.is_wormhole(&token) {
+            let account_hash = env::sha256(env::predecessor_account_id().as_bytes());
+            if !self.hash_map.contains_key(&account_hash) {
+                env::log_str(&format!(
+                    "token-bridge/{}#{}: default(): {}",
+                    file!(),
+                    line!(),
+                    env::predecessor_account_id()
+                ));
+                env::panic_str("UnregisteredSender2");
+            }
+
             ext_ft_contract::ext(AccountId::try_from(token).unwrap())
                 .with_attached_deposit(1)
                 .with_static_gas(Gas(30_000_000_000_000))
@@ -1546,7 +1572,18 @@ impl TokenBridge {
                 env::panic_str(&format!("payload1 formatting error  len = {}", p.len()));
             }
         } else {
-            p = [p, hex::decode(&tp.payload).unwrap()].concat();
+            let account_hash = env::sha256(sender_id.as_bytes());
+            if !self.hash_map.contains_key(&account_hash) {
+                env::log_str(&format!(
+                    "token-bridge/{}#{}: default(): {}",
+                    file!(),
+                    line!(),
+                    sender_id
+                ));
+                env::panic_str("UnregisteredSender3");
+            }
+
+            p = [p, account_hash, hex::decode(&tp.payload).unwrap()].concat();
             if p.len() != (133 + (tp.payload.len() / 2)) {
                 env::panic_str(&format!("payload3 formatting error  len = {}", p.len()));
             }
@@ -1692,23 +1729,23 @@ impl TokenBridge {
         let state: TokenBridge = env::state_read().expect("failed");
         state
 
-//        let old_state: OldPortal = env::state_read().expect("failed");
-//        Self {
-//            booted:               old_state.booted,
-//            core:                 old_state.core,
-//            gov_idx:              old_state.gov_idx,
-//            dups:                 old_state.dups,
-//            owner_pk:             old_state.owner_pk,
-//            emitter_registration: old_state.emitter_registration,
-//            last_asset:           old_state.last_asset,
-//            upgrade_hash:         old_state.upgrade_hash,
-//
-//            tokens:   old_state.tokens,
-//            key_map:  old_state.key_map,
-//            hash_map: old_state.hash_map,
-//
-//            bank: old_state.bank,
-//        }
+        //        let old_state: OldPortal = env::state_read().expect("failed");
+        //        Self {
+        //            booted:               old_state.booted,
+        //            core:                 old_state.core,
+        //            gov_idx:              old_state.gov_idx,
+        //            dups:                 old_state.dups,
+        //            owner_pk:             old_state.owner_pk,
+        //            emitter_registration: old_state.emitter_registration,
+        //            last_asset:           old_state.last_asset,
+        //            upgrade_hash:         old_state.upgrade_hash,
+        //
+        //            tokens:   old_state.tokens,
+        //            key_map:  old_state.key_map,
+        //            hash_map: old_state.hash_map,
+        //
+        //            bank: old_state.bank,
+        //        }
     }
 }
 
