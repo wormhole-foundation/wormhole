@@ -16,19 +16,19 @@ type (
 	MockNearAPI struct{}
 )
 
-func (n mockNearAPI) GetBlock(ctx context.Context, blockId string) (Block, error) {
+func (n MockNearAPI) GetBlock(ctx context.Context, blockId string) (Block, error) {
+	if blockId == "NSM5RDZDF7uxGWiUwhBqJcqCEw6g7axx4TxGYB7XZVt"
+}
+func (n MockNearAPI) GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error) {
 
 }
-func (n mockNearAPI) GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error) {
+func (n MockNearAPI) GetFinalBlock(ctx context.Context) (Block, error) {
 
 }
-func (n mockNearAPI) GetFinalBlock(ctx context.Context) (Block, error) {
+func (n MockNearAPI) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
 
 }
-func (n mockNearAPI) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
-
-}
-func (n mockNearAPI) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
+func (n MockNearAPI) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
 
 }
 
