@@ -10,7 +10,7 @@ module wormhole::guardian_set_upgrade {
     };
     use wormhole::u32::{Self,U32};
     use wormhole::u16;
-    use 0x1::vector::{Self};
+    use std::vector;
 
     const E_WRONG_GUARDIAN_LEN: u64 = 0x0;
     const E_NO_GUARDIAN_SET: u64 = 0x1;
@@ -98,7 +98,7 @@ module wormhole::guardian_set_upgrade_test {
     use wormhole::guardian_set_upgrade;
     use wormhole::wormhole;
     use wormhole::state;
-    use 0x1::vector;
+    use std::vector;
     use wormhole::structs::{create_guardian};
     use wormhole::u32;
 

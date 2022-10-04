@@ -1,5 +1,5 @@
 module token_bridge::asset_meta {
-    use 0x1::vector::{Self};
+    use std::vector::{Self};
     use wormhole::serialize::{serialize_u8, serialize_u16, serialize_vector};
     use wormhole::deserialize::{deserialize_u8, deserialize_u16, deserialize_vector};
     use wormhole::cursor::{Self};

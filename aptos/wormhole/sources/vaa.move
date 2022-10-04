@@ -1,6 +1,6 @@
 module wormhole::vaa {
-    use 0x1::vector;
-    use 0x1::secp256k1;
+    use std::vector;
+    use aptos_std::secp256k1;
 
     use wormhole::u16::{U16};
     use wormhole::u32::{U32};

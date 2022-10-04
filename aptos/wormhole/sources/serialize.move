@@ -1,5 +1,5 @@
 module wormhole::serialize {
-    use 0x1::vector;
+    use std::vector;
     use wormhole::u16::{Self, U16};
     use wormhole::u32::{Self, U32};
     use wormhole::u256::U256;
@@ -57,7 +57,7 @@ module wormhole::test_serialize {
     use wormhole::u32;
     use wormhole::u16;
     use wormhole::u256;
-    use 0x1::vector;
+    use std::vector;
 
     #[test]
     fun test_serialize_u8(){

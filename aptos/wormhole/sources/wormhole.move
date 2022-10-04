@@ -130,7 +130,7 @@ module wormhole::wormhole {
 
 #[test_only]
 module wormhole::wormhole_test {
-    use 0x1::hash;
+    use std::hash;
     use wormhole::wormhole;
     use wormhole::keccak256::keccak256;
     use aptos_framework::aptos_coin::{Self};

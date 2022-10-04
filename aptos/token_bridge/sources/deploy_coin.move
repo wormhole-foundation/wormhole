@@ -19,10 +19,10 @@
 // TODO: find out if we need to update the source_digest in the package metadata as well
 
 module token_bridge::deploy_coin {
-    use 0x1::signer::{Self};
-    use 0x1::vector::{Self};
-    use 0x1::code::{publish_package_txn};
-    use 0x1::bcs::{Self};
+    use std::signer::{Self};
+    use std::vector::{Self};
+    use std::code::{publish_package_txn};
+    use std::bcs::{Self};
 
     public entry fun deploy_coin(deployer: &signer) {
         let addr = signer::address_of(deployer);

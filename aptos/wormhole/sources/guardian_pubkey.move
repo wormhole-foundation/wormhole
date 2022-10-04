@@ -2,13 +2,13 @@
 /// That is, they are computed by taking the last 20 bytes of the keccak256
 /// hash of their 64 byte secp256k1 public key.
 module wormhole::guardian_pubkey {
-    use 0x1::secp256k1::{
+    use aptos_std::secp256k1::{
         ECDSARawPublicKey,
         ECDSASignature,
         ecdsa_raw_public_key_to_bytes,
         ecdsa_recover,
     };
-    use 0x1::vector;
+    use std::vector;
     use wormhole::keccak256::keccak256;
 
     /// An error occurred while deserializing, for example due to wrong input size.
@@ -55,7 +55,7 @@ module wormhole::guardian_pubkey {
 #[test_only]
 module wormhole::guardian_pubkey_test {
     use wormhole::guardian_pubkey;
-    use 0x1::secp256k1::{
+    use aptos_std::secp256k1::{
         ecdsa_raw_public_key_from_64_bytes,
         ecdsa_signature_from_bytes
     };
