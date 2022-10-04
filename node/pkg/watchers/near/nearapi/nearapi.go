@@ -16,16 +16,21 @@ const (
 	nearRPCConcurrentConnections = 10
 )
 
-type NearAPI interface {
-	GetBlock(ctx context.Context, blockId string) (Block, error)
-	GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error)
-	GetFinalBlock(ctx context.Context) (Block, error)
-	GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error)
-	GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error)
-}
-
 type (
+	NearAPI interface {
+		GetBlock(ctx context.Context, blockId string) (Block, error)
+		GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error)
+		GetFinalBlock(ctx context.Context) (Block, error)
+		GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error)
+		GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error)
+	}
+	NearRpc interface {
+		Query(ctx context.Context, s string) ([]byte, error)
+	}
 	RealNearAPI struct {
+		nearRPC NearRpc
+	}
+	HttpNearRpc struct {
 		nearRPC        string
 		nearHttpClient *http.Client
 	}
@@ -41,10 +46,11 @@ func NewRealNearAPI(nearRPC string) NearAPI {
 		Transport: t,
 	}
 
-	return RealNearAPI{nearRPC, httpClient}
+	httpNearRpc := HttpNearRpc{nearRPC, httpClient}
+	return RealNearAPI{httpNearRpc}
 }
 
-func (n RealNearAPI) nearRPCQuery(ctx context.Context, s string) ([]byte, error) {
+func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 	timeout, cancelFunc := context.WithTimeout(ctx, nearRPCTimeout)
 	defer cancelFunc()
 
@@ -78,7 +84,7 @@ func (n RealNearAPI) nearRPCQuery(ctx context.Context, s string) ([]byte, error)
 // getBlock calls the NEAR RPC API to retrieve a block by its hash (https://docs.near.org/api/rpc/block-chunk#block-details)
 func (n RealNearAPI) GetBlock(ctx context.Context, blockId string) (Block, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": "%s"}}`, blockId)
-	blockBytes, err := n.nearRPCQuery(ctx, s)
+	blockBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Block{}, err
 	}
@@ -89,7 +95,7 @@ func (n RealNearAPI) GetBlock(ctx context.Context, blockId string) (Block, error
 // getBlockByHeight calls the NEAR RPC API to retrieve a block by its height (https://docs.near.org/api/rpc/block-chunk#block-details)
 func (n RealNearAPI) GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": %d}}`, blockHeight)
-	blockBytes, err := n.nearRPCQuery(ctx, s)
+	blockBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Block{}, err
 	}
@@ -99,7 +105,7 @@ func (n RealNearAPI) GetBlockByHeight(ctx context.Context, blockHeight uint64) (
 // getFinalBlock gets a finalized block from the NEAR RPC API using the parameter "finality": "final" (https://docs.near.org/api/rpc/block-chunk)
 func (n RealNearAPI) GetFinalBlock(ctx context.Context) (Block, error) {
 	s := `{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"finality": "final"}}`
-	blockBytes, err := n.nearRPCQuery(ctx, s)
+	blockBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Block{}, err
 	}
@@ -109,7 +115,7 @@ func (n RealNearAPI) GetFinalBlock(ctx context.Context) (Block, error) {
 // getChunk gets a chunk from the NEAR RPC API: https://docs.near.org/api/rpc/block-chunk#chunk-details
 func (n RealNearAPI) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "chunk", "params": {"chunk_id": "%s"}}`, chunkHeader.Hash)
-	bytes, err := n.nearRPCQuery(ctx, s)
+	bytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Chunk{}, err
 	}
@@ -121,5 +127,5 @@ func (n RealNearAPI) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chu
 // See https://docs.near.org/api/rpc/transactions#transaction-status
 func (n RealNearAPI) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "EXPERIMENTAL_tx_status", "params": ["%s", "%s"]}`, txHash, senderAccountId)
-	return n.nearRPCQuery(ctx, s)
+	return n.nearRPC.Query(ctx, s)
 }

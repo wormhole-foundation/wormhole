@@ -1,10 +1,52 @@
 package near
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
+	. "github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
+	"github.com/certusone/wormhole/node/pkg/watchers/near/timerqueue"
 	"github.com/test-go/testify/assert"
 )
+
+type (
+	MockNearAPI struct{}
+)
+
+func (n mockNearAPI) GetBlock(ctx context.Context, blockId string) (Block, error) {
+
+}
+func (n mockNearAPI) GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error) {
+
+}
+func (n mockNearAPI) GetFinalBlock(ctx context.Context) (Block, error) {
+
+}
+func (n mockNearAPI) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
+
+}
+func (n mockNearAPI) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
+
+}
+
+func TestTxProcessing(t *testing.T) {
+	msgC = make(chan *common.MessagePublication)
+	nearTestWatcher = Watcher{
+		mainnet:                       false,
+		wormholeAccount:               "wormhole.test.near",
+		nearRPC:                       "",
+		msgC:                          msgC,
+		obsvReqC:                      obsvReqC,
+		transactionProcessingQueue:    *timerqueue.New(),
+		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, quequeSize),
+		eventChanBlockProcessedHeight: make(chan uint64, 10),
+		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
+		eventChan:                     make(chan eventType, 10),
+	}
+}
 
 func TestSuccessValueToInt(t *testing.T) {
 
