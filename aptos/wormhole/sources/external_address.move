@@ -1,7 +1,7 @@
 /// 32 byte, left-padded address representing an arbitrary address, to be used in VAAs to
 /// refer to addresses.
 module wormhole::external_address {
-    use aptos_framework::vector;
+    use std::vector;
 
     use wormhole::cursor::Cursor;
     use wormhole::deserialize;
