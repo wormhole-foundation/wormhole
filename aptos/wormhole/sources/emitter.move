@@ -13,7 +13,7 @@ module wormhole::emitter {
     friend wormhole::emitter_test;
 
     struct EmitterRegistry has store {
-        next_id: u128
+        next_id: u64
     }
 
     // TODO(csongor): document that this has to be globally unique.
@@ -35,7 +35,7 @@ module wormhole::emitter {
 
     struct EmitterCapability has store {
         /// Unique identifier of the emitter
-        emitter: u128,
+        emitter: u64,
         /// Sequence number of the next wormhole message
         sequence: u64
     }
@@ -48,7 +48,7 @@ module wormhole::emitter {
         let EmitterCapability { emitter: _, sequence: _ } = emitter_cap;
     }
 
-    public fun get_emitter(emitter_cap: &EmitterCapability): u128 {
+    public fun get_emitter(emitter_cap: &EmitterCapability): u64 {
         emitter_cap.emitter
     }
 
@@ -57,7 +57,7 @@ module wormhole::emitter {
     /// The 16 byte (u128) emitter id left-padded to u256
     public fun get_external_address(emitter_cap: &EmitterCapability): ExternalAddress {
         let emitter_bytes = vector<u8>[];
-        serialize::serialize_u128(&mut emitter_bytes, emitter_cap.emitter);
+        serialize::serialize_u64(&mut emitter_bytes, emitter_cap.emitter);
         external_address::from_bytes(emitter_bytes)
     }
 
