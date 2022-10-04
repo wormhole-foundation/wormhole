@@ -1,6 +1,6 @@
 import { hexZeroPad } from "ethers/lib/utils";
 import { sha3_256 } from "js-sha3";
-import { ChainId, CHAIN_ID_APTOS, hex } from "../utils";
+import { ChainId, CHAIN_ID_APTOS, ensureHexPrefix, hex } from "../utils";
 
 export const getAssetFullyQualifiedType = (
   tokenBridgeAddress: string, // 32 bytes
@@ -10,12 +10,12 @@ export const getAssetFullyQualifiedType = (
   // native asset
   if (originChain === CHAIN_ID_APTOS) {
     // originAddress should be of form address::module::type
-    if (/(0[xX])?[0-9a-fA-F]+::\w+::\w+/g.test(originAddress)) {
+    if (/(0x)?[0-9a-fA-F]+::\w+::\w+/g.test(originAddress)) {
       console.error("Need fully qualified address for native asset");
       return null;
     }
 
-    return originAddress;
+    return ensureHexPrefix(originAddress);
   }
 
   // non-native asset, derive unique address
@@ -24,11 +24,7 @@ export const getAssetFullyQualifiedType = (
     originChain,
     originAddress
   );
-  const ensureHexPrefixAddress =
-    wrappedAssetAddress!.substring(0, 2).toLowerCase() !== "0x"
-      ? `0x${wrappedAssetAddress}`
-      : wrappedAssetAddress;
-  return `${ensureHexPrefixAddress}::coin::T`;
+  return wrappedAssetAddress ? `${ensureHexPrefix(wrappedAssetAddress)}::coin::T` : null;
 };
 
 export const getForeignAssetAddress = (
