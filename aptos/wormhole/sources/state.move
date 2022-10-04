@@ -21,7 +21,7 @@ module wormhole::state {
     }
 
     struct WormholeMessage has store, drop {
-        sender: u128,
+        sender: u64,
         sequence: u64,
         nonce: u64,
         payload: vector<u8>,
@@ -110,7 +110,7 @@ module wormhole::state {
     }
 
     public(friend) entry fun publish_event(
-        sender: u128,
+        sender: u64,
         sequence: u64,
         nonce: u64,
         payload: vector<u8>,
