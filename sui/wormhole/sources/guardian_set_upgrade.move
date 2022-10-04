@@ -1,6 +1,6 @@
 module wormhole::guardian_set_upgrade {
     use std::vector::{Self};
-    //use sui::tx_context::TxContext;
+    use sui::tx_context::{TxContext};
 
     use wormhole::deserialize;
     use wormhole::cursor::{Self};
@@ -27,16 +27,16 @@ module wormhole::guardian_set_upgrade {
         guardians: vector<Guardian>,
     }
 
-    public entry fun submit_vaa(vaa: vector<u8>) {
-        let vaa = vaa::parse_and_verify(vaa);
-        vaa::assert_governance(&vaa);
-        vaa::replay_protect(&vaa);
+    public entry fun submit_vaa(state: &mut State, vaa: vector<u8>, ctx: &mut TxContext) {
+        let vaa = vaa::parse_and_verify(state, vaa, ctx);
+        vaa::assert_governance(state, &vaa);
+        vaa::replay_protect(state, &vaa);
 
-        do_upgrade(parse_payload(vaa::destroy(vaa)))
+        do_upgrade(state, parse_payload(vaa::destroy(vaa)), ctx)
     }
 
-    fun do_upgrade(s: &mut State, upgrade: GuardianSetUpgrade) {
-        let current_index = state::get_current_guardian_set_index();
+    fun do_upgrade(state: &mut State, upgrade: GuardianSetUpgrade, ctx: &TxContext) {
+        let current_index = state::get_current_guardian_set_index(state);
 
         let GuardianSetUpgrade {
             new_index,
@@ -48,14 +48,14 @@ module wormhole::guardian_set_upgrade {
             E_NON_INCREMENTAL_GUARDIAN_SETS
         );
 
-        state::update_guardian_set_index(new_index);
-        state::store_guardian_set(s, new_index, create_guardian_set(new_index, guardians));
-        state::expire_guardian_set(current_index);
+        state::update_guardian_set_index(state, new_index);
+        state::store_guardian_set(state, new_index, create_guardian_set(new_index, guardians));
+        state::expire_guardian_set(state, current_index, ctx);
     }
 
     #[test_only]
-    public fun do_upgrade_test(new_index: U32, guardians: vector<Guardian>) {
-        do_upgrade(GuardianSetUpgrade { new_index, guardians })
+    public fun do_upgrade_test(s: &mut State, new_index: U32, guardians: vector<Guardian>, ctx: &mut TxContext) {
+        do_upgrade(s, GuardianSetUpgrade { new_index, guardians }, ctx)
     }
 
     public fun parse_payload(bytes: vector<u8>): GuardianSetUpgrade {
