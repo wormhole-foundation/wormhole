@@ -1,6 +1,6 @@
 module wormhole::myvaa {
     use std::vector;
-    //use sui::tx_context::TxContext;
+    use sui::tx_context::TxContext;
     //use 0x1::secp256k1;
 
     use wormhole::myu16::{U16};
@@ -17,7 +17,7 @@ module wormhole::myvaa {
         unpack_signature,
         get_address,
     };
-    use wormhole::state;
+    use wormhole::state::{Self, State};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::keccak256::keccak256;
 
@@ -160,8 +160,8 @@ module wormhole::myvaa {
     /// Verifies the signatures of a VAA.
     /// It's private, because there's no point calling it externally, since VAAs
     /// external to this module have already been verified (by construction).
-    fun verify(vaa: &VAA, guardian_set: &GuardianSet) {
-        assert!(state::guardian_set_is_active(guardian_set), E_GUARDIAN_SET_EXPIRED);
+    fun verify(vaa: &VAA, state: &State, guardian_set: &GuardianSet, ctx: &TxContext) {
+        assert!(state::guardian_set_is_active(state, guardian_set, ctx), E_GUARDIAN_SET_EXPIRED);
 
         let guardians = get_guardians(guardian_set);
         let hash = vaa.hash;
@@ -197,29 +197,29 @@ module wormhole::myvaa {
     /// NOTE: this is the only public function that returns a VAA, and it should
     /// be kept that way. This ensures that if an external module receives a
     /// `VAA`, it has been verified.
-    public fun parse_and_verify(bytes: vector<u8>): VAA {
+    public fun parse_and_verify(state: &mut State, bytes: vector<u8>, ctx: &TxContext): VAA {
         let vaa = parse(bytes);
-        let guardian_set = state::get_guardian_set(vaa.guardian_set_index);
-        verify(&vaa, &guardian_set);
+        let guardian_set = state::get_guardian_set(state, vaa.guardian_set_index);
+        verify(&vaa, state, &guardian_set, ctx);
         vaa
     }
 
     /// Aborts if the VAA is not governance (i.e. sent from the governance
     /// emitter on the governance chain)
-    public fun assert_governance(vaa: &VAA) {
-        let latest_guardian_set_index = state::get_current_guardian_set_index();
+    public fun assert_governance(state: &State, vaa: &VAA) {
+        let latest_guardian_set_index = state::get_current_guardian_set_index(state);
         assert!(vaa.guardian_set_index == latest_guardian_set_index, E_OLD_GUARDIAN_SET_GOVERNANCE);
-        assert!(vaa.emitter_chain == state::get_governance_chain(), E_INVALID_GOVERNANCE_CHAIN);
-        assert!(vaa.emitter_address == state::get_governance_contract(), E_INVALID_GOVERNANCE_EMITTER);
+        assert!(vaa.emitter_chain == state::get_governance_chain(state), E_INVALID_GOVERNANCE_CHAIN);
+        assert!(vaa.emitter_address == state::get_governance_contract(state), E_INVALID_GOVERNANCE_EMITTER);
     }
 
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
     /// the first time around.
     /// Only to be used for core bridge messages. Protocols should implement
     /// their own replay protection.
-    public(friend) fun replay_protect(vaa: &VAA) {
+    public(friend) fun replay_protect(state: &mut State, vaa: &VAA) {
         // this calls table::add which aborts if the key already exists
-        state::set_governance_action_consumed(vaa.hash);
+        state::set_governance_action_consumed(state, vaa.hash);
     }
 
     /// Returns the minimum number of signatures required for a VAA to be valid.
