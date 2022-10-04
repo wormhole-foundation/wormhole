@@ -1,3 +1,4 @@
+import { hexZeroPad } from "ethers/lib/utils";
 import { sha3_256 } from "js-sha3";
 import { ChainId, CHAIN_ID_APTOS, hex } from "../utils";
 
@@ -22,11 +23,15 @@ export const getAssetFullyQualifiedType = (
   chain.writeUInt16BE(originChain);
   const wrappedAssetAddress = sha3_256(
     Buffer.concat([
-      hex(tokenBridgeAddress),
+      hex(hexZeroPad(tokenBridgeAddress, 32)),
       chain,
       Buffer.from("::", "ascii"),
-      hex(originAddress),
+      hex(hexZeroPad(originAddress, 32)),
     ])
   );
-  return `${wrappedAssetAddress}::coin::T`;
+  const ensureHexPrefixAddress =
+    wrappedAssetAddress.substring(0, 2).toLowerCase() !== "0x"
+      ? `0x${wrappedAssetAddress}`
+      : wrappedAssetAddress;
+  return `${ensureHexPrefixAddress}::coin::T`;
 };

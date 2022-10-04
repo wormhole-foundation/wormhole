@@ -1,10 +1,5 @@
-import {
-  ChainId,
-  ChainName,
-  coalesceChainId,
-  getAssetFullyQualifiedType
-} from "../../utils";
 import { AptosAccount, Types } from "aptos";
+import { ChainId, ChainName, coalesceChainId, getAssetFullyQualifiedType } from "../../utils";
 import { AptosClientWrapper } from "../client";
 import { WormholeAptosBaseApi } from "./base";
 
@@ -50,6 +45,8 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
       coalesceChainId(tokenChain),
       tokenAddress,
     );
+    if (!assetType) throw "Invalid asset address.";
+
     const payload = {
       function: `${this.address}::complete_transfer::submit_vaa`,
       type_arguments: [assetType],
@@ -70,6 +67,8 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
       coalesceChainId(tokenChain),
       tokenAddress,
     );
+    if (!assetType) throw "Invalid asset address.";
+
     const payload = {
       function: `${this.address}::complete_transfer_with_payload::submit_vaa`,
       type_arguments: [assetType],
@@ -122,6 +121,8 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
       coalesceChainId(tokenChain),
       tokenAddress,
     );
+    if (!assetType) throw "Invalid asset address.";
+
     const payload = {
       function: `${this.address}::transfer_tokens::submit_vaa`,
       type_arguments: [assetType],
@@ -137,8 +138,10 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     tokenChain: ChainId | ChainName,
     tokenAddress: string,
     vaa: Uint8Array,
-  ): Promise<Types.Transaction> => {
+  ) => {
     if (!this.address) throw "Need token bridge address.";
+
+    // create coin type
     const createWrappedCoinTypePayload = {
       function: `${this.address}::wrapped::create_wrapped_coin_type`,
       type_arguments: [],
@@ -149,16 +152,15 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
       coalesceChainId(tokenChain),
       tokenAddress,
     );
+    if (!assetType) throw "Invalid asset address.";
+    await this.client.executeEntryFunction(sender, createWrappedCoinTypePayload);
+
+    // create coin
     const createWrappedCoinPayload = {
       function: `${this.address}::wrapped::create_wrapped_coin`,
       type_arguments: [assetType],
       arguments: [vaa],
     };
-
-    // create coin type
-    await this.client.executeEntryFunction(sender, createWrappedCoinTypePayload);
-
-    // create coin
     return this.client.executeEntryFunction(sender, createWrappedCoinPayload);
   };
 }
