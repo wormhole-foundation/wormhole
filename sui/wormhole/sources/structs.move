@@ -1,8 +1,6 @@
 module wormhole::structs {
     use wormhole::myu32::{Self as u32, U32};
     use sui::tx_context::{Self, TxContext};
-    //use sui::object::{Self, UID};
-    //use sui::transfer::{Self};
 
     friend wormhole::state;
     use wormhole::guardian_pubkey::{Self};
