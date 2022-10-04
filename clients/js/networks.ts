@@ -206,7 +206,7 @@ const TESTNET = {
     rpc: "https://rpc.testnet.near.org",
     key: get_env_var("NEAR_KEY_TESTNET"),
     networkId: "testnet",
-    deployerAccount: undefined,
+    deployerAccount: "wormhole.testnet",
   },
   injective: {
     rpc: "https://k8s.testnet.tm.injective.network:443",
