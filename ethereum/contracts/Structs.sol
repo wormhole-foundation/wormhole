@@ -28,23 +28,6 @@ interface Structs {
 		bytes32 hash;
 	}
 
-	struct IndexedObservation {
-		// Index of the observation in the batch
-		uint8 index;
-		// Headless VM3 parsed into the VM struct
-		VM vm3;
-	}
-
-	struct Observation {
-		uint32 timestamp;
-		uint32 nonce;
-		uint16 emitterChainId;
-		bytes32 emitterAddress;
-		uint64 sequence;
-		uint8 consistencyLevel;
-		bytes payload;
-	}
-
 	struct VM {
 		uint8 version; // version = 1 or 3
 		// The following fields constitute an Observation. For compatibility
@@ -79,7 +62,7 @@ interface Structs {
 		// Computed batch hash - hash(hash(Observation1), hash(Observation2), ...)
 		bytes32 hash;
 
-		// Array of IndexedObservations
-		IndexedObservation[] indexedObservations;
+		// Array of observation bytes with prepended version 3
+		bytes[] observations;
 	}
 }

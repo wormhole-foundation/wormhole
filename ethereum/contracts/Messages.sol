@@ -138,9 +138,6 @@ contract Messages is Getters, Setters {
     }
 
     function verifyVM1(Structs.VM memory vm) internal view returns (bool valid, string memory reason) {
-        // verify hash independently
-        require(vm.hash == keccak256(abi.encodePacked(keccak256(encodeObservation(vm)))), "invalid hash");
-
         Structs.Header memory header;
         header.guardianSetIndex = vm.guardianSetIndex;
         header.signatures = vm.signatures;
@@ -150,9 +147,6 @@ contract Messages is Getters, Setters {
     }
 
     function verifyVM3(Structs.VM memory vm) internal view returns (bool valid, string memory reason) {
-        // verify hash independently
-        require(vm.hash == keccak256(abi.encodePacked(keccak256(encodeObservation(vm)))), "invalid hash");
-
         // Check to see if the hash has been cached
         if (verifiedHashCached(vm.hash)) {
             return (true, "");
@@ -182,37 +176,17 @@ contract Messages is Getters, Setters {
 
         // Verify the hash of each observation
         if (valid) {
-            uint8 lastIndex;
-            uint256 hashesLen = vm2.hashes.length;
-            uint256 observationsLen = vm2.indexedObservations.length;
+            uint256 observationsLen = vm2.observations.length;
             for (uint i = 0; i < observationsLen;) {
-                // Ensure that the provided observation index is within the
-                // bounds of the array of observation hashes.
-                require(vm2.indexedObservations[i].index < hashesLen, "observation index out of bounds");
+                // Verify that the observations are still ordered correctly
+                require(
+                    vm2.hashes[i] == doubleKeccak256(vm2.observations[i].slice(1, vm2.observations[i].length - 1)),
+                    "observation out of order"
+                );
 
-                // Ensure that provided observation indices are ascending only
-                require(i == 0 || vm2.indexedObservations[i].index > lastIndex, "observation indices must be ascending");
-                lastIndex = vm2.indexedObservations[i].index;
-
-                /**
-                 Verify the hash of each `Observation` in the batch.
-
-                 WARNING: This check confirms that VM3s included in the batch have not been altered.
-                 This check is necessary for integrators receiving parsed VM2s, since it is possible to
-                 alter the content of a VM3 after each hash is computed in `parseVM3`.
-                */
-                bytes32 verifiedHash = keccak256(abi.encodePacked(keccak256(encodeObservation(vm2.indexedObservations[i].vm3))));
-                require(vm2.indexedObservations[i].vm3.hash == verifiedHash, "invalid hash");
-
-                // Verify the hash against the array of hashes. Bail out if the hash
-                // does not match the hash at the expected index.
-                if (verifiedHash != vm2.hashes[vm2.indexedObservations[i].index]) {
-                    return (false, "invalid observation");
-                }
-
-                // cache the hash of the observation if `cache` is set to true
+                // Cache the hash of the observation if `cache` is set to true
                 if (cache) {
-                    updateVerifiedCacheStatus(verifiedHash, true);
+                    updateVerifiedCacheStatus(vm2.hashes[i], true);
                 }
 
                 unchecked { i += 1; }
@@ -223,32 +197,35 @@ contract Messages is Getters, Setters {
     function parseObservation(
         uint256 start,
         uint256 length,
-        bytes memory encodedObservation
-    ) internal pure returns (Structs.Observation memory observation) {
+        bytes memory encodedObservation,
+        Structs.VM memory vm
+    ) internal pure returns (Structs.VM memory) {
         uint256 index = start;
 
-        observation.timestamp = encodedObservation.toUint32(index);
+        vm.timestamp = encodedObservation.toUint32(index);
         index += 4;
 
-        observation.nonce = encodedObservation.toUint32(index);
+        vm.nonce = encodedObservation.toUint32(index);
         index += 4;
 
-        observation.emitterChainId = encodedObservation.toUint16(index);
+        vm.emitterChainId = encodedObservation.toUint16(index);
         index += 2;
 
-        observation.emitterAddress = encodedObservation.toBytes32(index);
+        vm.emitterAddress = encodedObservation.toBytes32(index);
         index += 32;
 
-        observation.sequence = encodedObservation.toUint64(index);
+        vm.sequence = encodedObservation.toUint64(index);
         index += 8;
 
-        observation.consistencyLevel = encodedObservation.toUint8(index);
+        vm.consistencyLevel = encodedObservation.toUint8(index);
         index += 1;
 
         uint256 consumed = index - start;
         require(length >= consumed, "Insufficient observation length");
 
-        observation.payload = encodedObservation.slice(index, length - consumed);
+        vm.payload = encodedObservation.slice(index, length - consumed);
+
+        return vm;
     }
 
     function parseSignatures(
@@ -321,15 +298,7 @@ contract Messages is Getters, Setters {
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
         // Parse the observation
-        Structs.Observation memory observation = parseObservation(index, encodedVM.length - index, encodedVM);
-
-        vm.timestamp = observation.timestamp;
-        vm.nonce = observation.nonce;
-        vm.emitterChainId = observation.emitterChainId;
-        vm.emitterAddress = observation.emitterAddress;
-        vm.sequence = observation.sequence;
-        vm.consistencyLevel = observation.consistencyLevel;
-        vm.payload = observation.payload;
+        return parseObservation(index, encodedVM.length - index, encodedVM, vm);
     }
 
     function parseVM3(bytes memory encodedVM) internal pure returns (Structs.VM memory vm) {
@@ -347,18 +316,10 @@ contract Messages is Getters, Setters {
         But xDapps rely on the hash of an observation for replay protection.
         */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
-        vm.hash = keccak256(abi.encodePacked(keccak256(body)));
+        vm.hash = doubleKeccak256(body);
 
         // Parse the observation
-        Structs.Observation memory observation = parseObservation(index, encodedVM.length - index, encodedVM);
-
-        vm.timestamp = observation.timestamp;
-        vm.nonce = observation.nonce;
-        vm.emitterChainId = observation.emitterChainId;
-        vm.emitterAddress = observation.emitterAddress;
-        vm.sequence = observation.sequence;
-        vm.consistencyLevel = observation.consistencyLevel;
-        vm.payload = observation.payload;
+        return parseObservation(index, encodedVM.length - index, encodedVM, vm);
     }
 
     /**
@@ -383,13 +344,13 @@ contract Messages is Getters, Setters {
         vm2.signatures = parseSignatures(index, signersLen, encodedVM2);
         index += 66*signersLen;
 
-        // Number of hashes in the full batch
+        // Number of hashes in the batch
         uint256 hashesLen = encodedVM2.toUint8(index);
         index += 1;
 
         // Hash the array of hashes
         bytes memory body = encodedVM2.slice(index, hashesLen * 32);
-        vm2.hash = keccak256(abi.encodePacked(keccak256(body)));
+        vm2.hash = doubleKeccak256(body);
 
         // Parse hashes
         vm2.hashes = new bytes32[](hashesLen);
@@ -399,17 +360,15 @@ contract Messages is Getters, Setters {
             unchecked { i += 1; }
         }
 
-        // The number of observations in the batch. This can be less
-        // than the number of hashes in the batch if it's a partial batch.
+        // The number of observations in the batch
         uint8 observationsLen = encodedVM2.toUint8(index);
         index += 1;
 
-        // The batch should have a nonzero number of observations, and shouldn't
-        // have more observations than hashes.
-        require(observationsLen <= hashesLen && observationsLen > 0, "invalid number of observations");
+        // The batch should have the same number of observations and hashes
+        require(observationsLen == hashesLen && observationsLen > 0, "invalid number of observations");
 
-        // Parse each IndexedObservation and store it
-        vm2.indexedObservations = new Structs.IndexedObservation[](observationsLen);
+        // Save each observation in a byte array
+        vm2.observations = new bytes[](observationsLen);
         uint8 observationIndex;
         uint32 observationLen;
         for (uint8 i = 0; i < observationsLen;) {
@@ -419,19 +378,9 @@ contract Messages is Getters, Setters {
             observationLen = encodedVM2.toUint32(index);
             index += 4;
 
-            /*
-            Store the IndexedObservation struct.
-
-            Prepend uint8(3) to the Observation bytes to signal that the
-            bytes are considered a "Headless" VM3 payload. Parse the headless
-            VM3 into the VM struct.
-            */
-            Structs.VM memory vm3 = parseVM3(abi.encodePacked(uint8(3), encodedVM2.slice(index, observationLen)));
-
-            vm2.indexedObservations[i] = Structs.IndexedObservation({
-                index: observationIndex,
-                vm3: vm3
-            });
+            // Prepend uint8(3) to the observation bytes to signal that the
+            // bytes are considered a "Headless" VM3 payload.
+            vm2.observations[i] = abi.encodePacked(uint8(3), encodedVM2.slice(index, observationLen));
 
             index += observationLen;
             unchecked { i += 1; }
@@ -442,17 +391,8 @@ contract Messages is Getters, Setters {
         require(encodedVM2.length == index, "invalid VM2");
     }
 
-    /// @dev encodeObservation encodes an Observation into bytes
-    function encodeObservation(Structs.VM memory vm) public pure returns (bytes memory) {
-        return abi.encodePacked(
-            vm.timestamp,
-            vm.nonce,
-            vm.emitterChainId,
-            vm.emitterAddress,
-            vm.sequence,
-            vm.consistencyLevel,
-            vm.payload
-        );
+    function doubleKeccak256(bytes memory body) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(keccak256(body)));
     }
 
     /**

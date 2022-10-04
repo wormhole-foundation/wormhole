@@ -43,22 +43,18 @@ contract MockBatchedVAASender {
         // parse and verify a batch VAA
         IWormhole.VM2 memory vm = parseAndVerifyBatchVM(encodedVm2, true);
 
-        // save each hash in the batch
-        bytes32[] memory cachedHashes = new bytes32[](vm.indexedObservations.length);
-
         // consume individual VAAs in the batch
-        uint256 observationsLen = vm.indexedObservations.length;
+        uint256 observationsLen = vm.observations.length;
         for (uint256 i = 0; i < observationsLen; i++) {
-            consumeSingleVAA(vm.indexedObservations[i].vm3);
-            cachedHashes[i] = vm.hashes[vm.indexedObservations[i].index];
+            consumeSingleVAA(vm.observations[i]);
         }
 
         // clear the batch cache
-        wormholeCore().clearBatchCache(cachedHashes);
+        wormholeCore().clearBatchCache(vm.hashes);
     }
 
-    function consumeSingleVAA(IWormhole.VM memory vm) public {
-        (bool valid, string memory reason) = wormholeCore().verifyVM(vm);
+    function consumeSingleVAA(bytes memory encodedVm) public {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormholeCore().parseAndVerifyVM(encodedVm);
         require(valid, reason);
 
         // save the paylaod in the vm

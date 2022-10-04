@@ -77,36 +77,6 @@ contract TestMessages is Messages, Test {
     verifySignatures(0, badSigs, guardianSet);
   }
 
-  function doubleKeccak256(bytes memory body) internal pure returns (bytes32 hash) {
-    hash = keccak256(abi.encodePacked(keccak256(body)));
-  }
-
-  function compareVM3s(Structs.VM memory vm, Structs.VM memory vm2) public {
-    // version
-    assertEq(vm.version, vm2.version);
-
-    // timestamp
-    assertEq(vm.timestamp, vm2.timestamp);
-
-    // nonce
-    assertEq(vm.nonce, vm2.nonce);
-
-    // emitterChainId
-    assertEq(vm.emitterChainId, vm2.emitterChainId);
-
-    // emitterAddress
-    assertEq(vm.emitterAddress, vm2.emitterAddress);
-
-    // sequence
-    assertEq(vm.sequence, vm2.sequence);
-
-    // consistencyLevel
-    assertEq(vm.consistencyLevel, vm2.consistencyLevel);
-
-    // payload
-    assertEq(vm.payload, vm.payload);
-  }
-
   // This test ensures that individual hashes are not cached when a bad encoded VM2
   // is passed to parseAndVerifyBatchVM. The encoded VM2 is not valid in this case, since
   // a valid guardian set has not been stored yet.
@@ -139,202 +109,6 @@ contract TestMessages is Messages, Test {
     }
   }
 
-  // This test ensures that a previously parsed VM cannot be verified when
-  // the `Observation` has been altered.
-  function testFailAlteredObservationInVM(
-    Structs.Observation memory observation
-  ) public {
-    // Set the initial guardian set
-    address[] memory initialGuardians = new address[](1);
-    initialGuardians[0] = testGuardianPub;
-
-    // Create a guardian set
-    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
-        keys : initialGuardians,
-        expirationTime : 0
-    });
-
-    storeGuardianSet(initialGuardianSet, 0);
-
-    // Confirm that the test vm is valid
-    (Structs.VM memory parsedVm, bool valid, string memory reason) = this.parseAndVerifyVM(validVM);
-    require(valid, reason);
-
-    // Alter one of the Observations in the VM2
-    parsedVm.timestamp = observation.timestamp;
-    parsedVm.nonce = observation.nonce;
-    parsedVm.emitterChainId = observation.emitterChainId;
-    parsedVm.emitterAddress = observation.emitterAddress;
-    parsedVm.sequence = observation.sequence;
-    parsedVm.consistencyLevel = observation.consistencyLevel;
-    parsedVm.payload = observation.payload;
-
-    // Try to verify the VM with the altered observations (but the same hash)
-    verifyVM(parsedVm);
-  }
-
-  // This test ensures that previously parsed VM2s cannot be verified when an
-  // `Observation` is altered.
-  function testFailAlteredObservationInVM2(
-    Structs.Observation memory observation
-  ) public {
-    // Set the initial guardian set
-    address[] memory initialGuardians = new address[](1);
-    initialGuardians[0] = testGuardianPub;
-
-    // Create a guardian set
-    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
-        keys : initialGuardians,
-        expirationTime : 0
-    });
-
-    storeGuardianSet(initialGuardianSet, 0);
-
-    // Confirm that the test vm is valid
-    (Structs.VM2 memory parsedVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
-    require(valid, reason);
-
-    // Alter one of the Observations in the VM2
-    parsedVm2.indexedObservations[0].vm3.timestamp = observation.timestamp;
-    parsedVm2.indexedObservations[0].vm3.nonce = observation.nonce;
-    parsedVm2.indexedObservations[0].vm3.emitterChainId = observation.emitterChainId;
-    parsedVm2.indexedObservations[0].vm3.emitterAddress = observation.emitterAddress;
-    parsedVm2.indexedObservations[0].vm3.sequence = observation.sequence;
-    parsedVm2.indexedObservations[0].vm3.consistencyLevel = observation.consistencyLevel;
-    parsedVm2.indexedObservations[0].vm3.payload = observation.payload;
-
-    // Try to verify the VM with the altered observations (but the same hash)
-    verifyBatchVM(parsedVm2, false);
-  }
-
-  // This test ensures that previously parsed VM3s cannot be verified when an
-  // `Observation` is altered.
-  function testFailAlteredObservationInVM3(
-    Structs.Observation memory observation
-  ) public {
-    // Set the initial guardian set
-    address[] memory initialGuardians = new address[](1);
-    initialGuardians[0] = testGuardianPub;
-
-    // Create a guardian set
-    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
-        keys : initialGuardians,
-        expirationTime : 0
-    });
-
-    storeGuardianSet(initialGuardianSet, 0);
-
-    // Confirm that the test vm is valid
-    (Structs.VM2 memory parsedVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
-    require(valid, reason);
-
-    // Alter one of the Observations in the VM2
-    parsedVm2.indexedObservations[0].vm3.timestamp = observation.timestamp;
-    parsedVm2.indexedObservations[0].vm3.nonce = observation.nonce;
-    parsedVm2.indexedObservations[0].vm3.emitterChainId = observation.emitterChainId;
-    parsedVm2.indexedObservations[0].vm3.emitterAddress = observation.emitterAddress;
-    parsedVm2.indexedObservations[0].vm3.sequence = observation.sequence;
-    parsedVm2.indexedObservations[0].vm3.consistencyLevel = observation.consistencyLevel;
-    parsedVm2.indexedObservations[0].vm3.payload = observation.payload;
-
-    // Try to verify the VM with the altered observations (but the same hash)
-    verifyVM3(parsedVm2.indexedObservations[0].vm3);
-  }
-
-  // This test confirms that verifyBatchVM verifies each IndexedObservation's hash correctly.
-  function testInvalidObservationIndex() public {
-    // Set the initial guardian set
-    address[] memory initialGuardians = new address[](1);
-    initialGuardians[0] = testGuardianPub;
-
-    // Create a guardian set
-    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
-        keys : initialGuardians,
-        expirationTime : 0
-    });
-
-    storeGuardianSet(initialGuardianSet, 0);
-
-    // Confirm that the test VM2 is valid
-    (, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
-    require(valid, reason);
-
-    // Calculate the index of the first observation
-    uint256 observationsIndex = 0;
-    observationsIndex += 1; // version
-    observationsIndex += 4; // guardian set index
-    observationsIndex += 1; // number of signatures
-    observationsIndex += 66 * 1; // signature * number of signatures
-    observationsIndex += 1; // number of hashes
-    observationsIndex += 32 * 3; // hashes
-    observationsIndex += 1; // number of observations
-
-    // Change the index of the first observation to a number within
-    // the expected range of indices.
-    uint8 newIndex = 2;
-    bytes memory invalidIndexVm2 = abi.encodePacked(
-      validVM2.slice(0, observationsIndex),
-      newIndex,
-      validVM2.slice(observationsIndex + 1, validVM2.length - observationsIndex - 1)
-    );
-
-    // Parse the invalidIndexVm2 to confirm the index was updated
-    Structs.VM2 memory parsedInvalidIndexvm2 = parseBatchVM(invalidIndexVm2);
-    assertEq(parsedInvalidIndexvm2.indexedObservations[0].index, newIndex);
-
-    // Try to parse and verify the invalidIndexVm2
-    (, bool valid2, string memory reason2) = this.parseAndVerifyBatchVM(invalidIndexVm2, false);
-    assertEq(valid2, false);
-    assertEq(reason2, "invalid observation");
-  }
-
-  // This test confirms that verifyBatchVM checks that each observation's index is within the
-  // bounds of the array of observation hashes.
-  function testOutOfBoundsObservationIndex() public {
-    // Set the initial guardian set
-    address[] memory initialGuardians = new address[](1);
-    initialGuardians[0] = testGuardianPub;
-
-    // Create a guardian set
-    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
-        keys : initialGuardians,
-        expirationTime : 0
-    });
-
-    storeGuardianSet(initialGuardianSet, 0);
-
-    // Confirm that the test VM2 is valid
-    (Structs.VM2 memory parsedValidVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
-    require(valid, reason);
-
-    // Calculate the index of the first observation
-    uint256 observationsIndex = 0;
-    observationsIndex += 1; // version
-    observationsIndex += 4; // guardian set index
-    observationsIndex += 1; // number of signatures
-    observationsIndex += 66 * 1; // signature * number of signatures
-    observationsIndex += 1; // number of hashes
-    observationsIndex += 32 * 3; // hashes
-    observationsIndex += 1; // number of observations
-
-    // Change the index of the first observation to a number not within
-    // the bounds of the observation hashes array.
-    uint8 newIndex = uint8(parsedValidVm2.hashes.length + 1);
-    bytes memory outOfBoundsIndexVm2 = abi.encodePacked(
-      validVM2.slice(0, observationsIndex),
-      newIndex,
-      validVM2.slice(observationsIndex + 1, validVM2.length - observationsIndex - 1)
-    );
-
-    // Parse the invalidIndexVm2 to confirm the index was updated
-    Structs.VM2 memory parsedOutOfBoundsIndexVm2 = parseBatchVM(outOfBoundsIndexVm2);
-    assertEq(parsedOutOfBoundsIndexVm2.indexedObservations[0].index, newIndex);
-
-    // Try to parse and verify the outOfBoundsIndexVm2
-    vm.expectRevert("observation index out of bounds");
-    this.parseAndVerifyBatchVM(outOfBoundsIndexVm2, false);
-  }
-
   // This test confirms that parseBatchVM reverts when parsing batches with more
   // observations than hashes in the batch hash array.
   function testMoreObservationsThanHashesInABatch() public {
@@ -365,7 +139,7 @@ contract TestMessages is Messages, Test {
 
     // Change the observations count byte to a number larger than
     // the hashes array length.
-    uint8 newObservationsCount = uint8(parsedValidVm2.indexedObservations.length + 1);
+    uint8 newObservationsCount = uint8(parsedValidVm2.observations.length + 1);
     bytes memory invalidObservationsCountVm2 = abi.encodePacked(
       validVM2.slice(0, observationsCountIndex),
       newObservationsCount,
@@ -377,9 +151,9 @@ contract TestMessages is Messages, Test {
     parseBatchVM(invalidObservationsCountVm2);
   }
 
-  // This test confirms that parseBatchVM reverts when parsing partial batches with an
-  // observations count less than the actual number of observations in a batch.
-  function testInvalidObservationCount() public {
+  // This test confirms that parseBatchVM reverts when parsing batches with less
+  // observations than hashes in the batch hash array.
+  function testLessObservationsThanHashesInABatch() public {
     // Set the initial guardian set
     address[] memory initialGuardians = new address[](1);
     initialGuardians[0] = testGuardianPub;
@@ -405,9 +179,9 @@ contract TestMessages is Messages, Test {
     observationsCountIndex += 1; // number of hashes
     observationsCountIndex += 32 * 3; // hashes
 
-    // Change the observations count byte to a number less than
-    // the actual number of encoded observations in the VM.
-    uint8 newObservationsCount = uint8(parsedValidVm2.indexedObservations.length - 1);
+    // Change the observations count byte to a number smaller than
+    // the hashes array length.
+    uint8 newObservationsCount = uint8(parsedValidVm2.observations.length - 1);
     bytes memory invalidObservationsCountVm2 = abi.encodePacked(
       validVM2.slice(0, observationsCountIndex),
       newObservationsCount,
@@ -415,109 +189,53 @@ contract TestMessages is Messages, Test {
     );
 
     // Parsing the invalidObsevationsCountVm2 should fail
-    vm.expectRevert("invalid VM2");
+    vm.expectRevert("invalid number of observations");
     parseBatchVM(invalidObservationsCountVm2);
   }
 
-  // This test confirms that verifyBatchVM reverts when observation indices are not ascending.
-  function testAscendingObservationIndices() public {
+  // This test confirms that verifyVM reverts verifying a batchVM with observations
+  // that are out of order.
+  function testOutOfOrderObservation() public {
     // Set the initial guardian set
     address[] memory initialGuardians = new address[](1);
     initialGuardians[0] = testGuardianPub;
 
     // Create a guardian set
     Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
-        keys : initialGuardians,
-        expirationTime : 0
+      keys: initialGuardians,
+      expirationTime: 0
     });
 
     storeGuardianSet(initialGuardianSet, 0);
 
-    // Confirm that the test vm is valid
-    (Structs.VM2 memory originalVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
+    // Confirm that the test VM2 is valid
+    (Structs.VM2 memory parsedValidVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
     require(valid, reason);
 
-    // Parse the VM2 up to the first observation
-    uint256 index = 0;
-    index += 1; // version
-    index += 4; // guardian set index
-    index += 1; // number of signatures
-    index += 66 * 1; // signature * number of signatures
-    index += 1; // number of hashes
-    index += 32 * 3; // hashes
-    index += 1; // number of observations
+    // Reorganize the observation byte array
+    uint256 observationsLen = parsedValidVm2.observations.length;
+    bytes[] memory newObservationsArray = parsedValidVm2.observations;
+    bytes memory firstObservation = newObservationsArray[0];
+    newObservationsArray[0] = newObservationsArray[observationsLen - 1];
+    newObservationsArray[observationsLen - 1] = firstObservation;
 
-    // Calculate the start and end index of the first observation
-    uint256 observationOneStartIndex = index;
-    uint256 observationOneEndIndex = observationOneStartIndex + 5 + validVM2.toUint32(observationOneStartIndex + 1);
+    // Update the vaa with the new observations array
+    parsedValidVm2.observations = newObservationsArray;
 
-    // Calculate the start and end index of the second observation
-    uint256 observationTwoStartIndex = observationOneEndIndex;
-    uint256 observationTwoEndIndex = observationTwoStartIndex + 5 + validVM2.toUint32(observationTwoStartIndex + 1);
-
-    // Change the order of the observations in the VM2
-    bytes memory modifiedVm2 = abi.encodePacked(
-      validVM2.slice(0, observationOneStartIndex),
-      validVM2.slice(observationTwoStartIndex, observationTwoEndIndex - observationTwoStartIndex),
-      validVM2.slice(observationOneStartIndex, observationOneEndIndex - observationOneStartIndex),
-      validVM2.slice(observationTwoEndIndex, validVM2.length - observationTwoEndIndex)
-    );
-
-    // Parse the modifiedVm2 and validate the observation swap
-    Structs.VM2 memory parsedModifiedVm2 = parseBatchVM(modifiedVm2);
-    assertEq(originalVm2.indexedObservations[0].index, parsedModifiedVm2.indexedObservations[1].index);
-    assertEq(originalVm2.indexedObservations[1].index, parsedModifiedVm2.indexedObservations[0].index);
-    assertEq(originalVm2.indexedObservations[2].index, parsedModifiedVm2.indexedObservations[2].index);
-
-    compareVM3s(originalVm2.indexedObservations[0].vm3, parsedModifiedVm2.indexedObservations[1].vm3);
-    compareVM3s(originalVm2.indexedObservations[1].vm3, parsedModifiedVm2.indexedObservations[0].vm3);
-    compareVM3s(originalVm2.indexedObservations[2].vm3, parsedModifiedVm2.indexedObservations[2].vm3);
-
-    for (uint256 i = 0; i < parsedModifiedVm2.hashes.length; i++) {
-      assertEq(originalVm2.hashes[i], parsedModifiedVm2.hashes[i]);
-    }
-
-    // Verifying the parsedModifiedVm2 should fail
-    vm.expectRevert("observation indices must be ascending");
-    this.verifyBatchVM(parsedModifiedVm2, false);
+    // Confirm that the verify call reverts
+    vm.expectRevert("observation out of order");
+    this.verifyBatchVM(parsedValidVm2, true);
   }
 
-  // This test confirms that parseObservation deserializes observations correctly.
-  function testParseObservation(
-    uint32 timestamp,
-    uint32 nonce,
-    uint16 emitterChainId,
-		bytes32 emitterAddress,
-		uint64 sequence,
-		uint8 consistencyLevel,
-		bytes memory payload
-  ) public {
-    // Make sure that the observation length is < uint32
-    vm.assume(payload.length < 4294967295);
-
-    // Encode the observation
-    bytes memory observation = abi.encodePacked(
-      timestamp,
-      nonce,
-      emitterChainId,
-      emitterAddress,
-      sequence,
-      consistencyLevel,
-      payload
-    );
-
-    // Parse the observation
-    Structs.Observation memory parsedObservation = parseObservation(0, observation.length, observation);
-
-    // Confirm that everything was parsed correctly
-    assertEq(parsedObservation.timestamp, timestamp);
-    assertEq(parsedObservation.nonce, nonce);
-    assertEq(parsedObservation.emitterChainId, emitterChainId);
-    assertEq(parsedObservation.emitterAddress, emitterAddress);
-    assertEq(parsedObservation.sequence, sequence);
-    assertEq(parsedObservation.consistencyLevel, consistencyLevel);
-    assertEq(parsedObservation.payload, payload);
-  }
+  struct Observation {
+		uint32 timestamp;
+		uint32 nonce;
+		uint16 emitterChainId;
+		bytes32 emitterAddress;
+		uint64 sequence;
+		uint8 consistencyLevel;
+		bytes payload;
+	}
 
   // This test confirms that parseBatchVM deserializes encoded batches correctly.
   function testParseBatchVM(
@@ -525,7 +243,7 @@ contract TestMessages is Messages, Test {
     uint8 numObservations,
     uint8 numSignatures,
     bytes32 message,
-    Structs.Observation memory testObservation
+    Observation memory testObservation
   ) public {
     vm.assume(numSignatures > 0 && numSignatures <= 19);
     vm.assume(testObservation.timestamp > 0);
@@ -605,10 +323,8 @@ contract TestMessages is Messages, Test {
 
     // Validate hashes and observations
     for (uint8 i = 0; i < numObservations; i++) {
-      // Observations index
-      assertEq(vm2.indexedObservations[i].index, i);
-      // Compare observations by parsing them into VM structs and comparing the values
-      compareVM3s(vm2.indexedObservations[i].vm3, parseVM(abi.encodePacked(uint8(3), observations[i])));
+      // Compare observations
+      assertEq(vm2.observations[i], abi.encodePacked(uint8(3), observations[i]));
       // Hash
       assertEq(vm2.hashes[i], observationHashes[i]);
     }
@@ -622,7 +338,7 @@ contract TestMessages is Messages, Test {
   function testParseHeadlessVM(
     uint32 guardianSetIndex,
     address[] memory guardianKeys,
-    Structs.Observation memory testObservation
+    Observation memory testObservation
   ) public {
     vm.assume(guardianKeys.length <= 19 && guardianKeys.length > 0);
 
