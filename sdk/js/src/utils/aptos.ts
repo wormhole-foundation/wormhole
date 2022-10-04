@@ -19,9 +19,30 @@ export const getAssetFullyQualifiedType = (
   }
 
   // non-native asset, derive unique address
+  const wrappedAssetAddress = getForeignAssetAddress(
+    tokenBridgeAddress,
+    originChain,
+    originAddress
+  );
+  const ensureHexPrefixAddress =
+    wrappedAssetAddress!.substring(0, 2).toLowerCase() !== "0x"
+      ? `0x${wrappedAssetAddress}`
+      : wrappedAssetAddress;
+  return `${ensureHexPrefixAddress}::coin::T`;
+};
+
+export const getForeignAssetAddress = (
+  tokenBridgeAddress: string, // 32 bytes
+  originChain: ChainId,
+  originAddress: string
+): string | null => {
+  if (originChain === CHAIN_ID_APTOS) {
+    return null;
+  }
+
   let chain: Buffer = Buffer.alloc(2);
   chain.writeUInt16BE(originChain);
-  const wrappedAssetAddress = sha3_256(
+  return sha3_256(
     Buffer.concat([
       hex(hexZeroPad(tokenBridgeAddress, 32)),
       chain,
@@ -29,9 +50,4 @@ export const getAssetFullyQualifiedType = (
       hex(hexZeroPad(originAddress, 32)),
     ])
   );
-  const ensureHexPrefixAddress =
-    wrappedAssetAddress.substring(0, 2).toLowerCase() !== "0x"
-      ? `0x${wrappedAssetAddress}`
-      : wrappedAssetAddress;
-  return `${ensureHexPrefixAddress}::coin::T`;
 };
