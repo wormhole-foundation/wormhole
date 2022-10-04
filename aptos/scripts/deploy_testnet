@@ -13,7 +13,7 @@ NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN
 
 # STEP 1) if deployer address is not funded with Aptos tokens,
 #         first fund it using a faucet script or the Aptos CLI
-worm aptos faucet --rpc 'https://fullnode.devnet.aptoslabs.com' --account $DEPLOYER_ADDR --faucet 'https://faucet.devnet.aptoslabs.com'
+worm aptos faucet --rpc 'https://fullnode.testnet.aptoslabs.com/v1' --account $DEPLOYER_ADDR --faucet 'https://faucet.testnet.aptoslabs.com'
 
 #================================================================================================
 
