@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 
@@ -14,10 +15,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-var GOVERNANCE_EMITTER = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 04}
-var GOVERNANCE_CHAIN = 1
-var WH_CHAIN_ID = 3104
-
 func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	// governance message with sha3 of wasmBytes as the payload
 	var hashWasm [32]byte
@@ -25,7 +22,7 @@ func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	keccak.Write(wasmBytes)
 	keccak.Sum(hashWasm[:0])
 
-	gov_msg := types.NewGovernanceMessage(keeper.WasmdModule, byte(keeper.ActionStoreCode), uint16(WH_CHAIN_ID), hashWasm[:])
+	gov_msg := types.NewGovernanceMessage(keeper.WasmdModule, byte(keeper.ActionStoreCode), uint16(vaa.ChainIDWormchain), hashWasm[:])
 	return gov_msg.MarshalBinary()
 }
 
@@ -34,24 +31,19 @@ func createWasmInstantiatePayload(code_id uint64, label string, json_msg string)
 	// - code_id (big endian)
 	// - label
 	// - json_msg
-	hash_base := make([]byte, 8)
-	binary.BigEndian.PutUint64(hash_base, code_id)
-	hash_base = append(hash_base, []byte(label)...)
-	hash_base = append(hash_base, []byte(json_msg)...)
 	var expected_hash [32]byte
 	keccak := sha3.NewLegacyKeccak256()
-	keccak.Write(hash_base)
+	binary.Write(keccak, binary.BigEndian, code_id)
+	keccak.Write([]byte(label))
+	keccak.Write([]byte(json_msg))
 	keccak.Sum(expected_hash[:0])
 
-	payload := []byte{}
-	payload = append(payload, keeper.WasmdModule[:]...)
-	payload = append(payload, byte(keeper.ActionInstantiateContract))
-	chain_bz := [2]byte{}
-	binary.BigEndian.PutUint16(chain_bz[:], uint16(WH_CHAIN_ID))
-	payload = append(payload, chain_bz[:]...)
+	payload := bytes.NewBuffer(keeper.WasmdModule[:])
+	payload.Write([]byte{byte(keeper.ActionInstantiateContract)})
+	binary.Write(payload, binary.BigEndian, uint16(vaa.ChainIDWormchain))
 	// custom payload
-	payload = append(payload, expected_hash[:]...)
-	return payload
+	payload.Write(expected_hash[:])
+	return payload.Bytes()
 }
 
 func TestWasmdStoreCode(t *testing.T) {
@@ -59,9 +51,9 @@ func TestWasmdStoreCode(t *testing.T) {
 	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
 	_ = privateKeys
 	k.SetConfig(ctx, types.Config{
-		GovernanceEmitter:     GOVERNANCE_EMITTER[:],
-		GovernanceChain:       uint32(GOVERNANCE_CHAIN),
-		ChainId:               uint32(WH_CHAIN_ID),
+		GovernanceEmitter:     vaa.GovernanceEmitter[:],
+		GovernanceChain:       uint32(vaa.GovernanceChain),
+		ChainId:               uint32(vaa.ChainIDWormchain),
 		GuardianSetExpiration: 86400,
 	})
 	signer_bz := [20]byte{}
@@ -74,7 +66,7 @@ func TestWasmdStoreCode(t *testing.T) {
 
 	// create governance to store code
 	payload := createWasmStoreCodePayload(keepertest.EXAMPLE_WASM_CONTRACT_GZIP)
-	v := generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, err := v.Marshal()
 	assert.NoError(t, err)
 
@@ -100,7 +92,7 @@ func TestWasmdStoreCode(t *testing.T) {
 	copy(bad_wasm, keepertest.EXAMPLE_WASM_CONTRACT_GZIP)
 	bad_wasm[100] = bad_wasm[100] ^ 0x40
 	// create vaa with the hash of the "valid" wasm
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.StoreCode(context, &types.MsgStoreCode{
 		Signer:       signer.String(),
@@ -113,7 +105,7 @@ func TestWasmdStoreCode(t *testing.T) {
 	payload_wrong_module := createWasmStoreCodePayload(keepertest.EXAMPLE_WASM_CONTRACT_GZIP)
 	// tamper with the module id
 	payload_wrong_module[16] = 0xff
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload_wrong_module)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload_wrong_module)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.StoreCode(context, &types.MsgStoreCode{
 		Signer:       signer.String(),
@@ -128,9 +120,9 @@ func TestWasmdInstantiateContract(t *testing.T) {
 	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
 	_ = privateKeys
 	k.SetConfig(ctx, types.Config{
-		GovernanceEmitter:     GOVERNANCE_EMITTER[:],
-		GovernanceChain:       uint32(GOVERNANCE_CHAIN),
-		ChainId:               uint32(WH_CHAIN_ID),
+		GovernanceEmitter:     vaa.GovernanceEmitter[:],
+		GovernanceChain:       uint32(vaa.GovernanceChain),
+		ChainId:               uint32(vaa.ChainIDWormchain),
 		GuardianSetExpiration: 86400,
 	})
 	signer_bz := [20]byte{}
@@ -143,7 +135,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 
 	// First we need to upload code that we can instantiate.
 	payload := createWasmStoreCodePayload(keepertest.EXAMPLE_WASM_CONTRACT_GZIP)
-	v := generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, err := v.Marshal()
 	assert.NoError(t, err)
 	res, err := msgServer.StoreCode(context, &types.MsgStoreCode{
@@ -157,7 +149,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 
 	// Now that we have a code_id, we can test instantiating it.
 	payload = createWasmInstantiatePayload(code_id, "btc", "{}")
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
 		Signer: signer.String(),
@@ -170,7 +162,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 
 	// Test instantiating with invalid json fails
 	payload = createWasmInstantiatePayload(code_id, "btc", "{")
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
 		Signer: signer.String(),
@@ -183,7 +175,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 
 	// Test that tampering with either code_id, label, or msg fails vaa check
 	payload = createWasmInstantiatePayload(code_id, "btc", "{}")
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
 		Signer: signer.String(),
@@ -195,7 +187,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 	// Bad code_id
 	assert.ErrorIs(t, err, types.ErrInvalidHash)
 
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
 		Signer: signer.String(),
@@ -207,7 +199,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 	// Bad label
 	assert.ErrorIs(t, err, types.ErrInvalidHash)
 
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
 		Signer: signer.String(),
@@ -223,7 +215,7 @@ func TestWasmdInstantiateContract(t *testing.T) {
 	payload_wrong_module := createWasmInstantiatePayload(code_id, "btc", "{}")
 	// tamper with the module id
 	payload_wrong_module[16] = 0xff
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload_wrong_module)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload_wrong_module)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
 		Signer: signer.String(),

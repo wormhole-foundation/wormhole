@@ -26,7 +26,7 @@ func createExecuteGovernanceVaaPayload(k *keeper.Keeper, ctx sdk.Context, num_gu
 	// governance message with sha3 of wasmBytes as the payload
 	module := [32]byte{}
 	copy(module[:], vaa.CoreModule)
-	gov_msg := types.NewGovernanceMessage(module, byte(keeper.ActionGuardianSetUpdate), uint16(WH_CHAIN_ID), set_update)
+	gov_msg := types.NewGovernanceMessage(module, byte(keeper.ActionGuardianSetUpdate), uint16(vaa.ChainIDWormchain), set_update)
 
 	return gov_msg.MarshalBinary(), privateKeys
 }
@@ -36,9 +36,9 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
 	_ = privateKeys
 	k.SetConfig(ctx, types.Config{
-		GovernanceEmitter:     GOVERNANCE_EMITTER[:],
-		GovernanceChain:       uint32(GOVERNANCE_CHAIN),
-		ChainId:               uint32(WH_CHAIN_ID),
+		GovernanceEmitter:     vaa.GovernanceEmitter[:],
+		GovernanceChain:       uint32(vaa.GovernanceChain),
+		ChainId:               uint32(vaa.ChainIDWormchain),
 		GuardianSetExpiration: 86400,
 	})
 	signer_bz := [20]byte{}
@@ -52,7 +52,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 
 	// create governance to update guardian set with extra guardian
 	payload, newPrivateKeys := createExecuteGovernanceVaaPayload(k, ctx, 11)
-	v := generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ := v.Marshal()
 	_, err := msgServer.ExecuteGovernanceVAA(context, &types.MsgExecuteGovernanceVAA{
 		Signer: signer.String(),
@@ -67,7 +67,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 	assert.Len(t, new_set.Keys, 11)
 
 	// Submitting another change with the old set doesn't work
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.ExecuteGovernanceVAA(context, &types.MsgExecuteGovernanceVAA{
 		Signer: signer.String(),
@@ -76,7 +76,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 	assert.ErrorIs(t, err, types.ErrGuardianSetNotSequential)
 
 	// Invalid length
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload[:len(payload)-1])
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload[:len(payload)-1])
 	vBz, _ = v.Marshal()
 	_, err = msgServer.ExecuteGovernanceVAA(context, &types.MsgExecuteGovernanceVAA{
 		Signer: signer.String(),
@@ -87,7 +87,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 	// Include a guardian address twice in an update
 	payload_bad, _ := createExecuteGovernanceVaaPayload(k, ctx, 11)
 	copy(payload_bad[len(payload_bad)-20:], payload_bad[len(payload_bad)-40:len(payload_bad)-20])
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload_bad)
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload_bad)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.ExecuteGovernanceVAA(context, &types.MsgExecuteGovernanceVAA{
 		Signer: signer.String(),
@@ -97,7 +97,7 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 
 	// Change set again with new set update
 	payload, _ = createExecuteGovernanceVaaPayload(k, ctx, 12)
-	v = generateVaa(new_set.Index, newPrivateKeys, vaa.ChainID(GOVERNANCE_CHAIN), payload)
+	v = generateVaa(new_set.Index, newPrivateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
 	_, err = msgServer.ExecuteGovernanceVAA(context, &types.MsgExecuteGovernanceVAA{
 		Signer: signer.String(),

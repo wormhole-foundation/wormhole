@@ -94,14 +94,12 @@ func (k msgServer) InstantiateContract(goCtx context.Context, msg *types.MsgInst
 
 	// Need to verify the msg contents by checking sha3.Sum(BigEndian(CodeID) || Label || Msg)
 	// The vaa governance payload must contain this hash.
-	hash_base := make([]byte, 8)
-	binary.BigEndian.PutUint64(hash_base, msg.CodeID)
-	hash_base = append(hash_base, []byte(msg.Label)...)
-	hash_base = append(hash_base, msg.Msg...)
 
 	var expected_hash [32]byte
 	keccak := sha3.NewLegacyKeccak256()
-	keccak.Write(hash_base)
+	binary.Write(keccak, binary.BigEndian, msg.CodeID)
+	keccak.Write([]byte(msg.Label))
+	keccak.Write([]byte(msg.Msg))
 	keccak.Sum(expected_hash[:0])
 
 	if !bytes.Equal(payload, expected_hash[:]) {

@@ -56,7 +56,6 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 	encodingConfig := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 	appCodec := encodingConfig.Marshaler
 	amino := encodingConfig.Amino
-	// txDecoder := encodingConfig.TxConfig.TxDecoder()
 
 	paramsKeeper := paramskeeper.NewKeeper(appCodec, amino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 	paramsKeeper.Subspace(types.ModuleName)
@@ -72,7 +71,6 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 	subspaceWasmd, _ := paramsKeeper.GetSubspace(wasmtypes.ModuleName)
 
 	bApp := baseapp.NewBaseApp("wormchain", log.NewNopLogger(), db, encodingConfig.TxConfig.TxDecoder())
-	// bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(encodingConfig.InterfaceRegistry)
 
@@ -114,7 +112,6 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		appapp.GRPCQueryRouter(),
 		wasmDir,
 		wasm.DefaultWasmConfig(),
-		// wasmConfig.ToWasmConfig(),
 		supportedFeatures,
 	)
 	ctx := sdk.NewContext(stateStore, tmproto.Header{

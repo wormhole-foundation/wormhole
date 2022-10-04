@@ -132,13 +132,11 @@ func CmdInstantiateContract() *cobra.Command {
 				}
 				return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
 			} else {
-				hash_base := make([]byte, 8)
-				binary.BigEndian.PutUint64(hash_base, msg.CodeID)
-				hash_base = append(hash_base, []byte(msg.Label)...)
-				hash_base = append(hash_base, []byte(msg.Msg)...)
 				var hash [32]byte
 				keccak := sha3.NewLegacyKeccak256()
-				keccak.Write(hash_base)
+				binary.Write(keccak, binary.BigEndian, msg.CodeID)
+				keccak.Write([]byte(msg.Label))
+				keccak.Write([]byte(msg.Msg))
 				keccak.Sum(hash[:0])
 				fmt.Println(hex.EncodeToString(hash[:]))
 				return nil

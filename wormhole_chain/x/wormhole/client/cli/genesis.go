@@ -40,7 +40,7 @@ const FLAG_CHAIN = "chain"
 const FLAG_PUBLIC_KEY = "public-key"
 const FLAG_NEXT_INDEX = "next-index"
 
-// GetTxCmd returns the transaction commands for this module
+// GetGenesisCmd returns the genesis related commands for this module
 func GetGenesisCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        "genesis",
@@ -101,13 +101,13 @@ func CmdDecodeAddress() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			addrString := args[0]
-			if strings.Contains(addrString, sdk.GetConfig().GetBech32AccountAddrPrefix()) {
+			if strings.HasPrefix(addrString, sdk.GetConfig().GetBech32AccountAddrPrefix()) {
 				addr, err := sdk.AccAddressFromBech32(addrString)
 				if err != nil {
 					return nil
 				}
 				fmt.Println(base64.StdEncoding.EncodeToString(addr))
-			} else if strings.Contains(addrString, sdk.GetConfig().GetBech32ValidatorAddrPrefix()) {
+			} else if strings.HasPrefix(addrString, sdk.GetConfig().GetBech32ValidatorAddrPrefix()) {
 				addr, err := sdk.AccAddressFromBech32(addrString)
 				if err != nil {
 					return nil
@@ -115,8 +115,7 @@ func CmdDecodeAddress() *cobra.Command {
 				fmt.Println(base64.StdEncoding.EncodeToString(addr))
 			} else {
 				// treat as hex
-				addrString = strings.Replace(addrString, "0x", "", 1)
-				addr, err := hex.DecodeString(addrString)
+				addr, err := hex.DecodeString(strings.TrimPrefix(addrString, "0x"))
 				if err != nil {
 					return err
 				}
@@ -250,8 +249,6 @@ func CmdGenerateVaa() *cobra.Command {
 			}
 			for i, key := range privateKeys {
 				v.AddSignature(key, uint8(i))
-				// address := crypto.PubkeyToAddress(privateKeys[0].PublicKey)
-				// fmt.Println("signed using ", hex.EncodeToString(address[:]))
 			}
 
 			v_bz, err := v.Marshal()
