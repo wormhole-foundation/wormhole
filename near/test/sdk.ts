@@ -327,13 +327,13 @@ async function testNearSDK() {
 
   console.log("for norium, createWrappedOnNear returned");
 
-  let account_hash = await userAccount.viewFunction(
-    token_bridge,
-    "hash_account",
-    {
+  let account_hash = await userAccount.viewFunction({
+    contractId: token_bridge,
+    methodName: "hash_account",
+    args: {
       account: userAccount.accountId,
-    }
-  );
+    },
+  });
 
   console.log(account_hash);
 
@@ -705,14 +705,22 @@ async function testNearSDK() {
   }
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: userAccount.accountId,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: userAccount.accountId,
+      },
     })
   );
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: token_bridge,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: token_bridge,
+      },
     })
   );
 
@@ -757,14 +765,22 @@ async function testNearSDK() {
   }
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: userAccount.accountId,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: userAccount.accountId,
+      },
     })
   );
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: token_bridge,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: token_bridge,
+      },
     })
   );
 
@@ -986,14 +1002,22 @@ async function testNearSDK() {
   );
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: userAccount.accountId,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: userAccount.accountId,
+      },
     })
   );
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: token_bridge,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: token_bridge,
+      },
     })
   );
 
@@ -1008,14 +1032,22 @@ async function testNearSDK() {
   }
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: userAccount.accountId,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: userAccount.accountId,
+      },
     })
   );
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: token_bridge,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: token_bridge,
+      },
     })
   );
 
@@ -1134,14 +1166,22 @@ async function testNearSDK() {
   }
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: userAccount.accountId,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: userAccount.accountId,
+      },
     })
   );
 
   console.log(
-    await userAccount.viewFunction(randoToken, "ft_balance_of", {
-      account_id: token_bridge,
+    await userAccount.viewFunction({
+      contractId: randoToken,
+      methodName: "ft_balance_of",
+      args: {
+        account_id: token_bridge,
+      },
     })
   );
 

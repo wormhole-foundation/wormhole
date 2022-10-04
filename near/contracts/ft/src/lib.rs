@@ -106,6 +106,76 @@ impl FTContract {
     }
 
     #[payable]
+    pub fn wh_burn(&mut self, from: AccountId, amount: u128) {
+        assert_one_yocto();
+
+        if env::predecessor_account_id() != self.controller {
+            env::panic_str("CrossContractInvalidCaller");
+        }
+
+        self.token.internal_withdraw(&from, amount);
+
+        near_contract_standards::fungible_token::events::FtBurn {
+            owner_id: &from,
+            amount:   &U128::from(amount),
+            memo:     Some("Wormhole burn"),
+        }
+        .emit();
+    }
+
+    #[payable]
+    pub fn wh_mint(
+        &mut self,
+        account_id: AccountId,
+        refund_to: AccountId,
+        amount: u128,
+    ) -> Promise {
+        if env::predecessor_account_id() != self.controller {
+            env::panic_str("CrossContractInvalidCaller");
+        }
+
+        let mut deposit: Balance = env::attached_deposit();
+
+        if deposit == 0 {
+            env::panic_str("ZeroDepositNotAllowed");
+        }
+
+        if !self.token.accounts.contains_key(&account_id) {
+            let min_balance = self.storage_balance_bounds().min.0;
+            if deposit < min_balance {
+                env::panic_str("The attached deposit is less than the minimum storage balance");
+            }
+
+            self.token.internal_register_account(&account_id);
+
+            deposit -= min_balance;
+        }
+
+        self.token.internal_deposit(&account_id, amount);
+
+        near_contract_standards::fungible_token::events::FtMint {
+            owner_id: &account_id,
+            amount:   &U128::from(amount),
+            memo:     Some("wormhole minted tokens"),
+        }
+        .emit();
+
+        Promise::new(refund_to).transfer(deposit)
+    }
+
+    #[payable]
+    pub fn wh_update(&mut self, v: Vec<u8>) -> Promise {
+        assert_one_yocto();
+
+        if env::predecessor_account_id() != self.controller {
+            env::panic_str("CrossContractInvalidCaller");
+        }
+
+        Promise::new(env::current_account_id())
+            .deploy_contract(v.to_vec())
+    }
+
+    #[payable]
     pub fn vaa_withdraw(
         &mut self,
         from: AccountId,
@@ -161,7 +231,9 @@ impl FTContract {
                 env::panic_str("Payload3 does not support fees");
             }
 
-            p = [p, hex::decode(&payload).unwrap()].concat();
+            let account_hash = env::sha256(from.as_bytes());
+
+            p = [p, account_hash, hex::decode(&payload).unwrap()].concat();
             if p.len() != (133 + (payload.len() / 2)) {
                 env::panic_str(&format!("payload3 formatting error  len = {}", p.len()));
             }
