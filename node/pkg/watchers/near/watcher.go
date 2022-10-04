@@ -262,7 +262,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
-	e.nearAPI = nearapi.NewNearAPI(e.nearRPC)
+	e.nearAPI = nearapi.NewRealNearAPI(e.nearRPC)
 	e.finalizer = newFinalizer(e.eventChan, e.nearAPI, e.mainnet)
 
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
