@@ -15,7 +15,7 @@ module wormhole::state {
 
     friend wormhole::guardian_set_upgrade;
     //friend wormhole::contract_upgrade;
-    //friend wormhole::wormhole;
+    friend wormhole::wormhole;
     friend wormhole::myvaa;
 
     struct WormholeMessage has store, copy, drop {
@@ -55,8 +55,8 @@ module wormhole::state {
         message_fee: u64,
     }
 
-    public entry fun init_state(ctx: &mut TxContext){
-        transfer::share_object(State {
+    fun init(ctx: &mut TxContext){
+        transfer::transfer(State {
             id: object::new(ctx),
             chain_id: u16::from_u64(1234),
             governance_chain_id: u16::from_u64(1234),
@@ -66,11 +66,10 @@ module wormhole::state {
             guardian_set_expiry: u32::from_u64(0),
             consumed_governance_actions: vec_set::empty<vector<u8>>(),
             message_fee: 0,
-        });
+        }, tx_context::sender(ctx));
     }
 
     public(friend) entry fun publish_event(
-        //sender: u128,
         sequence: u64,
         nonce: u64,
         payload: vector<u8>,
@@ -93,15 +92,15 @@ module wormhole::state {
 
     // setters
 
-    public fun set_chain_id(state: &mut State, id: u64){
+    public(friend) fun set_chain_id(state: &mut State, id: u64){
         state.chain_id = u16::from_u64(id);
     }
 
-    public fun set_governance_chain_id(state: &mut State, id: u64){
+    public(friend) fun set_governance_chain_id(state: &mut State, id: u64){
         state.governance_chain_id = u16::from_u64(id);
     }
 
-    public fun set_governance_action_consumed(state: &mut State, hash: vector<u8>){
+    public(friend) fun set_governance_action_consumed(state: &mut State, hash: vector<u8>){
         vec_set::insert<vector<u8>>(&mut state.consumed_governance_actions, hash);
     }
 
