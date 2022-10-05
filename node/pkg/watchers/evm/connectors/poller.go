@@ -74,6 +74,10 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 }
 
 func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger, lastBlock *NewBlock) (lastPublishedBlock *NewBlock, retErr error) {
+	// Some of the testnet providers (like the one we are using for Arbitrum) limit how many transactions we can do. When that happens, the call hangs.
+	// Use a timeout so that the call will fail and the runable will get restarted. This should not happen in mainnet, but if it does, we will need to
+	// investigate why the runable is dying and fix the underlying problem.
+
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
