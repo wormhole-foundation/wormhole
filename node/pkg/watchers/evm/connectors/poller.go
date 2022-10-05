@@ -64,7 +64,14 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 			timer.Stop()
 			return ctx.Err()
 		case <-timer.C:
-			lastBlock, err = b.pollBlocks(ctx, logger, lastBlock)
+			for count := 0; count < 3; count++ {
+				lastBlock, err = b.pollBlocks(ctx, logger, lastBlock)
+				if err == nil {
+					break
+				}
+				logger.Error("polling encountered an error", zap.Error(err))
+			}
+
 			if err != nil {
 				b.errFeed.Send("polling encountered an error")
 			}
