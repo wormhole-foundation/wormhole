@@ -121,6 +121,10 @@ var (
 	injectiveLCD      *string
 	injectiveContract *string
 
+	xplaWS       *string
+	xplaLCD      *string
+	xplaContract *string
+
 	algorandIndexerRPC   *string
 	algorandIndexerToken *string
 	algorandAlgodRPC     *string
@@ -241,6 +245,10 @@ func init() {
 	injectiveWS = NodeCmd.Flags().String("injectiveWS", "", "Path to root for Injective websocket connection")
 	injectiveLCD = NodeCmd.Flags().String("injectiveLCD", "", "Path to LCD service root for Injective http calls")
 	injectiveContract = NodeCmd.Flags().String("injectiveContract", "", "Wormhole contract address on Injective blockchain")
+
+	xplaWS = NodeCmd.Flags().String("xplaWS", "", "Path to root for XPLA websocket connection")
+	xplaLCD = NodeCmd.Flags().String("xplaLCD", "", "Path to LCD service root for XPLA http calls")
+	xplaContract = NodeCmd.Flags().String("xplaContract", "", "Wormhole contract address on XPLA blockchain")
 
 	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL")
 	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
@@ -420,6 +428,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessNeonSyncing)
 		readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
 		readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
+		readiness.RegisterComponent(common.ReadinessXplaSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -601,6 +610,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *arbitrumContract == "" {
 			logger.Fatal("Please specify --arbitrumContract")
 		}
+		if *xplaWS == "" {
+			logger.Fatal("Please specify --xplaWS")
+		}
+		if *xplaLCD == "" {
+			logger.Fatal("Please specify --xplaLCD")
+		}
+		if *xplaContract == "" {
+			logger.Fatal("Please specify --xplaContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -622,6 +640,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --injectiveContract")
+		}
+		if *xplaWS != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --xplaWS")
+		}
+		if *xplaLCD != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --xplaLCD")
+		}
+		if *xplaContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --xplaContract")
 		}
 		if *arbitrumRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --arbitrumRPC")
@@ -848,6 +875,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+		chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	}
 	go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
@@ -1051,6 +1079,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Info("Starting Injective watcher")
 			if err := supervisor.Run(ctx, "injectivewatch",
 				cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, lockC, chainObsvReqC[vaa.ChainIDInjective], common.ReadinessInjectiveSyncing, vaa.ChainIDInjective).Run); err != nil {
+				return err
+			}
+		}
+		if *testnetMode {
+			logger.Info("Starting XPLA watcher")
+			if err := supervisor.Run(ctx, "xplawatch",
+				cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, lockC, chainObsvReqC[vaa.ChainIDXpla], common.ReadinessXplaSyncing, vaa.ChainIDXpla).Run); err != nil {
 				return err
 			}
 		}

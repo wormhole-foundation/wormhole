@@ -23,6 +23,7 @@ const (
 	ReadinessNeonSyncing       readiness.Component = "neonSyncing"
 	ReadinessTerra2Syncing     readiness.Component = "terra2Syncing"
 	ReadinessInjectiveSyncing  readiness.Component = "injectiveSyncing"
+	ReadinessXplaSyncing       readiness.Component = "xplaSyncing"
 	ReadinessPythNetSyncing    readiness.Component = "pythnetSyncing"
 	ReadinessArbitrumSyncing   readiness.Component = "arbitrumSyncing"
 	ReadinessWormchainSyncing  readiness.Component = "wormchainSyncing"

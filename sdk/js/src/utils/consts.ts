@@ -26,6 +26,7 @@ export const CHAINS = {
   optimism: 24,
   gnosis: 25,
   pythnet: 26,
+  xpla: 28,
   ropsten: 10001,
   wormholechain: 3104,
 } as const;
@@ -61,7 +62,7 @@ export type EVMChainName =
  */
 export type SolanaChainName = "solana" | "pythnet";
 
-export type CosmWasmChainName = "terra" | "terra2" | "injective";
+export type CosmWasmChainName = "terra" | "terra2" | "injective" | "xpla";
 export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
@@ -208,6 +209,11 @@ const MAINNET = {
   },
   pythnet: {
     core: "H3fxXJ86ADW2PNuDDmZJg6mzTtPxkYCpNuQUTgmJ7AjU",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  xpla: {
+    core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -360,6 +366,12 @@ const TESTNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  xpla: {
+    core: "xpla1upkjn4mthr0047kahvn0llqx4qpqfn75lnph4jpxfn8walmm8mqsanyy35",
+    token_bridge:
+      "xpla1alpgm9geq76dzhk5xvt6qqc2lza0vtzzpskgys5rkmjzph8cs69sl09fq9",
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: "0x210c5F5e2AF958B4defFe715Dc621b7a3BA888c5",
     token_bridge: "0xF174F9A837536C449321df1Ca093Bb96948D5386",
@@ -509,6 +521,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  xpla: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -586,6 +603,7 @@ export const CHAIN_ID_ARBITRUM = CHAINS["arbitrum"];
 export const CHAIN_ID_OPTIMISM = CHAINS["optimism"];
 export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
 export const CHAIN_ID_PYTHNET = CHAINS["pythnet"];
+export const CHAIN_ID_XPLA = CHAINS["xpla"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 export const CHAIN_ID_WORMHOLE_CHAIN = CHAINS["wormholechain"];
 
@@ -733,7 +751,8 @@ export function isCosmWasmChain(
   return (
     chainId === CHAIN_ID_TERRA ||
     chainId === CHAIN_ID_TERRA2 ||
-    chainId === CHAIN_ID_INJECTIVE
+    chainId === CHAIN_ID_INJECTIVE ||
+    chainId === CHAIN_ID_XPLA
   );
 }
 

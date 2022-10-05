@@ -28,6 +28,7 @@ import {
   isEVMChain,
   isTerraChain,
   CHAIN_ID_PYTHNET,
+  CHAIN_ID_XPLA,
 } from "./consts";
 import { hashLookup } from "./near";
 
@@ -99,6 +100,8 @@ export const tryUint8ArrayToNative = (
     return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Use tryHexToNativeStringNear instead.");
+  } else if (chainId === CHAIN_ID_XPLA) {
+    throw Error("uint8ArrayToNative: XPLA not supported yet.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("uint8ArrayToNative: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
@@ -231,6 +234,8 @@ export const tryNativeToHexString = (
     return uint8ArrayToHex(arrayify(sha256(Buffer.from(address))));
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("hexToNativeString: Osmosis not supported yet.");
+  } else if (chainId === CHAIN_ID_XPLA) {
+    throw Error("hexToNativeString: XPLA not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("hexToNativeString: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
