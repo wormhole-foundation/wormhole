@@ -69,6 +69,11 @@ module wormhole::state {
         }, tx_context::sender(ctx));
     }
 
+    #[test_only]
+    public fun test_init(ctx: &mut TxContext) {
+        init(ctx)
+    }
+
     public(friend) entry fun publish_event(
         sequence: u64,
         nonce: u64,
@@ -93,6 +98,11 @@ module wormhole::state {
     // setters
 
     public(friend) fun set_chain_id(state: &mut State, id: u64){
+        state.chain_id = u16::from_u64(id);
+    }
+
+    #[test_only]
+    public fun test_set_chain_id(state: &mut State, id: u64) {
         state.chain_id = u16::from_u64(id);
     }
 
@@ -152,4 +162,35 @@ module wormhole::state {
         return state.message_fee
     }
 
+}
+
+#[test_only]
+module wormhole::test_state{
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned};
+
+    use wormhole::state::{test_init, State, test_set_chain_id, get_chain_id};
+    use wormhole::myu16::{Self as u16};
+
+    fun scenario(): Scenario { test_scenario::begin(&@0x123233) }
+    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+    #[test]
+    fun test_one() {
+        test_one_(&mut scenario())
+    }
+
+    fun test_one_(test: &mut Scenario) {
+        let (admin, _, _) = people();
+        next_tx(test, &admin); {
+            test_init(ctx(test));
+        };
+
+        // test State setter and getter functions
+        next_tx(test, &admin); {
+            let state = take_owned<State>(test);
+            test_set_chain_id(&mut state, 5);
+            assert!(get_chain_id(&state) == u16::from_u64(5), 0);
+            return_owned(test, state);
+        };
+    }
 }
