@@ -222,7 +222,7 @@ jobs:
         with:
           go-version: '1.19.0'
       - run: curl https://get.ignite.com/cli@v0.23.0 | bash && mv ignite /usr/local/bin/
-      - run: cd wormhole_chain && make test
+      - run: cd wormhole_chain && make proto && make test
 
   # Run Go linters, Go tests and other outside-of-Tilt things.
   lint-and-tests:
