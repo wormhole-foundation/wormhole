@@ -1,0 +1,22 @@
+2022-10-05T13:06:28.721919Z  INFO sui_storage::lock_service: LockService command processing loop started
+2022-10-05T13:06:28.721928Z  INFO sui_storage::lock_service: LockService queries processing loop started
+2022-10-05T13:06:28.774281Z  INFO sui_storage::lock_service: LockService queries loop stopped, the sender on other end hung up/dropped
+2022-10-05T13:06:28.774287Z  INFO sui_storage::lock_service: LockService command loop stopped, the sender on other end hung up/dropped
+2022-10-05T13:06:36.562460Z  INFO sui_storage::lock_service: LockService command processing loop started
+2022-10-05T13:06:36.562474Z  INFO sui_storage::lock_service: LockService queries processing loop started
+2022-10-05T13:06:38.379333Z  INFO sui::client_commands:                  Object ID                  |  Gas Value 
+2022-10-05T13:06:38.379374Z  INFO sui::client_commands: ----------------------------------------------------------------------
+2022-10-05T13:06:38.379383Z  INFO sui::client_commands:  0x04114ec92f303342610ffa6aceccaf6526fb04f1 | 99999999980178
+2022-10-05T13:06:38.379396Z  INFO sui::client_commands:  0x2804a5ad86c6707dcd27900bdd58368dd2c84f56 | 100000000000000
+2022-10-05T13:06:38.379408Z  INFO sui::client_commands:  0x52af52e1be2f3515c2ec03876185431ac9110858 | 100000000000000
+2022-10-05T13:06:38.379425Z  INFO sui::client_commands:  0x7c7934ff635d7fd35b5b43bbc5292f0cdf76c817 | 100000000000000
+2022-10-05T13:06:38.380746Z  INFO sui_storage::lock_service: LockService command loop stopped, the sender on other end hung up/dropped
+2022-10-05T13:06:38.380750Z  INFO sui_storage::lock_service: LockService queries loop stopped, the sender on other end hung up/dropped
+2022-10-05T13:27:58.802205Z ERROR typed_store::rocks: error=rocksdb error: IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable
+2022-10-05T13:27:58.802301Z ERROR telemetry_subscribers: panicked at 'Cannot open DB.: RocksDBError("IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable")', crates/sui-core/src/authority/authority_store_tables.rs:17:10 panic.file="crates/sui-core/src/authority/authority_store_tables.rs" panic.line=17 panic.column=10
+2022-10-05T13:28:00.699674Z ERROR typed_store::rocks: error=rocksdb error: IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable
+2022-10-05T13:28:00.699766Z ERROR telemetry_subscribers: panicked at 'Cannot open DB.: RocksDBError("IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable")', crates/sui-core/src/authority/authority_store_tables.rs:17:10 panic.file="crates/sui-core/src/authority/authority_store_tables.rs" panic.line=17 panic.column=10
+2022-10-05T13:28:08.394528Z ERROR typed_store::rocks: error=rocksdb error: IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable
+2022-10-05T13:28:08.394629Z ERROR telemetry_subscribers: panicked at 'Cannot open DB.: RocksDBError("IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable")', crates/sui-core/src/authority/authority_store_tables.rs:17:10 panic.file="crates/sui-core/src/authority/authority_store_tables.rs" panic.line=17 panic.column=10
+2022-10-05T13:28:18.528184Z ERROR typed_store::rocks: error=rocksdb error: IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable
+2022-10-05T13:28:18.528278Z ERROR telemetry_subscribers: panicked at 'Cannot open DB.: RocksDBError("IO error: While lock file: /home/lhuang/.sui/sui_config/client_db/store/LOCK: Resource temporarily unavailable")', crates/sui-core/src/authority/authority_store_tables.rs:17:10 panic.file="crates/sui-core/src/authority/authority_store_tables.rs" panic.line=17 panic.column=10
