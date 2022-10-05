@@ -96,78 +96,47 @@ module wormhole::guardian_set_upgrade {
     }
 }
 
-// #[test_only]
-// module wormhole::guardian_set_upgrade_test {
-//     use wormhole::guardian_set_upgrade;
-//     use wormhole::wormhole;
-//     use wormhole::state;
-//     use 0x1::vector;
-//     use wormhole::structs::{create_guardian};
-//     use wormhole::myu32::{Self as u32};
+#[test_only]
+module wormhole::guardian_set_upgrade_test {
+    use wormhole::guardian_set_upgrade;
+    //use wormhole::wormhole;
+    //use wormhole::state;
+    use 0x1::vector;
+    use wormhole::structs::{create_guardian};
+    //use wormhole::myu32::{Self as u32};
 
-//     #[test]
-//     public fun test_parse_guardian_set_upgrade() {
-//         use wormhole::myu32::{Self as u32};
+    #[test]
+    public fun test_parse_guardian_set_upgrade() {
+        use wormhole::myu32::{Self as u32};
 
-//         let b = x"00000000000000000000000000000000000000000000000000000000436f7265020000000000011358cc3ae5c097b213ce3c81979e1b9f9570746aa5ff6cb952589bde862c25ef4392132fb9d4a42157114de8460193bdf3a2fcf81f86a09765f4762fd1107a0086b32d7a0977926a205131d8731d39cbeb8c82b2fd82faed2711d59af0f2499d16e726f6b211b39756c042441be6d8650b69b54ebe715e234354ce5b4d348fb74b958e8966e2ec3dbd4958a7cdeb5f7389fa26941519f0863349c223b73a6ddee774a3bf913953d695260d88bc1aa25a4eee363ef0000ac0076727b35fbea2dac28fee5ccb0fea768eaf45ced136b9d9e24903464ae889f5c8a723fc14f93124b7c738843cbb89e864c862c38cddcccf95d2cc37a4dc036a8d232b48f62cdd4731412f4890da798f6896a3331f64b48c12d1d57fd9cbe7081171aa1be1d36cafe3867910f99c09e347899c19c38192b6e7387ccd768277c17dab1b7a5027c0b3cf178e21ad2e77ae06711549cfbb1f9c7a9d8096e85e1487f35515d02a92753504a8d75471b9f49edb6fbebc898f403e4773e95feb15e80c9a99c8348d";
-//         let (new_index, guardians) = guardian_set_upgrade::split(guardian_set_upgrade::parse_payload(b));
-//         assert!(new_index == u32::from_u64(1), 0);
-//         assert!(vector::length(&guardians) == 19, 0);
-//         let expected = vector[
-//             create_guardian(x"58cc3ae5c097b213ce3c81979e1b9f9570746aa5"),
-//             create_guardian(x"ff6cb952589bde862c25ef4392132fb9d4a42157"),
-//             create_guardian(x"114de8460193bdf3a2fcf81f86a09765f4762fd1"),
-//             create_guardian(x"107a0086b32d7a0977926a205131d8731d39cbeb"),
-//             create_guardian(x"8c82b2fd82faed2711d59af0f2499d16e726f6b2"),
-//             create_guardian(x"11b39756c042441be6d8650b69b54ebe715e2343"),
-//             create_guardian(x"54ce5b4d348fb74b958e8966e2ec3dbd4958a7cd"),
-//             create_guardian(x"eb5f7389fa26941519f0863349c223b73a6ddee7"),
-//             create_guardian(x"74a3bf913953d695260d88bc1aa25a4eee363ef0"),
-//             create_guardian(x"000ac0076727b35fbea2dac28fee5ccb0fea768e"),
-//             create_guardian(x"af45ced136b9d9e24903464ae889f5c8a723fc14"),
-//             create_guardian(x"f93124b7c738843cbb89e864c862c38cddcccf95"),
-//             create_guardian(x"d2cc37a4dc036a8d232b48f62cdd4731412f4890"),
-//             create_guardian(x"da798f6896a3331f64b48c12d1d57fd9cbe70811"),
-//             create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3"),
-//             create_guardian(x"8192b6e7387ccd768277c17dab1b7a5027c0b3cf"),
-//             create_guardian(x"178e21ad2e77ae06711549cfbb1f9c7a9d8096e8"),
-//             create_guardian(x"5e1487f35515d02a92753504a8d75471b9f49edb"),
-//             create_guardian(x"6fbebc898f403e4773e95feb15e80c9a99c8348d"),
-//         ];
-//         assert!(expected == guardians, 0);
-//     }
+        let b = x"00000000000000000000000000000000000000000000000000000000436f7265020000000000011358cc3ae5c097b213ce3c81979e1b9f9570746aa5ff6cb952589bde862c25ef4392132fb9d4a42157114de8460193bdf3a2fcf81f86a09765f4762fd1107a0086b32d7a0977926a205131d8731d39cbeb8c82b2fd82faed2711d59af0f2499d16e726f6b211b39756c042441be6d8650b69b54ebe715e234354ce5b4d348fb74b958e8966e2ec3dbd4958a7cdeb5f7389fa26941519f0863349c223b73a6ddee774a3bf913953d695260d88bc1aa25a4eee363ef0000ac0076727b35fbea2dac28fee5ccb0fea768eaf45ced136b9d9e24903464ae889f5c8a723fc14f93124b7c738843cbb89e864c862c38cddcccf95d2cc37a4dc036a8d232b48f62cdd4731412f4890da798f6896a3331f64b48c12d1d57fd9cbe7081171aa1be1d36cafe3867910f99c09e347899c19c38192b6e7387ccd768277c17dab1b7a5027c0b3cf178e21ad2e77ae06711549cfbb1f9c7a9d8096e85e1487f35515d02a92753504a8d75471b9f49edb6fbebc898f403e4773e95feb15e80c9a99c8348d";
+        let (new_index, guardians) = guardian_set_upgrade::split(guardian_set_upgrade::parse_payload(b));
+        assert!(new_index == u32::from_u64(1), 0);
+        assert!(vector::length(&guardians) == 19, 0);
+        let expected = vector[
+            create_guardian(x"58cc3ae5c097b213ce3c81979e1b9f9570746aa5"),
+            create_guardian(x"ff6cb952589bde862c25ef4392132fb9d4a42157"),
+            create_guardian(x"114de8460193bdf3a2fcf81f86a09765f4762fd1"),
+            create_guardian(x"107a0086b32d7a0977926a205131d8731d39cbeb"),
+            create_guardian(x"8c82b2fd82faed2711d59af0f2499d16e726f6b2"),
+            create_guardian(x"11b39756c042441be6d8650b69b54ebe715e2343"),
+            create_guardian(x"54ce5b4d348fb74b958e8966e2ec3dbd4958a7cd"),
+            create_guardian(x"eb5f7389fa26941519f0863349c223b73a6ddee7"),
+            create_guardian(x"74a3bf913953d695260d88bc1aa25a4eee363ef0"),
+            create_guardian(x"000ac0076727b35fbea2dac28fee5ccb0fea768e"),
+            create_guardian(x"af45ced136b9d9e24903464ae889f5c8a723fc14"),
+            create_guardian(x"f93124b7c738843cbb89e864c862c38cddcccf95"),
+            create_guardian(x"d2cc37a4dc036a8d232b48f62cdd4731412f4890"),
+            create_guardian(x"da798f6896a3331f64b48c12d1d57fd9cbe70811"),
+            create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3"),
+            create_guardian(x"8192b6e7387ccd768277c17dab1b7a5027c0b3cf"),
+            create_guardian(x"178e21ad2e77ae06711549cfbb1f9c7a9d8096e8"),
+            create_guardian(x"5e1487f35515d02a92753504a8d75471b9f49edb"),
+            create_guardian(x"6fbebc898f403e4773e95feb15e80c9a99c8348d"),
+        ];
+        assert!(expected == guardians, 0);
+    }
 
-//     #[test]
-//     public fun test_guardian_set_expiry() {
-//         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
-//         std::timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         let _wormhole = wormhole::init_test(
-//             22,
-//             1,
-//             x"0000000000000000000000000000000000000000000000000000000000000004",
-//             x"f93124b7c738843cbb89e864c862c38cddcccf95",
-//             0
-//         );
-//         let first_index = state::get_current_guardian_set_index();
-//         let guardian_set = state::get_guardian_set(first_index);
-//         // make sure guardian set is active
-//         assert!(state::guardian_set_is_active(&guardian_set), 0);
+    // TODO: test guardian set expiry
 
-//         // do an upgrade
-//         guardian_set_upgrade::do_upgrade_test(
-//             u32::from_u64(1),
-//             vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")]);
-
-//         // make sure old guardian set is still active
-//         let guardian_set = state::get_guardian_set(first_index);
-//         assert!(state::guardian_set_is_active(&guardian_set), 0);
-
-//         // TODO - fast forward test, this feature is not yet available in Sui Move
-//         // fast forward time beyond expiration
-//         //std::timestamp::fast_forward_seconds(90000);
-
-//         // make sure old guardian set is no longer active
-//         //assert!(!state::guardian_set_is_active(&guardian_set), 0);
-//     }
-
-// }
+}

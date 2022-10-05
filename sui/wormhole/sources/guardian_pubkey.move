@@ -66,7 +66,7 @@ module wormhole::guardian_pubkey_test {
         assert!(address == expected_address, 0);
     }
 
-    // TODO - make this test pass...
+    // TODO - ereceover doesn't seem to work...
     // #[test]
     // public fun from_signature() {
     //     let sig = x"38535089d6eec412a00066f84084212316ee3451145a75591dbd4a1c2a2bff442223f81e58821bfa4e8ffb80a881daf7a37500b04dfa5719fff25ed4cec8dda3";
