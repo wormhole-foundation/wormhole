@@ -8,7 +8,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -191,6 +190,8 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					aggregationStateTimeout.Inc()
 					break
 				}
+
+				/* // TODO: Auto-reobservation requests temporarily disabled.
 				p.logger.Info("resubmitting observation",
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
@@ -202,6 +203,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
 				}
+				*/
 				p.sendC <- s.ourMsg
 				s.retryCount += 1
 				s.lastRetry = time.Now()
