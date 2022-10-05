@@ -81,14 +81,17 @@ export async function relaySolana(
       provider
     );
   } else {
-    ctx = await mainnetSolanaContext(
-      walletPrivateKey,
-      emitterChainConfigInfo,
+    const evmPrivateKey = xApp._undef(
+      emitterChainConfigInfo.walletPrivateKey
+    )[0];
+    ctx = xApp.getAvaxMainnetCtx(
       emitterChainConfigInfo.xRaydiumAddress,
+      evmPrivateKey,
+      walletPrivateKey,
       chainConfigInfo.xRaydiumAddress
     );
   }
-  console.log(ctx.sol.payer.publicKey.toBase58())
+  console.log(ctx.sol.payer.publicKey.toBase58());
 
   const header = await xApp.parseHeaderFromPayload3(transfer.payload3, true);
   const escrowState = await xApp.tryFetchEscrowState(
@@ -123,52 +126,6 @@ export async function relaySolana(
   return { redeemed: true, result: "redeemed" };
 }
 
-async function mainnetSolanaContext(
-  solanaWalletPrivateKey: Uint8Array,
-  evmChainConfig: ChainConfigInfo,
-  xRaydiumEvmAddr: string,
-  xRaydiumSolanaAddr: string
-): Promise<xApp.Context> {
-  const solPayer = web3.Keypair.fromSecretKey(solanaWalletPrivateKey);
-  const { signer, provider } = await chainConfigToEvmProviderAndSigner(
-    evmChainConfig
-  );
-  const evmWalletAddr = xApp._undef(
-    evmChainConfig.walletPrivateKey,
-    "expected emitter chain to have wallet private key"
-  )[0];
-
-  // const avaxKey = parseEnvVar("AVAX_KEY");
-  const evmChainId = 6;
-  // const provider = new ethers.providers.JsonRpcProvider(
-  //   "https://api.avax.network/ext/bc/C/rpc",
-  //   43114
-  // );
-  const pids = {
-    ...AvaxPIDS,
-    xRaydiumEvmAddr,
-    solanaProxy: new web3.PublicKey(xRaydiumSolanaAddr),
-  };
-  const evm: xApp.EvmContext = {
-    signer,
-    provider,
-    evmWalletAddr,
-    chainId: evmChainId,
-    ...pids,
-  };
-  const overrides = {
-    commitment: "confirmed" as web3.Commitment,
-    skipPreflight: false,
-  };
-  const conn = new web3.Connection(mainnetSolanaRPC, {
-    commitment: overrides.commitment,
-  });
-  return xApp.newContext(
-    new xApp.SolanaContext(conn, overrides, solPayer, pids, true),
-    evm
-  );
-}
-
 export const mainnetSolanaRPC =
   "https://raydium.rpcpool.com/c642b692bb7f2de7ddf65b4d3b16";
 
@@ -193,11 +150,7 @@ export const AvaxPIDS: Omit<
   tokenBridgeEvm: "0x0e082F06FF657D94310cB8cE8B0D9a04541d8052",
 };
 
-export const EthereumPIDS: Omit<
-  Omit<xApp.PIDS, "xRaydiumEvmAddr">,
-  "solanaProxy"
-> = {
-  ...basePIDS,
+export const EthereumPIDS = {
   coreBridgeEvm: "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
   tokenBridgeEvm: "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
 };

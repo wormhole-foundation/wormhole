@@ -47,10 +47,12 @@ export function newProvider(
   throw new Error("url does not start with http/https!");
 }
 
+export type SignerWithAddress = Signer & {address: string}
+
 export async function chainConfigToEvmProviderAndSigner(
   chainConfigInfo: ChainConfigInfo,
   walletPrivateKey?: string
-): Promise<{ provider: providers.Provider; signer: Signer }> {
+): Promise<{ provider: providers.Provider; signer: SignerWithAddress }> {
   if (!walletPrivateKey) {
     walletPrivateKey = xApp._undef(
       chainConfigInfo.walletPrivateKey,
