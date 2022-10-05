@@ -264,10 +264,8 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				}
 
 				key := oldPendingMsgID(&pending.Msg)
-				if err := d.db.Update(func(txn *badger.Txn) error {
-					err := txn.Delete(key)
-					return err
-				}); err != nil {
+				err = d.db.DropPrefix(key)
+				if err != nil {
 					return fmt.Errorf("failed to delete old pending msg for key [%v]: %w", pending.Msg.MessageIDString(), err)
 				}
 			}
@@ -317,11 +315,8 @@ func (d *Database) StorePendingMsg(pending *PendingTransfer) error {
 // This is called by the chain governor to delete a transfer after the time limit has expired.
 func (d *Database) DeleteTransfer(t *Transfer) error {
 	key := TransferMsgID(t)
-
-	if err := d.db.Update(func(txn *badger.Txn) error {
-		err := txn.Delete(key)
-		return err
-	}); err != nil {
+	err := d.db.DropPrefix(key)
+	if err != nil {
 		return fmt.Errorf("failed to delete transfer msg for key [%v]: %w", key, err)
 	}
 
@@ -331,10 +326,8 @@ func (d *Database) DeleteTransfer(t *Transfer) error {
 // This is called by the chain governor to delete a pending transfer.
 func (d *Database) DeletePendingMsg(pending *PendingTransfer) error {
 	key := PendingMsgID(&pending.Msg)
-	if err := d.db.Update(func(txn *badger.Txn) error {
-		err := txn.Delete(key)
-		return err
-	}); err != nil {
+	err := d.db.DropPrefix(key)
+	if err != nil {
 		return fmt.Errorf("failed to delete pending msg for key [%v]: %w", key, err)
 	}
 
