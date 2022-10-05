@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@mysten/sui.js": "^0.10.0"
+    "@mysten/sui.js": "^0.10.0",
+    "axios": "^1.0.0",
+    "node-fetch": "^3.2.10"
   }
 }

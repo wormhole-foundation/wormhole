@@ -1,0 +1,1 @@
+sui client call --function publish_message --module wormhole --package 0x1e3d2abfa3fb8cd412e52bf7153d294a71489ff4 --gas-budget 20000 --args \"0x1c901e819ef8d8e5bcfa4b2ddf1615a163da9beb\" 400 [2] \"0x29651a048dda2a8e07e793cc0f4274b256293436\"
