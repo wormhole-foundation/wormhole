@@ -3,7 +3,7 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
-import { Bech32, fromBech32, toHex } from "@cosmjs/encoding";
+import { fromBech32, toHex } from "@cosmjs/encoding";
 import {
   isTerraChain,
   assertEVMChain,
@@ -14,6 +14,7 @@ import {
   getEmitterAddressTerra,
   getEmitterAddressEth,
   getEmitterAddressAlgorand,
+  isCosmWasmChain,
 } from "@certusone/wormhole-sdk";
 import { execute_solana } from "./solana";
 import {
@@ -40,6 +41,7 @@ import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
 import { execute_algorand } from "./algorand";
+import { execute_injective } from "./injective";
 
 setDefaultWasm("node");
 
@@ -278,9 +280,9 @@ yargs(hideBin(process.argv))
       ) {
         throw Error(`Unknown network: ${network}`);
       }
-      let chain = argv["chain"]
+      let chain = argv["chain"];
       let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
-      let addr = ""
+      let addr = "";
       switch (module) {
         case "Core":
           addr = CONTRACTS[network][chain]["core"];
@@ -295,7 +297,8 @@ yargs(hideBin(process.argv))
           impossible(module);
       }
       if (argv["emitter"]) {
-        if (chain === "solana" || chain === "pythnet") { // TODO: Create an isSolanaChain()
+        if (chain === "solana" || chain === "pythnet") {
+          // TODO: Create an isSolanaChain()
           addr = await getEmitterAddressSolana(addr);
         } else if (isTerraChain(chain)) {
           addr = await getEmitterAddressTerra(addr);
@@ -303,9 +306,12 @@ yargs(hideBin(process.argv))
           addr = getEmitterAddressAlgorand(BigInt(addr));
         } else if (chain === "near") {
           if (network !== "MAINNET") {
-            throw Error(`unable to look up near emitter address for ${network}`);
+            throw Error(
+              `unable to look up near emitter address for ${network}`
+            );
           }
-          addr = "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7";
+          addr =
+            "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7";
         } else {
           addr = getEmitterAddressEth(addr);
         }
@@ -317,15 +323,14 @@ yargs(hideBin(process.argv))
     "chain-id <chain>",
     "Print the wormhole chain ID integer associated with the specified chain name",
     (yargs) => {
-      return yargs
-        .positional("chain", {
-          describe: "Chain to query",
-          type: "string",
-          choices: Object.keys(CHAINS),
-        });
+      return yargs.positional("chain", {
+        describe: "Chain to query",
+        type: "string",
+        choices: Object.keys(CHAINS),
+      });
     },
     async (argv) => {
-      assertChain(argv["chain"]);   
+      assertChain(argv["chain"]);
       console.log(toChainId(argv["chain"]));
     }
   )
@@ -664,7 +669,7 @@ yargs(hideBin(process.argv))
       } else if (chain === "near") {
         await execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
-        throw Error("INJECTIVE is not supported yet");
+        await execute_injective(parsed_vaa.payload, buf, network);
       } else if (chain === "osmosis") {
         throw Error("OSMOSIS is not supported yet");
       } else if (chain === "sui") {
@@ -694,7 +699,7 @@ function parseAddress(chain: ChainName, address: string): string {
     throw Error("Chain unset");
   } else if (isEVMChain(chain)) {
     return "0x" + evm_address(address);
-  } else if (isTerraChain(chain)) {
+  } else if (isCosmWasmChain(chain)) {
     return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
   } else if (chain === "solana" || chain === "pythnet") {
     return "0x" + toHex(base58.decode(address)).padStart(64, "0");
@@ -702,9 +707,7 @@ function parseAddress(chain: ChainName, address: string): string {
     // TODO: is there a better native format for algorand?
     return "0x" + evm_address(address);
   } else if (chain === "near") {
-    return "0x" + hex(address).substring(2).padStart(64, "0")
-  } else if (chain === "injective") {
-    throw Error("INJECTIVE is not supported yet");
+    return "0x" + hex(address).substring(2).padStart(64, "0");
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {

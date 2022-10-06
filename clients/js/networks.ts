@@ -82,7 +82,8 @@ const MAINNET = {
     rpc: "https://rpc.mainnet.near.org",
     key: get_env_var("NEAR_KEY"),
     networkId: "mainnet",
-    deployerAccount: "85957f38de1768d6db9eab29bee9dd2a01462aff9c8d83daefb9bcd2506c32d2",
+    deployerAccount:
+      "85957f38de1768d6db9eab29bee9dd2a01462aff9c8d83daefb9bcd2506c32d2",
   },
   injective: {
     rpc: undefined,
@@ -210,12 +211,12 @@ const TESTNET = {
   injective: {
     rpc: "https://k8s.testnet.tm.injective.network:443",
     chain_id: "injective-888",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: get_env_var("INJECTIVE_KEY_TESTNET"),
   },
   osmosis: {
     rpc: undefined,
     chain_id: "osmo-test-4",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: get_env_var("OSMOSIS_KEY_TESTNET"),
   },
   aptos: {
     rpc: undefined,
