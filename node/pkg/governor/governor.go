@@ -46,9 +46,6 @@ const (
 	TestNetMode = 2
 	DevNetMode  = 3
 	GoTestMode  = 4
-
-	transferComplete = true
-	transferEnqueued = false
 )
 
 // WARNING: Change me in ./node/db as well
@@ -121,7 +118,6 @@ type ChainGovernor struct {
 	tokens                map[tokenKey]*tokenEntry
 	tokensByCoinGeckoId   map[string][]*tokenEntry
 	chains                map[vaa.ChainID]*chainEntry
-	msgsById              map[string]bool // Use consts transferComplete and transferEnqueued.
 	msgsToPublish         []*common.MessagePublication
 	dayLengthInMinutes    int
 	coinGeckoQuery        string
@@ -143,7 +139,6 @@ func NewChainGovernor(
 		tokens:              make(map[tokenKey]*tokenEntry),
 		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
-		msgsById:            make(map[string]bool),
 		env:                 env,
 	}
 }
@@ -292,8 +287,6 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return false, fmt.Errorf("msg is nil")
 	}
 
-	msgId := msg.MessageIDString()
-
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -301,25 +294,25 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	// If we don't care about this chain, the VAA can be published.
 	if !exists {
-		gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msgId))
+		gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	// If we don't care about this emitter, the VAA can be published.
 	if msg.EmitterAddress != ce.emitterAddr {
-		gov.logger.Info("cgov: ignoring vaa because the emitter address is not configured", zap.String("msgID", msgId))
+		gov.logger.Info("cgov: ignoring vaa because the emitter address is not configured", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
-		gov.logger.Info("cgov: ignoring vaa because it is not a transfer", zap.String("msgID", msgId))
+		gov.logger.Info("cgov: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
 	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
-		gov.logger.Error("cgov: failed to decode vaa", zap.String("msgID", msgId), zap.Error(err))
+		gov.logger.Error("cgov: failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return true, err
 	}
 
@@ -327,33 +320,26 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
-		gov.logger.Info("cgov: ignoring vaa because the token is not in the list", zap.String("msgID", msgId))
+		gov.logger.Info("cgov: ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
-	// If we've already seen this message via quorum, we can publish it.
-	xferComplete, exists := gov.msgsById[msgId]
-	if exists {
-		gov.logger.Info("cgov: ignoring vaa because it has already been seen", zap.String("msgID", msgId))
-		return xferComplete, nil
-	}
-
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
+	prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
 	if err != nil {
-		gov.logger.Error("cgov: failed to trim transfers", zap.String("msgID", msgId), zap.Error(err))
+		gov.logger.Error("cgov: failed to trim transfers", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
-		gov.logger.Error("cgov: failed to compute value of transfer", zap.String("msgID", msgId), zap.Error(err))
+		gov.logger.Error("cgov: failed to compute value of transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
 	newTotalValue := prevTotalValue + value
 	if newTotalValue < prevTotalValue {
-		gov.logger.Error("cgov: total value has overflowed", zap.String("msgID", msgId), zap.Uint64("prevTotalValue", prevTotalValue), zap.Uint64("newTotalValue", newTotalValue))
+		gov.logger.Error("cgov: total value has overflowed", zap.String("msgID", msg.MessageIDString()), zap.Uint64("prevTotalValue", prevTotalValue), zap.Uint64("newTotalValue", newTotalValue))
 		return false, fmt.Errorf("total value has overflowed")
 	}
 
@@ -366,7 +352,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Uint64("value", value),
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
-			zap.String("msgID", msgId),
+			zap.String("msgID", msg.MessageIDString()),
 			zap.Stringer("releaseTime", releaseTime),
 			zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
 		)
@@ -378,17 +364,16 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
 			zap.Stringer("releaseTime", releaseTime),
-			zap.String("msgID", msgId),
+			zap.String("msgID", msg.MessageIDString()),
 		)
 	}
 
 	if enqueueIt {
 		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
 		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: dbData})
-		gov.msgsById[msgId] = transferEnqueued
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
-			gov.logger.Error("cgov: failed to store pending vaa", zap.String("msgID", msgId), zap.Error(err))
+			gov.logger.Error("cgov: failed to store pending vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 			return false, err
 		}
 
@@ -399,141 +384,17 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.Uint64("value", value),
 		zap.Uint64("prevTotalValue", prevTotalValue),
 		zap.Uint64("newTotalValue", newTotalValue),
-		zap.String("msgID", msgId))
+		zap.String("msgID", msg.MessageIDString()))
 
-	xfer := &db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: msg.EmitterChain, EmitterAddress: msg.EmitterAddress, MsgID: msgId}
-	ce.transfers = append(ce.transfers, xfer)
-	gov.msgsById[msgId] = transferComplete
-	err = gov.db.StoreTransfer(xfer)
+	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: msg.EmitterChain, EmitterAddress: msg.EmitterAddress, MsgID: msg.MessageIDString()}
+	ce.transfers = append(ce.transfers, &xfer)
+	err = gov.db.StoreTransfer(&xfer)
 	if err != nil {
-		gov.logger.Error("cgov: failed to store transfer", zap.String("msgID", msgId), zap.Error(err))
+		gov.logger.Error("cgov: failed to store transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
 
 	return true, nil
-}
-
-// Note: This function only gets called once for each VAA. If the processor finds the VAA in the DB, this function will not be called.
-func (gov *ChainGovernor) ProcessInboundQuorum(v *vaa.VAA) {
-	if v == nil {
-		gov.logger.Error("cgov: received inbound quorum event with nil vaa")
-		return
-	}
-
-	msgId := v.MessageID()
-
-	gov.mutex.Lock()
-	defer gov.mutex.Unlock()
-
-	ce, exists := gov.chains[v.EmitterChain]
-
-	// If we don't care about this chain, we can ignore this VAA.
-	if !exists {
-		gov.logger.Info("cgov: ignoring incoming quorum vaa because the emitter chain is not configured", zap.String("msgID", msgId))
-		return
-	}
-
-	// If we don't care about this emitter,  we can ignore this VAA.
-	if v.EmitterAddress != ce.emitterAddr {
-		gov.logger.Info("cgov: ignoring incoming quorum vaa because the emitter address is not configured", zap.String("msgID", msgId))
-		return
-	}
-
-	// We only care about transfers.
-	if !vaa.IsTransfer(v.Payload) {
-		gov.logger.Info("cgov: ignoring incoming quorum vaa because it is not a transfer", zap.String("msgID", msgId))
-		return
-	}
-
-	payload, err := vaa.DecodeTransferPayloadHdr(v.Payload)
-	if err != nil {
-		gov.logger.Error("cgov: failed to decode incoming quorum vaa", zap.String("msgID", msgId), zap.Error(err))
-		return
-	}
-
-	// If we don't care about this token,  we can ignore this VAA.
-	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
-	token, exists := gov.tokens[tk]
-	if !exists {
-		gov.logger.Info("cgov: ignoring incoming quorum vaa because the token is not in the list", zap.String("msgID", msgId))
-		return
-	}
-
-	// See if we have already processed this VAA.
-	xferComplete, exists := gov.msgsById[msgId]
-	if exists {
-		if xferComplete {
-			gov.logger.Info("cgov: ignoring incoming quorum vaa because we've already seen it", zap.String("msgID", msgId))
-			return
-		}
-
-		// If we get here, the VAA is enqueued.
-		foundIt := false
-		for _, ce := range gov.chains {
-			for idx, pe := range ce.pending {
-				if msgId == pe.dbData.Msg.MessageIDString() {
-					gov.logger.Info("cgov: received incoming quorum for transfer in the enqueued list, removing it from the pending list", zap.String("msgID", msgId))
-					if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
-						gov.logger.Error("cgov: failed to delete pending entry", zap.String("msgId", msgId), zap.Error(err))
-						// Continue on so that our data structures are accurate.
-					}
-
-					ce.pending = append(ce.pending[:idx], ce.pending[idx+1:]...)
-					delete(gov.msgsById, msgId)
-					foundIt = true
-					break
-				}
-			}
-
-			if foundIt {
-				break
-			}
-		}
-
-		if !foundIt {
-			gov.logger.Error("cgov: failed to find pending entry for incoming quorum vaa, adding it to the list of transfers", zap.String("msgId", msgId))
-		}
-	}
-
-	value, err := computeValue(payload.Amount, token)
-	if err != nil {
-		gov.logger.Error("cgov: failed to compute value of incoming quorum vaa", zap.String("msgID", msgId), zap.Error(err))
-		return
-	}
-
-	now := time.Now()
-	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
-	if err != nil {
-		gov.logger.Error("cgov: failed to trim transfers for incoming quorum vaa", zap.String("msgID", msgId), zap.Error(err))
-		return
-	}
-
-	newTotalValue := prevTotalValue + value
-
-	if newTotalValue > ce.dailyLimit {
-		gov.logger.Error("cgov: incoming quorum vaa put us over the daily limit",
-			zap.Uint64("value", value),
-			zap.Uint64("prevTotalValue", prevTotalValue),
-			zap.Uint64("newTotalValue", newTotalValue),
-			zap.Uint64("dailyLimit", ce.dailyLimit),
-			zap.String("msgID", msgId))
-	} else {
-		gov.logger.Info("cgov: adding incoming quorum vaa",
-			zap.Uint64("value", value),
-			zap.Uint64("prevTotalValue", prevTotalValue),
-			zap.Uint64("newTotalValue", newTotalValue),
-			zap.String("msgID", msgId))
-	}
-
-	xfer := &db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: v.EmitterChain, EmitterAddress: v.EmitterAddress, MsgID: msgId}
-	ce.transfers = append(ce.transfers, xfer)
-	gov.msgsById[msgId] = transferComplete
-	err = gov.db.StoreTransfer(xfer)
-	if err != nil {
-		gov.logger.Error("cgov: failed to store transfer for incoming quorum vaa", zap.String("msgID", msgId), zap.Error(err))
-		return
-	}
 }
 
 func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
@@ -558,7 +419,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 		// Keep going as long as we find something that will fit.
 		for {
 			foundOne := false
-			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
+			prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
 			if err != nil {
 				gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
 				gov.msgsToPublish = msgsToPublish
@@ -567,13 +428,12 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 
 			// Keep going until we find something that fits or hit the end.
 			for idx, pe := range ce.pending {
-				msgId := pe.dbData.Msg.MessageIDString()
 				value, err := computeValue(pe.amount, pe.token)
 				if err != nil {
 					gov.logger.Error("cgov: failed to compute value for pending vaa",
 						zap.Stringer("amount", pe.amount),
 						zap.Stringer("price", pe.token.price),
-						zap.String("msgID", msgId),
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()),
 						zap.Error(err),
 					)
 
@@ -593,7 +453,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						zap.Stringer("price", pe.token.price),
 						zap.Uint64("value", value),
 						zap.Stringer("releaseTime", pe.dbData.ReleaseTime),
-						zap.String("msgID", msgId))
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
 				} else if now.After(pe.dbData.ReleaseTime) {
 					countsTowardsTransfers = false
 					gov.logger.Info("cgov: posting pending vaa because the release time has been reached",
@@ -601,7 +461,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						zap.Stringer("price", pe.token.price),
 						zap.Uint64("value", value),
 						zap.Stringer("releaseTime", pe.dbData.ReleaseTime),
-						zap.String("msgID", msgId))
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
 				} else {
 					newTotalValue := prevTotalValue + value
 					if newTotalValue < prevTotalValue {
@@ -620,24 +480,21 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						zap.Uint64("value", value),
 						zap.Uint64("prevTotalValue", prevTotalValue),
 						zap.Uint64("newTotalValue", newTotalValue),
-						zap.String("msgID", msgId))
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
 				}
 
 				// If we get here, publish it and remove it from the pending list.
 				msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
 
 				if countsTowardsTransfers {
-					gov.msgsById[msgId] = transferComplete
-					xfer := &db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr,
-						EmitterChain: pe.dbData.Msg.EmitterChain, EmitterAddress: pe.dbData.Msg.EmitterAddress, MsgID: msgId}
-					ce.transfers = append(ce.transfers, xfer)
+					xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr,
+						EmitterChain: pe.dbData.Msg.EmitterChain, EmitterAddress: pe.dbData.Msg.EmitterAddress, MsgID: pe.dbData.Msg.MessageIDString()}
+					ce.transfers = append(ce.transfers, &xfer)
 
-					if err := gov.db.StoreTransfer(xfer); err != nil {
+					if err := gov.db.StoreTransfer(&xfer); err != nil {
 						gov.msgsToPublish = msgsToPublish
 						return nil, err
 					}
-				} else {
-					delete(gov.msgsById, msgId)
 				}
 
 				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
@@ -678,12 +535,12 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-func (gov *ChainGovernor) TrimAndSumValueForChain(ce *chainEntry, startTime time.Time) (sum uint64, err error) {
-	sum, ce.transfers, err = gov.TrimAndSumValue(ce.transfers, startTime)
+func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db db.GovernorDB) (sum uint64, err error) {
+	sum, ce.transfers, err = TrimAndSumValue(ce.transfers, startTime, db)
 	return sum, err
 }
 
-func (gov *ChainGovernor) TrimAndSumValue(transfers []*db.Transfer, startTime time.Time) (uint64, []*db.Transfer, error) {
+func TrimAndSumValue(transfers []*db.Transfer, startTime time.Time, db db.GovernorDB) (uint64, []*db.Transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
 	}
@@ -700,10 +557,11 @@ func (gov *ChainGovernor) TrimAndSumValue(transfers []*db.Transfer, startTime ti
 	}
 
 	if trimIdx >= 0 {
-		for idx := 0; idx <= trimIdx; idx++ {
-			delete(gov.msgsById, transfers[idx].MsgID)
-			if err := gov.db.DeleteTransfer(transfers[idx]); err != nil {
-				return 0, transfers, err
+		if db != nil {
+			for idx := 0; idx <= trimIdx; idx++ {
+				if err := db.DeleteTransfer(transfers[idx]); err != nil {
+					return 0, transfers, err
+				}
 			}
 		}
 

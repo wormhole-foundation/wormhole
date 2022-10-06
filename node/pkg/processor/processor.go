@@ -212,7 +212,7 @@ func (p *Processor) Run(ctx context.Context) error {
 		case m := <-p.obsvC:
 			p.handleObservation(ctx, m)
 		case m := <-p.signedInC:
-			p.handleInboundSignedVAAWithQuorum(ctx, m, p.governor)
+			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-p.cleanup.C:
 			p.handleCleanup(ctx)
 		case <-govTimer.C:
