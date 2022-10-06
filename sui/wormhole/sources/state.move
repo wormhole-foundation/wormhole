@@ -58,10 +58,10 @@ module wormhole::state {
     fun init(ctx: &mut TxContext){
         transfer::transfer(State {
             id: object::new(ctx),
-            chain_id: u16::from_u64(1234),
-            governance_chain_id: u16::from_u64(1234),
+            chain_id: u16::from_u64(0),
+            governance_chain_id: u16::from_u64(0),
             governance_contract: external_address::from_bytes(vector::empty<u8>()),
-            guardian_set_index: u32::from_u64(1234),
+            guardian_set_index: u32::from_u64(0),
             guardian_sets: vec_map::empty<U32, GuardianSet>(),
             guardian_set_expiry: u32::from_u64(0),
             consumed_governance_actions: vec_set::empty<vector<u8>>(),
@@ -103,11 +103,16 @@ module wormhole::state {
 
     #[test_only]
     public fun test_set_chain_id(state: &mut State, id: u64) {
-        state.chain_id = u16::from_u64(id);
+        set_chain_id(state, id);
     }
 
     public(friend) fun set_governance_chain_id(state: &mut State, id: u64){
         state.governance_chain_id = u16::from_u64(id);
+    }
+
+    #[test_only]
+    public fun test_set_governance_chain_id(state: &mut State, id: u64) {
+        set_governance_chain_id(state, id);
     }
 
     public(friend) fun set_governance_action_consumed(state: &mut State, hash: vector<u8>){
@@ -168,7 +173,7 @@ module wormhole::state {
 module wormhole::test_state{
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned};
 
-    use wormhole::state::{test_init, State, test_set_chain_id, get_chain_id};
+    use wormhole::state::{Self, test_init, State};
     use wormhole::myu16::{Self as u16};
 
     fun scenario(): Scenario { test_scenario::begin(&@0x123233) }
@@ -188,8 +193,15 @@ module wormhole::test_state{
         // test State setter and getter functions
         next_tx(test, &admin); {
             let state = take_owned<State>(test);
-            test_set_chain_id(&mut state, 5);
-            assert!(get_chain_id(&state) == u16::from_u64(5), 0);
+
+            // test set chain id
+            state::test_set_chain_id(&mut state, 5);
+            assert!(state::get_chain_id(&state) == u16::from_u64(5), 0);
+
+            // test set governance chain id
+            state::test_set_governance_chain_id(&mut state, 100);
+            assert!(state::get_governance_chain(&state) == u16::from_u64(100), 0);
+
             return_owned(test, state);
         };
     }

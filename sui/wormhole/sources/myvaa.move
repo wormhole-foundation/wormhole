@@ -229,7 +229,47 @@ module wormhole::myvaa {
 
 }
 
-// TODO - tests
+// tests
+// - do_upgrade (upgrade active guardian set to new set)
+
+// TODO - fast forward test, check that previous guardian set gets expired
+
+module wormhole::vaa_test {
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned};
+
+    fun scenario(): Scenario { test_scenario::begin(&@0x123233) }
+    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+    use wormhole::guardian_set_upgrade::{do_upgrade_test};
+    use wormhole::state::{State, test_init};
+    use wormhole::structs::{create_guardian};
+
+    /// A test VAA signed by the first guardian set (index 0) containing guardian a single
+    /// guardian beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+    /// It's a governance VAA (contract upgrade), so we can test all sorts of
+    /// properties
+    const GOV_VAA: vector<u8> = x"010000000001000da16466429ee8ffb09b90ca90db8326d20cfeeae0542da9dcaaad641a5aca2d6c1fe33a5970ca84fd0ff5e6d29ef9e40404eb1a8892b509f085fc725b9e23a30100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000020b10360000000000000000000000000000000000000000000000000000000000436f7265010016d8f30e4a345ea0fa5df11daac4e1866ee368d253209cf9eda012d915a2db09e6";
+
+    #[test]
+    fun test_one() {
+        test_one_(&mut scenario())
+    }
+
+    fun test_one_(test: &mut Scenario) {
+        let (admin, _, _) = people();
+        next_tx(test, &admin); {
+            test_init(ctx(test));
+        };
+
+        next_tx(test, &admin);{
+            let state = take_owned<State>(test);
+            let guardians = vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")];
+            do_upgrade_test(&mut state, u32::from_u64(1), guardians, ctx(test))
+        }
+
+    }
+}
+
 // #[test_only]
 // module wormhole::vaa_test {
 //     use wormhole::guardian_set_upgrade;
