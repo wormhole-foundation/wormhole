@@ -423,7 +423,7 @@ if spy_relayer:
 
     k8s_resource(
         "spy-listener",
-        resource_deps = ["proto-gen", "guardian", "redis"],
+        resource_deps = ["proto-gen", "guardian", "redis", "spy"],
         port_forwards = [
             port_forward(6062, container_port = 6060, name = "Debug/Status Server [:6062]", host = webHost),
             port_forward(4201, name = "REST [:4201]", host = webHost),
@@ -518,7 +518,7 @@ if ci_tests:
         "spydk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["guardian"],
+        resource_deps = ["guardian", "spy"],
     )
 
 # e2e
