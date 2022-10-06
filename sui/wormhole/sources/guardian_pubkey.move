@@ -2,13 +2,7 @@
 /// That is, they are computed by taking the last 20 bytes of the keccak256
 /// hash of their 64 byte secp256k1 public key.
 module wormhole::guardian_pubkey {
-    use sui::crypto::{ecrecover};
-    // use 0x1::secp256k1::{
-    //     ECDSARawPublicKey,
-    //     ECDSASignature,
-    //     ecdsa_raw_public_key_to_bytes,
-    //     ecdsa_recover,
-    // };
+    use sui::crypto;
     use 0x1::vector;
     use wormhole::keccak256::keccak256;
 
@@ -28,6 +22,7 @@ module wormhole::guardian_pubkey {
 
     /// Computes the address from a 64 byte public key.
     public fun from_pubkey(pubkey: vector<u8>): Address {
+        assert!(std::vector::length(&pubkey) == 64, E_DESERIALIZE);
         let hash = keccak256(pubkey);
         let address = vector::empty<u8>();
         let i = 0;
@@ -43,10 +38,19 @@ module wormhole::guardian_pubkey {
     /// This is known as 'ecrecover' in EVM.
     public fun from_signature(
         message: vector<u8>,
-        _recovery_id: u8, //TODO - get rid of this arg?
+        recovery_id: u8,
         sig: vector<u8>,
     ): Address {
-        let pubkey = ecrecover(sig, message);
+        // sui's ecrecover function takes a 65 byte array (signature + recovery byte)
+        vector::push_back(&mut sig, recovery_id);
+
+        let pubkey = crypto::ecrecover(sig, message);
+        let pubkey = crypto::decompress_pubkey(pubkey);
+
+        // decompress_pubkey returns 65 bytes, the first byte is not relevant to
+        // us, so we remove it
+        vector::remove(&mut pubkey, 0);
+
         from_pubkey(pubkey)
     }
 }
@@ -66,14 +70,13 @@ module wormhole::guardian_pubkey_test {
         assert!(address == expected_address, 0);
     }
 
-    // TODO - ereceover doesn't seem to work...
-    // #[test]
-    // public fun from_signature() {
-    //     let sig = x"38535089d6eec412a00066f84084212316ee3451145a75591dbd4a1c2a2bff442223f81e58821bfa4e8ffb80a881daf7a37500b04dfa5719fff25ed4cec8dda3";
-    //     let msg = x"43f3693ccdcb4400e1d1c5c8cec200153bd4b3d167e5b9fe5400508cf8717880";
-    //     let addr = guardian_pubkey::from_signature(msg, 0, sig);
-    //     let expected_addr = guardian_pubkey::from_bytes(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe");
-    //     assert!(addr == expected_addr, 0);
-    // }
+    #[test]
+    public fun from_signature() {
+        let sig = x"38535089d6eec412a00066f84084212316ee3451145a75591dbd4a1c2a2bff442223f81e58821bfa4e8ffb80a881daf7a37500b04dfa5719fff25ed4cec8dda3";
+        let msg = x"43f3693ccdcb4400e1d1c5c8cec200153bd4b3d167e5b9fe5400508cf8717880";
+        let addr = guardian_pubkey::from_signature(msg, 0x01, sig);
+        let expected_addr = guardian_pubkey::from_bytes(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe");
+        assert!(addr == expected_addr, 0);
+    }
 
 }

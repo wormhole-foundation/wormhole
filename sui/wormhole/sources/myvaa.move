@@ -232,7 +232,8 @@ module wormhole::myvaa {
 // tests
 // - do_upgrade (upgrade active guardian set to new set)
 
-// TODO - fast forward test, check that previous guardian set gets expired
+// TODO: fast forward test, check that previous guardian set gets expired
+// TODO: adapt the tests from the aptos contracts test suite
 #[test_only]
 module wormhole::vaa_test {
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned};
