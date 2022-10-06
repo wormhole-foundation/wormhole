@@ -17,6 +17,8 @@ module wormhole::state {
     //friend wormhole::contract_upgrade;
     friend wormhole::wormhole;
     friend wormhole::myvaa;
+    #[test_only]
+    friend wormhole::vaa_test;
 
     struct WormholeMessage has store, copy, drop {
         sender: address,
@@ -55,7 +57,12 @@ module wormhole::state {
         message_fee: u64,
     }
 
-    fun init(ctx: &mut TxContext){
+    // Called automatically when module is first published. Transfers an empty State object to owner,
+    // so that owner can then initialize it with specific fields. (init doesn't take any args).
+    // The reason why State is not shared immediately is because we only want the sender to be able to modify it.
+    //
+    // Only one State ever exists, because only the init function creates a State object
+    fun init(ctx: &mut TxContext) {
         transfer::transfer(State {
             id: object::new(ctx),
             chain_id: u16::from_u64(0),
@@ -67,6 +74,26 @@ module wormhole::state {
             consumed_governance_actions: vec_set::empty<vector<u8>>(),
             message_fee: 0,
         }, tx_context::sender(ctx));
+    }
+
+    // converts owned state object into a shared object, so that anyone can get a reference to &mut State
+    // and pass it into various functions
+    public entry fun init_and_share_state(
+        state: State,
+        chain_id: u64,
+        governance_chain_id: u64,
+        governance_contract: vector<u8>,
+        initial_guardian: vector<u8>,
+        _ctx: &mut TxContext
+    ) {
+        set_chain_id(&mut state, chain_id);
+        set_governance_chain_id(&mut state, governance_chain_id);
+        set_governance_contract(&mut state, governance_contract);
+        let initial_guardian = vector[structs::create_guardian(initial_guardian)];
+        store_guardian_set(&mut state, u32::from_u64(0), structs::create_guardian_set(u32::from_u64(0), initial_guardian));
+
+        // permanently shares state
+        transfer::share_object(state);
     }
 
     #[test_only]
@@ -87,7 +114,7 @@ module wormhole::state {
                 sequence: sequence,
                 nonce: nonce,
                 payload: payload,
-                // Aptos is an instant finality chain, so we don't need
+                // Sui is an instant finality chain, so we don't need
                 // confirmations
                 consistency_level: 0,
                 timestamp: now // this is current epoch and not seconds
@@ -117,6 +144,10 @@ module wormhole::state {
 
     public(friend) fun set_governance_action_consumed(state: &mut State, hash: vector<u8>){
         vec_set::insert<vector<u8>>(&mut state.consumed_governance_actions, hash);
+    }
+
+    public(friend) fun set_governance_contract(state: &mut State, contract: vector<u8>) {
+        state.governance_contract = external_address::from_bytes(contract);
     }
 
     public(friend) fun update_guardian_set_index(state: &mut State, new_index: U32) {
@@ -171,7 +202,8 @@ module wormhole::state {
 
 #[test_only]
 module wormhole::test_state{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned, take_shared};
+    use std::vector::{Self};
 
     use wormhole::state::{Self, test_init, State};
     use wormhole::myu16::{Self as u16};
@@ -180,11 +212,11 @@ module wormhole::test_state{
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     #[test]
-    fun test_one() {
-        test_one_(&mut scenario())
+    fun test_state_setters() {
+        test_state_setters_(&mut scenario())
     }
 
-    fun test_one_(test: &mut Scenario) {
+    fun test_state_setters_(test: &mut Scenario) {
         let (admin, _, _) = people();
         next_tx(test, &admin); {
             test_init(ctx(test));
@@ -205,4 +237,30 @@ module wormhole::test_state{
             return_owned(test, state);
         };
     }
+
+    #[test]
+    fun test_init_and_share_state() {
+        test_init_and_share_state_(&mut scenario())
+    }
+
+    fun test_init_and_share_state_(test: &mut Scenario) {
+        let (admin, _, _) = people();
+        next_tx(test, &admin); {
+            test_init(ctx(test));
+        };
+        next_tx(test, &admin);{
+            let state = take_owned<State>(test);
+            // initialize state with desired parameters and initial guardian address
+            state::init_and_share_state(state, 0, 0, vector::empty<u8>(), x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe", ctx(test));
+        };
+        next_tx(test, &admin);{
+            // confirm that state is indeed a shared object, and mutate it
+            let state = take_shared<State>(test);
+            let mut_ref = test_scenario::borrow_mut(&mut state);
+            state::test_set_chain_id(mut_ref, 9);
+            assert!(state::get_chain_id(mut_ref)==u16::from_u64(9), 0);
+            test_scenario::return_shared(test, state);
+        }
+    }
 }
+
