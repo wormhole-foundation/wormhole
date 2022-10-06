@@ -336,9 +336,9 @@ const TESTNET = {
     nft_bridge: "0x98A0F4B96972b32Fcb3BD03cAeB66A44a6aB9Edb",
   },
   neon: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
-    token_bridge: "0xd11De1f930eA1F7Dd0290Fe3a2e35b9C91AEFb37",
-    nft_bridge: "0xa52Da3B1ffd258a2fFB7719a6aeE24095eEE24E2",
+    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
+    token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
+    nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
   },
   terra2: {
     core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
