@@ -139,8 +139,10 @@ message SignedBatchObservation {
   bytes tx_hash = 4;
   // Chain ID for this observation.
   uint32 chain_id = 5;
-  // Batch ID - emitterChain/transactionID
-  string batch_id = 6;
+  // Nonce of the messages in the batch.
+  uint32 nonce = 6;
+  // Batch ID - emitterChain/transactionID/nonce
+  string batch_id = 7;
 }
 
 
