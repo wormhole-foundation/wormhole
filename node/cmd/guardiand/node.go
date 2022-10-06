@@ -604,11 +604,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
 		}
-		if *arbitrumRPC == "" {
-			logger.Fatal("Please specify --arbitrumRPC")
-		}
-		if *arbitrumContract == "" {
-			logger.Fatal("Please specify --arbitrumContract")
+		if *arbitrumRPC != "" {
+			if *arbitrumContract == "" {
+				logger.Fatal("If --arbitrumRPC is specified, then --arbitrumContract is required")
+			}
+		} else if *arbitrumContract != "" {
+			logger.Fatal("If --arbitrumContract is specified, then --arbitrumRPC is required")
 		}
 		if *xplaWS == "" {
 			logger.Fatal("Please specify --xplaWS")

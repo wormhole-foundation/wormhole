@@ -634,6 +634,10 @@ func (w *Watcher) Run(ctx context.Context) error {
 		}
 	}()
 
+	// Now that the init is complete, peg readiness. That will also happen when we process a new head, but chains
+	// that wait for finality may take a while to receive the first block and we don't want to hold up the init.
+	readiness.SetReady(w.readiness)
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
