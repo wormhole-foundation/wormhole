@@ -11,7 +11,7 @@ import {
 } from "../utils";
 
 export const isNativeDenomInjective = (string = "") => string === "inj";
-export const isNativeDenomXpla = (string = "") => string === "xpla"; // check if this should be axpla
+export const isNativeDenomXpla = (string = "") => string === "axpla";
 
 export function isNativeCosmWasmDenom(
   chainId: CosmWasmChainId,
