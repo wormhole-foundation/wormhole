@@ -223,7 +223,7 @@ contract TestMessages is Messages, Test {
     parsedValidVm2.observations = newObservationsArray;
 
     // Confirm that the verify call reverts
-    vm.expectRevert("observation out of order");
+    vm.expectRevert("invalid observation");
     this.verifyBatchVM(parsedValidVm2, true);
   }
 
@@ -236,6 +236,47 @@ contract TestMessages is Messages, Test {
 		uint8 consistencyLevel;
 		bytes payload;
 	}
+
+    // This test confirms that verifyVM reverts verifying a batchVM with observations
+  // that have been manipulated.
+  function testInvalidObservation(Observation memory testObservation) public {
+    vm.assume(testObservation.timestamp > 0);
+    vm.assume(testObservation.nonce > 0);
+    vm.assume(testObservation.sequence > 0);
+    vm.assume(testObservation.payload.length < 4294967295);
+
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    storeGuardianSet(initialGuardianSet, 0);
+
+    // Confirm that the test VM2 is valid
+    (Structs.VM2 memory parsedValidVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
+    require(valid, reason);
+
+    // Manipulate one of the observations
+    parsedValidVm2.observations[2] = abi.encodePacked(
+      uint8(3),
+      testObservation.timestamp,
+      testObservation.nonce,
+      testObservation.emitterChainId,
+      testObservation.emitterAddress,
+      testObservation.sequence,
+      testObservation.consistencyLevel,
+      testObservation.payload
+    );
+
+    // Confirm that the verify call reverts
+    vm.expectRevert("invalid observation");
+    this.verifyBatchVM(parsedValidVm2, true);
+  }
 
   // This test confirms that parseBatchVM deserializes encoded batches correctly.
   function testParseBatchVM(

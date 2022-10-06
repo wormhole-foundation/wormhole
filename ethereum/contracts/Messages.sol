@@ -43,7 +43,7 @@ contract Messages is Getters, Setters {
     }
 
     /**
-     * @dev verifySignatures serves to validate arbitrary sigatures against an arbitrary guardianSet
+     * @dev verifySignatures serves to validate arbitrary signatures against an arbitrary guardianSet
      *  - it intentionally does not solve for expectations within guardianSet (you should use verifyVM if you need these protections)
      *  - it intentioanlly does not solve for quorum (you should use verifyVM if you need these protections)
      *  - it intentionally returns true when signatures is an empty set (you should use verifyVM if you need these protections)
@@ -174,14 +174,18 @@ contract Messages is Getters, Setters {
         // Verify the header
         (valid, reason) = verifyHeader(header);
 
-        // Verify the hash of each observation
         if (valid) {
             uint256 observationsLen = vm2.observations.length;
             for (uint i = 0; i < observationsLen;) {
-                // Verify that the observations are still ordered correctly
+                // Verify the hash of the observation against parsed array of hashes. This confirms
+                // that the observation wasn't tampered with and that order was preserved. The version
+                // (uint8(3)) occupies the first byte of each observation, and should not be included in the
+                // body when computing the hash.
+
+                // SECURITY: This is a necessary security check and should not be removed.
                 require(
                     vm2.hashes[i] == doubleKeccak256(vm2.observations[i].slice(1, vm2.observations[i].length - 1)),
-                    "observation out of order"
+                    "invalid observation"
                 );
 
                 // Cache the hash of the observation if `cache` is set to true
@@ -295,7 +299,7 @@ contract Messages is Getters, Setters {
         But xDapps rely on the hash of an observation for replay protection.
         */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
-        vm.hash = keccak256(abi.encodePacked(keccak256(body)));
+        vm.hash = doubleKeccak256(body);
 
         // Parse the observation
         return parseObservation(index, encodedVM.length - index, encodedVM, vm);
@@ -307,6 +311,8 @@ contract Messages is Getters, Setters {
         vm.version = encodedVM.toUint8(index);
         index += 1;
         require(vm.version == 3, "VM version incompatible");
+
+        // There are no signatures to parse for version 3 VMs
 
         /*
         Hash the body
@@ -369,10 +375,10 @@ contract Messages is Getters, Setters {
 
         // Save each observation in a byte array
         vm2.observations = new bytes[](observationsLen);
-        uint8 observationIndex;
         uint32 observationLen;
         for (uint8 i = 0; i < observationsLen;) {
-            observationIndex = encodedVM2.toUint8(index);
+            // Skip the first byte of the observation. The first byte is the index of the
+            // observation in the batch and could eventually be used to support partial batches.
             index += 1;
 
             observationLen = encodedVM2.toUint32(index);
