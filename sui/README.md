@@ -10,6 +10,7 @@ Make sure your Cargo version is at least 1.64.0 and then follow the steps below:
 
 # TODO - describe the design of the core bridge below
 
+
 ## State
 State is created once and only once in `init` (a reserved keyword). It is initially returned to sender as an owned object. The admin/sender should then call `init_and_share_state` to initialize it with the proper arguments and share it for others to access.
 
