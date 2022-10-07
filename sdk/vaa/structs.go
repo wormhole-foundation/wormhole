@@ -41,6 +41,27 @@ type (
 		Payload []byte
 	}
 
+	BatchVAA struct {
+		// Version of the VAA schema
+		Version uint8
+		// GuardianSetIndex is the index of the guardian set that signed this VAA
+		GuardianSetIndex uint32
+		// SignatureData is the signature of the guardian set
+		Signatures []*Signature
+
+		// EmitterChain the VAAs were emitted on
+		EmitterChain ChainID
+
+		// The chain-native identifier of the transaction that created the batch VAA.
+		TransactionID common.Hash
+
+		// array of Observation VAA hashes
+		Hashes []common.Hash
+
+		// Observations in the batch
+		Observations []*Observation
+	}
+
 	// ChainID of a Wormhole chain
 	ChainID uint16
 	// Action of a VAA
@@ -59,6 +80,13 @@ type (
 	}
 
 	SignatureData [65]byte
+
+	Observation struct {
+		// Index of the observation in a Batch array
+		Index uint8
+		// Signed Observation data
+		Observation *VAA
+	}
 
 	TransferPayloadHdr struct {
 		Type          uint8
@@ -286,12 +314,25 @@ const (
 	//  - sequence (8 bytes)
 	//  - consistency level (1 byte)
 	//  - payload (0 bytes)
-	//
-	// From Above: 1 + 4 + 1 + 0 + 4 + 4 + 2 + 32 + 8  + 1 + 0 // Equals 57
+	//  BATCH
+	//  - Length of Observation Hashes (1 byte) <== minimum one
+	//  - Observation Hash (32 bytes)
+	//  - Length of Observations (1 byte) <== minimum one
+	//  - Observation Index (1 byte)
+	//  - Observation Length (1 byte)
+	//  - Observation, aka BODY, aka Headless (51 bytes)
+	// From Above:
+	// HEADER: 1 + 4 + 1 + 0 = 6
+	// BODY: 4 + 4 + 2 + 32 + 8  + 1 + 0 = 51
+	// BATCH: 1 + 32 + 1 + 1 + 1 + 51 = 88
 	//
 	// More details here: https://docs.wormholenetwork.com/wormhole/vaas
-	minVAALength        = 57
+	minHeadlessVAALength = 51 // HEADER
+	minVAALength         = 57 // HEADER + BODY
+	minBatchVAALength    = 94 // HEADER + BATCH
+
 	SupportedVAAVersion = 0x01
+	BatchVAAVersion     = 0x02
 
 	InternalTruncatedPayloadSafetyLimit = 1000
 )
@@ -384,9 +425,159 @@ func Unmarshal(data []byte) (*VAA, error) {
 	return v, nil
 }
 
+func UnmarshalBatch(data []byte) (*BatchVAA, error) {
+	if len(data) < minBatchVAALength {
+		return nil, fmt.Errorf("BatchVAA.Observation is too short")
+	}
+	v := &BatchVAA{}
+
+	v.Version = data[0]
+	if v.Version != BatchVAAVersion {
+		return nil, fmt.Errorf("unsupported VAA version: %d", v.Version)
+	}
+
+	reader := bytes.NewReader(data[1:])
+
+	if err := binary.Read(reader, binary.BigEndian, &v.GuardianSetIndex); err != nil {
+		return nil, fmt.Errorf("failed to read guardian set index: %w", err)
+	}
+
+	lenSignatures, er := reader.ReadByte()
+	if er != nil {
+		return nil, fmt.Errorf("failed to read signature length")
+	}
+
+	v.Signatures = make([]*Signature, int(lenSignatures))
+	for i := 0; i < int(lenSignatures); i++ {
+		index, err := reader.ReadByte()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read validator index [%d]", i)
+		}
+
+		signature := [65]byte{}
+		if n, err := reader.Read(signature[:]); err != nil || n != 65 {
+			return nil, fmt.Errorf("failed to read signature [%d]: %w", i, err)
+		}
+
+		v.Signatures[i] = &Signature{
+			Index:     uint8(index),
+			Signature: signature,
+		}
+	}
+
+	lenHashes, err := reader.ReadByte()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read hashes length [%w]", err)
+	}
+	v.Hashes = make([]common.Hash, int(lenHashes))
+	for i := 0; i < int(lenHashes); i++ {
+		hash := [32]byte{}
+		if n, err := reader.Read(hash[:]); err != nil || n != 32 {
+			return nil, fmt.Errorf("failed to read hash [%d]: %w", i, err)
+		}
+		v.Hashes[i] = common.BytesToHash(hash[:])
+	}
+
+	lenObservations, err := reader.ReadByte()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read observations length: %w", err)
+	}
+
+	v.Observations = make([]*Observation, int(lenObservations))
+	for i := 0; i < int(lenObservations); i++ {
+		obsvIndex, err := reader.ReadByte()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read Observation index [%d]: %w", i, err)
+		}
+
+		obsvLength := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &obsvLength); err != nil {
+			return nil, fmt.Errorf("failed to read Observation length: %w", err)
+		}
+
+		obs := make([]byte, int(obsvLength))
+		if n, err := reader.Read(obs[:]); err != nil || n == 0 {
+			return nil, fmt.Errorf("failed to read Observation bytes [%d]: %w", n, err)
+		}
+
+		msgPub, err := UnmarshalBatchObservation(obs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal Observation VAA. %w", err)
+		}
+
+		v.Observations[i] = &Observation{
+			Index:       uint8(obsvIndex),
+			Observation: msgPub,
+		}
+	}
+
+	return v, nil
+}
+
+// Unmarshal deserializes the binary representation of an Observation (VAA)
+// within a BatchVAA. Different from VAA unmarshaling - no header fields.
+func UnmarshalBatchObservation(data []byte) (*VAA, error) {
+	if len(data) < minHeadlessVAALength {
+		return nil, fmt.Errorf("BatchVAA.Observation is too short")
+	}
+	v := &VAA{}
+
+	reader := bytes.NewReader(data[:])
+
+	unixSeconds := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
+		return nil, fmt.Errorf("failed to read timestamp: %w", err)
+	}
+	v.Timestamp = time.Unix(int64(unixSeconds), 0)
+
+	if err := binary.Read(reader, binary.BigEndian, &v.Nonce); err != nil {
+		return nil, fmt.Errorf("failed to read nonce: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &v.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
+	}
+
+	emitterAddress := Address{}
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+	}
+	v.EmitterAddress = emitterAddress
+
+	if err := binary.Read(reader, binary.BigEndian, &v.Sequence); err != nil {
+		return nil, fmt.Errorf("failed to read sequence: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &v.ConsistencyLevel); err != nil {
+		return nil, fmt.Errorf("failed to read commitment: %w", err)
+	}
+
+	payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
+	n, err := reader.Read(payload)
+	if err != nil || n == 0 {
+		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
+	}
+
+	v.Payload = payload[:n]
+
+	return v, nil
+}
+
 // signingBody returns the binary representation of the data that is relevant for signing and verifying the VAA
 func (v *VAA) signingBody() []byte {
 	return v.serializeBody()
+}
+
+// signingBatchBody returns the binary representation of the data that is relevant for signing and verifying the VAA
+func (v *BatchVAA) signingBatchBody() []byte {
+	buf := new(bytes.Buffer)
+
+	// create the hash array from the Observations of the BatchVAA
+	hashes := v.ObsvHashArray()
+
+	MustWrite(buf, binary.BigEndian, hashes)
+
+	return buf.Bytes()
 }
 
 // SigningMsg returns the hash of the signing body. This is used for signature generation and verification
@@ -395,6 +586,26 @@ func (v *VAA) SigningMsg() common.Hash {
 	// the first hash (32 bytes) vs the full body data.
 	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(v.signingBody()).Bytes())
 	return hash
+}
+
+// SigningBatchMsg returns the hash of the signing body. This is used for signature generation and verification
+func (v *BatchVAA) SigningBatchMsg() common.Hash {
+	// In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
+	// the first hash (32 bytes) vs the full body data.
+	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(v.signingBatchBody()).Bytes())
+	return hash
+}
+
+// ObsvHashArray creates an array of hashes of Observation.
+// hashes in the array have the index position of their Observation.Index.
+func (v *BatchVAA) ObsvHashArray() []common.Hash {
+	hashes := make([]common.Hash, len(v.Observations))
+	for _, msg := range v.Observations {
+		obsIndex := msg.Index
+		hashes[obsIndex] = msg.Observation.SigningMsg()
+	}
+
+	return hashes
 }
 
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
@@ -444,6 +655,96 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	return true
 }
 
+// VerifyBatchSignatures verifies the signature of the BatchVAA given the signer addresses.
+// Returns true if the signatures were verified successfully.
+func (v *BatchVAA) VerifyBatchSignatures(addresses []common.Address) bool {
+	if len(addresses) < len(v.Signatures) {
+		return false
+	}
+
+	h := v.SigningBatchMsg()
+
+	last_index := -1
+	signing_addresses := []common.Address{}
+
+	for _, sig := range v.Signatures {
+		if int(sig.Index) >= len(addresses) {
+			return false
+		}
+
+		// Ensure increasing indexes
+		if int(sig.Index) <= last_index {
+			return false
+		}
+		last_index = int(sig.Index)
+
+		// Get pubKey to determine who signers address
+		pubKey, err := crypto.Ecrecover(h.Bytes(), sig.Signature[:])
+		if err != nil {
+			return false
+		}
+		addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
+
+		// Ensure this signer is at the correct positional index
+		if addr != addresses[sig.Index] {
+			return false
+		}
+
+		// Ensure we never see the same signer twice
+		for _, signing_address := range signing_addresses {
+			if signing_address == addr {
+				return false
+			}
+		}
+		signing_addresses = append(signing_addresses, addr)
+	}
+
+	return true
+}
+
+// Marshal returns the binary representation of the BatchVAA
+func (v *BatchVAA) Marshal() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	MustWrite(buf, binary.BigEndian, v.Version)
+	MustWrite(buf, binary.BigEndian, v.GuardianSetIndex)
+
+	// Write signatures
+	MustWrite(buf, binary.BigEndian, uint8(len(v.Signatures)))
+	for _, sig := range v.Signatures {
+		MustWrite(buf, binary.BigEndian, sig.Index)
+		buf.Write(sig.Signature[:])
+	}
+
+	// Write Body
+	buf.Write(v.serializeBatchBody())
+
+	return buf.Bytes(), nil
+}
+
+// Serializes the body of the BatchVAA.
+func (v *BatchVAA) serializeBatchBody() []byte {
+	buf := new(bytes.Buffer)
+
+	hashes := v.ObsvHashArray()
+
+	MustWrite(buf, binary.BigEndian, uint8(len(hashes)))
+	MustWrite(buf, binary.BigEndian, hashes)
+
+	MustWrite(buf, binary.BigEndian, uint8(len(v.Observations)))
+	for _, obsv := range v.Observations {
+
+		MustWrite(buf, binary.BigEndian, uint8(obsv.Index))
+
+		obsvBytes := obsv.Observation.serializeBatchObservationBody()
+
+		lenBytes := len(obsvBytes)
+		MustWrite(buf, binary.BigEndian, uint32(lenBytes))
+		buf.Write(obsvBytes)
+	}
+
+	return buf.Bytes()
+}
+
 // Marshal returns the binary representation of the VAA
 func (v *VAA) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
@@ -468,9 +769,37 @@ func (v *VAA) MessageID() string {
 	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
 }
 
+// BatchID returns a human-readable emitter_chain/transaction_hex
+func (v *BatchVAA) BatchID() string {
+	if len(v.Observations) == 0 {
+		// cant have a batch without Observations, but check just be safe
+		panic("Cannot create a BatchID from BatchVAA with no Observations.")
+	}
+	nonce := v.Observations[0].Observation.Nonce
+	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, hex.EncodeToString(v.TransactionID.Bytes()), nonce)
+}
+
+// GetTransactionID implements the processor.Batch interface for *BatchVAA.
+func (v *BatchVAA) GetTransactionID() common.Hash {
+	return v.TransactionID
+}
+
 // HexDigest returns the hex-encoded digest.
 func (v *VAA) HexDigest() string {
 	return hex.EncodeToString(v.SigningMsg().Bytes())
+}
+
+// HexDigest returns the hex-encoded digest.
+func (b *BatchVAA) HexDigest() string {
+	return hex.EncodeToString(b.SigningBatchMsg().Bytes())
+}
+
+// serializeBatchObservationBody marshals the body of BatchVAA.Observations
+func (v *VAA) serializeBatchObservationBody() []byte {
+	// Marshaling BatchVAA.Observations is the same
+	// as VAAs, but unmarshaling is different.
+	// This wrapper function serves as the delebrate entry point.
+	return v.serializeBody()
 }
 
 /*
@@ -492,6 +821,22 @@ func (v *VAA) serializeBody() []byte {
 
 func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 	sig, err := crypto.Sign(v.SigningMsg().Bytes(), key)
+	if err != nil {
+		panic(err)
+	}
+	sigData := [65]byte{}
+	copy(sigData[:], sig)
+
+	v.Signatures = append(v.Signatures, &Signature{
+		Index:     index,
+		Signature: sigData,
+	})
+}
+
+// creates signature of BatchVAA.Hashes and adds it to BatchVAA.Signatures.
+func (v *BatchVAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
+
+	sig, err := crypto.Sign(v.SigningBatchMsg().Bytes(), key)
 	if err != nil {
 		panic(err)
 	}
@@ -561,6 +906,11 @@ func (v *VAA) GetEmitterChain() ChainID {
 	return v.EmitterChain
 }
 
+// GetEmitterChain implements the processor.Batch interface for *BatchVAA.
+func (v *BatchVAA) GetEmitterChain() ChainID {
+	return v.EmitterChain
+}
+
 // MustWrite calls binary.Write and panics on errors
 func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	if err := binary.Write(w, order, data); err != nil {
@@ -603,4 +953,36 @@ func BytesToAddress(b []byte) (Address, error) {
 
 	copy(address[32-len(b):], b)
 	return address, nil
+}
+
+// StringToHash converts a hex-encoded string into a common.Hash
+func StringToHash(value string) (common.Hash, error) {
+	var tx common.Hash
+
+	// Make sure we have enough to decode
+	if len(value) < 2 {
+		return tx, fmt.Errorf("value must be at least 1 byte")
+	}
+
+	// Trim any preceding "0x" to the address
+	value = strings.TrimPrefix(value, "0x")
+
+	res, err := hex.DecodeString(value)
+	if err != nil {
+		return tx, err
+	}
+
+	tx = common.BytesToHash(res)
+
+	return tx, nil
+}
+
+func BytesToHash(b []byte) (common.Hash, error) {
+	var hash common.Hash
+	if len(b) > 32 {
+		return hash, fmt.Errorf("value must be no more than 32 bytes")
+	}
+
+	hash = common.BytesToHash(b)
+	return hash, nil
 }
