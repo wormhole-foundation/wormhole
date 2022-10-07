@@ -105,6 +105,11 @@ const MAINNET = {
     rpc: "http://api.pythnet.pyth.network:8899/",
     key: get_env_var("SOLANA_KEY"),
   },
+  xpla: {
+    rpc: "https://dimension-rpc.xpla.dev:443",
+    chain_id: "dimension_37-1",
+    key: get_env_var("XPLA_KEY"),
+  },
   wormholechain: {
     rpc: undefined,
     key: undefined,
@@ -230,6 +235,11 @@ const TESTNET = {
     rpc: "https://api.pythtest.pyth.network/",
     key: get_env_var("SOLANA_KEY_TESTNET"),
   },
+  xpla: {
+    rpc: "https://cube-rpc.xpla.dev:443",
+    chain_id: "cube_47-5 testnet",
+    key: get_env_var("XPLA_KEY_TESTNET"),
+  },
   wormholechain: {
     rpc: undefined,
     key: undefined,
@@ -343,6 +353,11 @@ const DEVNET = {
   },
   pythnet: {
     rpc: undefined,
+    key: undefined,
+  },
+  xpla: {
+    rpc: undefined,
+    chain_id: undefined,
     key: undefined,
   },
   wormholechain: {

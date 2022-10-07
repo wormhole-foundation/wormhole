@@ -42,6 +42,7 @@ import { NETWORKS } from "./networks";
 import base58 from "bs58";
 import { execute_algorand } from "./algorand";
 import { execute_injective } from "./injective";
+import { execute_xpla } from "./xpla";
 
 setDefaultWasm("node");
 
@@ -670,6 +671,8 @@ yargs(hideBin(process.argv))
         await execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
         await execute_injective(parsed_vaa.payload, buf, network);
+      } else if (chain === "xpla") {
+        await execute_xpla(parsed_vaa.payload, buf, network);
       } else if (chain === "osmosis") {
         throw Error("OSMOSIS is not supported yet");
       } else if (chain === "sui") {
