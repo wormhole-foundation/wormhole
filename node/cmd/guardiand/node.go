@@ -467,6 +467,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *adminSocketPath == "" {
 		logger.Fatal("Please specify --adminSocket")
 	}
+	if (*publicRPC == "") != (*publicWeb == "") {
+		logger.Fatal("Please either specify both --publicRPC and --publicWeb or leave both empty")
+	}
 	if *dataDir == "" {
 		logger.Fatal("Please specify --dataDir")
 	}
@@ -892,7 +895,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
 
-	publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *adminSocketPath, publicrpcServer,
+	publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicRPC, publicrpcServer,
 		*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
@@ -1217,12 +1220,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err := supervisor.Run(ctx, "admin", adminService); err != nil {
 			return err
 		}
-		if *publicRPC != "" {
+		if *publicRPC != "" && *publicWeb != "" {
 			if err := supervisor.Run(ctx, "publicrpc", publicrpcService); err != nil {
 				return err
 			}
-		}
-		if *publicWeb != "" {
 			if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
 				return err
 			}
