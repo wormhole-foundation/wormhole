@@ -244,13 +244,10 @@ func (w *Watcher) Run(ctx context.Context) error {
 		}
 	}
 
-	// Timeout for initializing subscriptions
-	timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	// Subscribe to new message publications
+	// Subscribe to new message publications. We don't use a timeout here because the LogPollConnector
+	// will keep running. Other connectors will use a timeout internally if appropriate.
 	messageC := make(chan *ethabi.AbiLogMessagePublished, 2)
-	messageSub, err := w.ethConn.WatchLogMessagePublished(timeout, messageC)
+	messageSub, err := w.ethConn.WatchLogMessagePublished(ctx, messageC)
 	defer messageSub.Unsubscribe()
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "subscribe_error").Inc()
