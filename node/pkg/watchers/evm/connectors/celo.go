@@ -2,6 +2,7 @@ package connectors
 
 import (
 	"context"
+	"time"
 
 	celoAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/celoabi"
 	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
@@ -91,8 +92,10 @@ func (c *CeloConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAb
 }
 
 func (c *CeloConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	messageC := make(chan *celoAbi.AbiLogMessagePublished, 2)
-	messageSub, err := c.filterer.WatchLogMessagePublished(&celoBind.WatchOpts{Context: ctx}, messageC, nil)
+	messageSub, err := c.filterer.WatchLogMessagePublished(&celoBind.WatchOpts{Context: timeout}, messageC, nil)
 	if err != nil {
 		return messageSub, err
 	}
