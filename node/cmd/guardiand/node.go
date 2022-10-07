@@ -883,7 +883,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Info("chain governor is disabled")
 	}
 
-	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst, gov)
+	publicrpcService, publicrpcServer, publicRPCAddr, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst, gov)
 
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
@@ -895,7 +895,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
 
-	publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicRPC, publicrpcServer,
+	publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, publicRPCAddr, publicrpcServer,
 		*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
