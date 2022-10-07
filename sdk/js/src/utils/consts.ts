@@ -178,8 +178,8 @@ const MAINNET = {
   },
   moonbeam: {
     core: "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3",
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    token_bridge: "0xb1731c586ca89a23809861c6103f0b96b3f57d92",
+    nft_bridge: "0x453cfbe096c0f8d763e8c5f24b441097d577bde2",
   },
   neon: {
     core: undefined,
