@@ -3,6 +3,7 @@ import { isNativeDenom } from "../terra";
 import {
   CHAIN_ID_INJECTIVE,
   CHAIN_ID_TERRA,
+  CHAIN_ID_XPLA,
   coalesceCosmWasmChainId,
   CosmWasmChainId,
   CosmWasmChainName,
@@ -10,6 +11,7 @@ import {
 } from "../utils";
 
 export const isNativeDenomInjective = (string = "") => string === "inj";
+export const isNativeDenomXpla = (string = "") => string === "axpla";
 
 export function isNativeCosmWasmDenom(
   chainId: CosmWasmChainId,
@@ -17,7 +19,8 @@ export function isNativeCosmWasmDenom(
 ) {
   return (
     (isTerraChain(chainId) && isNativeDenom(address)) ||
-    (chainId === CHAIN_ID_INJECTIVE && isNativeDenomInjective(address))
+    (chainId === CHAIN_ID_INJECTIVE && isNativeDenomInjective(address)) ||
+    (chainId === CHAIN_ID_XPLA && isNativeDenomXpla(address))
   );
 }
 
