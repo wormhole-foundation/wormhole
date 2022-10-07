@@ -25,7 +25,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDCelo:            "00000000000000000000000005ca6037ec51f8b712ed2e6fa72219feae74e153",
 	vaa.ChainIDNear:            "c2c0b6ecbbe9ecf91b2b7999f0264018ba68126c2e83bf413f59f712f3a1df55",
 	vaa.ChainIDMoonbeam:        "000000000000000000000000bc976d4b9d57e57c3ca52e1fd136c45ff7955a96",
-	vaa.ChainIDNeon:            "000000000000000000000000d11de1f930ea1f7dd0290fe3a2e35b9c91aefb37",
+	vaa.ChainIDNeon:            "000000000000000000000000c7a204bdbfe983fcd8d8e61d02b475d4073ff97e",
 	vaa.ChainIDEthereumRopsten: "000000000000000000000000F174F9A837536C449321df1Ca093Bb96948D5386",
 }
 
@@ -45,6 +45,6 @@ var knownTestnetNFTBridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDKlaytn:          "00000000000000000000000094c994fc51c13101062958b567e743f1a04432de",
 	vaa.ChainIDCelo:            "000000000000000000000000acd8190f647a31e56a656748bc30f69259f245db",
 	vaa.ChainIDMoonbeam:        "00000000000000000000000098a0f4b96972b32fcb3bd03caeb66a44a6ab9edb",
-	vaa.ChainIDNeon:            "000000000000000000000000a52da3b1ffd258a2ffb7719a6aee24095eee24e2",
+	vaa.ChainIDNeon:            "00000000000000000000000023908a62110e21c04f3a4e011d24f901f911744a",
 	vaa.ChainIDEthereumRopsten: "0000000000000000000000002b048da40f69c8dc386a56705915f8e966fe1eba",
 }
