@@ -98,59 +98,61 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 
 			defer intervalsWG.Done()
 
-			queryResult := fetchTransferRowsInInterval(tbl, ctx, "", start, end)
+			for _, chainId := range tvlChainIDs {
+				queryResult := fetchTransferRowsInInterval(tbl, ctx, chainIDRowPrefix(chainId), start, end)
 
-			// iterate through the rows and increment the count
-			for _, row := range queryResult {
-				if row.TokenAddress == "" {
-					// if the token address is missing, skip
-					continue
-				}
+				// iterate through the rows and increment the count
+				for _, row := range queryResult {
+					if row.TokenAddress == "" {
+						// if the token address is missing, skip
+						continue
+					}
 
-				if _, ok := results[dateStr][row.OriginChain]; !ok {
-					results[dateStr][row.OriginChain] = map[string]LockedAsset{}
-				}
+					if _, ok := results[dateStr][row.OriginChain]; !ok {
+						results[dateStr][row.OriginChain] = map[string]LockedAsset{}
+					}
 
-				if _, ok := results[dateStr][row.OriginChain][row.TokenAddress]; !ok {
-					results[dateStr][row.OriginChain][row.TokenAddress] = LockedAsset{
-						Symbol:        row.TokenSymbol,
-						Name:          row.TokenName,
-						Address:       row.TokenAddress,
-						CoinGeckoId:   row.CoinGeckoCoinId,
-						TokenPrice:    row.TokenPrice,
-						TokenDecimals: row.TokenDecimals,
-						Amount:        0,
-						Notional:      0,
+					if _, ok := results[dateStr][row.OriginChain][row.TokenAddress]; !ok {
+						results[dateStr][row.OriginChain][row.TokenAddress] = LockedAsset{
+							Symbol:        row.TokenSymbol,
+							Name:          row.TokenName,
+							Address:       row.TokenAddress,
+							CoinGeckoId:   row.CoinGeckoCoinId,
+							TokenPrice:    row.TokenPrice,
+							TokenDecimals: row.TokenDecimals,
+							Amount:        0,
+							Notional:      0,
+						}
+					}
+
+					var amountChange float64
+					amountChange = 0
+					if row.OriginChain == row.LeavingChain {
+						// this is a native asset leaving its chain:
+						// add this to tokens of originChain
+						amountChange = row.TokenAmount
+					}
+					if row.OriginChain == row.DestinationChain {
+						// this is a native asset going back to its chain:
+						// subtract this from tokens of originChain
+						amountChange = row.TokenAmount * -1
+					}
+
+					if prevForChain, ok := results[dateStr][row.OriginChain][row.TokenAddress]; ok {
+						prevForChain.Amount = prevForChain.Amount + amountChange
+						results[dateStr][row.OriginChain][row.TokenAddress] = prevForChain
 					}
 				}
-
-				var amountChange float64
-				amountChange = 0
-				if row.OriginChain == row.LeavingChain {
-					// this is a native asset leaving its chain:
-					// add this to tokens of originChain
-					amountChange = row.TokenAmount
+				if daysAgo >= 1 {
+					// set the result in the cache
+					muWarmTvlCache.Lock()
+					if cacheData, ok := warmTvlCache[dateStr]; !ok || len(cacheData) <= 1 || !useCache(dateStr) {
+						// cache does not have this date, persist it for other instances.
+						warmTvlCache[dateStr] = results[dateStr]
+						cacheNeedsUpdate = true
+					}
+					muWarmTvlCache.Unlock()
 				}
-				if row.OriginChain == row.DestinationChain {
-					// this is a native asset going back to its chain:
-					// subtract this from tokens of originChain
-					amountChange = row.TokenAmount * -1
-				}
-
-				if prevForChain, ok := results[dateStr][row.OriginChain][row.TokenAddress]; ok {
-					prevForChain.Amount = prevForChain.Amount + amountChange
-					results[dateStr][row.OriginChain][row.TokenAddress] = prevForChain
-				}
-			}
-			if daysAgo >= 1 {
-				// set the result in the cache
-				muWarmTvlCache.Lock()
-				if cacheData, ok := warmTvlCache[dateStr]; !ok || len(cacheData) <= 1 || !useCache(dateStr) {
-					// cache does not have this date, persist it for other instances.
-					warmTvlCache[dateStr] = results[dateStr]
-					cacheNeedsUpdate = true
-				}
-				muWarmTvlCache.Unlock()
 			}
 		}(tbl, ctx, daysAgo)
 	}
@@ -227,60 +229,62 @@ func tvlSinceDate(tbl *bigtable.Table, ctx context.Context, dailyTotals map[stri
 
 // returns the count of the rows in the query response
 func tvlForInterval(tbl *bigtable.Table, ctx context.Context, start, end time.Time) map[string]map[string]LockedAsset {
-	// query for all rows in time range, return result count
-	queryResults := fetchTransferRowsInInterval(tbl, ctx, "", start, end)
-
 	result := map[string]map[string]LockedAsset{}
 
-	// iterate through the rows and increment the count for each index
-	for _, row := range queryResults {
-		if _, ok := result[row.OriginChain]; !ok {
-			result[row.OriginChain] = map[string]LockedAsset{}
-		}
-		if row.TokenAddress == "" {
-			// if the token address is missing, skip
-			continue
-		}
-		if _, ok := result[row.OriginChain][row.TokenAddress]; !ok {
-			result[row.OriginChain][row.TokenAddress] = LockedAsset{
-				Symbol:        row.TokenSymbol,
-				Name:          row.TokenName,
-				Address:       row.TokenAddress,
-				CoinGeckoId:   row.CoinGeckoCoinId,
-				Amount:        0,
-				Notional:      0,
-				TokenDecimals: row.TokenDecimals,
+	for _, chainId := range tvlChainIDs {
+		// query for all rows in time range, return result count
+		queryResults := fetchTransferRowsInInterval(tbl, ctx, chainIDRowPrefix(chainId), start, end)
+
+		// iterate through the rows and increment the count for each index
+		for _, row := range queryResults {
+			if _, ok := result[row.OriginChain]; !ok {
+				result[row.OriginChain] = map[string]LockedAsset{}
 			}
-		}
+			if row.TokenAddress == "" {
+				// if the token address is missing, skip
+				continue
+			}
+			if _, ok := result[row.OriginChain][row.TokenAddress]; !ok {
+				result[row.OriginChain][row.TokenAddress] = LockedAsset{
+					Symbol:        row.TokenSymbol,
+					Name:          row.TokenName,
+					Address:       row.TokenAddress,
+					CoinGeckoId:   row.CoinGeckoCoinId,
+					Amount:        0,
+					Notional:      0,
+					TokenDecimals: row.TokenDecimals,
+				}
+			}
 
-		var amountChange float64
-		amountChange = 0
-		// track notional changes for the previous 24 hour delta
-		var notionalChange float64
-		notionalChange = 0
-		if row.OriginChain == row.LeavingChain {
-			// this is a native asset leaving its chain:
-			// add this to tvl of originChain
-			amountChange = row.TokenAmount
-			notionalChange = row.Notional
-		}
-		if row.OriginChain == row.DestinationChain {
-			// this is a native asset going back to its chain:
-			// subtract this from tvl of originChain
-			amountChange = row.TokenAmount * -1
-			notionalChange = row.Notional * -1
-		}
+			var amountChange float64
+			amountChange = 0
+			// track notional changes for the previous 24 hour delta
+			var notionalChange float64
+			notionalChange = 0
+			if row.OriginChain == row.LeavingChain {
+				// this is a native asset leaving its chain:
+				// add this to tvl of originChain
+				amountChange = row.TokenAmount
+				notionalChange = row.Notional
+			}
+			if row.OriginChain == row.DestinationChain {
+				// this is a native asset going back to its chain:
+				// subtract this from tvl of originChain
+				amountChange = row.TokenAmount * -1
+				notionalChange = row.Notional * -1
+			}
 
-		if prevForChain, ok := result[row.OriginChain][row.TokenAddress]; ok {
-			prevForChain.Amount = prevForChain.Amount + amountChange
-			prevForChain.Notional = prevForChain.Notional + notionalChange
-			result[row.OriginChain][row.TokenAddress] = prevForChain
-		}
+			if prevForChain, ok := result[row.OriginChain][row.TokenAddress]; ok {
+				prevForChain.Amount = prevForChain.Amount + amountChange
+				prevForChain.Notional = prevForChain.Notional + notionalChange
+				result[row.OriginChain][row.TokenAddress] = prevForChain
+			}
 
-		if prevAllChains, ok := result["*"][row.TokenAddress]; ok {
-			prevAllChains.Amount = prevAllChains.Amount + amountChange
-			prevAllChains.Notional = prevAllChains.Notional + notionalChange
-			result["*"][row.TokenAddress] = prevAllChains
+			if prevAllChains, ok := result["*"][row.TokenAddress]; ok {
+				prevAllChains.Amount = prevAllChains.Amount + amountChange
+				prevAllChains.Notional = prevAllChains.Notional + notionalChange
+				result["*"][row.TokenAddress] = prevAllChains
+			}
 		}
 	}
 	return result

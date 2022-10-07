@@ -23,7 +23,7 @@ var muTransfersFromCache sync.RWMutex
 var transfersFromFilePath = "notional-transferred-from.json"
 
 // finds the daily amount transferred from each chain from the specified start to the present.
-func createTransfersFromOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) {
+func createTransfersFromOfInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) {
 	if len(transfersFromCache.Daily) == 0 && loadCache {
 		loadJsonToInterface(ctx, transfersFromFilePath, &muTransfersFromCache, &transfersFromCache)
 	}
@@ -36,7 +36,7 @@ func createTransfersFromOfInterval(tbl *bigtable.Table, ctx context.Context, pre
 	intervalsWG.Add(numPrevDays + 1)
 
 	for daysAgo := 0; daysAgo <= numPrevDays; daysAgo++ {
-		go func(tbl *bigtable.Table, ctx context.Context, prefix string, daysAgo int) {
+		go func(tbl *bigtable.Table, ctx context.Context, daysAgo int) {
 			defer intervalsWG.Done()
 			// start is the SOD, end is EOD
 			// "0 daysAgo start" is 00:00:00 AM of the current day
@@ -73,17 +73,19 @@ func createTransfersFromOfInterval(tbl *bigtable.Table, ctx context.Context, pre
 			transfersFromCache.Daily[dateStr] = map[string]float64{"*": 0}
 			muTransfersFromCache.Unlock()
 
-			queryResult := fetchTransferRowsInInterval(tbl, ctx, prefix, start, end)
+			for _, chainId := range tvlChainIDs {
+				queryResult := fetchTransferRowsInInterval(tbl, ctx, chainIDRowPrefix(chainId), start, end)
 
-			// iterate through the rows and increment the amounts
-			for _, row := range queryResult {
-				if _, ok := transfersFromCache.Daily[dateStr][row.LeavingChain]; !ok {
-					transfersFromCache.Daily[dateStr][row.LeavingChain] = 0
+				// iterate through the rows and increment the amounts
+				for _, row := range queryResult {
+					if _, ok := transfersFromCache.Daily[dateStr][row.LeavingChain]; !ok {
+						transfersFromCache.Daily[dateStr][row.LeavingChain] = 0
+					}
+					transfersFromCache.Daily[dateStr]["*"] = transfersFromCache.Daily[dateStr]["*"] + row.Notional
+					transfersFromCache.Daily[dateStr][row.LeavingChain] = transfersFromCache.Daily[dateStr][row.LeavingChain] + row.Notional
 				}
-				transfersFromCache.Daily[dateStr]["*"] = transfersFromCache.Daily[dateStr]["*"] + row.Notional
-				transfersFromCache.Daily[dateStr][row.LeavingChain] = transfersFromCache.Daily[dateStr][row.LeavingChain] + row.Notional
 			}
-		}(tbl, ctx, prefix, daysAgo)
+		}(tbl, ctx, daysAgo)
 	}
 	intervalsWG.Wait()
 
@@ -123,7 +125,7 @@ func ComputeNotionalTransferredFrom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-	createTransfersFromOfInterval(tbl, ctx, "", releaseDay)
+	createTransfersFromOfInterval(tbl, ctx, releaseDay)
 
 	w.WriteHeader(http.StatusOK)
 }

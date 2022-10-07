@@ -113,10 +113,12 @@ func loadJsonToInterface(ctx context.Context, filePath string, mutex *sync.RWMut
 	}
 	defer timeTrack(time.Now(), fmt.Sprintf("reading %v", filePath))
 	mutex.Lock()
+	defer mutex.Unlock()
 
 	reader, readErr := cacheBucket.Object(filePath).NewReader(ctx)
 	if readErr != nil {
 		log.Printf("Failed reading %v in GCS. err: %v", filePath, readErr)
+		return
 	}
 	defer reader.Close()
 	fileData, err := io.ReadAll(reader)
@@ -124,7 +126,6 @@ func loadJsonToInterface(ctx context.Context, filePath string, mutex *sync.RWMut
 		log.Printf("loadJsonToInterface: unable to read data. file %q: %v", filePath, err)
 	}
 	unmarshalErr := json.Unmarshal(fileData, &cacheMap)
-	mutex.Unlock()
 	if unmarshalErr != nil {
 		log.Printf("failed unmarshaling %v, err: %v", filePath, unmarshalErr)
 	}
@@ -234,6 +235,11 @@ type (
 		ReceiverAddress string
 	}
 )
+
+// ChainIDs to compute TVL/stats for
+// Useful to exclude chains we don't want to compute TVL for which can improve performance
+// (notably PythNet is excluded, ChainID 26)
+var tvlChainIDs = []vaa.ChainID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18}
 
 func chainIdStringToType(chainId string) vaa.ChainID {
 	switch chainId {
@@ -493,4 +499,8 @@ func isTokenActive(chainId string, tokenAddress string, date string) bool {
 		}
 	}
 	return true
+}
+
+func chainIDRowPrefix(chainId vaa.ChainID) string {
+	return fmt.Sprintf("%d:", chainId)
 }
