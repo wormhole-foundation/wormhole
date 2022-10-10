@@ -2,6 +2,12 @@
 
 The Token Bridge is responsible for storing treasury caps and locked tokens and exposing functions for initiating and completing transfers, which are gated behind VAAs. It also supports token attestations from foreign chains (which must be done once prior to transfer), contract upgrades, and chain registration.
 
+## Token Attestation
+
+Right now it is unclear how to do token attestation.
+
+There doesn't seem to be a standardized way to store info about a coin. One way is to create a `CoinInfo` object containing the name, symbol, decimals of the token, and `transfer::freeze_object` it.
+
 ## Creating new Coin Types
 We emulate the transferable witness pattern to allow users to call into the token bridge contract and prompt it to create a new currency representing a wrapped asset.
 
