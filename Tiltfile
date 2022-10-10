@@ -703,6 +703,7 @@ if sui:
         "sui",
         port_forwards = [
             port_forward(5001, name = "RPC [:5001]", host = webHost),
+            port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
         resource_deps = ["const-gen"],
