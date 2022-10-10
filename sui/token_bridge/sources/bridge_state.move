@@ -2,7 +2,7 @@ module token_bridge::bridge_state {
    //use std::vector::{Self};
    use std::option::{Self, Option};
 
-   //use sui::object::{UID};
+   use sui::object::{UID};
    //use sui::coin::TreasuryCap;
    use sui::vec_map::{Self, VecMap};
    use sui::vec_set::{Self, VecSet};
@@ -16,6 +16,7 @@ module token_bridge::bridge_state {
    const E_WRAPPED_ASSET_NOT_INITIALIZED: u64 = 3;
 
    friend token_bridge::vaa;
+   friend token_bridge::register_chain;
 
    /// The origin chain and address of a token.  In case of native tokens
    /// (where the chain is aptos), the token_address is the hash of the token
@@ -25,7 +26,8 @@ module token_bridge::bridge_state {
       token_address: ExternalAddress,
    }
 
-   struct BridgeState {
+   struct BridgeState has key {
+      id: UID,
       governance_chain_id: U16,
       governance_contract: ExternalAddress,
 
@@ -84,19 +86,6 @@ module token_bridge::bridge_state {
       }
    }
 
-   // }
-
-   // // given the hash of the TypeInfo of a Coin, this tells us if it is registered with Token Bridge
-   // public fun is_registered_native_asset<CoinType>(): bool acquires State {
-   //    let token = token_hash::derive<CoinType>();
-   //    let native_infos = &borrow_global<State>(@token_bridge).native_infos;
-   //    !is_wrapped_asset<CoinType>() && table::contains(native_infos, token)
-   // }
-
-   // public fun is_wrapped_asset<CoinType>(): bool {
-   //    exists<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
-   // }
-
    // setters
 
    public(friend) fun set_vaa_consumed(state: &mut BridgeState, hash: vector<u8>) {
@@ -109,5 +98,9 @@ module token_bridge::bridge_state {
 
    public(friend) fun set_governance_contract(state: &mut BridgeState, governance_contract: ExternalAddress) {
       state.governance_contract = governance_contract;
+   }
+
+   public (friend) fun set_registered_emitter(state: &mut BridgeState, chain_id: U16, emitter: ExternalAddress) {
+      vec_map::insert<U16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
    }
 }
