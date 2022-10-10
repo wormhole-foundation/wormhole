@@ -14,6 +14,7 @@ import {
   getEmitterAddressTerra,
   getEmitterAddressEth,
   getEmitterAddressAlgorand,
+  getEmitterAddressNear,
   isCosmWasmChain,
 } from "@certusone/wormhole-sdk";
 import { execute_solana } from "./solana";
@@ -301,18 +302,12 @@ yargs(hideBin(process.argv))
         if (chain === "solana" || chain === "pythnet") {
           // TODO: Create an isSolanaChain()
           addr = await getEmitterAddressSolana(addr);
-        } else if (isTerraChain(chain)) {
+        } else if (isCosmWasmChain(chain)) {
           addr = await getEmitterAddressTerra(addr);
         } else if (chain === "algorand") {
           addr = getEmitterAddressAlgorand(BigInt(addr));
         } else if (chain === "near") {
-          if (network !== "MAINNET") {
-            throw Error(
-              `unable to look up near emitter address for ${network}`
-            );
-          }
-          addr =
-            "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7";
+          addr = await getEmitterAddressNear(addr);
         } else {
           addr = getEmitterAddressEth(addr);
         }

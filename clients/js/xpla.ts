@@ -121,9 +121,9 @@ export async function execute_xpla(
 
   const feeDenoms = ["axpla"];
 
-  const gasPrices = await axios
-    .get("https://dimentsion-lcd.xpla.dev/v1/txs/gas_prices")
-    .then((result) => result.data);
+  // const gasPrices = await axios
+  //   .get("https://dimension-lcd.xpla.dev/v1/txs/gas_prices")
+  //   .then((result) => result.data);
 
   const feeEstimate = await client.tx.estimateFee(
     [
@@ -136,7 +136,7 @@ export async function execute_xpla(
       msgs: [transaction],
       memo: "",
       feeDenoms,
-      gasPrices,
+      // gasPrices,
     }
   );
 

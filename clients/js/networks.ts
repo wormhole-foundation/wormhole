@@ -106,7 +106,7 @@ const MAINNET = {
     key: get_env_var("SOLANA_KEY"),
   },
   xpla: {
-    rpc: "https://dimension-rpc.xpla.dev:443",
+    rpc: "https://dimension-lcd.xpla.dev",
     chain_id: "dimension_37-1",
     key: get_env_var("XPLA_KEY"),
   },
@@ -237,7 +237,7 @@ const TESTNET = {
   },
   xpla: {
     rpc: "https://cube-rpc.xpla.dev:443",
-    chain_id: "cube_47-5 testnet",
+    chain_id: "cube_47-5",
     key: get_env_var("XPLA_KEY_TESTNET"),
   },
   wormholechain: {
