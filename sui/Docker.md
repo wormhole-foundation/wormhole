@@ -4,3 +4,5 @@
 docker tag sui:latest ghcr.io/wormhole-foundation/sui:0.10.0
 # push to ghcr
 docker push ghcr.io/wormhole-foundation/sui:0.10.0
+
+echo remember to update both Dockerfile and Dockerfile.export
