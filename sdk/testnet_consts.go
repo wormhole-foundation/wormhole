@@ -26,6 +26,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDNear:            "c2c0b6ecbbe9ecf91b2b7999f0264018ba68126c2e83bf413f59f712f3a1df55",
 	vaa.ChainIDMoonbeam:        "000000000000000000000000bc976d4b9d57e57c3ca52e1fd136c45ff7955a96",
 	vaa.ChainIDNeon:            "000000000000000000000000c7a204bdbfe983fcd8d8e61d02b475d4073ff97e",
+	vaa.ChainIDXpla:            "efc28d951907b4d15ed43317a0030af8baf62c420c2c824283b6e420dcf8868b",
 	vaa.ChainIDEthereumRopsten: "000000000000000000000000F174F9A837536C449321df1Ca093Bb96948D5386",
 }
 

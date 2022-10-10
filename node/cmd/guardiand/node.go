@@ -565,13 +565,20 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("If --nearRPC is specified, then --nearContract must be specified")
 		}
 	} else if *nearContract != "" {
-		logger.Fatal("If --nearContract is specified, then --nearRPC must be specified")
+		logger.Fatal("If --nearContract is not specified, then --nearRPC must not be specified")
 	}
 	if *moonbeamRPC == "" {
 		logger.Fatal("Please specify --moonbeamRPC")
 	}
 	if *moonbeamContract == "" {
 		logger.Fatal("Please specify --moonbeamContract")
+	}
+	if *xplaWS != "" {
+		if *xplaLCD == "" || *xplaContract == "" {
+			logger.Fatal("If --xplaWS is specified, then --xplaLCD and --xplaContract must be specified")
+		}
+	} else if *xplaLCD != "" || *xplaContract != "" {
+		logger.Fatal("If --xplaWS is not specified, then --xplaLCD and --xplaContract must not be specified")
 	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
@@ -602,15 +609,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		} else if *arbitrumContract != "" {
 			logger.Fatal("If --arbitrumContract is specified, then --arbitrumRPC is required")
 		}
-		if *xplaWS == "" {
-			logger.Fatal("Please specify --xplaWS")
-		}
-		if *xplaLCD == "" {
-			logger.Fatal("Please specify --xplaLCD")
-		}
-		if *xplaContract == "" {
-			logger.Fatal("Please specify --xplaContract")
-		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -632,15 +630,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --injectiveContract")
-		}
-		if *xplaWS != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --xplaWS")
-		}
-		if *xplaLCD != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --xplaLCD")
-		}
-		if *xplaContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --xplaContract")
 		}
 		if *arbitrumRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --arbitrumRPC")
@@ -1074,7 +1063,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *testnetMode {
+		if *xplaWS != "" {
 			logger.Info("Starting XPLA watcher")
 			if err := supervisor.Run(ctx, "xplawatch",
 				cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, lockC, chainObsvReqC[vaa.ChainIDXpla], common.ReadinessXplaSyncing, vaa.ChainIDXpla).Run); err != nil {

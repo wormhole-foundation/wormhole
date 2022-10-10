@@ -213,8 +213,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   xpla: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w",
+    token_bridge: "xpla14khjxsvmklm8kg97vhrn5wc2tz3w57na5seeke3qnwashe4pxd3qlk7pta",
     nft_bridge: undefined,
   },
   ropsten: {
