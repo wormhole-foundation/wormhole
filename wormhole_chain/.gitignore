@@ -1,0 +1,16 @@
+vue/node_modules
+vue/dist
+vue/src/store/generated/
+vue/
+release/
+testing/js/node_modules
+!build
+build/wormhole-chaind
+build/data
+validators/first_validator/keyring-test
+validators/second_validator/keyring-test
+ts-sdk/node_modules
+ts-sdk/lib
+
+.idea
+*.iml

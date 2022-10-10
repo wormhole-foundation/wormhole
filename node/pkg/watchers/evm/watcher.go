@@ -221,6 +221,20 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
+	} else if w.chainID == vaa.ChainIDArbitrum && !w.unsafeDevMode {
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		finalizer := finalizers.NewArbitrumFinalizer(logger, baseConnector, baseConnector.Client())
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating block poll connector failed: %w", err)
+		}
 	} else {
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
@@ -230,13 +244,10 @@ func (w *Watcher) Run(ctx context.Context) error {
 		}
 	}
 
-	// Timeout for initializing subscriptions
-	timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	// Subscribe to new message publications
+	// Subscribe to new message publications. We don't use a timeout here because the LogPollConnector
+	// will keep running. Other connectors will use a timeout internally if appropriate.
 	messageC := make(chan *ethabi.AbiLogMessagePublished, 2)
-	messageSub, err := w.ethConn.WatchLogMessagePublished(timeout, messageC)
+	messageSub, err := w.ethConn.WatchLogMessagePublished(ctx, messageC)
 	defer messageSub.Unsubscribe()
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "subscribe_error").Inc()
@@ -314,6 +325,19 @@ func (w *Watcher) Run(ctx context.Context) error {
 				}
 
 				for _, msg := range msgs {
+					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+						logger.Info("re-observed message publication transaction, publishing it immediately",
+							zap.Stringer("tx", msg.TxHash),
+							zap.Stringer("emitter_address", msg.EmitterAddress),
+							zap.Uint64("sequence", msg.Sequence),
+							zap.Uint64("current_block", blockNumberU),
+							zap.Uint64("observed_block", blockNumber),
+							zap.String("eth_network", w.networkName),
+						)
+						w.msgChan <- msg
+						continue
+					}
+
 					expectedConfirmations := uint64(msg.ConsistencyLevel)
 					if expectedConfirmations < w.minConfirmations {
 						expectedConfirmations = w.minConfirmations
@@ -392,6 +416,23 @@ func (w *Watcher) Run(ctx context.Context) error {
 					ConsistencyLevel: ev.ConsistencyLevel,
 				}
 
+				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
+
+				if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+					logger.Info("found new message publication transaction, publishing it immediately",
+						zap.Stringer("tx", ev.Raw.TxHash),
+						zap.Uint64("block", ev.Raw.BlockNumber),
+						zap.Stringer("blockhash", ev.Raw.BlockHash),
+						zap.Uint64("Sequence", ev.Sequence),
+						zap.Uint32("Nonce", ev.Nonce),
+						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+						zap.String("eth_network", w.networkName))
+
+					w.msgChan <- message
+					ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+					continue
+				}
+
 				logger.Info("found new message publication transaction",
 					zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber),
@@ -400,8 +441,6 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.Uint32("Nonce", ev.Nonce),
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 					zap.String("eth_network", w.networkName))
-
-				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 
 				key := pendingKey{
 					TxHash:         message.TxHash,
@@ -591,6 +630,10 @@ func (w *Watcher) Run(ctx context.Context) error {
 			}
 		}
 	}()
+
+	// Now that the init is complete, peg readiness. That will also happen when we process a new head, but chains
+	// that wait for finality may take a while to receive the first block and we don't want to hold up the init.
+	readiness.SetReady(w.readiness)
 
 	select {
 	case <-ctx.Done():

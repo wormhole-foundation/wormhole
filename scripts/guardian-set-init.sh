@@ -87,6 +87,7 @@ bscTokenBridge=$(jq --raw-output '.chains."4".contracts.tokenBridgeEmitterAddres
 algoTokenBridge=$(jq --raw-output '.chains."8".contracts.tokenBridgeEmitterAddress' $addressesJson)
 nearTokenBridge=$(jq --raw-output '.chains."15".contracts.tokenBridgeEmitterAddress' $addressesJson)
 terra2TokenBridge=$(jq --raw-output '.chains."18".contracts.tokenBridgeEmitterAddress' $addressesJson)
+wormchainTokenBridge=$(jq --raw-output '.chains."3104".contracts.tokenBridgeEmitterAddress' $addressesJson)
 
 solNFTBridge=$(jq --raw-output '.chains."1".contracts.nftBridgeEmitterAddress' $addressesJson)
 ethNFTBridge=$(jq --raw-output '.chains."2".contracts.nftBridgeEmitterAddress' $addressesJson)
@@ -95,21 +96,22 @@ nearNFTBridge=$(jq --raw-output '.chains."15".contracts.nftBridgeEmitterAddress'
 
 # 4) create token bridge registration VAAs
 # invoke CLI commands to create registration VAAs
-solTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
-ethTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV} )
-terraTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
-bscTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
-algoTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
-nearTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
-terra2TokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
+solTokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+ethTokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV} ) | sed 's/secp256k1.*version//'`
+terraTokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+bscTokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+algoTokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+nearTokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+terra2TokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+wormchainTokenBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormholechain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
 
 
 # 5) create nft bridge registration VAAs
 echo "generating contract registration VAAs for nft bridges"
-solNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c solana -a ${solNFTBridge} -g ${guardiansPrivateCSV})
-ethNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
-terraNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c terra -a ${terraNFTBridge} -g ${guardiansPrivateCSV})
-nearNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c near -a ${nearNFTBridge} -g ${guardiansPrivateCSV})
+solNFTBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m NFTBridge -c solana -a ${solNFTBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+ethNFTBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+terraNFTBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m NFTBridge -c terra -a ${terraNFTBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
+nearNFTBridgeVAA=`echo $(node ./clients/js/build/main.js generate registration -m NFTBridge -c near -a ${nearNFTBridge} -g ${guardiansPrivateCSV}) | sed 's/secp256k1.*version//'`
 
 
 # 6) write the registration VAAs to env files
@@ -122,6 +124,7 @@ bscTokenBridge="REGISTER_BSC_TOKEN_BRIDGE_VAA"
 algoTokenBridge="REGISTER_ALGO_TOKEN_BRIDGE_VAA"
 terra2TokenBridge="REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
 nearTokenBridge="REGISTER_NEAR_TOKEN_BRIDGE_VAA"
+wormchainTokenBridge="REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
 
 solNFTBridge="REGISTER_SOL_NFT_BRIDGE_VAA"
 ethNFTBridge="REGISTER_ETH_NFT_BRIDGE_VAA"
@@ -171,6 +174,10 @@ upsert_env_file $envFile $nearTokenBridge $nearTokenBridgeVAA
 # near nft bridge
 upsert_env_file $ethFile $nearNFTBridge $nearNFTBridgeVAA
 upsert_env_file $envFile $nearNFTBridge $nearNFTBridgeVAA
+
+# wormchain token bridge
+upsert_env_file $ethFile $wormchainTokenBridge $wormchainTokenBridgeVAA
+upsert_env_file $envFile $wormchainTokenBridge $wormchainTokenBridgeVAA
 
 # 7) copy the local .env file to the solana & terra dirs, if the script is running on the host machine
 # chain dirs will not exist if running in docker for Tilt, only if running locally. check before copying.

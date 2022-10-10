@@ -1,0 +1,12 @@
+syntax = "proto3";
+package certusone.wormholechain.wormhole;
+
+option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types";
+
+
+
+message ReplayProtection {
+  string index = 1; 
+  
+}
+

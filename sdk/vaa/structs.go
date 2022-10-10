@@ -70,6 +70,10 @@ type (
 	}
 )
 
+const (
+	ConsistencyLevelPublishImmediately = uint8(200)
+)
+
 func (a Address) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
@@ -134,8 +138,14 @@ func (c ChainID) String() string {
 		return "terra2"
 	case ChainIDInjective:
 		return "injective"
+	case ChainIDArbitrum:
+		return "arbitrum"
 	case ChainIDPythNet:
 		return "pythnet"
+	case ChainIDWormchain:
+		return "wormholechain"
+	case ChainIDXpla:
+		return "xpla"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -185,8 +195,14 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDTerra2, nil
 	case "injective":
 		return ChainIDInjective, nil
+	case "arbitrum":
+		return ChainIDArbitrum, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
+	case "wormholechain":
+		return ChainIDWormchain, nil
+	case "xpla":
+		return ChainIDXpla, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -232,8 +248,14 @@ const (
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
+	// ChainIDArbitrum is the ChainID of Arbitrum
+	ChainIDArbitrum ChainID = 23
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
+	// ChainIDXpla is the ChainID of Xpla
+	ChainIDXpla ChainID = 28
+	//ChainIDWormchain is the ChainID of Wormholechain
+	ChainIDWormchain ChainID = 3104
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001

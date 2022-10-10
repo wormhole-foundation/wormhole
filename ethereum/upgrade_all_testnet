@@ -1,0 +1,13 @@
+#!/bin/bash
+set -uo pipefail
+
+modules=(Core TokenBridge NFTBridge)
+network=testnet
+chains=$(worm evm chains)
+
+
+for module in ${modules[@]}; do
+  for chain in ${chains[@]}; do
+    ./upgrade "$network" "$module" "$chain"
+  done
+done

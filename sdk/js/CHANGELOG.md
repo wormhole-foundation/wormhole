@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+### Added
+
+Neon and XPLA testnet addresses
+
 ## 0.7.0
 
 ### Added

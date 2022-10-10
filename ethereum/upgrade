@@ -1,0 +1,82 @@
+#!/bin/bash
+
+set -euo pipefail
+
+network=$1
+module=$2
+chain=$3
+
+secret=$MNEMONIC
+guardian_secret=""
+
+if [ "$network" = testnet ]; then
+  guardian_secret=$GUARDIAN_MNEMONIC
+fi
+
+SCRIPT=""
+verify_module=""
+case "$module" in
+    Core)
+        SCRIPT="scripts/deploy_core_bridge.js"
+        FILE="build/contracts/Implementation.json"
+        verify_module="core"
+        ;;
+    TokenBridge)
+        SCRIPT="scripts/deploy_token_bridge.js"
+        FILE="build/contracts/BridgeImplementation.json"
+        verify_module="token_bridge"
+        ;;
+    NFTBridge)
+        SCRIPT="scripts/deploy_nft_bridge.js"
+        FILE="build/contracts/NFTBridgeImplementation.json"
+        verify_module="nft_bridge"
+        ;;
+    *) echo "unknown module $module" >&2
+       ;;
+esac
+
+# TODO: add option to not compile (but compile by default)
+
+truffle_network=""
+case "$network" in
+    mainnet)
+        truffle_network="$chain"
+    ;;
+    testnet)
+        truffle_network="$chain"_testnet
+esac
+
+ret=0
+implementation=$(worm evm info -c "$chain" -m "$module" -n "$network" -i 2>/dev/null) || ret=$?
+
+if [ $ret != 0 ]; then
+  printf "☐ %s %s: skipping (no deployment available)\n" "$chain" "$module"
+  exit 1
+fi
+
+ret=0
+(./verify -n "$network" -c "$chain" $FILE "$implementation" > /dev/null) || ret=$?
+
+if [ $ret = 0 ]; then
+  printf "✔ %s %s: skipping (implementation matches same bytecode)\n" "$chain" "$module"
+  exit
+fi
+
+deploy_output=$(npx truffle exec $SCRIPT --network "$truffle_network") || ( echo "✘ $chain $module: $deploy_output" && exit 1 )
+new_implementation=$(echo "$deploy_output" | grep "address:" | cut -d' ' -f3)
+
+ret=0
+(./verify -n "$network" -c "$chain" $FILE "$new_implementation" > /dev/null) || ret=$?
+
+if [ $ret = 0 ]; then
+  printf "✔ %s %s: deployed (%s)\n" "$chain" "$module" "$new_implementation"
+else
+  printf "✘ %s %s: deployed (%s) but failed to match bytecode\n"  "$chain" "$module" "$new_implementation"
+  exit 1
+fi
+
+if [ "$network" = testnet ]; then
+  worm submit $(worm generate upgrade -c "$chain" -a "$new_implementation" -m "$module" -g "$guardian_secret") -n "$network"
+else
+  echo "./scripts/contract-upgrade-governance.sh -c $chain -m $verify_module -a $new_implementation"
+fi

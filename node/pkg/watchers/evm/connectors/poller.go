@@ -64,7 +64,14 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 			timer.Stop()
 			return ctx.Err()
 		case <-timer.C:
-			lastBlock, err = b.pollBlocks(ctx, logger, lastBlock)
+			for count := 0; count < 3; count++ {
+				lastBlock, err = b.pollBlocks(ctx, logger, lastBlock)
+				if err == nil {
+					break
+				}
+				logger.Error("polling encountered an error", zap.Error(err))
+			}
+
 			if err != nil {
 				b.errFeed.Send("polling encountered an error")
 			}
@@ -74,12 +81,19 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 }
 
 func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger, lastBlock *NewBlock) (lastPublishedBlock *NewBlock, retErr error) {
+	// Some of the testnet providers (like the one we are using for Arbitrum) limit how many transactions we can do. When that happens, the call hangs.
+	// Use a timeout so that the call will fail and the runable will get restarted. This should not happen in mainnet, but if it does, we will need to
+	// investigate why the runable is dying and fix the underlying problem.
+
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
 	lastPublishedBlock = lastBlock
 
 	// Fetch the latest block on the chain
 	// We could do this on every iteration such that if a new block is created while this function is being executed,
 	// it would automatically fetch new blocks but in order to reduce API load this will be done on the next iteration.
-	latestBlock, err := b.getBlock(ctx, logger, nil)
+	latestBlock, err := b.getBlock(timeout, logger, nil)
 	if err != nil {
 		logger.Error("failed to look up latest block",
 			zap.Uint64("lastSeenBlock", lastBlock.Number.Uint64()), zap.Error(err))
@@ -93,7 +107,7 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 
 		// Try to fetch the next block between lastBlock and latestBlock
 		nextBlockNumber := new(big.Int).Add(lastPublishedBlock.Number, big.NewInt(1))
-		block, err := b.getBlock(ctx, logger, nextBlockNumber)
+		block, err := b.getBlock(timeout, logger, nextBlockNumber)
 		if err != nil {
 			logger.Error("failed to fetch next block",
 				zap.Uint64("block", nextBlockNumber.Uint64()), zap.Error(err))
@@ -101,7 +115,7 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 		}
 
 		if b.finalizer != nil {
-			finalized, err := b.finalizer.IsBlockFinalized(ctx, block)
+			finalized, err := b.finalizer.IsBlockFinalized(timeout, block)
 			if err != nil {
 				logger.Error("failed to check block finalization",
 					zap.Uint64("block", block.Number.Uint64()), zap.Error(err))

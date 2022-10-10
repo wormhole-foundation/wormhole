@@ -28,6 +28,7 @@ import {
   isEVMChain,
   isTerraChain,
   CHAIN_ID_PYTHNET,
+  CHAIN_ID_XPLA,
 } from "./consts";
 import { hashLookup } from "./near";
 
@@ -97,6 +98,8 @@ export const tryUint8ArrayToNative = (
   } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
     // wormhole-chain addresses are always 20 bytes.
     return humanAddress("wormhole", a.slice(-20));
+  } else if (chainId === CHAIN_ID_XPLA) {
+    return humanAddress("xpla", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Use tryHexToNativeStringNear instead.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
@@ -221,7 +224,11 @@ export const tryNativeToHexString = (
     } else {
       return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
     }
-  } else if (chainId === CHAIN_ID_TERRA2 || chainId === CHAIN_ID_INJECTIVE) {
+  } else if (
+    chainId === CHAIN_ID_TERRA2 ||
+    chainId === CHAIN_ID_INJECTIVE ||
+    chainId === CHAIN_ID_XPLA
+  ) {
     return buildTokenId(chainId, address);
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);

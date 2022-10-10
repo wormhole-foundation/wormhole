@@ -26,6 +26,7 @@ export const CHAINS = {
   optimism: 24,
   gnosis: 25,
   pythnet: 26,
+  xpla: 28,
   ropsten: 10001,
   wormholechain: 3104,
 } as const;
@@ -61,7 +62,7 @@ export type EVMChainName =
  */
 export type SolanaChainName = "solana" | "pythnet";
 
-export type CosmWasmChainName = "terra" | "terra2" | "injective";
+export type CosmWasmChainName = "terra" | "terra2" | "injective" | "xpla";
 export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
@@ -177,8 +178,8 @@ const MAINNET = {
   },
   moonbeam: {
     core: "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3",
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    token_bridge: "0xb1731c586ca89a23809861c6103f0b96b3f57d92",
+    nft_bridge: "0x453cfbe096c0f8d763e8c5f24b441097d577bde2",
   },
   neon: {
     core: undefined,
@@ -208,6 +209,11 @@ const MAINNET = {
   },
   pythnet: {
     core: "H3fxXJ86ADW2PNuDDmZJg6mzTtPxkYCpNuQUTgmJ7AjU",
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  xpla: {
+    core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
   },
@@ -330,9 +336,9 @@ const TESTNET = {
     nft_bridge: "0x98A0F4B96972b32Fcb3BD03cAeB66A44a6aB9Edb",
   },
   neon: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
-    token_bridge: "0xd11De1f930eA1F7Dd0290Fe3a2e35b9C91AEFb37",
-    nft_bridge: "0xa52Da3B1ffd258a2fFB7719a6aeE24095eEE24E2",
+    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
+    token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
+    nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
   },
   terra2: {
     core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
@@ -341,14 +347,14 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   arbitrum: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
+    token_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
+    nft_bridge: "0xEe3dB83916Ccdc3593b734F7F2d16D630F39F1D0",
   },
   optimism: {
-    core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
+    token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
+    nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
   },
   gnosis: {
     core: "0xE4eacc10990ba3308DdCC72d985f2a27D20c7d03",
@@ -358,6 +364,12 @@ const TESTNET = {
   pythnet: {
     core: "EUrRARh92Cdc54xrDn6qzaqjA77NRrCcfbr8kPwoTL4z",
     token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  xpla: {
+    core: "xpla1upkjn4mthr0047kahvn0llqx4qpqfn75lnph4jpxfn8walmm8mqsanyy35",
+    token_bridge:
+      "xpla1alpgm9geq76dzhk5xvt6qqc2lza0vtzzpskgys5rkmjzph8cs69sl09fq9",
     nft_bridge: undefined,
   },
   ropsten: {
@@ -509,6 +521,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  xpla: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   ropsten: {
     core: undefined,
     token_bridge: undefined,
@@ -586,6 +603,7 @@ export const CHAIN_ID_ARBITRUM = CHAINS["arbitrum"];
 export const CHAIN_ID_OPTIMISM = CHAINS["optimism"];
 export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
 export const CHAIN_ID_PYTHNET = CHAINS["pythnet"];
+export const CHAIN_ID_XPLA = CHAINS["xpla"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 export const CHAIN_ID_WORMHOLE_CHAIN = CHAINS["wormholechain"];
 
@@ -733,7 +751,8 @@ export function isCosmWasmChain(
   return (
     chainId === CHAIN_ID_TERRA ||
     chainId === CHAIN_ID_TERRA2 ||
-    chainId === CHAIN_ID_INJECTIVE
+    chainId === CHAIN_ID_INJECTIVE ||
+    chainId === CHAIN_ID_XPLA
   );
 }
 

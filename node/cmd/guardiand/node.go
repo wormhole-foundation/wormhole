@@ -39,6 +39,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/wormchain"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -120,6 +121,10 @@ var (
 	injectiveLCD      *string
 	injectiveContract *string
 
+	xplaWS       *string
+	xplaLCD      *string
+	xplaContract *string
+
 	algorandIndexerRPC   *string
 	algorandIndexerToken *string
 	algorandAlgodRPC     *string
@@ -129,10 +134,16 @@ var (
 	nearRPC      *string
 	nearContract *string
 
+	wormchainWS  *string
+	wormchainLCD *string
+
 	solanaRPC *string
 
 	pythnetContract *string
 	pythnetRPC      *string
+
+	arbitrumRPC      *string
+	arbitrumContract *string
 
 	logLevel *string
 
@@ -235,6 +246,10 @@ func init() {
 	injectiveLCD = NodeCmd.Flags().String("injectiveLCD", "", "Path to LCD service root for Injective http calls")
 	injectiveContract = NodeCmd.Flags().String("injectiveContract", "", "Wormhole contract address on Injective blockchain")
 
+	xplaWS = NodeCmd.Flags().String("xplaWS", "", "Path to root for XPLA websocket connection")
+	xplaLCD = NodeCmd.Flags().String("xplaLCD", "", "Path to LCD service root for XPLA http calls")
+	xplaContract = NodeCmd.Flags().String("xplaContract", "", "Wormhole contract address on XPLA blockchain")
+
 	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL")
 	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
 	algorandAlgodRPC = NodeCmd.Flags().String("algorandAlgodRPC", "", "Algorand Algod RPC URL")
@@ -244,10 +259,16 @@ func init() {
 	nearRPC = NodeCmd.Flags().String("nearRPC", "", "near RPC URL")
 	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
 
+	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormholechaind root for websocket connection")
+	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
+
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
 	pythnetRPC = NodeCmd.Flags().String("pythnetRPC", "", "PythNet RPC URL (required")
+
+	arbitrumRPC = NodeCmd.Flags().String("arbitrumRPC", "", "Arbitrum RPC URL")
+	arbitrumContract = NodeCmd.Flags().String("arbitrumContract", "", "Arbitrum contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -387,6 +408,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *nearRPC != "" {
 		readiness.RegisterComponent(common.ReadinessNearSyncing)
 	}
+	if *wormchainWS != "" {
+		readiness.RegisterComponent(common.ReadinessWormchainSyncing)
+	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
@@ -403,6 +427,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 		readiness.RegisterComponent(common.ReadinessNeonSyncing)
 		readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
+		readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
+		readiness.RegisterComponent(common.ReadinessXplaSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -455,6 +481,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		*celoContract = devnet.GanacheWormholeContractAddress.Hex()
 		*moonbeamContract = devnet.GanacheWormholeContractAddress.Hex()
 		*neonContract = devnet.GanacheWormholeContractAddress.Hex()
+		if *arbitrumContract == "" {
+			*arbitrumContract = devnet.GanacheWormholeContractAddress.Hex()
+		}
 	}
 
 	// Verify flags
@@ -566,6 +595,22 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
 		}
+		if *arbitrumRPC != "" {
+			if *arbitrumContract == "" {
+				logger.Fatal("If --arbitrumRPC is specified, then --arbitrumContract is required")
+			}
+		} else if *arbitrumContract != "" {
+			logger.Fatal("If --arbitrumContract is specified, then --arbitrumRPC is required")
+		}
+		if *xplaWS == "" {
+			logger.Fatal("Please specify --xplaWS")
+		}
+		if *xplaLCD == "" {
+			logger.Fatal("Please specify --xplaLCD")
+		}
+		if *xplaContract == "" {
+			logger.Fatal("Please specify --xplaContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -587,6 +632,21 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --injectiveContract")
+		}
+		if *xplaWS != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --xplaWS")
+		}
+		if *xplaLCD != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --xplaLCD")
+		}
+		if *xplaContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --xplaContract")
+		}
+		if *arbitrumRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --arbitrumRPC")
+		}
+		if *arbitrumContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --arbitrumContract")
 		}
 	}
 	if *nodeName == "" {
@@ -625,9 +685,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if *algorandIndexerRPC == "" {
 			logger.Fatal("Please specify --algorandIndexerRPC")
-		}
-		if *algorandIndexerToken == "" {
-			logger.Fatal("Please specify --algorandIndexerToken")
 		}
 		if *algorandAlgodRPC == "" {
 			logger.Fatal("Please specify --algorandAlgodRPC")
@@ -702,6 +759,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	celoContractAddr := eth_common.HexToAddress(*celoContract)
 	moonbeamContractAddr := eth_common.HexToAddress(*moonbeamContract)
 	neonContractAddr := eth_common.HexToAddress(*neonContract)
+	arbitrumContractAddr := eth_common.HexToAddress(*arbitrumContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -787,6 +845,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+	chainObsvReqC[vaa.ChainIDWormchain] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -807,6 +866,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+		chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+		chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	}
 	go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
@@ -984,6 +1045,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, lockC, nil, 32, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode).Run); err != nil {
 				return err
 			}
+			if err := supervisor.Run(ctx, "arbitrumwatch",
+				evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", common.ReadinessArbitrumSyncing, vaa.ChainIDArbitrum, lockC, nil, 1, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode).Run); err != nil {
+				return err
+			}
 		}
 
 		if *terraWS != "" {
@@ -1009,6 +1074,13 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
+		if *testnetMode {
+			logger.Info("Starting XPLA watcher")
+			if err := supervisor.Run(ctx, "xplawatch",
+				cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, lockC, chainObsvReqC[vaa.ChainIDXpla], common.ReadinessXplaSyncing, vaa.ChainIDXpla).Run); err != nil {
+				return err
+			}
+		}
 
 		if *algorandIndexerRPC != "" {
 			if err := supervisor.Run(ctx, "algorandwatch",
@@ -1019,6 +1091,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *nearRPC != "" {
 			if err := supervisor.Run(ctx, "nearwatch",
 				near.NewWatcher(*nearRPC, *nearContract, lockC, chainObsvReqC[vaa.ChainIDNear], !(*unsafeDevMode || *testnetMode)).Run); err != nil {
+				return err
+			}
+		}
+
+		// Start Wormchain watcher only if configured
+		if *wormchainWS != "" && *wormchainLCD != "" {
+			logger.Info("Starting Wormchain watcher")
+			if err := supervisor.Run(ctx, "wormchainwatch",
+				wormchain.NewWatcher(*wormchainWS, *wormchainLCD, lockC, setC, chainObsvReqC[vaa.ChainIDWormchain]).Run); err != nil {
 				return err
 			}
 		}
@@ -1068,6 +1149,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			*unsafeDevMode,
 			*devNumGuardians,
 			*ethRPC,
+			*wormchainLCD,
 			attestationEvents,
 			notifier,
 			gov,
