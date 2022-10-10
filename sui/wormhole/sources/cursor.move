@@ -1,5 +1,5 @@
 module wormhole::cursor {
-    use 0x1::vector::{Self};
+    use std::vector::{Self};
 
     /// A cursor allows consuming a vector incrementally for parsing operations.
     /// It has no drop ability, and the only way to deallocate it is by calling the
