@@ -8,12 +8,12 @@ module token_bridge::vaa {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{ExternalAddress};
 
-    use token_bridge::bridge_state::{Self as state, BridgeState};
+    use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
 
     //friend token_bridge::complete_transfer;
     //friend token_bridge::complete_transfer_with_payload;
     //friend token_bridge::contract_upgrade;
-    //friend token_bridge::register_chain;
+    friend token_bridge::register_chain;
     friend token_bridge::wrapped;
 
     //#[test_only]
@@ -26,14 +26,14 @@ module token_bridge::vaa {
 
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
     /// the first time around.
-    public(friend) fun replay_protect(_vaa: &VAA) {
+    public(friend) fun replay_protect(bridge_state: &mut BridgeState, vaa: &VAA) {
         // this calls set::add which aborts if the element already exists
-        //state::set_vaa_consumed(vaa::get_hash(vaa));
+        bridge_state::set_vaa_consumed(bridge_state, vaa::get_hash(vaa));
     }
 
     /// Asserts that the VAA is from a known token bridge.
     public fun assert_known_emitter(state: &BridgeState, vm: &VAA) {
-        let maybe_emitter = state::get_registered_emitter(state, &vaa::get_emitter_chain(vm));
+        let maybe_emitter = bridge_state::get_registered_emitter(state, &vaa::get_emitter_chain(vm));
         assert!(option::is_some<ExternalAddress>(&maybe_emitter), E_UNKNOWN_CHAIN);
 
         let emitter = option::extract(&mut maybe_emitter);
@@ -47,11 +47,11 @@ module token_bridge::vaa {
     /// (otherwise the replay protection could be abused to DoS the bridge)
     public(friend) fun parse_verify_and_replay_protect(
         wormhole_state: &mut WormholeState,
-        bridge_state: &BridgeState,
+        bridge_state: &mut BridgeState,
         vaa: vector<u8>,
         ctx: &mut TxContext): VAA {
         let vaa = parse_and_verify(wormhole_state, bridge_state, vaa, ctx);
-        replay_protect(&vaa);
+        replay_protect(bridge_state, &vaa);
         vaa
     }
 
