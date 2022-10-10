@@ -28,9 +28,6 @@ module token_bridge::wrapped {
         let treasury_cap = coin::create_currency<T>(witness, ctx);
         // TODO - assert emitter is registered, extract decimals, token name, symbol, etc. from asset meta
         // TODO - figure out where to store name, symbol, etc.
-        // let native_token_address = asset_meta::get_token_address(&asset_meta);
-        // let native_token_chain = asset_meta::get_token_chain(&asset_meta);
-        // let origin_info = state::create_origin_info(native_token_chain, native_token_address);
         transfer::share_object(TreasuryCapContainer{id: object::new(ctx), t: treasury_cap});
     }
 
