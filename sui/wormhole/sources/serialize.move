@@ -1,5 +1,5 @@
 module wormhole::serialize {
-    use 0x1::vector;
+    use std::vector;
     use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
     use wormhole::myu256::U256;
