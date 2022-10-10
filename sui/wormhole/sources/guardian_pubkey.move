@@ -3,7 +3,7 @@
 /// hash of their 64 byte secp256k1 public key.
 module wormhole::guardian_pubkey {
     use sui::crypto;
-    use 0x1::vector;
+    use std::vector;
     use wormhole::keccak256::keccak256;
 
     /// An error occurred while deserializing, for example due to wrong input size.

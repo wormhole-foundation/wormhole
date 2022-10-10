@@ -12,12 +12,12 @@ module token_bridge::asset_meta {
     //friend token_bridge::attest_token;
     friend token_bridge::wrapped;
 
-    #[test_only]
-    friend token_bridge::wrapped_test;
+    //#[test_only]
+    //friend token_bridge::wrapped_test;
 
     const E_INVALID_ACTION: u64 = 0;
 
-    struct AssetMeta has key, store, drop {
+    struct AssetMeta has store, drop {
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
         /// Chain ID of the token
