@@ -565,7 +565,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("If --nearRPC is specified, then --nearContract must be specified")
 		}
 	} else if *nearContract != "" {
-		logger.Fatal("If --nearContract is not specified, then --nearRPC must not be specified")
+		logger.Fatal("If --nearRPC is not specified, then --nearContract must not be specified")
 	}
 	if *moonbeamRPC == "" {
 		logger.Fatal("Please specify --moonbeamRPC")
