@@ -14,6 +14,7 @@ import {
   getEmitterAddressTerra,
   getEmitterAddressEth,
   getEmitterAddressAlgorand,
+  getEmitterAddressNear,
   isCosmWasmChain,
 } from "@certusone/wormhole-sdk";
 import { execute_solana } from "./solana";
@@ -42,6 +43,7 @@ import { NETWORKS } from "./networks";
 import base58 from "bs58";
 import { execute_algorand } from "./algorand";
 import { execute_injective } from "./injective";
+import { execute_xpla } from "./xpla";
 
 setDefaultWasm("node");
 
@@ -300,18 +302,12 @@ yargs(hideBin(process.argv))
         if (chain === "solana" || chain === "pythnet") {
           // TODO: Create an isSolanaChain()
           addr = await getEmitterAddressSolana(addr);
-        } else if (isTerraChain(chain)) {
+        } else if (isCosmWasmChain(chain)) {
           addr = await getEmitterAddressTerra(addr);
         } else if (chain === "algorand") {
           addr = getEmitterAddressAlgorand(BigInt(addr));
         } else if (chain === "near") {
-          if (network !== "MAINNET") {
-            throw Error(
-              `unable to look up near emitter address for ${network}`
-            );
-          }
-          addr =
-            "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7";
+          addr = await getEmitterAddressNear(addr);
         } else {
           addr = getEmitterAddressEth(addr);
         }
@@ -670,6 +666,8 @@ yargs(hideBin(process.argv))
         await execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
         await execute_injective(parsed_vaa.payload, buf, network);
+      } else if (chain === "xpla") {
+        await execute_xpla(parsed_vaa.payload, buf, network);
       } else if (chain === "osmosis") {
         throw Error("OSMOSIS is not supported yet");
       } else if (chain === "sui") {
