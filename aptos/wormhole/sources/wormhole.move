@@ -113,7 +113,7 @@ module wormhole::wormhole {
         initial_guardian: vector<u8>,
         message_fee: u64,
     ): signer {
-        let deployer = account::create_account_for_test(@0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b);
+        let deployer = account::create_account_for_test(@deployer);
         let (wormhole, signer_cap) = account::create_resource_account(&deployer, b"wormhole");
         init_internal(
             signer_cap,

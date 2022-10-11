@@ -29,6 +29,7 @@ module token_bridge::token_hash {
 module token_bridge::token_hash_test {
     use token_bridge::token_hash;
     use wormhole::external_address;
+    use wrapped_coin::coin;
 
     use std::type_info;
     use std::string;
@@ -36,15 +37,28 @@ module token_bridge::token_hash_test {
     struct MyCoin {}
 
     #[test]
-    public fun foo() {
+    public fun test_type_name() {
         let t = type_info::type_name<MyCoin>();
-        assert!(*string::bytes(&t) == b"0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed::token_hash_test::MyCoin", 0)
+        assert!(*string::bytes(&t) == b"0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31::token_hash_test::MyCoin", 0)
     }
 
     #[test]
     public fun test_derive() {
         let t = token_hash::derive<MyCoin>();
-        let expected = x"a5839f5bd57edea609a0ea0f8a58df8bf245e24624c1675cf6fa18c569356b1b";
+        let expected = x"4f69c5d0be57aee780277b1179e4833d61f0563869145e971d24a4e49fcd9302";
+        assert!(token_hash::get_external_address(&t) == external_address::from_bytes(expected), 0);
+    }
+
+    #[test]
+    public fun test_type_name_T() {
+        let t = type_info::type_name<coin::T>();
+        assert!(*string::bytes(&t) == b"0xf4f53cc591e5190eddbc43940746e2b5deea6e0e1562b2bba765d488504842c7::coin::T", 0)
+    }
+
+    #[test]
+    public fun test_derive_T() {
+        let t = token_hash::derive<coin::T>();
+        let expected = x"f0dcbf26a2d59b2196630ed6d5fb5c5bc4fd33996c9f31f19d29389d0c8e7ec2";
         assert!(token_hash::get_external_address(&t) == external_address::from_bytes(expected), 0);
     }
 }
