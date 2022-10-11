@@ -27,3 +27,12 @@ export type State = {
     handle: string;
   };
 };
+
+export type OriginInfo = {
+  token_address: {
+    external_address: string;
+  };
+  token_chain: {
+    number: number;
+  };
+};
