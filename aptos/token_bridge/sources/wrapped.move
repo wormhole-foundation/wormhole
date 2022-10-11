@@ -240,7 +240,7 @@ module token_bridge::wrapped_test {
         let origin_token_chain = state::get_origin_info_token_chain(&origin_info);
         let wrapped_asset_type_info = state::wrapped_asset_info(origin_info);
         let is_wrapped_asset = state::is_wrapped_asset<T>();
-        assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xb54071ea68bc35759a17e9ddff91a8394a36a4790055e5bd225fae087a4a875b::coin::T"), 0);
+        assert!(type_of<T>() == wrapped_asset_type_info, 0); //utf8(b"0xf4f53cc591e5190eddbc43940746e2b5deea6e0e1562b2bba765d488504842c7::coin::T"), 0);
         assert!(origin_token_chain == u16::from_u64(2), 0);
         assert!(external_address::get_bytes(&origin_token_address) == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
         assert!(is_wrapped_asset, 0);
