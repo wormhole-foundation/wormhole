@@ -93,7 +93,7 @@ func CmdStoreCode() *cobra.Command {
 func CmdInstantiateContract() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "instantiate [label] [code_id_int64] [json_encoded_init_args] [vaa-hex]",
-		Short: "Register a guardian public key with a wormhole chain address, or just compute the hash for vaa if vaa is omitted",
+		Short: "Instantiate a wasmd contract, or just compute the hash for vaa if vaa is omitted",
 		Args:  cobra.RangeArgs(3, 4),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			clientCtx, err := client.GetClientTxContext(cmd)
