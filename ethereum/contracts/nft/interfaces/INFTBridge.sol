@@ -3,6 +3,8 @@
 
 pragma solidity ^0.8.0;
 
+import "../../interfaces/IWormhole.sol";
+
 interface INFTBridge {
     struct Transfer {
         bytes32 tokenAddress;
@@ -31,6 +33,8 @@ interface INFTBridge {
     function onERC721Received(address operator, address, uint256, bytes calldata) external view returns (bytes4);
 
     function isTransferCompleted(bytes32 hash) external view returns (bool);
+
+    function wormhole() external view returns (IWormhole);
 
     function chainId() external view returns (uint16);
 

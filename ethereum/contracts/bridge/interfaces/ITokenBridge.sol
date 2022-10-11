@@ -3,6 +3,9 @@
 
 pragma solidity ^0.8.0;
 
+import "./IWETH.sol";
+import "../../interfaces/IWormhole.sol";
+
 interface ITokenBridge {
     struct Transfer {
         uint8 payloadID;
@@ -72,11 +75,15 @@ interface ITokenBridge {
 
     function isTransferCompleted(bytes32 hash) external view returns (bool);
 
+    function wormhole() external view returns (IWormhole);
+
     function chainId() external view returns (uint16);
 
     function evmChainId() external view returns (uint256);
 
     function wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) external view returns (address);
+
+    function WETH() external view returns (IWETH);
 
     function outstandingBridged(address token) external view returns (uint256);
 
