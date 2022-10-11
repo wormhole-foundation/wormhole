@@ -236,7 +236,7 @@ const TESTNET = {
     key: get_env_var("SOLANA_KEY_TESTNET"),
   },
   xpla: {
-    rpc: "https://cube-rpc.xpla.dev:443",
+    rpc: "https://cube-lcd.xpla.dev:443",
     chain_id: "cube_47-5",
     key: get_env_var("XPLA_KEY_TESTNET"),
   },
