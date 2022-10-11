@@ -41,7 +41,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - /tmp/aptos/start_node.sh
+            - /tmp/start_node.sh
           ports:
             - containerPort: 8080
               name: node
