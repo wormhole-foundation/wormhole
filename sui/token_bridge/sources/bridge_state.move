@@ -3,7 +3,6 @@ module token_bridge::bridge_state {
    use std::option::{Self, Option};
 
    use sui::object::{UID};
-   //use sui::coin::TreasuryCap;
    use sui::vec_map::{Self, VecMap};
    use sui::vec_set::{Self, VecSet};
 
@@ -26,7 +25,7 @@ module token_bridge::bridge_state {
       token_address: ExternalAddress,
    }
 
-   struct BridgeState has key {
+   struct BridgeState has key, store {
       id: UID,
       governance_chain_id: U16,
       governance_contract: ExternalAddress,

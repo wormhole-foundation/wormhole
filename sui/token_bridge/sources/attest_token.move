@@ -1,8 +1,11 @@
-l// module token_bridge::attest_token {
+// TODO - implement attest token when Sui token standard is available,
+//        code for Aptos attest token is below
+
+// module token_bridge::attest_token {
 //     use aptos_framework::aptos_coin::{AptosCoin};
 //     use aptos_framework::coin::{Self, Coin};
 
-ea//     use token_bridge::asset_meta::{Self, AssetMeta};
+//     use token_bridge::asset_meta::{Self, AssetMeta};
 //     use token_bridge::state;
 //     use token_bridge::token_hash;
 //     use token_bridge::string32;
