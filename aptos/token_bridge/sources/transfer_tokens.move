@@ -1,10 +1,12 @@
 module token_bridge::transfer_tokens {
     use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::signer;
 
     use wormhole::u16::{Self, U16};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::wormhole::{register_emitter};
 
     use token_bridge::state;
     use token_bridge::transfer;
@@ -14,6 +16,10 @@ module token_bridge::transfer_tokens {
     use token_bridge::wrapped;
 
     const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
+
+    struct State has key {
+        emitter_cap: EmitterCapability,
+    }
 
     public entry fun transfer_tokens_with_signer<CoinType>(
         sender: &signer,
@@ -59,6 +65,34 @@ module token_bridge::transfer_tokens {
             nonce,
             transfer::encode(transfer),
             wormhole_fee_coins,
+        )
+    }
+
+    public entry fun transfer_tokens_with_payload_with_signer<CoinType>(
+        sender: &signer,
+        amount: u64,
+        recipient_chain: u64,
+        recipient: vector<u8>,
+        wormhole_fee: u64,
+        nonce: u64,
+        payload: vector<u8>
+        ): u64 acquires State {
+        let coins = coin::withdraw<CoinType>(sender, amount);
+        let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
+
+        if (!exists<State>(signer::address_of(sender))) {
+            let emitter_cap = register_emitter();
+            move_to<State>(sender, State { emitter_cap: emitter_cap });
+        };
+        let emitter_cap = (&mut borrow_global_mut<State>(signer::address_of(sender)).emitter_cap);
+        transfer_tokens_with_payload<CoinType>(
+            emitter_cap,
+            coins,
+            wormhole_fee_coins,
+            u16::from_u64(recipient_chain),
+            external_address::from_bytes(recipient),
+            nonce,
+            payload
         )
     }
 

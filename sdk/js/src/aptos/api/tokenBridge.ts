@@ -104,16 +104,17 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
 
   // Transfer tokens
 
-  transferTokensWithSigner = (
+  transferTokens = (
     sender: AptosAccount,
     tokenChain: ChainId | ChainName,
     tokenAddress: string,
     amount: number | bigint,
-    recipientChain: number | bigint,
+    recipientChain: ChainId | ChainName,
     recipient: Uint8Array,
     relayerFee: number | bigint,
     wormholeFee: number | bigint,
     nonce: number | bigint,
+    payload: string = "",
   ): Promise<Types.Transaction> => {
     if (!this.address) throw "Need token bridge address.";
     const assetType = getAssetFullyQualifiedType(
@@ -123,12 +124,23 @@ export class AptosTokenBridgeApi extends WormholeAptosBaseApi {
     );
     if (!assetType) throw "Invalid asset address.";
 
-    const payload = {
-      function: `${this.address}::transfer_tokens::submit_vaa`,
-      type_arguments: [assetType],
-      arguments: [amount, recipientChain, recipient, relayerFee, wormholeFee, nonce],
-    };
-    return this.client.executeEntryFunction(sender, payload);
+    let entryFuncPayload;
+    const recipientChainId = coalesceChainId(recipientChain);
+    if (payload) {
+      entryFuncPayload = {
+        function: `${this.address}::transfer_tokens::transfer_tokens_with_payload_with_signer`,
+        type_arguments: [assetType],
+        arguments: [amount, recipientChainId, recipient, wormholeFee, nonce, payload],
+      };
+    } else {
+      entryFuncPayload = {
+        function: `${this.address}::transfer_tokens::transfer_tokens_with_signer`,
+        type_arguments: [assetType],
+        arguments: [amount, recipientChainId, recipient, relayerFee, wormholeFee, nonce],
+      };
+    }
+
+    return this.client.executeEntryFunction(sender, entryFuncPayload);
   };
 
   // Created wrapped coin
