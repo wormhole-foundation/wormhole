@@ -13,7 +13,7 @@ module token_bridge::token_bridge {
     /// use `init_module` now. Let's reconsider before the mainnet launch.
     /// Can only be called by the deployer (checked by the
     /// `deployer::claim_signer_capability` function).
-    entry fun init(deployer: &signer) {
+    public entry fun init(deployer: &signer) {
         let signer_cap = claim_signer_capability(deployer, @token_bridge);
         init_internal(signer_cap);
     }
