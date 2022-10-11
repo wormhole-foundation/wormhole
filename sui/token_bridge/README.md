@@ -4,7 +4,7 @@ The Token Bridge is responsible for storing treasury caps and locked tokens and 
 
 ## Token Attestation
 
-Right now it is unclear how to do token attestation.
+Right now it is unclear how to do token attestation, because Mysten Labs is still working on a token metadata standard, like ERC20.
 
 There doesn't seem to be a standardized way to store info about a coin. One way is to create a `CoinInfo` object containing the name, symbol, decimals of the token, and `transfer::freeze_object` it.
 
