@@ -9,11 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/IWormhole.sol";
-
-interface ITokenBridge {
-    function completeTransferWithPayload(bytes memory encodedVm) external returns (bytes memory);
-    function wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) external view returns (address);
-}
+import "../interfaces/ITokenBridge.sol";
 
 contract MockTokenBridgeIntegration {
     using BytesLib for bytes;
