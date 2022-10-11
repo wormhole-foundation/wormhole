@@ -9,6 +9,7 @@ module wormhole::wormhole {
     use wormhole::u32::{Self, U32};
     use wormhole::emitter;
     use wormhole::external_address::{Self};
+    use std::signer;
 
     const E_INSUFFICIENT_FEE: u64 = 0;
 
@@ -101,7 +102,13 @@ module wormhole::wormhole {
             )
         );
         // register wormhole to be able to receive fees
-        coin::register<AptosCoin>(&wormhole);
+        // `aptos_account::create_account` is a permissionless operation that
+        // performs aptos coin registration too, so it's possible that this is
+        // already performed, in which case we just skip
+        // (thanks ottersec for point this out)
+        if (!coin::is_account_registered<AptosCoin>(signer::address_of(&wormhole))){
+            coin::register<AptosCoin>(&wormhole);
+        };
     }
 
     #[test_only]
