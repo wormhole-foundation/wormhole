@@ -17,7 +17,7 @@ module token_bridge::transfer_tokens {
 
     const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
 
-    struct State has key {
+    struct EmitterCapabilityStore has key {
         emitter_cap: EmitterCapability,
     }
 
@@ -76,15 +76,20 @@ module token_bridge::transfer_tokens {
         wormhole_fee: u64,
         nonce: u64,
         payload: vector<u8>
-        ): u64 acquires State {
+    ): u64 acquires EmitterCapabilityStore {
+        if (!exists<EmitterCapabilityStore>(signer::address_of(sender))) {
+            let emitter_cap = register_emitter();
+            move_to<EmitterCapabilityStore>(
+                sender, 
+                EmitterCapabilityStore { emitter_cap: emitter_cap }
+            );
+        };
+        let emitter_cap = (
+            &mut borrow_global_mut<EmitterCapabilityStore>(signer::address_of(sender)).emitter_cap
+        );
+
         let coins = coin::withdraw<CoinType>(sender, amount);
         let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
-
-        if (!exists<State>(signer::address_of(sender))) {
-            let emitter_cap = register_emitter();
-            move_to<State>(sender, State { emitter_cap: emitter_cap });
-        };
-        let emitter_cap = (&mut borrow_global_mut<State>(signer::address_of(sender)).emitter_cap);
         transfer_tokens_with_payload<CoinType>(
             emitter_cap,
             coins,
