@@ -16,8 +16,8 @@ WORKDIR /tmp
 RUN npm install -g n typescript ts-node
 RUN n stable
 
-COPY clients/js  /tmp/js
+COPY clients/js  /tmp/clients/js
 
-WORKDIR /tmp/js
+WORKDIR /tmp/clients/js
 
 RUN make install
