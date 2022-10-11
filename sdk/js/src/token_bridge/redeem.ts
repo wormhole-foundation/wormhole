@@ -38,6 +38,8 @@ import { parseTransferPayload } from "../utils/parseVaa";
 import { Account as nearAccount } from "near-api-js";
 import BN from "bn.js";
 import { providers as nearProviders } from "near-api-js";
+import { AptosAccount, AptosClient, Types } from "aptos";
+import { WormholeAptosApi } from "../aptos";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -352,4 +354,23 @@ export async function redeemOnNear(
   });
 
   return nearProviders.getTransactionLastResult(result);
+}
+
+export async function redeemFromAptos(
+  client: AptosClient,
+  sender: AptosAccount,
+  tokenBridgeAddress: string,
+  tokenChain: ChainId,
+  tokenAddress: string,
+  vaa: Uint8Array,
+  feeRecipientAddress: string,
+): Promise<Types.Transaction> {
+  const api = new WormholeAptosApi(client, undefined, tokenBridgeAddress);
+  return api.tokenBridge.completeTransfer(
+    sender,
+    tokenChain,
+    tokenAddress,
+    vaa,
+    feeRecipientAddress,
+  );
 }
