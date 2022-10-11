@@ -1,9 +1,10 @@
 [package]
-name = "Wormhole"
+name = "TokenBridge"
 version = "0.0.1"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework", rev = "devnet" }
+Wormhole = { local = "../wormhole" }
 
 [addresses]
-wormhole = "0xd3361388d6c9df295c98e91ae258267dbce7c8e7"
+token_bridge="0x0"

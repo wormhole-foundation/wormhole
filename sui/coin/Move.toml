@@ -1,9 +1,9 @@
 [package]
-name = "Wormhole"
+name = "Coin"
 version = "0.0.1"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework", rev = "devnet" }
 
 [addresses]
-wormhole = "0xd3361388d6c9df295c98e91ae258267dbce7c8e7"
+coin="0x0"
