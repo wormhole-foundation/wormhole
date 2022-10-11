@@ -41,7 +41,7 @@ func createWasmInstantiatePayload(code_id uint64, label string, json_msg string)
 	var payload bytes.Buffer
 	payload.Write(keeper.WasmdModule[:])
 	payload.Write([]byte{byte(keeper.ActionInstantiateContract)})
-	binary.Write(payload, binary.BigEndian, uint16(vaa.ChainIDWormchain))
+	binary.Write(&payload, binary.BigEndian, uint16(vaa.ChainIDWormchain))
 	// custom payload
 	payload.Write(expected_hash[:])
 	return payload.Bytes()
