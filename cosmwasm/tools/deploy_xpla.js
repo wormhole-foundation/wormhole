@@ -16,6 +16,23 @@ if (MNEMONIC === "") {
   process.exit(1);
 }
 
+const NETWORK = process.env.NETWORK
+
+let LCD_URL;
+let CHAIN_ID;
+if (NETWORK === "testnet") {
+  LCD_URL = "https://cube-lcd.xpla.dev";
+  CHAIN_ID = "cube_47-5";
+} else if (NETWORK === "mainnet") {
+  LCD_URL = "https://dimension-lcd.xpla.dev";
+  CHAIN_ID = "dimension_37-1";
+} else {
+  console.log("Please set NETWORK to either \"testnet\" or \"mainnet\".");
+  process.exit(1);
+}
+
+console.log("Deploying to " + NETWORK + " at URL " + LCD_URL + ", chainId " + CHAIN_ID + ".");
+
 /*
   NOTE: Only append to this array: keeping the ordering is crucial, as the
   contracts must be imported in a deterministic order so their addresses remain
@@ -68,8 +85,8 @@ if (unexpected_artifacts.length) {
 /* Set up cosmwasm client & wallet */
 
 const client = new LCDClient({
-  URL: "https://dimension-lcd.xpla.dev",
-  chainID: "dimension_37-1",
+  URL: LCD_URL,
+  chainID: CHAIN_ID,
 });
 
 const wallet = client.wallet(
