@@ -22,8 +22,9 @@ Extend Wormhole with the core-primitives needed to build better composability pa
 
 This design document focuses only on the extension of the current implementation of Wormhole’s generic message passing ([0001_generic_message_passing.md](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/whitepapers/0001_generic_message_passing.md)) and does not attempt to solve the following problems, leaving them for future design iterations:
 
-- Replacing VAAv1s with batch VAAs (VAAv2) containing only a single `Observation`.
-- Ensuring backwards compatibility of batch VAAs (VAAv2) with only a single `Observation` using the existing Wormhole APIs.
+- Replacing VAAv1s with batch VAAs (VAAv2) containing only a single observation.
+- Ensuring backwards compatibility of batch VAAs (VAAv2) with only a single observation using the existing Wormhole APIs.
+- Verifying batch VAAs with a subset of the original observations.
 - The specifics of implementing xDapps leveraging batch VAAs, other than ensuring the right APIs are provided.
 
 ## Overview
@@ -34,35 +35,33 @@ Guardians will start producing batch-signatures for messages emitted within the 
 
 We will add support for two new VAA payload types to the Wormhole core contract to allow handling of these:
 
-- The VAAv2 payload that holds the batch-signatures, an array of the signed hashes and an array of `IndexedObservations` (full batch or subset of a batch). This VAAv2 payload can be verified using a new Wormhole core contract endpoint `verifyBatchVM` . This payload will also be produced for individual messages with a nonce greater than zero to offer integrators flexibility when deciding which Wormhole core endpoint to verify messages with.
-- The VAAv3 payload, which is a “headless” payload that only carries an `Observation` . This payload can only be verified when its hash is cached by the Wormhole core contract during VAAv2 signature verification. This payload type is created when a VAAv2 is parsed using the Wormhole core endpoint `parseBatchVM` by prepending the version type to the `Observation` bytes. Although the payload format for VAAv3 is new, it will be parsed and verified using the existing Wormhole core endpoints and parsed into the existing `VM` struct (`signatures[]` and `guardianSetIndex` will be null) to ensure backwards compatibility.
+- The VAAv2 payload that holds the batch-signatures, an array of the signed hashes and an array of observations (the **Structs** section of this paper defines `observation`). This VAAv2 payload can be verified using a new Wormhole core contract endpoint `verifyBatchVM`. This payload will also be produced for individual messages with a nonce greater than zero to offer integrators flexibility when deciding which Wormhole core endpoint to verify messages with.
+- The VAAv3 payload, which is a “headless” payload that only carries an observation. This payload can only be verified when its hash is cached by the Wormhole core contract during VAAv2 signature verification. This payload type is created when a VAAv2 is parsed using the Wormhole core endpoint `parseBatchVM` by prepending the version type to the observation bytes. Although the payload format for VAAv3 is new, it will be parsed and verified using the existing Wormhole core endpoints and parsed into the existing `VM` struct (`signatures[]` and `guardianSetIndex` will be null) to ensure backwards compatibility.
 
 ## Detailed Design
 
 ### VAAv2
 
-To create a VAAv2 payload (which is eventually parsed into the `VM2` struct) an xDapp will invoke the `publishMessage` method at least one time with a nonce greater than zero. The guardian will then produce a VAAv2 payload by grouping all messages with the same `nonce` (in the same transaction) and create a batch-signature by signing the hash of all hashes of the `Observations`:
+To create a VAAv2 payload (which is eventually parsed into the `VM2` struct) an xDapp will invoke the `publishMessage` method at least one time with a nonce greater than zero. The guardian will then produce a VAAv2 payload by grouping all messages with the same `nonce` (in the same transaction) and create a batch-signature by signing the hash of all hashes of the observations:
 
 `hash(hash(Observation1), hash(Observation2), ...)`
 
-Once the batch is signed by the guardian, the VAAv2 can be parsed and verified by calling the new Wormhole core endpoint `parseAndVerifyBatchVM`. This method parses the VAAv2 into the `VM2` struct by calling `parseBatchVM` , calls `verifyBatchVM` to verify the batch-signatures, and stores the hash of each `Observation` in a cache when specified by the caller (for reasons explained in the **VAAv3** section of this detailed design).
-
-`verifyBatchVM` also validates that the hash of each `Observation` is stored in the `hashes` array at the index specified in each `IndexedObservation` . The `hashes` array can never be altered (batch-signature verification will fail) but users can prune VAAv2 payloads by removing `Observations` . This allows VAAv2 delivery with a subset (partial batch) of the original `Observations` to reduce the payload size and gas overhead associated with verifying the batch. The structure of the VAAv2 payload can be found in the **Payloads** section of this design.
+Once the batch is signed by the guardian, the VAAv2 can be parsed and verified by calling the new Wormhole core endpoint `parseAndVerifyBatchVM`. This method parses the VAAv2 into the `VM2` struct by calling `parseBatchVM`, calls `verifyBatchVM` to verify the batch-signatures, and stores the hash of each observation in a cache when specified by the caller (for reasons explained in the **VAAv3** section of this detailed design). `verifyBatchVM` also independently computes the hash of each observation and validates that each hash is stored in the `hashes` array, which is included in the VAAv2 payload. The structure of the VAAv2 payload can be found in the **Payloads** section of this design.
 
 ### VAAv3
 
-When a VAAv2 payload is parsed into a `VM2` struct, each `Observation` is stored as bytes in the `IndexedObservation` struct. The `uint8(3)` version type is prepended to the bytes to specify that they are considered a VAAv3 payload. Each VAAv3 payload can be parsed into the existing `VM` struct with `parseVM` to ensure backwards compatibility with existing smart contract integrations. Since VAAv3 payloads are considered “headless” and do not contain signatures, the `Signatures[]` and `guardianSetIndex` fields are left as null in the `VM` struct.
+When a VAAv2 payload is parsed into a `VM2` struct, each observation is stored as bytes in the `observations` byte array. The `uint8(3)` version type is prepended to the bytes to specify that they are considered a VAAv3 payload. Each VAAv3 payload can be parsed into the existing `VM` struct with `parseVM` to ensure backwards compatibility with existing smart contract integrations. Since VAAv3 payloads are considered “headless” and do not contain signatures, the `Signatures[]` and `guardianSetIndex` fields are left as null in the `VM` struct.
 
-A parsed VAAv3 payload can then be verified by calling the existing method `verifyVM` . This method will check that the hash of the VAAv3 payload (hash of the `Observation`) is stored in the `verifiedHashCache` and bypass signature verification (allowing for cheap verification of individual messages). The VAAv3 payload hash will only be stored in the `verifiedHashCache` if the caller sets the `cache` argument to `true` when verifying the associated VAAv2 payload with `verifyBatchVM` .
+A parsed VAAv3 payload can then be verified by calling the existing method `verifyVM`. This method will check that the hash of the VAAv3 payload (hash of the `Observation`) is stored in the `verifiedHashCache` and bypass signature verification (allowing for cheap verification of individual messages). The VAAv3 payload hash will only be stored in the `verifiedHashCache` if the caller sets the `cache` argument to `true` when verifying the associated VAAv2 payload with `verifyBatchVM`.
 
-At the end of a batch execution, the handler contract should call `clearBatchCache` which will clear the `verifiedHashCache` of provided hashes and reduce the gas costs associated with storing the hashes in the Wormhole contract’s state. A parsed VAAv3 payload will no longer be considered a verified message once its hash is removed from the `verifiedHashCache` .
+At the end of a batch execution, the handler contract should call `clearBatchCache` which will clear the `verifiedHashCache` of provided hashes and reduce the gas costs associated with storing the hashes in the Wormhole contract’s state. A parsed VAAv3 payload will no longer be considered a verified message once its hash is removed from the `verifiedHashCache`.
 
 ### API
 
 ```solidity
-function parseAndVerifyBatchVM(bytes calldata encodedVM, bool cache)
-function verifyBatchVM(Structs.VM2 memory vm, bool cache)
-function parseBatchVM(bytes memory encodedVM)
+function parseAndVerifyBatchVM(bytes calldata encodedVM2, bool cache)
+function verifyBatchVM(Structs.VM2 memory vm2, bool cache)
+function parseBatchVM(bytes memory encodedVM2)
 function clearBatchCache(bytes32[] memory hashesToClear)
 ```
 
@@ -75,29 +74,11 @@ struct Header {
     bytes32 hash;
 }
 
-struct Observation {
-    uint32 timestamp;
-    uint32 nonce;
-    uint16 emitterChainId;
-    bytes32 emitterAddress;
-    uint64 sequence;
-    uint8 consistencyLevel;
-    bytes payload;
-}
-
-struct IndexedObservation {
-    // Index of the observation in the batch
-    uint8 index;
-    // Observation stored as tightly packed bytes. These bytes
-    // are stored with a prepended uint8 (uint8(3)) to specify that
-    // they represent a VAAv3 payload.
-    bytes observation;
-}
-
 // This struct exists already, but now has an additional version type 3.
 struct VM {
     uint8 version; // Version = 1 or 3
-    // Inlined Observation
+    // The following fields constitute an `observation`. For compatibility
+    // reasons we keep the representation inlined.
     uint32 timestamp;
     uint32 nonce;
     uint16 emitterChainId;
@@ -128,8 +109,8 @@ struct VM2 {
     // Computed Batch Hash - hash(hash(Observation1), hash(Observation2), ...)
     bytes32 hash;
 
-    // Array of IndexedObservations
-    IndexedObservation[] indexedObservations;
+    // Array of observation bytes with prepended version 3
+    bytes[] observations;
 }
 ```
 
@@ -150,9 +131,7 @@ Signature[] signatures;
 uint8 hashesLen;
 // Array of Observation hashes
 bytes32[] hashes;
-// Number of observations, should be less than or
-// equal to the hashesLen if the batch has a subset
-// of observations.
+// Number of observations, should be equal to hashesLen
 uint8 observationsLen;
 
 // Repeated for observationLen times, bytes[] Observation
@@ -160,8 +139,8 @@ uint8 observationsLen;
 	uint8 index;
 	// Number of bytes in the Observation
 	uint32 observationBytesLen;
-	// Encoded Observation, see the Structs section
-    // for details on the Observation structure.
+	// Encoded observation, see the Structs section
+    // for details on the observation structure.
 	bytes observation;
 ```
 
