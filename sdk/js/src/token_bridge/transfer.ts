@@ -47,10 +47,11 @@ import {
   callFunctionNear,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
-import { isNativeDenomInjective } from "../cosmwasm";
+import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
 const BN = require("bn.js");
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -327,6 +328,95 @@ export async function transferFromInjective(
           msg: mk_initiate_transfer({ token: { contract_addr: tokenAddress } }),
           action: mk_action,
         }),
+      ];
+}
+
+export function transferFromXpla(
+  walletAddress: string,
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  amount: string,
+  recipientChain: ChainId | ChainName,
+  recipientAddress: Uint8Array,
+  relayerFee: string = "0",
+  payload: Uint8Array | null = null
+): XplaMsgExecuteContract[] {
+  const recipientChainId = coalesceChainId(recipientChain);
+  const nonce = Math.round(Math.random() * 100000);
+  const isNativeAsset = isNativeDenomXpla(tokenAddress);
+  const createInitiateTransfer = (info: object) =>
+    payload
+      ? {
+          initiate_transfer_with_payload: {
+            asset: {
+              amount,
+              info,
+            },
+            recipient_chain: recipientChainId,
+            recipient: Buffer.from(recipientAddress).toString("base64"),
+            fee: relayerFee,
+            nonce,
+            payload,
+          },
+        }
+      : {
+          initiate_transfer: {
+            asset: {
+              amount,
+              info,
+            },
+            recipient_chain: recipientChainId,
+            recipient: Buffer.from(recipientAddress).toString("base64"),
+            fee: relayerFee,
+            nonce,
+          },
+        };
+  return isNativeAsset
+    ? [
+        new XplaMsgExecuteContract(
+          walletAddress,
+          tokenBridgeAddress,
+          {
+            deposit_tokens: {},
+          },
+          { [tokenAddress]: amount }
+        ),
+        new XplaMsgExecuteContract(
+          walletAddress,
+          tokenBridgeAddress,
+          createInitiateTransfer({
+            native_token: {
+              denom: tokenAddress,
+            },
+          }),
+          {}
+        ),
+      ]
+    : [
+        new XplaMsgExecuteContract(
+          walletAddress,
+          tokenAddress,
+          {
+            increase_allowance: {
+              spender: tokenBridgeAddress,
+              amount: amount,
+              expires: {
+                never: {},
+              },
+            },
+          },
+          {}
+        ),
+        new XplaMsgExecuteContract(
+          walletAddress,
+          tokenBridgeAddress,
+          createInitiateTransfer({
+            token: {
+              contract_addr: tokenAddress,
+            },
+          }),
+          {}
+        ),
       ];
 }
 

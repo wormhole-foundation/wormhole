@@ -19,6 +19,7 @@ import {
   coalesceChainId,
 } from "../utils";
 import { Provider } from "near-api-js/lib/providers";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -99,6 +100,28 @@ export async function getForeignAssetInjective(
         Buffer.from(queryResult.data, "base64").toString("utf-8")
       );
     }
+    return result.address;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function getForeignAssetXpla(
+  tokenBridgeAddress: string,
+  client: XplaLCDClient,
+  originChain: ChainId | ChainName,
+  originAsset: Uint8Array
+): Promise<string | null> {
+  try {
+    const result: { address: string } = await client.wasm.contractQuery(
+      tokenBridgeAddress,
+      {
+        wrapped_registry: {
+          chain: coalesceChainId(originChain),
+          address: fromUint8Array(originAsset),
+        },
+      }
+    );
     return result.address;
   } catch (e) {
     return null;

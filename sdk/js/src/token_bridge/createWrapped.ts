@@ -12,6 +12,7 @@ import BN from "bn.js";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { callFunctionNear } from "../utils";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -38,6 +39,18 @@ export async function createWrappedOnTerra(
 }
 
 export const createWrappedOnInjective = submitVAAOnInjective;
+
+export function createWrappedOnXpla(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  signedVAA: Uint8Array
+): XplaMsgExecuteContract {
+  return new XplaMsgExecuteContract(walletAddress, tokenBridgeAddress, {
+    submit_vaa: {
+      data: fromUint8Array(signedVAA),
+    },
+  });
+}
 
 export async function createWrappedOnSolana(
   connection: Connection,

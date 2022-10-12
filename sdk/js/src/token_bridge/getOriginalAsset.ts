@@ -1,6 +1,6 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { LCDClient } from "@terra-money/terra.js";
+import { LCDClient as TerraLCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
 import { arrayify, sha256, zeroPad } from "ethers/lib/utils";
@@ -33,6 +33,7 @@ import {
   getIsWrappedAssetNear,
 } from "./getIsWrappedAsset";
 import { Provider } from "near-api-js/lib/providers";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -80,7 +81,7 @@ export async function getOriginalAssetEth(
 }
 
 export async function getOriginalAssetTerra(
-  client: LCDClient,
+  client: TerraLCDClient,
   wrappedAddress: string
 ) {
   return getOriginalAssetCosmWasm(client, wrappedAddress, CHAIN_ID_TERRA);
@@ -140,8 +141,15 @@ export async function getOriginalAssetInjective(
   };
 }
 
+export async function getOriginalAssetXpla(
+  client: XplaLCDClient,
+  wrappedAddress: string
+) {
+  return getOriginalAssetCosmWasm(client, wrappedAddress, "xpla");
+}
+
 export async function getOriginalAssetCosmWasm(
-  client: LCDClient,
+  client: TerraLCDClient | XplaLCDClient,
   wrappedAddress: string,
   lookupChain: CosmWasmChainId | CosmWasmChainName
 ): Promise<WormholeWrappedInfo> {
