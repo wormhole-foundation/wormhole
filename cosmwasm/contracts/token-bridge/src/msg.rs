@@ -30,6 +30,9 @@ pub struct InstantiateMsg {
     pub wrapped_asset_code_id: u64,
 
     pub chain_id: u16,
+    pub native_denom: String,
+    pub native_symbol: String,
+    pub native_decimals: u8,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

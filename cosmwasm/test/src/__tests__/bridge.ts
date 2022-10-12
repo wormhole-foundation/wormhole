@@ -185,6 +185,9 @@ test("Deploy Contracts", (done) => {
           wormhole_contract: wormhole,
           wrapped_asset_code_id: wrappedAssetCodeId,
           chain_id: 18,
+          native_denom: "uluna",
+          native_symbol: "LUNA",
+          native_decimals: 6,
         },
         "tokenBridge",
         tokenBridge_code

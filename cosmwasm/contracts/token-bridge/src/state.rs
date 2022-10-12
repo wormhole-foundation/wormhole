@@ -79,6 +79,12 @@ pub struct ConfigInfo {
 
     /// The wormhole id of the current chain.
     pub chain_id: u16,
+
+    /// The native denom info of the current chain
+    /// Other tokens will not be allowed to be attested
+    pub native_denom: String,
+    pub native_symbol: String,
+    pub native_decimals: u8,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
