@@ -52,7 +52,7 @@ Once the batch is signed by the guardian, the VAAv2 can be parsed and verified b
 
 When a VAAv2 payload is parsed into a `VM2` struct, each observation is stored as bytes in the `observations` byte array. The `uint8(3)` version type is prepended to the bytes to specify that they are considered a VAAv3 payload. Each VAAv3 payload can be parsed into the existing `VM` struct with `parseVM` to ensure backwards compatibility with existing smart contract integrations. Since VAAv3 payloads are considered “headless” and do not contain signatures, the `Signatures[]` and `guardianSetIndex` fields are left as null in the `VM` struct.
 
-A parsed VAAv3 payload can then be verified by calling the existing method `verifyVM`. This method will check that the hash of the VAAv3 payload (hash of the `Observation`) is stored in the `verifiedHashCache` and bypass signature verification (allowing for cheap verification of individual messages). The VAAv3 payload hash will only be stored in the `verifiedHashCache` if the caller sets the `cache` argument to `true` when verifying the associated VAAv2 payload with `verifyBatchVM`.
+A parsed VAAv3 payload can then be verified by calling the existing method `verifyVM`. This method will check that the hash of the VAAv3 payload (hash of the observation) is stored in the `verifiedHashCache` and bypass signature verification (allowing for cheap verification of individual messages). The VAAv3 payload hash will only be stored in the `verifiedHashCache` if the caller sets the `cache` argument to `true` when verifying the associated VAAv2 payload with `verifyBatchVM`.
 
 At the end of a batch execution, the handler contract should call `clearBatchCache` which will clear the `verifiedHashCache` of provided hashes and reduce the gas costs associated with storing the hashes in the Wormhole contract’s state. A parsed VAAv3 payload will no longer be considered a verified message once its hash is removed from the `verifiedHashCache`.
 
@@ -92,7 +92,7 @@ struct VM {
     uint32 guardianSetIndex;
     Signature[] signatures;
 
-    // Hash of the Observation
+    // Hash of the observation
     bytes32 hash;
 }
 
@@ -103,7 +103,7 @@ struct VM2 {
     uint32 guardianSetIndex;
     Signature[] signatures;
 
-    // Array of Observation hashes
+    // Array of observation hashes
     bytes32[] hashes;
 
     // Computed Batch Hash - hash(hash(Observation1), hash(Observation2), ...)
@@ -129,18 +129,18 @@ uint8 signersLen;
 Signature[] signatures;
 // Number of hashes
 uint8 hashesLen;
-// Array of Observation hashes
+// Array of observation hashes
 bytes32[] hashes;
 // Number of observations, should be equal to hashesLen
 uint8 observationsLen;
 
-// Repeated for observationLen times, bytes[] Observation
+// Repeated for observationLen times, bytes[] observation
 	// Index of the observation
 	uint8 index;
-	// Number of bytes in the Observation
+	// Number of bytes in the observation
 	uint32 observationBytesLen;
 	// Encoded observation, see the Structs section
-    // for details on the observation structure.
+        // for details on the observation structure.
 	bytes observation;
 ```
 
