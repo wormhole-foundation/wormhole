@@ -44,7 +44,7 @@ var coreContractMap = map[vaa.ChainID]string{
 var emitterMap = map[vaa.ChainID]string{
 	vaa.ChainIDTerra:  "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2",
 	vaa.ChainIDTerra2: "a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3",
-	vaa.ChainIDXpla:   "adaf23419bb7f67b20be65c73a3b0a58a2ea7a7da4339b66209bbb0be6a13362",
+	vaa.ChainIDXpla:   "8f9cf727175353b17a5f574270e370776123d90fd74956ae4277962b4fdee24c",
 }
 
 type Emitter struct {
