@@ -1,4 +1,4 @@
-# Batch VAAs
+# Batch VAAs (EVM)
 
 [TOC]
 
