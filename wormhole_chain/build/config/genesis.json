@@ -295,12 +295,6 @@
       "unbonding_delegations": [],
       "validators": []
     },
-    "tokenbridge": {
-      "chainRegistrationList": [],
-      "coinMetaRollbackProtectionList": [],
-      "config": null,
-      "replayProtectionList": []
-    },
     "transfer": {
       "denom_traces": [],
       "params": {

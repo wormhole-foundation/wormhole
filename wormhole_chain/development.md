@@ -58,7 +58,7 @@ Client tests, run against the chain. Wormchain must be running via `starport cha
 You can interact with the blockchain by using the go binary:
 
 ```shell
-./build/wormhole-chaind tx tokenbridge execute-governance-vaa 01000000000100e86068bfd49c7209f259110dc061012ca6d65318f3879325528c57cf3e4950ff1295dbde77a4c72f3aee29a32a07099257521674725be8eb8bbd801349a828c30100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000038502e100000000000000000000000000000000000000000000546f6b656e4272696467650100000001c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f --from tiltGuardian --home build
+./build/wormhole-chaind tx --from tiltGuardian --home build
 ```
 
 Note the flags `--from tiltGuardian --home build`. These have to be passed

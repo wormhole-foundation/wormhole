@@ -35,17 +35,6 @@ spec:
         app: guardian-validator
     spec:
       containers:
-        - name: chain-initialization
-          image: wormhole-chaind-image
-          command:
-            - /bin/sh
-            - -c
-            - "/app/scripts/chainRegistration.sh && nc -l -k  0.0.0.0 2000"
-          readinessProbe:
-            periodSeconds: 1
-            failureThreshold: 300
-            tcpSocket:
-              port: 2000
         - name: wormhole-chaind
           image: wormhole-chaind-image
           command:
