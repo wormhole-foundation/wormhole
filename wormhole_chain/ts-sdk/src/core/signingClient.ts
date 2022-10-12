@@ -6,7 +6,6 @@ import {
   StargateClient,
 } from "@cosmjs/stargate";
 import { getTypeParameterOwner } from "typescript";
-import * as tokenBridgeModule from "../modules/certusone.wormholechain.tokenbridge";
 import * as coreModule from "../modules/certusone.wormholechain.wormhole";
 import * as authModule from "../modules/cosmos.auth.v1beta1";
 import * as bankModule from "../modules/cosmos.bank.v1beta1";
@@ -34,8 +33,6 @@ protobuf.configure();
 //Rip the types out of their modules. These are private fields on the module.
 //@ts-ignore
 const coreTypes = coreModule.registry.types;
-//@ts-ignore
-const tokenBridgeTypes = tokenBridgeModule.registry.types;
 //@ts-ignore
 const authTypes = authModule.registry.types;
 //@ts-ignore
@@ -69,7 +66,6 @@ const vestingTypes = vestingModule.registry.types;
 
 const aggregateTypes = [
   ...coreTypes,
-  ...tokenBridgeTypes,
   ...authTypes,
   ...bankTypes,
   ...baseTypes,
@@ -99,10 +95,6 @@ export const getWormchainSigningClient = async (
   if (!wallet) throw MissingWalletError;
 
   const coreClient = await coreModule.txClient(wallet, {
-    addr: tendermintAddress,
-  });
-
-  const tokenBridgeClient = await tokenBridgeModule.txClient(wallet, {
     addr: tendermintAddress,
   });
 
@@ -185,12 +177,6 @@ export const getWormchainSigningClient = async (
     signAndBroadcast: undefined,
   };
   delete coreShell.signAndBroadcast;
-
-  const tokenBridgeShell = {
-    ...tokenBridgeClient,
-    signAndBroadcast: undefined,
-  };
-  delete tokenBridgeShell.signAndBroadcast;
 
   const authShell = {
     ...authClient,
@@ -283,7 +269,6 @@ export const getWormchainSigningClient = async (
   delete vestingShell.signAndBroadcast;
 
   type CoreType = Omit<typeof coreShell, "signAndBroadcast">;
-  type TokenBridgeType = Omit<typeof tokenBridgeShell, "signAndBroadcast">;
   type AuthzType = Omit<typeof authShell, "signAndBroadcast">;
   type BankType = Omit<typeof bankShell, "signAndBroadcast">;
   type BaseType = Omit<typeof baseShell, "signAndBroadcast">;
@@ -301,7 +286,6 @@ export const getWormchainSigningClient = async (
   type VestingType = Omit<typeof vestingShell, "signAndBroadcast">;
   type WormholeFunctions = {
     core: CoreType;
-    tokenbridge: TokenBridgeType;
     auth: AuthzType;
     bank: BankType;
     base: BaseType;
@@ -323,7 +307,6 @@ export const getWormchainSigningClient = async (
   const output: WormholeSigningClient = client as WormholeSigningClient;
 
   output.core = coreShell;
-  output.tokenbridge = tokenBridgeShell;
   output.auth = authShell;
   output.bank = bankShell;
   output.base = baseShell;

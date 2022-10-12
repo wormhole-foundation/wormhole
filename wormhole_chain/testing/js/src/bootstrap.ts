@@ -91,18 +91,6 @@ async function fullBootstrapProcess() {
     const guardianSet = response4.data || null;
     expectEqual("Guardian set 0", guardianSet.GuardianSet?.keys, [TILTNET_GUARDIAN_PUBKEY])
 
-    //bridge in uworm tokens to wallet 2
-    const transferMsg1 = signingClient.tokenbridge.msgExecuteVAA({
-      creator: wallet2Address,
-      vaa: fromHex(TEST_TRANSFER_VAA_1),
-    });
-    const transferreceipt = await signingClient.signAndBroadcast(
-      wallet2Address,
-      [transferMsg1],
-      getZeroFee()
-    );
-    expectTxSuccess("initial bridge redeem VAA", transferreceipt)
-
     //process upgrade VAA
     const msg = signingClient.core.msgExecuteGovernanceVAA({
       signer: await getAddress(wallet2Signer),
