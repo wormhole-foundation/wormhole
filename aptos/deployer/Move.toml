@@ -8,4 +8,4 @@ rev = '985f19d40457a5f09f2d741b1feca6bf7ba1f8a6'
 subdir = 'aptos-move/framework/aptos-framework'
 
 [addresses]
-deployer="0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"
+deployer = "0xb138581594ebd7763cfa3c3e455050139b7304c6d41e7094a1c78da4e6761ed8"
