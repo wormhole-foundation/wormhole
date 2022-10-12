@@ -198,6 +198,9 @@ addresses["token_bridge_terra_2.wasm"] = await instantiate(
     wormhole_contract: addresses["wormhole.wasm"],
     wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
     chain_id: 28,
+    native_denom: "axpla",
+    native_symbol: "XPLA",
+    native_decimals: 18,
   },
   "tokenBridge"
 );
