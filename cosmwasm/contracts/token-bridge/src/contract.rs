@@ -1332,6 +1332,8 @@ fn handle_initiate_transfer_token(
 fn format_native_denom_symbol(denom: &str) -> String {
     if denom == "uluna" {
         return "LUNA".to_string();
+    } else if denom == "axpla" {
+        return "XPLA".to_string();
     }
     //TODO: is there better formatting to do here?
     denom.to_uppercase()

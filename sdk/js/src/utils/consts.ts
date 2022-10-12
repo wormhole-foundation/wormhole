@@ -213,8 +213,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   xpla: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w",
+    token_bridge: "xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv",
     nft_bridge: undefined,
   },
   ropsten: {
@@ -369,7 +369,7 @@ const TESTNET = {
   xpla: {
     core: "xpla1upkjn4mthr0047kahvn0llqx4qpqfn75lnph4jpxfn8walmm8mqsanyy35",
     token_bridge:
-      "xpla1alpgm9geq76dzhk5xvt6qqc2lza0vtzzpskgys5rkmjzph8cs69sl09fq9",
+      "xpla1kek6zgdaxcsu35nqfsyvs2t9vs87dqkkq6hjdgczacysjn67vt8sern93x",
     nft_bridge: undefined,
   },
   ropsten: {

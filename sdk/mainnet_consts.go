@@ -113,6 +113,7 @@ var knownTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDCelo:      "000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed",
 	vaa.ChainIDNear:      "148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7",
 	vaa.ChainIDMoonbeam:  "000000000000000000000000B1731c586ca89a23809861c6103F0b96B3F57D92",
+	vaa.ChainIDXpla:      "8f9cf727175353b17a5f574270e370776123d90fd74956ae4277962b4fdee24c",
 }
 
 // KnownNFTBridgeEmitters is a list of well-known mainnet emitters for the NFT bridge.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2
+
+### Added
+
+XPLA mainnet support
+
 ## 0.7.1
 
 ### Added
