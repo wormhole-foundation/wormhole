@@ -1,10 +1,9 @@
 # Changelog
 
 ## 0.7.2
-
 ### Added
 
-XPLA mainnet support
+XPLA mainnet support and functions
 
 ## 0.7.1
 

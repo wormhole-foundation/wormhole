@@ -28,9 +28,10 @@ import {
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
 import { getIsWrappedAssetNear } from ".";
-import { isNativeDenomInjective } from "../cosmwasm";
+import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
 import { Provider } from "near-api-js/lib/providers";
 import { FunctionCallOptions } from "near-api-js/lib/account";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -99,6 +100,29 @@ export async function attestFromInjective(
       nonce: nonce,
     },
     action: "create_asset_meta",
+  });
+}
+
+export function attestFromXpla(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  asset: string
+): XplaMsgExecuteContract {
+  const nonce = Math.round(Math.random() * 100000);
+  const isNativeAsset = isNativeDenomXpla(asset);
+  return new XplaMsgExecuteContract(walletAddress, tokenBridgeAddress, {
+    create_asset_meta: {
+      asset_info: isNativeAsset
+        ? {
+            native_token: { denom: asset },
+          }
+        : {
+            token: {
+              contract_addr: asset,
+            },
+          },
+      nonce: nonce,
+    },
   });
 }
 

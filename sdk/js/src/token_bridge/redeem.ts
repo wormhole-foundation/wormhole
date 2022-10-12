@@ -36,6 +36,7 @@ import BN from "bn.js";
 import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -95,6 +96,18 @@ export async function submitVAAOnInjective(
   });
 }
 export const redeemOnInjective = submitVAAOnInjective;
+
+export function redeemOnXpla(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  signedVAA: Uint8Array
+): XplaMsgExecuteContract {
+  return new XplaMsgExecuteContract(walletAddress, tokenBridgeAddress, {
+    submit_vaa: {
+      data: fromUint8Array(signedVAA),
+    },
+  });
+}
 
 export async function redeemAndUnwrapOnSolana(
   connection: Connection,

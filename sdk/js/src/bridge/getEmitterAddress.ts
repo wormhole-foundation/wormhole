@@ -32,6 +32,8 @@ export async function getEmitterAddressTerra(programAddress: string) {
 
 export const getEmitterAddressInjective = getEmitterAddressTerra;
 
+export const getEmitterAddressXpla = getEmitterAddressTerra;
+
 export function getEmitterAddressAlgorand(appId: bigint): string {
   const appAddr: string = getApplicationAddress(appId);
   const decAppAddr: Uint8Array = decodeAddress(appAddr).publicKey;

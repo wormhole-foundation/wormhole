@@ -19,6 +19,7 @@ import { Bridge__factory } from "../ethers-contracts";
 import { importCoreWasm } from "../solana/wasm";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { Provider } from "near-api-js/lib/providers";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
@@ -124,6 +125,22 @@ export async function getIsTransferCompletedInjective(
     return result.is_redeemed;
   }
   return false;
+}
+
+export async function getIsTransferCompletedXpla(
+  tokenBridgeAddress: string,
+  signedVAA: Uint8Array,
+  client: XplaLCDClient
+): Promise<boolean> {
+  const result: { is_redeemed: boolean } = await client.wasm.contractQuery(
+    tokenBridgeAddress,
+    {
+      is_vaa_redeemed: {
+        vaa: fromUint8Array(signedVAA),
+      },
+    }
+  );
+  return result.is_redeemed;
 }
 
 export async function getIsTransferCompletedSolana(
