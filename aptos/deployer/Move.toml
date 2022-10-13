@@ -8,4 +8,5 @@ rev = '985f19d40457a5f09f2d741b1feca6bf7ba1f8a6'
 subdir = 'aptos-move/framework/aptos-framework'
 
 [addresses]
-deployer = "0xb138581594ebd7763cfa3c3e455050139b7304c6d41e7094a1c78da4e6761ed8"
+# This is testnet address. source: https://docs.pyth.network/consume-data/aptos
+deployer = "0xb31e712b26fd295357355f6845e77c888298636609e93bc9b05f0f604049f434"
