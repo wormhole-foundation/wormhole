@@ -18,6 +18,7 @@ type NewBlock struct {
 	Number        *big.Int
 	Hash          common.Hash
 	L1BlockNumber *big.Int // This is only populated on some chains (Arbitrum)
+	Safe          bool
 }
 
 // Connector exposes Wormhole-specific interactions with an EVM-based network
