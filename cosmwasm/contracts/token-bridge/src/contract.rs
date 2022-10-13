@@ -922,10 +922,9 @@ fn handle_complete_transfer_token(
     let (not_supported_amount, mut amount) = transfer_info.amount;
     let (not_supported_fee, mut fee) = transfer_info.fee;
 
-    amount = match amount.checked_sub(fee) {
-        None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient funds")),
-        Some(value) => value
-    };
+    amount = amount
+        .checked_sub(fee)
+        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1071,10 +1070,9 @@ fn handle_complete_transfer_token_native(
     let (not_supported_amount, mut amount) = transfer_info.amount;
     let (not_supported_fee, mut fee) = transfer_info.fee;
 
-    amount = match amount.checked_sub(fee) {
-        None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient funds")),
-        Some(value) => value
-    };
+    amount = amount
+        .checked_sub(fee)
+        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1269,24 +1267,19 @@ fn handle_initiate_transfer_token(
             let multiplier = 10u128.pow((max(decimals, 8u8) - 8u8) as u32);
 
             // chop off dust
-            amount = Uint128::new(
-                match amount
-                    .u128()
-                    .checked_sub(amount.u128().checked_rem(multiplier).unwrap())
-                {
-                    None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient Funds")),
-                    Some(value) => value
-                }
-            );
+            amount = amount
+                .u128()
+                .checked_rem(multiplier)
+                .and_then(|rem| amount.u128().checked_sub(rem))
+                .map(Uint128::new)
+                .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
-            fee = Uint128::new(
-                match fee.u128()
-                    .checked_sub(fee.u128().checked_rem(multiplier).unwrap())
-                {
-                    None => return Result::Err(cosmwasm_std::StdError::generic_err("Insufficient Funds")),
-                    Some(value) => value
-                }
-            );
+            fee = fee
+                .u128()
+                .checked_rem(multiplier)
+                .and_then(|rem| fee.u128().checked_sub(rem))
+                .map(Uint128::new)
+                .ok_or_else(|| StdError::generic_err("Invalid fee"))?;
 
             // This is a regular asset, transfer its balance
             submessages.push(SubMsg::reply_on_success(

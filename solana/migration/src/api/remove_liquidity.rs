@@ -82,19 +82,13 @@ pub fn remove_liquidity(
 
     // The out amount needs to be decimal adjusted
     let out_amount = if accs.from_mint.decimals > accs.to_mint.decimals {
-        match data.amount
+        data.amount
             .checked_div(10u64.pow((accs.from_mint.decimals - accs.to_mint.decimals) as u32))
-        {
-            None => return Result::Err(SolitaireError::InsufficientFunds),
-            Some(value) => value
-        }
+            .ok_or_else(|| Result::Err(SolitaireError::InsufficientFunds))?
     } else {
-        match data.amount
+        data.amount
             .checked_mul(10u64.pow((accs.to_mint.decimals - accs.from_mint.decimals) as u32))
-        {
-            None => return Result::Err(SolitaireError::InsufficientFunds),
-            Some(value) => value
-        }
+            .ok_or_else(|| Result::Err(SolitaireError::InsufficientFunds))?
     };
 
     // Transfer removed liquidity to LP
