@@ -11,6 +11,7 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/pki/tls/certs/ca-bun
 # fetch scripts/guardian-set-init.sh deps
 RUN dnf -y install jq
 RUN dnf -y install make
+RUN dnf -y install findutils
 
 # fetch clients/** deps
 RUN curl -fsSL https://rpm.nodesource.com/setup_16.x | bash - && dnf -y install nodejs
