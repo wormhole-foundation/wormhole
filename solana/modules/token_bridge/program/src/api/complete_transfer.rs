@@ -242,7 +242,8 @@ pub fn complete_wrapped(
 
     claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
-    let token_amount: u64 = accs.vaa
+    let token_amount: u64 = accs
+        .vaa
         .amount
         .as_u64()
         .checked_sub(accs.vaa.fee.as_u64())
