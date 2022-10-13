@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euxo pipefail
 
 DOTENV=$(dirname $0)/../.env
 [[ -f "$DOTENV" ]] && . "$DOTENV"
