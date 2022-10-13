@@ -1,8 +1,9 @@
 module wormhole::wormhole {
+    use std::vector;
     use aptos_framework::account;
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::aptos_coin::{AptosCoin};
-    use wormhole::structs::{create_guardian, create_guardian_set};
+    use wormhole::structs::{create_guardian, create_guardian_set, Guardian};
     use wormhole::state;
     use deployer::deployer;
     use wormhole::u16;
@@ -12,6 +13,7 @@ module wormhole::wormhole {
     use std::signer;
 
     const E_INSUFFICIENT_FEE: u64 = 0;
+    const E_DEPRECATED: u64 = 1;
 
 // -----------------------------------------------------------------------------
 // Sending messages
@@ -47,29 +49,48 @@ module wormhole::wormhole {
 // -----------------------------------------------------------------------------
 // Contract initialization
 
+    /// @deprecated
+    /// use `init_2` instead
+    public entry fun init(
+        _deployer: &signer,
+        _chain_id: u64,
+        _governance_chain_id: u64,
+        _governance_contract: vector<u8>,
+        _initial_guardian: vector<u8>
+    ) {
+        abort(E_DEPRECATED)
+    }
+
     /// Initializes the contract. Note that this function takes additional
     /// arguments, so the native `init_module` function (which takes no
     /// arguments) cannot be used.
     /// Can only be called by the deployer (checked by the
     /// `deployer::claim_signer_capability` function).
-    public entry fun init(
+    public entry fun init_2(
         deployer: &signer,
         chain_id: u64,
         governance_chain_id: u64,
         governance_contract: vector<u8>,
-        initial_guardian: vector<u8>
+        initial_guardians: vector<vector<u8>>
     ) {
         // account::SignerCapability can't be copied, so once it's stored into
         // state, the init function can no longer be called (since
         // the deployer signer capability must have been unlocked).
         let signer_cap = deployer::claim_signer_capability(deployer, @wormhole);
         let message_fee = 0;
+        let guardians: vector<Guardian> = vector[];
+
+        vector::reverse(&mut initial_guardians);
+        while (!vector::is_empty(&initial_guardians)) {
+           vector::push_back(&mut guardians, create_guardian(vector::pop_back(&mut initial_guardians)));
+        };
+
         init_internal(
             signer_cap,
             chain_id,
             governance_chain_id,
             governance_contract,
-            initial_guardian,
+            guardians,
             u32::from_u64(86400),
             message_fee
         )
@@ -80,7 +101,7 @@ module wormhole::wormhole {
         chain_id: u64,
         governance_chain_id: u64,
         governance_contract: vector<u8>,
-        initial_guardian: vector<u8>,
+        initial_guardians: vector<Guardian>,
         guardian_set_expiry: U32,
         message_fee: u64,
     ) {
@@ -98,7 +119,7 @@ module wormhole::wormhole {
         state::store_guardian_set(
             create_guardian_set(
                 u32::from_u64(0),
-                vector[create_guardian(initial_guardian)]
+                initial_guardians
             )
         );
         // register wormhole to be able to receive fees
@@ -127,7 +148,7 @@ module wormhole::wormhole {
             chain_id,
             governance_chain_id,
             governance_contract,
-            initial_guardian,
+            vector[create_guardian(initial_guardian)],
             u32::from_u64(86400),
             message_fee
         );
