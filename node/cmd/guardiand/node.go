@@ -408,6 +408,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *nearRPC != "" {
 		readiness.RegisterComponent(common.ReadinessNearSyncing)
 	}
+	if *xplaWS != "" {
+		readiness.RegisterComponent(common.ReadinessXplaSyncing)
+	}
 	if *wormchainWS != "" {
 		readiness.RegisterComponent(common.ReadinessWormchainSyncing)
 	}
@@ -428,7 +431,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessNeonSyncing)
 		readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
 		readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
-		readiness.RegisterComponent(common.ReadinessXplaSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -851,12 +853,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+	chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	if *testnetMode {
 		chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 		chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-		chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 	}
 	go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
