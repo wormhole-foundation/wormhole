@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euxo pipefail
 
 GUARDIAN_ADDR=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
 WORMHOLE_ADDR=$(worm contract devnet aptos Core)
