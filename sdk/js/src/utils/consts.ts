@@ -467,9 +467,9 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: "0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204",
+    core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
     token_bridge:
-      "0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed",
+      "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
     nft_bridge: undefined,
   },
   sui: {

@@ -58,14 +58,14 @@ const OVERRIDES = {
   },
   TESTNET: {
     aptos: {
-      token_bridge: "0xdd0a2618dc5564ccf38d0eca7877198fef51157fea74a6bc2e5e40b52c2a0a08",
-      core: "0x1b1752e26b65fc24971ee5ec9718d2ccdd36bf20486a10b2973ea6dedc6cd197"
+      token_bridge: "0xdc406ec328a21eacbbe0c145f7884612d7094ebd637288149ac7879bbff43493",
+      core: "0xaf4faf174bad7dba8092fc5ac37b9b8fea3929f05fcb0677fd16dc735bc3ffc8"
     }
   },
   DEVNET: {
     aptos: {
-      token_bridge: "0x4450040bc7ea55def9182559ceffc0652d88541538b30a43477364f475f4a4ed",
-      core: "0x251011524cd0f76881f16e7c2d822f0c1c9510bfd2430ba24e1b3d52796df204"
+      token_bridge: "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
+      core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017"
     }
   }
 }
