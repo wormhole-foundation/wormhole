@@ -56,7 +56,7 @@ function assertNetwork(n: string): asserts n is Network {
 
 exports.command = 'aptos';
 exports.desc = 'Aptos utilities ';
-exports.builder = function (y: typeof yargs) {
+exports.builder = function(y: typeof yargs) {
   return y
     .command("init-token-bridge", "Init token bridge contract", (yargs) => {
       return yargs
@@ -108,7 +108,7 @@ exports.builder = function (y: typeof yargs) {
         .option("guardian-address", {
           alias: "g",
           required: true,
-          describe: "Initial guardian's address",
+          describe: "Initial guardian's addresses (CSV)",
           type: "string",
         })
     }, async (argv) => {
@@ -116,19 +116,23 @@ exports.builder = function (y: typeof yargs) {
       assertNetwork(network);
 
       const contract_address = evm_address(argv["contract-address"]);
-      const guardian_address = evm_address(argv["guardian-address"]).substring(24);
+      const guardian_addresses = argv["guardian-address"].split(",").map(address => evm_address(address).substring(24));
       const chain_id = argv["chain-id"];
       const governance_address = evm_address(argv["governance-address"]);
       const governance_chain_id = argv["governance-chain-id"];
+
+      const guardians_serializer = new BCS.Serializer();
+      guardians_serializer.serializeU32AsUleb128(guardian_addresses.length);
+      guardian_addresses.forEach(address => guardians_serializer.serializeBytes(Buffer.from(address, "hex")));
 
       const args = [
         BCS.bcsSerializeUint64(chain_id),
         BCS.bcsSerializeUint64(governance_chain_id),
         BCS.bcsSerializeBytes(Buffer.from(governance_address, "hex")),
-        BCS.bcsSerializeBytes(Buffer.from(guardian_address, "hex"))
+        guardians_serializer.getBytes()
       ]
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
-      await callEntryFunc(network, rpc, `${contract_address}::wormhole`, "init", [], args);
+      await callEntryFunc(network, rpc, `${contract_address}::wormhole`, "init_2", [], args);
     })
     .command("deploy <package-dir>", "Deploy an Aptos package", (yargs) => {
       return yargs

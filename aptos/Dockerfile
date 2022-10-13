@@ -14,6 +14,7 @@ COPY examples/ examples
 COPY Makefile Makefile
 COPY scripts scripts
 COPY start_node.sh start_node.sh
+COPY .env .env
 
 FROM aptos AS tests
 
