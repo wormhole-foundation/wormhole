@@ -15,11 +15,6 @@ COPY Makefile Makefile
 COPY scripts scripts
 COPY start_node.sh start_node.sh
 
-FROM aptos AS boot
-
-WORKDIR /tmp
-COPY .env .env
-
 FROM aptos AS tests
 
 WORKDIR /tmp
