@@ -13,8 +13,8 @@ COPY coin/ coin
 COPY examples/ examples
 COPY Makefile Makefile
 COPY scripts scripts
-COPY start_node.sh start_node.sh
-COPY .env .env
+# In this step we optionally copy the .env file too
+COPY start_node.sh .env* .
 
 FROM aptos AS tests
 
