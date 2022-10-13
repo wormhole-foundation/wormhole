@@ -46,3 +46,4 @@ COPY --from=const-build /scripts/.env.hex terra/tools/.env
 COPY --from=const-build /scripts/.env.hex cosmwasm/tools/.env
 COPY --from=const-build /scripts/.env.hex algorand/.env
 COPY --from=const-build /scripts/.env.hex near/.env
+COPY --from=const-build /scripts/.env.hex aptos/.env
