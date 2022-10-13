@@ -34,7 +34,6 @@ FROM scratch as export
 COPY --from=build /bin/* /bin/
 COPY --from=build /lib/* /lib/
 COPY --from=build /lib64/* /lib64/
-COPY --from=build /usr/lib/libwasmvm.so /usr/lib/
 
 # finally copy the guardian executable
 COPY --from=build /guardiand .
