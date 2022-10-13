@@ -1,11 +1,15 @@
 # Security
 
+The following document describes various aspects of the Wormhole security program.
+
 ## Table of Contents
 - [3rd Party Security Audits](#3rd-Party-Security-Audits)
 - [Bug Bounty Program](#Bug-Bounty-Program)
 - [Trust Assumptions](#Trust-Assumptions)
 - [White Hat Hacking](#White-Hat-Hacking)
 - [Chain Integrators](#Chain-Integrators)
+- [Social Media Monitoring](#Social-Media-Monitoring)
+- [Incident Response](#Incident-Response)
 ## 3rd Party Security Audits
 
 The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
@@ -103,7 +107,7 @@ Here are a few ways in which connected chains can maintain high security standar
 
 For source code ensure relevant bits are:
 
-- All open source
+- All open source (required)
 - Audited by an independent third party with public audit reports
 - Included in a public bug bounty program. The bounty rewards should be sufficiently large to incentivize white-hat mindshare in finding security bugs and responsibly disclosing them
 - Version control systems contain adequate access controls and mandatory code review (e.g.: In github, use of branch protection and a minimum of one independent reviewer to merge code)
@@ -116,3 +120,27 @@ Additionally, ensure:
 - That Wormhole has the full upgrade authority on relevant bridge contracts to act quickly in the case of a security incident.
 - You have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for containment.
 - When security issues do occur, please make sure that the chain makes every attempt to inform affected parties and leads with transparency.
+
+## Social Media Monitoring
+
+The Wormhole project maintains a social media monitoring program to stay abreast of important ecosystem developments.
+
+These developments include monitoring services like Twitter for key phrases and patterns such that the Wormhole project is informed of a compromise or vulnerability in a dependancy that could negatively affect Wormhole, it's users, or the chains that Wormhole is connected to.
+
+In the case of a large ecosystem development that requires response, the Wormhole project will engage its security incident response program.
+
+## Incident Response
+
+The Wormhole project maintains an incident response program to respond to vulnerabilities or active threats to Wormhole, it's users, or the ecosystems it's connected to.  Wormhole can be made aware about a security event from a variety of different sources (eg. bug bounty program, audit finding, security monitoring, social media, etc.)
+
+When a Wormhole project contributor becomes aware of a security event, that contributor immediately holds the role of [incident commander](https://en.wikipedia.org/wiki/Incident_commander) for the issue until they hand off to a more appropriate incident commander.  A contributor does not need to be a "security person" or any special priviledges to hold the role of incident commander, they simply need to be responsible, communicate effectively, and maintain the following obligations to manage the incident to completion.
+
+The role of the incident commander for Wormhole includes the following minimum obligations:
+
+- Understand what is going on, the severity, and advance the state of the incident.
+- Identify and contact the relevant responders needed to address the issue.
+- Identify what actions are needed for containment (eg. security patch, contracts deployed, governance ceremony).
+- Establish a dedicated real-time communication channel for responders to coordinate (eg. Slack, Telegram, Signal, or Zoom).
+- Establish a private incident document, where the problem, timeline, actions, artifacts, lessons learned, etc. can be tracked and shared with responders.
+- When an incident is over, host a [retrospective](https://en.wikipedia.org/wiki/Retrospective) with key responders to understand how things could be handled better in the future (this is a no blame session, the goal is objectively about improving Wormhole's readiness and response capability in the future).
+- Create issues in relevant ticket trackers for actions based on lessons learned.
