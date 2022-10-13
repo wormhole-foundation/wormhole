@@ -26,5 +26,6 @@ const (
 	ReadinessXplaSyncing      readiness.Component = "xplaSyncing"
 	ReadinessPythNetSyncing   readiness.Component = "pythnetSyncing"
 	ReadinessArbitrumSyncing  readiness.Component = "arbitrumSyncing"
+	ReadinessOptimismSyncing  readiness.Component = "optimismSyncing"
 	ReadinessWormchainSyncing readiness.Component = "wormchainSyncing"
 )
