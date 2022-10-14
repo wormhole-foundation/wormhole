@@ -186,6 +186,19 @@ jobs:
 
           cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
+  aptos:
+    name: Aptos
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./aptos
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run tests via docker
+        run: make test-docker
 
   terra:
     runs-on: ubuntu-20.04
