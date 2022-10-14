@@ -131,7 +131,7 @@ pub fn complete_native(
 
     let token_amount = amount
         .checked_sub(fee)
-        .ok_or_else(|| Result::Err(SolitaireError::InsufficientFunds))?;
+        .ok_or(Result::Err(SolitaireError::InsufficientFunds))?;
 
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
@@ -247,7 +247,7 @@ pub fn complete_wrapped(
         .amount
         .as_u64()
         .checked_sub(accs.vaa.fee.as_u64())
-        .ok_or_else(|| Result::Err(SolitaireError::InsufficientFunds))?;
+        .ok_or(Result::Err(SolitaireError::InsufficientFunds))?;
 
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(

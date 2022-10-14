@@ -99,11 +99,11 @@ pub fn migrate_tokens(
     let out_amount = if accs.from_mint.decimals > accs.to_mint.decimals {
         data.amount
             .checked_div(10u64.pow((accs.from_mint.decimals - accs.to_mint.decimals) as u32))
-            .ok_or_else(|| Result::Err(SolitaireError::InsufficientFunds))?
+            .ok_or(Result::Err(SolitaireError::InsufficientFunds))?
     } else {
         data.amount
             .checked_mul(10u64.pow((accs.to_mint.decimals - accs.from_mint.decimals) as u32))
-            .ok_or_else(|| Result::Err(SolitaireError::InsufficientFunds))?
+            .ok_or(Result::Err(SolitaireError::InsufficientFunds))?
     };
 
     // Transfer out-tokens to user

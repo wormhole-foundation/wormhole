@@ -924,7 +924,7 @@ fn handle_complete_transfer_token(
 
     amount = amount
         .checked_sub(fee)
-        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
+        .ok_or(StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1072,7 +1072,7 @@ fn handle_complete_transfer_token_native(
 
     amount = amount
         .checked_sub(fee)
-        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
+        .ok_or(StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1272,14 +1272,14 @@ fn handle_initiate_transfer_token(
                 .checked_rem(multiplier)
                 .and_then(|rem| amount.u128().checked_sub(rem))
                 .map(Uint128::new)
-                .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
+                .ok_or(StdError::generic_err("Insufficient funds"))?;
 
             fee = fee
                 .u128()
                 .checked_rem(multiplier)
                 .and_then(|rem| fee.u128().checked_sub(rem))
                 .map(Uint128::new)
-                .ok_or_else(|| StdError::generic_err("Invalid fee"))?;
+                .ok_or(StdError::generic_err("Invalid fee"))?;
 
             // This is a regular asset, transfer its balance
             submessages.push(SubMsg::reply_on_success(
