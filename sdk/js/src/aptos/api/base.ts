@@ -1,4 +1,4 @@
-import { AptosAccount, Types } from "aptos";
+import { TxnBuilderTypes } from "aptos";
 import { AptosClientWrapper } from "../client";
 
 export class WormholeAptosBaseApi {
@@ -11,37 +11,40 @@ export class WormholeAptosBaseApi {
 
   // Contract upgrade
 
-  authorizeUpgrade = (sender: AptosAccount, vaa: Uint8Array): Promise<Types.Transaction> => {
+  authorizeUpgrade = (
+    senderAddress: string,
+    vaa: Uint8Array,
+  ): Promise<TxnBuilderTypes.RawTransaction> => {
     if (!this.address) throw "Need bridge address.";
     const payload = {
       function: `${this.address}::contract_upgrade::submit_vaa`,
       type_arguments: [],
       arguments: [vaa],
     };
-    return this.client.executeEntryFunction(sender, payload);
+    return this.client.executeEntryFunction(senderAddress, payload);
   };
 
   upgradeContract = (
-    sender: AptosAccount,
+    senderAddress: string,
     metadataSerialized: Uint8Array,
     code: Array<Uint8Array>,
-  ): Promise<Types.Transaction> => {
+  ): Promise<TxnBuilderTypes.RawTransaction> => {
     if (!this.address) throw "Need bridge address.";
     const payload = {
       function: `${this.address}::contract_upgrade::upgrade`,
       type_arguments: [],
       arguments: [metadataSerialized, code],
     };
-    return this.client.executeEntryFunction(sender, payload);
+    return this.client.executeEntryFunction(senderAddress, payload);
   };
 
-  migrateContract = (sender: AptosAccount): Promise<Types.Transaction> => {
+  migrateContract = (senderAddress: string): Promise<TxnBuilderTypes.RawTransaction> => {
     if (!this.address) throw "Need bridge address.";
     const payload = {
       function: `${this.address}::contract_upgrade::migrate`,
       type_arguments: [],
       arguments: [],
     };
-    return this.client.executeEntryFunction(sender, payload);
+    return this.client.executeEntryFunction(senderAddress, payload);
   };
 }

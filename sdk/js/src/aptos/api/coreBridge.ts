@@ -1,4 +1,4 @@
-import { AptosAccount, Types } from "aptos";
+import { TxnBuilderTypes } from "aptos";
 import { ChainId } from "../../utils";
 import { AptosClientWrapper } from "../client";
 import { WormholeAptosBaseApi } from "./base";
@@ -11,31 +11,34 @@ export class WormholeAptosCoreBridgeApi extends WormholeAptosBaseApi {
 
   // Guardian set upgrade
 
-  upgradeGuardianSet = (sender: AptosAccount, vaa: Uint8Array): Promise<Types.Transaction> => {
+  upgradeGuardianSet = (
+    senderAddress: string,
+    vaa: Uint8Array,
+  ): Promise<TxnBuilderTypes.RawTransaction> => {
     if (!this.address) throw "Need core bridge address.";
     const payload = {
       function: `${this.address}::guardian_set_upgrade::submit_vaa`,
       type_arguments: [],
       arguments: [vaa],
     };
-    return this.client.executeEntryFunction(sender, payload);
+    return this.client.executeEntryFunction(senderAddress, payload);
   };
 
   // Init WH
 
   initWormhole = (
-    sender: AptosAccount,
+    senderAddress: string,
     chainId: ChainId,
     governanceChainId: number,
     governanceContract: Uint8Array,
     initialGuardian: Uint8Array,
-  ): Promise<Types.Transaction> => {
+  ): Promise<TxnBuilderTypes.RawTransaction> => {
     if (!this.address) throw "Need core bridge address.";
     const payload = {
       function: `${this.address}::wormhole::init`,
       type_arguments: [],
       arguments: [chainId, governanceChainId, governanceContract, initialGuardian],
     };
-    return this.client.executeEntryFunction(sender, payload);
+    return this.client.executeEntryFunction(senderAddress, payload);
   };
 }

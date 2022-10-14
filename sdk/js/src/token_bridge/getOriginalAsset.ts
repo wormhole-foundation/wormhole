@@ -37,6 +37,7 @@ import {
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { AptosClient } from "aptos";
+import { OriginInfo } from "../aptos/types";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -287,7 +288,7 @@ export async function getOriginalAssetNear(
     chainId: CHAIN_ID_NEAR,
     assetAddress: new Uint8Array(),
   };
-  retVal.isWrapped = await getIsWrappedAssetNear(tokenAccount, assetAccount);
+  retVal.isWrapped = getIsWrappedAssetNear(tokenAccount, assetAccount);
   if (!retVal.isWrapped) {
     retVal.assetAddress = assetAccount
       ? arrayify(sha256(Buffer.from(assetAccount)))

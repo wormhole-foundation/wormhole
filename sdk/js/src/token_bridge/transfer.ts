@@ -48,7 +48,7 @@ import {
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
-import { AptosClient, AptosAccount, Types } from "aptos";
+import { AptosClient, TxnBuilderTypes } from "aptos";
 import { WormholeAptosApi } from "../aptos";
 const BN = require("bn.js");
 import { FunctionCallOptions } from "near-api-js/lib/account";
@@ -963,7 +963,7 @@ export async function transferNearFromNear(
 
 export async function transferFromAptos(
   client: AptosClient,
-  sender: AptosAccount,
+  senderAddress: string,
   tokenBridgeAddress: string,
   tokenChain: ChainId | ChainName,
   tokenAddress: string,
@@ -973,10 +973,10 @@ export async function transferFromAptos(
   relayerFee: bigint | number=0,
   wormholeFee: bigint | number,
   payload: string = ""
-): Promise<Types.Transaction> {
+): Promise<TxnBuilderTypes.RawTransaction> {
   const api = new WormholeAptosApi(client, undefined, tokenBridgeAddress);
   return api.tokenBridge.transferTokens(
-    sender,
+    senderAddress,
     tokenChain,
     tokenAddress,
     amount,

@@ -1,4 +1,4 @@
-import { AptosAccount, AptosClient, Types } from "aptos";
+import { AptosAccount, AptosClient, Types, TxnBuilderTypes } from "aptos";
 
 export class AptosClientWrapper {
   client: AptosClient;
@@ -8,10 +8,10 @@ export class AptosClientWrapper {
   }
 
   executeEntryFunction = async (
-    sender: AptosAccount,
+    senderAddress: string,
     payload: Types.EntryFunctionPayload,
     opts?: Partial<Types.SubmitTransactionRequest>,
-  ): Promise<Types.Transaction> => {
+  ): Promise<TxnBuilderTypes.RawTransaction> => {
     // overwriting `max_gas_amount` default
     // rest of defaults are defined here: https://aptos-labs.github.io/ts-sdk-doc/classes/AptosClient.html#generateTransaction
     const customOpts = Object.assign(
@@ -21,28 +21,33 @@ export class AptosClientWrapper {
       opts,
     );
 
-    return (
-      this.client
-        // create raw transaction
-        .generateTransaction(sender.address(), payload, customOpts)
-        // simulate transaction
-        .then((rawTx) =>
-          this.client
-            .simulateTransaction(sender, rawTx)
-            .then((sims) =>
-              sims.forEach((tx) => {
-                if (!tx.success) {
-                  console.error(JSON.stringify(tx, null, 2));
-                  throw new Error(`Transaction failed: ${tx.vm_status}`);
-                }
-              }),
-            )
-            .then((_) => rawTx),
-        )
-        // sign & submit transaction if simulation is successful
-        .then((rawTx) => this.client.signTransaction(sender, rawTx))
-        .then((signedTx) => this.client.submitTransaction(signedTx))
-        .then((pendingTx) => this.client.waitForTransactionWithResult(pendingTx.hash))
-    );
+    return this.client.generateTransaction(senderAddress, payload, customOpts);
   };
 }
+
+export const signAndSubmitTransaction = (
+  client: AptosClient,
+  sender: AptosAccount,
+  rawTx: TxnBuilderTypes.RawTransaction,
+): Promise<Types.UserTransaction> => {
+  // simulate transaction
+  return (
+    client
+      .simulateTransaction(sender, rawTx)
+      .then((sims) =>
+        sims.forEach((tx) => {
+          if (!tx.success) {
+            console.error(JSON.stringify(tx, null, 2));
+            throw new Error(`Transaction failed: ${tx.vm_status}`);
+          }
+        }),
+      )
+      // sign & submit transaction if simulation is successful
+      .then((_) => client.signTransaction(sender, rawTx))
+      .then((signedTx) => client.submitTransaction(signedTx))
+      .then(
+        (pendingTx) =>
+          client.waitForTransactionWithResult(pendingTx.hash) as Promise<Types.UserTransaction>,
+      )
+  );
+};
