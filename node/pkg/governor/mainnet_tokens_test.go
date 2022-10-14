@@ -58,7 +58,7 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 				}
 			}
 
-			if e != vaa.ChainIDXpla {
+			if e != vaa.ChainIDXpla && e != vaa.ChainIDAptos {
 				assert.Equal(t, found, true)
 			}
 		})
