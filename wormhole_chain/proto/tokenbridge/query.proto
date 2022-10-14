@@ -1,5 +1,5 @@
 syntax = "proto3";
-package certusone.wormholechain.tokenbridge;
+package wormhole_foundation.wormholechain.tokenbridge;
 
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
@@ -16,36 +16,36 @@ option go_package = "github.com/wormhole-foundation/wormhole-chain/x/tokenbridge
 service Query {
     // Queries a config by index.
 	rpc Config(QueryGetConfigRequest) returns (QueryGetConfigResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/config";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/tokenbridge/config";
 	}
 // Queries a replayProtection by index.
 	rpc ReplayProtection(QueryGetReplayProtectionRequest) returns (QueryGetReplayProtectionResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/replayProtection/{index}";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/tokenbridge/replayProtection/{index}";
 	}
 
 	// Queries a list of replayProtection items.
 	rpc ReplayProtectionAll(QueryAllReplayProtectionRequest) returns (QueryAllReplayProtectionResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/replayProtection";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/tokenbridge/replayProtection";
 	}
 
 // Queries a chainRegistration by index.
 	rpc ChainRegistration(QueryGetChainRegistrationRequest) returns (QueryGetChainRegistrationResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/chainRegistration/{chainID}";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/tokenbridge/chainRegistration/{chainID}";
 	}
 
 	// Queries a list of chainRegistration items.
 	rpc ChainRegistrationAll(QueryAllChainRegistrationRequest) returns (QueryAllChainRegistrationResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/chainRegistration";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/tokenbridge/chainRegistration";
 	}
 
 // Queries a coinMetaRollbackProtection by index.
 	rpc CoinMetaRollbackProtection(QueryGetCoinMetaRollbackProtectionRequest) returns (QueryGetCoinMetaRollbackProtectionResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection/{index}";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/tokenbridge/coinMetaRollbackProtection/{index}";
 	}
 
 	// Queries a list of coinMetaRollbackProtection items.
 	rpc CoinMetaRollbackProtectionAll(QueryAllCoinMetaRollbackProtectionRequest) returns (QueryAllCoinMetaRollbackProtectionResponse) {
-		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection";
+		option (google.api.http).get = "/wormhole_foundation/wormholechain/tokenbridge/coinMetaRollbackProtection";
 	}
 
 // this line is used by starport scaffolding # 2
