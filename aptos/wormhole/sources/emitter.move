@@ -19,7 +19,7 @@ module wormhole::emitter {
     // TODO(csongor): document that this has to be globally unique.
     // The friend modifier is very important here.
     public(friend) fun init_emitter_registry(): EmitterRegistry {
-        EmitterRegistry { next_id: 0 }
+        EmitterRegistry { next_id: 1 }
     }
 
     #[test_only]
@@ -78,8 +78,8 @@ module wormhole::emitter_test {
         let emitter1 = emitter::new_emitter(&mut registry);
         let emitter2 = emitter::new_emitter(&mut registry);
 
-        assert!(emitter::get_emitter(&emitter1) == 0, 0);
-        assert!(emitter::get_emitter(&emitter2) == 1, 0);
+        assert!(emitter::get_emitter(&emitter1) == 1, 0);
+        assert!(emitter::get_emitter(&emitter2) == 2, 0);
 
         emitter::destroy_emitter_cap(emitter1);
         emitter::destroy_emitter_cap(emitter2);
