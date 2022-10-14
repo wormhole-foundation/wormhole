@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -euo pipefail
+
+GUARDIAN_ADDR=0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
+WORMHOLE_ADDR=$(worm contract devnet aptos Core)
+TOKEN_BRIDGE_ADDR=$(worm contract devnet aptos TokenBridge)
+DEPLOYER_ADDR=0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b
+
+NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR"
+
+worm aptos faucet
+
+# Deploy deployer contract for creating resource accounts
+worm aptos deploy --network devnet ../deployer --named-addresses "$NAMED_ADDRS"
+
+# Deploy wormhole
+worm aptos deploy-resource wormhole --network devnet ../wormhole --named-addresses "$NAMED_ADDRS"
+# Initialise wormhole
+worm aptos init-wormhole --network devnet -g $GUARDIAN_ADDR --contract-address "$WORMHOLE_ADDR"
+
+# Deploy & initialise (with `init_module`) token_bridge
+worm aptos deploy-resource token_bridge --network devnet ../token_bridge --named-addresses "$NAMED_ADDRS"
+# Initialise token-bridge
+worm aptos init-token-bridge --network devnet --contract-address "$TOKEN_BRIDGE_ADDR"
+
+# Deploy example program for sending messages
+worm aptos deploy --network devnet ../examples/core_messages --named-addresses "$NAMED_ADDRS"
+
+# Deploy coin
+#worm aptos deploy --network devnet ../wormhole --named-addresses $NAMED_ADDRS
