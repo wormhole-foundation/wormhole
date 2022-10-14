@@ -434,6 +434,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 	readiness.RegisterComponent(common.ReadinessCeloSyncing)
 	readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
+	readiness.RegisterComponent(common.ReadinessAptosSyncing)
 
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
@@ -592,14 +593,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("If --xplaWS is not specified, then --xplaLCD and --xplaContract must not be specified")
 	}
 
-	if *unsafeDevMode {
-		if *aptosRPC != "" {
-			if *aptosAccount == "" {
-				logger.Fatal("If --aptosRPC is specified, then --aptosAccount must be specified")
-			}
-			if *aptosHandle == "" {
-				logger.Fatal("If --aptosRPC is specified, then --aptosHandle must be specified")
-			}
+	if *aptosRPC != "" {
+		if *aptosAccount == "" {
+			logger.Fatal("If --aptosRPC is specified, then --aptosAccount must be specified")
+		}
+		if *aptosHandle == "" {
+			logger.Fatal("If --aptosRPC is specified, then --aptosHandle must be specified")
 		}
 	}
 
