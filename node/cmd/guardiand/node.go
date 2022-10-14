@@ -659,9 +659,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *arbitrumContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --arbitrumContract")
 		}
-		if *aptosRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --aptosRPC")
-		}
 	}
 	if *nodeName == "" {
 		logger.Fatal("Please specify --nodeName")
