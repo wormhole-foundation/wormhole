@@ -1,9 +1,13 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
+import { AptosAccount, AptosClient, Types } from "aptos";
+import BN from "bn.js";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
+import { Account as nearAccount, providers as nearProviders } from "near-api-js";
 import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
+import { WormholeAptosApi } from "../aptos";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
@@ -11,7 +15,7 @@ import { submitVAAOnInjective } from "./redeem";
 import BN from "bn.js";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
-import { callFunctionNear } from "../utils";
+import { callFunctionNear, ChainId } from "../utils";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 
 export async function createWrappedOnEth(
@@ -61,12 +65,7 @@ export async function createWrappedOnSolana(
 ): Promise<Transaction> {
   const { create_wrapped_ix } = await importTokenWasm();
   const ix = ixFromRust(
-    create_wrapped_ix(
-      tokenBridgeAddress,
-      bridgeAddress,
-      payerAddress,
-      signedVAA
-    )
+    create_wrapped_ix(tokenBridgeAddress, bridgeAddress, payerAddress, signedVAA)
   );
   const transaction = new Transaction().add(ix);
   const { blockhash } = await connection.getRecentBlockhash();
@@ -82,13 +81,7 @@ export async function createWrappedOnAlgorand(
   senderAddr: string,
   attestVAA: Uint8Array
 ): Promise<TransactionSignerPair[]> {
-  return await _submitVAAAlgorand(
-    client,
-    tokenBridgeId,
-    bridgeId,
-    attestVAA,
-    senderAddr
-  );
+  return await _submitVAAAlgorand(client, tokenBridgeId, bridgeId, attestVAA, senderAddr);
 }
 
 export async function createWrappedOnNear(
@@ -113,4 +106,16 @@ export async function createWrappedOnNear(
   ];
   msgs.push({ ...msgs[0] });
   return msgs;
+}
+
+export async function createWrappedOnAptos(
+  client: AptosClient,
+  sender: AptosAccount,
+  tokenBridgeAddress: string,
+  tokenChain: ChainId,
+  tokenAddress: string,
+  signedVAA: Uint8Array
+): Promise<Types.Transaction> {
+  const api = new WormholeAptosApi(client, undefined, tokenBridgeAddress);
+  return api.tokenBridge.createWrappedCoin(sender, tokenChain, tokenAddress, signedVAA);
 }

@@ -2,10 +2,11 @@ import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, getApplicationAddress } from "algosdk";
+import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
-import { CHAIN_ID_INJECTIVE, tryNativeToHexString } from "../utils";
+import { CHAIN_ID_INJECTIVE, ensureHexPrefix, tryNativeToHexString } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { getForeignAssetInjective } from "./getForeignAsset";
 
@@ -113,4 +114,20 @@ export function getIsWrappedAssetNear(
   asset: string
 ): boolean {
   return asset.endsWith("." + tokenBridge);
+}
+
+// TODO: do we need to check if token is registered in bridge?
+export async function getIsWrappedAssetAptos(
+  client: AptosClient,
+  tokenBridgeAddress: string,
+  assetAddress: string,
+): Promise<boolean> {
+  assetAddress = ensureHexPrefix(assetAddress);
+  try {
+    // get origin info from asset address
+    await client.getAccountResource(assetAddress, `${tokenBridgeAddress}::state::OriginInfo`);
+    return true;
+  } catch {
+    return false;
+  }
 }

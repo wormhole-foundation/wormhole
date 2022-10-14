@@ -6,6 +6,7 @@ import {
   createWrappedOnNear,
   submitVAAOnInjective,
   createWrappedOnXpla,
+  createWrappedOnAptos,
 } from ".";
 import { Bridge__factory } from "../ethers-contracts";
 
@@ -32,3 +33,5 @@ export const updateWrappedOnSolana = createWrappedOnSolana;
 export const updateWrappedOnAlgorand = createWrappedOnAlgorand;
 
 export const updateWrappedOnNear = createWrappedOnNear;
+
+export const updateWrappedOnAptos = createWrappedOnAptos;

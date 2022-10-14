@@ -3,15 +3,15 @@ import { AptosAccount, AptosClient, Types } from "aptos";
 export class AptosClientWrapper {
   client: AptosClient;
 
-  constructor(nodeUrl: string) {
-    this.client = new AptosClient(nodeUrl);
+  constructor(client: AptosClient) {
+    this.client = client;
   }
 
   executeEntryFunction = async (
     sender: AptosAccount,
     payload: Types.EntryFunctionPayload,
     opts?: Partial<Types.SubmitTransactionRequest>,
-  ): Promise<string> => {
+  ): Promise<Types.Transaction> => {
     // overwriting `max_gas_amount` default
     // rest of defaults are defined here: https://aptos-labs.github.io/ts-sdk-doc/classes/AptosClient.html#generateTransaction
     const customOpts = Object.assign(
@@ -24,7 +24,6 @@ export class AptosClientWrapper {
     return (
       this.client
         // create raw transaction
-        // TODO: compare `generateTransaction` flow with `generateBCSTransaction`
         .generateTransaction(sender.address(), payload, customOpts)
         // simulate transaction
         .then((rawTx) =>
@@ -43,10 +42,7 @@ export class AptosClientWrapper {
         // sign & submit transaction if simulation is successful
         .then((rawTx) => this.client.signTransaction(sender, rawTx))
         .then((signedTx) => this.client.submitTransaction(signedTx))
-        .then(async (pendingTx) => {
-          await this.client.waitForTransaction(pendingTx.hash);
-          return pendingTx.hash;
-        })
+        .then((pendingTx) => this.client.waitForTransactionWithResult(pendingTx.hash))
     );
   };
 }

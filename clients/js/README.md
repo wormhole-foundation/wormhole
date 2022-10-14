@@ -1,6 +1,7 @@
 # Wormhole CLI
 
 This tool is a command line interface to Wormhole.
+
 ## Installation
 
     make install
@@ -12,7 +13,7 @@ private keys, based on `.env.sample` in this folder.
 
 ## Usage
 
-``` sh
+```sh
 worm [command]
 
 Commands:
@@ -31,16 +32,29 @@ Options:
   --version  Show version number                                       [boolean]
 ```
 
- Consult the `--help` flag for using subcommands.
+Consult the `--help` flag for using subcommands.
 
- ### VAA generation
+### VAA generation
 
- Use `generate` to create VAAs for testing. For example, to create an NFT bridge registration VAA:
+Use `generate` to create VAAs for testing. For example, to create an NFT bridge registration VAA:
 
-``` sh
+```sh
 $ worm generate registration --module NFTBridge \
     --chain bsc \
     --contract-address 0x706abc4E45D419950511e474C7B9Ed348A4a716c \
+    --guardian-secret cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
+```
+
+Example creating a token attestation VAA:
+
+```sh
+$ worm generate attestation --emitter-chain ethereum \
+    --emitter-address 11111111111111111111111111111115 \
+    --chain ethereum \
+    --token-address 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 \
+    --decimals 6 \
+    --symbol USDC \
+    --name USDC \
     --guardian-secret cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
 ```
 
@@ -49,10 +63,10 @@ $ worm generate registration --module NFTBridge \
 Use `parse` to parse a VAA into JSON. For example,
 
     worm parse $(worm-fetch-governance 13940208096455381020)
-    
+
 will fetch governance VAA `13940208096455381020` and print it as JSON.
-    
-``` sh
+
+```sh
 # ...signatures elided
 timestamp: 1651416474,
 nonce: 1570649151,
@@ -97,12 +111,11 @@ what's the destination chain and module. For example, a contract upgrade contain
 
     worm submit $(cat my-nft-registration.txt) --network mainnet
 
-
 For VAAs that don't have a specific target chain (like registrations or guardian
 set upgrades), the script will ask you to specify the target chain.
 For example, to submit a guardian set upgrade on all chains, simply run:
 
-``` sh
+```sh
 $ worm-fetch-governance 13940208096455381020 > guardian-upgrade.txt
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain oasis
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain aurora
@@ -121,12 +134,11 @@ $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain celo
 
 The VAA payload type (guardian set upgrade) specifies that this VAA should go to the core bridge, and the tool directs it there.
 
-
 ### info
 
 To get info about a contract (only EVM supported at this time)
 
-``` sh
+```sh
 $ worm evm info -c bsc -n mainnet -m TokenBridge
 
 {
@@ -169,6 +181,7 @@ $ worm evm info -c bsc -n mainnet -m TokenBridge
 }
 
 ```
+
 ### Misc
 
 To get the contract address for a module:
@@ -178,4 +191,3 @@ To get the contract address for a module:
 To get the RPC address for a chain
 
     $ worm rpc mainnet bsc
-

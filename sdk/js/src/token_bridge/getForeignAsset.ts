@@ -2,13 +2,11 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Algodv2 } from "algosdk";
+import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
-import {
-  calcLogicSigAccount,
-  decodeLocalState,
-  hexToNativeAssetBigIntAlgorand,
-} from "../algorand";
+import { Account as nearAccount } from "near-api-js";
+import { calcLogicSigAccount, decodeLocalState, hexToNativeAssetBigIntAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
 import {
@@ -17,6 +15,8 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   coalesceChainId,
+  getAssetFullyQualifiedType,
+  getForeignAssetAddress,
 } from "../utils";
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
@@ -37,10 +37,7 @@ export async function getForeignAssetEth(
 ): Promise<string | null> {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
   try {
-    return await tokenBridge.wrappedAsset(
-      coalesceChainId(originChain),
-      originAsset
-    );
+    return await tokenBridge.wrappedAsset(coalesceChainId(originChain), originAsset);
   } catch (e) {
     return null;
   }
@@ -53,15 +50,12 @@ export async function getForeignAssetTerra(
   originAsset: Uint8Array
 ): Promise<string | null> {
   try {
-    const result: { address: string } = await client.wasm.contractQuery(
-      tokenBridgeAddress,
-      {
-        wrapped_registry: {
-          chain: coalesceChainId(originChain),
-          address: fromUint8Array(originAsset),
-        },
-      }
-    );
+    const result: { address: string } = await client.wasm.contractQuery(tokenBridgeAddress, {
+      wrapped_registry: {
+        chain: coalesceChainId(originChain),
+        address: fromUint8Array(originAsset),
+      },
+    });
     return result.address;
   } catch (e) {
     return null;
@@ -149,9 +143,7 @@ export async function getForeignAssetSolana(
     coalesceChainId(originChain)
   );
   const wrappedAddressPK = new PublicKey(wrappedAddress);
-  const wrappedAssetAccountInfo = await connection.getAccountInfo(
-    wrappedAddressPK
-  );
+  const wrappedAssetAccountInfo = await connection.getAccountInfo(wrappedAddressPK);
   return wrappedAssetAccountInfo ? wrappedAddressPK.toString() : null;
 }
 
@@ -174,11 +166,7 @@ export async function getForeignAssetAlgorand(
     if (!doesExist) {
       return null;
     }
-    let asset: Uint8Array = await decodeLocalState(
-      client,
-      tokenBridgeId,
-      lsa.address()
-    );
+    let asset: Uint8Array = await decodeLocalState(client, tokenBridgeId, lsa.address());
     if (asset.length > 8) {
       const tmp = Buffer.from(asset.slice(0, 8));
       return tmp.readBigUInt64BE(0);
@@ -202,4 +190,25 @@ export async function getForeignAssetNear(
     }
   );
   return ret !== "" ? ret : null;
+}
+
+export async function getForeignAssetAptos(
+  client: AptosClient,
+  tokenBridgeAddress: string,
+  originChain: ChainId | ChainName,
+  originAddress: string
+): Promise<string | null> {
+  const originChainId = coalesceChainId(originChain);
+  const assetAddress = getForeignAssetAddress(tokenBridgeAddress, originChainId, originAddress);
+  if (!assetAddress) {
+    return null;
+  }
+
+  try {
+    // check if asset exists and throw if it doesn't
+    await client.getAccountResource(assetAddress, `0x1::coin::CoinInfo<${assetAddress}::coin::T>`);
+    return assetAddress;
+  } catch (e) {
+    return null;
+  }
 }

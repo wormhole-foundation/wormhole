@@ -37,6 +37,8 @@ import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelab
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
+import { AptosAccount, AptosClient, Types } from "aptos";
+import { WormholeAptosApi } from "../aptos";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -381,4 +383,23 @@ export async function redeemOnNear(
   });
 
   return options;
+}
+
+export async function redeemFromAptos(
+  client: AptosClient,
+  sender: AptosAccount,
+  tokenBridgeAddress: string,
+  tokenChain: ChainId,
+  tokenAddress: string,
+  vaa: Uint8Array,
+  feeRecipientAddress: string,
+): Promise<Types.Transaction> {
+  const api = new WormholeAptosApi(client, undefined, tokenBridgeAddress);
+  return api.tokenBridge.completeTransfer(
+    sender,
+    tokenChain,
+    tokenAddress,
+    vaa,
+    feeRecipientAddress,
+  );
 }

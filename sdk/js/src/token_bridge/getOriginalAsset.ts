@@ -11,9 +11,11 @@ import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId } from "../terra";
 import { canonicalAddress } from "../cosmos";
 import {
+  assertChain,
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_APTOS,
   CHAIN_ID_NEAR,
   CHAIN_ID_INJECTIVE,
   CHAIN_ID_SOLANA,
@@ -34,6 +36,7 @@ import {
 } from "./getIsWrappedAsset";
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
+import { AptosClient } from "aptos";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -305,4 +308,33 @@ export async function getOriginalAssetNear(
   retVal.assetAddress = hexToUint8Array(buf[0]);
 
   return retVal;
+}
+
+export async function getOriginalAssetAptos(
+  client: AptosClient,
+  tokenBridgeAddress: string,
+  assetAddress: string,
+): Promise<WormholeWrappedInfo> {
+  const originInfo = (
+    await client.getAccountResource(assetAddress, `${tokenBridgeAddress}::state::OriginInfo`)
+  ).data as OriginInfo;
+  if (!!originInfo) {
+    // wrapped asset
+    const chainId = originInfo.token_chain.number;
+    assertChain(chainId);
+    const assetAddress = Uint8Array.from(Buffer.from(originInfo.token_address.external_address));
+    return {
+      isWrapped: true,
+      chainId,
+      assetAddress,
+    };
+  } else {
+    // native asset
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_APTOS,
+      // TODO: should we return address or fully qualified type?
+      assetAddress: Uint8Array.from(Buffer.from(assetAddress)),
+    };
+  }
 }

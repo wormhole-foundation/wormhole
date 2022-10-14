@@ -311,9 +311,13 @@ export function textToUint8Array(name: string): Uint8Array {
   return new Uint8Array(Buffer.from(name, "binary"));
 }
 
-export const hex = (x: string): Buffer => {
+export function hex(x: string): Buffer {
   return Buffer.from(
     ethers.utils.hexlify(x, { allowMissingPrefix: true }).substring(2),
     "hex"
   );
-};
+}
+
+export function ensureHexPrefix(x: string): string {
+  return x.substring(0, 2) !== "0x" ? `0x${x}` : x;
+}
