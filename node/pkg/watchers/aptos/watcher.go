@@ -79,7 +79,7 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, native_seq uint64) {
 	em := data.Get("sender")
 	if !em.Exists() {
-		logger.Info("sender")
+		logger.Error("sender field missing")
 		return
 	}
 
@@ -96,37 +96,37 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, native_seq 
 
 	v := data.Get("payload")
 	if !v.Exists() {
-		logger.Info("payload")
+		logger.Error("payload field missing")
 		return
 	}
 
 	pl, err := hex.DecodeString(v.String()[2:])
 	if err != nil {
-		logger.Info("payload decode")
+		logger.Error("payload decode")
 		return
 	}
 
 	ts := data.Get("timestamp")
 	if !ts.Exists() {
-		logger.Info("timestamp")
+		logger.Error("timestamp field missing")
 		return
 	}
 
 	nonce := data.Get("nonce")
 	if !nonce.Exists() {
-		logger.Info("nonce")
+		logger.Error("nonce field missing")
 		return
 	}
 
 	sequence := data.Get("sequence")
 	if !sequence.Exists() {
-		logger.Info("sequence")
+		logger.Error("sequence field missing")
 		return
 	}
 
 	consistency_level := data.Get("consistency_level")
 	if !consistency_level.Exists() {
-		logger.Info("consistency_level")
+		logger.Error("consistency_level field missing")
 		return
 	}
 
