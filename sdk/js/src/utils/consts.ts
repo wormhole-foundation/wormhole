@@ -56,6 +56,8 @@ export type EVMChainName =
   | "optimism"
   | "gnosis"
   | "ropsten";
+
+
 /**
  *
  * All the Solana-based chain names that Wormhole supports
@@ -74,6 +76,8 @@ export type Contracts = {
 export type ChainContracts = {
   [chain in ChainName]: Contracts;
 };
+
+export type Network = "MAINNET" | "TESTNET" | "DEVNET";
 
 const MAINNET = {
   unset: {
@@ -167,8 +171,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xaf4faf174bad7dba8092fc5ac37b9b8fea3929f05fcb0677fd16dc735bc3ffc8",
+    token_bridge:
+      "0xdc406ec328a21eacbbe0c145f7884612d7094ebd637288149ac7879bbff43493",
     nft_bridge: undefined,
   },
   sui: {
@@ -321,8 +326,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xaf4faf174bad7dba8092fc5ac37b9b8fea3929f05fcb0677fd16dc735bc3ffc8",
+    token_bridge:
+      "0xdc406ec328a21eacbbe0c145f7884612d7094ebd637288149ac7879bbff43493",
     nft_bridge: undefined,
   },
   sui: {
@@ -476,8 +482,9 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
+    token_bridge:
+      "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
     nft_bridge: undefined,
   },
   sui: {

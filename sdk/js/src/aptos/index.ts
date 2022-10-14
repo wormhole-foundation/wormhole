@@ -1,0 +1,1 @@
+export { WormholeAptosApi } from "./api";

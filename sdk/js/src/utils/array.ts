@@ -2,6 +2,7 @@ import { arrayify, zeroPad } from "@ethersproject/bytes";
 import { PublicKey } from "@solana/web3.js";
 import { hexValue, hexZeroPad, sha256, stripZeros } from "ethers/lib/utils";
 import { Provider as NearProvider } from "near-api-js/lib/providers";
+import { ethers } from "ethers";
 import {
   hexToNativeAssetStringAlgorand,
   nativeStringToHexAlgorand,
@@ -14,12 +15,13 @@ import {
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
-  CHAIN_ID_NEAR,
-  CHAIN_ID_INJECTIVE,
-  CHAIN_ID_OSMOSIS,
-  CHAIN_ID_SUI,
   CHAIN_ID_APTOS,
+  CHAIN_ID_INJECTIVE,
+  CHAIN_ID_NEAR,
+  CHAIN_ID_OSMOSIS,
+  CHAIN_ID_PYTHNET,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_SUI,
   CHAIN_ID_TERRA,
   CHAIN_ID_TERRA2,
   CHAIN_ID_WORMCHAIN,
@@ -27,7 +29,6 @@ import {
   coalesceChainId,
   isEVMChain,
   isTerraChain,
-  CHAIN_ID_PYTHNET,
   CHAIN_ID_XPLA,
 } from "./consts";
 import { hashLookup } from "./near";
@@ -309,3 +310,10 @@ export function textToHexString(name: string): string {
 export function textToUint8Array(name: string): Uint8Array {
   return new Uint8Array(Buffer.from(name, "binary"));
 }
+
+export const hex = (x: string): Buffer => {
+  return Buffer.from(
+    ethers.utils.hexlify(x, { allowMissingPrefix: true }).substring(2),
+    "hex"
+  );
+};
