@@ -94,18 +94,19 @@ retry token-bridge-client create-bridge "$nft_bridge_address" "$bridge_address"
 
 # pass the chain registration VAAs sourced from .env to the client's execute-governance command:
 pushd /usr/src/clients/js
-make build
-# Register the Token Bridge Endpoint on ETH
-node build/main.js submit -c solana -n devnet "$REGISTER_ETH_TOKEN_BRIDGE_VAA"
-node build/main.js submit -c solana -n devnet "$REGISTER_TERRA_TOKEN_BRIDGE_VAA"
-node build/main.js submit -c solana -n devnet "$REGISTER_BSC_TOKEN_BRIDGE_VAA"
-node build/main.js submit -c solana -n devnet "$REGISTER_ALGO_TOKEN_BRIDGE_VAA"
-node build/main.js submit -c solana -n devnet "$REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
-node build/main.js submit -c solana -n devnet "$REGISTER_NEAR_TOKEN_BRIDGE_VAA"
-node build/main.js submit -c solana -n devnet "$REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
-# Register the NFT Bridge Endpoint on ETH
-node build/main.js submit -c solana -n devnet "$REGISTER_ETH_NFT_BRIDGE_VAA"
-node build/main.js submit -c solana -n devnet "$REGISTER_TERRA_NFT_BRIDGE_VAA"
+make install
+
+# next we get all the registration VAAs from the environment
+# if a new VAA is added, this will automatically pick it up
+VAAS=$(set | grep "REGISTER_.*_VAA" | grep -v SOL | cut -d '=' -f1)
+
+# use 'worm' to submit each registration VAA
+for VAA in $VAAS
+do
+    VAA=${!VAA}
+    worm submit $VAA --chain solana --network devnet
+done
+echo "Registrations successful."
 popd
 
 # Let k8s startup probe succeed
