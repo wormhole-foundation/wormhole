@@ -11,9 +11,9 @@
 // drop that particular message...
 // </sigh>
 const info = console.info;
-console.info = function(x){
+console.info = function (x) {
   if (x != "secp256k1 unavailable, reverting to browser version") {
-    info(x)
+    info(x);
   }
 };
 
@@ -45,7 +45,7 @@ import {
 } from "./evm";
 import { execute_terra } from "./terra";
 import { execute_aptos } from "./aptos";
-import { execute_near } from "./near";
+import { execute_near, upgrade_near, deploy_near } from "./near";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
 import {
@@ -68,7 +68,10 @@ import { isOutdated } from "./cmds/update";
 setDefaultWasm("node");
 
 if (isOutdated()) {
-  console.error("\x1b[33m%s\x1b[0m", "WARNING: 'worm' is out of date. Run 'worm update' to update.");
+  console.error(
+    "\x1b[33m%s\x1b[0m",
+    "WARNING: 'worm' is out of date. Run 'worm update' to update."
+  );
 }
 
 const GOVERNANCE_CHAIN = 1;
@@ -79,23 +82,26 @@ const GOVERNANCE_EMITTER =
 const OVERRIDES = {
   MAINNET: {
     aptos: {
-      token_bridge: "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
-      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-    }
+      token_bridge:
+        "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
+      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
+    },
   },
   TESTNET: {
     aptos: {
-      token_bridge: "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
-      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-    }
+      token_bridge:
+        "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
+      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
+    },
   },
   DEVNET: {
     aptos: {
-      token_bridge: "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
-      core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017"
-    }
-  }
-}
+      token_bridge:
+        "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
+      core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
+    },
+  },
+};
 
 export const CONTRACTS = {
   MAINNET: { ...SDK_CONTRACTS.MAINNET, ...OVERRIDES.MAINNET },
@@ -127,7 +133,7 @@ function makeVAA(
 
 yargs(hideBin(process.argv))
   //TODO(csongor): refactor all commands into the directory structure.
-  .commandDir('cmds')
+  .commandDir("cmds")
   ////////////////////////////////////////////////////////////////////////////////
   // Generate
   .command(
@@ -310,12 +316,15 @@ yargs(hideBin(process.argv))
                 type: "AttestMeta",
                 chain: 0,
                 // TODO: remove these casts (only here because of the workaround above)
-                tokenAddress: parseAddress(argv["chain"], argv["token-address"] as string),
+                tokenAddress: parseAddress(
+                  argv["chain"],
+                  argv["token-address"] as string
+                ),
                 tokenChain: toChainId(argv["chain"]),
                 decimals: argv["decimals"] as number,
                 symbol: argv["symbol"] as string,
-                name: argv["name"] as string
-              }
+                name: argv["name"] as string,
+              };
               let v = makeVAA(
                 toChainId(emitter_chain),
                 parseAddress(emitter_chain, argv["emitter-address"] as string),
@@ -496,6 +505,86 @@ yargs(hideBin(process.argv))
       console.log(NETWORKS[network][argv["chain"]].rpc);
     }
   )
+  ////////////////////////////////////////////////////////////////////////////////
+  // Near utilities
+  .command(
+    "near",
+    "NEAR utilites",
+    (yargs) => {
+      return (
+        yargs
+          .option("module", {
+            alias: "m",
+            describe: "Module to query",
+            type: "string",
+            choices: ["Core", "NFTBridge", "TokenBridge"],
+            required: false,
+          })
+          .option("network", {
+            alias: "n",
+            describe: "network",
+            type: "string",
+            choices: ["mainnet", "testnet", "devnet"],
+            required: true,
+          })
+          .option("account", {
+            describe: "near deployment account",
+            type: "string",
+            required: true,
+          })
+          .option("attach", {
+            describe: "attach some near",
+            type: "string",
+            required: false,
+          })
+          .option("target", {
+            describe: "near account to upgrade",
+            type: "string",
+            required: false,
+          })
+          .option("mnemonic", {
+            describe: "near private keys",
+            type: "string",
+            required: false,
+          })
+          .option("keys", {
+            describe: "near private keys",
+            type: "string",
+            required: false,
+          })
+          .command(
+            "contract-update <file>",
+            "Submit a contract update using our specific APIs",
+            (yargs) => {
+              return yargs.positional("file", {
+                type: "string",
+                describe: "wasm",
+              });
+            },
+            async (argv) => {
+              await upgrade_near(argv);
+            }
+          )
+          .command(
+            "deploy <file>",
+            "Submit a contract update using near APIs",
+            (yargs) => {
+              return yargs.positional("file", {
+                type: "string",
+                describe: "wasm",
+              });
+            },
+            async (argv) => {
+              await deploy_near(argv);
+            }
+          )
+      );
+    },
+    (_) => {
+      yargs.showHelp();
+    }
+  )
+
   ////////////////////////////////////////////////////////////////////////////////
   // Evm utilities
   .command(
@@ -691,6 +780,7 @@ yargs(hideBin(process.argv))
     "submit <vaa>",
     "Execute a VAA",
     (yargs) => {
+      // @ts-ignore
       return yargs
         .positional("vaa", {
           describe: "vaa",
@@ -809,7 +899,13 @@ yargs(hideBin(process.argv))
       } else if (chain === "sui") {
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
-        await execute_aptos(parsed_vaa.payload, buf, network, argv["contract-address"], argv["rpc"]);
+        await execute_aptos(
+          parsed_vaa.payload,
+          buf,
+          network,
+          argv["contract-address"],
+          argv["rpc"]
+        );
       } else if (chain === "wormholechain") {
         throw Error("Wormhole Chain is not supported yet");
       } else {
@@ -820,8 +916,7 @@ yargs(hideBin(process.argv))
     }
   )
   .strict()
-  .demandCommand()
-  .argv;
+  .demandCommand().argv;
 
 function hex(x: string): string {
   return ethers.utils.hexlify(x, { allowMissingPrefix: true });
