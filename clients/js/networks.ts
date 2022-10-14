@@ -224,8 +224,8 @@ const TESTNET = {
     key: get_env_var("OSMOSIS_KEY_TESTNET"),
   },
   aptos: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://fullnode.testnet.aptoslabs.com/v1",
+    key: get_env_var("APTOS_TESTNET"),
   },
   sui: {
     rpc: undefined,
@@ -366,8 +366,8 @@ const DEVNET = {
     key: undefined,
   },
   aptos: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://0.0.0.0:8080",
+    key: "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d",
   },
   sui: {
     rpc: undefined,
