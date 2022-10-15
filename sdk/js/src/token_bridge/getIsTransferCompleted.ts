@@ -67,7 +67,11 @@ export async function getIsTransferCompletedTerra(
     );
   } catch (e: any) {
     // redeemed if the VAA was already executed
-    return e.response.data.message.includes("VaaAlreadyExecuted");
+    if (e.response.data.message.includes("VaaAlreadyExecuted")) {
+      return true;
+    } else {
+      throw e;
+    }
   }
   return false;
 }
