@@ -12,6 +12,8 @@ module wormhole::emitter {
     #[test_only]
     friend wormhole::emitter_test;
 
+    const E_INVALID_EMITTER_UPGRADE: u64 = 0;
+
     struct EmitterRegistry has store {
         next_id: u64
     }
@@ -46,6 +48,13 @@ module wormhole::emitter {
     /// emitter id, and is irreversible.
     public fun destroy_emitter_cap(emitter_cap: EmitterCapability) {
         let EmitterCapability { emitter: _, sequence: _ } = emitter_cap;
+    }
+
+    /// Upgrades an emitter capability by replacing with another one.
+    public fun upgrade_emitter_cap(old: &mut EmitterCapability, new: EmitterCapability) {
+        let EmitterCapability { emitter, sequence } = new;
+        old.emitter = emitter;
+        old.sequence = sequence;
     }
 
     public fun get_emitter(emitter_cap: &EmitterCapability): u64 {
