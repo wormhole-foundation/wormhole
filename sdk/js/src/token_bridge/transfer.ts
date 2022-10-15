@@ -48,12 +48,12 @@ import {
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
-import { AptosClient, TxnBuilderTypes } from "aptos";
-import { WormholeAptosApi } from "../aptos";
+import { Types } from "aptos";
 const BN = require("bn.js");
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
+import { transferTokens as transferTokensAptos } from "../aptos";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -961,9 +961,7 @@ export async function transferNearFromNear(
   };
 }
 
-export async function transferFromAptos(
-  client: AptosClient,
-  senderAddress: string,
+export function transferFromAptos(
   tokenBridgeAddress: string,
   tokenChain: ChainId | ChainName,
   tokenAddress: string,
@@ -973,10 +971,9 @@ export async function transferFromAptos(
   relayerFee: bigint | number=0,
   wormholeFee: bigint | number,
   payload: string = ""
-): Promise<TxnBuilderTypes.RawTransaction> {
-  const api = new WormholeAptosApi(client, undefined, tokenBridgeAddress);
-  return api.tokenBridge.transferTokens(
-    senderAddress,
+): Types.EntryFunctionPayload {
+  return transferTokensAptos(
+    tokenBridgeAddress,
     tokenChain,
     tokenAddress,
     amount,

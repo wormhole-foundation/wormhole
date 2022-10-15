@@ -5,7 +5,6 @@ import { Algodv2 } from "algosdk";
 import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
-import { Account as nearAccount } from "near-api-js";
 import { calcLogicSigAccount, decodeLocalState, hexToNativeAssetBigIntAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
@@ -15,7 +14,6 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   coalesceChainId,
-  getAssetFullyQualifiedType,
   getForeignAssetAddress,
 } from "../utils";
 import { Provider } from "near-api-js/lib/providers";
