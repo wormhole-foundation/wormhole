@@ -21,7 +21,7 @@ var _ = strconv.IntSize
 func TestGuardianValidatorQuerySingle(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
 	wctx := sdk.WrapSDKContext(ctx)
-	msgs := createNGuardianValidator(keeper, ctx, 2)
+	msgs, _ := createNGuardianValidator(keeper, ctx, 2)
 	for _, tc := range []struct {
 		desc     string
 		request  *types.QueryGetGuardianValidatorRequest
@@ -71,7 +71,7 @@ func TestGuardianValidatorQuerySingle(t *testing.T) {
 func TestGuardianValidatorQueryPaginated(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
 	wctx := sdk.WrapSDKContext(ctx)
-	msgs := createNGuardianValidator(keeper, ctx, 5)
+	msgs, _ := createNGuardianValidator(keeper, ctx, 5)
 
 	request := func(next []byte, offset, limit uint64, total bool) *types.QueryAllGuardianValidatorRequest {
 		return &types.QueryAllGuardianValidatorRequest{

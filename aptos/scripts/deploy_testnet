@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# TODO: merge this with the ./deploy script (like ./upgrade)
+
+DEPLOYER_ADDR=0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3
+GUARDIAN_ADDR=0x13947Bd48b18E53fdAeEe77F3473391aC727C638
+WORMHOLE_ADDR=$(worm contract testnet aptos Core)
+TOKEN_BRIDGE_ADDR=$(worm contract testnet aptos TokenBridge)
+
+NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR"
+
+# STEP 1) if deployer address is not funded with Aptos tokens,
+#         first fund it using a faucet script or the Aptos CLI
+worm aptos faucet --rpc 'https://fullnode.testnet.aptoslabs.com/v1' --account $DEPLOYER_ADDR --faucet 'https://faucet.testnet.aptoslabs.com'
+
+#================================================================================================
+
+# Deploy deployer contract for creating resource accounts
+worm aptos deploy --network testnet ../deployer --named-addresses "$NAMED_ADDRS"
+#
+# # Deploy wormhole
+worm aptos deploy-resource wormhole --network testnet ../wormhole --named-addresses "$NAMED_ADDRS"
+#
+# # Initialise wormhole
+worm aptos init-wormhole --network testnet -g $GUARDIAN_ADDR --contract-address $WORMHOLE_ADDR
+
+# Deploy & initialise (with `init_module`) token_bridge
+worm aptos deploy-resource token_bridge --network testnet ../token_bridge --named-addresses "$NAMED_ADDRS"
+
+# Initialise token-bridge
+worm aptos init-token-bridge --network testnet --contract-address $TOKEN_BRIDGE_ADDR
+
+# Deploy example program for sending messages
+# TODO: this does not have the testnet deploy option
+worm aptos deploy --network testnet ../examples/core_messages --named-addresses "$NAMED_ADDRS"

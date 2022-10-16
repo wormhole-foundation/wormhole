@@ -44,18 +44,8 @@ export async function query_contract_evm(
       }
       result.guardianSetExpiry = await core.getGuardianSetExpiry()
       result.chainId = await core.chainId()
-       // TODO: need new sdk release to expose this function in BridgeImplementation
-       const core2 = new ethers.Contract(contract_address, ["function evmChainId() public view returns (uint256)", "function isFork() public view returns (bool)"], provider)
-       try {
-         result.evmChainId = await core2.evmChainId()
-       } catch (e) {
-         result.evmChainId = null
-       }
-       try {
-         result.isFork = await core2.isFork()
-       } catch (e) {
-         result.isFork = null
-       }
+      result.evmChainId = await core.evmChainId()
+      result.isFork = await core.isFork()
       result.governanceChainId = await core.governanceChainId()
       result.governanceContract = await core.governanceContract()
       result.messageFee = await core.messageFee()
@@ -74,19 +64,9 @@ export async function query_contract_evm(
       result.isInitialized = await tb.isInitialized(result.implementation)
       result.tokenImplementation = await tb.tokenImplementation()
       result.chainId = await tb.chainId()
-      // TODO: need new sdk release to expose this function in BridgeImplementation
-      const tb2 = new ethers.Contract(contract_address, ["function finality() public view returns (uint8)", "function evmChainId() public view returns (uint256)", "function isFork() public view returns (bool)"], provider)
-      result.finality = await tb2.finality()
-      try {
-        result.evmChainId = await tb2.evmChainId()
-      } catch (e) {
-        result.evmChainId = null
-      }
-      try {
-        result.isFork = await tb2.isFork()
-      } catch (e) {
-        result.isFork = null
-      }
+      result.finality = await tb.finality()
+      result.evmChainId = (await tb.evmChainId()).toString()
+      result.isFork = await tb.isFork()
       result.governanceChainId = await tb.governanceChainId()
       result.governanceContract = await tb.governanceContract()
       result.WETH = await tb.WETH()
@@ -110,19 +90,9 @@ export async function query_contract_evm(
       result.isInitialized = await nb.isInitialized(result.implementation)
       result.tokenImplementation = await nb.tokenImplementation()
       result.chainId = await nb.chainId()
-      // TODO: need new sdk release to expose this function in NFTBridgeImplementation
-      const nb2 = new ethers.Contract(contract_address, ["function finality() public view returns (uint8)", "function evmChainId() public view returns (uint256)", "function isFork() public view returns (bool)"], provider)
-      result.finality = await nb2.finality()
-      try {
-        result.evmChainId = await tb2.evmChainId()
-      } catch (e) {
-        result.evmChainId = null
-      }
-      try {
-        result.isFork = await tb2.isFork()
-      } catch (e) {
-        result.isFork = null
-      }
+      result.finality = await nb.finality()
+      result.evmChainId = (await nb.evmChainId()).toString()
+      result.isFork = await nb.isFork()
       result.governanceChainId = await nb.governanceChainId()
       result.governanceContract = await nb.governanceContract()
       result.registrations = {}

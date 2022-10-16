@@ -22,6 +22,9 @@ install: build
 
 .PHONY: test
 test: build
+# This first invocation will set up the initial config, so that the warning
+# doesn't show up in the tests
+	node build/main.js --version > /dev/null
 	./run_parse_tests
 
 clean:

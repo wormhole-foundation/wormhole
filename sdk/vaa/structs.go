@@ -120,6 +120,10 @@ func (c ChainID) String() string {
 		return "algorand"
 	case ChainIDNear:
 		return "near"
+	case ChainIDAptos:
+		return "aptos"
+	case ChainIDSui:
+		return "sui"
 	case ChainIDEthereumRopsten:
 		return "ethereum-ropsten"
 	case ChainIDKarura:
@@ -177,6 +181,10 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDAlgorand, nil
 	case "near":
 		return ChainIDNear, nil
+	case "sui":
+		return ChainIDSui, nil
+	case "aptos":
+		return ChainIDAptos, nil
 	case "ethereum-ropsten":
 		return ChainIDEthereumRopsten, nil
 	case "karura":
@@ -248,6 +256,10 @@ const (
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
+	// ChainIDSui is the ChainID of Sui
+	ChainIDSui ChainID = 21
+	// ChainIDAptos is the ChainID of Aptos
+	ChainIDAptos ChainID = 22
 	// ChainIDArbitrum is the ChainID of Arbitrum
 	ChainIDArbitrum ChainID = 23
 	// ChainIDPythNet is the ChainID of PythNet

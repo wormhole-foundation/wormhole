@@ -1,5 +1,5 @@
 syntax = "proto3";
-package certusone.wormholechain.wormhole;
+package wormhole_foundation.wormholechain.wormhole;
 
 option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types";
 

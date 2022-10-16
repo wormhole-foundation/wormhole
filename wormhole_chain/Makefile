@@ -20,7 +20,7 @@ validators:
 	# These files change when the genesis file changes, so we need to make
 	# sure to copy them over
 	touch -m $@
-	rm -f build/config/gentx/gentx-c3f474217c930af3a4e998c4e52a57cee188ff43.json
+	./build/wormhole-chaind --home build/ tendermint unsafe-reset-all
 	./build/wormhole-chaind --home build/ gentx tiltGuardian "0uworm" --chain-id=wormholechain --min-self-delegation="0" --keyring-dir=keyring-test
 
 	# Copy config to validators/first_validator

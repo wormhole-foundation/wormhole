@@ -1,5 +1,5 @@
 syntax = "proto3";
-package certusone.wormholechain.tokenbridge;
+package wormhole_foundation.wormholechain.tokenbridge;
 
 import "tokenbridge/config.proto";
 import "tokenbridge/replay_protection.proto";

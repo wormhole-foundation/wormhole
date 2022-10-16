@@ -18,6 +18,8 @@ type (
 
 		accountKeeper types.AccountKeeper
 		bankKeeper    types.BankKeeper
+		wasmdKeeper   types.WasmdKeeper
+		setWasmd      bool
 	}
 )
 
@@ -35,6 +37,17 @@ func NewKeeper(
 
 		accountKeeper: accountKeeper, bankKeeper: bankKeeper,
 	}
+}
+
+// This is necessary because x/staking relies on x/wormhole and x/wasmd relies on x/staking,
+// So we must either:
+// 1. make wormhole depend on staking and replace the modified functions from here.
+// 2. add a new module that wraps x/wasmd instead of using x/wormhole.
+// 3. (current) set wasmdKeeper late in init and use guards whenever it's referenced.
+// Opted for (3) as we only reference in two places.
+func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
+	k.wasmdKeeper = keeper
+	k.setWasmd = true
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
