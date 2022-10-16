@@ -104,10 +104,10 @@ export const getForeignAssetAddress = (
   chain.writeUInt16BE(originChain);
   return sha3_256(
     Buffer.concat([
-      hex(hexZeroPad(tokenBridgeAddress, 32)),
+      hex(hexZeroPad(ensureHexPrefix(tokenBridgeAddress), 32)),
       chain,
       Buffer.from("::", "ascii"),
-      hex(hexZeroPad(originAddress, 32)),
+      hex(hexZeroPad(ensureHexPrefix(originAddress), 32)),
     ])
   );
 };
