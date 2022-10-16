@@ -50,13 +50,6 @@ module wormhole::emitter {
         let EmitterCapability { emitter: _, sequence: _ } = emitter_cap;
     }
 
-    /// Upgrades an emitter capability by replacing with another one.
-    public fun upgrade_emitter_cap(old: &mut EmitterCapability, new: EmitterCapability) {
-        let EmitterCapability { emitter, sequence } = new;
-        old.emitter = emitter;
-        old.sequence = sequence;
-    }
-
     public fun get_emitter(emitter_cap: &EmitterCapability): u64 {
         emitter_cap.emitter
     }
