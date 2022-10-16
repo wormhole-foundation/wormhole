@@ -174,7 +174,7 @@ exports.builder = function(y: typeof yargs) {
       // TODO(csongor): use deployer address from sdk (when it's there)
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
       if (network == "TESTNET") {
-        module_name = "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::deployer";
+        module_name = "0xc12fa1b4f689381e507430fdce7bbce67bb3d4f37bccc520630ba4aa6153ac2d::deployer";
       }
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(
@@ -203,7 +203,7 @@ exports.builder = function(y: typeof yargs) {
       // TODO(csongor): use sdk address
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
       if (network == "TESTNET") {
-        module_name = "0x5ad53ef0cb7cd21816a0371c367be38e7874a9d2f71c77af7592f6b0791f6ca3::sender";
+        module_name = "0xc12fa1b4f689381e507430fdce7bbce67bb3d4f37bccc520630ba4aa6153ac2d::sender";
       }
       await callEntryFunc(network, rpc, module_name, "send_message", [], [BCS.bcsSerializeBytes(Buffer.from(argv["message"], "ascii"))])
     })
