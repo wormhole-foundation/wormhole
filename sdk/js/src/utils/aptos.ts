@@ -100,6 +100,10 @@ export const getForeignAssetAddress = (
     return null;
   }
 
+  // from https://github.com/aptos-labs/aptos-core/blob/25696fd266498d81d346fe86e01c330705a71465/aptos-move/framework/aptos-framework/sources/account.move#L90-L95
+  let DERIVE_RESOURCE_ACCOUNT_SCHEME = Buffer.alloc(1);
+  DERIVE_RESOURCE_ACCOUNT_SCHEME.writeUInt8(255);
+
   let chain: Buffer = Buffer.alloc(2);
   chain.writeUInt16BE(originChain);
   return sha3_256(
@@ -108,6 +112,7 @@ export const getForeignAssetAddress = (
       chain,
       Buffer.from("::", "ascii"),
       hex(hexZeroPad(ensureHexPrefix(originAddress), 32)),
+      DERIVE_RESOURCE_ACCOUNT_SCHEME,
     ])
   );
 };
