@@ -14,22 +14,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, 128, len(tokenConfigEntries))
-}
-
-func TestTokenListFloor(t *testing.T) {
-	tokenConfigEntries := tokenList()
-
-	/* Assume that we will never have a floor price of zero,
-	   otherwise this would disable the value of the notional
-	   value limit for the token */
-	for _, tokenConfigEntry := range tokenConfigEntries {
-		testLabel := vaa.ChainID(tokenConfigEntry.chain).String() + ":" + tokenConfigEntry.symbol
-		t.Run(testLabel, func(t *testing.T) {
-			assert.Greater(t, tokenConfigEntry.price, float64(0))
-		})
-	}
-
+	assert.Equal(t, 129, len(tokenConfigEntries))
 }
 
 func TestTokenListAddressSize(t *testing.T) {
