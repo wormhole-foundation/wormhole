@@ -1,4 +1,5 @@
 module token_bridge::complete_transfer {
+    use std::signer;
     use aptos_std::from_bcs;
     use aptos_framework::coin::{Self, Coin};
 
@@ -22,6 +23,16 @@ module token_bridge::complete_transfer {
     public entry fun submit_vaa_entry<CoinType>(vaa: vector<u8>, fee_recipient: address) {
         submit_vaa<CoinType>(vaa, fee_recipient);
     }
+
+    /// Submits the complete transfer VAA and registers the coin for the fee
+    /// recipient if not already registered.
+    public entry fun submit_vaa_and_register_entry<CoinType>(fee_recipient: &signer, vaa: vector<u8>) {
+        if (!coin::is_account_registered<CoinType>(signer::address_of(fee_recipient))) {
+            coin::register<CoinType>(fee_recipient);
+        };
+        submit_vaa<CoinType>(vaa, signer::address_of(fee_recipient));
+    }
+
 
     #[test_only]
     public fun test<CoinType>(transfer: &Transfer, fee_recipient: address) {
