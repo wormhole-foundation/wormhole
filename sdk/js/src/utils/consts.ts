@@ -57,7 +57,6 @@ export type EVMChainName =
   | "gnosis"
   | "ropsten";
 
-
 /**
  *
  * All the Solana-based chain names that Wormhole supports
@@ -171,9 +170,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: "0xaf4faf174bad7dba8092fc5ac37b9b8fea3929f05fcb0677fd16dc735bc3ffc8",
+    core: "0x799c8d35a610b6fa8ed33432e31c686c97b4ce4205fce88c13577615372e99a3",
     token_bridge:
-      "0xdc406ec328a21eacbbe0c145f7884612d7094ebd637288149ac7879bbff43493",
+      "0x7041d0a5ae46a24fd5f1df67c54bf1a2e0fe7668ae9402e30e58f3ad452f9d52",
     nft_bridge: undefined,
   },
   sui: {
@@ -219,7 +218,8 @@ const MAINNET = {
   },
   xpla: {
     core: "xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w",
-    token_bridge: "xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv",
+    token_bridge:
+      "xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv",
     nft_bridge: undefined,
   },
   ropsten: {
@@ -326,9 +326,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: "0xaf4faf174bad7dba8092fc5ac37b9b8fea3929f05fcb0677fd16dc735bc3ffc8",
+    core: "0x799c8d35a610b6fa8ed33432e31c686c97b4ce4205fce88c13577615372e99a3",
     token_bridge:
-      "0xdc406ec328a21eacbbe0c145f7884612d7094ebd637288149ac7879bbff43493",
+      "0x7041d0a5ae46a24fd5f1df67c54bf1a2e0fe7668ae9402e30e58f3ad452f9d52",
     nft_bridge: undefined,
   },
   sui: {
