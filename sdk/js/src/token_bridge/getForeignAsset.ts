@@ -14,6 +14,7 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   coalesceChainId,
+  ensureHexPrefix,
   getForeignAssetAddress,
 } from "../utils";
 import { Provider } from "near-api-js/lib/providers";
@@ -204,7 +205,7 @@ export async function getForeignAssetAptos(
 
   try {
     // check if asset exists and throw if it doesn't
-    await client.getAccountResource(assetAddress, `0x1::coin::CoinInfo<${assetAddress}::coin::T>`);
+    await client.getAccountResource(assetAddress, `0x1::coin::CoinInfo<${ensureHexPrefix(assetAddress)}::coin::T>`);
     return assetAddress;
   } catch (e) {
     return null;
