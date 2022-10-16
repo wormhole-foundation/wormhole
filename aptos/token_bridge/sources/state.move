@@ -64,9 +64,6 @@ module token_bridge::state {
     }
 
     struct State has key, store {
-        governance_chain_id: U16,
-        governance_contract: ExternalAddress,
-
         /// Set of consumed VAA hashes
         consumed_vaas: Set<vector<u8>>,
 
@@ -91,16 +88,6 @@ module token_bridge::state {
     public fun vaa_is_consumed(hash: vector<u8>): bool acquires State {
         let state = borrow_global<State>(@token_bridge);
         set::contains(&state.consumed_vaas, hash)
-    }
-
-    public fun governance_chain_id(): U16 acquires State {
-        let state = borrow_global<State>(@token_bridge);
-        return state.governance_chain_id
-    }
-
-    public fun governance_contract(): ExternalAddress acquires State {
-        let state = borrow_global<State>(@token_bridge);
-        return state.governance_contract
     }
 
     public fun wrapped_asset_info(native_info: OriginInfo): TypeInfo acquires State {
@@ -192,16 +179,6 @@ module token_bridge::state {
         set::add(&mut state.consumed_vaas, hash);
     }
 
-    public(friend) fun set_governance_chain_id(governance_chain_id: U16) acquires State {
-        let state = borrow_global_mut<State>(@token_bridge);
-        state.governance_chain_id = governance_chain_id;
-    }
-
-    public(friend) fun set_governance_contract(governance_contract: ExternalAddress) acquires State {
-        let state = borrow_global_mut<State>(@token_bridge);
-        state.governance_contract = governance_contract;
-    }
-
     public(friend) fun set_registered_emitter(chain_id: U16, bridge_contract: ExternalAddress) acquires State {
         let state = borrow_global_mut<State>(@token_bridge);
         table::upsert(&mut state.registered_emitters, chain_id, bridge_contract);
@@ -243,8 +220,6 @@ module token_bridge::state {
     ) {
         let token_bridge = account::create_signer_with_capability(&signer_cap);
         move_to(&token_bridge, State {
-            governance_chain_id: state::get_chain_id(),
-            governance_contract: state::get_governance_contract(),
             consumed_vaas: set::new<vector<u8>>(),
             wrapped_infos: table::new(),
             native_infos: table::new(),
