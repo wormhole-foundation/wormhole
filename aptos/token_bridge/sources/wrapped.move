@@ -76,7 +76,7 @@ module token_bridge::wrapped {
         // the module that defines the CoinType.
         // See the `test_create_wrapped_coin_bad_type` negative test below.
         let coin_signer = state::get_wrapped_asset_signer(origin_info);
-        init_wrapped_coin<CoinType>(&coin_signer, &asset_meta)
+        init_wrapped_coin<CoinType>(&coin_signer, &asset_meta);
     }
 
     public(friend) fun init_wrapped_coin<CoinType>(

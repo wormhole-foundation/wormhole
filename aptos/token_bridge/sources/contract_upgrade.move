@@ -46,8 +46,12 @@ module token_bridge::contract_upgrade {
         hash: vector<u8>
     }
 
-    struct Hash {
+    struct Hash has drop {
         hash: vector<u8>
+    }
+
+    public fun get_hash(hash: &Hash): vector<u8> {
+        hash.hash
     }
 
     fun parse_payload(payload: vector<u8>): Hash {
@@ -72,23 +76,28 @@ module token_bridge::contract_upgrade {
 // -----------------------------------------------------------------------------
 // Commit
 
-    public entry fun submit_vaa(vaa: vector<u8>) acquires UpgradeAuthorized {
+    public fun submit_vaa(vaa: vector<u8>): Hash acquires UpgradeAuthorized {
         let vaa = vaa::parse_and_verify(vaa);
         vaa::assert_governance(&vaa);
         token_bridge_vaa::replay_protect(&vaa);
 
-        authorize_upgrade(parse_payload(vaa::destroy(vaa)));
+        let hash = parse_payload(vaa::destroy(vaa));
+        authorize_upgrade(&hash);
+        hash
     }
 
-    fun authorize_upgrade(hash: Hash) acquires UpgradeAuthorized {
-        let Hash { hash } = hash;
+    public entry fun submit_vaa_entry(vaa: vector<u8>) acquires UpgradeAuthorized {
+        submit_vaa(vaa);
+    }
+
+    fun authorize_upgrade(hash: &Hash) acquires UpgradeAuthorized {
         let token_bridge = state::token_bridge_signer();
         if (exists<UpgradeAuthorized>(@token_bridge)) {
             // TODO(csongor): here we're dropping the upgrade hash, in case an
             // upgrade fails for some reason. Should we emit a log or something?
             let UpgradeAuthorized { hash: _ } = move_from<UpgradeAuthorized>(@token_bridge);
         };
-        move_to(&token_bridge, UpgradeAuthorized { hash });
+        move_to(&token_bridge, UpgradeAuthorized { hash: hash.hash });
     }
 
     #[test_only]

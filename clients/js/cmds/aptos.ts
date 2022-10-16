@@ -132,7 +132,7 @@ exports.builder = function(y: typeof yargs) {
         guardians_serializer.getBytes()
       ]
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
-      await callEntryFunc(network, rpc, `${contract_address}::wormhole`, "init_2", [], args);
+      await callEntryFunc(network, rpc, `${contract_address}::wormhole`, "init", [], args);
     })
     .command("deploy <package-dir>", "Deploy an Aptos package", (yargs) => {
       return yargs

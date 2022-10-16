@@ -12,11 +12,15 @@ module token_bridge::complete_transfer {
 
     const E_INVALID_TARGET: u64 = 0;
 
-    public entry fun submit_vaa<CoinType>(vaa: vector<u8>, fee_recipient: address): Transfer {
+    public fun submit_vaa<CoinType>(vaa: vector<u8>, fee_recipient: address): Transfer {
         let vaa = vaa::parse_verify_and_replay_protect(vaa);
         let transfer = transfer::parse(wormhole::vaa::destroy(vaa));
         complete_transfer<CoinType>(&transfer, fee_recipient);
         transfer
+    }
+
+    public entry fun submit_vaa_entry<CoinType>(vaa: vector<u8>, fee_recipient: address) {
+        submit_vaa<CoinType>(vaa, fee_recipient);
     }
 
     #[test_only]

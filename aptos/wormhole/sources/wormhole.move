@@ -13,7 +13,6 @@ module wormhole::wormhole {
     use std::signer;
 
     const E_INSUFFICIENT_FEE: u64 = 0;
-    const E_DEPRECATED: u64 = 1;
 
 // -----------------------------------------------------------------------------
 // Sending messages
@@ -49,24 +48,12 @@ module wormhole::wormhole {
 // -----------------------------------------------------------------------------
 // Contract initialization
 
-    /// @deprecated
-    /// use `init_2` instead
-    public entry fun init(
-        _deployer: &signer,
-        _chain_id: u64,
-        _governance_chain_id: u64,
-        _governance_contract: vector<u8>,
-        _initial_guardian: vector<u8>
-    ) {
-        abort(E_DEPRECATED)
-    }
-
     /// Initializes the contract. Note that this function takes additional
     /// arguments, so the native `init_module` function (which takes no
     /// arguments) cannot be used.
     /// Can only be called by the deployer (checked by the
     /// `deployer::claim_signer_capability` function).
-    public entry fun init_2(
+    public entry fun init(
         deployer: &signer,
         chain_id: u64,
         governance_chain_id: u64,
