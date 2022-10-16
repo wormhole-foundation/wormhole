@@ -5,14 +5,14 @@ import { Types } from "aptos";
 import BN from "bn.js";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
-import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
+import { TransactionSignerPair, _parseVAAAlgorand, _submitVAAAlgorand } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { importTokenWasm } from "../solana/wasm";
 import { submitVAAOnInjective } from "./redeem";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
-import { callFunctionNear, ChainId } from "../utils";
+import { callFunctionNear } from "../utils";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   createWrappedCoin as createWrappedCoinAptos,
@@ -118,14 +118,7 @@ export function createWrappedTypeOnAptos(
 
 export function createWrappedOnAptos(
   tokenBridgeAddress: string,
-  tokenChain: ChainId,
-  tokenAddress: string,
-  signedVAA: Uint8Array
+  attestVAA: Uint8Array
 ): Types.EntryFunctionPayload {
-  return createWrappedCoinAptos(
-    tokenBridgeAddress,
-    tokenChain,
-    tokenAddress,
-    signedVAA
-  );
+  return createWrappedCoinAptos(tokenBridgeAddress, attestVAA);
 }

@@ -1,5 +1,6 @@
 import { Types } from "aptos";
-import { ChainId, ChainName, coalesceChainId, getAssetFullyQualifiedType } from "../../utils";
+import { _parseVAAAlgorand } from "../../algorand";
+import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType } from "../../utils";
 
 // Attest token
 
@@ -27,23 +28,32 @@ export const attestToken = (
 
 export const completeTransfer = (
   tokenBridgeAddress: string,
-  tokenChain: ChainId | ChainName,
-  tokenAddress: string,
-  vaa: Uint8Array,
+  transferVAA: Uint8Array,
   feeRecipient: string,
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw "Need token bridge address.";
+
+  const parsedVAA = _parseVAAAlgorand(transferVAA);
+  if (!parsedVAA.FromChain || !parsedVAA.Contract || !parsedVAA.ToChain) {
+    throw "VAA does not contain required information";
+  }
+
+  if (parsedVAA.ToChain !== CHAIN_ID_APTOS) {
+    throw "Transfer is not destined for Aptos";
+  }
+  
+  assertChain(parsedVAA.FromChain);
   const assetType = getAssetFullyQualifiedType(
     tokenBridgeAddress,
-    coalesceChainId(tokenChain),
-    tokenAddress,
+    coalesceChainId(parsedVAA.FromChain),
+    parsedVAA.Contract,
   );
   if (!assetType) throw "Invalid asset address.";
 
   return {
     function: `${tokenBridgeAddress}::complete_transfer::submit_vaa`,
     type_arguments: [assetType],
-    arguments: [vaa, feeRecipient],
+    arguments: [transferVAA, feeRecipient],
   };
 };
 
@@ -132,21 +142,26 @@ export const createWrappedCoinType = (
 
 export const createWrappedCoin = (
   tokenBridgeAddress: string,
-  tokenChain: ChainId | ChainName,
-  tokenAddress: string,
-  vaa: Uint8Array,
+  attestVAA: Uint8Array
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw "Need token bridge address.";
+
+  const parsedVAA = _parseVAAAlgorand(attestVAA);
+  if (!parsedVAA.FromChain || !parsedVAA.Contract) {
+    throw "VAA does not contain required information";
+  }
+
+  assertChain(parsedVAA.FromChain);
   const assetType = getAssetFullyQualifiedType(
     tokenBridgeAddress,
-    coalesceChainId(tokenChain),
-    tokenAddress,
+    coalesceChainId(parsedVAA.FromChain),
+    parsedVAA.Contract
   );
   if (!assetType) throw "Invalid asset address.";
 
   return {
     function: `${tokenBridgeAddress}::wrapped::create_wrapped_coin`,
     type_arguments: [assetType],
-    arguments: [vaa],
+    arguments: [attestVAA],
   };
 };

@@ -23,7 +23,7 @@ import {
   WSOL_DECIMALS,
   uint8ArrayToHex,
   callFunctionNear,
-  hashLookup,
+  hashLookup
 } from "../utils";
 
 import { getForeignAssetNear } from ".";
@@ -387,16 +387,12 @@ export async function redeemOnNear(
 
 export function redeemFromAptos(
   tokenBridgeAddress: string,
-  tokenChain: ChainId,
-  tokenAddress: string,
-  vaa: Uint8Array,
+  transferVAA: Uint8Array,
   feeRecipientAddress: string
 ): Types.EntryFunctionPayload {
   return completeTransferAptos(
     tokenBridgeAddress,
-    tokenChain,
-    tokenAddress,
-    vaa,
+    transferVAA,
     feeRecipientAddress
   );
 }
