@@ -18,7 +18,7 @@ export const attestToken = (
   if (!assetType) throw "Invalid asset address.";
   
   return {
-    function: `${tokenBridgeAddress}::attest_token::attest_token_with_signer`,
+    function: `${tokenBridgeAddress}::attest_token::attest_token_entry`,
     type_arguments: [assetType],
     arguments: [],
   };
@@ -51,9 +51,39 @@ export const completeTransfer = (
   if (!assetType) throw "Invalid asset address.";
 
   return {
-    function: `${tokenBridgeAddress}::complete_transfer::submit_vaa`,
+    function: `${tokenBridgeAddress}::complete_transfer::submit_vaa_entry`,
     type_arguments: [assetType],
     arguments: [transferVAA, feeRecipient],
+  };
+};
+
+export const completeTransferAndRegister = (
+  tokenBridgeAddress: string,
+  transferVAA: Uint8Array,
+): Types.EntryFunctionPayload => {
+  if (!tokenBridgeAddress) throw "Need token bridge address.";
+
+  const parsedVAA = _parseVAAAlgorand(transferVAA);
+  if (!parsedVAA.FromChain || !parsedVAA.Contract || !parsedVAA.ToChain) {
+    throw "VAA does not contain required information";
+  }
+
+  if (parsedVAA.ToChain !== CHAIN_ID_APTOS) {
+    throw "Transfer is not destined for Aptos";
+  }
+  
+  assertChain(parsedVAA.FromChain);
+  const assetType = getAssetFullyQualifiedType(
+    tokenBridgeAddress,
+    coalesceChainId(parsedVAA.FromChain),
+    parsedVAA.Contract,
+  );
+  if (!assetType) throw "Invalid asset address.";
+
+  return {
+    function: `${tokenBridgeAddress}::complete_transfer::submit_vaa_and_register_entry`,
+    type_arguments: [assetType],
+    arguments: [transferVAA],
   };
 };
 
@@ -86,7 +116,7 @@ export const registerChain = (
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw "Need token bridge address.";
   return {
-    function: `${tokenBridgeAddress}::register_chain::submit_vaa`,
+    function: `${tokenBridgeAddress}::register_chain::submit_vaa_entry`,
     type_arguments: [],
     arguments: [vaa],
   };
@@ -119,7 +149,7 @@ export const transferTokens = (
     throw new Error("Transfer with payload are not yet supported in the sdk");
   } else {
     return {
-      function: `${tokenBridgeAddress}::transfer_tokens::transfer_tokens_with_signer`,
+      function: `${tokenBridgeAddress}::transfer_tokens::transfer_tokens_entry`,
       type_arguments: [assetType],
       arguments: [amount, recipientChainId, recipient, relayerFee, wormholeFee, nonce],
     };

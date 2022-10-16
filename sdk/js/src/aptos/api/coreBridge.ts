@@ -9,7 +9,7 @@ export const upgradeGuardianSet = (
 ): Types.EntryFunctionPayload => {
   if (!coreBridgeAddress) throw "Need core bridge address.";
   return {
-    function: `${coreBridgeAddress}::guardian_set_upgrade::submit_vaa`,
+    function: `${coreBridgeAddress}::guardian_set_upgrade::submit_vaa_entry`,
     type_arguments: [],
     arguments: [vaa],
   };

@@ -8,7 +8,7 @@ export const authorizeUpgrade = (
 ): Types.EntryFunctionPayload => {
   if (!address) throw "Need bridge address.";
   return {
-    function: `${address}::contract_upgrade::submit_vaa`,
+    function: `${address}::contract_upgrade::submit_vaa_entry`,
     type_arguments: [],
     arguments: [vaa],
   };
