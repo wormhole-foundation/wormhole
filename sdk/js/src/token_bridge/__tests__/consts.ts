@@ -85,6 +85,10 @@ export const TERRA_HOST =
 
 export const NEAR_NODE_URL = ci ? "http://near:3030" : "http://localhost:3030";
 
+export const APTOS_NODE_URL = "http://0.0.0.0:8080/v1";
+export const APTOS_FAUCET_URL = "http://0.0.0.0:8081";
+export const APTOS_PRIVATE_KEY = "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d";
+
 describe("consts should exist", () => {
   it("has Solana test token", () => {
     expect.assertions(1);

@@ -1,6 +1,7 @@
 import { TransactionResponse } from "@solana/web3.js";
 import { TxInfo } from "@terra-money/terra.js";
 import { TxInfo as XplaTxInfo } from "@xpla/xpla.js";
+import { Types } from "aptos";
 import { BigNumber, ContractReceipt } from "ethers";
 import { FinalExecutionOutcome } from "near-api-js/lib/providers";
 import { Implementation__factory } from "../ethers-contracts";
@@ -158,4 +159,8 @@ export function parseSequenceFromLogNear(
     }
   }
   return null;
+}
+
+export function parseSequenceFromLogAptos(result: Types.UserTransaction): string {
+  return result.sequence_number;
 }
