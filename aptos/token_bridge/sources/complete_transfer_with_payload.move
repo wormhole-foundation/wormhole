@@ -14,7 +14,7 @@ module token_bridge::complete_transfer_with_payload {
 
     // TODO(csongor): document this, and create an example contract receiving
     // such a transfer
-    public entry fun submit_vaa<CoinType>(
+    public fun submit_vaa<CoinType>(
         vaa: vector<u8>,
         emitter_cap: &EmitterCapability
     ): (Coin<CoinType>, TransferWithPayload) {

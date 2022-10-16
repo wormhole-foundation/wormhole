@@ -15,7 +15,7 @@ module token_bridge::transfer_tokens {
 
     const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
 
-    public entry fun transfer_tokens_with_signer<CoinType>(
+    public entry fun transfer_tokens_entry<CoinType>(
         sender: &signer,
         amount: u64,
         recipient_chain: u64,
@@ -23,7 +23,7 @@ module token_bridge::transfer_tokens {
         relayer_fee: u64,
         wormhole_fee: u64,
         nonce: u64
-        ): u64 {
+        ) {
         let coins = coin::withdraw<CoinType>(sender, amount);
         let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
         transfer_tokens<CoinType>(
@@ -33,7 +33,7 @@ module token_bridge::transfer_tokens {
             external_address::from_bytes(recipient),
             relayer_fee,
             nonce
-        )
+        );
     }
 
     public fun transfer_tokens<CoinType>(

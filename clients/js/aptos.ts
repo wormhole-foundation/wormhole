@@ -30,11 +30,11 @@ export async function execute_aptos(
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set")
-          await callEntryFunc(network, rpc, `${contract}::guardian_set_upgrade`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::guardian_set_upgrade`, "submit_vaa_entry", [], [bcsVAA]);
           break
         case "ContractUpgrade":
           console.log("Upgrading core contract")
-          await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa_entry", [], [bcsVAA]);
           break
         default:
           impossible(payload)
@@ -54,11 +54,11 @@ export async function execute_aptos(
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract")
-          await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa_entry", [], [bcsVAA]);
           break
         case "RegisterChain":
           console.log("Registering chain")
-          await callEntryFunc(network, rpc, `${contract}::register_chain`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::register_chain`, "submit_vaa_entry", [], [bcsVAA]);
           break
         case "AttestMeta":
           console.log("Creating wrapped token")
@@ -90,7 +90,7 @@ export async function execute_aptos(
           break
         case "Transfer":
           console.log("Completing transfer")
-          await callEntryFunc(network, rpc, `${contract}::complete_transfer`, "submit_vaa", [], [bcsVAA]);
+          await callEntryFunc(network, rpc, `${contract}::complete_transfer`, "submit_vaa_entry", [], [bcsVAA]);
           break
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI")

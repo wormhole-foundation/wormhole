@@ -183,7 +183,7 @@ A clearer and safer way to achieve this is by writing `foo` in the following way
 use aptos_framework::coin::{Self, Coin};
 use aptos_framework::aptos_coin::AptosCoin;
 
-public entry fun foo(coins: Coin<AptosCoin>) {
+public fun foo(coins: Coin<AptosCoin>) {
     assert!(coin::value(&coins) == 100, SOME_ERROR_CODE);
 
     // ...

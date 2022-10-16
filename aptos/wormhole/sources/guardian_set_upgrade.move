@@ -19,40 +19,49 @@ module wormhole::guardian_set_upgrade {
     const E_INVALID_TARGET: u64 = 0x4;
     const E_NON_INCREMENTAL_GUARDIAN_SETS: u64 = 0x5;
 
-    struct GuardianSetUpgrade {
+    struct GuardianSetUpgrade has drop {
         new_index: U32,
         guardians: vector<Guardian>,
     }
 
-    public entry fun submit_vaa(vaa: vector<u8>) {
+    public fun get_new_index(s: &GuardianSetUpgrade): U32 {
+        s.new_index
+    }
+
+    public fun get_guardians(s: &GuardianSetUpgrade): vector<Guardian> {
+        s.guardians
+    }
+
+    public fun submit_vaa(vaa: vector<u8>): GuardianSetUpgrade {
         let vaa = vaa::parse_and_verify(vaa);
         vaa::assert_governance(&vaa);
         vaa::replay_protect(&vaa);
 
-        do_upgrade(parse_payload(vaa::destroy(vaa)))
+        let guardian_set_upgrade = parse_payload(vaa::destroy(vaa));
+        do_upgrade(&guardian_set_upgrade);
+        guardian_set_upgrade
     }
 
-    fun do_upgrade(upgrade: GuardianSetUpgrade) {
+    public entry fun submit_vaa_entry(vaa: vector<u8>) {
+        submit_vaa(vaa);
+    }
+
+    fun do_upgrade(upgrade: &GuardianSetUpgrade) {
         let current_index = state::get_current_guardian_set_index();
 
-        let GuardianSetUpgrade {
-            new_index,
-            guardians,
-        } = upgrade;
-
         assert!(
-            u32::to_u64(new_index) == u32::to_u64(current_index) + 1,
+            u32::to_u64(upgrade.new_index) == u32::to_u64(current_index) + 1,
             E_NON_INCREMENTAL_GUARDIAN_SETS
         );
 
-        state::update_guardian_set_index(new_index);
-        state::store_guardian_set(create_guardian_set(new_index, guardians));
+        state::update_guardian_set_index(upgrade.new_index);
+        state::store_guardian_set(create_guardian_set(upgrade.new_index, upgrade.guardians));
         state::expire_guardian_set(current_index);
     }
 
     #[test_only]
     public fun do_upgrade_test(new_index: U32, guardians: vector<Guardian>) {
-        do_upgrade(GuardianSetUpgrade { new_index, guardians })
+        do_upgrade(&GuardianSetUpgrade { new_index, guardians })
     }
 
     public fun parse_payload(bytes: vector<u8>): GuardianSetUpgrade {

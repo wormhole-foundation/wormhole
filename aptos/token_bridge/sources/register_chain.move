@@ -23,6 +23,14 @@ module token_bridge::register_chain {
         emitter_address: ExternalAddress,
     }
 
+    public fun get_emitter_chain_id(a: &RegisterChain): U16 {
+        a.emitter_chain_id
+    }
+
+    public fun get_emitter_address(a: &RegisterChain): ExternalAddress {
+        a.emitter_address
+    }
+
     #[test_only]
     public fun parse_payload_test(payload: vector<u8>): RegisterChain {
         parse_payload(payload)
@@ -51,22 +59,19 @@ module token_bridge::register_chain {
         RegisterChain { emitter_chain_id, emitter_address }
     }
 
-    public entry fun submit_vaa(vaa: vector<u8>) {
+    public fun submit_vaa(vaa: vector<u8>): RegisterChain {
         let vaa = vaa::parse_and_verify(vaa);
         vaa::assert_governance(&vaa); // not tested
         token_bridge_vaa::replay_protect(&vaa);
 
-        let RegisterChain { emitter_chain_id, emitter_address } = parse_payload(vaa::destroy(vaa));
+        let register_chain = parse_payload(vaa::destroy(vaa));
 
-        state::set_registered_emitter(emitter_chain_id, emitter_address)
+        state::set_registered_emitter(get_emitter_chain_id(&register_chain), get_emitter_address(&register_chain));
+        register_chain
     }
 
-    public fun get_emitter_chain_id(a: &RegisterChain): U16 {
-        a.emitter_chain_id
-    }
-
-    public fun get_emitter_address(a: &RegisterChain): ExternalAddress {
-        a.emitter_address
+    public entry fun submit_vaa_entry(vaa: vector<u8>) {
+        submit_vaa(vaa);
     }
 
 }
