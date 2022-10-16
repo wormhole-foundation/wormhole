@@ -13,7 +13,8 @@ export const signAndSubmitTransaction = (
   // rest of defaults are defined here: https://aptos-labs.github.io/ts-sdk-doc/classes/AptosClient.html#generateTransaction
   const customOpts = Object.assign(
     {
-      max_gas_amount: "10000",
+      gas_unit_price: "100",
+      max_gas_amount: "30000",
     },
     opts
   );
@@ -38,18 +39,18 @@ export const signAndSubmitTransaction = (
       )
       // sign & submit transaction if simulation is successful
       .then((rawTx) => client.signTransaction(sender, rawTx))
-      .then(client.submitTransaction)
+      .then((signedTx) => client.submitTransaction(signedTx))
   );
 };
 
 /**
  * Create a transaction using the given payload and commit it on-chain.
- * 
- * This functionality can be replicated by calling 
+ *
+ * This functionality can be replicated by calling
  * `signAndSubmitTransaction(...).then(tx => client.waitForTransactionWithResult(tx.hash))`.
- * @param client 
- * @param sender 
- * @param payload 
+ * @param client
+ * @param sender
+ * @param payload
  * @returns Transaction info
  */
 export const waitForSignAndSubmitTransaction = (
