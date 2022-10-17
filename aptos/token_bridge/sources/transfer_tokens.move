@@ -21,10 +21,10 @@ module token_bridge::transfer_tokens {
         recipient_chain: u64,
         recipient: vector<u8>,
         relayer_fee: u64,
-        wormhole_fee: u64,
         nonce: u64
         ) {
         let coins = coin::withdraw<CoinType>(sender, amount);
+        let wormhole_fee = wormhole::state::get_message_fee();
         let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
         transfer_tokens<CoinType>(
             coins,
