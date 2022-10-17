@@ -190,9 +190,10 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 
 			logger.Info("Received obsv request", zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", txHash))
 
-			// TODO !!!! IMPORTANT !!!! e.wormholeContract is not the correct value for senderAccountId.
-			// This may work for now, but eventually we could end up hitting the wrong shard, leading to errors.
-			// we also need to know the block height. I think if we don't know it we could just set it to 0, but need to think more about that.
+			// TODO e.wormholeContract is not the correct value for senderAccountId. Instead, it should be the account id of the transaction sender.
+			// This value is used by NEAR to determine which shard to query. An incorrect value here is not a security risk but could lead to reobservation requests failing.
+			// Guardians currently run nodes for all shards and the API seems to be returning the correct results independent of the set senderAccountId but this could change in the future.
+			// Fixing this would require adding the transaction sender account ID to the observation request.
 			job := newTransactionProcessingJob(txHash, e.wormholeAccount)
 			e.transactionProcessingQueue.Schedule(job, time.Now())
 		}
@@ -257,8 +258,6 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	// TODO should be later?
-	readiness.SetReady(common.ReadinessNearSyncing)
 
 	logger := supervisor.Logger(ctx)
 
@@ -301,6 +300,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		}
 	}
 
+	readiness.SetReady(common.ReadinessNearSyncing)
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	<-ctx.Done()

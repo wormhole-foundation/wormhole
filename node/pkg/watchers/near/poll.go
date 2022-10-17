@@ -46,6 +46,8 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 		return nil
 	}
 
+	// we want to avoid going too far back because that would increase the likelihood of error somewhere in the recursion stack.
+	// If we go back too far, we just report the error and terminate early.
 	if recursionDepth > maxFallBehindBlocks {
 		e.eventChan <- EVENT_NEAR_WATCHER_TOO_FAR_BEHIND
 		return nil
@@ -77,7 +79,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 
 // readFinalChunksSince polls the NEAR blockchain for new blocks, parses out the chunks and places
 // them into `chunkSink` in the order they were recorded on the blockchain
-func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, startHeight uint64, chunkSink chan<- nearapi.ChunkHeader) (latestHeight uint64, err error) {
+func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, startHeight uint64, chunkSink chan<- nearapi.ChunkHeader) (newestFinalHeight uint64, err error) {
 
 	finalBlock, err := e.nearAPI.GetFinalBlock(ctx)
 	if err != nil {
@@ -85,15 +87,15 @@ func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, 
 		return startHeight, nil
 	}
 
-	height := finalBlock.Header.Height
+	newestFinalHeight = finalBlock.Header.Height
 
-	if height > startHeight {
+	if newestFinalHeight > startHeight {
 
 		logger.Info(
 			"polling_attempt",
 			zap.String("log_msg_type", "polling_attempt"),
 			zap.Uint64("previous_height", startHeight),
-			zap.Uint64("newest_final_height", startHeight),
+			zap.Uint64("newest_final_height", newestFinalHeight),
 		)
 
 		err = e.recursivelyReadFinalizedBlocks(logger, ctx, finalBlock, startHeight, chunkSink, 0)
@@ -102,5 +104,5 @@ func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, 
 		}
 	}
 
-	return height, nil
+	return newestFinalHeight, nil
 }
