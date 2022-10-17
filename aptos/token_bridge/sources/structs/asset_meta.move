@@ -97,18 +97,12 @@ module token_bridge::asset_meta {
     }
 
     // Construct a seed using AssetMeta fields for creating a new resource account
-    // N.B. seed is product of coin native chain and native address
-    // TODO(csongor): technically this only requires the OriginInfo, so we could
-    // perhaps make this a function of that instead of the whole AssetMeta.
+    // N.B. seed is a product of coin native chain and native address
     public(friend) fun create_seed(asset_meta: &AssetMeta): vector<u8>{
         let token_chain = get_token_chain(asset_meta);
         let token_address = get_token_address(asset_meta);
         let seed = vector::empty<u8>();
         serialize_u16(&mut seed, token_chain);
-        // TODO(csongor): why do we need '::' here? The seed is binary anyway,
-        // but appending '::' suggests that it might be ASCII, which is
-        // confusing. We should either make it ASCII, or just drop these
-        // characters.
         serialize_vector(&mut seed, b"::");
         external_address::serialize(&mut seed, token_address);
         seed

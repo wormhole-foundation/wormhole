@@ -86,7 +86,21 @@ module token_bridge::wrapped {
         // initialize new coin using CoinType
         let name = asset_meta::get_name(asset_meta);
         let symbol = asset_meta::get_symbol(asset_meta);
-        let decimals = asset_meta::get_decimals(asset_meta);
+
+        // The amounts in the token bridge payload are truncated to 8 decimals
+        // in each of the contracts when sending tokens out, so there's no
+        // precision beyond 10^-8. We could preserve the original number of
+        // decimals when creating wrapped assets, and "untruncate" the amounts
+        // on the way out by scaling back appropriately. This is what most other
+        // chains do, but untruncating from 8 decimals to 18 decimals loses
+        // log2(10^10) ~ 33 bits of precision, which we cannot afford on Aptos
+        // (and Solana), as the coin type only has 64bits to begin with.
+        // Contrast with Ethereum, where amounts are 256 bits.
+        // So we cap the maximum decimals at 8 when creating a wrapped token.
+        let max_decimals: u8 = 8;
+        let parsed_decimals = asset_meta::get_decimals(asset_meta);
+        let decimals = if (max_decimals < parsed_decimals) max_decimals else parsed_decimals;
+
         let monitor_supply = true;
         let (burn_cap, freeze_cap, mint_cap)
             = coin::initialize<CoinType>(
@@ -170,7 +184,7 @@ module token_bridge::wrapped_test {
         let asset_meta = asset_meta::create(
             token_address,
             chain,
-            9,
+            9, // this will get truncated to 8
             string32::from_bytes(b"foo"),
             string32::from_bytes(b"Foo bar token")
         );
@@ -232,7 +246,7 @@ module token_bridge::wrapped_test {
         // assert coin info is correct
         assert!(coin::name<T>() == utf8(b"Beef face Token"), 0);
         assert!(coin::symbol<T>() == utf8(b"BEEF"), 0);
-        assert!(coin::decimals<T>() == 12, 0);
+        assert!(coin::decimals<T>() == 8, 0); // truncated correctly to 8 from 12
 
         // assert origin address, chain, type_info, is_wrapped are correct
         let origin_info = state::origin_info<T>();
