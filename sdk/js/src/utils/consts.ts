@@ -170,9 +170,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: "0x799c8d35a610b6fa8ed33432e31c686c97b4ce4205fce88c13577615372e99a3",
+    core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
     token_bridge:
-      "0x7041d0a5ae46a24fd5f1df67c54bf1a2e0fe7668ae9402e30e58f3ad452f9d52",
+      "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
     nft_bridge: undefined,
   },
   sui: {
@@ -326,9 +326,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: "0x799c8d35a610b6fa8ed33432e31c686c97b4ce4205fce88c13577615372e99a3",
+    core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
     token_bridge:
-      "0x7041d0a5ae46a24fd5f1df67c54bf1a2e0fe7668ae9402e30e58f3ad452f9d52",
+      "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
     nft_bridge: undefined,
   },
   sui: {
