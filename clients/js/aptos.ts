@@ -112,6 +112,9 @@ export function deriveWrappedAssetAddress(
 ): string {
   let chain: Buffer = Buffer.alloc(2);
   chain.writeUInt16BE(origin_chain);
+  if (origin_address.length != 32) {
+    throw new Error(`${origin_address} is not 32 bytes long.`)
+  }
   return sha3_256(Buffer.concat([token_bridge_address, chain, Buffer.from("::", "ascii"), origin_address]));
 }
 
