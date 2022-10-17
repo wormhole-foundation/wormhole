@@ -151,7 +151,7 @@ func NewEthWatcher(
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	if w.shouldCheckSafeMode {
+	if w.shouldCheckSafeMode && !w.useFinalizedBlocks() {
 		if err := w.checkForSafeMode(ctx); err != nil {
 			return err
 		}
@@ -175,7 +175,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDEthereum && !w.unsafeDevMode {
+	} else if w.useFinalizedBlocks() {
+		logger.Info("using finalized blocks")
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
@@ -722,4 +723,11 @@ func (w *Watcher) checkForSafeMode(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (w *Watcher) useFinalizedBlocks() bool {
+	if w.unsafeDevMode {
+		return false
+	}
+	return w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala
 }
