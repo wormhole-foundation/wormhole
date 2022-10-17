@@ -112,7 +112,7 @@ Once the validator is running, the contracts are ready to deploy. In the
 [scripts](./scripts) directory, run
 
 ``` sh
-scripts $ ./deploy
+scripts $ ./deploy devnet
 ```
 
 This will deploy the core contract, the token bridge, and an example contract

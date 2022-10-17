@@ -58,7 +58,7 @@ spec:
         - name: aptos-contracts
           image: aptos-node
           command: ["/bin/bash", "-c"]
-          args: ["cd /tmp/scripts && ./deploy && ./register_devnet && touch success && sleep infinity"]
+          args: ["cd /tmp/scripts && ./deploy devnet && ./register_devnet && touch success && sleep infinity"]
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
