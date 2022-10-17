@@ -1,8 +1,8 @@
-import { CHAIN_ID_APTOS, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk";
 import { BCS, FaucetClient } from "aptos";
 import { ethers } from "ethers";
 import yargs from "yargs";
-import { callEntryFunc, deriveResourceAccount } from "../aptos";
+import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
 import { spawnSync } from 'child_process';
 import { config } from '../config';
 import fs from 'fs';
@@ -174,7 +174,7 @@ exports.builder = function(y: typeof yargs) {
       // TODO(csongor): use deployer address from sdk (when it's there)
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
       if (network == "TESTNET") {
-        module_name = "0xc12fa1b4f689381e507430fdce7bbce67bb3d4f37bccc520630ba4aa6153ac2d::deployer";
+        module_name = "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::deployer";
       }
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(
@@ -203,7 +203,7 @@ exports.builder = function(y: typeof yargs) {
       // TODO(csongor): use sdk address
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
       if (network == "TESTNET") {
-        module_name = "0xc12fa1b4f689381e507430fdce7bbce67bb3d4f37bccc520630ba4aa6153ac2d::sender";
+        module_name = "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::sender";
       }
       await callEntryFunc(network, rpc, module_name, "send_message", [], [BCS.bcsSerializeBytes(Buffer.from(argv["message"], "ascii"))])
     })
