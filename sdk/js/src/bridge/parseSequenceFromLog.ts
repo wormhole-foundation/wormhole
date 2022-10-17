@@ -1,7 +1,7 @@
 import { TransactionResponse } from "@solana/web3.js";
 import { TxInfo } from "@terra-money/terra.js";
 import { TxInfo as XplaTxInfo } from "@xpla/xpla.js";
-import { Types } from "aptos";
+import { AptosClient, Types } from "aptos";
 import { BigNumber, ContractReceipt } from "ethers";
 import { FinalExecutionOutcome } from "near-api-js/lib/providers";
 import { Implementation__factory } from "../ethers-contracts";
@@ -161,6 +161,22 @@ export function parseSequenceFromLogNear(
   return null;
 }
 
-export function parseSequenceFromLogAptos(result: Types.UserTransaction): string {
-  return result.sequence_number;
+export async function parseSequenceFromLogAptos(
+  client: AptosClient,
+  coreBridgeAddress: string,
+  hash: string
+): Promise<string | null> {
+  // TODO: this may throw, do we want to swallow errors and return null?
+  const result = (await client.waitForTransactionWithResult(
+    hash
+  )) as Types.UserTransaction;
+
+  if (result.success) {
+    const event = result.events.find(
+      (e) => e.type === `${coreBridgeAddress}::state::WormholeMessage`
+    );
+    return event?.data.sequence || null;
+  }
+
+  return null;
 }
