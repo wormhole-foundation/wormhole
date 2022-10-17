@@ -9,13 +9,13 @@ export const attestToken = (
   tokenChain: ChainId | ChainName,
   tokenAddress: string,
 ): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   const assetType = getAssetFullyQualifiedType(
     tokenBridgeAddress,
     coalesceChainId(tokenChain),
     tokenAddress,
   );
-  if (!assetType) throw "Invalid asset address.";
+  if (!assetType) throw new Error("Invalid asset address.");
   
   return {
     function: `${tokenBridgeAddress}::attest_token::attest_token_entry`,
@@ -31,15 +31,15 @@ export const completeTransfer = (
   transferVAA: Uint8Array,
   feeRecipient: string,
 ): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
 
   const parsedVAA = _parseVAAAlgorand(transferVAA);
   if (!parsedVAA.FromChain || !parsedVAA.Contract || !parsedVAA.ToChain) {
-    throw "VAA does not contain required information";
+    throw new Error("VAA does not contain required information");
   }
 
   if (parsedVAA.ToChain !== CHAIN_ID_APTOS) {
-    throw "Transfer is not destined for Aptos";
+    throw new Error("Transfer is not destined for Aptos");
   }
   
   assertChain(parsedVAA.FromChain);
@@ -48,7 +48,7 @@ export const completeTransfer = (
     coalesceChainId(parsedVAA.FromChain),
     parsedVAA.Contract,
   );
-  if (!assetType) throw "Invalid asset address.";
+  if (!assetType) throw new Error("Invalid asset address.");
 
   return {
     function: `${tokenBridgeAddress}::complete_transfer::submit_vaa_entry`,
@@ -61,15 +61,15 @@ export const completeTransferAndRegister = (
   tokenBridgeAddress: string,
   transferVAA: Uint8Array,
 ): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
 
   const parsedVAA = _parseVAAAlgorand(transferVAA);
   if (!parsedVAA.FromChain || !parsedVAA.Contract || !parsedVAA.ToChain) {
-    throw "VAA does not contain required information";
+    throw new Error("VAA does not contain required information");
   }
 
   if (parsedVAA.ToChain !== CHAIN_ID_APTOS) {
-    throw "Transfer is not destined for Aptos";
+    throw new Error("Transfer is not destined for Aptos");
   }
   
   assertChain(parsedVAA.FromChain);
@@ -78,7 +78,7 @@ export const completeTransferAndRegister = (
     coalesceChainId(parsedVAA.FromChain),
     parsedVAA.Contract,
   );
-  if (!assetType) throw "Invalid asset address.";
+  if (!assetType) throw new Error("Invalid asset address.");
 
   return {
     function: `${tokenBridgeAddress}::complete_transfer::submit_vaa_and_register_entry`,
@@ -100,7 +100,7 @@ export const completeTransferWithPayload = (
 
 // don't need `signer` and `&signer` in argument list because the Move VM will inject them
 export const deployCoin = (tokenBridgeAddress: string): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   return {
     function: `${tokenBridgeAddress}::deploy_coin::deploy_coin`,
     type_arguments: [],
@@ -114,7 +114,7 @@ export const registerChain = (
   tokenBridgeAddress: string,
   vaa: Uint8Array,
 ): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   return {
     function: `${tokenBridgeAddress}::register_chain::submit_vaa_entry`,
     type_arguments: [],
@@ -136,13 +136,13 @@ export const transferTokens = (
   nonce: number | bigint,
   payload: string = "",
 ): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   const assetType = getAssetFullyQualifiedType(
     tokenBridgeAddress,
     coalesceChainId(tokenChain),
     tokenAddress,
   );
-  if (!assetType) throw "Invalid asset address.";
+  if (!assetType) throw new Error("Invalid asset address.");
 
   const recipientChainId = coalesceChainId(recipientChain);
   if (payload) {
@@ -162,7 +162,7 @@ export const createWrappedCoinType = (
   tokenBridgeAddress: string,
   vaa: Uint8Array,
 ): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   return {
     function: `${tokenBridgeAddress}::wrapped::create_wrapped_coin_type`,
     type_arguments: [],
@@ -174,11 +174,11 @@ export const createWrappedCoin = (
   tokenBridgeAddress: string,
   attestVAA: Uint8Array
 ): Types.EntryFunctionPayload => {
-  if (!tokenBridgeAddress) throw "Need token bridge address.";
+  if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
 
   const parsedVAA = _parseVAAAlgorand(attestVAA);
   if (!parsedVAA.FromChain || !parsedVAA.Contract) {
-    throw "VAA does not contain required information";
+    throw new Error("VAA does not contain required information");
   }
 
   assertChain(parsedVAA.FromChain);
@@ -187,7 +187,7 @@ export const createWrappedCoin = (
     coalesceChainId(parsedVAA.FromChain),
     parsedVAA.Contract
   );
-  if (!assetType) throw "Invalid asset address.";
+  if (!assetType) throw new Error("Invalid asset address.");
 
   return {
     function: `${tokenBridgeAddress}::wrapped::create_wrapped_coin`,

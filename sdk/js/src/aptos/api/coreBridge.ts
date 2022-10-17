@@ -7,7 +7,7 @@ export const upgradeGuardianSet = (
   coreBridgeAddress: string,
   vaa: Uint8Array,
 ): Types.EntryFunctionPayload => {
-  if (!coreBridgeAddress) throw "Need core bridge address.";
+  if (!coreBridgeAddress) throw new Error("Need core bridge address.");
   return {
     function: `${coreBridgeAddress}::guardian_set_upgrade::submit_vaa_entry`,
     type_arguments: [],
@@ -24,7 +24,7 @@ export const initWormhole = (
   governanceContract: Uint8Array,
   initialGuardian: Uint8Array,
 ): Types.EntryFunctionPayload => {
-  if (!coreBridgeAddress) throw "Need core bridge address.";
+  if (!coreBridgeAddress) throw new Error("Need core bridge address.");
   return {
     function: `${coreBridgeAddress}::wormhole::init`,
     type_arguments: [],
