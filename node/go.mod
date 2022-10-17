@@ -225,10 +225,6 @@ require (
 	nhooyr.io/websocket v1.8.6 // indirect
 )
 
-// Temporary fork that adds GetConfirmedTransactionWithOpts. Can be removed
-// once Solana mainnet has upgraded to v1.7.x.
-replace github.com/gagliardetto/solana-go => github.com/certusone/solana-go v0.3.7-0.20210729105530-67b495e4e529
-
 // Needed for cosmos-sdk based chains.  See
 // https://github.com/cosmos/cosmos-sdk/issues/10925 for more details.
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
