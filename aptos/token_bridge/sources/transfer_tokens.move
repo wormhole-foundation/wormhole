@@ -169,9 +169,37 @@ module token_bridge::transfer_tokens_test {
     use wrapped_coin::coin::T;
 
     /// Registration VAA for the etheruem token bridge 0xdeadbeef
+    /// +------------------------------------------------------------------------------+
+    /// | Wormhole VAA v1         | nonce: 1                | time: 1                  |
+    /// | guardian set #0         | #23663022               | consistency: 0           |
+    /// |------------------------------------------------------------------------------|
+    /// | Signature:                                                                   |
+    /// |   #0: 15d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e...        |
+    /// |------------------------------------------------------------------------------|
+    /// | Emitter: 11111111111111111111111111111115 (Solana)                           |
+    /// |==============================================================================|
+    /// | Chain registration (TokenBridge)                                             |
+    /// | Emitter chain: Ethereum                                                      |
+    /// | Emitter address: 0x00000000000000000000000000000000deadbeef (Ethereum)       |
+    /// +------------------------------------------------------------------------------+
     const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
 
     /// Attestation VAA sent from the ethereum token bridge 0xdeadbeef
+    /// +------------------------------------------------------------------------------+
+    /// | Wormhole VAA v1         | nonce: 1                | time: 1                  |
+    /// | guardian set #0         | #22080291               | consistency: 0           |
+    /// |------------------------------------------------------------------------------|
+    /// | Signature:                                                                   |
+    /// |   #0: 80366065746148420220f25a6275097370e8db40984529a6676b7a5fc9fe...        |
+    /// |------------------------------------------------------------------------------|
+    /// | Emitter: 0x00000000000000000000000000000000deadbeef (Ethereum)               |
+    /// |==============================================================================|
+    /// | Token attestation                                                            |
+    /// | decimals: 12                                                                 |
+    /// | Token: 0x00000000000000000000000000000000beefface (Ethereum)                 |
+    /// | Symbol: BEEF                                                                 |
+    /// | Name: Beef face Token                                                        |
+    /// +------------------------------------------------------------------------------+
     const ATTESTATION_VAA: vector<u8> = x"0100000000010080366065746148420220f25a6275097370e8db40984529a6676b7a5fc9feb11755ec49ca626b858ddfde88d15601f85ab7683c5f161413b0412143241c700aff010000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef000000000150eb23000200000000000000000000000000000000000000000000000000000000beefface00020c424545460000000000000000000000000000000000000000000000000000000042656566206661636520546f6b656e0000000000000000000000000000000000";
 
     struct MyCoin has key {}
@@ -234,10 +262,10 @@ module token_bridge::transfer_tokens_test {
 
         assert!(token_chain == wormhole::u16::from_u64(2), 0);
         assert!(external_address::get_bytes(&token_address) == x"00000000000000000000000000000000000000000000000000000000beefface", 0);
-        // the coin has 12 decimals, so the amount gets scaled by a factor 10^-4
-        // since the normalised amounts are 8 decimals
-        assert!(normalized_amount::get_amount(normalized_amount) == 10, 0);
-        assert!(normalized_amount::get_amount(normalized_relayer_fee) == 0, 0);
+        // the original coin has 12 decimals, but wrapped assets are capped at 8
+        // decimals, so the normalized amount matches the transferred amount.
+        assert!(normalized_amount::get_amount(normalized_amount) == 100000, 0);
+        assert!(normalized_amount::get_amount(normalized_relayer_fee) == 2, 0);
     }
 
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]

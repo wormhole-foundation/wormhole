@@ -363,7 +363,7 @@ module token_bridge::complete_transfer_test {
         let fee_recipient = @0x32;
         let amount = 100;
         let fee_amount = 40;
-        let decimals = 8;
+        let decimals = 9;
 
         setup(deployer, token_bridge, to, fee_recipient, decimals, 0);
 
@@ -384,8 +384,8 @@ module token_bridge::complete_transfer_test {
 
         complete_transfer::test<wrapped_coin::coin::T>(&transfer, fee_recipient);
 
-        // the wrapped asset has 9 decimals (see wrapped_test::init_wrapped_token)
-        assert!(coin::balance<wrapped_coin::coin::T>(to) == 600, 0);
-        assert!(coin::balance<wrapped_coin::coin::T>(fee_recipient) == 400, 0);
+        // the wrapped asset has 8 decimals (see wrapped_test::init_wrapped_token)
+        assert!(coin::balance<wrapped_coin::coin::T>(to) == 6, 0);
+        assert!(coin::balance<wrapped_coin::coin::T>(fee_recipient) == 4, 0);
     }
 }
