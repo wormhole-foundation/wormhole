@@ -218,6 +218,23 @@ exports.builder = function(y: typeof yargs) {
     }, async (argv) => {
       console.log(deriveResourceAccount(Buffer.from(hex(argv['account']).substring(2), 'hex'), argv['seed']))
     })
+    .command("derive-wrapped-address <chain> <origin-address>", "Derive wrapped coin type", (yargs) => {
+      return yargs
+        .positional("chain", {
+          type: "string"
+        })
+        .positional("origin-address", {
+          type: "string"
+        })
+        .option("network", network_options)
+    }, async (argv) => {
+      // TODO(csongor): this should be pulled in from the sdk.
+      let token_bridge_address = Buffer.from("576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f", "hex");
+      assertChain(argv["chain"]);
+      let chain = coalesceChainId(argv["chain"]);
+      let origin_address = Buffer.from(evm_address(argv["origin-address"]), "hex");
+      console.log(deriveWrappedAssetAddress(token_bridge_address, chain, origin_address))
+    })
     .command("hash-contracts <package-dir>", "Hash contract bytecodes for upgrade", (yargs) => {
       return yargs
         .positional("seed", {
