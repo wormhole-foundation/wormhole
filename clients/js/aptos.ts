@@ -60,7 +60,7 @@ export async function execute_aptos(
           console.log("Registering chain")
           await callEntryFunc(network, rpc, `${contract}::register_chain`, "submit_vaa_entry", [], [bcsVAA]);
           break
-        case "AttestMeta":
+        case "AttestMeta": {
           console.log("Creating wrapped token")
           // Deploying a wrapped asset requires two transactions:
           // 1. Publish a new module under a resource account that defines a type T
@@ -77,21 +77,29 @@ export async function execute_aptos(
           // resource account, which is seeded by the token bridge's address and
           // the origin information of the token. We can recompute this address
           // offline:
-          let tokenAddress = payload.tokenAddress;
-          let tokenChain = payload.tokenChain;
+          const tokenAddress = payload.tokenAddress;
+          const tokenChain = payload.tokenChain;
           assertChain(tokenChain);
           let wrappedContract = deriveWrappedAssetAddress(hex(contract), tokenChain, hex(tokenAddress));
 
           // Tx 2.
           console.log(`Deploying resource account ${wrappedContract}`);
-          const token = new TxnBuilderTypes.TypeTagStruct(TxnBuilderTypes.StructTag.fromString(`${wrappedContract}::coin::T`));
+          let token = new TxnBuilderTypes.TypeTagStruct(TxnBuilderTypes.StructTag.fromString(`${wrappedContract}::coin::T`));
           await callEntryFunc(network, rpc, `${contract}::wrapped`, "create_wrapped_coin", [token], [bcsVAA]);
 
           break
-        case "Transfer":
+        }
+        case "Transfer": {
           console.log("Completing transfer")
-          await callEntryFunc(network, rpc, `${contract}::complete_transfer`, "submit_vaa_entry", [], [bcsVAA]);
+          // TODO: only handles wrapped assets for now
+          const tokenAddress = payload.tokenAddress;
+          const tokenChain = payload.tokenChain;
+          assertChain(tokenChain);
+          let wrappedContract = deriveWrappedAssetAddress(hex(contract), tokenChain, hex(tokenAddress));
+          const token = new TxnBuilderTypes.TypeTagStruct(TxnBuilderTypes.StructTag.fromString(`${wrappedContract}::coin::T`));
+          await callEntryFunc(network, rpc, `${contract}::complete_transfer`, "submit_vaa_and_register_entry", [token], [bcsVAA]);
           break
+        }
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI")
         default:
@@ -113,9 +121,12 @@ export function deriveWrappedAssetAddress(
   let chain: Buffer = Buffer.alloc(2);
   chain.writeUInt16BE(origin_chain);
   if (origin_address.length != 32) {
-    throw new Error(`${origin_address} is not 32 bytes long.`)
+    throw new Error(`${origin_address}`)
   }
-  return sha3_256(Buffer.concat([token_bridge_address, chain, Buffer.from("::", "ascii"), origin_address]));
+  // from https://github.com/aptos-labs/aptos-core/blob/25696fd266498d81d346fe86e01c330705a71465/aptos-move/framework/aptos-framework/sources/account.move#L90-L95
+  let DERIVE_RESOURCE_ACCOUNT_SCHEME = Buffer.alloc(1);
+  DERIVE_RESOURCE_ACCOUNT_SCHEME.writeUInt8(255);
+  return sha3_256(Buffer.concat([token_bridge_address, chain, Buffer.from("::", "ascii"), origin_address, DERIVE_RESOURCE_ACCOUNT_SCHEME]));
 }
 
 export function deriveResourceAccount(
@@ -143,7 +154,7 @@ export async function callEntryFunc(
   const accountFrom = new AptosAccount(new Uint8Array(Buffer.from(key, "hex")));
   let client: AptosClient;
   // if rpc arg is passed in, then override default rpc value for that network
-  if (typeof rpc != 'undefined'){
+  if (typeof rpc != 'undefined') {
     client = new AptosClient(rpc);
   } else {
     client = new AptosClient(NETWORKS[network]["aptos"].rpc);
