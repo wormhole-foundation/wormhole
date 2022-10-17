@@ -78,6 +78,10 @@ const GOVERNANCE_EMITTER =
 // TODO: put this into the sdk when things have finalised
 const OVERRIDES = {
   MAINNET: {
+    aptos: {
+      token_bridge: "0x7041d0a5ae46a24fd5f1df67c54bf1a2e0fe7668ae9402e30e58f3ad452f9d52",
+      core: "0x799c8d35a610b6fa8ed33432e31c686c97b4ce4205fce88c13577615372e99a3"
+    }
   },
   TESTNET: {
     aptos: {

@@ -23,7 +23,7 @@ worm start-validator aptos
 Then build & deploy the contracts
 
 ``` shell
-./deploy
+./deploy devnet
 ```
 
 At this point you can send messages by running
