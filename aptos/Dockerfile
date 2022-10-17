@@ -1,4 +1,4 @@
-FROM ghcr.io/wormhole-foundation/aptos:0.4.0@sha256:37ceb6403c1f3ad2728ec0c71acb21a531c71d5156f37fc182f97940c982bfa7 as aptos
+FROM ghcr.io/wormhole-foundation/aptos:0.4.0@sha256:19252a9d4f6d9f7e20074c3cfc98e6a81bea5736f8f8c3a4fb1bb09737a8e044 as aptos
 
 # Support additional root CAs
 COPY cert.pem* /certs/
