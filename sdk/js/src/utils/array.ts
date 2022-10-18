@@ -243,11 +243,11 @@ export const tryNativeToHexString = (
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("hexToNativeString: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
-    if (!isValidAptosType(address)) {
-      throw Error("Invalid Aptos type");
+    if (isValidAptosType(address)) {
+      return getExternalAddressFromType(address);
     }
 
-    return getExternalAddressFromType(address);
+    return uint8ArrayToHex(zeroPad(arrayify(address, { allowMissingPrefix:true }), 32));
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("hexToNativeString: Chain id unset");
   } else {
