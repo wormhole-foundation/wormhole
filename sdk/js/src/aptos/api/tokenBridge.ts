@@ -1,6 +1,6 @@
 import { AptosClient, Types } from "aptos";
 import { _parseVAAAlgorand } from "../../algorand";
-import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType, getFullyQualifiedTypeFromHash } from "../../utils";
+import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType, getFullyQualifiedTypeFromHash, isValidAptosType } from "../../utils";
 
 // Attest token
 
@@ -142,23 +142,18 @@ export const registerChain = (
 
 export const transferTokens = (
   tokenBridgeAddress: string,
-  tokenChain: ChainId | ChainName,
-  tokenAddress: string,
-  amount: number | bigint,
+  fullyQualifiedType: string,
+  amount: string,
   recipientChain: ChainId | ChainName,
   recipient: Uint8Array,
-  relayerFee: number | bigint,
-  wormholeFee: number | bigint,
-  nonce: number | bigint,
+  relayerFee: string,
+  nonce: number,
   payload: string = "",
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
-  const assetType = getAssetFullyQualifiedType(
-    tokenBridgeAddress,
-    coalesceChainId(tokenChain),
-    tokenAddress,
-  );
-  if (!assetType) throw new Error("Invalid asset address.");
+  if (!isValidAptosType(fullyQualifiedType)) {
+    throw new Error("Need fully qualified address");
+  }
 
   const recipientChainId = coalesceChainId(recipientChain);
   if (payload) {
@@ -166,8 +161,8 @@ export const transferTokens = (
   } else {
     return {
       function: `${tokenBridgeAddress}::transfer_tokens::transfer_tokens_entry`,
-      type_arguments: [assetType],
-      arguments: [amount, recipientChainId, recipient, relayerFee, wormholeFee, nonce],
+      type_arguments: [fullyQualifiedType],
+      arguments: [amount, recipientChainId, recipient, relayerFee, nonce],
     };
   }
 };

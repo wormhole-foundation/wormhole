@@ -963,24 +963,20 @@ export async function transferNearFromNear(
 
 export function transferFromAptos(
   tokenBridgeAddress: string,
-  tokenChain: ChainId | ChainName,
-  tokenAddress: string,
-  amount: bigint | number,
+  fullyQualifiedType: string,
+  amount: string,
   recipientChain: ChainId | ChainName,
   recipient: Buffer,
-  relayerFee: bigint | number=0,
-  wormholeFee: bigint | number,
+  relayerFee: string = "0",
   payload: string = ""
 ): Types.EntryFunctionPayload {
   return transferTokensAptos(
     tokenBridgeAddress,
-    tokenChain,
-    tokenAddress,
+    fullyQualifiedType,
     amount,
     recipientChain,
     recipient,
     relayerFee,
-    wormholeFee,
     createNonce().readUInt32LE(0),
     payload
   );
