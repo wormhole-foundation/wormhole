@@ -32,6 +32,7 @@ import {
   CHAIN_ID_XPLA,
 } from "./consts";
 import { hashLookup } from "./near";
+import { getExternalAddressFromType, isValidAptosType } from "./aptos";
 
 /**
  *
@@ -242,7 +243,11 @@ export const tryNativeToHexString = (
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("hexToNativeString: Sui not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
-    throw Error("hexToNativeString: Aptos not supported yet.");
+    if (!isValidAptosType(address)) {
+      throw Error("Invalid Aptos type");
+    }
+
+    return getExternalAddressFromType(address);
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("hexToNativeString: Chain id unset");
   } else {

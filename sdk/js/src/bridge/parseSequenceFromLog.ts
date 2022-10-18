@@ -167,10 +167,10 @@ export function parseSequenceFromLogNear(
  * @param result the result of client.waitForTransactionWithResult(txHash)
  * @returns sequence
  */
-export async function parseSequenceFromLogAptos(
+export function parseSequenceFromLogAptos(
   coreBridgeAddress: string,
   result: Types.UserTransaction
-): Promise<string | null> {
+): string | null {
   if (result.success) {
     const event = result.events.find(
       (e) => e.type === `${coreBridgeAddress}::state::WormholeMessage`
