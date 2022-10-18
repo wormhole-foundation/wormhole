@@ -18,6 +18,8 @@ import {
   getForeignAssetEth,
   getIsTransferCompletedAptos,
   getIsTransferCompletedEth,
+  getIsWrappedAssetAptos,
+  getOriginalAssetAptos,
   getSignedVAAWithRetry,
   hexToUint8Array,
   redeemOnAptos,
@@ -25,6 +27,7 @@ import {
   TokenImplementation__factory,
   transferFromAptos,
   transferFromEth,
+  tryNativeToHexString,
   tryNativeToUint8Array,
   uint8ArrayToHex,
   waitForSignAndSubmitTransaction,
@@ -281,7 +284,6 @@ describe("Aptos SDK tests", () => {
       throw new Error("Failed to create wrapped coin on Aptos");
     }
 
-    // get balances
     const wrappedType = getAssetFullyQualifiedType(
       aptosTokenBridge,
       CHAIN_ID_ETH,
@@ -291,6 +293,22 @@ describe("Aptos SDK tests", () => {
       throw new Error("wrappedType is null");
     }
 
+    const info = await getOriginalAssetAptos(
+      client,
+      aptosTokenBridge,
+      wrappedType
+    );
+    expect(uint8ArrayToHex(info.assetAddress)).toEqual(tryNativeToHexString(TEST_ERC20, CHAIN_ID_ETH));
+    expect(info.chainId).toEqual(CHAIN_ID_ETH);
+    expect(info.isWrapped).toEqual(
+      await getIsWrappedAssetAptos(
+        client,
+        aptosTokenBridge,
+        aptosWrappedAddress
+      )
+    );
+
+    // get balances
     const balanceBeforeTransferAptos = ethers.BigNumber.from(
       await getBalanceAptos(client, wrappedType, recipient.address())
     );
