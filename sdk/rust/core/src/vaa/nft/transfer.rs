@@ -1,4 +1,4 @@
-//! Parser for the Transfer action in the NFT contraccontract
+//! Parser for the Transfer action in the NFT contract.
 use {
     super::Action,
     crate::{

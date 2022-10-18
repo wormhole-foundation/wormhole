@@ -1,4 +1,4 @@
-//! Parsers for the Transfer action in the Token contract.
+//! Parsers for the AssetMeta action in the Token contract.
 
 use {
     super::Action,

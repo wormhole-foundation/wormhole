@@ -1,4 +1,4 @@
-//! Parsers for NFT bridge VAAs.
+//! Parsers for NFT bridge VAA Actions..
 //!
 //! NFT bridging relies on VAA's that indicate custody/lockup/burn events in order to maintain
 //! token parity between multiple chains. Parsers are provided here that can be used to read and

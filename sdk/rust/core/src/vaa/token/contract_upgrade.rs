@@ -1,3 +1,5 @@
+//! Parsers for the ContractUpgrade action in the Token contract.
+
 use {
     super::Action,
     crate::vaa::parse_fixed,

@@ -11,11 +11,23 @@
 #![deny(warnings)]
 #![deny(unused_results)]
 
-extern crate test;
-
-use borsh::{
-    BorshDeserialize,
-    BorshSerialize,
+use {
+    borsh::{
+        BorshDeserialize,
+        BorshSerialize,
+    },
+    nom::{
+        error::ErrorKind,
+        multi::fill,
+        number::{
+            complete::{
+                u16,
+                u8,
+            },
+            Endianness,
+        },
+        IResult,
+    },
 };
 
 #[macro_use]
@@ -29,14 +41,21 @@ pub use {
     vaa::*,
 };
 
-
+/// The `GOVERNANCE_EMITTER` is a special address Wormhole guardians trust to observe governance
+/// actions from.
 pub const GOVERNANCE_EMITTER: [u8; 32] =
     hex_literal::hex!("0000000000000000000000000000000000000000000000000000000000000004");
 
+/// A `GuardianSet` is a versioned set of keys that can sign Wormhole messages.
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct GuardianSet {
-    pub index:     u32,
-    pub expires:   u32,
+    /// The version of the guardian set.
+    pub index: u32,
+
+    /// How long after a GuardianSet change before this set is expired.
+    pub expires: u32,
+
+    /// The set of guardians public keys, in Ethereum's compressed format.
     pub addresses: Vec<[u8; 20]>,
 }
 
@@ -71,4 +90,25 @@ pub(crate) fn parse_fixed_utf8<T: AsRef<[u8]>, const N: usize>(s: T) -> Option<S
     buffer.retain(|&c| c != '\u{FFFD}');
 
     Some(buffer.iter().collect())
+}
+
+/// Using nom, parse a fixed array of bytes without any allocation. Useful for parsing addresses,
+/// signatures, identifiers, etc.
+#[inline]
+pub(crate) fn parse_fixed<const S: usize>(input: &[u8]) -> IResult<&[u8], [u8; S]> {
+    let mut buffer = [0u8; S];
+    let (i, _) = fill(u8, &mut buffer)(input)?;
+    Ok((i, buffer))
+}
+
+/// Parse a Chain ID, which is a 16 bit numeric ID. The mapping of network to ID is defined by the
+/// Wormhole standard.
+#[inline]
+pub(crate) fn parse_chain(input: &[u8]) -> IResult<&[u8], Chain> {
+    let (i, chain) = u16(Endianness::Big)(input)?;
+    Ok((
+        i,
+        Chain::try_from(chain)
+            .map_err(|_| nom::Err::Error(nom::error_position!(i, ErrorKind::NoneOf)))?,
+    ))
 }

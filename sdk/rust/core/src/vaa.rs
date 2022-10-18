@@ -55,8 +55,8 @@ pub type Signature = [u8; 66];
 pub type ForeignAddress = [u8; 32];
 
 /// Fields on VAA's are all usually fixed bytestrings, however they often contain UTF-8. When
-/// parsed these result in `String` with the additional constraint that they are always equal or
-/// less to the underlying byte field.
+/// parsed these result in `String` with the additional constraint that they're length is always
+/// equal or less to the underlying byte field.
 type ShortUTFString = String;
 
 /// The core VAA itself. This structure is what is received by a contract on the receiving side of
@@ -79,15 +79,23 @@ pub struct VAA {
     pub payload:           Vec<u8>,
 }
 
-/// VAADigest contains useful digest data for the VAA.
-///
-/// - The Digest itself.
-/// - A hash of the Digest, which is what a guardian actually signs.
-/// - The secp256k1 message part,  ahash of the hash of the Digest, which can be passed to ecrecover.
+/// VAADigest contains digest data for the VAA.
 pub struct VAADigest {
-    pub digest:  Vec<u8>,
-    pub hash:    [u8; 32],
-    pub message: [u8; 32],
+    /// The `body` of the VAA is a chunk of bytes containing the VAA's body. This is a unique value
+    /// that identifies every VAA.
+    pub body: Vec<u8>,
+
+    /// Guardians don't hash the VAA body directly, instead they hash the VAA and sign the hash. The
+    /// purpose of this is it means when submitting a VAA on-chain we only have to submit the hash
+    /// which reduces gas costs.
+    pub hash: [u8; 32],
+
+    /// The secp256k_hash is the hash of the hash of the VAA. The reason we provide this is because
+    /// of how secp256k works internally. It hashes its payload before signing. This means that
+    /// when verifying secp256k signatures, we're actually checking if a guardian has signed the
+    /// hash of the hash of the VAA. Functions such as `ecrecover` expect the secp256k hash rather
+    /// than the original payload.
+    pub secp256k_hash: [u8; 32],
 }
 
 impl VAA {
@@ -141,6 +149,7 @@ impl VAA {
     }
 
     /// Extract the body of the VAA, used as the payload for the digest.
+    #[allow(clippy::let_unit_value)]
     pub fn body(&self) -> Result<Vec<u8>, Error> {
         use {
             byteorder::{
@@ -154,12 +163,12 @@ impl VAA {
         };
 
         let mut v = Cursor::new(Vec::new());
-        v.write_u32::<BigEndian>(self.timestamp)?;
-        v.write_u32::<BigEndian>(self.nonce)?;
-        v.write_u16::<BigEndian>(self.emitter_chain.into())?;
+        let _ = v.write_u32::<BigEndian>(self.timestamp)?;
+        let _ = v.write_u32::<BigEndian>(self.nonce)?;
+        let _ = v.write_u16::<BigEndian>(self.emitter_chain.into())?;
         let _ = v.write(&self.emitter_address)?;
-        v.write_u64::<BigEndian>(self.sequence)?;
-        v.write_u8(self.consistency_level)?;
+        let _ = v.write_u64::<BigEndian>(self.sequence)?;
+        let _ = v.write_u8(self.consistency_level)?;
         let _ = v.write(&self.payload)?;
         Ok(v.into_inner())
     }
@@ -168,36 +177,39 @@ impl VAA {
     ///
     /// A VAA is distinguished by the unique 256bit Keccak256 hash of its body. This hash is
     /// utilised in all Wormhole components for identifying unique VAA's, including the bridge,
-    /// modules, and core guardian software. See `VAADigest` for more information.
+    /// modules, and core guardian software. The `VAADigest` is documented with reasoning for
+    /// each field.
     ///
-    /// If efficiency is required, hashing using on-chain built-ins instead is recommended, this
-    /// can be done by calling `body` and hashing manually.
+    /// NOTE: This function uses a library to do Keccak256 hashing, but on-chain this may not be
+    /// efficient. If efficiency is needed, consider calling `body()` instead and hashing the
+    /// result using on-chain primitives.
     pub fn digest(&self) -> Option<VAADigest> {
         use {
             sha3::Digest,
             std::io::Write,
         };
 
-        // We hash the body so that secp256k1 signatures are signing the hash instead of the body
-        // within our contracts. We do this so we don't have to submit the entire VAA for signature
-        // verification, only the hash.
+        // Hash Deterministic Pieces
+        let body = self.body().ok()?;
+
+        // The `body` of the VAA is hashed to produce a `digest` of the VAA.
         let hash: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
             let _ = h.write(body.as_slice()).unwrap();
             h.finalize().into()
         };
 
-        // TODO: Explain double hashing reason.
-        let message: [u8; 32] = {
+        // Hash `hash` again to get the secp256k internal hash, see `VAADigest` for detail.
+        let secp256k_hash: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
             let _ = h.write(&hash).unwrap();
             h.finalize().into()
         };
 
         Some(VAADigest {
-            digest: body,
+            body,
             hash,
-            message,
+            secp256k_hash,
         })
     }
 }
@@ -205,13 +217,18 @@ impl VAA {
 /// All current Wormhole programs using Governance are prefixed with a Governance header.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GovHeader {
+    /// The `module` header is a right aligned 32 byte string that identifies the target program.
     pub module: [u8; 32],
+
+    /// The `action` identifies what payload the VAA contains and what method should be invoked.
     pub action: u8,
+
+    /// The `chain` describes which Chain the VAA is intended to be sent to.
     pub target: Chain,
 }
 
 impl GovHeader {
-    // Given a Chain and Module, produce a parser for a GovHeader.
+    /// Given a series of bytes, attempt to deserialize into a valid Governance Header.
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (i, (module, action, target)) =
             nom::sequence::tuple((parse_fixed, u8, parse_chain))(input)?;
@@ -227,10 +244,28 @@ impl GovHeader {
     }
 }
 
-/// The Action trait describes functionality that various VAA payload formats used by Wormhole
-/// applications confirm to.
+/// The `Action` trait consolidates common functionality for Wormhole "Actions".
+///
+/// Wormhole uses VAA's with "action" payloads to invoke methods on various wormhole programs. An
+/// action usually contains a function identifier to invoke and a payload, the `Action` trait
+/// allows us to parse actions from a VAA.
+///
+/// This trait allows consumers of the library to write code that parses and uses an `Action` and
+/// not have to worry about _how_ to parse or verify it, for example:
+///
+/// ```rust,ignore
+/// use wormhole::Action;
+/// use wormhole::core::Action as CoreAction;
+///
+/// match CoreAction::from_vaa(&vaa)? {
+///    CoreAction::ContractUpgrade(v)   => handle_upgrade(v),
+///    CoreAction::GuardianSetChange(v) => handle_guardian_set_change(v),
+///    CoreAction::SetMessageFee(v)     => handle_set_message_fee(v),
+///    CoreAction::TransferFees(v)      => handle_transfer_fees(v),
+/// }
+/// ```
 pub trait Action: Sized {
-    /// Parse an action from a VAA.
+    /// Given a parsed `VAA`, extract an verified Action.
     fn from_vaa(vaa: &VAA, chain: Chain) -> Result<Self, Error>;
 }
 
@@ -768,23 +803,5 @@ mod testing {
         // Catch-All
         println!("{}", hex::encode(&vaa.payload));
         assert_eq!(vaa, val);
-    }
-
-    // Bench VAA::from_byte nom based parser.
-    #[bench]
-    fn bench_vaa_parse(b: &mut test::Bencher) {
-        let vaa = hex_literal::hex!("01000000000100e3db309303b712a562e6aa2adc68bc10ff22328ab31ddb6a83706943a9da97bf11ba6e3b96395515868786898dc19ecd737d197b0d1a1f3f3c6aead5c1fe7009000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000004c5d05a00000000000000000000000000000000000000000000546f6b656e42726964676502000a0000000000000000000000000046da7a0320dd999438b4435dac82bf1dac13d2");
-        b.iter(|| {
-            let _ = VAA::from_bytes(vaa);
-        });
-    }
-
-    // Bench original `legacy_deserialize`.
-    #[bench]
-    fn bench_legacy_vaa_parse(b: &mut test::Bencher) {
-        let vaa = hex_literal::hex!("01000000000100e3db309303b712a562e6aa2adc68bc10ff22328ab31ddb6a83706943a9da97bf11ba6e3b96395515868786898dc19ecd737d197b0d1a1f3f3c6aead5c1fe7009000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000004c5d05a00000000000000000000000000000000000000000000546f6b656e42726964676502000a0000000000000000000000000046da7a0320dd999438b4435dac82bf1dac13d2");
-        b.iter(|| {
-            let _ = legacy_deserialize(&vaa);
-        });
     }
 }

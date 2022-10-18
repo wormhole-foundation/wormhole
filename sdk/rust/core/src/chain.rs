@@ -6,7 +6,8 @@ use Chain::*;
 #[cfg_attr(test, derive(strum_macros::EnumIter))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Chain {
-    // In Wormhole payload format, 0 indicates that a message is for any destination chain.
+    // In Wormhole wire format, 0 indicates that a message is for any destination chain, it is
+    // represented here as `Any`.
     Any,
 
     // Chains

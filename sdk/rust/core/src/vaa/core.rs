@@ -1,9 +1,7 @@
 //! Parsers for core bridge VAAs.
 //!
-//! The main job of the bridge is to forward VAA's to other chains, however governance actions are
-//! themselves VAAs and as such the bridge requires parsing Bridge specific VAAs. The core bridge
-//! does not define any general VAA's, thus all the payloads in this file are expected to require
-//! governance to be executed.
+//! The core bridge is responsible for emitting messages and VAAs. But it also uses VAA's to
+//! update and manage itself.
 
 use crate::{
     require,

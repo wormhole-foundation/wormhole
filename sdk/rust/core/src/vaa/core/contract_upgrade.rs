@@ -78,20 +78,4 @@ mod testing {
         let old = legacy_deserialize(&vaa.payload).unwrap();
         assert_eq!(new, Action::ContractUpgrade(old));
     }
-
-    #[bench]
-    fn bench_parse(b: &mut test::Bencher) {
-        let vaa = VAA::from_bytes(TEST_VAA).unwrap();
-        b.iter(|| {
-            let _ = <Action as crate::Action>::from_vaa(&vaa, Chain::Fantom).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_old_parse(b: &mut test::Bencher) {
-        let vaa = VAA::from_bytes(TEST_VAA).unwrap();
-        b.iter(|| {
-            let _ = legacy_deserialize(&vaa.payload).unwrap();
-        });
-    }
 }

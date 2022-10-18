@@ -1,3 +1,5 @@
+//! Parsers for the Transfer action in the Token contract.
+
 use {
     super::Action,
     crate::{

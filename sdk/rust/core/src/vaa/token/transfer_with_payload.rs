@@ -1,3 +1,5 @@
+//! Parsers for the TransferWithPayload action in the Token contract.
+
 use {
     super::Action,
     crate::{
