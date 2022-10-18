@@ -966,7 +966,7 @@ export function transferFromAptos(
   fullyQualifiedType: string,
   amount: string,
   recipientChain: ChainId | ChainName,
-  recipient: Buffer,
+  recipient: Uint8Array,
   relayerFee: string = "0",
   payload: string = ""
 ): Types.EntryFunctionPayload {
