@@ -1,22 +1,32 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { AptosAccount, AptosClient, FaucetClient, HexString } from "aptos";
 import {
+  approveEth,
   APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS,
   attestFromAptos,
+  attestFromEth,
   CHAIN_ID_APTOS,
   CHAIN_ID_ETH,
   CONTRACTS,
+  createWrappedOnAptos,
   createWrappedOnEth,
+  createWrappedTypeOnAptos,
+  getAssetFullyQualifiedType,
+  getEmitterAddressEth,
   getExternalAddressFromType,
+  getForeignAssetAptos,
   getForeignAssetEth,
+  getIsTransferCompletedAptos,
   getIsTransferCompletedEth,
   getSignedVAAWithRetry,
   hexToUint8Array,
+  redeemOnAptos,
   redeemOnEth,
   TokenImplementation__factory,
   transferFromAptos,
-  tryNativeToHexString,
+  transferFromEth,
   tryNativeToUint8Array,
+  uint8ArrayToHex,
   waitForSignAndSubmitTransaction,
 } from "../..";
 import { setDefaultWasm } from "../../solana/wasm";
@@ -29,14 +39,13 @@ import {
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
-import { parseSequenceFromLogAptos } from "../../bridge/parseSequenceFromLog";
+import {
+  parseSequenceFromLogAptos,
+  parseSequenceFromLogEth,
+} from "../../bridge/parseSequenceFromLog";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { ethers } from "ethers";
-import {
-  createWrappedCoin,
-  createWrappedCoinType,
-  registerChain,
-} from "../../aptos";
+import { parseUnits } from "ethers/lib/utils";
 
 setDefaultWasm("node");
 
@@ -53,13 +62,13 @@ describe("Aptos SDK tests", () => {
     const aptosCoreBridge = CONTRACTS.DEVNET.aptos.core;
 
     // sanity check funds in the account
-    const before = await getBalanceAptos(client, sender.address());
+    const coinType = "0x1::aptos_coin::AptosCoin";
+    const before = await getBalanceAptos(client, coinType, sender.address());
     await faucet.fundAccount(sender.address(), 100_000_000);
-    const after = await getBalanceAptos(client, sender.address());
-    expect(after - before).toEqual(100_000_000);
+    const after = await getBalanceAptos(client, coinType, sender.address());
+    expect(Number(after) - Number(before)).toEqual(100_000_000);
 
     // attest native aptos token
-    const coinType = "0x1::aptos_coin::AptosCoin";
     const attestPayload = attestFromAptos(
       aptosTokenBridge,
       CHAIN_ID_APTOS,
@@ -98,7 +107,6 @@ describe("Aptos SDK tests", () => {
     }
 
     // check attestation on ethereum
-    console.log(await getExternalAddressFromType(coinType));
     const externalAddress = hexToUint8Array(
       await getExternalAddressFromType(coinType)
     );
@@ -111,10 +119,9 @@ describe("Aptos SDK tests", () => {
     expect(address).toBeTruthy();
     expect(address).not.toBe(ethers.constants.AddressZero);
 
-    // transfer to ethereum
-    const balanceBeforeTransferAptos = await getBalanceAptos(
-      client,
-      sender.address()
+    // transfer from aptos
+    const balanceBeforeTransferAptos = ethers.BigNumber.from(
+      await getBalanceAptos(client, coinType, sender.address())
     );
     const transferPayload = transferFromAptos(
       aptosTokenBridge,
@@ -124,13 +131,14 @@ describe("Aptos SDK tests", () => {
       tryNativeToUint8Array(recipientAddress, CHAIN_ID_ETH)
     );
     tx = await waitForSignAndSubmitTransaction(client, sender, transferPayload);
-    const balanceAfterTransferAptos = await getBalanceAptos(
-      client,
-      sender.address()
+    const balanceAfterTransferAptos = ethers.BigNumber.from(
+      await getBalanceAptos(client, coinType, sender.address())
     );
     expect(
-      balanceBeforeTransferAptos - balanceAfterTransferAptos
-    ).toBeGreaterThan(10_000_000);
+      balanceBeforeTransferAptos
+        .sub(balanceAfterTransferAptos)
+        .gt((10_000_000).toString())
+    ).toBe(true);
 
     // get signed transfer vaa
     sequence = parseSequenceFromLogAptos(aptosCoreBridge, tx);
@@ -148,7 +156,7 @@ describe("Aptos SDK tests", () => {
     expect(transferVAA).toBeTruthy();
 
     // get balance on eth
-    const originAssetHex = tryNativeToHexString(coinType, CHAIN_ID_APTOS);
+    const originAssetHex = tryNativeToUint8Array(coinType, CHAIN_ID_APTOS);
     if (!originAssetHex) {
       throw new Error("originAssetHex is null");
     }
@@ -157,23 +165,26 @@ describe("Aptos SDK tests", () => {
       ethTokenBridge,
       provider,
       CHAIN_ID_APTOS,
-      hexToUint8Array(originAssetHex)
+      originAssetHex
     );
     if (!foreignAsset) {
       throw new Error("foreignAsset is null");
     }
 
-    let token = TokenImplementation__factory.connect(foreignAsset, recipient);
-    const balanceBeforeTransferEth = await token.balanceOf(recipientAddress);
+    const balanceBeforeTransferEth = await getBalanceEth(
+      foreignAsset,
+      recipient
+    );
 
     // redeem on eth
-    await redeemOnEth(ethTokenBridge, recipient, transferVAA, {
-      gasLimit: 5000000,
-    });
+    await redeemOnEth(ethTokenBridge, recipient, transferVAA);
     expect(
       await getIsTransferCompletedEth(ethTokenBridge, provider, transferVAA)
     ).toBe(true);
-    const balanceAfterTransferEth = await token.balanceOf(recipientAddress);
+    const balanceAfterTransferEth = await getBalanceEth(
+      foreignAsset,
+      recipient
+    );
     expect(
       balanceAfterTransferEth.sub(balanceBeforeTransferEth).toNumber()
     ).toEqual(10_000_000);
@@ -181,73 +192,175 @@ describe("Aptos SDK tests", () => {
     // clean up
     provider.destroy();
   });
-  test("Transfer from Ethereum to Aptos", async () => {
+  test("Transfer native ERC-20 from Ethereum to Aptos", async () => {
+    // setup ethereum
+    const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+    const sender = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
+    const senderAddress = await sender.getAddress();
+    const ethTokenBridge = CONTRACTS.DEVNET.ethereum.token_bridge;
+    const ethCoreBridge = CONTRACTS.DEVNET.ethereum.core;
+
+    // attest from eth
+    const attestReceipt = await attestFromEth(
+      ethTokenBridge,
+      sender,
+      TEST_ERC20
+    );
+
+    // get signed attest vaa
+    let sequence = parseSequenceFromLogEth(attestReceipt, ethCoreBridge);
+    expect(sequence).toBeTruthy();
+
+    const { vaaBytes: attestVAA } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
+      CHAIN_ID_ETH,
+      getEmitterAddressEth(ethTokenBridge),
+      sequence,
+      {
+        transport: NodeHttpTransport(),
+      }
+    );
+    expect(attestVAA).toBeTruthy();
+
     // setup aptos
     const client = new AptosClient(APTOS_NODE_URL);
-    const account = new AptosAccount(hexToUint8Array(APTOS_PRIVATE_KEY));
-
-    // // setup ethereum
-    // const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-    // const signer = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
-    // try {
-    //   // await attestFromEth(CONTRACTS.DEVNET.ethereum.token_bridge, signer, TEST_ERC20);
-    // } catch (e) {
-    //   // this could fail because the token is already attested (in an unclean env)
-    // }
-
-    // register eth
-    const tokenBridgeAddress = CONTRACTS.DEVNET.aptos.token_bridge;
-    const registrationVAA = hexToUint8Array(
-      "010000000001002cef01cdddcbf42adeb88eb10ddb6bfb8dd7beb97bd61548e34b299dc47c80fd6b5a6679c345aef1b868c913d46d8d33a1849bb7c11bbcb791a2cee9caac8aa4000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000001c53fe200000000000000000000000000000000000000000000546f6b656e42726964676501000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16"
-    );
-    const registrationPayload = registerChain(
-      tokenBridgeAddress,
-      registrationVAA
-    );
-    try {
-      await waitForSignAndSubmitTransaction(
-        client,
-        account,
-        registrationPayload
-      );
-    } catch {} // hack to run test multiple times
-
-    // get attest vaa
-    const attestVAA = hexToUint8Array(
-      "010000000001008b63d1b99fe9052678bc8be230c2a0b6d911368a9c5e4c5e1f3251de91342c3d04a18236bf7f53383893a98a2b74e6c8c7afd63e68b117766e14a25ac26e0be301000000010000000100020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c1600000000028b11e300020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002085445535400000000000000000000000000000000000000000000000000000000544553545f455243323000000000000000000000000000000000000000000000"
-    );
-
-    // create cointype
-    const createWrappedCoinTypePayload = createWrappedCoinType(
-      tokenBridgeAddress,
+    const recipient = new AptosAccount(hexToUint8Array(APTOS_PRIVATE_KEY));
+    const aptosTokenBridge = CONTRACTS.DEVNET.aptos.token_bridge;
+    const createWrappedCoinTypePayload = createWrappedTypeOnAptos(
+      aptosTokenBridge,
       attestVAA
     );
     try {
       await waitForSignAndSubmitTransaction(
         client,
-        account,
+        recipient,
         createWrappedCoinTypePayload
       );
-    } catch {} // hack to run test multiple times
+    } catch (e) {
+      // only throw if token has not been attested but this call fails
+      if (
+        !(
+          new Error(e).message.includes("ECOIN_INFO_ALREADY_PUBLISHED") ||
+          new Error(e).message.includes("ERESOURCE_ACCCOUNT_EXISTS")
+        )
+      ) {
+        throw e;
+      }
+    }
 
-    // create coin
-    const createWrappedCoinPayload = createWrappedCoin(
-      tokenBridgeAddress,
+    const createWrappedCoinPayload = createWrappedOnAptos(
+      aptosTokenBridge,
       attestVAA
     );
-    await waitForSignAndSubmitTransaction(
+    try {
+      await waitForSignAndSubmitTransaction(
+        client,
+        recipient,
+        createWrappedCoinPayload
+      );
+    } catch (e) {
+      // only throw if token has not been attested but this call fails
+      if (
+        !(
+          new Error(e).message.includes("ECOIN_INFO_ALREADY_PUBLISHED") ||
+          new Error(e).message.includes("ERESOURCE_ACCCOUNT_EXISTS")
+        )
+      ) {
+        throw e;
+      }
+    }
+
+    // check attestation on aptos
+    const aptosWrappedAddress = await getForeignAssetAptos(
       client,
-      account,
-      createWrappedCoinPayload
+      aptosTokenBridge,
+      CHAIN_ID_ETH,
+      TEST_ERC20
     );
+    if (!aptosWrappedAddress) {
+      throw new Error("Failed to create wrapped coin on Aptos");
+    }
+
+    // get balances
+    const wrappedType = getAssetFullyQualifiedType(
+      aptosTokenBridge,
+      CHAIN_ID_ETH,
+      TEST_ERC20
+    );
+    if (!wrappedType) {
+      throw new Error("wrappedType is null");
+    }
+
+    const balanceBeforeTransferAptos = ethers.BigNumber.from(
+      await getBalanceAptos(client, wrappedType, recipient.address())
+    );
+    const balanceBeforeTransferEth = await getBalanceEth(TEST_ERC20, sender);
+
+    // transfer from eth
+    const amount = parseUnits("1", 18);
+    await approveEth(ethTokenBridge, TEST_ERC20, sender, amount);
+    const transferReceipt = await transferFromEth(
+      ethTokenBridge,
+      sender,
+      TEST_ERC20,
+      amount,
+      CHAIN_ID_APTOS,
+      tryNativeToUint8Array(recipient.address().hex(), CHAIN_ID_APTOS)
+    );
+
+    // get signed transfer vaa
+    sequence = parseSequenceFromLogEth(transferReceipt, ethCoreBridge);
+    expect(sequence).toBeTruthy();
+
+    const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
+      CHAIN_ID_ETH,
+      getEmitterAddressEth(ethTokenBridge),
+      sequence,
+      {
+        transport: NodeHttpTransport(),
+      }
+    );
+    expect(transferVAA).toBeTruthy();
+
+    // redeem on aptos
+    const redeemPayload = await redeemOnAptos(
+      client,
+      aptosTokenBridge,
+      transferVAA
+    );
+    await waitForSignAndSubmitTransaction(client, recipient, redeemPayload);
+    expect(
+      await getIsTransferCompletedAptos(client, aptosTokenBridge, transferVAA)
+    ).toBe(true);
+
+    // check balances
+    const balanceAfterTransferAptos = ethers.BigNumber.from(
+      await getBalanceAptos(client, wrappedType, recipient.address())
+    );
+    expect(
+      balanceAfterTransferAptos.sub(balanceBeforeTransferAptos).toString()
+    ).toEqual(parseUnits("1", 8).toString()); // max decimals is 8
+    const balanceAfterTransferEth = await getBalanceEth(TEST_ERC20, sender);
+    expect(
+      balanceBeforeTransferEth.sub(balanceAfterTransferEth).toString()
+    ).toEqual(amount.toString());
   });
 });
 
 const getBalanceAptos = async (
   client: AptosClient,
+  type: string,
   address: HexString
-): Promise<number> => {
-  const type = "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>";
-  const res = await client.getAccountResource(address, type);
+): Promise<string> => {
+  const res = await client.getAccountResource(
+    address,
+    `0x1::coin::CoinStore<${type}>`
+  );
   return (res.data as any).coin.value;
+};
+
+const getBalanceEth = (tokenAddress: string, wallet: ethers.Wallet) => {
+  let token = TokenImplementation__factory.connect(tokenAddress, wallet);
+  return token.balanceOf(wallet.address);
 };
