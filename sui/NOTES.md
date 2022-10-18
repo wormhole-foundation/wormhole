@@ -59,3 +59,21 @@ brew install cmake
    % scripts/publish_message.sh
 
 
+
+==
+
+import { JsonRpcProvider } from '@mysten/sui.js';
+const provider = new JsonRpcProvider('https://fullnode.devnet.sui.io:443');
+
+// calls RPC method 'sui_subscribeEvent' with params:
+// [ { "SenderAddress": "0xbff6ccc8707aa517b4f1b95750a2a8c666012df3" } ]
+const subscriptionId = await provider.subscribeEvent(
+  { SenderAddress: '0xbff6ccc8707aa517b4f1b95750a2a8c666012df3' },
+  (event: SuiEventEnvelope) => {
+    // handle subscription notification message here. This function is called once per subscription message.
+  }
+);
+
+// later, to unsubscribe
+// calls RPC method 'sui_unsubscribeEvent' with params: [ subscriptionId ]
+const subFoundAndRemoved = await provider.unsubscribeEvent(subscriptionId);
