@@ -1013,8 +1013,6 @@ class PortalCore:
                 txns.append(transaction.ApplicationCallTxn(
                     sender=sender.getAddress(),
 
-                    # AUDIT: this is wrong, as the index should be only the last
-                    # eight bytes of the destionation... we fixed it
                     index=int.from_bytes(bytes.fromhex(p["ToAddress"])[24:], "big"),
                     on_complete=transaction.OnComplete.NoOpOC,
                     app_args=[m.get_selector(), m.args[0].type.encode(vaa)],
