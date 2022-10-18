@@ -37,7 +37,7 @@ import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelab
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import { Types } from "aptos";
+import { AptosClient, Types } from "aptos";
 import { completeTransfer as completeTransferAptos } from "../aptos";
 
 export async function redeemOnEth(
@@ -386,11 +386,14 @@ export async function redeemOnNear(
 }
 
 export function redeemFromAptos(
+  client: AptosClient,
   tokenBridgeAddress: string,
   transferVAA: Uint8Array,
   feeRecipientAddress: string
-): Types.EntryFunctionPayload {
+): Promise<Types.EntryFunctionPayload> {
+  // TODO: show we use completeTransferAndRegister here
   return completeTransferAptos(
+    client,
     tokenBridgeAddress,
     transferVAA,
     feeRecipientAddress

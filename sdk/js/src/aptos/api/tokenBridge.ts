@@ -1,6 +1,6 @@
-import { Types } from "aptos";
+import { AptosClient, Types } from "aptos";
 import { _parseVAAAlgorand } from "../../algorand";
-import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType } from "../../utils";
+import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType, getFullyQualifiedTypeFromHash } from "../../utils";
 
 // Attest token
 
@@ -26,11 +26,12 @@ export const attestToken = (
 
 // Complete transfer
 
-export const completeTransfer = (
+export const completeTransfer = async (
+  client: AptosClient,
   tokenBridgeAddress: string,
   transferVAA: Uint8Array,
   feeRecipient: string,
-): Types.EntryFunctionPayload => {
+): Promise<Types.EntryFunctionPayload> => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
 
   const parsedVAA = _parseVAAAlgorand(transferVAA);
@@ -43,11 +44,18 @@ export const completeTransfer = (
   }
   
   assertChain(parsedVAA.FromChain);
-  const assetType = getAssetFullyQualifiedType(
-    tokenBridgeAddress,
-    coalesceChainId(parsedVAA.FromChain),
-    parsedVAA.Contract,
-  );
+  const assetType =
+    parsedVAA.FromChain === CHAIN_ID_APTOS
+      ? await getFullyQualifiedTypeFromHash(
+          client,
+          tokenBridgeAddress,
+          parsedVAA.Contract
+        )
+      : getAssetFullyQualifiedType(
+          tokenBridgeAddress,
+          coalesceChainId(parsedVAA.FromChain),
+          parsedVAA.Contract
+        );
   if (!assetType) throw new Error("Invalid asset address.");
 
   return {
@@ -57,10 +65,11 @@ export const completeTransfer = (
   };
 };
 
-export const completeTransferAndRegister = (
+export const completeTransferAndRegister = async (
+  client: AptosClient,
   tokenBridgeAddress: string,
   transferVAA: Uint8Array,
-): Types.EntryFunctionPayload => {
+): Promise<Types.EntryFunctionPayload> => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
 
   const parsedVAA = _parseVAAAlgorand(transferVAA);
@@ -73,11 +82,18 @@ export const completeTransferAndRegister = (
   }
   
   assertChain(parsedVAA.FromChain);
-  const assetType = getAssetFullyQualifiedType(
-    tokenBridgeAddress,
-    coalesceChainId(parsedVAA.FromChain),
-    parsedVAA.Contract,
-  );
+  const assetType =
+    parsedVAA.FromChain === CHAIN_ID_APTOS
+      ? await getFullyQualifiedTypeFromHash(
+          client,
+          tokenBridgeAddress,
+          parsedVAA.Contract
+        )
+      : getAssetFullyQualifiedType(
+          tokenBridgeAddress,
+          coalesceChainId(parsedVAA.FromChain),
+          parsedVAA.Contract
+        );
   if (!assetType) throw new Error("Invalid asset address.");
 
   return {

@@ -27,6 +27,7 @@ import {
   coalesceCosmWasmChainId,
   tryHexToNativeAssetString,
   callFunctionNear,
+  isValidAptosType,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -37,7 +38,8 @@ import {
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { AptosClient } from "aptos";
-import { OriginInfo } from "../aptos/types";
+import { OriginInfo } from "../aptos/types"
+import { sha3_256 } from "js-sha3";;
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -314,16 +316,35 @@ export async function getOriginalAssetNear(
 export async function getOriginalAssetAptos(
   client: AptosClient,
   tokenBridgeAddress: string,
-  assetAddress: string,
+  fullyQualifiedType: string
 ): Promise<WormholeWrappedInfo> {
-  const originInfo = (
-    await client.getAccountResource(assetAddress, `${tokenBridgeAddress}::state::OriginInfo`)
-  ).data as OriginInfo;
+  if (!isValidAptosType(fullyQualifiedType)) {
+    throw new Error("Need fully qualified address");
+  }
+
+  let originInfo: OriginInfo | undefined;
+  try {
+    originInfo = (
+      await client.getAccountResource(
+        fullyQualifiedType.split("::")[0],
+        `${tokenBridgeAddress}::state::OriginInfo`
+      )
+    ).data as OriginInfo;
+  } catch {
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_APTOS,
+      assetAddress: hexToUint8Array(sha3_256(fullyQualifiedType)),
+    };
+  }
+
   if (!!originInfo) {
     // wrapped asset
-    const chainId = originInfo.token_chain.number;
+    const chainId = parseInt(originInfo.token_chain.number);
     assertChain(chainId);
-    const assetAddress = Uint8Array.from(Buffer.from(originInfo.token_address.external_address));
+    const assetAddress = hexToUint8Array(
+      originInfo.token_address.external_address.substring(2)
+    );
     return {
       isWrapped: true,
       chainId,
@@ -334,8 +355,7 @@ export async function getOriginalAssetAptos(
     return {
       isWrapped: false,
       chainId: CHAIN_ID_APTOS,
-      // TODO: should we return address or fully qualified type?
-      assetAddress: Uint8Array.from(Buffer.from(assetAddress)),
+      assetAddress: hexToUint8Array(sha3_256(fullyQualifiedType)),
     };
   }
 }

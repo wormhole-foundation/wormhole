@@ -2,6 +2,7 @@ import { hexZeroPad } from "ethers/lib/utils";
 import { sha3_256 } from "js-sha3";
 import { ChainId, CHAIN_ID_APTOS, ensureHexPrefix, hex } from "../utils";
 import { AptosAccount, AptosClient, Types } from "aptos";
+import { State } from "../aptos/types";
 
 export const signAndSubmitTransaction = (
   client: AptosClient,
@@ -74,7 +75,7 @@ export const getAssetFullyQualifiedType = (
   // native asset
   if (originChain === CHAIN_ID_APTOS) {
     // originAddress should be of form address::module::type
-    if (!/(0x)?[0-9a-fA-F]+::\w+::\w+/g.test(originAddress)) {
+    if (!isValidAptosType(originAddress)) {
       console.error("Need fully qualified address for native asset");
       return null;
     }
@@ -88,7 +89,9 @@ export const getAssetFullyQualifiedType = (
     originChain,
     originAddress
   );
-  return wrappedAssetAddress ? `${ensureHexPrefix(wrappedAssetAddress)}::coin::T` : null;
+  return wrappedAssetAddress
+    ? `${ensureHexPrefix(wrappedAssetAddress)}::coin::T`
+    : null;
 };
 
 export const getForeignAssetAddress = (
@@ -116,3 +119,48 @@ export const getForeignAssetAddress = (
     ])
   );
 };
+
+export const isValidAptosType = (address: string) =>
+  /(0x)?[0-9a-fA-F]+::\w+::\w+/g.test(address);
+
+export async function getFullyQualifiedTypeFromHash(
+  client: AptosClient,
+  tokenBridgeAddress: string,
+  fullyQualifiedTypeHash: string
+): Promise<string | null> {
+  // get handle
+  tokenBridgeAddress = ensureHexPrefix(tokenBridgeAddress);
+  const state = (
+    await client.getAccountResource(
+      tokenBridgeAddress,
+      `${tokenBridgeAddress}::state::State`
+    )
+  ).data as State;
+  const handle = state.native_infos.handle;
+
+  try {
+    // get type info
+    const typeInfo = await client.getTableItem(handle, {
+      key_type: `${tokenBridgeAddress}::token_hash::TokenHash`,
+      value_type: "0x1::type_info::TypeInfo",
+      key: { hash: fullyQualifiedTypeHash },
+    });
+
+    if (!typeInfo) {
+      return null;
+    }
+
+    // construct type
+    const moduleName = Buffer.from(
+      typeInfo.module_name.substring(2),
+      "hex"
+    ).toString("ascii");
+    const structName = Buffer.from(
+      typeInfo.struct_name.substring(2),
+      "hex"
+    ).toString("ascii");
+    return `${typeInfo.account_address}::${moduleName}::${structName}`;
+  } catch {
+    return null;
+  }
+}

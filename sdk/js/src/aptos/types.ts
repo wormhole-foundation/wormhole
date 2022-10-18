@@ -33,6 +33,6 @@ export type OriginInfo = {
     external_address: string;
   };
   token_chain: {
-    number: number;
+    number: string; // lol
   };
 };
