@@ -1,6 +1,6 @@
 import { AptosClient, Types } from "aptos";
 import { _parseVAAAlgorand } from "../../algorand";
-import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType, getFullyQualifiedTypeFromHash, isValidAptosType } from "../../utils";
+import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType, getTypeFromExternalAddress, isValidAptosType } from "../../utils";
 
 // Attest token
 
@@ -46,7 +46,7 @@ export const completeTransfer = async (
   assertChain(parsedVAA.FromChain);
   const assetType =
     parsedVAA.FromChain === CHAIN_ID_APTOS
-      ? await getFullyQualifiedTypeFromHash(
+      ? await getTypeFromExternalAddress(
           client,
           tokenBridgeAddress,
           parsedVAA.Contract
@@ -84,7 +84,7 @@ export const completeTransferAndRegister = async (
   assertChain(parsedVAA.FromChain);
   const assetType =
     parsedVAA.FromChain === CHAIN_ID_APTOS
-      ? await getFullyQualifiedTypeFromHash(
+      ? await getTypeFromExternalAddress(
           client,
           tokenBridgeAddress,
           parsedVAA.Contract

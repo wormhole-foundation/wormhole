@@ -123,7 +123,12 @@ export const getForeignAssetAddress = (
 export const isValidAptosType = (address: string) =>
   /(0x)?[0-9a-fA-F]+::\w+::\w+/g.test(address);
 
-export async function getFullyQualifiedTypeFromHash(
+export function getExternalAddressFromType(fullyQualifiedType: string) {
+  // hash the type so it fits into 32 bytes
+  return sha3_256(fullyQualifiedType);
+}
+
+export async function getTypeFromExternalAddress(
   client: AptosClient,
   tokenBridgeAddress: string,
   fullyQualifiedTypeHash: string
