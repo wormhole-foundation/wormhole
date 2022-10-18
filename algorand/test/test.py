@@ -671,8 +671,8 @@ class AlgoTest(PortalCore):
             try:
                 self.submitVAA(vaa, client, player, self.tokenid)
             except algosdk.error.AlgodHTTPError as e:
-                # should fail right at line 936
-                if "opcodes=pushint 936" in str(e):
+                # should fail right at line 963
+                if "opcodes=pushint 963" in str(e):
                     return True, vaa, None
                 return False, vaa, e
 
