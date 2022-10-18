@@ -161,16 +161,16 @@ export function parseSequenceFromLogNear(
   return null;
 }
 
+/**
+ * Given a transaction result, return the first WormholeMessage event sequence
+ * @param coreBridgeAddress Wormhole Core bridge address
+ * @param result the result of client.waitForTransactionWithResult(txHash)
+ * @returns sequence
+ */
 export async function parseSequenceFromLogAptos(
-  client: AptosClient,
   coreBridgeAddress: string,
-  hash: string
+  result: Types.UserTransaction
 ): Promise<string | null> {
-  // TODO: this may throw, do we want to swallow errors and return null?
-  const result = (await client.waitForTransactionWithResult(
-    hash
-  )) as Types.UserTransaction;
-
   if (result.success) {
     const event = result.events.find(
       (e) => e.type === `${coreBridgeAddress}::state::WormholeMessage`
