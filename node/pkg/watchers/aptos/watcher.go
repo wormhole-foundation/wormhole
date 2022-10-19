@@ -108,7 +108,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			if err != nil {
 				logger.Error("retrievePayload", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				return err
+				continue
 			}
 
 			if !gjson.Valid(string(body)) {
@@ -156,7 +156,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			if err != nil {
 				logger.Error("retrievePayload", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				return err
+				continue
 			}
 
 			// data doesn't exist yet. skip, and try again later
@@ -169,7 +169,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			if !gjson.Valid(string(eventsJson)) {
 				logger.Error("InvalidJson: " + string(eventsJson))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				break
+				continue
 
 			}
 
@@ -198,7 +198,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			if err != nil {
 				logger.Error("health", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				return err
+				continue
 			}
 
 			if !gjson.Valid(string(health)) {
