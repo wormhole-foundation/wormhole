@@ -130,7 +130,7 @@ func updateTxTotalsResult(tbl *bigtable.Table, ctx context.Context, numPrevDays 
 		}
 	}
 
-	//persistInterfaceToJson(ctx, txTotalsResultPath, &txTotalsMutex, txTotalsResult.DailyTotals)
+	persistInterfaceToJson(ctx, txTotalsResultPath, &txTotalsMutex, txTotalsResult.DailyTotals)
 }
 
 func ComputeTransactionTotals(w http.ResponseWriter, r *http.Request) {
