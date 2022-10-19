@@ -173,7 +173,7 @@ exports.builder = function(y: typeof yargs) {
 
       // TODO(csongor): use deployer address from sdk (when it's there)
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
-      if (network == "TESTNET") {
+      if (network == "TESTNET" || network == "MAINNET") {
         module_name = "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::deployer";
       }
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
@@ -202,7 +202,7 @@ exports.builder = function(y: typeof yargs) {
       const rpc = NETWORKS[network]["aptos"].rpc;
       // TODO(csongor): use sdk address
       let module_name = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
-      if (network == "TESTNET") {
+      if (network == "TESTNET" || network == "MAINNET") {
         module_name = "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::sender";
       }
       await callEntryFunc(network, rpc, module_name, "send_message", [], [BCS.bcsSerializeBytes(Buffer.from(argv["message"], "ascii"))])

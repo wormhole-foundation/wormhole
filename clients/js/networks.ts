@@ -94,8 +94,8 @@ const MAINNET = {
     key: undefined,
   },
   aptos: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://fullnode.mainnet.aptoslabs.com/v1",
+    key: get_env_var("APTOS_KEY"),
   },
   sui: {
     rpc: undefined,
