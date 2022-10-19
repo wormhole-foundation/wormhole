@@ -38,6 +38,10 @@ brew install cmake
    Showing 1 results.
    0x2acab6bb0e4722e528291bc6ca4f097e18ce9331
 
+# Give yourself some money
+
+   % scripts/faucet.sh `sui client addresses | tail -1`
+
 # Importing prefunded address
 
    % sui keytool import "daughter exclude wheat pudding police weapon giggle taste space whip satoshi occur" secp256k1
@@ -46,9 +50,6 @@ brew install cmake
 
    % sui client objects --address 0x2acab6bb0e4722e528291bc6ca4f097e18ce9331
 
-# Give yourself some money
-
-   % scripts/faucet.sh 0x2acab6bb0e4722e528291bc6ca4f097e18ce9331   
 
 # Deploy wormhole
 
