@@ -67,7 +67,8 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc, gov *governor.ChainGovernor) func(ctx context.Context) error {
+func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc, gov *governor.ChainGovernor, signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
+	signedGovSt chan *gossipv1.SignedChainGovernorStatus) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -409,8 +410,14 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 				}
 			case *gossipv1.GossipMessage_SignedChainGovernorConfig:
 				logger.Debug("cgov: received config message")
+				if signedGovCfg != nil {
+					signedGovCfg <- m.SignedChainGovernorConfig
+				}
 			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
 				logger.Debug("cgov: received status message")
+				if signedGovSt != nil {
+					signedGovSt <- m.SignedChainGovernorStatus
+				}
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
 				logger.Warn("received unknown message type (running outdated software?)",
