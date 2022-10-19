@@ -30,6 +30,8 @@ var tokenAddressExceptions = map[string]string{
 	"67499b7b8f58eaeb3cd81aea1d1ce9f7f722fd7750ceb2bed13e255073c25e2a": "token.sweat",
 	// terra2
 	"01fa6c6fbc36d8c245b0a852a43eb5d644e8b4c477b27bfab9537c10945939da": "uluna",
+	// xpla
+	"017ce8aec5af3bb3ac0158d49771d4c8feba2e54a614fa2a1c0c95e9c4c37185": "axpla",
 }
 
 // returns a pair of dates before and after the input time.
@@ -93,6 +95,18 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		// terra2 has 32 byte addresses for contracts and 20 for wallets
 		if isLikely20ByteTerra(address) {
 			return humanAddressTerra(address)
+		}
+		// TODO for now use hex/wormhole address string, we'll need to do a contract query to get the native address
+		return address
+	case vaa.ChainIDAptos:
+		if val, ok := tokenAddressExceptions[address]; ok {
+			return val
+		}
+		// TODO for now use hex/wormhole address string, we'll need to do a contract query to get the native address
+		return address
+	case vaa.ChainIDXpla:
+		if val, ok := tokenAddressExceptions[address]; ok {
+			return val
 		}
 		// TODO for now use hex/wormhole address string, we'll need to do a contract query to get the native address
 		return address

@@ -78,6 +78,7 @@ func fetchCoinGeckoCoins() map[string][]CoinGeckoCoin {
 }
 
 func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
+	// used when symbol not found in cg's coins/list
 	switch chain {
 	case vaa.ChainIDSolana:
 		return "solana"
@@ -113,6 +114,10 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 		return "moonbeam"
 	case vaa.ChainIDTerra2:
 		return "" // TODO
+	case vaa.ChainIDAptos:
+		return "" // TODO: not currently supported
+	case vaa.ChainIDXpla:
+		return "" // TODO: not currently supported
 	case vaa.ChainIDEthereumRopsten:
 		return "ethereum"
 	}

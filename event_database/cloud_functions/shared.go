@@ -239,7 +239,7 @@ type (
 // ChainIDs to compute TVL/stats for
 // Useful to exclude chains we don't want to compute TVL for which can improve performance
 // (notably PythNet is excluded, ChainID 26)
-var tvlChainIDs = []vaa.ChainID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18}
+var tvlChainIDs = []vaa.ChainID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 22, 28}
 
 func chainIdStringToType(chainId string) vaa.ChainID {
 	switch chainId {
@@ -277,6 +277,10 @@ func chainIdStringToType(chainId string) vaa.ChainID {
 		return vaa.ChainIDMoonbeam
 	case "18":
 		return vaa.ChainIDTerra2
+	case "22":
+		return vaa.ChainIDAptos
+	case "28":
+		return vaa.ChainIDXpla
 	case "10001":
 		return vaa.ChainIDEthereumRopsten
 	}
