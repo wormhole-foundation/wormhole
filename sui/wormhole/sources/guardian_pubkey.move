@@ -2,7 +2,7 @@
 /// That is, they are computed by taking the last 20 bytes of the keccak256
 /// hash of their 64 byte secp256k1 public key.
 module wormhole::guardian_pubkey {
-    use sui::crypto;
+    use sui::ecdsa;
     use std::vector;
     use wormhole::keccak256::keccak256;
 
@@ -44,8 +44,8 @@ module wormhole::guardian_pubkey {
         // sui's ecrecover function takes a 65 byte array (signature + recovery byte)
         vector::push_back(&mut sig, recovery_id);
 
-        let pubkey = crypto::ecrecover(sig, message);
-        let pubkey = crypto::decompress_pubkey(pubkey);
+        let pubkey = ecdsa::ecrecover(&sig, &message);
+        let pubkey = ecdsa::decompress_pubkey(&pubkey);
 
         // decompress_pubkey returns 65 bytes, the first byte is not relevant to
         // us, so we remove it
