@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -eo pipefail
+
+function usage() {
+cat <<EOF >&2
+Usage:
+
+  $(basename "$0") <devnet|testnet|mainnet> -- Deploy the contracts
+EOF
+exit 1
+}
+
+NETWORK=$1 || usage
+
+if [ "$NETWORK" = mainnet ]; then
+    DEPLOYER_ADDR=0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b
+
+    GUARDIAN_ADDR=0x58CC3AE5C097b213cE3c81979e1B9f9570746AA5
+
+elif [ "$NETWORK" = testnet ]; then
+    DEPLOYER_ADDR=0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b
+
+    GUARDIAN_ADDR=0x13947Bd48b18E53fdAeEe77F3473391aC727C638
+
+elif [ "$NETWORK" = devnet ]; then
+    DEPLOYER_ADDR=0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b
+
+    DOTENV=$(dirname $0)/../.env
+    [[ -f "$DOTENV" ]] && . "$DOTENV"
+
+    GUARDIAN_ADDR="${INIT_SIGNERS_CSV:-0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe}"
+
+    worm aptos faucet
+else
+    usage
+fi
+
+WORMHOLE_ADDR=$(worm contract "$NETWORK" aptos Core)
+TOKEN_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos TokenBridge)
+
+NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR"
+
+echo "[1/5] Deploying deployer contract for creating resource accounts..."
+worm aptos deploy --network "$NETWORK" ../deployer --named-addresses "$NAMED_ADDRS"
+
+echo "[2/5] Deploying wormhole contract at $WORMHOLE_ADDR..."
+worm aptos deploy-resource wormhole --network "$NETWORK" ../wormhole --named-addresses "$NAMED_ADDRS"
+
+echo "[3/5] Initialising wormhole with guardian(s) $GUARDIAN_ADDR..."
+worm aptos init-wormhole --network "$NETWORK" -g $GUARDIAN_ADDR --contract-address "$WORMHOLE_ADDR"
+
+echo "[4/5] Deploying token bridge contract at $TOKEN_BRIDGE_ADDR..."
+worm aptos deploy-resource token_bridge --network "$NETWORK" ../token_bridge --named-addresses "$NAMED_ADDRS"
+echo "[5/5] Initialising token bridge..."
+worm aptos init-token-bridge --network "$NETWORK" --contract-address "$TOKEN_BRIDGE_ADDR"
+
+if [ "$NETWORK" = devnet ]; then
+    echo "[+1] Deploying example contract..."
+    worm aptos deploy --network "$NETWORK" ../examples/core_messages --named-addresses "$NAMED_ADDRS"
+fi
+
+echo "Deployments successful."

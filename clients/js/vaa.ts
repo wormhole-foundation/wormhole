@@ -593,8 +593,8 @@ function serialiseTokenBridgeAttestMeta(payload: TokenBridgeAttestMeta): string 
         encode("bytes32", hex(payload.tokenAddress)),
         encode("uint16", payload.tokenChain),
         encode("uint8", payload.decimals),
-        encode("bytes32", encodeString(payload.symbol)),
-        encode("bytes32", encodeString(payload.name)),
+        encode("bytes32", encodeStringRight(payload.symbol)),
+        encode("bytes32", encodeStringRight(payload.name)),
     ]
     return body.join("")
 }
@@ -742,8 +742,8 @@ function serialiseNFTBridgeTransfer(payload: NFTBridgeTransfer): string {
         encode("uint8", 1),
         encode("bytes32", hex(payload.tokenAddress)),
         encode("uint16", payload.tokenChain),
-        encode("bytes32", encodeString(payload.tokenSymbol)),
-        encode("bytes32", encodeString(payload.tokenName)),
+        encode("bytes32", encodeStringRight(payload.tokenSymbol)),
+        encode("bytes32", encodeStringRight(payload.tokenName)),
         encode("uint256", payload.tokenId),
         encode("uint8", payload.tokenURI.length),
         Buffer.from(payload.tokenURI, "utf8").toString("hex"),
@@ -803,6 +803,12 @@ export function encode(type: Encoding, val: any): string {
 // string (64 chars long)
 export function encodeString(str: string): Buffer {
     return Buffer.from(Buffer.from(str).toString("hex").padStart(64, "0"), "hex")
+}
+
+// Encode a string as binary right-padded to 32 bytes, represented as a hex
+// string (64 chars long)
+export function encodeStringRight(str: string): Buffer {
+    return Buffer.from(Buffer.from(str).toString("hex").padEnd(64, "0"), "hex")
 }
 
 // Turn hex string with potentially missing 0x prefix into Buffer

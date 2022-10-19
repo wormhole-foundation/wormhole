@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"testing"
 	"time"
@@ -43,26 +44,38 @@ func TestCalculateQuorum(t *testing.T) {
 	}
 }
 
-func getVaa() vaa.VAA {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+var lastestSequence = 1
 
-	return vaa.VAA{
+func generateVaa(index uint32, signers []*ecdsa.PrivateKey, emitterChain vaa.ChainID, payload []byte) vaa.VAA {
+	v := vaa.VAA{
 		Version:          uint8(1),
-		GuardianSetIndex: uint32(0),
+		GuardianSetIndex: index,
 		Signatures:       nil,
 		Timestamp:        time.Unix(0, 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         uint64(lastestSequence),
 		ConsistencyLevel: uint8(32),
 		EmitterChain:     vaa.ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
+		EmitterAddress:   vaa.Address(vaa.GovernanceEmitter),
 		Payload:          payload,
 	}
+	lastestSequence = lastestSequence + 1
+	for i, key := range signers {
+		v.AddSignature(key, uint8(i))
+	}
+	return v
+}
+func resignVaa(v vaa.VAA, signers []*ecdsa.PrivateKey) vaa.VAA {
+	v.Signatures = []*vaa.Signature{}
+	for i, key := range signers {
+		v.AddSignature(key, uint8(i))
+	}
+	return v
 }
 
 func TestVerifyVAA(t *testing.T) {
 
+	payload := []byte{97, 97, 97, 97, 97, 97}
 	privKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	privKey2, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 
@@ -95,11 +108,7 @@ func TestVerifyVAA(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.label, func(t *testing.T) {
 			keeper, ctx := keepertest.WormholeKeeper(t)
-			vaa := getVaa()
-
-			for i, key := range tc.signers {
-				vaa.AddSignature(key, uint8(i))
-			}
+			vaa := generateVaa(tc.guardianSet.Index, tc.signers, vaa.ChainIDSolana, payload)
 
 			keeper.AppendGuardianSet(ctx, tc.guardianSet)
 			err := keeper.VerifyVAA(ctx, &vaa)
@@ -111,4 +120,98 @@ func TestVerifyVAA(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVerifyVAA2(t *testing.T) {
+	keeper, ctx := keepertest.WormholeKeeper(t)
+	guardians, privateKeys := createNGuardianValidator(keeper, ctx, 25)
+	set := createNewGuardianSet(keeper, ctx, guardians)
+
+	// check verify works
+	payload := []byte{97, 97, 97, 97, 97, 97}
+	v := generateVaa(set.Index, privateKeys, vaa.ChainIDSolana, payload)
+	err := keeper.VerifyVAA(ctx, &v)
+	assert.NoError(t, err)
+
+	// flip a bit in one of the signatures
+	v = generateVaa(set.Index, privateKeys, vaa.ChainIDSolana, payload)
+	v.Signatures[20].Signature[1] = v.Signatures[20].Signature[1] ^ 0x40
+	err = keeper.VerifyVAA(ctx, &v)
+	assert.Error(t, err)
+
+	// generate for a non existing guardian set
+	v = generateVaa(set.Index+1, privateKeys, vaa.ChainIDSolana, payload)
+	err = keeper.VerifyVAA(ctx, &v)
+	assert.Error(t, err)
+}
+
+func TestVerifyVAAGovernance(t *testing.T) {
+	keeper, ctx := keepertest.WormholeKeeper(t)
+	guardians, privateKeys := createNGuardianValidator(keeper, ctx, 25)
+	set := createNewGuardianSet(keeper, ctx, guardians)
+	config := types.Config{
+		GovernanceEmitter:     vaa.GovernanceEmitter[:],
+		GovernanceChain:       uint32(vaa.GovernanceChain),
+		ChainId:               uint32(vaa.ChainIDWormchain),
+		GuardianSetExpiration: 86400,
+	}
+	keeper.SetConfig(ctx, config)
+
+	action := byte(0x12)
+	our_module := [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 01}
+	payload := []byte{}
+	// governance payload is {module_id, action, chain, payload}
+	payload = append(payload, our_module[:]...)
+	payload = append(payload, action)
+	chain_bz := [2]byte{}
+	binary.BigEndian.PutUint16(chain_bz[:], uint16(vaa.ChainIDWormchain))
+	payload = append(payload, chain_bz[:]...)
+	// custom payload
+	custom_payload := []byte{1, 2, 3, 4, 5}
+	payload = append(payload, custom_payload...)
+
+	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	err := keeper.VerifyVAA(ctx, &v)
+	assert.NoError(t, err)
+	parsed_action, parsed_payload, err := keeper.VerifyGovernanceVAA(ctx, &v, our_module)
+	assert.NoError(t, err)
+	assert.Equal(t, action, parsed_action)
+	assert.Equal(t, custom_payload, parsed_payload)
+
+	// verifying a second time will return error because of replay protection
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
+	assert.ErrorIs(t, err, types.ErrVAAAlreadyExecuted)
+
+	// Expect error if module-id is different
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	bad_module := [32]byte{}
+	bad_module[31] = 0xff
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, bad_module)
+	assert.ErrorIs(t, err, types.ErrUnknownGovernanceModule)
+
+	// Expect error if we're not using the right governance emitter address
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v.EmitterAddress[5] = 0xff
+	v = resignVaa(v, privateKeys)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
+	assert.ErrorIs(t, err, types.ErrInvalidGovernanceEmitter)
+
+	// Expect error if we're not using the right governance emitter chain
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v.EmitterChain = vaa.ChainIDEthereum
+	v = resignVaa(v, privateKeys)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
+	assert.ErrorIs(t, err, types.ErrInvalidGovernanceEmitter)
+
+	// Expect error if we're using a small payload
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload[:34])
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
+	assert.ErrorIs(t, err, types.ErrGovernanceHeaderTooShort)
+
+	// Expect error if we're using a different target chain
+	payload[33] = 0xff
+	payload[34] = 0xff
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	_, _, err = keeper.VerifyGovernanceVAA(ctx, &v, our_module)
+	assert.ErrorIs(t, err, types.ErrInvalidGovernanceTargetChain)
 }

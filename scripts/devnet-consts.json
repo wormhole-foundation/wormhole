@@ -245,6 +245,11 @@
                 "tokenBridgeEmitterAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
                 "tokenBridgeNativeAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
             }
+        },
+        "22": {
+            "contracts": {
+                "tokenBridgeEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000001"
+            }
         }
     },
     "gancheDefaults": [

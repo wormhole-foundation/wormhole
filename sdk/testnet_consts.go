@@ -17,6 +17,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDAvalanche:       "00000000000000000000000061e44e506ca5659e6c0bba9b678586fa2d729756",
 	vaa.ChainIDOasis:           "00000000000000000000000088d8004a9bdbfd9d28090a02010c19897a29605c",
 	vaa.ChainIDAlgorand:        "6241ffdc032b693bfb8544858f0403dec86f2e1720af9f34f8d65fe574b6238c",
+	vaa.ChainIDAptos:           "0000000000000000000000000000000000000000000000000000000000000001",
 	vaa.ChainIDAurora:          "000000000000000000000000d05ed3ad637b890d68a854d607eeaf11af456fba",
 	vaa.ChainIDFantom:          "000000000000000000000000599cea2204b4faecd584ab1f2b6aca137a0afbe8",
 	vaa.ChainIDKarura:          "000000000000000000000000d11de1f930ea1f7dd0290fe3a2e35b9c91aefb37",
@@ -26,6 +27,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDNear:            "c2c0b6ecbbe9ecf91b2b7999f0264018ba68126c2e83bf413f59f712f3a1df55",
 	vaa.ChainIDMoonbeam:        "000000000000000000000000bc976d4b9d57e57c3ca52e1fd136c45ff7955a96",
 	vaa.ChainIDNeon:            "000000000000000000000000c7a204bdbfe983fcd8d8e61d02b475d4073ff97e",
+	vaa.ChainIDXpla:            "b66da121bd3621c8d2604c08c82965640fe682d606af26a302ee09094f5e62cf",
 	vaa.ChainIDEthereumRopsten: "000000000000000000000000F174F9A837536C449321df1Ca093Bb96948D5386",
 }
 

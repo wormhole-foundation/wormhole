@@ -105,6 +105,11 @@ const MAINNET = {
     rpc: "http://api.pythnet.pyth.network:8899/",
     key: get_env_var("SOLANA_KEY"),
   },
+  xpla: {
+    rpc: "https://dimension-lcd.xpla.dev",
+    chain_id: "dimension_37-1",
+    key: get_env_var("XPLA_KEY"),
+  },
   wormholechain: {
     rpc: undefined,
     key: undefined,
@@ -219,8 +224,8 @@ const TESTNET = {
     key: get_env_var("OSMOSIS_KEY_TESTNET"),
   },
   aptos: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://fullnode.testnet.aptoslabs.com/v1",
+    key: get_env_var("APTOS_TESTNET"),
   },
   sui: {
     rpc: undefined,
@@ -229,6 +234,11 @@ const TESTNET = {
   pythnet: {
     rpc: "https://api.pythtest.pyth.network/",
     key: get_env_var("SOLANA_KEY_TESTNET"),
+  },
+  xpla: {
+    rpc: "https://cube-lcd.xpla.dev:443",
+    chain_id: "cube_47-5",
+    key: get_env_var("XPLA_KEY_TESTNET"),
   },
   wormholechain: {
     rpc: undefined,
@@ -345,14 +355,19 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
   },
+  xpla: {
+    rpc: undefined,
+    chain_id: undefined,
+    key: undefined,
+  },
   wormholechain: {
     rpc: "http://localhost:1319",
     chain_id: "wormholechain",
     key: undefined,
   },
   aptos: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://0.0.0.0:8080",
+    key: "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d",
   },
   sui: {
     rpc: undefined,

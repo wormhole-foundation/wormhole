@@ -1,5 +1,6 @@
 import { TransactionResponse } from "@solana/web3.js";
 import { TxInfo } from "@terra-money/terra.js";
+import { TxInfo as XplaTxInfo } from "@xpla/xpla.js";
 import { BigNumber, ContractReceipt } from "ethers";
 import { FinalExecutionOutcome } from "near-api-js/lib/providers";
 import { Implementation__factory } from "../ethers-contracts";
@@ -35,6 +36,23 @@ export function parseSequencesFromLogEth(
 }
 
 export function parseSequenceFromLogTerra(info: TxInfo): string {
+  // Scan for the Sequence attribute in all the outputs of the transaction.
+  // TODO: Make this not horrible.
+  let sequence = "";
+  const jsonLog = JSON.parse(info.raw_log);
+  jsonLog.map((row: any) => {
+    row.events.map((event: any) => {
+      event.attributes.map((attribute: any) => {
+        if (attribute.key === "message.sequence") {
+          sequence = attribute.value;
+        }
+      });
+    });
+  });
+  return sequence.toString();
+}
+
+export function parseSequenceFromLogXpla(info: XplaTxInfo): string {
   // Scan for the Sequence attribute in all the outputs of the transaction.
   // TODO: Make this not horrible.
   let sequence = "";

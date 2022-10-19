@@ -36,6 +36,8 @@ type SolanaWatcher struct {
 	chainID vaa.ChainID
 	// Human readable name of network
 	networkName string
+	// The last slot processed by the watcher.
+	lastSlot uint64
 }
 
 var (
@@ -137,7 +139,6 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 	errC := make(chan error)
-	var lastSlot uint64
 
 	go func() {
 		timer := time.NewTicker(time.Second * 1)
@@ -171,6 +172,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					errC <- err
 					return
 				}
+
+				lastSlot := s.lastSlot
 				if lastSlot == 0 {
 					lastSlot = slot - 1
 				}
@@ -200,7 +203,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					go s.retryFetchBlock(ctx, logger, slot, 0)
 				}
 
-				lastSlot = slot
+				s.lastSlot = slot
 			}
 		}
 	}()

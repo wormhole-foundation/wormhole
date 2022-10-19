@@ -15,13 +15,7 @@ function sleep(ms) {
 }
 
 async function broadcastAndWait(terra, tx) {
-  const response = await terra.tx.broadcast(tx);
-  let currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
-  while (currentHeight <= response.height) {
-    await sleep(100);
-    currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
-  }
-  return response;
+  return await terra.tx.broadcast(tx);
 }
 
 /*
@@ -272,6 +266,8 @@ const contract_registrations = {
     process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
     // Wormhole Chain
     process.env.REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA,
+    // APTOS
+    process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA,
   ],
   "nft_bridge.wasm": [
     // Solana

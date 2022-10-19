@@ -40,6 +40,7 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 # Components
 config.define_bool("near", False, "Enable Near component")
 config.define_bool("sui", False, "Enable Sui component")
+config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
@@ -63,6 +64,7 @@ webHost = cfg.get("webHost", "localhost")
 algorand = cfg.get("algorand", True)
 near = cfg.get("near", True)
 sui = cfg.get("sui", True)
+aptos = cfg.get("aptos", True)
 evm2 = cfg.get("evm2", True)
 solana = cfg.get("solana", True)
 terra_classic = cfg.get("terra_classic", True)
@@ -175,6 +177,16 @@ def build_node_yaml():
                     gcpProject,
                 ]
 
+            if aptos:
+                container["command"] += [
+                    "--aptosRPC",
+                    "http://aptos:8080",
+                    "--aptosAccount",
+                    "de0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
+                    "--aptosHandle",
+                    "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017::state::WormholeMessageHandle",
+                ]
+
             if evm2:
                 container["command"] += [
                     "--bscRPC",
@@ -256,6 +268,8 @@ if terra2:
     guardian_resource_deps = guardian_resource_deps + ["terra2-terrad"]
 if algorand:
     guardian_resource_deps = guardian_resource_deps + ["algorand"]
+if aptos:
+    guardian_resource_deps = guardian_resource_deps + ["aptos"]
 
 k8s_resource(
     "guardian",
@@ -771,5 +785,27 @@ if secondWormchain:
         ],
         resource_deps = [],
         labels = ["wormchain"],
+        trigger_mode = trigger_mode,
+    )
+
+if aptos:
+    k8s_yaml_with_ns("devnet/aptos-localnet.yaml")
+
+    docker_build(
+        ref = "aptos-node",
+        context = "aptos",
+        dockerfile = "aptos/Dockerfile",
+        target = "aptos",
+    )
+
+    k8s_resource(
+        "aptos",
+        port_forwards = [
+            port_forward(8080, name = "RPC [:8080]", host = webHost),
+            port_forward(6181, name = "FullNode [:6181]", host = webHost),
+            port_forward(8081, name = "Faucet [:8081]", host = webHost),
+        ],
+        resource_deps = ["const-gen"],
+        labels = ["aptos"],
         trigger_mode = trigger_mode,
     )

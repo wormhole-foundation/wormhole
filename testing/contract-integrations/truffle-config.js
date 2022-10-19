@@ -16,6 +16,26 @@ module.exports = {
       },
       network_id: "5",
     },
+    neon_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://proxy.devnet.neonlabs.org/solana"
+        );
+      },
+      network_id: "*",
+      gas: 3000000000,
+      gasPrice: 443065000000,
+    },
+    arbitrum_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://goerli-rollup.arbitrum.io/rpc"
+        );
+      },
+      network_id: 421613,
+    },
   },
   mocha: {
     // timeout: 100000

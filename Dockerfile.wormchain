@@ -24,6 +24,7 @@ EXPOSE 4500
 
 RUN unset GOPATH
 
+RUN make proto -B
 RUN make client
 RUN chmod +x /app/build/wormhole-chaind
 RUN make validators

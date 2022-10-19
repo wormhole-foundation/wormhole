@@ -103,6 +103,8 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Polygon", vaa.ChainIDPolygon},
 		{"Avalanche", vaa.ChainIDAvalanche},
 		{"Algorand", vaa.ChainIDAlgorand},
+		{"Aptos", vaa.ChainIDAptos},
+		{"Sui", vaa.ChainIDSui},
 		{"Oasis", vaa.ChainIDOasis},
 		{"Aurora", vaa.ChainIDAurora},
 		{"Fantom", vaa.ChainIDFantom},
@@ -114,6 +116,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Terra2", vaa.ChainIDTerra2},
 		{"Pythnet", vaa.ChainIDPythNet},
 		{"Moonbeam", vaa.ChainIDMoonbeam},
+		{"Xpla", vaa.ChainIDXpla},
 		{"Wormchain", vaa.ChainIDWormchain},
 	}
 

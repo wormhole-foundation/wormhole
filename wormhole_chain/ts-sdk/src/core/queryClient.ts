@@ -10,7 +10,6 @@ import {
   setupTxExtension,
 } from "@cosmjs/stargate";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
-import { Api as tokenbridgeApi } from "../modules/certusone.wormholechain.tokenbridge/rest";
 import { Api as coreApi } from "../modules/certusone.wormholechain.wormhole/rest";
 import { Api as authApi } from "../modules/cosmos.auth.v1beta1/rest";
 import { Api as bankApi } from "../modules/cosmos.bank.v1beta1/rest";
@@ -30,7 +29,6 @@ import { Api as vestingApi } from "../modules/cosmos.vesting.v1beta1/rest";
 
 export type WormchainQueryClient = {
   core: coreApi<any>;
-  tokenbridge: tokenbridgeApi<any>;
   auth: authApi<any>;
   bank: bankApi<any>;
   base: baseApi<any>;
@@ -58,7 +56,6 @@ export function getWormholeQueryClient(
     globalThis.fetch = fetch;
   }
   const core = new coreApi({ baseUrl: lcdAddress });
-  const tokenbridge = new tokenbridgeApi({ baseUrl: lcdAddress });
   const auth = new authApi({ baseUrl: lcdAddress });
   const bank = new bankApi({ baseUrl: lcdAddress });
   const base = new baseApi({ baseUrl: lcdAddress });
@@ -77,7 +74,6 @@ export function getWormholeQueryClient(
 
   return {
     core,
-    tokenbridge,
     auth,
     bank,
     base,

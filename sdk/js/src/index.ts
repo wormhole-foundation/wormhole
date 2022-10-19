@@ -6,6 +6,7 @@ export * from "./rpc";
 export * from "./utils";
 export * from "./bridge";
 export * from "./token_bridge";
+export * from "./cosmwasm";
 
 export * as cosmos from "./cosmos";
 export * as ethers_contracts from "./ethers-contracts";

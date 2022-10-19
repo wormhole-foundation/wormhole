@@ -6,11 +6,13 @@ all: node_modules build nearcore
 
 .PHONY: artifacts
 artifacts:
+	rm -rf $@
 	mkdir -p $@
 	@echo "Building artifacts for near"
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile.build -t near-builder -o type=local,dest=$@ .
 	cd $@ && ls | xargs sha256sum > checksums.txt
-
+	../scripts/contract-upgrade-governance.sh  -m token_bridge -c near -a `sha256sum artifacts/near_token_bridge.wasm | sed -e 's/ .*$//'` -o artifacts
+	../scripts/contract-upgrade-governance.sh  -m core         -c near -a `sha256sum artifacts/near_wormhole.wasm | sed -e 's/ .*$//'` -o artifacts > artifacts/README.md
 
 build:    contracts/ft/target/wasm32-unknown-unknown/release/near_ft.wasm \
           contracts/mock-bridge-integration/target/wasm32-unknown-unknown/release/near_mock_bridge_integration.wasm \
@@ -75,17 +77,17 @@ clean:
 .PHONY: reset-force
 reset-force: build
 	-echo cleaning and restarting state
-	-kubectl delete pod guardian-0 --force &
-	-kubectl delete pod algorand-0 --force &
-	-kubectl delete pod near-0 --force &
+	-minikube kubectl -- delete pod guardian-0 --force &
+	-minikube kubectl -- delete pod algorand-0 --force &
+	-minikube kubectl -- delete pod near-0 --force &
 	-echo done
 
 .PHONY: reset
 reset: build
 	-echo cleaning and restarting state
-	-kubectl delete pod guardian-0 &
-	-kubectl delete pod algorand-0 &
-	-kubectl delete pod near-0 &
+	-minikube kubectl -- delete pod guardian-0 &
+	-minikube kubectl -- delete pod algorand-0 &
+	-minikube kubectl -- delete pod near-0 &
 	-echo done
 
 .PHONY: cycle

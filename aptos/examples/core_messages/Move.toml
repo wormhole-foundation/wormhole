@@ -1,0 +1,11 @@
+[package]
+name = 'core_messages'
+version = '1.0.0'
+
+[dependencies]
+Wormhole = { local = "../../wormhole/" }
+
+[addresses]
+wormhole = "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017"
+deployer = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"
+core_messages = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"

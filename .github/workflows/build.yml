@@ -186,6 +186,19 @@ jobs:
 
           cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
+  aptos:
+    name: Aptos
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./aptos
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run tests via docker
+        run: make test-docker
 
   terra:
     runs-on: ubuntu-20.04
@@ -222,7 +235,7 @@ jobs:
         with:
           go-version: '1.19.0'
       - run: curl https://get.ignite.com/cli@v0.23.0 | bash && mv ignite /usr/local/bin/
-      - run: cd wormhole_chain && make test
+      - run: cd wormhole_chain && make proto -B && make test
 
   # Run Go linters, Go tests and other outside-of-Tilt things.
   lint-and-tests:

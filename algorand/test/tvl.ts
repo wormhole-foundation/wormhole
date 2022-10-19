@@ -2,6 +2,15 @@ const algosdk = require("@certusone/wormhole-sdk/node_modules/algosdk");
 
 import { calcLogicSigAccount } from "@certusone/wormhole-sdk/lib/cjs/algorand";
 
+import {
+  coalesceChainName,
+  ChainId,
+  coalesceChainId,
+  uint8ArrayToHex,
+  toChainName,
+  getOriginalAssetAlgorand,
+} from "@certusone/wormhole-sdk";
+
 export async function getNativeAlgoAddress(
   algoClient: any,
   token_bridge: any,
@@ -25,7 +34,7 @@ async function firstTransaction() {
   let token;
   let appid;
 
-  const mainnet = false;
+  const mainnet = true;
 
   if (mainnet) {
     appid = 842126029;
@@ -93,12 +102,20 @@ async function firstTransaction() {
   let algoInfo = await algodClient.accountInformation(nativeAlgoAddr).do();
   console.log("ALGO locked: " + (algoInfo["amount"] - 1002001));
 
-  console.log("wormhole assets");
+  console.log("wormhole assets (bridged in)");
   for (let i = 0; i < wormholeAssets.length; i++) {
-    console.log(wormholeAssets[i]);
-    console.log(
-      await algodClient.getAssetByID(wormholeAssets[i]["asset-id"]).do()
+    let orig = await getOriginalAssetAlgorand(
+      algodClient,
+      BigInt(appid),
+      wormholeAssets[i]["asset-id"]
     );
+    let v = [
+      coalesceChainName(orig["chainId"]),
+      uint8ArrayToHex(orig["assetAddress"]),
+      wormholeAssets[i],
+      await algodClient.getAssetByID(wormholeAssets[i]["asset-id"]).do(),
+    ];
+    console.log(v);
   }
 
   console.log("native assets");
