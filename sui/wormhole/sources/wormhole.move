@@ -44,4 +44,31 @@ module wormhole::wormhole {
         // increment user sequence number
         state::increase_sequence(state, sender);
     }
+
+    public entry fun publish_message_free(
+        state: &mut State,
+        nonce: u64,
+        payload: vector<u8>,
+        ctx: &mut TxContext,
+    ) {
+        // ensure that provided fee is sufficient to cover message fees
+        let expected_fee = state::get_message_fee(state);
+        assert!(expected_fee == 0, E_INSUFFICIENT_FEE);
+
+        // get sender and sequence number
+        let sender = &tx_context::sender(ctx);
+        let sequence = state::get_sequence(state, sender);
+
+        // emit event
+        state::publish_event(
+            sequence,
+            nonce,
+            payload,
+            ctx,
+        );
+
+        // increment user sequence number
+        state::increase_sequence(state, sender);
+    }
+
 }
