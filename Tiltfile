@@ -39,8 +39,8 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
 config.define_bool("near", False, "Enable Near component")
-config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("sui", False, "Enable Sui component")
+config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
@@ -708,9 +708,10 @@ if sui:
         "sui",
         port_forwards = [
             port_forward(5001, name = "RPC [:5001]", host = webHost),
+            port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
+#        resource_deps = ["const-gen"],
         labels = ["sui"],
         trigger_mode = trigger_mode,
     )
