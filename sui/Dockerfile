@@ -1,2 +1,2 @@
-FROM ghcr.io/wormhole-foundation/sui:0.10.0@sha256:1a3e50c4ff8d9d945522defa53f21870695862c6ea6514626ae2ff01c7257abb as sui-node
+FROM ghcr.io/wormhole-foundation/sui:0.11.0@sha256:b6a0149349a8be346bea6d71090d50571ffac32c956fb7a5fb2e1e959780c837 as sui-node
 COPY start_node.sh  /tmp
