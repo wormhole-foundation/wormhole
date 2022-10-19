@@ -917,6 +917,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		// NOTE:  The "none" is a special indicator to disable a watcher until it is desirable to turn it back on.
 
 		if *ethRPC != "" && *ethRPC != "none" {
+			logger.Info("Starting Ethereum watcher")
 			readiness.RegisterComponent(common.ReadinessEthSyncing)
 			chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "ethwatch",
@@ -926,6 +927,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if *bscRPC != "" && *bscRPC != "none" {
+			logger.Info("Starting BSC watcher")
 			readiness.RegisterComponent(common.ReadinessBSCSyncing)
 			chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "bscwatch",
@@ -940,6 +942,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if *polygonRPC != "" && *polygonRPC != "none" {
+			logger.Info("Starting Polygon watcher")
 			readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 			chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "polygonwatch",
@@ -953,6 +956,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *avalancheRPC != "" && *avalancheRPC != "none" {
+			logger.Info("Starting Avalanche watcher")
 			readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 			chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "avalanchewatch",
@@ -961,6 +965,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *oasisRPC != "" && *oasisRPC != "none" {
+			logger.Info("Starting Oasis watcher")
 			chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "oasiswatch",
 				evm.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, 1, chainObsvReqC[vaa.ChainIDOasis], *unsafeDevMode).Run); err != nil {
@@ -968,6 +973,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *auroraRPC != "" && *auroraRPC != "none" {
+			logger.Info("Starting Aurora watcher")
 			readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 			chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "aurorawatch",
@@ -976,6 +982,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *fantomRPC != "" && *fantomRPC != "none" {
+			logger.Info("Starting Fantom watcher")
 			readiness.RegisterComponent(common.ReadinessFantomSyncing)
 			chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "fantomwatch",
@@ -984,6 +991,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *karuraRPC != "" && *karuraRPC != "none" {
+			logger.Info("Starting Karura watcher")
 			readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 			chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "karurawatch",
@@ -992,6 +1000,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *acalaRPC != "" && *acalaRPC != "none" {
+			logger.Info("Starting Acala watcher")
 			readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 			chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "acalawatch",
@@ -1000,6 +1009,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *klaytnRPC != "" && *klaytnRPC != "none" {
+			logger.Info("Starting Klaytn watcher")
 			readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 			chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "klaytnwatch",
@@ -1008,6 +1018,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *celoRPC != "" && *celoRPC != "none" {
+			logger.Info("Starting Celo watcher")
 			readiness.RegisterComponent(common.ReadinessCeloSyncing)
 			chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "celowatch",
@@ -1016,6 +1027,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if *moonbeamRPC != "" && *moonbeamRPC != "none" {
+			logger.Info("Starting Moonbeam watcher")
 			readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
 			chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "moonbeamwatch",
@@ -1094,6 +1106,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if *solanaRPC != "" && *solanaRPC != "none" {
+			logger.Info("Starting Solana watcher")
 			readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 			chainObsvReqC[vaa.ChainIDSolana] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "solwatch-confirmed",
@@ -1107,6 +1120,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if *pythnetRPC != "" && *pythnetRPC != "none" {
+			logger.Info("Starting Pythnet watcher")
 			readiness.RegisterComponent(common.ReadinessPythNetSyncing)
 			chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "pythwatch-confirmed",
@@ -1121,6 +1135,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if *testnetMode {
 			if *ethRopstenRPC != "" {
+				logger.Info("Starting Eth Ropsten watcher")
 				readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 				chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				if err := supervisor.Run(ctx, "ethropstenwatch",
@@ -1129,6 +1144,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				}
 			}
 			if *neonRPC != "" {
+				logger.Info("Starting Neon watcher")
 				readiness.RegisterComponent(common.ReadinessNeonSyncing)
 				chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				if err := supervisor.Run(ctx, "neonwatch",
@@ -1137,6 +1153,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				}
 			}
 			if *arbitrumRPC != "" {
+				logger.Info("Starting Arbitrum watcher")
 				readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
 				chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				if err := supervisor.Run(ctx, "arbitrumwatch",
@@ -1145,6 +1162,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				}
 			}
 			if *injectiveWS != "" {
+				logger.Info("Starting Injective watcher")
 				readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
 				chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				if err := supervisor.Run(ctx, "injectivewatch",
