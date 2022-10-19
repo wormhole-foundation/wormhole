@@ -3,6 +3,7 @@ package evm
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -151,9 +152,15 @@ func NewEthWatcher(
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	if w.shouldCheckSafeMode && !w.useFinalizedBlocks() {
+	useFinalizedBlocks := (w.chainID == vaa.ChainIDEthereum && (!w.unsafeDevMode))
+	if w.shouldCheckSafeMode {
 		if err := w.checkForSafeMode(ctx); err != nil {
-			return err
+			if !strings.Contains(err.Error(), "is not using safe mode") {
+				return err
+			}
+
+			// If the endpoint is not in safe mode, assume it is the version that supports finalized blocks.
+			useFinalizedBlocks = true
 		}
 	}
 
@@ -175,7 +182,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-	} else if w.useFinalizedBlocks() {
+	} else if useFinalizedBlocks {
 		logger.Info("using finalized blocks")
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
