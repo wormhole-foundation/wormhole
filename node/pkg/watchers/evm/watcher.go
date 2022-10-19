@@ -254,12 +254,12 @@ func (w *Watcher) Run(ctx context.Context) error {
 	// will keep running. Other connectors will use a timeout internally if appropriate.
 	messageC := make(chan *ethabi.AbiLogMessagePublished, 2)
 	messageSub, err := w.ethConn.WatchLogMessagePublished(ctx, messageC)
-	defer messageSub.Unsubscribe()
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "subscribe_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("failed to subscribe to message publication events: %w", err)
 	}
+	defer messageSub.Unsubscribe()
 
 	// Fetch initial guardian set
 	if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
