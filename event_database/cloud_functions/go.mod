@@ -14,4 +14,7 @@ require (
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20221018051913-c289bd9f57e0
 )
 
-replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+replace (
+	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.23.0
+	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+)

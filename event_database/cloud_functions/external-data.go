@@ -3,6 +3,7 @@ package p
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -215,6 +216,9 @@ func fetchCoinGeckoCoinId(chainId vaa.ChainID, address, symbol, name string) (co
 }
 
 func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
+	if coinId == "" {
+		return 0, errors.New("coinId is empty")
+	}
 	hourAgo := time.Now().Add(-time.Duration(1) * time.Hour)
 	withinLastHour := timestamp.After(hourAgo)
 	start, end := rangeFromTime(timestamp, 12)
