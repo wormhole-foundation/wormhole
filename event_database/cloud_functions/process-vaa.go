@@ -54,22 +54,24 @@ var NFTEmitters = map[string]string{}
 
 var tokenTransferEmitters = map[string]string{
 	// mainnet
-	"ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",                      // solana
-	"0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",                       // ethereum
-	"0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2": "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf",                     // terra
-	"000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7": "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7",                       // bsc
-	"0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde": "0x5a58505a96d1dbf8df91cb21b54419fc36e93fde",                       // polygon
-	"0000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052": "0x0e082F06FF657D94310cB8cE8B0D9a04541d8052",                       // avalanche
-	"0000000000000000000000005848c791e09901b40a9ef749f2a6735b418d7564": "0x5848c791e09901b40a9ef749f2a6735b418d7564",                       // oasis
-	"0000000000000000000000007c9fc5741288cdfdd83ceb07f3ea7e22618d79d2": "0x7c9fc5741288cdfdd83ceb07f3ea7e22618d79d2",                       // fantom
-	"00000000000000000000000051b5123a7b0F9b2bA265f9c4C8de7D78D52f510F": "0x51b5123a7b0F9b2bA265f9c4C8de7D78D52f510F",                       // aurora
-	"000000000000000000000000ae9d7fe007b3327AA64A32824Aaac52C42a6E624": "0xae9d7fe007b3327AA64A32824Aaac52C42a6E624",                       // acala & karura
-	"0000000000000000000000005b08ac39EAED75c0439FC750d9FE7E1F9dD0193F": "0x5b08ac39EAED75c0439FC750d9FE7E1F9dD0193F",                       // klaytn
-	"000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",                       // celo
-	"148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7": "contract.portalbridge.near",                                       // near
-	"000000000000000000000000B1731c586ca89a23809861c6103F0b96B3F57D92": "0xB1731c586ca89a23809861c6103F0b96B3F57D92",                       // moonbeam
-	"a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3": "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9", // terra2
-	"67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45": "842126029",                                                        // algorand
+	"ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",                        // solana
+	"0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",                         // ethereum
+	"0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2": "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf",                       // terra
+	"000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7": "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7",                         // bsc
+	"0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde": "0x5a58505a96d1dbf8df91cb21b54419fc36e93fde",                         // polygon
+	"0000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052": "0x0e082F06FF657D94310cB8cE8B0D9a04541d8052",                         // avalanche
+	"0000000000000000000000005848c791e09901b40a9ef749f2a6735b418d7564": "0x5848c791e09901b40a9ef749f2a6735b418d7564",                         // oasis
+	"0000000000000000000000007c9fc5741288cdfdd83ceb07f3ea7e22618d79d2": "0x7c9fc5741288cdfdd83ceb07f3ea7e22618d79d2",                         // fantom
+	"00000000000000000000000051b5123a7b0F9b2bA265f9c4C8de7D78D52f510F": "0x51b5123a7b0F9b2bA265f9c4C8de7D78D52f510F",                         // aurora
+	"000000000000000000000000ae9d7fe007b3327AA64A32824Aaac52C42a6E624": "0xae9d7fe007b3327AA64A32824Aaac52C42a6E624",                         // acala & karura
+	"0000000000000000000000005b08ac39EAED75c0439FC750d9FE7E1F9dD0193F": "0x5b08ac39EAED75c0439FC750d9FE7E1F9dD0193F",                         // klaytn
+	"000000000000000000000000796Dff6D74F3E27060B71255Fe517BFb23C93eed": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",                         // celo
+	"148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7": "contract.portalbridge.near",                                         // near
+	"000000000000000000000000B1731c586ca89a23809861c6103F0b96B3F57D92": "0xB1731c586ca89a23809861c6103F0b96B3F57D92",                         // moonbeam
+	"a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3": "terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9",   // terra2
+	"67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45": "842126029",                                                          // algorand
+	"0000000000000000000000000000000000000000000000000000000000000001": "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f", // aptos
+	"8f9cf727175353b17a5f574270e370776123d90fd74956ae4277962b4fdee24c": "xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv",    //xpla
 
 	// devnet
 	"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f": "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE",                     // solana
