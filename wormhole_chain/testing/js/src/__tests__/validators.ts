@@ -4,7 +4,7 @@ import {
   getWallet,
   getWormchainSigningClient,
   toValAddress,
-} from "wormhole-chain-sdk";
+} from "@wormhole-foundation/wormhole-chain-sdk";
 import { getZeroFee } from "../bootstrap";
 import {
   DEVNET_GUARDIAN_PRIVATE_KEY,

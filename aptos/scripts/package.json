@@ -1,6 +1,6 @@
 {
-  "name": "scripts",
-  "version": "1.0.0",
+  "name": "@wormhole-foundation/scripts-aptos",
+  "version": "0.0.1",
   "main": "index.js",
   "license": "MIT",
   "dependencies": {

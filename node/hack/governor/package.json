@@ -1,6 +1,6 @@
 {
-  "name": "cgov_token_gen",
-  "version": "1.0.0",
+  "name": "@wormhole-foundation/scripts-governor-token-generation",
+  "version": "0.0.1",
   "description": "Chain Governor Token Generator",
   "main": "index.ts",
   "scripts": {

@@ -1,6 +1,6 @@
 {
-  "name": "tools",
-  "version": "1.0.0",
+  "name": "@wormhole-foundation/tools-protobuf",
+  "version": "0.0.1",
   "description": "tooling for building web code from protobufs",
   "devDependencies": {
     "ts-proto": "^1.82.3"

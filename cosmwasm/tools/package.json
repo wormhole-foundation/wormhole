@@ -1,6 +1,6 @@
 {
-  "name": "tools",
-  "version": "1.0.0",
+  "name": "@wormhole-foundation/tools-cosmwasm",
+  "version": "0.0.1",
   "description": "",
   "main": "deploy.js",
   "type": "module",
