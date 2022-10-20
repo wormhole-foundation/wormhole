@@ -1,6 +1,6 @@
 {
-  "name": "spy_relay",
-  "version": "1.0.0",
+  "name": "@wormhole-foundation/spy-relay",
+  "version": "0.0.1",
   "description": "Spy listener and relayer",
   "main": "spy_relay.js",
   "scripts": {

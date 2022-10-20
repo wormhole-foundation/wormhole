@@ -1,6 +1,6 @@
 {
-  "name": "lp_ui",
-  "version": "0.1.0",
+  "name": "@wormhole-foundation/ui-lp",
+  "version": "0.0.1",
   "private": true,
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.1.1",

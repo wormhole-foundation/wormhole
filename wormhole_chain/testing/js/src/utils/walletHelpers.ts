@@ -7,7 +7,7 @@ import {
   getWallet,
   getWormchainSigningClient,
   getWormholeQueryClient,
-} from "wormhole-chain-sdk";
+} from "@wormhole-foundation/wormhole-chain-sdk";
 import {
   WORM_DENOM,
   NODE_URL,
@@ -75,6 +75,9 @@ export function signValidatorAddress(valAddr: string, privKey: string) {
     Buffer.from(fromValAddress(valAddr).bytes)
   ).toString("hex");
   const signature = key.sign(valAddrHash, { canonical: true });
-  const hexString = signature.r.toString("hex").padStart(64, "0") + signature.s.toString("hex").padStart(64, "0") + signature.recoveryParam.toString(16).padStart(2, "0");
+  const hexString =
+    signature.r.toString("hex").padStart(64, "0") +
+    signature.s.toString("hex").padStart(64, "0") +
+    signature.recoveryParam.toString(16).padStart(2, "0");
   return Buffer.from(hexString, "hex");
 }

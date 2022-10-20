@@ -1,6 +1,6 @@
 {
-  "name": "test",
-  "version": "0.1.0",
+  "name": "@wormhole-foundation/tests-cosmwasm",
+  "version": "0.0.1",
   "description": "",
   "type": "module",
   "scripts": {

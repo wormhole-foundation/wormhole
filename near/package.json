@@ -1,7 +1,7 @@
 {
   "private": true,
-  "name": "wormhole-near",
-  "version": "1.0.0",
+  "name": "@wormhole-foundation/scripts-near",
+  "version": "0.0.1",
   "description": "Wormhole near support code",
   "keywords": [
     "near-protocol",
