@@ -546,6 +546,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	} else if *xplaLCD != "" || *xplaContract != "" {
 		logger.Fatal("If --xplaWS is not specified, then --xplaLCD and --xplaContract must not be specified")
 	}
+	if *wormchainWS != "" {
+		if *wormchainLCD == "" {
+			logger.Fatal("If --wormchainWS is specified, then --wormchainLCD must be specified")
+		}
+	} else if *wormchainLCD != "" {
+		logger.Fatal("If --wormchainWS is not specified, then --wormchainLCD must not be specified")
+	}
 
 	if *aptosRPC != "" {
 		if *aptosAccount == "" {
@@ -916,7 +923,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		//
 		// NOTE:  The "none" is a special indicator to disable a watcher until it is desirable to turn it back on.
 
-		if *ethRPC != "" && *ethRPC != "none" {
+		if shouldStart(ethRPC) {
 			logger.Info("Starting Ethereum watcher")
 			readiness.RegisterComponent(common.ReadinessEthSyncing)
 			chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -926,7 +933,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *bscRPC != "" && *bscRPC != "none" {
+		if shouldStart(bscRPC) {
 			logger.Info("Starting BSC watcher")
 			readiness.RegisterComponent(common.ReadinessBSCSyncing)
 			chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -936,12 +943,11 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		polygonMinConfirmations := uint64(512)
-		if *testnetMode {
-			polygonMinConfirmations = 64
-		}
-
-		if *polygonRPC != "" && *polygonRPC != "none" {
+		if shouldStart(polygonRPC) {
+			polygonMinConfirmations := uint64(512)
+			if *testnetMode {
+				polygonMinConfirmations = 64
+			}
 			logger.Info("Starting Polygon watcher")
 			readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 			chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -955,7 +961,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *avalancheRPC != "" && *avalancheRPC != "none" {
+		if shouldStart(avalancheRPC) {
 			logger.Info("Starting Avalanche watcher")
 			readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 			chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -964,7 +970,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *oasisRPC != "" && *oasisRPC != "none" {
+		if shouldStart(oasisRPC) {
 			logger.Info("Starting Oasis watcher")
 			chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "oasiswatch",
@@ -972,7 +978,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *auroraRPC != "" && *auroraRPC != "none" {
+		if shouldStart(auroraRPC) {
 			logger.Info("Starting Aurora watcher")
 			readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 			chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -981,7 +987,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *fantomRPC != "" && *fantomRPC != "none" {
+		if shouldStart(fantomRPC) {
 			logger.Info("Starting Fantom watcher")
 			readiness.RegisterComponent(common.ReadinessFantomSyncing)
 			chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -990,7 +996,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *karuraRPC != "" && *karuraRPC != "none" {
+		if shouldStart(karuraRPC) {
 			logger.Info("Starting Karura watcher")
 			readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 			chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -999,7 +1005,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *acalaRPC != "" && *acalaRPC != "none" {
+		if shouldStart(acalaRPC) {
 			logger.Info("Starting Acala watcher")
 			readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 			chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1008,7 +1014,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *klaytnRPC != "" && *klaytnRPC != "none" {
+		if shouldStart(klaytnRPC) {
 			logger.Info("Starting Klaytn watcher")
 			readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 			chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1017,7 +1023,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *celoRPC != "" && *celoRPC != "none" {
+		if shouldStart(celoRPC) {
 			logger.Info("Starting Celo watcher")
 			readiness.RegisterComponent(common.ReadinessCeloSyncing)
 			chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1026,7 +1032,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *moonbeamRPC != "" && *moonbeamRPC != "none" {
+		if shouldStart(moonbeamRPC) {
 			logger.Info("Starting Moonbeam watcher")
 			readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
 			chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1036,7 +1042,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *terraWS != "" && *terraWS != "none" {
+		if shouldStart(terraWS) {
 			logger.Info("Starting Terra watcher")
 			readiness.RegisterComponent(common.ReadinessTerraSyncing)
 			chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1046,7 +1052,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *terra2WS != "" && *terra2WS != "none" {
+		if shouldStart(terra2WS) {
 			logger.Info("Starting Terra 2 watcher")
 			readiness.RegisterComponent(common.ReadinessTerra2Syncing)
 			chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1056,7 +1062,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *xplaWS != "" && *xplaWS != "none" {
+		if shouldStart(xplaWS) {
 			logger.Info("Starting XPLA watcher")
 			readiness.RegisterComponent(common.ReadinessXplaSyncing)
 			chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1066,7 +1072,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *algorandIndexerRPC != "" && *algorandIndexerRPC != "none" {
+		if shouldStart(algorandIndexerRPC) {
 			logger.Info("Starting Algorand watcher")
 			readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 			chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1075,7 +1081,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *nearRPC != "" && *nearRPC != "none" {
+		if shouldStart(nearRPC) {
 			logger.Info("Starting Near watcher")
 			readiness.RegisterComponent(common.ReadinessNearSyncing)
 			chainObsvReqC[vaa.ChainIDNear] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1086,7 +1092,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		// Start Wormchain watcher only if configured
-		if *wormchainWS != "" && *wormchainLCD != "" && *wormchainWS != "none" {
+		if shouldStart(wormchainWS) {
 			logger.Info("Starting Wormchain watcher")
 			readiness.RegisterComponent(common.ReadinessWormchainSyncing)
 			chainObsvReqC[vaa.ChainIDWormchain] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1095,7 +1101,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *aptosRPC != "" && *aptosRPC != "none" {
+		if shouldStart(aptosRPC) {
 			logger.Info("Starting Aptos watcher")
 			readiness.RegisterComponent(common.ReadinessAptosSyncing)
 			chainObsvReqC[vaa.ChainIDAptos] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1105,7 +1111,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *solanaRPC != "" && *solanaRPC != "none" {
+		if shouldStart(solanaRPC) {
 			logger.Info("Starting Solana watcher")
 			readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 			chainObsvReqC[vaa.ChainIDSolana] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1119,7 +1125,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *pythnetRPC != "" && *pythnetRPC != "none" {
+		if shouldStart(pythnetRPC) {
 			logger.Info("Starting Pythnet watcher")
 			readiness.RegisterComponent(common.ReadinessPythNetSyncing)
 			chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1134,7 +1140,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if *testnetMode {
-			if *ethRopstenRPC != "" {
+			if shouldStart(ethRopstenRPC) {
 				logger.Info("Starting Eth Ropsten watcher")
 				readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 				chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1143,7 +1149,7 @@ func runNode(cmd *cobra.Command, args []string) {
 					return err
 				}
 			}
-			if *neonRPC != "" {
+			if shouldStart(neonRPC) {
 				logger.Info("Starting Neon watcher")
 				readiness.RegisterComponent(common.ReadinessNeonSyncing)
 				chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1152,7 +1158,7 @@ func runNode(cmd *cobra.Command, args []string) {
 					return err
 				}
 			}
-			if *arbitrumRPC != "" {
+			if shouldStart(arbitrumRPC) {
 				logger.Info("Starting Arbitrum watcher")
 				readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
 				chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1161,7 +1167,7 @@ func runNode(cmd *cobra.Command, args []string) {
 					return err
 				}
 			}
-			if *injectiveWS != "" {
+			if shouldStart(injectiveWS) {
 				logger.Info("Starting Injective watcher")
 				readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
 				chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
@@ -1262,4 +1268,8 @@ func decryptTelemetryServiceAccount() ([]byte, error) {
 	}
 
 	return creds, err
+}
+
+func shouldStart(rpc *string) bool {
+	return *rpc != "" && *rpc != "none"
 }
