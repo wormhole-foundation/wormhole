@@ -26,14 +26,11 @@ import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import {
   RpcStatus,
   HttpResponse,
-} from "../modules/certusone.wormholechain.tokenbridge/rest";
+} from "../modules/certusone.wormholechain.wormhole/rest";
 import {
   txClient,
   queryClient,
 } from "../modules/certusone.wormholechain.wormhole";
-import {
-  txClient as tokenBridgeClient,
-} from "../modules/certusone.wormholechain.tokenbridge";
 import { keccak256 } from "ethers/lib/utils";
 import { MsgRegisterAccountAsGuardian } from "../modules/certusone.wormholechain.wormhole/types/wormhole/tx";
 import { GuardianKey } from "../modules/certusone.wormholechain.wormhole/types/wormhole/guardian_key";
@@ -90,45 +87,6 @@ export async function getAddress(
   const [{ address }] = await wallet.getAccounts();
 
   return address;
-}
-
-//TODO recipient chain should be chainID
-export async function transferTokens(
-  wallet: DirectSecp256k1HdWallet,
-  denom: string,
-  amount: string,
-  recipientAddress: Uint8Array,
-  recipientChain: number,
-  fee: string
-) {
-  const offline: OfflineSigner = wallet;
-
-  const client = await tokenBridgeClient(offline, { addr: TENDERMINT_URL });
-  const msg: EncodeObject = client.msgTransfer({
-    amount: { amount, denom },
-    toChain: recipientChain,
-    fee: fee,
-    toAddress: recipientAddress,
-    creator: await getAddress(wallet),
-  }); //TODO convert type
-
-  //const output = await client.signAndBroadcast([msg]);
-
-  const signingClient = await SigningStargateClient.connectWithSigner(
-    TENDERMINT_URL,
-    wallet
-    //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uworm" } }
-  );
-
-  //TODO investigate signing with the stargate client, as the module txClients can't do 100% of the operations
-  const output = signingClient.signAndBroadcast(
-    await getAddress(wallet),
-    [msg],
-    getZeroFee(),
-    "executing governance VAA"
-  );
-
-  return output;
 }
 
 export async function executeGovernanceVAA(
