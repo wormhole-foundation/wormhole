@@ -55,6 +55,7 @@ type Transfer struct {
 	EmitterChain   vaa.ChainID
 	EmitterAddress vaa.Address
 	MsgID          string
+	Hash           string
 }
 
 func (t *Transfer) Marshal() ([]byte, error) {
@@ -66,11 +67,84 @@ func (t *Transfer) Marshal() ([]byte, error) {
 	buf.Write(t.OriginAddress[:])
 	vaa.MustWrite(buf, binary.BigEndian, t.EmitterChain)
 	buf.Write(t.EmitterAddress[:])
-	buf.Write([]byte(t.MsgID))
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.MsgID)))
+	if len(t.MsgID) > 0 {
+		buf.Write([]byte(t.MsgID))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.Hash)))
+	if len(t.Hash) > 0 {
+		buf.Write([]byte(t.Hash))
+	}
 	return buf.Bytes(), nil
 }
 
 func UnmarshalTransfer(data []byte) (*Transfer, error) {
+	t := &Transfer{}
+
+	reader := bytes.NewReader(data[:])
+
+	unixSeconds := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
+		return nil, fmt.Errorf("failed to read timestamp: %w", err)
+	}
+	t.Timestamp = time.Unix(int64(unixSeconds), 0)
+
+	if err := binary.Read(reader, binary.BigEndian, &t.Value); err != nil {
+		return nil, fmt.Errorf("failed to read value: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &t.OriginChain); err != nil {
+		return nil, fmt.Errorf("failed to read token chain id: %w", err)
+	}
+
+	originAddress := vaa.Address{}
+	if n, err := reader.Read(originAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+	}
+	t.OriginAddress = originAddress
+
+	if err := binary.Read(reader, binary.BigEndian, &t.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read token chain id: %w", err)
+	}
+
+	emitterAddress := vaa.Address{}
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+	}
+	t.EmitterAddress = emitterAddress
+
+	msgIdLen := uint16(0)
+	if err := binary.Read(reader, binary.BigEndian, &msgIdLen); err != nil {
+		return nil, fmt.Errorf("failed to read msgID length: %w", err)
+	}
+
+	if msgIdLen > 0 {
+		msgID := make([]byte, msgIdLen)
+		n, err := reader.Read(msgID)
+		if err != nil || n == 0 {
+			return nil, fmt.Errorf("failed to read vaa id [%d]: %w", n, err)
+		}
+		t.MsgID = string(msgID[:n])
+	}
+
+	hashLen := uint16(0)
+	if err := binary.Read(reader, binary.BigEndian, &hashLen); err != nil {
+		return nil, fmt.Errorf("failed to read hash length: %w", err)
+	}
+
+	if hashLen > 0 {
+		hash := make([]byte, hashLen)
+		n, err := reader.Read(hash)
+		if err != nil || n == 0 {
+			return nil, fmt.Errorf("failed to read hash [%d]: %w", n, err)
+		}
+		t.Hash = string(hash[:n])
+	}
+
+	return t, nil
+}
+
+func unmarshalOldTransfer(data []byte) (*Transfer, error) {
 	t := &Transfer{}
 
 	reader := bytes.NewReader(data[:])
@@ -162,7 +236,10 @@ func UnmarshalPendingTransfer(data []byte) (*PendingTransfer, error) {
 	return p, nil
 }
 
-const transfer = "GOV:XFER:"
+const oldTransfer = "GOV:XFER:"
+const oldTransferLen = len(oldTransfer)
+
+const transfer = "GOV:XFER2:"
 const transferLen = len(transfer)
 
 // Since we are changing the DB format of pending entries, we will use a new tag in the pending key field.
@@ -181,6 +258,10 @@ func TransferMsgID(t *Transfer) []byte {
 	return []byte(fmt.Sprintf("%v%v", transfer, t.MsgID))
 }
 
+func oldTransferMsgID(t *Transfer) []byte {
+	return []byte(fmt.Sprintf("%v%v", oldTransfer, t.MsgID))
+}
+
 func PendingMsgID(k *common.MessagePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", pending, k.MessageIDString()))
 }
@@ -191,6 +272,10 @@ func oldPendingMsgID(k *common.MessagePublication) []byte {
 
 func IsTransfer(keyBytes []byte) bool {
 	return (len(keyBytes) >= transferLen+minMsgIdLen) && (string(keyBytes[0:transferLen]) == transfer)
+}
+
+func isOldTransfer(keyBytes []byte) bool {
+	return (len(keyBytes) >= oldTransferLen+minMsgIdLen) && (string(keyBytes[0:oldTransferLen]) == oldTransfer)
 }
 
 func IsPendingMsg(keyBytes []byte) bool {
@@ -252,6 +337,13 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				p := &PendingTransfer{ReleaseTime: now.Add(maxEnqueuedTime), Msg: *msg}
 				pending = append(pending, p)
 				oldPendingToUpdate = append(oldPendingToUpdate, p)
+			} else if isOldTransfer(key) {
+				v, err := unmarshalOldTransfer(val)
+				if err != nil {
+					return err
+				}
+
+				transfers = append(transfers, v)
 			}
 		}
 
@@ -264,8 +356,10 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				}
 
 				key := oldPendingMsgID(&pending.Msg)
-				err = d.db.DropPrefix(key)
-				if err != nil {
+				if err := d.db.Update(func(txn *badger.Txn) error {
+					err := txn.Delete(key)
+					return err
+				}); err != nil {
 					return fmt.Errorf("failed to delete old pending msg for key [%v]: %w", pending.Msg.MessageIDString(), err)
 				}
 			}
@@ -280,8 +374,9 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 func (d *Database) StoreTransfer(t *Transfer) error {
 	b, _ := t.Marshal()
 
+	key := createTransferKey(t)
 	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(TransferMsgID(t), b); err != nil {
+		if err := txn.Set(key, b); err != nil {
 			return err
 		}
 		return nil
@@ -314,9 +409,11 @@ func (d *Database) StorePendingMsg(pending *PendingTransfer) error {
 
 // This is called by the chain governor to delete a transfer after the time limit has expired.
 func (d *Database) DeleteTransfer(t *Transfer) error {
-	key := TransferMsgID(t)
-	err := d.db.DropPrefix(key)
-	if err != nil {
+	key := createTransferKey(t)
+	if err := d.db.Update(func(txn *badger.Txn) error {
+		err := txn.Delete(key)
+		return err
+	}); err != nil {
 		return fmt.Errorf("failed to delete transfer msg for key [%v]: %w", key, err)
 	}
 
@@ -326,10 +423,23 @@ func (d *Database) DeleteTransfer(t *Transfer) error {
 // This is called by the chain governor to delete a pending transfer.
 func (d *Database) DeletePendingMsg(pending *PendingTransfer) error {
 	key := PendingMsgID(&pending.Msg)
-	err := d.db.DropPrefix(key)
-	if err != nil {
+	if err := d.db.Update(func(txn *badger.Txn) error {
+		err := txn.Delete(key)
+		return err
+	}); err != nil {
 		return fmt.Errorf("failed to delete pending msg for key [%v]: %w", key, err)
 	}
 
 	return nil
+}
+
+func createTransferKey(t *Transfer) []byte {
+	var key []byte
+	if t.Hash == "" {
+		key = oldTransferMsgID(t)
+	} else {
+		key = TransferMsgID(t)
+	}
+
+	return key
 }
