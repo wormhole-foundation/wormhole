@@ -10,4 +10,4 @@ test-docker:
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile --target tests .
 
 sui_export:
-	DOCKER_BUILDKIT=1 docker build -f Dockerfile.export -t near-export -o type=local,dest=$$HOME/.cargo/bin .
+	DOCKER_BUILDKIT=1 docker build  --progress plain -f Dockerfile.export -t near-export -o type=local,dest=$$HOME/.cargo/bin .
