@@ -1,10 +1,15 @@
-FROM rust:1.62@sha256:5777f201f507075309c4d2d1c1e8d8219e654ae1de154c844341050016a64a0c
+FROM docker.io/redhat/ubi8@sha256:56c374376a42da40f3aec753c4eab029b5ea162d70cb5f0cda24758780c31d81
 
-RUN apt-get update && apt-get -y install libclang-dev jq cmake curl npm --no-install-recommends
+# RUN apt-get update && apt-get -y install libclang-dev jq cmake curl npm --no-install-recommends
+RUN dnf -y update
+RUN dnf -y install jq cmake curl npm git gcc openssl-devel gcc-c++ clang
+
+COPY sui/scripts/setup_rust.sh  /tmp
+RUN /tmp/setup_rust.sh
 
 WORKDIR /tmp
 
-COPY sui/node_builder.sh  /tmp
+COPY sui/scripts/node_builder.sh  /tmp
 
 RUN /tmp/node_builder.sh
 
@@ -20,4 +25,4 @@ RUN make install
 
 WORKDIR /tmp
 
-RUN sui genesis -f
+RUN /root/.cargo/bin/sui genesis -f
