@@ -1,0 +1,43 @@
+## Guardiand node
+
+# Fallback
+/node/ @leoluk @hendrikhofstadt
+
+# Entrypoint / RPC
+/node/cmd/ @bruce-riley @jynnantonix
+
+# DB
+/node/pkg/db/ @bruce-riley
+
+# Governor
+/node/pkg/governor/ @bruce-riley @claudijd
+
+# P2P
+/node/pkg/p2p/ @leoluk @hendrikhofstadt
+
+# Consensus / Processor
+/node/pkg/processor/ @jynnantonix @hendrikhofstadt
+
+# Public RPC
+/node/pkg/publicrpc/ @bruce-riley
+
+# Supervisor Framework
+/node/pkg/supervisor/ @hendrikhofstadt @leoluk
+
+# Watcher - Algorand
+/node/pkg/watchers/algorand/ @evan-gray @jumpsiegel
+
+# Watcher - Aptos
+/node/pkg/watchers/aptos/ @jumpsiegel
+
+# Watcher - Cosmwasm
+/node/pkg/watchers/cosmwasm/ @evan-gray @hendrikhofstadt
+
+# Watcher - EVM
+/node/pkg/watchers/evm/ @bruce-riley @hendrikhofstadt
+
+# Watcher - NEAR
+/node/pkg/watchers/near/ @jumpsiegel
+
+# Watcher - Solana
+/node/pkg/watchers/solana/ @hendrikhofstadt
