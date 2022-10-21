@@ -8,8 +8,8 @@ import {
 import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk";
 import axios from "axios";
+import { CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 export async function execute_terra(
   payload: Payload,

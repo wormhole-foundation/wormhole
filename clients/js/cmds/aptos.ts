@@ -1,4 +1,3 @@
-import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk";
 import { BCS, FaucetClient } from "aptos";
 import { ethers } from "ethers";
 import yargs from "yargs";
@@ -8,6 +7,7 @@ import { config } from '../config';
 import fs from 'fs';
 import sha3 from 'js-sha3';
 import { NETWORKS } from "../networks";
+import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
 

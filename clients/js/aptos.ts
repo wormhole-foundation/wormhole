@@ -1,11 +1,11 @@
 import { AptosAccount, TxnBuilderTypes, AptosClient, BCS } from "aptos";
 import { NETWORKS } from "./networks";
 import { impossible, Payload } from "./vaa";
-import { assertChain, ChainId, CONTRACTS } from "@certusone/wormhole-sdk";
 import { Bytes, Seq } from "aptos/dist/transaction_builder/bcs/types";
 import { TypeTag } from "aptos/dist/transaction_builder/aptos_types";
 import { sha3_256 } from "js-sha3";
 import { ethers } from "ethers";
+import { assertChain, ChainId, CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 export async function execute_aptos(
   payload: Payload,

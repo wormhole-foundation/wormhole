@@ -10,7 +10,7 @@ import { createTransaction, MsgArg, TxGrpcClient } from "@injectivelabs/tx-ts";
 import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 export async function execute_injective(
   payload: Payload,

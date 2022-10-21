@@ -1,11 +1,11 @@
-import { BridgeImplementation__factory, CHAINS, Implementation__factory, NFTBridgeImplementation__factory } from "@certusone/wormhole-sdk"
-import { BigNumber, ethers } from "ethers"
+import { ethers } from "ethers"
 import { NETWORKS } from "./networks"
 import { encode, Encoding, impossible, Payload, typeWidth } from "./vaa"
-import { Contracts, CONTRACTS, EVMChainName } from "@certusone/wormhole-sdk"
 import axios from "axios";
 import * as celo from "@celo-tools/celo-ethers-wrapper";
 import { solidityKeccak256 } from "ethers/lib/utils"
+import { CHAINS, CONTRACTS, Contracts, EVMChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { BridgeImplementation__factory, Implementation__factory, NFTBridgeImplementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 
 const _IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
 

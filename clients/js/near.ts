@@ -1,6 +1,6 @@
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 const { parseSeedPhrase, generateSeedPhrase } = require("near-seed-phrase");
 const fs = require("fs");
 
