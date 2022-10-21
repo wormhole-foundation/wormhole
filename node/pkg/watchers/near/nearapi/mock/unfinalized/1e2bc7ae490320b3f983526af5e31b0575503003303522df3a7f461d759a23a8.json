@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "name": "HANDLER_ERROR",
+    "cause": {
+      "info": {},
+      "name": "UNKNOWN_BLOCK"
+    },
+    "code": -32000,
+    "message": "Server error",
+    "data": "DB Not Found Error: 2jLKGstUS8UN4FUpLkr5tGDPCTqG4Q7v5PZSpnPfwfNT \n Cause: Unknown"
+  },
+  "id": "dontcare"
+}

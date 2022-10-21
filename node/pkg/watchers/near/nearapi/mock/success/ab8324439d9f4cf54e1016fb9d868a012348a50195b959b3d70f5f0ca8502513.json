@@ -1,0 +1,51 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "buildlinks.poolv1.near",
+    "header": {
+      "balance_burnt": "509793533552100000000",
+      "chunk_hash": "HjAMoRyRgvWo9BcDB8WBD9mL3Uk9EnK8gFqAw5CxP846",
+      "encoded_length": 161,
+      "encoded_merkle_root": "BvJmmSTY2rwsEwV69iGCbfg6mDQfaSj39oYgFearoCNw",
+      "gas_limit": 1000000000000000,
+      "gas_used": 6242118910511,
+      "height_created": 76538231,
+      "height_included": 76538231,
+      "outcome_root": "8NpTjzm6ZUdbSawJbp2uhMtduP2bkYaTbbL2vTYtr45Y",
+      "outgoing_receipts_root": "4uWjyXfF9ZoK53yFcaqLd1ifJut9YK7qVb7x3x6wRA55",
+      "prev_block_hash": "9AEuLtXe4JgJGnwY6ZZE6PmkPcEYpQqqUzwDMzUsMgBT",
+      "prev_state_root": "DJyerGXurxreEdk8fvm6fK6Hq68jA6wSxtKZ8phPstgu",
+      "rent_paid": "0",
+      "shard_id": 1,
+      "signature": "ed25519:2GgvdTiDxQ6matP7y7xBjF3pHP9ziuYQW5ntPm19yivwgecECmt8TFWaBG6rnLGZeeTv25hCJfbya9nFn8VeV7D3",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "188405546396236288614308"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "relay.aurora",
+            "signer_public_key": "ed25519:GT6Uu68XzT6cES54oGwZkrGS3aLcH1sJbMDxM1dqmjwz"
+          }
+        },
+        "receipt_id": "Eze1em2TFQF5WPsUX4SrqZ731JPN6Vo8FAVj2LFokoFF",
+        "receiver_id": "relay.aurora"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

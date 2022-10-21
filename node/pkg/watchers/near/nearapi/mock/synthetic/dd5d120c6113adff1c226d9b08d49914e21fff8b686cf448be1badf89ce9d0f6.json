@@ -1,0 +1,93 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "yes_protocol1.poolv1.near",
+    "header": {
+      "balance_burnt": "1379034321920400000000",
+      "chunk_hash": "3ygos2SGiKjLJmpZ2s3WEEks2Aw81uqYU8xBYCQxZuZo",
+      "encoded_length": 467,
+      "encoded_merkle_root": "82s39xHDuRNeEkucb26uCbbdgrrPf2gLLhJjYNr9ATJ1",
+      "gas_limit": 1000000000000000,
+      "gas_used": 16578461715137,
+      "height_created": 76538232,
+      "height_included": 76538232,
+      "outcome_root": "FKX4Gmd9rXGXaDiceSheZc1qJPzzDBJX6BLTnDcwJYVY",
+      "outgoing_receipts_root": "3V5r2VAbw9By67cSBVhEeuNpsdBuxJSwMKWzGmc7e3eD",
+      "prev_block_hash": "Ad7JSCXZTGegrfWLAmqupd1qiEEphpf5azfWayWCPS8G",
+      "prev_state_root": "6y5RHrm3bEUyV7kpTc7CE8ahcmvNovR9UqfwY3tvbNZx",
+      "rent_paid": "0",
+      "shard_id": 1,
+      "signature": "ed25519:2C99BvEPbJvEgw6jddB3csjD5kJZjSqXoRG2nhzXPdgoSYmMWNSHCZkRLiUcJELpVYntbCeGRubURZ9wRLmx7ogZ",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "188598609755804882964244"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "relay.aurora",
+            "signer_public_key": "ed25519:DFSikYbWFMsbL5gcifHkDCPEFWf4HVGVb1edFo1N7XW3"
+          }
+        },
+        "receipt_id": "51V7aY2sjFz2eSvJWWJzYoqGpP4NrLh4dmDGh76kPw5E",
+        "receiver_id": "relay.aurora"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "188221860471790859103456"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "relay.aurora",
+            "signer_public_key": "ed25519:GeRWEsG1e2uwgWZe7SYeTaUUrqUT6zATsMDXckFdT9PH"
+          }
+        },
+        "receipt_id": "FYWevGdgGKs7fWx5TpR7xpnDfWA4o6uDCoa1CYE7Kxnt",
+        "receiver_id": "relay.aurora"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "188611091229867482964244"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "relay.aurora",
+            "signer_public_key": "ed25519:4NuJnWkw71BZG6SineAGNGDgE5xVL5BysYQ2ZUUN1x1v"
+          }
+        },
+        "receipt_id": "Csz5S55QCEo9uAnaKLBDmFVhU5XTKdtGwuo9LnRd9VRw",
+        "receiver_id": "relay.aurora"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

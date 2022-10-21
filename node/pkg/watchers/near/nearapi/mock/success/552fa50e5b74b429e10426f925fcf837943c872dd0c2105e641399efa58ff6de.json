@@ -1,0 +1,96 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "kiln.poolv1.near",
+    "header": {
+      "balance_burnt": "868352828487800000000",
+      "chunk_hash": "FNu6bfazaDLiFbPRxRYWmMWNE4Nxmq77hZXN2gtczD2R",
+      "encoded_length": 1607,
+      "encoded_merkle_root": "HeKrFJriHhvWAj1GXyHXX4iA2tqRrEb4MWASFs6J8hwW",
+      "gas_limit": 1000000000000000,
+      "gas_used": 9728579663778,
+      "height_created": 76677956,
+      "height_included": 76677956,
+      "outcome_root": "7bVZxShLjF3jrbLVkzQRSFTLiwaKJgZcbyQ1QNUjzneC",
+      "outgoing_receipts_root": "AECXFu8CF9wqZnugvewnVUKhtSmG6hJifVHVZS5HrYEd",
+      "prev_block_hash": "EypQXonf2oDZ6uqsCiFoa4hogEU7rgaiXkXeNuqqzX7H",
+      "prev_state_root": "EowkY21Wag8W8ENJuK6eEQpUnpWBJgsVgnHd5YVHd1BJ",
+      "rent_paid": "0",
+      "shard_id": 3,
+      "signature": "ed25519:4eSuPqkrM9JfhpscupaAGgfakiuK2mdsYJSiEioUU816cVMeBm3ESzxyPrwpeDSNjgN5KwsM1icXKGecPYBWeAYi",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "npo-aurora.near",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "eyJwcmljZXMiOlt7ImFzc2V0X2lkIjoid3JhcC5uZWFyIiwicHJpY2UiOnsibXVsdGlwbGllciI6IjI4MzczIiwiZGVjaW1hbHMiOjI4fX0seyJhc3NldF9pZCI6ImF1cm9yYSIsInByaWNlIjp7Im11bHRpcGxpZXIiOiIxMjg0MzE1MCIsImRlY2ltYWxzIjoyMn19LHsiYXNzZXRfaWQiOiJkYWMxN2Y5NThkMmVlNTIzYTIyMDYyMDY5OTQ1OTdjMTNkODMxZWM3LmZhY3RvcnkuYnJpZGdlLm5lYXIiLCJwcmljZSI6eyJtdWx0aXBsaWVyIjoiMTAwMDAiLCJkZWNpbWFscyI6MTB9fSx7ImFzc2V0X2lkIjoiYTBiODY5OTFjNjIxOGIzNmMxZDE5ZDRhMmU5ZWIwY2UzNjA2ZWI0OC5mYWN0b3J5LmJyaWRnZS5uZWFyIiwicHJpY2UiOnsibXVsdGlwbGllciI6IjEwMDAwIiwiZGVjaW1hbHMiOjEwfX0seyJhc3NldF9pZCI6IjZiMTc1NDc0ZTg5MDk0YzQ0ZGE5OGI5NTRlZWRlYWM0OTUyNzFkMGYuZmFjdG9yeS5icmlkZ2UubmVhciIsInByaWNlIjp7Im11bHRpcGxpZXIiOiIxMDAwMCIsImRlY2ltYWxzIjoyMn19LHsiYXNzZXRfaWQiOiIyMjYwZmFjNWU1NTQyYTc3M2FhNDRmYmNmZWRmN2MxOTNiYzJjNTk5LmZhY3RvcnkuYnJpZGdlLm5lYXIiLCJwcmljZSI6eyJtdWx0aXBsaWVyIjoiMTkwNTE2Nzc1IiwiZGVjaW1hbHMiOjEyfX0seyJhc3NldF9pZCI6ImFhYWFhYTIwZDllMGUyNDYxNjk3NzgyZWYxMTY3NWY2NjgyMDc5NjEuZmFjdG9yeS5icmlkZ2UubmVhciIsInByaWNlIjp7Im11bHRpcGxpZXIiOiI4MjUzIiwiZGVjaW1hbHMiOjIyfX0seyJhc3NldF9pZCI6Im1ldGEtcG9vbC5uZWFyIiwicHJpY2UiOnsibXVsdGlwbGllciI6IjMyMDg3IiwiZGVjaW1hbHMiOjI4fX0seyJhc3NldF9pZCI6ImxpbmVhci1wcm90b2NvbC5uZWFyIiwicHJpY2UiOnsibXVsdGlwbGllciI6IjMwMDg5IiwiZGVjaW1hbHMiOjI4fX0seyJhc3NldF9pZCI6InVzbiIsInByaWNlIjp7Im11bHRpcGxpZXIiOiI5OTk4IiwiZGVjaW1hbHMiOjIyfX1dfQ==",
+                  "deposit": "0",
+                  "gas": 50000000000000,
+                  "method_name": "report_prices"
+                }
+              }
+            ],
+            "gas_price": "138423388",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "npo-aurora.near",
+            "signer_public_key": "ed25519:DtsWNKcf5mc64RKYvsL56pW1ixJDsSgrQQnG9dfeiEmj"
+          }
+        },
+        "receipt_id": "5Nq23BEhzvxmx9BYSiTQoChF13eaD84e4TS1hpurtuXp",
+        "receiver_id": "priceoracle.near"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "1395360047558635068200"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "256df542ce5c85c4d383a0e26993c42bc3a2936dce24d206970fce40193e1f78",
+            "signer_public_key": "ed25519:3X7LGmkm2RPfioteW4BitgXgBa7ayUwC3jSgUnjj4pfh"
+          }
+        },
+        "receipt_id": "F69wvJqjbn8Dh3Cqmu3AjU6sN69o4VNaL6K8swBfFv2k",
+        "receiver_id": "256df542ce5c85c4d383a0e26993c42bc3a2936dce24d206970fce40193e1f78"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "742828769739601049000"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "chuthanhquang.near",
+            "signer_public_key": "ed25519:GQ69taCrtvnd2TfPaFEZkyqhCMNYdj5DoXBCrcU47UH9"
+          }
+        },
+        "receipt_id": "34EcE7jj4UYDYaZqenAz6LBqavz5tADQFZ1QKvP2q8i4",
+        "receiver_id": "chuthanhquang.near"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

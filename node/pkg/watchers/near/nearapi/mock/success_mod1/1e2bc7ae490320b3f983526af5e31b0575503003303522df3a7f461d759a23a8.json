@@ -1,0 +1,75 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "sharpdarts.poolv1.near",
+    "header": {
+      "balance_burnt": "525732511818500000000",
+      "chunk_hash": "2rvyik5N7FUgEHFNcqGgkx4YgRTmjX3rvazRL3GxQpgJ",
+      "encoded_length": 557,
+      "encoded_merkle_root": "CTq1P7zM9gG5ang4BLKSgJrWHdJgE8SqjeTmdVki6ygm",
+      "gas_limit": 1000000000000000,
+      "gas_used": 5652447300727,
+      "height_created": 76538236,
+      "height_included": 76538236,
+      "outcome_root": "acEdDGBxe1SPnMWCjMPovv8PK3yDsGGPTsyqHzUU2nU",
+      "outgoing_receipts_root": "76V9AS7BZBi8dy6DvC9Dug3MaQEiq6jJXS4bQNpBYNNG",
+      "prev_block_hash": "G38cqPUZ33Foaaemxtcgq3sXAd64EZark5m6LjjhQb3X",
+      "prev_state_root": "8cYdGvXz5dZwixFwsfcJduGWqh7WFkK1Xzzi618m2qr6",
+      "rent_paid": "0",
+      "shard_id": 2,
+      "signature": "ed25519:4Urb6QSyZdNiQ5bXh4ijCof2zXQeJTw4tqwftCeGt6xVFJVrXF9K74ksEvFP5r89K4ZyzEwWz5epYpT44j3MctuU",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "e6f6f1302faceaaa726c830b88091253be2b133b2461e6042b2c946101886b32",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "eyJuZXdfYWNjb3VudF9pZCI6ImdvbGRlbmdyb3ZlLm5lYXIiLCJuZXdfcHVibGljX2tleSI6IkhMa2hFdUdYSGE5eFBnWW1KaXFSOFhjUDVmY2UxWkw2QVMxVWJjRnZLVlAyIn0=",
+                  "deposit": "100000000000000000000000",
+                  "gas": 100000000000000,
+                  "method_name": "create_account"
+                }
+              }
+            ],
+            "gas_price": "186029458",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "e6f6f1302faceaaa726c830b88091253be2b133b2461e6042b2c946101886b32",
+            "signer_public_key": "ed25519:6Zg7CxiEqkaf2CbqxpUwmpYp8j4g7w5jntUBPkV3gxDe"
+          }
+        },
+        "receipt_id": "mNdLGAwiQVojRLHVwGVXEf9bmQrSSVz3Qvts6BD3L3y",
+        "receiver_id": "near"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "9827061964817405903200"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "emredemirnet.near",
+            "signer_public_key": "ed25519:AEqwPzj4ohwjz5xqGo7BhhfQEx4CWj9fWLJz6QFBgGAM"
+          }
+        },
+        "receipt_id": "GczaAPCA8b3n3YuhmV47jHSqY2fMddfzNfCc1dJSaESu",
+        "receiver_id": "emredemirnet.near"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

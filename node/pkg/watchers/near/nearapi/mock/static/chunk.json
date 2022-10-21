@@ -1,0 +1,109 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "buildlinks.poolv1.near",
+    "header": {
+      "balance_burnt": "590072038626400000000",
+      "chunk_hash": "CMUBdbgha1cK8zmjMnR9y9d1XjQ3rWGDqMhJWwWMQQ6c",
+      "encoded_length": 1142,
+      "encoded_merkle_root": "2pnXUxSaQhMCCw8U1eM7zADeGSquPCy3j4Kt7modp5TC",
+      "gas_limit": 1000000000000000,
+      "gas_used": 7219375643655,
+      "height_created": 76648955,
+      "height_included": 76648958,
+      "outcome_root": "Gq19pqnt1n9DAc9iCULjkmAQsqjuJM3Y9sL94SaEoo9m",
+      "outgoing_receipts_root": "6v5KaLYbhdXVcW7V3ucy4vkTSje9do5XoYn74brir79k",
+      "prev_block_hash": "6jZMDdrNX4fvFc5FxHPLeHXqzJhE7JumphLULo9iKV9Y",
+      "prev_state_root": "98mgnLJETWVC3Avo5tGutwc5bJLqCEMf5XQ5sqbMVH5X",
+      "rent_paid": "0",
+      "shard_id": 0,
+      "signature": "ed25519:25v89diWmFeGNLpi7ubyYPTLWDX1F8gZ4q7ppdhqwwjud9LU4xxz2k26K5hmzSYFYC8YsC2BbjvKFEcLwymwbyE5",
+      "tx_root": "8MYDgSzjiyEmF1Fc3Y2pJ252aKDoAs83Ghn1A8zq2Dgj",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "4b332f29062357f09b794e1d8bbf8e11452fc46a6aa6cdf9e316d10741c30e4c",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "e30=",
+                  "deposit": "0",
+                  "gas": 100000000000000,
+                  "method_name": "claim"
+                }
+              }
+            ],
+            "gas_price": "186029458",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "4b332f29062357f09b794e1d8bbf8e11452fc46a6aa6cdf9e316d10741c30e4c",
+            "signer_public_key": "ed25519:64Yr1J9nPKhDMHe3ydZmFUaEchrRJXGFUTXiEMxDqtuy"
+          }
+        },
+        "receipt_id": "34zbFm5kZsGdDYnjRet29QeateTTWCrT8PciMWhgrbex",
+        "receiver_id": "tge-lockup.sweat"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "3596191538621617854228"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "vtoroi.near",
+            "signer_public_key": "ed25519:3pYDiTvXZ4gh5KTFq9xSYkuLs7DbwEvtBvkk11SbuTzk"
+          }
+        },
+        "receipt_id": "DifQrm2se8qUHwBixdxVzjKXAAyGSuirLAUn5RivfR9V",
+        "receiver_id": "vtoroi.near"
+      }
+    ],
+    "transactions": [
+      {
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJhY2NvdW50X2lkIjoicmV6ZXJ2LTQ4Lm5lYXIiLCJzb2x1dGlvbl9oYXNoIjpbODUsMTM1LDIyNiw2OCwyLDIyNiwxNiw1Niw3LDc4LDExMyw2MiwxMDcsMjMyLDEwOSwxNywxNDAsMTE4LDE2MywxNzYsMjIsMTQxLDIwOCw2OSwxNDMsMjA5LDE5MSwyMzgsODYsMTQ1LDIzMSwyMzRdfQ==",
+              "deposit": "0",
+              "gas": 200000000000000,
+              "method_name": "approve_solution"
+            }
+          }
+        ],
+        "hash": "G6GV5WQsuxbV92pNqmGYc97qcFCfzFMxixcT4oPz6tqB",
+        "nonce": 43616750678580,
+        "public_key": "ed25519:9jqtbwY5kyfFAUNoqtJjeyikj22DqPyVN2akLEDMamRD",
+        "receiver_id": "app.nearcrowd.near",
+        "signature": "ed25519:5eS6qtQt3gxvAm6H7XtmWXqBFztcEg9M1tQwvpfkchYj4qJpvrCUcvoszGvouJVmNW2ngQRdwjRi2ppeEVBs9YVq",
+        "signer_id": "app.nearcrowd.near"
+      },
+      {
+        "actions": [
+          {
+            "Transfer": {
+              "deposit": "0"
+            }
+          }
+        ],
+        "hash": "Ghke9UK93vhqVburswfd7fvYk5PZ3xNvY9xP6PvufN9U",
+        "nonce": 65914144135036,
+        "public_key": "ed25519:DU3YwmMsoSsVShhEYGs6925Cs3x5dDcXbFQG6EsPoQfU",
+        "receiver_id": "XXXa40c4de59b439db917daf9f527f605b448b3f5c6d5777d0b83a78e8dcf062",
+        "signature": "ed25519:J46ESBnBZHmudFpap66F6GLkmQP859CrczohCQMHTy7ArwsdCDTPummpPonho6ZQCGCcnj8vbsFHcwkqWEmQAA9",
+        "signer_id": "65ca40c4de59b439db917daf9f527f605b448b3f5c6d5777d0b83a78e8dcf062"
+      }
+    ]
+  },
+  "id": "dontcare"
+}
