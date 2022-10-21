@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func TestCalculateQuorum(t *testing.T) {
@@ -31,7 +32,7 @@ func TestCalculateQuorum(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(fmt.Sprint(tc.have), func(t *testing.T) {
-			assert.Equal(t, tc.want, CalculateQuorum(tc.have))
+			assert.Equal(t, tc.want, vaa.CalculateQuorum(tc.have))
 		})
 	}
 }
