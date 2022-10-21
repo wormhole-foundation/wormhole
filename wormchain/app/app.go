@@ -91,17 +91,17 @@ import (
 	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/spm/openapiconsole"
 
-	"github.com/wormhole-foundation/wormhole-chain/docs"
-	wormholemodule "github.com/wormhole-foundation/wormhole-chain/x/wormhole"
-	wormholeclient "github.com/wormhole-foundation/wormhole-chain/x/wormhole/client"
-	wormholemodulekeeper "github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
-	wormholemoduletypes "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/docs"
+	wormholemodule "github.com/wormhole-foundation/wormchain/x/wormhole"
+	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
+	wormholemodulekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
+	wormholemoduletypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 )
 
 const (
 	AccountAddressPrefix = "wormhole"
-	Name                 = "wormholechain"
+	Name                 = "wormchain"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals

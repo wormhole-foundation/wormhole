@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 func (k Keeper) PostMessage(ctx sdk.Context, emitter types.EmitterAddress, nonce uint32, data []byte) error {

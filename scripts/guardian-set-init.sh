@@ -107,7 +107,7 @@ bscTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m Tok
 algoTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
 nearTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
 terra2TokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
-wormchainTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormholechain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
+wormchainTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
 aptosTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c aptos -a ${aptosTokenBridge} -g ${guardiansPrivateCSV})
 
 

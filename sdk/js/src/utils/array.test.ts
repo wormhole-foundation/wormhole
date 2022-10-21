@@ -26,11 +26,11 @@ test("wormchain address conversion", () => {
     "000000000000000000000000e868c4707417d0481dd7e213944e758e776ed35e";
   const native = tryUint8ArrayToNative(
     new Uint8Array(Buffer.from(canonical, "hex")),
-    "wormholechain"
+    "wormchain"
   );
   expect(native).toBe(human);
 
-  expect(tryNativeToHexString(human, "wormholechain")).toBe(canonical);
+  expect(tryNativeToHexString(human, "wormchain")).toBe(canonical);
 });
 
 test("injective address conversion", () => {

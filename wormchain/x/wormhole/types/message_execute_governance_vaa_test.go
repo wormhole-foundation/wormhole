@@ -5,7 +5,7 @@ import (
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
-	"github.com/wormhole-foundation/wormhole-chain/testutil/sample"
+	"github.com/wormhole-foundation/wormchain/testutil/sample"
 )
 
 func TestMsgExecuteGovernanceVAA_ValidateBasic(t *testing.T) {

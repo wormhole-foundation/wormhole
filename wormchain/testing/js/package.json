@@ -1,5 +1,5 @@
 {
-  "name": "@wormhole-foundation/tests-wormhole-chain",
+  "name": "@wormhole-foundation/tests-wormchain",
   "version": "0.0.1",
   "description": "testing project for wormhole chain",
   "main": "index.js",
@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wormhole-foundation/wormhole-chain.git"
+    "url": "git+https://github.com/wormhole-foundation/wormchain.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/wormhole-foundation/wormhole-chain/issues"
+    "url": "https://github.com/wormhole-foundation/wormchain/issues"
   },
-  "homepage": "https://github.com/wormhole-foundation/wormhole-chain#readme",
+  "homepage": "https://github.com/wormhole-foundation/wormchain#readme",
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.2.0",
     "@cosmjs/cosmwasm-stargate": "^0.27.1",
@@ -30,7 +30,7 @@
     "@cosmjs/proto-signing": "^0.27.1",
     "@cosmjs/stargate": "^0.27.1",
     "@cosmjs/tendermint-rpc": "^0.27.1",
-    "@wormhole-foundation/wormhole-chain-sdk": "file:../../ts-sdk",
+    "@wormhole-foundation/wormchain-sdk": "file:../../ts-sdk",
     "axios": "^0.26.0",
     "bech32": "^2.0.0",
     "elliptic": "^6.5.4",

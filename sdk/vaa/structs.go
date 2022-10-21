@@ -147,7 +147,7 @@ func (c ChainID) String() string {
 	case ChainIDPythNet:
 		return "pythnet"
 	case ChainIDWormchain:
-		return "wormholechain"
+		return "wormchain"
 	case ChainIDXpla:
 		return "xpla"
 	default:
@@ -207,7 +207,7 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDArbitrum, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
-	case "wormholechain":
+	case "wormchain":
 		return ChainIDWormchain, nil
 	case "xpla":
 		return ChainIDXpla, nil
@@ -266,7 +266,7 @@ const (
 	ChainIDPythNet ChainID = 26
 	// ChainIDXpla is the ChainID of Xpla
 	ChainIDXpla ChainID = 28
-	//ChainIDWormchain is the ChainID of Wormholechain
+	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten

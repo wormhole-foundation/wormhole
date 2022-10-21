@@ -5,8 +5,8 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 // NewHandler ...

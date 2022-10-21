@@ -732,14 +732,14 @@ if near:
     )
 
 docker_build(
-    ref = "wormhole-chaind-image",
+    ref = "wormchaind-image",
     context = ".",
     dockerfile = "./Dockerfile.wormchain",
     only = [],
-    ignore = ["./wormhole_chain/testing", "./wormhole_chain/ts-sdk", "./wormhole_chain/design", "./wormhole_chain/vue", "./wormhole_chain/build/wormhole-chaind"],
+    ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
 )
 
-k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-guardian-devnet.yaml")
+k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-guardian-devnet.yaml")
 
 k8s_resource(
     "guardian-validator",
@@ -753,7 +753,7 @@ k8s_resource(
 )
 
 if secondWormchain:
-    k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-validator2-devnet.yaml")
+    k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-validator2-devnet.yaml")
 
     k8s_resource(
         "second-validator",

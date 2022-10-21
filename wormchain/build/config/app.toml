@@ -8,7 +8,7 @@ pruning = "default"
 pruning-interval = "0"
 pruning-keep-every = "0"
 pruning-keep-recent = "0"
-chain-id = "wormholechain"
+chain-id = "wormchain"
 
 [api]
   address = "tcp://localhost:1317"

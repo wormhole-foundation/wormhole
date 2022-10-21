@@ -1,9 +1,26 @@
 {
   "genesis_time": "2022-09-27T22:08:43.044644477Z",
-  "chain_id": "wormholechain",
-  "gentxs_dir": "build/config/gentx",
-  "moniker": "mynode",
-  "node_id": "c3f474217c930af3a4e998c4e52a57cee188ff43",
+  "chain_id": "wormchain",
+  "initial_height": "1",
+  "consensus_params": {
+    "block": {
+      "max_bytes": "22020096",
+      "max_gas": "-1",
+      "time_iota_ms": "1000"
+    },
+    "evidence": {
+      "max_age_num_blocks": "100000",
+      "max_age_duration": "172800000000000",
+      "max_bytes": "1048576"
+    },
+    "validator": {
+      "pub_key_types": [
+        "ed25519"
+      ]
+    },
+    "version": {}
+  },
+  "app_hash": "",
   "app_state": {
     "auth": {
       "params": {
@@ -58,7 +75,7 @@
       "supply": [],
       "denom_metadata": [
         {
-          "description": "Wormholechain's native test asset",
+          "description": "Wormchain's native test asset",
           "denom_units": [
             {
               "denom": "utest",
@@ -77,7 +94,7 @@
           "symbol": "TEST"
         },
         {
-          "description": "Wormholechain's native staking asset",
+          "description": "Wormchain's native staking asset",
           "denom_units": [
             {
               "denom": "uworm",
@@ -164,7 +181,7 @@
                 }
               }
             ],
-            "memo": "c3f474217c930af3a4e998c4e52a57cee188ff43@172.16.14.80:26656",
+            "memo": "d012471401a9132f69a8189998be10da3320e089@10.0.0.2:26656",
             "timeout_height": "0",
             "extension_options": [],
             "non_critical_extension_options": []
@@ -192,7 +209,7 @@
             }
           },
           "signatures": [
-            "wksmbgHHl22UKLmZK3AuSIdPxfX5+BPmvhVxHJC3wB5dzE1l0n+qmMxpbEP/wr0Xi0aC/qIszss6VxVoUmiPKw=="
+            "c5Ne3MvUdOC0o4PxqPkieqXMemrCg2VIDwH43v+rDs85sUi4UE0QdIjldzFBeBQXa6dVddKgU6KbZTyh7yc7GA=="
           ]
         }
       ]
@@ -305,6 +322,19 @@
     },
     "upgrade": {},
     "vesting": {},
+    "wasm": {
+      "params": {
+        "code_upload_access": {
+          "permission": "Everybody",
+          "address": ""
+        },
+        "instantiate_default_permission": "Everybody"
+      },
+      "codes": [],
+      "contracts": [],
+      "sequences": [],
+      "gen_msgs": []
+    },
     "wormhole": {
       "config": {
         "chain_id": 3104,
@@ -332,19 +362,6 @@
       ],
       "replayProtectionList": [],
       "sequenceCounterList": []
-    },
-    "wasm": {
-      "params": {
-        "code_upload_access": {
-          "permission": "Everybody",
-          "address": ""
-        },
-        "instantiate_default_permission": "Everybody"
-      },
-      "codes": [],
-      "contracts": [],
-      "sequences": [],
-      "gen_msgs": []
     }
   }
 }

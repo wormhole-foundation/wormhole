@@ -22,7 +22,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   CHAIN_ID_TERRA2,
-  CHAIN_ID_WORMHOLE_CHAIN,
+  CHAIN_ID_WORMCHAIN,
   CHAIN_ID_UNSET,
   coalesceChainId,
   isEVMChain,
@@ -95,8 +95,8 @@ export const tryUint8ArrayToNative = (
     return humanAddress("inj", a.slice(-20));
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return uint8ArrayToNativeStringAlgorand(a);
-  } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
-    // wormhole-chain addresses are always 20 bytes.
+  } else if (chainId == CHAIN_ID_WORMCHAIN) {
+    // wormchain addresses are always 20 bytes.
     return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_XPLA) {
     return humanAddress("xpla", a.slice(-20));
@@ -232,7 +232,7 @@ export const tryNativeToHexString = (
     return buildTokenId(chainId, address);
   } else if (chainId === CHAIN_ID_ALGORAND) {
     return nativeStringToHexAlgorand(address);
-  } else if (chainId == CHAIN_ID_WORMHOLE_CHAIN) {
+  } else if (chainId == CHAIN_ID_WORMCHAIN) {
     return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
   } else if (chainId === CHAIN_ID_NEAR) {
     return uint8ArrayToHex(arrayify(sha256(Buffer.from(address))));

@@ -31,7 +31,7 @@ Thus, `first_validator` (represented in tilt as `guardian-validator`) is a speci
 At this point you should have a container which comes online as a non-validating node, and no additional action is needed if that is sufficient. A couple other things you may want to make note of are:
 
 - The Tendermint ID & pubkey of the node. The IDs of the first two nodes are posted below. The easiest way to get this is to simply grab it from the logs when the validator starts up.
-- Adding your validator to the genesis block. When you run `make`, it should put out a gentx file. This gentx payload needs to make its way into the `genesis.json` in order for the validator to be registered in the genesis block. The easiest way to do this would be to run the `./build/wormhole-chaind gentx` command (with the required arguments), then running `make` again.
+- Adding your validator to the genesis block. When you run `make`, it should put out a gentx file. This gentx payload needs to make its way into the `genesis.json` in order for the validator to be registered in the genesis block. The easiest way to do this would be to run the `./build/wormchaind gentx` command (with the required arguments), then running `make` again.
 
 ## Validator Information
 

@@ -9,7 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/gov/client/cli"
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/spf13/cobra"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 const FlagGuardianSetKeys = "guardian-set-keys"

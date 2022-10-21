@@ -110,10 +110,16 @@ const MAINNET = {
     chain_id: "dimension_37-1",
     key: get_env_var("XPLA_KEY"),
   },
+  wormchain: {
+    rpc: undefined,
+    key: undefined,
+  },
+  // TODO: remove when ChainName is updated to remove "wormholechain"
   wormholechain: {
     rpc: undefined,
     key: undefined,
   },
+
   moonbeam: {
     rpc: "https://rpc.api.moonbeam.network",
     key: get_env_var("ETH_KEY"),
@@ -240,6 +246,11 @@ const TESTNET = {
     chain_id: "cube_47-5",
     key: get_env_var("XPLA_KEY_TESTNET"),
   },
+  wormchain: {
+    rpc: undefined,
+    key: undefined,
+  },
+  // TODO: remove when ChainName is updated to remove "wormholechain"
   wormholechain: {
     rpc: undefined,
     key: undefined,
@@ -360,9 +371,15 @@ const DEVNET = {
     chain_id: undefined,
     key: undefined,
   },
+  wormchain: {
+    rpc: "http://localhost:1319",
+    chain_id: "wormchain",
+    key: undefined,
+  },
+  // TODO: remove when ChainName is updated to remove "wormholechain"
   wormholechain: {
     rpc: "http://localhost:1319",
-    chain_id: "wormholechain",
+    chain_id: "wormchain",
     key: undefined,
   },
   aptos: {

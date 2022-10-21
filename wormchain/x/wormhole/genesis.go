@@ -2,8 +2,8 @@ package wormhole
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 // InitGenesis initializes the capability module's state from a provided genesis

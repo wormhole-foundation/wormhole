@@ -28,7 +28,7 @@ export const CHAINS = {
   pythnet: 26,
   xpla: 28,
   ropsten: 10001,
-  wormholechain: 3104,
+  wormchain: 3104,
 } as const;
 
 export type ChainName = keyof typeof CHAINS;
@@ -222,7 +222,7 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  wormholechain: {
+  wormchain: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -377,7 +377,7 @@ const TESTNET = {
     token_bridge: "0xF174F9A837536C449321df1Ca093Bb96948D5386",
     nft_bridge: "0x2b048Da40f69c8dc386a56705915f8E966fe1eba",
   },
-  wormholechain: {
+  wormchain: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -531,7 +531,7 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  wormholechain: {
+  wormchain: {
     core: "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
     token_bridge: "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
     nft_bridge: undefined,
@@ -605,7 +605,7 @@ export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
 export const CHAIN_ID_PYTHNET = CHAINS["pythnet"];
 export const CHAIN_ID_XPLA = CHAINS["xpla"];
 export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
-export const CHAIN_ID_WORMHOLE_CHAIN = CHAINS["wormholechain"];
+export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
 export type ChainIdToName = {

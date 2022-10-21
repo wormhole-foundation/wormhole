@@ -35,10 +35,10 @@ spec:
         app: guardian-validator
     spec:
       containers:
-        - name: wormhole-chaind
-          image: wormhole-chaind-image
+        - name: wormchaind
+          image: wormchaind-image
           command:
-            - /app/build/wormhole-chaind
+            - /app/build/wormchaind
             - start
             - --home
             - /app/validators/first_validator
