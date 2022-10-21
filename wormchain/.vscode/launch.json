@@ -2,11 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "wormhole-chaind/main.go",
+            "name": "wormchaind/main.go",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/cmd/wormhole-chaind/main.go",
+            "program": "${workspaceFolder}/cmd/wormchaind/main.go",
             "args": [
                 "start",
                 "--home", "${workspaceFolder}/build/",

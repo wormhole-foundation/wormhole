@@ -8,12 +8,12 @@ RUN curl https://get.ignite.com/cli@v0.23.0 | bash && mv ignite /usr/local/bin/
 
 WORKDIR /app
 
-COPY ./wormhole_chain/go.mod .
-COPY ./wormhole_chain/go.sum .
+COPY ./wormchain/go.mod .
+COPY ./wormchain/go.sum .
 COPY ./sdk /sdk
 RUN go mod download
 
-COPY ./wormhole_chain .
+COPY ./wormchain .
 
 EXPOSE 26657
 EXPOSE 26656
@@ -26,8 +26,8 @@ RUN unset GOPATH
 
 RUN make proto -B
 RUN make client
-RUN chmod +x /app/build/wormhole-chaind
+RUN chmod +x /app/build/wormchaind
 RUN make validators
-RUN /app/build/wormhole-chaind collect-gentxs --home /app/build
+RUN /app/build/wormchaind collect-gentxs --home /app/build
 
-ENTRYPOINT ["/bin/bash","-c","/app/build/wormhole-chaind start"]
+ENTRYPOINT ["/bin/bash","-c","/app/build/wormchaind start"]

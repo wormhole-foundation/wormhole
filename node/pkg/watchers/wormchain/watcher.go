@@ -99,8 +99,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 	defer c.Close()
 
 	// Subscribe transactions which cause EventPostedMessage
-	params := [...]string{"tm.event='Tx' AND certusone.wormholechain.wormhole.EventPostedMessage.sequence EXISTS"}
-	// alternately, "tm.event='Tx' AND certusone.wormholechain.wormhole.EventPostedMessage.sequence >= 0"
+	params := [...]string{"tm.event='Tx' AND wormhole_foundation.wormchain.wormhole.EventPostedMessage.sequence EXISTS"}
+	// alternately, "tm.event='Tx' AND wormhole_foundation.wormchain.wormhole.EventPostedMessage.sequence >= 0"
 	command := &clientRequest{
 		JSONRPC: "2.0",
 		Method:  "subscribe",
@@ -275,7 +275,7 @@ func EventsToMessagePublications(txHash string, events []gjson.Result, logger *z
 			continue
 		}
 		eventType := gjson.Get(event.String(), "type")
-		if eventType.String() != "certusone.wormholechain.wormhole.EventPostedMessage" {
+		if eventType.String() != "wormhole_foundation.wormchain.wormhole.EventPostedMessage" {
 			continue
 		}
 

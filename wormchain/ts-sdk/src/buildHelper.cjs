@@ -6,7 +6,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const CERTUS_DIRECTORY = "../vue/src/store/generated/wormhole-foundation/wormhole-chain/";
+const CERTUS_DIRECTORY = "../vue/src/store/generated/wormhole-foundation/wormchain/";
 const COSMOS_DIRECTORY = "../vue/src/store/generated/cosmos/cosmos-sdk/";
 const MODULE_DIRECTORY = "../ts-sdk/src/modules/";
 const VUE_DIRECTORY = "../vue";

@@ -7,7 +7,7 @@ import {
   getWallet,
   getWormchainSigningClient,
   getWormholeQueryClient,
-} from "@wormhole-foundation/wormhole-chain-sdk";
+} from "@wormhole-foundation/wormchain-sdk";
 import {
   WORM_DENOM,
   NODE_URL,

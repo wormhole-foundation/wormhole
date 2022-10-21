@@ -5,8 +5,8 @@ import (
 
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/tendermint/spm/cosmoscmd"
-	"github.com/wormhole-foundation/wormhole-chain/app"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/client/cli"
+	"github.com/wormhole-foundation/wormchain/app"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/client/cli"
 )
 
 func main() {

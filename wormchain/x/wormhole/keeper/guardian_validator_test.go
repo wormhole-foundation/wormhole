@@ -8,10 +8,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	keepertest "github.com/wormhole-foundation/wormhole-chain/testutil/keeper"
-	"github.com/wormhole-foundation/wormhole-chain/testutil/nullify"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	keepertest "github.com/wormhole-foundation/wormchain/testutil/keeper"
+	"github.com/wormhole-foundation/wormchain/testutil/nullify"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 // Create N guardians and return both their public and private keys

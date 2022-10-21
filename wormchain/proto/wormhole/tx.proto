@@ -1,11 +1,11 @@
 syntax = "proto3";
-package wormhole_foundation.wormholechain.wormhole;
+package wormhole_foundation.wormchain.wormhole;
 
 import "gogoproto/gogo.proto";
 // this line is used by starport scaffolding # proto/tx/import
 import "wormhole/guardian_key.proto";
 
-option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types";
+option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
 // Msg defines the Msg service.
 service Msg {

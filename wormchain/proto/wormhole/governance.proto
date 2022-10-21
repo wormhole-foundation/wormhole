@@ -1,9 +1,9 @@
 syntax = "proto3";
-package wormhole_foundation.wormholechain.wormhole;
+package wormhole_foundation.wormchain.wormhole;
 
 import "wormhole/guardian_set.proto";
 import "gogoproto/gogo.proto";
-option go_package = "github.com/wormhole-foundation/wormhole-chain/x/wormhole/types";
+option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
 // GuardianSetUpdateProposal defines a guardian set update governance proposal
 message GuardianSetUpdateProposal {

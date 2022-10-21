@@ -883,8 +883,9 @@ yargs(hideBin(process.argv))
           argv["contract-address"],
           argv["rpc"]
         );
-      } else if (chain === "wormholechain") {
-        throw Error("Wormhole Chain is not supported yet");
+      } else if (chain == "wormholechain" || (chain+"") === "wormchain") {
+        // TODO: update this condition after ChainName is updated to remove "wormholechain"
+        throw Error("Wormchain is not supported yet");
       } else {
         // If you get a type error here, hover over `chain`'s type and it tells you
         // which cases are not handled
@@ -924,7 +925,8 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "aptos") {
     // TODO: is there a better native format for aptos?
     return "0x" + evm_address(address);
-  } else if (chain === "wormholechain") {
+  } else if (chain === "wormholechain" || (chain + "") == "wormchain") {
+    // TODO: update this condition after ChainName is updated to remove "wormholechain"
     const sdk = require("@certusone/wormhole-sdk/lib/cjs/utils/array")
     return "0x" + sdk.tryNativeToHexString(address, chain);
   } else {

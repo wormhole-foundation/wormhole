@@ -9,9 +9,9 @@ import (
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"google.golang.org/grpc/status"
 
-	"github.com/wormhole-foundation/wormhole-chain/testutil/network"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/client/cli"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/testutil/network"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/client/cli"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 func networkWithConfigObjects(t *testing.T) (*network.Network, types.Config) {

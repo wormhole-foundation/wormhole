@@ -6,8 +6,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
 func SimulateMsgRegisterAccountAsGuardian(

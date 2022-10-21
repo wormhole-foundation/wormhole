@@ -3,13 +3,13 @@ import { DeliverTxResponse, StdFee } from "@cosmjs/stargate";
 import axios from "axios";
 import pkg from "protobufjs";
 const { Field, Type } = pkg;
-import * as sdk from "@wormhole-foundation/wormhole-chain-sdk";
+import * as sdk from "@wormhole-foundation/wormchain-sdk";
 import {
   fromAccAddress,
   fromValAddress,
   toBase64,
   toValAddress,
-} from "@wormhole-foundation/wormhole-chain-sdk";
+} from "@wormhole-foundation/wormchain-sdk";
 import {
   DEVNET_GUARDIAN2_PRIVATE_KEY,
   DEVNET_GUARDIAN2_PUBLIC_KEY,

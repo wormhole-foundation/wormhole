@@ -20,8 +20,8 @@ import (
 	// "github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/keeper"
-	"github.com/wormhole-foundation/wormhole-chain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
+	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 

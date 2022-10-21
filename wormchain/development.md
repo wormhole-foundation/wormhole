@@ -15,7 +15,7 @@ make
 ```
 
 This command creates a `build` directory and in particular, the
-`build/wormhole-chaind` binary, which can be used to run and interact with the
+`build/wormchaind` binary, which can be used to run and interact with the
 blockchain.
 
 You can start a local development instance by running
@@ -27,7 +27,7 @@ make run
 Or equivalently
 
 ```shell
-./build/wormhole-chaind --home build
+./build/wormchaind --home build
 ```
 
 If you want to reset the blockchain, just run
@@ -58,7 +58,7 @@ Client tests, run against the chain. Wormchain must be running via `starport cha
 You can interact with the blockchain by using the go binary:
 
 ```shell
-./build/wormhole-chaind tx --from tiltGuardian --home build
+./build/wormchaind tx --from tiltGuardian --home build
 ```
 
 Note the flags `--from tiltGuardian --home build`. These have to be passed
@@ -85,4 +85,4 @@ Scaffold a query:
 starport scaffold query latest_guardian_set_index --response LatestGuardianSetIndex --module wormhole
 ```
 
-(then modify "wormhole_chain/x/wormhole/types/query.pb.go" to change the response type)
+(then modify "wormchain/x/wormhole/types/query.pb.go" to change the response type)

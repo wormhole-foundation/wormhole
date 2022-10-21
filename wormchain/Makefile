@@ -13,15 +13,15 @@ endif
 all: client vue validators
 
 .PHONY: client
-client: build/wormhole-chaind
+client: build/wormchaind
 
 .PHONY: validators
 validators:
 	# These files change when the genesis file changes, so we need to make
 	# sure to copy them over
 	touch -m $@
-	./build/wormhole-chaind --home build/ tendermint unsafe-reset-all
-	./build/wormhole-chaind --home build/ gentx tiltGuardian "0uworm" --chain-id=wormholechain --min-self-delegation="0" --keyring-dir=keyring-test
+	./build/wormchaind --home build/ tendermint unsafe-reset-all
+	./build/wormchaind --home build/ gentx tiltGuardian "0uworm" --chain-id=wormchain --min-self-delegation="0" --keyring-dir=keyring-test
 
 	# Copy config to validators/first_validator
 	cp build/config/priv_validator_key.json validators/first_validator/config/
@@ -35,7 +35,7 @@ validators:
 	mkdir -p validators/second_validator/keyring-test
 	cp build/keyring-test/* validators/second_validator/keyring-test/
 
-build/wormhole-chaind: cmd/wormhole-chaind/main.go $(GO_FILES) proto
+build/wormchaind: cmd/wormchaind/main.go $(GO_FILES) proto
 	go build -o $@ $<
 
 proto:  $(PROTO_FILES)
@@ -55,7 +55,7 @@ ts-sdk: vue
 	npm run build --prefix $@
 
 .PHONY: run
-run: build/wormhole-chaind
+run: build/wormchaind
 	./$< start --home build  --log_level="debug"
 
 .PHONY: test
@@ -68,5 +68,5 @@ bootstrap:
 
 .PHONY: clean
 clean:
-	rm -rf build/wormhole-chaind build/**/*.db build/**/*.wal vue
+	rm -rf build/wormchaind build/**/*.db build/**/*.wal vue
 	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json
