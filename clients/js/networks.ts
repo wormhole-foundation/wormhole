@@ -1,4 +1,4 @@
-import { ChainName } from "@certusone/wormhole-sdk";
+import { ChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 require("dotenv").config({ path: `${process.env.HOME}/.wormhole/.env` });
 

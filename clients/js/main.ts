@@ -11,7 +11,7 @@
 // drop that particular message...
 // </sigh>
 const info = console.info;
-console.info = function (x) {
+console.info = function(x: string) {
   if (x != "secp256k1 unavailable, reverting to browser version") {
     info(x);
   }
@@ -22,48 +22,14 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 import { fromBech32, toHex } from "@cosmjs/encoding";
-import { CONTRACTS as SDK_CONTRACTS } from "@certusone/wormhole-sdk";
-import {
-  isTerraChain,
-  assertEVMChain,
-  setDefaultWasm,
-  hexToUint8Array,
-  getEmitterAddressSolana,
-  getEmitterAddressTerra,
-  getEmitterAddressEth,
-  getEmitterAddressAlgorand,
-  getEmitterAddressNear,
-  isCosmWasmChain,
-} from "@certusone/wormhole-sdk";
-import { execute_solana } from "./solana";
-import {
-  execute_evm,
-  getImplementation,
-  hijack_evm,
-  query_contract_evm,
-  setStorageAt,
-} from "./evm";
-import { execute_terra } from "./terra";
-import { execute_aptos } from "./aptos";
-import { execute_near, upgrade_near, deploy_near } from "./near";
 import * as vaa from "./vaa";
 import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
-import {
-  assertChain,
-  ChainName,
-  CHAINS,
-  toChainName,
-  isEVMChain,
-  toChainId,
-  tryNativeToHexString,
-} from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
-import { execute_algorand } from "./algorand";
-import { execute_injective } from "./injective";
-import { execute_xpla } from "./xpla";
 import { isOutdated } from "./cmds/update";
+import { setDefaultWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
+import { assertChain, assertEVMChain, ChainName, CHAINS, CONTRACTS as SDK_CONTRACTS, isCosmWasmChain, isEVMChain, isTerraChain, toChainId, toChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 setDefaultWasm("node");
 
@@ -78,7 +44,7 @@ const GOVERNANCE_CHAIN = 1;
 const GOVERNANCE_EMITTER =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
-// TODO: put this into the sdk when things have finalised
+// TODO: remove this once the aptos SDK changes are merged in
 const OVERRIDES = {
   MAINNET: {
     aptos: {
@@ -445,17 +411,18 @@ yargs(hideBin(process.argv))
           impossible(module);
       }
       if (argv["emitter"]) {
+        const emitter = require("@certusone/wormhole-sdk/lib/cjs/bridge/getEmitterAddress")
         if (chain === "solana" || chain === "pythnet") {
           // TODO: Create an isSolanaChain()
-          addr = await getEmitterAddressSolana(addr);
-        } else if (isCosmWasmChain(chain)) {
-          addr = await getEmitterAddressTerra(addr);
+          addr = await emitter.getEmitterAddressSolana(addr);
+        } else if (emitter.isCosmWasmChain(chain)) {
+          addr = await emitter.getEmitterAddressTerra(addr);
         } else if (chain === "algorand") {
-          addr = getEmitterAddressAlgorand(BigInt(addr));
+          addr = emitter.getEmitterAddressAlgorand(BigInt(addr));
         } else if (chain === "near") {
-          addr = await getEmitterAddressNear(addr);
+          addr = emitter.getEmitterAddressNear(addr);
         } else {
-          addr = getEmitterAddressEth(addr);
+          addr = emitter.getEmitterAddressEth(addr);
         }
       }
       console.log(addr);
@@ -511,6 +478,7 @@ yargs(hideBin(process.argv))
     "near",
     "NEAR utilites",
     (yargs) => {
+      const near = require("./near")
       return (
         yargs
           .option("module", {
@@ -562,7 +530,7 @@ yargs(hideBin(process.argv))
               });
             },
             async (argv) => {
-              await upgrade_near(argv);
+              await near.upgrade_near(argv);
             }
           )
           .command(
@@ -575,7 +543,7 @@ yargs(hideBin(process.argv))
               });
             },
             async (argv) => {
-              await deploy_near(argv);
+              await near.deploy_near(argv);
             }
           )
       );
@@ -591,6 +559,7 @@ yargs(hideBin(process.argv))
     "evm",
     "EVM utilites",
     (yargs) => {
+      const evm = require("./evm")
       return yargs
         .option("rpc", {
           describe: "RPC endpoint",
@@ -635,7 +604,7 @@ yargs(hideBin(process.argv))
               });
           },
           async (argv) => {
-            const result = await setStorageAt(
+            const result = await evm.setStorageAt(
               argv["rpc"],
               evm_address(argv["contract-address"]),
               argv["storage-slot"],
@@ -708,7 +677,7 @@ yargs(hideBin(process.argv))
             let rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc;
             if (argv["implementation-only"]) {
               console.log(
-                await getImplementation(
+                await evm.getImplementation(
                   network,
                   argv["chain"],
                   module,
@@ -719,7 +688,7 @@ yargs(hideBin(process.argv))
             } else {
               console.log(
                 JSON.stringify(
-                  await query_contract_evm(
+                  await evm.query_contract_evm(
                     network,
                     argv["chain"],
                     module,
@@ -761,7 +730,7 @@ yargs(hideBin(process.argv))
           async (argv) => {
             const guardian_addresses = argv["guardian-address"].split(",");
             let rpc = argv["rpc"] ?? NETWORKS.DEVNET.ethereum.rpc;
-            await hijack_evm(
+            await evm.hijack_evm(
               rpc,
               argv["core-contract-address"],
               guardian_addresses,
@@ -870,7 +839,8 @@ yargs(hideBin(process.argv))
           "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
         );
       } else if (isEVMChain(chain)) {
-        await execute_evm(
+        const evm = require("./evm")
+        await evm.execute_evm(
           parsed_vaa.payload,
           buf,
           network,
@@ -879,27 +849,34 @@ yargs(hideBin(process.argv))
           argv["rpc"]
         );
       } else if (isTerraChain(chain)) {
-        await execute_terra(parsed_vaa.payload, buf, network, chain);
+        const terra = require("./terra")
+        await terra.execute_terra(parsed_vaa.payload, buf, network, chain);
       } else if (chain === "solana" || chain === "pythnet") {
-        await execute_solana(parsed_vaa, buf, network, chain);
+        const solana = require("./solana")
+        await solana.execute_solana(parsed_vaa, buf, network, chain);
       } else if (chain === "algorand") {
-        await execute_algorand(
+        const algorand = require("./algorand")
+        await algorand.execute_algorand(
           parsed_vaa.payload,
-          hexToUint8Array(vaa_hex),
+          Buffer.from(vaa_hex, "hex"),
           network
         );
       } else if (chain === "near") {
-        await execute_near(parsed_vaa.payload, vaa_hex, network);
+        const near = require("./near")
+        await near.execute_near(parsed_vaa.payload, vaa_hex, network);
       } else if (chain === "injective") {
-        await execute_injective(parsed_vaa.payload, buf, network);
+        const injective = require("./injective")
+        await injective.execute_injective(parsed_vaa.payload, buf, network);
       } else if (chain === "xpla") {
-        await execute_xpla(parsed_vaa.payload, buf, network);
+        const xpla = require("./xpla")
+        await xpla.execute_xpla(parsed_vaa.payload, buf, network);
       } else if (chain === "osmosis") {
         throw Error("OSMOSIS is not supported yet");
       } else if (chain === "sui") {
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
-        await execute_aptos(
+        const aptos = require("./aptos")
+        await aptos.execute_aptos(
           parsed_vaa.payload,
           buf,
           network,
@@ -948,7 +925,8 @@ function parseAddress(chain: ChainName, address: string): string {
     // TODO: is there a better native format for aptos?
     return "0x" + evm_address(address);
   } else if (chain === "wormholechain") {
-    return "0x" + tryNativeToHexString(address, chain);
+    const sdk = require("@certusone/wormhole-sdk/lib/cjs/utils/array")
+    return "0x" + sdk.tryNativeToHexString(address, chain);
   } else {
     impossible(chain);
   }

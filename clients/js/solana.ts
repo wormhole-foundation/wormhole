@@ -2,9 +2,9 @@ import * as web3s from '@solana/web3.js'
 import { NETWORKS } from "./networks";
 import { impossible, Payload, VAA } from "./vaa";
 import base58 from "bs58";
-import { CHAINS, importCoreWasm, importNftWasm, importTokenWasm, ixFromRust, SolanaChainName } from "@certusone/wormhole-sdk";
-import { CONTRACTS } from "@certusone/wormhole-sdk"
-import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk"
+import { CHAINS, CONTRACTS, SolanaChainName } from '@certusone/wormhole-sdk/lib/cjs/utils/consts';
+import { importCoreWasm, importNftWasm, importTokenWasm } from '@certusone/wormhole-sdk/lib/cjs/solana/wasm';
+import { ixFromRust, postVaaSolanaWithRetry } from '@certusone/wormhole-sdk/lib/cjs/solana';
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -24,7 +24,7 @@ export async function execute_solana(
     case "Core":
       if (bridge_id === undefined) {
         throw Error("core bridge contract is undefined")
-      }      
+      }
       const bridge = await importCoreWasm()
       switch (v.payload.type) {
         case "GuardianSetUpgrade":
