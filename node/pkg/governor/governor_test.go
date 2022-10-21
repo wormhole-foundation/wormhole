@@ -597,7 +597,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(3),
+		Sequence:         uint64(4),
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddr,
 		ConsistencyLevel: uint8(32),
@@ -1516,7 +1516,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	assert.Equal(t, uint64(4436), valuePending)
 }
 
-func TestReobservationOfPublishedShould(t *testing.T) {
+func TestReobservationOfPublishedMsg(t *testing.T) {
 	ctx := context.Background()
 	gov, err := newChainGovernorForTest(ctx)
 

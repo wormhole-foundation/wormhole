@@ -292,6 +292,7 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 }
 
 func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time) (transfers []*Transfer, pending []*PendingTransfer, err error) {
+	oldTransfers := []*Transfer{}
 	oldPendingToUpdate := []*PendingTransfer{}
 	err = d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -344,6 +345,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				}
 
 				transfers = append(transfers, v)
+				oldTransfers = append(oldTransfers, v)
 			}
 		}
 
@@ -364,6 +366,25 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				}
 			}
 		}
+
+		if len(oldTransfers) != 0 {
+			for _, xfer := range oldTransfers {
+				logger.Info("cgov: updating format of database entry for completed transfer", zap.String("msgId", xfer.MsgID))
+				err := d.StoreTransfer(xfer)
+				if err != nil {
+					return fmt.Errorf("failed to write new completed transfer for key [%v]: %w", xfer.MsgID, err)
+				}
+
+				key := oldTransferMsgID(xfer)
+				if err := d.db.Update(func(txn *badger.Txn) error {
+					err := txn.Delete(key)
+					return err
+				}); err != nil {
+					return fmt.Errorf("failed to delete old completed transfer for key [%v]: %w", xfer.MsgID, err)
+				}
+			}
+		}
+
 		return nil
 	})
 
@@ -374,9 +395,8 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 func (d *Database) StoreTransfer(t *Transfer) error {
 	b, _ := t.Marshal()
 
-	key := createTransferKey(t)
 	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(key, b); err != nil {
+		if err := txn.Set(TransferMsgID(t), b); err != nil {
 			return err
 		}
 		return nil
@@ -409,7 +429,7 @@ func (d *Database) StorePendingMsg(pending *PendingTransfer) error {
 
 // This is called by the chain governor to delete a transfer after the time limit has expired.
 func (d *Database) DeleteTransfer(t *Transfer) error {
-	key := createTransferKey(t)
+	key := TransferMsgID(t)
 	if err := d.db.Update(func(txn *badger.Txn) error {
 		err := txn.Delete(key)
 		return err
@@ -431,15 +451,4 @@ func (d *Database) DeletePendingMsg(pending *PendingTransfer) error {
 	}
 
 	return nil
-}
-
-func createTransferKey(t *Transfer) []byte {
-	var key []byte
-	if t.Hash == "" {
-		key = oldTransferMsgID(t)
-	} else {
-		key = TransferMsgID(t)
-	}
-
-	return key
 }

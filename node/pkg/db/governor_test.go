@@ -195,8 +195,6 @@ func TestDeleteTransfer(t *testing.T) {
 		Hash:           "Hash1",
 	}
 
-	assert.Equal(t, false, isOldTransfer(createTransferKey(xfer1)))
-
 	err2 := db.StoreTransfer(xfer1)
 	require.NoError(t, err2)
 
@@ -208,46 +206,6 @@ func TestDeleteTransfer(t *testing.T) {
 
 	// Make sure the xfer is no longer in the db.
 	assert.ErrorIs(t, badger.ErrKeyNotFound, db.rowExistsInDB(TransferMsgID(xfer1)))
-}
-
-func TestOldDeleteTransfer(t *testing.T) {
-	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
-	defer db.Close()
-
-	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	require.NoError(t, err)
-
-	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	require.NoError(t, err)
-
-	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: tokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
-		// Do not set the Hash.
-	}
-
-	assert.Equal(t, true, isOldTransfer(createTransferKey(xfer1)))
-
-	err2 := db.StoreTransfer(xfer1)
-	require.NoError(t, err2)
-
-	// Make sure the xfer exists in the db.
-	assert.NoError(t, db.rowExistsInDB(oldTransferMsgID(xfer1)))
-
-	err3 := db.DeleteTransfer(xfer1)
-	require.NoError(t, err3)
-
-	// Make sure the xfer is no longer in the db.
-	assert.ErrorIs(t, badger.ErrKeyNotFound, db.rowExistsInDB(oldTransferMsgID(xfer1)))
 }
 
 func TestStorePendingMsg(t *testing.T) {
@@ -384,7 +342,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
-		Hash:           "Hash1",
+		Hash:           "Hash2",
 	}
 
 	err = db.StoreTransfer(xfer2)
@@ -563,7 +521,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	assert.Equal(t, pending2.Msg, pendings2[1].Msg)
 }
 
-func (d *Database) storeOldTransfer(t *testing.T, xfer *Transfer) error {
+func marshalOldTransfer(xfer *Transfer) []byte {
 	buf := new(bytes.Buffer)
 	vaa.MustWrite(buf, binary.BigEndian, uint32(xfer.Timestamp.Unix()))
 	vaa.MustWrite(buf, binary.BigEndian, xfer.Value)
@@ -572,9 +530,13 @@ func (d *Database) storeOldTransfer(t *testing.T, xfer *Transfer) error {
 	vaa.MustWrite(buf, binary.BigEndian, xfer.EmitterChain)
 	buf.Write(xfer.EmitterAddress[:])
 	buf.Write([]byte(xfer.MsgID))
-	b := buf.Bytes()
+	return buf.Bytes()
+}
 
+func (d *Database) storeOldTransfer(t *testing.T, xfer *Transfer) error {
 	key := []byte(fmt.Sprintf("%v%v", oldTransfer, xfer.MsgID))
+	b := marshalOldTransfer(xfer)
+
 	err := d.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(key, b); err != nil {
 			return err
@@ -585,7 +547,36 @@ func (d *Database) storeOldTransfer(t *testing.T, xfer *Transfer) error {
 	return nil
 }
 
-func TestOldTransfersDroppedWhenReloading(t *testing.T) {
+func TestDeserializeOfOldTransfer(t *testing.T) {
+	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	xfer1 := &Transfer{
+		Timestamp:      time.Unix(int64(1654516425), 0),
+		Value:          125000,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: tokenBridgeAddr,
+		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		// Do not set the Hash.
+	}
+
+	bytes := marshalOldTransfer(xfer1)
+
+	xfer2, err := unmarshalOldTransfer(bytes)
+	require.NoError(t, err)
+
+	assert.Equal(t, xfer1, xfer2)
+
+	expectedTransferKey := "GOV:XFER2:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
+}
+
+func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 	dbPath := t.TempDir()
 	db, err := Open(dbPath)
 	if err != nil {
@@ -609,10 +600,11 @@ func TestOldTransfersDroppedWhenReloading(t *testing.T) {
 		EmitterChain:   vaa.ChainIDEthereum,
 		EmitterAddress: tokenBridgeAddr,
 		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		// Do not set the Hash.
 	}
 
 	err = db.storeOldTransfer(t, xfer1)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Write the second one in the new format.
 	xfer2 := &Transfer{
@@ -627,21 +619,43 @@ func TestOldTransfersDroppedWhenReloading(t *testing.T) {
 	}
 
 	err = db.StoreTransfer(xfer2)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	now := time.Unix(time.Now().Unix(), 0)
 
 	logger := zap.NewNop()
 	xfers, pendings, err := db.GetChainGovernorDataForTime(logger, now)
 
+	require.NoError(t, err)
+	require.Equal(t, 2, len(xfers))
+	require.Equal(t, 0, len(pendings))
+
 	// Updated old pending events get placed at the end, so we need to sort into timestamp order.
 	sort.SliceStable(xfers, func(i, j int) bool {
 		return xfers[i].Timestamp.Before(xfers[j].Timestamp)
 	})
 
-	require.Nil(t, err)
+	assert.Equal(t, xfer1, xfers[0])
+	assert.Equal(t, xfer2, xfers[1])
+
+	// Make sure the old transfer got dropped from the database and rewritten in the new format.
+	assert.ErrorIs(t, badger.ErrKeyNotFound, db.rowExistsInDB(oldTransferMsgID(xfer1)))
+	assert.NoError(t, db.rowExistsInDB(TransferMsgID(xfer1)))
+
+	// And make sure the other transfer is still there.
+	assert.NoError(t, db.rowExistsInDB(TransferMsgID(xfer2)))
+
+	// Make sure we can still read the database after the conversion.
+	xfers, pendings, err = db.GetChainGovernorDataForTime(logger, now)
+
+	require.NoError(t, err)
 	require.Equal(t, 2, len(xfers))
 	require.Equal(t, 0, len(pendings))
+
+	// Updated old pending events get placed at the end, so we need to sort into timestamp order.
+	sort.SliceStable(xfers, func(i, j int) bool {
+		return xfers[i].Timestamp.Before(xfers[j].Timestamp)
+	})
 
 	assert.Equal(t, xfer1, xfers[0])
 	assert.Equal(t, xfer2, xfers[1])
