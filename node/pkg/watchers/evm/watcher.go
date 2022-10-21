@@ -731,10 +731,3 @@ func (w *Watcher) checkForSafeMode(ctx context.Context) error {
 
 	return nil
 }
-
-func (w *Watcher) useFinalizedBlocks() bool {
-	if w.unsafeDevMode {
-		return false
-	}
-	return w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala
-}
