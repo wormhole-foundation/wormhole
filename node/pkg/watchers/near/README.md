@@ -42,7 +42,7 @@ There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the blo
 	* chunk_processing_failed
 	* tx_proc_queue_full: The transaction processing queue is full but there are new transaction. This means that the Guardian is not able to catch up with block production on NEAR. This is a critical error that needs to be investigated. `chunk_id` is the ID of the chunk from which all or some transactions have been dropped.
 	* obsv_req_received: Observation request received
-	* info_process_tx: Transaction processing is being attempted. Includes `tx_hash`
+	* info_process_tx: Transaction processing is being attempted. This is done for all transactions on NEAR, so we only log this with debugging level. Log fields: `tx_hash`.
 	* wormhole_event: A Wormhole event is being processed
 	* wormhole_event_success: A Wormhole event has been successfully processed
 	* watcher_behind: The NEAR watcher fell behind too much and skipped blocks.
@@ -51,5 +51,47 @@ There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the blo
 	* polling_attempt: There are new final blocks available and the watcher is starting to poll them. Includes `previous_height` (the height of the previously highest block that we polled) and `newest_final_height` (the height of the latest block that is final).
 * tx_hash: Transaction hash
 
+## Assumptions
+* We assume that transactions containing Wormhole messages are finalized on the NEAR blockchain in `initialTxProcDelay ^ (txProcRetry+2)` time after the block containing the start of the transaction has been observed. Otherwise they will be missed. Strong network congestion or gaps/delays in block production could violate this.
 
-zap.String("log_msg_type", "tx_processing_retry"),
+## Testing and Debugging
+
+### Unit tests
+The testing strategy is to run the watcher with a mock RPC server. The mock RPC server mostly forwards requests to the mainnet RPC and caches them. Cached response are committed to the repository such that the tests don't actually depend on the mainnet RPC server.
+For negative tests, there are folders with synthetic RPC responses. The synthetic data is generated with a bash script.
+
+### Integration tests
+Run tilt without optional networks:
+```sh
+tilt up -- --evm2=false --solana=false --terra_classic=false --terra2=false
+```
+
+If you have everything built and setup:
+```sh
+cd wormhole/near/
+npm ci
+ts-node test/sdk.ts
+```
+
+If it doesn't work, this dockerfile may be a good starting point:
+```docker
+RUN dnf update && dnf install -y python3 npm curl
+RUN dnf install -y gcc gcc-c++ make git
+RUN npm install -g typescript ts-node n
+RUN n stable
+
+RUN git clone https://github.com/wormhole-foundation/wormhole.git
+
+WORKDIR /wormhole/ethereum
+RUN npm ci
+RUN npm run build
+
+WORKDIR /wormhole/sdk/js
+RUN npm ci
+RUN npm run build-all
+
+WORKDIR /wormhole/near
+RUN npm ci
+RUN ts-node test/sdk.ts
+```
+

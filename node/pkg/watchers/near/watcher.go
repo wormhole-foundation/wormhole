@@ -17,21 +17,22 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// performance configuration
-	workerCountTxProcessing = 10
-	workerChunkFetching     = 4      // this value should be set to the amount of chunks in a NEAR block, such that they can all be fetched in parallel
-	quequeSize              = 10_000 // size of the queques for chunk processing as well as transaction processing
-	maxFallBehindBlocks     = 200    // if watcher falls behind this many blocks, start over
-	blockPollInterval       = time.Millisecond * 200
-	metricsInterval         = time.Second * 10 // how often you want health metrics reported
-
-	txProcRetry = 4 // how often to retry processing a transaction
+var (
 
 	// how long to initially wait between observing a transaction and attempting to process the transaction.
 	// To successfully process the transaction, all receipts need to be finalized, which typically only occurs two blocks later or so.
 	// transaction processing will be retried with exponential backoff, i.e. transaction may stay in the queque for ca. initialTxProcDelay^(txProcRetry+2) time.
 	initialTxProcDelay = time.Second * 3
+
+	blockPollInterval = time.Millisecond * 200
+
+	workerCountTxProcessing int  = 10
+	workerChunkFetching     int  = 4                // this value should be set to the amount of chunks in a NEAR block, such that they can all be fetched in parallel
+	quequeSize              int  = 10_000           // size of the queques for chunk processing as well as transaction processing
+	maxFallBehindBlocks     uint = 200              // if watcher falls behind this many blocks, start over
+	metricsInterval              = time.Second * 10 // how often you want health metrics reported
+
+	txProcRetry uint = 4 // how often to retry processing a transaction
 
 	// the maximum span of gaps in the NEAR blockchain we want to support
 	// lower values yields better performance, but can lead to missed observations if NEAR has larger gaps.
@@ -72,7 +73,7 @@ type (
 
 		// sub-components
 		finalizer Finalizer
-		nearAPI   nearapi.NearAPI
+		nearAPI   nearapi.NearApi
 	}
 )
 
@@ -195,7 +196,7 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 			// Guardians currently run nodes for all shards and the API seems to be returning the correct results independent of the set senderAccountId but this could change in the future.
 			// Fixing this would require adding the transaction sender account ID to the observation request.
 			job := newTransactionProcessingJob(txHash, e.wormholeAccount)
-			e.transactionProcessingQueue.Schedule(job, time.Now())
+			e.transactionProcessingQueue.Schedule(job, time.Now().Add(-time.Nanosecond))
 		}
 	}
 }
@@ -261,7 +262,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
-	e.nearAPI = nearapi.NewRealNearAPI(e.nearRPC)
+	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC))
 	e.finalizer = newFinalizer(e.eventChan, e.nearAPI, e.mainnet)
 
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{

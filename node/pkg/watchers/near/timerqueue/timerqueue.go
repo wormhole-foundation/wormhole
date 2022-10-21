@@ -108,7 +108,7 @@ func (q *Timerqueue) PopFirstIfReady() (Timer, time.Time, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if len(q.heap) > 0 {
-		if q.heap[0].time.After(time.Now()) {
+		if q.heap[0].time.Before(time.Now()) {
 			// first job is ready. Pop it.
 			data := heap.Pop(&q.heap).(*timerData)
 			delete(q.table, data.timer)

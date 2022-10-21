@@ -28,7 +28,6 @@ type (
 
 	ChunkHeader struct {
 		Hash string
-		//BlockHeightIncluded uint64
 	}
 
 	Chunk struct {
@@ -38,23 +37,32 @@ type (
 	}
 
 	Transaction struct {
-		Hash       string
-		ReceiverId string
+		Hash     string
+		SignerId string
 	}
 )
 
-func newChunkFromBytes(bytes []byte) (Chunk, error) {
+func NewChunkFromBytes(bytes []byte) (Chunk, error) {
 	if !gjson.ValidBytes(bytes) {
 		return Chunk{}, errors.New("invalid json")
 	}
 
+	json := gjson.ParseBytes(bytes)
+
+	hash := jsonGetString(json, "result.header.chunk_hash")
+
+	if hash == "" {
+		return Chunk{}, errors.New("invalid json")
+	}
+
 	return Chunk{
+		Hash:  hash,
 		bytes: bytes,
-		json:  gjson.ParseBytes(bytes),
+		json:  json,
 	}, nil
 }
 
-func newBlockFromBytes(bytes []byte) (Block, error) {
+func NewBlockFromBytes(bytes []byte) (Block, error) {
 	if !gjson.ValidBytes(bytes) {
 		return Block{}, errors.New("invalid json")
 	}
@@ -118,11 +126,11 @@ func (c Chunk) Transactions() []Transaction {
 
 	for _, r := range txns.Array() {
 		hash := r.Get("hash")
-		receiver_id := r.Get("receiver_id")
-		if !hash.Exists() || !receiver_id.Exists() {
+		signer_id := r.Get("signer_id")
+		if !hash.Exists() || !signer_id.Exists() {
 			continue
 		}
-		result = append(result, Transaction{hash.String(), receiver_id.String()})
+		result = append(result, Transaction{hash.String(), signer_id.String()})
 	}
 	return result
 }

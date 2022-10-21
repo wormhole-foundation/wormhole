@@ -27,46 +27,48 @@ const (
 func (e *Watcher) runMetrics(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
+	reg := prometheus.NewRegistry()
+
 	wormholeMsgCounter := 0
 	var wormholeMsgTotalTime time.Duration = 0
 
-	currentNearHeight := promauto.NewGauge(
+	currentNearHeight := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_near_current_height",
 			Help: "Height of the highest block that has been processed. (Transactions from prior blocks may still be waiting).",
 		})
 
-	wormholeTxAvgDuration := promauto.NewGauge(
+	wormholeTxAvgDuration := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_near_tx_avg_duration",
 			Help: "Average duration it takes for a wormhole message to be processed in milliseconds",
 		})
 
-	txQuequeLen := promauto.NewGauge(
+	txQuequeLen := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_near_tx_queque",
 			Help: "Current Near transaction processing queque length",
 		})
 
-	chunkQuequeLen := promauto.NewGauge(
+	chunkQuequeLen := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_near_chunk_queque",
 			Help: "Current Near chunk processing queque length",
 		})
 
-	nearMessagesConfirmed := promauto.NewCounter(
+	nearMessagesConfirmed := promauto.With(reg).NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_near_observations_confirmed_total",
 			Help: "Total number of verified Near observations found",
 		})
 
-	nearFinalizedCacheMisses := promauto.NewCounter(
+	nearFinalizedCacheMisses := promauto.With(reg).NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_near_finalized_cache_misses",
 			Help: "Total number of verified Near observations found",
 		})
 
-	nearRpcErrorCounter := promauto.NewCounter(
+	nearRpcErrorCounter := promauto.With(reg).NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_near_rpc_error",
 			Help: "NEAR RPC Error Counter",
@@ -96,7 +98,7 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 				})
 				readiness.SetReady(common.ReadinessNearSyncing)
 
-				logger.Info("newHeight", zap.String("log_msg_type", "obsv_req_received"), zap.Uint64("height", height))
+				logger.Info("newHeight", zap.String("log_msg_type", "height"), zap.Uint64("height", height))
 			}
 		case event := <-e.eventChan:
 			switch event {

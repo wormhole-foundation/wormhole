@@ -22,7 +22,7 @@ func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, ch
 	txns := chunk.Transactions()
 
 	for _, tx := range txns {
-		result = append(result, newTransactionProcessingJob(tx.Hash, tx.ReceiverId))
+		result = append(result, newTransactionProcessingJob(tx.Hash, tx.SignerId))
 	}
 	return result, nil
 }
@@ -39,12 +39,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	}
 
 	// SECURITY: We know that this block is finalized because it is a parent of a finalized block.
-	e.finalizer.setFinalized(startBlock.Header)
-
-	// return condition
-	if startBlock.Header.Height <= stopHeight {
-		return nil
-	}
+	e.finalizer.setFinalized(logger, ctx, startBlock.Header)
 
 	// we want to avoid going too far back because that would increase the likelihood of error somewhere in the recursion stack.
 	// If we go back too far, we just report the error and terminate early.
@@ -53,21 +48,24 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 		return nil
 	}
 
-	// recursion
-	prevBlock, err := e.nearAPI.GetBlock(ctx, startBlock.Header.PrevBlockHash)
-	if err != nil {
-		return err
-	}
-	err = e.recursivelyReadFinalizedBlocks(logger, ctx, prevBlock, stopHeight, chunkSink, recursionDepth+1)
-	if err != nil {
-		return err
-	}
+	// recursion + stop condition
+	if startBlock.Header.Height-1 > stopHeight {
 
-	logger.Info(
-		"block_polled",
-		zap.String("log_msg_type", "block_poll"),
-		zap.Uint64("height", startBlock.Header.Height),
-	)
+		prevBlock, err := e.nearAPI.GetBlock(ctx, startBlock.Header.PrevBlockHash)
+		if err != nil {
+			return err
+		}
+		err = e.recursivelyReadFinalizedBlocks(logger, ctx, prevBlock, stopHeight, chunkSink, recursionDepth+1)
+		if err != nil {
+			return err
+		}
+
+		logger.Info(
+			"block_polled",
+			zap.String("log_msg_type", "block_poll"),
+			zap.Uint64("height", startBlock.Header.Height),
+		)
+	}
 
 	chunks := startBlock.ChunkHashes()
 	// process chunks after recursion such that youngest chunks get processed first
@@ -77,8 +75,9 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	return nil
 }
 
-// readFinalChunksSince polls the NEAR blockchain for new blocks, parses out the chunks and places
+// readFinalChunksSince polls the NEAR blockchain for new blocks with height > startHeight, parses out the chunks and places
 // them into `chunkSink` in the order they were recorded on the blockchain
+// returns the height of the latest final block
 func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, startHeight uint64, chunkSink chan<- nearapi.ChunkHeader) (newestFinalHeight uint64, err error) {
 
 	finalBlock, err := e.nearAPI.GetFinalBlock(ctx)

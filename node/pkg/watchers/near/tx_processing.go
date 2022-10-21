@@ -33,24 +33,29 @@ type NearWormholePublishEvent struct {
 // we go through all receipt outcomes (result.receipts_outcome) and look for log emissions from the Wormhole core contract.
 // sender_account_id is required to help determine which shard to query.
 func (e *Watcher) processTx(logger *zap.Logger, ctx context.Context, job *transactionProcessingJob) error {
+	logger.Debug("processTx", zap.String("log_msg_type", "info_process_tx"), zap.String("tx_hash", job.txHash))
+
 	tx_receipts, err := e.nearAPI.GetTxStatus(ctx, job.txHash, job.senderAccountId)
 
 	if err != nil {
 		return err
 	}
-	logger.Debug("processTx", zap.String("log_msg_type", "info_process_tx"), zap.String("tx_hash", job.txHash))
 
 	receiptOutcomes := gjson.ParseBytes(tx_receipts).Get("result.receipts_outcome")
 
 	if !receiptOutcomes.Exists() {
 		// no outcomes means nothing to look at
+		logger.Debug("processTx: No receipt outcomes", zap.String("tx_hash", job.txHash))
 		return nil
 	}
 
 	for _, receiptOutcome := range receiptOutcomes.Array() {
-		_ = e.processOutcome(logger, ctx, job, receiptOutcome)
+		err = e.processOutcome(logger, ctx, job, receiptOutcome)
+		if err != nil {
+			logger.Debug("ProcessOutcome error: ", zap.Error(err))
+		}
 	}
-	return nil // SUCCESS
+	return nil
 }
 
 func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *transactionProcessingJob, receiptOutcome gjson.Result) error {
@@ -73,6 +78,8 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	if executor_id.String() == "" || executor_id.String() != e.wormholeAccount {
 		return nil
 	}
+
+	logger.Debug("Found a Wormhole Transaction... Now checking if it's a valid log emission.", zap.String("tx_hash", job.txHash))
 
 	outcomeBlockHash := receiptOutcome.Get("block_hash")
 	if !outcomeBlockHash.Exists() {
@@ -154,7 +161,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, ctx context.Context, jo
 		return errors.New("Wormhole publish event.seq does not match SuccessValue")
 	}
 
-	// SECURITY: For defense-in-depth, check that the blockId from the event matches the blockId from the RPC node
+	// SECURITY: For defense-in-depth, check that the block height from the event matches the block height from the RPC node
 	if pubEvent.BlockHeight != outcomeBlockHeader.Height {
 		logger.Error(
 			"Wormhole publish event.block does not equal receipt_outcome[x].block_height",

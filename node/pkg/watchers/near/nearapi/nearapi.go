@@ -17,26 +17,26 @@ const (
 )
 
 type (
-	NearAPI interface {
+	NearRpc interface {
+		Query(ctx context.Context, s string) ([]byte, error)
+	}
+	HttpNearRpc struct {
+		nearRpc        string
+		nearHttpClient *http.Client
+	}
+	NearApi interface {
 		GetBlock(ctx context.Context, blockId string) (Block, error)
 		GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error)
 		GetFinalBlock(ctx context.Context) (Block, error)
 		GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error)
 		GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error)
 	}
-	NearRpc interface {
-		Query(ctx context.Context, s string) ([]byte, error)
-	}
-	RealNearAPI struct {
+	NearApiImpl struct {
 		nearRPC NearRpc
-	}
-	HttpNearRpc struct {
-		nearRPC        string
-		nearHttpClient *http.Client
 	}
 )
 
-func NewRealNearAPI(nearRPC string) NearAPI {
+func NewHttpNearRpc(nearRPC string) HttpNearRpc {
 	// Customize the Transport to have larger connection pool (default is only 2 per host)
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxConnsPerHost = nearRPCConcurrentConnections
@@ -46,8 +46,11 @@ func NewRealNearAPI(nearRPC string) NearAPI {
 		Transport: t,
 	}
 
-	httpNearRpc := HttpNearRpc{nearRPC, httpClient}
-	return RealNearAPI{httpNearRpc}
+	return HttpNearRpc{nearRPC, httpClient}
+}
+
+func NewNearApiImpl(nearRpc NearRpc) NearApiImpl {
+	return NearApiImpl{nearRpc}
 }
 
 func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
@@ -63,7 +66,7 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 			return nil, errors.New("HTTP timeout")
 		case <-timer.C:
 			// perform HTTP request
-			req, _ := http.NewRequestWithContext(timeout, http.MethodPost, n.nearRPC, bytes.NewBuffer([]byte(s)))
+			req, _ := http.NewRequestWithContext(timeout, http.MethodPost, n.nearRpc, bytes.NewBuffer([]byte(s)))
 			req.Header.Add("Content-Type", "application/json")
 			resp, err := n.nearHttpClient.Do(req)
 
@@ -82,50 +85,79 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 }
 
 // getBlock calls the NEAR RPC API to retrieve a block by its hash (https://docs.near.org/api/rpc/block-chunk#block-details)
-func (n RealNearAPI) GetBlock(ctx context.Context, blockId string) (Block, error) {
+func (n NearApiImpl) GetBlock(ctx context.Context, blockId string) (Block, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": "%s"}}`, blockId)
 	blockBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Block{}, err
 	}
 
-	return newBlockFromBytes(blockBytes)
+	newBlock, err := NewBlockFromBytes(blockBytes)
+	if err != nil {
+		return Block{}, err
+	}
+
+	// SECURITY defense-in-depth
+	if newBlock.Header.Hash != blockId {
+		return Block{}, errors.New("Returned block hash does not equal queried block hash")
+	}
+
+	return newBlock, err
 }
 
 // getBlockByHeight calls the NEAR RPC API to retrieve a block by its height (https://docs.near.org/api/rpc/block-chunk#block-details)
-func (n RealNearAPI) GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error) {
+func (n NearApiImpl) GetBlockByHeight(ctx context.Context, blockHeight uint64) (Block, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"block_id": %d}}`, blockHeight)
 	blockBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Block{}, err
 	}
-	return newBlockFromBytes(blockBytes)
+	newBlock, err := NewBlockFromBytes(blockBytes)
+	if err != nil {
+		return Block{}, err
+	}
+
+	// SECURITY defense-in-depth
+	if newBlock.Header.Height != blockHeight {
+		return Block{}, errors.New("Returned block height not equal queried block height")
+	}
+	return newBlock, nil
 }
 
 // getFinalBlock gets a finalized block from the NEAR RPC API using the parameter "finality": "final" (https://docs.near.org/api/rpc/block-chunk)
-func (n RealNearAPI) GetFinalBlock(ctx context.Context) (Block, error) {
+func (n NearApiImpl) GetFinalBlock(ctx context.Context) (Block, error) {
 	s := `{"id": "dontcare", "jsonrpc": "2.0", "method": "block", "params": {"finality": "final"}}`
 	blockBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Block{}, err
 	}
-	return newBlockFromBytes(blockBytes)
+	return NewBlockFromBytes(blockBytes)
 }
 
 // getChunk gets a chunk from the NEAR RPC API: https://docs.near.org/api/rpc/block-chunk#chunk-details
-func (n RealNearAPI) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
+func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "chunk", "params": {"chunk_id": "%s"}}`, chunkHeader.Hash)
 	bytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Chunk{}, err
 	}
-	return newChunkFromBytes(bytes)
+	newChunk, err := NewChunkFromBytes(bytes)
+	if err != nil {
+		return Chunk{}, err
+	}
+
+	// SECURITY defense-in-depth
+	if newChunk.Hash != chunkHeader.Hash {
+		fmt.Printf("queried hash=%s, return_hash=%s", chunkHeader.Hash, newChunk.Hash)
+		return Chunk{}, errors.New("Returned chunk hash does not equal queried chunk hash")
+	}
+	return newChunk, nil
 }
 
 // getTxStatus queries status of a transaction by hash, returning the transaction_outcomes and receipts_outcomes
 // sender_account_id is used to determine which shard to query for the transaction
 // See https://docs.near.org/api/rpc/transactions#transaction-status
-func (n RealNearAPI) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
-	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "EXPERIMENTAL_tx_status", "params": ["%s", "%s"]}`, txHash, senderAccountId)
+func (n NearApiImpl) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
+	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "tx", "params": ["%s", "%s"]}`, txHash, senderAccountId)
 	return n.nearRPC.Query(ctx, s)
 }
