@@ -397,14 +397,14 @@ func (e *Watcher) processChunk(logger *zap.Logger, chunk_hash string) error {
 
 		if err != nil {
 			logger.Error("getTxStatusWithReceipts", zap.Error(err))
-			continue;
+			continue
 		}
 
 		err, gated, round := e.processTxReceipts(logger, t, hash.String())
 
 		if err != nil {
 			logger.Error("processTxReceipts", zap.Error(err))
-			continue;
+			continue
 		}
 
 		if gated {
