@@ -209,8 +209,9 @@ module.exports = {
         );
       },
       network_id: 787,
-      gasPrice: "0x2f3e3403ea",
-      gas: "0x6fc3540",
+      gasPrice: "0x33a70303ea",
+      gasLimit: "0x6fc3540",
+      gas: "0x6fc3400",
     },
     acala_testnet: {
       provider: () => {

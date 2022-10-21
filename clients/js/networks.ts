@@ -157,7 +157,7 @@ const TESTNET = {
   terra: {
     rpc: "https://bombay-lcd.terra.dev",
     chain_id: "bombay-12",
-    key: get_env_var("TERRA_MNEMONIC"),
+    key: get_env_var("TERRA_MNEMONIC_TESTNET"),
   },
   ethereum: {
     rpc: `https://rpc.ankr.com/eth_goerli`,

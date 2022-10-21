@@ -2,6 +2,13 @@
 
 set -euo pipefail
 
+if [ $# == 0 ]
+  then
+    chain=ethereum
+else
+    chain=$1
+fi
+
 # Run the upgrade simulation (./simulate_upgrade) against each contract twice
 # against the ethereum mainnet state. Running the upgrade twice ensures that the
 # contract is still upgradeable after the first upgrade.
@@ -14,24 +21,24 @@ function clean_up () {
 }
 trap clean_up SIGINT SIGTERM EXIT
 
-echo "🍴 Forking mainnet..."
-./anvil_fork ethereum > /dev/null &
+echo "🍴 Forking mainnet for $chain ..."
+./anvil_fork $chain > /dev/null &
 ANVIL_PID=$!
 
 # Sleep for 10 seconds here to give some time for the fork to complete.
 sleep 10
 
 echo "========================= Updating core contract #1 ============================"
-./simulate_upgrade -m bridge -c ethereum -d
+./simulate_upgrade -m bridge -c $chain -d
 echo "========================= Updating core contract #2 ============================"
-./simulate_upgrade -m bridge -c ethereum -d
+./simulate_upgrade -m bridge -c $chain -d
 
 echo "===================== Updating token bridge contract #1 ========================"
-./simulate_upgrade -m token_bridge -c ethereum -d
+./simulate_upgrade -m token_bridge -c $chain -d
 echo "===================== Updating token bridge contract #2 ========================"
-./simulate_upgrade -m token_bridge -c ethereum -d
+./simulate_upgrade -m token_bridge -c $chain -d
 
 echo "====================== Updating NFT bridge contract #1 ========================="
-./simulate_upgrade -m nft_bridge -c ethereum -d
+./simulate_upgrade -m nft_bridge -c $chain -d
 echo "====================== Updating NFT bridge contract #2 ========================="
-./simulate_upgrade -m nft_bridge -c ethereum -d
+./simulate_upgrade -m nft_bridge -c $chain -d
