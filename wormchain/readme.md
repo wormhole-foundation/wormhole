@@ -1,6 +1,27 @@
-# wormholechain
+# Wormchain
 
-**wormholechain** is a blockchain built using Cosmos SDK and Tendermint and created with [Starport](https://github.com/tendermint/starport).
+**Wormchain** is a blockchain built using Cosmos SDK and Tendermint and created with [Starport](https://github.com/tendermint/starport).
+
+## Building
+
+We use [ignite](https://docs.ignite.com/) to build the protobuf.  Install the latest version we've pinned.
+
+```
+curl https://get.ignite.com/cli@v0.23.0 | bash
+cp ignite ~/.local/bin/
+```
+
+Build the protobuf.
+
+```
+ignite generate proto-go
+```
+
+Build and install wormchain.
+
+```
+go install ./...
+```
 
 ## Develop
 

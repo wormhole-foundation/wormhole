@@ -1,4 +1,4 @@
-module github.com/wormhole-foundation/wormhole-chain
+module github.com/wormhole-foundation/wormchain
 
 go 1.16
 
