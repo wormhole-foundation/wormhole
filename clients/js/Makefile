@@ -1,4 +1,4 @@
-SOURCE_FILES:=$(shell find . -name "*.ts" -not -path "./node_modules/*")
+SOURCE_FILES:=$(shell find . -type d -name node_modules -prune -o -name "*.ts")
 
 .PHONY: all
 all: build
