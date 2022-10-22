@@ -11,7 +11,10 @@
 #   - We ignore scratch because it's literally the docker base image
 #   - We ignore solana AS (builder|ci_tests) because it's a relative reference to another FROM call
 #
-git ls-files | grep "Dockerfile*" | xargs grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos AS (builder|ci_tests|tests)'
+# original command:
+# git ls-files | grep "Dockerfile*" | xargs grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos AS (builder|ci_tests|tests)'
+# update (works with spaces in directories but includes files outside of 'git ls-files':
+find . -type f -name 'Dockerfile*' -print0 | xargs -r -0 grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos AS (builder|ci_tests|tests)'
 if [ $? -eq 0 ]; then
    echo "[!] Unpinned docker files" >&2
    exit 1
