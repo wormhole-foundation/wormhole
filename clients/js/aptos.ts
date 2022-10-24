@@ -1,8 +1,6 @@
 import { AptosAccount, TxnBuilderTypes, AptosClient, BCS } from "aptos";
 import { NETWORKS } from "./networks";
 import { impossible, Payload } from "./vaa";
-import { Bytes, Seq } from "aptos/dist/transaction_builder/bcs/types";
-import { TypeTag } from "aptos/dist/transaction_builder/aptos_types";
 import { sha3_256 } from "js-sha3";
 import { ethers } from "ethers";
 import { assertChain, ChainId, CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
@@ -144,8 +142,8 @@ export async function callEntryFunc(
   rpc: string | undefined,
   module: string,
   func: string,
-  ty_args: Seq<TypeTag>,
-  args: Seq<Bytes>,
+  ty_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
+  args: BCS.Seq<BCS.Bytes>,
 ) {
   let key: string | undefined = NETWORKS[network]["aptos"].key;
   if (key === undefined) {

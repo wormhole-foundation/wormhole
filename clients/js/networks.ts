@@ -114,12 +114,6 @@ const MAINNET = {
     rpc: undefined,
     key: undefined,
   },
-  // TODO: remove when ChainName is updated to remove "wormholechain"
-  wormholechain: {
-    rpc: undefined,
-    key: undefined,
-  },
-
   moonbeam: {
     rpc: "https://rpc.api.moonbeam.network",
     key: get_env_var("ETH_KEY"),
@@ -250,11 +244,6 @@ const TESTNET = {
     rpc: undefined,
     key: undefined,
   },
-  // TODO: remove when ChainName is updated to remove "wormholechain"
-  wormholechain: {
-    rpc: undefined,
-    key: undefined,
-  },
   moonbeam: {
     rpc: "https://rpc.api.moonbase.moonbeam.network",
     key: get_env_var("ETH_KEY_TESTNET"),
@@ -372,12 +361,6 @@ const DEVNET = {
     key: undefined,
   },
   wormchain: {
-    rpc: "http://localhost:1319",
-    chain_id: "wormchain",
-    key: undefined,
-  },
-  // TODO: remove when ChainName is updated to remove "wormholechain"
-  wormholechain: {
     rpc: "http://localhost:1319",
     chain_id: "wormchain",
     key: undefined,
