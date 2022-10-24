@@ -7,3 +7,4 @@ cd sui
 cargo --locked install --path crates/sui
 cargo --locked install --path crates/sui-faucet
 cargo --locked install --path crates/sui-gateway
+cargo --locked install --path crates/sui-node
