@@ -1,6 +1,16 @@
-import { AptosClient, Types } from "aptos";
+import { AptosClient, TxnBuilderTypes, Types } from "aptos";
 import { _parseVAAAlgorand } from "../../algorand";
-import { assertChain, ChainId, ChainName, CHAIN_ID_APTOS, coalesceChainId, getAssetFullyQualifiedType, getTypeFromExternalAddress, isValidAptosType } from "../../utils";
+import {
+  assertChain,
+  ChainId,
+  ChainName,
+  CHAIN_ID_APTOS,
+  coalesceChainId,
+  getAssetFullyQualifiedType,
+  getTypeFromExternalAddress,
+  hexToUint8Array,
+  isValidAptosType,
+} from "../../utils";
 
 // Attest token
 
@@ -110,6 +120,29 @@ export const completeTransferWithPayload = (
   _vaa: Uint8Array,
 ): Types.EntryFunctionPayload => {
   throw new Error("Completing transfers with payload is not yet supported in the sdk");
+};
+
+export const registerCoin = (
+  tokenBridgeAddress: string,
+  originChain: ChainId | ChainName,
+  originAddress: string
+): TxnBuilderTypes.TransactionPayloadScript => {
+  const bytecode = hexToUint8Array(
+    "a11ceb0b050000000601000403041104150405190b072436085a200000000101020002000003020401000004000101000103020301060c000105010900010104636f696e067369676e65720a616464726573735f6f661569735f6163636f756e745f726567697374657265640872656769737465720000000000000000000000000000000000000000000000000000000000000001010000010c0a001100380020030605090b003801050b0b000102"
+  );
+  const assetType = getAssetFullyQualifiedType(
+    tokenBridgeAddress,
+    coalesceChainId(originChain),
+    originAddress
+  );
+  if (!assetType) throw new Error("Asset type is null");
+  const typeTag = new TxnBuilderTypes.TypeTagStruct(
+    TxnBuilderTypes.StructTag.fromString(assetType)
+  );
+
+  return new TxnBuilderTypes.TransactionPayloadScript(
+    new TxnBuilderTypes.Script(bytecode, [typeTag], [])
+  );
 };
 
 // Deploy coin
