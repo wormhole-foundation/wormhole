@@ -205,55 +205,59 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-	ticker := time.NewTicker(time.Microsecond * 100)
+	timer := time.NewTimer(time.Millisecond)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 
-		case <-ticker.C:
-			j, _, err := e.transactionProcessingQueue.PopFirstIfReady()
-			if err != nil {
-				continue
-			}
-
-			job := j.(transactionProcessingJob)
-
-			err = e.processTx(logger, ctx, &job)
-			if err != nil {
-				// transaction processing unsuccessful. Retry if retry_counter not exceeded.
-
-				if job.retryCounter < txProcRetry {
-					// Warn and retry with exponential backoff
-					logger.Warn(
-						"near.processTx",
-						zap.String("log_msg_type", "tx_processing_retry"),
-						zap.String("tx_hash", job.txHash),
-						zap.String("error", err.Error()),
-					)
-					job.retryCounter++
-					job.delay *= 2
-					e.transactionProcessingQueue.Schedule(job, time.Now().Add(job.delay))
-				} else {
-					// Error and do not retry
-					logger.Error(
-						"near.processTx",
-						zap.String("log_msg_type", "tx_processing_retries_exceeded"),
-						zap.String("tx_hash", job.txHash),
-						zap.String("error", err.Error()),
-					)
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+		case <-timer.C:
+			for {
+				j, _, err := e.transactionProcessingQueue.PopFirstIfReady()
+				if err != nil {
+					timer.Reset(time.Millisecond)
+					break
 				}
+
+				job := j.(transactionProcessingJob)
+
+				err = e.processTx(logger, ctx, &job)
+				if err != nil {
+					// transaction processing unsuccessful. Retry if retry_counter not exceeded.
+
+					if job.retryCounter < txProcRetry {
+						// Warn and retry with exponential backoff
+						logger.Warn(
+							"near.processTx",
+							zap.String("log_msg_type", "tx_processing_retry"),
+							zap.String("tx_hash", job.txHash),
+							zap.String("error", err.Error()),
+						)
+						job.retryCounter++
+						job.delay *= 2
+						e.transactionProcessingQueue.Schedule(job, time.Now().Add(job.delay))
+					} else {
+						// Error and do not retry
+						logger.Error(
+							"near.processTx",
+							zap.String("log_msg_type", "tx_processing_retries_exceeded"),
+							zap.String("tx_hash", job.txHash),
+							zap.String("error", err.Error()),
+						)
+						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+					}
+				}
+
+				if job.hasWormholeMsg {
+					// report how long it took to process this transaction
+					e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
+				}
+
+				// tell everyone about successful processing
+				e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
 			}
 
-			if job.hasWormholeMsg {
-				// report how long it took to process this transaction
-				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
-			}
-
-			// tell everyone about successful processing
-			e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
 		}
 	}
 }
@@ -286,7 +290,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// start `workerCount` many transactionProcessing runners
+	// start `workerCount` many chunkFetcher runners
 	for i := 0; i < workerChunkFetching; i++ {
 		err := supervisor.Run(ctx, fmt.Sprintf("chunk_fetcher_%d", i), e.runChunkFetcher)
 		if err != nil {
