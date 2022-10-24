@@ -79,6 +79,7 @@ pub enum QueryMsg {
     TransferInfo { vaa: Binary },
     ExternalId { external_id: Binary },
     IsVaaRedeemed { vaa: Binary },
+    ChainRegistration { chain: u16 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -109,4 +110,10 @@ pub struct ExternalIdResponse {
 #[serde(rename_all = "snake_case")]
 pub struct IsVaaRedeemedResponse {
     pub is_redeemed: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ChainRegistrationResponse {
+    pub address: Binary,
 }

@@ -262,6 +262,7 @@ test("Deploy Contracts", (done) => {
   })();
 });
 
+passOnceTests(false, 1);
 alwaysPassTests(false, 1);
 
 describe("Upgrade to shutdown contracts Tests", () => {
@@ -350,7 +351,7 @@ describe("Upgrade to shutdown contracts Tests", () => {
 });
 
 alwaysPassTests(true, 2);
-passOnceTests(true, 1);
+passOnceTests(true, 2);
 failInShutdownModeTests(true, 1);
 
 describe("Upgrade to previous non-shutdown contracts Tests", () => {
@@ -1371,6 +1372,27 @@ function alwaysPassTests(shutdownMode: boolean, pass: number) {
         } catch (e) {
           console.error(e);
           done("Failed to Query Token");
+        }
+      })();
+    });
+    test("Query Chain Registration", (done) => {
+      (async () => {
+        try {
+          const [client] = await makeProviderAndWallet();
+
+          const tokenbridge = contracts.get("tokenBridge")!;
+          const result: any = await client.wasm.contractQuery(tokenbridge, {
+            chain_registration: {
+              chain: FOREIGN_CHAIN,
+            },
+          });
+          expect(result).toStrictEqual({
+            address: Buffer.from(FOREIGN_TOKEN_BRIDGE, "hex").toString("base64")
+          });
+          done();
+        } catch (e) {
+          console.error(e);
+          done("Failed to Query Chain Registration");
         }
       })();
     });
