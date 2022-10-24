@@ -142,8 +142,8 @@ export const getForeignAssetAddress = (
   );
 };
 
-export const isValidAptosType = (address: string) =>
-  /(0x)?[0-9a-fA-F]+::\w+::\w+/g.test(address);
+export const isValidAptosType = (address: string): boolean =>
+  /^(0x)?[0-9a-fA-F]+::\w+::\w+$/.test(address);
 
 export const getExternalAddressFromType = (
   fullyQualifiedType: string
