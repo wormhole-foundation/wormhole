@@ -99,7 +99,7 @@ func (b Block) ChunkHashes() []ChunkHeader {
 	}
 
 	for _, chunkHash := range hashes.Array() {
-		if chunkHash.String() == "" || IsValidHash(chunkHash.String()) != nil {
+		if chunkHash.String() == "" || IsWellFormedHash(chunkHash.String()) != nil {
 			continue
 		}
 		chunks = append(chunks, ChunkHeader{chunkHash.String()})

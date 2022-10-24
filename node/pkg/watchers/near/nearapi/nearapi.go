@@ -164,7 +164,7 @@ func (n NearApiImpl) GetTxStatus(ctx context.Context, txHash string, senderAccou
 	return n.nearRPC.Query(ctx, s)
 }
 
-func IsValidHash(hash string) error {
+func IsWellFormedHash(hash string) error {
 	hashBytes, err := base58.Decode(hash)
 	if err != nil {
 		return err
