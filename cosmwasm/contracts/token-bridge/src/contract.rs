@@ -31,8 +31,8 @@ use cosmwasm_std::{
 
 use crate::{
     msg::{
-        ExecuteMsg, ExternalIdResponse, InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg,
-        QueryMsg, TransferInfoResponse, WrappedRegistryResponse,
+        ChainRegistrationResponse, ExecuteMsg, ExternalIdResponse, InstantiateMsg,
+        IsVaaRedeemedResponse, MigrateMsg, QueryMsg, TransferInfoResponse, WrappedRegistryResponse,
     },
     state::{
         bridge_contracts, bridge_contracts_read, bridge_deposit, config, config_read,
@@ -1449,6 +1449,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::TransferInfo { vaa } => to_binary(&query_transfer_info(deps, env, &vaa)?),
         QueryMsg::ExternalId { external_id } => to_binary(&query_external_id(deps, external_id)?),
         QueryMsg::IsVaaRedeemed { vaa } => to_binary(&query_is_vaa_redeemed(deps, env, &vaa)?),
+        QueryMsg::ChainRegistration { chain } => {
+            query_chain_registration(deps, chain).and_then(|r| to_binary(&r))
+        }
     }
 }
 
@@ -1524,6 +1527,13 @@ fn query_is_vaa_redeemed(deps: Deps, _env: Env, vaa: &Binary) -> StdResult<IsVaa
     Ok(IsVaaRedeemedResponse {
         is_redeemed: vaa_archive_check(deps.storage, vaa.hash.as_slice()),
     })
+}
+
+fn query_chain_registration(deps: Deps, chain: u16) -> StdResult<ChainRegistrationResponse> {
+    bridge_contracts_read(deps.storage)
+        .load(&chain.to_be_bytes())
+        .map(Binary::from)
+        .map(|address| ChainRegistrationResponse { address })
 }
 
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {
