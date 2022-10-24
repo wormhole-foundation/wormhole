@@ -21,6 +21,7 @@ import { importTokenWasm } from "../solana/wasm";
 import {
   callFunctionNear,
   hashAccount,
+  ChainId,
   textToHexString,
   textToUint8Array,
   uint8ArrayToHex,
@@ -32,6 +33,8 @@ import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
 import { Provider } from "near-api-js/lib/providers";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
+import { Types } from "aptos";
+import { attestToken as attestTokenAptos } from "../aptos";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -318,4 +321,14 @@ export async function attestNearFromNear(
     attachedDeposit: new BN(messageFee),
     gas: new BN("100000000000000"),
   };
+}
+
+// TODO: do we want to pass in a single assetAddress (instead of tokenChain and tokenAddress) as
+// with other APIs above and let user derive the wrapped asset address themselves?
+export function attestFromAptos(
+  tokenBridgeAddress: string,
+  tokenChain: ChainId,
+  tokenAddress: string
+): Types.EntryFunctionPayload {
+  return attestTokenAptos(tokenBridgeAddress, tokenChain, tokenAddress);
 }

@@ -11,9 +11,11 @@ import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId } from "../terra";
 import { canonicalAddress } from "../cosmos";
 import {
+  assertChain,
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_APTOS,
   CHAIN_ID_NEAR,
   CHAIN_ID_INJECTIVE,
   CHAIN_ID_SOLANA,
@@ -25,6 +27,7 @@ import {
   coalesceCosmWasmChainId,
   tryHexToNativeAssetString,
   callFunctionNear,
+  isValidAptosType,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -34,6 +37,9 @@ import {
 } from "./getIsWrappedAsset";
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
+import { AptosClient } from "aptos";
+import { OriginInfo } from "../aptos/types"
+import { sha3_256 } from "js-sha3";;
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -284,7 +290,7 @@ export async function getOriginalAssetNear(
     chainId: CHAIN_ID_NEAR,
     assetAddress: new Uint8Array(),
   };
-  retVal.isWrapped = await getIsWrappedAssetNear(tokenAccount, assetAccount);
+  retVal.isWrapped = getIsWrappedAssetNear(tokenAccount, assetAccount);
   if (!retVal.isWrapped) {
     retVal.assetAddress = assetAccount
       ? arrayify(sha256(Buffer.from(assetAccount)))
@@ -305,4 +311,51 @@ export async function getOriginalAssetNear(
   retVal.assetAddress = hexToUint8Array(buf[0]);
 
   return retVal;
+}
+
+export async function getOriginalAssetAptos(
+  client: AptosClient,
+  tokenBridgeAddress: string,
+  fullyQualifiedType: string
+): Promise<WormholeWrappedInfo> {
+  if (!isValidAptosType(fullyQualifiedType)) {
+    throw new Error("Need fully qualified address");
+  }
+
+  let originInfo: OriginInfo | undefined;
+  try {
+    originInfo = (
+      await client.getAccountResource(
+        fullyQualifiedType.split("::")[0],
+        `${tokenBridgeAddress}::state::OriginInfo`
+      )
+    ).data as OriginInfo;
+  } catch {
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_APTOS,
+      assetAddress: hexToUint8Array(sha3_256(fullyQualifiedType)),
+    };
+  }
+
+  if (!!originInfo) {
+    // wrapped asset
+    const chainId = parseInt(originInfo.token_chain.number);
+    assertChain(chainId);
+    const assetAddress = hexToUint8Array(
+      originInfo.token_address.external_address.substring(2)
+    );
+    return {
+      isWrapped: true,
+      chainId,
+      assetAddress,
+    };
+  } else {
+    // native asset
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_APTOS,
+      assetAddress: hexToUint8Array(sha3_256(fullyQualifiedType)),
+    };
+  }
 }

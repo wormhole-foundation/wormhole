@@ -27,6 +27,7 @@ import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
 import base58 from "bs58";
+import { sha3_256 } from "js-sha3";
 import { isOutdated } from "./cmds/update";
 import { setDefaultWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { assertChain, assertEVMChain, ChainName, CHAINS, CONTRACTS as SDK_CONTRACTS, isCosmWasmChain, isEVMChain, isTerraChain, toChainId, toChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
@@ -923,8 +924,11 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "sui") {
     throw Error("SUI is not supported yet");
   } else if (chain === "aptos") {
-    // TODO: is there a better native format for aptos?
-    return "0x" + evm_address(address);
+    if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
+      return "0x" + evm_address(address);
+    }
+    
+    return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
   } else if (chain === "wormholechain" || (chain + "") == "wormchain") {
     // TODO: update this condition after ChainName is updated to remove "wormholechain"
     const sdk = require("@certusone/wormhole-sdk/lib/cjs/utils/array")

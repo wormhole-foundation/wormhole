@@ -56,6 +56,7 @@ export type EVMChainName =
   | "optimism"
   | "gnosis"
   | "ropsten";
+
 /**
  *
  * All the Solana-based chain names that Wormhole supports
@@ -74,6 +75,8 @@ export type Contracts = {
 export type ChainContracts = {
   [chain in ChainName]: Contracts;
 };
+
+export type Network = "MAINNET" | "TESTNET" | "DEVNET";
 
 const MAINNET = {
   unset: {
@@ -167,8 +170,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
+    token_bridge:
+      "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
     nft_bridge: undefined,
   },
   sui: {
@@ -214,7 +218,8 @@ const MAINNET = {
   },
   xpla: {
     core: "xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w",
-    token_bridge: "xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv",
+    token_bridge:
+      "xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv",
     nft_bridge: undefined,
   },
   ropsten: {
@@ -321,8 +326,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
+    token_bridge:
+      "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
     nft_bridge: undefined,
   },
   sui: {
@@ -476,8 +482,9 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   aptos: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
+    token_bridge:
+      "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
     nft_bridge: undefined,
   },
   sui: {
@@ -781,6 +788,8 @@ export function assertEVMChain(
 export const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
 export const WSOL_DECIMALS = 9;
 export const MAX_VAA_DECIMALS = 8;
+export const APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS =
+  "0000000000000000000000000000000000000000000000000000000000000001";
 
 export const TERRA_REDEEMED_CHECK_WALLET_ADDRESS =
   "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";

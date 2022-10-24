@@ -23,7 +23,7 @@ import {
   WSOL_DECIMALS,
   uint8ArrayToHex,
   callFunctionNear,
-  hashLookup,
+  hashLookup
 } from "../utils";
 
 import { getForeignAssetNear } from ".";
@@ -37,6 +37,8 @@ import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelab
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
+import { AptosClient, Types } from "aptos";
+import { completeTransfer as completeTransferAptos, completeTransferAndRegister } from "../aptos";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -381,4 +383,16 @@ export async function redeemOnNear(
   });
 
   return options;
+}
+
+export function redeemOnAptos(
+  client: AptosClient,
+  tokenBridgeAddress: string,
+  transferVAA: Uint8Array
+): Promise<Types.EntryFunctionPayload> {
+  return completeTransferAndRegister(
+    client,
+    tokenBridgeAddress,
+    transferVAA
+  );
 }

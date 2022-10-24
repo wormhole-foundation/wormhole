@@ -48,10 +48,12 @@ import {
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
+import { Types } from "aptos";
 const BN = require("bn.js");
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
+import { transferTokens as transferTokensAptos } from "../aptos";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -957,4 +959,25 @@ export async function transferNearFromNear(
     attachedDeposit: new BN(qty.toString(10)).add(new BN(messageFee)),
     gas: new BN("100000000000000"),
   };
+}
+
+export function transferFromAptos(
+  tokenBridgeAddress: string,
+  fullyQualifiedType: string,
+  amount: string,
+  recipientChain: ChainId | ChainName,
+  recipient: Uint8Array,
+  relayerFee: string = "0",
+  payload: string = ""
+): Types.EntryFunctionPayload {
+  return transferTokensAptos(
+    tokenBridgeAddress,
+    fullyQualifiedType,
+    amount,
+    recipientChain,
+    recipient,
+    relayerFee,
+    createNonce().readUInt32LE(0),
+    payload
+  );
 }
