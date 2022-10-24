@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+
+Aptos support
+
+### Changed
+
+Wormchain rename
+
 ## 0.7.2
 ### Added
 
