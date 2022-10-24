@@ -338,6 +338,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			gov.logger.Info("cgov: ignoring duplicate vaa because it is enqueued",
 				zap.String("msgID", msg.MessageIDString()),
 				zap.String("hash", hash),
+				zap.Stringer("txHash", msg.TxHash),
 			)
 			return false, nil
 		}
@@ -345,6 +346,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Info("cgov: allowing duplicate vaa to be published again, but not adding it to the notional value",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
 		)
 		return true, nil
 	}
@@ -352,19 +354,35 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 	prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
 	if err != nil {
-		gov.logger.Error("cgov: failed to trim transfers", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+		gov.logger.Error("cgov: failed to trim transfers",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Error(err),
+		)
 		return false, err
 	}
 
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
-		gov.logger.Error("cgov: failed to compute value of transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+		gov.logger.Error("cgov: failed to compute value of transfer",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Error(err),
+		)
 		return false, err
 	}
 
 	newTotalValue := prevTotalValue + value
 	if newTotalValue < prevTotalValue {
-		gov.logger.Error("cgov: total value has overflowed", zap.String("msgID", msg.MessageIDString()), zap.Uint64("prevTotalValue", prevTotalValue), zap.Uint64("newTotalValue", newTotalValue))
+		gov.logger.Error("cgov: total value has overflowed",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Uint64("prevTotalValue", prevTotalValue),
+			zap.Uint64("newTotalValue", newTotalValue),
+		)
 		return false, fmt.Errorf("total value has overflowed")
 	}
 
@@ -380,6 +398,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.String("msgID", msg.MessageIDString()),
 			zap.Stringer("releaseTime", releaseTime),
 			zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
 		)
 	} else if newTotalValue > ce.dailyLimit {
 		enqueueIt = true
@@ -390,6 +410,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Uint64("newTotalValue", newTotalValue),
 			zap.Stringer("releaseTime", releaseTime),
 			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
 		)
 	}
 
@@ -397,7 +419,12 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
-			gov.logger.Error("cgov: failed to store pending vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+			gov.logger.Error("cgov: failed to store pending vaa",
+				zap.String("msgID", msg.MessageIDString()),
+				zap.String("hash", hash),
+				zap.Stringer("txHash", msg.TxHash),
+				zap.Error(err),
+			)
 			return false, err
 		}
 
@@ -410,7 +437,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.Uint64("value", value),
 		zap.Uint64("prevTotalValue", prevTotalValue),
 		zap.Uint64("newTotalValue", newTotalValue),
-		zap.String("msgID", msg.MessageIDString()))
+		zap.String("msgID", msg.MessageIDString()),
+		zap.String("hash", hash),
+		zap.Stringer("txHash", msg.TxHash),
+	)
 
 	xfer := db.Transfer{Timestamp: now,
 		Value:          value,
@@ -423,7 +453,11 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	}
 	err = gov.db.StoreTransfer(&xfer)
 	if err != nil {
-		gov.logger.Error("cgov: failed to store transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+		gov.logger.Error("cgov: failed to store transfer",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash), zap.Error(err),
+			zap.Stringer("txHash", msg.TxHash),
+		)
 		return false, err
 	}
 
