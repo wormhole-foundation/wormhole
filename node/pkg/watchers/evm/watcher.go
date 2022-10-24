@@ -3,7 +3,6 @@ package evm
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -154,12 +153,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	useFinalizedBlocks := (w.chainID == vaa.ChainIDEthereum && (!w.unsafeDevMode))
 	if w.shouldCheckSafeMode {
-		if err := w.checkForSafeMode(ctx); err != nil {
-			if !strings.Contains(err.Error(), "is not using safe mode") {
-				return err
-			}
+		safeMode, err := w.checkForSafeMode(ctx)
+		if err != nil {
+			return err
+		}
 
-			// If the endpoint is not in safe mode, assume it is the version that supports finalized blocks.
+		// If the endpoint is not in safe mode, assume it is the version that supports finalized blocks.
+		if !safeMode {
 			useFinalizedBlocks = true
 		}
 	}
@@ -710,24 +710,20 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 	return currentIndex, &gs, nil
 }
 
-func (w *Watcher) checkForSafeMode(ctx context.Context) error {
+func (w *Watcher) checkForSafeMode(ctx context.Context) (bool, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	c, err := rpc.DialContext(timeout, w.url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", w.url, err)
+		return false, fmt.Errorf("failed to connect to url %s to check for safe mode: %w", w.url, err)
 	}
 
 	var safe bool
 	err = c.CallContext(ctx, &safe, "net_isSafeMode")
 	if err != nil {
-		return fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
+		return false, fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
 	}
 
-	if !safe {
-		return fmt.Errorf("url %s is not using safe mode", w.url)
-	}
-
-	return nil
+	return safe, nil
 }
