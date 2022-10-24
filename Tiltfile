@@ -177,9 +177,9 @@ def build_node_yaml():
                     "--aptosRPC",
                     "http://aptos:8080",
                     "--aptosAccount",
-                    "277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b",
+                    "de0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
                     "--aptosHandle",
-                    "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::state::WormholeMessageHandle",
+                    "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017::state::WormholeMessageHandle",
                 ]
 
             if evm2:
@@ -263,6 +263,8 @@ if terra_classic:
     guardian_resource_deps = guardian_resource_deps + ["terra-terrad"]
 if terra2:
     guardian_resource_deps = guardian_resource_deps + ["terra2-terrad"]
+if aptos:
+    guardian_resource_deps = guardian_resource_deps + ["aptos"]
 
 k8s_resource(
     "guardian",
@@ -742,7 +744,6 @@ if aptos:
         context = "aptos",
         dockerfile = "aptos/Dockerfile",
         target = "aptos",
-        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md", "cert.pem"],
     )
 
     k8s_resource(
