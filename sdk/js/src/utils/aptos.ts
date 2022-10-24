@@ -1,16 +1,16 @@
 import { hexZeroPad } from "ethers/lib/utils";
 import { sha3_256 } from "js-sha3";
 import { ChainId, CHAIN_ID_APTOS, ensureHexPrefix, hex } from "../utils";
-import { AptosAccount, AptosClient, Types } from "aptos";
+import { AptosAccount, AptosClient, TxnBuilderTypes, Types } from "aptos";
 import { State } from "../aptos/types";
 
-export const signAndSubmitTransaction = (
+export const signAndSubmitEntryFunction = (
   client: AptosClient,
   sender: AptosAccount,
   payload: Types.EntryFunctionPayload,
   opts?: Partial<Types.SubmitTransactionRequest>
-): Promise<Types.PendingTransaction> => {
-  // overwriting `max_gas_amount` default
+): Promise<Types.UserTransaction> => {
+  // overwriting `max_gas_amount` and `gas_unit_price` defaults
   // rest of defaults are defined here: https://aptos-labs.github.io/ts-sdk-doc/classes/AptosClient.html#generateTransaction
   const customOpts = Object.assign(
     {
@@ -20,51 +20,73 @@ export const signAndSubmitTransaction = (
     opts
   );
 
-  return (
-    client
-      // create raw transaction
-      .generateTransaction(sender.address(), payload, customOpts)
-      // simulate transaction
-      .then((rawTx) =>
-        client
-          .simulateTransaction(sender, rawTx)
-          .then((sims) =>
-            sims.forEach((tx) => {
-              if (!tx.success) {
-                console.error(JSON.stringify(tx, null, 2));
-                throw new Error(`Transaction failed: ${tx.vm_status}`);
-              }
-            })
-          )
-          .then((_) => rawTx)
-      )
-      // sign & submit transaction if simulation is successful
-      .then((rawTx) => client.signTransaction(sender, rawTx))
-      .then((signedTx) => client.submitTransaction(signedTx))
-  );
+  return client
+    .generateTransaction(sender.address(), payload, customOpts)
+    .then(
+      (rawTx) =>
+        signAndSubmitTransaction(
+          client,
+          sender,
+          rawTx
+        ) as Promise<Types.UserTransaction>
+    );
 };
 
-/**
- * Create a transaction using the given payload and commit it on-chain.
- *
- * This functionality can be replicated by calling
- * `signAndSubmitTransaction(...).then(tx => client.waitForTransactionWithResult(tx.hash))`.
- * @param client
- * @param sender
- * @param payload
- * @returns Transaction info
- */
-export const waitForSignAndSubmitTransaction = (
+export const signAndSubmitScript = async (
   client: AptosClient,
   sender: AptosAccount,
-  payload: Types.EntryFunctionPayload
-): Promise<Types.UserTransaction> => {
-  return signAndSubmitTransaction(client, sender, payload).then(
-    (pendingTx) =>
-      client.waitForTransactionWithResult(
-        pendingTx.hash
-      ) as Promise<Types.UserTransaction>
+  payload: TxnBuilderTypes.TransactionPayloadScript,
+  opts?: Partial<Types.SubmitTransactionRequest>
+) => {
+  // overwriting `max_gas_amount` and `gas_unit_price` defaults
+  // rest of defaults are defined here: https://aptos-labs.github.io/ts-sdk-doc/classes/AptosClient.html#generateTransaction
+  const customOpts = Object.assign(
+    {
+      gas_unit_price: "100",
+      max_gas_amount: "30000",
+    },
+    opts
   );
+
+  // create raw transaction
+  const [{ sequence_number: sequenceNumber }, chainId] = await Promise.all([
+    client.getAccount(sender.address()),
+    client.getChainId(),
+  ]);
+  const rawTx = new TxnBuilderTypes.RawTransaction(
+    TxnBuilderTypes.AccountAddress.fromHex(sender.address()),
+    BigInt(sequenceNumber),
+    payload,
+    BigInt(customOpts.max_gas_amount),
+    BigInt(customOpts.gas_unit_price),
+    BigInt(Math.floor(Date.now() / 1000) + 10),
+    new TxnBuilderTypes.ChainId(chainId)
+  );
+  // sign & submit transaction
+  return signAndSubmitTransaction(client, sender, rawTx);
+};
+
+const signAndSubmitTransaction = async (
+  client: AptosClient,
+  sender: AptosAccount,
+  rawTx: TxnBuilderTypes.RawTransaction
+): Promise<Types.Transaction> => {
+  // simulate transaction
+  await client.simulateTransaction(sender, rawTx).then((sims) =>
+    sims.forEach((tx) => {
+      if (!tx.success) {
+        throw new Error(
+          `Transaction failed: ${tx.vm_status}\n${JSON.stringify(tx, null, 2)}`
+        );
+      }
+    })
+  );
+
+  // sign & submit transaction
+  return client
+    .signTransaction(sender, rawTx)
+    .then((signedTx) => client.submitTransaction(signedTx))
+    .then((pendingTx) => client.waitForTransactionWithResult(pendingTx.hash));
 };
 
 export const getAssetFullyQualifiedType = (
@@ -123,10 +145,12 @@ export const getForeignAssetAddress = (
 export const isValidAptosType = (address: string) =>
   /(0x)?[0-9a-fA-F]+::\w+::\w+/g.test(address);
 
-export function getExternalAddressFromType(fullyQualifiedType: string) {
+export const getExternalAddressFromType = (
+  fullyQualifiedType: string
+): string => {
   // hash the type so it fits into 32 bytes
   return sha3_256(fullyQualifiedType);
-}
+};
 
 export async function getTypeFromExternalAddress(
   client: AptosClient,
