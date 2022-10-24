@@ -31,7 +31,7 @@ func newFinalizer(eventChan chan eventType, nearAPI nearapi.NearApi, mainnet boo
 }
 
 func (f Finalizer) isFinalizedCached(logger *zap.Logger, ctx context.Context, blockHash string) (bool, nearapi.BlockHeader) {
-	if len(blockHash) != nearapi.BlockHashLen {
+	if nearapi.IsValidHash(blockHash) != nil {
 		// SECURITY defense-in-depth: block hashes should be 44 characters in length
 		logger.Error("blockHash length is not the expected length", zap.String("blockHash", blockHash))
 		return false, nearapi.BlockHeader{}
@@ -104,7 +104,7 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 func (f Finalizer) setFinalized(logger *zap.Logger, ctx context.Context, blockHeader nearapi.BlockHeader) {
 
 	// SECURITY defense-in-depth: don't cache obviously corrupted data.
-	if len(blockHeader.Hash) != nearapi.BlockHashLen || blockHeader.Timestamp == 0 || blockHeader.Height == 0 {
+	if nearapi.IsValidHash(blockHeader.Hash) != nil || blockHeader.Timestamp == 0 || blockHeader.Height == 0 {
 		return
 	}
 
@@ -114,7 +114,7 @@ func (f Finalizer) setFinalized(logger *zap.Logger, ctx context.Context, blockHe
 func (f Finalizer) setFinalizedHash(logger *zap.Logger, ctx context.Context, blockHash string) error { //nolint Ignore unused function for now; might come in handy later
 	logger.Debug("setFinalizedHash()", zap.String("blockHash", blockHash))
 	// SECURITY defense-in-depth: don't cache obviously corrupted data.
-	if len(blockHash) != nearapi.BlockHashLen {
+	if nearapi.IsValidHash(blockHash) != nil {
 		return errors.New("blockHash length is not the expected length")
 	}
 

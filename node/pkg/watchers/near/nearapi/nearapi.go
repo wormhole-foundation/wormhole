@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
+
+	"github.com/mr-tron/base58"
 )
 
 const (
@@ -160,4 +162,15 @@ func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chu
 func (n NearApiImpl) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "tx", "params": ["%s", "%s"]}`, txHash, senderAccountId)
 	return n.nearRPC.Query(ctx, s)
+}
+
+func IsValidHash(hash string) error {
+	hashBytes, err := base58.Decode(hash)
+	if err != nil {
+		return err
+	}
+	if len(hashBytes) != 32 {
+		return errors.New("base58-decoded hash is not 32 bytes")
+	}
+	return nil
 }

@@ -6,11 +6,6 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const (
-	BlockHashLen = 44
-	chunkHashLen = 44
-)
-
 type (
 	BlockHeader struct {
 		Hash           string
@@ -104,7 +99,7 @@ func (b Block) ChunkHashes() []ChunkHeader {
 	}
 
 	for _, chunkHash := range hashes.Array() {
-		if chunkHash.String() == "" || len(chunkHash.String()) != chunkHashLen {
+		if chunkHash.String() == "" || IsValidHash(chunkHash.String()) != nil {
 			continue
 		}
 		chunks = append(chunks, ChunkHeader{chunkHash.String()})
