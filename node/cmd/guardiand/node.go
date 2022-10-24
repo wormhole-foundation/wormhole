@@ -11,6 +11,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/certusone/wormhole/node/pkg/watchers/wormchain"
+
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
@@ -40,7 +42,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/wormchain"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto"
