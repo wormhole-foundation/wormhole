@@ -78,3 +78,14 @@ const subscriptionId = await provider.subscribeEvent(
 // later, to unsubscribe
 // calls RPC method 'sui_unsubscribeEvent' with params: [ subscriptionId ]
 const subFoundAndRemoved = await provider.unsubscribeEvent(subscriptionId);
+
+
+5003 - sui faucet
+
+9000 - sui json-rpc
+
+    ["sui_moveCall", "sui_getCommitteeInfo", "sui_getObjectsOwnedByAddress", "sui_transferObject", "sui_getEventsByModule", "sui_executeTransaction", "sui_mergeCoins", "sui_getEventsByTimeRange", "sui_getEventsByObject", "sui_getEventsByTransaction", "sui_getTransactionsInRange", "sui_getObject", "sui_getObjectsOwnedByObject", "sui_getEventsBySender", "sui_getRawObject", "sui_splitCoin", "sui_getNormalizedMoveFunction", "sui_getTransaction", "sui_getEventsByMoveEventStructName", "sui_getEventsByRecipient", "sui_getTotalTransactionNumber", "sui_pay", "sui_getMoveFunctionArgTypes", "sui_transferSui", "sui_batchTransaction", "sui_dryRunTransaction", "sui_splitCoinEqual", "sui_getNormalizedMoveModule", "sui_getNormalizedMoveModulesByPackage", "sui_tryGetPastObject", "rpc.discover", "sui_getTransactions", "sui_publish", "sui_getNormalizedMoveStruct"]
+
+9001 - sui websocket
+
+  ["rpc.discover", "sui_unsubscribeTransaction", "sui_subscribeTransaction", "sui_subscribeEvent", "sui_unsubscribeEvent"]
