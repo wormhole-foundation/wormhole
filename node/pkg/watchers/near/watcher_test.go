@@ -167,7 +167,7 @@ func TestWatcherSimple(t *testing.T) {
 	tc := testCase{
 		t:                t,
 		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "https://rpc.mainnet.near.org",
+		upstreamHost:     "",
 		cacheDir:         "nearapi/mock/success/",
 		latestFinalBlocks: []string{
 			BLOCKCHAIN_1[3],
@@ -202,7 +202,7 @@ func TestWatcherReobservation(t *testing.T) {
 	tc := testCase{
 		t:                t,
 		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "https://rpc.mainnet.near.org",
+		upstreamHost:     "",
 		cacheDir:         "nearapi/mock/success/",
 		latestFinalBlocks: []string{
 			"FdJXkyscWxFk8zrZHgahTGCBEcpo4huJNNnuxQ9hgFbW",
@@ -243,7 +243,7 @@ func TestWatcherSimple2(t *testing.T) {
 	tc := testCase{
 		t:                t,
 		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "https://rpc.mainnet.near.org",
+		upstreamHost:     "",
 		cacheDir:         "nearapi/mock/success/",
 		latestFinalBlocks: []string{
 			BLOCKCHAIN_1[0],
@@ -285,7 +285,7 @@ func TestWatcherDelayedFinal(t *testing.T) {
 	tc := testCase{
 		t:                t,
 		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "https://rpc.mainnet.near.org",
+		upstreamHost:     "",
 		cacheDir:         "nearapi/mock/success_mod1/",
 		latestFinalBlocks: []string{
 			BLOCKCHAIN_1[0],
@@ -328,7 +328,7 @@ func TestWatcherDelayedFinalAndGaps(t *testing.T) {
 	tc := testCase{
 		t:                t,
 		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "https://rpc.mainnet.near.org",
+		upstreamHost:     "",
 		cacheDir:         "nearapi/mock/success_mod1/",
 		latestFinalBlocks: []string{
 			BLOCKCHAIN_1[0],
@@ -373,7 +373,7 @@ func TestWatcherSynthetic(t *testing.T) {
 	tc := testCase{
 		t:                t,
 		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "https://rpc.mainnet.near.org",
+		upstreamHost:     "",
 		cacheDir:         "nearapi/mock/synthetic/",
 		latestFinalBlocks: []string{
 			BLOCKCHAIN_1[1],
@@ -465,7 +465,7 @@ func TestWatcherUnfinalized(t *testing.T) {
 	tc := testCase{
 		t:                t,
 		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "https://rpc.mainnet.near.org",
+		upstreamHost:     "",
 		cacheDir:         "nearapi/mock/unfinalized/",
 		latestFinalBlocks: []string{
 			BLOCKCHAIN_1[1],

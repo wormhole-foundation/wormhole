@@ -132,10 +132,16 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 	if err == nil {
 		// cache was hit.
 		cache_status = "cache_hit"
+	} else if errors.Is(err, os.ErrNotExist) && s.upstreamHost == "" {
+		// cached file does not exist and no upstreamHost defined
+		w.WriteHeader(http.StatusNotFound)
+		_, err = w.Write([]byte("Not Found"))
+		check(err)
+		return
 	} else if errors.Is(err, os.ErrNotExist) {
+		// upstream host is defined so we query upstream and save the response
 		cache_status = "cache_miss"
 
-		// cached file does not exist. So we query upstream and cache it.
 		proxyReq := s.ProxyReq(s.logger, req)
 
 		httpClient := http.Client{}
