@@ -26,11 +26,15 @@ var (
 
 	blockPollInterval = time.Millisecond * 200
 
-	workerCountTxProcessing int  = 10
-	workerChunkFetching     int  = 4                // this value should be set to the amount of chunks in a NEAR block, such that they can all be fetched in parallel
-	quequeSize              int  = 10_000           // size of the queques for chunk processing as well as transaction processing
-	maxFallBehindBlocks     uint = 200              // if watcher falls behind this many blocks, start over
-	metricsInterval              = time.Second * 10 // how often you want health metrics reported
+	workerCountTxProcessing int = 10
+	workerChunkFetching     int = 4      // this value should be set to the amount of chunks in a NEAR block, such that they can all be fetched in parallel
+	quequeSize              int = 10_000 // size of the queques for chunk processing as well as transaction processing
+
+	// if watcher falls behind this many blocks, start over. This should be set proportional to `quequeSize`
+	// such that all transactions from `maxFallBehindBlocks` can easily fit into the queue
+	maxFallBehindBlocks uint = 200
+
+	metricsInterval = time.Second * 10 // how often you want health metrics reported
 
 	txProcRetry uint = 4 // how often to retry processing a transaction
 
