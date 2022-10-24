@@ -31,9 +31,9 @@ func newFinalizer(eventChan chan eventType, nearAPI nearapi.NearApi, mainnet boo
 }
 
 func (f Finalizer) isFinalizedCached(logger *zap.Logger, ctx context.Context, blockHash string) (bool, nearapi.BlockHeader) {
-	if nearapi.IsValidHash(blockHash) != nil {
-		// SECURITY defense-in-depth: block hashes should be 44 characters in length
-		logger.Error("blockHash length is not the expected length", zap.String("blockHash", blockHash))
+	if err := nearapi.IsValidHash(blockHash); err != nil {
+		// SECURITY defense-in-depth: check if block hash is well-formed
+		logger.Error("blockHash invalid", zap.String("error_type", "invalid_hash"), zap.String("blockHash", blockHash), zap.Error(err))
 		return false, nearapi.BlockHeader{}
 	}
 
@@ -80,7 +80,7 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 		// SECURITY defense-in-depth check
 		if block.Header.Height != startingBlockHeight+uint64(2+i) {
 			// SECURITY violation: Block height is different than what we queried for
-			logger.Panic("NEAR RPC Inconsistent", zap.String("inconsistency", "block_height_result_different_from_query"))
+			logger.Panic("NEAR RPC Inconsistent", zap.String("error_type", "nearapi_inconsistent"), zap.String("inconsistency", "block_height_result_different_from_query"))
 		}
 
 		someFinalBlockHash := block.Header.LastFinalBlock

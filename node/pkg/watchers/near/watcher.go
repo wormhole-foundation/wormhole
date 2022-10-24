@@ -117,7 +117,7 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 	// As we start, get the height of the latest finalized block. We won't be processing any blocks before that.
 	finalBlock, err := e.nearAPI.GetFinalBlock(ctx)
 	if err != nil || finalBlock.Header.Height == 0 {
-		logger.Error("failed to start NEAR block poll", zap.String("log_msg_type", "startup_error"))
+		logger.Error("failed to start NEAR block poll", zap.String("error_type", "startup_fail"), zap.String("log_msg_type", "startup_error"))
 		return err
 	}
 
@@ -153,13 +153,13 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 		case chunkHeader := <-e.chunkProcessingQueue:
 			newJobs, err := e.fetchAndParseChunk(logger, ctx, chunkHeader)
 			if err != nil {
-				logger.Error("near.processChunk failed", zap.String("log_msg_type", "chunk_processing_failed"), zap.String("error", err.Error()))
+				logger.Warn("near.processChunk failed", zap.String("log_msg_type", "chunk_processing_failed"), zap.String("error", err.Error()))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				continue
 			}
 			for i := 0; i < len(newJobs); i++ {
 				if e.transactionProcessingQueue.Len() > quequeSize {
-					logger.Error(
+					logger.Warn(
 						"NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.",
 						zap.String("log_msg_type", "tx_proc_queue_full"),
 						zap.String("chunk_id", chunkHeader.Hash),
@@ -227,8 +227,8 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 					// transaction processing unsuccessful. Retry if retry_counter not exceeded.
 
 					if job.retryCounter < txProcRetry {
-						// Warn and retry with exponential backoff
-						logger.Warn(
+						// Log and retry with exponential backoff
+						logger.Info(
 							"near.processTx",
 							zap.String("log_msg_type", "tx_processing_retry"),
 							zap.String("tx_hash", job.txHash),
@@ -238,8 +238,8 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 						job.delay *= 2
 						e.transactionProcessingQueue.Schedule(job, time.Now().Add(job.delay))
 					} else {
-						// Error and do not retry
-						logger.Error(
+						// Warn and do not retry
+						logger.Warn(
 							"near.processTx",
 							zap.String("log_msg_type", "tx_processing_retries_exceeded"),
 							zap.String("tx_hash", job.txHash),

@@ -50,6 +50,12 @@ There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the blo
 	* block_poll: A block has been successfully polled. Includes `height`.
 	* polling_attempt: There are new final blocks available and the watcher is starting to poll them. Includes `previous_height` (the height of the previously highest block that we polled) and `newest_final_height` (the height of the latest block that is final).
 * tx_hash: Transaction hash
+* error_type (enum)
+	* invalid_hash: Program encountered a hash that is not well-formed, i.e. not 32 bytes long.
+	* nearapi_inconsistent: NEAR RPC returned data that doesn't make sense.
+	* malformed_wormhole_event: The wormhole log emission is malformed. This should never happen. If it does, that'd be indicative of a big problem.
+	* startup_fail: Something went wrong during watcher startup.
+
 
 ## Assumptions
 * We assume that transactions containing Wormhole messages are finalized on the NEAR blockchain in `initialTxProcDelay ^ (txProcRetry+2)` time after the block containing the start of the transaction has been observed. Otherwise they will be missed. Strong network congestion or gaps/delays in block production could violate this.
@@ -58,7 +64,7 @@ There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the blo
 
 ### Unit tests
 The testing strategy is to run the watcher with a mock RPC server. The mock RPC server mostly forwards requests to the mainnet RPC and caches them. Cached response are committed to the repository such that the tests don't actually depend on the mainnet RPC server.
-For negative tests, there are folders with synthetic RPC responses. The synthetic data is generated with a bash script.
+For negative tests, there are folders with synthetic RPC responses. The synthetic data is generated with a bash script: [createDerivatives.sh](nearapi/mock/createDeriviates.sh).
 
 ### Integration tests
 Run tilt without optional networks:
