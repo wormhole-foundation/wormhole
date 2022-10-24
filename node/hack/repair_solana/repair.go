@@ -14,6 +14,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+	solwatcher "github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -262,15 +263,20 @@ func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.
 	return nil, 0, nil
 }
 
-func process(tx *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
+func process(txRpc *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
 	program, err := solana.PublicKeyFromBase58(*solanaAddr)
 	if err != nil {
 		log.Fatalf("Invalid program address: %v", err)
 	}
 
-	signature := tx.Transaction.Signatures[0]
+	tx, err := txRpc.GetTransaction()
+	if err != nil {
+		log.Fatalf("Failed to unmarshal transaction: %v", err)
+	}
+
+	signature := tx.Signatures[0]
 	var programIndex uint16
-	for n, key := range tx.Transaction.Message.AccountKeys {
+	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(program) {
 			programIndex = uint16(n)
 		}
@@ -281,10 +287,16 @@ func process(tx *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
 
 	log.Printf("found Wormhole tx in %s", signature)
 
-	txs := make([]solana.CompiledInstruction, 0, len(tx.Transaction.Message.Instructions))
-	txs = append(txs, tx.Transaction.Message.Instructions...)
-	for _, inner := range tx.Meta.InnerInstructions {
-		txs = append(txs, inner.Instructions...)
+	txs := make([]solana.CompiledInstruction, 0, len(tx.Message.Instructions))
+	txs = append(txs, tx.Message.Instructions...)
+	for _, inner := range txRpc.Meta.InnerInstructions {
+		for _, instRpc := range inner.Instructions {
+			inst, err := solwatcher.ConvertRpcInstruction(instRpc)
+			if err != nil {
+				log.Fatalf("Failed to unmarshal inner instruction: %v", err)
+			}
+			txs = append(txs, inst)
+		}
 	}
 
 	for _, inst := range txs {
@@ -294,7 +306,7 @@ func process(tx *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
 		if inst.Data[0] != postMessageInstructionID {
 			continue
 		}
-		acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
+		acc := tx.Message.AccountKeys[inst.Accounts[1]]
 		return &acc, nil
 	}
 

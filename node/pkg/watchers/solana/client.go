@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -248,11 +249,14 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	defer cancel()
 	start := time.Now()
 	rewards := false
-	out, err := s.rpcClient.GetConfirmedBlockWithOpts(rCtx, slot, &rpc.GetConfirmedBlockOpts{
-		Encoding:           "json",
-		TransactionDetails: "full",
-		Rewards:            &rewards,
-		Commitment:         s.commitment,
+
+	maxSupportedTransactionVersion := uint64(0)
+	out, err := s.rpcClient.GetBlockWithOpts(rCtx, slot, &rpc.GetBlockOpts{
+		Encoding:                       "base64", // solana-go doesn't support json encoding.
+		TransactionDetails:             "full",
+		Rewards:                        &rewards,
+		Commitment:                     s.commitment,
+		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
 	})
 
 	queryLatency.WithLabelValues(s.networkName, "get_confirmed_block", string(s.commitment)).Observe(time.Since(start).Seconds())
@@ -290,10 +294,8 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	}
 
 	if out == nil {
-		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_block_error").Inc()
-		logger.Error("nil response when requesting block", zap.Error(err), zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)))
-		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+		// Per the API, nil just means the block is not confirmed.
+		logger.Info("block is not yet finalized", zap.Uint64("slot", slot))
 		return false
 	}
 
@@ -304,10 +306,15 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		zap.String("commitment", string(s.commitment)))
 
 OUTER:
-	for _, tx := range out.Transactions {
-		signature := tx.Transaction.Signatures[0]
+	for _, txRpc := range out.Transactions {
+		tx, err := txRpc.GetTransaction()
+		if err != nil {
+			logger.Error("failed to unmarshal transaction", zap.Error(err))
+			continue
+		}
+		signature := tx.Signatures[0]
 		var programIndex uint16
-		for n, key := range tx.Transaction.Message.AccountKeys {
+		for n, key := range tx.Message.AccountKeys {
 			if key.Equals(s.contract) {
 				programIndex = uint16(n)
 			}
@@ -316,7 +323,7 @@ OUTER:
 			continue
 		}
 
-		if tx.Meta.Err != nil {
+		if txRpc.Meta.Err != nil {
 			logger.Debug("skipping failed Wormhole transaction",
 				zap.Stringer("signature", signature),
 				zap.Uint64("slot", slot),
@@ -330,7 +337,7 @@ OUTER:
 			zap.String("commitment", string(s.commitment)))
 
 		// Find top-level instructions
-		for i, inst := range tx.Transaction.Message.Instructions {
+		for i, inst := range tx.Message.Instructions {
 			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
 			if err != nil {
 				logger.Error("malformed Wormhole instruction",
@@ -350,8 +357,8 @@ OUTER:
 		// Call GetConfirmedTransaction to get at innerTransactions
 		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 		start := time.Now()
-		tr, err := s.rpcClient.GetConfirmedTransactionWithOpts(rCtx, signature, &rpc.GetTransactionOpts{
-			Encoding:   "json",
+		tr, err := s.rpcClient.GetTransaction(rCtx, signature, &rpc.GetTransactionOpts{
+			Encoding:   "base64", // solana-go doesn't support json encoding.
 			Commitment: s.commitment,
 		})
 		cancel()
@@ -374,8 +381,20 @@ OUTER:
 			zap.Duration("took", time.Since(start)))
 
 		for _, inner := range tr.Meta.InnerInstructions {
-			for i, inst := range inner.Instructions {
-				_, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
+			for i, instRpc := range inner.Instructions {
+				inst, err := ConvertRpcInstruction(instRpc)
+				if err != nil {
+					logger.Error("failed to unmarshal inner instruction",
+						zap.Error(err),
+						zap.Int("idx", i),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+					)
+
+					continue
+				}
+
+				_, err = s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
 				if err != nil {
 					logger.Error("malformed Wormhole instruction",
 						zap.Error(err),
@@ -398,7 +417,7 @@ OUTER:
 	return true
 }
 
-func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx rpc.TransactionWithMeta, signature solana.Signature, idx int) (bool, error) {
+func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int) (bool, error) {
 	if inst.ProgramIDIndex != programIndex {
 		return false, nil
 	}
@@ -435,7 +454,7 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	}
 
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
-	acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
+	acc := tx.Message.AccountKeys[inst.Accounts[1]]
 
 	logger.Info("fetching VAA account", zap.Stringer("acc", acc),
 		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
@@ -600,4 +619,17 @@ func ParseMessagePublicationAccount(data []byte) (*MessagePublicationAccount, er
 	}
 
 	return prop, nil
+}
+
+// ConvertRpcInstruction converts an rpc.CompiledInstruction into a solana.CompiledInstruction.
+func ConvertRpcInstruction(instRpc rpc.CompiledInstruction) (solana.CompiledInstruction, error) {
+	var accounts []uint16
+	for _, a := range instRpc.Accounts {
+		if a > math.MaxUint16 || a < 0 {
+			return solana.CompiledInstruction{}, fmt.Errorf("account %d will not fit in a uint16", a)
+		}
+
+		accounts = append(accounts, uint16(a))
+	}
+	return solana.CompiledInstruction{ProgramIDIndex: instRpc.ProgramIDIndex, Accounts: accounts, Data: instRpc.Data}, nil
 }
