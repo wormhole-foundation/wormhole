@@ -708,24 +708,6 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 	return currentIndex, &gs, nil
 }
 
-func (w *Watcher) checkForSafeMode(ctx context.Context) (bool, error) {
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	c, err := rpc.DialContext(timeout, w.url)
-	if err != nil {
-		return false, fmt.Errorf("failed to connect to url %s to check for safe mode: %w", w.url, err)
-	}
-
-	var safe bool
-	err = c.CallContext(ctx, &safe, "net_isSafeMode")
-	if err != nil {
-		return false, fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
-	}
-
-	return safe, nil
-}
-
 func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, errRet error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
