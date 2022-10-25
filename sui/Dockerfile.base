@@ -13,19 +13,7 @@ COPY sui/scripts/node_builder.sh  /tmp
 
 RUN /tmp/node_builder.sh
 
-RUN npm install -g n typescript ts-node
-RUN n stable
-
-COPY clients/js  /tmp/js
-COPY sui/*.sh /tmp
-
-WORKDIR /tmp/js
-
-RUN make install
-
 WORKDIR /tmp
-
-RUN /root/.cargo/bin/sui genesis -f
 
 FROM docker.io/redhat/ubi8@sha256:56c374376a42da40f3aec753c4eab029b5ea162d70cb5f0cda24758780c31d81 as export-stage
 
