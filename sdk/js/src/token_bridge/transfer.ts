@@ -961,6 +961,17 @@ export async function transferNearFromNear(
   };
 }
 
+/**
+ * Transfer an asset on Aptos to another chain. 
+ * @param tokenBridgeAddress Address of token bridge
+ * @param fullyQualifiedType Full qualified type of asset to transfer
+ * @param amount Amount to send to recipient
+ * @param recipientChain Target chain
+ * @param recipient Recipient's address on target chain
+ * @param relayerFee Fee to pay relayer
+ * @param payload Payload3 data, leave undefined for basic token transfers
+ * @returns Transaction payload
+ */
 export function transferFromAptos(
   tokenBridgeAddress: string,
   fullyQualifiedType: string,

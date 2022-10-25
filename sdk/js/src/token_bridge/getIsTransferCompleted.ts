@@ -249,10 +249,17 @@ export async function getIsTransferCompletedNear(
   )[1];
 }
 
+/**
+ * Determine whether or not the transfer in the given VAA has completed on Aptos.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param tokenBridgeAddress Address of token bridge
+ * @param transferVAA Bytes of transfer VAA
+ * @returns True if transfer is completed
+ */
 export async function getIsTransferCompletedAptos(
   client: AptosClient,
   tokenBridgeAddress: string,
-  signedVAA: Uint8Array,
+  transferVAA: Uint8Array,
 ): Promise<boolean> {
   // get handle
   tokenBridgeAddress = ensureHexPrefix(tokenBridgeAddress);
@@ -262,13 +269,13 @@ export async function getIsTransferCompletedAptos(
   const handle = state.consumed_vaas.elems.handle;
 
   // check if vaa hash is in consumed_vaas
-  const signedVAAHash = await getSignedVAAHash(signedVAA);
+  const transferVAAHash = await getSignedVAAHash(transferVAA);
   try {
     // when accessing Set<T>, key is type T and value is 0
     await client.getTableItem(handle, {
       key_type: "vector<u8>",
       value_type: "u8",
-      key: signedVAAHash,
+      key: transferVAAHash,
     });
     return true;
   } catch {

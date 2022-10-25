@@ -4,7 +4,20 @@ import { ChainId, CHAIN_ID_APTOS, ensureHexPrefix, hex } from "../utils";
 import { AptosAccount, AptosClient, TxnBuilderTypes, Types } from "aptos";
 import { State } from "../aptos/types";
 
-export const signAndSubmitEntryFunction = (
+/**
+ * Generate, sign, and submit a transaction calling the given entry function with the given 
+ * arguments. Prevents transaction submission and throws if the transaction fails. 
+ * 
+ * This is separated from `generateSignAndSubmitScript` because it makes use of `AptosClient`'s 
+ * `generateTransaction` which pulls ABIs from the node and uses them to encode arguments
+ * automatically.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param sender Account that will submit transaction
+ * @param payload Payload containing unencoded fully qualified entry function, types, and arguments
+ * @param opts Override default transaction options
+ * @returns Data from transaction after is has been successfully submitted to mempool
+ */
+export const generateSignAndSubmitEntryFunction = (
   client: AptosClient,
   sender: AptosAccount,
   payload: Types.EntryFunctionPayload,
@@ -32,7 +45,20 @@ export const signAndSubmitEntryFunction = (
     );
 };
 
-export const signAndSubmitScript = async (
+/**
+ * Generate, sign, and submit a transaction containing given bytecode. Prevents transaction 
+ * submission and throws if the transaction fails. 
+ * 
+ * Unlike `generateSignAndSubmitEntryFunction`, this function must construct a `RawTransaction` 
+ * manually because `generateTransaction` does not have support for scripts for which there are 
+ * no corresponding on-chain ABIs. Type/argument encoding is left to the caller.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param sender Account that will submit transaction
+ * @param payload Payload containing compiled bytecode and encoded types/arguments
+ * @param opts Override default transaction options
+ * @returns Data from transaction after is has been successfully submitted to mempool
+ */
+export const generateSignAndSubmitScript = async (
   client: AptosClient,
   sender: AptosAccount,
   payload: TxnBuilderTypes.TransactionPayloadScript,
@@ -66,31 +92,16 @@ export const signAndSubmitScript = async (
   return signAndSubmitTransaction(client, sender, rawTx);
 };
 
-const signAndSubmitTransaction = async (
-  client: AptosClient,
-  sender: AptosAccount,
-  rawTx: TxnBuilderTypes.RawTransaction
-): Promise<Types.Transaction> => {
-  // simulate transaction
-  await client.simulateTransaction(sender, rawTx).then((sims) =>
-    sims.forEach((tx) => {
-      if (!tx.success) {
-        throw new Error(
-          `Transaction failed: ${tx.vm_status}\n${JSON.stringify(tx, null, 2)}`
-        );
-      }
-    })
-  );
-
-  // sign & submit transaction
-  return client
-    .signTransaction(sender, rawTx)
-    .then((signedTx) => client.submitTransaction(signedTx))
-    .then((pendingTx) => client.waitForTransactionWithResult(pendingTx.hash));
-};
-
+/**
+ * Derives the fully qualified type of the asset defined by the given origin chain and address.
+ * @param tokenBridgeAddress Address of token bridge (32 bytes)
+ * @param originChain Chain ID of chain that original asset is from
+ * @param originAddress Native address of asset; if origin chain ID is 22 (Aptos), this is the
+ * asset's fully qualified type 
+ * @returns The fully qualified type on Aptos for the given asset
+ */
 export const getAssetFullyQualifiedType = (
-  tokenBridgeAddress: string, // 32 bytes
+  tokenBridgeAddress: string,
   originChain: ChainId,
   originAddress: string
 ): string | null => {
@@ -116,8 +127,15 @@ export const getAssetFullyQualifiedType = (
     : null;
 };
 
+/**
+ * Derive the module address for an asset defined by the given origin chain and address.
+ * @param tokenBridgeAddress Address of token bridge (32 bytes)
+ * @param originChain Chain ID of chain that original asset is from
+ * @param originAddress Native address of asset
+ * @returns The module address for the given asset
+ */
 export const getForeignAssetAddress = (
-  tokenBridgeAddress: string, // 32 bytes
+  tokenBridgeAddress: string,
   originChain: ChainId,
   originAddress: string
 ): string | null => {
@@ -142,9 +160,20 @@ export const getForeignAssetAddress = (
   );
 };
 
-export const isValidAptosType = (address: string): boolean =>
-  /^(0x)?[0-9a-fA-F]+::\w+::\w+$/.test(address);
+/**
+ * Test if given string is a valid fully qualified type of moduleAddress::moduleName::structName.
+ * @param str String to test
+ * @returns Whether or not given string is a valid type
+ */
+export const isValidAptosType = (str: string): boolean =>
+  /^(0x)?[0-9a-fA-F]+::\w+::\w+$/.test(str);
 
+/**
+ * Hashes the given type. Because fully qualified types are a concept unique to Aptos, this
+ * output acts as the address on other chains.
+ * @param fullyQualifiedType Fully qualified type on Aptos
+ * @returns External address corresponding to given type
+ */
 export const getExternalAddressFromType = (
   fullyQualifiedType: string
 ): string => {
@@ -152,6 +181,13 @@ export const getExternalAddressFromType = (
   return sha3_256(fullyQualifiedType);
 };
 
+/**
+ * Given a hash, returns the fully qualified type by querying the corresponding TypeInfo.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param tokenBridgeAddress Address of token bridge
+ * @param fullyQualifiedTypeHash Hash of fully qualified type
+ * @returns The fully qualified type associated with the given hash
+ */
 export async function getTypeFromExternalAddress(
   client: AptosClient,
   tokenBridgeAddress: string,
@@ -193,3 +229,34 @@ export async function getTypeFromExternalAddress(
     return null;
   }
 }
+
+/**
+ * Simulates given raw transaction and either returns the resulting transaction that was submitted
+ * to the mempool, or throws if it fails.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param sender Account that will submit transaction
+ * @param rawTx Raw transaction to sign & submit
+ * @returns Transaction data
+ */
+const signAndSubmitTransaction = async (
+  client: AptosClient,
+  sender: AptosAccount,
+  rawTx: TxnBuilderTypes.RawTransaction
+): Promise<Types.Transaction> => {
+  // simulate transaction
+  await client.simulateTransaction(sender, rawTx).then((sims) =>
+    sims.forEach((tx) => {
+      if (!tx.success) {
+        throw new Error(
+          `Transaction failed: ${tx.vm_status}\n${JSON.stringify(tx, null, 2)}`
+        );
+      }
+    })
+  );
+
+  // sign & submit transaction
+  return client
+    .signTransaction(sender, rawTx)
+    .then((signedTx) => client.submitTransaction(signedTx))
+    .then((pendingTx) => client.waitForTransactionWithResult(pendingTx.hash));
+};

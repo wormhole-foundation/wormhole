@@ -313,6 +313,13 @@ export async function getOriginalAssetNear(
   return retVal;
 }
 
+/**
+ * Gets the origin chain ID and address of an asset on Aptos, given its fully qualified type.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param tokenBridgeAddress Address of token bridge
+ * @param fullyQualifiedType Fully qualified type of asset
+ * @returns Original chain ID and address of asset
+ */
 export async function getOriginalAssetAptos(
   client: AptosClient,
   tokenBridgeAddress: string,

@@ -385,6 +385,14 @@ export async function redeemOnNear(
   return options;
 }
 
+/**
+ * Register the token specified in the given VAA in the transfer recipient's account if necessary
+ * and complete the transfer.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param tokenBridgeAddress Address of token bridge
+ * @param transferVAA Bytes of transfer VAA
+ * @returns Transaction payload
+ */
 export function redeemOnAptos(
   client: AptosClient,
   tokenBridgeAddress: string,
