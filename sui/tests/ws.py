@@ -64,8 +64,12 @@ def on_message(ws, message):
     v = json.loads(message)
     if "params" in v:
         tx = v["params"]["result"]["txDigest"]
-        tx = len(base64.standard_b64decode(tx))
+        tx = base64.standard_b64decode(tx)
         print(tx.hex())
+
+        pl = v["params"]["result"]["event"]["moveEvent"]["fields"]["payload"]
+        pl = base64.standard_b64decode(pl)
+        print(pl.hex())
     print(json.dumps(v, indent=4))
 
 def on_error(ws, error):
@@ -76,7 +80,7 @@ def on_close(ws, close_status_code, close_msg):
 
 def on_open(ws):
     print("Opened connection")
-    ws.send("{\"jsonrpc\":\"2.0\", \"id\": 1, \"method\": \"sui_subscribeEvent\", \"params\": [{\"SenderAddress\": \"" + os.getenv("WORM_OWNER") + "\"}]}")
+    ws.send("{\"jsonrpc\":\"2.0\", \"id\": 1, \"method\": \"sui_subscribeEvent\", \"params\": [{\"Package\": \"" + os.getenv("WORM_PACKAGE") + "\"}]}")
 
 if __name__ == "__main__":
     ws = websocket.WebSocketApp("ws://localhost:9001",

@@ -14,24 +14,6 @@ brew install cmake
 
 === Running under tilt
 
-# getting into the sui k8s node (if you need to crawl around)
-
-   kubectl exec -it sui-0 -c sui-node -- /bin/bash
-
-# Clean up the local sui_config from previous runs
-
-   % rm -rf ~/.sui/sui_config
-
-# Set up your client config
-
-   % sui client
-   Config file ["/home/jsiegel/.sui/sui_config/client.yaml"] doesn't exist, do you want to connect to a Sui RPC server [yN]?y
-   Sui RPC server Url (Default to Sui DevNet if not specified) : http://localhost:5001
-   Select key scheme to generate keypair (0 for ed25519, 1 for secp256k1):
-   1
-   Generated new keypair for address with scheme "secp256k1" [0x2acab6bb0e4722e528291bc6ca4f097e18ce9331]
-   Secret Recovery Phrase : [...]
-
 # If you don't remember your newly generated address
 
    % sui client addresses
@@ -42,50 +24,57 @@ brew install cmake
 
    % scripts/faucet.sh `sui client addresses | tail -1`
 
-# Importing prefunded address
-
-   % sui keytool import "daughter exclude wheat pudding police weapon giggle taste space whip satoshi occur" secp256k1
-
 # Looking at the prefunded address
 
    % sui client objects --address 0x2acab6bb0e4722e528291bc6ca4f097e18ce9331
 
+=== Boot tilt
 
-# Deploy wormhole
+# fund our standard account
 
-   % scripts/deploy.sh
+ We don't run a faucet since it doesn't always unlock the client LOCK files.  So, instead we just steal a chunk of coins
+ from the default accounts created when the node was initialized.  Once sui is showing as live...
 
-# Publishing a message
+``` sh
+ % kubectl exec -it sui-0 -c sui-node -- /tmp/funder.sh
+```
 
-   % scripts/publish_message.sh
+# getting into the sui k8s node (if you need to crawl around)
 
+   kubectl exec -it sui-0 -c sui-node -- /bin/bash
+   kubectl exec -it guardian-0 -c guardiand -- /bin/bash
 
+# setup the client.yaml
 
-==
+``` sh
+  % rm -rf $HOME/.sui
+  % sui keytool import "daughter exclude wheat pudding police weapon giggle taste space whip satoshi occur" secp256k1
+  % sui client
+```
+     point it at http://localhost:9002.  The key you create doesn't matter.
 
-import { JsonRpcProvider } from '@mysten/sui.js';
-const provider = new JsonRpcProvider('https://fullnode.devnet.sui.io:443');
+# edit $HOME/.sui/sui_config/client.yaml
 
-// calls RPC method 'sui_subscribeEvent' with params:
-// [ { "SenderAddress": "0xbff6ccc8707aa517b4f1b95750a2a8c666012df3" } ]
-const subscriptionId = await provider.subscribeEvent(
-  { SenderAddress: '0xbff6ccc8707aa517b4f1b95750a2a8c666012df3' },
-  (event: SuiEventEnvelope) => {
-    // handle subscription notification message here. This function is called once per subscription message.
-  }
-);
+``` sh
+    active_address: "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331"
+```
 
-// later, to unsubscribe
-// calls RPC method 'sui_unsubscribeEvent' with params: [ subscriptionId ]
-const subFoundAndRemoved = await provider.unsubscribeEvent(subscriptionId);
+# deploy the contract
 
+``` sh
+  % scripts/deploy.sh
+```
 
-5003 - sui faucet
+# start the watcher
 
-9000 - sui json-rpc
+``` sh
+  % . env.sh
+  % python3 tests/ws.py
+```
 
-    ["sui_moveCall", "sui_getCommitteeInfo", "sui_getObjectsOwnedByAddress", "sui_transferObject", "sui_getEventsByModule", "sui_executeTransaction", "sui_mergeCoins", "sui_getEventsByTimeRange", "sui_getEventsByObject", "sui_getEventsByTransaction", "sui_getTransactionsInRange", "sui_getObject", "sui_getObjectsOwnedByObject", "sui_getEventsBySender", "sui_getRawObject", "sui_splitCoin", "sui_getNormalizedMoveFunction", "sui_getTransaction", "sui_getEventsByMoveEventStructName", "sui_getEventsByRecipient", "sui_getTotalTransactionNumber", "sui_pay", "sui_getMoveFunctionArgTypes", "sui_transferSui", "sui_batchTransaction", "sui_dryRunTransaction", "sui_splitCoinEqual", "sui_getNormalizedMoveModule", "sui_getNormalizedMoveModulesByPackage", "sui_tryGetPastObject", "rpc.discover", "sui_getTransactions", "sui_publish", "sui_getNormalizedMoveStruct"]
+# publish a message (different window)
 
-9001 - sui websocket
-
-  ["rpc.discover", "sui_unsubscribeTransaction", "sui_subscribeTransaction", "sui_subscribeEvent", "sui_unsubscribeEvent"]
+``` sh
+  % . env.sh
+  % scripts/publish_message.sh
+```

@@ -189,6 +189,20 @@ def build_node_yaml():
                     "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017::state::WormholeMessageHandle",
                 ]
 
+            if sui:
+                container["command"] += [
+                    "--suiRPC",
+                    "http://sui:9002",
+# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to 
+# event traffic purely based on the account since that is the only thing that is deterministic.
+#                    "--suiPackage",
+#                    "0x.....",
+                    "--suiAccount",
+                    "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331",
+                    "--suiWS",
+                    "ws://sui:9001",
+                ]
+
             if evm2:
                 container["command"] += [
                     "--bscRPC",
@@ -282,6 +296,8 @@ if aptos:
     guardian_resource_deps = guardian_resource_deps + ["aptos"]
 if wormchain:
     guardian_resource_deps = guardian_resource_deps + ["guardian-validator"]
+if sui:
+    guardian_resource_deps = guardian_resource_deps + ["sui"]
 
 k8s_resource(
     "guardian",
@@ -702,12 +718,15 @@ if sui:
         ref = "sui-node",
         context = "sui",
         dockerfile = "sui/Dockerfile",
+        ignore = ["./sui/sui.log*", "sui/sui.log*", "sui.log.*"],
+        only = ["Dockerfile", "scripts"],
     )
 
     k8s_resource(
         "sui",
         port_forwards = [
-            port_forward(5001, name = "RPC [:5001]", host = webHost),
+            port_forward(9001, name = "WS [:9001]", host = webHost),
+            port_forward(9002, name = "RPC [:9002]", host = webHost),
             port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],

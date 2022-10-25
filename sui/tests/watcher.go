@@ -16,7 +16,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	s := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_subscribeEvent", "params": [{"SenderAddress": "%s"}]}`, os.Getenv("WORM_OWNER"))
+	s := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_subscribeEvent", "params": [{"Package": "%s"}]}`, os.Getenv("WORM_PACKAGE"))
 	fmt.Printf("Sending: %s.\n", s)
 
 	if _, err := ws.Write([]byte(s)); err != nil {
