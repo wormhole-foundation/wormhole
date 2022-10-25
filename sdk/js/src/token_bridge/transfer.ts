@@ -53,7 +53,7 @@ const BN = require("bn.js");
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import { transferTokens as transferTokensAptos } from "../aptos";
+import { transferTokens as transferTokensAptos, transferTokensWithPayload } from "../aptos";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -981,6 +981,20 @@ export function transferFromAptos(
   relayerFee: string = "0",
   payload: string = ""
 ): Types.EntryFunctionPayload {
+  if (payload) {
+    // Currently unsupported
+    return transferTokensWithPayload(
+      tokenBridgeAddress,
+      fullyQualifiedType,
+      amount,
+      recipientChain,
+      recipient,
+      relayerFee,
+      createNonce().readUInt32LE(0),
+      payload
+    );
+  }
+
   return transferTokensAptos(
     tokenBridgeAddress,
     fullyQualifiedType,
@@ -988,7 +1002,6 @@ export function transferFromAptos(
     recipientChain,
     recipient,
     relayerFee,
-    createNonce().readUInt32LE(0),
-    payload
+    createNonce().readUInt32LE(0)
   );
 }
