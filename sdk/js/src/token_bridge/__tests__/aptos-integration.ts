@@ -87,6 +87,7 @@ describe("Aptos SDK tests", () => {
       sender,
       attestPayload
     )) as Types.UserTransaction;
+    await client.waitForTransaction(tx.hash);
 
     // get signed attest vaa
     let sequence = parseSequenceFromLogAptos(aptosCoreBridge, tx);
@@ -145,6 +146,7 @@ describe("Aptos SDK tests", () => {
       sender,
       transferPayload
     )) as Types.UserTransaction;
+    await client.waitForTransaction(tx.hash);
     const balanceAfterTransferAptos = ethers.BigNumber.from(
       await getBalanceAptos(client, COIN_TYPE, sender.address())
     );
@@ -248,11 +250,12 @@ describe("Aptos SDK tests", () => {
       attestVAA
     );
     try {
-      await generateSignAndSubmitEntryFunction(
+      const tx = await generateSignAndSubmitEntryFunction(
         client,
         recipient,
         createWrappedCoinTypePayload
       );
+      await client.waitForTransaction(tx.hash);
     } catch (e) {
       // only throw if token has not been attested but this call fails
       if (
@@ -270,11 +273,12 @@ describe("Aptos SDK tests", () => {
       attestVAA
     );
     try {
-      await generateSignAndSubmitEntryFunction(
+      const tx = await generateSignAndSubmitEntryFunction(
         client,
         recipient,
         createWrappedCoinPayload
       );
+      await client.waitForTransaction(tx.hash);
     } catch (e) {
       // only throw if token has not been attested but this call fails
       if (
@@ -354,7 +358,12 @@ describe("Aptos SDK tests", () => {
       aptosTokenBridge,
       transferVAA
     );
-    await generateSignAndSubmitEntryFunction(client, recipient, redeemPayload);
+    const tx = await generateSignAndSubmitEntryFunction(
+      client,
+      recipient,
+      redeemPayload
+    );
+    await client.waitForTransaction(tx.hash);
     expect(
       await getIsTransferCompletedAptos(client, aptosTokenBridge, transferVAA)
     ).toBe(true);
