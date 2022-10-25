@@ -116,7 +116,13 @@ export function getIsWrappedAssetNear(
   return asset.endsWith("." + tokenBridge);
 }
 
-// TODO: do we need to check if token is registered in bridge?
+/**
+ * Determines whether or not given address is wrapped or native to Aptos.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param tokenBridgeAddress Address of token bridge
+ * @param assetAddress Module address of asset
+ * @returns True if asset is wrapped
+ */
 export async function getIsWrappedAssetAptos(
   client: AptosClient,
   tokenBridgeAddress: string,

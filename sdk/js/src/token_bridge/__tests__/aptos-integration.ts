@@ -30,8 +30,8 @@ import {
   hexToUint8Array,
   redeemOnAptos,
   redeemOnEth,
-  signAndSubmitEntryFunction,
-  signAndSubmitScript,
+  generateSignAndSubmitEntryFunction,
+  generateSignAndSubmitScript,
   TokenImplementation__factory,
   transferFromAptos,
   transferFromEth,
@@ -85,7 +85,7 @@ describe("Aptos SDK tests", () => {
       CHAIN_ID_APTOS,
       COIN_TYPE
     );
-    let tx = (await signAndSubmitEntryFunction(
+    let tx = (await generateSignAndSubmitEntryFunction(
       client,
       sender,
       attestPayload
@@ -143,7 +143,7 @@ describe("Aptos SDK tests", () => {
       CHAIN_ID_ETH,
       tryNativeToUint8Array(recipientAddress, CHAIN_ID_ETH)
     );
-    tx = (await signAndSubmitEntryFunction(
+    tx = (await generateSignAndSubmitEntryFunction(
       client,
       sender,
       transferPayload
@@ -251,7 +251,7 @@ describe("Aptos SDK tests", () => {
       attestVAA
     );
     try {
-      await signAndSubmitEntryFunction(
+      await generateSignAndSubmitEntryFunction(
         client,
         recipient,
         createWrappedCoinTypePayload
@@ -273,7 +273,7 @@ describe("Aptos SDK tests", () => {
       attestVAA
     );
     try {
-      await signAndSubmitEntryFunction(
+      await generateSignAndSubmitEntryFunction(
         client,
         recipient,
         createWrappedCoinPayload
@@ -359,7 +359,7 @@ describe("Aptos SDK tests", () => {
     
     // register token on aptos
     const script = registerCoin(aptosTokenBridge, CHAIN_ID_ETH, TEST_ERC20);
-    await signAndSubmitScript(client, recipient, script);
+    await generateSignAndSubmitScript(client, recipient, script);
 
     // redeem on aptos
     const balanceBeforeTransferAptos = ethers.BigNumber.from(
@@ -370,7 +370,7 @@ describe("Aptos SDK tests", () => {
       aptosTokenBridge,
       transferVAA
     );
-    await signAndSubmitEntryFunction(client, recipient, redeemPayload);
+    await generateSignAndSubmitEntryFunction(client, recipient, redeemPayload);
     expect(
       await getIsTransferCompletedAptos(client, aptosTokenBridge, transferVAA)
     ).toBe(true);

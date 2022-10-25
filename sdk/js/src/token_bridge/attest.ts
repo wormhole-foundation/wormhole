@@ -323,8 +323,13 @@ export async function attestNearFromNear(
   };
 }
 
-// TODO: do we want to pass in a single assetAddress (instead of tokenChain and tokenAddress) as
-// with other APIs above and let user derive the wrapped asset address themselves?
+/**
+ * Attest given token from Aptos.
+ * @param tokenBridgeAddress Address of token bridge
+ * @param tokenChain Origin chain ID
+ * @param tokenAddress Address of token on origin chain
+ * @returns Transaction payload
+ */
 export function attestFromAptos(
   tokenBridgeAddress: string,
   tokenChain: ChainId,

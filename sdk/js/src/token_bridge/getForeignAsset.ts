@@ -191,6 +191,14 @@ export async function getForeignAssetNear(
   return ret !== "" ? ret : null;
 }
 
+/**
+ * Get native module address of asset given its origin info.
+ * @param client Client used to transfer data to/from Aptos node
+ * @param tokenBridgeAddress Address of token bridge
+ * @param originChain Chain ID of chain asset is originally from
+ * @param originAddress Asset address on origin chain
+ * @returns Asset module address on Aptos
+ */
 export async function getForeignAssetAptos(
   client: AptosClient,
   tokenBridgeAddress: string,
@@ -198,14 +206,21 @@ export async function getForeignAssetAptos(
   originAddress: string
 ): Promise<string | null> {
   const originChainId = coalesceChainId(originChain);
-  const assetAddress = getForeignAssetAddress(tokenBridgeAddress, originChainId, originAddress);
+  const assetAddress = getForeignAssetAddress(
+    tokenBridgeAddress,
+    originChainId,
+    originAddress
+  );
   if (!assetAddress) {
     return null;
   }
 
   try {
     // check if asset exists and throw if it doesn't
-    await client.getAccountResource(assetAddress, `0x1::coin::CoinInfo<${ensureHexPrefix(assetAddress)}::coin::T>`);
+    await client.getAccountResource(
+      assetAddress,
+      `0x1::coin::CoinInfo<${ensureHexPrefix(assetAddress)}::coin::T>`
+    );
     return assetAddress;
   } catch (e) {
     return null;

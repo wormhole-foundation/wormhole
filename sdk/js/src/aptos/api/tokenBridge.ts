@@ -122,6 +122,28 @@ export const completeTransferWithPayload = (
   throw new Error("Completing transfers with payload is not yet supported in the sdk");
 };
 
+/**
+ * Construct a payload for a transaction that registers a coin defined by the given origin chain 
+ * ID and address to the sender's account.
+ * 
+ * The bytecode was compiled from the following Move code:
+ * ```move
+ * script {
+ *   use aptos_framework::coin;
+ *   use aptos_framework::signer;
+ *    
+ *   fun main<CoinType>(user: &signer) {
+ *     if (!coin::is_account_registered<CoinType>(signer::address_of(user))) {
+ *       coin::register<CoinType>(user);
+ *     };
+ *   }
+ * }
+ * ```
+ * @param tokenBridgeAddress Address of token bridge
+ * @param originChain Origin chain ID of asset
+ * @param originAddress Asset address on origin chain
+ * @returns Transaction payload
+ */
 export const registerCoin = (
   tokenBridgeAddress: string,
   originChain: ChainId | ChainName,
