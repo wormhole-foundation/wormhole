@@ -202,31 +202,39 @@ export const transferTokens = (
   recipientChain: ChainId | ChainName,
   recipient: Uint8Array,
   relayerFee: string,
-  nonce: number,
-  payload: string = "",
+  nonce: number
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   if (!isValidAptosType(fullyQualifiedType)) {
-    throw new Error("Need fully qualified address");
+    throw new Error("Invalid qualified type");
   }
 
   const recipientChainId = coalesceChainId(recipientChain);
-  if (payload) {
-    throw new Error("Transfer with payload are not yet supported in the sdk");
-  } else {
-    return {
-      function: `${tokenBridgeAddress}::transfer_tokens::transfer_tokens_entry`,
-      type_arguments: [fullyQualifiedType],
-      arguments: [amount, recipientChainId, recipient, relayerFee, nonce],
-    };
-  }
+  return {
+    function: `${tokenBridgeAddress}::transfer_tokens::transfer_tokens_entry`,
+    type_arguments: [fullyQualifiedType],
+    arguments: [amount, recipientChainId, recipient, relayerFee, nonce],
+  };
+};
+
+export const transferTokensWithPayload = (
+  tokenBridgeAddress: string,
+  fullyQualifiedType: string,
+  amount: string,
+  recipientChain: ChainId | ChainName,
+  recipient: Uint8Array,
+  relayerFee: string,
+  nonce: number,
+  payload: string
+): Types.EntryFunctionPayload => {
+  throw new Error("Transfer with payload are not yet supported in the sdk");
 };
 
 // Created wrapped coin
 
 export const createWrappedCoinType = (
   tokenBridgeAddress: string,
-  vaa: Uint8Array,
+  vaa: Uint8Array
 ): Types.EntryFunctionPayload => {
   if (!tokenBridgeAddress) throw new Error("Need token bridge address.");
   return {
