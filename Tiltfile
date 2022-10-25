@@ -47,7 +47,6 @@ config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("spy_relayer", False, "Enable spy relayer")
-config.define_bool("e2e", False, "Enable E2E testing stack")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
@@ -70,7 +69,6 @@ terra2 = cfg.get("terra2", True)
 ci = cfg.get("ci", False)
 explorer = cfg.get("explorer", ci)
 spy_relayer = cfg.get("spy_relayer", ci)
-e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
@@ -533,26 +531,6 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = ["guardian", "spy"],
-    )
-
-# e2e
-if e2e:
-    k8s_yaml_with_ns("devnet/e2e.yaml")
-
-    docker_build(
-        ref = "e2e",
-        context = "e2e",
-        dockerfile = "e2e/Dockerfile",
-        network = "host",
-    )
-
-    k8s_resource(
-        "e2e",
-        port_forwards = [
-            port_forward(6080, name = "VNC [:6080]", host = webHost, link_path = "/vnc_auto.html"),
-        ],
-        labels = ["ci"],
-        trigger_mode = trigger_mode,
     )
 
 # bigtable
