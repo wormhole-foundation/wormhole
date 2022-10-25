@@ -30,7 +30,7 @@ export async function getIsTransferCompletedEth(
   signedVAA: Uint8Array
 ): Promise<boolean> {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
-  const signedVAAHash = await getSignedVAAHash(signedVAA);
+  const signedVAAHash = getSignedVAAHash(signedVAA);
   return await tokenBridge.isTransferCompleted(signedVAAHash);
 }
 
@@ -284,7 +284,7 @@ export async function getIsTransferCompletedAptos(
   const handle = state.consumed_vaas.elems.handle;
 
   // check if vaa hash is in consumed_vaas
-  const transferVAAHash = await getSignedVAAHash(transferVAA);
+  const transferVAAHash = getSignedVAAHash(transferVAA);
   try {
     // when accessing Set<T>, key is type T and value is 0
     await client.getTableItem(handle, {

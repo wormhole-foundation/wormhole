@@ -15,7 +15,7 @@ export async function getIsTransferCompletedEth(
   signedVAA: Uint8Array
 ) {
   const nftBridge = NFTBridge__factory.connect(nftBridgeAddress, provider);
-  const signedVAAHash = await getSignedVAAHash(signedVAA);
+  const signedVAAHash = getSignedVAAHash(signedVAA);
   return await nftBridge.isTransferCompleted(signedVAAHash);
 }
 
