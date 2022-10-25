@@ -326,7 +326,7 @@ export async function getOriginalAssetAptos(
   fullyQualifiedType: string
 ): Promise<WormholeWrappedInfo> {
   if (!isValidAptosType(fullyQualifiedType)) {
-    throw new Error("Need fully qualified address");
+    throw new Error("Invalid qualified type");
   }
 
   let originInfo: OriginInfo | undefined;

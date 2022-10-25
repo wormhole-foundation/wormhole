@@ -291,29 +291,20 @@ describe("Aptos SDK tests", () => {
     }
 
     // check attestation on aptos
-    const aptosWrappedAddress = await getForeignAssetAptos(
+    const aptosWrappedType = await getForeignAssetAptos(
       client,
       aptosTokenBridge,
       CHAIN_ID_ETH,
       TEST_ERC20
     );
-    if (!aptosWrappedAddress) {
+    if (!aptosWrappedType) {
       throw new Error("Failed to create wrapped coin on Aptos");
-    }
-
-    const wrappedType = getAssetFullyQualifiedType(
-      aptosTokenBridge,
-      CHAIN_ID_ETH,
-      TEST_ERC20
-    );
-    if (!wrappedType) {
-      throw new Error("wrappedType is null");
     }
 
     const info = await getOriginalAssetAptos(
       client,
       aptosTokenBridge,
-      wrappedType
+      aptosWrappedType
     );
     expect(uint8ArrayToHex(info.assetAddress)).toEqual(
       tryNativeToHexString(TEST_ERC20, CHAIN_ID_ETH)
@@ -323,7 +314,7 @@ describe("Aptos SDK tests", () => {
       await getIsWrappedAssetAptos(
         client,
         aptosTokenBridge,
-        aptosWrappedAddress
+        aptosWrappedType
       )
     );
 
@@ -363,7 +354,7 @@ describe("Aptos SDK tests", () => {
 
     // redeem on aptos
     const balanceBeforeTransferAptos = ethers.BigNumber.from(
-      await getBalanceAptos(client, wrappedType, recipient.address())
+      await getBalanceAptos(client, aptosWrappedType, recipient.address())
     );
     const redeemPayload = await redeemOnAptos(
       client,
@@ -377,7 +368,7 @@ describe("Aptos SDK tests", () => {
 
     // check balances
     const balanceAfterTransferAptos = ethers.BigNumber.from(
-      await getBalanceAptos(client, wrappedType, recipient.address())
+      await getBalanceAptos(client, aptosWrappedType, recipient.address())
     );
     expect(
       balanceAfterTransferAptos.sub(balanceBeforeTransferAptos).toString()
