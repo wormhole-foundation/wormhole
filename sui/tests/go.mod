@@ -2,4 +2,4 @@ module watcher
 
 go 1.17
 
-require github.com/gorilla/websocket v1.5.0 // indirect
+require golang.org/x/net v0.1.0 // indirect
