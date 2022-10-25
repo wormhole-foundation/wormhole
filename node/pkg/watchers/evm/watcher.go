@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
+	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -102,9 +103,8 @@ type (
 		minConfirmations uint64
 
 		// Interface to the chain specific ethereum library.
-		ethConn             connectors.Connector
-		shouldCheckSafeMode bool
-		unsafeDevMode       bool
+		ethConn       connectors.Connector
+		unsafeDevMode bool
 	}
 
 	pendingKey struct {
@@ -133,27 +133,32 @@ func NewEthWatcher(
 	unsafeDevMode bool) *Watcher {
 
 	return &Watcher{
-		url:                 url,
-		contract:            contract,
-		networkName:         networkName,
-		readiness:           readiness,
-		minConfirmations:    minConfirmations,
-		chainID:             chainID,
-		msgChan:             messageEvents,
-		setChan:             setEvents,
-		obsvReqC:            obsvReqC,
-		pending:             map[pendingKey]*pendingMessage{},
-		shouldCheckSafeMode: (chainID == vaa.ChainIDKarura || chainID == vaa.ChainIDAcala) && (!unsafeDevMode),
-		unsafeDevMode:       unsafeDevMode,
+		url:              url,
+		contract:         contract,
+		networkName:      networkName,
+		readiness:        readiness,
+		minConfirmations: minConfirmations,
+		chainID:          chainID,
+		msgChan:          messageEvents,
+		setChan:          setEvents,
+		obsvReqC:         obsvReqC,
+		pending:          map[pendingKey]*pendingMessage{},
+		unsafeDevMode:    unsafeDevMode,
 	}
 }
 
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	if w.shouldCheckSafeMode {
-		if err := w.checkForSafeMode(ctx); err != nil {
+	useFinalizedBlocks := (w.chainID == vaa.ChainIDEthereum && (!w.unsafeDevMode))
+	if (w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala) && (!w.unsafeDevMode) {
+		ufb, err := w.getAcalaMode(ctx)
+		if err != nil {
 			return err
+		}
+
+		if ufb {
+			useFinalizedBlocks = true
 		}
 	}
 
@@ -175,7 +180,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDEthereum && !w.unsafeDevMode {
+	} else if useFinalizedBlocks {
+		logger.Info("using finalized blocks")
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
@@ -702,24 +708,39 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 	return currentIndex, &gs, nil
 }
 
-func (w *Watcher) checkForSafeMode(ctx context.Context) error {
+func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, errRet error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	c, err := rpc.DialContext(timeout, w.url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to url %s to check for safe mode: %w", w.url, err)
+		errRet = fmt.Errorf("failed to connect to url %s to check acala mode: %w", w.url, err)
+		return
 	}
 
+	// First check to see if polling for finalized blocks is suported.
+	type Marshaller struct {
+		Number *eth_hexutil.Big
+	}
+
+	var m Marshaller
+	err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
+	if err == nil {
+		useFinalizedBlocks = true
+		return
+	}
+
+	// If finalized blocks are not supported, then we had better be in safe mode!
 	var safe bool
 	err = c.CallContext(ctx, &safe, "net_isSafeMode")
 	if err != nil {
-		return fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
+		errRet = fmt.Errorf("check for safe mode for url %s failed: %w", w.url, err)
+		return
 	}
 
 	if !safe {
-		return fmt.Errorf("url %s is not using safe mode", w.url)
+		errRet = fmt.Errorf("url %s does not support finalized blocks and is not using safe mode", w.url)
 	}
 
-	return nil
+	return
 }
