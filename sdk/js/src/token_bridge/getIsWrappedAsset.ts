@@ -6,7 +6,12 @@ import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { importTokenWasm } from "../solana/wasm";
-import { CHAIN_ID_INJECTIVE, ensureHexPrefix, tryNativeToHexString } from "../utils";
+import {
+  CHAIN_ID_INJECTIVE,
+  ensureHexPrefix,
+  coalesceModuleAddress,
+  tryNativeToHexString,
+} from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { getForeignAssetInjective } from "./getForeignAsset";
 
@@ -120,18 +125,21 @@ export function getIsWrappedAssetNear(
  * Determines whether or not given address is wrapped or native to Aptos.
  * @param client Client used to transfer data to/from Aptos node
  * @param tokenBridgeAddress Address of token bridge
- * @param assetAddress Module address of asset
+ * @param assetFullyQualifiedType Fully qualified type of asset
  * @returns True if asset is wrapped
  */
 export async function getIsWrappedAssetAptos(
   client: AptosClient,
   tokenBridgeAddress: string,
-  assetAddress: string,
+  assetFullyQualifiedType: string
 ): Promise<boolean> {
-  assetAddress = ensureHexPrefix(assetAddress);
+  assetFullyQualifiedType = ensureHexPrefix(assetFullyQualifiedType);
   try {
     // get origin info from asset address
-    await client.getAccountResource(assetAddress, `${tokenBridgeAddress}::state::OriginInfo`);
+    await client.getAccountResource(
+      coalesceModuleAddress(assetFullyQualifiedType),
+      `${tokenBridgeAddress}::state::OriginInfo`
+    );
     return true;
   } catch {
     return false;

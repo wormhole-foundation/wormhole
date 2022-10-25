@@ -109,7 +109,7 @@ export const getAssetFullyQualifiedType = (
   if (originChain === CHAIN_ID_APTOS) {
     // originAddress should be of form address::module::type
     if (!isValidAptosType(originAddress)) {
-      console.error("Need fully qualified address for native asset");
+      console.error("Invalid qualified type");
       return null;
     }
 
@@ -229,6 +229,15 @@ export async function getTypeFromExternalAddress(
     return null;
   }
 }
+
+/**
+ * Returns module address from given fully qualified type/module address.
+ * @param str FQT or module address
+ * @returns Module address
+ */
+export const coalesceModuleAddress = (str: string): string => {
+  return str.split("::")[0];
+};
 
 /**
  * Simulates given raw transaction and either returns the resulting transaction that was submitted

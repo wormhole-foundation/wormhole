@@ -14,8 +14,8 @@ import {
   ChainName,
   CHAIN_ID_ALGORAND,
   coalesceChainId,
-  ensureHexPrefix,
-  getForeignAssetAddress,
+  getAssetFullyQualifiedType,
+  coalesceModuleAddress,
 } from "../utils";
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
@@ -192,12 +192,12 @@ export async function getForeignAssetNear(
 }
 
 /**
- * Get native module address of asset given its origin info.
+ * Get qualified type of asset on Aptos given its origin info.
  * @param client Client used to transfer data to/from Aptos node
  * @param tokenBridgeAddress Address of token bridge
  * @param originChain Chain ID of chain asset is originally from
  * @param originAddress Asset address on origin chain
- * @returns Asset module address on Aptos
+ * @returns Fully qualified type of asset on Aptos
  */
 export async function getForeignAssetAptos(
   client: AptosClient,
@@ -206,22 +206,22 @@ export async function getForeignAssetAptos(
   originAddress: string
 ): Promise<string | null> {
   const originChainId = coalesceChainId(originChain);
-  const assetAddress = getForeignAssetAddress(
+  const assetFullyQualifiedType = getAssetFullyQualifiedType(
     tokenBridgeAddress,
     originChainId,
     originAddress
   );
-  if (!assetAddress) {
+  if (!assetFullyQualifiedType) {
     return null;
   }
 
   try {
     // check if asset exists and throw if it doesn't
     await client.getAccountResource(
-      assetAddress,
-      `0x1::coin::CoinInfo<${ensureHexPrefix(assetAddress)}::coin::T>`
+      coalesceModuleAddress(assetFullyQualifiedType),
+      `0x1::coin::CoinInfo<${assetFullyQualifiedType}>`
     );
-    return assetAddress;
+    return assetFullyQualifiedType;
   } catch (e) {
     return null;
   }

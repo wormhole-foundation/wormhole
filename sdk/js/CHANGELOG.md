@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0
+
+### Changed
+
+Use FQTs in Aptos SDK
+
 ## 0.8.0
 
 ### Added
