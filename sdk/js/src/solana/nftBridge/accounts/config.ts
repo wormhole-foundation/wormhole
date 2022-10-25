@@ -15,8 +15,4 @@ export async function getNftBridgeConfig(
   return getTokenBridgeConfig(connection, nftBridgeProgramId, commitment);
 }
 
-export class NftBridgeConfig extends TokenBridgeConfig {
-  // pub struct Config {
-  //     pub wormhole_bridge: Pubkey,
-  // }
-}
+export class NftBridgeConfig extends TokenBridgeConfig {}

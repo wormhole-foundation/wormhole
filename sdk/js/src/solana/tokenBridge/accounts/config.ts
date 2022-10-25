@@ -26,10 +26,6 @@ export async function getTokenBridgeConfig(
 }
 
 export class TokenBridgeConfig {
-  // pub struct Config {
-  //     pub wormhole_bridge: Pubkey,
-  // }
-
   wormhole: PublicKey;
 
   constructor(wormholeProgramId: Buffer) {

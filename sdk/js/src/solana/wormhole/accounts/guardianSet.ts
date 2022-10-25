@@ -39,20 +39,6 @@ export async function getGuardianSet(
 }
 
 export class GuardianSetData {
-  // pub struct GuardianSetData {
-  //     /// Index representing an incrementing version number for this guardian set.
-  //     pub index: u32,
-
-  //     /// ETH style public keys
-  //     pub keys: Vec<GuardianPublicKey>,
-
-  //     /// Timestamp representing the time this guardian became active.
-  //     pub creation_time: u32,
-
-  //     /// Expiration time when VAAs issued by this set are no longer valid.
-  //     pub expiration_time: u32,
-  // }
-
   index: number;
   keys: Buffer[];
   creationTime: number;

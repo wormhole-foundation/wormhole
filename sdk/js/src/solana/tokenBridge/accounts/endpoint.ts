@@ -51,11 +51,6 @@ export async function getEndpointRegistration(
 }
 
 export class EndpointRegistration {
-  // pub struct EndpointRegistration {
-  //     pub chain: ChainID,
-  //     pub contract: Address,
-  // }
-
   chain: ChainId;
   contract: Buffer;
 

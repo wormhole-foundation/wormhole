@@ -59,12 +59,6 @@ export async function getWrappedMeta(
 }
 
 export class WrappedMeta {
-  // pub struct WrappedMeta {
-  //     pub chain: ChainID,
-  //     pub token_address: Address,
-  //     pub token_id: U256
-  // }
-
   chain: number;
   tokenAddress: Buffer;
   tokenId: bigint;

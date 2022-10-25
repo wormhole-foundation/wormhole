@@ -16,12 +16,6 @@ import {
 } from "./account";
 
 export class Creator {
-  // pub struct Creator {
-  //     pub address: Pubkey,
-  //     pub verified: bool,
-  //     pub share: u8,
-  // }
-
   address: PublicKey;
   verified: boolean;
   share: number;
@@ -53,14 +47,6 @@ export class Creator {
 }
 
 export class Data {
-  // pub struct Data {
-  //     pub name: String,
-  //     pub symbol: String,
-  //     pub uri: String,
-  //     pub seller_fee_basis_points: u16,
-  //     pub creators: Option<Vec<Creator>>,
-  // }
-
   name: string;
   symbol: string;
   uri: string;
@@ -230,48 +216,6 @@ export class SplTokenMetadataProgram {
     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
   );
 
-  //   /// Creates an CreateMetadataAccounts instruction
-  // #[allow(clippy::too_many_arguments)]
-  // pub fn create_metadata_accounts(
-  //     program_id: Pubkey,
-  //     metadata_account: Pubkey,
-  //     mint: Pubkey,
-  //     mint_authority: Pubkey,
-  //     payer: Pubkey,
-  //     update_authority: Pubkey,
-  //     name: String,
-  //     symbol: String,
-  //     uri: String,
-  //     creators: Option<Vec<Creator>>,
-  //     seller_fee_basis_points: u16,
-  //     update_authority_is_signer: bool,
-  //     is_mutable: bool,
-  // ) -> Instruction {
-  //     Instruction {
-  //         program_id,
-  //         accounts: vec![
-  //             AccountMeta::new(metadata_account, false),
-  //             AccountMeta::new_readonly(mint, false),
-  //             AccountMeta::new_readonly(mint_authority, true),
-  //             AccountMeta::new_readonly(payer, true),
-  //             AccountMeta::new_readonly(update_authority, update_authority_is_signer),
-  //             AccountMeta::new_readonly(solana_program::system_program::id(), false),
-  //             AccountMeta::new_readonly(sysvar::rent::id(), false),
-  //         ],
-  //         data: MetadataInstruction::CreateMetadataAccount(CreateMetadataAccountArgs {
-  //             data: Data {
-  //                 name,
-  //                 symbol,
-  //                 uri,
-  //                 seller_fee_basis_points,
-  //                 creators,
-  //             },
-  //             is_mutable,
-  //         })
-  //         .try_to_vec()
-  //         .unwrap(),
-  //     }
-  // }
   static createMetadataAccounts(
     payer: PublicKey,
     mint: PublicKey,
@@ -309,31 +253,6 @@ export class SplTokenMetadataProgram {
       data,
     };
   }
-
-  // /// update metadata account instruction
-  // pub fn update_metadata_accounts(
-  //     program_id: Pubkey,
-  //     metadata_account: Pubkey,
-  //     update_authority: Pubkey,
-  //     new_update_authority: Option<Pubkey>,
-  //     data: Option<Data>,
-  //     primary_sale_happened: Option<bool>,
-  // ) -> Instruction {
-  //     Instruction {
-  //         program_id,
-  //         accounts: vec![
-  //             AccountMeta::new(metadata_account, false),
-  //             AccountMeta::new_readonly(update_authority, true),
-  //         ],
-  //         data: MetadataInstruction::UpdateMetadataAccount(UpdateMetadataAccountArgs {
-  //             data,
-  //             update_authority: new_update_authority,
-  //             primary_sale_happened,
-  //         })
-  //         .try_to_vec()
-  //         .unwrap(),
-  //     }
-  // }
 }
 
 export function deriveSplTokenMetadataKey(mint: PublicKeyInitData): PublicKey {
@@ -359,17 +278,6 @@ export enum Key {
 }
 
 export class Metadata {
-  // pub struct Metadata {
-  //     pub key: Key,
-  //     pub update_authority: Pubkey,
-  //     pub mint: Pubkey,
-  //     pub data: Data,
-  //     // Immutable, once flipped, all sales of this metadata are considered secondary.
-  //     pub primary_sale_happened: bool,
-  //     // Whether or not the data struct is mutable, default is not
-  //     pub is_mutable: bool,
-  // }
-
   key: Key;
   updateAuthority: PublicKey;
   mint: PublicKey;

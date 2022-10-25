@@ -17,17 +17,6 @@ export async function getSignatureSetData(
 }
 
 export class SignatureSetData {
-  // pub struct SignatureSetData {
-  //     /// Signatures of validators
-  //     pub signatures: Vec<bool>,
-
-  //     /// Hash of the data
-  //     pub hash: [u8; 32],
-
-  //     /// Index of the guardian set
-  //     pub guardian_set_index: u32,
-  // }
-
   signatures: boolean[];
   hash: Buffer;
   guardianSetIndex: number;

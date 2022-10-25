@@ -1,7 +1,9 @@
 import { AccountsCoder, Idl } from "@project-serum/anchor";
 import { accountSize, IdlTypeDef } from "../../anchor";
 
-export class WormholeAccountsCoder<A extends string = string> implements AccountsCoder {
+export class WormholeAccountsCoder<A extends string = string>
+  implements AccountsCoder
+{
   constructor(private idl: Idl) {}
 
   public async encode<T = any>(accountName: A, account: T): Promise<Buffer> {
@@ -43,21 +45,6 @@ export class WormholeAccountsCoder<A extends string = string> implements Account
 }
 
 export interface PostVAAData {
-  // pub struct PostVAAData {
-  //     // Header part
-  //     pub version: u8,
-  //     pub guardian_set_index: u32,
-
-  //     // Body part
-  //     pub timestamp: u32,
-  //     pub nonce: u32,
-  //     pub emitter_chain: u16,
-  //     pub emitter_address: ForeignAddress,
-  //     pub sequence: u64,
-  //     pub consistency_level: u8,
-  //     pub payload: Vec<u8>,
-  // }
-
   version: number;
   guardianSetIndex: number;
   timestamp: number;
