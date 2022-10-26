@@ -135,9 +135,11 @@ class TmplSig:
 
 if __name__ == '__main__':
     core = TmplSig("sig")
-#    client =  AlgodClient("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "http://localhost:4001")
-#    pprint.pprint(client.compile( core.get_sig_tmpl()))
 
-    with open("sig.tmpl.teal", "w") as f:
+    if len(sys.argv) == 1:
+        file_name = "sig.tmpl.teal"
+    else:
+        file_name = sys.argv[1]
+    
+    with open(file_name, "w") as f:
         f.write(core.get_sig_tmpl())
-
