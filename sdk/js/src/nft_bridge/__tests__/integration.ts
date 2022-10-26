@@ -11,7 +11,7 @@ import {
 } from "@jest/globals";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  Token,
+  getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { BigNumber, BigNumberish, ethers } from "ethers";
@@ -28,10 +28,8 @@ import {
   parseSequenceFromLogSolana,
   getEmitterAddressSolana,
   CHAIN_ID_SOLANA,
-  parseNFTPayload,
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
-import { importCoreWasm, setDefaultWasm } from "../../solana/wasm";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY,
@@ -59,9 +57,9 @@ import {
 import { postVaaSolanaWithRetry } from "../../solana";
 import { tryNativeToUint8Array } from "../../utils";
 import { arrayify } from "ethers/lib/utils";
+import { parseVaa } from "../../vaa/wormhole";
+import { parseNftTransferVaa } from "../../vaa";
 const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
-
-setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
@@ -158,11 +156,7 @@ describe("Integration Tests", () => {
   test("Send Solana SPL to Ethereum and back", (done) => {
     (async () => {
       try {
-        const { parse_vaa } = await importCoreWasm();
-
-        const fromAddress = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
+        const fromAddress = await getAssociatedTokenAddress(
           new PublicKey(TEST_SOLANA_TOKEN),
           keypair.publicKey
         );
@@ -177,9 +171,7 @@ describe("Integration Tests", () => {
         let signedVAA = await waitUntilSolanaTxObserved(transaction1);
 
         // we get the solana token id from the VAA
-        const { tokenId } = parseNFTPayload(
-          Buffer.from(new Uint8Array(parse_vaa(signedVAA).payload))
-        );
+        const { tokenId } = parseNftTransferVaa(signedVAA);
 
         await _redeemOnEth(signedVAA);
         const eth_addr = await nft_bridge.getForeignAssetEth(
@@ -200,9 +192,7 @@ describe("Integration Tests", () => {
         );
         signedVAA = await waitUntilEthTxObserved(transaction3);
 
-        const { name, symbol } = parseNFTPayload(
-          Buffer.from(new Uint8Array(parse_vaa(signedVAA).payload))
-        );
+        const { name, symbol } = parseNftTransferVaa(signedVAA);
 
         // if the names match up here, it means all the spl caches work
         expect(name).toBe("Not a PUNK🎸");

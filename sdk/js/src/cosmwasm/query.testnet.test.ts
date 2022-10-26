@@ -1,4 +1,3 @@
-require("dotenv").config({ path: ".env" });
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
 import {
   ChainGrpcWasmApi,

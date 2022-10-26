@@ -1,5 +1,5 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
 import { AptosClient } from "aptos";
@@ -8,6 +8,7 @@ import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { redeemOnTerra } from ".";
 import { ensureHexPrefix, TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
+import { getClaim } from "../solana/wormhole";
 import {
   BITS_PER_KEY,
   calcLogicSigAccount,
@@ -17,7 +18,7 @@ import {
 import { callFunctionNear } from "../utils/near";
 import { getSignedVAAHash } from "../bridge";
 import { Bridge__factory } from "../ethers-contracts";
-import { importCoreWasm } from "../solana/wasm";
+import { parseVaa, SignedVaa } from "../vaa/wormhole";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
@@ -26,10 +27,10 @@ import { State } from "../aptos/types";
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
   provider: ethers.Signer | ethers.providers.Provider,
-  signedVAA: Uint8Array,
+  signedVAA: Uint8Array
 ): Promise<boolean> {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
-  const signedVAAHash = await getSignedVAAHash(signedVAA);
+  const signedVAAHash = getSignedVAAHash(signedVAA);
   return await tokenBridge.isTransferCompleted(signedVAAHash);
 }
 
@@ -40,16 +41,18 @@ export async function getIsTransferCompletedTerra(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
   client: LCDClient,
-  gasPriceUrl: string,
+  gasPriceUrl: string
 ): Promise<boolean> {
   const msg = await redeemOnTerra(
     tokenBridgeAddress,
     TERRA_REDEEMED_CHECK_WALLET_ADDRESS,
-    signedVAA,
+    signedVAA
   );
   // TODO: remove gasPriceUrl and just use the client's gas prices
   const gasPrices = await axios.get(gasPriceUrl).then((result) => result.data);
-  const account = await client.auth.accountInfo(TERRA_REDEEMED_CHECK_WALLET_ADDRESS);
+  const account = await client.auth.accountInfo(
+    TERRA_REDEEMED_CHECK_WALLET_ADDRESS
+  );
   try {
     await client.tx.estimateFee(
       [
@@ -63,7 +66,7 @@ export async function getIsTransferCompletedTerra(
         memo: "already redeemed calculation",
         feeDenoms: ["uluna"],
         gasPrices,
-      },
+      }
     );
   } catch (e: any) {
     // redeemed if the VAA was already executed
@@ -136,23 +139,32 @@ export async function getIsTransferCompletedXpla(
   signedVAA: Uint8Array,
   client: XplaLCDClient
 ): Promise<boolean> {
-  const result: { is_redeemed: boolean } = await client.wasm.contractQuery(tokenBridgeAddress, {
-    is_vaa_redeemed: {
-      vaa: fromUint8Array(signedVAA),
-    },
-  });
+  const result: { is_redeemed: boolean } = await client.wasm.contractQuery(
+    tokenBridgeAddress,
+    {
+      is_vaa_redeemed: {
+        vaa: fromUint8Array(signedVAA),
+      },
+    }
+  );
   return result.is_redeemed;
 }
 
 export async function getIsTransferCompletedSolana(
-  tokenBridgeAddress: string,
-  signedVAA: Uint8Array,
+  tokenBridgeAddress: PublicKeyInitData,
+  signedVAA: SignedVaa,
   connection: Connection,
+  commitment?: Commitment
 ): Promise<boolean> {
-  const { claim_address } = await importCoreWasm();
-  const claimAddress = await claim_address(tokenBridgeAddress, signedVAA);
-  const claimInfo = await connection.getAccountInfo(new PublicKey(claimAddress), "confirmed");
-  return !!claimInfo;
+  const parsed = parseVaa(signedVAA);
+  return getClaim(
+    connection,
+    tokenBridgeAddress,
+    parsed.emitterAddress,
+    parsed.emitterChain,
+    parsed.sequence,
+    commitment
+  ).catch((e) => false);
 }
 
 // Algorand
@@ -169,7 +181,7 @@ async function checkBitsSet(
   client: Algodv2,
   appId: bigint,
   addr: string,
-  seq: bigint,
+  seq: bigint
 ): Promise<boolean> {
   let retval: boolean = false;
   let appState: any[] = [];
@@ -216,7 +228,7 @@ async function checkBitsSet(
 export async function getIsTransferCompletedAlgorand(
   client: Algodv2,
   appId: bigint,
-  signedVAA: Uint8Array,
+  signedVAA: Uint8Array
 ): Promise<boolean> {
   const parsedVAA = _parseVAAAlgorand(signedVAA);
   const seq: bigint = parsedVAA.sequence;
@@ -226,7 +238,7 @@ export async function getIsTransferCompletedAlgorand(
     client,
     appId,
     seq / BigInt(MAX_BITS),
-    chainRaw + em,
+    chainRaw + em
   );
   if (!doesExist) {
     return false;
@@ -239,7 +251,7 @@ export async function getIsTransferCompletedAlgorand(
 export async function getIsTransferCompletedNear(
   provider: Provider,
   tokenBridge: string,
-  signedVAA: Uint8Array,
+  signedVAA: Uint8Array
 ): Promise<boolean> {
   const vaa = Buffer.from(signedVAA).toString("hex");
   return (
@@ -259,17 +271,20 @@ export async function getIsTransferCompletedNear(
 export async function getIsTransferCompletedAptos(
   client: AptosClient,
   tokenBridgeAddress: string,
-  transferVAA: Uint8Array,
+  transferVAA: Uint8Array
 ): Promise<boolean> {
   // get handle
   tokenBridgeAddress = ensureHexPrefix(tokenBridgeAddress);
   const state = (
-    await client.getAccountResource(tokenBridgeAddress, `${tokenBridgeAddress}::state::State`)
+    await client.getAccountResource(
+      tokenBridgeAddress,
+      `${tokenBridgeAddress}::state::State`
+    )
   ).data as State;
   const handle = state.consumed_vaas.elems.handle;
 
   // check if vaa hash is in consumed_vaas
-  const transferVAAHash = await getSignedVAAHash(transferVAA);
+  const transferVAAHash = getSignedVAAHash(transferVAA);
   try {
     // when accessing Set<T>, key is type T and value is 0
     await client.getTableItem(handle, {

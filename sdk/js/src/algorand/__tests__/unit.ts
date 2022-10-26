@@ -4,7 +4,6 @@ import algosdk, {
   decodeAddress,
   getApplicationAddress,
 } from "algosdk";
-import { setDefaultWasm } from "../../solana/wasm";
 import { hexToUint8Array, uint8ArrayToHex } from "../../utils";
 import {
   accountExists,
@@ -22,8 +21,6 @@ import { PopulateData, TmplSig } from "../TmplSig";
 
 const CORE_ID = BigInt(4);
 const TOKEN_BRIDGE_ID = BigInt(6);
-
-setDefaultWasm("node");
 
 jest.setTimeout(60000);
 

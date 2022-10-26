@@ -32,13 +32,13 @@ import {
   redeemOnAlgorand,
   redeemOnEth,
   textToUint8Array,
-  TokenImplementation__factory,
   transferFromAlgorand,
   transferFromEth,
   uint8ArrayToHex,
   updateWrappedOnEth,
   WormholeWrappedInfo,
 } from "../..";
+import { TokenImplementation__factory } from "../../ethers-contracts";
 import { _parseVAAAlgorand } from "../../algorand";
 import {
   createAsset,
@@ -50,7 +50,6 @@ import {
   signSendAndConfirmAlgorand,
 } from "../../algorand/__tests__/testHelpers";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
-import { setDefaultWasm } from "../../solana/wasm";
 import { safeBigIntToNumber } from "../../utils/bigint";
 import {
   ETH_NODE_URL,
@@ -61,8 +60,6 @@ import {
 
 const CORE_ID = BigInt(4);
 const TOKEN_BRIDGE_ID = BigInt(6);
-
-setDefaultWasm("node");
 
 jest.setTimeout(60000);
 

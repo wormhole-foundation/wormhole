@@ -15,7 +15,6 @@ import {
   redeemOnEth,
   redeemOnNear,
   registerAccount,
-  setDefaultWasm,
   tryNativeToUint8Array,
   updateWrappedOnEth,
 } from "../..";
@@ -36,8 +35,6 @@ import {
   Provider,
 } from "near-api-js/lib/providers";
 import { parseNearAmount } from "near-api-js/lib/utils/format";
-
-setDefaultWasm("node");
 
 jest.setTimeout(60000);
 

@@ -1,19 +1,29 @@
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+  Transaction,
+} from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
 import { Bridge__factory } from "../ethers-contracts";
-import { ixFromRust } from "../solana";
-import { importCoreWasm, importNftWasm } from "../solana/wasm";
+import {
+  createCompleteTransferNativeInstruction,
+  createCompleteTransferWrappedInstruction,
+  createCompleteWrappedMetaInstruction,
+} from "../solana/nftBridge";
+import { parseNftTransferVaa, parseVaa, SignedVaa } from "../vaa";
 
 export async function redeemOnEth(
-  tokenBridgeAddress: string,
+  nftBridgeAddress: string,
   signer: ethers.Signer,
   signedVAA: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
-  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
+  const bridge = Bridge__factory.connect(nftBridgeAddress, signer);
   const v = await bridge.completeTransfer(signedVAA, overrides);
   const receipt = await v.wait();
   return receipt;
@@ -22,52 +32,33 @@ export async function redeemOnEth(
 export async function isNFTVAASolanaNative(
   signedVAA: Uint8Array
 ): Promise<boolean> {
-  const { parse_vaa } = await importCoreWasm();
-  const parsedVAA = parse_vaa(signedVAA);
-  const isSolanaNative =
-    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(33) ===
-    CHAIN_ID_SOLANA;
-  return isSolanaNative;
+  return parseVaa(signedVAA).payload.readUInt16BE(33) === CHAIN_ID_SOLANA;
 }
 
 export async function redeemOnSolana(
   connection: Connection,
-  bridgeAddress: string,
-  tokenBridgeAddress: string,
-  payerAddress: string,
-  signedVAA: Uint8Array
+  bridgeAddress: PublicKeyInitData,
+  nftBridgeAddress: PublicKeyInitData,
+  payerAddress: PublicKeyInitData,
+  signedVaa: SignedVaa,
+  toAuthorityAddress?: PublicKeyInitData,
+  commitment?: Commitment
 ): Promise<Transaction> {
-  const isSolanaNative = await isNFTVAASolanaNative(signedVAA);
-  const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
-    await importNftWasm();
-  const ixs = [];
-  if (isSolanaNative) {
-    ixs.push(
-      ixFromRust(
-        complete_transfer_native_ix(
-          tokenBridgeAddress,
-          bridgeAddress,
-          payerAddress,
-          payerAddress, //TODO: allow for a different address than payer
-          signedVAA
-        )
-      )
-    );
-  } else {
-    ixs.push(
-      ixFromRust(
-        complete_transfer_wrapped_ix(
-          tokenBridgeAddress,
-          bridgeAddress,
-          payerAddress,
-          payerAddress, //TODO: allow for a different address than payer
-          signedVAA
-        )
-      )
-    );
-  }
-  const transaction = new Transaction().add(...ixs);
-  const { blockhash } = await connection.getRecentBlockhash();
+  const parsed = parseNftTransferVaa(signedVaa);
+  const createCompleteTransferInstruction =
+    parsed.tokenChain == CHAIN_ID_SOLANA
+      ? createCompleteTransferNativeInstruction
+      : createCompleteTransferWrappedInstruction;
+  const transaction = new Transaction().add(
+    createCompleteTransferInstruction(
+      nftBridgeAddress,
+      bridgeAddress,
+      payerAddress,
+      parsed,
+      toAuthorityAddress
+    )
+  );
+  const { blockhash } = await connection.getLatestBlockhash(commitment);
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
@@ -75,33 +66,36 @@ export async function redeemOnSolana(
 
 export async function createMetaOnSolana(
   connection: Connection,
-  bridgeAddress: string,
-  tokenBridgeAddress: string,
-  payerAddress: string,
-  signedVAA: Uint8Array
+  bridgeAddress: PublicKeyInitData,
+  nftBridgeAddress: PublicKeyInitData,
+  payerAddress: PublicKeyInitData,
+  signedVaa: SignedVaa,
+  commitment?: Commitment
 ): Promise<Transaction> {
-  const { complete_transfer_wrapped_meta_ix } = await importNftWasm();
-  const ix = ixFromRust(
-    complete_transfer_wrapped_meta_ix(
-      tokenBridgeAddress,
+  const parsed = parseNftTransferVaa(signedVaa);
+  if (parsed.tokenChain == CHAIN_ID_SOLANA) {
+    return Promise.reject("parsed.tokenChain == CHAIN_ID_SOLANA");
+  }
+  const transaction = new Transaction().add(
+    createCompleteWrappedMetaInstruction(
+      nftBridgeAddress,
       bridgeAddress,
       payerAddress,
-      signedVAA
+      parsed
     )
   );
-  const transaction = new Transaction().add(ix);
-  const { blockhash } = await connection.getRecentBlockhash();
+  const { blockhash } = await connection.getLatestBlockhash(commitment);
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
 }
 
 export async function redeemOnTerra(
-  tokenBridgeAddress: string,
+  nftBridgeAddress: string,
   walletAddress: string,
   signedVAA: Uint8Array
 ): Promise<MsgExecuteContract> {
-  return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
+  return new MsgExecuteContract(walletAddress, nftBridgeAddress, {
     submit_vaa: {
       data: fromUint8Array(signedVAA),
     },

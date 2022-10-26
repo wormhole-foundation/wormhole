@@ -5,3 +5,4 @@ export * from "./consts";
 export * from "./createNonce";
 export * from "./near";
 export * from "./parseVaa";
+export * from "./keccak";
