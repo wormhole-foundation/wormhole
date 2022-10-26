@@ -174,3 +174,129 @@ pub struct Vaa<P> {
     pub payload: P,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Header {
+    pub version: u8,
+    pub guardian_set_index: u32,
+    pub signatures: Vec<Signature>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Body<P> {
+    pub timestamp: u32, // Seconds since UNIX epoch
+    pub nonce: u32,
+    pub emitter_chain: Chain,
+    pub emitter_address: Address,
+    pub sequence: u64,
+    pub consistency_level: u8,
+    pub payload: P,
+}
+
+impl<P> From<(Header, Body<P>)> for Vaa<P> {
+    fn from((header, body): (Header, Body<P>)) -> Self {
+        Vaa {
+            version: header.version,
+            guardian_set_index: header.guardian_set_index,
+            signatures: header.signatures,
+            timestamp: body.timestamp,
+            nonce: body.nonce,
+            emitter_chain: body.emitter_chain,
+            emitter_address: body.emitter_address,
+            sequence: body.sequence,
+            consistency_level: body.consistency_level,
+            payload: body.payload,
+        }
+    }
+}
+
+#[cfg(feature = "verify")]
+pub fn verify_vaa<'a, P, F, E>(
+    buf: &'a [u8],
+    fetch_guardian_set: F,
+    block_time: u64,
+) -> anyhow::Result<(Vaa<P>, &'a [u8])>
+where
+    P: Deserialize<'a>,
+    F: FnOnce(u32) -> Result<GuardianSetInfo, E>,
+    E: Into<anyhow::Error>,
+{
+    use std::collections::BTreeSet;
+
+    use anyhow::{ensure, Context};
+    use k256::{
+        ecdsa::{recoverable, Signature, VerifyingKey},
+        EncodedPoint,
+    };
+    use sha3::{Digest, Keccak256};
+
+    fn keys_equal(a: &VerifyingKey, b: &GuardianAddress) -> bool {
+        let mut hasher = Keccak256::new();
+
+        let point = if let Some(p) = EncodedPoint::from(a).decompress() {
+            p
+        } else {
+            return false;
+        };
+
+        hasher.update(&point.as_bytes()[1..]);
+
+        &hasher.finalize()[12..] == &b.0
+    }
+
+    let (header, body) =
+        vaa_payload::from_slice_with_payload::<Header>(buf).context("failed to parse header")?;
+
+    ensure!(header.version == 0, "unsupported version");
+
+    let guardian_set = fetch_guardian_set(header.guardian_set_index)
+        .map_err(Into::into)
+        .context("failed to fetch guardian set")?;
+
+    ensure!(
+        guardian_set.expiration_time == 0 || guardian_set.expiration_time >= block_time,
+        "guardian set expired"
+    );
+
+    let mut hasher = Keccak256::new();
+    hasher.update(body);
+    let hash = hasher.finalize();
+
+    // Rehash the hash.
+    let mut hasher = Keccak256::new();
+    hasher.update(hash);
+    let hash = hasher.finalize();
+
+    let mut signers = BTreeSet::new();
+    for sig in &header.signatures {
+        let index = usize::from(sig.index);
+        ensure!(
+            index < guardian_set.addresses.len(),
+            "signature index out-of-bounds"
+        );
+
+        let s = Signature::try_from(&sig.signature[..64])
+            .and_then(|s| recoverable::Id::new(sig.signature[64]).map(|id| (s, id)))
+            .and_then(|(sig, id)| recoverable::Signature::new(&sig, id))
+            .context("failed to decode signature")?;
+
+        let verifying_key = s
+            .recover_verify_key_from_digest_bytes(&hash)
+            .context("failed to recover verifying key")?;
+
+        ensure!(
+            keys_equal(&verifying_key, &guardian_set.addresses[index]),
+            "invalid signature"
+        );
+
+        signers.insert(index);
+    }
+
+    ensure!(
+        signers.len() >= guardian_set.quorum(),
+        "not enough signatures for quorum"
+    );
+
+    vaa_payload::from_slice_with_payload(body)
+        .map(|(b, rem)| (Vaa::from((header, b)), rem))
+        .context("failed to parse body")
+}

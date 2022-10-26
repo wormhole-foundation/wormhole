@@ -3,10 +3,19 @@ name = "structs"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["verify"]
+verify = ["dep:anyhow", "dep:k256", "dep:sha3", "dep:vaa-payload"]
+
 [dependencies]
+anyhow = { version = "1", optional = true }
 bstr = "1"
+k256 = { version = "0.9.4", default-features = false, features = ["ecdsa", "std"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_repr = "0.1.7"
+sha3 = { version = "0.9.1", default-features = false, optional = true }
+vaa-payload = { version = "0.1", optional = true }
+
 
 [dev-dependencies]
 vaa-payload = "0.1"
