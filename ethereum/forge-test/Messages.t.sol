@@ -234,7 +234,7 @@ contract TestMessages is Messages, Test {
   }
 
   // This test checks the possibility of getting a unsigned message verified
-  function testExploit() public {
+  function testUnsignedMessageIsNotVerified() public {
     // Set the initial guardian set
     address[] memory initialGuardians = new address[](1);
     initialGuardians[0] = testGuardianPub;
@@ -273,20 +273,23 @@ contract TestMessages is Messages, Test {
       observations: parsedValidVm2.observations
     });
 
-    (valid, reason) = this.verifyBatchVM(invalidVM2, true);
+    vm.expectRevert("invalid hash");
+    this.verifyBatchVM(invalidVM2, true);
 
-    assertEq(verifiedHashCached(originalHash), false);
-    assertEq(verifiedHashCached(parsedValidVm2.hashes[0]), true);
-    assertEq(verifiedHashCached(parsedValidVm2.hashes[1]), true);
-    assertEq(verifiedHashCached(parsedValidVm2.hashes[2]), true);
+    //(valid, reason) = this.verifyBatchVM(invalidVM2, true);
 
-    bytes memory invalidVM3 = abi.encodePacked(
-      observation
-    );
+    //assertEq(verifiedHashCached(originalHash), false);
+    //assertEq(verifiedHashCached(parsedValidVm2.hashes[0]), true);
+    //assertEq(verifiedHashCached(parsedValidVm2.hashes[1]), true);
+    //assertEq(verifiedHashCached(parsedValidVm2.hashes[2]), true);
 
-    (Structs.VM memory parsedInvalidVm3, bool isValid, string memory invalidReason) = this.parseAndVerifyVM(invalidVM3);
-    assertEq(isValid, true);
-    assertEq(invalidReason, "");
+    //bytes memory invalidVM3 = abi.encodePacked(
+      //observation
+    //);
+
+    //(Structs.VM memory parsedInvalidVm3, bool isValid, string memory invalidReason) = this.parseAndVerifyVM(invalidVM3);
+    //assertEq(isValid, false);
+    //assertEq(invalidReason, "");
   }
 
   struct Observation {
