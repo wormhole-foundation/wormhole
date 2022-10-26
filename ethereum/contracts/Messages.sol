@@ -176,6 +176,7 @@ contract Messages is Getters, Setters {
 
         if (valid) {
             uint256 observationsLen = vm2.observations.length;
+            bytes memory vmHash;
             for (uint i = 0; i < observationsLen;) {
                 // Verify the hash of the observation against parsed array of hashes. This confirms
                 // that the observation wasn't tampered with and that order was preserved. The version
@@ -193,8 +194,15 @@ contract Messages is Getters, Setters {
                     updateVerifiedCacheStatus(vm2.hashes[i], true);
                 }
 
+                vmHash = abi.encodePacked(vmHash, vm2.hashes[i]);
+
                 unchecked { i += 1; }
-            }
+            }                                                        
+
+            require(
+                vm2.hash == doubleKeccak256(vmHash),
+                "invalid hash"
+            );
         }
     }
 
@@ -291,7 +299,7 @@ contract Messages is Getters, Setters {
         vm.signatures = parseSignatures(index, signersLen, encodedVM);
         index += 66*signersLen;
 
-        /*
+        /*0.
         Hash the body
 
         SECURITY: Do not change the way the hash of a VM is computed!

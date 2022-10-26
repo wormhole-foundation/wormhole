@@ -193,6 +193,46 @@ contract TestMessages is Messages, Test {
     parseBatchVM(invalidObservationsCountVm2);
   }
 
+  // This test checks if a hash(body) can pass as a valid message in v1
+  function testVersionConfusion() public {
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    storeGuardianSet(initialGuardianSet, 0);
+
+    // Confirm that the test VM2 is valid
+    (Structs.VM2 memory parsedValidVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
+    require(valid, reason);
+
+    bytes memory signatures = validVM2.slice(6, 66 * parsedValidVm2.signatures.length);
+
+    bytes memory bodyVm1;
+
+    for (uint i = 0; i < parsedValidVm2.hashes.length; i++) {
+      bodyVm1 = abi.encodePacked(bodyVm1, parsedValidVm2.hashes[i]);
+    }
+
+    // Create the version 1 vm
+    bytes memory invalidVm1 = abi.encodePacked(
+      uint8(1),
+      parsedValidVm2.guardianSetIndex,
+      parsedValidVm2.signatures.length,
+      signatures,
+      bodyVm1
+    );
+
+    (Structs.VM memory parsedInValidVm1, bool isValid, string memory reasonVm1) = this.parseAndVerifyVM(invalidVm1);
+    assertEq(valid, true);
+    assertEq(reason, "");
+  }
+
   // This test checks the possibility of getting a unsigned message verified
   function testExploit() public {
     // Set the initial guardian set
