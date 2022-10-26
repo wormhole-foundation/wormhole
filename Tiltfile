@@ -51,6 +51,7 @@ config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
+config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("secondWormchain", False, "Enable a second wormchain node with different validator keys")
 
 cfg = config.parse()
@@ -73,6 +74,7 @@ ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
+wormchain = cfg.get("wormchain", True)
 secondWormchain = cfg.get("secondWormchain", False)
 
 if cfg.get("manual", False):
@@ -266,6 +268,8 @@ if algorand:
     guardian_resource_deps = guardian_resource_deps + ["algorand"]
 if aptos:
     guardian_resource_deps = guardian_resource_deps + ["aptos"]
+if wormchain:
+    guardian_resource_deps = guardian_resource_deps + ["guardian-validator"]
 
 k8s_resource(
     "guardian",
@@ -709,40 +713,41 @@ if near:
         trigger_mode = trigger_mode,
     )
 
-docker_build(
-    ref = "wormchaind-image",
-    context = ".",
-    dockerfile = "./Dockerfile.wormchain",
-    only = [],
-    ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
-)
+if wormchain:
+    docker_build(
+        ref = "wormchaind-image",
+        context = ".",
+        dockerfile = "./Dockerfile.wormchain",
+        only = [],
+        ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
+    )
 
-k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-guardian-devnet.yaml")
-
-k8s_resource(
-    "guardian-validator",
-    port_forwards = [
-        port_forward(1319, container_port = 1317, name = "REST [:1319]", host = webHost),
-        port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
-    ],
-    resource_deps = [],
-    labels = ["wormchain"],
-    trigger_mode = trigger_mode,
-)
-
-if secondWormchain:
-    k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-validator2-devnet.yaml")
+    k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-guardian-devnet.yaml")
 
     k8s_resource(
-        "second-validator",
+        "guardian-validator",
         port_forwards = [
-            port_forward(1320, container_port = 1317, name = "REST [:1320]", host = webHost),
-            port_forward(26660, container_port = 26657, name = "TENDERMINT [:26660]", host = webHost)
+            port_forward(1319, container_port = 1317, name = "REST [:1319]", host = webHost),
+            port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
         ],
         resource_deps = [],
         labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )
+
+    if secondWormchain:
+        k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-validator2-devnet.yaml")
+
+        k8s_resource(
+            "second-validator",
+            port_forwards = [
+                port_forward(1320, container_port = 1317, name = "REST [:1320]", host = webHost),
+                port_forward(26660, container_port = 26657, name = "TENDERMINT [:26660]", host = webHost)
+            ],
+            resource_deps = [],
+            labels = ["wormchain"],
+            trigger_mode = trigger_mode,
+        )
 
 if aptos:
     k8s_yaml_with_ns("devnet/aptos-localnet.yaml")
