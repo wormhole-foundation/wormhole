@@ -14,7 +14,7 @@ COPY package-lock.json package-lock.json
 COPY tsconfig.json tsconfig.json
 COPY jestconfig.json jestconfig.json
 
-FROM base as builder
+FROM base AS builder
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
@@ -22,12 +22,15 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY src src
 RUN npm run build && npm prune --production
 
-FROM base as application
+FROM base AS application
 
 LABEL org.opencontainers.image.source="https://github.com/wormhole-foundation/wormhole/tree/dev.v2/relayer/spy_relayer#readme"
 
 COPY --from=builder /app/node_modules node_modules
 COPY --from=builder /app/lib lib
+COPY .env.tilt.listener /app/
+COPY .env.tilt.relayer /app/
+COPY .env.tilt.wallet-monitor /app/
 
 CMD [ "node", "lib/main.js" ]
 
