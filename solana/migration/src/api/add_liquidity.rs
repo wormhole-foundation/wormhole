@@ -97,11 +97,11 @@ pub fn add_liquidity(
     let share_amount = if accs.from_mint.decimals > accs.to_mint.decimals {
         data.amount
             .checked_mul(10u64.pow((accs.from_mint.decimals - accs.to_mint.decimals) as u32))
-            .unwrap()
+            .ok_or(SolitaireError::InsufficientFunds)?
     } else {
         data.amount
             .checked_div(10u64.pow((accs.to_mint.decimals - accs.from_mint.decimals) as u32))
-            .unwrap()
+            .ok_or(SolitaireError::InsufficientFunds)?
     };
 
     // Mint LP shares

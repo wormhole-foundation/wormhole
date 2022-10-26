@@ -50,6 +50,9 @@ pub enum SolitaireError {
     UnknownInstruction(u8),
 
     Custom(u64),
+
+    /// User does not have sufficient funds for the tx
+    InsufficientFunds,
 }
 
 impl From<ProgramError> for SolitaireError {

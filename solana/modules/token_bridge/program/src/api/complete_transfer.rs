@@ -129,6 +129,10 @@ pub fn complete_native(
         fee *= 10u64.pow((accs.mint.decimals - 8) as u32);
     }
 
+    let token_amount = amount
+        .checked_sub(fee)
+        .ok_or(SolitaireError::InsufficientFunds)?;
+
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
         &spl_token::id(),
@@ -136,7 +140,7 @@ pub fn complete_native(
         accs.to.info().key,
         accs.custody_signer.key,
         &[],
-        amount.checked_sub(fee).unwrap(),
+        token_amount,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
@@ -238,6 +242,13 @@ pub fn complete_wrapped(
 
     claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
+    let token_amount: u64 = accs
+        .vaa
+        .amount
+        .as_u64()
+        .checked_sub(accs.vaa.fee.as_u64())
+        .ok_or(SolitaireError::InsufficientFunds)?;
+
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(
         &spl_token::id(),
@@ -245,11 +256,7 @@ pub fn complete_wrapped(
         accs.to.info().key,
         accs.mint_authority.key,
         &[],
-        accs.vaa
-            .amount
-            .as_u64()
-            .checked_sub(accs.vaa.fee.as_u64())
-            .unwrap(),
+        token_amount,
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 
