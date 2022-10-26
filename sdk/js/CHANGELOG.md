@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1
+
+### Added
+
+queryExternalIdInjective
+
+parseSmartContractStateResponse
+
 ## 0.9.0
 
 ### Added

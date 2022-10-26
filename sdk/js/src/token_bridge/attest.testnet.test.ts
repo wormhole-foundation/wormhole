@@ -3,6 +3,7 @@ import {
   ChainRestAuthApi,
   DEFAULT_STD_FEE,
   MsgExecuteContract,
+  PrivateKey,
   privateKeyToPublicKeyBase64,
 } from "@injectivelabs/sdk-ts";
 import {
@@ -10,7 +11,6 @@ import {
   TxClient,
   TxGrpcClient,
 } from "@injectivelabs/tx-ts";
-import { PrivateKey } from "@injectivelabs/sdk-ts/dist/local";
 import { test } from "@jest/globals";
 import { CONTRACTS } from "..";
 
@@ -83,14 +83,11 @@ test.skip("testnet - injective attest native token", async () => {
   console.log("Calculate hash");
   console.log(`Transaction Hash: ${await TxClient.hash(txRaw)}`);
 
-  const txService = new TxGrpcClient({
-    txRaw,
-    endpoint: network.sentryGrpcApi,
-  });
+  const txService = new TxGrpcClient(network.sentryGrpcApi);
 
   /** Simulate transaction */
   console.log("Simulate transaction");
-  const simulationResponse = await txService.simulate();
+  const simulationResponse = await txService.simulate(txRaw);
   console.log(
     `Transaction simulation response: ${JSON.stringify(
       simulationResponse.gasInfo
@@ -99,7 +96,7 @@ test.skip("testnet - injective attest native token", async () => {
 
   /** Broadcast transaction */
   console.log("Broadcast transaction");
-  const txResponse = await txService.broadcast();
+  const txResponse = await txService.broadcast(txRaw);
   console.log(
     `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
   );
