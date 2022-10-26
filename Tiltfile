@@ -249,6 +249,14 @@ def build_node_yaml():
                     "wormhole.test.near"
                 ]
 
+            if wormchain:
+                container["command"] += [
+                    "--wormchainWS",
+                    "ws://guardian-validator:26657/websocket",
+                    "--wormchainLCD",
+                    "http://guardian-validator:1317"
+                ]
+
     return encode_yaml_stream(node_yaml)
 
 k8s_yaml_with_ns(build_node_yaml())
