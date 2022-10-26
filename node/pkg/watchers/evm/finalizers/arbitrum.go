@@ -3,69 +3,44 @@ package finalizers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/interfaces"
 
-	arbitrumAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/arbitrumabi"
-	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 
 	"go.uber.org/zap"
 )
 
 // ArbitrumFinalizer implements the finality check for Arbitrum.
-// Arbitrum blocks should not be considered finalized until they show up on Ethereum.
-// To determine when a block is final, we have to query the NodeInterface precompiled contract on Arbitrum.
-
-// To build the ABI for the NodeInterface precomile, do the following:
-// - Download this file to ethereum/contracts/NodeInterface.sol and build the contracts.
-//     https://developer.offchainlabs.com/assets/files/NodeInterface-1413a19adf5bfcf97f5a5d3207d1b452.sol
-// - Edit ethereum/build/contracts/NodeInterface.json and delete all but the bracketed part of “abi:”.
-// - cd thirdparty/abigen and do the following to build the abigen tool:
-//     go build -mod=readonly -o abigen github.com/ethereum/go-ethereum/cmd/abigen
-// - cd to the wormhole directory and do the following:
-//   - mkdir node/pkg/watchers/evm/connectors/arbitrumabi
-//   - third_party/abigen/abigen --abi ethereum/build/contracts/NodeInterface.json --pkg abi_arbitrum --out node/pkg/watchers/evm/connectors/arbitrumabi/abi.go
+// Arbitrum blocks should not be considered finalized until they are finalized on Ethereum.
 
 type ArbitrumFinalizer struct {
-	logger    *zap.Logger
-	connector connectors.Connector
-	caller    *arbitrumAbi.AbiArbitrumCaller
+	logger      *zap.Logger
+	connector   connectors.Connector
+	l1Finalizer interfaces.L1Finalizer
 }
 
-const (
-	arbitrumNodeInterfacePrecompileAddr = "0x00000000000000000000000000000000000000C8"
-)
-
-func NewArbitrumFinalizer(logger *zap.Logger, connector connectors.Connector, client *ethClient.Client) *ArbitrumFinalizer {
-	caller, err := arbitrumAbi.NewAbiArbitrumCaller(ethCommon.HexToAddress(arbitrumNodeInterfacePrecompileAddr), client)
-	if err != nil {
-		panic(fmt.Errorf("failed to create Arbitrum finalizer: %w", err))
-	}
-
+func NewArbitrumFinalizer(logger *zap.Logger, connector connectors.Connector, client *ethClient.Client, l1Finalizer interfaces.L1Finalizer) *ArbitrumFinalizer {
 	return &ArbitrumFinalizer{
-		logger:    logger,
-		connector: connector,
-		caller:    caller,
+		logger:      logger,
+		connector:   connector,
+		l1Finalizer: l1Finalizer,
 	}
 }
 
-// IsBlockFinalized queries the NodeInfrastructure precompiled contract to see if the L2 (Arbitrum) block has appeared
-// in an L1 (Ethereum) block. We don't really care what L2 block it appeared in, just that it has.
+// IsBlockFinalized compares the number of the L1 block containing the Arbitrum block with the latest finalized block on Ethereum.
 func (a *ArbitrumFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
-	_, err := a.caller.FindBatchContainingBlock(&ethBind.CallOpts{Context: ctx}, block.Number.Uint64())
-	if err != nil {
-		// If it hasn't been published yet, the method returns an error, so we check for that and treat it as
-		// not finalized, rather than as an error. Here's what that looks like:
-		//    "requested block 430842 is after latest on-chain block 430820 published in batch 4686"
-		if strings.ContainsAny(err.Error(), "is after latest on-chain block") {
-			return false, nil
-		}
-
-		return false, err
+	if block.L1BlockNumber == nil {
+		return false, fmt.Errorf("l1 block number is nil")
 	}
 
-	return true, nil
+	latestL1Block := a.l1Finalizer.GetLatestFinalizedBlockNumber()
+	if latestL1Block == 0 {
+		// This happens on start up.
+		return false, nil
+	}
+
+	isFinalized := block.L1BlockNumber.Uint64() <= latestL1Block
+	return isFinalized, nil
 }
