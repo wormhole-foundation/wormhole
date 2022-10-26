@@ -368,13 +368,18 @@ func Unmarshal(data []byte) (*VAA, error) {
 		return nil, fmt.Errorf("failed to read commitment: %w", err)
 	}
 
-	payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
-	n, err := reader.Read(payload)
-	if err != nil || n == 0 {
-		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
-	}
+	// Make sure to only read the payload if the VAA has one; VAAs may have a 0 length payload
+	if reader.Len() != 0 {
+		payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
+		n, err := reader.Read(payload)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
+		}
 
-	v.Payload = payload[:n]
+		v.Payload = payload[:n]
+	} else {
+		v.Payload = []byte{}
+	}
 
 	return v, nil
 }
