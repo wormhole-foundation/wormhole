@@ -7,7 +7,11 @@ import axios from "axios";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { redeemOnTerra } from ".";
-import { ensureHexPrefix, TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
+import {
+  ensureHexPrefix,
+  parseSmartContractStateResponse,
+  TERRA_REDEEMED_CHECK_WALLET_ADDRESS,
+} from "..";
 import { getClaim } from "../solana/wormhole";
 import {
   BITS_PER_KEY,
@@ -125,13 +129,8 @@ export async function getIsTransferCompletedInjective(
       })
     ).toString("base64")
   );
-  if (typeof queryResult.data === "string") {
-    const result = JSON.parse(
-      Buffer.from(queryResult.data, "base64").toString("utf-8")
-    );
-    return result.is_redeemed;
-  }
-  return false;
+  const parsed = parseSmartContractStateResponse(queryResult);
+  return parsed.is_redeemed;
 }
 
 export async function getIsTransferCompletedXpla(

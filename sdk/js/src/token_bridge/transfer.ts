@@ -30,10 +30,6 @@ import {
 } from "algosdk";
 import { ethers, Overrides, PayableOverrides } from "ethers";
 import BN from "bn.js";
-import {
-  Account as nearAccount,
-  providers as nearProviders,
-} from "near-api-js";
 import { isNativeDenom } from "../terra";
 import { getIsWrappedAssetNear } from "..";
 import {
@@ -72,7 +68,10 @@ import { Types } from "aptos";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import { transferTokens as transferTokensAptos, transferTokensWithPayload } from "../aptos";
+import {
+  transferTokens as transferTokensAptos,
+  transferTokensWithPayload,
+} from "../aptos";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -301,8 +300,8 @@ export async function transferFromInjective(
           recipient_chain: recipientChainId,
           recipient: Buffer.from(recipientAddress).toString("base64"),
           fee: relayerFee,
-          nonce: nonce,
-          payload: payload,
+          nonce,
+          payload,
         }
       : {
           asset: {
@@ -312,7 +311,7 @@ export async function transferFromInjective(
           recipient_chain: recipientChainId,
           recipient: Buffer.from(recipientAddress).toString("base64"),
           fee: relayerFee,
-          nonce: nonce,
+          nonce,
         };
   return isNativeAsset
     ? [
@@ -321,7 +320,7 @@ export async function transferFromInjective(
           sender: walletAddress,
           msg: {},
           action: "deposit_tokens",
-          amount: { denom: tokenAddress, amount: amount },
+          funds: { denom: tokenAddress, amount },
         }),
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenBridgeAddress,
@@ -332,11 +331,11 @@ export async function transferFromInjective(
       ]
     : [
         MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenBridgeAddress,
+          contractAddress: tokenAddress,
           sender: walletAddress,
           msg: {
             spender: tokenBridgeAddress,
-            amount: amount,
+            amount,
             expires: {
               never: {},
             },
@@ -972,7 +971,7 @@ export async function transferNearFromNear(
 }
 
 /**
- * Transfer an asset on Aptos to another chain. 
+ * Transfer an asset on Aptos to another chain.
  * @param tokenBridgeAddress Address of token bridge
  * @param fullyQualifiedType Full qualified type of asset to transfer
  * @param amount Amount to send to recipient

@@ -1,6 +1,5 @@
 import { BigNumber } from "@ethersproject/bignumber";
 import { parseNftTransferPayload, parseTokenTransferPayload } from "../vaa";
-import { ChainId } from "./consts";
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
 
