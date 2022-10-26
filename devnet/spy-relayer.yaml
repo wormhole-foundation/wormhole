@@ -41,7 +41,7 @@ spec:
             - npm
             - run
             - --prefix
-            - /app/relayer/spy_relayer/
+            - /app
             - tilt_relayer
           ports:
             - containerPort: 8083

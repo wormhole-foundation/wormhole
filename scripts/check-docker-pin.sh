@@ -11,7 +11,7 @@
 #   - We ignore scratch because it's literally the docker base image
 #   - We ignore solana AS (builder|ci_tests) because it's a relative reference to another FROM call
 #
-git ls-files | grep "Dockerfile*" | xargs grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos AS (builder|ci_tests|tests)'
+git ls-files | grep "Dockerfile*" | xargs grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos|base AS (application|base|builder|ci_tests|tests)'
 if [ $? -eq 0 ]; then
    echo "[!] Unpinned docker files" >&2
    exit 1

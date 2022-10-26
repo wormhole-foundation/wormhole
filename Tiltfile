@@ -439,8 +439,7 @@ if spy_relayer:
 
     docker_build(
         ref = "spy-relay-image",
-        context = ".",
-        only = ["./relayer/spy_relayer"],
+        context = "relayer/spy_relayer",
         dockerfile = "relayer/spy_relayer/Dockerfile",
         live_update = []
     )
