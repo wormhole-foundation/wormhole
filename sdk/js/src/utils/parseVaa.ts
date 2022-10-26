@@ -14,7 +14,7 @@ export const METADATA_REPLACE = new RegExp("\u0000", "g");
 //     131 [u8;len] uri
 //     ?   [u8; 32] recipient
 //     ?   u16      recipient_chain
-export function parseNFTPayload(payload: Buffer): any {
+export function parseNFTPayload(payload: Buffer) {
   const parsed = parseNftTransferPayload(payload);
   return {
     originAddress: parsed.tokenAddress.toString("hex"),
@@ -34,7 +34,7 @@ export function parseNFTPayload(payload: Buffer): any {
 //     66  [u8; 32] recipient
 //     98  u16      recipient_chain
 //     100 u256     fee
-export function parseTransferPayload(payload: Buffer): any {
+export function parseTransferPayload(payload: Buffer) {
   const parsed = parseTokenTransferPayload(payload);
   return {
     amount: parsed.amount,
@@ -42,7 +42,11 @@ export function parseTransferPayload(payload: Buffer): any {
     originChain: parsed.tokenChain,
     targetAddress: parsed.to.toString("hex"),
     targetChain: parsed.toChain,
-    fee: parsed.fee,
+    fee: parsed.fee === null ? undefined : parsed.fee,
+    fromAddress:
+      parsed.fromAddress === null
+        ? undefined
+        : parsed.fromAddress.toString("hex"),
   };
 }
 
