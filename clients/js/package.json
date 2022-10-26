@@ -25,8 +25,6 @@
     "js-base64": "^3.6.1",
     "near-api-js": "^0.45.1",
     "near-seed-phrase": "^0.2.0",
-    "npm": "^7.20.0",
-    "web3": "^1.5.0",
     "yargs": "^17.0.1"
   },
   "bin": {
@@ -39,7 +37,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "@truffle/hdwallet-provider": "^1.4.1",
+    "@truffle/hdwallet-provider": "^2.0.15",
     "@types/bn.js": "^5.1.0",
     "@types/bs58": "^4.0.1",
     "@types/yargs": "^17.0.2",
