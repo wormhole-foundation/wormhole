@@ -524,13 +524,13 @@ if ci_tests:
         "sdk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["guardian"],
+        resource_deps = [], # testing/sdk.sh handles waiting for spy, not having deps gets the build earlier
     )
     k8s_resource(
         "spydk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["guardian", "spy"],
+        resource_deps = [], # testing/spydk.sh handles waiting for spy, not having deps gets the build earlier
     )
 
 # bigtable
