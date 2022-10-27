@@ -43,7 +43,7 @@ spec:
             - --home
             - /app/validators/second_validator
             - --log_level
-            - info
+            - warn
           ports:
             - containerPort: 26657
               name: tendermint
