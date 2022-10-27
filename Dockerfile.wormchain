@@ -4,7 +4,6 @@ FROM docker.io/golang:1.19.0@sha256:4c00329e17be6fedd8bd4412df454a205348da00f9e0
 RUN apt-get update
 RUN apt install -y netcat
 RUN apt install -y jq
-RUN curl https://get.ignite.com/cli@v0.23.0 | bash && mv ignite /usr/local/bin/
 
 WORKDIR /app
 
@@ -24,7 +23,6 @@ EXPOSE 4500
 
 RUN unset GOPATH
 
-RUN make proto -B
 RUN make client
 RUN chmod +x /app/build/wormchaind
 RUN make validators

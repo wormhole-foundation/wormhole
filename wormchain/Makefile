@@ -1,13 +1,8 @@
 PROTO_FILES=$(shell find proto -name "*.proto")
 GO_FILES=$(shell find . -name "*.go")
 IGNITE_EXPECTED_VERSION:=v0.23.0
-IGNITE_ACTUAL_VERSION:=$(shell ignite version | awk '/Ignite CLI version:/ { print $$4 }')
 # Address of the main tilt validator that the others should connect to
 TILT_VALADDRESS=wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8
-
-ifneq ("$(IGNITE_ACTUAL_VERSION)", "$(IGNITE_EXPECTED_VERSION)")
-  $(error "Expected ignite version $(IGNITE_EXPECTED_VERSION) but found $(IGNITE_ACTUAL_VERSION)")
-endif
 
 .PHONY: all
 all: client vue validators
@@ -35,10 +30,13 @@ validators:
 	mkdir -p validators/second_validator/keyring-test
 	cp build/keyring-test/* validators/second_validator/keyring-test/
 
-build/wormchaind: cmd/wormchaind/main.go $(GO_FILES) proto
+build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
 	go build -o $@ $<
 
-proto:  $(PROTO_FILES)
+check-ignite:
+	@ if [ "$(shell ignite version | awk '/Ignite CLI version:/ { print $$4 }')" != "$(IGNITE_EXPECTED_VERSION)" ] ; then echo "Expected ignite version $(IGNITE_EXPECTED_VERSION)" && exit 1 ; fi
+
+proto: check-ignite $(PROTO_FILES)
 	ignite generate proto-go
 	touch proto
 
