@@ -14,7 +14,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	solwatcher "github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -290,13 +289,7 @@ func process(txRpc *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
 	txs := make([]solana.CompiledInstruction, 0, len(tx.Message.Instructions))
 	txs = append(txs, tx.Message.Instructions...)
 	for _, inner := range txRpc.Meta.InnerInstructions {
-		for _, instRpc := range inner.Instructions {
-			inst, err := solwatcher.ConvertRpcInstruction(instRpc)
-			if err != nil {
-				log.Fatalf("Failed to unmarshal inner instruction: %v", err)
-			}
-			txs = append(txs, inst)
-		}
+		txs = append(txs, inner.Instructions...)
 	}
 
 	for _, inst := range txs {
