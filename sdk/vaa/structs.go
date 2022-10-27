@@ -3,6 +3,7 @@ package vaa
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -95,6 +96,20 @@ type (
 		OriginChain   ChainID
 		TargetAddress Address
 		TargetChain   ChainID
+	}
+
+	// Attestation interface contains the methods common to all VAA types
+	Attestation interface {
+		encoding.BinaryMarshaler
+		encoding.BinaryUnmarshaler
+		serializeBody()
+		signingBody() []byte
+		SigningMsg() common.Hash
+		VerifySignatures(addrs []common.Address) bool
+		UniqueID() string
+		HexDigest() string
+		AddSignature(key *ecdsa.PrivateKey, index uint8)
+		GetEmitterChain() ChainID
 	}
 )
 
