@@ -337,50 +337,12 @@ const (
 	InternalTruncatedPayloadSafetyLimit = 1000
 )
 
-// Unmarshal deserializes the binary representation of a VAA
+// UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
+// The BODY fields are common among multiple types of VAA - v1, v2 (BatchVAA), etc
 //
-// WARNING: Unmarshall will truncate payloads at 1000 bytes, this is done mainly to avoid denial of service
+// WARNING: UnmarshallBody will truncate payloads at 1000 bytes, this is done mainly to avoid denial of service
 //   - If you need to access the full payload, consider parsing VAA from Bytes instead of Unmarshal
-func Unmarshal(data []byte) (*VAA, error) {
-	if len(data) < minVAALength {
-		return nil, fmt.Errorf("VAA is too short")
-	}
-	v := &VAA{}
-
-	v.Version = data[0]
-	if v.Version != SupportedVAAVersion {
-		return nil, fmt.Errorf("unsupported VAA version: %d", v.Version)
-	}
-
-	reader := bytes.NewReader(data[1:])
-
-	if err := binary.Read(reader, binary.BigEndian, &v.GuardianSetIndex); err != nil {
-		return nil, fmt.Errorf("failed to read guardian set index: %w", err)
-	}
-
-	lenSignatures, er := reader.ReadByte()
-	if er != nil {
-		return nil, fmt.Errorf("failed to read signature length")
-	}
-
-	v.Signatures = make([]*Signature, lenSignatures)
-	for i := 0; i < int(lenSignatures); i++ {
-		index, err := reader.ReadByte()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read validator index [%d]", i)
-		}
-
-		signature := [65]byte{}
-		if n, err := reader.Read(signature[:]); err != nil || n != 65 {
-			return nil, fmt.Errorf("failed to read signature [%d]: %w", i, err)
-		}
-
-		v.Signatures[i] = &Signature{
-			Index:     index,
-			Signature: signature,
-		}
-	}
-
+func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
 		return nil, fmt.Errorf("failed to read timestamp: %w", err)
@@ -425,6 +387,51 @@ func Unmarshal(data []byte) (*VAA, error) {
 	return v, nil
 }
 
+// Unmarshal deserializes the binary representation of a VAA
+func Unmarshal(data []byte) (*VAA, error) {
+	if len(data) < minVAALength {
+		return nil, fmt.Errorf("VAA is too short")
+	}
+	v := &VAA{}
+
+	v.Version = data[0]
+	if v.Version != SupportedVAAVersion {
+		return nil, fmt.Errorf("unsupported VAA version: %d", v.Version)
+	}
+
+	reader := bytes.NewReader(data[1:])
+
+	if err := binary.Read(reader, binary.BigEndian, &v.GuardianSetIndex); err != nil {
+		return nil, fmt.Errorf("failed to read guardian set index: %w", err)
+	}
+
+	lenSignatures, er := reader.ReadByte()
+	if er != nil {
+		return nil, fmt.Errorf("failed to read signature length")
+	}
+
+	v.Signatures = make([]*Signature, lenSignatures)
+	for i := 0; i < int(lenSignatures); i++ {
+		index, err := reader.ReadByte()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read validator index [%d]", i)
+		}
+
+		signature := [65]byte{}
+		if n, err := reader.Read(signature[:]); err != nil || n != 65 {
+			return nil, fmt.Errorf("failed to read signature [%d]: %w", i, err)
+		}
+
+		v.Signatures[i] = &Signature{
+			Index:     index,
+			Signature: signature,
+		}
+	}
+
+	return UnmarshalBody(data, reader, v)
+}
+
+// UnmarshalBatch deserializes the binary representation of a BatchVAA
 func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 	if len(data) < minBatchVAALength {
 		return nil, fmt.Errorf("BatchVAA.Observation is too short")
@@ -524,43 +531,7 @@ func UnmarshalBatchObservation(data []byte) (*VAA, error) {
 
 	reader := bytes.NewReader(data[:])
 
-	unixSeconds := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
-		return nil, fmt.Errorf("failed to read timestamp: %w", err)
-	}
-	v.Timestamp = time.Unix(int64(unixSeconds), 0)
-
-	if err := binary.Read(reader, binary.BigEndian, &v.Nonce); err != nil {
-		return nil, fmt.Errorf("failed to read nonce: %w", err)
-	}
-
-	if err := binary.Read(reader, binary.BigEndian, &v.EmitterChain); err != nil {
-		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
-	}
-
-	emitterAddress := Address{}
-	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
-	}
-	v.EmitterAddress = emitterAddress
-
-	if err := binary.Read(reader, binary.BigEndian, &v.Sequence); err != nil {
-		return nil, fmt.Errorf("failed to read sequence: %w", err)
-	}
-
-	if err := binary.Read(reader, binary.BigEndian, &v.ConsistencyLevel); err != nil {
-		return nil, fmt.Errorf("failed to read commitment: %w", err)
-	}
-
-	payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
-	n, err := reader.Read(payload)
-	if err != nil || n == 0 {
-		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
-	}
-
-	v.Payload = payload[:n]
-
-	return v, nil
+	return UnmarshalBody(data, reader, v)
 }
 
 // signingBody returns the binary representation of the data that is relevant for signing and verifying the VAA
