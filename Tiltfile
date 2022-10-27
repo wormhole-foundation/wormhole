@@ -159,6 +159,8 @@ def build_node_yaml():
                 container["command"] = command_with_dlv(container["command"])
                 container["command"] += ["--logLevel=debug"]
                 print(container["command"])
+            elif ci:
+                container["command"] += ["--logLevel=warn"]
 
             if explorer:
                 container["command"] += [
