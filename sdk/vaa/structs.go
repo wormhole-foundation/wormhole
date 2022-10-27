@@ -551,6 +551,9 @@ func (v *VAA) signingBody() []byte {
 func (v *BatchVAA) signingBody() []byte {
 	buf := new(bytes.Buffer)
 
+	// add the VAA version
+	MustWrite(buf, binary.BigEndian, v.Version)
+
 	// create the hash array from the Observations of the BatchVAA
 	hashes := v.ObsvHashArray()
 
