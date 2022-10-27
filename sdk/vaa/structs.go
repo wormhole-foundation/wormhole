@@ -564,20 +564,21 @@ func (v *BatchVAA) signingBatchBody() []byte {
 	return buf.Bytes()
 }
 
-// SigningMsg returns the hash of the signing body. This is used for signature generation and verification
-func (v *VAA) SigningMsg() common.Hash {
+// SigningMsg returns the hash of the signing body.
+func SigningMsg(data []byte) common.Hash {
 	// In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
 	// the first hash (32 bytes) vs the full body data.
-	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(v.signingBody()).Bytes())
-	return hash
+	return crypto.Keccak256Hash(crypto.Keccak256Hash(data).Bytes())
+}
+
+// SigningMsg returns the hash of the signing body. This is used for signature generation and verification
+func (v *VAA) SigningMsg() common.Hash {
+	return SigningMsg(v.signingBody())
 }
 
 // SigningMsg returns the hash of the signing body. This is used for signature generation and verification
 func (v *BatchVAA) SigningMsg() common.Hash {
-	// In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
-	// the first hash (32 bytes) vs the full body data.
-	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(v.signingBatchBody()).Bytes())
-	return hash
+	return SigningMsg(v.signingBody())
 }
 
 // ObsvHashArray creates an array of hashes of Observation.
