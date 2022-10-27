@@ -236,9 +236,9 @@ module wormhole::myvaa {
 // TODO: adapt the tests from the aptos contracts test suite
 #[test_only]
 module wormhole::vaa_test {
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, return_to_address};
 
-    fun scenario(): Scenario { test_scenario::begin(&@0x123233) }
+    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     use wormhole::guardian_set_upgrade::{do_upgrade_test};
@@ -255,28 +255,28 @@ module wormhole::vaa_test {
 
     #[test]
     fun test_upgrade_guardian() {
-        test_upgrade_guardian_(&mut scenario())
+        test_upgrade_guardian_(scenario())
     }
 
-    fun test_upgrade_guardian_(test: &mut Scenario) {
+    fun test_upgrade_guardian_(test: Scenario) {
         let (admin, _, _) = people();
-        next_tx(test, &admin); {
-            test_init(ctx(test));
+        next_tx(&mut test, admin); {
+            test_init(ctx(&mut test));
         };
-        next_tx(test, &admin);{
-            let state = take_owned<State>(test);
+        next_tx(&mut test, admin);{
+            let state = take_from_address<State>(&mut test, admin);
             // first store a guardian set within State at index 0
             let initial_guardian = vector[structs::create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")];
             state::store_guardian_set(&mut state, u32::from_u64(0), structs::create_guardian_set(u32::from_u64(0), initial_guardian));
             let new_guardians = vector[structs::create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")];
 
             // upgrade guardian set
-            do_upgrade_test(&mut state, u32::from_u64(1), new_guardians, ctx(test));
+            do_upgrade_test(&mut state, u32::from_u64(1), new_guardians, ctx(&mut test));
             assert!(state::get_current_guardian_set_index(&state)==u32::from_u64(1), 0);
 
-            // return state
-            return_owned(test, state);
-        }
+            return_to_address(admin, state);
+        };
+        test_scenario::end(test);
     }
 
 }

@@ -5,6 +5,9 @@ module token_bridge::bridge_state {
    use sui::object::{UID};
    use sui::vec_map::{Self, VecMap};
    use sui::vec_set::{Self, VecSet};
+   use sui::dynamic_object_field::{Self};
+
+   use token_bridge::treasury::{Self};
 
    use wormhole::external_address::ExternalAddress;
    use wormhole::myu16::{U16};
@@ -16,6 +19,7 @@ module token_bridge::bridge_state {
 
    friend token_bridge::vaa;
    friend token_bridge::register_chain;
+   friend token_bridge::wrapped;
 
    /// The origin chain and address of a token.  In case of native tokens
    /// (where the chain is aptos), the token_address is the hash of the token
@@ -23,6 +27,13 @@ module token_bridge::bridge_state {
    struct OriginInfo has store, copy, drop {
       token_chain: U16,
       token_address: ExternalAddress,
+   }
+
+   public fun create_origin_info(token_chain: U16, token_address: ExternalAddress): OriginInfo {
+      return OriginInfo {
+         token_chain,
+         token_address
+      }
    }
 
    struct BridgeState has key, store {
@@ -99,7 +110,20 @@ module token_bridge::bridge_state {
       state.governance_contract = governance_contract;
    }
 
-   public (friend) fun set_registered_emitter(state: &mut BridgeState, chain_id: U16, emitter: ExternalAddress) {
+   public(friend) fun set_registered_emitter(state: &mut BridgeState, chain_id: U16, emitter: ExternalAddress) {
       vec_map::insert<U16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
    }
+
+   // dynamic ops
+
+   // store the treasury_cap_store as a dynamic field of bridge state
+   public(friend) fun store_treasury_cap<T>(state: &mut BridgeState, origin_info: OriginInfo, treasury_cap_store: treasury::TreasuryCapStore<T>) {
+      dynamic_object_field::add<OriginInfo, treasury::TreasuryCapStore<T>>(&mut state.id, origin_info, treasury_cap_store);
+   }
+
+   // store the coin store as a dynamic field of bridge state
+   public(friend) fun store_coin_store<T>(state: &mut BridgeState, origin_info: OriginInfo, treasury_coin_store: treasury::CoinStore<T>) {
+      dynamic_object_field::add<OriginInfo, treasury::CoinStore<T>>(&mut state.id, origin_info, treasury_coin_store);
+   }
+
 }

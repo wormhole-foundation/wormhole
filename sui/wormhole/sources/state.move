@@ -225,29 +225,29 @@ module wormhole::state {
 
 #[test_only]
 module wormhole::test_state{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_owned, return_owned, take_shared};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, return_to_address, take_shared};
     use std::vector::{Self};
 
     use wormhole::state::{Self, test_init, State};
     use wormhole::myu16::{Self as u16};
 
-    fun scenario(): Scenario { test_scenario::begin(&@0x123233) }
+    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     #[test]
     fun test_state_setters() {
-        test_state_setters_(&mut scenario())
+        test_state_setters_(scenario())
     }
 
-    fun test_state_setters_(test: &mut Scenario) {
+    fun test_state_setters_(test: Scenario) {
         let (admin, _, _) = people();
-        next_tx(test, &admin); {
-            test_init(ctx(test));
+        next_tx(&mut test, admin); {
+            test_init(ctx(&mut test));
         };
 
         // test State setter and getter functions
-        next_tx(test, &admin); {
-            let state = take_owned<State>(test);
+        next_tx(&mut test, admin); {
+            let state = take_from_address<State>(&test, admin);
 
             // test set chain id
             state::test_set_chain_id(&mut state, 5);
@@ -257,33 +257,35 @@ module wormhole::test_state{
             state::test_set_governance_chain_id(&mut state, 100);
             assert!(state::get_governance_chain(&state) == u16::from_u64(100), 0);
 
-            return_owned(test, state);
+            return_to_address<State>(admin, state);
         };
+        test_scenario::end(test);
     }
 
     #[test]
     fun test_init_and_share_state() {
-        test_init_and_share_state_(&mut scenario())
+        test_init_and_share_state_(scenario())
     }
 
-    fun test_init_and_share_state_(test: &mut Scenario) {
+    fun test_init_and_share_state_(test: Scenario) {
         let (admin, _, _) = people();
-        next_tx(test, &admin); {
-            test_init(ctx(test));
+        next_tx(&mut test, admin); {
+            test_init(ctx(&mut test));
         };
-        next_tx(test, &admin);{
-            let state = take_owned<State>(test);
+        next_tx(&mut test, admin);{
+            let state = take_from_address<State>(&mut test, admin);
             // initialize state with desired parameters and initial guardian address
-            state::init_and_share_state(state, 0, 0, vector::empty<u8>(), x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe", ctx(test));
+            state::init_and_share_state(state, 0, 0, vector::empty<u8>(), x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe", ctx(&mut test));
         };
-        next_tx(test, &admin);{
+        next_tx(&mut test, admin);{
             // confirm that state is indeed a shared object, and mutate it
-            let state = take_shared<State>(test);
-            let mut_ref = test_scenario::borrow_mut(&mut state);
+            let state = take_shared<State>(&mut test);
+            //let mut_ref = test_scenario::borrow_mut(&mut state);
+            let mut_ref = &mut state;
             state::test_set_chain_id(mut_ref, 9);
             assert!(state::get_chain_id(mut_ref)==u16::from_u64(9), 0);
-            test_scenario::return_shared(test, state);
-        }
+            test_scenario::return_shared(state);
+        };
+        test_scenario::end(test);
     }
 }
-

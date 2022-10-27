@@ -66,5 +66,4 @@ module wormhole::structs {
     public fun get_guardian_set_expiry(guardian_set: &GuardianSet): U32 {
         guardian_set.expiration_time
     }
-
 }
