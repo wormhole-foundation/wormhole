@@ -42,9 +42,9 @@ We will add support for two new VAA payload types to the Wormhole core contract 
 
 ### VAAv2
 
-To create a VAAv2 payload (which is eventually parsed into the `VM2` struct) an xDapp will invoke the `publishMessage` method at least one time with a nonce greater than zero. The guardian will then produce a VAAv2 payload by grouping all messages with the same `nonce` (in the same transaction) and create a batch-signature by signing the hash of all hashes of the observations:
+To create a VAAv2 payload (which is eventually parsed into the `VM2` struct) an xDapp will invoke the `publishMessage` method at least one time with a nonce greater than zero. The guardian will then produce a VAAv2 payload by grouping all messages with the same `nonce` (in the same transaction) and create a batch-signature by signing the payload version (`uint8(2)` for batches) and hash of all hashes of the observations:
 
-`hash(hash(Observation1), hash(Observation2), ...)`
+`hash(version, hash(hash(Observation1), hash(Observation2), ...))`
 
 Once the batch is signed by the guardian, the VAAv2 can be parsed and verified by calling the new Wormhole core endpoint `parseAndVerifyBatchVM`. This method parses the VAAv2 into the `VM2` struct by calling `parseBatchVM`, calls `verifyBatchVM` to verify the batch-signatures, and stores the hash of each observation in a cache when specified by the caller (for reasons explained in the **VAAv3** section of this detailed design). `verifyBatchVM` also independently computes the hash of each observation and validates that each hash is stored in the `hashes` array, which is included in the VAAv2 payload. The structure of the VAAv2 payload can be found in the **Payloads** section of this design.
 
@@ -106,7 +106,7 @@ struct VM2 {
     // Array of observation hashes
     bytes32[] hashes;
 
-    // Computed Batch Hash - hash(hash(Observation1), hash(Observation2), ...)
+    // Computed Batch Hash - `hash(version, hash(hash(Observation1), hash(Observation2), ...))`
     bytes32 hash;
 
     // Array of observation bytes with prepended version 3
