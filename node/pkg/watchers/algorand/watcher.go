@@ -239,7 +239,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 					e.next_round = e.next_round + 1
 
-					readiness.SetReady(common.ReadinessAlgorandSyncing)
 					currentAlgorandHeight.Set(float64(e.next_round))
 					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
 						Height:          int64(e.next_round),
@@ -251,6 +250,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 				}
 			}
+			readiness.SetReady(common.ReadinessAlgorandSyncing)
 		}
 	}
 }
