@@ -46,7 +46,7 @@ spec:
             # Hardcoded devnet bootstrap (generated from deterministic key in guardiand)
             - --bootstrap
             - /dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw
-#            - --logLevel=debug
+            - --logLevel=warn
           ports:
             - containerPort: 7072
               name: spyrpc
