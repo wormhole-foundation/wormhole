@@ -929,7 +929,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Info("Starting Ethereum watcher")
 			readiness.RegisterComponent(common.ReadinessEthSyncing)
 			chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			ethWatcher = evm.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC, 1, chainObsvReqC[vaa.ChainIDEthereum], false, nil)
+			ethWatcher = evm.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC, 1, chainObsvReqC[vaa.ChainIDEthereum], *unsafeDevMode, nil)
 			if err := supervisor.Run(ctx, "ethwatch",
 				ethWatcher.Run); err != nil {
 				return err
@@ -1169,7 +1169,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
 				chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				if err := supervisor.Run(ctx, "arbitrumwatch",
-					evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", common.ReadinessArbitrumSyncing, vaa.ChainIDArbitrum, lockC, nil, 1, chainObsvReqC[vaa.ChainIDArbitrum], false, ethWatcher).Run); err != nil {
+					evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", common.ReadinessArbitrumSyncing, vaa.ChainIDArbitrum, lockC, nil, 1, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode, ethWatcher).Run); err != nil {
 					return err
 				}
 			}
