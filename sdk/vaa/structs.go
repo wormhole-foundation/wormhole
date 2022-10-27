@@ -572,8 +572,8 @@ func (v *VAA) SigningMsg() common.Hash {
 	return hash
 }
 
-// SigningBatchMsg returns the hash of the signing body. This is used for signature generation and verification
-func (v *BatchVAA) SigningBatchMsg() common.Hash {
+// SigningMsg returns the hash of the signing body. This is used for signature generation and verification
+func (v *BatchVAA) SigningMsg() common.Hash {
 	// In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
 	// the first hash (32 bytes) vs the full body data.
 	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(v.signingBatchBody()).Bytes())
@@ -592,19 +592,12 @@ func (v *BatchVAA) ObsvHashArray() []common.Hash {
 	return hashes
 }
 
-// VerifySignatures verifies the signature of the VAA given the signer addresses.
-// Returns true if the signatures were verified successfully.
-func (v *VAA) VerifySignatures(addresses []common.Address) bool {
-	if len(addresses) < len(v.Signatures) {
-		return false
-	}
-
-	h := v.SigningMsg()
+func VerifySignatures(data []byte, signatures []*Signature, addresses []common.Address) bool {
 
 	last_index := -1
 	signing_addresses := []common.Address{}
 
-	for _, sig := range v.Signatures {
+	for _, sig := range signatures {
 		if int(sig.Index) >= len(addresses) {
 			return false
 		}
@@ -616,7 +609,7 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 		last_index = int(sig.Index)
 
 		// Get pubKey to determine who signers address
-		pubKey, err := crypto.Ecrecover(h.Bytes(), sig.Signature[:])
+		pubKey, err := crypto.Ecrecover(data, sig.Signature[:])
 		if err != nil {
 			return false
 		}
@@ -639,51 +632,24 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	return true
 }
 
-// VerifyBatchSignatures verifies the signature of the BatchVAA given the signer addresses.
+// VerifySignatures verifies the signature of the VAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
-func (v *BatchVAA) VerifyBatchSignatures(addresses []common.Address) bool {
+func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	if len(addresses) < len(v.Signatures) {
 		return false
 	}
 
-	h := v.SigningBatchMsg()
+	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
+}
 
-	last_index := -1
-	signing_addresses := []common.Address{}
-
-	for _, sig := range v.Signatures {
-		if int(sig.Index) >= len(addresses) {
-			return false
-		}
-
-		// Ensure increasing indexes
-		if int(sig.Index) <= last_index {
-			return false
-		}
-		last_index = int(sig.Index)
-
-		// Get pubKey to determine who signers address
-		pubKey, err := crypto.Ecrecover(h.Bytes(), sig.Signature[:])
-		if err != nil {
-			return false
-		}
-		addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
-
-		// Ensure this signer is at the correct positional index
-		if addr != addresses[sig.Index] {
-			return false
-		}
-
-		// Ensure we never see the same signer twice
-		for _, signing_address := range signing_addresses {
-			if signing_address == addr {
-				return false
-			}
-		}
-		signing_addresses = append(signing_addresses, addr)
+// VerifySignatures verifies the signature of the BatchVAA given the signer addresses.
+// Returns true if the signatures were verified successfully.
+func (v *BatchVAA) VerifySignatures(addresses []common.Address) bool {
+	if len(addresses) < len(v.Signatures) {
+		return false
 	}
 
-	return true
+	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
 }
 
 // Marshal returns the binary representation of the BatchVAA
@@ -809,7 +775,7 @@ func (v *VAA) HexDigest() string {
 
 // HexDigest returns the hex-encoded digest.
 func (b *BatchVAA) HexDigest() string {
-	return hex.EncodeToString(b.SigningBatchMsg().Bytes())
+	return hex.EncodeToString(b.SigningMsg().Bytes())
 }
 
 // serializeBatchObservationBody marshals the body of BatchVAA.Observations
@@ -854,7 +820,7 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 // creates signature of BatchVAA.Hashes and adds it to BatchVAA.Signatures.
 func (v *BatchVAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 
-	sig, err := crypto.Sign(v.SigningBatchMsg().Bytes(), key)
+	sig, err := crypto.Sign(v.SigningMsg().Bytes(), key)
 	if err != nil {
 		panic(err)
 	}
