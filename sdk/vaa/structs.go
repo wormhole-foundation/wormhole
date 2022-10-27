@@ -759,6 +759,17 @@ func (v *BatchVAA) BatchID() string {
 	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, hex.EncodeToString(v.TransactionID.Bytes()), nonce)
 }
 
+// UniqueID normalizes the ID of the VAA (any type) for the Attestation interface
+// UniqueID returns the MessageID that uniquely identifies the Attestation
+func (v *VAA) UniqueID() string {
+	return v.MessageID()
+}
+
+// UniqueID returns the BatchID that uniquely identifies the Attestation
+func (b *BatchVAA) UniqueID() string {
+	return b.BatchID()
+}
+
 // GetTransactionID implements the processor.Batch interface for *BatchVAA.
 func (v *BatchVAA) GetTransactionID() common.Hash {
 	return v.TransactionID
