@@ -176,7 +176,7 @@ contract Messages is Getters, Setters {
 
         if (valid) {
             uint256 observationsLen = vm2.observations.length;
-            bytes memory vmHash;
+            bytes memory batchHashBody;
             for (uint i = 0; i < observationsLen;) {
                 // Verify the hash of the observation against parsed array of hashes. This confirms
                 // that the observation wasn't tampered with and that order was preserved. The version
@@ -194,13 +194,16 @@ contract Messages is Getters, Setters {
                     updateVerifiedCacheStatus(vm2.hashes[i], true);
                 }
 
-                vmHash = abi.encodePacked(vmHash, vm2.hashes[i]);
+                // Reconstruct the batch hash
+                batchHashBody = abi.encodePacked(batchHashBody, vm2.hashes[i]);
 
                 unchecked { i += 1; }
-            }                                                        
+            }
 
+            // Independently verify the batch hash to confirm that none of the
+            // observations were modified.
             require(
-                vm2.hash == doubleKeccak256(vmHash),
+                vm2.hash == doubleKeccak256(abi.encodePacked(vm2.version, keccak256(batchHashBody))),
                 "invalid hash"
             );
         }
@@ -299,7 +302,7 @@ contract Messages is Getters, Setters {
         vm.signatures = parseSignatures(index, signersLen, encodedVM);
         index += 66*signersLen;
 
-        /*0.
+        /*
         Hash the body
 
         SECURITY: Do not change the way the hash of a VM is computed!
@@ -362,9 +365,9 @@ contract Messages is Getters, Setters {
         uint256 hashesLen = encodedVM2.toUint8(index);
         index += 1;
 
-        // Hash the array of hashes
+        // Compute the batch hash
         bytes memory body = encodedVM2.slice(index, hashesLen * 32);
-        vm2.hash = doubleKeccak256(body);
+        vm2.hash = doubleKeccak256(abi.encodePacked(vm2.version, keccak256(body)));
 
         // Parse hashes
         vm2.hashes = new bytes32[](hashesLen);

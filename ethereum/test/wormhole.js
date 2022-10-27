@@ -2040,7 +2040,12 @@ const signAndEncodeVM2 = async function (
     }
 
     // compute the hash of batch hashes - hash(hash(VAA1), hash(VAA2), ...)
-    const batchHash = doubleKeccak256(observationHashes);
+    const batchHashBody = [
+        web3.eth.abi.encodeParameter("uint8", 2).substring(2 + (64 - 2)),
+        web3.utils.soliditySha3("0x" + observationHashes).substring(2)
+    ];
+
+    const batchHash = doubleKeccak256(batchHashBody.join(""));
 
     let signatures = "";
 

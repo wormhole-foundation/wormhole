@@ -59,7 +59,7 @@ interface Structs {
 		// Array of Observation hashes
 		bytes32[] hashes;
 
-		// Computed batch hash - hash(hash(Observation1), hash(Observation2), ...)
+		// Computed Batch Hash - `hash(version, hash(hash(Observation1), hash(Observation2), ...))`
 		bytes32 hash;
 
 		// Array of observation bytes with prepended version 3

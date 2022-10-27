@@ -5,8 +5,11 @@ pragma solidity ^0.8.0;
 
 import "../contracts/Messages.sol";
 import "../contracts/Structs.sol";
-import "forge-std/Test.sol";
+
 import "../contracts/libraries/external/BytesLib.sol";
+
+import "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 contract TestMessages is Messages, Test {
   using BytesLib for bytes;
@@ -16,7 +19,7 @@ contract TestMessages is Messages, Test {
   bytes validVM = hex"01000000000100867b55fec41778414f0683e80a430b766b78801b7070f9198ded5e62f48ac7a44b379a6cf9920e42dbd06c5ebf5ec07a934a00a572aefc201e9f91c33ba766d900000003e800000001000b0000000000000000000000000000000000000000000000000000000000000eee00000000000005390faaaa";
 
   // A valid VM2 with three observations and one signature from the testGuardianPublic key
-  bytes validVM2 = hex"020000000001005201ab02c31301c4d3a2e27d5acb85272089eefb083cf9873aeff3a9cf54a15461d062b4de222a1aaa6655318b61f3ea5fabba9889afbc6956034174ca0f0a650103b986975c64018680bbeeb010310922cb3cd7dde2dfdcb318dadf60a3b327883766ecba817383d631066944c6f9f69b05db03dde58102eec081c930f5d87b461644ef21cc76eecb6a7670bcc6ceaa2918e60226c0058a8035e38992fb6b57c223030000000035000003e800000001000b0000000000000000000000000000000000000000000000000000000000000eee00000000000005390faaaa0100000036000003e900000001000b0000000000000000000000000000000000000000000000000000000000000eee000000000000053a0fbbbbbb0200000038000003ea00000001000b0000000000000000000000000000000000000000000000000000000000000eee000000000000053b0fcccccccccc";
+  bytes validVM2 = hex"020000000001003b6275bb1b4bf5f9a9cd7d62ad0331a40f53d0b856daab38bea8f695efb8b9e10392efb021f1f4864fe47df7158d0b92dd684aa6b01c7820bca49e89f42752670103b986975c64018680bbeeb010310922cb3cd7dde2dfdcb318dadf60a3b327883766ecba817383d631066944c6f9f69b05db03dde58102eec081c930f5d87b461644ef21cc76eecb6a7670bcc6ceaa2918e60226c0058a8035e38992fb6b57c223030000000035000003e800000001000b0000000000000000000000000000000000000000000000000000000000000eee00000000000005390faaaa0100000036000003e900000001000b0000000000000000000000000000000000000000000000000000000000000eee000000000000053a0fbbbbbb0200000038000003ea00000001000b0000000000000000000000000000000000000000000000000000000000000eee000000000000053b0fcccccccccc";
 
   function testQuorum() public {
     assertEq(quorum(0), 1);
@@ -211,26 +214,27 @@ contract TestMessages is Messages, Test {
     (Structs.VM2 memory parsedValidVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
     require(valid, reason);
 
+    // Copy signatures and compute the hash array bytes object
     bytes memory signatures = validVM2.slice(6, 66 * parsedValidVm2.signatures.length);
-
     bytes memory bodyVm1;
 
     for (uint i = 0; i < parsedValidVm2.hashes.length; i++) {
       bodyVm1 = abi.encodePacked(bodyVm1, parsedValidVm2.hashes[i]);
     }
 
-    // Create the version 1 vm
+    // Create the VM1
     bytes memory invalidVm1 = abi.encodePacked(
       uint8(1),
       parsedValidVm2.guardianSetIndex,
-      parsedValidVm2.signatures.length,
+      uint8(parsedValidVm2.signatures.length),
       signatures,
       bodyVm1
     );
 
+    // Confirm that signature verification fails
     (Structs.VM memory parsedInValidVm1, bool isValid, string memory reasonVm1) = this.parseAndVerifyVM(invalidVm1);
-    assertEq(valid, true);
-    assertEq(reason, "");
+    assertEq(isValid, false);
+    assertEq(reasonVm1, "VM signature invalid");
   }
 
   // This test checks the possibility of getting a unsigned message verified
@@ -256,11 +260,10 @@ contract TestMessages is Messages, Test {
         parsedValidVm2.observations[0],
         "malicious bytes in payload"
     );
-
     parsedValidVm2.observations[0] = observation;
-
     bytes32 originalHash = parsedValidVm2.hashes[0];
 
+    // Update the hash in the batch with the manipulated observation's hash
     parsedValidVm2.hashes[0] = doubleKeccak256(observation.slice(1, observation.length - 1));
 
     // Create the malicious VM
@@ -275,21 +278,6 @@ contract TestMessages is Messages, Test {
 
     vm.expectRevert("invalid hash");
     this.verifyBatchVM(invalidVM2, true);
-
-    //(valid, reason) = this.verifyBatchVM(invalidVM2, true);
-
-    //assertEq(verifiedHashCached(originalHash), false);
-    //assertEq(verifiedHashCached(parsedValidVm2.hashes[0]), true);
-    //assertEq(verifiedHashCached(parsedValidVm2.hashes[1]), true);
-    //assertEq(verifiedHashCached(parsedValidVm2.hashes[2]), true);
-
-    //bytes memory invalidVM3 = abi.encodePacked(
-      //observation
-    //);
-
-    //(Structs.VM memory parsedInvalidVm3, bool isValid, string memory invalidReason) = this.parseAndVerifyVM(invalidVM3);
-    //assertEq(isValid, false);
-    //assertEq(invalidReason, "");
   }
 
   struct Observation {
@@ -336,7 +324,7 @@ contract TestMessages is Messages, Test {
     this.verifyBatchVM(parsedValidVm2, true);
   }
 
-    // This test confirms that verifyVM reverts verifying a batchVM with observations
+  // This test confirms that verifyVM reverts verifying a batchVM with observations
   // that have been manipulated.
   function testInvalidObservation(Observation memory testObservation) public {
     vm.assume(testObservation.timestamp > 0);
@@ -470,7 +458,7 @@ contract TestMessages is Messages, Test {
     }
 
     // Compute the batch hash and compare it to the parsed batch hash
-    bytes32 batchHash = doubleKeccak256(abi.encodePacked(observationHashes));
+    bytes32 batchHash = doubleKeccak256(abi.encodePacked(uint8(2), keccak256(abi.encodePacked(observationHashes))));
     assertEq(vm2.hash, batchHash);
   }
 
