@@ -10,9 +10,7 @@ module token_bridge::treasury {
     use sui::object::{Self, UID};
     use sui::coin::{Self, TreasuryCap, Coin};
     //use sui::balance::{Self};
-    use sui::transfer::{Self};
-
-    use token_bridge::bridge_state::{BridgeState};
+    //use sui::transfer::{Self};
 
     friend token_bridge::wrapped;
 
@@ -28,20 +26,21 @@ module token_bridge::treasury {
         coins: Coin<CoinType>,
     }
 
-    #[test_only]
-    public entry fun init_unparametrized_object(bridge_state: &mut BridgeState, ctx: &mut TxContext){
-        transfer::transfer_to_object<UnparametrizedObject, BridgeState>(UnparametrizedObject{id: object::new(ctx)}, bridge_state);
+    // #[test_only]
+    // public entry fun init_unparametrized_object(bridge_state: &mut BridgeState, ctx: &mut TxContext){
+    //     transfer::transfer_to_object<UnparametrizedObject, BridgeState>(UnparametrizedObject{id: object::new(ctx)}, bridge_state);
+    // }
+
+    public(friend) fun create_treasury_cap_store<CoinType>(cap: TreasuryCap<CoinType>, ctx: &mut TxContext): TreasuryCapStore<CoinType> { //
+         TreasuryCapStore<CoinType> { id: object::new(ctx), cap: cap }
+         // Instead of doing transfer_to_object, do
+         //transfer::transfer_to_object<TreasuryCapStore<CoinType>,BridgeState>(store, bridge_state);
     }
 
-    public(friend) fun create_treasury_cap_store<CoinType>(bridge_state: &mut BridgeState, cap: TreasuryCap<CoinType>, ctx: &mut TxContext) { //
-        let store = TreasuryCapStore<CoinType> { id: object::new(ctx), cap: cap };
-        transfer::transfer_to_object<TreasuryCapStore<CoinType>,BridgeState>(store, bridge_state);
-    }
-
-    public(friend) fun create_coin_store<CoinType>(bridge_state: &mut BridgeState, ctx: &mut TxContext) {
-        let store = CoinStore<CoinType> { id: object::new(ctx), coins: coin::zero<CoinType>(ctx) };
-        transfer::transfer_to_object<CoinStore<CoinType>,BridgeState>(store, bridge_state);
-    }
+    // public(friend) fun create_coin_store<CoinType>(bridge_state: &mut BridgeState, ctx: &mut TxContext) {
+    //     let store = CoinStore<CoinType> { id: object::new(ctx), coins: coin::zero<CoinType>(ctx) };
+    //     transfer::transfer_to_object<CoinStore<CoinType>,BridgeState>(store, bridge_state);
+    // }
 
     // One can only call mint in complete_transfer when minting wrapped assets is necessary
     // TODO: get instead of passing in TreasuryCapStore, we should pass in BridgeState,
