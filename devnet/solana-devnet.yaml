@@ -56,7 +56,8 @@ spec:
             - --bpf-program
             - Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK
             - /opt/solana/deps/wormhole_migration.so
-            - --log
+            # - --log
+            - -q
           ports:
             - containerPort: 8001
               name: gossip
