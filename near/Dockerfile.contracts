@@ -1,16 +1,4 @@
-FROM debian@sha256:2ce44bbc00a79113c296d9d25524e15d423b23303fdbbe20190d2f96e0aeb251 as near-contracts
-
-# Support additional root CAs
-COPY README.md cert.pem* /certs/
-# Debian
-RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
-# git
-RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
-
-RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl --no-install-recommends
-
-ADD setup-rust.sh .
-RUN ./setup-rust.sh
+FROM ghcr.io/wormhole-foundation/near:0.2@sha256:c2089c5e93df2396d74f9c07e7cd3d76983fad97bddb202030ca442c2c00c3c2 AS near-contracts
 
 RUN mkdir -p /.npm /home/node/appa /home/node/.npm
 WORKDIR /home/node/app
