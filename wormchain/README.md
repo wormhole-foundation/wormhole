@@ -11,12 +11,6 @@ curl https://get.ignite.com/cli@v0.23.0 | bash
 cp ignite ~/.local/bin/
 ```
 
-Build the protobuf.
-
-```
-ignite generate proto-go
-```
-
 Build and install wormchain.
 
 ```

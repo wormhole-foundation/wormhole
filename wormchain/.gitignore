@@ -12,7 +12,6 @@ validators/first_validator/keyring-test
 validators/second_validator/keyring-test
 ts-sdk/node_modules
 ts-sdk/lib
-*.pb.go
 
 .idea
 *.iml
