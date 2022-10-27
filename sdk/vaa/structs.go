@@ -491,7 +491,9 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read hashes length [%w]", err)
 	}
-	v.Hashes = make([]common.Hash, int(lenHashes))
+	numHashes := int(lenHashes)
+
+	v.Hashes = make([]common.Hash, numHashes)
 	for i := 0; i < int(lenHashes); i++ {
 		hash := [32]byte{}
 		if n, err := reader.Read(hash[:]); err != nil || n != 32 {
@@ -504,13 +506,21 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read observations length: %w", err)
 	}
+	numObservations := int(lenObservations)
 
-	v.Observations = make([]*Observation, int(lenObservations))
+	if numHashes != numObservations {
+		// should never happen, check anyway
+		return nil, fmt.Errorf(
+			"failed unmarshaling BatchVAA, observations differs from hashes")
+	}
+
+	v.Observations = make([]*Observation, numObservations)
 	for i := 0; i < int(lenObservations); i++ {
-		obsvIndex, err := reader.ReadByte()
+		index, err := reader.ReadByte()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read Observation index [%d]: %w", i, err)
 		}
+		obsvIndex := uint8(index)
 
 		obsvLength := uint32(0)
 		if err := binary.Read(reader, binary.BigEndian, &obsvLength); err != nil {
@@ -538,7 +548,7 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 		// ensure the observation meets the minimum length of headless VAAs
 		if len(obs) < minHeadlessVAALength {
 			return nil, fmt.Errorf(
-				"BatchVAA.Observation is too short. Index: %v", uint8(obsvIndex))
+				"BatchVAA.Observation is too short. Index: %v", obsvIndex)
 		}
 
 		// decode the observation, which is just the "BODY" fields of a v1 VAA
@@ -548,8 +558,16 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 			return nil, fmt.Errorf("failed to unmarshal Observation VAA. %w", err)
 		}
 
+		// check for malformed data - verify that the hash of the observation matches what was supplied
+		// the guardian has no interest in or use for observations after the batch has been signed, but still check
+		obsHash := headless.SigningMsg()
+		if obsHash != v.Hashes[obsvIndex] {
+			return nil, fmt.Errorf(
+				"BatchVAA Observation %v does not match supplied hash", obsvIndex)
+		}
+
 		v.Observations[i] = &Observation{
-			Index:       uint8(obsvIndex),
+			Index:       obsvIndex,
 			Observation: headless,
 		}
 	}
