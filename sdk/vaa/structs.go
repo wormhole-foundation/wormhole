@@ -507,7 +507,7 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 		// cannot be negative
 		if numBytes < 0 {
 			return nil, fmt.Errorf(
-				"failed to read Observation index: %d, byte length is negative", i)
+				"failed to read Observation index: %v, byte length is negative", i)
 		}
 		// cannot be longer than what is left in the array
 		if numBytes > reader.Len() {
@@ -520,31 +520,26 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 			return nil, fmt.Errorf("failed to read Observation bytes [%d]: %w", n, err)
 		}
 
-		msgPub, err := UnmarshalBatchObservation(obs)
+		// ensure the observation meets the minimum length of headless VAAs
+		if len(obs) < minHeadlessVAALength {
+			return nil, fmt.Errorf(
+				"BatchVAA.Observation is too short. Index: %v", uint8(obsvIndex))
+		}
+
+		// decode the observation, which is just the "BODY" fields of a v1 VAA
+		headless, err := UnmarshalBody(data, bytes.NewReader(obs[:]), &VAA{})
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal Observation VAA. %w", err)
 		}
 
 		v.Observations[i] = &Observation{
 			Index:       uint8(obsvIndex),
-			Observation: msgPub,
+			Observation: headless,
 		}
 	}
 
 	return v, nil
-}
-
-// Unmarshal deserializes the binary representation of an Observation (VAA)
-// within a BatchVAA. Different from VAA unmarshaling - no header fields.
-func UnmarshalBatchObservation(data []byte) (*VAA, error) {
-	if len(data) < minHeadlessVAALength {
-		return nil, fmt.Errorf("BatchVAA.Observation is too short")
-	}
-	v := &VAA{}
-
-	reader := bytes.NewReader(data[:])
-
-	return UnmarshalBody(data, reader, v)
 }
 
 // signingBody returns the binary representation of the data that is relevant for signing and verifying the VAA
@@ -552,8 +547,8 @@ func (v *VAA) signingBody() []byte {
 	return v.serializeBody()
 }
 
-// signingBatchBody returns the binary representation of the data that is relevant for signing and verifying the VAA
-func (v *BatchVAA) signingBatchBody() []byte {
+// signingBody returns the binary representation of the data that is relevant for signing and verifying the VAA
+func (v *BatchVAA) signingBody() []byte {
 	buf := new(bytes.Buffer)
 
 	// create the hash array from the Observations of the BatchVAA
@@ -667,13 +662,13 @@ func (v *BatchVAA) Marshal() ([]byte, error) {
 	}
 
 	// Write Body
-	buf.Write(v.serializeBatchBody())
+	buf.Write(v.serializeBody())
 
 	return buf.Bytes(), nil
 }
 
 // Serializes the body of the BatchVAA.
-func (v *BatchVAA) serializeBatchBody() []byte {
+func (v *BatchVAA) serializeBody() []byte {
 	buf := new(bytes.Buffer)
 
 	hashes := v.ObsvHashArray()
@@ -686,7 +681,7 @@ func (v *BatchVAA) serializeBatchBody() []byte {
 
 		MustWrite(buf, binary.BigEndian, uint8(obsv.Index))
 
-		obsvBytes := obsv.Observation.serializeBatchObservationBody()
+		obsvBytes := obsv.Observation.serializeBody()
 
 		lenBytes := len(obsvBytes)
 		MustWrite(buf, binary.BigEndian, uint32(lenBytes))
@@ -777,14 +772,6 @@ func (v *VAA) HexDigest() string {
 // HexDigest returns the hex-encoded digest.
 func (b *BatchVAA) HexDigest() string {
 	return hex.EncodeToString(b.SigningMsg().Bytes())
-}
-
-// serializeBatchObservationBody marshals the body of BatchVAA.Observations
-func (v *VAA) serializeBatchObservationBody() []byte {
-	// Marshaling BatchVAA.Observations is the same
-	// as VAAs, but unmarshaling is different.
-	// This wrapper function serves as the delebrate entry point.
-	return v.serializeBody()
 }
 
 /*
