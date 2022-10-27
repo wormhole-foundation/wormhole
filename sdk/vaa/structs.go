@@ -735,6 +735,40 @@ func (v *VAA) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// implement encoding.BinaryMarshaler interface for the VAA struct
+func (v VAA) MarshalBinary() ([]byte, error) {
+	return v.Marshal()
+}
+
+// implement encoding.BinaryUnmarshaler interface for the VAA struct
+func (v *VAA) UnmarshalBinary(data []byte) error {
+	vaa, err := Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	// derefernce the stuct created by Unmarshal, and assign it to the method's context
+	*v = *vaa
+	return nil
+}
+
+// implement encoding.BinaryMarshaler interface for BatchVAA struct
+func (b BatchVAA) MarshalBinary() ([]byte, error) {
+	return b.Marshal()
+}
+
+// implement encoding.BinaryUnmarshaler interface for BatchVAA struct
+func (b *BatchVAA) UnmarshalBinary(data []byte) error {
+	batch, err := UnmarshalBatch(data)
+	if err != nil {
+		return err
+	}
+
+	// derefernce the stuct created by Unmarshal, and assign it to the method's context
+	*b = *batch
+	return nil
+}
+
 // MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
 func (v *VAA) MessageID() string {
 	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
