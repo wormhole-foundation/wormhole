@@ -416,7 +416,7 @@ yargs(hideBin(process.argv))
         if (chain === "solana" || chain === "pythnet") {
           // TODO: Create an isSolanaChain()
           addr = await emitter.getEmitterAddressSolana(addr);
-        } else if (emitter.isCosmWasmChain(chain)) {
+        } else if (isCosmWasmChain(chain)) {
           addr = await emitter.getEmitterAddressTerra(addr);
         } else if (chain === "algorand") {
           addr = emitter.getEmitterAddressAlgorand(BigInt(addr));
