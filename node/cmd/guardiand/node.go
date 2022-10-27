@@ -540,6 +540,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *moonbeamContract == "" {
 		logger.Fatal("Please specify --moonbeamContract")
 	}
+	if *arbitrumRPC == "" {
+		logger.Fatal("Please specify --arbitrumRPC")
+	}
+	if *arbitrumContract == "" {
+		logger.Fatal("Please specify --arbitrumContract")
+	}
 	if *xplaWS != "" {
 		if *xplaLCD == "" || *xplaContract == "" {
 			logger.Fatal("If --xplaWS is specified, then --xplaLCD and --xplaContract must be specified")
@@ -586,13 +592,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
 		}
-		if *arbitrumRPC != "" {
-			if *arbitrumContract == "" {
-				logger.Fatal("If --arbitrumRPC is specified, then --arbitrumContract is required")
-			}
-		} else if *arbitrumContract != "" {
-			logger.Fatal("If --arbitrumContract is specified, then --arbitrumRPC is required")
-		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -614,12 +613,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --injectiveContract")
-		}
-		if *arbitrumRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --arbitrumRPC")
-		}
-		if *arbitrumContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --arbitrumContract")
 		}
 	}
 	if *nodeName == "" {
@@ -1044,6 +1037,18 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
+		if shouldStart(arbitrumRPC) {
+			if ethWatcher == nil {
+				log.Fatalf("if arbitrum is enabled then ethereum must also be enabled.")
+			}
+			logger.Info("Starting Arbitrum watcher")
+			readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
+			chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "arbitrumwatch",
+				evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", common.ReadinessArbitrumSyncing, vaa.ChainIDArbitrum, lockC, nil, 1, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode, ethWatcher).Run); err != nil {
+				return err
+			}
+		}
 
 		if shouldStart(terraWS) {
 			logger.Info("Starting Terra watcher")
@@ -1158,18 +1163,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				if err := supervisor.Run(ctx, "neonwatch",
 					evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, lockC, nil, 32, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode, nil).Run); err != nil {
-					return err
-				}
-			}
-			if shouldStart(arbitrumRPC) {
-				if ethWatcher == nil {
-					log.Fatalf("if arbitrum is enabled then ethereum must also be enabled.")
-				}
-				logger.Info("Starting Arbitrum watcher")
-				readiness.RegisterComponent(common.ReadinessArbitrumSyncing)
-				chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				if err := supervisor.Run(ctx, "arbitrumwatch",
-					evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", common.ReadinessArbitrumSyncing, vaa.ChainIDArbitrum, lockC, nil, 1, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode, ethWatcher).Run); err != nil {
 					return err
 				}
 			}
