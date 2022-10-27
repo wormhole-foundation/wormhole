@@ -17,7 +17,7 @@ module token_bridge::asset_meta {
 
     const E_INVALID_ACTION: u64 = 0;
 
-    struct AssetMeta has store, drop {
+    struct AssetMeta has copy, store, drop {
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
         /// Chain ID of the token
