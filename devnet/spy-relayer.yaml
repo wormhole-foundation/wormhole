@@ -34,6 +34,9 @@ spec:
       containers:
         - name: spy-relayer
           image: spy-relay-image
+          env:
+            - name: LOG_LEVEL
+              value: warn
           command:
             - npm
             - run
