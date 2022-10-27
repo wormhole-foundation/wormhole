@@ -126,15 +126,15 @@ Additionally, ensure:
 
 The Wormhole project maintains a social media monitoring program to stay abreast of important ecosystem developments.
 
-These developments include monitoring services like Twitter for key phrases and patterns such that the Wormhole project is informed of a compromise or vulnerability in a dependancy that could negatively affect Wormhole, it's users, or the chains that Wormhole is connected to.
+These developments include monitoring services like Twitter for key phrases and patterns such that the Wormhole project is informed of a compromise or vulnerability in a dependancy that could negatively affect Wormhole, its users, or the chains that Wormhole is connected to.
 
 In the case of a large ecosystem development that requires response, the Wormhole project will engage its security incident response program.
 
 ## Incident Response
 
-The Wormhole project maintains an incident response program to respond to vulnerabilities or active threats to Wormhole, it's users, or the ecosystems it's connected to.  Wormhole can be made aware about a security event from a variety of different sources (eg. bug bounty program, audit finding, security monitoring, social media, etc.)
+The Wormhole project maintains an incident response program to respond to vulnerabilities or active threats to Wormhole, its users, or the ecosystems it's connected to.  Wormhole can be made aware about a security event from a variety of different sources (eg. bug bounty program, audit finding, security monitoring, social media, etc.)
 
-When a Wormhole project contributor becomes aware of a security event, that contributor immediately holds the role of [incident commander](https://en.wikipedia.org/wiki/Incident_commander) for the issue until they hand off to a more appropriate incident commander.  A contributor does not need to be a "security person" or any special priviledges to hold the role of incident commander, they simply need to be responsible, communicate effectively, and maintain the following obligations to manage the incident to completion.
+When a Wormhole project contributor becomes aware of a security event, that contributor immediately holds the role of [incident commander](https://en.wikipedia.org/wiki/Incident_commander) for the issue until they hand off to a more appropriate incident commander.  A contributor does not need to be a "security person" or have any special priviledges to hold the role of incident commander, they simply need to be responsible, communicate effectively, and maintain the following obligations to manage the incident to completion.
 
 The role of the incident commander for Wormhole includes the following minimum obligations:
 
