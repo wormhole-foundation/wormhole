@@ -27,6 +27,7 @@ package governor
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -46,6 +47,9 @@ const (
 	TestNetMode = 2
 	DevNetMode  = 3
 	GoTestMode  = 4
+
+	transferComplete = true
+	transferEnqueued = false
 )
 
 // WARNING: Change me in ./node/db as well
@@ -91,6 +95,7 @@ type (
 	pendingEntry struct {
 		token  *tokenEntry // Store a reference to the token so we can get the current price to compute the value each interval.
 		amount *big.Int
+		hash   string
 		dbData db.PendingTransfer // This info gets persisted in the DB.
 	}
 
@@ -118,6 +123,7 @@ type ChainGovernor struct {
 	tokens                map[tokenKey]*tokenEntry
 	tokensByCoinGeckoId   map[string][]*tokenEntry
 	chains                map[vaa.ChainID]*chainEntry
+	msgsSeen              map[string]bool // Key is hash, payload is consts transferComplete and transferEnqueued.
 	msgsToPublish         []*common.MessagePublication
 	dayLengthInMinutes    int
 	coinGeckoQuery        string
@@ -139,6 +145,7 @@ func NewChainGovernor(
 		tokens:              make(map[tokenKey]*tokenEntry),
 		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
 		chains:              make(map[vaa.ChainID]*chainEntry),
+		msgsSeen:            make(map[string]bool),
 		env:                 env,
 	}
 }
@@ -324,22 +331,58 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return true, nil
 	}
 
+	hash := gov.HashFromMsg(msg)
+	xferComplete, alreadySeen := gov.msgsSeen[hash]
+	if alreadySeen {
+		if !xferComplete {
+			gov.logger.Info("cgov: ignoring duplicate vaa because it is enqueued",
+				zap.String("msgID", msg.MessageIDString()),
+				zap.String("hash", hash),
+				zap.Stringer("txHash", msg.TxHash),
+			)
+			return false, nil
+		}
+
+		gov.logger.Info("cgov: allowing duplicate vaa to be published again, but not adding it to the notional value",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+		)
+		return true, nil
+	}
+
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
+	prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
 	if err != nil {
-		gov.logger.Error("cgov: failed to trim transfers", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+		gov.logger.Error("cgov: failed to trim transfers",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Error(err),
+		)
 		return false, err
 	}
 
 	value, err := computeValue(payload.Amount, token)
 	if err != nil {
-		gov.logger.Error("cgov: failed to compute value of transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+		gov.logger.Error("cgov: failed to compute value of transfer",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Error(err),
+		)
 		return false, err
 	}
 
 	newTotalValue := prevTotalValue + value
 	if newTotalValue < prevTotalValue {
-		gov.logger.Error("cgov: total value has overflowed", zap.String("msgID", msg.MessageIDString()), zap.Uint64("prevTotalValue", prevTotalValue), zap.Uint64("newTotalValue", newTotalValue))
+		gov.logger.Error("cgov: total value has overflowed",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
+			zap.Uint64("prevTotalValue", prevTotalValue),
+			zap.Uint64("newTotalValue", newTotalValue),
+		)
 		return false, fmt.Errorf("total value has overflowed")
 	}
 
@@ -355,6 +398,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.String("msgID", msg.MessageIDString()),
 			zap.Stringer("releaseTime", releaseTime),
 			zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
 		)
 	} else if newTotalValue > ce.dailyLimit {
 		enqueueIt = true
@@ -365,18 +410,26 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Uint64("newTotalValue", newTotalValue),
 			zap.Stringer("releaseTime", releaseTime),
 			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash),
+			zap.Stringer("txHash", msg.TxHash),
 		)
 	}
 
 	if enqueueIt {
 		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
-		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, dbData: dbData})
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
-			gov.logger.Error("cgov: failed to store pending vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+			gov.logger.Error("cgov: failed to store pending vaa",
+				zap.String("msgID", msg.MessageIDString()),
+				zap.String("hash", hash),
+				zap.Stringer("txHash", msg.TxHash),
+				zap.Error(err),
+			)
 			return false, err
 		}
 
+		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData})
+		gov.msgsSeen[hash] = transferEnqueued
 		return false, nil
 	}
 
@@ -384,16 +437,32 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.Uint64("value", value),
 		zap.Uint64("prevTotalValue", prevTotalValue),
 		zap.Uint64("newTotalValue", newTotalValue),
-		zap.String("msgID", msg.MessageIDString()))
+		zap.String("msgID", msg.MessageIDString()),
+		zap.String("hash", hash),
+		zap.Stringer("txHash", msg.TxHash),
+	)
 
-	xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: token.token.chain, OriginAddress: token.token.addr, EmitterChain: msg.EmitterChain, EmitterAddress: msg.EmitterAddress, MsgID: msg.MessageIDString()}
-	ce.transfers = append(ce.transfers, &xfer)
+	xfer := db.Transfer{Timestamp: now,
+		Value:          value,
+		OriginChain:    token.token.chain,
+		OriginAddress:  token.token.addr,
+		EmitterChain:   msg.EmitterChain,
+		EmitterAddress: msg.EmitterAddress,
+		MsgID:          msg.MessageIDString(),
+		Hash:           hash,
+	}
 	err = gov.db.StoreTransfer(&xfer)
 	if err != nil {
-		gov.logger.Error("cgov: failed to store transfer", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+		gov.logger.Error("cgov: failed to store transfer",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.String("hash", hash), zap.Error(err),
+			zap.Stringer("txHash", msg.TxHash),
+		)
 		return false, err
 	}
 
+	ce.transfers = append(ce.transfers, &xfer)
+	gov.msgsSeen[hash] = transferComplete
 	return true, nil
 }
 
@@ -419,7 +488,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 		// Keep going as long as we find something that will fit.
 		for {
 			foundOne := false
-			prevTotalValue, err := ce.TrimAndSumValue(startTime, gov.db)
+			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
 			if err != nil {
 				gov.logger.Error("cgov: failed to trim transfers", zap.Error(err))
 				gov.msgsToPublish = msgsToPublish
@@ -487,14 +556,25 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 				msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
 
 				if countsTowardsTransfers {
-					xfer := db.Transfer{Timestamp: now, Value: value, OriginChain: pe.token.token.chain, OriginAddress: pe.token.token.addr,
-						EmitterChain: pe.dbData.Msg.EmitterChain, EmitterAddress: pe.dbData.Msg.EmitterAddress, MsgID: pe.dbData.Msg.MessageIDString()}
-					ce.transfers = append(ce.transfers, &xfer)
+					xfer := db.Transfer{Timestamp: now,
+						Value:          value,
+						OriginChain:    pe.token.token.chain,
+						OriginAddress:  pe.token.token.addr,
+						EmitterChain:   pe.dbData.Msg.EmitterChain,
+						EmitterAddress: pe.dbData.Msg.EmitterAddress,
+						MsgID:          pe.dbData.Msg.MessageIDString(),
+						Hash:           pe.hash,
+					}
 
 					if err := gov.db.StoreTransfer(&xfer); err != nil {
 						gov.msgsToPublish = msgsToPublish
 						return nil, err
 					}
+
+					ce.transfers = append(ce.transfers, &xfer)
+					gov.msgsSeen[pe.hash] = transferComplete
+				} else {
+					delete(gov.msgsSeen, pe.hash)
 				}
 
 				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
@@ -535,12 +615,12 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-func (ce *chainEntry) TrimAndSumValue(startTime time.Time, db db.GovernorDB) (sum uint64, err error) {
-	sum, ce.transfers, err = TrimAndSumValue(ce.transfers, startTime, db)
+func (gov *ChainGovernor) TrimAndSumValueForChain(ce *chainEntry, startTime time.Time) (sum uint64, err error) {
+	sum, ce.transfers, err = gov.TrimAndSumValue(ce.transfers, startTime)
 	return sum, err
 }
 
-func TrimAndSumValue(transfers []*db.Transfer, startTime time.Time, db db.GovernorDB) (uint64, []*db.Transfer, error) {
+func (gov *ChainGovernor) TrimAndSumValue(transfers []*db.Transfer, startTime time.Time) (uint64, []*db.Transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
 	}
@@ -557,12 +637,12 @@ func TrimAndSumValue(transfers []*db.Transfer, startTime time.Time, db db.Govern
 	}
 
 	if trimIdx >= 0 {
-		if db != nil {
-			for idx := 0; idx <= trimIdx; idx++ {
-				if err := db.DeleteTransfer(transfers[idx]); err != nil {
-					return 0, transfers, err
-				}
+		for idx := 0; idx <= trimIdx; idx++ {
+			if err := gov.db.DeleteTransfer(transfers[idx]); err != nil {
+				return 0, transfers, err
 			}
+
+			delete(gov.msgsSeen, transfers[idx].Hash)
 		}
 
 		transfers = transfers[trimIdx+1:]
@@ -573,4 +653,10 @@ func TrimAndSumValue(transfers []*db.Transfer, startTime time.Time, db db.Govern
 
 func (tk tokenKey) String() string {
 	return tk.chain.String() + ":" + tk.addr.String()
+}
+
+func (gov *ChainGovernor) HashFromMsg(msg *common.MessagePublication) string {
+	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
+	digest := v.SigningMsg()
+	return hex.EncodeToString(digest.Bytes())
 }
