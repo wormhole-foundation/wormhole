@@ -91,12 +91,14 @@ spec:
             - ws://eth-devnet:8545
             - --moonbeamRPC
             - ws://eth-devnet:8545
+            - --arbitrumRPC
+            - ws://eth-devnet:8545            
             - --neonRPC
             - ws://eth-devnet:8545
-            - --wormchainWS
-            - ws://guardian-validator:26657/websocket
-            - --wormchainLCD
-            - http://guardian-validator:1317
+            # - --wormchainWS
+            # - ws://guardian-validator:26657/websocket
+            # - --wormchainLCD
+            # - http://guardian-validator:1317
             # - --terraWS
             # - ws://terra-terrad:26657/websocket
             # - --terraLCD

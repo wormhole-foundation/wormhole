@@ -58,6 +58,7 @@ import {
   deriveWormholeEmitterKey,
   getPostedMessage,
   getPostedVaa,
+  getProgramSequenceTracker,
 } from "../../../sdk/js/src/solana/wormhole";
 import {
   parseGovernanceVaa,
@@ -1082,6 +1083,13 @@ describe("Token Bridge", () => {
         expect(assetMeta.decimals).to.equal(9);
         expect(assetMeta.symbol).to.equal("");
         expect(assetMeta.name).to.equal("");
+
+        const sequenceTracker = await getProgramSequenceTracker(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          CORE_BRIDGE_ADDRESS
+        );
+        expect(sequenceTracker.value()).to.equal(messageData.sequence + 1n);
       });
 
       //   it("Attest Mint With Metadata", async () => {
@@ -1183,6 +1191,13 @@ describe("Token Bridge", () => {
           Buffer.compare(tokenTransfer.tokenAddress, mint.toBuffer())
         ).to.equal(0);
         expect(tokenTransfer.tokenChain).to.equal(1);
+
+        const sequenceTracker = await getProgramSequenceTracker(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          CORE_BRIDGE_ADDRESS
+        );
+        expect(sequenceTracker.value()).to.equal(messageData.sequence + 1n);
       });
 
       it("Receive Token", async () => {
@@ -1409,6 +1424,13 @@ describe("Token Bridge", () => {
         expect(
           Buffer.compare(tokenTransfer.tokenTransferPayload, transferPayload)
         ).to.equal(0);
+
+        const sequenceTracker = await getProgramSequenceTracker(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          CORE_BRIDGE_ADDRESS
+        );
+        expect(sequenceTracker.value()).to.equal(messageData.sequence + 1n);
       });
     });
 
@@ -1744,6 +1766,13 @@ describe("Token Bridge", () => {
           Buffer.compare(tokenTransfer.tokenAddress, tokenAddress)
         ).to.equal(0);
         expect(tokenTransfer.tokenChain).to.equal(tokenChain);
+
+        const sequenceTracker = await getProgramSequenceTracker(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          CORE_BRIDGE_ADDRESS
+        );
+        expect(sequenceTracker.value()).to.equal(messageData.sequence + 1n);
       });
 
       it("Send Token With Payload", async () => {
@@ -1846,6 +1875,13 @@ describe("Token Bridge", () => {
         expect(
           Buffer.compare(tokenTransfer.tokenTransferPayload, transferPayload)
         ).to.equal(0);
+
+        const sequenceTracker = await getProgramSequenceTracker(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          CORE_BRIDGE_ADDRESS
+        );
+        expect(sequenceTracker.value()).to.equal(messageData.sequence + 1n);
       });
     });
   });

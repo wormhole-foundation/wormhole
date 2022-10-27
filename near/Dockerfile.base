@@ -1,11 +1,15 @@
-FROM rust:1.60@sha256:48d3b5baf199dc7c378e775c47b0c40aaf7d8b23eaf67e15b095bbdaaecd1f10 as near-node
-
-RUN rustup update
-RUN apt-get install python3 --no-install-recommends
-
-COPY node_builder.sh /tmp
+FROM rust:1.60@sha256:48d3b5baf199dc7c378e775c47b0c40aaf7d8b23eaf67e15b095bbdaaecd1f10 AS near-node
 
 WORKDIR /tmp
+
+RUN rustup update
+RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl make --no-install-recommends
+RUN apt-get install -y build-essential git
+
+RUN npm i -g n
+RUN n stable
+
+COPY node_builder.sh /tmp
 
 RUN ./node_builder.sh
 

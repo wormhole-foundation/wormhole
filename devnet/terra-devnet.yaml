@@ -140,8 +140,10 @@ spec:
       containers:
         - image: terramoney/fcd:bombay
           name: fcd-collector
-          args:
-            - collector
+          command:
+            - sh
+            - -c
+            - "sed -i \"s/level: \\'info\\'/level: \\'warn\\'/g\" src/lib/logger.ts && ./entrypoint.sh collector"
           resources: {}
           env:
             - name: CHAIN_ID
@@ -170,8 +172,10 @@ spec:
               value: "src/orm/*Entity.ts"
         - image: terramoney/fcd:bombay
           name: fcd-api
-          args:
-            - start
+          command:
+            - sh
+            - -c
+            - "sed -i \"s/level: \\'info\\'/level: \\'warn\\'/g\" src/lib/logger.ts && ./entrypoint.sh start"
           resources: {}
           ports:
             - containerPort: 3060

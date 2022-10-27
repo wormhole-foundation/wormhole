@@ -198,8 +198,8 @@ const MAINNET = {
   },
   arbitrum: {
     core: "0xa5f208e072434bC67592E4C49C1B991BA79BCA46",
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    token_bridge: "0x0b2402144Bb366A632D14B83F244D2e0e21bD39c",
+    nft_bridge: "0x3dD14D553cFD986EAC8e3bddF629d82073e188c8",
   },
   optimism: {
     core: "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722",

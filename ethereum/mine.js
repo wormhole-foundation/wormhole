@@ -27,7 +27,7 @@ function sleep(ms) {
 module.exports = function(callback) {
     const fn = async () => {
         while (true) {
-            console.log(await advanceBlock());
+            await advanceBlock();
             await sleep(1000);
         }
     }

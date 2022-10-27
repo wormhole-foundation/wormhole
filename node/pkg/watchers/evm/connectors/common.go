@@ -15,8 +15,9 @@ import (
 )
 
 type NewBlock struct {
-	Number *big.Int
-	Hash   common.Hash
+	Number        *big.Int
+	Hash          common.Hash
+	L1BlockNumber *big.Int // This is only populated on some chains (Arbitrum)
 }
 
 // Connector exposes Wormhole-specific interactions with an EVM-based network

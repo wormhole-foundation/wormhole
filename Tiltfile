@@ -159,6 +159,8 @@ def build_node_yaml():
                 container["command"] = command_with_dlv(container["command"])
                 container["command"] += ["--logLevel=debug"]
                 print(container["command"])
+            elif ci:
+                container["command"] += ["--logLevel=warn"]
 
             if explorer:
                 container["command"] += [
@@ -247,6 +249,14 @@ def build_node_yaml():
                     "http://near:3030",
                     "--nearContract",
                     "wormhole.test.near"
+                ]
+
+            if wormchain:
+                container["command"] += [
+                    "--wormchainWS",
+                    "ws://guardian-validator:26657/websocket",
+                    "--wormchainLCD",
+                    "http://guardian-validator:1317"
                 ]
 
     return encode_yaml_stream(node_yaml)
@@ -429,8 +439,7 @@ if spy_relayer:
 
     docker_build(
         ref = "spy-relay-image",
-        context = ".",
-        only = ["./relayer/spy_relayer"],
+        context = "relayer/spy_relayer",
         dockerfile = "relayer/spy_relayer/Dockerfile",
         live_update = []
     )

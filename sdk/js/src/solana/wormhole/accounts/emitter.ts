@@ -1,5 +1,15 @@
-import { PublicKey, PublicKeyInitData } from "@solana/web3.js";
+import {
+  Commitment,
+  Connection,
+  PublicKey,
+  PublicKeyInitData,
+} from "@solana/web3.js";
 import { deriveAddress } from "../../utils";
+import {
+  deriveEmitterSequenceKey,
+  getSequenceTracker,
+  SequenceTracker,
+} from "./sequence";
 
 export interface EmitterAccounts {
   emitter: PublicKey;
@@ -12,16 +22,6 @@ export function deriveWormholeEmitterKey(
   return deriveAddress([Buffer.from("emitter")], emitterProgramId);
 }
 
-export function deriveEmitterSequenceKey(
-  emitter: PublicKeyInitData,
-  wormholeProgramId: PublicKeyInitData
-): PublicKey {
-  return deriveAddress(
-    [Buffer.from("Sequence"), new PublicKey(emitter).toBytes()],
-    wormholeProgramId
-  );
-}
-
 export function getEmitterKeys(
   emitterProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData
@@ -31,4 +31,18 @@ export function getEmitterKeys(
     emitter,
     sequence: deriveEmitterSequenceKey(emitter, wormholeProgramId),
   };
+}
+
+export async function getProgramSequenceTracker(
+  connection: Connection,
+  emitterProgramId: PublicKeyInitData,
+  wormholeProgramId: PublicKeyInitData,
+  commitment?: Commitment
+): Promise<SequenceTracker> {
+  return getSequenceTracker(
+    connection,
+    deriveWormholeEmitterKey(emitterProgramId),
+    wormholeProgramId,
+    commitment
+  );
 }

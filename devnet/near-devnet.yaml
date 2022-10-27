@@ -32,10 +32,15 @@ spec:
       containers:
         - name: near-node
           image: near-node
+          env:
+            # this still results in DEBUG logs from "stats", but `warn,stats=warn` didn't work
+            - name: RUST_LOG
+              value: warn
           command:
             - /bin/sh
             - -c
-            - /tmp/start_node.sh
+            # because the above still left logs, redirecting stderr
+            - "/tmp/start_node.sh 2> /dev/null"
           ports:
             - containerPort: 3030
               name: node
@@ -57,6 +62,5 @@ spec:
               port: 3030
             periodSeconds: 1
             initialDelaySeconds: 15
-            periodSeconds: 5
 
       restartPolicy: Always

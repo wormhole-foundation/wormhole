@@ -42,6 +42,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	// NOTE: Not sure what should be here for Klaytn, since they use: https://scope.klaytn.com/
 	vaa.ChainIDCelo:     "https://celoscan.xyz/api",
 	vaa.ChainIDMoonbeam: "https://api-moonbeam.moonscan.io",
+	vaa.ChainIDArbitrum: "https://api.arbiscan.io",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -57,6 +58,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDKlaytn:    strings.ToLower("0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"),
 	vaa.ChainIDCelo:      strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
 	vaa.ChainIDMoonbeam:  strings.ToLower("0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"),
+	vaa.ChainIDArbitrum:  strings.ToLower("0xa5f208e072434bC67592E4C49C1B991BA79BCA46"),
 }
 
 var (

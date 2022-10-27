@@ -10,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/finalizers"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/interfaces"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -105,6 +106,9 @@ type (
 		// Interface to the chain specific ethereum library.
 		ethConn       connectors.Connector
 		unsafeDevMode bool
+
+		latestFinalizedBlockNumber uint64
+		l1Finalizer                interfaces.L1Finalizer
 	}
 
 	pendingKey struct {
@@ -130,7 +134,9 @@ func NewEthWatcher(
 	setEvents chan *common.GuardianSet,
 	minConfirmations uint64,
 	obsvReqC chan *gossipv1.ObservationRequest,
-	unsafeDevMode bool) *Watcher {
+	unsafeDevMode bool,
+	l1Finalizer interfaces.L1Finalizer,
+) *Watcher {
 
 	return &Watcher{
 		url:              url,
@@ -144,6 +150,7 @@ func NewEthWatcher(
 		obsvReqC:         obsvReqC,
 		pending:          map[pendingKey]*pendingMessage{},
 		unsafeDevMode:    unsafeDevMode,
+		l1Finalizer:      l1Finalizer,
 	}
 }
 
@@ -228,13 +235,16 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDArbitrum && !w.unsafeDevMode {
+		if w.l1Finalizer == nil {
+			return fmt.Errorf("unable to create arbitrum watcher because the l1 finalizer is not set")
+		}
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		finalizer := finalizers.NewArbitrumFinalizer(logger, baseConnector, baseConnector.Client())
+		finalizer := finalizers.NewArbitrumFinalizer(logger, baseConnector, baseConnector.Client(), w.l1Finalizer)
 		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
@@ -518,6 +528,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				blockNumberU := ev.Number.Uint64()
 				atomic.StoreUint64(&currentBlockNumber, blockNumberU)
+				atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 
 				for key, pLock := range w.pending {
 					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)
@@ -743,4 +754,8 @@ func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, er
 	}
 
 	return
+}
+
+func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
+	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
 }

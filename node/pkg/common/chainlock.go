@@ -105,3 +105,18 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 
 	return msg, nil
 }
+
+func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
+	return &vaa.VAA{
+		Version:          vaa.SupportedVAAVersion,
+		GuardianSetIndex: gsIndex,
+		Signatures:       nil,
+		Timestamp:        msg.Timestamp,
+		Nonce:            msg.Nonce,
+		EmitterChain:     msg.EmitterChain,
+		EmitterAddress:   msg.EmitterAddress,
+		Payload:          msg.Payload,
+		Sequence:         msg.Sequence,
+		ConsistencyLevel: msg.ConsistencyLevel,
+	}
+}
