@@ -27,7 +27,6 @@ export const CHAINS = {
   gnosis: 25,
   pythnet: 26,
   xpla: 28,
-  ropsten: 10001,
   wormchain: 3104,
 } as const;
 
@@ -55,7 +54,7 @@ export type EVMChainName =
   | "arbitrum"
   | "optimism"
   | "gnosis"
-  | "ropsten";
+  ;
 
 /**
  *
@@ -222,11 +221,6 @@ const MAINNET = {
       "xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv",
     nft_bridge: undefined,
   },
-  ropsten: {
-    core: undefined,
-    token_bridge: undefined,
-    nft_bridge: undefined,
-  },
   wormchain: {
     core: undefined,
     token_bridge: undefined,
@@ -378,11 +372,6 @@ const TESTNET = {
       "xpla1kek6zgdaxcsu35nqfsyvs2t9vs87dqkkq6hjdgczacysjn67vt8sern93x",
     nft_bridge: undefined,
   },
-  ropsten: {
-    core: "0x210c5F5e2AF958B4defFe715Dc621b7a3BA888c5",
-    token_bridge: "0xF174F9A837536C449321df1Ca093Bb96948D5386",
-    nft_bridge: "0x2b048Da40f69c8dc386a56705915f8E966fe1eba",
-  },
   wormchain: {
     core: undefined,
     token_bridge: undefined,
@@ -533,11 +522,6 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  ropsten: {
-    core: undefined,
-    token_bridge: undefined,
-    nft_bridge: undefined,
-  },
   wormchain: {
     core: "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
     token_bridge: "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
@@ -611,7 +595,6 @@ export const CHAIN_ID_OPTIMISM = CHAINS["optimism"];
 export const CHAIN_ID_GNOSIS = CHAINS["gnosis"];
 export const CHAIN_ID_PYTHNET = CHAINS["pythnet"];
 export const CHAIN_ID_XPLA = CHAINS["xpla"];
-export const CHAIN_ID_ETHEREUM_ROPSTEN = CHAINS["ropsten"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
@@ -742,8 +725,7 @@ export function isEVMChain(
     chainId === CHAIN_ID_NEON ||
     chainId === CHAIN_ID_ARBITRUM ||
     chainId === CHAIN_ID_OPTIMISM ||
-    chainId === CHAIN_ID_GNOSIS ||
-    chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+    chainId === CHAIN_ID_GNOSIS
   ) {
     return isEVM(chainId);
   } else {
