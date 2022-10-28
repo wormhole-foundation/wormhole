@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0
+
+### Removed
+
+Removed support for Ropsten since the chain has been deprecated.
+
 ## 0.9.0
 
 ### Added
