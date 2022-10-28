@@ -237,6 +237,48 @@ contract TestMessages is Messages, Test {
     assertEq(reasonVm1, "VM signature invalid");
   }
 
+  // This test checks if a (version2, hash(body)) can pass as a valid message in v1
+  function testVersionConfusionVersionPrefix() public {
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    storeGuardianSet(initialGuardianSet, 0);
+
+    // Confirm that the test VM2 is valid
+    (Structs.VM2 memory parsedValidVm2, bool valid, string memory reason) = this.parseAndVerifyBatchVM(validVM2, false);
+    require(valid, reason);
+
+    // Copy signatures and compute the hash array bytes object
+    bytes memory signatures = validVM2.slice(6, 66 * parsedValidVm2.signatures.length);
+    bytes memory bodyVm1;
+
+    for (uint i = 0; i < parsedValidVm2.hashes.length; i++) {
+      bodyVm1 = abi.encodePacked(bodyVm1, parsedValidVm2.hashes[i]);
+    }
+
+    bodyVm1 = abi.encodePacked(uint8(2), keccak256(bodyVm1));
+
+    // Create the VM1
+    bytes memory invalidVm1 = abi.encodePacked(
+      uint8(1),
+      parsedValidVm2.guardianSetIndex,
+      uint8(parsedValidVm2.signatures.length),
+      signatures,
+      bodyVm1
+    );
+
+    // Confirm that signature verification fails
+    vm.expectRevert("toBytes32_outOfBounds");
+    (Structs.VM memory parsedInValidVm1, bool isValid, string memory reasonVm1) = this.parseAndVerifyVM(invalidVm1);
+  }
+
   // This test checks the possibility of getting a unsigned message verified
   function testUnsignedMessageIsNotVerified() public {
     // Set the initial guardian set
