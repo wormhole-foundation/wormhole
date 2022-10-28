@@ -59,11 +59,6 @@ spec:
               name: node-rundir
             - mountPath: /tmp/mounted-keys
               name: node-keysdir
-          env:
-            - name: BIGTABLE_EMULATOR_HOST
-              value: bigtable-emulator:8086
-            - name: PUBSUB_EMULATOR_HOST
-              value: pubsub-emulator:8085
           command:
             - /guardiand
             - node
@@ -92,7 +87,7 @@ spec:
             - --moonbeamRPC
             - ws://eth-devnet:8545
             - --arbitrumRPC
-            - ws://eth-devnet:8545            
+            - ws://eth-devnet:8545
             - --neonRPC
             - ws://eth-devnet:8545
             # - --wormchainWS
