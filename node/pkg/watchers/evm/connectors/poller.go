@@ -171,9 +171,12 @@ func (b *BlockPollConnector) getBlock(ctx context.Context, logger *zap.Logger, n
 	}
 
 	type Marshaller struct {
-		Number     *ethHexUtils.Big
-		Hash       ethCommon.Hash `json:"hash"`
-		Difficulty *ethHexUtils.Big
+		Number *ethHexUtils.Big
+		Hash   ethCommon.Hash `json:"hash"`
+
+		// L1BlockNumber is the L1 block number in which an Arbitrum batch containing this block was submitted.
+		// This field is only populated when connecting to Arbitrum.
+		L1BlockNumber *ethHexUtils.Big
 	}
 
 	var m Marshaller
@@ -190,8 +193,16 @@ func (b *BlockPollConnector) getBlock(ctx context.Context, logger *zap.Logger, n
 		return nil, fmt.Errorf("failed to unmarshal block: Number is nil")
 	}
 	n := big.Int(*m.Number)
+
+	var l1bn *big.Int
+	if m.L1BlockNumber != nil {
+		bn := big.Int(*m.L1BlockNumber)
+		l1bn = &bn
+	}
+
 	return &NewBlock{
-		Number: &n,
-		Hash:   m.Hash,
+		Number:        &n,
+		Hash:          m.Hash,
+		L1BlockNumber: l1bn,
 	}, nil
 }
