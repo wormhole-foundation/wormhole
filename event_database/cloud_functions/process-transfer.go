@@ -58,7 +58,6 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		vaa.ChainIDPolygon,
 		vaa.ChainIDAvalanche,
 		vaa.ChainIDOasis,
-		vaa.ChainIDEthereumRopsten,
 		vaa.ChainIDAurora,
 		vaa.ChainIDFantom,
 		vaa.ChainIDKarura,

@@ -66,16 +66,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 
 	log.Printf("%d nodes in guardian state set", len(nodes))
 
-	// Check if any node is sending Ropsten metrics
-	var isTestnet bool
-	for _, node := range nodes {
-		for _, network := range node.RawHeartbeat.Networks {
-			if vaa.ChainID(network.Id) == vaa.ChainIDEthereumRopsten {
-				isTestnet = true
-			}
-		}
-	}
-
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
 	headers := []string{
@@ -118,15 +108,9 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Moonbeam", vaa.ChainIDMoonbeam},
 		{"Arbitrum", vaa.ChainIDArbitrum},
 		{"Xpla", vaa.ChainIDXpla},
+		{"Injective", vaa.ChainIDInjective},
+		{"Neon", vaa.ChainIDNeon},
 		{"Wormchain", vaa.ChainIDWormchain},
-	}
-
-	if isTestnet {
-		networks = append(networks, network{"Ropsten", vaa.ChainIDEthereumRopsten})
-		networks = append(networks, network{"Neon", vaa.ChainIDNeon})
-		networks = append(networks, network{"Injective", vaa.ChainIDInjective})
-		networks = append(networks, network{"Arbitrum", vaa.ChainIDArbitrum})
-		networks = append(networks, network{"XPLA", vaa.ChainIDXpla})
 	}
 
 	if len(only) > 0 {
