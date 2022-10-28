@@ -14,8 +14,18 @@ import (
 )
 
 const (
-	nearRPCTimeout               = 5 * time.Second
-	nearRPCConcurrentConnections = 10
+	nearRPCTimeout = 5 * time.Second
+	/*
+		NEAR JSON RPC node is starting up with 4 workers
+		(https://github.com/near/nearcore/blob/8dc9a0bab8aa4648fc7af777e9fa7e3e545c95a5/chain/jsonrpc/src/lib.rs#L1372)
+		and actix_web by default supports 256 concurrent TLS connections per worker and 25k non-TLS
+		(https://actix.rs/actix-web/actix_web/struct.HttpServer.html#method.workers).
+
+		Therefore, the Guardian NEAR RPC node should allow at least 500 concurrent connections.
+		According to https://explorer.near.org/stats, NEAR blockchain has bursts of up to 2M tx/day,
+		so 500 concurrent RPC connections should be sufficient.
+	*/
+	nearRPCConcurrentConnections = 500
 )
 
 type (

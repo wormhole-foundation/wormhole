@@ -26,9 +26,14 @@ var (
 
 	blockPollInterval = time.Millisecond * 200
 
-	workerCountTxProcessing int = 10
-	workerChunkFetching     int = 4      // this value should be set to the amount of chunks in a NEAR block, such that they can all be fetched in parallel
-	quequeSize              int = 10_000 // size of the queques for chunk processing as well as transaction processing
+	// this value should be set to the max. amount of transactions in a block such that they can all be processed in parallel.
+	workerCountTxProcessing int = 100
+
+	// this value should be set to be greater than the amount of chunks in a NEAR block,
+	// such that they can all be fetched in parallel.
+	// We're currently seeing ~10 chunks/block, so setting this to 20 conservatively.
+	workerChunkFetching int = 20
+	quequeSize          int = 10_000 // size of the queques for chunk processing as well as transaction processing
 
 	// if watcher falls behind this many blocks, start over. This should be set proportional to `quequeSize`
 	// such that all transactions from `maxFallBehindBlocks` can easily fit into the queue
