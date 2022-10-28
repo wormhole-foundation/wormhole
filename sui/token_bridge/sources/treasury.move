@@ -9,6 +9,7 @@ module token_bridge::treasury {
     use sui::tx_context::{TxContext};
     use sui::object::{Self, UID};
     use sui::coin::{Self, TreasuryCap, Coin};
+    use sui::dynamic_object_field::{Self};
     //use sui::balance::{Self};
     //use sui::transfer::{Self};
 
@@ -33,8 +34,16 @@ module token_bridge::treasury {
 
     public(friend) fun create_treasury_cap_store<CoinType>(cap: TreasuryCap<CoinType>, ctx: &mut TxContext): TreasuryCapStore<CoinType> { //
          TreasuryCapStore<CoinType> { id: object::new(ctx), cap: cap }
-         // Instead of doing transfer_to_object, do
-         //transfer::transfer_to_object<TreasuryCapStore<CoinType>,BridgeState>(store, bridge_state);
+    }
+
+    public(friend) fun deposit<CoinType>(store: &mut CoinStore<CoinType>, coin: Coin<CoinType>, ctx: &mut TxContext){
+        coin::join<CoinType>(store, coin);
+    }
+
+    public(friend) fun withdraw<CoinType>(store: &mut CoinStore<CoinType>, value: u64, ctx: &mut TxContext): Balance<CoinType> {
+        let balance = coin::balance_mut<CoinType>(&mut store.coins);
+        let b = coin::take<CoinType>(balance, value, ctx);
+        return coin::from_balance<CoinType>(b, ctx)
     }
 
     // public(friend) fun create_coin_store<CoinType>(bridge_state: &mut BridgeState, ctx: &mut TxContext) {
@@ -59,21 +68,5 @@ module token_bridge::treasury {
     ) {
         coin::burn<T>(&mut cap_container.cap, coin);
     }
-
-    //public(friend) fun deposit<CoinType>(_bridge_state: &mut BridgeState, _coin: Coin<CoinType>) {
-        // TODO: detect if CoinStore<CoinType> exists as a child object of bridge_state
-        //        if it is not a child object, initialize a CoinStore and transfer it to bridge
-        //        if it is, obtain a reference to it
-        // TODO: coin::join<CoinType>(&mut coin_store, coin);
-    //}
-
-    //public(friend) fun withdraw<phantom CoinType>(_bridge_state: &mut BridgeState, value: u64, ctx: &mut TxContext) { //: Coin<CoinType> {
-        // TODO: detect if CoinStore<CoinType> exists as a child object of bridge_state
-        //        if it is not a child object, initialize a CoinStore and transfer it to bridge
-        //        if it is, obtain a reference to it
-
-        //let balance_mut = coins::balance_mut<CoinType>(&mut store.coins, ctx);
-        //coin::take<CoinType>(balance_mut, value, ctx)
-    //}
 
 }
