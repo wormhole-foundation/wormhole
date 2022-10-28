@@ -172,8 +172,8 @@ func (b *BlockPollConnector) getBlock(ctx context.Context, logger *zap.Logger, n
 
 	type Marshaller struct {
 		Number        *ethHexUtils.Big
-		Hash          ethCommon.Hash `json:"hash"`
-		L1BlockNumber *ethHexUtils.Big
+		Hash          ethCommon.Hash   `json:"hash"`
+		L1BlockNumber *ethHexUtils.Big // This is populated for Arbitrum, will be nil for others.
 	}
 
 	var m Marshaller
