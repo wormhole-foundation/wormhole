@@ -16,18 +16,13 @@ const interateToStandardTransactionCount = async () => {
   );
 
   const transactionsToBurn = 32 - transactionCount;
-  const promises = [];
   for (let i = 0; i < transactionsToBurn; i++) {
-    promises.push(
-      web3.eth.sendTransaction({
-        to: accounts[0],
-        from: accounts[0],
-        value: 530,
-      })
-    );
+    await web3.eth.sendTransaction({
+      to: accounts[0],
+      from: accounts[0],
+      value: 530,
+    })
   }
-
-  await Promise.all(promises);
 
   const burnCount = await web3.eth.getTransactionCount(accounts[0], "latest");
 
@@ -36,7 +31,7 @@ const interateToStandardTransactionCount = async () => {
   return Promise.resolve();
 };
 
-module.exports = async function(callback) {
+module.exports = async function (callback) {
   try {
     const accounts = await web3.eth.getAccounts();
 
