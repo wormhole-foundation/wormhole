@@ -281,6 +281,7 @@ func chainIdStringToType(chainId string) vaa.ChainID {
 		return vaa.ChainIDAptos
 	case "28":
 		return vaa.ChainIDXpla
+	}
 	return vaa.ChainIDUnset
 }
 
