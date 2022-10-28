@@ -235,7 +235,6 @@ func (p *Processor) Run(ctx context.Context) error {
 func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 	if v.EmitterChain == vaa.ChainIDPythNet {
 		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
-		p.logger.Debug("PYTHNET: storing pythnet vaa", zap.String("message_id", key))
 		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
 		return nil
 	}
@@ -247,11 +246,9 @@ func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
 		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
 		ret, exists := p.pythnetVaas[key]
 		if exists {
-			p.logger.Debug("PYTHNET: found pythnet vaa", zap.String("message_id", key))
 			return ret.v, nil
 		}
 
-		p.logger.Debug("PYTHNET: did not find pythnet vaa", zap.String("message_id", key))
 		return nil, db.ErrVAANotFound
 	}
 

@@ -230,7 +230,6 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 	oldestTime := time.Now().Add(-time.Hour)
 	for key, pe := range p.pythnetVaas {
 		if pe.updateTime.Before(oldestTime) {
-			p.logger.Debug("PYTHNET: dropping old pythnet vaa", zap.String("message_id", key), zap.Stringer("updateTime", pe.updateTime))
 			delete(p.pythnetVaas, key)
 		}
 	}
