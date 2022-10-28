@@ -183,20 +183,17 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					Height:          int64(slot),
 					ContractAddress: contractAddr,
 				})
-				logger.Info("fetched current Solana height",
-					zap.String("commitment", string(s.commitment)),
-					zap.Uint64("slot", slot),
-					zap.Uint64("lastSlot", lastSlot),
-					zap.Uint64("pendingSlots", slot-lastSlot),
-					zap.Duration("took", time.Since(start)))
 
 				rangeStart := lastSlot + 1
 				rangeEnd := slot
 
-				logger.Info("fetching slots in range",
+				logger.Debug("fetched current Solana height",
+					zap.String("commitment", string(s.commitment)),
+					zap.Uint64("slot", slot),
+					zap.Uint64("lastSlot", lastSlot),
+					zap.Uint64("pendingSlots", slot-lastSlot),
 					zap.Uint64("from", rangeStart), zap.Uint64("to", rangeEnd),
-					zap.Duration("took", time.Since(start)),
-					zap.String("commitment", string(s.commitment)))
+					zap.Duration("took", time.Since(start)))
 
 				// Requesting each slot
 				for slot := rangeStart; slot <= rangeEnd; slot++ {
@@ -298,7 +295,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		return false
 	}
 
-	logger.Info("fetched block",
+	logger.Debug("fetched block",
 		zap.Uint64("slot", slot),
 		zap.Int("num_tx", len(out.Transactions)),
 		zap.Duration("took", time.Since(start)),
@@ -343,7 +340,7 @@ OUTER:
 			continue
 		}
 
-		logger.Info("found Wormhole transaction",
+		logger.Debug("found Wormhole transaction",
 			zap.Stringer("signature", signature),
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
@@ -388,7 +385,7 @@ OUTER:
 			return false
 		}
 
-		logger.Info("fetched transaction",
+		logger.Debug("fetched transaction",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("signature", signature),
@@ -443,7 +440,7 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, fmt.Errorf("failed to deserialize instruction data: %w", err)
 	}
 
-	logger.Info("post message data", zap.Any("deserialized_data", data),
+	logger.Debug("post message data", zap.Any("deserialized_data", data),
 		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
 
 	level, err := data.ConsistencyLevel.Commitment()
@@ -458,7 +455,7 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
 	acc := tx.Message.AccountKeys[inst.Accounts[1]]
 
-	logger.Info("fetching VAA account", zap.Stringer("acc", acc),
+	logger.Debug("fetching VAA account", zap.Stringer("acc", acc),
 		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
 
 	go s.retryFetchMessageAccount(ctx, logger, acc, slot, 0)
@@ -534,7 +531,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 		return false
 	}
 
-	logger.Info("found valid VAA account",
+	logger.Debug("found valid VAA account",
 		zap.Uint64("slot", slot),
 		zap.String("commitment", string(s.commitment)),
 		zap.Stringer("account", acc),
@@ -583,7 +580,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
 
-	logger.Info("message observed",
+	logger.Debug("message observed",
 		zap.Stringer("account", acc),
 		zap.Time("timestamp", observation.Timestamp),
 		zap.Uint32("nonce", observation.Nonce),
