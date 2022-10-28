@@ -45,7 +45,6 @@ config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
-config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("spy_relayer", False, "Enable spy relayer")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
@@ -57,8 +56,8 @@ config.define_bool("secondWormchain", False, "Enable a second wormchain node wit
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
 namespace = cfg.get("namespace", "wormhole")
-gcpProject = cfg.get("gcpProject", "local-dev")
-bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
+gcpProject = cfg.get("gcpProject", "")
+bigTableKeyPath = cfg.get("bigTableKeyPath", "")
 webHost = cfg.get("webHost", "localhost")
 ci = cfg.get("ci", False)
 algorand = cfg.get("algorand", ci)
@@ -69,7 +68,6 @@ solana = cfg.get("solana", ci)
 terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
 wormchain = cfg.get("wormchain", ci)
-explorer = cfg.get("explorer", ci)
 spy_relayer = cfg.get("spy_relayer", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
@@ -101,7 +99,7 @@ local_resource(
 
 # node
 
-if explorer:
+if bigTableKeyPath != "":
     k8s_yaml_with_ns(
         secret_yaml_generic(
             "node-bigtable-key",
@@ -148,7 +146,7 @@ def build_node_yaml():
             elif ci:
                 container["command"] += ["--logLevel=warn"]
 
-            if explorer:
+            if gcpProject != "":
                 container["command"] += [
                     "--bigTablePersistenceEnabled",
                     "--bigTableInstanceName",
@@ -530,39 +528,6 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/spydk.sh handles waiting for spy, not having deps gets the build earlier
-    )
-
-# bigtable
-if explorer:
-    k8s_yaml_with_ns("devnet/bigtable.yaml")
-
-    k8s_resource(
-        "bigtable-emulator",
-        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]")],
-        labels = ["explorer"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_resource(
-        "pubsub-emulator",
-        port_forwards = [port_forward(8085, name = "PubSub listeners [:8085]")],
-        labels = ["explorer"],
-    )
-
-    docker_build(
-        ref = "cloud-functions",
-        context = "./event_database",
-        dockerfile = "./event_database/functions_server/Dockerfile",
-        live_update = [
-            sync("./event_database/cloud_functions", "/app/cloud_functions"),
-        ],
-    )
-    k8s_resource(
-        "cloud-functions",
-        resource_deps = ["bigtable-emulator", "pubsub-emulator"],
-        port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]", host = webHost)],
-        labels = ["explorer"],
-        trigger_mode = trigger_mode,
     )
 
 if terra_classic:
