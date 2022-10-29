@@ -29,8 +29,7 @@ module token_bridge::complete_transfer {
 
         let transfer = transfer::parse(wormhole::myvaa::destroy(vaa));
 
-        // TODO: casework for complete transfer foreign or native asset
-        complete_transfer_foreign_asset<CoinType>(
+        complete_transfer<CoinType>(
             &transfer,
             wormhole_state,
             bridge_state,
@@ -39,7 +38,7 @@ module token_bridge::complete_transfer {
         );
     }
 
-    fun complete_transfer_foreign_asset<CoinType>(
+    fun complete_transfer<CoinType>(
         transfer: &Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
@@ -47,7 +46,8 @@ module token_bridge::complete_transfer {
         ctx: &mut TxContext
     ) {
         let to_chain = transfer::get_to_chain(transfer);
-        assert!(to_chain == wormhole::state::get_chain_id(wormhole_state), E_INVALID_TARGET);
+        let this_chain = wormhole::state::get_chain_id(wormhole_state);
+        assert!(to_chain == this_chain, E_INVALID_TARGET);
 
         let token_chain = transfer::get_token_chain(transfer);
         let token_address = transfer::get_token_address(transfer);
@@ -56,15 +56,22 @@ module token_bridge::complete_transfer {
         let recipient = external_address::to_address(external_address::get_bytes(&transfer::get_to(transfer)));
 
         // TODO - figure out actual number of decimal places to denormalize by
-        //        where to find out #decimals for coin?
+        //        Where to store or how to find out #decimals for coin?
         let amount = denormalize(transfer::get_amount(transfer), 0);
 
-        let recipient_coins = bridge_state::mint<CoinType>(origin_info, bridge_state, amount, ctx);
+        let recipient_coins;
+        if (token_chain==this_chain){
+            recipient_coins = bridge_state::withdraw<CoinType>(
+                bridge_state,
+                amount,
+                origin_info,
+                ctx
+            )
+        } else{
+            recipient_coins = bridge_state::mint<CoinType>(origin_info, bridge_state, amount, ctx);
+        };
+
         transfer_object::transfer(recipient_coins, recipient);
-
-        //TODO: send fee to fee_recipient
     }
-
-    //TODO: complete_transfer_native_asset
-
+    //TODO: send fee to fee_recipient
 }
