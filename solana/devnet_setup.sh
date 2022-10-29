@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # This script configures the devnet for test transfers with hardcoded addresses.
-set -xu
+set -eu
+
+# kick off building worm in the background, and remember the process PID so we
+# can wait on it later
+make -C /usr/src/clients/js install &
+worm_build_pid=$!
 
 # Configure CLI (works the same as upstream Solana CLI)
 mkdir -p ~/.config/solana/cli
@@ -92,22 +97,34 @@ retry token-bridge-client create-bridge "$token_bridge_address" "$bridge_address
 # Initialize the NFT bridge
 retry token-bridge-client create-bridge "$nft_bridge_address" "$bridge_address"
 
-# pass the chain registration VAAs sourced from .env to the client's execute-governance command:
-pushd /usr/src/clients/js
-make install
+echo "Waiting for worm to finish building"
+wait $worm_build_pid
 
 # next we get all the registration VAAs from the environment
 # if a new VAA is added, this will automatically pick it up
 VAAS=$(set | grep "REGISTER_.*_VAA" | grep -v SOL | cut -d '=' -f1)
 
+# reset the builtin SECONDS timer (it's incremented once a second).
+SECONDS=0
+
 # use 'worm' to submit each registration VAA
+echo "Running chain registrations in parallel"
+# we'll send the registration calls in parallel, but we want to wait on them at
+# the end, so we collect the PIDs
+registration_pids=()
 for VAA in $VAAS
 do
     VAA=${!VAA}
-    worm submit $VAA --chain solana --network devnet
+    worm submit $VAA --chain solana --network devnet &
+    registration_pids+=( $! )
 done
-echo "Registrations successful."
-popd
+
+# wait on registration calls
+for pid in "${registration_pids[@]}"; do
+        wait $pid
+done
+
+echo "Registrations successfully completed in $SECONDS seconds."
 
 # Let k8s startup probe succeed
 nc -k -l -p 2000

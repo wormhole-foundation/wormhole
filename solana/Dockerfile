@@ -9,7 +9,12 @@ RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certifi
 # Add bridge contract sources
 WORKDIR /usr/src/bridge
 
-COPY . .
+COPY bridge bridge
+COPY modules modules
+COPY migration migration
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
+COPY solitaire solitaire
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV RUST_BACKTRACE=1
