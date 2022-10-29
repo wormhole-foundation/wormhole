@@ -15,6 +15,7 @@ module token_bridge::vaa {
     //friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
     friend token_bridge::wrapped;
+    friend token_bridge::complete_transfer;
 
     //#[test_only]
     //friend token_bridge::vaa_test;

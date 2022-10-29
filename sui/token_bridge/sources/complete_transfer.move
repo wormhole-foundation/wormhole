@@ -1,25 +1,24 @@
 module token_bridge::complete_transfer {
     use sui::tx_context::{TxContext};
-    //use sui::dynamic_object_field::{Self};
+    use sui::transfer::{Self as transfer_object};
 
-    use wormhole::myvaa::{VAA};
     use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::{ExternalAddress};
+    use wormhole::external_address::{Self};
 
     use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
-    use token_bridge::myvaa::{Self as vaa};
+    use token_bridge::vaa::{Self};
     use token_bridge::transfer::{Self, Transfer};
+    use token_bridge::normalized_amount::{denormalize};
 
-    // mint wrapped tokens if incoming tokens is from foreign chain (get treasury cap for this)
-    // get tokens from token bridge treasury and send to receiver if the token is native (get coin store for this)
+    const E_INVALID_TARGET: u64 = 0;
 
     public entry fun submit_vaa<CoinType>(
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         vaa: vector<u8>,
-        ctx: &mut TxContext,
-        fee_recipient: address
-    ): Transfer {
+        _fee_recipient: address,
+        ctx: &mut TxContext
+    ) {
 
         let vaa = vaa::parse_verify_and_replay_protect(
             wormhole_state,
@@ -28,46 +27,44 @@ module token_bridge::complete_transfer {
             ctx
         );
 
-        let transfer = transfer::parse(wormhole::vaa::destroy(vaa));
-        complete_transfer<CoinType>(&transfer, fee_recipient);
-        transfer
+        let transfer = transfer::parse(wormhole::myvaa::destroy(vaa));
+
+        // TODO: casework for complete transfer foreign or native asset
+        complete_transfer_foreign_asset<CoinType>(
+            &transfer,
+            wormhole_state,
+            bridge_state,
+            _fee_recipient,
+            ctx
+        );
     }
 
     fun complete_transfer_foreign_asset<CoinType>(
         transfer: &Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
-        fee_recipient: address
+        _fee_recipient: address,
+        ctx: &mut TxContext
     ) {
-
         let to_chain = transfer::get_to_chain(transfer);
-        assert!(to_chain == wormhole::state::get_chain_id(), E_INVALID_TARGET);
+        assert!(to_chain == wormhole::state::get_chain_id(wormhole_state), E_INVALID_TARGET);
 
         let token_chain = transfer::get_token_chain(transfer);
         let token_address = transfer::get_token_address(transfer);
-        let origin_info = state::create_origin_info(token_chain, token_address);
+        let origin_info = bridge_state::create_origin_info(token_chain, token_address);
 
-        //state::assert_coin_origin_info<CoinType>(origin_info);
+        let recipient = external_address::to_address(external_address::get_bytes(&transfer::get_to(transfer)));
 
-        // TODO - Get decimals from treasury cap, then do normalization
-        //let decimals = coin::decimals<CoinType>();
-        // let amount = normalized_amount::denormalize(transfer::get_amount(transfer), decimals);
-        // let fee_amount = normalized_amount::denormalize(transfer::get_fee(transfer), decimals);
+        // TODO - figure out actual number of decimal places to denormalize by
+        //        where to find out #decimals for coin?
+        let amount = denormalize(transfer::get_amount(transfer), 0);
 
-        let recipient = from_bcs::to_address(get_bytes(&transfer::get_to(transfer)));
+        let recipient_coins = bridge_state::mint<CoinType>(origin_info, bridge_state, amount, ctx);
+        transfer_object::transfer(recipient_coins, recipient);
 
-        let recipient_coins: Coin<CoinType>;
-
-        // get treasury cap and mint wrapped tokens to receiver
-        // TODO - call bridge_state::mint to mint coins
-
-        recipient_coins = wrapped::mint<CoinType>(amount);
-
-        // take out fee from the recipient's coins. `extract` will revert
-        // if fee > amount
-        let fee_coins = coin::extract(&mut recipient_coins, fee_amount);
-        coin::deposit(recipient, recipient_coins);
-        coin::deposit(fee_recipient, fee_coins);
+        //TODO: send fee to fee_recipient
     }
+
+    //TODO: complete_transfer_native_asset
 
 }
