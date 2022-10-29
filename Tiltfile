@@ -90,20 +90,6 @@ if not ci:
 def k8s_yaml_with_ns(objects):
     return k8s_yaml(namespace_inject(objects, namespace))
 
-# protos
-
-proto_deps = ["./proto", "buf.yaml", "buf.gen.yaml"]
-
-local_resource(
-    name = "proto-gen",
-    deps = proto_deps,
-    cmd = "tilt docker build -- --target go-export -f Dockerfile.proto -o type=local,dest=node .",
-    env = {"DOCKER_BUILDKIT": "1"},
-    labels = ["protobuf"],
-    allow_parallel = True,
-    trigger_mode = trigger_mode,
-)
-
 local_resource(
     name = "const-gen",
     deps = ["scripts", "clients", "ethereum/.env.test"],
@@ -263,7 +249,7 @@ def build_node_yaml():
 
 k8s_yaml_with_ns(build_node_yaml())
 
-guardian_resource_deps = ["proto-gen", "eth-devnet"]
+guardian_resource_deps = ["eth-devnet"]
 if evm2:
     guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
 if solana:
@@ -351,7 +337,7 @@ k8s_yaml_with_ns("devnet/spy.yaml")
 
 k8s_resource(
     "spy",
-    resource_deps = ["proto-gen", "guardian"],
+    resource_deps = ["guardian"],
     port_forwards = [
         port_forward(6061, container_port = 6060, name = "Debug/Status Server [:6061]", host = webHost),
         port_forward(7072, name = "Spy gRPC [:7072]", host = webHost),
@@ -448,7 +434,7 @@ if spy_relayer:
 
     k8s_resource(
         "spy-listener",
-        resource_deps = ["proto-gen", "guardian", "redis", "spy"],
+        resource_deps = ["guardian", "redis", "spy"],
         port_forwards = [
             port_forward(6062, container_port = 6060, name = "Debug/Status Server [:6062]", host = webHost),
             port_forward(4201, name = "REST [:4201]", host = webHost),
@@ -462,7 +448,7 @@ if spy_relayer:
 
     k8s_resource(
         "spy-relayer",
-        resource_deps = ["proto-gen", "guardian", "redis"],
+        resource_deps = ["guardian", "redis"],
         port_forwards = [
             port_forward(8083, name = "Prometheus [:8083]", host = webHost),
         ],
@@ -474,7 +460,7 @@ if spy_relayer:
 
     k8s_resource(
         "spy-wallet-monitor",
-        resource_deps = ["proto-gen", "guardian", "redis"],
+        resource_deps = ["guardian", "redis"],
         port_forwards = [
             port_forward(8084, name = "Prometheus [:8084]", host = webHost),
         ],
@@ -573,7 +559,7 @@ if explorer:
     )
     k8s_resource(
         "cloud-functions",
-        resource_deps = ["proto-gen", "bigtable-emulator", "pubsub-emulator"],
+        resource_deps = ["bigtable-emulator", "pubsub-emulator"],
         port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]", host = webHost)],
         labels = ["explorer"],
         trigger_mode = trigger_mode,
