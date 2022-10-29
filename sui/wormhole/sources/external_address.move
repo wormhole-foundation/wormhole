@@ -3,6 +3,8 @@
 module wormhole::external_address {
     use std::vector::{Self};
 
+    use sui::bcs::{Self};
+
     use wormhole::cursor::Cursor;
     use wormhole::deserialize;
     use wormhole::serialize;
@@ -46,6 +48,12 @@ module wormhole::external_address {
 
     public fun serialize(buf: &mut vector<u8>, e: ExternalAddress) {
         serialize::serialize_vector(buf, e.external_address)
+    }
+
+    public fun to_address(e: vector<u8>): address {
+        let b = bcs::new(e);
+        let a = bcs::peel_address(&mut b);
+        return a
     }
 
 }

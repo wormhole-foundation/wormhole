@@ -9,11 +9,12 @@ module token_bridge::treasury {
     use sui::tx_context::{TxContext};
     use sui::object::{Self, UID};
     use sui::coin::{Self, TreasuryCap, Coin};
-    use sui::dynamic_object_field::{Self};
+    //use sui::dynamic_object_field::{Self};
     //use sui::balance::{Self};
     //use sui::transfer::{Self};
 
     friend token_bridge::wrapped;
+    friend token_bridge::bridge_state;
 
     struct TreasuryCapStore<phantom CoinType> has key, store {
         id: UID,
@@ -36,14 +37,15 @@ module token_bridge::treasury {
          TreasuryCapStore<CoinType> { id: object::new(ctx), cap: cap }
     }
 
-    public(friend) fun deposit<CoinType>(store: &mut CoinStore<CoinType>, coin: Coin<CoinType>, ctx: &mut TxContext){
-        coin::join<CoinType>(store, coin);
+    public fun deposit<CoinType>(store: &mut CoinStore<CoinType>, coin: Coin<CoinType>){
+        coin::join<CoinType>(&mut store.coins, coin);
     }
 
-    public(friend) fun withdraw<CoinType>(store: &mut CoinStore<CoinType>, value: u64, ctx: &mut TxContext): Balance<CoinType> {
+    public(friend) fun withdraw<CoinType>(store: &mut CoinStore<CoinType>, value: u64, ctx: &mut TxContext): Coin<CoinType> {
         let balance = coin::balance_mut<CoinType>(&mut store.coins);
         let b = coin::take<CoinType>(balance, value, ctx);
-        return coin::from_balance<CoinType>(b, ctx)
+        return b
+        //return coin::from_balance<CoinType>(b, ctx)
     }
 
     // public(friend) fun create_coin_store<CoinType>(bridge_state: &mut BridgeState, ctx: &mut TxContext) {
@@ -54,7 +56,7 @@ module token_bridge::treasury {
     // One can only call mint in complete_transfer when minting wrapped assets is necessary
     // TODO: get instead of passing in TreasuryCapStore, we should pass in BridgeState,
     //       and get the child TreasuryCapStore object dynamically
-    public(friend) fun mint<T: drop>(
+    public(friend) fun mint<T>(
         cap_container: &mut TreasuryCapStore<T>,
         value: u64,
         ctx: &mut TxContext,

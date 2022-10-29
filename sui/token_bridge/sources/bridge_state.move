@@ -7,8 +7,9 @@ module token_bridge::bridge_state {
    use sui::vec_set::{Self, VecSet};
    use sui::dynamic_object_field::{Self};
    use sui::tx_context::{TxContext};
+   use sui::coin::{Coin};
 
-   use token_bridge::treasury::{Self, CoinStore};
+   use token_bridge::treasury::{Self, CoinStore, TreasuryCapStore};
 
    use wormhole::external_address::ExternalAddress;
    use wormhole::myu16::{U16};
@@ -103,15 +104,15 @@ module token_bridge::bridge_state {
       bridge_state: &mut BridgeState,
       coin: Coin<CoinType>,
       origin_info: OriginInfo,
-      ctx: &mut TxContext
+      _ctx: &mut TxContext
    ) {
 
       // TODO: confirm that CoinStore<CoinType> exists as a child object of bridge_state
       //       if it is not a child object, initialize a CoinStore and transfer it to bridge
       //       if it is, obtain a reference to it
 
-      let coin_store = dynamic_object_field::borrow_mut<OriginInfo, CoinStore>(state.id, origin_info);
-      treasury::deposit<CoinType>(coin_store, coin, ctx);
+      let coin_store = dynamic_object_field::borrow_mut<OriginInfo, CoinStore<CoinType>>(&mut bridge_state.id, origin_info);
+      treasury::deposit<CoinType>(coin_store, coin);
    }
 
    public(friend) fun withdraw<CoinType>(
@@ -120,26 +121,23 @@ module token_bridge::bridge_state {
       origin_info: OriginInfo,
       ctx: &mut TxContext
    ): Coin<CoinType> {
+
       // TODO: confirm that CoinStore<CoinType> exists as a child object of bridge_state
       //      if it is not a child object, initialize a CoinStore and transfer it to bridge
       //      if it is, obtain a reference to it
 
-      let coin_store = dynamic_object_field::borrow_mut<OriginInfo, CoinStore>(state.id, origin_info);
+      let coin_store = dynamic_object_field::borrow_mut<OriginInfo, CoinStore<CoinType>>(&mut bridge_state.id, origin_info);
       let coins = treasury::withdraw<CoinType>(coin_store, value, ctx);
       return coins
-      //let balance_mut = coins::balance_mut<CoinType>(&mut store.coins, ctx);
-      //coin::take<CoinType>(balance_mut, value, ctx)
-      //}
    }
 
    public(friend) fun mint<CoinType>(
       origin_info: OriginInfo,
       state: &mut BridgeState,
-      recipient: address,
       value: u64,
       ctx: &mut TxContext,
    ): Coin<CoinType> {
-      let treasury_cap_store = dynamic_object_field::borrow_mut<OriginInfo, TreasuryCapStore>(state.id, origin_info);
+      let treasury_cap_store = dynamic_object_field::borrow_mut<OriginInfo, TreasuryCapStore<CoinType>>(&mut state.id, origin_info);
       let coins = treasury::mint<CoinType>(treasury_cap_store, value, ctx);
       return coins
    }
