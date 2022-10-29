@@ -4,4 +4,15 @@ module token_bridge::transfer_tokens {
     // - use it to mint tokens
     //
 
+    // public entry fun submit_vaa<CoinType>(
+    //     wormhole_state: &mut WormholeState,
+    //     bridge_state: &mut BridgeState,
+    //     vaa: vector<u8>,
+    //     ctx: &mut TxContext
+    // ) {
+    // }
+
+    // public fun transfer_tokens_internal<CoinType>(){
+    // }
+
 }
