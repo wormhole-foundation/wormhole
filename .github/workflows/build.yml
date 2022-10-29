@@ -264,6 +264,11 @@ jobs:
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
         run: cd node && go test -v -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
+      - name: Ensure generated proto matches
+        run: |
+          rm -rf node/pkg/proto
+          docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
+          git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`rm -rf node/pkg/proto && docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .\` and commit the result" >&2 && exit 1)
 
   # Run Rust lints and tests
   rust-lint-and-tests:
