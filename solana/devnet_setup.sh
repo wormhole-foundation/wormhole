@@ -2,10 +2,13 @@
 # This script configures the devnet for test transfers with hardcoded addresses.
 set -eu
 
-# kick off building worm in the background, and remember the process PID so we
-# can wait on it later
-make -C /usr/src/clients/js install &
-worm_build_pid=$!
+# This script might be run outside of tilt, in which case 'worm' will not have
+# been installed.
+if ! command -v worm &> /dev/null
+then
+    echo "worm binary could not be found. See installation instructions at https://github.com/wormhole-foundation/wormhole/blob/dev.v2/clients/js/README.md" >&2
+    exit 1
+fi
 
 # Configure CLI (works the same as upstream Solana CLI)
 mkdir -p ~/.config/solana/cli
@@ -96,9 +99,6 @@ retry client create-bridge "$bridge_address" "$INIT_SIGNERS_CSV" 86400 100
 retry token-bridge-client create-bridge "$token_bridge_address" "$bridge_address"
 # Initialize the NFT bridge
 retry token-bridge-client create-bridge "$nft_bridge_address" "$bridge_address"
-
-echo "Waiting for worm to finish building"
-wait $worm_build_pid
 
 # next we get all the registration VAAs from the environment
 # if a new VAA is added, this will automatically pick it up
