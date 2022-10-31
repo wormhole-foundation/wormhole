@@ -65,7 +65,7 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 	nearFinalizedCacheMisses := promauto.With(reg).NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_near_finalized_cache_misses",
-			Help: "Total number of verified Near observations found",
+			Help: "Number of times the watcher needed to check the finalization status of a block by walking the chain forward because the finalization status was not cached.",
 		})
 
 	nearRpcErrorCounter := promauto.With(reg).NewCounter(
