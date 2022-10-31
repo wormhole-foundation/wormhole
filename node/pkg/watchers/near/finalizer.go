@@ -72,13 +72,14 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 	startingBlockHeight := queriedBlock.Header.Height
 
 	for i := 0; i < nearBlockchainMaxGaps; i++ {
-		block, err := f.nearAPI.GetBlockByHeight(ctx, startingBlockHeight+uint64(2+i))
+		blockHeightToQuery := startingBlockHeight + uint64(2+i) // we start at height+2 because NEAR consensus takes at least two blocks to reach finality.
+		block, err := f.nearAPI.GetBlockByHeight(ctx, blockHeightToQuery)
 		if err != nil {
 			break
 		}
 
 		// SECURITY defense-in-depth check
-		if block.Header.Height != startingBlockHeight+uint64(2+i) {
+		if block.Header.Height != blockHeightToQuery {
 			// SECURITY violation: Block height is different than what we queried for
 			logger.Panic("NEAR RPC Inconsistent", zap.String("error_type", "nearapi_inconsistent"), zap.String("inconsistency", "block_height_result_different_from_query"))
 		}
