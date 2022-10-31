@@ -15,6 +15,8 @@ module wormhole::wormhole {
 
 // -----------------------------------------------------------------------------
 // Sending messages
+// TODO - make this a non-entry fun, so we can return the sequence number?
+//        as long it is entry, we cannot have a return value
     public entry fun publish_message(
         state: &mut State,
         nonce: u64,

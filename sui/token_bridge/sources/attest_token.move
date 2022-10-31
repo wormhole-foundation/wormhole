@@ -1,7 +1,23 @@
 // TODO - implement attest token when Sui token standard is available,
-//        code for Aptos attest token is below
+module token_bridge::attest_token {
+    use sui::sui::SUI;
+    use sui::coin::Coin;
+    use sui::transfer::transfer;
+    use sui::tx_context::{Self, TxContext};
 
-// module token_bridge::attest_token {
+    use token_bridge::bridge_state::{BridgeState};
+
+    public fun attest_token<CoinType>(
+        _bridge_state: &mut BridgeState,
+        fee_coins: Coin<SUI>,
+        ctx: &mut TxContext
+    ): u64 {
+        transfer(fee_coins, tx_context::sender(ctx));
+        return 0 //sequence number of publish message
+    }
+}
+
+//     Aptos attestation code:
 //     use aptos_framework::aptos_coin::{AptosCoin};
 //     use aptos_framework::coin::{Self, Coin};
 
