@@ -130,6 +130,14 @@ IntelliJ's [remote development backend](https://www.jetbrains.com/remote-develop
 
 ## Tips and tricks
 
+### Generate protos (Go / TypeScript)
+
+As of [#1352](https://github.com/wormhole-foundation/wormhole/pull/1352), the tsproto generated ts files are provided in two npm packages for [node](./sdk/js-proto-node/) and [web](./sdk/js-proto-web/)
+
+As of [#1824](https://github.com/wormhole-foundation/wormhole/pull/1824), changes to the proto files must match the generated go files.
+
+To re-generate these files run `rm -rf node/pkg/proto && docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .` from the root of the repo.
+
 ### Call gRPC services
 
     tools/bin/grpcurl -protoset <(tools/bin/buf build -o -) -plaintext localhost:7072 spy.v1.SpyRPCService/SubscribeSignedVAA
@@ -170,12 +178,6 @@ Guardian events can be persisted to a cloud BigTable instance by passing a GCP p
 Launch the devnet with flags supplying your database info to forward events to your cloud BigTable, rather than the local devnet BigTable emulator:
 
     tilt up -- --num=1  --gcpProject=your-project-id --bigTableKeyPath=./your-service-account-key.json
-
-### bridge UI
-
-Run the bridge UI in devnet by supplying the `--bridge_ui` flag:
-
-    tilt up -- --bridge_ui
 
 ### Algorand
 
