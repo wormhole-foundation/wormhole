@@ -48,7 +48,7 @@ func (f Finalizer) isFinalizedCached(logger *zap.Logger, ctx context.Context, bl
 	return false, nearapi.BlockHeader{}
 }
 
-// isFinalized() checks if a block is finalized by looking at the local cache first. If therer is an error during execution it returns false.
+// isFinalized() checks if a block is finalized by looking at the local cache first. If there is an error during execution it returns false.
 // If it is not found in the cache, we walk forward up to nearBlockchainMaxGaps blocks by height,
 // starting at the block's height+2 and check if their value of "last_final_block" matches
 // the block in question.
