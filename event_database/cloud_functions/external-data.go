@@ -119,8 +119,6 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 		return "" // TODO: not currently supported
 	case vaa.ChainIDXpla:
 		return "" // TODO: not currently supported
-	case vaa.ChainIDEthereumRopsten:
-		return "ethereum"
 	}
 	return ""
 }

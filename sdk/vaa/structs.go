@@ -168,8 +168,6 @@ func (c ChainID) String() string {
 		return "aptos"
 	case ChainIDSui:
 		return "sui"
-	case ChainIDEthereumRopsten:
-		return "ethereum-ropsten"
 	case ChainIDKarura:
 		return "karura"
 	case ChainIDAcala:
@@ -229,8 +227,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDSui, nil
 	case "aptos":
 		return ChainIDAptos, nil
-	case "ethereum-ropsten":
-		return ChainIDEthereumRopsten, nil
 	case "karura":
 		return ChainIDKarura, nil
 	case "acala":
@@ -312,9 +308,6 @@ const (
 	ChainIDXpla ChainID = 28
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
-
-	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
-	ChainIDEthereumRopsten ChainID = 10001
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER
