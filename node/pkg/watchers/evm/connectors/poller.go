@@ -67,10 +67,11 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 					break
 				}
 				logger.Error("polling encountered an error", zap.Error(err))
+				time.Sleep(b.Delay)
 			}
 
 			if err != nil {
-				b.errFeed.Send("polling encountered an error")
+				b.errFeed.Send(fmt.Sprint("polling encountered an error: ", err))
 			}
 			timer.Reset(b.Delay)
 		}
