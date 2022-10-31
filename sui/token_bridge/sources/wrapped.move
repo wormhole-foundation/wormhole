@@ -18,7 +18,7 @@ module token_bridge::wrapped {
     //     t: TreasuryCap<CoinType>,
     // }
 
-    public fun create_wrapped_coin<T: drop>(
+    public entry fun create_wrapped_coin<T: drop>(
         state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         vaa: vector<u8>,

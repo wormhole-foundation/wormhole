@@ -1,18 +1,21 @@
 module token_bridge::bridge_state {
    //use std::vector::{Self};
    use std::option::{Self, Option};
+   use std::vector::{Self};
 
-   use sui::object::{UID};
+   use sui::object::{Self, UID};
    use sui::vec_map::{Self, VecMap};
    use sui::vec_set::{Self, VecSet};
    use sui::dynamic_object_field::{Self};
    use sui::tx_context::{TxContext};
    use sui::coin::{Coin};
+   use sui::transfer::{Self};
+   use sui::tx_context::{Self};
 
    use token_bridge::treasury::{Self, CoinStore, TreasuryCapStore};
 
-   use wormhole::external_address::ExternalAddress;
-   use wormhole::myu16::{U16};
+   use wormhole::external_address::{Self, ExternalAddress};
+   use wormhole::myu16::{Self as u16, U16};
 
    const E_ORIGIN_CHAIN_MISMATCH: u64 = 0;
    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 1;
@@ -39,20 +42,57 @@ module token_bridge::bridge_state {
       }
    }
 
+   // TODO - move to newtypes
+   struct ConsumedVAA {
+      hash: vector<u8>
+   }
+
+   // TODO - move to newtypes
+   struct RegisteredEmitter {
+      emitter: ExternalAddress
+   }
+
+   // Treasury caps, token stores, consumed VAAs, registered emitters, etc.
+   // are stored as dynamic fields of bridge state.
    struct BridgeState has key, store {
       id: UID,
       governance_chain_id: U16,
       governance_contract: ExternalAddress,
 
-      /// Set of consumed VAA hashes
+      /// Set of consumed VAA hashes - TODO, remove
       consumed_vaas: VecSet<vector<u8>>,
 
       /// Track treasury caps IDs, which are mutably shared
       // treasury_cap_stores: VecMap<OriginInfo, &UID>,
 
-      // Mapping of bridge contracts on other chains
+      // Mapping of bridge contracts on other chains - TODO, remove
       registered_emitters: VecMap<U16, ExternalAddress>,
    }
+
+   fun init(ctx: &mut TxContext) {
+        transfer::transfer(BridgeState {
+            id: object::new(ctx),
+            governance_chain_id: u16::from_u64(0),
+            governance_contract: external_address::from_bytes(vector::empty<u8>()),
+            consumed_vaas: vec_set::empty<vector<u8>>(),
+            registered_emitters: vec_map::empty<U16, ExternalAddress>(),
+        }, tx_context::sender(ctx));
+    }
+
+    // converts owned state object into a shared object, so that anyone can get a reference to &mut State
+    // and pass it into various functions
+    public entry fun init_and_share_state(
+        state: BridgeState,
+        governance_chain_id: u64,
+        governance_contract: vector<u8>,
+        _ctx: &mut TxContext
+    ) {
+        set_governance_chain_id(&mut state, u16::from_u64(governance_chain_id));
+        set_governance_contract(&mut state, external_address::from_bytes(governance_contract));
+
+        // permanently shares state
+        transfer::share_object(state);
+    }
 
    // getters
 
@@ -67,30 +107,6 @@ module token_bridge::bridge_state {
    public fun governance_contract(state: &BridgeState): ExternalAddress {
       state.governance_contract
    }
-
-   // public fun wrapped_asset_info(native_info: OriginInfo): TypeInfo acquires State {
-   //    let wrapped_infos = &borrow_global<State>(@token_bridge).wrapped_infos;
-   //    let type_info = table::borrow(wrapped_infos, native_info).type_info;
-   //    assert!(option::is_some(&type_info), E_WRAPPED_ASSET_NOT_INITIALIZED);
-   //    option::extract(&mut type_info)
-   // }
-
-   // public fun native_asset_info(token_address: TokenHash): TypeInfo acquires State {
-   //    let native_infos = &borrow_global<State>(@token_bridge).native_infos;
-   //    *table::borrow(native_infos, token_address)
-   // }
-
-   /// Returns the origin information for a CoinType
-   // public fun origin_info<CoinType>(): OriginInfo acquires OriginInfo {
-   //    if (is_wrapped_asset<CoinType>()) {
-   //       *borrow_global<OriginInfo>(type_info::account_address(&type_of<CoinType>()))
-   //    } else {
-   //       let token_chain = state::get_chain_id();
-   //       let token_address = token_hash::get_external_address(&token_hash::derive<CoinType>());
-   //       OriginInfo { token_chain, token_address }
-   //    }
-   // }
-
 
    public fun get_registered_emitter(state: &BridgeState, chain_id: &U16): Option<ExternalAddress> {
       if (vec_map::contains(&state.registered_emitters, chain_id)) {
