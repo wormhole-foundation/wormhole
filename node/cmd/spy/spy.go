@@ -142,53 +142,45 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 }
 
 // TransactionIdMatches decodes both transactionIDs and checks if they are the same.
-func TransactionIdMatches(batch *vaa.BatchVAA, t *spyv1.BatchFilter) (matches bool, err error) {
-
+func TransactionIdMatches(batch *vaa.BatchVAA, t *spyv1.BatchFilter) (bool, error) {
 	// first check if the transaction IDs match
 	filterHash, err := vaa.StringToHash(t.TransactionId)
 	if err != nil {
-		return matches, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode filter's txId: %v", err))
+		return false, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode filter's txId: %v", err))
 	}
 
-	matches = filterHash == batch.TransactionID
+	matches := filterHash == batch.TransactionID
 	return matches, nil
 }
 
 // BatchMatchFilter asserts that the obervation matches the values of the filter.
-func BatchMatchesFilter(batch *vaa.BatchVAA, f *spyv1.BatchFilter) (matches bool, err error) {
-
+func BatchMatchesFilter(batch *vaa.BatchVAA, f *spyv1.BatchFilter) (bool, error) {
+	// check the transaction identifier matches
 	txMatch, err := TransactionIdMatches(batch, f)
-	if err != nil {
-		return matches, err
+	if err != nil || !txMatch {
+		return false, err
 	}
 
-	if txMatch {
-		// the BatchVAA's transaction ID matches the transaction ID of this filter.
-		// now check if the other properties of the filter match.
+	// the BatchVAA's transaction ID matches the transaction ID of this filter.
+	// now check if the other properties of the filter match.
+	if obs := batch.Observations[0]; obs != nil {
+		obsVAA := obs.Observation
 
-		if obs := batch.Observations[0]; obs != nil {
-			obsVAA := obs.Observation
+		if obsVAA.EmitterChain == vaa.ChainID(f.ChainId) {
+			// the emitter chain of the observation matches the filter
 
-			if obsVAA.EmitterChain == vaa.ChainID(f.ChainId) {
-				// the emitter chain of the observation matches the filter
-
-				if f.Nonce >= 1 {
-					// filter has a nonce, so make sure it matches
-					if obsVAA.Nonce == f.Nonce {
-						// filter's nonce matches the nonce of the obervations. send it.
-						matches = true
-						return matches, err
-					}
-
-				} else {
-					// filter does not have a nonce, everything else matched, send it.
-					matches = true
-					return matches, err
+			if f.Nonce >= 1 {
+				// filter has a nonce, so make sure it matches
+				if obsVAA.Nonce != f.Nonce {
+					// filter's nonce does not match the nonce of the obervation.
+					return false, nil
 				}
 			}
+			return true, nil
 		}
 	}
-	return matches, err
+
+	return false, nil
 }
 
 func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
