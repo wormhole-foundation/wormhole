@@ -859,7 +859,7 @@ yargs(hideBin(process.argv))
         const algorand = require("./algorand")
         await algorand.execute_algorand(
           parsed_vaa.payload,
-          Buffer.from(vaa_hex, "hex"),
+          new Uint8Array(Buffer.from(vaa_hex, "hex")),
           network
         );
       } else if (chain === "near") {
