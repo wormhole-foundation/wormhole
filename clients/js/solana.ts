@@ -4,7 +4,7 @@ import { impossible, Payload, VAA } from "./vaa";
 import base58 from "bs58";
 import { CHAINS, CONTRACTS, SolanaChainName } from '@certusone/wormhole-sdk/lib/cjs/utils/consts';
 import { importCoreWasm, importNftWasm, importTokenWasm } from '@certusone/wormhole-sdk/lib/cjs/solana/wasm';
-import { ixFromRust, postVaaSolanaWithRetry } from '@certusone/wormhole-sdk/lib/cjs/solana';
+import { postVaaSolanaWithRetry } from '@certusone/wormhole-sdk/lib/cjs/solana';
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -108,7 +108,7 @@ export async function execute_solana(
     bridge_id.toString(), from.publicKey.toString(), vaa, 5)
 
   // Then do the actual thing
-  let transaction = new web3s.Transaction().add(ixFromRust(ix))
+  let transaction = new web3s.Transaction().add(ix)
 
   let signature = await web3s.sendAndConfirmTransaction(
     connection,

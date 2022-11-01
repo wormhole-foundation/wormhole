@@ -139,10 +139,6 @@ const MAINNET = {
     rpc: "https://rpc.gnosischain.com/",
     key: get_env_var("ETH_KEY"),
   },
-  ropsten: {
-    rpc: `https://rpc.ankr.com/eth_ropsten`,
-    key: get_env_var("ETH_KEY"),
-  },
 };
 
 const TESTNET = {
@@ -269,10 +265,6 @@ const TESTNET = {
     rpc: "https://sokol.poa.network/",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
-  ropsten: {
-    rpc: `https://rpc.ankr.com/eth_ropsten`,
-    key: get_env_var("ETH_KEY_TESTNET"),
-  },
 };
 
 const DEVNET = {
@@ -397,10 +389,6 @@ const DEVNET = {
   gnosis: {
     rpc: undefined,
     key: undefined,
-  },
-  ropsten: {
-    rpc: undefined,
-    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
 };
 
