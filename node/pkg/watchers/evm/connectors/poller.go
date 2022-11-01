@@ -67,6 +67,9 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 					break
 				}
 				logger.Error("polling encountered an error", zap.Error(err))
+
+				// Wait an interval before trying again. We stay in this loop so that we
+				// try up to three times before causing the watcher to restart.
 				time.Sleep(b.Delay)
 			}
 
