@@ -307,7 +307,11 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 OUTER:
 	for txNum, txRpc := range out.Transactions {
 		if txRpc.Meta.Err != nil {
-			logger.Info("Transaction failed, skipping it", zap.Int("txNum", txNum))
+			logger.Debug("Transaction failed, skipping it",
+				zap.Uint64("slot", slot),
+				zap.Int("txNum", txNum),
+				zap.String("err", fmt.Sprint(txRpc.Meta.Err)),
+			)
 			continue
 		}
 		tx, err := txRpc.GetTransaction()
