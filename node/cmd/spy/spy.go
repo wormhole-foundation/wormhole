@@ -89,7 +89,7 @@ type subscriptionSignedVaa struct {
 	ch      chan message
 }
 type subscriptionAllVaa struct {
-	filters []spyv1.FilterEntry
+	filters []*spyv1.FilterEntry
 	ch      chan *spyv1.SubscribeSignedVAAByTypeResponse
 }
 
@@ -271,10 +271,8 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 		} else {
 			// this subscription has filters.
 
-			for i := range sub.filters {
-				// get the filter by index/GetFilter rather than from range,
-				// so as to not copy the mutex within the Filter.
-				filter := sub.filters[i].GetFilter()
+			for _, filterEntry := range sub.filters {
+				filter := filterEntry.GetFilter()
 				switch t := filter.(type) {
 				case *spyv1.FilterEntry_EmitterFilter:
 
@@ -383,7 +381,7 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 // SubscribeSignedVAAByType fields requests for subscriptions. Each new subscription adds a channel and request params (filters)
 // to the map of active subscriptions.
 func (s *spyServer) SubscribeSignedVAAByType(req *spyv1.SubscribeSignedVAAByTypeRequest, resp spyv1.SpyRPCService_SubscribeSignedVAAByTypeServer) error {
-	var fi []spyv1.FilterEntry
+	var fi []*spyv1.FilterEntry
 	if req.Filters != nil {
 		for _, f := range req.Filters {
 			switch t := f.Filter.(type) {
@@ -394,7 +392,7 @@ func (s *spyServer) SubscribeSignedVAAByType(req *spyv1.SubscribeSignedVAAByType
 				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
 				}
-				fi = append(fi, spyv1.FilterEntry{Filter: t})
+				fi = append(fi, &spyv1.FilterEntry{Filter: t})
 
 			case *spyv1.FilterEntry_BatchFilter:
 				// validate the TransactionId is valid by decoding it.
@@ -402,7 +400,7 @@ func (s *spyServer) SubscribeSignedVAAByType(req *spyv1.SubscribeSignedVAAByType
 				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode filter's txId: %v", err))
 				}
-				fi = append(fi, spyv1.FilterEntry{Filter: t})
+				fi = append(fi, &spyv1.FilterEntry{Filter: t})
 
 			case *spyv1.FilterEntry_BatchTransactionFilter:
 				// validate the TransactionId is valid by decoding it.
@@ -410,7 +408,7 @@ func (s *spyServer) SubscribeSignedVAAByType(req *spyv1.SubscribeSignedVAAByType
 				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode filter's txId: %v", err))
 				}
-				fi = append(fi, spyv1.FilterEntry{Filter: t})
+				fi = append(fi, &spyv1.FilterEntry{Filter: t})
 			default:
 				return status.Error(codes.InvalidArgument, "unsupported filter type")
 			}
