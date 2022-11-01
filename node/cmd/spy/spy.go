@@ -202,6 +202,11 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 	var v *vaa.VAA
 	var b *vaa.BatchVAA
 
+	// is the byte array a VAA (v1)
+	isVAA := false
+	// is the byte array a BatchVAA (v2)
+	isBatch := false
+
 	v, err := vaa.Unmarshal(vaaBytes)
 	// do nothing with the error, until we can try to unmarshal the bytes as a batch.
 	if err != nil {
@@ -210,10 +215,19 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 		// it is not a VAA, try unmarshaling to a BatchVAA
 		b, err = vaa.UnmarshalBatch(vaaBytes)
 		if err != nil {
-			// it is not either type of VAA we know, nothing to do.
-			return err
+			// it is not either type of VAA we know.
+			// do not throw, this is not unexpected.
+			// it will be returned to subscribers with no filters.
+			s.logger.Warn("encountered a VAA of unknown type.",
+				zap.ByteString("vaaBytes", vaaBytes))
 		}
 	}
+
+	// find EmitterFilter values within the structs,
+	// so they can be considered for EmitterFilter subs,
+	// without being concerned about the VAA type.
+	var emitterAddress vaa.Address
+	var emitterChain vaa.ChainID
 
 	// create the response(s) that will get sent out if this VAA satisfies a subscription.
 
@@ -221,7 +235,11 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 	var topRes *spyv1.SubscribeSignedVAAByTypeResponse
 
 	// if v has values, the VAA unmarshal was successful.
-	if len(v.Payload) > 0 {
+	if v != nil && len(v.Payload) > 0 {
+		isVAA = true
+		emitterAddress = v.EmitterAddress
+		emitterChain = v.EmitterChain
+
 		// resData is the lowest level proto struct, it holds the byte data for whatever
 		// type of response it is (VAA in this case).
 		resData := &spyv1.SubscribeSignedVAAResponse{
@@ -243,7 +261,13 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 	}
 
 	// if b has vaules, the BatchVAA unmarshal was successful.
-	if len(b.Observations) > 0 {
+	if b != nil && len(b.Observations) > 0 {
+		isBatch = true
+		// take the EmitterAddress from the first Observation in the batch,
+		// since it's not in the header of the BatchVAA.
+		emitterAddress = b.Observations[0].Observation.EmitterAddress
+		emitterChain = b.EmitterChain
+
 		// resData is the lowest level proto struct, it holds the byte data for whatever
 		// type of response it is (BatchVAA in this case).
 		resData := &spyv1.SubscribeSignedBatchVAAResponse{
@@ -271,28 +295,25 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 		} else {
 			// this subscription has filters.
 
+			if !isVAA && !isBatch {
+				// if the vaaBytes are of an unknown type, it won't match any filters.
+				continue
+			}
+
 			for _, filterEntry := range sub.filters {
 				filter := filterEntry.GetFilter()
 				switch t := filter.(type) {
 				case *spyv1.FilterEntry_EmitterFilter:
 
-					// take an observation from the batch's list, set it to VAA
-					// so it's data can be considered for a filter match.
-					if len(b.Observations) > 0 {
-						v = b.Observations[0].Observation
+					filterAddr, err := decodeEmitterAddr(t.EmitterFilter.EmitterAddress)
+					if err != nil {
+						return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
 					}
+					filterChain := vaa.ChainID(t.EmitterFilter.ChainId)
 
-					if len(v.EmitterAddress) > 0 && v.EmitterChain > 0 {
-						// emitter chain of the vaa and filter match
-
-						addr, err := decodeEmitterAddr(t.EmitterFilter.EmitterAddress)
-						if err != nil {
-							return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
-						}
-						if v.EmitterChain == vaa.ChainID(t.EmitterFilter.ChainId) && addr == v.EmitterAddress {
-							// it is a match, send the response
-							sub.ch <- topRes
-						}
+					if filterChain == emitterChain && filterAddr == emitterAddress {
+						// it is a match, send the response
+						sub.ch <- topRes
 					}
 
 				case *spyv1.FilterEntry_BatchFilter:
