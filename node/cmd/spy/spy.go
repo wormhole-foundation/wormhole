@@ -2,7 +2,6 @@ package spy
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
@@ -95,21 +94,6 @@ type subscriptionAllVaa struct {
 
 func subscriptionId() string {
 	return uuid.New().String()
-}
-
-func decodeEmitterAddr(hexAddr string) (vaa.Address, error) {
-	address, err := hex.DecodeString(hexAddr)
-	if err != nil {
-		return vaa.Address{}, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode address: %v", err))
-	}
-	if len(address) != 32 {
-		return vaa.Address{}, status.Error(codes.InvalidArgument, "address must be 32 bytes")
-	}
-
-	addr := vaa.Address{}
-	copy(addr[:], address)
-
-	return addr, nil
 }
 
 func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
@@ -297,7 +281,7 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 				switch t := filter.(type) {
 				case *spyv1.FilterEntry_EmitterFilter:
 
-					filterAddr, err := decodeEmitterAddr(t.EmitterFilter.EmitterAddress)
+					filterAddr, err := vaa.StringToAddress(t.EmitterFilter.EmitterAddress)
 					if err != nil {
 						return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
 					}
@@ -348,7 +332,7 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 		for _, f := range req.Filters {
 			switch t := f.Filter.(type) {
 			case *spyv1.FilterEntry_EmitterFilter:
-				addr, err := decodeEmitterAddr(t.EmitterFilter.EmitterAddress)
+				addr, err := vaa.StringToAddress(t.EmitterFilter.EmitterAddress)
 				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
 				}
@@ -401,7 +385,7 @@ func (s *spyServer) SubscribeSignedVAAByType(req *spyv1.SubscribeSignedVAAByType
 
 			case *spyv1.FilterEntry_EmitterFilter:
 				// validate the emitter address is valid by decoding it
-				_, err := decodeEmitterAddr(t.EmitterFilter.EmitterAddress)
+				_, err := vaa.StringToAddress(t.EmitterFilter.EmitterAddress)
 				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
 				}
