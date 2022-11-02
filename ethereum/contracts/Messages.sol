@@ -15,7 +15,7 @@ contract Messages is Getters {
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
     function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         vm = parseVM(encodedVM);
-        (valid, reason) = verifyVM(vm);
+        (valid, reason) = verifyVMInternal(vm);
     }
 
    /**
@@ -26,6 +26,77 @@ contract Messages is Getters {
     *  - it aims to verify the signatures provided against the guardianSet
     */
     function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
+        /// @dev Obtain the current guardianSet for the guardianSetIndex provided
+        Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
+
+        /**
+         * @dev Verify that the hash field in the vm matches with the hash of the contents of the vm
+         * WARNING: This hash check is critical to ensure that the vm.hash provided matches with the hash of the body.
+         * Without this check, it would not be safe to call verifyVM on it's own as vm.hash can be a valid signed hash
+         * but the body of the vm could be completely different from what was actually signed by the guardians
+         */
+        bytes memory body = abi.encodePacked(
+            vm.timestamp,
+            vm.nonce,
+            vm.emitterChainId,
+            vm.emitterAddress,
+            vm.sequence,
+            vm.consistencyLevel,
+            vm.payload
+        );
+
+        bytes32 vmHash = keccak256(abi.encodePacked(keccak256(body)));
+
+        if(vmHash != vm.hash){
+            return (false, "vm.hash doesn't match body");
+
+        }
+
+       /**
+        * @dev Checks whether the guardianSet has zero keys
+        * WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure
+        * that guardianSet key size doesn't fall to zero and negatively impact quorum assessment.  If guardianSet
+        * key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and
+        * signature verification.
+        */
+        if(guardianSet.keys.length == 0){
+            return (false, "invalid guardian set");
+        }
+
+        /// @dev Checks if VM guardian set index matches the current index (unless the current set is expired).
+        if(vm.guardianSetIndex != getCurrentGuardianSetIndex() && guardianSet.expirationTime < block.timestamp){
+            return (false, "guardian set has expired");
+        }
+
+       /**
+        * @dev We're using a fixed point number transformation with 1 decimal to deal with rounding.
+        *   WARNING: This quorum check is critical to assessing whether we have enough Guardian signatures to validate a VM
+        *   if making any changes to this, obtain additional peer review. If guardianSet key length is 0 and
+        *   vm.signatures length is 0, this could compromise the integrity of both vm and signature verification.
+        */
+        if (vm.signatures.length < quorum(guardianSet.keys.length)){
+            return (false, "no quorum");
+        }
+
+        /// @dev Verify the proposed vm.signatures against the guardianSet
+        (bool signaturesValid, string memory invalidReason) = verifySignatures(vm.hash, vm.signatures, guardianSet);
+        if(!signaturesValid){
+            return (false, invalidReason);
+        }
+
+        /// If we are here, we've validated the VM is a valid multi-sig that matches the guardianSet.
+        return (true, "");
+    }
+
+    /**
+    * @dev `verifyVMInternal` serves to validate an arbitrary vm against a valid Guardian set
+    *  - it is similar to verifyVM but drops the verification of the hash as it is called on the result of parseVM whose vm.hash field can be trusted.
+    *  - it aims to make sure the VM is for a known guardianSet
+    *  - it aims to ensure the guardianSet is not expired
+    *  - it aims to ensure the VM has reached quorum
+    *  - it aims to verify the signatures provided against the guardianSet
+    */
+    function verifyVMInternal(Structs.VM memory vm) internal view returns (bool valid, string memory reason) {
         /// @dev Obtain the current guardianSet for the guardianSetIndex provided
         Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
 
@@ -64,6 +135,7 @@ contract Messages is Getters {
         /// If we are here, we've validated the VM is a valid multi-sig that matches the guardianSet.
         return (true, "");
     }
+
 
     /**
      * @dev verifySignatures serves to validate arbitrary sigatures against an arbitrary guardianSet
