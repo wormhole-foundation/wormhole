@@ -1,5 +1,0 @@
-FROM ghcr.io/wormhole-foundation/sui:0.12.2@sha256:744526fa1d6f1a962e192a4d00bed50f71192f00ecb4d9bd33271ee82055c373 as sui-node
-FROM scratch
-COPY --from=sui-node /root/.cargo/bin/sui .
-COPY --from=sui-node /root/.cargo/bin/sui-faucet .
-COPY --from=sui-node /root/.cargo/bin/rpc-server .

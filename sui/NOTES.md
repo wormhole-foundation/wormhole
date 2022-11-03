@@ -12,8 +12,6 @@ brew install cmake
 
   % ./start_node.sh
 
-=== Running under tilt
-
 # If you don't remember your newly generated address
 
    % sui client addresses
