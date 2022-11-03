@@ -1,6 +1,7 @@
 package spy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -125,196 +126,76 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 	return nil
 }
 
-// TransactionIdMatches decodes both transactionIDs and checks if they are the same.
-func TransactionIdMatches(batch *vaa.BatchVAA, t *spyv1.BatchFilter) (bool, error) {
-	// first check if the transaction IDs match
-	filterHash, err := vaa.StringToHash(t.TransactionId)
-	if err != nil {
-		return false, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode filter's txId: %v", err))
-	}
-
-	matches := filterHash == batch.TransactionID
-	return matches, nil
+// TransactionIdMatches checks if both TxIds have the same value.
+func TransactionIdMatches(g *gossipv1.SignedBatchVAAWithQuorum, t *spyv1.BatchFilter) bool {
+	return bytes.Equal(g.TxId, t.TxId)
 }
 
 // BatchMatchFilter asserts that the obervation matches the values of the filter.
-func BatchMatchesFilter(batch *vaa.BatchVAA, f *spyv1.BatchFilter) (bool, error) {
-	// check the transaction identifier matches
-	txMatch, err := TransactionIdMatches(batch, f)
-	if err != nil || !txMatch {
-		return false, err
+func BatchMatchesFilter(g *gossipv1.SignedBatchVAAWithQuorum, f *spyv1.BatchFilter) bool {
+	// check the chain ID
+	if g.ChainId != uint32(f.ChainId) {
+		return false
 	}
 
-	// the BatchVAA's transaction ID matches the transaction ID of this filter.
-	// now check if the other properties of the filter match.
-	if obs := batch.Observations[0]; obs != nil {
-		obsVAA := obs.Observation
+	// check the transaction ID
+	txMatch := TransactionIdMatches(g, f)
+	if !txMatch {
+		return false
+	}
 
-		if obsVAA.EmitterChain == vaa.ChainID(f.ChainId) {
-			// the emitter chain of the observation matches the filter
-
-			if f.Nonce >= 1 {
-				// filter has a nonce, so make sure it matches
-				if obsVAA.Nonce != f.Nonce {
-					// filter's nonce does not match the nonce of the obervation.
-					return false, nil
-				}
-			}
-			return true, nil
+	// check the Nonce
+	if f.Nonce >= 1 {
+		// filter has a nonce, so make sure it matches
+		if g.Nonce != f.Nonce {
+			// filter's nonce does not match the nonce of the Batch.
+			return false
 		}
 	}
 
-	return false, nil
+	return true
 }
 
-func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
+// HandleGossipVAA compares a gossip message to client subscriptions & filters,
+// and forwards the VAA to those requesting it.
+func (s *spyServer) HandleGossipVAA(g *gossipv1.SignedVAAWithQuorum) error {
 	s.subsAllVaaMu.Lock()
 	defer s.subsAllVaaMu.Unlock()
 
-	// this will try to unmarshal the byte array to a VAA, and then to a BatchVAA.
-	// the unmarshaling could populate one of the variable below. it's also possible
-	// a new type of vaaBytes comes through, so the variables below could remain empty.
-
-	var v *vaa.VAA
-	var b *vaa.BatchVAA
-
-	// is the byte array a VAA (v1)
-	isVAA := false
-	// is the byte array a BatchVAA (v2)
-	isBatch := false
-
-	v, err := vaa.Unmarshal(vaaBytes)
-	// do nothing with the error, until we can try to unmarshal the bytes as a batch.
+	v, err := vaa.Unmarshal(g.Vaa)
 	if err != nil {
-		// check if it is a batch
-
-		// it is not a VAA, try unmarshaling to a BatchVAA
-		b, err = vaa.UnmarshalBatch(vaaBytes)
-		if err != nil {
-			// it is not either type of VAA we know.
-			// do not throw, this is not unexpected.
-			// it will be returned to subscribers with no filters.
-			s.logger.Warn("encountered a VAA of unknown type.",
-				zap.ByteString("vaaBytes", vaaBytes))
-		}
+		s.logger.Error("failed unmarshaing VAA bytes from gossipv1.SignedVAAWithQuorum.",
+			zap.Error(err))
+		return err
 	}
 
-	// find EmitterFilter values within the structs,
-	// so they can be considered for EmitterFilter subs,
-	// without being concerned about the VAA type.
-	var emitterAddress vaa.Address
-	var emitterChain vaa.ChainID
-
-	// create the response(s) that will get sent out if this VAA satisfies a subscription.
-
-	// create the top-level response struct that is agnostic to the VAA type
-	var topRes *spyv1.SubscribeSignedVAAByTypeResponse
-
-	// if v has values, the VAA unmarshal was successful.
-	if v != nil && len(v.Payload) > 0 {
-		isVAA = true
-		emitterAddress = v.EmitterAddress
-		emitterChain = v.EmitterChain
-
-		// resData is the lowest level proto struct, it holds the byte data for whatever
-		// type of response it is (VAA in this case).
-		resData := &spyv1.SubscribeSignedVAAResponse{
-			VaaBytes: vaaBytes,
-		}
-
-		// resType defines what struct vaa will be retuned below, res of type SignedVaa
-		resType := &spyv1.SubscribeSignedVAAByTypeResponse_SignedVaa{
-			SignedVaa: resData,
-		}
-
-		// topRes is the highest level proto struct, the response to the subscription
-		topRes = &spyv1.SubscribeSignedVAAByTypeResponse{
-			// VaaType: &spyv1.SubscribeSignedVAAByTypeResponse_SignedVaa{
-			VaaType: resType,
-		}
-
-		// the proto is fully constructed ready to send.
+	// resType defines which oneof proto will be retuned - res type "SignedVaa" is *gossipv1.SignedVAAWithQuorum
+	resType := &spyv1.SubscribeSignedVAAByTypeResponse_SignedVaa{
+		SignedVaa: g,
 	}
 
-	// if b has vaules, the BatchVAA unmarshal was successful.
-	if b != nil && len(b.Observations) > 0 {
-		isBatch = true
-		// take the EmitterAddress from the first Observation in the batch,
-		// since it's not in the header of the BatchVAA.
-		emitterAddress = b.Observations[0].Observation.EmitterAddress
-		emitterChain = b.EmitterChain
-
-		// resData is the lowest level proto struct, it holds the byte data for whatever
-		// type of response it is (BatchVAA in this case).
-		resData := &spyv1.SubscribeSignedBatchVAAResponse{
-			BatchVaa: vaaBytes,
-		}
-
-		// resType defines what struct vaa will be retuned below, res of type SignedBatchVaa.
-		resType := &spyv1.SubscribeSignedVAAByTypeResponse_SignedBatchVaa{
-			SignedBatchVaa: resData,
-		}
-
-		// topRes is the highest level proto struct, the response to the subscription
-		topRes = &spyv1.SubscribeSignedVAAByTypeResponse{
-			// VaaType: &spyv1.SubscribeSignedVAAByTypeResponse_SignedVaa{
-			VaaType: resType,
-		}
-		// proto is fully constructed ready to send.
+	// envelope is the highest level proto struct, the wrapper proto that contains one of the VAA types.
+	envelope := &spyv1.SubscribeSignedVAAByTypeResponse{
+		VaaType: resType,
 	}
 
 	// loop through the subscriptions and send responses to everyone that wants this VAA
 	for _, sub := range s.subsAllVaa {
 		if len(sub.filters) == 0 {
 			// this subscription has no filters, send them the VAA.
-			sub.ch <- topRes
+			sub.ch <- envelope
 		} else {
 			// this subscription has filters.
-
-			if !isVAA && !isBatch {
-				// if the vaaBytes are of an unknown type, it won't match any filters.
-				continue
-			}
-
 			for _, filterEntry := range sub.filters {
 				filter := filterEntry.GetFilter()
 				switch t := filter.(type) {
 				case *spyv1.FilterEntry_EmitterFilter:
-
-					filterAddr, err := vaa.StringToAddress(t.EmitterFilter.EmitterAddress)
-					if err != nil {
-						return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
-					}
+					filterAddr := t.EmitterFilter.EmitterAddress
 					filterChain := vaa.ChainID(t.EmitterFilter.ChainId)
 
-					if filterChain == emitterChain && filterAddr == emitterAddress {
+					if v.EmitterChain == filterChain && v.EmitterAddress.String() == filterAddr {
 						// it is a match, send the response
-						sub.ch <- topRes
-					}
-
-				case *spyv1.FilterEntry_BatchFilter:
-					match, err := BatchMatchesFilter(b, t.BatchFilter)
-					if err != nil {
-						return err
-					}
-					if match {
-						sub.ch <- topRes
-					}
-
-				case *spyv1.FilterEntry_BatchTransactionFilter:
-					// make a BatchFilter struct from the BatchTransactionFilter since the latter is
-					// a subset of the former's properties, so we can use TransactionIdMatches.
-					batchFilter := &spyv1.BatchFilter{
-						ChainId:       t.BatchTransactionFilter.ChainId,
-						TransactionId: t.BatchTransactionFilter.TransactionId,
-					}
-
-					match, err := BatchMatchesFilter(b, batchFilter)
-					if err != nil {
-						return err
-					}
-					if match {
-						sub.ch <- topRes
+						sub.ch <- envelope
 					}
 				default:
 					return status.Error(codes.InvalidArgument, "unsupported filter type")
@@ -323,6 +204,90 @@ func (s *spyServer) PublishSignedVAAByType(vaaBytes []byte) error {
 		}
 	}
 
+	return nil
+}
+
+// HandleGossipBatchVAA compares a gossip message to client subscriptions & filters,
+// and forwards the VAA to those requesting it.
+func (s *spyServer) HandleGossipBatchVAA(g *gossipv1.SignedBatchVAAWithQuorum) error {
+	s.subsAllVaaMu.Lock()
+	defer s.subsAllVaaMu.Unlock()
+
+	b, err := vaa.UnmarshalBatch(g.BatchVaa)
+	if err != nil {
+		s.logger.Error("failed unmarshaing BatchVAA bytes from gossipv1.SignedBatchVAAWithQuorum.",
+			zap.Error(err))
+		return err
+	}
+
+	// resType defines which oneof proto will be retuned -
+	// res type "SignedBatchVaa" is *gossipv1.SignedBatchVAAWithQuorum
+	resType := &spyv1.SubscribeSignedVAAByTypeResponse_SignedBatchVaa{
+		SignedBatchVaa: g,
+	}
+
+	// envelope is the highest level proto struct, the wrapper proto that contains one of the VAA types.
+	envelope := &spyv1.SubscribeSignedVAAByTypeResponse{
+		VaaType: resType,
+	}
+
+	// loop through the subscriptions and send responses to everyone that wants this VAA
+	for _, sub := range s.subsAllVaa {
+		if len(sub.filters) == 0 {
+			// this subscription has no filters, send them the VAA.
+			sub.ch <- envelope
+		} else {
+			// this subscription has filters.
+			for _, filterEntry := range sub.filters {
+				filter := filterEntry.GetFilter()
+				switch t := filter.(type) {
+				case *spyv1.FilterEntry_EmitterFilter:
+
+					filterChain := uint32(t.EmitterFilter.ChainId)
+					if g.ChainId != filterChain {
+						// VAA does not pass the filter
+						continue
+					}
+
+					// BatchVAAs do not have EmitterAddress at the top level - each Observation
+					// in the Batch has an EmitterAddress.
+
+					// In order to make it easier for integrators, allow subscribing to BatchVAAs by
+					// EmitterFilter. Send BatchVAAs to subscriptions with an EmitterFilter that
+					// matches 1 (or more) Obervation(s) in the batch.
+
+					filterAddr := t.EmitterFilter.EmitterAddress
+
+					// check each Observation to see if it meets the criteria of the filter.
+					for _, obs := range b.Observations {
+						if obs.Observation.EmitterAddress.String() == filterAddr {
+							// it is a match, send the response to the subscriber.
+							sub.ch <- envelope
+							break
+						}
+
+					}
+				case *spyv1.FilterEntry_BatchFilter:
+					if BatchMatchesFilter(g, t.BatchFilter) {
+						sub.ch <- envelope
+					}
+				case *spyv1.FilterEntry_BatchTransactionFilter:
+					// make a BatchFilter struct from the BatchTransactionFilter since the latter is
+					// a subset of the former's properties, so we can use TransactionIdMatches.
+					batchFilter := &spyv1.BatchFilter{
+						ChainId: t.BatchTransactionFilter.ChainId,
+						TxId:    t.BatchTransactionFilter.TxId,
+					}
+
+					if BatchMatchesFilter(g, batchFilter) {
+						sub.ch <- envelope
+					}
+				default:
+					return status.Error(codes.InvalidArgument, "unsupported filter type")
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -391,20 +356,8 @@ func (s *spyServer) SubscribeSignedVAAByType(req *spyv1.SubscribeSignedVAAByType
 				}
 				fi = append(fi, &spyv1.FilterEntry{Filter: t})
 
-			case *spyv1.FilterEntry_BatchFilter:
-				// validate the TransactionId is valid by decoding it.
-				_, err := vaa.StringToHash(t.BatchFilter.TransactionId)
-				if err != nil {
-					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode filter's txId: %v", err))
-				}
-				fi = append(fi, &spyv1.FilterEntry{Filter: t})
-
-			case *spyv1.FilterEntry_BatchTransactionFilter:
-				// validate the TransactionId is valid by decoding it.
-				_, err := vaa.StringToHash(t.BatchTransactionFilter.TransactionId)
-				if err != nil {
-					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode filter's txId: %v", err))
-				}
+			case *spyv1.FilterEntry_BatchFilter,
+				*spyv1.FilterEntry_BatchTransactionFilter:
 				fi = append(fi, &spyv1.FilterEntry{Filter: t})
 			default:
 				return status.Error(codes.InvalidArgument, "unsupported filter type")
@@ -556,8 +509,8 @@ func runSpy(cmd *cobra.Command, args []string) {
 				if err := s.PublishSignedVAA(v.Vaa); err != nil {
 					logger.Error("failed to publish signed VAA", zap.Error(err))
 				}
-				if err := s.PublishSignedVAAByType(v.Vaa); err != nil {
-					logger.Error("failed to publish signed VAA by type", zap.Error(err))
+				if err := s.HandleGossipVAA(v); err != nil {
+					logger.Error("failed to HandleGossipVAA", zap.Error(err))
 				}
 			}
 		}
