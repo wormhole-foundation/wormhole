@@ -6,4 +6,4 @@ version = "0.0.1"
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework", rev = "devnet" }
 
 [addresses]
-wormhole = "0xb060ae2a59344be7a026659121a8e3ac4c383611"
+wormhole = "0xc50ef9088567a6a520890bfaa0d2db4f8b67d69a"
