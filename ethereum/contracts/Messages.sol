@@ -15,6 +15,7 @@ contract Messages is Getters {
     /// @dev parseAndVerifyVM serves to parse an encodedVM and wholy validate it for consumption
     function parseAndVerifyVM(bytes calldata encodedVM) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         vm = parseVM(encodedVM);
+        /// setting checkHash to false as we can trust the hash field in this case given that parseVM computes and then sets the hash field above
         (valid, reason) = verifyVMInternal(vm, false);
     }
 
@@ -33,6 +34,8 @@ contract Messages is Getters {
     /**
     * @dev `verifyVMInternal` serves to validate an arbitrary vm against a valid Guardian set
     * if checkHash is set then the hash field of the vm is verified against the hash of its contents
+    * in the case that the vm is securely parsed and the hash field can be trusted, checkHash can be set to false
+    * as the check would be redundant
     */
     function verifyVMInternal(Structs.VM memory vm, bool checkHash) internal view returns (bool valid, string memory reason) {
         /// @dev Obtain the current guardianSet for the guardianSetIndex provided
