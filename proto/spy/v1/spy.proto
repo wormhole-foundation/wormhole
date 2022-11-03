@@ -5,6 +5,7 @@ package spy.v1;
 option go_package = "github.com/certusone/wormhole/node/pkg/proto/spy/v1;spyv1";
 
 import "google/api/annotations.proto";
+import "gossip/v1/gossip.proto";
 import "publicrpc/v1/publicrpc.proto";
 
 // SpyRPCService exposes a gossip introspection service, allowing sniffing of gossip messages.
@@ -37,9 +38,8 @@ message EmitterFilter {
 message BatchFilter {
   // Source chain
   publicrpc.v1.ChainID chain_id = 1;
-  // Hex-encoded (without leading 0x) transaction identifier.
-  // Wormhole normalized format (32 bytes, left padded, as hex string).
-  string transaction_id = 2;
+  // Native transaction identifier bytes.
+  bytes tx_id = 2;
   // Nonce of the messages in the batch.
   uint32 nonce = 3;
 }
@@ -47,9 +47,8 @@ message BatchFilter {
 message BatchTransactionFilter {
   // Source chain
   publicrpc.v1.ChainID chain_id = 1;
-  // Hex-encoded (without leading 0x) transaction identifier.
-  // Wormhole normalized format (32 bytes, left padded, as hex string).
-  string transaction_id = 2;
+  // Native transaction identifier bytes.
+  bytes tx_id = 2;
 }
 
 message FilterEntry {
@@ -77,14 +76,9 @@ message SubscribeSignedVAAResponse {
   bytes vaa_bytes = 1;
 }
 
-message SubscribeSignedBatchVAAResponse {
-  // Raw BatchVAA bytes
-  bytes batch_vaa = 1;
-}
-
 message SubscribeSignedVAAByTypeResponse {
   oneof vaa_type {
-    SubscribeSignedVAAResponse signed_vaa = 1;
-    SubscribeSignedBatchVAAResponse signed_batch_vaa = 2;
+    gossip.v1.SignedVAAWithQuorum signed_vaa = 1;
+    gossip.v1.SignedBatchVAAWithQuorum signed_batch_vaa = 2;
   }
 }

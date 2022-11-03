@@ -51,8 +51,8 @@ message MessageID {
 message BatchID {
   // Emitter chain ID.
   ChainID emitter_chain = 1;
-  // Hex-encoded (without leading 0x) transaction identifier.
-  string tx_id = 2;
+  // Transaction's unique identifier.
+  bytes tx_id = 2;
   // Nonce of the messages in the batch.
   uint32 nonce = 3;
 }
@@ -125,7 +125,7 @@ message GetSignedBatchVAARequest {
 }
 
 message GetSignedBatchVAAResponse {
-  bytes batch_vaa_bytes = 1;
+  gossip.v1.SignedBatchVAAWithQuorum signed_batch_vaa = 1;
 }
 
 message GetLastHeartbeatsRequest {
