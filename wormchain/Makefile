@@ -4,6 +4,16 @@ IGNITE_EXPECTED_VERSION:=v0.23.0
 # Address of the main tilt validator that the others should connect to
 TILT_VALADDRESS=wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8
 
+VERSION := $(shell echo $(shell git describe --tags 2> /dev/null || echo v0.0.1) | sed 's/^v//')
+COMMIT := $(shell git log -1 --format='%h' 2> /dev/null || echo 'abc123')
+
+ldflags = \
+    -X github.com/cosmos/cosmos-sdk/version.Name=wormchain\
+	-X github.com/cosmos/cosmos-sdk/version.ServerName=wormchaind\
+	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) 
+BUILD_FLAGS := -ldflags '$(ldflags)'
+
 .PHONY: all
 all: client vue validators
 
@@ -31,7 +41,7 @@ validators:
 	cp build/keyring-test/* validators/second_validator/keyring-test/
 
 build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
-	go build -o $@ $<
+	go build -v $(BUILD_FLAGS) -o $@ $<
 
 check-ignite:
 	@ if [ "$(shell ignite version | awk '/Ignite CLI version:/ { print $$4 }')" != "$(IGNITE_EXPECTED_VERSION)" ] ; then echo "Expected ignite version $(IGNITE_EXPECTED_VERSION)" && exit 1 ; fi

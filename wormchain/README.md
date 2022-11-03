@@ -14,7 +14,7 @@ cp ignite ~/.local/bin/
 Build and install wormchain.
 
 ```
-go install ./...
+make build/wormchaind
 ```
 
 ## Develop
