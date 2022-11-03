@@ -53,7 +53,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 	hash := hex.EncodeToString(m.Hash)
 
-	p.logger.Info("received observation",
+	p.logger.Debug("received observation",
 		zap.String("digest", hash),
 		zap.String("signature", hex.EncodeToString(m.Signature)),
 		zap.String("addr", hex.EncodeToString(m.Addr)),
