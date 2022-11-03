@@ -210,7 +210,7 @@ var mockedSpyServer *spyServer
 func init() {
 	// setup the spyServer as it is setup in prod, only mock what is necessary.
 	logger := ipfslog.Logger("wormhole-spy-mocked-in-ci").Desugar()
-	ipfslog.SetLogLevel("wormhole-spy-mocked-in-ci", "PANIC")
+	_ = ipfslog.SetLogLevel("wormhole-spy-mocked-in-ci", "PANIC")
 
 	lis = bufconn.Listen(bufSize)
 
