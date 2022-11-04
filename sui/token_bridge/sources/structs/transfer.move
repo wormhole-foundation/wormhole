@@ -14,7 +14,7 @@ module token_bridge::transfer {
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
-    //friend token_bridge::transfer_tokens;
+    friend token_bridge::transfer_tokens;
 
     //#[test_only]
     //friend token_bridge::complete_transfer_test;

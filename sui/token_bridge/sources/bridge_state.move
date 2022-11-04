@@ -11,11 +11,14 @@ module token_bridge::bridge_state {
    use sui::coin::{Coin};
    use sui::transfer::{Self};
    use sui::tx_context::{Self};
+   use sui::sui::SUI;
 
    use token_bridge::treasury::{Self, CoinStore, TreasuryCapStore};
 
    use wormhole::external_address::{Self, ExternalAddress};
    use wormhole::myu16::{Self as u16, U16};
+   use wormhole::wormhole::{Self};
+   use wormhole::state::{State};
 
    const E_ORIGIN_CHAIN_MISMATCH: u64 = 0;
    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 1;
@@ -26,6 +29,7 @@ module token_bridge::bridge_state {
    friend token_bridge::register_chain;
    friend token_bridge::wrapped;
    friend token_bridge::complete_transfer;
+   friend token_bridge::transfer_tokens;
 
    /// The origin chain and address of a token.  In case of native tokens
    /// (where the chain is aptos), the token_address is the hash of the token
@@ -94,28 +98,6 @@ module token_bridge::bridge_state {
         transfer::share_object(state);
     }
 
-   // getters
-
-   public fun vaa_is_consumed(state: &BridgeState, hash: vector<u8>): bool {
-      vec_set::contains(&state.consumed_vaas, &hash)
-   }
-
-   public fun governance_chain_id(state: &BridgeState): U16 {
-      state.governance_chain_id
-   }
-
-   public fun governance_contract(state: &BridgeState): ExternalAddress {
-      state.governance_contract
-   }
-
-   public fun get_registered_emitter(state: &BridgeState, chain_id: &U16): Option<ExternalAddress> {
-      if (vec_map::contains(&state.registered_emitters, chain_id)) {
-         option::some(*vec_map::get(&state.registered_emitters, chain_id))
-      } else {
-         option::none()
-      }
-   }
-
    public(friend) fun deposit<CoinType>(
       bridge_state: &mut BridgeState,
       coin: Coin<CoinType>,
@@ -148,9 +130,9 @@ module token_bridge::bridge_state {
    }
 
    public(friend) fun mint<CoinType>(
-      origin_info: OriginInfo,
       state: &mut BridgeState,
       value: u64,
+      origin_info: OriginInfo,
       ctx: &mut TxContext,
    ): Coin<CoinType> {
       let treasury_cap_store = dynamic_object_field::borrow_mut<OriginInfo, TreasuryCapStore<CoinType>>(&mut state.id, origin_info);
@@ -158,8 +140,57 @@ module token_bridge::bridge_state {
       return coins
    }
 
-   // setters
+   public(friend) fun burn<CoinType>(
+      state: &mut BridgeState,
+      coin: Coin<CoinType>,
+      origin_info: OriginInfo,
+   ) {
+      let treasury_cap_store = dynamic_object_field::borrow_mut<OriginInfo, TreasuryCapStore<CoinType>>(&mut state.id, origin_info);
+      treasury::burn<CoinType>(treasury_cap_store, coin);
+   }
 
+   // TODO - this function should load the token bridge emitter cap and
+   //        input that to wormhole::publish_event
+   public(friend) fun publish_message(
+      wormhole_state: &mut State,
+      nonce: u64,
+      payload: vector<u8>,
+      message_fee: Coin<SUI>,
+      ctx: &mut TxContext
+   ) {
+      //TODO - use emitter cap pattern
+      wormhole::publish_message(
+         wormhole_state,
+         nonce,
+         payload,
+         message_fee,
+         ctx
+      )
+   }
+
+   // getters
+
+   public fun vaa_is_consumed(state: &BridgeState, hash: vector<u8>): bool {
+      vec_set::contains(&state.consumed_vaas, &hash)
+   }
+
+   public fun governance_chain_id(state: &BridgeState): U16 {
+      state.governance_chain_id
+   }
+
+   public fun governance_contract(state: &BridgeState): ExternalAddress {
+      state.governance_contract
+   }
+
+   public fun get_registered_emitter(state: &BridgeState, chain_id: &U16): Option<ExternalAddress> {
+      if (vec_map::contains(&state.registered_emitters, chain_id)) {
+         option::some(*vec_map::get(&state.registered_emitters, chain_id))
+      } else {
+         option::none()
+      }
+   }
+
+   // setters
    public(friend) fun set_vaa_consumed(state: &mut BridgeState, hash: vector<u8>) {
       vec_set::insert<vector<u8>>(&mut state.consumed_vaas, hash);
    }

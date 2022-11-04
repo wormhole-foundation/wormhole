@@ -64,7 +64,7 @@ module token_bridge::treasury {
         coin::mint<T>(&mut cap_container.cap, value, ctx)
     }
 
-    public(friend) fun burn<T: drop>(
+    public(friend) fun burn<T>(
         cap_container: &mut TreasuryCapStore<T>,
         coin: Coin<T>,
     ) {

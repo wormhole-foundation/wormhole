@@ -4,7 +4,7 @@ module token_bridge::transfer_result {
 
     use token_bridge::normalized_amount::NormalizedAmount;
 
-    //friend token_bridge::transfer_tokens;
+    friend token_bridge::transfer_tokens;
 
     struct TransferResult {
         /// Chain ID of the token

@@ -68,7 +68,12 @@ module token_bridge::complete_transfer {
                 ctx
             )
         } else{
-            recipient_coins = bridge_state::mint<CoinType>(origin_info, bridge_state, amount, ctx);
+            recipient_coins = bridge_state::mint<CoinType>(
+                bridge_state,
+                amount,
+                origin_info,
+                ctx
+            );
         };
 
         transfer_object::transfer(recipient_coins, recipient);

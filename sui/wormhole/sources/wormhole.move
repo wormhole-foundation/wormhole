@@ -17,6 +17,7 @@ module wormhole::wormhole {
 // Sending messages
 // TODO - make this a non-entry fun, so we can return the sequence number?
 //        as long it is entry, we cannot have a return value
+// TODO - use emitter cap when publishing message so that sequence is not tx_origin
     public entry fun publish_message(
         state: &mut State,
         nonce: u64,
