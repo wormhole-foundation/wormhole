@@ -5,13 +5,13 @@ module token_bridge::bridge_state {
 
    use sui::object::{Self, UID};
    use sui::vec_map::{Self, VecMap};
-   use sui::vec_set::{Self, VecSet};
    use sui::dynamic_object_field::{Self};
    use sui::tx_context::{TxContext};
    use sui::coin::{Coin};
    use sui::transfer::{Self};
    use sui::tx_context::{Self};
    use sui::sui::SUI;
+   use sui::object_table::{Self};
 
    use token_bridge::treasury::{Self, CoinStore, TreasuryCapStore};
 
@@ -47,10 +47,7 @@ module token_bridge::bridge_state {
       }
    }
 
-   // TODO - move to newtypes
-   struct ConsumedVAA {
-      hash: vector<u8>
-   }
+   struct Unit has key, store {} // for turning object_table into a set
 
    // TODO - move to newtypes
    struct RegisteredEmitter {
@@ -64,15 +61,14 @@ module token_bridge::bridge_state {
       governance_chain_id: U16,
       governance_contract: ExternalAddress,
 
-      /// Set of consumed VAA hashes - TODO, remove and make this a dynamic field
-      consumed_vaas: VecSet<vector<u8>>,
-
-      /// Track treasury caps IDs, which are mutably shared
-      // treasury_cap_stores: VecMap<OriginInfo, &UID>,
+      /// Set of consumed VAA hashes
+      consumed_vaas: object_table::ObjectTable<vector<u8>, Unit>,
 
       emitter_cap: option::Option<EmitterCapability>,
 
-      // Mapping of bridge contracts on other chains - TODO, remove
+      // Mapping of bridge contracts on other chains
+      // TODO - figure out if it is OK to keep this?
+      //        there will likely never be a few 100s of other bridge contracts
       registered_emitters: VecMap<U16, ExternalAddress>,
    }
 
@@ -81,7 +77,7 @@ module token_bridge::bridge_state {
             id: object::new(ctx),
             governance_chain_id: u16::from_u64(0),
             governance_contract: external_address::from_bytes(vector::empty<u8>()),
-            consumed_vaas: vec_set::empty<vector<u8>>(),
+            consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
             emitter_cap: option::none<EmitterCapability>(),
             registered_emitters: vec_map::empty<U16, ExternalAddress>(),
         }, tx_context::sender(ctx));
@@ -179,7 +175,7 @@ module token_bridge::bridge_state {
    // getters
 
    public fun vaa_is_consumed(state: &BridgeState, hash: vector<u8>): bool {
-      vec_set::contains(&state.consumed_vaas, &hash)
+      object_table::contains<vector<u8>, Unit>(&state.consumed_vaas, hash)
    }
 
    public fun governance_chain_id(state: &BridgeState): U16 {
@@ -199,9 +195,6 @@ module token_bridge::bridge_state {
    }
 
    // setters
-   public(friend) fun set_vaa_consumed(state: &mut BridgeState, hash: vector<u8>) {
-      vec_set::insert<vector<u8>>(&mut state.consumed_vaas, hash);
-   }
 
    public(friend) fun set_governance_chain_id(state: &mut BridgeState, governance_chain_id: U16) {
       state.governance_chain_id = governance_chain_id;
@@ -225,6 +218,10 @@ module token_bridge::bridge_state {
    // store the coin store as a dynamic field of bridge state
    public(friend) fun store_coin_store<T>(state: &mut BridgeState, origin_info: OriginInfo, treasury_coin_store: treasury::CoinStore<T>) {
       dynamic_object_field::add<OriginInfo, treasury::CoinStore<T>>(&mut state.id, origin_info, treasury_coin_store);
+   }
+
+   public(friend) fun store_consumed_vaa(state: &mut BridgeState, vaa: vector<u8>) {
+      object_table::add<vector<u8>, Unit>(&mut state.consumed_vaas, vaa, Unit{});
    }
 
 }
