@@ -937,7 +937,7 @@ function parseAddress(chain: ChainName, address: string): string {
 }
 
 function parseCodeAddress(chain: ChainName, address: string): string {
-  if (isTerraChain(chain)) {
+  if (isCosmWasmChain(chain)) {
     return "0x" + parseInt(address, 10).toString(16).padStart(64, "0");
   } else {
     return parseAddress(chain, address);
