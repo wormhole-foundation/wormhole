@@ -106,21 +106,23 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 	for _, sub := range s.subsSignedVaa {
 		if len(sub.filters) == 0 {
 			sub.ch <- message{vaaBytes: vaaBytes}
-		} else {
-			if v == nil {
-				var err error
-				v, err = vaa.Unmarshal(vaaBytes)
-				if err != nil {
-					return err
-				}
-			}
+			continue
+		}
 
-			for _, fi := range sub.filters {
-				if fi.chainId == v.EmitterChain && fi.emitterAddr == v.EmitterAddress {
-					sub.ch <- message{vaaBytes: vaaBytes}
-				}
+		if v == nil {
+			var err error
+			v, err = vaa.Unmarshal(vaaBytes)
+			if err != nil {
+				return err
 			}
 		}
+
+		for _, fi := range sub.filters {
+			if fi.chainId == v.EmitterChain && fi.emitterAddr == v.EmitterAddress {
+				sub.ch <- message{vaaBytes: vaaBytes}
+			}
+		}
+
 	}
 
 	return nil
@@ -184,24 +186,26 @@ func (s *spyServer) HandleGossipVAA(g *gossipv1.SignedVAAWithQuorum) error {
 		if len(sub.filters) == 0 {
 			// this subscription has no filters, send them the VAA.
 			sub.ch <- envelope
-		} else {
-			// this subscription has filters.
-			for _, filterEntry := range sub.filters {
-				filter := filterEntry.GetFilter()
-				switch t := filter.(type) {
-				case *spyv1.FilterEntry_EmitterFilter:
-					filterAddr := t.EmitterFilter.EmitterAddress
-					filterChain := vaa.ChainID(t.EmitterFilter.ChainId)
+			continue
+		}
 
-					if v.EmitterChain == filterChain && v.EmitterAddress.String() == filterAddr {
-						// it is a match, send the response
-						sub.ch <- envelope
-					}
-				default:
-					return status.Error(codes.InvalidArgument, "unsupported filter type")
+		// this subscription has filters.
+		for _, filterEntry := range sub.filters {
+			filter := filterEntry.GetFilter()
+			switch t := filter.(type) {
+			case *spyv1.FilterEntry_EmitterFilter:
+				filterAddr := t.EmitterFilter.EmitterAddress
+				filterChain := vaa.ChainID(t.EmitterFilter.ChainId)
+
+				if v.EmitterChain == filterChain && v.EmitterAddress.String() == filterAddr {
+					// it is a match, send the response
+					sub.ch <- envelope
 				}
+			default:
+				panic("unsupported filter type in subscriptions")
 			}
 		}
+
 	}
 
 	return nil
@@ -236,55 +240,56 @@ func (s *spyServer) HandleGossipBatchVAA(g *gossipv1.SignedBatchVAAWithQuorum) e
 		if len(sub.filters) == 0 {
 			// this subscription has no filters, send them the VAA.
 			sub.ch <- envelope
-		} else {
-			// this subscription has filters.
-			for _, filterEntry := range sub.filters {
-				filter := filterEntry.GetFilter()
-				switch t := filter.(type) {
-				case *spyv1.FilterEntry_EmitterFilter:
+			continue
+		}
 
-					filterChain := uint32(t.EmitterFilter.ChainId)
-					if g.ChainId != filterChain {
-						// VAA does not pass the filter
-						continue
-					}
+		// this subscription has filters.
+		for _, filterEntry := range sub.filters {
+			filter := filterEntry.GetFilter()
+			switch t := filter.(type) {
+			case *spyv1.FilterEntry_EmitterFilter:
 
-					// BatchVAAs do not have EmitterAddress at the top level - each Observation
-					// in the Batch has an EmitterAddress.
-
-					// In order to make it easier for integrators, allow subscribing to BatchVAAs by
-					// EmitterFilter. Send BatchVAAs to subscriptions with an EmitterFilter that
-					// matches 1 (or more) Obervation(s) in the batch.
-
-					filterAddr := t.EmitterFilter.EmitterAddress
-
-					// check each Observation to see if it meets the criteria of the filter.
-					for _, obs := range b.Observations {
-						if obs.Observation.EmitterAddress.String() == filterAddr {
-							// it is a match, send the response to the subscriber.
-							sub.ch <- envelope
-							break
-						}
-
-					}
-				case *spyv1.FilterEntry_BatchFilter:
-					if BatchMatchesFilter(g, t.BatchFilter) {
-						sub.ch <- envelope
-					}
-				case *spyv1.FilterEntry_BatchTransactionFilter:
-					// make a BatchFilter struct from the BatchTransactionFilter since the latter is
-					// a subset of the former's properties, so we can use TransactionIdMatches.
-					batchFilter := &spyv1.BatchFilter{
-						ChainId: t.BatchTransactionFilter.ChainId,
-						TxId:    t.BatchTransactionFilter.TxId,
-					}
-
-					if BatchMatchesFilter(g, batchFilter) {
-						sub.ch <- envelope
-					}
-				default:
-					return status.Error(codes.InvalidArgument, "unsupported filter type")
+				filterChain := uint32(t.EmitterFilter.ChainId)
+				if g.ChainId != filterChain {
+					// VAA does not pass the filter
+					continue
 				}
+
+				// BatchVAAs do not have EmitterAddress at the top level - each Observation
+				// in the Batch has an EmitterAddress.
+
+				// In order to make it easier for integrators, allow subscribing to BatchVAAs by
+				// EmitterFilter. Send BatchVAAs to subscriptions with an EmitterFilter that
+				// matches 1 (or more) Obervation(s) in the batch.
+
+				filterAddr := t.EmitterFilter.EmitterAddress
+
+				// check each Observation to see if it meets the criteria of the filter.
+				for _, obs := range b.Observations {
+					if obs.Observation.EmitterAddress.String() == filterAddr {
+						// it is a match, send the response to the subscriber.
+						sub.ch <- envelope
+						break
+					}
+
+				}
+			case *spyv1.FilterEntry_BatchFilter:
+				if BatchMatchesFilter(g, t.BatchFilter) {
+					sub.ch <- envelope
+				}
+			case *spyv1.FilterEntry_BatchTransactionFilter:
+				// make a BatchFilter struct from the BatchTransactionFilter since the latter is
+				// a subset of the former's properties, so we can use TransactionIdMatches.
+				batchFilter := &spyv1.BatchFilter{
+					ChainId: t.BatchTransactionFilter.ChainId,
+					TxId:    t.BatchTransactionFilter.TxId,
+				}
+
+				if BatchMatchesFilter(g, batchFilter) {
+					sub.ch <- envelope
+				}
+			default:
+				panic("unsupported filter type in subscriptions")
 			}
 		}
 	}
@@ -406,7 +411,7 @@ func spyServerRunnable(s *spyServer, logger *zap.Logger, listenAddr string) (sup
 		return nil, nil, fmt.Errorf("failed to listen: %w", err)
 	}
 
-	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
+	logger.Info("spy server listening", zap.String("addr", l.Addr().String()))
 
 	grpcServer := common.NewInstrumentedGRPCServer(logger)
 	spyv1.RegisterSpyRPCServiceServer(grpcServer, s)

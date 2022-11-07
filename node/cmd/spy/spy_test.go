@@ -27,8 +27,11 @@ const vaaNonce = uint32(1)
 const vaaSequence = uint64(1)
 const tx = "39c5940431b1507c2a496e945dfb6b6760771fb3c19f2531c5976decc16814ca"
 
-// const govAddress = "0000000000000000000000000000000000000000000000000000000000000004"
 var govEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+// govAddress is the string representation of the govEmitter Address.
+// Leaving here in case it is helpful for future tests.
+// const govAddress = "0000000000000000000000000000000000000000000000000000000000000004"
 
 func getTxBytes(tx string) []byte {
 	bytes, err := hex.DecodeString(tx)
@@ -95,10 +98,16 @@ func getBatchVAAQuorumMessage(chainID vaa.ChainID, txID []byte, nonce uint32, em
 	return msg
 }
 
-// wait 10 milliseconds so the grpc client can establish a subscription with
-// the server before spyServer starts sending messages.
-func pause() {
-	time.Sleep(time.Duration(10) * time.Millisecond)
+// wait for the server to establish a client subscription before returning.
+func waitForClientSubscriptionInit(server *spyServer) {
+	server.subsAllVaaMu.Lock()
+	subs := len(server.subsAllVaa)
+	server.subsAllVaaMu.Unlock()
+
+	if subs > 0 {
+		return
+	}
+	waitForClientSubscriptionInit(server)
 }
 
 //
@@ -210,6 +219,8 @@ var mockedSpyServer *spyServer
 func init() {
 	// setup the spyServer as it is setup in prod, only mock what is necessary.
 	logger := ipfslog.Logger("wormhole-spy-mocked-in-ci").Desugar()
+
+	// only print PANIC logs from the server's logger
 	_ = ipfslog.SetLogLevel("wormhole-spy-mocked-in-ci", "PANIC")
 
 	lis = bufconn.Listen(bufSize)
@@ -381,20 +392,18 @@ func TestSpyHandleGossipVAA(t *testing.T) {
 			}
 		}
 	}()
-	pause()
+	waitForClientSubscriptionInit(mockedSpyServer)
 
 	vaaBytes, err := vaaToSend.Marshal()
 	if err != nil {
-		t.Log("failed marshaling VAA to bytes")
-		t.FailNow()
+		t.Fatal("failed marshaling VAA to bytes")
 	}
 	msg := &gossipv1.SignedVAAWithQuorum{
 		Vaa: vaaBytes,
 	}
 	err = mockedSpyServer.HandleGossipVAA(msg)
 	if err != nil {
-		t.Log("failed HandleGossipVAA")
-		t.FailNow()
+		t.Fatal("failed HandleGossipVAA")
 	}
 
 	<-doneCh
@@ -480,15 +489,14 @@ func TestSpyHandleGossipBatchVAAEmitterFilter(t *testing.T) {
 			}
 		}
 	}()
-	pause()
+	waitForClientSubscriptionInit(mockedSpyServer)
 
 	// should not be sent to us by the server
 	// everything passes the filter except for chainID
 	msg1 := getBatchVAAQuorumMessage(vaa.ChainIDSolana, txID, nonce, emitter)
 	err = mockedSpyServer.HandleGossipBatchVAA(msg1)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for msg1")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for msg1")
 	}
 
 	// should not be sent to us by the server
@@ -497,15 +505,13 @@ func TestSpyHandleGossipBatchVAAEmitterFilter(t *testing.T) {
 	msg2 := getBatchVAAQuorumMessage(chainID, txID, nonce, differentEmitter)
 	err = mockedSpyServer.HandleGossipBatchVAA(msg2)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for msg2")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for msg2")
 	}
 
 	// passes the filter - should be sent back to us by the server
 	err = mockedSpyServer.HandleGossipBatchVAA(gossipMsg)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for gossipMsg")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for gossipMsg")
 	}
 
 	<-doneCh
@@ -594,15 +600,14 @@ func TestSpyHandleGossipBatchVAABatchTxFilter(t *testing.T) {
 			}
 		}
 	}()
-	pause()
+	waitForClientSubscriptionInit(mockedSpyServer)
 
 	// should not be sent to us by the server
 	// everything passes the filter except for chainID
 	msg1 := getBatchVAAQuorumMessage(vaa.ChainIDSolana, txID, nonce, emitter)
 	err = mockedSpyServer.HandleGossipBatchVAA(msg1)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for msg1")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for msg1")
 	}
 
 	// should not be sent to us by the server
@@ -611,15 +616,13 @@ func TestSpyHandleGossipBatchVAABatchTxFilter(t *testing.T) {
 	msg2 := getBatchVAAQuorumMessage(chainID, differentTx, nonce, emitter)
 	err = mockedSpyServer.HandleGossipBatchVAA(msg2)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for msg2")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for msg2")
 	}
 
 	// passes the filter - should be sent back to us by the server
 	err = mockedSpyServer.HandleGossipBatchVAA(gossipMsg)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for gossipMsg")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for gossipMsg")
 	}
 
 	<-doneCh
@@ -713,15 +716,14 @@ func TestSpyHandleGossipBatchVAABatchFilter(t *testing.T) {
 			}
 		}
 	}()
-	pause()
+	waitForClientSubscriptionInit(mockedSpyServer)
 
 	// should not be sent to us by the server
 	// everything passes the filter except for chainID
 	msg1 := getBatchVAAQuorumMessage(vaa.ChainIDSolana, txID, nonce, emitter)
 	err = mockedSpyServer.HandleGossipBatchVAA(msg1)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for msg1")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for msg1")
 	}
 
 	// should not be sent to us by the server
@@ -730,8 +732,7 @@ func TestSpyHandleGossipBatchVAABatchFilter(t *testing.T) {
 	msg2 := getBatchVAAQuorumMessage(chainID, differentTx, nonce, emitter)
 	err = mockedSpyServer.HandleGossipBatchVAA(msg2)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for msg2")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for msg2")
 	}
 
 	// should not be sent to us by the server
@@ -740,15 +741,13 @@ func TestSpyHandleGossipBatchVAABatchFilter(t *testing.T) {
 	msg3 := getBatchVAAQuorumMessage(chainID, txID, differentNonce, emitter)
 	err = mockedSpyServer.HandleGossipBatchVAA(msg3)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for msg3")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for msg3")
 	}
 
 	// passes the filter - should be sent back to us by the server
 	err = mockedSpyServer.HandleGossipBatchVAA(gossipMsg)
 	if err != nil {
-		t.Log("failed HandleGossipBatchVAA for gossipMsg")
-		t.FailNow()
+		t.Fatal("failed HandleGossipBatchVAA for gossipMsg")
 	}
 
 	<-doneCh
