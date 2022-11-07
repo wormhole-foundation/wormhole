@@ -14,7 +14,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, 132, len(tokenConfigEntries))
+	assert.Equal(t, 133, len(tokenConfigEntries))
 }
 
 func TestTokenListAddressSize(t *testing.T) {
@@ -43,7 +43,7 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 				}
 			}
 
-			if e != vaa.ChainIDXpla && e != vaa.ChainIDAptos && e != vaa.ChainIDArbitrum && e != vaa.ChainIDOptimism {
+			if e != vaa.ChainIDXpla && e != vaa.ChainIDAptos && e != vaa.ChainIDArbitrum {
 				assert.Equal(t, found, true)
 			}
 		})
