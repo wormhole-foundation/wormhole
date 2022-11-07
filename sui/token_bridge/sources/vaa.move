@@ -29,7 +29,7 @@ module token_bridge::vaa {
     /// the first time around.
     public(friend) fun replay_protect(bridge_state: &mut BridgeState, vaa: &VAA) {
         // this calls set::add which aborts if the element already exists
-        bridge_state::set_vaa_consumed(bridge_state, vaa::get_hash(vaa));
+        bridge_state::store_consumed_vaa(bridge_state, vaa::get_hash(vaa));
     }
 
     /// Asserts that the VAA is from a known token bridge.
