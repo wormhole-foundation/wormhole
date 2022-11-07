@@ -75,7 +75,6 @@ module token_bridge::complete_transfer {
                 ctx
             );
         };
-
         transfer_object::transfer(recipient_coins, recipient);
     }
     //TODO: send fee to fee_recipient

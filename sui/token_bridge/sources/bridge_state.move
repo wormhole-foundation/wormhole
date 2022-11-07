@@ -32,9 +32,9 @@ module token_bridge::bridge_state {
    friend token_bridge::complete_transfer;
    friend token_bridge::transfer_tokens;
 
-   /// The origin chain and address of a token.  In case of native tokens
-   /// (where the chain is aptos), the token_address is the hash of the token
-   /// info (see token_hash.move for more details)
+   /// TODO - The origin chain and address of a token.  In case of native tokens
+   ///        what do we set the token_address to? For Aptos it was the hash of the
+   ///        deployer + module_name + struct_name, for Sui might have to do differently
    struct OriginInfo has store, copy, drop {
       token_chain: U16,
       token_address: ExternalAddress,
@@ -64,6 +64,7 @@ module token_bridge::bridge_state {
       /// Set of consumed VAA hashes
       consumed_vaas: object_table::ObjectTable<vector<u8>, Unit>,
 
+      /// Token bridge owned emitter capability
       emitter_cap: option::Option<EmitterCapability>,
 
       // Mapping of bridge contracts on other chains
@@ -151,8 +152,6 @@ module token_bridge::bridge_state {
       treasury::burn<CoinType>(treasury_cap_store, coin);
    }
 
-   // TODO - this function should load the token bridge emitter cap and
-   //        input that to wormhole::publish_event
    public(friend) fun publish_message(
       wormhole_state: &mut State,
       bridge_state: &mut BridgeState,
@@ -161,7 +160,6 @@ module token_bridge::bridge_state {
       message_fee: Coin<SUI>,
       ctx: &mut TxContext
    ) {
-      //TODO - use emitter cap pattern
       wormhole::publish_message(
          option::borrow_mut<EmitterCapability>(&mut bridge_state.emitter_cap),
          wormhole_state,
