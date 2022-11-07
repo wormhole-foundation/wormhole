@@ -27,9 +27,9 @@ module token_bridge::vaa {
 
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
     /// the first time around.
-    public(friend) fun replay_protect(bridge_state: &mut BridgeState, vaa: &VAA) {
+    public(friend) fun replay_protect(bridge_state: &mut BridgeState, vaa: &VAA, ctx: &mut TxContext) {
         // this calls set::add which aborts if the element already exists
-        bridge_state::store_consumed_vaa(bridge_state, vaa::get_hash(vaa));
+        bridge_state::store_consumed_vaa(bridge_state, vaa::get_hash(vaa), ctx);
     }
 
     /// Asserts that the VAA is from a known token bridge.
@@ -52,7 +52,7 @@ module token_bridge::vaa {
         vaa: vector<u8>,
         ctx: &mut TxContext): VAA {
         let vaa = parse_and_verify(wormhole_state, bridge_state, vaa, ctx);
-        replay_protect(bridge_state, &vaa);
+        replay_protect(bridge_state, &vaa, ctx);
         vaa
     }
 

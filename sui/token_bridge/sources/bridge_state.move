@@ -31,6 +31,8 @@ module token_bridge::bridge_state {
    friend token_bridge::wrapped;
    friend token_bridge::complete_transfer;
    friend token_bridge::transfer_tokens;
+   #[test_only]
+   friend token_bridge::test_bridge_state;
 
    /// TODO - The origin chain and address of a token.  In case of native tokens
    ///        what do we set the token_address to? For Aptos it was the hash of the
@@ -47,7 +49,15 @@ module token_bridge::bridge_state {
       }
    }
 
-   struct Unit has key, store {} // for turning object_table into a set
+   struct ConsumedVAA has key, copy, drop, store {
+      hash: vector<u8>
+   }
+
+   public fun create_consumed_vaa(hash: vector<u8>): ConsumedVAA {
+      return ConsumedVAA{hash:hash}
+   }
+
+   struct Unit has key, store {id: UID,} // for turning object_table into a set
 
    // TODO - move to newtypes
    struct RegisteredEmitter {
@@ -62,7 +72,7 @@ module token_bridge::bridge_state {
       governance_contract: ExternalAddress,
 
       /// Set of consumed VAA hashes
-      consumed_vaas: object_table::ObjectTable<vector<u8>, Unit>,
+      consumed_vaas: object_table::ObjectTable<ConsumedVAA, Unit>,
 
       /// Token bridge owned emitter capability
       emitter_cap: option::Option<EmitterCapability>,
@@ -78,11 +88,23 @@ module token_bridge::bridge_state {
             id: object::new(ctx),
             governance_chain_id: u16::from_u64(0),
             governance_contract: external_address::from_bytes(vector::empty<u8>()),
-            consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
+            consumed_vaas: object_table::new<ConsumedVAA, Unit>(ctx),
             emitter_cap: option::none<EmitterCapability>(),
             registered_emitters: vec_map::empty<U16, ExternalAddress>(),
         }, tx_context::sender(ctx));
     }
+
+   #[test_only]
+   public fun test_init(ctx: &mut TxContext) {
+      transfer::transfer(BridgeState {
+            id: object::new(ctx),
+            governance_chain_id: u16::from_u64(0),
+            governance_contract: external_address::from_bytes(vector::empty<u8>()),
+            consumed_vaas: object_table::new<ConsumedVAA, Unit>(ctx),
+            emitter_cap: option::none<EmitterCapability>(),
+            registered_emitters: vec_map::empty<U16, ExternalAddress>(),
+        }, tx_context::sender(ctx));
+   }
 
    // converts owned state object into a shared object, so that anyone can get a reference to &mut State
    // and pass it into various functions
@@ -173,14 +195,14 @@ module token_bridge::bridge_state {
    // getters
 
    public fun vaa_is_consumed(state: &BridgeState, hash: vector<u8>): bool {
-      object_table::contains<vector<u8>, Unit>(&state.consumed_vaas, hash)
+      object_table::contains<ConsumedVAA, Unit>(&state.consumed_vaas, create_consumed_vaa(hash))
    }
 
-   public fun governance_chain_id(state: &BridgeState): U16 {
+   public fun get_governance_chain_id(state: &BridgeState): U16 {
       state.governance_chain_id
    }
 
-   public fun governance_contract(state: &BridgeState): ExternalAddress {
+   public fun get_governance_contract(state: &BridgeState): ExternalAddress {
       state.governance_contract
    }
 
@@ -195,6 +217,11 @@ module token_bridge::bridge_state {
    // setters
 
    public(friend) fun set_governance_chain_id(state: &mut BridgeState, governance_chain_id: U16) {
+      state.governance_chain_id = governance_chain_id;
+   }
+
+   #[test_only]
+   public fun test_set_governance_chain_id(state: &mut BridgeState, governance_chain_id: U16) {
       state.governance_chain_id = governance_chain_id;
    }
 
@@ -218,8 +245,77 @@ module token_bridge::bridge_state {
       dynamic_object_field::add<OriginInfo, treasury::CoinStore<T>>(&mut state.id, origin_info, treasury_coin_store);
    }
 
-   public(friend) fun store_consumed_vaa(state: &mut BridgeState, vaa: vector<u8>) {
-      object_table::add<vector<u8>, Unit>(&mut state.consumed_vaas, vaa, Unit{});
+   public(friend) fun store_consumed_vaa(state: &mut BridgeState, vaa: vector<u8>, ctx: &mut TxContext) {
+      object_table::add<ConsumedVAA, Unit>(&mut state.consumed_vaas, create_consumed_vaa(vaa), Unit{id: object::new(ctx)});
    }
 
+}
+
+#[test_only]
+module token_bridge::test_bridge_state{
+   use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, return_to_address, take_shared, return_shared};
+   //use std::vector::{Self};
+
+   use wormhole::state::{Self as wormhole_state, State};
+   use wormhole::myu16::{Self as u16};
+   use wormhole::wormhole::{Self};
+
+   use token_bridge::bridge_state::{Self, BridgeState, init_and_share_state};
+
+   fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+   fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+   #[test]
+   fun test_state_setters() {
+      test_state_setters_(scenario())
+   }
+
+   fun test_state_setters_(test: Scenario) {
+         let (admin, _, _) = people();
+
+         // init wormhole state
+         next_tx(&mut test, admin); {
+            wormhole_state::test_init(ctx(&mut test));
+         };
+
+         // init token bridge state
+         next_tx(&mut test, admin); {
+            bridge_state::test_init(ctx(&mut test));
+         };
+
+         // register for an emitter cap for token bridge, then init and share
+         // token bridge state
+         next_tx(&mut test, admin); {
+            let wormhole_state = take_from_address<State>(&test, admin);
+            let bridge_state = take_from_address<BridgeState>(&test, admin);
+            let my_emitter = wormhole::register_emitter(&mut wormhole_state);
+            init_and_share_state(
+               bridge_state,
+               my_emitter,
+               12,
+               x"1234567899012345678990123456789912",
+               ctx(&mut test)
+            );
+            return_to_address<State>(admin, wormhole_state);
+         };
+
+        //test BridgeState setter and getter functions
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+
+            // test store consumed vaa
+            bridge_state::store_consumed_vaa(&mut state, x"1234", ctx(&mut test));
+            assert!(bridge_state::vaa_is_consumed(&state, x"1234") == true, 0);
+
+            // TODO - test store coin store
+            // TODO - test store treasury cap
+
+            // test set governance chain id
+            bridge_state::test_set_governance_chain_id(&mut state, u16::from_u64(5));
+            assert!(bridge_state::get_governance_chain_id(&state) == u16::from_u64(5), 0);
+
+            return_shared<BridgeState>(state);
+        };
+        test_scenario::end(test);
+    }
 }
