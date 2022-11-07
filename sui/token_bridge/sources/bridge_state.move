@@ -19,6 +19,7 @@ module token_bridge::bridge_state {
    use wormhole::myu16::{Self as u16, U16};
    use wormhole::wormhole::{Self};
    use wormhole::state::{State};
+   use wormhole::emitter::{EmitterCapability};
 
    const E_ORIGIN_CHAIN_MISMATCH: u64 = 0;
    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 1;
@@ -63,11 +64,13 @@ module token_bridge::bridge_state {
       governance_chain_id: U16,
       governance_contract: ExternalAddress,
 
-      /// Set of consumed VAA hashes - TODO, remove
+      /// Set of consumed VAA hashes - TODO, remove and make this a dynamic field
       consumed_vaas: VecSet<vector<u8>>,
 
       /// Track treasury caps IDs, which are mutably shared
       // treasury_cap_stores: VecMap<OriginInfo, &UID>,
+
+      emitter_cap: option::Option<EmitterCapability>,
 
       // Mapping of bridge contracts on other chains - TODO, remove
       registered_emitters: VecMap<U16, ExternalAddress>,
@@ -79,24 +82,27 @@ module token_bridge::bridge_state {
             governance_chain_id: u16::from_u64(0),
             governance_contract: external_address::from_bytes(vector::empty<u8>()),
             consumed_vaas: vec_set::empty<vector<u8>>(),
+            emitter_cap: option::none<EmitterCapability>(),
             registered_emitters: vec_map::empty<U16, ExternalAddress>(),
         }, tx_context::sender(ctx));
     }
 
-    // converts owned state object into a shared object, so that anyone can get a reference to &mut State
-    // and pass it into various functions
-    public entry fun init_and_share_state(
-        state: BridgeState,
-        governance_chain_id: u64,
-        governance_contract: vector<u8>,
-        _ctx: &mut TxContext
-    ) {
-        set_governance_chain_id(&mut state, u16::from_u64(governance_chain_id));
-        set_governance_contract(&mut state, external_address::from_bytes(governance_contract));
+   // converts owned state object into a shared object, so that anyone can get a reference to &mut State
+   // and pass it into various functions
+   public entry fun init_and_share_state(
+      state: BridgeState,
+      emitter_cap: EmitterCapability,
+      governance_chain_id: u64,
+      governance_contract: vector<u8>,
+      _ctx: &mut TxContext
+   ) {
+      option::fill<EmitterCapability>(&mut state.emitter_cap, emitter_cap);
+      set_governance_chain_id(&mut state, u16::from_u64(governance_chain_id));
+      set_governance_contract(&mut state, external_address::from_bytes(governance_contract));
 
-        // permanently shares state
-        transfer::share_object(state);
-    }
+      // permanently shares state
+      transfer::share_object(state);
+   }
 
    public(friend) fun deposit<CoinType>(
       bridge_state: &mut BridgeState,
@@ -153,6 +159,7 @@ module token_bridge::bridge_state {
    //        input that to wormhole::publish_event
    public(friend) fun publish_message(
       wormhole_state: &mut State,
+      bridge_state: &mut BridgeState,
       nonce: u64,
       payload: vector<u8>,
       message_fee: Coin<SUI>,
@@ -160,6 +167,7 @@ module token_bridge::bridge_state {
    ) {
       //TODO - use emitter cap pattern
       wormhole::publish_message(
+         option::borrow_mut<EmitterCapability>(&mut bridge_state.emitter_cap),
          wormhole_state,
          nonce,
          payload,

@@ -47,6 +47,7 @@ module token_bridge::transfer_tokens {
         );
         bridge_state::publish_message(
             wormhole_state,
+            bridge_state,
             nonce,
             transfer::encode(transfer),
             wormhole_fee_coins,

@@ -1,11 +1,12 @@
 module wormhole::wormhole {
     use sui::sui::{SUI};
     use sui::coin::{Self, Coin};
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::{TxContext};
     use sui::transfer::{Self};
 
     //use wormhole::structs::{create_guardian, create_guardian_set};
     use wormhole::state::{Self, State};
+    use wormhole::emitter::{Self};
 
     // use wormhole::myu16 as u16;
     // use wormhole::myu32::{Self as u32, U32};
@@ -16,9 +17,11 @@ module wormhole::wormhole {
 // -----------------------------------------------------------------------------
 // Sending messages
 // TODO - make this a non-entry fun, so we can return the sequence number?
-//        as long it is entry, we cannot have a return value
-// TODO - use emitter cap when publishing message so that sequence is not tx_origin
+//        As long as it is entry, we cannot have a return value. Is it true that
+//        we don't need this function to be entry, because most of the time it
+//        is called by a smart contract?
     public entry fun publish_message(
+        emitter_cap: &mut emitter::EmitterCapability,
         state: &mut State,
         nonce: u64,
         payload: vector<u8>,
@@ -32,9 +35,8 @@ module wormhole::wormhole {
         // deposit the fees into the wormhole account
         transfer::transfer(message_fee, @wormhole);
 
-        // get sender and sequence number
-        let sender = &tx_context::sender(ctx);
-        let sequence = state::get_sequence(state, sender);
+        // get sequence number
+        let sequence = emitter::use_sequence(emitter_cap);
 
         // emit event
         state::publish_event(
@@ -43,12 +45,10 @@ module wormhole::wormhole {
             payload,
             ctx,
         );
-
-        // increment user sequence number
-        state::increase_sequence(state, sender);
     }
 
     public entry fun publish_message_free(
+        emitter_cap: &mut emitter::EmitterCapability,
         state: &mut State,
         nonce: u64,
         payload: vector<u8>,
@@ -59,8 +59,7 @@ module wormhole::wormhole {
         assert!(expected_fee == 0, E_INSUFFICIENT_FEE);
 
         // get sender and sequence number
-        let sender = &tx_context::sender(ctx);
-        let sequence = state::get_sequence(state, sender);
+        let sequence = emitter::use_sequence(emitter_cap);
 
         // emit event
         state::publish_event(
@@ -70,8 +69,6 @@ module wormhole::wormhole {
             ctx,
         );
 
-        // increment user sequence number
-        state::increase_sequence(state, sender);
     }
 
 }
