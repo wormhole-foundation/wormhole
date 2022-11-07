@@ -12,6 +12,7 @@ module wormhole::state {
     use wormhole::myu32::{Self as u32, U32};
     use wormhole::structs::{Self, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::emitter::{Self};
 
     friend wormhole::guardian_set_upgrade;
     //friend wormhole::contract_upgrade;
@@ -53,8 +54,8 @@ module wormhole::state {
         /// Consumed governance actions
         consumed_governance_actions: VecSet<vector<u8>>,
 
-        /// Sender sequence numbers
-        sequences: VecMap<address, u64>,
+        /// Capability for creating new emitters
+        emitter_registry: emitter::EmitterRegistry,
 
         /// wormhole message fee
         message_fee: u64,
@@ -75,7 +76,7 @@ module wormhole::state {
             guardian_sets: vec_map::empty<U32, GuardianSet>(),
             guardian_set_expiry: u32::from_u64(0),
             consumed_governance_actions: vec_set::empty<vector<u8>>(),
-            sequences: vec_map::empty<address, u64>(),
+            emitter_registry: emitter::init_emitter_registry(),
             message_fee: 0,
         }, tx_context::sender(ctx));
     }
@@ -154,17 +155,6 @@ module wormhole::state {
         state.governance_contract = external_address::from_bytes(contract);
     }
 
-    public fun increase_sequence(state: &mut State, sender: &address) {
-        if (vec_map::contains<address, u64>(& state.sequences, sender)) {
-            // increment sequence number by 1
-            let (_, seq) = vec_map::remove<address, u64>(&mut state.sequences, sender);
-            vec_map::insert<address, u64>(&mut state.sequences, *sender, seq + 1);
-        } else {
-            // assume sequence number was zero before, increment to 1
-            vec_map::insert<address, u64>(&mut state.sequences, *sender, 1);
-        }
-    }
-
     public(friend) fun update_guardian_set_index(state: &mut State, new_index: U32) {
         state.guardian_set_index = new_index;
     }
@@ -209,16 +199,12 @@ module wormhole::state {
         return state.chain_id
     }
 
-    public fun get_sequence(state: &State, sender: &address): u64{
-        if (vec_map::contains<address, u64>(&state.sequences, sender)){
-            return *vec_map::get<address, u64>(&state.sequences, sender)
-        } else {
-            return 0
-        }
-    }
-
     public fun get_message_fee(state: &State): u64 {
         return state.message_fee
+    }
+
+    public(friend) fun new_emitter(state: &mut State): emitter::EmitterCapability{
+        emitter::new_emitter(&mut state.emitter_registry)
     }
 
 }

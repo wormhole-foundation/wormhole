@@ -40,7 +40,7 @@ module token_bridge::register_chain {
         let action = deserialize::deserialize_u8(&mut cur);
         assert!(action == 0x01, E_INVALID_ACTION);
 
-        // TODO(csongor): should we also accept a VAA targeting aptos directly?
+        // TODO(csongor): should we also accept a VAA directly?
         // why would a registration VAA target a specific chain?
         let target_chain = deserialize::deserialize_u16(&mut cur);
         assert!(target_chain == u16::from_u64(0x0), E_INVALID_TARGET);
