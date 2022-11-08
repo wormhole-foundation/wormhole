@@ -43,7 +43,7 @@ import {
   APTOS_NODE_URL,
   APTOS_PRIVATE_KEY,
   ETH_NODE_URL,
-  ETH_PRIVATE_KEY3,
+  ETH_PRIVATE_KEY6,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
@@ -108,7 +108,7 @@ describe("Aptos SDK tests", () => {
 
     // setup ethereum
     const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-    const recipient = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
+    const recipient = new ethers.Wallet(ETH_PRIVATE_KEY6, provider);
     const recipientAddress = await recipient.getAddress();
     const ethTokenBridge = CONTRACTS.DEVNET.ethereum.token_bridge;
     try {
@@ -213,7 +213,7 @@ describe("Aptos SDK tests", () => {
   test("Transfer native ERC-20 from Ethereum to Aptos", async () => {
     // setup ethereum
     const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-    const sender = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
+    const sender = new ethers.Wallet(ETH_PRIVATE_KEY6, provider);
     const ethTokenBridge = CONTRACTS.DEVNET.ethereum.token_bridge;
     const ethCoreBridge = CONTRACTS.DEVNET.ethereum.core;
 
