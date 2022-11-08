@@ -1,4 +1,4 @@
-CONTRACT_DIRS := wormhole
+CONTRACT_DIRS := wormhole token_bridge
 
 TARGETS := build test
 

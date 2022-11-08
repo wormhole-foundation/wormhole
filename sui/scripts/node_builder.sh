@@ -3,7 +3,6 @@
 source $HOME/.cargo/env
 
 git clone https://github.com/MystenLabs/sui.git --branch devnet
-
 cd sui
 
 cargo --locked install --path crates/sui

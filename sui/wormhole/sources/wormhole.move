@@ -1,7 +1,7 @@
 module wormhole::wormhole {
     use sui::sui::{SUI};
     use sui::coin::{Self, Coin};
-    use sui::tx_context::{TxContext};
+    use sui::tx_context::{Self, TxContext};
     use sui::transfer::{Self};
 
     //use wormhole::structs::{create_guardian, create_guardian_set};
@@ -26,7 +26,6 @@ module wormhole::wormhole {
         nonce: u64,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
-        ctx: &mut TxContext,
     ) {
         // ensure that provided fee is sufficient to cover message fees
         let expected_fee = state::get_message_fee(state);
@@ -40,10 +39,10 @@ module wormhole::wormhole {
 
         // emit event
         state::publish_event(
+            emitter::get_emitter(emitter_cap),
             sequence,
             nonce,
             payload,
-            ctx,
         );
     }
 
@@ -52,7 +51,6 @@ module wormhole::wormhole {
         state: &mut State,
         nonce: u64,
         payload: vector<u8>,
-        ctx: &mut TxContext,
     ) {
         // ensure that provided fee is sufficient to cover message fees
         let expected_fee = state::get_message_fee(state);
@@ -63,12 +61,11 @@ module wormhole::wormhole {
 
         // emit event
         state::publish_event(
+            emitter::get_emitter(emitter_cap),
             sequence,
             nonce,
             payload,
-            ctx,
         );
-
     }
 
     // -----------------------------------------------------------------------------
@@ -78,4 +75,17 @@ module wormhole::wormhole {
         state::new_emitter(state, ctx)
     }
 
+    // -----------------------------------------------------------------------------
+    // get_new_emitter
+    //
+    // Honestly, unsure if this should survive once we get into code review but it
+    // sure makes writing my test script work quite well
+    //
+    // This creates a new emitter object and stores it away into the senders context. 
+    // 
+    // You can then use this to call publish_message_free and generate a vaa
+
+    public entry fun get_new_emitter(state: &mut State, ctx: &mut TxContext) {
+        transfer::transfer(state::new_emitter(state, ctx), tx_context::sender(ctx));
+    }
 }

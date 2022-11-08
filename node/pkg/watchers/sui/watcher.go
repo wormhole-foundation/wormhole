@@ -5,6 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"encoding/base64"
@@ -78,16 +81,30 @@ func NewWatcher(
 func (e *Watcher) inspectBody(logger *zap.Logger, body gjson.Result) error {
 	txDigest := body.Get("txDigest")
 	timestamp := body.Get("timestamp")
-	packageId := body.Get("event.moveEvent.packageId") // defense in depth: check this
-	account := body.Get("event.moveEvent.sender")      // defense in depth: check this
+	packageId := body.Get("event.moveEvent.packageId")
+	account := body.Get("event.moveEvent.sender")
 	consistency_level := body.Get("event.moveEvent.fields.consistency_level")
 	nonce := body.Get("event.moveEvent.fields.nonce")
 	payload := body.Get("event.moveEvent.fields.payload")
 	sender := body.Get("event.moveEvent.fields.sender")
 	sequence := body.Get("event.moveEvent.fields.sequence")
 
-	if !txDigest.Exists() || !timestamp.Exists() || !packageId.Exists() || !account.Exists() || !consistency_level.Exists() || !nonce.Exists() || !payload.Exists() || !sender.Exists() || !sequence.Exists() {
-		return errors.New("block parse error")
+	if !payload.Exists() {
+		return nil
+	}
+
+	if !txDigest.Exists() || !timestamp.Exists() || !packageId.Exists() || !account.Exists() || !consistency_level.Exists() || !nonce.Exists() || !sender.Exists() || !sequence.Exists() {
+		return errors.New("Missing event fields")
+	}
+
+	if e.suiAccount != account.String() {
+		logger.Info("account missmatch", zap.String("e.suiAccount", e.suiAccount), zap.String("account", account.String()))
+		return errors.New("account missmatch")
+	}
+
+	if !e.unsafeDevMode && e.suiPackage != packageId.String() {
+		logger.Info("package missmatch", zap.String("e.suiPackage", e.suiPackage), zap.String("package", packageId.String()))
+		return errors.New("package missmatch")
 	}
 
 	emitter := make([]byte, 8)
@@ -96,21 +113,21 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body gjson.Result) error {
 	var a vaa.Address
 	copy(a[24:], emitter)
 
-	id, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(txDigest.String())
+	id, err := base64.StdEncoding.DecodeString(txDigest.String())
 	if err != nil {
 		return err
 	}
 
 	var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
 
-	pl, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(payload.String())
+	pl, err := base64.StdEncoding.DecodeString(payload.String())
 	if err != nil {
 		return err
 	}
 
 	observation := &common.MessagePublication{
 		TxHash:           txHash,
-		Timestamp:        time.Unix(int64(timestamp.Uint()), 0),
+		Timestamp:        time.Unix(int64(timestamp.Uint()/1000), 0),
 		Nonce:            uint32(nonce.Uint()), // uint32
 		Sequence:         sequence.Uint(),
 		EmitterChain:     vaa.ChainIDSui,
@@ -188,17 +205,61 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			logger.Info("Received obsv request")
 
-		case <-timer.C:
-			if e.unsafeDevMode {
-				logger.Info("tick unsafe")
-			} else {
-				logger.Info("tick safe")
+			id := base64.StdEncoding.EncodeToString(r.TxHash)
+
+			buf := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": [{"Transaction": "%s"}, null, 10, true]}`, id)
+
+			logger.Info(buf)
+
+			resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf))
+			if err != nil {
+				logger.Error(e.suiRPC, zap.Error(err))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				continue
 			}
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logger.Error(e.suiRPC, zap.Error(err))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				continue
+
+			}
+			logger.Info(string(body))
+
+			if !gjson.Valid(string(body)) {
+				logger.Error("InvalidJson: " + string(body))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				break
+			}
+
+			outcomes := gjson.ParseBytes(body).Get("result.data")
+			if !outcomes.Exists() {
+				logger.Error("InvalidJson: " + string(body))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				break
+			}
+
+			for _, chunk := range outcomes.Array() {
+				err := e.inspectBody(logger, chunk)
+				if err != nil {
+					logger.Error(e.suiRPC, zap.Error(err))
+				}
+			}
+
+		case <-timer.C:
 			for {
 				var msg = make([]byte, 10000)
 				var n int
-				ws.SetReadDeadline(time.Now().Local().Add(100_000_000))
+				err := ws.SetReadDeadline(time.Now().Local().Add(100_000_000))
+				if err != nil {
+					return err
+				}
+
 				if n, err = ws.Read(msg); err != nil {
+					if err.Error() == "EOF" {
+						return err
+					}
 					break
 				} else {
 					parsedMsg := gjson.ParseBytes(msg)
@@ -218,6 +279,38 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 				}
 			}
+
+			resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getCommitteeInfo", "params": []}`))
+			if err != nil {
+				logger.Error(fmt.Sprintf("sui_getCommitteeInfo: %s", err.Error()))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				break
+
+			}
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logger.Error(fmt.Sprintf("sui_getCommitteeInfo: %s", err.Error()))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				break
+
+			}
+			if !gjson.Valid(string(body)) {
+				logger.Error("sui_getCommitteeInfo: " + string(body))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				break
+			}
+			epoch := gjson.ParseBytes(body).Get("result.epoch")
+			if !epoch.Exists() {
+				logger.Error("sui_getCommitteeInfo: " + string(body))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				break
+			}
+			currentSuiHeight.Set(float64(epoch.Uint()))
+			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
+				Height:          int64(epoch.Uint()),
+				ContractAddress: e.suiAccount,
+			})
+
 			readiness.SetReady(common.ReadinessSuiSyncing)
 		}
 	}
