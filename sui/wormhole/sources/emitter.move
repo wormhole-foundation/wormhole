@@ -30,7 +30,7 @@ module wormhole::emitter {
         EmitterCapability { emitter, sequence: 0 }
     }
 
-    struct EmitterCapability has store {
+    struct EmitterCapability has key, store {
         /// Unique identifier of the emitter
         emitter: u64,
         /// Sequence number of the next wormhole message
