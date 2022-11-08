@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, expect, test } from "@jest/globals";
+import { beforeAll, afterAll, describe, expect, test } from "@jest/globals";
 import {
   isTxError,
   LCDClient,
@@ -128,151 +128,153 @@ const ethParseLogAndGetSignedVaa = async (receipt: ethers.ContractReceipt) => {
   );
 };
 
-test("Attest and transfer token from Terra2 to Ethereum", async () => {
-  // Attest
-  const attestMsg = await attestFromTerra(
-    CONTRACTS.DEVNET.terra2.token_bridge,
-    terraWalletAddress,
-    "uluna"
-  );
-  const attestSignedVaa = await terraBroadcastTxAndGetSignedVaa(
-    [attestMsg],
-    terraWallet
-  );
-  try {
-    await createWrappedOnEth(
+describe("Terra Integration Tests", () => {
+  test("Attest and transfer token from Terra2 to Ethereum", async () => {
+    // Attest
+    const attestMsg = await attestFromTerra(
+      CONTRACTS.DEVNET.terra2.token_bridge,
+      terraWalletAddress,
+      "uluna"
+    );
+    const attestSignedVaa = await terraBroadcastTxAndGetSignedVaa(
+      [attestMsg],
+      terraWallet
+    );
+    try {
+      await createWrappedOnEth(
+        CONTRACTS.DEVNET.ethereum.token_bridge,
+        signer,
+        attestSignedVaa
+      );
+    } catch {
+      await updateWrappedOnEth(
+        CONTRACTS.DEVNET.ethereum.token_bridge,
+        signer,
+        attestSignedVaa
+      );
+    }
+    // Transfer
+    const transferMsgs = await transferFromTerra(
+      terraWalletAddress,
+      CONTRACTS.DEVNET.terra2.token_bridge,
+      "uluna",
+      "1000000",
+      CHAIN_ID_ETH,
+      tryNativeToUint8Array(ethWalletAddress, CHAIN_ID_ETH)
+    );
+    const transferSignedVaa = await terraBroadcastTxAndGetSignedVaa(
+      transferMsgs,
+      terraWallet
+    );
+    await redeemOnEth(
       CONTRACTS.DEVNET.ethereum.token_bridge,
       signer,
-      attestSignedVaa
+      transferSignedVaa
     );
-  } catch {
-    await updateWrappedOnEth(
+  });
+
+  test("Attest and transfer token from Ethereum to Terra2", async () => {
+    // Attest
+    const attestReceipt = await attestFromEth(
       CONTRACTS.DEVNET.ethereum.token_bridge,
       signer,
+      TEST_ERC20
+    );
+    const attestSignedVaa = await ethParseLogAndGetSignedVaa(attestReceipt);
+    const createWrappedMsg = await createWrappedOnTerra(
+      CONTRACTS.DEVNET.terra2.token_bridge,
+      terraWalletAddress,
       attestSignedVaa
     );
-  }
-  // Transfer
-  const transferMsgs = await transferFromTerra(
-    terraWalletAddress,
-    CONTRACTS.DEVNET.terra2.token_bridge,
-    "uluna",
-    "1000000",
-    CHAIN_ID_ETH,
-    tryNativeToUint8Array(ethWalletAddress, CHAIN_ID_ETH)
-  );
-  const transferSignedVaa = await terraBroadcastTxAndGetSignedVaa(
-    transferMsgs,
-    terraWallet
-  );
-  await redeemOnEth(
-    CONTRACTS.DEVNET.ethereum.token_bridge,
-    signer,
-    transferSignedVaa
-  );
-});
-
-test("Attest and transfer token from Ethereum to Terra2", async () => {
-  // Attest
-  const attestReceipt = await attestFromEth(
-    CONTRACTS.DEVNET.ethereum.token_bridge,
-    signer,
-    TEST_ERC20
-  );
-  const attestSignedVaa = await ethParseLogAndGetSignedVaa(attestReceipt);
-  const createWrappedMsg = await createWrappedOnTerra(
-    CONTRACTS.DEVNET.terra2.token_bridge,
-    terraWalletAddress,
-    attestSignedVaa
-  );
-  await terraBroadcastAndWaitForExecution([createWrappedMsg], terraWallet);
-  // Transfer
-  await approveEth(
-    CONTRACTS.DEVNET.ethereum.token_bridge,
-    TEST_ERC20,
-    signer,
-    ethTransferAmount
-  );
-  const transferReceipt = await transferFromEth(
-    CONTRACTS.DEVNET.ethereum.token_bridge,
-    signer,
-    TEST_ERC20,
-    ethTransferAmount,
-    CHAIN_ID_TERRA2,
-    tryNativeToUint8Array(terraWalletAddress, CHAIN_ID_TERRA2)
-  );
-  const transferSignedVaa = await ethParseLogAndGetSignedVaa(transferReceipt);
-  const redeemMsg = await redeemOnTerra(
-    CONTRACTS.DEVNET.terra2.token_bridge,
-    terraWalletAddress,
-    transferSignedVaa
-  );
-  expect(
-    await getIsTransferCompletedTerra2(
+    await terraBroadcastAndWaitForExecution([createWrappedMsg], terraWallet);
+    // Transfer
+    await approveEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      TEST_ERC20,
+      signer,
+      ethTransferAmount
+    );
+    const transferReceipt = await transferFromEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      signer,
+      TEST_ERC20,
+      ethTransferAmount,
+      CHAIN_ID_TERRA2,
+      tryNativeToUint8Array(terraWalletAddress, CHAIN_ID_TERRA2)
+    );
+    const transferSignedVaa = await ethParseLogAndGetSignedVaa(transferReceipt);
+    const redeemMsg = await redeemOnTerra(
       CONTRACTS.DEVNET.terra2.token_bridge,
-      transferSignedVaa,
-      lcd,
-    )
-  ).toBe(false);
-  await terraBroadcastAndWaitForExecution([redeemMsg], terraWallet);
-  expect(
-    await getIsTransferCompletedTerra2(
-      CONTRACTS.DEVNET.terra2.token_bridge,
-      transferSignedVaa,
-      lcd,
-    )
-  ).toBe(true);
-});
+      terraWalletAddress,
+      transferSignedVaa
+    );
+    expect(
+      await getIsTransferCompletedTerra2(
+        CONTRACTS.DEVNET.terra2.token_bridge,
+        transferSignedVaa,
+        lcd
+      )
+    ).toBe(false);
+    await terraBroadcastAndWaitForExecution([redeemMsg], terraWallet);
+    expect(
+      await getIsTransferCompletedTerra2(
+        CONTRACTS.DEVNET.terra2.token_bridge,
+        transferSignedVaa,
+        lcd
+      )
+    ).toBe(true);
+  });
 
-test("Attest and transfer Terra2 native token to Terra Classic", async () => {
-  const attestMsg = await attestFromTerra(
-    CONTRACTS.DEVNET.terra2.token_bridge,
-    terraWalletAddress,
-    "uluna"
-  );
-  const attestSignedVaa = await terraBroadcastTxAndGetSignedVaa(
-    [attestMsg],
-    terraWallet
-  );
-  const createWrappedMsg = await createWrappedOnTerra(
-    CONTRACTS.DEVNET.terra.token_bridge,
-    terraClassicWalletAddress,
-    attestSignedVaa
-  );
-  await terraBroadcastAndWaitForExecution(
-    [createWrappedMsg],
-    terraClassicWallet,
-    true
-  );
-  // Transfer
-  const transferMsgs = await transferFromTerra(
-    terraWalletAddress,
-    CONTRACTS.DEVNET.terra2.token_bridge,
-    "uluna",
-    "1000000",
-    CHAIN_ID_TERRA,
-    tryNativeToUint8Array(terraClassicWalletAddress, CHAIN_ID_TERRA)
-  );
-  const transferSignedVaa = await terraBroadcastTxAndGetSignedVaa(
-    transferMsgs,
-    terraWallet
-  );
-  const redeemMsg = await redeemOnTerra(
-    CONTRACTS.DEVNET.terra.token_bridge,
-    terraClassicWalletAddress,
-    transferSignedVaa
-  );
-  await terraBroadcastAndWaitForExecution(
-    [redeemMsg],
-    terraClassicWallet,
-    true
-  );
-  expect(
-    await getIsTransferCompletedTerra(
+  test("Attest and transfer Terra2 native token to Terra Classic", async () => {
+    const attestMsg = await attestFromTerra(
+      CONTRACTS.DEVNET.terra2.token_bridge,
+      terraWalletAddress,
+      "uluna"
+    );
+    const attestSignedVaa = await terraBroadcastTxAndGetSignedVaa(
+      [attestMsg],
+      terraWallet
+    );
+    const createWrappedMsg = await createWrappedOnTerra(
       CONTRACTS.DEVNET.terra.token_bridge,
-      transferSignedVaa,
-      lcdClassic,
-      TERRA_GAS_PRICES_URL
-    )
-  ).toBe(true);
+      terraClassicWalletAddress,
+      attestSignedVaa
+    );
+    await terraBroadcastAndWaitForExecution(
+      [createWrappedMsg],
+      terraClassicWallet,
+      true
+    );
+    // Transfer
+    const transferMsgs = await transferFromTerra(
+      terraWalletAddress,
+      CONTRACTS.DEVNET.terra2.token_bridge,
+      "uluna",
+      "1000000",
+      CHAIN_ID_TERRA,
+      tryNativeToUint8Array(terraClassicWalletAddress, CHAIN_ID_TERRA)
+    );
+    const transferSignedVaa = await terraBroadcastTxAndGetSignedVaa(
+      transferMsgs,
+      terraWallet
+    );
+    const redeemMsg = await redeemOnTerra(
+      CONTRACTS.DEVNET.terra.token_bridge,
+      terraClassicWalletAddress,
+      transferSignedVaa
+    );
+    await terraBroadcastAndWaitForExecution(
+      [redeemMsg],
+      terraClassicWallet,
+      true
+    );
+    expect(
+      await getIsTransferCompletedTerra(
+        CONTRACTS.DEVNET.terra.token_bridge,
+        transferSignedVaa,
+        lcdClassic,
+        TERRA_GAS_PRICES_URL
+      )
+    ).toBe(true);
+  });
 });
