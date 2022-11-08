@@ -202,7 +202,7 @@ func (s *spyServer) HandleGossipVAA(g *gossipv1.SignedVAAWithQuorum) error {
 					sub.ch <- envelope
 				}
 			default:
-				panic("unsupported filter type in subscriptions")
+				panic(fmt.Sprintf("unsupported filter type in subscriptions: %T", filter))
 			}
 		}
 
@@ -289,7 +289,7 @@ func (s *spyServer) HandleGossipBatchVAA(g *gossipv1.SignedBatchVAAWithQuorum) e
 					sub.ch <- envelope
 				}
 			default:
-				panic("unsupported filter type in subscriptions")
+				panic(fmt.Sprintf("unsupported filter type in subscriptions: %T", filter))
 			}
 		}
 	}

@@ -100,14 +100,16 @@ func getBatchVAAQuorumMessage(chainID vaa.ChainID, txID []byte, nonce uint32, em
 
 // wait for the server to establish a client subscription before returning.
 func waitForClientSubscriptionInit(server *spyServer) {
-	server.subsAllVaaMu.Lock()
-	subs := len(server.subsAllVaa)
-	server.subsAllVaaMu.Unlock()
+	for {
+		server.subsAllVaaMu.Lock()
+		subs := len(server.subsAllVaa)
+		server.subsAllVaaMu.Unlock()
 
-	if subs > 0 {
-		return
+		if subs > 0 {
+			return
+		}
+		time.Sleep(time.Millisecond * 10)
 	}
-	waitForClientSubscriptionInit(server)
 }
 
 //
