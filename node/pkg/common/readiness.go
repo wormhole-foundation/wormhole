@@ -28,4 +28,5 @@ const (
 	ReadinessArbitrumSyncing  readiness.Component = "arbitrumSyncing"
 	ReadinessOptimismSyncing  readiness.Component = "optimismSyncing"
 	ReadinessWormchainSyncing readiness.Component = "wormchainSyncing"
+	ReadinessOptimismSyncing  readiness.Component = "optimismSyncing"
 )
