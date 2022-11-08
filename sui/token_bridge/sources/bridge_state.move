@@ -1,7 +1,6 @@
 module token_bridge::bridge_state {
-   //use std::vector::{Self};
-   use std::option::{Self, Option};
    use std::vector::{Self};
+   use std::option::{Self, Option};
 
    use sui::object::{Self, UID};
    use sui::vec_map::{Self, VecMap};
@@ -49,14 +48,6 @@ module token_bridge::bridge_state {
       }
    }
 
-   struct ConsumedVAA has key, copy, drop, store {
-      hash: vector<u8>
-   }
-
-   public fun create_consumed_vaa(hash: vector<u8>): ConsumedVAA {
-      return ConsumedVAA{hash:hash}
-   }
-
    struct Unit has key, store {id: UID,} // for turning object_table into a set
 
    // TODO - move to newtypes
@@ -72,7 +63,7 @@ module token_bridge::bridge_state {
       governance_contract: ExternalAddress,
 
       /// Set of consumed VAA hashes
-      consumed_vaas: object_table::ObjectTable<ConsumedVAA, Unit>,
+      consumed_vaas: object_table::ObjectTable<vector<u8>, Unit>,
 
       /// Token bridge owned emitter capability
       emitter_cap: option::Option<EmitterCapability>,
@@ -88,7 +79,7 @@ module token_bridge::bridge_state {
             id: object::new(ctx),
             governance_chain_id: u16::from_u64(0),
             governance_contract: external_address::from_bytes(vector::empty<u8>()),
-            consumed_vaas: object_table::new<ConsumedVAA, Unit>(ctx),
+            consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
             emitter_cap: option::none<EmitterCapability>(),
             registered_emitters: vec_map::empty<U16, ExternalAddress>(),
         }, tx_context::sender(ctx));
@@ -100,7 +91,7 @@ module token_bridge::bridge_state {
             id: object::new(ctx),
             governance_chain_id: u16::from_u64(0),
             governance_contract: external_address::from_bytes(vector::empty<u8>()),
-            consumed_vaas: object_table::new<ConsumedVAA, Unit>(ctx),
+            consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
             emitter_cap: option::none<EmitterCapability>(),
             registered_emitters: vec_map::empty<U16, ExternalAddress>(),
         }, tx_context::sender(ctx));
@@ -195,7 +186,7 @@ module token_bridge::bridge_state {
    // getters
 
    public fun vaa_is_consumed(state: &BridgeState, hash: vector<u8>): bool {
-      object_table::contains<ConsumedVAA, Unit>(&state.consumed_vaas, create_consumed_vaa(hash))
+      object_table::contains<vector<u8>, Unit>(&state.consumed_vaas, hash)//create_consumed_vaa(hash))
    }
 
    public fun get_governance_chain_id(state: &BridgeState): U16 {
@@ -246,7 +237,7 @@ module token_bridge::bridge_state {
    }
 
    public(friend) fun store_consumed_vaa(state: &mut BridgeState, vaa: vector<u8>, ctx: &mut TxContext) {
-      object_table::add<ConsumedVAA, Unit>(&mut state.consumed_vaas, create_consumed_vaa(vaa), Unit{id: object::new(ctx)});
+      object_table::add<vector<u8>, Unit>(&mut state.consumed_vaas, vaa, Unit{id: object::new(ctx)});
    }
 
 }
