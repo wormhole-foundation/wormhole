@@ -203,8 +203,8 @@ module wormhole::state {
         return state.message_fee
     }
 
-    public(friend) fun new_emitter(state: &mut State): emitter::EmitterCapability{
-        emitter::new_emitter(&mut state.emitter_registry)
+    public(friend) fun new_emitter(state: &mut State, ctx: &mut TxContext): emitter::EmitterCapability{
+        emitter::new_emitter(&mut state.emitter_registry, ctx)
     }
 
 }
