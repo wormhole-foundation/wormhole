@@ -54,8 +54,9 @@ brew install cmake
 # edit $HOME/.sui/sui_config/client.yaml
 
 ``` sh
-    active_address: "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331"
+   sed -i -e 's/active_address.*/active_address: "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331"/' ~/.sui/sui_config/client.yaml 
 ```
+
 
 # deploy the contract
 
@@ -76,3 +77,36 @@ brew install cmake
   % . env.sh
   % scripts/publish_message.sh
 ```
+
+==
+
+docker run -it -v `pwd`:`pwd` -w `pwd` --net=host ghcr.io/wormhole-foundation/sui:0.15.0 bash
+dnf -y install git make
+
+``` sh
+  % rm -rf $HOME/.sui
+  % sui keytool import "daughter exclude wheat pudding police weapon giggle taste space whip satoshi occur" secp256k1
+  % sui client
+```
+
+to get a new emitter
+
+  kubectl exec -it sui-0 -c sui-node -- /tmp/funder.sh
+  scripts/deploy.sh
+  sui client call --function get_new_emitter --module wormhole --package $WORM_PACKAGE --gas-budget 20000 --args \"$WORM_STATE\" 
+  . env.sh
+
+  sui client objects
+  scripts/publish_message.sh 0x165ef7366c4267c6506bcf63d2419556f34f48d6
+
+
+curl -s -X POST -d '{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": [{"MoveEvent": "0xf4179152ab02e4212d7e7b20f37a9a86ab6d50fb::state::WormholeMessage"}, null, 10, true]}' -H 'Content-Type: application/json' http://127.0.0.1:9002 | jq
+
+curl -s -X POST -d '{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": [{"Transaction": "cL+uWFEVcQrkAiOxOJmaK7JmlOJdE3/8X5JFbJwBxCQ="}, null, 10, true]}' -H 'Content-Type: application/json' http://127.0.0.1:9002 | jq
+
+"txhash": "0x70bfae585115710ae40223b138999a2bb26694e25d137ffc5f92456c9c01c424", "txhash_b58": "8b8Bn8MUqAWeVz2BE5hMicC9KaRkV6UM4v1JLWGUjxcT", "
+Digest: cL+uWFEVcQrkAiOxOJmaK7JmlOJdE3/8X5JFbJwBxCQ=
+
+  kubectl exec -it guardian-0 -- /guardiand admin send-observation-request --socket /tmp/admin.sock 21 70bfae585115710ae40223b138999a2bb26694e25d137ffc5f92456c9c01c424
+
+// curl -s -X POST -d '{"jsonrpc":"2.0", "id": 1, "method": "sui_getCommitteeInfo", "params": []}' -H 'Content-Type: application/json' http://127.0.0.1:9002 | jq

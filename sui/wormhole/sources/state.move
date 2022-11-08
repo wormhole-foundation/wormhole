@@ -2,7 +2,7 @@ module wormhole::state {
     use std::vector::{Self};
 
     use sui::object::{Self, UID};
-    use sui::tx_context::{Self, sender, TxContext};
+    use sui::tx_context::{Self, TxContext};
     use sui::transfer::{Self};
     use sui::vec_map::{Self, VecMap};
     use sui::vec_set::{Self, VecSet};
@@ -22,12 +22,11 @@ module wormhole::state {
     friend wormhole::vaa_test;
 
     struct WormholeMessage has store, copy, drop {
-        sender: address,
+        sender: u64,
         sequence: u64,
         nonce: u64,
         payload: vector<u8>,
-        consistency_level: u8,
-        timestamp: u64,
+        consistency_level: u8
     }
 
     struct State has key, store {
@@ -107,22 +106,20 @@ module wormhole::state {
     }
 
     public(friend) entry fun publish_event(
+        sender: u64,
         sequence: u64,
         nonce: u64,
-        payload: vector<u8>,
-        ctx: &mut TxContext
+        payload: vector<u8>
      ) {
-        let now = tx_context::epoch(ctx);
         event::emit(
             WormholeMessage {
-                sender: sender(ctx),
+                sender: sender,
                 sequence: sequence,
                 nonce: nonce,
                 payload: payload,
                 // Sui is an instant finality chain, so we don't need
                 // confirmations
                 consistency_level: 0,
-                timestamp: now // this is current epoch and not seconds
             }
         );
     }

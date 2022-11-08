@@ -171,7 +171,6 @@ module token_bridge::bridge_state {
       nonce: u64,
       payload: vector<u8>,
       message_fee: Coin<SUI>,
-      ctx: &mut TxContext
    ) {
       wormhole::publish_message(
          option::borrow_mut<EmitterCapability>(&mut bridge_state.emitter_cap),
@@ -179,7 +178,6 @@ module token_bridge::bridge_state {
          nonce,
          payload,
          message_fee,
-         ctx
       )
    }
 

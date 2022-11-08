@@ -51,7 +51,6 @@ module token_bridge::transfer_tokens {
             nonce,
             transfer::encode(transfer),
             wormhole_fee_coins,
-            ctx
         )
     }
 

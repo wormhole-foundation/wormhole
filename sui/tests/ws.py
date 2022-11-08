@@ -62,15 +62,15 @@ import base64
 
 def on_message(ws, message):
     v = json.loads(message)
+    print(json.dumps(v, indent=4))
     if "params" in v:
         tx = v["params"]["result"]["txDigest"]
-        tx = base64.standard_b64decode(tx)
-        print(tx.hex())
+        #tx = base64.standard_b64decode(tx)
+        print(tx + " -> " + base64.standard_b64decode(tx).hex())
 
         pl = v["params"]["result"]["event"]["moveEvent"]["fields"]["payload"]
         pl = base64.standard_b64decode(pl)
         print(pl.hex())
-    print(json.dumps(v, indent=4))
 
 def on_error(ws, error):
     print(error)

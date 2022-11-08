@@ -1,5 +1,5 @@
 {
-  "name": "sui-scripts",
+  "name": "@wormhole-foundation/sui-scripts",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
