@@ -38,13 +38,15 @@ export async function execute_injective(
   );
 
   let target_contract: string;
+  let action: string;
   let execute_msg: object;
 
   switch (payload.module) {
     case "Core":
       target_contract = contracts.core;
+      action = "submit_v_a_a";
       execute_msg = {
-        submit_v_a_a: {
+        [action]: {
           vaa: fromUint8Array(vaa),
         },
       };
@@ -67,8 +69,9 @@ export async function execute_injective(
         throw new Error("NFT bridge not supported yet for injective");
       }
       target_contract = contracts.nft_bridge;
+      action = "submit_vaa";
       execute_msg = {
-        submit_vaa: {
+        [action]: {
           data: fromUint8Array(vaa),
         },
       };
@@ -92,8 +95,9 @@ export async function execute_injective(
         throw new Error("contracts.token_bridge is undefined");
       }
       target_contract = contracts.token_bridge;
+      action = "submit_vaa";
       execute_msg = {
-        submit_vaa: {
+        [action]: {
           data: fromUint8Array(vaa),
         },
       };
@@ -127,9 +131,9 @@ export async function execute_injective(
     sender: walletInjAddr,
     contractAddress: target_contract,
     msg: {
-      data: fromUint8Array(vaa),
+      ...execute_msg[action],
     },
-    action: "submit_vaa",
+    action,
   });
   console.log("transaction:", transaction);
 
