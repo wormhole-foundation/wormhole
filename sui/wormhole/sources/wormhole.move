@@ -74,8 +74,8 @@ module wormhole::wormhole {
     // -----------------------------------------------------------------------------
     // Emitter registration
 
-    public fun register_emitter(state: &mut State): emitter::EmitterCapability {
-        state::new_emitter(state)
+    public fun register_emitter(state: &mut State, ctx: &mut TxContext): emitter::EmitterCapability {
+        state::new_emitter(state, ctx)
     }
 
 }

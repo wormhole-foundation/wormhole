@@ -1,4 +1,6 @@
 module wormhole::emitter {
+    use sui::object::{Self, UID};
+    use sui::tx_context::{TxContext};
 
     use wormhole::serialize;
     use wormhole::external_address::{Self, ExternalAddress};
@@ -24,13 +26,14 @@ module wormhole::emitter {
         let EmitterRegistry { next_id: _ } = registry;
     }
 
-    public(friend) fun new_emitter(registry: &mut EmitterRegistry): EmitterCapability {
+    public(friend) fun new_emitter(registry: &mut EmitterRegistry, ctx: &mut TxContext): EmitterCapability {
         let emitter = registry.next_id;
         registry.next_id = emitter + 1;
-        EmitterCapability { emitter, sequence: 0 }
+        EmitterCapability {id: object::new(ctx), emitter: emitter, sequence: 0 }
     }
 
     struct EmitterCapability has key, store {
+        id: UID,
         /// Unique identifier of the emitter
         emitter: u64,
         /// Sequence number of the next wormhole message
@@ -42,7 +45,8 @@ module wormhole::emitter {
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
     public fun destroy_emitter_cap(emitter_cap: EmitterCapability) {
-        let EmitterCapability { emitter: _, sequence: _ } = emitter_cap;
+        let EmitterCapability {id: id, emitter: _, sequence: _ } = emitter_cap;
+        object::delete(id);
     }
 
     public fun get_emitter(emitter_cap: &EmitterCapability): u64 {

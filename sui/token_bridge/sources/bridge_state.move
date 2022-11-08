@@ -279,7 +279,7 @@ module token_bridge::test_bridge_state{
          next_tx(&mut test, admin); {
             let wormhole_state = take_from_address<State>(&test, admin);
             let bridge_state = take_from_address<BridgeState>(&test, admin);
-            let my_emitter = wormhole::register_emitter(&mut wormhole_state);
+            let my_emitter = wormhole::register_emitter(&mut wormhole_state, ctx(&mut test));
             init_and_share_state(
                bridge_state,
                my_emitter,
