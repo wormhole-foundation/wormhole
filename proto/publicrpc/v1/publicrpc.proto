@@ -51,8 +51,10 @@ message MessageID {
 message BatchID {
   // Emitter chain ID.
   ChainID emitter_chain = 1;
-  // Hex-encoded (without leading 0x) transaction identifier.
-  string tx_id = 2;
+  // Transaction's unique identifier.
+  bytes tx_id = 2;
+  // Nonce of the messages in the batch.
+  uint32 nonce = 3;
 }
 
 // PublicRPCService service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
@@ -74,7 +76,7 @@ service PublicRPCService {
 
   rpc GetSignedBatchVAA (GetSignedBatchVAARequest) returns (GetSignedBatchVAAResponse) {
     option (google.api.http) = {
-      get: "/v1/signed_batch_vaa/{batch_id.emitter_chain}/{batch_id.tx_id}"
+      get: "/v1/signed_batch_vaa/{batch_id.emitter_chain}/{batch_id.tx_id}/{batch_id.nonce}"
     };
   }
 
@@ -123,7 +125,7 @@ message GetSignedBatchVAARequest {
 }
 
 message GetSignedBatchVAAResponse {
-  bytes batch_vaa_bytes = 1;
+  gossip.v1.SignedBatchVAAWithQuorum signed_batch_vaa = 1;
 }
 
 message GetLastHeartbeatsRequest {

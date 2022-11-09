@@ -135,17 +135,28 @@ message SignedBatchObservation {
   bytes hash = 2;
   // ECSDA signature of the hash using the node's guardian key.
   bytes signature = 3;
-  // Transaction hash this observation was made from.
-  bytes tx_hash = 4;
+  // Unique identifier of the transaction that produced the observation.
+  bytes tx_id = 4;
   // Chain ID for this observation.
   uint32 chain_id = 5;
-  // Batch ID - emitterChain/transactionID
-  string batch_id = 6;
+  // Nonce of the messages in the batch.
+  uint32 nonce = 6;
+  // Batch ID - emitterChain/transactionID/nonce
+  string batch_id = 7;
 }
 
 
 message SignedBatchVAAWithQuorum {
+  // batch_vaa bytes are the binary encoding of the BatchVAA
   bytes batch_vaa = 1;
+  // Emitter Chain ID of the messages
+  uint32 chain_id = 2;
+  // Transaction identifier of the observation
+  bytes tx_id = 3;
+  // Nonce of the messages in the batch
+  uint32 nonce = 4;
+  // Batch ID - emitterChain/transactionID/nonce string, for convenience
+  string batch_id = 5;
 }
 
 // This message is published every five minutes.
