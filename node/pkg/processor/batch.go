@@ -106,7 +106,7 @@ func (p *Processor) handleBatchMessage(ctx context.Context, k *common.BatchMessa
 		p.logger.Info("no messages from this BatchMessage are in processor.state",
 			zap.String("batchID", batchID.String()),
 		)
-		p.state.transactions[batchID] = map[string]*batchState{}
+		p.state.transactions[batchID] = map[string]*state{}
 	}
 
 	// check to see if we have reached quorum on all messages in the batch
@@ -128,15 +128,14 @@ func (p *Processor) handleBatchPart(o Observation) {
 	digest := o.SigningMsg()
 	hash := hex.EncodeToString(digest.Bytes())
 
-	if _, ok := p.state.batchSignatures[hash]; !ok {
+	if _, ok := p.state.signatures[hash]; !ok {
 		p.logger.Info("no state.signatures[hash] for",
 			zap.String("hash", hash),
 			zap.String("MessageID", messageID),
 		)
-
 	}
 
-	sigState := p.state.batchSignatures[hash]
+	sigState := p.state.signatures[hash]
 
 	batchID := &common.BatchMessageID{
 		EmitterChain:  o.GetEmitterChain(),
@@ -148,7 +147,7 @@ func (p *Processor) handleBatchPart(o Observation) {
 	// check state for this transaction
 	if _, ok := p.state.transactions[batchID]; !ok {
 		// initalize state.transactions for this batchID
-		p.state.transactions[batchID] = map[string]*batchState{}
+		p.state.transactions[batchID] = map[string]*state{}
 	}
 	// take the state from signatures, add it to the map by batchID/messageID
 	p.state.transactions[batchID][messageID] = sigState
@@ -341,19 +340,6 @@ func evaluateBatchProgress(p *Processor, batchID *common.BatchMessageID) {
 		p.logger.Info("BatchMessage Observations complete.",
 			zap.String("BatchID", batchID.String()),
 		)
-
-		hashes := make([]ethCommon.Hash, len(obsvs))
-		for _, msg := range obsvs {
-			obsIndex := msg.Index
-			hashes[obsIndex] = msg.Observation.SigningMsg()
-
-			p.logger.Info("generated hash for Batch Observation",
-				zap.String("BatchID", batchID.String()),
-				zap.String("MessageID", msg.Observation.MessageID()),
-				zap.String("digest.hex", msg.Observation.HexDigest()),
-				zap.String("hash.hex", hex.EncodeToString(hashes[obsIndex].Bytes())),
-			)
-		}
 
 		b := &BatchVAA{
 			BatchVAA: vaa.BatchVAA{

@@ -99,7 +99,7 @@ type (
 	// observationsByTransactionID maps the transaction hash (batchID) to
 	// to the messages within the transaction.
 	// ie. { "BatchID": { "message_id": state } }
-	observationsByTransactionID map[*common.BatchMessageID]map[string]*batchState
+	observationsByTransactionID map[*common.BatchMessageID]map[string]*state
 
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
