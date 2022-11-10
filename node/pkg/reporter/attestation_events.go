@@ -91,7 +91,7 @@ func (re *AttestationEventReporter) ReportMessagePublication(msg *MessagePublica
 		case sub.MessagePublicationC <- msg:
 			re.logger.Debug("published MessagePublication to client", zap.Int("client", client))
 		default:
-			re.logger.Error("buffer overrun when attempting to publish MessagePublication to client", zap.Int("client", client))
+			re.logger.Error("channel overflow when attempting to publish MessagePublication to client", zap.Int("client", client))
 		}
 	}
 }
@@ -106,7 +106,7 @@ func (re *AttestationEventReporter) ReportVAAQuorum(msg *vaa.VAA) {
 		case sub.VAAQuorumC <- msg:
 			re.logger.Debug("published VAAQuorum to client", zap.Int("client", client))
 		default:
-			re.logger.Error("buffer overrun when attempting to publish VAAQuorum to client", zap.Int("client", client))
+			re.logger.Error("channel overflow when attempting to publish VAAQuorum to client", zap.Int("client", client))
 
 		}
 	}
