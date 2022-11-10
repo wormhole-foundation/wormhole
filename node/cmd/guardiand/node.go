@@ -573,6 +573,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	if (*optimismRPC == "") != (*optimismContract == "") {
+		logger.Fatal("Both --optimismContract and --optimismRPC must be set together or both unset")
+	}
+
 	if *testnetMode {
 		if *neonRPC == "" {
 			logger.Fatal("Please specify --neonRPC")
@@ -589,9 +593,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *injectiveContract == "" {
 			logger.Fatal("Please specify --injectiveContract")
 		}
-		if (*optimismRPC == "") != (*optimismContract == "") {
-			logger.Fatal("Both --optimismContract and --optimismRPC must be set together or both unset")
-		}
 	} else {
 		if *neonRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonRPC")
@@ -607,12 +608,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *injectiveContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --injectiveContract")
-		}
-		if *optimismRPC != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --optimismRPC")
-		}
-		if *optimismContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --optimismContract")
 		}
 	}
 	if *nodeName == "" {
@@ -1049,6 +1044,18 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
+		if shouldStart(optimismRPC) {
+			if ethWatcher == nil {
+				log.Fatalf("if optimism is enabled then ethereum must also be enabled.")
+			}
+			logger.Info("Starting Optimism watcher")
+			readiness.RegisterComponent(common.ReadinessOptimismSyncing)
+			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "optimismwatch",
+				evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", common.ReadinessOptimismSyncing, vaa.ChainIDOptimism, lockC, nil, 1, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode, ethWatcher).Run); err != nil {
+				return err
+			}
+		}
 
 		if shouldStart(terraWS) {
 			logger.Info("Starting Terra watcher")
@@ -1154,18 +1161,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				if err := supervisor.Run(ctx, "neonwatch",
 					evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, lockC, nil, 32, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode, nil).Run); err != nil {
-					return err
-				}
-			}
-			if shouldStart(optimismRPC) {
-				if ethWatcher == nil {
-					log.Fatalf("if optimism is enabled then ethereum must also be enabled.")
-				}
-				logger.Info("Starting Optimism watcher")
-				readiness.RegisterComponent(common.ReadinessOptimismSyncing)
-				chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				if err := supervisor.Run(ctx, "optimismwatch",
-					evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", common.ReadinessOptimismSyncing, vaa.ChainIDOptimism, lockC, nil, 1, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode, ethWatcher).Run); err != nil {
 					return err
 				}
 			}
