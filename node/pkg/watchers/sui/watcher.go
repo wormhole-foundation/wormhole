@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -41,6 +42,9 @@ type (
 
 		msgChan  chan *common.MessagePublication
 		obsvReqC chan *gossipv1.ObservationRequest
+
+		subId int64
+		subscribed bool
 	}
 )
 
@@ -75,20 +79,29 @@ func NewWatcher(
 		unsafeDevMode: unsafeDevMode,
 		msgChan:       messageEvents,
 		obsvReqC:      obsvReqC,
+		subId:         0,
+		subscribed:    false,
 	}
 }
 
 func (e *Watcher) inspectBody(logger *zap.Logger, body gjson.Result) error {
 	txDigest := body.Get("txDigest")
 	timestamp := body.Get("timestamp")
-	packageId := body.Get("event.moveEvent.packageId")
-	account := body.Get("event.moveEvent.sender")
-	consistency_level := body.Get("event.moveEvent.fields.consistency_level")
-	nonce := body.Get("event.moveEvent.fields.nonce")
-	payload := body.Get("event.moveEvent.fields.payload")
-	sender := body.Get("event.moveEvent.fields.sender")
-	sequence := body.Get("event.moveEvent.fields.sequence")
-
+	moveEvent := body.Get("event.moveEvent")
+	if !moveEvent.Exists() {
+		return nil
+	}
+	packageId := moveEvent.Get("packageId")
+	account := moveEvent.Get("sender")
+	fields := moveEvent.Get("fields")
+	if !fields.Exists() {
+		return nil
+	}
+	consistency_level := fields.Get("consistency_level")
+	nonce := fields.Get("nonce")
+	payload := fields.Get("payload")
+	sender := fields.Get("sender")
+	sequence := fields.Get("sequence")
 	if !payload.Exists() {
 		return nil
 	}
@@ -170,16 +183,19 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 
 	var s string
+
+	e.subId = int64(rand.Intn(99999999))
+
 	if e.unsafeDevMode {
-		// There is no way to have a fixed packet id on
+		// There is no way to have a fixed package id on
 		// deployment.  This means that in devnet, everytime
 		// we publish the contracts we will get a new package
 		// id.  The solution is to just subscribe to the whole
 		// deployer account instead of to a specific package
 		// in that account...
-		s = fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_subscribeEvent", "params": [{"SenderAddress": "%s"}]}`, e.suiAccount)
+		s = fmt.Sprintf(`{"jsonrpc":"2.0", "id": %d, "method": "sui_subscribeEvent", "params": [{"SenderAddress": "%s"}]}`, e.subId, e.suiAccount)
 	} else {
-		s = fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_subscribeEvent", "params": [{"SenderAddress": "%s", "Package": "%s"}]}`, e.suiAccount, e.suiPackage)
+		s = fmt.Sprintf(`{"jsonrpc":"2.0", "id": %d, "method": "sui_subscribeEvent", "params": [{"SenderAddress": "%s", "Package": "%s"}]}`, e.subId, e.suiAccount, e.suiPackage)
 	}
 
 	logger.Info("Subscribing using", zap.String("filter", s))
@@ -203,13 +219,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 				panic("invalid chain ID")
 			}
 
-			logger.Info("Received obsv request")
-
 			id := base64.StdEncoding.EncodeToString(r.TxHash)
 
-			buf := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": [{"Transaction": "%s"}, null, 10, true]}`, id)
+			logger.Info("obsv request", zap.String("TxHash", string(id)))
 
-			logger.Info(buf)
+			buf := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": [{"Transaction": "%s"}, null, 10, true]}`, id)
 
 			resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf))
 			if err != nil {
@@ -250,13 +264,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-timer.C:
 			for {
 				var msg = make([]byte, 10000)
-				var n int
 				err := ws.SetReadDeadline(time.Now().Local().Add(100_000_000))
 				if err != nil {
 					return err
 				}
 
-				if n, err = ws.Read(msg); err != nil {
+				if n, err := ws.Read(msg); err != nil {
 					if err.Error() == "EOF" {
 						return err
 					}
@@ -269,13 +282,24 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 					logger.Info("receive", zap.String("body", string(msg[:n])), zap.Uint64("len", uint64(n)))
 					result := parsedMsg.Get("params.result")
-					if !result.Exists() {
-						// Other messages come through on the channel.. we can ignore them safely
+					if result.Exists() {
+						err := e.inspectBody(logger, result)
+						if err != nil {
+							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
+						}
 						continue
+					} 
+					errVal := parsedMsg.Get("error.message")
+					if errVal.Exists() {
+						return errors.New(errVal.String())
 					}
-					err := e.inspectBody(logger, result)
-					if err != nil {
-						logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
+
+					id := parsedMsg.Get("id")
+					if id.Exists() {
+						if id.Int() == e.subId {
+							e.subscribed = true
+						}
+						continue
 					}
 				}
 			}
@@ -305,13 +329,19 @@ func (e *Watcher) Run(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				break
 			}
+			// Epoch is currently not ticking in 0.15.0.  They also
+			// might release another API that gives a
+			// proper block height as we traditionally
+			// understand it...
 			currentSuiHeight.Set(float64(epoch.Uint()))
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
 				Height:          int64(epoch.Uint()),
 				ContractAddress: e.suiAccount,
 			})
 
-			readiness.SetReady(common.ReadinessSuiSyncing)
+			if e.subscribed {
+				readiness.SetReady(common.ReadinessSuiSyncing)
+			}
 		}
 	}
 }
