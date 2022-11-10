@@ -435,25 +435,21 @@ func runNode(cmd *cobra.Command, args []string) {
 		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
 
 		// Deterministic ganache ETH devnet address.
-		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
-		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
-		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
-		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
-		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
-		*auroraContract = devnet.GanacheWormholeContractAddress.Hex()
-		*fantomContract = devnet.GanacheWormholeContractAddress.Hex()
-		*karuraContract = devnet.GanacheWormholeContractAddress.Hex()
-		*acalaContract = devnet.GanacheWormholeContractAddress.Hex()
-		*klaytnContract = devnet.GanacheWormholeContractAddress.Hex()
-		*celoContract = devnet.GanacheWormholeContractAddress.Hex()
-		*moonbeamContract = devnet.GanacheWormholeContractAddress.Hex()
-		*neonContract = devnet.GanacheWormholeContractAddress.Hex()
-		if *arbitrumContract == "" {
-			*arbitrumContract = devnet.GanacheWormholeContractAddress.Hex()
-		}
-		if *optimismContract == "" {
-			*optimismContract = devnet.GanacheWormholeContractAddress.Hex()
-		}
+		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
+		*bscContract = unsafeDevModeEvmContractAddress(*bscContract)
+		*polygonContract = unsafeDevModeEvmContractAddress(*polygonContract)
+		*avalancheContract = unsafeDevModeEvmContractAddress(*avalancheContract)
+		*oasisContract = unsafeDevModeEvmContractAddress(*oasisContract)
+		*auroraContract = unsafeDevModeEvmContractAddress(*auroraContract)
+		*fantomContract = unsafeDevModeEvmContractAddress(*fantomContract)
+		*karuraContract = unsafeDevModeEvmContractAddress(*karuraContract)
+		*acalaContract = unsafeDevModeEvmContractAddress(*acalaContract)
+		*klaytnContract = unsafeDevModeEvmContractAddress(*klaytnContract)
+		*celoContract = unsafeDevModeEvmContractAddress(*celoContract)
+		*moonbeamContract = unsafeDevModeEvmContractAddress(*moonbeamContract)
+		*neonContract = unsafeDevModeEvmContractAddress(*neonContract)
+		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
+		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 	}
 
 	// Verify flags
@@ -1269,4 +1265,12 @@ func decryptTelemetryServiceAccount() ([]byte, error) {
 
 func shouldStart(rpc *string) bool {
 	return *rpc != "" && *rpc != "none"
+}
+
+func unsafeDevModeEvmContractAddress(contractAddr string) string {
+	if contractAddr != "" {
+		return contractAddr
+	}
+
+	return devnet.GanacheWormholeContractAddress.Hex()
 }
