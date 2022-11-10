@@ -97,12 +97,12 @@ func (p *Processor) broadcastBatchSignature(
 	signature []byte,
 	txhash []byte,
 ) {
-	digest := b.SigningBatchMsg()
+	digest := b.SigningMsg()
 	obsv := gossipv1.SignedBatchObservation{
 		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
 		Hash:      digest.Bytes(),
 		Signature: signature,
-		TxHash:    txhash,
+		TxId:      txhash,
 		ChainId:   uint32(b.GetEmitterChain()),
 		BatchId:   b.BatchID(),
 	}

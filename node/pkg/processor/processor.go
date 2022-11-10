@@ -49,7 +49,7 @@ type (
 		BatchID() string
 		// SigningMsg returns the hash of the signing body of the observation. This is used
 		// for signature generation and verification.
-		SigningBatchMsg() ethcommon.Hash
+		SigningMsg() ethcommon.Hash
 		// HandleQuorum finishes processing the observation once a quorum of signatures have
 		// been received for it.
 		HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor)

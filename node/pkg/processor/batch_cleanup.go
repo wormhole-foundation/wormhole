@@ -112,7 +112,7 @@ func (p *Processor) handleBatchCleanup(ctx context.Context) {
 			}
 
 			hasSigs := len(s.signatures)
-			wantSigs := CalculateQuorum(len(gs.Keys))
+			wantSigs := vaa.CalculateQuorum(len(gs.Keys))
 			quorum := hasSigs >= wantSigs
 			chain := s.ourObservation.GetEmitterChain()
 
@@ -172,7 +172,7 @@ func (p *Processor) handleBatchCleanup(ctx context.Context) {
 				// network reached consensus without us. We don't know the correct guardian
 				// set, so we simply use the most recent one.
 				hasSigs := len(s.signatures)
-				wantSigs := CalculateQuorum(len(p.gs.Keys))
+				wantSigs := vaa.CalculateQuorum(len(p.gs.Keys))
 
 				p.logger.Info("expiring unsubmitted nil batch observation",
 					zap.String("digest", hash),

@@ -57,8 +57,8 @@ func (p *Processor) handleBatchObservation(ctx context.Context, m *gossipv1.Sign
 		zap.String("digest", hash),
 		zap.String("signature", hex.EncodeToString(m.Signature)),
 		zap.String("addr", hex.EncodeToString(m.Addr)),
-		zap.String("txhash", hex.EncodeToString(m.TxHash)),
-		zap.String("txhash_b58", base58.Encode(m.TxHash)),
+		zap.String("txhash", hex.EncodeToString(m.TxId)),
+		zap.String("txhash_b58", base58.Encode(m.TxId)),
 		zap.String("batch_id", m.BatchId),
 	)
 
@@ -195,7 +195,7 @@ func (p *Processor) handleBatchObservation(ctx context.Context, m *gossipv1.Sign
 		// We have made this observation on chain!
 
 		// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.
-		quorum := CalculateQuorum(len(gs.Keys))
+		quorum := vaa.CalculateQuorum(len(gs.Keys))
 
 		p.logger.Info("aggregation state for batch observation",
 			zap.String("digest", hash),
@@ -230,7 +230,7 @@ func (p *Processor) handleInboundSignedBatchVAAWithQuorum(ctx context.Context, m
 	}
 
 	// Calculate digest for logging
-	digest := v.SigningBatchMsg()
+	digest := v.SigningMsg()
 	hash := hex.EncodeToString(digest.Bytes())
 
 	if p.gs == nil {
@@ -261,7 +261,7 @@ func (p *Processor) handleInboundSignedBatchVAAWithQuorum(ctx context.Context, m
 	}
 
 	// Verify BatchVAA has enough signatures for quorum
-	quorum := CalculateQuorum(len(p.gs.Keys))
+	quorum := vaa.CalculateQuorum(len(p.gs.Keys))
 	if len(v.Signatures) < quorum {
 		p.logger.Warn("received SignedBatchVAAWithQuorum message without quorum",
 			zap.String("digest", hash),
@@ -274,7 +274,7 @@ func (p *Processor) handleInboundSignedBatchVAAWithQuorum(ctx context.Context, m
 	}
 
 	// Verify BatchVAA signatures to prevent a DoS attack on our local store.
-	if !v.VerifyBatchSignatures(p.gs.Keys) {
+	if !v.VerifySignatures(p.gs.Keys) {
 		p.logger.Warn("received SignedBatchVAAWithQuorum message with invalid batch VAA signatures",
 			zap.String("digest", hash),
 			zap.Any("message", m),

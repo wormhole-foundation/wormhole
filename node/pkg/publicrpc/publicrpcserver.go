@@ -8,6 +8,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -110,7 +111,7 @@ func (s *PublicrpcServer) GetSignedBatchVAA(ctx context.Context, req *publicrpcv
 		return nil, status.Error(codes.InvalidArgument, "no batch ID specified")
 	}
 
-	txHash, err := vaa.StringToHash(req.BatchId.TxId)
+	txHash, err := vaa.BytesToHash(req.BatchId.TxId)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode transaction ID hex: %v", err))
 	}
@@ -128,8 +129,11 @@ func (s *PublicrpcServer) GetSignedBatchVAA(ctx context.Context, req *publicrpcv
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
+	signed := &gossipv1.SignedBatchVAAWithQuorum{
+		BatchVaa: b,
+	}
 	return &publicrpcv1.GetSignedBatchVAAResponse{
-		BatchVaaBytes: b,
+		SignedBatchVaa: signed,
 	}, nil
 }
 

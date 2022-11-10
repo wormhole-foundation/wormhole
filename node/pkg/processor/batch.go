@@ -306,7 +306,7 @@ func evaluateBatchProgress(p *Processor, batchID *common.BatchMessageID) {
 			ConsistencyLevel: msg.ConsistencyLevel,
 		}
 
-		quorum := CalculateQuorum(len(msgState.gs.Keys))
+		quorum := vaa.CalculateQuorum(len(msgState.gs.Keys))
 
 		if len(sigs) >= quorum {
 			// message has reached quorum.
@@ -358,7 +358,7 @@ func evaluateBatchProgress(p *Processor, batchID *common.BatchMessageID) {
 			zap.String("BatchID", batchID.String()),
 		)
 
-		sig, err := crypto.Sign(b.SigningBatchMsg().Bytes(), p.gk)
+		sig, err := crypto.Sign(b.SigningMsg().Bytes(), p.gk)
 		if err != nil {
 			panic(err)
 		}
