@@ -18,7 +18,7 @@ module wormhole::emitter {
     // TODO(csongor): document that this has to be globally unique.
     // The friend modifier is very important here.
     public(friend) fun init_emitter_registry(): EmitterRegistry {
-        EmitterRegistry { next_id: 0 }
+        EmitterRegistry { next_id: 1 }
     }
 
     #[test_only]
