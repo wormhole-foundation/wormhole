@@ -65,8 +65,8 @@ func (re *AttestationEventReporter) Subscribe() *activeSubscription {
 	clientId := re.getUniqueClientId()
 	re.logger.Debug("Subscribe for client", zap.Int("clientId", clientId))
 	channels := &lifecycleEventChannels{
-		MessagePublicationC: make(chan *MessagePublication, 50),
-		VAAQuorumC:          make(chan *vaa.VAA, 50),
+		MessagePublicationC: make(chan *MessagePublication, 500),
+		VAAQuorumC:          make(chan *vaa.VAA, 500),
 	}
 	re.subs[clientId] = channels
 	sub := &activeSubscription{ClientId: clientId, Channels: channels}
@@ -91,7 +91,7 @@ func (re *AttestationEventReporter) ReportMessagePublication(msg *MessagePublica
 		case sub.MessagePublicationC <- msg:
 			re.logger.Debug("published MessagePublication to client", zap.Int("client", client))
 		default:
-			re.logger.Error("buffer overrun when attempting to publish message", zap.Int("client", client))
+			re.logger.Error("channel overflow when attempting to publish MessagePublication to client", zap.Int("client", client))
 		}
 	}
 }
@@ -106,7 +106,7 @@ func (re *AttestationEventReporter) ReportVAAQuorum(msg *vaa.VAA) {
 		case sub.VAAQuorumC <- msg:
 			re.logger.Debug("published VAAQuorum to client", zap.Int("client", client))
 		default:
-			re.logger.Error("buffer overrun when attempting to publish message", zap.Int("client", client))
+			re.logger.Error("channel overflow when attempting to publish VAAQuorum to client", zap.Int("client", client))
 
 		}
 	}
