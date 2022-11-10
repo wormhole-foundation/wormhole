@@ -202,8 +202,8 @@ const MAINNET = {
   },
   optimism: {
     core: "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722",
-    token_bridge: undefined,
-    nft_bridge: undefined,
+    token_bridge: "0x1D68124e65faFC907325e3EDbF8c4d84499DAa8b",
+    nft_bridge: "0xfE8cD454b4A1CA468B57D79c0cc77Ef5B6f64585",
   },
   gnosis: {
     core: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E",
