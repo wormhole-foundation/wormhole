@@ -642,7 +642,7 @@ func (x *ObservationRequest) GetTxHash() []byte {
 // A SignedBatchObservation is a signed statement by a given guardian node
 // that they observed a series of messages originating from a transaction.
 //
-// BatcheObervations are emitted when all the Observations from a tx reach quorum.
+// BatchObervations are emitted when all the Observations from a tx reach quorum.
 //
 // The event is uniquely identified by its hash (made from hashing all the
 // individual Observation hashes).
