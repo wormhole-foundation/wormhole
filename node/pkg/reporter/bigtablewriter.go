@@ -109,39 +109,41 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 						errC <- err
 					}
 				case msg := <-sub.Channels.VAAQuorumC:
-					colFam := "QuorumState"
-					mutation := bigtable.NewMutation()
-					ts := bigtable.Now()
+					go func() {
+						colFam := "QuorumState"
+						mutation := bigtable.NewMutation()
+						ts := bigtable.Now()
 
-					b, marshalErr := msg.Marshal()
-					if marshalErr != nil {
-						logger.Error("failed to marshal VAAQuorum VAA.")
-					}
-					mutation.Set(colFam, "SignedVAA", ts, b)
+						b, marshalErr := msg.Marshal()
+						if marshalErr != nil {
+							logger.Error("failed to marshal VAAQuorum VAA.")
+						}
+						mutation.Set(colFam, "SignedVAA", ts, b)
 
-					// filter to see if this row already has the signature.
-					filter := bigtable.ChainFilters(
-						bigtable.FamilyFilter(colFam),
-						bigtable.ColumnFilter("SignedVAA"))
-					conditionalMutation := bigtable.NewCondMutation(filter, nil, mutation)
+						// filter to see if this row already has the signature.
+						filter := bigtable.ChainFilters(
+							bigtable.FamilyFilter(colFam),
+							bigtable.ColumnFilter("SignedVAA"))
+						conditionalMutation := bigtable.NewCondMutation(filter, nil, mutation)
 
-					rowKey := MakeRowKey(msg.EmitterChain, msg.EmitterAddress, msg.Sequence)
-					err := tbl.Apply(ctx, rowKey, conditionalMutation)
-					if err != nil {
-						logger.Error("Failed to write persistence info to BigTable",
-							zap.String("rowKey", rowKey),
-							zap.String("columnFamily", colFam),
-							zap.Error(err))
-						errC <- err
-					}
-					publishResult := pubsubTopic.Publish(ctx, &pubsub.Message{
-						Data: []byte(b),
-					})
-					if _, err = publishResult.Get(ctx); err != nil {
-						logger.Error("Failed getting GCP PubSub publish reciept",
-							zap.String("rowKey", rowKey),
-							zap.Error(err))
-					}
+						rowKey := MakeRowKey(msg.EmitterChain, msg.EmitterAddress, msg.Sequence)
+						err := tbl.Apply(ctx, rowKey, conditionalMutation)
+						if err != nil {
+							logger.Error("Failed to write persistence info to BigTable",
+								zap.String("rowKey", rowKey),
+								zap.String("columnFamily", colFam),
+								zap.Error(err))
+							errC <- err
+						}
+						publishResult := pubsubTopic.Publish(ctx, &pubsub.Message{
+							Data: []byte(b),
+						})
+						if _, err = publishResult.Get(ctx); err != nil {
+							logger.Error("Failed getting GCP PubSub publish reciept",
+								zap.String("rowKey", rowKey),
+								zap.Error(err))
+						}
+					}()
 				}
 			}
 		}()
