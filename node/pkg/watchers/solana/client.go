@@ -306,7 +306,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		zap.Duration("took", time.Since(start)),
 		zap.String("commitment", string(s.commitment)))
 
-	s.UpdateLatestBlock(slot)
+	s.updateLatestBlock(slot)
 
 OUTER:
 	for txNum, txRpc := range out.Transactions {
@@ -601,9 +601,9 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	s.messageEvent <- observation
 }
 
-// UpdateLatestBlock() updates the latest block number if the slot passed in is greater than the previous value.
+// updateLatestBlock() updates the latest block number if the slot passed in is greater than the previous value.
 // This check is necessary because blocks can be posted out of order, due to multi threading in this watcher.
-func (s *SolanaWatcher) UpdateLatestBlock(slot uint64) {
+func (s *SolanaWatcher) updateLatestBlock(slot uint64) {
 	s.latestBlockNumberMu.Lock()
 	defer s.latestBlockNumberMu.Unlock()
 	if slot > s.latestBlockNumber {

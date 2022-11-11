@@ -796,10 +796,13 @@ func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, er
 	return
 }
 
+// SetL1Finalizer is used to set the layer one finalizer.
 func (w *Watcher) SetL1Finalizer(l1Finalizer interfaces.L1Finalizer) {
 	w.l1Finalizer = l1Finalizer
 }
 
+// GetLatestFinalizedBlockNumber() implements the L1Finalizer interface and allows other watchers to
+// get the latest finalized block number from this watcher.
 func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
 }
