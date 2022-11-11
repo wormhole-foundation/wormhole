@@ -75,8 +75,10 @@ var (
 	bscRPC      *string
 	bscContract *string
 
-	polygonRPC      *string
-	polygonContract *string
+	polygonRPC                      *string
+	polygonContract                 *string
+	polygonRootChainRpc             *string
+	polygonRootChainContractAddress *string
 
 	auroraRPC      *string
 	auroraContract *string
@@ -206,6 +208,8 @@ func init() {
 
 	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL")
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
+	polygonRootChainRpc = NodeCmd.Flags().String("polygonRootChainRpc", "", "Polygon root chain RPC")
+	polygonRootChainContractAddress = NodeCmd.Flags().String("polygonRootChainContractAddress", "", "Polygon root chain contract address")
 
 	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL")
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
@@ -931,20 +935,24 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if shouldStart(polygonRPC) {
-			polygonMinConfirmations := uint64(512)
-			if *testnetMode {
+			var polygonMinConfirmations uint64 = 512
+			if *polygonRootChainRpc != "" {
+				// If we are using checkpointing, we don't need to wait for additional confirmations.
+				polygonMinConfirmations = 1
+			} else if *testnetMode {
+				// Testnet users don't want to have to wait too long.
 				polygonMinConfirmations = 64
+			} else if !*unsafeDevMode {
+				log.Fatal("Polygon checkpointing is required in mainnet")
 			}
 			logger.Info("Starting Polygon watcher")
 			readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 			chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "polygonwatch",
-				evm.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, polygonMinConfirmations, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode, nil).Run); err != nil {
-				// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
-				//
-				// Hardcode the minimum number of confirmations to 512 regardless of what the smart contract specifies to protect
-				// developers from accidentally specifying an unsafe number of confirmations. We can remove this restriction as soon
-				// as specific public guidance exists for Polygon developers.
+			polygonWatcher := evm.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, polygonMinConfirmations, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode, nil)
+			if err := polygonWatcher.SetRootChainParams(*polygonRootChainRpc, *polygonRootChainContractAddress); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "polygonwatch", polygonWatcher.Run); err != nil {
 				return err
 			}
 		}

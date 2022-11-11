@@ -109,6 +109,10 @@ type (
 
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
+
+		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
+		rootChainRpc      string
+		rootChainContract string
 	}
 
 	pendingKey struct {
@@ -273,6 +277,23 @@ func (w *Watcher) Run(ctx context.Context) error {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("failed to connect to polygon: %w", err)
+		}
+		w.ethConn, err = connectors.NewPolygonConnector(ctx,
+			baseConnector,
+			w.rootChainRpc,
+			w.rootChainContract,
+		)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("failed to create polygon connector: %w", err)
 		}
 	} else {
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
@@ -775,4 +796,20 @@ func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, er
 
 func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
+}
+
+// SetRootChainParams is used to enabled checkpointing (currently only for Polygon). It handles
+// if the feature is either enabled or disabled, but ensures the configuration is valid.
+func (w *Watcher) SetRootChainParams(rootChainRpc string, rootChainContract string) error {
+	if (rootChainRpc == "") != (rootChainContract == "") {
+		return fmt.Errorf("if either rootChainRpc or rootChainContract are set, they must both be set")
+	}
+
+	w.rootChainRpc = rootChainRpc
+	w.rootChainContract = rootChainContract
+	return nil
+}
+
+func (w *Watcher) usePolygonCheckpointing() bool {
+	return w.rootChainRpc != "" && w.rootChainContract != ""
 }
