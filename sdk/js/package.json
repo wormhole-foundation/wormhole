@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -61,7 +61,7 @@
     "web3": "^1.6.1"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk-proto-web": "^0.0.5",
+    "@certusone/wormhole-sdk-proto-web": "0.0.6",
     "@certusone/wormhole-sdk-wasm": "^0.0.1",
     "@injectivelabs/sdk-ts": "^1.0.211",
     "@project-serum/anchor": "^0.25.0",
