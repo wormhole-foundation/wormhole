@@ -1,39 +1,17 @@
 #![cfg(test)]
 use cosmwasm_std::{
     from_binary,
-    testing::{
-        mock_dependencies,
-        mock_env,
-        mock_info,
-    },
-    to_binary,
-    CosmosMsg,
-    DepsMut,
-    Empty,
-    Response,
-    WasmMsg,
+    testing::{mock_dependencies, mock_env, mock_info},
+    to_binary, CosmosMsg, DepsMut, Empty, Response, WasmMsg,
 };
 
 use cw721::{
-    Approval,
-    ApprovalResponse,
-    ContractInfoResponse,
-    Cw721Query,
-    Cw721ReceiveMsg,
-    Expiration,
-    NftInfoResponse,
-    OperatorsResponse,
-    OwnerOfResponse,
+    Approval, ApprovalResponse, ContractInfoResponse, Cw721Query, Cw721ReceiveMsg, Expiration,
+    NftInfoResponse, OperatorsResponse, OwnerOfResponse,
 };
 
 use crate::{
-    ContractError,
-    Cw721Contract,
-    ExecuteMsg,
-    Extension,
-    InstantiateMsg,
-    MintMsg,
-    QueryMsg,
+    ContractError, Cw721Contract, ExecuteMsg, Extension, InstantiateMsg, MintMsg, QueryMsg,
 };
 
 const MINTER: &str = "merlin";

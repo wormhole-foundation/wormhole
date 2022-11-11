@@ -20,6 +20,7 @@ import {
   coalesceChainId,
   getAssetFullyQualifiedType,
   coalesceModuleAddress,
+  parseSmartContractStateResponse,
 } from "../utils";
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
@@ -97,13 +98,8 @@ export async function getForeignAssetInjective(
         })
       ).toString("base64")
     );
-    let result: any = null;
-    if (typeof queryResult.data === "string") {
-      result = JSON.parse(
-        Buffer.from(queryResult.data, "base64").toString("utf-8")
-      );
-    }
-    return result.address;
+    const parsed = parseSmartContractStateResponse(queryResult);
+    return parsed.address;
   } catch (e) {
     return null;
   }

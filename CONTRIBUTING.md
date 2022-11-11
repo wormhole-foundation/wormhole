@@ -62,26 +62,29 @@ own features on top of, without requiring any changes in Wormhole itself.
 
 Please open a GitHub issue outlining your use case, and we can help you build it!
 
-# Pre-Commit checks
+## Pre-Commit checks
 
 Run `./scripts/lint.sh -d format` and `./scripts/lint.sh lint`.
 
-# Commit Naming Convention
+## Commit Naming Convention
 
 When making commits on Wormhole, it's advised to prefix the commit with the component name.
 
 Example Component Names (generally the root folder of the change in the Wormhole repo):
+
 - node
 - ethereum
 - sdk
 - solana
 
 Example Full Commit Text:
-- sdk/js-proto*: 0.0.4 version bump
+
+- sdk/js-proto\*: 0.0.4 version bump
 - node: docs for running a spy against mainnet
 - node: Fix formatting with go 1.19
 
 Example Full Commits:
+
 - https://github.com/wormhole-foundation/wormhole/commit/5cc2c071572daab876db2fd82e9d16dc4c34aa11
 - https://github.com/wormhole-foundation/wormhole/commit/eeb1682fba9530a8cd8755b53639ba3daefeda36
 
@@ -91,9 +94,17 @@ Resources for writing good commit messages:
 - https://cbea.ms/git-commit/
 - https://reflectoring.io/meaningful-commit-messages/
 
-## IDE Integration
+## Comment Conventions
 
-### Golang formatting
+### Go
+
+Go code should follow the [Go Doc Comments](https://go.dev/doc/comment) standard.
+
+### TypeScript
+
+TypeScript code should follow the [TSDoc](https://tsdoc.org/) standard.
+
+## Golang formatting
 
 You must format your code with `goimports` before submitting.
 You can install it with `go install golang.org/x/tools/cmd/goimports@latest` and run it with `goimports -d ./`.
@@ -112,7 +123,7 @@ You can enable it in VSCode with the following in your `settings.json`.
   },
 ```
 
-# Testing
+## Testing
 
 We believe automated tests ensure the integrity of all Wormhole components. Anyone can verify or extend them transparently and they fit nicely with our software development lifecycle. This ensures Wormhole components operate as expected in both expected and failure cases.
 

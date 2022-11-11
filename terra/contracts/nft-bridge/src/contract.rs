@@ -1,87 +1,35 @@
 use crate::{
     msg::WrappedRegistryResponse,
-    state::{
-        spl_cache,
-        spl_cache_read,
-        wrapped_asset,
-        BoundedVec,
-        SplCacheItem,
-    },
-    token_id::{
-        from_external_token_id,
-        to_external_token_id,
-    },
+    state::{spl_cache, spl_cache_read, wrapped_asset, BoundedVec, SplCacheItem},
+    token_id::{from_external_token_id, to_external_token_id},
     CHAIN_ID,
 };
 use cosmwasm_std::{
-    entry_point,
-    to_binary,
-    Binary,
-    CanonicalAddr,
-    CosmosMsg,
-    Deps,
-    DepsMut,
-    Empty,
-    Env,
-    MessageInfo,
-    QueryRequest,
-    Response,
-    StdError,
-    StdResult,
-    WasmMsg,
-    WasmQuery, Order,
+    entry_point, to_binary, Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, Order, QueryRequest, Response, StdError, StdResult, WasmMsg, WasmQuery,
 };
 
 use crate::{
-    msg::{
-        ExecuteMsg,
-        InstantiateMsg,
-        MigrateMsg,
-        QueryMsg,
-    },
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        bridge_contracts,
-        bridge_contracts_read,
-        config,
-        config_read,
-        wrapped_asset_address,
-        wrapped_asset_address_read,
-        wrapped_asset_read,
-        Action,
-        ConfigInfo,
-        RegisterChain,
-        TokenBridgeMessage,
-        TransferInfo,
-        UpgradeContract,
+        bridge_contracts, bridge_contracts_read, config, config_read, wrapped_asset_address,
+        wrapped_asset_address_read, wrapped_asset_read, Action, ConfigInfo, RegisterChain,
+        TokenBridgeMessage, TransferInfo, UpgradeContract,
     },
 };
 use wormhole::{
     byte_utils::{
-        extend_address_to_32,
-        extend_address_to_32_array,
-        get_string_from_32,
-        string_to_array,
+        extend_address_to_32, extend_address_to_32_array, get_string_from_32, string_to_array,
         ByteUtils,
     },
     error::ContractError,
 };
 
-use wormhole::msg::{
-    ExecuteMsg as WormholeExecuteMsg,
-    QueryMsg as WormholeQueryMsg,
-};
+use wormhole::msg::{ExecuteMsg as WormholeExecuteMsg, QueryMsg as WormholeQueryMsg};
 
-use wormhole::state::{
-    vaa_archive_add,
-    vaa_archive_check,
-    GovernancePacket,
-    ParsedVAA,
-};
+use wormhole::state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA};
 
-use sha3::{
-    Digest,
-    Keccak256,
-};
+use sha3::{Digest, Keccak256};
 
 type HumanAddr = String;
 
@@ -409,7 +357,10 @@ fn handle_initiate_transfer(
 
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    if wrapped_asset_address_read(deps.storage).load(asset_canonical.as_slice()).is_ok() {
+    if wrapped_asset_address_read(deps.storage)
+        .load(asset_canonical.as_slice())
+        .is_ok()
+    {
         // This is a deployed wrapped asset, burn it
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: asset.clone(),
@@ -525,9 +476,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::WrappedRegistry { chain, address } => {
             to_binary(&query_wrapped_registry(deps, chain, address.as_slice())?)
         }
-        QueryMsg::AllWrappedAssets {  } => {
-            to_binary(&query_all_wrapped_assets(deps)?)
-        }
+        QueryMsg::AllWrappedAssets {} => to_binary(&query_all_wrapped_assets(deps)?),
     }
 }
 
@@ -579,7 +528,6 @@ fn query_all_wrapped_assets(deps: Deps) -> StdResult<Vec<String>> {
     }
     Ok(result)
 }
-
 
 fn build_asset_id(chain: u16, address: &[u8]) -> Vec<u8> {
     let mut asset_id: Vec<u8> = vec![];

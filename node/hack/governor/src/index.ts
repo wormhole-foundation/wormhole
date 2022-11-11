@@ -2,6 +2,7 @@ import {
   tryNativeToHexString,
   ChainId,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_APTOS,
 } from "@certusone/wormhole-sdk";
 
 const MinNotional = 0
@@ -55,7 +56,7 @@ axios
     content += "//\n"
     content += "// This file was generated: " + (new(Date)).toString() + " using a min notional of " + MinNotional + "\n\n"
     content += "package governor\n\n"
-    content += "func tokenList() []tokenConfigEntry {\n"
+    content += "func generatedMainnetTokenList() []tokenConfigEntry {\n"
     content += "\treturn []tokenConfigEntry {\n"
 
     for (let chain in res.data.AllTime) {
@@ -82,19 +83,21 @@ axios
                       chainId
                     );
                   } catch (e) {
-                    wormholeAddr = ""
-                    if (chainId == CHAIN_ID_ALGORAND) {
-                        if (data.Address === "algo") {
-                        wormholeAddr = "0000000000000000000000000000000000000000000000000000000000000000"
-                      } else if (data.Address === "31566704") {
-                        wormholeAddr = "0000000000000000000000000000000000000000000000000000000001e1ab70"
-                      } else if (data.Address === "312769") {
-                        wormholeAddr = "000000000000000000000000000000000000000000000000000000000004c5c1"
+                    if (chainId != CHAIN_ID_APTOS) {
+                     if (chainId == CHAIN_ID_ALGORAND) {
+                        wormholeAddr = ""
+                        if ((data.Address === "algo") || (data.Address === "0")) {
+                          wormholeAddr = "0000000000000000000000000000000000000000000000000000000000000000"
+                        } else if (data.Address === "31566704") {
+                          wormholeAddr = "0000000000000000000000000000000000000000000000000000000001e1ab70"
+                        } else if (data.Address === "312769") {
+                          wormholeAddr = "000000000000000000000000000000000000000000000000000000000004c5c1"
+                        }
                       }
-                      if (wormholeAddr === "") {
-                        console.log(`Ignoring symbol '${data.Symbol}' because the address '${data.Address}' is invalid`)
-                        continue
-                      }
+                    }
+                    if (wormholeAddr === "") {
+                      console.log(`Ignoring symbol '${data.Symbol}' because the address '${data.Address}' is invalid`)
+                      continue
                     }
                   }
 
@@ -117,11 +120,11 @@ axios
     content += "\t}\n"
     content += "}\n"
 
-    await fs.writeFileSync("../../pkg/governor/mainnet_tokens.go", content, {
+    await fs.writeFileSync("../../pkg/governor/generated_mainnet_tokens.go", content, {
       flag: "w+",
     });
 
-    execSync("go fmt ../../pkg/governor/mainnet_tokens.go")
+    execSync("go fmt ../../pkg/governor/generated_mainnet_tokens.go")
 
     if (includedTokens.size != 0) {
       for (let [key, value] of includedTokens) {

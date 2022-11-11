@@ -67,7 +67,11 @@ export async function execute_aptos(
           // transaction that deploys a module cannot use that module
           //
           // Tx 1.
-          await callEntryFunc(network, rpc, `${contract}::wrapped`, "create_wrapped_coin_type", [], [bcsVAA]);
+          try {
+            await callEntryFunc(network, rpc, `${contract}::wrapped`, "create_wrapped_coin_type", [], [bcsVAA]);
+          } catch (e) {
+            console.log("this one already happened (probably)")
+          }
 
           // We just deployed the module (notice the "wait" argument which makes
           // the previous step block until finality).
@@ -175,7 +179,7 @@ export async function callEntryFunc(
     TxnBuilderTypes.AccountAddress.fromHex(accountFrom.address()),
     BigInt(sequenceNumber),
     txPayload,
-    BigInt(30000), //max gas to be used. TODO(csongor): we could compute this from the simulation below...
+    BigInt(100000), //max gas to be used. TODO(csongor): we could compute this from the simulation below...
     BigInt(100), //price per unit gas TODO(csongor): we should get this dynamically
     BigInt(Math.floor(Date.now() / 1000) + 10),
     new TxnBuilderTypes.ChainId(chainId),

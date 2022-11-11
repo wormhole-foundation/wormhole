@@ -79,9 +79,6 @@ var (
 	polygonRPC      *string
 	polygonContract *string
 
-	ethRopstenRPC      *string
-	ethRopstenContract *string
-
 	auroraRPC      *string
 	auroraContract *string
 
@@ -157,6 +154,9 @@ var (
 	arbitrumRPC      *string
 	arbitrumContract *string
 
+	optimismRPC      *string
+	optimismContract *string
+
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -212,9 +212,6 @@ func init() {
 
 	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL")
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
-
-	ethRopstenRPC = NodeCmd.Flags().String("ethRopstenRPC", "", "Ethereum Ropsten RPC URL")
-	ethRopstenContract = NodeCmd.Flags().String("ethRopstenContract", "", "Ethereum Ropsten contract address")
 
 	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL")
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
@@ -291,10 +288,13 @@ func init() {
 	arbitrumRPC = NodeCmd.Flags().String("arbitrumRPC", "", "Arbitrum RPC URL")
 	arbitrumContract = NodeCmd.Flags().String("arbitrumContract", "", "Arbitrum contract address")
 
+	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
+	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
+
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
-	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features like Ropsten)")
+	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features)")
 	devNumGuardians = NodeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
 	nodeName = NodeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
 
@@ -446,22 +446,21 @@ func runNode(cmd *cobra.Command, args []string) {
 		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
 
 		// Deterministic ganache ETH devnet address.
-		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
-		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
-		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
-		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
-		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
-		*auroraContract = devnet.GanacheWormholeContractAddress.Hex()
-		*fantomContract = devnet.GanacheWormholeContractAddress.Hex()
-		*karuraContract = devnet.GanacheWormholeContractAddress.Hex()
-		*acalaContract = devnet.GanacheWormholeContractAddress.Hex()
-		*klaytnContract = devnet.GanacheWormholeContractAddress.Hex()
-		*celoContract = devnet.GanacheWormholeContractAddress.Hex()
-		*moonbeamContract = devnet.GanacheWormholeContractAddress.Hex()
-		*neonContract = devnet.GanacheWormholeContractAddress.Hex()
-		if *arbitrumContract == "" {
-			*arbitrumContract = devnet.GanacheWormholeContractAddress.Hex()
-		}
+		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
+		*bscContract = unsafeDevModeEvmContractAddress(*bscContract)
+		*polygonContract = unsafeDevModeEvmContractAddress(*polygonContract)
+		*avalancheContract = unsafeDevModeEvmContractAddress(*avalancheContract)
+		*oasisContract = unsafeDevModeEvmContractAddress(*oasisContract)
+		*auroraContract = unsafeDevModeEvmContractAddress(*auroraContract)
+		*fantomContract = unsafeDevModeEvmContractAddress(*fantomContract)
+		*karuraContract = unsafeDevModeEvmContractAddress(*karuraContract)
+		*acalaContract = unsafeDevModeEvmContractAddress(*acalaContract)
+		*klaytnContract = unsafeDevModeEvmContractAddress(*klaytnContract)
+		*celoContract = unsafeDevModeEvmContractAddress(*celoContract)
+		*moonbeamContract = unsafeDevModeEvmContractAddress(*moonbeamContract)
+		*neonContract = unsafeDevModeEvmContractAddress(*neonContract)
+		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
+		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 	}
 
 	// Verify flags
@@ -592,13 +591,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	if (*optimismRPC == "") != (*optimismContract == "") {
+		logger.Fatal("Both --optimismContract and --optimismRPC must be set together or both unset")
+	}
+
 	if *testnetMode {
-		if *ethRopstenRPC == "" {
-			logger.Fatal("Please specify --ethRopstenRPC")
-		}
-		if *ethRopstenContract == "" {
-			logger.Fatal("Please specify --ethRopstenContract")
-		}
 		if *neonRPC == "" {
 			logger.Fatal("Please specify --neonRPC")
 		}
@@ -615,12 +612,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --injectiveContract")
 		}
 	} else {
-		if *ethRopstenRPC != "" {
-			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
-		}
-		if *ethRopstenContract != "" {
-			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
-		}
 		if *neonRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonRPC")
 		}
@@ -736,7 +727,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 	bscContractAddr := eth_common.HexToAddress(*bscContract)
 	polygonContractAddr := eth_common.HexToAddress(*polygonContract)
-	ethRopstenContractAddr := eth_common.HexToAddress(*ethRopstenContract)
 	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
 	oasisContractAddr := eth_common.HexToAddress(*oasisContract)
 	auroraContractAddr := eth_common.HexToAddress(*auroraContract)
@@ -748,6 +738,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	moonbeamContractAddr := eth_common.HexToAddress(*moonbeamContract)
 	neonContractAddr := eth_common.HexToAddress(*neonContract)
 	arbitrumContractAddr := eth_common.HexToAddress(*arbitrumContract)
+	optimismContractAddr := eth_common.HexToAddress(*optimismContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -823,7 +814,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	injectC := make(chan *vaa.VAA)
 
 	// Guardian set state managed by processor
-	gst := common.NewGuardianSetState()
+	gst := common.NewGuardianSetState(nil)
 
 	// Per-chain observation requests
 	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
@@ -1071,6 +1062,18 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
+		if shouldStart(optimismRPC) {
+			if ethWatcher == nil {
+				log.Fatalf("if optimism is enabled then ethereum must also be enabled.")
+			}
+			logger.Info("Starting Optimism watcher")
+			readiness.RegisterComponent(common.ReadinessOptimismSyncing)
+			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "optimismwatch",
+				evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", common.ReadinessOptimismSyncing, vaa.ChainIDOptimism, lockC, nil, 1, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode, ethWatcher).Run); err != nil {
+				return err
+			}
+		}
 
 		if shouldStart(terraWS) {
 			logger.Info("Starting Terra watcher")
@@ -1180,15 +1183,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if *testnetMode {
-			if shouldStart(ethRopstenRPC) {
-				logger.Info("Starting Eth Ropsten watcher")
-				readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
-				chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				if err := supervisor.Run(ctx, "ethropstenwatch",
-					evm.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, nil, 1, chainObsvReqC[vaa.ChainIDEthereumRopsten], *unsafeDevMode, nil).Run); err != nil {
-					return err
-				}
-			}
 			if shouldStart(neonRPC) {
 				logger.Info("Starting Neon watcher")
 				readiness.RegisterComponent(common.ReadinessNeonSyncing)
@@ -1303,4 +1297,12 @@ func decryptTelemetryServiceAccount() ([]byte, error) {
 
 func shouldStart(rpc *string) bool {
 	return *rpc != "" && *rpc != "none"
+}
+
+func unsafeDevModeEvmContractAddress(contractAddr string) string {
+	if contractAddr != "" {
+		return contractAddr
+	}
+
+	return devnet.GanacheWormholeContractAddress.Hex()
 }

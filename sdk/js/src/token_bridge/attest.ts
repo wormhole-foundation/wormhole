@@ -18,7 +18,6 @@ import {
   OnApplicationComplete,
   SuggestedParams,
 } from "algosdk";
-import { Account as nearAccount } from "near-api-js";
 import BN from "bn.js";
 import { ethers, PayableOverrides } from "ethers";
 import { isNativeDenom } from "../terra";

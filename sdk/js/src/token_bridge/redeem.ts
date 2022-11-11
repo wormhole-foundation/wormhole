@@ -21,10 +21,6 @@ import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
-import {
-  Account as nearAccount,
-  providers as nearProviders,
-} from "near-api-js";
 import BN from "bn.js";
 import {
   TransactionSignerPair,
@@ -39,7 +35,7 @@ import {
   MAX_VAA_DECIMALS,
   uint8ArrayToHex,
   callFunctionNear,
-  hashLookup
+  hashLookup,
 } from "../utils";
 import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
@@ -52,7 +48,7 @@ import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { AptosClient, Types } from "aptos";
-import { completeTransfer as completeTransferAptos, completeTransferAndRegister } from "../aptos";
+import { completeTransferAndRegister } from "../aptos";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -379,9 +375,5 @@ export function redeemOnAptos(
   tokenBridgeAddress: string,
   transferVAA: Uint8Array
 ): Promise<Types.EntryFunctionPayload> {
-  return completeTransferAndRegister(
-    client,
-    tokenBridgeAddress,
-    transferVAA
-  );
+  return completeTransferAndRegister(client, tokenBridgeAddress, transferVAA);
 }

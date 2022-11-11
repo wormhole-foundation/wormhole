@@ -43,6 +43,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDCelo:     "https://celoscan.xyz/api",
 	vaa.ChainIDMoonbeam: "https://api-moonbeam.moonscan.io",
 	vaa.ChainIDArbitrum: "https://api.arbiscan.io",
+	vaa.ChainIDOptimism: "https://api-optimistic.etherscan.io",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -59,6 +60,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDCelo:      strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
 	vaa.ChainIDMoonbeam:  strings.ToLower("0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"),
 	vaa.ChainIDArbitrum:  strings.ToLower("0xa5f208e072434bC67592E4C49C1B991BA79BCA46"),
+	vaa.ChainIDOptimism:  strings.ToLower("0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"),
 }
 
 var (

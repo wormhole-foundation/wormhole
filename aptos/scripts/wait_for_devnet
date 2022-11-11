@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' 0.0.0.0:8080/v1/-/healthy)" != "200" ]]; do sleep 5; done
+while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' 0.0.0.0:8081/health)" != "200" ]]; do sleep 5; done

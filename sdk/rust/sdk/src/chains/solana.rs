@@ -1,20 +1,20 @@
 use borsh::BorshDeserialize;
-use solana_program::pubkey::Pubkey;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::program::invoke_signed;
+use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
 // Export Bridge API
+pub use bridge::instructions;
+pub use bridge::solitaire as bridge_entrypoint;
+pub use bridge::types::ConsistencyLevel;
 pub use bridge::BridgeConfig;
 pub use bridge::BridgeData;
 pub use bridge::MessageData;
 pub use bridge::PostVAAData;
 pub use bridge::PostedVAAData;
 pub use bridge::VerifySignaturesData;
-pub use bridge::instructions;
-pub use bridge::solitaire as bridge_entrypoint;
-pub use bridge::types::ConsistencyLevel;
 
 use wormhole_core::WormholeError;
 use wormhole_core::VAA;
@@ -74,7 +74,7 @@ pub fn read_config(config: &AccountInfo) -> Result<BridgeConfig, WormholeError> 
 /// Deserialize helper for parsing from Borsh encoded VAA's from Solana accounts.
 pub fn read_vaa(vaa: &AccountInfo) -> Result<PostedVAAData, WormholeError> {
     Ok(PostedVAAData::try_from_slice(&vaa.data.borrow())
-       .map_err(|_| WormholeError::DeserializeFailed)?)
+        .map_err(|_| WormholeError::DeserializeFailed)?)
 }
 
 /// This helper method wraps the steps required to invoke Wormhole, it takes care of fee payment,
@@ -110,11 +110,7 @@ pub fn post_message(
 
     // Pay Fee to the Wormhole
     invoke_signed(
-        &solana_program::system_instruction::transfer(
-            &payer,
-            &fee_collector,
-            config.fee
-        ),
+        &solana_program::system_instruction::transfer(&payer, &fee_collector, config.fee),
         accounts,
         &[],
     )?;
@@ -132,7 +128,7 @@ pub fn post_message(
         )
         .unwrap(),
         accounts,
-        &seeds
+        &seeds,
     )?;
 
     Ok(())

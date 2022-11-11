@@ -6,6 +6,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../interfaces/IWormhole.sol";
+import "./interfaces/IWETH.sol";
 
 import "./BridgeState.sol";
 
@@ -73,10 +74,4 @@ contract BridgeGetters is BridgeState {
     function finality() public view returns (uint8) {
         return _state.provider.finality;
     }
-}
-
-interface IWETH is IERC20 {
-    function deposit() external payable;
-
-    function withdraw(uint amount) external;
 }

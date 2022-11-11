@@ -2,15 +2,12 @@ pub mod msg;
 pub mod state;
 
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 pub use cosmwasm_std::to_binary;
 use cosmwasm_std::Empty;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug, Default)]
 pub struct Trait {
     pub display_type: Option<String>,
     pub trait_type: String,
@@ -27,34 +24,17 @@ pub mod entry {
 
     use std::convert::TryInto;
 
-    use crate::msg::{
-        InstantiateMsg,
-        WrappedAssetInfoResponse,
-    };
+    use crate::msg::{InstantiateMsg, WrappedAssetInfoResponse};
     pub use crate::{
         msg::QueryMsg,
-        state::{
-            wrapped_asset_info,
-            wrapped_asset_info_read,
-            WrappedAssetInfo,
-        },
+        state::{wrapped_asset_info, wrapped_asset_info_read, WrappedAssetInfo},
     };
 
     use super::*;
 
     use cosmwasm_std::{
-        entry_point,
-        to_binary,
-        Binary,
-        CosmosMsg,
-        Deps,
-        DepsMut,
-        Env,
-        MessageInfo,
-        Response,
-        StdError,
-        StdResult,
-        WasmMsg,
+        entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+        StdError, StdResult, WasmMsg,
     };
     use cw721::Cw721Query;
 

@@ -1,41 +1,22 @@
 use cosmwasm_std::{
     from_slice,
-    testing::{
-        mock_dependencies,
-        mock_env,
-        mock_info,
-        MockApi,
-        MockQuerier,
-        MockStorage,
-    },
-    Coin,
-    OwnedDeps,
-    Response,
-    Storage,
+    testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
+    Coin, OwnedDeps, Response, Storage,
 };
 use cosmwasm_storage::to_length_prefixed;
 
 use wormhole::{
     contract::instantiate,
     msg::InstantiateMsg,
-    state::{
-        ConfigInfo,
-        GuardianAddress,
-        GuardianSetInfo,
-        CONFIG_KEY,
-    },
+    state::{ConfigInfo, GuardianAddress, GuardianSetInfo, CONFIG_KEY},
 };
-
-use hex;
 
 static INITIALIZER: &str = "initializer";
 static GOV_ADDR: &[u8] = b"GOVERNANCE_ADDRESS";
 
 fn get_config_info<S: Storage>(storage: &S) -> ConfigInfo {
     let key = to_length_prefixed(CONFIG_KEY);
-    let data = storage
-        .get(&key)
-        .expect("data should exist");
+    let data = storage.get(&key).expect("data should exist");
     from_slice(&data).expect("invalid data")
 }
 
@@ -71,10 +52,10 @@ fn do_init(guardians: &[GuardianAddress]) -> OwnedDeps<MockStorage, MockApi, Moc
 
 #[test]
 fn init_works() {
-    let guardians = [GuardianAddress::from(GuardianAddress {
+    let guardians = [GuardianAddress {
         bytes: hex::decode("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
             .expect("Decoding failed")
             .into(),
-    })];
+    }];
     let _deps = do_init(&guardians);
 }

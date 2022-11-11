@@ -29,9 +29,9 @@ import {
   CosmWasmChainName,
   hexToUint8Array,
   coalesceCosmWasmChainId,
-  tryHexToNativeAssetString,
   callFunctionNear,
   isValidAptosType,
+  parseSmartContractStateResponse,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -109,42 +109,29 @@ export async function getOriginalAssetInjective(
   client: ChainGrpcWasmApi
 ): Promise<WormholeWrappedInfo> {
   const chainId = CHAIN_ID_INJECTIVE;
-  if (isNativeCosmWasmDenom(CHAIN_ID_INJECTIVE, wrappedAddress)) {
+  if (isNativeCosmWasmDenom(chainId, wrappedAddress)) {
     return {
       isWrapped: false,
-      chainId: chainId,
+      chainId,
       assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
     };
   }
   try {
-    const injWrappedAddress = tryHexToNativeAssetString(
+    const response = await client.fetchSmartContractState(
       wrappedAddress,
-      CHAIN_ID_INJECTIVE
-    );
-    const queryResult = await client.fetchSmartContractState(
-      injWrappedAddress,
       Buffer.from(
         JSON.stringify({
           wrapped_asset_info: {},
         })
       ).toString("base64")
     );
-    let result: any = null;
-    if (typeof queryResult.data === "string") {
-      result = JSON.parse(
-        Buffer.from(queryResult.data, "base64").toString("utf-8")
-      );
-      return {
-        isWrapped: true,
-        chainId: result.asset_chain,
-        assetAddress: new Uint8Array(
-          Buffer.from(result.asset_address, "base64")
-        ),
-      };
-    }
-  } catch (e) {
-    console.error("getOriginalAssetInjective() failed:", e);
-  }
+    const parsed = parseSmartContractStateResponse(response);
+    return {
+      isWrapped: true,
+      chainId: parsed.asset_chain,
+      assetAddress: new Uint8Array(Buffer.from(parsed.asset_address, "base64")),
+    };
+  } catch {}
   return {
     isWrapped: false,
     chainId: chainId,

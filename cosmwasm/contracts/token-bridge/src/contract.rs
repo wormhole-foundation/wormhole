@@ -1,121 +1,47 @@
-use cw20::{
-    BalanceResponse,
-    TokenInfoResponse,
-};
-use cw20_base::msg::{
-    ExecuteMsg as TokenMsg,
-    QueryMsg as TokenQuery,
-};
+use cw20::{BalanceResponse, TokenInfoResponse};
+use cw20_base::msg::{ExecuteMsg as TokenMsg, QueryMsg as TokenQuery};
 use cw20_wrapped_2::msg::{
-    ExecuteMsg as WrappedMsg,
-    InitHook,
-    InstantiateMsg as WrappedInit,
-    QueryMsg as WrappedQuery,
+    ExecuteMsg as WrappedMsg, InitHook, InstantiateMsg as WrappedInit, QueryMsg as WrappedQuery,
     WrappedAssetInfoResponse,
 };
 use std::{
-    cmp::{
-        max,
-        min,
-    },
+    cmp::{max, min},
     str::FromStr,
 };
-use terraswap::asset::{
-    Asset,
-    AssetInfo,
-};
+use terraswap::asset::{Asset, AssetInfo};
 
 use wormhole::{
     byte_utils::{
-        extend_address_to_32,
-        extend_address_to_32_array,
-        extend_string_to_32,
-        get_string_from_32,
+        extend_address_to_32, extend_address_to_32_array, extend_string_to_32, get_string_from_32,
         ByteUtils,
     },
     error::ContractError,
-    msg::{
-        ExecuteMsg as WormholeExecuteMsg,
-        QueryMsg as WormholeQueryMsg,
-    },
-    state::{
-        vaa_archive_add,
-        vaa_archive_check,
-        GovernancePacket,
-        ParsedVAA,
-    },
+    msg::{ExecuteMsg as WormholeExecuteMsg, QueryMsg as WormholeQueryMsg},
+    state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA},
 };
 
-#[allow(unused_imports)]
+#[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    coin,
-    to_binary,
-    BankMsg,
-    Binary,
-    CanonicalAddr,
-    CosmosMsg,
-    Deps,
-    DepsMut,
-    Empty,
-    Env,
-    MessageInfo,
-    QueryRequest,
-    Reply,
-    Response,
-    StdError,
-    StdResult,
-    SubMsg,
-    Uint128,
-    WasmMsg,
+    coin, to_binary, BankMsg, Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, QueryRequest, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
     WasmQuery,
 };
 
 use crate::{
     msg::{
-        ExecuteMsg,
-        ExternalIdResponse,
-        InstantiateMsg,
-        IsVaaRedeemedResponse,
-        MigrateMsg,
-        QueryMsg,
-        TransferInfoResponse,
-        WrappedRegistryResponse,
+        ChainRegistrationResponse, ExecuteMsg, ExternalIdResponse, InstantiateMsg,
+        IsVaaRedeemedResponse, MigrateMsg, QueryMsg, TransferInfoResponse, WrappedRegistryResponse,
     },
     state::{
-        bridge_contracts,
-        bridge_contracts_read,
-        bridge_deposit,
-        config,
-        config_read,
-        config_read_legacy,
-        is_wrapped_asset,
-        is_wrapped_asset_read,
-        receive_native,
-        send_native,
-        wrapped_asset,
-        wrapped_asset_read,
-        wrapped_asset_seq,
-        wrapped_asset_seq_read,
-        wrapped_transfer_tmp,
-        Action,
-        AssetMeta,
-        ConfigInfo,
-        ConfigInfoLegacy,
-        RegisterChain,
-        TokenBridgeMessage,
-        TransferInfo,
-        TransferState,
-        TransferWithPayloadInfo,
-        UpgradeContract,
+        bridge_contracts, bridge_contracts_read, bridge_deposit, config, config_read,
+        is_wrapped_asset, is_wrapped_asset_read, receive_native, send_native, wrapped_asset,
+        wrapped_asset_read, wrapped_asset_seq, wrapped_asset_seq_read, wrapped_transfer_tmp,
+        Action, AssetMeta, ConfigInfo, RegisterChain, TokenBridgeMessage, TransferInfo,
+        TransferState, TransferWithPayloadInfo, UpgradeContract,
     },
-    token_address::{
-        ContractId,
-        ExternalTokenId,
-        TokenId,
-        WrappedCW20,
-    },
+    token_address::{ContractId, ExternalTokenId, TokenId, WrappedCW20},
 };
 
 type HumanAddr = String;
@@ -160,7 +86,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Respons
     //     wormhole_contract,
     //     wrapped_asset_code_id,
     // } = config_read_legacy(deps.storage).load()?;
-    
+
     // // 3. store new state with terra2 values hardcoded
     // let chain_id = 18;
     // let native_denom = "uluna".to_string();
@@ -317,7 +243,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::SubmitVaa { data } => submit_vaa(deps, env, info, &data),
 
         // The following actions are disabled in "shutdown" mode
-
         #[cfg(feature = "full")]
         ExecuteMsg::RegisterAssetHook {
             chain,
@@ -383,7 +308,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 
         // When in "shutdown" mode, we reject any other action
         #[cfg(not(feature = "full"))]
-        _ => Err(StdError::generic_err("Invalid during shutdown mode"))
+        _ => Err(StdError::generic_err("Invalid during shutdown mode")),
     }
 }
 
@@ -924,7 +849,7 @@ fn handle_complete_transfer_token(
 
     amount = amount
         .checked_sub(fee)
-        .ok_or(StdError::generic_err("Insufficient funds"))?;
+        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1072,7 +997,7 @@ fn handle_complete_transfer_token_native(
 
     amount = amount
         .checked_sub(fee)
-        .ok_or(StdError::generic_err("Insufficient funds"))?;
+        .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -1181,7 +1106,7 @@ fn handle_initiate_transfer_token(
     let mut submessages: Vec<SubMsg> = vec![];
 
     // we'll only need this for payload 3 transfers
-    let sender_address = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    let sender_address = deps.api.addr_canonicalize(info.sender.as_ref())?;
     let sender_address = extend_address_to_32_array(&sender_address);
 
     match is_wrapped_asset_read(deps.storage).load(asset_canonical.as_slice()) {
@@ -1272,14 +1197,14 @@ fn handle_initiate_transfer_token(
                 .checked_rem(multiplier)
                 .and_then(|rem| amount.u128().checked_sub(rem))
                 .map(Uint128::new)
-                .ok_or(StdError::generic_err("Insufficient funds"))?;
+                .ok_or_else(|| StdError::generic_err("Insufficient funds"))?;
 
             fee = fee
                 .u128()
                 .checked_rem(multiplier)
                 .and_then(|rem| fee.u128().checked_sub(rem))
                 .map(Uint128::new)
-                .ok_or(StdError::generic_err("Invalid fee"))?;
+                .ok_or_else(|| StdError::generic_err("Invalid fee"))?;
 
             // This is a regular asset, transfer its balance
             submessages.push(SubMsg::reply_on_success(
@@ -1472,7 +1397,7 @@ fn handle_initiate_transfer_native_token(
             }
         }
         TransferType::WithPayload { payload } => {
-            let sender_address = deps.api.addr_canonicalize(&info.sender.to_string())?;
+            let sender_address = deps.api.addr_canonicalize(info.sender.as_ref())?;
             let sender_address = extend_address_to_32_array(&sender_address);
             let transfer_info = TransferWithPayloadInfo {
                 amount: (0, amount.u128()),
@@ -1524,6 +1449,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::TransferInfo { vaa } => to_binary(&query_transfer_info(deps, env, &vaa)?),
         QueryMsg::ExternalId { external_id } => to_binary(&query_external_id(deps, external_id)?),
         QueryMsg::IsVaaRedeemed { vaa } => to_binary(&query_is_vaa_redeemed(deps, env, &vaa)?),
+        QueryMsg::ChainRegistration { chain } => {
+            query_chain_registration(deps, chain).and_then(|r| to_binary(&r))
+        }
     }
 }
 
@@ -1599,6 +1527,13 @@ fn query_is_vaa_redeemed(deps: Deps, _env: Env, vaa: &Binary) -> StdResult<IsVaa
     Ok(IsVaaRedeemedResponse {
         is_redeemed: vaa_archive_check(deps.storage, vaa.hash.as_slice()),
     })
+}
+
+fn query_chain_registration(deps: Deps, chain: u16) -> StdResult<ChainRegistrationResponse> {
+    bridge_contracts_read(deps.storage)
+        .load(&chain.to_be_bytes())
+        .map(Binary::from)
+        .map(|address| ChainRegistrationResponse { address })
 }
 
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {

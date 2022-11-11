@@ -1,24 +1,9 @@
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    CanonicalAddr,
-    StdError,
-    StdResult,
-    Storage,
-    Uint128,
-};
+use cosmwasm_std::{CanonicalAddr, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
-    bucket,
-    bucket_read,
-    singleton,
-    singleton_read,
-    Bucket,
-    ReadonlyBucket,
-    ReadonlySingleton,
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 
@@ -36,7 +21,7 @@ pub static BRIDGE_DEPOSITS: &[u8] = b"bridge_deposits";
 pub static NATIVE_COUNTER: &[u8] = b"native_counter";
 
 // Guardian set information
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ConfigInfo {
     // governance contract details
     pub gov_chain: u16,
@@ -98,7 +83,7 @@ type Serialized128 = String;
 
 /// Structure to keep track of an active CW20 transfer, required to pass state through to the reply
 /// handler for submessages during a transfer.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferState {
     pub account: String,
     pub message: Vec<u8>,
@@ -182,7 +167,7 @@ impl TokenBridgeMessage {
 //     98  u16      recipient_chain
 //     100 u256     fee
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferInfo {
     pub amount: (u128, u128),
     pub token_address: [u8; 32],
@@ -234,7 +219,7 @@ impl TransferInfo {
 //     100 [u8; 32] sender_address
 //     132 [u8]     payload
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferWithPayloadInfo {
     pub amount: (u128, u128),
     pub token_address: [u8; 32],
@@ -265,7 +250,6 @@ impl TransferWithPayloadInfo {
             sender_address,
             payload,
         })
-
     }
 
     pub fn serialize(&self) -> Vec<u8> {
@@ -291,7 +275,7 @@ impl TransferWithPayloadInfo {
     pub fn as_transfer_info(&self) -> TransferInfo {
         TransferInfo {
             amount: self.amount,
-            token_address: self.token_address.clone(),
+            token_address: self.token_address,
             token_chain: self.token_chain,
             recipient: self.recipient,
             recipient_chain: self.recipient_chain,

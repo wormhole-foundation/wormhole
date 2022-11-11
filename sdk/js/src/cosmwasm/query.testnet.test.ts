@@ -6,12 +6,13 @@ import {
   privateKeyToPublicKeyBase64,
 } from "@injectivelabs/sdk-ts";
 import { createTransaction, MsgArg, TxGrpcClient } from "@injectivelabs/tx-ts";
-import { PrivateKey } from "@injectivelabs/sdk-ts/dist/local";
+import { PrivateKey } from "@injectivelabs/sdk-ts";
 import { expect, test } from "@jest/globals";
 import {
   attestFromAlgorand,
   attestFromInjective,
   CHAIN_ID_ALGORAND,
+  CHAIN_ID_BSC,
   CHAIN_ID_INJECTIVE,
   coalesceChainId,
   CONTRACTS,
@@ -121,11 +122,11 @@ test.skip("testnet - injective query token bridge", async () => {
     Buffer.from(
       JSON.stringify({
         wrapped_registry: {
-          chain: coalesceChainId("injective"),
-          address: tryNativeToHexString(
-            "inj10jc4vr9vfq0ykkmfvfgz430w8z6hwdlqhdw9l8",
-            "injective"
-          ),
+          chain: CHAIN_ID_BSC,
+          address: Buffer.from(
+            "000000000000000000000000ae13d989dac2f0debff460ac112a837c89baa7cd",
+            "hex"
+          ).toString("base64"),
         },
       })
     ).toString("base64")
@@ -179,14 +180,11 @@ test.skip("testnet - injective attest native asset", async () => {
 
   /** Append Signatures */
   txRaw.setSignaturesList([signature]);
-  const txService = new TxGrpcClient({
-    txRaw,
-    endpoint: network.sentryGrpcApi,
-  });
+  const txService = new TxGrpcClient(network.sentryGrpcApi);
 
   console.log("Simulating transaction...");
   /** Simulate transaction */
-  const simulationResponse = await txService.simulate();
+  const simulationResponse = await txService.simulate(txRaw);
   console.log(
     `Transaction simulation response: ${JSON.stringify(
       simulationResponse.gasInfo
@@ -194,7 +192,7 @@ test.skip("testnet - injective attest native asset", async () => {
   );
 
   /** Broadcast transaction */
-  const txResponse = await txService.broadcast();
+  const txResponse = await txService.broadcast(txRaw);
   console.log(
     `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
   );
@@ -237,7 +235,7 @@ test.skip("testnet - injective attest native asset", async () => {
 });
 test.skip("testnet - injective attest foreign asset", async () => {
   const tba = CONTRACTS.TESTNET.injective.token_bridge;
-  const wallet = "inj180rl9ezc4389t72pc3vvlkxxs5d9jx60w9eeu3";
+  const wallet = "inj13un2qqjaenrvlsr605u82c5q5y8zjkkhdgcetq";
   const foreignAssetAddress = "inj13772jvadyx4j0hrlfh4jzk0v39k8uyfxrfs540";
   const result = await attestFromInjective(tba, wallet, foreignAssetAddress);
   console.log("token", JSON.stringify(result.params.msg));
@@ -270,13 +268,10 @@ test.skip("testnet - injective attest foreign asset", async () => {
 
   /** Append Signatures */
   txRaw.setSignaturesList([signature]);
-  const txService = new TxGrpcClient({
-    txRaw,
-    endpoint: network.sentryGrpcApi,
-  });
+  const txService = new TxGrpcClient(network.sentryGrpcApi);
 
   /** Simulate transaction */
-  const simulationResponse = await txService.simulate();
+  const simulationResponse = await txService.simulate(txRaw);
   console.log(
     `Transaction simulation response: ${JSON.stringify(
       simulationResponse.gasInfo
@@ -284,7 +279,7 @@ test.skip("testnet - injective attest foreign asset", async () => {
   );
 
   /** Broadcast transaction */
-  const txResponse = await txService.broadcast();
+  const txResponse = await txService.broadcast(txRaw);
   console.log(
     `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
   );
@@ -297,14 +292,13 @@ test.skip("testnet - injective get foreign asset", async () => {
   const network = getNetworkInfo(getEndPoint());
   const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
   // const foreignAssetAddress = "inj10jc4vr9vfq0ykkmfvfgz430w8z6hwdlqhdw9l8";
-  const foreignAssetAddress = "inj13772jvadyx4j0hrlfh4jzk0v39k8uyfxrfs540";
-  const ateArray = tryNativeToUint8Array(foreignAssetAddress, "injective");
-  console.log("wormhole address:", ateArray);
+  const foreignAssetAddress =
+    "000000000000000000000000ae13d989dac2f0debff460ac112a837c89baa7cd";
   const result = await getForeignAssetInjective(
     tba,
     client,
-    CHAIN_ID_INJECTIVE,
-    ateArray
+    CHAIN_ID_BSC,
+    hexToUint8Array(foreignAssetAddress)
   );
   console.log("result", result);
 
@@ -436,14 +430,11 @@ test.skip("testnet - injective submit a vaa", async () => {
     /** Append Signatures */
     txRaw.setSignaturesList([signature]);
 
-    const txService = new TxGrpcClient({
-      txRaw,
-      endpoint: network.sentryGrpcApi,
-    });
+    const txService = new TxGrpcClient(network.sentryGrpcApi);
 
     console.log("simulate transaction...");
     /** Simulate transaction */
-    const simulationResponse = await txService.simulate();
+    const simulationResponse = await txService.simulate(txRaw);
     console.log(
       `Transaction simulation response: ${JSON.stringify(
         simulationResponse.gasInfo
@@ -452,7 +443,7 @@ test.skip("testnet - injective submit a vaa", async () => {
 
     console.log("broadcast transaction...");
     /** Broadcast transaction */
-    const txResponse = await txService.broadcast();
+    const txResponse = await txService.broadcast(txRaw);
     console.log("txResponse", txResponse);
 
     if (txResponse.code !== 0) {
@@ -534,14 +525,11 @@ test.skip("testnet - injective submit a vaa", async () => {
       /** Append Signatures */
       txRaw.setSignaturesList([sig]);
 
-      const txService = new TxGrpcClient({
-        txRaw,
-        endpoint: network.sentryGrpcApi,
-      });
+      const txService = new TxGrpcClient(network.sentryGrpcApi);
 
       console.log("simulate transaction...");
       /** Simulate transaction */
-      const simulationResponse = await txService.simulate();
+      const simulationResponse = await txService.simulate(txRaw);
       console.log(
         `Transaction simulation response: ${JSON.stringify(
           simulationResponse.gasInfo
@@ -550,7 +538,7 @@ test.skip("testnet - injective submit a vaa", async () => {
 
       console.log("broadcast transaction...");
       /** Broadcast transaction */
-      const txResponse = await txService.broadcast();
+      const txResponse = await txService.broadcast(txRaw);
       console.log("txResponse", txResponse);
 
       if (txResponse.code !== 0) {
@@ -629,7 +617,7 @@ test.skip("testnet - injective submit a vaa", async () => {
 
 test.skip("Attest and transfer token from Injective to Algorand", async () => {
   const Asset: string = "inj";
-  const walletPKHash: string = process.env.INJ_PK_HASH || "";
+  const walletPKHash: string = process.env.ETH_KEY || "";
   const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
   const walletPublicKey = privateKeyToPublicKeyBase64(
@@ -671,14 +659,11 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
   /** Append Signatures */
   txRaw.setSignaturesList([signedMsg]);
 
-  const txService = new TxGrpcClient({
-    txRaw,
-    endpoint: network.sentryGrpcApi,
-  });
+  const txService = new TxGrpcClient(network.sentryGrpcApi);
 
   console.log("simulate transaction...");
   /** Simulate transaction */
-  const simulationResponse = await txService.simulate();
+  const simulationResponse = await txService.simulate(txRaw);
   console.log(
     `Transaction simulation response: ${JSON.stringify(
       simulationResponse.gasInfo
@@ -687,7 +672,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
 
   console.log("broadcast transaction...");
   /** Broadcast transaction */
-  const txResponse = await txService.broadcast();
+  const txResponse = await txService.broadcast(txRaw);
   console.log("txResponse", txResponse);
 
   if (txResponse.code !== 0) {
@@ -800,14 +785,11 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     /** Append Signatures */
     txRaw.setSignaturesList([signedMsg]);
 
-    const txService = new TxGrpcClient({
-      txRaw,
-      endpoint: network.sentryGrpcApi,
-    });
+    const txService = new TxGrpcClient(network.sentryGrpcApi);
 
     console.log("simulate transaction...");
     /** Simulate transaction */
-    const simulationResponse = await txService.simulate();
+    const simulationResponse = await txService.simulate(txRaw);
     console.log(
       `Transaction simulation response: ${JSON.stringify(
         simulationResponse.gasInfo
@@ -815,7 +797,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     );
     console.log("broadcast transaction...");
     /** Broadcast transaction */
-    const txResponse = await txService.broadcast();
+    const txResponse = await txService.broadcast(txRaw);
     console.log("txResponse", txResponse);
 
     if (txResponse.code !== 0) {

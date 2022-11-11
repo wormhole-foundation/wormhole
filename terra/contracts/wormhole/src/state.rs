@@ -1,39 +1,15 @@
-use schemars::{
-    JsonSchema,
-};
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    Binary,
-    CanonicalAddr,
-    Coin,
-    StdResult,
-    Storage,
-    Uint128,
-};
+use cosmwasm_std::{Binary, CanonicalAddr, Coin, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
-    bucket,
-    bucket_read,
-    singleton,
-    singleton_read,
-    Bucket,
-    ReadonlyBucket,
-    ReadonlySingleton,
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 
-use crate::{
-    byte_utils::ByteUtils,
-    error::ContractError,
-};
+use crate::{byte_utils::ByteUtils, error::ContractError};
 
-use sha3::{
-    Digest,
-    Keccak256,
-};
+use sha3::{Digest, Keccak256};
 
 type HumanAddr = String;
 
@@ -61,7 +37,7 @@ pub struct ConfigInfo {
 }
 
 // Validator Action Approval(VAA) data
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ParsedVAA {
     pub version: u8,
     pub guardian_set_index: u32,
@@ -174,7 +150,7 @@ impl ParsedVAA {
 }
 
 // Guardian address
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct GuardianAddress {
     pub bytes: Binary, // 20-byte addresses
 }
@@ -193,7 +169,7 @@ impl GuardianAddress {
 }
 
 // Guardian set information
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct GuardianSetInfo {
     pub addresses: Vec<GuardianAddress>,
     // List of guardian addresses
@@ -211,7 +187,7 @@ impl GuardianSetInfo {
 }
 
 // Wormhole contract generic information
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct WormholeInfo {
     // Period for which a guardian set stays active after it has been replaced
     pub guardian_set_expirity: u64,
@@ -244,8 +220,7 @@ pub fn sequence_set(storage: &mut dyn Storage, emitter: &[u8], sequence: u64) ->
 pub fn sequence_read(storage: &dyn Storage, emitter: &[u8]) -> u64 {
     bucket_read(storage, SEQUENCE_KEY)
         .load(emitter)
-        .or::<u64>(Ok(0))
-        .unwrap()
+        .unwrap_or(0)
 }
 
 pub fn vaa_archive_add(storage: &mut dyn Storage, hash: &[u8]) -> StdResult<()> {
@@ -255,8 +230,7 @@ pub fn vaa_archive_add(storage: &mut dyn Storage, hash: &[u8]) -> StdResult<()> 
 pub fn vaa_archive_check(storage: &dyn Storage, hash: &[u8]) -> bool {
     bucket_read(storage, GUARDIAN_SET_KEY)
         .load(hash)
-        .or::<bool>(Ok(false))
-        .unwrap()
+        .unwrap_or(false)
 }
 
 pub fn wrapped_asset(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
@@ -299,7 +273,7 @@ impl GovernancePacket {
 }
 
 // action 1
-pub struct ContractUpgrade  {
+pub struct ContractUpgrade {
     pub new_contract: u64,
 }
 
@@ -312,9 +286,7 @@ pub struct GuardianSetUpgrade {
 impl ContractUpgrade {
     pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let new_contract = data.get_u64(24);
-        Ok(ContractUpgrade {
-            new_contract,
-        })
+        Ok(ContractUpgrade { new_contract })
     }
 }
 
@@ -385,4 +357,3 @@ impl TransferFee {
         Ok(TransferFee { amount, recipient })
     }
 }
-

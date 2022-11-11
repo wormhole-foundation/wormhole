@@ -1,15 +1,8 @@
 pub use cw721_base::MintMsg;
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    Addr,
-    Binary,
-    Empty,
-};
+use cosmwasm_std::{Addr, Binary, Empty};
 
 pub use cw721_base::msg::ExecuteMsg;
 
@@ -43,13 +36,13 @@ pub struct InstantiateMsg {
     pub init_hook: Option<InitHook>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InitHook {
     pub msg: Binary,
     pub contract_addr: HumanAddr,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Generic information about the wrapped asset
@@ -127,9 +120,9 @@ pub enum QueryMsg {
     Minter {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct WrappedAssetInfoResponse {
-    pub asset_chain: u16,        // Asset chain id
+    pub asset_chain: u16,      // Asset chain id
     pub asset_address: Binary, // Asset smart contract address in the original chain
-    pub bridge: Addr,            // Bridge address, authorized to mint and burn wrapped tokens
+    pub bridge: Addr,          // Bridge address, authorized to mint and burn wrapped tokens
 }

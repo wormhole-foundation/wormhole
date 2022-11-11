@@ -5,7 +5,7 @@ macro_rules! require {
         if !$expr {
             return Err($name.into());
         }
-    }
+    };
 }
 
 /// This ErrorCode maps to the nom ParseError, we use an integer because the library is deprecating

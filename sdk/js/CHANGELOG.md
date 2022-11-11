@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1
+
+### Added
+
+queryExternalIdInjective
+
+parseSmartContractStateResponse
+
 ## 0.9.0
 
 ### Added
@@ -25,6 +33,8 @@ Use FQTs in Aptos SDK
 ### Removed
 
 Dependency: @certusone/wormhole-sdk-wasm
+
+Removed support for Ropsten since the chain has been deprecated.
 
 ## 0.8.0
 

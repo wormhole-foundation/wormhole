@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -25,7 +26,7 @@ import (
 // The CoinGecko API is documented here: https://www.coingecko.com/en/api/documentation
 // An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
 
-const coinGeckoQueryIntervalInMins = 5
+const coinGeckoQueryIntervalInMins = 15
 
 func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	ids := ""
@@ -80,7 +81,10 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 	}
 }
 
-// This does not return an error. Instead, it just logs the error and we will try again five minutes later.
+// queryCoinGecko sends a query to the CoinGecko server to get the latest prices. It can
+// return an error, but that is only used by the tool that validates the query. In the actual governor,
+// it just logs the error and we will try again next interval. If an error happens, any tokens that have
+// not been updated will be assigned their pre-configured price.
 func (gov *ChainGovernor) queryCoinGecko() error {
 	response, err := http.Get(gov.coinGeckoQuery)
 	if err != nil {
@@ -103,6 +107,17 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 		gov.logger.Error("cgov: failed to parse coin gecko response, reverting to configured prices", zap.Error(err))
 		gov.revertAllPrices()
 		return fmt.Errorf("failed to parse CoinGecko response")
+	}
+
+	resp := string(responseData)
+	if strings.Contains(resp, "error_code") {
+		gov.logger.Error("cgov: coin gecko query failed, reverting to configured prices",
+			zap.String("response", resp),
+			zap.String("query", gov.coinGeckoQuery),
+		)
+
+		gov.revertAllPrices()
+		return fmt.Errorf("coin gecko query failed: %s", resp)
 	}
 
 	var result map[string]interface{}
@@ -174,7 +189,7 @@ func (gov *ChainGovernor) revertAllPrices() {
 
 	for _, cge := range gov.tokensByCoinGeckoId {
 		for _, te := range cge {
-			gov.logger.Error("cgov: reverting to configured price",
+			gov.logger.Info("cgov: reverting to configured price",
 				zap.String("symbol", te.symbol),
 				zap.String("coinGeckoId",
 					te.coinGeckoId),

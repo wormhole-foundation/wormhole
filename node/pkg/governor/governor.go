@@ -301,7 +301,9 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	// If we don't care about this chain, the VAA can be published.
 	if !exists {
-		gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
+		if msg.EmitterChain != vaa.ChainIDPythNet {
+			gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
+		}
 		return true, nil
 	}
 

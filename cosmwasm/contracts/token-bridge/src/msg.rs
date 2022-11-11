@@ -1,27 +1,15 @@
-use cosmwasm_std::{
-    Binary,
-    Uint128,
-};
+use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use terraswap::asset::{
-    Asset,
-    AssetInfo,
-};
+use serde::{Deserialize, Serialize};
+use terraswap::asset::{Asset, AssetInfo};
 
-use crate::token_address::{
-    ExternalTokenId,
-    TokenId,
-};
+use crate::token_address::{ExternalTokenId, TokenId};
 
 type HumanAddr = String;
 
 /// The instantiation parameters of the token bridge contract. See
 /// [`crate::state::ConfigInfo`] for more details on what these fields mean.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InstantiateMsg {
     pub gov_chain: u16,
     pub gov_address: Binary,
@@ -80,26 +68,27 @@ pub enum ExecuteMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     WrappedRegistry { chain: u16, address: Binary },
     TransferInfo { vaa: Binary },
     ExternalId { external_id: Binary },
     IsVaaRedeemed { vaa: Binary },
+    ChainRegistration { chain: u16 },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct WrappedRegistryResponse {
     pub address: HumanAddr,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct TransferInfoResponse {
     pub amount: Uint128,
@@ -111,14 +100,20 @@ pub struct TransferInfoResponse {
     pub payload: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ExternalIdResponse {
     pub token_id: TokenId,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct IsVaaRedeemedResponse {
     pub is_redeemed: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ChainRegistrationResponse {
+    pub address: Binary,
 }
