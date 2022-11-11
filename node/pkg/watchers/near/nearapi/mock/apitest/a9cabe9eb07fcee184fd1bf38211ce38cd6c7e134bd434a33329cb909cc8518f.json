@@ -1,0 +1,154 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "staking_yes_protocol1.poolv1.near",
+    "header": {
+      "balance_burnt": "42455506250000000000",
+      "chunk_hash": "6R6hRUHSQh6BAXFVMYiSnc4gEH5ncjCUSGF3wYB66eeV",
+      "encoded_length": 2205,
+      "encoded_merkle_root": "CJUbHJB43KSU15CQLFBmLUHKhZJufMW3SRpfgHatg1q3",
+      "gas_limit": 1000000000000000,
+      "gas_used": 1273665187500,
+      "height_created": 76647304,
+      "height_included": 76647304,
+      "outcome_root": "FkHRtY67vgt43Q1ezbZZMLGC1HVhHQEfMFLJWznP8C9S",
+      "outgoing_receipts_root": "FBiPyBTnfBu9rmpDBC4Zz56YcniCfpVRwrJoxQPxgmap",
+      "prev_block_hash": "HqUJVzPwJcgVKtta9BfonjUMWBhKMxpNVNgVDbHzsmwd",
+      "prev_state_root": "6XUDrbortMedYH8rfQKsxFYvLK6dQr14EZHKEiHpYu5S",
+      "rent_paid": "0",
+      "shard_id": 0,
+      "signature": "ed25519:3FBjzMnMdMqESmUBfSG22NF6M61FBr3waimc9bERvE1hLKodKTAosn6o3YEwsXoxSf6BYg9nrP9aeuMDV7bhdqVQ",
+      "tx_root": "CmK3G6n6mHsoHNHTxhvmDZ3S59fa4URFoWR62VVQdZub",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "1273665187500000000"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "sweat_welcome.near",
+            "signer_public_key": "ed25519:5XWMKEBKiWGpvUXpJDp1Cd7FpegFtritjJhXsoaWxM6t"
+          }
+        },
+        "receipt_id": "43At5VXPN1mkpqPt8V4mnhbotDjJrbkvixRUsCgc67Tw",
+        "receiver_id": "sweat_welcome.near"
+      }
+    ],
+    "transactions": [
+      {
+        "actions": [
+          {
+            "Transfer": {
+              "deposit": "1430000000000000000000000"
+            }
+          }
+        ],
+        "hash": "AFtsvPoA4zRhHY2LrD2VmFzcgWCBm351oZkHbq7D6EdH",
+        "nonce": 75936080000143,
+        "public_key": "ed25519:48wLm5xHKezmyrYXZxjZkteiUsDPYSHCaZpnZkYNg1dG",
+        "receiver_id": "house_nearcrash.near",
+        "signature": "ed25519:5ZTRY174wkA8S7AgjKP6AyD6yCnzfHJ3y5dhaiLrpUvY9gawrqQcDAfphDBGmrMRu7nQhj94y6qUYoFQAoj2QN1e",
+        "signer_id": "1ce2567f7f49cb34cea72179223ec7fc4ba91077da3e01364d0c729dfbe26467"
+      },
+      {
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJ0YXNrX29yZGluYWwiOjEsImlzX2hvbmV5cG90IjpmYWxzZSwiaG9uZXlwb3RfcHJlaW1hZ2UiOlsxMDcsMTA4LDExNSwxMDIsMTA0LDExNiwxMDMsMTA2LDEwMywxMDIsMTA3LDEwMiwxMjIsMTExLDEwOSwxMDFdLCJ0YXNrX3ByZWltYWdlIjpbMTAxLDE3OCwyMzksMjQyLDQ4LDIxOSw0NiwyNDgsNTEsMTIyLDU1LDEwOSw0NSwxMDksMjIwLDE3LDI5LDAsNTYsMTU1LDk3LDIzMiwxODUsMTMxLDIxOCwxMzksMjcsNTksMTQ0LDI1NSw2OCwyNF19",
+              "deposit": "0",
+              "gas": 200000000000000,
+              "method_name": "finalize_task"
+            }
+          }
+        ],
+        "hash": "2rqzjwSCRGuSgHi2xSaZ9acXJ7XDUzzZFLJCEwY2cErf",
+        "nonce": 42862383531381,
+        "public_key": "ed25519:AF6pRVbEqTF7aPNxBssgNg44w4Vkm1e5rKg5Ecb1pKUj",
+        "receiver_id": "app.nearcrowd.near",
+        "signature": "ed25519:VQ7xudpAGYusushWfTkoRcuKtUjd2ZDL7E96bpPniRtNecQt8EFrDCZVnPrkzw6FRwUpEeBmKL7Cf3gBDrKNHtw",
+        "signer_id": "app.nearcrowd.near"
+      },
+      {
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJyZWNlaXZlcl9pZCI6ImRlcG9zaXRzLmdyb3cuc3dlYXQiLCJhbW91bnQiOiIyMDAwMDAwMDAwMDAwMDAwMDAwMDAifQ==",
+              "deposit": "1",
+              "gas": 14000000000000,
+              "method_name": "ft_transfer"
+            }
+          }
+        ],
+        "hash": "HLLcwgFb5cNKULGu2Vjb6qFqrgmFvEDfNBVbthNh552M",
+        "nonce": 64640360000002,
+        "public_key": "ed25519:6UJgpKLQnwQrHvTSLzTQSXC3bQTTDm6Nykh2Tr15HuTi",
+        "receiver_id": "token.sweat",
+        "signature": "ed25519:49v5wzfXizzENZjMeJfYHWiaxK6yCTNs3pzQ4c1AYiBNpAb4yn27QHSQ5ZdUswsYpj7hqGmoe9yocEKQ5qriESnU",
+        "signer_id": "51491d5937b8e39fa2a38b8e87673ebe678c7d7f0530e1ab11579cd8d2ee185d"
+      },
+      {
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJyZWNlaXZlcl9pZCI6IjU2MjNjOWZiYjJmMWI2YjEyYmE3NzUwMzFkYmY1MmZhYjk3N2E4YjQ2NmI2NGYxNTNmMzc0MzA2OWUxM2JiMzQiLCJhbW91bnQiOiIzMzM4OTAwMDAwMDAwMDAwMDAwMDAifQ==",
+              "deposit": "1",
+              "gas": 300000000000000,
+              "method_name": "ft_transfer"
+            }
+          }
+        ],
+        "hash": "Ed5ecLLSjiXYoC7P4kZj5FtR3YDnEyyLyeXZWFxbC9z4",
+        "nonce": 74867242000003,
+        "public_key": "ed25519:CAukaLYipZpmXQCDubYUHqCmGE1GLYkubuy7gkSCcTzj",
+        "receiver_id": "token.sweat",
+        "signature": "ed25519:23zzwkdXc8mPWBMtDZxZFT7LGaNQ6mJJqwmiN91bAXPKFuMyEGcgzHom39g5bPXLvJvNkDMGqK5K3RvKwpi9ZVnE",
+        "signer_id": "a5fa6df6a016af406bd62d4d4f1d6de2b6a678603d1f32dc39689d8693301ec4"
+      },
+      {
+        "actions": [
+          {
+            "Transfer": {
+              "deposit": "61500000000000000000000"
+            }
+          }
+        ],
+        "hash": "C3vgRrTEGrB4cRszRhbyWyVfGyqJusH9GMmLeLipT3n6",
+        "nonce": 73721462152841,
+        "public_key": "ed25519:4NwfXMWjATYkLZEt4aEvJK8atWhpsNSLmMtuW4B3iywV",
+        "receiver_id": "31e2875cc705591e12b5a43c0bfd59df395c8656851fffa9ecb50b8cba6ba140",
+        "signature": "ed25519:5Sf5AkcDjKgjoXWVbpeAASCeoZ2jV4zBPZcavyx9zymL9dPa7Rr6CvUD6SGknZajb4Wb2yWh6DZzxFxKeVCPbD2A",
+        "signer_id": "32321118014239e6400ff018eef8f593aacbe93b7bc6f595ca02d2a791a2f440"
+      },
+      {
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJ0YXNrX29yZGluYWwiOjEsImJpZCI6IjM3MTE0ODI1Mjc0ODk4NjUzMjgxMDMyIn0=",
+              "deposit": "0",
+              "gas": 30000000000000,
+              "method_name": "claim_assignment"
+            }
+          }
+        ],
+        "hash": "8FWJcU2ownJ7VSh61fcTdK6P3PdcDMKR3faEkWgMQCuy",
+        "nonce": 76625686000153,
+        "public_key": "ed25519:6HjEJjrh6b9LU9D5dT7WR8segAU94hNUQTaGog5ZSgRj",
+        "receiver_id": "app.nearcrowd.near",
+        "signature": "ed25519:5LmBCJJPpnJqChsiZ4B4rK8cjgRxVAcGjFrQm6vBnhEti3Fr3X91gvAb7dXMT3AR94ZbDSTgqnBzLorBs8MBzB94",
+        "signer_id": "1488.near"
+      }
+    ]
+  },
+  "id": "dontcare"
+}
