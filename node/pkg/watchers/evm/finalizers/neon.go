@@ -13,7 +13,6 @@ import (
 
 // NeonFinalizer implements the finality check for Neon. The Neon block number is actually the Solana slot number.
 // Blocks on Neon should not be considered finalized until that slot is finalized on Solana.
-
 type NeonFinalizer struct {
 	logger      *zap.Logger
 	connector   connectors.Connector
@@ -37,6 +36,5 @@ func (f *NeonFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.
 	}
 
 	isFinalized := block.Number.Uint64() <= latestL1Block
-	f.logger.Info("finalizer", zap.Stringer("neonBlock", block.Number), zap.Uint64("solanaSlot", latestL1Block), zap.Bool("isFinalized", isFinalized))
 	return isFinalized, nil
 }
