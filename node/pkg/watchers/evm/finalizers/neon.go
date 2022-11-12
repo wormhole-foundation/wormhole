@@ -12,7 +12,8 @@ import (
 )
 
 // NeonFinalizer implements the finality check for Neon. The Neon block number is actually the Solana slot number.
-// Blocks on Neon should not be considered finalized until that slot is finalized on Solana.
+// Blocks on Neon should not be considered finalized until that slot is finalized on Solana. Confirmed this with the
+// Neon team on 11/12/2022. Also confirmed that they do not have a websocket interface so we need to poll for log events.
 type NeonFinalizer struct {
 	logger      *zap.Logger
 	connector   connectors.Connector
