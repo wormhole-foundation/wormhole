@@ -43,7 +43,7 @@ type (
 		msgChan  chan *common.MessagePublication
 		obsvReqC chan *gossipv1.ObservationRequest
 
-		subId int64
+		subId      int64
 		subscribed bool
 	}
 )
@@ -288,7 +288,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
 						}
 						continue
-					} 
+					}
 					errVal := parsedMsg.Get("error.message")
 					if errVal.Exists() {
 						return errors.New(errVal.String())
