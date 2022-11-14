@@ -1,20 +1,17 @@
 [package]
 name    = "wormhole-core"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
-
-[features]
+[lib]
+name = "wormhole"
 
 [dependencies]
-byteorder       = "*"
-hex             = "*"
-nom             = { version="7", default-features=false, features=["alloc"] }
-primitive-types = { version="0.9.0", default-features=false }
-sha3            = "0.9.1"
-bstr            = "*"
-
+anyhow = "1"
+bstr = { version = "1", features = ["serde"] }
+serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
+serde_wormhole = "0.1.0"
+sha3 = "0.10.4"
 
 [dev-dependencies]
-byteorder      = "*"
-hex            = "*"
+serde_json = "1"
