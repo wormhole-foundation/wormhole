@@ -6,12 +6,6 @@ edition = "2018"
 
 [features]
 
-
-[profile.release]
-opt-level = 3
-lto       = "thin"
-
-
 [dependencies]
 byteorder       = "*"
 hex             = "*"
