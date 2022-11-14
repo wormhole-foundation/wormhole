@@ -101,10 +101,13 @@ type (
 		currentGuardianSet *uint32
 
 		// waitForConfirmations indicates if we should wait for the number of confirmations specified by the consistencyLevel in the message.
+		// On many of the chains, we already wait for finalized blocks so there is no point in waiting any additional blocks after finality.
+		// Therefore this parameter defaults to false. This feature can / should be enabled on chains where we don't wait for finality.
 		waitForConfirmations bool
 
 		// maxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned. If we are honoring
-		// the consistency level (waitForConfirmations is set to true), then we wait maxWaitConfirmations plus the consistency level.
+		// the consistency level (waitForConfirmations is set to true), then we wait maxWaitConfirmations plus the consistency level. This
+		// parameter defaults to 60, which should be plenty long enough for most chains. If not, this parameter can be set.
 		maxWaitConfirmations uint64
 
 		// Interface to the chain specific ethereum library.
@@ -150,7 +153,7 @@ func NewEthWatcher(
 		networkName:          networkName,
 		readiness:            readiness,
 		waitForConfirmations: false,
-		maxWaitConfirmations: 4,
+		maxWaitConfirmations: 60,
 		chainID:              chainID,
 		msgChan:              messageEvents,
 		setChan:              setEvents,
@@ -829,9 +832,12 @@ func (w *Watcher) usePolygonCheckpointing() bool {
 	return w.rootChainRpc != "" && w.rootChainContract != ""
 }
 
-// SetConfirmationParams is used to override whether we should wait for the number of confirmations specified by the consistencyLevel in the message,
-// and the maximum number of confirmations to wait before declaring a transaction abandoned.
-func (w *Watcher) SetConfirmationParams(waitForConfirmations bool, maxWaitConfirmations uint64) {
+// SetWaitForConfirmations is used to override whether we should wait for the number of confirmations specified by the consistencyLevel in the message.
+func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
 	w.waitForConfirmations = waitForConfirmations
+}
+
+// SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
+func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
 }
