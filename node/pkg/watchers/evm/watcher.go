@@ -10,7 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/finalizers"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/interfaces"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -139,7 +139,6 @@ func NewEthWatcher(
 	minConfirmations uint64,
 	obsvReqC chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool,
-	l1Finalizer interfaces.L1Finalizer,
 ) *Watcher {
 
 	return &Watcher{
@@ -154,7 +153,6 @@ func NewEthWatcher(
 		obsvReqC:         obsvReqC,
 		pending:          map[pendingKey]*pendingMessage{},
 		unsafeDevMode:    unsafeDevMode,
-		l1Finalizer:      l1Finalizer,
 	}
 }
 
@@ -219,14 +217,18 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDNeon {
+	} else if w.chainID == vaa.ChainIDNeon && !w.unsafeDevMode {
+		if w.l1Finalizer == nil {
+			return fmt.Errorf("unable to create neon watcher because the l1 finalizer is not set")
+		}
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, false)
+		finalizer := finalizers.NewNeonFinalizer(logger, baseConnector, baseConnector.Client(), w.l1Finalizer)
+		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -794,6 +796,13 @@ func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, er
 	return
 }
 
+// SetL1Finalizer is used to set the layer one finalizer.
+func (w *Watcher) SetL1Finalizer(l1Finalizer interfaces.L1Finalizer) {
+	w.l1Finalizer = l1Finalizer
+}
+
+// GetLatestFinalizedBlockNumber() implements the L1Finalizer interface and allows other watchers to
+// get the latest finalized block number from this watcher.
 func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
 }
