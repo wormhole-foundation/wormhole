@@ -140,7 +140,15 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body gjson.Result) error {
 
 	observation := &common.MessagePublication{
 		TxHash:           txHash,
-		Timestamp:        time.Unix(int64(timestamp.Uint()/1000), 0),
+		// We do NOT have a useful source of timestamp
+		// information.  Every node has its own concept of a
+		// timestamp and nothing is persisted into the
+		// blockchain to make re-observation possible.  Later
+		// we could explore putting the epoch or block height
+		// here but even those are currently not available.
+		//
+		// Timestamp:        time.Unix(int64(timestamp.Uint()/1000), 0),
+		Timestamp:        time.Unix(0, 0),
 		Nonce:            uint32(nonce.Uint()), // uint32
 		Sequence:         sequence.Uint(),
 		EmitterChain:     vaa.ChainIDSui,
