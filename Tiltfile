@@ -39,6 +39,7 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
 config.define_bool("near", False, "Enable Near component")
+config.define_bool("btc", False, "Enable BTC component")
 config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
@@ -74,6 +75,7 @@ guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 secondWormchain = cfg.get("secondWormchain", False)
+btc = cfg.get("btc", False)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -708,6 +710,25 @@ if wormchain:
             labels = ["wormchain"],
             trigger_mode = trigger_mode,
         )
+
+if btc:
+    k8s_yaml_with_ns("devnet/btc-localnet.yaml")
+
+    docker_build(
+        ref = "btc-node",
+        context = "bitcoin",
+        dockerfile = "bitcoin/Dockerfile",
+        target = "bitcoin-build",
+    )
+
+    k8s_resource(
+        "btc",
+        port_forwards = [
+            port_forward(18556, name = "RPC [:18556]", host = webHost),
+        ],
+        labels = ["btc"],
+        trigger_mode = trigger_mode,
+    )
 
 if aptos:
     k8s_yaml_with_ns("devnet/aptos-localnet.yaml")

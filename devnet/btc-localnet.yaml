@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: btc
+  name: btc
+spec:
+  ports:
+    - name: node
+      port: 18556
+      targetPort: 18556
+  selector:
+    app: btc
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: btc
+  name: btc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: btc
+  serviceName: btc
+  template:
+    metadata:
+      labels:
+        app: btc
+    spec:
+      containers:
+        - name: btc-node
+          image: btc-node
+          command:
+            - /bin/sh
+            - -c
+            - /root/start_node.sh
+          ports:
+            - containerPort: 18556
+              name: node
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 18557
