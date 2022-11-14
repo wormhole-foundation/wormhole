@@ -1,5 +1,4 @@
 module token_bridge::bridge_state {
-   use std::vector::{Self};
    use std::option::{Self, Option};
 
    use sui::object::{Self, UID};
@@ -14,8 +13,8 @@ module token_bridge::bridge_state {
 
    use token_bridge::treasury::{Self, CoinStore, TreasuryCapStore};
 
-   use wormhole::external_address::{Self, ExternalAddress};
-   use wormhole::myu16::{Self as u16, U16};
+   use wormhole::external_address::{ExternalAddress};
+   use wormhole::myu16::{U16};
    use wormhole::wormhole::{Self};
    use wormhole::state::{State};
    use wormhole::emitter::{EmitterCapability};
@@ -59,8 +58,6 @@ module token_bridge::bridge_state {
    // are stored as dynamic fields of bridge state.
    struct BridgeState has key, store {
       id: UID,
-      governance_chain_id: U16,
-      governance_contract: ExternalAddress,
 
       /// Set of consumed VAA hashes
       consumed_vaas: object_table::ObjectTable<vector<u8>, Unit>,
@@ -77,8 +74,6 @@ module token_bridge::bridge_state {
    fun init(ctx: &mut TxContext) {
         transfer::transfer(BridgeState {
             id: object::new(ctx),
-            governance_chain_id: u16::from_u64(0),
-            governance_contract: external_address::from_bytes(vector::empty<u8>()),
             consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
             emitter_cap: option::none<EmitterCapability>(),
             registered_emitters: vec_map::empty<U16, ExternalAddress>(),
@@ -89,8 +84,6 @@ module token_bridge::bridge_state {
    public fun test_init(ctx: &mut TxContext) {
       transfer::transfer(BridgeState {
             id: object::new(ctx),
-            governance_chain_id: u16::from_u64(0),
-            governance_contract: external_address::from_bytes(vector::empty<u8>()),
             consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
             emitter_cap: option::none<EmitterCapability>(),
             registered_emitters: vec_map::empty<U16, ExternalAddress>(),
@@ -102,13 +95,9 @@ module token_bridge::bridge_state {
    public entry fun init_and_share_state(
       state: BridgeState,
       emitter_cap: EmitterCapability,
-      governance_chain_id: u64,
-      governance_contract: vector<u8>,
       _ctx: &mut TxContext
    ) {
       option::fill<EmitterCapability>(&mut state.emitter_cap, emitter_cap);
-      set_governance_chain_id(&mut state, u16::from_u64(governance_chain_id));
-      set_governance_contract(&mut state, external_address::from_bytes(governance_contract));
 
       // permanently shares state
       transfer::share_object(state);
@@ -187,14 +176,6 @@ module token_bridge::bridge_state {
       object_table::contains<vector<u8>, Unit>(&state.consumed_vaas, hash)//create_consumed_vaa(hash))
    }
 
-   public fun get_governance_chain_id(state: &BridgeState): U16 {
-      state.governance_chain_id
-   }
-
-   public fun get_governance_contract(state: &BridgeState): ExternalAddress {
-      state.governance_contract
-   }
-
    public fun get_registered_emitter(state: &BridgeState, chain_id: &U16): Option<ExternalAddress> {
       if (vec_map::contains(&state.registered_emitters, chain_id)) {
          option::some(*vec_map::get(&state.registered_emitters, chain_id))
@@ -204,19 +185,6 @@ module token_bridge::bridge_state {
    }
 
    // setters
-
-   public(friend) fun set_governance_chain_id(state: &mut BridgeState, governance_chain_id: U16) {
-      state.governance_chain_id = governance_chain_id;
-   }
-
-   #[test_only]
-   public fun test_set_governance_chain_id(state: &mut BridgeState, governance_chain_id: U16) {
-      state.governance_chain_id = governance_chain_id;
-   }
-
-   public(friend) fun set_governance_contract(state: &mut BridgeState, governance_contract: ExternalAddress) {
-      state.governance_contract = governance_contract;
-   }
 
    public(friend) fun set_registered_emitter(state: &mut BridgeState, chain_id: U16, emitter: ExternalAddress) {
       vec_map::insert<U16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
@@ -243,10 +211,8 @@ module token_bridge::bridge_state {
 #[test_only]
 module token_bridge::test_bridge_state{
    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, return_to_address, take_shared, return_shared};
-   //use std::vector::{Self};
 
    use wormhole::state::{Self as wormhole_state, State};
-   use wormhole::myu16::{Self as u16};
    use wormhole::wormhole::{Self};
 
    use token_bridge::bridge_state::{Self, BridgeState, init_and_share_state};
@@ -281,8 +247,6 @@ module token_bridge::test_bridge_state{
             init_and_share_state(
                bridge_state,
                my_emitter,
-               12,
-               x"1234567899012345678990123456789912",
                ctx(&mut test)
             );
             return_to_address<State>(admin, wormhole_state);
@@ -298,10 +262,6 @@ module token_bridge::test_bridge_state{
 
             // TODO - test store coin store
             // TODO - test store treasury cap
-
-            // test set governance chain id
-            bridge_state::test_set_governance_chain_id(&mut state, u16::from_u64(5));
-            assert!(bridge_state::get_governance_chain_id(&state) == u16::from_u64(5), 0);
 
             return_shared<BridgeState>(state);
         };
