@@ -159,7 +159,7 @@ The rationale for this decision included the following considerations:
 - Adds gas cost on every transaction for a feature that will be used maybe once a year.
 - Makes assumptions about where in the code existential crisis may surface.
 
-As an alternative approach, Wormhole has evolved it's emergency shutdown strategy to leverage the existing upgrade authority via governance to temporarily patch smart contracts for vulnerabilities when/if they occur (eg. temporarily disabling the affected function) and a long-term bug fix is not readily available.
+As an alternative approach, Wormhole has evolved its emergency shutdown strategy to leverage the existing upgrade authority via governance to temporarily patch smart contracts for vulnerabilities when/if they occur (eg. temporarily disabling the affected function) and a long-term bug fix is not readily available.
 
 The benefits of such an approach include the following:
 
