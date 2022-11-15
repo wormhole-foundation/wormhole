@@ -35,6 +35,7 @@ contract NFTBridgeSetters is NFTBridgeState {
     }
 
     function setTokenImplementation(address impl) internal {
+        require(impl != address(0), "invalid implementation address");
         _state.tokenImplementation = impl;
     }
 
