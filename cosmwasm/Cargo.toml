@@ -18,3 +18,9 @@ codegen-units = 1
 panic = 'abort'
 incremental = false
 overflow-checks = true
+
+[patch.crates-io]
+cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
+token-bridge-terra-2 = { path = "contracts/token-bridge" }
+wormhole-bridge-terra-2 = { path = "contracts/wormhole" }
+

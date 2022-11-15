@@ -165,10 +165,15 @@ func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, sink chan<-
 }
 
 func (b *BlockPollConnector) getBlock(ctx context.Context, logger *zap.Logger, number *big.Int) (*NewBlock, error) {
+	return getBlock(ctx, logger, b.Connector, number, b.useFinalized)
+}
+
+// getBlock is a free function that can be called from other connectors to get a single block.
+func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, number *big.Int, useFinalized bool) (*NewBlock, error) {
 	var numStr string
 	if number != nil {
 		numStr = ethHexUtils.EncodeBig(number)
-	} else if b.useFinalized {
+	} else if useFinalized {
 		numStr = "finalized"
 	} else {
 		numStr = "latest"
@@ -184,7 +189,7 @@ func (b *BlockPollConnector) getBlock(ctx context.Context, logger *zap.Logger, n
 	}
 
 	var m Marshaller
-	err := b.Connector.RawCallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
+	err := conn.RawCallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
 	if err != nil {
 		logger.Error("failed to get block",
 			zap.String("requested_block", numStr), zap.Error(err))
