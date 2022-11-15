@@ -634,7 +634,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					}
 
 					var expectedConfirmations uint64
-					if w.waitForConfirmations {
+					if w.waitForConfirmations && !ev.Safe {
 						expectedConfirmations = uint64(pLock.message.ConsistencyLevel)
 					}
 
