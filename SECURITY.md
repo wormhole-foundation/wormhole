@@ -32,15 +32,15 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[September 2022 - Trail of Bits](https://storage.googleapis.com/wormhole-audits/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _CosmWasm Contracts_
 - **[October 2022 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_OtterSec_Aptos_2022-10.pdf)**: _Aptos Contracts_
 - **[October 2022 - Hacken](https://storage.googleapis.com/wormhole-audits/Wormhole_dApp_NEAR_AuditReport_Hacken_2022-10-25.pdf)**: _NEAR Integration_
-- **Q3 2022 - Halborn (DRAFT)**: _Wormchain_
-- **Q3 2022 - Halborn (DRAFT)**: _Accounting_
-- **Q3 2022 - Certik (DRAFT)**: _Ethereum Contracts_
-- **Q3 2022 - Certik (DRAFT)**: _Solana Contracts_
-- **Q3 2022 - Certik (DRAFT)**: _Terra Contracts_
-- **Q3 2022 - Certik (DRAFT)**: _Guardian_
-- **Q3 2022 - Certik (DRAFT)**: _Solitaire_
-- **Q3 2022 - Coinspect (SCHEDULED)**: _Algorand Contracts_
-- **Q3 2022 - Hacken (ONGOING)**: _NEAR Contracts_
+- **Q4 2022 - Halborn (DRAFT)**: _Wormchain_
+- **Q4 2022 - Halborn (DRAFT)**: _Accounting_
+- **Q4 2022 - Certik (DRAFT)**: _Ethereum Contracts_
+- **Q4 2022 - Certik (DRAFT)**: _Solana Contracts_
+- **Q4 2022 - Certik (DRAFT)**: _Terra Contracts_
+- **Q4 2022 - Certik (DRAFT)**: _Guardian_
+- **Q4 2022 - Certik (DRAFT)**: _Solitaire_
+- **Q4 2022 - Coinspect (DRAFT)**: _Algorand Contracts_
+- **Q4 2022 - Hacken (DRAFT)**: _NEAR Contracts_
 - **Q1 2023 - Trail of Bits (SCHEDULED)**: _Guardian_
 
 
@@ -149,7 +149,7 @@ The role of the incident commander for Wormhole includes the following minimum o
 
 ## Emergency Shutdown
 
-The Wormhole project has evaluated the concept of having an on-chain safety feature, which could allow Wormhole smart contracts to be paused during a state of existential crisis.  However, after careful consideration the project has chosen to not make an on-chain safety feature that would allow an emergency shutdown capability at this time.
+The Wormhole project has evaluated the concept of having an safety feature, which could allow Wormhole smart contracts to be paused during a state of existential crisis without contract upgrades.  However, after careful consideration the project has chosen to not introduce such a feature at this time.
 
 The rationale for this decision included the following considerations:
 
@@ -167,11 +167,12 @@ The benefits of such an approach include the following:
 - Allow selective shutdown of only the affected code (while leaving everything else fully functional)
 - No additional attack surface (only less attack surface during existential crisis)
 - No additional gas cost paid by users of Wormhole
-- Makes no assumptions about where the bug is, giving full utility to surgically remove it where it is
 - No additional process or keys to distribute or manage for Guardians
+- For known shutdown cases, a shutdown contract with disabled capabilities can be pre-deployed on chain, making the governance proposal easier to produce and approve.
+- For unknown shutdown cases, a temporary patch can be developed to disable only the affected functionality.
 
 The caveats of such an approach include the following:
 
-- Speed to shutdown is limited by speed to develop the temporary bug fix
-- Speed to shutdown is limited by speed at which goverance can be passed to accept the temporary bug fix
-- Restoring after a shutdown will require a secondary governance action for the long term bug fix
+- Speed to shutdown is limited by speed to develop the temporary bug fix (only for the unknown cases, known cases won't require development)
+- Speed to shutdown is limited by speed at which goverance can be passed to accept the temporary bug fix (slower for unknown cases and faster for known cases)
+- Restoring after a shutdown will require a secondary governance action to either repoint the proxy contract to a non-shutdown implementation (anticipated cases) or to revert the temporary patch and apply the long term patch (unanticipated cases)
