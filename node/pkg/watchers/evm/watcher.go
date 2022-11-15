@@ -100,8 +100,15 @@ type (
 		// 0 is a valid guardian set, so we need a nil value here
 		currentGuardianSet *uint32
 
-		// Minimum number of confirmations to accept, regardless of what the contract specifies.
-		minConfirmations uint64
+		// waitForConfirmations indicates if we should wait for the number of confirmations specified by the consistencyLevel in the message.
+		// On many of the chains, we already wait for finalized blocks so there is no point in waiting any additional blocks after finality.
+		// Therefore this parameter defaults to false. This feature can / should be enabled on chains where we don't wait for finality.
+		waitForConfirmations bool
+
+		// maxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned. If we are honoring
+		// the consistency level (waitForConfirmations is set to true), then we wait maxWaitConfirmations plus the consistency level. This
+		// parameter defaults to 60, which should be plenty long enough for most chains. If not, this parameter can be set.
+		maxWaitConfirmations uint64
 
 		// Interface to the chain specific ethereum library.
 		ethConn       connectors.Connector
@@ -136,23 +143,23 @@ func NewEthWatcher(
 	chainID vaa.ChainID,
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet,
-	minConfirmations uint64,
 	obsvReqC chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool,
 ) *Watcher {
 
 	return &Watcher{
-		url:              url,
-		contract:         contract,
-		networkName:      networkName,
-		readiness:        readiness,
-		minConfirmations: minConfirmations,
-		chainID:          chainID,
-		msgChan:          messageEvents,
-		setChan:          setEvents,
-		obsvReqC:         obsvReqC,
-		pending:          map[pendingKey]*pendingMessage{},
-		unsafeDevMode:    unsafeDevMode,
+		url:                  url,
+		contract:             contract,
+		networkName:          networkName,
+		readiness:            readiness,
+		waitForConfirmations: false,
+		maxWaitConfirmations: 60,
+		chainID:              chainID,
+		msgChan:              messageEvents,
+		setChan:              setEvents,
+		obsvReqC:             obsvReqC,
+		pending:              map[pendingKey]*pendingMessage{},
+		unsafeDevMode:        unsafeDevMode,
 	}
 }
 
@@ -400,9 +407,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 						continue
 					}
 
-					expectedConfirmations := uint64(msg.ConsistencyLevel)
-					if expectedConfirmations < w.minConfirmations {
-						expectedConfirmations = w.minConfirmations
+					var expectedConfirmations uint64
+					if w.waitForConfirmations {
+						expectedConfirmations = uint64(msg.ConsistencyLevel)
 					}
 
 					// SECURITY: In the recovery flow, we already know which transaction to
@@ -571,13 +578,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 				atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 
 				for key, pLock := range w.pending {
-					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)
-					if expectedConfirmations < w.minConfirmations {
-						expectedConfirmations = w.minConfirmations
+					var expectedConfirmations uint64
+					if w.waitForConfirmations {
+						expectedConfirmations = uint64(pLock.message.ConsistencyLevel)
 					}
 
 					// Transaction was dropped and never picked up again
-					if pLock.height+4*uint64(expectedConfirmations) <= blockNumberU {
+					if pLock.height+expectedConfirmations+w.maxWaitConfirmations <= blockNumberU {
 						logger.Info("observation timed out",
 							zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("blockhash", key.BlockHash),
@@ -586,6 +593,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Stringer("current_block", ev.Number),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName),
+							zap.Uint64("expectedConfirmations", expectedConfirmations),
+							zap.Uint64("maxWaitConfirmations", w.maxWaitConfirmations),
 						)
 						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
 						delete(w.pending, key)
@@ -593,7 +602,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					}
 
 					// Transaction is now ready
-					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
+					if pLock.height+expectedConfirmations <= blockNumberU {
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
@@ -821,4 +830,14 @@ func (w *Watcher) SetRootChainParams(rootChainRpc string, rootChainContract stri
 
 func (w *Watcher) usePolygonCheckpointing() bool {
 	return w.rootChainRpc != "" && w.rootChainContract != ""
+}
+
+// SetWaitForConfirmations is used to override whether we should wait for the number of confirmations specified by the consistencyLevel in the message.
+func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
+	w.waitForConfirmations = waitForConfirmations
+}
+
+// SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
+func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
+	w.maxWaitConfirmations = maxWaitConfirmations
 }
