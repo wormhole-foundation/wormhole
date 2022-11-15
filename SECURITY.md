@@ -175,4 +175,4 @@ The caveats of such an approach include the following:
 
 - Speed to shutdown is limited by speed to develop the temporary bug fix (only for the unknown cases, known cases won't require development)
 - Speed to shutdown is limited by speed at which goverance can be passed to accept the temporary bug fix (slower for unknown cases and faster for known cases)
-- Restoring after a shutdown will require a secondary governance action to either repoint the proxy contract to a non-shutdown implementation (anticipated cases) or to revert the temporary patch and apply the long term patch (unanticipated cases)
+- Restoring after a shutdown will require a secondary governance action to either repoint the proxy contract to a non-shutdown implementation (known cases) or to revert the temporary patch and apply the long term patch (unknown cases)
