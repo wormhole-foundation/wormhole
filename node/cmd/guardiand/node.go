@@ -60,7 +60,8 @@ var (
 
 	nodeKeyPath *string
 
-	adminSocketPath *string
+	adminSocketPath      *string
+	publicGRPCSocketPath *string
 
 	dataDir *string
 
@@ -194,6 +195,7 @@ func init() {
 	nodeKeyPath = NodeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
 	adminSocketPath = NodeCmd.Flags().String("adminSocket", "", "Admin gRPC service UNIX domain socket path")
+	publicGRPCSocketPath = NodeCmd.Flags().String("publicGRPCSocket", "", "Public gRPC service UNIX domain socket path")
 
 	dataDir = NodeCmd.Flags().String("dataDir", "", "Data directory")
 
@@ -467,8 +469,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *adminSocketPath == "" {
 		logger.Fatal("Please specify --adminSocket")
 	}
-	if (*publicRPC == "") != (*publicWeb == "") {
-		logger.Fatal("Please either specify both --publicRPC and --publicWeb or leave both empty")
+	if *adminSocketPath == *publicGRPCSocketPath {
+		logger.Fatal("adminSocketPath must not equal publicRPCSocketPath")
+	}
+	if (*publicRPC != "" || *publicWeb != "") && *publicGRPCSocketPath == "" {
+		logger.Fatal("If either --publicRPC or --publicWeb is specified, publicRPCSocketPath must also be specified")
 	}
 	if *dataDir == "" {
 		logger.Fatal("Please specify --dataDir")
