@@ -16,7 +16,7 @@ module token_bridge::transfer_with_payload {
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
-    //friend token_bridge::transfer_tokens;
+    friend token_bridge::transfer_tokens;
 
     const E_INVALID_ACTION: u64 = 0;
 

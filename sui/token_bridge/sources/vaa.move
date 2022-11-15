@@ -10,15 +10,13 @@ module token_bridge::vaa {
 
     use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
 
-    //friend token_bridge::complete_transfer;
-    //friend token_bridge::complete_transfer_with_payload;
     //friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
     friend token_bridge::wrapped;
     friend token_bridge::complete_transfer;
 
-    //#[test_only]
-    //friend token_bridge::vaa_test;
+    #[test_only]
+    friend token_bridge::token_bridge_vaa_test;
 
     /// We have no registration for this chain
     const E_UNKNOWN_CHAIN: u64 = 0;
@@ -65,88 +63,200 @@ module token_bridge::vaa {
     }
 }
 
-// #[test_only]
-// module token_bridge::vaa_test {
-//     use token_bridge::vaa;
-//     use token_bridge::state;
-//     use token_bridge::token_bridge;
+#[test_only]
+module token_bridge::token_bridge_vaa_test{
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
 
-//     use wormhole::vaa as core_vaa;
-//     use wormhole::wormhole;
-//     use wormhole::u16;
-//     use wormhole::external_address;
+    use wormhole::state::{Self as wormhole_state, State};
+    use wormhole::wormhole::{Self};
+    use wormhole::myvaa::{Self as corevaa};
+    use wormhole::myu16::{Self as u16};
+    use wormhole::external_address::{Self};
 
-//     /// VAA sent from the ethereum token bridge 0xdeadbeef
-//     const VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
+    use token_bridge::bridge_state::{Self, BridgeState, init_and_share_state};
+    use token_bridge::vaa::{Self};
 
-//     fun setup(deployer: &signer) {
-//         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
-//         std::timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         wormhole::init_test(
-//             22,
-//             1,
-//             x"0000000000000000000000000000000000000000000000000000000000000004",
-//             x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-//             0
-//         );
-//         token_bridge::init_test(deployer);
-//     }
+    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-//     #[test(deployer = @deployer)]
-//     #[expected_failure(abort_code = 0)] // E_UNKNOWN_CHAIN
-//     public fun test_unknown_chain(deployer: &signer) {
-//         setup(deployer);
-//         let vaa = vaa::parse_verify_and_replay_protect(VAA);
-//         core_vaa::destroy(vaa);
-//     }
+    /// VAA sent from the ethereum token bridge 0xdeadbeef
+    const VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
-//     #[test(deployer = @deployer)]
-//     #[expected_failure(abort_code = 1)] // E_UNKNOWN_EMITTER
-//     public fun test_unknown_emitter(deployer: &signer) {
-//         setup(deployer);
-//         state::set_registered_emitter(
-//             u16::from_u64(2),
-//             external_address::from_bytes(x"deadbeed"), // not deadbeef
-//         );
-//         let vaa = vaa::parse_verify_and_replay_protect(VAA);
-//         core_vaa::destroy(vaa);
-//     }
+    fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
 
-//     #[test(deployer = @deployer)]
-//     public fun test_known_emitter(deployer: &signer) {
-//         setup(deployer);
-//         state::set_registered_emitter(
-//             u16::from_u64(2),
-//             external_address::from_bytes(x"deadbeef"),
-//         );
-//         let vaa = vaa::parse_verify_and_replay_protect(VAA);
-//         core_vaa::destroy(vaa);
-//     }
+        // init wormhole state
+        next_tx(&mut test, admin); {
+            wormhole_state::test_init(ctx(&mut test));
+        };
 
-//     #[test(deployer = @deployer)]
-//     #[expected_failure(abort_code = 25607)] // add_box error
-//     public fun test_replay_protect(deployer: &signer) {
-//         setup(deployer);
-//         state::set_registered_emitter(
-//             u16::from_u64(2),
-//             external_address::from_bytes(x"deadbeef"),
-//         );
-//         let vaa = vaa::parse_verify_and_replay_protect(VAA);
-//         core_vaa::destroy(vaa);
-//         let vaa = vaa::parse_verify_and_replay_protect(VAA);
-//         core_vaa::destroy(vaa);
-//     }
+        // init and share wormhole state with initial guardians and other args
+        next_tx(&mut test, admin); {
+            let w_state = take_from_address<State>(&test, admin);
+            wormhole_state::init_and_share_state(
+                w_state, //owned wormhole state object
+                2, // chain id
+                22, // governance chain
+                x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
+                vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardian(s)
+                ctx(&mut test)
+            );
+        };
 
-//     #[test(deployer = @deployer)]
-//     public fun test_can_verify_after_replay_protect(deployer: &signer) {
-//         setup(deployer);
-//         state::set_registered_emitter(
-//             u16::from_u64(2),
-//             external_address::from_bytes(x"deadbeef"),
-//         );
-//         let vaa = vaa::parse_verify_and_replay_protect(VAA);
-//         core_vaa::destroy(vaa);
-//         let vaa = vaa::parse_and_verify(VAA);
-//         core_vaa::destroy(vaa);
-//     }
-// }
+        // init token bridge state
+        next_tx(&mut test, admin); {
+            bridge_state::test_init(ctx(&mut test));
+        };
+
+        // register for an emitter cap for token bridge, then init and share
+        // token bridge state
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<State>(&test);
+            let bridge_state = take_from_address<BridgeState>(&test, admin);
+            let my_emitter = wormhole::register_emitter(&mut wormhole_state, ctx(&mut test));
+            init_and_share_state(
+                bridge_state,
+                my_emitter,
+                ctx(&mut test)
+            );
+            return_shared<State>(wormhole_state);
+        };
+        return test
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0)] // E_UNKNOWN_CHAIN
+    fun test_unknown_chain() {
+        let (admin, _, _) = people();
+        let test = scenario();
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            let w_state = take_shared<State>(&test);
+            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
+            corevaa::destroy(vaa);
+            return_shared<BridgeState>(state);
+            return_shared<State>(w_state);
+        };
+        test_scenario::end(test);
+    }
+
+
+    #[test]
+    #[expected_failure(abort_code = 1)] // E_UNKNOWN_EMITTER
+    fun test_unknown_emitter() {
+        let (admin, _, _) = people();
+        let test = scenario();
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            bridge_state::set_registered_emitter(
+                &mut state,
+                u16::from_u64(2),
+                external_address::from_bytes(x"deadbeed"), // not deadbeef
+            );
+            return_shared<BridgeState>(state);
+        };
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            let w_state = take_shared<State>(&test);
+            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
+            corevaa::destroy(vaa);
+            return_shared<BridgeState>(state);
+            return_shared<State>(w_state);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
+    fun test_known_emitter() {
+        let (admin, _, _) = people();
+        let test = scenario();
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            bridge_state::set_registered_emitter(
+                &mut state,
+                u16::from_u64(2),
+                external_address::from_bytes(x"deadbeef"),
+            );
+            return_shared<BridgeState>(state);
+        };
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            let w_state = take_shared<State>(&test);
+            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
+            corevaa::destroy(vaa);
+            return_shared<BridgeState>(state);
+            return_shared<State>(w_state);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0)]
+    fun test_replay_protection_works() {
+        let (admin, _, _) = people();
+        let test = scenario();
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            bridge_state::set_registered_emitter(
+                &mut state,
+                u16::from_u64(2),
+                external_address::from_bytes(x"deadbeef"),
+            );
+            return_shared<BridgeState>(state);
+        };
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            let w_state = take_shared<State>(&test);
+
+            // try to use the VAA twice
+            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
+            corevaa::destroy(vaa);
+            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
+            corevaa::destroy(vaa);
+            return_shared<BridgeState>(state);
+            return_shared<State>(w_state);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
+    fun test_can_verify_after_replay_protect() {
+        let (admin, _, _) = people();
+        let test = scenario();
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            bridge_state::set_registered_emitter(
+                &mut state,
+                u16::from_u64(2),
+                external_address::from_bytes(x"deadbeef"),
+            );
+            return_shared<BridgeState>(state);
+        };
+
+        next_tx(&mut test, admin); {
+            let state = take_shared<BridgeState>(&test);
+            let w_state = take_shared<State>(&test);
+
+            // parse and verify and replay protect VAA the first time, don't replay protect the second time
+            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
+            corevaa::destroy(vaa);
+            let vaa = vaa::parse_and_verify(&mut w_state, &mut state, VAA, ctx(&mut test));
+            corevaa::destroy(vaa);
+            return_shared<BridgeState>(state);
+            return_shared<State>(w_state);
+        };
+        test_scenario::end(test);
+    }
+
+}

@@ -50,8 +50,8 @@ module token_bridge::complete_transfer {
         assert!(to_chain == this_chain, E_INVALID_TARGET);
 
         let token_chain = transfer::get_token_chain(transfer);
-        let token_address = transfer::get_token_address(transfer);
-        let origin_info = bridge_state::create_origin_info(token_chain, token_address);
+        //let token_address = transfer::get_token_address(transfer);
+        //let _origin_info = bridge_state::create_origin_info(token_chain, token_address);
 
         let recipient = external_address::to_address(external_address::get_bytes(&transfer::get_to(transfer)));
 
@@ -64,14 +64,12 @@ module token_bridge::complete_transfer {
             recipient_coins = bridge_state::withdraw<CoinType>(
                 bridge_state,
                 amount,
-                origin_info,
                 ctx
             )
         } else{
             recipient_coins = bridge_state::mint<CoinType>(
                 bridge_state,
                 amount,
-                origin_info,
                 ctx
             );
         };

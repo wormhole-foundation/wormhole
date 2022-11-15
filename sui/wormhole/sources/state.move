@@ -10,7 +10,7 @@ module wormhole::state {
 
     use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
-    use wormhole::structs::{Self, GuardianSet};
+    use wormhole::structs::{Self, Guardian, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::emitter::{Self};
 
@@ -87,14 +87,23 @@ module wormhole::state {
         chain_id: u64,
         governance_chain_id: u64,
         governance_contract: vector<u8>,
-        initial_guardian: vector<u8>,
+        initial_guardians: vector<vector<u8>>,
         _ctx: &mut TxContext
     ) {
         set_chain_id(&mut state, chain_id);
         set_governance_chain_id(&mut state, governance_chain_id);
         set_governance_contract(&mut state, governance_contract);
-        let initial_guardian = vector[structs::create_guardian(initial_guardian)];
-        store_guardian_set(&mut state, u32::from_u64(0), structs::create_guardian_set(u32::from_u64(0), initial_guardian));
+
+        let guardians = vector::empty<Guardian>();
+        let i = 0;
+        while (i < vector::length<vector<u8>>(&initial_guardians)){
+            vector::push_back<Guardian>(&mut guardians, structs::create_guardian(*vector::borrow<vector<u8>>(&initial_guardians, i)));
+            i = i + 1;
+        };
+
+        // the initial guardian set with index 0
+        let initial_index = u32::from_u64(0);
+        store_guardian_set(&mut state, initial_index, structs::create_guardian_set(initial_index, guardians));
 
         // permanently shares state
         transfer::share_object(state);
@@ -258,7 +267,7 @@ module wormhole::test_state{
         next_tx(&mut test, admin);{
             let state = take_from_address<State>(&mut test, admin);
             // initialize state with desired parameters and initial guardian address
-            state::init_and_share_state(state, 0, 0, vector::empty<u8>(), x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe", ctx(&mut test));
+            state::init_and_share_state(state, 0, 0, vector::empty<u8>(), vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], ctx(&mut test));
         };
         next_tx(&mut test, admin);{
             // confirm that state is indeed a shared object, and mutate it

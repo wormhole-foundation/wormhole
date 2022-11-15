@@ -16,11 +16,34 @@ module wormhole::wormhole {
 
 // -----------------------------------------------------------------------------
 // Sending messages
-// TODO - make this a non-entry fun, so we can return the sequence number?
-//        As long as it is entry, we cannot have a return value. Is it true that
-//        we don't need this function to be entry, because most of the time it
-//        is called by a smart contract?
-    public entry fun publish_message(
+    public fun publish_message(
+        emitter_cap: &mut emitter::EmitterCapability,
+        state: &mut State,
+        nonce: u64,
+        payload: vector<u8>,
+        message_fee: Coin<SUI>,
+    ): u64 {
+        // ensure that provided fee is sufficient to cover message fees
+        let expected_fee = state::get_message_fee(state);
+        assert!(expected_fee <= coin::value(&message_fee), E_INSUFFICIENT_FEE);
+
+        // deposit the fees into the wormhole account
+        transfer::transfer(message_fee, @wormhole);
+
+        // get sequence number
+        let sequence = emitter::use_sequence(emitter_cap);
+
+        // emit event
+        state::publish_event(
+            emitter::get_emitter(emitter_cap),
+            sequence,
+            nonce,
+            payload,
+        );
+        return sequence
+    }
+
+    public entry fun publish_message_entry(
         emitter_cap: &mut emitter::EmitterCapability,
         state: &mut State,
         nonce: u64,
@@ -81,8 +104,8 @@ module wormhole::wormhole {
     // Honestly, unsure if this should survive once we get into code review but it
     // sure makes writing my test script work quite well
     //
-    // This creates a new emitter object and stores it away into the senders context. 
-    // 
+    // This creates a new emitter object and stores it away into the senders context.
+    //
     // You can then use this to call publish_message_free and generate a vaa
 
     public entry fun get_new_emitter(state: &mut State, ctx: &mut TxContext) {
