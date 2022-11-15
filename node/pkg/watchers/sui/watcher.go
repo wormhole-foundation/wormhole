@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 	"encoding/base64"
 
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -182,9 +183,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
-	logger.Info("Sui watcher connecting to WS node ", zap.String("url", e.suiWS))
+	u := url.URL{Scheme: "ws", Host: e.suiWS}
 
-	ws, err := websocket.Dial(e.suiWS, "", "http://guardian")
+	logger.Info("Sui watcher connecting to WS node ", zap.String("url", u.String()))
+
+	ws, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		logger.Error(fmt.Sprintf("e.suiWS: %s", err.Error()))
 		return err
@@ -208,7 +211,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Subscribing using", zap.String("filter", s))
 
-	if _, err := ws.Write([]byte(s)); err != nil {
+	if err := ws.WriteMessage(websocket.TextMessage, []byte(s)); err != nil {
 		logger.Error(fmt.Sprintf("write: %s", err.Error()))
 		return err
 	}
@@ -271,13 +274,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		case <-timer.C:
 			for {
-				var msg = make([]byte, 10000)
 				err := ws.SetReadDeadline(time.Now().Local().Add(100_000_000))
 				if err != nil {
 					return err
 				}
 
-				if n, err := ws.Read(msg); err != nil {
+				if _, msg, err := ws.ReadMessage(); err != nil {
 					if err.Error() == "EOF" {
 						return err
 					}
@@ -285,10 +287,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 				} else {
 					parsedMsg := gjson.ParseBytes(msg)
 					if !parsedMsg.Exists() {
-						logger.Error("error", zap.String("body", string(msg[:n])), zap.Uint64("len", uint64(n)))
+						logger.Error("error", zap.String("body", string(msg)))
 						continue
 					}
-					logger.Info("receive", zap.String("body", string(msg[:n])), zap.Uint64("len", uint64(n)))
+					logger.Info("receive", zap.String("body", string(msg)))
 					result := parsedMsg.Get("params.result")
 					if result.Exists() {
 						err := e.inspectBody(logger, result)

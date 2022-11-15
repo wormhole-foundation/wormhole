@@ -184,7 +184,7 @@ def build_node_yaml():
                     "--suiAccount",
                     "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331",
                     "--suiWS",
-                    "ws://sui:9001",
+                    "sui:9001",
                 ]
 
             if evm2:
