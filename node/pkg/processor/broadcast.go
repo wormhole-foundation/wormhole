@@ -44,7 +44,7 @@ func (p *Processor) broadcastSignature(
 		panic(err)
 	}
 
-	p.sendC <- msg
+	p.gossipSendC <- msg
 
 	// Store our VAA in case we're going to submit it to Solana
 	hash := hex.EncodeToString(digest.Bytes())
@@ -84,5 +84,5 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 		panic(err)
 	}
 
-	p.sendC <- msg
+	p.gossipSendC <- msg
 }

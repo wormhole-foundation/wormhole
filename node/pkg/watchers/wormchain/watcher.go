@@ -34,12 +34,11 @@ type (
 		urlWS  string
 		urlLCD string
 
-		msgChan chan *common.MessagePublication
-		setChan chan *common.GuardianSet
+		msgC chan<- *common.MessagePublication
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		obsvReqC chan *gossipv1.ObservationRequest
+		obsvReqC <-chan *gossipv1.ObservationRequest
 	}
 )
 
@@ -76,10 +75,9 @@ type clientRequest struct {
 func NewWatcher(
 	urlWS string,
 	urlLCD string,
-	lockEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet,
-	obsvReqC chan *gossipv1.ObservationRequest) *Watcher {
-	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, msgChan: lockEvents, setChan: setEvents, obsvReqC: obsvReqC}
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest) *Watcher {
+	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, msgC: msgC, obsvReqC: obsvReqC}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -210,7 +208,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(txHash, events.Array(), logger)
 				for _, msg := range msgs {
-					e.msgChan <- msg
+					e.msgC <- msg
 					wormchainMessagesConfirmed.Inc()
 				}
 			}
@@ -248,7 +246,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			msgs := EventsToMessagePublications(txHash, events.Array(), logger)
 			for _, msg := range msgs {
-				e.msgChan <- msg
+				e.msgC <- msg
 				wormchainMessagesConfirmed.Inc()
 			}
 		}

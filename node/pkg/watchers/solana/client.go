@@ -32,16 +32,16 @@ import (
 
 type (
 	SolanaWatcher struct {
-		contract     solana.PublicKey
-		rawContract  string
-		rpcUrl       string
-		wsUrl        *string
-		commitment   rpc.CommitmentType
-		messageEvent chan *common.MessagePublication
-		obsvReqC     chan *gossipv1.ObservationRequest
-		errC         chan error
-		pumpData     chan []byte
-		rpcClient    *rpc.Client
+		contract    solana.PublicKey
+		rawContract string
+		rpcUrl      string
+		wsUrl       *string
+		commitment  rpc.CommitmentType
+		msgC        chan<- *common.MessagePublication
+		obsvReqC    <-chan *gossipv1.ObservationRequest
+		errC        chan error
+		pumpData    chan []byte
+		rpcClient   *rpc.Client
 		// Readiness component
 		readiness readiness.Component
 		// VAA ChainID of the network we're connecting to.
@@ -179,23 +179,23 @@ func NewSolanaWatcher(
 	wsUrl *string,
 	contractAddress solana.PublicKey,
 	rawContract string,
-	messageEvents chan *common.MessagePublication,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType,
 	readiness readiness.Component,
 	chainID vaa.ChainID) *SolanaWatcher {
 	return &SolanaWatcher{
-		rpcUrl:       rpcUrl,
-		wsUrl:        wsUrl,
-		contract:     contractAddress,
-		rawContract:  rawContract,
-		messageEvent: messageEvents,
-		obsvReqC:     obsvReqC,
-		commitment:   commitment,
-		rpcClient:    rpc.New(rpcUrl),
-		readiness:    readiness,
-		chainID:      chainID,
-		networkName:  vaa.ChainID(chainID).String(),
+		rpcUrl:      rpcUrl,
+		wsUrl:       wsUrl,
+		contract:    contractAddress,
+		rawContract: rawContract,
+		msgC:        msgC,
+		obsvReqC:    obsvReqC,
+		commitment:  commitment,
+		rpcClient:   rpc.New(rpcUrl),
+		readiness:   readiness,
+		chainID:     chainID,
+		networkName: vaa.ChainID(chainID).String(),
 	}
 }
 
@@ -830,7 +830,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		zap.Uint8("consistency_level", observation.ConsistencyLevel),
 	)
 
-	s.messageEvent <- observation
+	s.msgC <- observation
 }
 
 // updateLatestBlock() updates the latest block number if the slot passed in is greater than the previous value.

@@ -202,7 +202,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
 				}
-				p.sendC <- s.ourMsg
+				p.gossipSendC <- s.ourMsg
 				s.retryCount += 1
 				s.lastRetry = time.Now()
 				aggregationStateRetries.Inc()

@@ -396,7 +396,7 @@ var (
 		})
 )
 
-func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -464,7 +464,7 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []by
 var governorMessagePrefixConfig = []byte("governor_config_000000000000000000|")
 var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
-func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
 	for _, ce := range gov.chains {
 		chains = append(chains, &gossipv1.ChainGovernorConfig_Chain{
@@ -521,7 +521,7 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 	sendC <- b
 }
 
-func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
 	for _, ce := range gov.chains {

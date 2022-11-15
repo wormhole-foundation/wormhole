@@ -69,11 +69,11 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 }
 
 func Run(
-	obsvC chan *gossipv1.SignedObservation,
-	obsvReqC chan *gossipv1.ObservationRequest,
-	obsvReqSendC chan *gossipv1.ObservationRequest,
-	sendC chan []byte,
-	signedInC chan *gossipv1.SignedVAAWithQuorum,
+	obsvC chan<- *gossipv1.SignedObservation,
+	obsvReqC chan<- *gossipv1.ObservationRequest,
+	obsvReqSendC <-chan *gossipv1.ObservationRequest,
+	gossipSendC chan []byte,
+	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	priv crypto.PrivKey,
 	gk *ecdsa.PrivateKey,
 	gst *node_common.GuardianSetState,
@@ -252,7 +252,7 @@ func Run(
 					collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 					if gov != nil {
-						gov.CollectMetrics(heartbeat, sendC, gk, ourAddr)
+						gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
 					}
 
 					b, err := proto.Marshal(heartbeat)
@@ -297,7 +297,7 @@ func Run(
 				select {
 				case <-ctx.Done():
 					return
-				case msg := <-sendC:
+				case msg := <-gossipSendC:
 					err := th.Publish(ctx, msg)
 					p2pMessagesSent.Inc()
 					if err != nil {

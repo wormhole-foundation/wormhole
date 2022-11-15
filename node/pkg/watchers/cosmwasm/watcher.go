@@ -36,11 +36,11 @@ type (
 		urlLCD   string
 		contract string
 
-		msgChan chan *common.MessagePublication
+		msgC chan<- *common.MessagePublication
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		obsvReqC chan *gossipv1.ObservationRequest
+		obsvReqC <-chan *gossipv1.ObservationRequest
 
 		// Readiness component
 		readiness readiness.Component
@@ -95,8 +95,8 @@ func NewWatcher(
 	urlWS string,
 	urlLCD string,
 	contract string,
-	lockEvents chan *common.MessagePublication,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
 
@@ -121,7 +121,7 @@ func NewWatcher(
 		urlWS:                    urlWS,
 		urlLCD:                   urlLCD,
 		contract:                 contract,
-		msgChan:                  lockEvents,
+		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
 		readiness:                readiness,
 		chainID:                  chainID,
@@ -273,7 +273,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
 				for _, msg := range msgs {
-					e.msgChan <- msg
+					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 			}
@@ -313,7 +313,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
 				for _, msg := range msgs {
-					e.msgChan <- msg
+					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 
