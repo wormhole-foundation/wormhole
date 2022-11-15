@@ -250,6 +250,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				continue
 
 			}
+			resp.Body.Close();
 			logger.Info(string(body))
 
 			if !gjson.Valid(string(body)) {
@@ -274,7 +275,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		case <-timer.C:
 			for {
-				err := ws.SetReadDeadline(time.Now().Local().Add(100_000_000))
+				err := ws.SetReadDeadline(time.Now().Add(100_000_000))
 				if err != nil {
 					return err
 				}
@@ -328,6 +329,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				break
 
 			}
+			resp.Body.Close();
 			if !gjson.Valid(string(body)) {
 				logger.Error("sui_getCommitteeInfo: " + string(body))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
