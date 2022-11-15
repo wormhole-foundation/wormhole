@@ -1,0 +1,12 @@
+[package]
+name = "wormhole-bindings"
+version = "0.1.0"
+authors = ["Wormhole Project Contributors"]
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+cosmwasm-schema = "1"
+cosmwasm-std = "1"
+schemars = "0.8.8"
+serde = { version = "1.0.137", default-features = false, features = ["derive"] }
