@@ -173,5 +173,5 @@ The benefits of such an approach include the following:
 The caveats of such an approach include the following:
 
 - Speed to shutdown is limited by speed to develop the temporary bug fix
-- Speed to shutdown is limit by speed at which goverance can be passed to accept the temporary bug fix
+- Speed to shutdown is limited by speed at which goverance can be passed to accept the temporary bug fix
 - Restoring after a shutdown will require a secondary governance action for the long term bug fix
