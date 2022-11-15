@@ -27,6 +27,7 @@ export const CHAINS = {
   gnosis: 25,
   pythnet: 26,
   xpla: 28,
+  btc: 29,
   wormchain: 3104,
 } as const;
 

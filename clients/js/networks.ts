@@ -110,6 +110,10 @@ const MAINNET = {
     chain_id: "dimension_37-1",
     key: get_env_var("XPLA_KEY"),
   },
+  btc: {
+    rpc: undefined,
+    key: undefined,
+  },
   wormchain: {
     rpc: undefined,
     key: undefined,
@@ -240,6 +244,10 @@ const TESTNET = {
     chain_id: "cube_47-5",
     key: get_env_var("XPLA_KEY_TESTNET"),
   },
+  btc: {
+    rpc: undefined,
+    key: undefined,
+  },
   wormchain: {
     rpc: undefined,
     key: undefined,
@@ -352,6 +360,10 @@ const DEVNET = {
     key: undefined,
   },
   pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
+  btc: {
     rpc: undefined,
     key: undefined,
   },

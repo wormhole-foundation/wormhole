@@ -194,6 +194,8 @@ func (c ChainID) String() string {
 		return "wormchain"
 	case ChainIDXpla:
 		return "xpla"
+	case ChainIDBtc:
+		return "btc"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -255,6 +257,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDWormchain, nil
 	case "xpla":
 		return ChainIDXpla, nil
+	case "btc":
+		return ChainIDBtc, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -312,6 +316,8 @@ const (
 	ChainIDPythNet ChainID = 26
 	// ChainIDXpla is the ChainID of Xpla
 	ChainIDXpla ChainID = 28
+	//ChainIDBtc is the ChainID of Bitcoin
+	ChainIDBtc ChainID = 29
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 
