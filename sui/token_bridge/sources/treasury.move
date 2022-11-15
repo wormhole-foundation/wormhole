@@ -28,11 +28,6 @@ module token_bridge::treasury {
         coins: Coin<CoinType>,
     }
 
-    // #[test_only]
-    // public entry fun init_unparametrized_object(bridge_state: &mut BridgeState, ctx: &mut TxContext){
-    //     transfer::transfer_to_object<UnparametrizedObject, BridgeState>(UnparametrizedObject{id: object::new(ctx)}, bridge_state);
-    // }
-
     public(friend) fun create_treasury_cap_store<CoinType>(cap: TreasuryCap<CoinType>, ctx: &mut TxContext): TreasuryCapStore<CoinType> { //
          TreasuryCapStore<CoinType> { id: object::new(ctx), cap: cap }
     }
@@ -45,17 +40,14 @@ module token_bridge::treasury {
         let balance = coin::balance_mut<CoinType>(&mut store.coins);
         let b = coin::take<CoinType>(balance, value, ctx);
         return b
-        //return coin::from_balance<CoinType>(b, ctx)
     }
 
-    // public(friend) fun create_coin_store<CoinType>(bridge_state: &mut BridgeState, ctx: &mut TxContext) {
-    //     let store = CoinStore<CoinType> { id: object::new(ctx), coins: coin::zero<CoinType>(ctx) };
-    //     transfer::transfer_to_object<CoinStore<CoinType>,BridgeState>(store, bridge_state);
-    // }
+    public(friend) fun create_coin_store<CoinType>(ctx: &mut TxContext): CoinStore<CoinType> {
+        CoinStore<CoinType> { id: object::new(ctx), coins: coin::zero<CoinType>(ctx) }
+    }
 
-    // One can only call mint in complete_transfer when minting wrapped assets is necessary
-    // TODO: get instead of passing in TreasuryCapStore, we should pass in BridgeState,
-    //       and get the child TreasuryCapStore object dynamically
+    // This low-level mint funtion is used to implement a higher-level mint function in
+    // bridge_state.move
     public(friend) fun mint<T>(
         cap_container: &mut TreasuryCapStore<T>,
         value: u64,
