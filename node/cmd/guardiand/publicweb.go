@@ -58,7 +58,7 @@ func publicwebServiceRunnable(
 	return func(ctx context.Context) error {
 		conn, err := grpc.DialContext(
 			ctx,
-			upstreamAddr,
+			fmt.Sprintf("unix:///%s", upstreamAddr),
 			grpc.WithBlock(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
