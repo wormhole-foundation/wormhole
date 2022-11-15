@@ -2,11 +2,11 @@ package sui
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"crypto/rand"
 	"math/big"
 	"net/http"
 	"net/url"
