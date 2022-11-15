@@ -2,6 +2,7 @@ package finalizers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 
@@ -25,6 +26,10 @@ func NewMoonbeamFinalizer(logger *zap.Logger, connector connectors.Connector) *M
 }
 
 func (m *MoonbeamFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
+	if block == nil {
+		return false, fmt.Errorf("block is nil")
+	}
+
 	var finalized bool
 	err := m.connector.RawCallContext(ctx, &finalized, "moon_isBlockFinalized", block.Hash.Hex())
 	if err != nil {

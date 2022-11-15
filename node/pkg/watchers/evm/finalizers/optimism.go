@@ -113,6 +113,10 @@ func (f *OptimismFinalizer) GetRollupInfo(ctx context.Context) (RollupInfo, erro
 }
 
 func (f *OptimismFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
+	if block == nil {
+		return false, fmt.Errorf("block is nil")
+	}
+
 	finalizedL1Block := f.l1Finalizer.GetLatestFinalizedBlockNumber() // Uint64
 	if finalizedL1Block == 0 {
 		// This happens on start up.
