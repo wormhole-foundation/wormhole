@@ -10,6 +10,7 @@ The following document describes various aspects of the Wormhole security progra
 - [Chain Integrators](#Chain-Integrators)
 - [Social Media Monitoring](#Social-Media-Monitoring)
 - [Incident Response](#Incident-Response)
+- [Emergency Shutdown](#Emergency-Shutdown)
 ## 3rd Party Security Audits
 
 The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
@@ -145,3 +146,32 @@ The role of the incident commander for Wormhole includes the following minimum o
 - Establish a private incident document, where the problem, timeline, actions, artifacts, lessons learned, etc. can be tracked and shared with responders.
 - When an incident is over, host a [retrospective](https://en.wikipedia.org/wiki/Retrospective) with key responders to understand how things could be handled better in the future (this is a no blame session, the goal is objectively about improving Wormhole's readiness and response capability in the future).
 - Create issues in relevant ticket trackers for actions based on lessons learned.
+
+## Emergency Shutdown
+
+The Wormhole project has evaluated the concept of having an on-chain safety feature, which could allow Wormhole smart contracts to be paused during a state of existential crisis.  However, after careful consideration the project has chosen to not make an on-chain safety feature that would allow an emergency shutdown capability at this time.
+
+The rationale for this decision included the following considerations:
+
+- Introduces new trust assumptions for the protocol specific to shutdown events.
+- Adds additional engineering overhead to design, develop, and maintain shutdown capability for each supported run-time.
+- Adds attack surface to Wormhole related smart contracts, which could introduce new bugs.
+- Adds gas cost on every transaction for a feature that will be used maybe once a year.
+- Makes assumptions about where in the code existential crisis may surface.
+
+As an alternative approach, Wormhole has evolved it's emergency shutdown strategy to leverage the existing upgrade authority via governance to temporarily patch smart contracts for vulnerabilities when/if they occur (eg. temporarily disabling the affected function) and a long-term bug fix is not readily available.
+
+The benefits of such an approach include the following:
+
+- Maintain the same trust assumptions for existential events
+- Allow selective shutdown of only the affected code (while leaving everything else fully functional)
+- No additional attack surface (only less attack surface during existential crisis)
+- No additional gas cost paid by users of Wormhole
+- Makes no assumptions about where the bug is, giving full utility to surgically remove it where it is
+- No additional process or keys to distribute or manage for Guardians
+
+The caveats of such an approach include the following:
+
+- Speed to shutdown is limited by speed to develop the temporary bug fix
+- Speed to shutdown is limit by speed at which goverance can be passed to accept the temporary bug fix
+- Restoring after a shutdown will require a secondary governance action for the long term bug fix
