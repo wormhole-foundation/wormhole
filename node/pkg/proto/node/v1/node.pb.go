@@ -101,6 +101,7 @@ type GovernanceMessage struct {
 	// Random nonce for disambiguation. Must be identical across all nodes.
 	Nonce uint32 `protobuf:"varint,3,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	// Types that are assignable to Payload:
+	//
 	//	*GovernanceMessage_GuardianSet
 	//	*GovernanceMessage_ContractUpgrade
 	//	*GovernanceMessage_BridgeRegisterChain
