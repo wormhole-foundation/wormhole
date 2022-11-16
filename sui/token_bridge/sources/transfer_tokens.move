@@ -4,8 +4,8 @@ module token_bridge::transfer_tokens {
     use sui::coin::{Self, Coin};
 
     use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::ExternalAddress;
-    use wormhole::myu16::{U16};
+    use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::myu16::{Self as u16, U16};
     use wormhole::emitter::{Self, EmitterCapability};
 
     use token_bridge::bridge_state::{Self, BridgeState};
@@ -23,12 +23,12 @@ module token_bridge::transfer_tokens {
         bridge_state: &mut BridgeState,
         coins: Coin<CoinType>,
         wormhole_fee_coins: Coin<SUI>,
-        recipient_chain: U16,
-        recipient: ExternalAddress,
+        recipient_chain: u64,
+        recipient: vector<u8>,
         relayer_fee: u64,
         nonce: u64,
         ctx: &mut TxContext
-    ): u64 {
+    ) {
         let result = transfer_tokens_internal<CoinType>(
             bridge_state,
             coins,
@@ -41,8 +41,8 @@ module token_bridge::transfer_tokens {
             normalized_amount,
             token_address,
             token_chain,
-            recipient,
-            recipient_chain,
+            external_address::from_bytes(recipient),
+            u16::from_u64(recipient_chain),
             normalized_relayer_fee,
         );
         bridge_state::publish_message(
@@ -51,7 +51,7 @@ module token_bridge::transfer_tokens {
             nonce,
             transfer::encode(transfer),
             wormhole_fee_coins,
-        )
+        );
     }
 
     public fun transfer_tokens_with_payload<CoinType>(
