@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
@@ -12,6 +13,47 @@ import (
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
+
+type SuiResult struct {
+	Timestamp int64  `json:"timestamp"`
+	TxDigest  string `json:"txDigest"`
+	Event     struct {
+		MoveEvent struct {
+			PackageID         string `json:"packageId"`
+			TransactionModule string `json:"transactionModule"`
+			Sender            string `json:"sender"`
+			Type              string `json:"type"`
+			Fields            *struct {
+				ConsistencyLevel uint8  `json:"consistency_level"`
+				Nonce            uint64 `json:"nonce"`
+				Payload          string `json:"payload"`
+				Sender           uint64 `json:"sender"`
+				Sequence         uint64 `json:"sequence"`
+			} `json:"fields"`
+			Bcs string `json:"bcs"`
+		} `json:"moveEvent"`
+	} `json:"event"`
+}
+
+type SuiEventMsg struct {
+	Jsonrpc string  `json:"jsonrpc"`
+	Method  *string `json:"method"`
+	ID      *int    `json:"id"`
+	result  *int    `json:"result"`
+	Params  *struct {
+		Subscription int64      `json:"subscription"`
+		Result       *SuiResult `json:"result"`
+	} `json:"params"`
+}
+
+type SuiTxnQuery struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Result  struct {
+		Data       []SuiResult `json:"data"`
+		NextCursor interface{} `json:"nextCursor"`
+	} `json:"result"`
+	ID int `json:"id"`
+}
 
 func inspectBody(body gjson.Result) error {
 	txDigest := body.Get("txDigest")
@@ -69,7 +111,25 @@ func main() {
 			fmt.Printf("err")
 		} else {
 			fmt.Printf("\nReceived: %s.\n", msg[:n])
-			parsedMsg := gjson.ParseBytes(msg)
+			parsedMsg := gjson.ParseBytes(msg[:n])
+
+			var res SuiEventMsg
+			err = json.Unmarshal(msg[:n], &res)
+			if err != nil {
+				fmt.Printf("SuiEventMsg: %s", err.Error())
+			}
+
+			if res.Method != nil {
+				fmt.Printf("%s\n", *res.Method)
+			} else {
+				fmt.Printf("Method nil\n")
+			}
+
+			if res.ID != nil {
+				fmt.Printf("%d\n", *res.ID)
+			} else {
+				fmt.Printf("ID nil\n")
+			}
 
 			result := parsedMsg.Get("params.result")
 			if !result.Exists() {

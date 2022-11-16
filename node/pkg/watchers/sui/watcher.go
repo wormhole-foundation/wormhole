@@ -2,18 +2,21 @@ package sui
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/big"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"encoding/base64"
+	"encoding/json"
 
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -45,6 +48,52 @@ type (
 
 		subId      int64
 		subscribed bool
+	}
+
+	SuiResult struct {
+		Timestamp *int64  `json:"timestamp"`
+		TxDigest  *string `json:"txDigest"`
+		Event     struct {
+			MoveEvent *struct {
+				PackageID         *string `json:"packageId"`
+				TransactionModule *string `json:"transactionModule"`
+				Sender            *string `json:"sender"`
+				Type              *string `json:"type"`
+				Fields            *struct {
+					ConsistencyLevel *uint8  `json:"consistency_level"`
+					Nonce            *uint64 `json:"nonce"`
+					Payload          *string `json:"payload"`
+					Sender           *uint64 `json:"sender"`
+					Sequence         *uint64 `json:"sequence"`
+				} `json:"fields"`
+				Bcs string `json:"bcs"`
+			} `json:"moveEvent"`
+		} `json:"event"`
+	}
+
+	SuiEventError struct {
+		Code    int64  `json:"code"`
+		Message string `json:"message"`
+	}
+
+	SuiEventMsg struct {
+		Jsonrpc string         `json:"jsonrpc"`
+		Method  *string        `json:"method"`
+		ID      *int64         `json:"id"`
+		Error   *SuiEventError `json:"error"`
+		Params  *struct {
+			Subscription int64      `json:"subscription"`
+			Result       *SuiResult `json:"result"`
+		} `json:"params"`
+	}
+
+	SuiTxnQuery struct {
+		Jsonrpc string `json:"jsonrpc"`
+		Result  struct {
+			Data       []SuiResult `json:"data"`
+			NextCursor interface{} `json:"nextCursor"`
+		} `json:"result"`
+		ID int `json:"id"`
 	}
 )
 
@@ -84,62 +133,57 @@ func NewWatcher(
 	}
 }
 
-func (e *Watcher) inspectBody(logger *zap.Logger, body gjson.Result) error {
-	txDigest := body.Get("txDigest")
-	timestamp := body.Get("timestamp")
-	moveEvent := body.Get("event.moveEvent")
-	if !moveEvent.Exists() {
+func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
+	if (body.Timestamp == nil) || (body.TxDigest == nil) {
+		return errors.New("Missing event fields")
+	}
+	if body.Event.MoveEvent == nil {
 		return nil
 	}
-	packageId := moveEvent.Get("packageId")
-	account := moveEvent.Get("sender")
-	fields := moveEvent.Get("fields")
-	if !fields.Exists() {
-		return nil
-	}
-	consistency_level := fields.Get("consistency_level")
-	nonce := fields.Get("nonce")
-	payload := fields.Get("payload")
-	sender := fields.Get("sender")
-	sequence := fields.Get("sequence")
-	if !payload.Exists() {
-		return nil
-	}
-
-	if !txDigest.Exists() || !timestamp.Exists() || !packageId.Exists() || !account.Exists() || !consistency_level.Exists() || !nonce.Exists() || !sender.Exists() || !sequence.Exists() {
+	moveEvent := *body.Event.MoveEvent
+	if (moveEvent.PackageID == nil) || (moveEvent.Sender == nil) {
 		return errors.New("Missing event fields")
 	}
 
-	if e.suiAccount != account.String() {
-		logger.Info("account missmatch", zap.String("e.suiAccount", e.suiAccount), zap.String("account", account.String()))
+	if moveEvent.Fields == nil {
+		return nil
+	}
+	fields := *moveEvent.Fields
+	if (fields.ConsistencyLevel == nil) || (fields.Nonce == nil) || (fields.Payload == nil) || (fields.Sender == nil) || (fields.Sequence == nil) {
+		return nil
+	}
+
+	if e.suiAccount != *moveEvent.Sender {
+		logger.Info("account missmatch", zap.String("e.suiAccount", e.suiAccount), zap.String("account", *moveEvent.Sender))
 		return errors.New("account missmatch")
 	}
 
-	if !e.unsafeDevMode && e.suiPackage != packageId.String() {
-		logger.Info("package missmatch", zap.String("e.suiPackage", e.suiPackage), zap.String("package", packageId.String()))
+	if !e.unsafeDevMode && e.suiPackage != *moveEvent.PackageID {
+		logger.Info("package missmatch", zap.String("e.suiPackage", e.suiPackage), zap.String("package", *moveEvent.PackageID))
 		return errors.New("package missmatch")
 	}
 
 	emitter := make([]byte, 8)
-	binary.BigEndian.PutUint64(emitter, sender.Uint())
+	binary.BigEndian.PutUint64(emitter, *fields.Sender)
 
 	var a vaa.Address
 	copy(a[24:], emitter)
 
-	id, err := base64.StdEncoding.DecodeString(txDigest.String())
+	id, err := base64.StdEncoding.DecodeString(*body.TxDigest)
 	if err != nil {
 		return err
 	}
 
 	var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
 
-	pl, err := base64.StdEncoding.DecodeString(payload.String())
+	pl, err := base64.StdEncoding.DecodeString(*fields.Payload)
 	if err != nil {
 		return err
+
 	}
 
 	observation := &common.MessagePublication{
-		TxHash:           txHash,
+		TxHash: txHash,
 		// We do NOT have a useful source of timestamp
 		// information.  Every node has its own concept of a
 		// timestamp and nothing is persisted into the
@@ -149,12 +193,12 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body gjson.Result) error {
 		//
 		// Timestamp:        time.Unix(int64(timestamp.Uint()/1000), 0),
 		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(nonce.Uint()), // uint32
-		Sequence:         sequence.Uint(),
+		Nonce:            uint32(*fields.Nonce), // uint32
+		Sequence:         *fields.Sequence,
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   a,
 		Payload:          pl,
-		ConsistencyLevel: uint8(consistency_level.Uint()),
+		ConsistencyLevel: uint8(*fields.ConsistencyLevel),
 	}
 
 	suiMessagesConfirmed.Inc()
@@ -182,9 +226,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
-	logger.Info("Sui watcher connecting to WS node ", zap.String("url", e.suiWS))
+	u := url.URL{Scheme: "ws", Host: e.suiWS}
 
-	ws, err := websocket.Dial(e.suiWS, "", "http://guardian")
+	logger.Info("Sui watcher connecting to WS node ", zap.String("url", u.String()))
+
+	ws, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		logger.Error(fmt.Sprintf("e.suiWS: %s", err.Error()))
 		return err
@@ -192,7 +238,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	var s string
 
-	e.subId = int64(rand.Intn(99999999))
+	nBig, _ := rand.Int(rand.Reader, big.NewInt(27))
+	e.subId = nBig.Int64()
 
 	if e.unsafeDevMode {
 		// There is no way to have a fixed package id on
@@ -208,7 +255,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Subscribing using", zap.String("filter", s))
 
-	if _, err := ws.Write([]byte(s)); err != nil {
+	if err := ws.WriteMessage(websocket.TextMessage, []byte(s)); err != nil {
 		logger.Error(fmt.Sprintf("write: %s", err.Error()))
 		return err
 	}
@@ -218,9 +265,33 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
+	errC := make(chan error)
+	defer close(errC)
+	pumpData := make(chan []byte)
+	defer close(pumpData)
+
+	go func() {
+		for {
+			if _, msg, err := ws.ReadMessage(); err != nil {
+				logger.Error(fmt.Sprintf("ReadMessage: '%s'", err.Error()))
+				if strings.HasSuffix(err.Error(), "EOF") {
+					errC <- err
+					return
+				}
+			} else {
+				pumpData <- msg
+			}
+		}
+	}()
+
 	for {
 		select {
+		case err := <-errC:
+			_ = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			logger.Error("Pump died")
+			return err
 		case <-ctx.Done():
+			_ = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			return ctx.Err()
 		case r := <-e.obsvReqC:
 			if vaa.ChainID(r.ChainId) != vaa.ChainIDSui {
@@ -247,71 +318,56 @@ func (e *Watcher) Run(ctx context.Context) error {
 				continue
 
 			}
-			logger.Info(string(body))
+			resp.Body.Close()
 
-			if !gjson.Valid(string(body)) {
-				logger.Error("InvalidJson: " + string(body))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				break
+			logger.Info("receive", zap.String("body", string(body)))
+
+			var res SuiTxnQuery
+			err = json.Unmarshal(body, &res)
+			if err != nil {
+				logger.Error(e.suiRPC, zap.Error(err))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				continue
+
 			}
 
-			outcomes := gjson.ParseBytes(body).Get("result.data")
-			if !outcomes.Exists() {
-				logger.Error("InvalidJson: " + string(body))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				break
-			}
-
-			for _, chunk := range outcomes.Array() {
+			for _, chunk := range res.Result.Data {
 				err := e.inspectBody(logger, chunk)
 				if err != nil {
 					logger.Error(e.suiRPC, zap.Error(err))
 				}
+
+			}
+		case msg := <-pumpData:
+			logger.Info("receive", zap.String("body", string(msg)))
+
+			var res SuiEventMsg
+			err = json.Unmarshal(msg, &res)
+			if err != nil {
+				logger.Error("Unmarshal", zap.String("body", string(msg)), zap.Error(err))
+				continue
+			}
+			if res.Error != nil {
+				_ = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				return errors.New((*res.Error).Message)
+			}
+			if res.ID != nil {
+				if *res.ID == e.subId {
+					logger.Info("Subscribed set to true")
+					e.subscribed = true
+				}
+				continue
+			}
+
+			if res.Params != nil && (*res.Params).Result != nil {
+				err := e.inspectBody(logger, *(*res.Params).Result)
+				if err != nil {
+					logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
+				}
+				continue
 			}
 
 		case <-timer.C:
-			for {
-				var msg = make([]byte, 10000)
-				err := ws.SetReadDeadline(time.Now().Local().Add(100_000_000))
-				if err != nil {
-					return err
-				}
-
-				if n, err := ws.Read(msg); err != nil {
-					if err.Error() == "EOF" {
-						return err
-					}
-					break
-				} else {
-					parsedMsg := gjson.ParseBytes(msg)
-					if !parsedMsg.Exists() {
-						logger.Error("error", zap.String("body", string(msg[:n])), zap.Uint64("len", uint64(n)))
-						continue
-					}
-					logger.Info("receive", zap.String("body", string(msg[:n])), zap.Uint64("len", uint64(n)))
-					result := parsedMsg.Get("params.result")
-					if result.Exists() {
-						err := e.inspectBody(logger, result)
-						if err != nil {
-							logger.Error(fmt.Sprintf("inspectBody: %s", err.Error()))
-						}
-						continue
-					}
-					errVal := parsedMsg.Get("error.message")
-					if errVal.Exists() {
-						return errors.New(errVal.String())
-					}
-
-					id := parsedMsg.Get("id")
-					if id.Exists() {
-						if id.Int() == e.subId {
-							e.subscribed = true
-						}
-						continue
-					}
-				}
-			}
-
 			resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getCommitteeInfo", "params": []}`))
 			if err != nil {
 				logger.Error(fmt.Sprintf("sui_getCommitteeInfo: %s", err.Error()))
@@ -326,6 +382,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				break
 
 			}
+			resp.Body.Close()
 			if !gjson.Valid(string(body)) {
 				logger.Error("sui_getCommitteeInfo: " + string(body))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
