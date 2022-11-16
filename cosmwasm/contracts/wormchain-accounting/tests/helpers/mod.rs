@@ -92,6 +92,15 @@ impl Contract {
         )
     }
 
+    pub fn submit_vaas(&mut self, vaas: Vec<Binary>) -> anyhow::Result<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(ADMIN),
+            self.addr(),
+            &ExecuteMsg::SubmitVAAs { vaas },
+            &[],
+        )
+    }
+
     pub fn query_balance(&self, key: account::Key) -> StdResult<account::Balance> {
         self.app
             .wrap()
