@@ -4,14 +4,7 @@
 
 ## Building
 
-We use [ignite](https://docs.ignite.com/) to build the protobuf.  Install the latest version we've pinned.
-
-```
-curl https://get.ignite.com/cli@v0.23.0 | bash
-cp ignite ~/.local/bin/
-```
-
-Build and install wormchain.
+Build and install wormchain.  You will need golang version 1.16+ installed.
 
 ```
 make build/wormchaind
