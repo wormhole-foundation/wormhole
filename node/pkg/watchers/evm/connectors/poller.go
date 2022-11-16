@@ -32,6 +32,9 @@ type BlockPollConnector struct {
 }
 
 func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finalizer PollFinalizer, delay time.Duration, useFinalized bool, publishSafeBlocks bool) (*BlockPollConnector, error) {
+	if publishSafeBlocks && !useFinalized {
+		return nil, fmt.Errorf("publishSafeBlocks may only be enabled if useFinalized is enabled")
+	}
 	connector := &BlockPollConnector{
 		Connector:         baseConnector,
 		Delay:             delay,
