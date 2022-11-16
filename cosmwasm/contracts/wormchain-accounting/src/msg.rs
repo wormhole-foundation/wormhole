@@ -57,6 +57,9 @@ pub struct Upgrade {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    /// Submit a series of observations.  Once the contract has received a quorum of signatures
+    /// for a particular observation, the transfer associated with the observation will be
+    /// committed to the on-chain state.
     SubmitObservations {
         // A serialized `Vec<Observation>`. Multiple observations can be submitted together to reduce
         // transaction overhead.
@@ -66,6 +69,8 @@ pub enum ExecuteMsg {
         // A signature for `observations`.
         signature: Signature,
     },
+
+    /// Modifies the balance of a single account.  Used to manually override the balance.
     ModifyBalance {
         // A serialized `Modification` message.
         modification: Binary,
@@ -76,6 +81,7 @@ pub enum ExecuteMsg {
         // A quorum of signatures for `modification`.
         signatures: Vec<Signature>,
     },
+
     UpgradeContract {
         // A serialized `Upgrade` message.
         upgrade: Binary,
@@ -85,6 +91,15 @@ pub enum ExecuteMsg {
 
         // A quorum of signatures for `key`.
         signatures: Vec<Signature>,
+    },
+
+    /// Submit one or more signed token transfer VAAs to update the on-chain state.  If committing
+    /// any of the transfers returns an error, the entire transaction is aborted and none of the
+    /// transfers are committed.
+    SubmitVAAs {
+        /// One or more VAAs to be submitted.  Each VAA should be encoded in the standard wormhole
+        /// wire format.
+        vaas: Vec<Binary>,
     },
 }
 
