@@ -93,8 +93,8 @@ to get a new emitter
 
   kubectl exec -it sui-0 -c sui-node -- /tmp/funder.sh
   scripts/deploy.sh
-  sui client call --function get_new_emitter --module wormhole --package $WORM_PACKAGE --gas-budget 20000 --args \"$WORM_STATE\" 
   . env.sh
+  sui client call --function get_new_emitter --module wormhole --package $WORM_PACKAGE --gas-budget 20000 --args \"$WORM_STATE\" 
 
   sui client objects
   scripts/publish_message.sh 0x165ef7366c4267c6506bcf63d2419556f34f48d6

@@ -23,3 +23,17 @@ echo "export WORM_PACKAGE=\"$wa\"" > ../env.sh
 echo "export WORM_STATE=\"$state\"" >> ../env.sh
 echo "export WORM_OWNER=\"$owner\"" >> ../env.sh
 
+cd ../token_bridge
+sed -i -e 's/token_bridge = .*/token_bridge = "0x0"/' Move.toml
+make build
+sui client publish --gas-budget 10000 | tee publish.log
+grep ID: publish.log  | head -2 > ids.log
+
+wa="`grep "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/'`"
+sed -i -e "s/token_bridge = .*/token_bridge = \"$wa\"/" Move.toml
+state="`grep -v "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/'`"
+owner="`grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/'`"
+echo "export TOKEN_PACKAGE=\"$wa\"" >> ../env.sh
+echo "export TOKEN_STATE=\"$state\"" >> ../env.sh
+echo "export TOKEN_OWNER=\"$owner\"" >> ../env.sh
+
