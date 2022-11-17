@@ -140,9 +140,6 @@ if [[ ! -z $contract_addr ]]; then
   printf "Found code_id $code_id\n"
 fi
 
-printf "Using [$url$code_id] and [$jq_cmd]\n"
-#hash1=`curl "$url$code_id" --silent | jq '.code_info.code_hash' -r | base64 -d | hexdump -v -e '/1 "%02x" '` <= Terra
-#hash1=`curl "$url$code_id" --silent | jq '.checksum.hash' -r | cut -d 'x' -f2` <= injective
 hash1=`curl "$url$code_id" --silent | eval $jq_cmd`
 hash2=`sha256sum $wasm | cut -f1 -d' '`
 
