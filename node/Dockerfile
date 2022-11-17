@@ -14,13 +14,13 @@ WORKDIR /app
 COPY node/tools tools
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
-  cd tools/ && go build -mod=readonly -o /dlv github.com/go-delve/delve/cmd/dlv
+  cd tools/ && go install -mod=readonly github.com/go-delve/delve/cmd/dlv@v1.9.1 && cp $GOPATH/bin/dlv /
 
 COPY node node
 COPY sdk sdk
 COPY wormchain wormchain
 
-ARG GO_BUILD_ARGS=-race
+ARG GO_BUILD_ARGS=
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   cd node && \

@@ -9,7 +9,6 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v3 v3.2103.1
-	github.com/diamondburned/arikawa/v3 v3.0.0-rc.2
 	github.com/ethereum/go-ethereum v1.10.21
 	github.com/gagliardetto/solana-go v1.7.1
 	github.com/gorilla/mux v1.8.0
@@ -60,7 +59,6 @@ require (
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
-	golang.org/x/text v0.4.0
 	nhooyr.io/websocket v1.8.7
 )
 
@@ -150,7 +148,6 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.6.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
-	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
@@ -286,6 +283,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/term v0.2.0 // indirect
+	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/tools v0.2.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

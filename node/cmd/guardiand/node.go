@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/certusone/wormhole/node/pkg/processor"
+
 	"github.com/certusone/wormhole/node/pkg/watchers/wormchain"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
@@ -27,7 +29,6 @@ import (
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -42,7 +43,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/p2p"
-	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
@@ -177,10 +177,9 @@ var (
 
 	logLevel *string
 
-	unsafeDevMode   *bool
-	testnetMode     *bool
-	devNumGuardians *uint
-	nodeName        *string
+	unsafeDevMode *bool
+	testnetMode   *bool
+	nodeName      *string
 
 	publicRPC *string
 	publicWeb *string
@@ -192,9 +191,6 @@ var (
 	disableTelemetry       *bool
 
 	telemetryKey *string
-
-	discordToken   *string
-	discordChannel *string
 
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
@@ -326,7 +322,6 @@ func init() {
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features)")
-	devNumGuardians = NodeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
 	nodeName = NodeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
 
 	publicRPC = NodeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
@@ -343,9 +338,6 @@ func init() {
 
 	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
 		"Telemetry write key")
-
-	discordToken = NodeCmd.Flags().String("discordToken", "", "Discord bot token (optional)")
-	discordChannel = NodeCmd.Flags().String("discordChannel", "", "Discord channel name (optional)")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -829,7 +821,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Setup various channels...
 
 	// Outbound gossip message queue (needs to be read/write because p2p needs read/write)
-	gossipSendC := make(chan []byte)
+	gossipSendC := make(chan []byte, 100)
 	// Inbound observations
 	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
@@ -847,9 +839,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Outbound observation requests
 	obsvReqSendReadC, obsvReqSendWriteC := makeChannelPair[*gossipv1.ObservationRequest](common.ObsvReqChannelSize)
-
-	// Injected VAAs (manually generated rather than created via observation)
-	injectReadC, injectWriteC := makeChannelPair[*vaa.VAA](0)
 
 	// Guardian set state managed by processor
 	gst := common.NewGuardianSetState(nil)
@@ -884,14 +873,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				}
 			}
 		}(chainMsgC[chainId], chainId)
-	}
-
-	var notifier *discord.DiscordNotifier
-	if *discordToken != "" {
-		notifier, err = discord.NewDiscordNotifier(*discordToken, *discordChannel, logger)
-		if err != nil {
-			logger.Error("failed to initialize Discord bot", zap.Error(err))
-		}
 	}
 
 	// Load p2p private key
@@ -1361,23 +1342,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if err := supervisor.Run(ctx, "processor", processor.NewProcessor(ctx,
+		if err := supervisor.Run(ctx, "processor", processor.NewVAAReactor(
 			db,
 			msgReadC,
 			setReadC,
 			gossipSendC,
 			obsvC,
 			obsvReqSendWriteC,
-			injectReadC,
 			signedInReadC,
 			gk,
 			gst,
-			*unsafeDevMode,
-			*devNumGuardians,
-			*ethRPC,
-			*wormchainLCD,
 			attestationEvents,
-			notifier,
 			gov,
 			acct,
 			acctReadC,
@@ -1385,7 +1360,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract)
+		adminService, err := adminServiceRunnable(logger, *adminSocketPath, msgWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract)
 		if err != nil {
 			logger.Fatal("failed to create admin service socket", zap.Error(err))
 		}

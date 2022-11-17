@@ -40,7 +40,7 @@ import (
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
 	db              *db.Database
-	injectC         chan<- *vaa.VAA
+	injectC         chan<- *common.MessagePublication
 	obsvReqSendC    chan<- *gossipv1.ObservationRequest
 	logger          *zap.Logger
 	signedInC       chan<- *gossipv1.SignedVAAWithQuorum
@@ -265,7 +265,17 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			zap.String("digest", digest.String()),
 		)
 
-		s.injectC <- v
+		s.injectC <- &common.MessagePublication{
+			TxHash:           ethcommon.Hash{},
+			Timestamp:        v.Timestamp,
+			Nonce:            v.Nonce,
+			Sequence:         v.Sequence,
+			ConsistencyLevel: v.ConsistencyLevel,
+			EmitterChain:     v.EmitterChain,
+			EmitterAddress:   v.EmitterAddress,
+			Payload:          v.Payload,
+			Unreliable:       false,
+		}
 
 		digests[i] = digest.Bytes()
 	}
@@ -414,7 +424,7 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 func adminServiceRunnable(
 	logger *zap.Logger,
 	socketPath string,
-	injectC chan<- *vaa.VAA,
+	injectC chan<- *common.MessagePublication,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	db *db.Database,
