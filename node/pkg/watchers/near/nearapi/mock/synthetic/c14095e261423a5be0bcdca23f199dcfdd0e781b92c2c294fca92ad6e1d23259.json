@@ -1,0 +1,72 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "gfs-ventures.poolv1.near",
+    "header": {
+      "balance_burnt": "1386243035686500000000",
+      "chunk_hash": "53cv8sHeTprWjuyzpWXvq3g1QrPDvb9VsEhzTQFGTmSu",
+      "encoded_length": 314,
+      "encoded_merkle_root": "EAEo7zmYDVXU6SuyA4P6v14oVo6Jjms3nnm4LVwTVNtW",
+      "gas_limit": 1000000000000000,
+      "gas_used": 17722083445341,
+      "height_created": 76538229,
+      "height_included": 76538229,
+      "outcome_root": "3RoF1ZYpoK6YpdtJoRM1DN167UusucNvniCmKzuPgTws",
+      "outgoing_receipts_root": "2mnqEbhNbDjDk8aJLib2LtfuzUxrMzoQqnxnrSCtf3in",
+      "prev_block_hash": "E6A2zbSNyDgFhroiDAGYhg9JUD8TEhGqvqKcvPyqh4XW",
+      "prev_state_root": "3AenWJGbksWjovyTyAKwJbxH6GWNPcBDmewidexvYi8D",
+      "rent_paid": "0",
+      "shard_id": 1,
+      "signature": "ed25519:iQGJoKTc6f9VxmTf7EKQD9hVg4tKzBcUeKNMA3uDLKbnEACyoAKJ5ue7ze2Gr7bDxjaCmnjpFvddX5jBtDGXsPb",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "188378947071762486639852"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "relay.aurora",
+            "signer_public_key": "ed25519:EX5ce7aXTTcDm9N5E1h8cHaxAKnjYtiRCGgywjE57axc"
+          }
+        },
+        "receipt_id": "8ShZY1jJAKjUQZKbJWns2yQTSzbNJTg4259rs5SGUz1V",
+        "receiver_id": "relay.aurora"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "187908502310684408252880"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "nex1234.near",
+            "signer_public_key": "ed25519:C3AQKc8DX24YhNohxiWtTRCXnaiUGHGnvKAJaeS5tj4c"
+          }
+        },
+        "receipt_id": "BedPTtAxFtQdVKHaJPM8dmMjzDAXtS1gzr8WzuDH12qr",
+        "receiver_id": "nex1234.near"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

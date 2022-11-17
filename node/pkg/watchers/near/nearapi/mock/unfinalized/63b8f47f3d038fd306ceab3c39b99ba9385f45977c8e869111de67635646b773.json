@@ -1,0 +1,137 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "nodeasy.poolv1.near",
+    "header": {
+      "balance_burnt": "1019057306432500000000",
+      "chunk_hash": "H2iCePsQbpke5HGiCSm5Kkuc1EDciNJZby9LHBJq4Zrx",
+      "encoded_length": 1192,
+      "encoded_merkle_root": "5yzmJzLFtmGqJddfnkNNqEqBwEMSrfxgXzRauE3ppZfn",
+      "gas_limit": 1000000000000000,
+      "gas_used": 11435998083959,
+      "height_created": 76538229,
+      "height_included": 76538229,
+      "outcome_root": "C8R6d3R7wCpJZMYDUAFvTXcUQh3AhzbxRbPSDARiYuno",
+      "outgoing_receipts_root": "BKC54YifTuhXgaAGjxFtjjsXPCXLGawGd81bPxPd4gXJ",
+      "prev_block_hash": "E6A2zbSNyDgFhroiDAGYhg9JUD8TEhGqvqKcvPyqh4XW",
+      "prev_state_root": "6sX828ULdirkLAxhiiEzNv3QRLbyvgfuUHVrLxCq6LwY",
+      "rent_paid": "0",
+      "shard_id": 2,
+      "signature": "ed25519:t63oTkxLm1oppcPBh59bD4fBtZG74gU69MJiqKHgRcmWBjMWRwp3SjAVBBA64zRrLgSA4toqzvayvPiFiteWJCq",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "ilyin02.near",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "eyJ0YXNrX29yZGluYWwiOjEsImJpZCI6IjUwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0=",
+                  "deposit": "0",
+                  "gas": 30000000000000,
+                  "method_name": "claim_assignment"
+                }
+              }
+            ],
+            "gas_price": "122987387",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "ilyin02.near",
+            "signer_public_key": "ed25519:2wf7mw59NrZ8iSt4X1KXmaw3ZEXbwkkUPJ2XtFegmkTx"
+          }
+        },
+        "receipt_id": "JDy354Bzug96V3N51a8uYuVyatneuvWEhjngEY1DPLCc",
+        "receiver_id": "app.nearcrowd.near"
+      },
+      {
+        "predecessor_id": "embr.playember_reserve.near",
+        "receipt": {
+          "Action": {
+            "actions": [
+              "CreateAccount",
+              {
+                "AddKey": {
+                  "access_key": {
+                    "nonce": 0,
+                    "permission": "FullAccess"
+                  },
+                  "public_key": "ed25519:HsqAckJfnhjmWXqYS59MQ7NbkR1kYsuRsWrmxhe4QUTf"
+                }
+              },
+              {
+                "Transfer": {
+                  "deposit": "2681964925000000000000"
+                }
+              }
+            ],
+            "gas_price": "119405230",
+            "input_data_ids": [],
+            "output_data_receivers": [
+              {
+                "data_id": "GeAUEZxegWfeZFas96YLjx9a3Z2DtrZFCcew49kT4AjE",
+                "receiver_id": "embr.playember_reserve.near"
+              }
+            ],
+            "signer_id": "embr.playember_reserve.near",
+            "signer_public_key": "ed25519:3ijTcUmwgpVH7cbi6cbzDcs8DVvCgPoq9sN44fgLuCFs"
+          }
+        },
+        "receipt_id": "HPyg8fxQk2sWj5ptHXCcguYV7yNs1w8vYnSCuX9x3cSd",
+        "receiver_id": "9ffbf256-1.embr.playember_reserve.near"
+      },
+      {
+        "predecessor_id": "embr.playember_reserve.near",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "eyJwcmVkZWNlc3Nvcl9hY2NvdW50X2lkIjoiZW1ici5wbGF5ZW1iZXJfcmVzZXJ2ZS5uZWFyIiwidHJhbnNmZXJfYW1vdW50IjoiMjY4MTk2NDkyNTAwMDAwMDAwMDAwMCIsIm5ld19hY2NvdW50X2lkIjoiOWZmYmYyNTYtMS5lbWJyLnBsYXllbWJlcl9yZXNlcnZlLm5lYXIifQ==",
+                  "deposit": "0",
+                  "gas": 22995704737265,
+                  "method_name": "on_user_account_created"
+                }
+              }
+            ],
+            "gas_price": "119405230",
+            "input_data_ids": [
+              "GeAUEZxegWfeZFas96YLjx9a3Z2DtrZFCcew49kT4AjE"
+            ],
+            "output_data_receivers": [],
+            "signer_id": "embr.playember_reserve.near",
+            "signer_public_key": "ed25519:3ijTcUmwgpVH7cbi6cbzDcs8DVvCgPoq9sN44fgLuCFs"
+          }
+        },
+        "receipt_id": "FGdk89UcUiybPBa77vsqz9aDTu8CnGZgwTesRRKCMY1t",
+        "receiver_id": "embr.playember_reserve.near"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "127680070261400184450"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "embr.playember_reserve.near",
+            "signer_public_key": "ed25519:3ijTcUmwgpVH7cbi6cbzDcs8DVvCgPoq9sN44fgLuCFs"
+          }
+        },
+        "receipt_id": "9JKcA9c91GZa8j43E8RBYvuDuuChARDPNBkKnFitv5ga",
+        "receiver_id": "embr.playember_reserve.near"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

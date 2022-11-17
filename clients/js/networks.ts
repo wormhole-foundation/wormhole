@@ -110,6 +110,10 @@ const MAINNET = {
     chain_id: "dimension_37-1",
     key: get_env_var("XPLA_KEY"),
   },
+  btc: {
+    rpc: undefined,
+    key: undefined,
+  },
   wormchain: {
     rpc: undefined,
     key: undefined,
@@ -137,10 +141,6 @@ const MAINNET = {
   },
   gnosis: {
     rpc: "https://rpc.gnosischain.com/",
-    key: get_env_var("ETH_KEY"),
-  },
-  ropsten: {
-    rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY"),
   },
 };
@@ -240,6 +240,10 @@ const TESTNET = {
     chain_id: "cube_47-5",
     key: get_env_var("XPLA_KEY_TESTNET"),
   },
+  btc: {
+    rpc: undefined,
+    key: undefined,
+  },
   wormchain: {
     rpc: undefined,
     key: undefined,
@@ -267,10 +271,6 @@ const TESTNET = {
   },
   gnosis: {
     rpc: "https://sokol.poa.network/",
-    key: get_env_var("ETH_KEY_TESTNET"),
-  },
-  ropsten: {
-    rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY_TESTNET"),
   },
 };
@@ -355,6 +355,10 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
   },
+  btc: {
+    rpc: undefined,
+    key: undefined,
+  },
   xpla: {
     rpc: undefined,
     chain_id: undefined,
@@ -398,10 +402,6 @@ const DEVNET = {
   gnosis: {
     rpc: undefined,
     key: undefined,
-  },
-  ropsten: {
-    rpc: undefined,
-    key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
   },
 };
 

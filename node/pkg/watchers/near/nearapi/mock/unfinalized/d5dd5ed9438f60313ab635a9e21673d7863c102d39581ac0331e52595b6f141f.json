@@ -1,0 +1,29 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "lux.poolv1.near",
+    "header": {
+      "balance_burnt": "0",
+      "chunk_hash": "461qB71ReroVQeRQDXC8fkC4ApFNUstPNbuquKpoHJM4",
+      "encoded_length": 8,
+      "encoded_merkle_root": "9zYue7drR1rhfzEEoc4WUXzaYRnRNihvRoGt1BgK7Lkk",
+      "gas_limit": 1000000000000000,
+      "gas_used": 0,
+      "height_created": 76538230,
+      "height_included": 76538230,
+      "outcome_root": "11111111111111111111111111111111",
+      "outgoing_receipts_root": "8s41rye686T2ronWmFE38ji19vgeb6uPxjYMPt8y8pSV",
+      "prev_block_hash": "A5mwZmMzNZM39BVuEVfupMrEpvuCuRt6u9kJ1JGupgkx",
+      "prev_state_root": "3AenWJGbksWjovyTyAKwJbxH6GWNPcBDmewidexvYi8D",
+      "rent_paid": "0",
+      "shard_id": 1,
+      "signature": "ed25519:Tp6r9deqy1mM6v3EyL4R7zsyF4tZycf1bnitWSSsWqLQY8fdRx9ifwxRpE9yAjoCnFAiG7PnLoAsSMdMSM5bVfd",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

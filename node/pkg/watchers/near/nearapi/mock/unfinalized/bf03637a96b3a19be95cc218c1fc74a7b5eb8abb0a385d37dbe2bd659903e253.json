@@ -1,0 +1,19 @@
+{
+  "result": {
+    "receipts_outcome": [
+      {
+        "block_hash": "6eCgeVSC4Hwm8tAVy4qNQpnLs4S9EpzRjGtAipwZ632A",
+        "outcome": {
+          "executor_id": "contract.wormhole_crypto.near",
+          "logs": [
+            "wormhole/src/lib.rs#412: publish_message  prepaid_gas: \"94217765723035\"   used_gas: \"561737236755\"  delta: \"93653874829714\"",
+            "EVENT_JSON:{\"standard\":\"wormhole\",\"event\":\"publish\",\"data\":\"0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000\",\"nonce\":76538233,\"emitter\":\"148410499d3fcda4dcfd68a1ebfcdddda16ab28326448d4aae4d2f0465cdfcb7\",\"seq\":263,\"block\":76538236}"
+          ],
+          "status": {
+            "SuccessValue": "MjYz"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "northernlights.poolv1.near",
+    "header": {
+      "balance_burnt": "285265493722000000000",
+      "chunk_hash": "72JMWj22x3ze1pUFQd6aE8EffpsWNtHezeqgxGENyMvc",
+      "encoded_length": 681,
+      "encoded_merkle_root": "B4hj63VNSq9gXE2jrzYcdUXC3QJCE3btFy4CeRM1MrA7",
+      "gas_limit": 1000000000000000,
+      "gas_used": 3277209999720,
+      "height_created": 76677956,
+      "height_included": 76677956,
+      "outcome_root": "8kpmPWt9db81S8MTReBv6HKkg7SBhJ6mYJmEvWtdNZ3N",
+      "outgoing_receipts_root": "5x45ZpYzMBMY4P4fSEuG3JoiaBTkZacfkFiMgmooew4E",
+      "prev_block_hash": "EypQXonf2oDZ6uqsCiFoa4hogEU7rgaiXkXeNuqqzX7H",
+      "prev_state_root": "H2JnePhNeeqcPhBDqrRy7muLfdvkZPnzDwVj68Knm252",
+      "rent_paid": "0",
+      "shard_id": 0,
+      "signature": "ed25519:2KgfyXdYvwwZG3tFeR7GKG3GTpU8CYryasFiTWpWMqfze8M8xmXbxtdthUr3mLB5L9uKhK8cwr76unNWR1ehrEXb",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "32321118014239e6400ff018eef8f593aacbe93b7bc6f595ca02d2a791a2f440",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "1500000000000000000000"
+                }
+              }
+            ],
+            "gas_price": "103000000",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "32321118014239e6400ff018eef8f593aacbe93b7bc6f595ca02d2a791a2f440",
+            "signer_public_key": "ed25519:4NwfXMWjATYkLZEt4aEvJK8atWhpsNSLmMtuW4B3iywV"
+          }
+        },
+        "receipt_id": "5uQfZeAvGsQhEUdHSVUt4shssZs1Tmxi3hd2KruCUT5m",
+        "receiver_id": "ef7307de285a8730a834eae49d4edb3916f48b7c93f00f1fb9616a0f967cd319"
+      },
+      {
+        "predecessor_id": "0a0686617d5009bb78f7f4a06fd0bd4ccc6e870632153d3a2b7b9261fba3b5cf",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "eyJyZWNlaXZlcl9pZCI6ImRlcG9zaXRzLmdyb3cuc3dlYXQiLCJhbW91bnQiOiIxNDAwMDAwMDAwMDAwMDAwMDAwMCJ9",
+                  "deposit": "1",
+                  "gas": 14000000000000,
+                  "method_name": "ft_transfer"
+                }
+              }
+            ],
+            "gas_price": "109272700",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "0a0686617d5009bb78f7f4a06fd0bd4ccc6e870632153d3a2b7b9261fba3b5cf",
+            "signer_public_key": "ed25519:g8rAWYtdtMiddpuwSEdzrDr5qXpDZNs3AbSAi8kmcAi"
+          }
+        },
+        "receipt_id": "DF1oJVsektn19GS2zgJc319uFqRG5mxzyT4uPuEJDiNx",
+        "receiver_id": "token.sweat"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

@@ -30,6 +30,7 @@ import {
   isEVMChain,
   isTerraChain,
   CHAIN_ID_XPLA,
+  CHAIN_ID_BTC,
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
@@ -112,6 +113,8 @@ export const tryUint8ArrayToNative = (
     throw Error("uint8ArrayToNative: Aptos not supported yet.");
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("uint8ArrayToNative: Chain id unset");
+  } else if (chainId === CHAIN_ID_BTC) {
+    throw Error("uint8ArrayToNative: Btc not supported");
   } else {
     // This case is never reached
     const _: never = chainId;
@@ -242,6 +245,8 @@ export const tryNativeToHexString = (
     throw Error("hexToNativeString: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
     throw Error("hexToNativeString: Sui not supported yet.");
+  } else if (chainId === CHAIN_ID_BTC) {
+    throw Error("hexToNativeString: Btc not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
     if (isValidAptosType(address)) {
       return getExternalAddressFromType(address);

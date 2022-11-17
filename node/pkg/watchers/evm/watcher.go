@@ -10,7 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/finalizers"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/interfaces"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -100,8 +100,15 @@ type (
 		// 0 is a valid guardian set, so we need a nil value here
 		currentGuardianSet *uint32
 
-		// Minimum number of confirmations to accept, regardless of what the contract specifies.
-		minConfirmations uint64
+		// waitForConfirmations indicates if we should wait for the number of confirmations specified by the consistencyLevel in the message.
+		// On many of the chains, we already wait for finalized blocks so there is no point in waiting any additional blocks after finality.
+		// Therefore this parameter defaults to false. This feature can / should be enabled on chains where we don't wait for finality.
+		waitForConfirmations bool
+
+		// maxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned. If we are honoring
+		// the consistency level (waitForConfirmations is set to true), then we wait maxWaitConfirmations plus the consistency level. This
+		// parameter defaults to 60, which should be plenty long enough for most chains. If not, this parameter can be set.
+		maxWaitConfirmations uint64
 
 		// Interface to the chain specific ethereum library.
 		ethConn       connectors.Connector
@@ -109,6 +116,10 @@ type (
 
 		latestFinalizedBlockNumber uint64
 		l1Finalizer                interfaces.L1Finalizer
+
+		// These parameters are currently only used for Polygon and should be set via SetRootChainParams()
+		rootChainRpc      string
+		rootChainContract string
 	}
 
 	pendingKey struct {
@@ -132,25 +143,23 @@ func NewEthWatcher(
 	chainID vaa.ChainID,
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet,
-	minConfirmations uint64,
 	obsvReqC chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool,
-	l1Finalizer interfaces.L1Finalizer,
 ) *Watcher {
 
 	return &Watcher{
-		url:              url,
-		contract:         contract,
-		networkName:      networkName,
-		readiness:        readiness,
-		minConfirmations: minConfirmations,
-		chainID:          chainID,
-		msgChan:          messageEvents,
-		setChan:          setEvents,
-		obsvReqC:         obsvReqC,
-		pending:          map[pendingKey]*pendingMessage{},
-		unsafeDevMode:    unsafeDevMode,
-		l1Finalizer:      l1Finalizer,
+		url:                  url,
+		contract:             contract,
+		networkName:          networkName,
+		readiness:            readiness,
+		waitForConfirmations: false,
+		maxWaitConfirmations: 60,
+		chainID:              chainID,
+		msgChan:              messageEvents,
+		setChan:              setEvents,
+		obsvReqC:             obsvReqC,
+		pending:              map[pendingKey]*pendingMessage{},
+		unsafeDevMode:        unsafeDevMode,
 	}
 }
 
@@ -215,14 +224,18 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
-	} else if w.chainID == vaa.ChainIDNeon {
+	} else if w.chainID == vaa.ChainIDNeon && !w.unsafeDevMode {
+		if w.l1Finalizer == nil {
+			return fmt.Errorf("unable to create neon watcher because the l1 finalizer is not set")
+		}
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, false)
+		finalizer := finalizers.NewNeonFinalizer(logger, baseConnector, baseConnector.Client(), w.l1Finalizer)
+		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -273,6 +286,23 @@ func (w *Watcher) Run(ctx context.Context) error {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("failed to connect to polygon: %w", err)
+		}
+		w.ethConn, err = connectors.NewPolygonConnector(ctx,
+			baseConnector,
+			w.rootChainRpc,
+			w.rootChainContract,
+		)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("failed to create polygon connector: %w", err)
 		}
 	} else {
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
@@ -377,9 +407,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 						continue
 					}
 
-					expectedConfirmations := uint64(msg.ConsistencyLevel)
-					if expectedConfirmations < w.minConfirmations {
-						expectedConfirmations = w.minConfirmations
+					var expectedConfirmations uint64
+					if w.waitForConfirmations {
+						expectedConfirmations = uint64(msg.ConsistencyLevel)
 					}
 
 					// SECURITY: In the recovery flow, we already know which transaction to
@@ -548,13 +578,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 				atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 
 				for key, pLock := range w.pending {
-					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)
-					if expectedConfirmations < w.minConfirmations {
-						expectedConfirmations = w.minConfirmations
+					var expectedConfirmations uint64
+					if w.waitForConfirmations {
+						expectedConfirmations = uint64(pLock.message.ConsistencyLevel)
 					}
 
 					// Transaction was dropped and never picked up again
-					if pLock.height+4*uint64(expectedConfirmations) <= blockNumberU {
+					if pLock.height+expectedConfirmations+w.maxWaitConfirmations <= blockNumberU {
 						logger.Info("observation timed out",
 							zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("blockhash", key.BlockHash),
@@ -563,6 +593,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Stringer("current_block", ev.Number),
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName),
+							zap.Uint64("expectedConfirmations", expectedConfirmations),
+							zap.Uint64("maxWaitConfirmations", w.maxWaitConfirmations),
 						)
 						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
 						delete(w.pending, key)
@@ -570,7 +602,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					}
 
 					// Transaction is now ready
-					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
+					if pLock.height+expectedConfirmations <= blockNumberU {
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
@@ -773,6 +805,39 @@ func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, er
 	return
 }
 
+// SetL1Finalizer is used to set the layer one finalizer.
+func (w *Watcher) SetL1Finalizer(l1Finalizer interfaces.L1Finalizer) {
+	w.l1Finalizer = l1Finalizer
+}
+
+// GetLatestFinalizedBlockNumber() implements the L1Finalizer interface and allows other watchers to
+// get the latest finalized block number from this watcher.
 func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
+}
+
+// SetRootChainParams is used to enabled checkpointing (currently only for Polygon). It handles
+// if the feature is either enabled or disabled, but ensures the configuration is valid.
+func (w *Watcher) SetRootChainParams(rootChainRpc string, rootChainContract string) error {
+	if (rootChainRpc == "") != (rootChainContract == "") {
+		return fmt.Errorf("if either rootChainRpc or rootChainContract are set, they must both be set")
+	}
+
+	w.rootChainRpc = rootChainRpc
+	w.rootChainContract = rootChainContract
+	return nil
+}
+
+func (w *Watcher) usePolygonCheckpointing() bool {
+	return w.rootChainRpc != "" && w.rootChainContract != ""
+}
+
+// SetWaitForConfirmations is used to override whether we should wait for the number of confirmations specified by the consistencyLevel in the message.
+func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
+	w.waitForConfirmations = waitForConfirmations
+}
+
+// SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
+func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
+	w.maxWaitConfirmations = maxWaitConfirmations
 }

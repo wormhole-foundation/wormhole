@@ -1,0 +1,70 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "epic.poolv1.near",
+    "header": {
+      "balance_burnt": "42455506250000000000",
+      "chunk_hash": "5qTaTCcPXV9fs3X4pnTBrEXbwzxGttRUe4Qw631NLh5E",
+      "encoded_length": 451,
+      "encoded_merkle_root": "FCcnJmgiWzipwhWmRbu4qEbmN7eGcSnqWH9UQpPWXKmq",
+      "gas_limit": 1000000000000000,
+      "gas_used": 870920187500,
+      "height_created": 76538230,
+      "height_included": 76538230,
+      "outcome_root": "9JpnwRNoVAso3kw9Da1226VygwNvoeQVDH71Zr4RCCnn",
+      "outgoing_receipts_root": "4Xf7sMUHiLb5nSvyzubCtnGXYUPyLpCCM3uxDWKW7pJR",
+      "prev_block_hash": "A5mwZmMzNZM39BVuEVfupMrEpvuCuRt6u9kJ1JGupgkx",
+      "prev_state_root": "GRCakKvVdYQe6C7q1PHaEH6ZXxHBdWD3e9yPRRiNMUTR",
+      "rent_paid": "0",
+      "shard_id": 2,
+      "signature": "ed25519:4xDPtfxVSsvNHeCWDuPPB5BTrgVE5DSAQLNe34HFX3WuMssKnRVvogZY1xocTCmnxJaCiTKBirGcnKdhG6X1b1nA",
+      "tx_root": "CDJJXMoHNkVcxLwALW9skEtp5UAGBVjSweEz4mDztoLL",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "1273665187500000000"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "sweat_welcome.near",
+            "signer_public_key": "ed25519:88TW52n45U2RWDC7qmp7MGSqkTiHS4nkHLhHqCLJs1Eg"
+          }
+        },
+        "receipt_id": "GPsHDVQxB11Eu2ZLkZ9uc3Zg2sUwUpgxiWrEmBrYaPrF",
+        "receiver_id": "sweat_welcome.near"
+      }
+    ],
+    "transactions": [
+      {
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJ0YXNrX29yZGluYWwiOjEsImJpZCI6IjUwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0=",
+              "deposit": "0",
+              "gas": 30000000000000,
+              "method_name": "claim_assignment"
+            }
+          }
+        ],
+        "hash": "EzaQmjNurz1F53mE5dEm4U6LuaxGRhVPjfhxsBNT9mSY",
+        "nonce": 76329574000392,
+        "public_key": "ed25519:zN2dSSTwAmaa3CLkfUfr377u7w3NBY2m4bLBjbHAnXV",
+        "receiver_id": "app.nearcrowd.near",
+        "signature": "ed25519:5U6LgUFicYfpfrW13xkvJoqwsUwMVZBqVS6UZVSv6ptHsvdK4yVYJVJ2L7mxqQgLAEBv6NeTxdf1oJWfNgmEkhPZ",
+        "signer_id": "f0rget.near"
+      }
+    ]
+  },
+  "id": "dontcare"
+}

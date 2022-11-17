@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -38,6 +39,10 @@ type SolanaWatcher struct {
 	networkName string
 	// The last slot processed by the watcher.
 	lastSlot uint64
+
+	// latestFinalizedBlockNumber is the latest block processed by this watcher.
+	latestBlockNumber   uint64
+	latestBlockNumberMu sync.Mutex
 }
 
 var (
@@ -300,6 +305,8 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		zap.Int("num_tx", len(out.Transactions)),
 		zap.Duration("took", time.Since(start)),
 		zap.String("commitment", string(s.commitment)))
+
+	s.updateLatestBlock(slot)
 
 OUTER:
 	for txNum, txRpc := range out.Transactions {
@@ -592,6 +599,23 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	)
 
 	s.messageEvent <- observation
+}
+
+// updateLatestBlock() updates the latest block number if the slot passed in is greater than the previous value.
+// This check is necessary because blocks can be posted out of order, due to multi threading in this watcher.
+func (s *SolanaWatcher) updateLatestBlock(slot uint64) {
+	s.latestBlockNumberMu.Lock()
+	defer s.latestBlockNumberMu.Unlock()
+	if slot > s.latestBlockNumber {
+		s.latestBlockNumber = slot
+	}
+}
+
+// GetLatestFinalizedBlockNumber() returns the latest published block.
+func (s *SolanaWatcher) GetLatestFinalizedBlockNumber() uint64 {
+	s.latestBlockNumberMu.Lock()
+	defer s.latestBlockNumberMu.Unlock()
+	return s.latestBlockNumber
 }
 
 type (
