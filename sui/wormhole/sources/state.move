@@ -10,7 +10,7 @@ module wormhole::state {
 
     use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
-    use wormhole::structs::{Self, Guardian, GuardianSet};
+    use wormhole::structs::{Self, create_guardian, Guardian, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::emitter::{Self};
 
@@ -95,10 +95,9 @@ module wormhole::state {
         set_governance_contract(&mut state, governance_contract);
 
         let guardians = vector::empty<Guardian>();
-        let i = 0;
-        while (i < vector::length<vector<u8>>(&initial_guardians)){
-            vector::push_back<Guardian>(&mut guardians, structs::create_guardian(*vector::borrow<vector<u8>>(&initial_guardians, i)));
-            i = i + 1;
+        vector::reverse(&mut initial_guardians);
+        while (!vector::is_empty(&initial_guardians)) {
+            vector::push_back(&mut guardians, create_guardian(vector::pop_back(&mut initial_guardians)));
         };
 
         // the initial guardian set with index 0
