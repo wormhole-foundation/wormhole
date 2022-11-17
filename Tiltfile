@@ -179,7 +179,7 @@ def build_node_yaml():
                 container["command"] += [
                     "--suiRPC",
                     "http://sui:9002",
-# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to 
+# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to
 # event traffic purely based on the account since that is the only thing that is deterministic.
 #                    "--suiPackage",
 #                    "0x.....",
@@ -669,10 +669,11 @@ if sui:
 
     docker_build(
         ref = "sui-node",
+        target = "sui",
         context = "sui",
         dockerfile = "sui/Dockerfile",
         ignore = ["./sui/sui.log*", "sui/sui.log*", "sui.log.*"],
-        only = ["Dockerfile", "scripts"],
+        only = [],
     )
 
     k8s_resource(

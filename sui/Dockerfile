@@ -1,4 +1,4 @@
-FROM ghcr.io/wormhole-foundation/sui:0.15.0@sha256:ba5740e42ac41306719114ce96d9752a12bbfa500749ede64fa76a250113993b as sui-node
+FROM ghcr.io/wormhole-foundation/sui:0.15.0@sha256:ba5740e42ac41306719114ce96d9752a12bbfa500749ede64fa76a250113993b as sui
 
 RUN dnf -y install make git
 
@@ -17,7 +17,7 @@ COPY token_bridge/ token_bridge
 # COPY examples/ examples
 COPY Makefile Makefile
 
-FROM sui-node AS tests
+FROM sui AS tests
 
 WORKDIR /tmp
 
