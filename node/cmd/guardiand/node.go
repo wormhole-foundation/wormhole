@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/certusone/wormhole/node/pkg/processor"
+
 	"github.com/certusone/wormhole/node/pkg/watchers/wormchain"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
@@ -41,7 +43,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/p2p"
-	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
@@ -855,7 +856,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Setup various channels...
 
 	// Outbound gossip message queue (needs to be read/write because p2p needs read/write)
-	gossipSendC := make(chan []byte)
+	gossipSendC := make(chan []byte, 100)
 	// Inbound observations
 	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
@@ -874,11 +875,23 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Outbound observation requests
 	obsvReqSendReadC, obsvReqSendWriteC := makeChannelPair[*gossipv1.ObservationRequest](common.ObsvReqChannelSize)
 
-	// Injected VAAs (manually generated rather than created via observation)
-	injectReadC, injectWriteC := makeChannelPair[*vaa.VAA](0)
-
 	// Guardian set state managed by processor
 	gst := common.NewGuardianSetState(nil)
+
+	// Start routine to update guardian set state
+	go func() {
+		for {
+			select {
+			case <-rootCtx.Done():
+				return
+			case gs := <-setReadC:
+				gst.Set(gs)
+				logger.Info("guardian set updated",
+					zap.Strings("set", gs.KeysAsHexStrings()),
+					zap.Uint32("index", gs.Index))
+			}
+		}
+	}()
 
 	// Per-chain observation requests
 	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
@@ -1402,14 +1415,12 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if err := supervisor.Run(ctx, "processor", processor.NewProcessor(ctx,
+		if err := supervisor.Run(ctx, "processor", processor.NewVAAConsensusProcessor(
 			db,
 			msgReadC,
-			setReadC,
 			gossipSendC,
 			obsvC,
 			obsvReqSendWriteC,
-			injectReadC,
 			signedInReadC,
 			gk,
 			gst,
@@ -1421,7 +1432,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract)
+		adminService, err := adminServiceRunnable(logger, *adminSocketPath, msgWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract)
 		if err != nil {
 			logger.Fatal("failed to create admin service socket", zap.Error(err))
 		}
