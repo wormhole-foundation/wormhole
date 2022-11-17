@@ -1,0 +1,130 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "receipts_outcome": [
+      {
+        "block_hash": "9AEuLtXe4JgJGnwY6ZZE6PmkPcEYpQqqUzwDMzUsMgBT",
+        "id": "943gi9W5wF7rMfJPQz6YYfFxcYNcr8KJXekuJgPsp2L4",
+        "outcome": {
+          "executor_id": "vietnq77.near",
+          "gas_burnt": 210277125000,
+          "logs": [],
+          "metadata": {
+            "gas_profile": [],
+            "version": 1
+          },
+          "receipt_ids": [],
+          "status": {
+            "Failure": {
+              "ActionError": {
+                "index": 0,
+                "kind": {
+                  "AddKeyAlreadyExists": {
+                    "account_id": "vietnq77.near",
+                    "public_key": "ed25519:9V745LDqHZYCRqVvx5bU1aGhj624UmY7dBtNzx3NK1Qw"
+                  }
+                }
+              }
+            }
+          },
+          "tokens_burnt": "21027712500000000000"
+        },
+        "proof": [
+          {
+            "direction": "Left",
+            "hash": "36UXauYwJzS5x1KX2wvNdb1vPY8fD5sCWfYjHsMsK9xq"
+          },
+          {
+            "direction": "Left",
+            "hash": "52YJG3GPwohGaipnwYdrb3oSWZswvzRPj7UCHNZ8aQUN"
+          },
+          {
+            "direction": "Left",
+            "hash": "HXBpeTm9bU5qvqnzEXuBQch6EhDTnedcEsKjz6D782ec"
+          },
+          {
+            "direction": "Right",
+            "hash": "7B8V4GKdR8x3uGEw8KLxHMygHdyGoCNvCozLTtbACFtR"
+          }
+        ]
+      }
+    ],
+    "status": {
+      "Failure": {
+        "ActionError": {
+          "index": 0,
+          "kind": {
+            "AddKeyAlreadyExists": {
+              "account_id": "vietnq77.near",
+              "public_key": "ed25519:9V745LDqHZYCRqVvx5bU1aGhj624UmY7dBtNzx3NK1Qw"
+            }
+          }
+        }
+      }
+    },
+    "transaction": {
+      "actions": [
+        {
+          "AddKey": {
+            "access_key": {
+              "nonce": 0,
+              "permission": {
+                "FunctionCall": {
+                  "allowance": "250000000000000000000000",
+                  "method_names": [],
+                  "receiver_id": "streaming.r-v2.near"
+                }
+              }
+            },
+            "public_key": "ed25519:9V745LDqHZYCRqVvx5bU1aGhj624UmY7dBtNzx3NK1Qw"
+          }
+        }
+      ],
+      "hash": "4XXtr7JrRNaquPXe7RZ1PSgJ645dgSpsRyE6gmvhvQV4",
+      "nonce": 76538211000001,
+      "public_key": "ed25519:3xAJf1exciuLhZ1YTnUZKzXYC7Hcrghm6Boe4oSw2hF1",
+      "receiver_id": "vietnq77.near",
+      "signature": "ed25519:2as36zPVTe99LPSotJv3cLiEAPVZ2vesEMuQutJPhw4nqTXS79YuVehbHY3Knx2EtdJRRGQ7hapDnWK8tGroQgYj",
+      "signer_id": "vietnq77.near"
+    },
+    "transaction_outcome": {
+      "block_hash": "9AEuLtXe4JgJGnwY6ZZE6PmkPcEYpQqqUzwDMzUsMgBT",
+      "id": "4XXtr7JrRNaquPXe7RZ1PSgJ645dgSpsRyE6gmvhvQV4",
+      "outcome": {
+        "executor_id": "vietnq77.near",
+        "gas_burnt": 210277125000,
+        "logs": [],
+        "metadata": {
+          "gas_profile": null,
+          "version": 1
+        },
+        "receipt_ids": [
+          "943gi9W5wF7rMfJPQz6YYfFxcYNcr8KJXekuJgPsp2L4"
+        ],
+        "status": {
+          "SuccessReceiptId": "943gi9W5wF7rMfJPQz6YYfFxcYNcr8KJXekuJgPsp2L4"
+        },
+        "tokens_burnt": "21027712500000000000"
+      },
+      "proof": [
+        {
+          "direction": "Right",
+          "hash": "GULykzAsYRdrib7A4kr5dKqZdNuASoqE4FucRCzbgo78"
+        },
+        {
+          "direction": "Right",
+          "hash": "36YHFnv58PyMzdkrWK1ftvsWdjBAN2aU5nt9KjC3r96s"
+        },
+        {
+          "direction": "Right",
+          "hash": "FkAzQcUhv8AAui2DB1xcdXxvAaX3GXgWBAkm765v42pN"
+        },
+        {
+          "direction": "Right",
+          "hash": "7B8V4GKdR8x3uGEw8KLxHMygHdyGoCNvCozLTtbACFtR"
+        }
+      ]
+    }
+  },
+  "id": "dontcare"
+}

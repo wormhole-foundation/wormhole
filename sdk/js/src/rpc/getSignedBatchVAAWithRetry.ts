@@ -4,7 +4,8 @@ import { coalesceChainId } from "../utils";
 export async function getSignedBatchVAAWithRetry(
   hosts: string[],
   emitterChain: ChainId | ChainName,
-  transactionId: string,
+  transactionId: Uint8Array,
+  nonce: number,
   extraGrpcOpts = {},
   retryTimeout = 1000,
   retryAttempts?: number
@@ -21,6 +22,7 @@ export async function getSignedBatchVAAWithRetry(
         hosts[getNextRpcHost()],
         coalesceChainId(emitterChain),
         transactionId,
+        nonce,
         extraGrpcOpts
       );
     } catch (e) {

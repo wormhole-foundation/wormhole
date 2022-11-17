@@ -1,0 +1,29 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "stake1.poolv1.near",
+    "header": {
+      "balance_burnt": "0",
+      "chunk_hash": "A2dCfgBTjreZBEXt3JsWXda11FB7vRgtQAHzuV5DzpW2",
+      "encoded_length": 8,
+      "encoded_merkle_root": "9zYue7drR1rhfzEEoc4WUXzaYRnRNihvRoGt1BgK7Lkk",
+      "gas_limit": 1000000000000000,
+      "gas_used": 223182562500,
+      "height_created": 76677956,
+      "height_included": 76677956,
+      "outcome_root": "GCoJvBHJR9jdSVt1kDGmq16SNadN23XFpawNKHzAYuH4",
+      "outgoing_receipts_root": "8s41rye686T2ronWmFE38ji19vgeb6uPxjYMPt8y8pSV",
+      "prev_block_hash": "EypQXonf2oDZ6uqsCiFoa4hogEU7rgaiXkXeNuqqzX7H",
+      "prev_state_root": "3hZvKcCUFSpWsgc5GECCwBRtjdVmryXxYZoyRzPwGAuB",
+      "rent_paid": "0",
+      "shard_id": 2,
+      "signature": "ed25519:2bB1YsQwEoE4VYEfzNsNPXLAwTf2PCgSkpBb6DxoGcs3opt7vvf7myJi69rD587dzpfFieq8X8tryyrvjunuRiYQ",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

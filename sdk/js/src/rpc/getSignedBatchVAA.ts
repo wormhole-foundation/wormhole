@@ -5,7 +5,8 @@ const { GrpcWebImpl, PublicRPCServiceClientImpl } = publicrpc;
 export async function getSignedBatchVAA(
   host: string,
   emitterChain: ChainId | ChainName,
-  transactionId: string,
+  transactionId: Uint8Array,
+  nonce: number,
   extraGrpcOpts = {}
 ) {
   const rpc = new GrpcWebImpl(host, extraGrpcOpts);
@@ -14,6 +15,7 @@ export async function getSignedBatchVAA(
     batchId: {
       emitterChain: coalesceChainId(emitterChain),
       txId: transactionId,
+      nonce,
     },
   });
 }

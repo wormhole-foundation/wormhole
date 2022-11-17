@@ -174,6 +174,16 @@ case "$chain_name" in
     chain=15
     explorer="https://explorer.near.org/accounts/"
     ;;
+  arbitrum)
+    chain=23
+    explorer="https://arbiscan.io/address/"
+    evm=true
+    ;;
+  optimism)
+    chain=24
+    explorer="https://optimistic.etherscan.io/address/"
+    evm=true
+    ;;
   *)
     echo "Unknown chain: $chain_name" >&2
     exit 1

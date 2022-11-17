@@ -1,0 +1,16 @@
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "name": "HANDLER_ERROR",
+    "cause": {
+      "info": {
+        "requested_transaction_hash": "6gFFCbSgsbdvR1mRSgJYK9iqPcehFJoWcrumFASAroHp"
+      },
+      "name": "UNKNOWN_TRANSACTION"
+    },
+    "code": -32000,
+    "message": "Server error",
+    "data": "Transaction 6gFFCbSgsbdvR1mRSgJYK9iqPcehFJoWcrumFASAroHp doesn't exist"
+  },
+  "id": "dontcare"
+}

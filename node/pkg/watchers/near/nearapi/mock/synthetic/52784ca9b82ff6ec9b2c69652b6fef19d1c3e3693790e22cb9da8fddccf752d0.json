@@ -1,0 +1,29 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "chorusone.poolv1.near",
+    "header": {
+      "balance_burnt": "0",
+      "chunk_hash": "9eUgAdeTrrmL7kpEC8hiNgf6mks6MxC24P1zzef3Ybkf",
+      "encoded_length": 8,
+      "encoded_merkle_root": "9zYue7drR1rhfzEEoc4WUXzaYRnRNihvRoGt1BgK7Lkk",
+      "gas_limit": 1000000000000000,
+      "gas_used": 0,
+      "height_created": 76538229,
+      "height_included": 76538229,
+      "outcome_root": "11111111111111111111111111111111",
+      "outgoing_receipts_root": "8s41rye686T2ronWmFE38ji19vgeb6uPxjYMPt8y8pSV",
+      "prev_block_hash": "E6A2zbSNyDgFhroiDAGYhg9JUD8TEhGqvqKcvPyqh4XW",
+      "prev_state_root": "DvtzkSdqXzWArML1VHJ8sB15q8quFf9v3XwbUYWymyXS",
+      "rent_paid": "0",
+      "shard_id": 0,
+      "signature": "ed25519:5YsrrVpem9HrnRjqvXgfPwafjSGmD7nUStPW2NhFaMf6s2dcFNQ3Fuk3xZvFcrAKtgHWiZRNj6A61Lnag4JchXaE",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

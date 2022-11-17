@@ -1,0 +1,75 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "galactic.poolv1.near",
+    "header": {
+      "balance_burnt": "860937487126100000000",
+      "chunk_hash": "6gk5rCA4mjkBS2i9xthxona8Q3akpjvFhaTdACgVw7yC",
+      "encoded_length": 384,
+      "encoded_merkle_root": "CsovWba1totzdqyqdRN3uUTKxVAmwBzdpdWuAZgrnW5W",
+      "gas_limit": 1000000000000000,
+      "gas_used": 10664350944730,
+      "height_created": 76538233,
+      "height_included": 76538233,
+      "outcome_root": "BVkQgcAGWiDcwCoy9cxgzS21s8LdSXdQCFnP44hJDzi4",
+      "outgoing_receipts_root": "7DWknyuBNiYj8LFzHfKY45kPN1VeQmwYAJWxyj48b9fF",
+      "prev_block_hash": "G3r7EszAnX2ecbV4jX8e7Ls9vamrwHnn19UP4SeUL5qv",
+      "prev_state_root": "2DCc6FHRfbL8sEGAFJ2Mn4rss5pbLwKiznyMBJ7RBvhr",
+      "rent_paid": "0",
+      "shard_id": 2,
+      "signature": "ed25519:5XBNTBthAfFoh8kDxebo2f9azmbijjTnhCYbgq7yn6Hf2ns2zp4rcZUDSUnbfcnw3WndCygeAxdR6yHeRCot366t",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "emredemirnet.near",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "e30=",
+                  "deposit": "8500000000000000000000000",
+                  "gas": 125000000000000,
+                  "method_name": "deposit_and_stake"
+                }
+              }
+            ],
+            "gas_price": "451542320",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "emredemirnet.near",
+            "signer_public_key": "ed25519:AEqwPzj4ohwjz5xqGo7BhhfQEx4CWj9fWLJz6QFBgGAM"
+          }
+        },
+        "receipt_id": "CgnoGDJXxGoBdFhyFSrDWTfxmE8gFBaxJaJ5eY5cB4bq",
+        "receiver_id": "everstake.poolv1.near"
+      },
+      {
+        "predecessor_id": "system",
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "Transfer": {
+                  "deposit": "55663793932362728634400"
+                }
+              }
+            ],
+            "gas_price": "0",
+            "input_data_ids": [],
+            "output_data_receivers": [],
+            "signer_id": "emredemirnet.near",
+            "signer_public_key": "ed25519:AEqwPzj4ohwjz5xqGo7BhhfQEx4CWj9fWLJz6QFBgGAM"
+          }
+        },
+        "receipt_id": "6M5nQri51axhgcsMvBDrj6pgY3gSkZbikp5GXSEWCUHo",
+        "receiver_id": "emredemirnet.near"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "dontcare"
+}

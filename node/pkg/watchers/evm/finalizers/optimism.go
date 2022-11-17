@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/interfaces"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 
 	"go.uber.org/zap"
 )
