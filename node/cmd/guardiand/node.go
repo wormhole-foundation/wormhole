@@ -470,10 +470,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --adminSocket")
 	}
 	if *adminSocketPath == *publicGRPCSocketPath {
-		logger.Fatal("adminSocketPath must not equal publicRPCSocketPath")
+		logger.Fatal("--adminSocket must not equal --publicGRPCSocket")
 	}
 	if (*publicRPC != "" || *publicWeb != "") && *publicGRPCSocketPath == "" {
-		logger.Fatal("If either --publicRPC or --publicWeb is specified, publicRPCSocketPath must also be specified")
+		logger.Fatal("If either --publicRPC or --publicWeb is specified, --publicGRPCSocket must also be specified")
 	}
 	if *dataDir == "" {
 		logger.Fatal("Please specify --dataDir")
