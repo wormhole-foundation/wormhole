@@ -7,4 +7,4 @@ Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-fram
 Wormhole = { local = "../wormhole" }
 
 [addresses]
-token_bridge = "0xf8fdb4bacdec4faa9416d6ebdedd2231a09cc60a"
+token_bridge = "0x0"
