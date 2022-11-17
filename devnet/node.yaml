@@ -89,7 +89,7 @@ spec:
             - --arbitrumRPC
             - ws://eth-devnet:8545
             - --optimismRPC
-            - ws://eth-devnet:8545            
+            - ws://eth-devnet:8545
             - --neonRPC
             - ws://eth-devnet:8545
             # - --wormchainWS
@@ -139,6 +139,8 @@ spec:
             - "[::]:7071"
             - --adminSocket
             - /tmp/admin.sock
+            - --publicGRPCSocket
+            - /tmp/publicrpc.sock
             - --dataDir
             - /tmp/data
           # - --chainGovernorEnabled=true
