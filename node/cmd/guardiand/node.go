@@ -439,7 +439,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		go func() {
 			logger.Info("status server listening on [::]:6060")
 			// SECURITY: If making changes, ensure that we always do `router := mux.NewRouter()` before this to avoid accidentally exposing pprof
-			logger.Error("status server crashed", zap.Error(http.ListenAndServe(*statusAddr, router)))
+			logger.Error("status server crashed", zap.Error(http.ListenAndServe(*statusAddr, router))) // #nosec G114 local status server not vulnerable to DoS attack
 		}()
 	}
 
