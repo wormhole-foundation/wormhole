@@ -11,6 +11,7 @@ The following document describes various aspects of the Wormhole security progra
 - [Social Media Monitoring](#Social-Media-Monitoring)
 - [Incident Response](#Incident-Response)
 - [Emergency Shutdown](#Emergency-Shutdown)
+- [Security Monitoring](#Security-Monitoring)
 ## 3rd Party Security Audits
 
 The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
