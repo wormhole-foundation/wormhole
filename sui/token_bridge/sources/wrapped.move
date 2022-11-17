@@ -31,7 +31,6 @@ module token_bridge::wrapped {
         // assert emitter is registered
 
         // TODO (pending Mysten Labs uniform token standard) -  extract/store decimals, token name, symbol, etc. from asset meta
-
         let t_cap_store = treasury::create_treasury_cap_store<CoinType>(treasury_cap, ctx);
 
         let origin_chain = asset_meta::get_token_chain(&asset_meta);
@@ -46,3 +45,41 @@ module token_bridge::wrapped {
         bridge_state::store_treasury_cap<CoinType>(bridge_state, t_cap_store);
     }
 }
+
+// #[test_only]
+// module token_bridge::test_create_wrapped {
+//     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
+
+//     use wormhole::state::{Self as wormhole_state, State};
+//     use wormhole::wormhole::{Self};
+//     use wormhole::myvaa::{Self as corevaa};
+//     use wormhole::myu16::{Self as u16};
+//     use wormhole::external_address::{Self};
+
+//     use token_bridge::bridge_state::{Self, BridgeState, init_and_share_state};
+//     use token_bridge::vaa::{Self};
+//     use token_bridge::test_bridge_state::{set_up_wormhole_core_and_token_bridges};
+
+//     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+//     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+//     /// VAA sent from the ethereum token bridge 0xdeadbeef
+
+//     #[test]
+//     #[expected_failure(abort_code = 0)] // E_UNKNOWN_CHAIN
+//     fun test_unknown_chain() {
+//         let (admin, _, _) = people();
+//         let test = scenario();
+//         test = set_up_wormhole_core_and_token_bridges(admin, test);
+//         next_tx(&mut test, admin); {
+//             let state = take_shared<BridgeState>(&test);
+//             let w_state = take_shared<State>(&test);
+//             let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
+//             corevaa::destroy(vaa);
+//             return_shared<BridgeState>(state);
+//             return_shared<State>(w_state);
+//         };
+//         test_scenario::end(test);
+//     }
+
+// }

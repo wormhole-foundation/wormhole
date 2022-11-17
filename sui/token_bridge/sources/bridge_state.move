@@ -33,6 +33,10 @@ module token_bridge::bridge_state {
    #[test_only]
    friend token_bridge::token_bridge_vaa_test;
 
+   /// Capability for creating a bridge state object, granted to sender when this
+   /// module is deployed
+   struct DeployerCapability has key, store {id: UID}
+
    /// Wrapper around CoinType so that CoinType is "storable", for example in a dynamic map
    struct CoinTypeWrapper<phantom CoinType> has copy, drop, store {}
 
@@ -125,31 +129,29 @@ module token_bridge::bridge_state {
    }
 
    fun init(ctx: &mut TxContext) {
-        transfer::transfer(BridgeState {
-            id: object::new(ctx),
-            consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
-            emitter_cap: option::none<EmitterCapability>(),
-            registered_emitters: vec_map::empty<U16, ExternalAddress>(),
-        }, tx_context::sender(ctx));
+        transfer::transfer(DeployerCapability{id: object::new(ctx)}, tx_context::sender(ctx));
     }
 
    #[test_only]
    public fun test_init(ctx: &mut TxContext) {
-      transfer::transfer(BridgeState {
-            id: object::new(ctx),
-            consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
-            emitter_cap: option::none<EmitterCapability>(),
-            registered_emitters: vec_map::empty<U16, ExternalAddress>(),
-        }, tx_context::sender(ctx));
+      transfer::transfer(DeployerCapability{id: object::new(ctx)}, tx_context::sender(ctx));
    }
 
    // converts owned state object into a shared object, so that anyone can get a reference to &mut State
    // and pass it into various functions
    public entry fun init_and_share_state(
-      state: BridgeState,
+      deployer: DeployerCapability,
       emitter_cap: EmitterCapability,
-      _ctx: &mut TxContext
+      ctx: &mut TxContext
    ) {
+      let DeployerCapability{id} = deployer;
+      object::delete(id);
+      let state = BridgeState {
+         id: object::new(ctx),
+         consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
+         emitter_cap: option::none<EmitterCapability>(),
+         registered_emitters: vec_map::empty<U16, ExternalAddress>(),
+      };
       option::fill<EmitterCapability>(&mut state.emitter_cap, emitter_cap);
 
       // permanently shares state
@@ -292,12 +294,13 @@ module token_bridge::bridge_state {
 
 #[test_only]
 module token_bridge::test_bridge_state{
-   use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, return_to_address, take_shared, return_shared};
+   use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
 
-   use wormhole::state::{Self as wormhole_state, State};
+   use wormhole::state::{State};
+   use wormhole::test_state::{init_wormhole_state};
    use wormhole::wormhole::{Self};
 
-   use token_bridge::bridge_state::{Self, BridgeState, init_and_share_state};
+   use token_bridge::bridge_state::{Self, BridgeState, test_init};
 
    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -307,49 +310,53 @@ module token_bridge::test_bridge_state{
       test_state_setters_(scenario())
    }
 
+   public fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
+      // init and share wormhole core bridge
+      test =  init_wormhole_state(test, admin);
+
+      // call init for token bridge to get deployer cap
+      next_tx(&mut test, admin); {
+         test_init(ctx(&mut test));
+      };
+
+      // register for emitter cap and init_and_share token bridge
+      next_tx(&mut test, admin); {
+         let wormhole_state = take_shared<State>(&test);
+         let my_emitter = wormhole::register_emitter(&mut wormhole_state, ctx(&mut test));
+         let deployer = take_from_address<bridge_state::DeployerCapability>(&test, admin);
+         bridge_state::init_and_share_state(deployer, my_emitter, ctx(&mut test));
+         return_shared<State>(wormhole_state);
+      };
+
+      next_tx(&mut test, admin); {
+         let bridge_state = take_shared<BridgeState>(&test);
+         return_shared<BridgeState>(bridge_state);
+      };
+
+      return test
+   }
+
    fun test_state_setters_(test: Scenario) {
-         let (admin, _, _) = people();
+      let (admin, _, _) = people();
 
-         // init wormhole state
-         next_tx(&mut test, admin); {
-            wormhole_state::test_init(ctx(&mut test));
-         };
+      test = set_up_wormhole_core_and_token_bridges(admin, test);
 
-         // init token bridge state
-         next_tx(&mut test, admin); {
-            bridge_state::test_init(ctx(&mut test));
-         };
+      //test BridgeState setter and getter functions
+      next_tx(&mut test, admin); {
+         let state = take_shared<BridgeState>(&test);
 
-         // register for an emitter cap for token bridge, then init and share
-         // token bridge state
-         next_tx(&mut test, admin); {
-            let wormhole_state = take_from_address<State>(&test, admin);
-            let bridge_state = take_from_address<BridgeState>(&test, admin);
-            let my_emitter = wormhole::register_emitter(&mut wormhole_state, ctx(&mut test));
-            init_and_share_state(
-               bridge_state,
-               my_emitter,
-               ctx(&mut test)
-            );
-            return_to_address<State>(admin, wormhole_state);
-         };
+         // test store consumed vaa
+         bridge_state::store_consumed_vaa(&mut state, x"1234", ctx(&mut test));
+         assert!(bridge_state::vaa_is_consumed(&state, x"1234") == true, 0);
 
-        //test BridgeState setter and getter functions
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
+         // TODO - test store coin store
+         // TODO - test store treasury cap
 
-            // test store consumed vaa
-            bridge_state::store_consumed_vaa(&mut state, x"1234", ctx(&mut test));
-            assert!(bridge_state::vaa_is_consumed(&state, x"1234") == true, 0);
+         return_shared<BridgeState>(state);
+      };
+      test_scenario::end(test);
+   }
 
-            // TODO - test store coin store
-            // TODO - test store treasury cap
-
-            return_shared<BridgeState>(state);
-        };
-        test_scenario::end(test);
-    }
-
-    // TODO - Test deposit and withdraw from the token bridge off-chain
+   // TODO - Test deposit and withdraw from the token bridge off-chain
 
 }
