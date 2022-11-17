@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"cloud.google.com/go/logging"
 	"github.com/blendle/zapdriver"
@@ -85,7 +85,7 @@ func New(ctx context.Context, project string, serviceAccountJSON []byte, labels 
 func (s *Telemetry) WrapLogger(logger *zap.Logger) *zap.Logger {
 	tc := zapcore.NewCore(
 		s.encoder,
-		zapcore.AddSync(ioutil.Discard),
+		zapcore.AddSync(io.Discard),
 		zap.InfoLevel,
 	)
 
