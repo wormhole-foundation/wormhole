@@ -51,20 +51,20 @@ done
 shift $((OPTIND - 1))
 
 if [[ -z $code_id && -z $contract_addr ]]; then
-  printf "Need one of the -i and -a parameters to be specified.\n"
-  echo "$usage"
+  printf "Need one of the -i and -a parameters to be specified.\n" >&2
+  echo "$usage" >&2
   exit 1
 fi
 
 if [[ ! -z $code_id && ! -z $contract_addr ]]; then
-  printf "Both of the -i and -a parameters cannot be specified.\n"
-  echo "$usage"
+  printf "Both of the -i and -a parameters cannot be specified.\n" >&2
+  echo "$usage" >&2
   exit 1
 fi
 
 if [[ -z $chain || -z $network || -z $wasm ]]; then
-  printf "The -c, -n, and -w parameters are required.\n"
-  echo "$usage"
+  printf "The -c, -n, and -w parameters are required.\n" >&2
+  echo "$usage" >&2
   exit 1
 fi
 
@@ -126,12 +126,12 @@ case "$network" in
 esac
 
 if [[ -z $url ]]; then
-  printf "The combination of $network and $chain is not supported.\n"
+  printf "The combination of $network and $chain is not supported.\n" >&2
   exit 1
 fi
 
 if [[ ! -z $contract_addr && -z $code_id_url ]]; then
-  printf "There is no contract to code_id conversion for the combination of $network and $chain.\n"
+  printf "There is no contract to code_id conversion for the combination of $network and $chain.\n" >&2
   exit 1
 fi
 
