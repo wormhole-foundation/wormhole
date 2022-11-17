@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: sui
+  name: sui
+spec:
+  ports:
+    - name: node
+      port: 9002
+      targetPort: node
+    - name: ws
+      port: 9001
+      targetPort: ws
+    - name: prometheus
+      port: 9184
+      targetPort: prometheus
+    - name: faucet
+      port: 5003
+      targetPort: faucet
+  selector:
+    app: sui
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: sui
+  name: sui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sui
+  serviceName: sui
+  template:
+    metadata:
+      labels:
+        app: sui
+    spec:
+      containers:
+        - name: sui-node
+          image: sui-node
+          command:
+            - /bin/sh 
+            - -c 
+            - /tmp/start_node.sh
+          ports:
+            - containerPort: 9002
+              name: node
+              protocol: TCP
+            - containerPort: 9001
+              name: ws
+              protocol: TCP
+            - containerPort: 9184
+              name: prometheus
+              protocol: TCP
+            - containerPort: 5003
+              name: faucet
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 9002
+
+      restartPolicy: Always

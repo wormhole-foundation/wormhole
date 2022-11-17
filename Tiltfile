@@ -39,6 +39,7 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
 config.define_bool("near", False, "Enable Near component")
+config.define_bool("sui", False, "Enable Sui component")
 config.define_bool("btc", False, "Enable BTC component")
 config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
@@ -64,6 +65,7 @@ ci = cfg.get("ci", False)
 algorand = cfg.get("algorand", ci)
 near = cfg.get("near", ci)
 aptos = cfg.get("aptos", ci)
+sui = cfg.get("sui", ci)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 terra_classic = cfg.get("terra_classic", ci)
@@ -266,6 +268,8 @@ if aptos:
     guardian_resource_deps = guardian_resource_deps + ["aptos"]
 if wormchain:
     guardian_resource_deps = guardian_resource_deps + ["guardian-validator"]
+if sui:
+    guardian_resource_deps = guardian_resource_deps + ["sui"]
 
 k8s_resource(
     "guardian",
@@ -646,6 +650,29 @@ if algorand:
         trigger_mode = trigger_mode,
     )
 
+if sui:
+    k8s_yaml_with_ns("devnet/sui-devnet.yaml")
+
+    docker_build(
+        ref = "sui-node",
+        context = "sui",
+        dockerfile = "sui/Dockerfile",
+        ignore = ["./sui/sui.log*", "sui/sui.log*", "sui.log.*"],
+        only = ["Dockerfile", "scripts"],
+    )
+
+    k8s_resource(
+        "sui",
+        port_forwards = [
+            port_forward(9001, name = "WS [:9001]", host = webHost),
+            port_forward(9002, name = "RPC [:9002]", host = webHost),
+            port_forward(5003, name = "Faucet [:5003]", host = webHost),
+            port_forward(9184, name = "Prometheus [:9184]", host = webHost),
+        ],
+#        resource_deps = ["const-gen"],
+        labels = ["sui"],
+        trigger_mode = trigger_mode,
+    )
 
 if near:
     k8s_yaml_with_ns("devnet/near-devnet.yaml")
