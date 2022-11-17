@@ -65,63 +65,22 @@ module token_bridge::vaa {
 
 #[test_only]
 module token_bridge::token_bridge_vaa_test{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared, return_shared};
 
-    use wormhole::state::{Self as wormhole_state, State};
-    use wormhole::wormhole::{Self};
+    use wormhole::state::{State};
     use wormhole::myvaa::{Self as corevaa};
     use wormhole::myu16::{Self as u16};
     use wormhole::external_address::{Self};
 
-    use token_bridge::bridge_state::{Self, BridgeState, init_and_share_state};
+    use token_bridge::bridge_state::{Self, BridgeState};
     use token_bridge::vaa::{Self};
+    use token_bridge::test_bridge_state::{set_up_wormhole_core_and_token_bridges};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     /// VAA sent from the ethereum token bridge 0xdeadbeef
     const VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
-
-    fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
-
-        // init wormhole state
-        next_tx(&mut test, admin); {
-            wormhole_state::test_init(ctx(&mut test));
-        };
-
-        // init and share wormhole state with initial guardians and other args
-        next_tx(&mut test, admin); {
-            let w_state = take_from_address<State>(&test, admin);
-            wormhole_state::init_and_share_state(
-                w_state, //owned wormhole state object
-                2, // chain id
-                22, // governance chain
-                x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
-                vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardian(s)
-                ctx(&mut test)
-            );
-        };
-
-        // init token bridge state
-        next_tx(&mut test, admin); {
-            bridge_state::test_init(ctx(&mut test));
-        };
-
-        // register for an emitter cap for token bridge, then init and share
-        // token bridge state
-        next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_from_address<BridgeState>(&test, admin);
-            let my_emitter = wormhole::register_emitter(&mut wormhole_state, ctx(&mut test));
-            init_and_share_state(
-                bridge_state,
-                my_emitter,
-                ctx(&mut test)
-            );
-            return_shared<State>(wormhole_state);
-        };
-        return test
-    }
 
     #[test]
     #[expected_failure(abort_code = 0)] // E_UNKNOWN_CHAIN

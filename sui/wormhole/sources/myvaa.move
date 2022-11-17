@@ -236,13 +236,14 @@ module wormhole::myvaa {
 // TODO: adapt the tests from the aptos contracts test suite
 #[test_only]
 module wormhole::vaa_test {
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, return_to_address};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared, return_shared};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     use wormhole::guardian_set_upgrade::{do_upgrade_test};
-    use wormhole::state::{Self, State, test_init};
+    use wormhole::state::{Self, State};
+    use wormhole::test_state::{init_wormhole_state};
     use wormhole::structs::{Self};
     use wormhole::myu32::{Self as u32};
     //use wormhole::myvaa::{Self as vaa};
@@ -260,23 +261,15 @@ module wormhole::vaa_test {
 
     fun test_upgrade_guardian_(test: Scenario) {
         let (admin, _, _) = people();
-        next_tx(&mut test, admin); {
-            test_init(ctx(&mut test));
-        };
+        test = init_wormhole_state(test, admin);
         next_tx(&mut test, admin);{
-            let state = take_from_address<State>(&mut test, admin);
-            // first store a guardian set within State at index 0
-            let initial_guardian = vector[structs::create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")];
-            state::store_guardian_set(&mut state, u32::from_u64(0), structs::create_guardian_set(u32::from_u64(0), initial_guardian));
-            let new_guardians = vector[structs::create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")];
-
+            let state = take_shared<State>(&mut test);
+            let new_guardians = vector[structs::create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c4")];
             // upgrade guardian set
             do_upgrade_test(&mut state, u32::from_u64(1), new_guardians, ctx(&mut test));
             assert!(state::get_current_guardian_set_index(&state)==u32::from_u64(1), 0);
-
-            return_to_address(admin, state);
+            return_shared<State>(state);
         };
         test_scenario::end(test);
     }
-
 }
