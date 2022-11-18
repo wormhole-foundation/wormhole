@@ -443,6 +443,11 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_
 
 	digest := heartbeatDigest(s.Heartbeat)
 
+	// SECURITY: see whitepapers/0009_guardian_key.md
+	if len(heartbeatMessagePrefix)+len(s.Heartbeat) < 34 {
+		return nil, fmt.Errorf("invalid message: too short")
+	}
+
 	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
 	if err != nil {
 		return nil, errors.New("failed to recover public key")
