@@ -58,9 +58,11 @@ spec:
             - -c
             - "sh /app/devnet_deploy.sh && touch success && sleep infinity"
           readinessProbe:
-            tcpSocket:
-              port: 3030
-            periodSeconds: 1
-            initialDelaySeconds: 15
-
+            exec:
+              command:
+                - test
+                - -e
+                - "success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
       restartPolicy: Always

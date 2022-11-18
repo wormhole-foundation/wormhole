@@ -54,6 +54,9 @@ spec:
       containers:
         - name: guardiand
           image: guardiand-image
+          resources:
+            requests:
+              memory: "8192Mi"
           volumeMounts:
             - mountPath: /run/node
               name: node-rundir

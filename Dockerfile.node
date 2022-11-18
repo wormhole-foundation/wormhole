@@ -11,10 +11,9 @@ RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/ce
 
 WORKDIR /app
 
-COPY node/tools tools
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
-  cd tools/ && go build -mod=readonly -o /dlv github.com/go-delve/delve/cmd/dlv
+COPY node/tools tools
 
 COPY node node
 COPY sdk sdk

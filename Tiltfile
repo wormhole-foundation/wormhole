@@ -121,7 +121,7 @@ docker_build(
 
 def command_with_dlv(argv):
     return [
-        "/dlv",
+        "dlv",
         "--listen=0.0.0.0:2345",
         "--accept-multiclient",
         "--headless=true",
@@ -148,7 +148,7 @@ def build_node_yaml():
                 container["command"] += ["--logLevel=debug"]
                 print(container["command"])
             elif ci:
-                container["command"] += ["--logLevel=warn"]
+                container["command"] += ["--logLevel=debug"]
 
             if gcpProject != "":
                 container["command"] += [
