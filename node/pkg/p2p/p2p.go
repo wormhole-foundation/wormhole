@@ -57,7 +57,8 @@ var (
 
 var heartbeatMessagePrefix = []byte("heartbeat|")
 
-var signedObservationRequestPrefix = []byte("signed_observation_request|")
+var signedObservationRequestPrefix_old = []byte("signed_observation_request|")
+var signedObservationRequestPrefix = []byte("signed_observation_request_000000|")
 
 func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
@@ -65,6 +66,11 @@ func heartbeatDigest(b []byte) common.Hash {
 
 func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
+}
+
+// TODO: remove this function after all guardians have adopted the new one
+func signedObservationRequestDigest_old(b []byte) common.Hash {
+	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix_old, b...))
 }
 
 func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc, gov *governor.ChainGovernor, signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
@@ -488,7 +494,18 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *n
 
 	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
 	if err != nil {
-		return nil, errors.New("failed to recover public key")
+
+		// TODO: The following block is for migration only. Remove after all guardians have adopted this code.
+		{
+			digest_old := signedObservationRequestDigest_old(s.ObservationRequest)
+			pubKey, err = ethcrypto.Ecrecover(digest_old.Bytes(), s.Signature)
+			if err != nil {
+				return nil, errors.New("failed to recover public key")
+			}
+		}
+
+		// TODO: add this line back in
+		// return nil, errors.New("failed to recover public key")
 	}
 
 	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
