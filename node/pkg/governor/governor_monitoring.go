@@ -461,7 +461,8 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []by
 	}
 }
 
-var governorMessagePrefix = []byte("governor|")
+var governorMessagePrefixConfig = []byte("governor_config_000000000000000000|")
+var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
 func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
@@ -498,7 +499,7 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 		return
 	}
 
-	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefix, b...))
+	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefixConfig, b...))
 
 	sig, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
@@ -577,7 +578,7 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 		return
 	}
 
-	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefix, b...))
+	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefixStatus, b...))
 
 	sig, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
