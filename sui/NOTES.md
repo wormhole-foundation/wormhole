@@ -80,7 +80,7 @@ brew install cmake
 
 ==
 
-docker run -it -v `pwd`:`pwd` -w `pwd` --net=host ghcr.io/wormhole-foundation/sui:0.15.0 bash
+docker run -it -v `pwd`:`pwd` -w `pwd` --net=host ghcr.io/wormhole-foundation/sui:0.16.0 bash
 dnf -y install git make
 
 ``` sh
