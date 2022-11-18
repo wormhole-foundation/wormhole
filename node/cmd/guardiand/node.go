@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
+	"github.com/certusone/wormhole/node/pkg/watchers/sui"
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -141,6 +142,11 @@ var (
 	aptosRPC     *string
 	aptosAccount *string
 	aptosHandle  *string
+
+	suiRPC     *string
+	suiWS      *string
+	suiAccount *string
+	suiPackage *string
 
 	solanaRPC *string
 
@@ -272,6 +278,11 @@ func init() {
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
+
+	suiRPC = NodeCmd.Flags().String("suiRPC", "", "sui RPC URL")
+	suiWS = NodeCmd.Flags().String("suiWS", "", "sui WS URL")
+	suiAccount = NodeCmd.Flags().String("suiAccount", "", "sui account")
+	suiPackage = NodeCmd.Flags().String("suiPackage", "", "sui package")
 
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
 
@@ -570,6 +581,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *aptosHandle == "" {
 			logger.Fatal("If --aptosRPC is specified, then --aptosHandle must be specified")
+		}
+	}
+	if *suiRPC != "" {
+		if *suiWS == "" {
+			logger.Fatal("If --suiRPC is specified, then --suiWS must be specified")
+		}
+		if *suiAccount == "" {
+			logger.Fatal("If --suiRPC is specified, then --suiAccount must be specified")
+		}
+		if *suiPackage == "" && !*unsafeDevMode {
+			logger.Fatal("If --suiRPC is specified, then --suiPackage must be specified")
 		}
 	}
 
@@ -1125,6 +1147,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			chainObsvReqC[vaa.ChainIDAptos] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "aptoswatch",
 				aptos.NewWatcher(*aptosRPC, *aptosAccount, *aptosHandle, lockC, chainObsvReqC[vaa.ChainIDAptos]).Run); err != nil {
+				return err
+			}
+		}
+
+		if shouldStart(suiRPC) {
+			logger.Info("Starting Sui watcher")
+			readiness.RegisterComponent(common.ReadinessSuiSyncing)
+			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "suiwatch",
+				sui.NewWatcher(*suiRPC, *suiWS, *suiAccount, *suiPackage, *unsafeDevMode, lockC, chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
 				return err
 			}
 		}

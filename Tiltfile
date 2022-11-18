@@ -65,7 +65,7 @@ ci = cfg.get("ci", False)
 algorand = cfg.get("algorand", ci)
 near = cfg.get("near", ci)
 aptos = cfg.get("aptos", ci)
-sui = cfg.get("sui", ci)
+sui = cfg.get("sui", False)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 terra_classic = cfg.get("terra_classic", ci)
@@ -173,6 +173,20 @@ def build_node_yaml():
                     "de0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
                     "--aptosHandle",
                     "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017::state::WormholeMessageHandle",
+                ]
+
+            if sui:
+                container["command"] += [
+                    "--suiRPC",
+                    "http://sui:9002",
+# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to 
+# event traffic purely based on the account since that is the only thing that is deterministic.
+#                    "--suiPackage",
+#                    "0x.....",
+                    "--suiAccount",
+                    "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331",
+                    "--suiWS",
+                    "sui:9001",
                 ]
 
             if evm2:
