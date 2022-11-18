@@ -11,6 +11,7 @@ The following document describes various aspects of the Wormhole security progra
 - [Social Media Monitoring](#Social-Media-Monitoring)
 - [Incident Response](#Incident-Response)
 - [Emergency Shutdown](#Emergency-Shutdown)
+- [Security Monitoring](#Security-Monitoring)
 ## 3rd Party Security Audits
 
 The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
@@ -176,3 +177,19 @@ The caveats of such an approach include the following:
 - Speed to shutdown is limited by speed to develop the temporary bug fix (only for the unknown cases, known cases won't require development)
 - Speed to shutdown is limited by speed at which goverance can be passed to accept the temporary bug fix (slower for unknown cases and faster for known cases)
 - Restoring after a shutdown will require a secondary governance action to either repoint the proxy contract to a non-shutdown implementation (known cases) or to revert the temporary patch and apply the long term patch (unknown cases)
+
+## Security Monitoring
+
+The Wormhole project expects all Guardians develop and maintain their own security monitoring strategies.  This expectation is based on the value of having heterogeneous monitoring strategies across the Guardian set as a function of Wormhole's defense in depth approach, increasing the likelihood of detecting fraudulent activity.
+
+Wormhole Guardians should aim to capture all of the following domains with their monitoring strategies:
+
+- Guardian Application, System, and Network Activity
+- Gossip Network Activity
+- Smart Contract Activity/State
+- Transaction/Usage Activity
+- Governor Activity
+
+Guardians are encouraged to share monitoring lessons learned with each other to the extent that it increases the ability to detect fraudulent activity on the network.  However, the end state for Wormhole network monitoring is not a homogeneous monitoring strategy, as levels of diversity within the Guardians is an essential property of the Wormhole network.
+
+Lastly, if a Guardian detects a security event via their monitoring strategy they are empowered to engage the above mentioned incident response pattern.
