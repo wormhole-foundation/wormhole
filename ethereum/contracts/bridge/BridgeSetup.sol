@@ -36,5 +36,9 @@ contract BridgeSetup is BridgeSetters, ERC1967Upgrade {
         setEvmChainId(evmChainId);
 
         _upgradeTo(implementation);
+
+        // See https://github.com/wormhole-foundation/wormhole/issues/1930 for
+        // why we set this here
+        setInitialized(implementation);
     }
 }
