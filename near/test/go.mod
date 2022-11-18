@@ -1,6 +1,6 @@
 module github.com/certusone/wormhole/near
 
-go 1.19
+go 1.19.2
 
 require (
 	github.com/tidwall/gjson v1.14.1 // indirect
