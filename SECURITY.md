@@ -180,9 +180,9 @@ The caveats of such an approach include the following:
 
 ## Security Monitoring
 
-The Wormhole project expects all Guardians develop and maintain their own security monitoring strategies.  This expectation is based on the value of having heterogeneous monitoring strategies across the Guardians set as a function of Wormhole's defense in depth approach, increasing the likelihood of detecting fraudulent activity.
+The Wormhole project expects all Guardians develop and maintain their own security monitoring strategies.  This expectation is based on the value of having heterogeneous monitoring strategies across the Guardian set as a function of Wormhole's defense in depth approach, increasing the likelihood of detecting fraudulent activity.
 
-Wormhole Guardians should aim to capture all of the following domians with their monitoring strategies:
+Wormhole Guardians should aim to capture all of the following domains with their monitoring strategies:
 
 - Guardian Application, System, and Network Activity
 - Gossip Network Activity
