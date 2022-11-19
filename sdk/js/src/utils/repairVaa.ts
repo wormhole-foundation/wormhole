@@ -41,10 +41,10 @@ export async function getCurrentGuardianSet(
  * @throws if not enough valid signatures remain
  **/
 
-export async function repairVaa(
+export function repairVaa(
   vaaHex: string,
   guardianSetData: GuardianSetData
-): Promise<string> {
+): string {
   const guardianSetIndex = guardianSetData.index;
   const currentGuardianSet = guardianSetData.keys;
   const minNumSignatures =
