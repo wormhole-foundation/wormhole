@@ -76,28 +76,27 @@ export async function repairVaa(
   const numRepairedSignatures = validSignatures.length;
   if (numRepairedSignatures < minNumSignatures) {
     throw new Error(`There are not enough valid signatures to repair.`);
-  } else {
-    const repairedSignatures = validSignatures
-      .sort(function (a, b) {
-        return a.index - b.index;
-      })
-      .map((signature) => {
-        return `${signature.index
-          .toString(16)
-          .padStart(2, "0")}${signature.signature.toString("hex")}`;
-      })
-      .join("");
-    const newSignatureBody = `${version}${Number(guardianSetIndex)
-      .toString(16)
-      .padStart(8, "0")}${numRepairedSignatures
-      .toString(16)
-      .padStart(2, "0")}${repairedSignatures}`;
-
-    const repairedVaa = `${newSignatureBody}${vaaHex.slice(
-      12 + numSignatures * 132
-    )}`;
-    return repairedVaa;
   }
+  const repairedSignatures = validSignatures
+    .sort(function (a, b) {
+      return a.index - b.index;
+    })
+    .map((signature) => {
+      return `${signature.index
+        .toString(16)
+        .padStart(2, "0")}${signature.signature.toString("hex")}`;
+    })
+    .join("");
+  const newSignatureBody = `${version}${guardianSetIndex
+    .toString(16)
+    .padStart(8, "0")}${numRepairedSignatures
+    .toString(16)
+    .padStart(2, "0")}${repairedSignatures}`;
+
+  const repairedVaa = `${newSignatureBody}${vaaHex.slice(
+    12 + numSignatures * 132
+  )}`;
+  return repairedVaa;
 }
 
 /**
