@@ -39,7 +39,7 @@ spec:
       labels:
         app: guardian
     spec:
-      terminationGracePeriodSeconds: 0
+      terminationGracePeriodSeconds: 2
       volumes:
         # mount shared between containers for runtime state
         - name: node-rundir
@@ -170,3 +170,10 @@ spec:
             - containerPort: 2345
               name: debugger
               protocol: TCP
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - kill guardiand
