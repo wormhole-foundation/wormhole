@@ -915,6 +915,9 @@ async fn set_fees() {
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
+    
+    // Be sure any previous tests have fully committed.
+    // common::sync(client, payer).await;
 
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
