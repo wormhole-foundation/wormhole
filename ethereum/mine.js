@@ -1,5 +1,5 @@
 /*
-    This script advances Ganache network state. It runs as a sidecar pod alongside the devnet and
+    This script advances Ganache network state. It runs in parallel to the devnet and
     ensures that manual token transfers triggered through the web UI will be able to be confirmed.
  */
 

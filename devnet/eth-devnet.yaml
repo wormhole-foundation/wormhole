@@ -34,13 +34,9 @@ spec:
         - name: ganache
           image: eth-node
           command:
-            - npx
-            - ganache-cli
-            - -q
-            - -e 10000
-            - --deterministic
-            - --time="1970-01-01T00:00:00+00:00"
-            - --host=0.0.0.0
+            - /bin/bash
+            - -c
+            - "npx ganache-cli -q -e 10000 --deterministic --time=\"1970-01-01T00:00:00+00:00\" --host=0.0.0.0 & npx truffle exec mine.js & wait -n && exit $?"
           ports:
             - containerPort: 8545
               name: rpc
@@ -48,23 +44,27 @@ spec:
           readinessProbe:
             tcpSocket:
               port: rpc
+          resources:
+            requests:
+              memory: "300Mi"
+            limits:
+              memory: "500Mi"
         - name: tests
           image: eth-node
           stdin: true
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npm run deploy-batched-vaa-sender && npx truffle exec scripts/register_solana_chain.js && npx truffle exec scripts/register_terra_chain.js && npx truffle exec scripts/register_terra2_chain.js && npx truffle exec scripts/register_bsc_chain.js && npx truffle exec scripts/register_algo_chain.js && npx truffle exec scripts/register_near_chain.js && npx truffle exec scripts/register_worm_chain.js && npx truffle exec scripts/register_aptos_chain.js && nc -lkp 2000 0.0.0.0"
+            - "sleep 1 && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npm run deploy-batched-vaa-sender && npx truffle exec scripts/register_solana_chain.js && npx truffle exec scripts/register_terra_chain.js && npx truffle exec scripts/register_terra2_chain.js && npx truffle exec scripts/register_bsc_chain.js && npx truffle exec scripts/register_algo_chain.js && npx truffle exec scripts/register_near_chain.js && npx truffle exec scripts/register_worm_chain.js && npx truffle exec scripts/register_aptos_chain.js && nc -lkp 2000 0.0.0.0"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
             tcpSocket:
               port: 2000
-        - name: mine
-          image: eth-node
-          command:
-            - /bin/sh
-            - -c
-            - "npx truffle exec mine.js"
+          resources:
+            requests:
+              memory: "750M"
+            limits:
+              memory: "1G"
 ---
 

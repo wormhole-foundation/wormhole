@@ -2,7 +2,7 @@
 FROM node:lts-alpine@sha256:2ae9624a39ce437e7f58931a5747fdc60224c6e40f8980db90728de58e22af7c
 
 # npm wants to clone random Git repositories - lovely.
-RUN apk add git python make build-base
+RUN apk add git python make build-base bash
 
 # Run as user, otherwise, npx explodes.
 USER 1000
