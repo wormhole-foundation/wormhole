@@ -52,6 +52,7 @@ import {
   getTransferNativeWithPayloadCpiAccounts,
   getTransferWrappedWithPayloadCpiAccounts,
   NodeWallet,
+  signSendAndConfirmTransaction,
   SplTokenMetadataProgram,
 } from "../../../sdk/js/src/solana";
 import {
@@ -86,6 +87,10 @@ import {
   getOriginalAssetSolana,
 } from "../../../sdk/js/src/token_bridge";
 import { ChainId } from "../../../sdk/js/src";
+import {
+  transferNativeSol,
+  redeemAndUnwrapOnSolana,
+} from "../../../sdk/js/src/token_bridge";
 
 describe("Token Bridge", () => {
   const connection = new web3.Connection(LOCALHOST, "processed");
@@ -1886,10 +1891,11 @@ describe("Token Bridge", () => {
     });
   });
 
-  describe("Asset Queries", () => {
+  describe("SDK Methods", () => {
     // nft bridge on Ethereum
     const ethereumTokenBridge = new MockEthereumTokenBridge(
-      ETHEREUM_TOKEN_BRIDGE_ADDRESS
+      ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+      3 // startSequence
     );
 
     describe("getOriginalAssetSolana", () => {
@@ -2012,6 +2018,119 @@ describe("Token Bridge", () => {
 
         // verify results
         expect(isWrapped).is.true;
+      });
+    });
+
+    describe("transferNativeSol", () => {
+      it("Send SOL To Ethereum", async () => {
+        const balanceBefore = await connection
+          .getBalance(wallet.key())
+          .then((num) => BigInt(num));
+
+        const amount = 6969696969n;
+        const targetAddress = Buffer.alloc(32, "deadbeef", "hex");
+
+        const transferNativeSolTx = await transferNativeSol(
+          connection,
+          CORE_BRIDGE_ADDRESS,
+          TOKEN_BRIDGE_ADDRESS,
+          wallet.key(),
+          amount,
+          targetAddress,
+          "ethereum"
+        )
+          .then((transaction) =>
+            signSendAndConfirmTransaction(
+              connection,
+              wallet.key(),
+              wallet.signTransaction,
+              transaction
+            )
+          )
+          .then((response) => response.signature);
+        //console.log(`transferNativeSolTx: ${transferNativeSolTx}`);
+
+        const balanceAfter = await connection
+          .getBalance(wallet.key())
+          .then((num) => BigInt(num));
+
+        const transactionCost = 4601551n;
+        expect(balanceBefore - balanceAfter - transactionCost).to.equal(amount);
+      });
+    });
+
+    describe("redeemAndUnwrapOnSolana", () => {
+      it("Receive SOL From Ethereum", async () => {
+        const balanceBefore = await connection
+          .getBalance(wallet.key())
+          .then((num) => BigInt(num));
+
+        const tokenChain = 1;
+        const mintAta = await getOrCreateAssociatedTokenAccount(
+          connection,
+          wallet.signer(),
+          NATIVE_MINT,
+          wallet.key()
+        ).then((account) => account.address);
+
+        const amount = 42042042n;
+        const recipientChain = 1;
+        const fee = 0n;
+        const nonce = 420;
+        const message = ethereumTokenBridge.publishTransferTokens(
+          NATIVE_MINT.toBuffer().toString("hex"),
+          tokenChain,
+          amount,
+          recipientChain,
+          mintAta.toBuffer().toString("hex"),
+          fee,
+          nonce
+        );
+
+        const signedVaa = guardians.addSignatures(
+          message,
+          [0, 1, 2, 3, 5, 7, 8, 9, 10, 12, 15, 16, 18]
+        );
+
+        const txSignatures = await postVaa(
+          connection,
+          wallet.signTransaction,
+          CORE_BRIDGE_ADDRESS,
+          wallet.key(),
+          signedVaa
+        ).then((results) => results.map((result) => result.signature));
+        const postTx = txSignatures.pop()!;
+        for (const verifyTx of txSignatures) {
+          // console.log(`verifySignatures: ${verifyTx}`);
+        }
+        // console.log(`postVaa:          ${postTx}`);
+
+        const transferNativeSolTx = await redeemAndUnwrapOnSolana(
+          connection,
+          CORE_BRIDGE_ADDRESS,
+          TOKEN_BRIDGE_ADDRESS,
+          wallet.key(),
+          signedVaa
+        )
+          .then((transaction) =>
+            signSendAndConfirmTransaction(
+              connection,
+              wallet.key(),
+              wallet.signTransaction,
+              transaction
+            )
+          )
+          .then((response) => response.signature);
+        //console.log(`transferNativeSolTx: ${transferNativeSolTx}`);
+
+        const balanceAfter = await connection
+          .getBalance(wallet.key())
+          .then((num) => BigInt(num));
+
+        const transactionCost = 6821400n;
+        expect(balanceAfter - (balanceBefore - transactionCost)).to.equal(
+          amount * 10n
+        );
       });
     });
   });
