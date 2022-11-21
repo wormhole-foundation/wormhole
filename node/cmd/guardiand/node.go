@@ -8,8 +8,10 @@ import (
 	"net/http"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/wormchain"
 
@@ -800,6 +802,14 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()
+
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGTERM)
+	go func() {
+		<-sigterm
+		logger.Info("Received sigterm. exiting.")
+		rootCtxCancel()
+	}()
 
 	// Ethereum lock event channel
 	lockC := make(chan *common.MessagePublication)
