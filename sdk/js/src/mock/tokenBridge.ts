@@ -6,8 +6,13 @@ import { MockEmitter } from "./wormhole";
 export class MockTokenBridge extends MockEmitter {
   consistencyLevel: number;
 
-  constructor(emitterAddress: string, chain: number, consistencyLevel: number) {
-    super(emitterAddress, chain);
+  constructor(
+    emitterAddress: string,
+    chain: number,
+    consistencyLevel: number,
+    startSequence?: number
+  ) {
+    super(emitterAddress, chain, startSequence);
     this.consistencyLevel = consistencyLevel;
   }
 
@@ -156,9 +161,14 @@ export class MockTokenBridge extends MockEmitter {
 }
 
 export class MockEthereumTokenBridge extends MockTokenBridge {
-  constructor(emitterAddress: string) {
+  constructor(emitterAddress: string, startSequence?: number) {
     const chain = 2;
-    super(tryNativeToHexString(emitterAddress, chain as ChainId), chain, 15);
+    super(
+      tryNativeToHexString(emitterAddress, chain as ChainId),
+      chain,
+      15,
+      startSequence
+    );
   }
 
   publishAttestMeta(
