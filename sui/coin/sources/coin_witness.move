@@ -22,27 +22,4 @@ module coin::coin_witness {
             tx_context::sender(ctx)
         );
     }
-
-    //// Note: one-time callable function approach
-    //// this design doesn't work!
-
-    // public entry fun create_wrapped(
-    //     worm_state: &mut State,
-    //     token_state: &mut BridgeState,
-    //     //witness_carrier: WitnessCarrier,
-    //     ctx: &mut TxContext
-    // ) {
-    //     // Make sure to put your VAA here!
-    //     // Alternatively we can make this
-    //     let vaa = x"deadbeef00001231231231";
-
-    //     create_wrapped_coin<COIN_WITNESS>(
-    //         worm_state,
-    //         token_state,
-    //         //get_witness(witness_carrier),
-    //         COIN_WITNESS {},
-    //         vaa,
-    //         ctx
-    //     )
-    // }
 }
