@@ -287,20 +287,12 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	}
 	p.attestationEvents.ReportVAAQuorum(v)
 
-	// We need the TxHash of the VAA to attribute it to a batch.
-	// See if we had this VAA in state with some progress toward quorum,
-	// in hopes of finding the Observation for the message, so we can consider
-	// it as part of a BatchVAA.
+	// Check to see if we observed this VAA and can attribute it to a Batch.
+	// We need the TxHash of the message to attribute it to a Batch, which is not
+	// part of the VAA or gossip message, so check state to see if we have this
+	// message's observation.
 	if sigState, ok := p.state.signatures[hash]; ok {
-		txHash := common.BytesToHash(sigState.txHash)
-		p.logger.Info("Found partial VAA in state.signatures",
-			zap.String("hash", hash),
-			zap.String("txHash.Hex()", txHash.Hex()),
-		)
-
-		// We had this VAA locally, actively tracking progress toward quorum.
-		// Take the Observation from state and send to be considered as part of a batch.
-		o := sigState.ourObservation
-		p.handleBatchPart(o)
+		// see if the observation is part of a Batch
+		p.handleBatchPart(sigState.ourObservation)
 	}
 }

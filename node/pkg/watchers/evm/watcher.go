@@ -95,10 +95,10 @@ type (
 		obsvReqC chan *gossipv1.ObservationRequest
 
 		// Channel to send message batches to.
-		batchC chan *common.BatchMessage
+		batchC chan *common.TransactionData
 
 		// Incoming message batch requests. Pre-filtered to only include requests for our chainID.
-		batchReqC chan *common.BatchMessageID
+		batchReqC chan *common.TransactionQuery
 
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
@@ -150,8 +150,8 @@ func NewEthWatcher(
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet,
 	obsvReqC chan *gossipv1.ObservationRequest,
-	batchC chan *common.BatchMessage,
-	batchReqC chan *common.BatchMessageID,
+	batchC chan *common.TransactionData,
+	batchReqC chan *common.TransactionQuery,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -512,10 +512,12 @@ func (w *Watcher) Run(ctx context.Context) error {
 					panic("invalid chain ID")
 				}
 
-				tx := r.TransactionID
+				// create the native style transaction identifer from the Wormhole normalized style
+				tx := eth_common.BytesToHash(r.TransactionID[:])
+
 				logger.Info("received batch request",
 					zap.String("eth_network", w.networkName),
-					zap.String("tx_hash", tx.Hex()))
+					zap.Stringer("tx_hash", tx))
 
 				// SECURITY: Load the block number before requesting the transaction to avoid a
 				// race condition where requesting the tx succeeds and is then dropped due to a fork,
@@ -527,28 +529,31 @@ func (w *Watcher) Run(ctx context.Context) error {
 				blockNumberU := atomic.LoadUint64(&currentBlockNumber)
 				if blockNumberU == 0 {
 					logger.Error("no block number available, ignoring batch request",
-						zap.String("eth_network", w.networkName))
+						zap.String("eth_network", w.networkName),
+						zap.Stringer("tx_hash", tx))
 					continue
 				}
 
 				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+
 				_, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, tx)
 				cancel()
 
 				if err != nil {
 					logger.Error("failed to process batch request",
-						zap.Error(err), zap.String("eth_network", w.networkName))
+						zap.Error(err), zap.String("eth_network", w.networkName),
+						zap.Stringer("tx_hash", tx))
 					continue
 				}
 
-				logger.Info("got message batch data",
+				logger.Info("got messages to batch for transaction",
 					zap.Int("num_messages", len(msgs)),
 					zap.String("eth_network", w.networkName),
 					zap.String("tx_hash", tx.Hex()))
 
-				b := &common.BatchMessage{
-					BatchMessageID: *r,
-					Messages:       msgs,
+				b := &common.TransactionData{
+					TransactionQuery: *r,
+					Messages:         msgs,
 				}
 				w.batchC <- b
 			}

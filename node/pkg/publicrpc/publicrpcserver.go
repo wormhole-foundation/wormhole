@@ -111,14 +111,16 @@ func (s *PublicrpcServer) GetSignedBatchVAA(ctx context.Context, req *publicrpcv
 		return nil, status.Error(codes.InvalidArgument, "no batch ID specified")
 	}
 
-	txHash, err := vaa.BytesToHash(req.BatchId.TxId)
+	txID, err := vaa.BytesToTransactionID(req.BatchId.TxId)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode transaction ID hex: %v", err))
+		return nil, status.Error(codes.InvalidArgument,
+			fmt.Sprintf("invalid TransactionID specified %v", err))
 	}
 
-	b, err := s.db.GetSignedBatchVAABytes(db.BatchVAAID{
+	b, err := s.db.GetSignedBatchBytes(vaa.BatchID{
 		EmitterChain:  vaa.ChainID(req.BatchId.EmitterChain.Number()),
-		TransactionID: txHash,
+		TransactionID: txID,
+		Nonce:         vaa.Nonce(req.BatchId.Nonce),
 	})
 
 	if err != nil {
@@ -129,8 +131,20 @@ func (s *PublicrpcServer) GetSignedBatchVAA(ctx context.Context, req *publicrpcv
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
+	batch, err := vaa.UnmarshalBatch(b)
+	if err != nil {
+		s.logger.Error("failed to unmarshal Batch from DB", zap.Error(err), zap.Any("request", req))
+		return nil, status.Error(codes.Internal, "failed to retrieve Batch")
+	}
+	// create a byte array of just the BatchVAA, the part the user will redeem on the destination chain(s)
+	vaaBytes, _ := batch.BatchVAA.Marshal()
+
 	signed := &gossipv1.SignedBatchVAAWithQuorum{
-		BatchVaa: b,
+		BatchVaa: vaaBytes,
+		ChainId:  uint32(batch.BatchID.EmitterChain),
+		TxId:     batch.BatchID.TransactionID[:],
+		Nonce:    uint32(batch.BatchID.Nonce),
+		BatchId:  batch.BatchID.String(),
 	}
 	return &publicrpcv1.GetSignedBatchVAAResponse{
 		SignedBatchVaa: signed,

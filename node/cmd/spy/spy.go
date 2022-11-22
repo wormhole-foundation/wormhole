@@ -217,7 +217,7 @@ func (s *spyServer) HandleGossipBatchVAA(g *gossipv1.SignedBatchVAAWithQuorum) e
 	s.subsAllVaaMu.Lock()
 	defer s.subsAllVaaMu.Unlock()
 
-	b, err := vaa.UnmarshalBatch(g.BatchVaa)
+	b, err := vaa.UnmarshalBatchVAA(g.BatchVaa)
 	if err != nil {
 		s.logger.Error("failed unmarshaing BatchVAA bytes from gossipv1.SignedBatchVAAWithQuorum.",
 			zap.Error(err))

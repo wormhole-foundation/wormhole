@@ -460,7 +460,7 @@ func TestSpyHandleGossipBatchVAAEmitterFilter(t *testing.T) {
 				vaaBytes := resType.SignedBatchVaa.BatchVaa
 
 				// just unmarshal to smoke test
-				_, err := vaa.UnmarshalBatch(vaaBytes)
+				_, err := vaa.UnmarshalBatchVAA(vaaBytes)
 				if err != nil {
 					t.Log("failed unmarshaling BatchVAA from response")
 					t.Fail()
@@ -572,7 +572,7 @@ func TestSpyHandleGossipBatchVAABatchTxFilter(t *testing.T) {
 				vaaBytes := resType.SignedBatchVaa.BatchVaa
 
 				// just unmarshal to smoke test
-				_, err := vaa.UnmarshalBatch(vaaBytes)
+				_, err := vaa.UnmarshalBatchVAA(vaaBytes)
 				if err != nil {
 					t.Log("failed unmarshaling BatchVAA from response")
 					t.Fail()
@@ -684,7 +684,7 @@ func TestSpyHandleGossipBatchVAABatchFilter(t *testing.T) {
 				vaaBytes := resType.SignedBatchVaa.BatchVaa
 
 				// just unmarshal to smoke test
-				_, err := vaa.UnmarshalBatch(vaaBytes)
+				_, err := vaa.UnmarshalBatchVAA(vaaBytes)
 				if err != nil {
 					t.Log("failed unmarshaling BatchVAA from response")
 					t.Fail()

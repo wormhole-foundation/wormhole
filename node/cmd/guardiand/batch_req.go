@@ -14,8 +14,8 @@ func handleBatchRequests(
 	ctx context.Context,
 	clock clock.Clock,
 	logger *zap.Logger,
-	batchReqC <-chan *common.BatchMessageID,
-	chainBatchReqC map[vaa.ChainID]chan *common.BatchMessageID,
+	batchReqC <-chan *common.TransactionQuery,
+	chainBatchReqC map[vaa.ChainID]chan *common.TransactionQuery,
 ) {
 
 	for {
@@ -26,10 +26,25 @@ func handleBatchRequests(
 			if channel, ok := chainBatchReqC[req.EmitterChain]; ok {
 				channel <- req
 			} else {
-				logger.Error("unknown chain ID for batch request",
+				logger.Warn("batch query request received for unsupported chain ID",
 					zap.Uint16("chain_id", uint16(req.EmitterChain)),
-					zap.String("tx_hash", req.TransactionID.Hex()))
+					zap.Stringer("tx_id", req.TransactionID))
 			}
+		}
+	}
+}
+
+// for when the batchVAA feature flag is disabled.
+func disregardBatchRequests(
+	ctx context.Context,
+	batchReqC <-chan *common.TransactionQuery,
+	chainBatchReqC map[vaa.ChainID]chan *common.TransactionQuery,
+) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-batchReqC:
 		}
 	}
 }

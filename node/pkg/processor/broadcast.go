@@ -92,32 +92,32 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 	p.sendC <- msg
 }
 
-func (p *Processor) broadcastBatchSignature(
-	b Batch,
-	signature []byte,
-	txhash []byte,
-) {
+func (p *Processor) broadcastBatchSignature(b *vaa.Batch, signature []byte) {
 	digest := b.SigningMsg()
 	obsv := gossipv1.SignedBatchObservation{
 		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
 		Hash:      digest.Bytes(),
 		Signature: signature,
-		TxId:      txhash,
-		ChainId:   uint32(b.GetEmitterChain()),
-		BatchId:   b.BatchID(),
+		TxId:      b.BatchID.TransactionID[:],
+		ChainId:   uint32(b.BatchID.EmitterChain),
+		Nonce:     uint32(b.BatchID.Nonce),
+		BatchId:   b.BatchID.String(),
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedBatchObservation{SignedBatchObservation: &obsv}}
+	w := &gossipv1.GossipMessage{
+		Message: &gossipv1.GossipMessage_SignedBatchObservation{
+			SignedBatchObservation: &obsv,
+		}}
 
-	msg, err := proto.Marshal(&w)
+	msg, err := proto.Marshal(w)
 	if err != nil {
 		panic(err)
 	}
 
 	p.sendC <- msg
 
-	// Store our batch VAA
-	hash := hex.EncodeToString(digest.Bytes())
+	// Store our batch VAA in Processor's state
+	hash := b.HexDigest()
 
 	if p.state.batchSignatures[hash] == nil {
 		p.state.batchSignatures[hash] = &batchState{
@@ -129,9 +129,14 @@ func (p *Processor) broadcastBatchSignature(
 		}
 	}
 
-	p.state.batchSignatures[hash].ourObservation = b
+	// create the 'Batch' struct that can HandleQuorum() from batch_vaa.go, for ourObservation state.
+	obs := &Batch{vaa.Batch{
+		BatchVAA: b.BatchVAA,
+		BatchID:  b.BatchID}}
+	p.state.batchSignatures[hash].ourObservation = obs
 	p.state.batchSignatures[hash].ourMsg = msg
-	p.state.batchSignatures[hash].source = b.GetEmitterChain().String()
+	p.state.batchSignatures[hash].txHash = b.BatchID.TransactionID[:]
+	p.state.batchSignatures[hash].source = b.BatchID.EmitterChain.String()
 	p.state.batchSignatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 
 	// Fast path for our own signature
@@ -140,15 +145,23 @@ func (p *Processor) broadcastBatchSignature(
 	batchObservationsBroadcastTotal.Inc()
 }
 
-func (p *Processor) broadcastSignedBatchVAA(v *vaa.BatchVAA) {
-	b, err := v.Marshal()
+func (p *Processor) broadcastSignedBatchVAA(v *vaa.Batch) {
+	b, err := v.BatchVAA.Marshal()
 	if err != nil {
 		panic(err)
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedBatchVaaWithQuorum{
-		SignedBatchVaaWithQuorum: &gossipv1.SignedBatchVAAWithQuorum{BatchVaa: b},
-	}}
+	w := gossipv1.GossipMessage{
+		Message: &gossipv1.GossipMessage_SignedBatchVaaWithQuorum{
+			SignedBatchVaaWithQuorum: &gossipv1.SignedBatchVAAWithQuorum{
+				BatchVaa: b,
+				ChainId:  uint32(v.BatchID.EmitterChain),
+				TxId:     v.BatchID.TransactionID[:],
+				Nonce:    uint32(v.BatchID.Nonce),
+				BatchId:  v.BatchID.String(),
+			},
+		},
+	}
 
 	msg, err := proto.Marshal(&w)
 	if err != nil {

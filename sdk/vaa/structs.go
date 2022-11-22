@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +44,7 @@ type (
 		Payload []byte
 	}
 
+	// BatchVAA is the verifiable action approval of multiple messages from a transaction
 	BatchVAA struct {
 		// Version of the VAA schema
 		Version uint8
@@ -50,18 +52,25 @@ type (
 		GuardianSetIndex uint32
 		// SignatureData is the signature of the guardian set
 		Signatures []*Signature
-
-		// EmitterChain the VAAs were emitted on
-		EmitterChain ChainID
-
-		// The chain-native identifier of the transaction that created the batch VAA.
-		TransactionID common.Hash
-
 		// array of Observation VAA hashes
 		Hashes []common.Hash
-
 		// Observations in the batch
 		Observations []*Observation
+	}
+
+	// BatchID is the unique identifer of a BatchVAA.
+	// The properties needed to uniquely ID a Batch are not included in the VM,
+	// this accompanying stuct holds those properties.
+	BatchID struct {
+		EmitterChain ChainID
+		TransactionID
+		Nonce
+	}
+
+	// A Batch is a BatchVAA and identifying information.
+	Batch struct {
+		BatchVAA
+		BatchID
 	}
 
 	// ChainID of a Wormhole chain
@@ -72,6 +81,13 @@ type (
 	// Address is a Wormhole protocol address, it contains the native chain's address. If the address data type of a
 	// chain is < 32bytes the value is zero-padded on the left.
 	Address [32]byte
+
+	// TransactionID is a Wormhole normalized transaction identifier, it contains the native chain's identifer.
+	// If the transaction identifier data type of a chain is < 64 bytes the value is zero-padded on the left.
+	TransactionID [TransactionIDLength]byte
+
+	// Nonce is an arbitary number supplied by the sender of the message.
+	Nonce uint32
 
 	// Signature of a single guardian
 	Signature struct {
@@ -137,6 +153,18 @@ func (a SignatureData) MarshalJSON() ([]byte, error) {
 
 func (a SignatureData) String() string {
 	return hex.EncodeToString(a[:])
+}
+
+func (t TransactionID) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, t)), nil
+}
+
+func (t TransactionID) String() string {
+	return hex.EncodeToString(t[:])
+}
+
+func (t TransactionID) Bytes() []byte {
+	return t[:]
 }
 
 func (c ChainID) String() string {
@@ -352,6 +380,10 @@ const (
 	minHeadlessVAALength = 51 // HEADER
 	minVAALength         = 57 // HEADER + BODY
 	minBatchVAALength    = 94 // HEADER + BATCH
+	minBatchIDLength     = 70 // 2 (emitterChain) + TransactionIDLength + 4 (nonce)
+
+	TransactionIDLength  = 64
+	MaxBatchObservations = 255
 
 	SupportedVAAVersion = 0x01
 	BatchVAAVersion     = 0x02
@@ -453,8 +485,8 @@ func Unmarshal(data []byte) (*VAA, error) {
 	return UnmarshalBody(data, reader, v)
 }
 
-// UnmarshalBatch deserializes the binary representation of a BatchVAA
-func UnmarshalBatch(data []byte) (*BatchVAA, error) {
+// UnmarshalBatchVAA deserializes the binary representation of a BatchVAA
+func UnmarshalBatchVAA(data []byte) (*BatchVAA, error) {
 	if len(data) < minBatchVAALength {
 		return nil, fmt.Errorf("BatchVAA.Observation is too short")
 	}
@@ -743,7 +775,7 @@ func (v *BatchVAA) serializeBody() []byte {
 // - The signatures in the VAA is verified against the guardian set keys.
 func (v *VAA) Verify(addresses []common.Address) error {
 	if addresses == nil {
-		return errors.New("No addresses were provided")
+		return errors.New("no addresses were provided")
 	}
 
 	// Check if VAA doesn't have any signatures
@@ -808,7 +840,7 @@ func (b BatchVAA) MarshalBinary() ([]byte, error) {
 
 // implement encoding.BinaryUnmarshaler interface for BatchVAA struct
 func (b *BatchVAA) UnmarshalBinary(data []byte) error {
-	batch, err := UnmarshalBatch(data)
+	batch, err := UnmarshalBatchVAA(data)
 	if err != nil {
 		return err
 	}
@@ -823,16 +855,6 @@ func (v *VAA) MessageID() string {
 	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
 }
 
-// BatchID returns a human-readable emitter_chain/transaction_hex
-func (v *BatchVAA) BatchID() string {
-	if len(v.Observations) == 0 {
-		// cant have a batch without Observations, but check just be safe
-		panic("Cannot create a BatchID from BatchVAA with no Observations.")
-	}
-	nonce := v.Observations[0].Observation.Nonce
-	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, hex.EncodeToString(v.TransactionID.Bytes()), nonce)
-}
-
 // UniqueID normalizes the ID of the VAA (any type) for the Attestation interface
 // UniqueID returns the MessageID that uniquely identifies the Attestation
 func (v *VAA) UniqueID() string {
@@ -840,13 +862,25 @@ func (v *VAA) UniqueID() string {
 }
 
 // UniqueID returns the BatchID that uniquely identifies the Attestation
-func (b *BatchVAA) UniqueID() string {
-	return b.BatchID()
+func (b *Batch) UniqueID() string {
+	return b.BatchID.String()
 }
 
-// GetTransactionID implements the processor.Batch interface for *BatchVAA.
-func (v *BatchVAA) GetTransactionID() common.Hash {
+// GetTransactionID implements the processor.ObservationGroup interface for *Batch.
+func (v *Batch) GetTransactionID() TransactionID {
 	return v.TransactionID
+}
+
+// GetNonce implements the processor.ObservationGroup interface for *Batch.
+func (v *Batch) GetNonce() Nonce {
+	return v.Nonce
+}
+
+// GetBatchID implements the processor.ObservationGroup interface for *Batch.
+// This method is prefixed with "Get" to avoid a naming collision with the Batch's
+// BatchID property (same as other "Get*" methods of generic Processor structs).
+func (v *Batch) GetBatchID() BatchID {
+	return v.BatchID
 }
 
 // HexDigest returns the hex-encoded digest.
@@ -855,8 +889,8 @@ func (v *VAA) HexDigest() string {
 }
 
 // HexDigest returns the hex-encoded digest.
-func (b *BatchVAA) HexDigest() string {
-	return hex.EncodeToString(b.SigningMsg().Bytes())
+func (b *Batch) HexDigest() string {
+	return hex.EncodeToString(b.BatchVAA.SigningMsg().Bytes())
 }
 
 /*
@@ -963,8 +997,8 @@ func (v *VAA) GetEmitterChain() ChainID {
 	return v.EmitterChain
 }
 
-// GetEmitterChain implements the processor.Batch interface for *BatchVAA.
-func (v *BatchVAA) GetEmitterChain() ChainID {
+// GetEmitterChain implements the processor.ObservationGroup interface for *Batch.
+func (v *Batch) GetEmitterChain() ChainID {
 	return v.EmitterChain
 }
 
@@ -975,31 +1009,86 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	}
 }
 
-// StringToAddress converts a hex-encoded address into a vaa.Address
-func StringToAddress(value string) (Address, error) {
-	var address Address
-
+// HexStringToBytes decodes a hex string and checks the length against a max value
+func HexStringToBytes(value string, maxLength int) (res []byte, err error) {
 	// Make sure we have enough to decode
 	if len(value) < 2 {
-		return address, fmt.Errorf("value must be at least 1 byte")
+		return res, fmt.Errorf("value must be at least 1 byte")
 	}
 
 	// Trim any preceding "0x" to the address
 	value = strings.TrimPrefix(value, "0x")
 
 	// Decode the string from hex to binary
-	res, err := hex.DecodeString(value)
+	res, err = hex.DecodeString(value)
+	if err != nil {
+		return res, err
+	}
+
+	// Make sure we don't have too many bytes
+	if len(res) > maxLength {
+		return res, fmt.Errorf("value must be no more than %d bytes", maxLength)
+	}
+
+	return res, nil
+}
+
+// StringToAddress converts a hex-encoded address into a vaa.Address
+func StringToAddress(value string) (Address, error) {
+	var address Address
+
+	b, err := HexStringToBytes(value, 32)
 	if err != nil {
 		return address, err
 	}
 
-	// Make sure we don't have too many bytes
-	if len(res) > 32 {
-		return address, fmt.Errorf("value must be no more than 32 bytes")
-	}
-	copy(address[32-len(res):], res)
+	copy(address[32-len(b):], b)
 
 	return address, nil
+}
+
+// StringToTransactionID converts a hex-encoded TransactionID into a vaa.TransactionID
+func StringToTransactionID(value string) (TransactionID, error) {
+	var id TransactionID
+
+	b, err := HexStringToBytes(value, TransactionIDLength)
+	if err != nil {
+		return id, err
+	}
+
+	copy(id[TransactionIDLength-len(b):], b)
+
+	return id, nil
+}
+
+// StringToBatchID parses a <chain>/<transaction>/<nonce> string into a BatchID.
+func StringToBatchID(s string) (BatchID, error) {
+	var id BatchID
+
+	parts := strings.Split(s, "/")
+	if len(parts) != 3 {
+		return id, errors.New("invalid batch id string, expected three parts delimited by '/'")
+	}
+
+	emitterChain, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return id, fmt.Errorf("invalid emitter chain: %s", err)
+	}
+	id.EmitterChain = ChainID(emitterChain)
+
+	txID, err := StringToTransactionID(parts[1])
+	if err != nil {
+		return id, err
+	}
+	id.TransactionID = txID
+
+	nonce, err := strconv.ParseUint(parts[2], 10, 32)
+	if err != nil {
+		return id, fmt.Errorf("invalid Nonce: %s", err)
+	}
+	id.Nonce = Nonce(nonce)
+
+	return id, nil
 }
 
 func BytesToAddress(b []byte) (Address, error) {
@@ -1010,6 +1099,15 @@ func BytesToAddress(b []byte) (Address, error) {
 
 	copy(address[32-len(b):], b)
 	return address, nil
+}
+
+func BytesToTransactionID(b []byte) (TransactionID, error) {
+	var id TransactionID
+	if len(b) > TransactionIDLength {
+		return id, fmt.Errorf("value must be no more than %d bytes", TransactionIDLength)
+	}
+	copy(id[TransactionIDLength-len(b):], b)
+	return id, nil
 }
 
 // StringToHash converts a hex-encoded string into a common.Hash
@@ -1042,4 +1140,145 @@ func BytesToHash(b []byte) (common.Hash, error) {
 
 	hash = common.BytesToHash(b)
 	return hash, nil
+}
+
+func (b *BatchID) String() string {
+	// protect against creating an invalid key from uninitialized values
+	if b.Nonce == 0 {
+		panic("cannot create BatchID string with Nonce == 0")
+	}
+	if b.EmitterChain == ChainIDUnset {
+		panic("cannot create BatchID string with EmitterChain == 0 (ChainIDUnset)")
+	}
+	if len(b.TransactionID) == 0 || bytes.Equal(b.TransactionID[:], make([]byte, TransactionIDLength)) {
+		panic("cannot create BatchID string with empty TransactionID")
+	}
+
+	return fmt.Sprintf("%d/%s/%d",
+		b.EmitterChain,
+		hex.EncodeToString(b.TransactionID[:]),
+		b.Nonce)
+}
+
+func (i *BatchID) Bytes() []byte {
+	b, err := i.Marshal()
+	if err != nil {
+		panic(fmt.Errorf("failed marshaling BatchID %v", err))
+	}
+	return b
+}
+
+// implement encoding.BinaryMarshaler interface for the VAA struct
+func (i BatchID) MarshalBinary() ([]byte, error) {
+	return i.Marshal()
+}
+
+// implement encoding.BinaryUnmarshaler interface for the VAA struct
+func (i *BatchID) UnmarshalBinary(data []byte) error {
+	id, err := UnmarshalBatchID(data)
+	if err != nil {
+		return err
+	}
+
+	// derefernce the stuct created by UnmarshalBatchID, and assign it to the method's context
+	*i = *id
+	return nil
+}
+
+func UnmarshalBatchID(data []byte) (*BatchID, error) {
+	if len(data) < minBatchIDLength {
+		return nil, fmt.Errorf("BatchID is too short")
+	}
+
+	id := &BatchID{}
+
+	reader := bytes.NewReader(data[:])
+
+	if err := binary.Read(reader, binary.BigEndian, &id.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
+	}
+
+	transactionID := TransactionID{}
+	if n, err := reader.Read(transactionID[:]); err != nil || n != TransactionIDLength {
+		return nil, fmt.Errorf("failed to read transaction ID [%d]: %w", n, err)
+	}
+	id.TransactionID = transactionID
+
+	if err := binary.Read(reader, binary.BigEndian, &id.Nonce); err != nil {
+		return nil, fmt.Errorf("failed to read nonce: %w", err)
+	}
+
+	return id, nil
+}
+
+// Marshal returns the binary representation of the BatchID
+func (i *BatchID) Marshal() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	MustWrite(buf, binary.BigEndian, i.EmitterChain)
+	buf.Write(i.TransactionID[:])
+	MustWrite(buf, binary.BigEndian, i.Nonce)
+
+	return buf.Bytes(), nil
+}
+
+// Marshal returns the binary representation of the Batch
+// The Batch binary layout is the concatenation of the struct's parts: BatchVAA + BatchID
+func (b *Batch) Marshal() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	vaaBytes, err := b.BatchVAA.Marshal()
+	if err != nil {
+		return buf.Bytes(), err
+	}
+	buf.Write(vaaBytes)
+
+	idBytes, err := b.BatchID.Marshal()
+	if err != nil {
+		return buf.Bytes(), err
+	}
+	buf.Write(idBytes)
+
+	return buf.Bytes(), nil
+
+}
+
+// Unmarshal deserializes the binary representation of a Batch
+func UnmarshalBatch(data []byte) (*Batch, error) {
+	b := &Batch{}
+
+	batchVAA, err := UnmarshalBatchVAA(data)
+	if err != nil {
+		return b, err
+	}
+	b.BatchVAA = *batchVAA
+
+	// Marshal the BatchVAA back to bytes in order to see how many bytes it takes
+	batchVAABytes, _ := batchVAA.Marshal()
+	batchVAALength := len(batchVAABytes)
+
+	remainingBytes := data[batchVAALength:]
+
+	batchID, err := UnmarshalBatchID(remainingBytes)
+	if err != nil {
+		return b, err
+	}
+	b.BatchID = *batchID
+
+	return b, nil
+}
+
+// implement encoding.BinaryMarshaler interface for Batch struct
+func (b Batch) MarshalBinary() ([]byte, error) {
+	return b.Marshal()
+}
+
+// implement encoding.BinaryUnmarshaler interface for Batch struct
+func (b *Batch) UnmarshalBinary(data []byte) error {
+	batch, err := UnmarshalBatch(data)
+	if err != nil {
+		return err
+	}
+
+	// derefernce the stuct created by UnmarshalBatch, and assign it to the method's context
+	*b = *batch
+	return nil
 }

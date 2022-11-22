@@ -51,14 +51,21 @@ func (p *Processor) handleBatchObservation(ctx context.Context, m *gossipv1.Sign
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
 	// identity is completely decoupled from the guardian identity, p2p is just transport.
 
+	if !p.batchVAAEnabled {
+		// respect the feature flag
+		return
+	}
+
 	hash := hex.EncodeToString(m.Hash)
 
 	p.logger.Info("received batch observation",
 		zap.String("digest", hash),
 		zap.String("signature", hex.EncodeToString(m.Signature)),
 		zap.String("addr", hex.EncodeToString(m.Addr)),
+		zap.Uint32("emitter_chain", m.ChainId),
 		zap.String("txhash", hex.EncodeToString(m.TxId)),
 		zap.String("txhash_b58", base58.Encode(m.TxId)),
+		zap.Uint32("nonce", m.Nonce),
 		zap.String("batch_id", m.BatchId),
 	)
 
@@ -222,16 +229,32 @@ func (p *Processor) handleBatchObservation(ctx context.Context, m *gossipv1.Sign
 }
 
 func (p *Processor) handleInboundSignedBatchVAAWithQuorum(ctx context.Context, m *gossipv1.SignedBatchVAAWithQuorum) {
-	v, err := vaa.UnmarshalBatch(m.BatchVaa)
+	if !p.batchVAAEnabled {
+		// respect the feature flag
+		return
+	}
+
+	v, err := vaa.UnmarshalBatchVAA(m.BatchVaa)
 	if err != nil {
 		p.logger.Warn("received invalid batch VAA in SignedBatchVAAWithQuorum message",
 			zap.Error(err), zap.Any("message", m))
 		return
 	}
+	tx, err := vaa.BytesToTransactionID(m.TxId)
+	if err != nil {
+		p.logger.Error("received invalid TxId bytes")
+	}
+	b := &vaa.Batch{
+		BatchVAA: *v,
+		BatchID: vaa.BatchID{
+			EmitterChain:  vaa.ChainID(m.ChainId),
+			TransactionID: tx,
+			Nonce:         vaa.Nonce(m.Nonce),
+		},
+	}
 
 	// Calculate digest for logging
-	digest := v.SigningMsg()
-	hash := hex.EncodeToString(digest.Bytes())
+	hash := b.HexDigest()
 
 	if p.gs == nil {
 		p.logger.Warn("dropping SignedBatchVAAWithQuorum message since we haven't initialized our guardian set yet",
@@ -289,7 +312,7 @@ func (p *Processor) handleInboundSignedBatchVAAWithQuorum(ctx context.Context, m
 	//  - enough signatures are present for the BatchVAA to reach quorum
 
 	// Check if we already store this VAA
-	_, err = p.db.GetSignedBatchVAABytes(*db.BatchVaaIDFromBatchVAA(v))
+	_, err = p.db.GetSignedBatchBytes(b.BatchID)
 	if err == nil {
 		p.logger.Debug("ignored SignedBatchVAAWithQuorum message for batch VAA we already store",
 			zap.String("digest", hash),
@@ -308,9 +331,9 @@ func (p *Processor) handleInboundSignedBatchVAAWithQuorum(ctx context.Context, m
 		zap.String("digest", hash),
 		zap.Any("vaa", v),
 		zap.String("bytes", hex.EncodeToString(m.BatchVaa)),
-		zap.String("batch_id", v.BatchID()))
+		zap.String("batch_id", b.BatchID.String()))
 
-	if err := p.db.StoreSignedBatchVAA(v); err != nil {
+	if err := p.db.StoreSignedBatch(b); err != nil {
 		p.logger.Error("failed to store signed batch VAA", zap.Error(err))
 		return
 	}

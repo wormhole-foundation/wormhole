@@ -1,14 +1,12 @@
 package db
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/dgraph-io/badger/v3"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -20,10 +18,6 @@ type VAAID struct {
 	EmitterChain   vaa.ChainID
 	EmitterAddress vaa.Address
 	Sequence       uint64
-}
-type BatchVAAID struct {
-	EmitterChain  vaa.ChainID
-	TransactionID common.Hash
 }
 
 // VaaIDFromString parses a <chain>/<address>/<sequence> string into a VAAID.
@@ -65,36 +59,10 @@ func VaaIDFromVAA(v *vaa.VAA) *VAAID {
 	}
 }
 
-// BatchVAAIDFromString parses a <chain>/<transaction> string into a BatchVAAID.
-func BatchVaaIDFromString(s string) (*BatchVAAID, error) {
-	parts := strings.Split(s, "/")
-	if len(parts) != 2 {
-		return nil, errors.New("invalid batch id")
-	}
-
-	emitterChain, err := strconv.ParseUint(parts[0], 10, 16)
-	if err != nil {
-		return nil, fmt.Errorf("invalid emitter chain: %s", err)
-	}
-
-	transactionID, err := vaa.StringToHash(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid TransactionID string: %s", err)
-	}
-
-	batchVAAID := &BatchVAAID{
-		EmitterChain:  vaa.ChainID(emitterChain),
-		TransactionID: transactionID,
-	}
-
-	return batchVAAID, nil
-}
-
-func BatchVaaIDFromBatchVAA(v *vaa.BatchVAA) *BatchVAAID {
-	return &BatchVAAID{
-		EmitterChain:  v.EmitterChain,
-		TransactionID: v.TransactionID,
-	}
+func BatchKey(b *vaa.Batch) []byte {
+	return []byte(
+		fmt.Sprintf("signed_batch/%s",
+			b.BatchID.String()))
 }
 
 var (
@@ -111,13 +79,6 @@ func (i *VAAID) EmitterPrefixBytes() []byte {
 		return []byte(fmt.Sprintf("signed/%d", i.EmitterChain))
 	}
 	return []byte(fmt.Sprintf("signed/%d/%s", i.EmitterChain, i.EmitterAddress))
-}
-
-func (i *BatchVAAID) Bytes() []byte {
-	return []byte(
-		fmt.Sprintf("signed_batch/%d/%s",
-			i.EmitterChain,
-			hex.EncodeToString(i.TransactionID.Bytes())))
 }
 
 func Open(path string) (*Database, error) {
@@ -162,12 +123,15 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 	return nil
 }
 
-func (d *Database) StoreSignedBatchVAA(v *vaa.BatchVAA) error {
+func (d *Database) StoreSignedBatch(v *vaa.Batch) error {
 	if len(v.Signatures) == 0 {
-		panic("StoreSignedBatchVAA called for unsigned VAA")
+		panic("StoreSignedBatch called for unsigned VAA")
 	}
 
-	b, _ := v.Marshal()
+	b, err := v.Marshal()
+	if err != nil {
+		return fmt.Errorf("failed Batch.Marshal() for db. %w", err)
+	}
 
 	// We allow overriding of existing VAAs, since there are multiple ways to
 	// acquire signed VAA bytes. For instance, the node may have a signed VAA
@@ -176,8 +140,8 @@ func (d *Database) StoreSignedBatchVAA(v *vaa.BatchVAA) error {
 	//
 	// TODO: panic on non-identical signing digest?
 
-	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(BatchVaaIDFromBatchVAA(v).Bytes(), b); err != nil {
+	err = d.db.Update(func(txn *badger.Txn) error {
+		if err := txn.Set(BatchKey(v), b); err != nil {
 			return err
 		}
 		return nil
@@ -211,9 +175,9 @@ func (d *Database) GetSignedVAABytes(id VAAID) (b []byte, err error) {
 	return
 }
 
-func (d *Database) GetSignedBatchVAABytes(id BatchVAAID) (b []byte, err error) {
+func (d *Database) GetSignedBatchBytes(id vaa.BatchID) (b []byte, err error) {
 	if err := d.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(id.Bytes())
+		item, err := txn.Get(BatchKey(&vaa.Batch{BatchID: id}))
 		if err != nil {
 			return err
 		}

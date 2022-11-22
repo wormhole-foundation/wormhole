@@ -55,19 +55,30 @@ var (
 // deleteBatchVaaState removes key/values from Processor state objects
 func deleteBatchVaaState(p *Processor, s *batchState, batchHash string) {
 	delete(p.state.batchSignatures, batchHash)
-	txHash, _ := vaa.BytesToHash(s.txHash)
-	batchID := &common.BatchMessageID{
-		EmitterChain:  s.ourObservation.GetEmitterChain(),
-		TransactionID: txHash,
-	}
+	batchID := s.ourObservation.GetBatchID()
 	delete(p.state.batches, batchID)
-	delete(p.state.transactions, batchID)
+	delete(p.state.batchMessages, batchID)
 }
 
 // handleCleanup handles periodic retransmissions and cleanup of observations
 func (p *Processor) handleBatchCleanup(ctx context.Context) {
+	if !p.batchVAAEnabled {
+		// respect the feature flag
+		return
+	}
+
 	p.logger.Info("aggregation batch state summary", zap.Int("cached", len(p.state.batchSignatures)))
 	aggregationBatchStateEntries.Set(float64(len(p.state.signatures)))
+
+	// First, loop through the batches we've seen and evaluate them for completion.
+	// Batches are otherwise only evaluated for progress toward completion when observed messages reach quorum.
+	// This extra check is an effort to settle any batches that are pending due to the
+	// nuances of observing chain state - missed messages, late observations, etc.
+	// This check handles a potential edge case in which some of the messages within a batch
+	// are not not observed directly, but are received from gossip.
+	for batchID := range p.state.batches {
+		p.evaluateBatchProgress(&batchID)
+	}
 
 	for hash, s := range p.state.batchSignatures {
 		delta := time.Since(s.firstObserved)
@@ -77,8 +88,8 @@ func (p *Processor) handleBatchCleanup(ctx context.Context) {
 			//
 			// This occurs when we observed a message after the cluster has already reached
 			// consensus on it, causing us to never achieve quorum.
-			if ourVaa, ok := s.ourObservation.(*BatchVAA); ok {
-				if _, err := p.db.GetSignedBatchVAABytes(*db.BatchVaaIDFromBatchVAA(&ourVaa.BatchVAA)); err == nil {
+			if ourVaa, ok := s.ourObservation.(*Batch); ok {
+				if _, err := p.db.GetSignedBatchBytes(ourVaa.BatchID); err == nil {
 					// If we have a stored quorum VAA, we can safely expire the state.
 					//
 					// This is a rare case, and we can safely expire the state, since we

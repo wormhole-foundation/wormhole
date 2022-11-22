@@ -27,6 +27,19 @@ type MessagePublication struct {
 	Unreliable bool
 }
 
+// TransactionQuery is a reference to a single transaction, to be fetched by the EmitterChain's watcher,
+// in order to retrieve the messages emitted during the transaction.
+type TransactionQuery struct {
+	EmitterChain  vaa.ChainID
+	TransactionID vaa.TransactionID
+}
+
+// TransactionData is the result of a TransactionQuery, it contains the message(s) emitted.
+type TransactionData struct {
+	TransactionQuery
+	Messages []*MessagePublication
+}
+
 func (msg *MessagePublication) MessageID() []byte {
 	return []byte(msg.MessageIDString())
 }
