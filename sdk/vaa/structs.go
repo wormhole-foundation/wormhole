@@ -748,10 +748,18 @@ func (v *BatchVAA) serializeBody() []byte {
 
 	hashes := v.ObsvHashArray()
 
-	MustWrite(buf, binary.BigEndian, uint8(len(hashes)))
+	numHashes := len(hashes)
+	if numHashes > MaxBatchObservations {
+		panic(fmt.Sprintf("encountered BatchVAA Hashes length outside of expected range: %d", numHashes))
+	}
+	MustWrite(buf, binary.BigEndian, uint8(numHashes))
 	MustWrite(buf, binary.BigEndian, hashes)
 
-	MustWrite(buf, binary.BigEndian, uint8(len(v.Observations)))
+	numObservations := len(v.Observations)
+	if numObservations > MaxBatchObservations {
+		panic(fmt.Sprintf("encountered BatchVAA Observation length outside of expected range: %d", numObservations))
+	}
+	MustWrite(buf, binary.BigEndian, uint8(numObservations))
 	for _, obsv := range v.Observations {
 
 		MustWrite(buf, binary.BigEndian, uint8(obsv.Index))
