@@ -2,19 +2,16 @@
 /// Sui one-time witness pattern reference: https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::wrapped {
     use sui::tx_context::TxContext;
-    //use sui::object::{Self};
     use sui::coin::{TreasuryCap};
-    //use sui::coin::{Self, Coin, TreasuryCap};
     use sui::transfer::{Self};
     use sui::tx_context::{Self};
 
     use token_bridge::bridge_state::{Self, BridgeState};
-    use token_bridge::vaa::{Self as token_bridge_vaa};
     use token_bridge::asset_meta::{AssetMeta, Self};
     use token_bridge::treasury::{Self};
 
     use wormhole::state::{Self as state, State as WormholeState};
-    use wormhole::myvaa::{parse_and_get_payload, destroy};
+    use wormhole::myvaa::{parse_and_get_payload};
 
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
     const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
