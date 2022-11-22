@@ -1,43 +1,48 @@
 module coin::coin_witness {
     use sui::transfer;
-    use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};
-    //use token_bridge::wrapped::create_wrapped_coin;
+    use sui::coin::Self;
 
-    //struct COIN_WITNESS has drop, store {}
+    use token_bridge::asset_meta::{Self, AssetMeta, get_decimals};
 
-    // publish this module to call into token_bridge and create a wrapped coin
-    //fun init(ctx: &mut TxContext) {
-        // paste the VAA below
-        //let vaa = x"deadbeef00001231231231";
-        //create_wrapped_coin(
-        //     b"0x9404271a20a3f22d61300f23503f276d4b42cb02",
-        //     b"0xd43fabcfa47c7f9a33ff3c88b32e707c701c1eb8",
-        //     vaa,
-        //     COIN_WITNESS {},
-        //     ctx
-        // )
-        //transfer::transfer(COIN_WITNESS {}, tx_context::sender(ctx));
-    //}
+    use wormhole::myvaa::{parse_and_get_payload};
 
-    /// Witness now has a `store` that allows us to store it inside a wrapper.
-    struct WITNESS has store, drop {}
+    struct COIN_WITNESS has drop {}
 
-    /// Carries the witness type. Can be used only once to get a Witness.
-    struct WitnessCarrier has key { id: UID, witness: WITNESS }
+    fun init(coin_witness: COIN_WITNESS, ctx: &mut TxContext) {
+        // Step 1. Paste token attestation VAA below
+        let vaa_bytes = x"0100000000010080366065746148420220f25a6275097370e8db40984529a6676b7a5fc9feb11755ec49ca626b858ddfde88d15601f85ab7683c5f161413b0412143241c700aff010000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef000000000150eb23000200000000000000000000000000000000000000000000000000000000beefface00020c424545460000000000000000000000000000000000000000000000000000000042656566206661636520546f6b656e0000000000000000000000000000000000";
 
-    /// Send a `WitnessCarrier` to the module publisher.
-    fun init(ctx: &mut TxContext) {
+        let payload = parse_and_get_payload(vaa_bytes);
+        let asset_meta: AssetMeta = asset_meta::parse(payload);
+        let decimals = get_decimals(&asset_meta);
+        let treasury_cap = coin::create_currency<COIN_WITNESS>(coin_witness, decimals, ctx);
         transfer::transfer(
-            WitnessCarrier { id: object::new(ctx), witness: WITNESS {} },
+            treasury_cap,
             tx_context::sender(ctx)
-        )
+        );
     }
 
-    /// Unwrap a carrier and get the inner WITNESS type.
-    public fun get_witness(carrier: WitnessCarrier): WITNESS {
-        let WitnessCarrier { id, witness } = carrier;
-        object::delete(id);
-        witness
-    }
+    //// Note: one-time callable function approach
+    //// this design doesn't work!
+
+    // public entry fun create_wrapped(
+    //     worm_state: &mut State,
+    //     token_state: &mut BridgeState,
+    //     //witness_carrier: WitnessCarrier,
+    //     ctx: &mut TxContext
+    // ) {
+    //     // Make sure to put your VAA here!
+    //     // Alternatively we can make this
+    //     let vaa = x"deadbeef00001231231231";
+
+    //     create_wrapped_coin<COIN_WITNESS>(
+    //         worm_state,
+    //         token_state,
+    //         //get_witness(witness_carrier),
+    //         COIN_WITNESS {},
+    //         vaa,
+    //         ctx
+    //     )
+    // }
 }

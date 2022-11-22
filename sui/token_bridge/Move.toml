@@ -5,7 +5,6 @@ version = "0.0.1"
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework", rev = "devnet" }
 Wormhole = { local = "../wormhole" }
-Coin = { local = "../coin" }
 
 [addresses]
-token_bridge = ""
+token_bridge = "0xc56966ffc15f202bebb7fb010ac061efe343b4ea"

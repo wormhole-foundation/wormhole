@@ -204,6 +204,15 @@ module wormhole::myvaa {
         vaa
     }
 
+    /// Gets a VAA payload without doing verififcation on the VAA. This method is
+    /// used for convenience in the Coin package, for example, for creating new tokens
+    /// with asset metadata in a token attestation VAA payload.
+    public fun parse_and_get_payload(bytes: vector<u8>): vector<u8> {
+        let vaa = parse(bytes);
+        let payload = destroy(vaa);
+        return payload
+    }
+
     /// Aborts if the VAA is not governance (i.e. sent from the governance
     /// emitter on the governance chain)
     public fun assert_governance(state: &State, vaa: &VAA) {

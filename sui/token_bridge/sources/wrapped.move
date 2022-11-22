@@ -3,39 +3,35 @@
 module token_bridge::wrapped {
     use sui::tx_context::TxContext;
     //use sui::object::{Self, UID};
-    use sui::coin::{Self};
+    use sui::coin::{TreasuryCap};
     //use sui::coin::{Self, Coin, TreasuryCap};
     //use sui::transfer::{Self};
 
     use token_bridge::bridge_state::{Self, BridgeState};
     use token_bridge::vaa::{Self as token_bridge_vaa};
-    use token_bridge::asset_meta::{AssetMeta, Self, get_decimals};
+    use token_bridge::asset_meta::{AssetMeta, Self};
     use token_bridge::treasury::{Self};
 
     use wormhole::state::{Self as state, State as WormholeState};
     use wormhole::myvaa::{Self as corevaa};
 
-    use coin::coin_witness::{get_witness, WitnessCarrier};
-
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
     const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
     const E_WRAPPED_COIN_ALREADY_INITIALIZED: u64 = 2;
 
-    public entry fun create_wrapped_coin<CoinType: drop>(
+    public entry fun create_wrapped_coin<CoinType>(
         state: &mut WormholeState,
         bridge_state: &mut BridgeState,
-        witness_carrier: WitnessCarrier<CoinType>,
+        treasury_cap: TreasuryCap<CoinType>,
         vaa: vector<u8>,
-        witness: CoinType,
         ctx: &mut TxContext,
     ) {
         let vaa = token_bridge_vaa::parse_verify_and_replay_protect(state, bridge_state, vaa, ctx);
         let asset_meta: AssetMeta = asset_meta::parse(corevaa::destroy(vaa));
-        let decimals = get_decimals(&asset_meta);
-        let treasury_cap = coin::create_currency<CoinType>(get_witness(witness_carrier), decimals, ctx);
-        // assert emitter is registered
+        //let decimals = get_decimals(&asset_meta);
+        //let treasury_cap = coin::create_currency<CoinType>(coin_witness, decimals, ctx);
 
-        // 0x...::COIN_WITNESS
+        // assert emitter is registered
 
         // TODO (pending Mysten Labs uniform token standard) -  extract/store decimals, token name, symbol, etc. from asset meta
         let t_cap_store = treasury::create_treasury_cap_store<CoinType>(treasury_cap, ctx);
