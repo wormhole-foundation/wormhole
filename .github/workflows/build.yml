@@ -184,9 +184,7 @@ jobs:
             cargo build-bpf --manifest-path "${p}"
           done
 
-          cargo test --workspace --features "nft-bridge/instructions"
           cargo test --workspace --features "token-bridge/instructions"
-          cargo test --workspace --features "wormhole-bridge-solana/instructions"
 
   aptos:
     name: Aptos

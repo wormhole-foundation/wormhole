@@ -135,9 +135,6 @@ async fn bridge_messages() {
     let message = [0u8; 32].to_vec();
     let emitter = Keypair::new();
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     for _ in 0..2 {
         let nonce = rand::thread_rng().gen();
 
@@ -328,9 +325,6 @@ async fn test_bridge_messages_unreliable() {
     let emitter = Keypair::new();
     let message_key = Keypair::new();
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     for _ in 0..2 {
         let nonce = rand::thread_rng().gen();
         let message: [u8; 32] = rand::thread_rng().gen();
@@ -451,9 +445,6 @@ async fn test_bridge_messages_unreliable_do_not_override_reliable() {
     let nonce = rand::thread_rng().gen();
     let message: [u8; 32] = rand::thread_rng().gen();
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     // Post the message using the reliable method
     common::post_message(
         client,
@@ -489,10 +480,6 @@ async fn bridge_works_after_transfer_fees() {
     // fees have been transferred out.
     // NOTE: the bridge is initialised to take a minimum of 500 in fees.
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
-
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     let fee_collector = FeeCollector::key(None, program);
     let initial_balance = common::get_account_balance(client, fee_collector).await;
 
@@ -577,9 +564,6 @@ async fn test_bridge_message_prefunded_account() {
     let payload = [0u8; 32].to_vec();
     let emitter = Keypair::new();
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     let nonce = rand::thread_rng().gen();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
@@ -647,9 +631,6 @@ async fn test_bridge_message_prefunded_account() {
 async fn invalid_emitter() {
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     // Generate a message we want to persist.
     let message = [0u8; 32].to_vec();
     let emitter = Keypair::new();
@@ -694,9 +675,6 @@ async fn invalid_emitter() {
 async fn guardian_set_change() {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
-
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
 
     // Use a timestamp from a few seconds earlier for testing to simulate thread::sleep();
     let now = std::time::SystemTime::now()
@@ -894,9 +872,6 @@ async fn guardian_set_change_fails() {
     let emitter = Keypair::new();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     // Upgrade the guardian set with a new set of guardians.
     let (new_public_keys, _new_secret_keys) = common::generate_keys(6);
     let nonce = rand::thread_rng().gen();
@@ -935,15 +910,11 @@ async fn guardian_set_change_fails() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn set_fees() {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
-
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
 
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
@@ -1099,9 +1070,6 @@ async fn set_fees_fails() {
     let emitter = Keypair::new();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
         fee: U256::from(100u128),
@@ -1149,9 +1117,6 @@ async fn free_fees() {
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
-
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
 
     // Set Fees to 0.
     let nonce = rand::thread_rng().gen();
@@ -1283,9 +1248,6 @@ async fn transfer_fees() {
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
         amount: 100u128.into(),
@@ -1348,9 +1310,6 @@ async fn transfer_fees_fails() {
     let emitter = Keypair::new();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
-
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
         amount: 100u128.into(),
@@ -1410,9 +1369,6 @@ async fn transfer_too_much() {
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
-
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
 
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
@@ -1476,9 +1432,6 @@ async fn foreign_bridge_messages() {
     let message = [0u8; 32].to_vec();
     let emitter = Keypair::new();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
-
-    // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
 
     // Verify the VAA generated on a foreign chain.
     let (vaa, body, _body_hash) =
