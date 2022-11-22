@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.3
+
+Fix `transferFromSolana`, `transferNativeSol` and `redeemOnSolana` for Token Bridge.
+
 ## 0.9.1
 
 ### Added
