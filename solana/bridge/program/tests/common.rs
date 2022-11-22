@@ -79,7 +79,7 @@ mod helpers {
             .unwrap_or_else(|_| "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o".to_string())
             .parse::<Pubkey>()
             .unwrap();
-        let builder = ProgramTest::new("bridge", program, processor!(instruction::solitaire));
+        let builder = ProgramTest::new("bridge4core", program, processor!(instruction::solitaire));
 
         let (client, payer, _) = builder.start().await;
 
