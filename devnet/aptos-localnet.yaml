@@ -63,8 +63,8 @@ spec:
               "cd /tmp/scripts && ./wait_for_devnet && ./deploy devnet && ./register_devnet && touch success && sleep infinity",
             ]
           readinessProbe:
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            periodSeconds: 1
+            failureThreshold: 300
             exec:
               command:
                 - cat
