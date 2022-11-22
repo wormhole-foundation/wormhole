@@ -24,8 +24,8 @@ async function publishWormholeMessage(contractAddress: HexString, accountFrom: A
       TxnBuilderTypes.AccountAddress.fromHex(accountFrom.address()),
       BigInt(sequenceNumber),
       scriptFunctionPayload,
-      BigInt(1000), //max gas to be used
-      BigInt(1), //price per unit gas
+      BigInt(30000), //max gas to be used
+      BigInt(100), //price per unit gas
       BigInt(Math.floor(Date.now() / 1000) + 10),
       new TxnBuilderTypes.ChainId(chainId),
     );
