@@ -911,6 +911,7 @@ async fn guardian_set_change_fails() {
 
 #[tokio::test]
 async fn set_fees() {
+    // This is a test.
     // Initialize a wormhole bridge on Solana to test with.
     let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
