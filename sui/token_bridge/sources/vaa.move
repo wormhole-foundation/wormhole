@@ -48,7 +48,8 @@ module token_bridge::vaa {
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         vaa: vector<u8>,
-        ctx: &mut TxContext): VAA {
+        ctx: &mut TxContext
+    ): VAA {
         let vaa = parse_and_verify(wormhole_state, bridge_state, vaa, ctx);
         replay_protect(bridge_state, &vaa, ctx);
         vaa
