@@ -111,6 +111,16 @@ module token_bridge::bridge_state {
       emitter: ExternalAddress
    }
 
+   // The following dummy structs are stored in BridgeState
+   // They will each have an associated dynamic map whose keys are
+   // indicated by their names, e.g. CoinStores, TreasuryCaps, etc.
+   // We do not want to make these all part of a monolithic dynamic map
+   // attached to the BridgeState object itself, because of key collision.
+   struct TreasuryCapDynamicMap has key, store {id: UID}
+   struct CoinStoreDynamicMap has key, store {id: UID}
+   struct WrappedAssetInfoDynamicMap has key, store {id: UID}
+   struct NativeAssetInfoDynamicMap has key, store {id: UID}
+
    // Treasury caps, token stores, consumed VAAs, registered emitters, etc.
    // are stored as dynamic fields of bridge state.
    struct BridgeState has key, store {
@@ -126,6 +136,10 @@ module token_bridge::bridge_state {
       // TODO - is it is OK to keep this?
       //        there will likely never be a few 100s of other bridge contracts
       registered_emitters: VecMap<U16, ExternalAddress>,
+      treasury_cap_dynamic_map: TreasuryCapDynamicMap,
+      coin_store_dynamic_map: CoinStoreDynamicMap,
+      wrapped_asset_info_dynamic_map: WrappedAssetInfoDynamicMap,
+      native_asset_info_dynamic_map: NativeAssetInfoDynamicMap
    }
 
    fun init(ctx: &mut TxContext) {
@@ -151,6 +165,10 @@ module token_bridge::bridge_state {
          consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
          emitter_cap: option::none<EmitterCapability>(),
          registered_emitters: vec_map::empty<U16, ExternalAddress>(),
+         treasury_cap_dynamic_map: TreasuryCapDynamicMap{id: object::new(ctx)},
+         coin_store_dynamic_map: CoinStoreDynamicMap{id: object::new(ctx)},
+         wrapped_asset_info_dynamic_map: WrappedAssetInfoDynamicMap{id: object::new(ctx)},
+         native_asset_info_dynamic_map: NativeAssetInfoDynamicMap{id: object::new(ctx)}
       };
       option::fill<EmitterCapability>(&mut state.emitter_cap, emitter_cap);
 
@@ -163,7 +181,7 @@ module token_bridge::bridge_state {
       coin: Coin<CoinType>,
       ctx: &mut TxContext
    ) {
-      if (!dynamic_object_field::exists_with_type<CoinTypeWrapper<CoinType>, CoinStore<CoinType>>(&mut bridge_state.id, CoinTypeWrapper<CoinType>{})) {
+      if (!dynamic_object_field::exists_with_type<CoinTypeWrapper<CoinType>, CoinStore<CoinType>>(&mut bridge_state.coin_store_dynamic_map.id, CoinTypeWrapper<CoinType>{})) {
 
          // If coin_store<CoinType> does not exist as a dynamic object field of bridge_state,
          // we create a new one and attach it to bridge_state as a dynamic field
@@ -171,7 +189,7 @@ module token_bridge::bridge_state {
          store_coin_store<CoinType>(bridge_state, coin_store)
 
       };
-      let coin_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, CoinStore<CoinType>>(&mut bridge_state.id, CoinTypeWrapper<CoinType>{});
+      let coin_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, CoinStore<CoinType>>(&mut bridge_state.coin_store_dynamic_map.id, CoinTypeWrapper<CoinType>{});
       treasury::deposit<CoinType>(coin_store, coin);
    }
 
@@ -180,27 +198,27 @@ module token_bridge::bridge_state {
       value: u64,
       ctx: &mut TxContext
    ): Coin<CoinType> {
-      let coin_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, CoinStore<CoinType>>(&mut bridge_state.id, CoinTypeWrapper<CoinType>{});
+      let coin_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, CoinStore<CoinType>>(&mut bridge_state.coin_store_dynamic_map.id, CoinTypeWrapper<CoinType>{});
       let coins = treasury::withdraw<CoinType>(coin_store, value, ctx);
       return coins
    }
 
    public(friend) fun mint<CoinType>(
-      state: &mut BridgeState,
+      bridge_state: &mut BridgeState,
       value: u64,
       ctx: &mut TxContext,
    ): Coin<CoinType> {
       // TODO: what if the treasury cap store does not exist as a dynamic field of Bridge State ?
-      let treasury_cap_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, TreasuryCapStore<CoinType>>(&mut state.id, CoinTypeWrapper<CoinType>{});
+      let treasury_cap_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, TreasuryCapStore<CoinType>>(&mut bridge_state.treasury_cap_dynamic_map.id, CoinTypeWrapper<CoinType>{});
       let coins = treasury::mint<CoinType>(treasury_cap_store, value, ctx);
       return coins
    }
 
    public(friend) fun burn<CoinType>(
-      state: &mut BridgeState,
+      bridge_state: &mut BridgeState,
       coin: Coin<CoinType>,
    ) {
-      let treasury_cap_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, TreasuryCapStore<CoinType>>(&mut state.id, CoinTypeWrapper<CoinType>{});
+      let treasury_cap_store = dynamic_object_field::borrow_mut<CoinTypeWrapper<CoinType>, TreasuryCapStore<CoinType>>(&mut bridge_state.treasury_cap_dynamic_map.id, CoinTypeWrapper<CoinType>{});
       treasury::burn<CoinType>(treasury_cap_store, coin);
    }
 
@@ -236,25 +254,25 @@ module token_bridge::bridge_state {
 
    public fun is_wrapped_asset<CoinType>(bridge_state: &BridgeState): bool {
       let coin_type_wrapper = CoinTypeWrapper<CoinType>{};
-      dynamic_object_field::exists_with_type<CoinTypeWrapper<CoinType>, WrappedAssetInfo>(&bridge_state.id, coin_type_wrapper)
+      dynamic_object_field::exists_with_type<CoinTypeWrapper<CoinType>, WrappedAssetInfo>(&bridge_state.wrapped_asset_info_dynamic_map.id, coin_type_wrapper)
    }
 
     public fun is_registered_native_asset<CoinType>(bridge_state: &BridgeState): bool {
       let coin_type_wrapper = CoinTypeWrapper<CoinType>{};
-      dynamic_object_field::exists_with_type<CoinTypeWrapper<CoinType>, NativeAssetInfo>(&bridge_state.id, coin_type_wrapper)
+      dynamic_object_field::exists_with_type<CoinTypeWrapper<CoinType>, NativeAssetInfo>(&bridge_state.native_asset_info_dynamic_map.id, coin_type_wrapper)
    }
 
    public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo {
       assert!(is_wrapped_asset<CoinType>(bridge_state), E_IS_NOT_WRAPPED_ASSET);
       let coin_type_wrapper = CoinTypeWrapper<CoinType>{};
-      let wrapped_asset_info = dynamic_object_field::borrow<CoinTypeWrapper<CoinType>, WrappedAssetInfo>(&bridge_state.id, coin_type_wrapper);
+      let wrapped_asset_info = dynamic_object_field::borrow<CoinTypeWrapper<CoinType>, WrappedAssetInfo>(&bridge_state.wrapped_asset_info_dynamic_map.id, coin_type_wrapper);
       get_origin_info_from_wrapped_asset_info(wrapped_asset_info)
    }
 
    public fun get_registered_native_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo {
       assert!(is_wrapped_asset<CoinType>(bridge_state), E_IS_NOT_REGISTERED_NATIVE_ASSET);
       let coin_type_wrapper = CoinTypeWrapper<CoinType>{};
-      let native_asset_info = dynamic_object_field::borrow<CoinTypeWrapper<CoinType>, NativeAssetInfo>(&bridge_state.id, coin_type_wrapper);
+      let native_asset_info = dynamic_object_field::borrow<CoinTypeWrapper<CoinType>, NativeAssetInfo>(&bridge_state.native_asset_info_dynamic_map.id, coin_type_wrapper);
       get_origin_info_from_native_asset_info(native_asset_info)
    }
 
@@ -268,26 +286,26 @@ module token_bridge::bridge_state {
 
    public(friend) fun store_treasury_cap<T>(state: &mut BridgeState, treasury_cap_store: treasury::TreasuryCapStore<T>) {
        // store the treasury_cap_store as a dynamic field of bridge state
-      dynamic_object_field::add<CoinTypeWrapper<T>, treasury::TreasuryCapStore<T>>(&mut state.id, CoinTypeWrapper<T>{}, treasury_cap_store);
+      dynamic_object_field::add<CoinTypeWrapper<T>, treasury::TreasuryCapStore<T>>(&mut state.treasury_cap_dynamic_map.id, CoinTypeWrapper<T>{}, treasury_cap_store);
    }
 
    public(friend) fun store_coin_store<T>(state: &mut BridgeState, treasury_coin_store: treasury::CoinStore<T>) {
       // store the coin store as a dynamic field of bridge state
-      dynamic_object_field::add<CoinTypeWrapper<T>, treasury::CoinStore<T>>(&mut state.id, CoinTypeWrapper<T>{}, treasury_coin_store);
+      dynamic_object_field::add<CoinTypeWrapper<T>, treasury::CoinStore<T>>(&mut state.coin_store_dynamic_map.id, CoinTypeWrapper<T>{}, treasury_coin_store);
    }
 
-   public(friend) fun store_consumed_vaa(state: &mut BridgeState, vaa: vector<u8>, ctx: &mut TxContext) {
-      object_table::add<vector<u8>, Unit>(&mut state.consumed_vaas, vaa, Unit{id: object::new(ctx)});
+   public(friend) fun store_consumed_vaa(bridge_state: &mut BridgeState, vaa: vector<u8>, ctx: &mut TxContext) {
+      object_table::add<vector<u8>, Unit>(&mut bridge_state.consumed_vaas, vaa, Unit{id: object::new(ctx)});
    }
 
-   public(friend) fun register_wrapped_asset<CoinType>(state: &mut BridgeState, wrapped_asset_info: WrappedAssetInfo){
+   public(friend) fun register_wrapped_asset<CoinType>(bridge_state: &mut BridgeState, wrapped_asset_info: WrappedAssetInfo){
       let coin_type_wrapper = CoinTypeWrapper<CoinType>{};
-      dynamic_object_field::add<CoinTypeWrapper<CoinType>, WrappedAssetInfo>(&mut state.id, coin_type_wrapper, wrapped_asset_info);
+      dynamic_object_field::add<CoinTypeWrapper<CoinType>, WrappedAssetInfo>(&mut bridge_state.wrapped_asset_info_dynamic_map.id, coin_type_wrapper, wrapped_asset_info);
    }
 
-    public(friend) fun register_native_asset<CoinType>(state: &mut BridgeState, native_asset_info: NativeAssetInfo){
+    public(friend) fun register_native_asset<CoinType>(bridge_state: &mut BridgeState, native_asset_info: NativeAssetInfo){
       let coin_type_wrapper = CoinTypeWrapper<CoinType>{};
-      dynamic_object_field::add<CoinTypeWrapper<CoinType>, NativeAssetInfo>(&mut state.id, coin_type_wrapper, native_asset_info);
+      dynamic_object_field::add<CoinTypeWrapper<CoinType>, NativeAssetInfo>(&mut bridge_state.native_asset_info_dynamic_map.id, coin_type_wrapper, native_asset_info);
    }
 
 }

@@ -51,4 +51,3 @@ echo "export TOKEN_EMITTER_CAPABILITY=\"$emitter\"" >> ../env.sh
 sui client call --function init_and_share_state --module bridge_state --package $TOKEN_PACKAGE  --gas-budget 20000 --args \"$TOKEN_DEPLOYER_CAPABILITY\" \"$TOKEN_EMITTER_CAPABILITY\" | tee token.log
 token_bridge=`grep Shared token.log | head -1 | sed -e 's/^.*: \(.*\) ,.*/\1/'`
 echo "export TOKEN_STATE=\"$token_bridge\"" >> ../env.sh
-
