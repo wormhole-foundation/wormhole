@@ -130,7 +130,7 @@ mod helpers {
                 .unwrap(),
         );
 
-        let mut builder = ProgramTest::new("bridge4tb", program, processor!(bridge::solitaire));
+        let mut builder = ProgramTest::new("bridge", program, processor!(bridge::solitaire));
         builder.add_program("spl_token_metadata", spl_token_metadata::id(), None);
         builder.add_program(
             "token_bridge",
