@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/CosmWasm/wasmd v0.28.0
+	github.com/CosmWasm/wasmvm v1.0.0 // indirect
 	github.com/cosmos/cosmos-sdk v0.45.9
 	github.com/cosmos/ibc-go/v3 v3.3.0
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
@@ -13,7 +14,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.12.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.14.0 // indirect
 	github.com/prometheus/client_golang v1.12.2
 	github.com/regen-network/cosmos-proto v0.3.1 // indirect
 	github.com/spf13/cast v1.5.0
@@ -25,7 +26,7 @@ require (
 	github.com/tendermint/tm-db v0.6.7
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
-	google.golang.org/genproto v0.0.0-20221014213838-99cd37c6964a
+	google.golang.org/genproto v0.0.0-20221114212237-e4508ebdbee1
 	google.golang.org/grpc v1.50.1
 	nhooyr.io/websocket v1.8.7 // indirect
 )
