@@ -631,6 +631,19 @@ func (v *BatchVAA) ObsvHashArray() []common.Hash {
 	return hashes
 }
 
+// Verify Signature checks that the provided address matches the address that created the signature for the provided data
+func VerifySignature(data []byte, signature *Signature, address common.Address) bool {
+	// retrieve the address that signed the data
+	pubKey, err := crypto.Ecrecover(data, signature.Signature[:])
+	if err != nil {
+		return false
+	}
+	addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
+
+	// check that the recovered address equals the provided address
+	return addr == address
+}
+
 func VerifySignatures(data []byte, signatures []*Signature, addresses []common.Address) bool {
 	if len(addresses) < len(signatures) {
 		return false
@@ -650,15 +663,10 @@ func VerifySignatures(data []byte, signatures []*Signature, addresses []common.A
 		}
 		last_index = int(sig.Index)
 
-		// Get pubKey to determine who signers address
-		pubKey, err := crypto.Ecrecover(data, sig.Signature[:])
-		if err != nil {
-			return false
-		}
-		addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
-
-		// Ensure this signer is at the correct positional index
-		if addr != addresses[sig.Index] {
+		// verify this signature
+		addr := addresses[sig.Index]
+		ok := VerifySignature(data, sig, addr)
+		if !ok {
 			return false
 		}
 
