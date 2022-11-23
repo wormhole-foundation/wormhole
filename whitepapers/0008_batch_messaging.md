@@ -37,7 +37,7 @@ The number of messages within a batch is constrained by the the maximum `uint8` 
 
 We will add support for two new VAA payload types to the Wormhole core contract to allow handling of these:
 
-- The VAAv2 payload that holds the batch-signatures, an array of the signed hashes and an array of observations (the **Structs** section of this paper defines `observation`). This VAAv2 payload can be verified using a new Wormhole core contract endpoint `verifyBatchVM`. This payload will also be produced for individual messages with a nonce greater than zero to offer integrators flexibility when deciding which Wormhole core endpoint to verify messages with.
+- The VAAv2 payload that holds the batch-signatures, an array of the signed hashes and an array of observations (the [Structs](#structs) section of this paper defines `observation`). This VAAv2 payload can be verified using a new Wormhole core contract endpoint `verifyBatchVM`. This payload will also be produced for individual messages with a nonce greater than zero to offer integrators flexibility when deciding which Wormhole core endpoint to verify messages with.
 - The VAAv3 payload, which is a “headless” payload that only carries an observation. This payload can only be verified when its hash is cached by the Wormhole core contract during VAAv2 signature verification. This payload type is created when a VAAv2 is parsed using the Wormhole core endpoint `parseBatchVM` by prepending the version type to the observation bytes. Although the payload format for VAAv3 is new, it will be parsed and verified using the existing Wormhole core endpoints and parsed into the existing `VM` struct (`signatures[]` and `guardianSetIndex` will be null) to ensure backwards compatibility.
 
 ## Detailed Design
@@ -48,7 +48,7 @@ To create a VAAv2 payload (which is eventually parsed into the `VM2` struct) an 
 
 `hash(version, hash(hash(Observation1), hash(Observation2), ...))`
 
-Once the batch is signed by the guardian, the VAAv2 can be parsed and verified by calling the new Wormhole core endpoint `parseAndVerifyBatchVM`. This method parses the VAAv2 into the `VM2` struct by calling `parseBatchVM`, calls `verifyBatchVM` to verify the batch-signatures, and stores the hash of each observation in a cache when specified by the caller (for reasons explained in the **VAAv3** section of this detailed design). `verifyBatchVM` also independently computes the hash of each observation and validates that each hash is stored in the `hashes` array, which is included in the VAAv2 payload. The structure of the VAAv2 payload can be found in the **Payloads** section of this design.
+Once the batch is signed by the guardian, the VAAv2 can be parsed and verified by calling the new Wormhole core endpoint `parseAndVerifyBatchVM`. This method parses the VAAv2 into the `VM2` struct by calling `parseBatchVM`, calls `verifyBatchVM` to verify the batch-signatures, and stores the hash of each observation in a cache when specified by the caller (for reasons explained in the [VAAv3](#vaav3) section of this detailed design). `verifyBatchVM` also independently computes the hash of each observation and validates that each hash is stored in the `hashes` array, which is included in the VAAv2 payload. The structure of the VAAv2 payload can be found in the [Payloads](#payloads-encoded-messages) section of this design.
 
 ### VAAv3
 
