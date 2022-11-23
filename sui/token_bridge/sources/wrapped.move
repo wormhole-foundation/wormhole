@@ -89,12 +89,6 @@ module token_bridge::wrapped {
 
         let payload = parse_and_get_payload(vaa_bytes);
 
-        // TODO - parse and verify VAA (& replay protect) instead of merely extracting payload
-        //        let vaa = token_bridge_vaa::parse_and_verify_and_replay_protect(state, bridge_state, bytes, ctx);
-        //        let _payload = destroy(vaa);
-
-        // TODO (pending Mysten Labs uniform token standard) -  extract and store token metadata
-
         let metadata = asset_meta::parse(payload);
         let origin_chain = asset_meta::get_token_chain(&metadata);
         let external_address = asset_meta::get_token_address(&metadata);
@@ -110,6 +104,6 @@ module token_bridge::wrapped {
         assert!(!bridge_state::is_registered_native_asset<CoinType>(bridge_state), E_WRAPPING_REGISTERED_NATIVE_COIN);
         assert!(!bridge_state::is_wrapped_asset<CoinType>(bridge_state), E_WRAPPED_COIN_ALREADY_INITIALIZED);
 
-        bridge_state::register_wrapped_asset<CoinType>(bridge_state, wrapped_asset_info);
+        bridge_state::register_wrapped_asset<CoinType>(bridge_state, wrapped_asset_info, ctx);
     }
 }
