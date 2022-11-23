@@ -30,7 +30,19 @@ import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import { isOutdated } from "./cmds/update";
 import { setDefaultWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
-import { assertChain, assertEVMChain, ChainName, CHAINS, CONTRACTS as SDK_CONTRACTS, isCosmWasmChain, isEVMChain, isTerraChain, toChainId, toChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import {
+  assertChain,
+  assertEVMChain,
+  ChainName,
+  CHAINS,
+  CONTRACTS,
+  isCosmWasmChain,
+  isEVMChain,
+  isTerraChain,
+  toChainId,
+  toChainName,
+} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { isValidAptosType } from "@certusone/wormhole-sdk/lib/cjs/utils/aptos";
 
 setDefaultWasm("node");
 
@@ -44,37 +56,6 @@ if (isOutdated()) {
 const GOVERNANCE_CHAIN = 1;
 const GOVERNANCE_EMITTER =
   "0000000000000000000000000000000000000000000000000000000000000004";
-
-// TODO: remove this once the aptos SDK changes are merged in
-const OVERRIDES = {
-  MAINNET: {
-    aptos: {
-      token_bridge:
-        "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
-      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
-    },
-  },
-  TESTNET: {
-    aptos: {
-      token_bridge:
-        "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
-      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
-    },
-  },
-  DEVNET: {
-    aptos: {
-      token_bridge:
-        "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
-      core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
-    },
-  },
-};
-
-export const CONTRACTS = {
-  MAINNET: { ...SDK_CONTRACTS.MAINNET, ...OVERRIDES.MAINNET },
-  TESTNET: { ...SDK_CONTRACTS.TESTNET, ...OVERRIDES.TESTNET },
-  DEVNET: { ...SDK_CONTRACTS.DEVNET, ...OVERRIDES.DEVNET },
-};
 
 function makeVAA(
   emitterChain: number,
@@ -921,13 +902,12 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui" || chain === "aptos") {
-    if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
-      return "0x" + evm_address(address);
+    if (isValidAptosType(address)) {
+      return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
     }
-    
-    return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
+    return "0x" + evm_address(address);
   } else if (chain === "wormchain") {
-    const sdk = require("@certusone/wormhole-sdk/lib/cjs/utils/array")
+    const sdk = require("@certusone/wormhole-sdk/lib/cjs/utils/array");
     return "0x" + sdk.tryNativeToHexString(address, chain);
   } else {
     impossible(chain);
