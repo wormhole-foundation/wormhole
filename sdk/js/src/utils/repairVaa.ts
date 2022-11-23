@@ -26,10 +26,10 @@ export async function getCurrentGuardianSet(
   };
   const core = Implementation__factory.connect(ETHEREUM_CORE_BRIDGE, provider);
   const index = await core.getCurrentGuardianSetIndex();
-  const guardian_set = await core.getGuardianSet(index);
+  const guardianSet = await core.getGuardianSet(index);
   result.index = index;
-  result.keys = guardian_set[0];
-  result.expiry = guardian_set[1];
+  result.keys = guardianSet[0];
+  result.expiry = guardianSet[1];
   return result;
 }
 
@@ -50,14 +50,14 @@ export function repairVaa(
   const minNumSignatures =
     Math.floor((2.0 * currentGuardianSet.length) / 3.0) + 1;
   const version = vaaHex.slice(0, 2);
-  const parsed_vaa = parseVaa(hexToUint8Array(vaaHex));
-  const numSignatures = parsed_vaa.guardianSignatures.length;
-  const digest = keccak256(parsed_vaa.hash).toString("hex");
+  const parsedVaa = parseVaa(hexToUint8Array(vaaHex));
+  const numSignatures = parsedVaa.guardianSignatures.length;
+  const digest = keccak256(parsedVaa.hash).toString("hex");
 
   var validSignatures: GuardianSignature[] = [];
 
   // take each signature, check if valid against hash & current guardian set
-  parsed_vaa.guardianSignatures.forEach((signature) => {
+  parsedVaa.guardianSignatures.forEach((signature) => {
     try {
       const vaaGuardianPublicKey = ethers.utils.recoverAddress(
         hex(digest),
