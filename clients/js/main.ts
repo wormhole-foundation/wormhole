@@ -21,15 +21,8 @@ import yargs from "yargs";
 
 import { hideBin } from "yargs/helpers";
 
-import { fromBech32, toHex } from "@cosmjs/encoding";
-import * as vaa from "./vaa";
-import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
-import { ethers } from "ethers";
-import { NETWORKS } from "./networks";
-import base58 from "bs58";
-import { sha3_256 } from "js-sha3";
-import { isOutdated } from "./cmds/update";
 import { setDefaultWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
+import { isValidAptosType } from "@certusone/wormhole-sdk/lib/cjs/utils/aptos";
 import {
   assertChain,
   assertEVMChain,
@@ -40,9 +33,16 @@ import {
   isEVMChain,
   isTerraChain,
   toChainId,
-  toChainName,
+  toChainName
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { isValidAptosType } from "@certusone/wormhole-sdk/lib/cjs/utils/aptos";
+import { fromBech32, toHex } from "@cosmjs/encoding";
+import base58 from "bs58";
+import { ethers } from "ethers";
+import { sha3_256 } from "js-sha3";
+import { isOutdated } from "./cmds/update";
+import { NETWORKS } from "./networks";
+import * as vaa from "./vaa";
+import { impossible, Payload, serialiseVAA, VAA } from "./vaa";
 
 setDefaultWasm("node");
 
@@ -901,7 +901,10 @@ function parseAddress(chain: ChainName, address: string): string {
     return "0x" + hex(address).substring(2).padStart(64, "0");
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
-  } else if (chain === "sui" || chain === "aptos") {
+  } else if (chain === "sui") {
+    // TODO: handle fully qualified type
+    return "0x" + evm_address(address);
+  } else if (chain === "aptos") {
     if (isValidAptosType(address)) {
       return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
     }
