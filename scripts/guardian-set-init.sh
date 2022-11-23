@@ -92,6 +92,7 @@ nearTokenBridge=$(jq --raw-output '.chains."15".contracts.tokenBridgeEmitterAddr
 terra2TokenBridge=$(jq --raw-output '.chains."18".contracts.tokenBridgeEmitterAddress' $addressesJson)
 wormchainTokenBridge=$(jq --raw-output '.chains."3104".contracts.tokenBridgeEmitterAddress' $addressesJson)
 aptosTokenBridge=$(jq --raw-output '.chains."22".contracts.tokenBridgeEmitterAddress' $addressesJson)
+suiTokenBridge=$(jq --raw-output '.chains."21".contracts.tokenBridgeEmitterAddress' $addressesJson)
 
 solNFTBridge=$(jq --raw-output '.chains."1".contracts.nftBridgeEmitterAddress' $addressesJson)
 ethNFTBridge=$(jq --raw-output '.chains."2".contracts.nftBridgeEmitterAddress' $addressesJson)
@@ -109,6 +110,7 @@ nearTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m To
 terra2TokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
 wormchainTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
 aptosTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c aptos -a ${aptosTokenBridge} -g ${guardiansPrivateCSV})
+suiTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c sui -a ${suiTokenBridge} -g ${guardiansPrivateCSV})
 
 
 # 5) create nft bridge registration VAAs
@@ -131,6 +133,7 @@ terra2TokenBridge="REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
 nearTokenBridge="REGISTER_NEAR_TOKEN_BRIDGE_VAA"
 wormchainTokenBridge="REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
 aptosTokenBridge="REGISTER_APTOS_TOKEN_BRIDGE_VAA"
+suiTokenBridge="REGISTER_SUI_TOKEN_BRIDGE_VAA"
 
 solNFTBridge="REGISTER_SOL_NFT_BRIDGE_VAA"
 ethNFTBridge="REGISTER_ETH_NFT_BRIDGE_VAA"
@@ -177,6 +180,10 @@ upsert_env_file $envFile $terra2TokenBridge $terra2TokenBridgeVAA
 # aptos token bridge
 upsert_env_file $ethFile $aptosTokenBridge $aptosTokenBridgeVAA
 upsert_env_file $envFile $aptosTokenBridge $aptosTokenBridgeVAA
+
+# sui token bridge
+upsert_env_file $ethFile $suiTokenBridge $suiTokenBridgeVAA
+upsert_env_file $envFile $suiTokenBridge $suiTokenBridgeVAA
 
 # near token bridge
 upsert_env_file $ethFile $nearTokenBridge $nearTokenBridgeVAA

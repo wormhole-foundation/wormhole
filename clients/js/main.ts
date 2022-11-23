@@ -920,9 +920,7 @@ function parseAddress(chain: ChainName, address: string): string {
     return "0x" + hex(address).substring(2).padStart(64, "0");
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
-  } else if (chain === "sui") {
-    throw Error("SUI is not supported yet");
-  } else if (chain === "aptos") {
+  } else if (chain === "sui" || chain === "aptos") {
     if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
       return "0x" + evm_address(address);
     }
