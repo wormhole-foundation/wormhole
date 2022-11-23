@@ -9,6 +9,7 @@ Right now it is unclear how to do token attestation, because Mysten Labs is stil
 There doesn't seem to be a standardized way to store info about a coin. One way is to create a `CoinInfo` object containing the name, symbol, decimals of the token, and `transfer::freeze_object` it.
 
 ## Creating new Coin Types
+TODO: this is outdated
 We emulate the transferable witness pattern to allow users to call into the token bridge contract and prompt it to create a new currency representing a wrapped asset.
 
 A user should first get a token attestation VAA, copy it into the one-time-witness coin template outlined below, and finally publish the package so that
