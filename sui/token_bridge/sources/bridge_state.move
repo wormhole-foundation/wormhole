@@ -1,5 +1,6 @@
 module token_bridge::bridge_state {
    use std::option::{Self, Option};
+   use std::bcs::{Self};
 
    use sui::object::{Self, UID};
    use sui::vec_map::{Self, VecMap};
@@ -12,7 +13,7 @@ module token_bridge::bridge_state {
    use token_bridge::string32::{String32};
    use token_bridge::dynamic_set;
 
-   use wormhole::external_address::{ExternalAddress};
+   use wormhole::external_address::{Self, ExternalAddress};
    use wormhole::myu16::{U16};
    use wormhole::wormhole::{Self};
    use wormhole::state::{State};
@@ -21,6 +22,8 @@ module token_bridge::bridge_state {
 
    const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
    const E_IS_NOT_REGISTERED_NATIVE_ASSET: u64 = 1;
+   const E_COIN_TYPE_HAS_NO_REGISTERED_INTEGER_ADDRESS: u64 = 2;
+   const E_COIN_TYPE_HAS_REGISTERED_INTEGER_ADDRESS: u64 = 3;
 
    friend token_bridge::vaa;
    friend token_bridge::register_chain;
@@ -106,6 +109,53 @@ module token_bridge::bridge_state {
       }
    }
 
+   // Integer label for coin types registered with Wormhole
+
+   struct CoinTypeIntegerLabel<phantom CoinType> has key, store {
+      id: UID,
+      index: u64,
+   }
+
+   struct CoinTypeNamesRegistry has key, store {
+      id: UID,
+      index: u64, // next index to use
+   }
+
+   public fun get_coin_type_bytes_address<CoinType>(
+      bridge_state: &BridgeState
+   ): ExternalAddress {
+      let has_integer_address =
+         dynamic_set::exists_<CoinTypeIntegerLabel<CoinType>>(
+            &bridge_state.coin_type_names.id
+         );
+      assert!(has_integer_address, E_COIN_TYPE_HAS_NO_REGISTERED_INTEGER_ADDRESS);
+      let coin_type_integer_label: &CoinTypeIntegerLabel<CoinType> =
+         dynamic_set::borrow(&bridge_state.coin_type_names.id);
+      return external_address::from_bytes(bcs::to_bytes<u64>(&coin_type_integer_label.index))
+   }
+
+   public(friend) fun assign_coin_type_bytes_address<CoinType>(
+      bridge_state: &mut BridgeState,
+      ctx: &mut TxContext
+   ): ExternalAddress {
+      let has_integer_address =
+         dynamic_set::exists_<CoinTypeIntegerLabel<CoinType>>(
+            &bridge_state.coin_type_names.id
+         );
+      assert!(!has_integer_address, E_COIN_TYPE_HAS_REGISTERED_INTEGER_ADDRESS);
+      let cur_index = bridge_state.coin_type_names.index;
+      let integer_label_object = CoinTypeIntegerLabel<CoinType> {
+         id: object::new(ctx),
+         index: cur_index
+      };
+      dynamic_set::add(&mut bridge_state.coin_type_names.id, integer_label_object);
+
+      // increment index in coin type names registry
+      let new_index = cur_index + 1;
+      bridge_state.coin_type_names.index = new_index;
+      return external_address::from_bytes(bcs::to_bytes<u64>(&cur_index))
+   }
+
    // Treasury caps, token stores, consumed VAAs, registered emitters, etc.
    // are stored as dynamic fields of bridge state.
    struct BridgeState has key, store {
@@ -117,10 +167,10 @@ module token_bridge::bridge_state {
       /// Token bridge owned emitter capability
       emitter_cap: option::Option<EmitterCapability>,
 
-      // Mapping of bridge contracts on other chains
-      // TODO - is it is OK to keep this?
-      //        there will likely never be a few 100s of other bridge contracts
+      /// Mapping of bridge contracts on other chains
       registered_emitters: VecMap<U16, ExternalAddress>,
+
+      coin_type_names: CoinTypeNamesRegistry,
    }
 
    fun init(ctx: &mut TxContext) {
@@ -139,13 +189,17 @@ module token_bridge::bridge_state {
       emitter_cap: EmitterCapability,
       ctx: &mut TxContext
    ) {
-      let DeployerCapability{id} = deployer;
+      let DeployerCapability{ id } = deployer;
       object::delete(id);
       let state = BridgeState {
          id: object::new(ctx),
          consumed_vaas: set::new(ctx),
          emitter_cap: option::some(emitter_cap),
          registered_emitters: vec_map::empty(),
+         coin_type_names: CoinTypeNamesRegistry {
+            id: object::new(ctx),
+            index: 1, // starting index 1, because 0 can be problematic on EVM chains
+         }
       };
 
       // permanently shares state
@@ -258,32 +312,57 @@ module token_bridge::bridge_state {
       set::add(&mut bridge_state.consumed_vaas, vaa);
    }
 
-   public(friend) fun register_wrapped_asset<CoinType>(bridge_state: &mut BridgeState, wrapped_asset_info: WrappedAssetInfo<CoinType>) {
+   public(friend) fun register_wrapped_asset<CoinType>(bridge_state: &mut BridgeState, wrapped_asset_info: WrappedAssetInfo<CoinType>, ctx: &mut TxContext) {
       dynamic_set::add<WrappedAssetInfo<CoinType>>(&mut bridge_state.id, wrapped_asset_info);
+      assign_coin_type_bytes_address<CoinType>(bridge_state, ctx);
    }
 
-    public(friend) fun register_native_asset<CoinType>(bridge_state: &mut BridgeState, native_asset_info: NativeAssetInfo<CoinType>) {
+    public(friend) fun register_native_asset<CoinType>(bridge_state: &mut BridgeState, native_asset_info: NativeAssetInfo<CoinType>, ctx: &mut TxContext) {
       dynamic_set::add<NativeAssetInfo<CoinType>>(&mut bridge_state.id, native_asset_info);
+      assign_coin_type_bytes_address<CoinType>(bridge_state, ctx);
    }
 
 }
 
 #[test_only]
 module token_bridge::test_bridge_state{
+   use std::bcs::{Self};
+
    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
 
    use wormhole::state::{State};
    use wormhole::test_state::{init_wormhole_state};
    use wormhole::wormhole::{Self};
+   use wormhole::external_address::{Self};
 
-   use token_bridge::bridge_state::{Self, BridgeState, test_init};
+   use token_bridge::bridge_state::{Self, BridgeState, test_init, assign_coin_type_bytes_address, get_coin_type_bytes_address};
 
    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
+   struct MyCoinType1 {}
+   struct MyCoinType2 {}
+
    #[test]
    fun test_state_setters() {
       test_state_setters_(scenario())
+   }
+
+   #[test]
+   fun test_coin_type_addressing(){
+      test_coin_type_addressing_(scenario())
+   }
+
+   #[test]
+   #[expected_failure(abort_code = 3)]
+   fun test_coin_type_addressing_failure_case(){
+      test_coin_type_addressing_failure_case_(scenario())
+   }
+
+   #[test]
+   #[expected_failure(abort_code = 2)]
+   fun test_coin_type_addressing_failure_case_2(){
+      test_coin_type_addressing_failure_case_2_(scenario())
    }
 
    public fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
@@ -329,6 +408,60 @@ module token_bridge::test_bridge_state{
          // TODO - test store treasury cap
 
          return_shared<BridgeState>(state);
+      };
+      test_scenario::end(test);
+   }
+
+   fun test_coin_type_addressing_(test: Scenario) {
+       let (admin, _, _) = people();
+
+      test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+      //test coin type addressing
+      next_tx(&mut test, admin); {
+         let bridge_state = take_shared<BridgeState>(&test);
+         assign_coin_type_bytes_address<MyCoinType1>(&mut bridge_state, ctx(&mut test));
+         let bytes_address = get_coin_type_bytes_address<MyCoinType1>(&bridge_state);
+         assert!(bytes_address==external_address::from_bytes(bcs::to_bytes<u64>(&1)), 0);
+
+         assign_coin_type_bytes_address<MyCoinType2>(&mut bridge_state, ctx(&mut test));
+         let bytes_address = get_coin_type_bytes_address<MyCoinType2>(&bridge_state);
+         assert!(bytes_address==external_address::from_bytes(bcs::to_bytes<u64>(&2)), 0);
+         return_shared<BridgeState>(bridge_state);
+      };
+      test_scenario::end(test);
+   }
+
+   fun test_coin_type_addressing_failure_case_(test: Scenario) {
+      let (admin, _, _) = people();
+
+      test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+      //test coin type addressing
+      next_tx(&mut test, admin); {
+         let bridge_state = take_shared<BridgeState>(&test);
+         assign_coin_type_bytes_address<MyCoinType1>(&mut bridge_state, ctx(&mut test));
+         let bytes_address = get_coin_type_bytes_address<MyCoinType1>(&bridge_state);
+         assert!(bytes_address==external_address::from_bytes(bcs::to_bytes<u64>(&1)), 0);
+
+         // aborts because trying to re-assign address to coin_type_1
+         assign_coin_type_bytes_address<MyCoinType1>(&mut bridge_state, ctx(&mut test));
+         return_shared<BridgeState>(bridge_state);
+      };
+      test_scenario::end(test);
+   }
+
+   fun test_coin_type_addressing_failure_case_2_(test: Scenario) {
+      let (admin, _, _) = people();
+
+      test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+      //test coin type addressing
+      next_tx(&mut test, admin); {
+         let bridge_state = take_shared<BridgeState>(&test);
+         // byte address does not exist, so throws error
+         let _bytes_address = get_coin_type_bytes_address<MyCoinType1>(&bridge_state);
+         return_shared<BridgeState>(bridge_state);
       };
       test_scenario::end(test);
    }
