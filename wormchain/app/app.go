@@ -124,11 +124,14 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 }
 
 // GetWasmOpts build wasm options
-func GetWasmOpts(appOpts servertypes.AppOptions) []wasm.Option {
+func GetWasmOpts(app *App, appOpts servertypes.AppOptions) []wasm.Option {
 	var wasmOpts []wasm.Option
 	if cast.ToBool(appOpts.Get("telemetry.enabled")) {
 		wasmOpts = append(wasmOpts, wasmkeeper.WithVMCacheMetrics(prometheus.DefaultRegisterer))
 	}
+
+	// add the custom wormhole query handler
+	wasmOpts = append(wasmOpts, wasmkeeper.WithQueryPlugins(wormholemodulekeeper.NewCustomQueryHandler(app.WormholeKeeper)))
 
 	return wasmOpts
 }
@@ -385,7 +388,7 @@ func New(
 
 	// The last arguments can contain custom message handlers, and custom query handlers,
 	// if we want to allow any custom callbacks
-	supportedFeatures := "iterator,staking,stargate"
+	supportedFeatures := "iterator,staking,stargate,wormhole"
 	wasmDir := filepath.Join(homePath, "data")
 	// Instantiate wasm keeper with stubs for other modules as we do not need
 	// wasm to be able to write to other modules.
@@ -407,7 +410,7 @@ func New(
 		wasm.DefaultWasmConfig(),
 		// wasmConfig.ToWasmConfig(),
 		supportedFeatures,
-		GetWasmOpts(appOpts)...,
+		GetWasmOpts(app, appOpts)...,
 	)
 	permissionedWasmKeeper := wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
 	app.WormholeKeeper.SetWasmdKeeper(permissionedWasmKeeper)
