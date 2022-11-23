@@ -33,6 +33,8 @@ For now, all Wormhole messages that are emitted during a transaction will contin
 
 Guardians will start producing batch-signatures for messages emitted within the same transaction and that share the same nonce. However, messages with a nonce of zero will not receive batch-signatures, as this is a way of opting out of including messages in a batch VAA.
 
+The number of messages within a batch is constrained by the the maximum `uint8` value of 255, due to the [VAAv2 Payload Encoding format](#payloads-encoded-messages). If a transaction produces more than 255 messages with the same nonce a batch-signature will not be produced because it would not fit within the binary encoding understood by `parseAndVerifyBatchVM`, and therefore could not be successfully verified on-chain. Transactions may include messages to produce multiple batch-signatures, which would be independent of each other verified individually.
+
 We will add support for two new VAA payload types to the Wormhole core contract to allow handling of these:
 
 - The VAAv2 payload that holds the batch-signatures, an array of the signed hashes and an array of observations (the **Structs** section of this paper defines `observation`). This VAAv2 payload can be verified using a new Wormhole core contract endpoint `verifyBatchVM`. This payload will also be produced for individual messages with a nonce greater than zero to offer integrators flexibility when deciding which Wormhole core endpoint to verify messages with.
@@ -42,7 +44,7 @@ We will add support for two new VAA payload types to the Wormhole core contract 
 
 ### VAAv2
 
-To create a VAAv2 payload (which is eventually parsed into the `VM2` struct) an xDapp will invoke the `publishMessage` method at least one time with a nonce greater than zero. The guardian will then produce a VAAv2 payload by grouping all messages with the same `nonce` (in the same transaction) and create a batch-signature by signing the payload version (`uint8(2)` for batches) and hash of all hashes of the observations:
+To create a VAAv2 payload (which is eventually parsed into the `VM2` struct) an xDapp will invoke the `publishMessage` method at least one time with a nonce greater than zero. The guardian will then produce a VAAv2 payload by grouping messages with the same `nonce` (in the same transaction) and create a batch-signature by signing the payload version (`uint8(2)` for batches) and hash of all hashes of the observations:
 
 `hash(version, hash(hash(Observation1), hash(Observation2), ...))`
 
