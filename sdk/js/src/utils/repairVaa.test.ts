@@ -56,7 +56,7 @@ test("number of vaa signatures does not match parse signatures", () => {
   }).toThrow("Attempt to access memory outside buffer bounds");
 });
 
-test("Use current guardian set", async () => {
+test.skip("Use current guardian set", async () => {
   const rpcUrl = "https://rpc.ankr.com/eth";
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
   // Grab current guardian set and successfully repair.
@@ -69,7 +69,7 @@ test("Use current guardian set", async () => {
   );
 });
 
-test("Grab current guardian set with bad rpc", async () => {
+test.skip("Grab current guardian set with bad rpc", async () => {
   const rpcUrl = "https://rkc.ankr.com/eth";
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
   // Try to grab current guardian set with bad rpc. Should throw error
