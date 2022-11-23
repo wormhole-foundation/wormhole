@@ -21,8 +21,6 @@ module token_bridge::treasury {
         cap: TreasuryCap<CoinType>,
     }
 
-    struct UnparametrizedObject has key, store {id: UID}
-
     struct CoinStore<phantom CoinType> has key, store {
         id: UID,
         coins: Coin<CoinType>,
