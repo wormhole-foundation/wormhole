@@ -35,7 +35,7 @@ module token_bridge::wrapped {
     /// TODO: it would be nice if we could also enforce that the OTW struct's
     /// name matches the token symbol being registered. Currently there's no way
     /// to do this in the sui framework.
-    struct NewWrappedCoin<phantom CoinType> has key {
+    struct NewWrappedCoin<phantom CoinType> has key, store {
         id: UID,
         vaa_bytes: vector<u8>,
         treasury_cap: TreasuryCap<CoinType>
