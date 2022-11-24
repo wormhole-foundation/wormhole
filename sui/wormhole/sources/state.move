@@ -5,11 +5,11 @@ module wormhole::state {
     use sui::tx_context::{Self, TxContext};
     use sui::transfer::{Self};
     use sui::vec_map::{Self, VecMap};
-    use sui::vec_set::{Self, VecSet};
     use sui::event::{Self};
 
     use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
+    use wormhole::set::{Self, Set};
     use wormhole::structs::{Self, create_guardian, Guardian, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::emitter::{Self};
@@ -53,7 +53,7 @@ module wormhole::state {
         guardian_set_expiry: U32,
 
         /// Consumed governance actions
-        consumed_governance_actions: VecSet<vector<u8>>,
+        consumed_governance_actions: Set<vector<u8>>,
 
         /// Capability for creating new emitters
         emitter_registry: emitter::EmitterRegistry,
@@ -87,7 +87,7 @@ module wormhole::state {
             guardian_set_index: u32::from_u64(0),
             guardian_sets: vec_map::empty<U32, GuardianSet>(),
             guardian_set_expiry: u32::from_u64(0),
-            consumed_governance_actions: vec_set::empty<vector<u8>>(),
+            consumed_governance_actions: set::new(ctx),
             emitter_registry: emitter::init_emitter_registry(),
             message_fee: 0,
         };
@@ -151,7 +151,7 @@ module wormhole::state {
     }
 
     public(friend) fun set_governance_action_consumed(state: &mut State, hash: vector<u8>){
-        vec_set::insert<vector<u8>>(&mut state.consumed_governance_actions, hash);
+        set::add<vector<u8>>(&mut state.consumed_governance_actions, hash);
     }
 
     public(friend) fun set_governance_contract(state: &mut State, contract: vector<u8>) {

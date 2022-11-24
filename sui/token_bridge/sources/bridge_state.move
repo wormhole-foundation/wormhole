@@ -8,7 +8,6 @@ module token_bridge::bridge_state {
    use sui::transfer::{Self};
    use sui::tx_context::{Self};
    use sui::sui::SUI;
-   use sui::object_table::{Self};
 
    use token_bridge::treasury::{Self, CoinStore, TreasuryCapStore};
    use token_bridge::string32::{String32};
@@ -19,6 +18,7 @@ module token_bridge::bridge_state {
    use wormhole::wormhole::{Self};
    use wormhole::state::{State};
    use wormhole::emitter::{EmitterCapability};
+   use wormhole::set::{Self, Set};
 
    const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
    const E_IS_NOT_REGISTERED_NATIVE_ASSET: u64 = 1;
@@ -44,10 +44,8 @@ module token_bridge::bridge_state {
       id: UID,
       token_chain: U16,
       token_address: ExternalAddress,
-      // TODO - add fields for name, symbol, etc? Dependent on Sui token metadata standard.
-      // symbol: String32,
-      // name: String32,
-      // decimals: u64,
+      // TODO: add the following when coin metadata is on 'devnet'
+      // coin_meta: CoinMetadata<CoinType>,
    }
 
    struct NativeAssetInfo<phantom CoinType> has key, store {
@@ -101,15 +99,13 @@ module token_bridge::bridge_state {
       }
    }
 
-   struct Unit has key, store {id: UID,} // for turning object_table into a set
-
    // Treasury caps, token stores, consumed VAAs, registered emitters, etc.
    // are stored as dynamic fields of bridge state.
    struct BridgeState has key, store {
       id: UID,
 
       /// Set of consumed VAA hashes
-      consumed_vaas: object_table::ObjectTable<vector<u8>, Unit>,
+      consumed_vaas: Set<vector<u8>>,
 
       /// Token bridge owned emitter capability
       emitter_cap: option::Option<EmitterCapability>,
@@ -140,7 +136,7 @@ module token_bridge::bridge_state {
       object::delete(id);
       let state = BridgeState {
          id: object::new(ctx),
-         consumed_vaas: object_table::new<vector<u8>, Unit>(ctx),
+         consumed_vaas: set::new(ctx),
          emitter_cap: option::some(emitter_cap),
          registered_emitters: vec_map::empty(),
       };
@@ -214,7 +210,7 @@ module token_bridge::bridge_state {
    /// getters
 
    public fun vaa_is_consumed(state: &BridgeState, hash: vector<u8>): bool {
-      object_table::contains<vector<u8>, Unit>(&state.consumed_vaas, hash)
+      set::contains(&state.consumed_vaas, hash)
    }
 
    public fun get_registered_emitter(state: &BridgeState, chain_id: &U16): Option<ExternalAddress> {
@@ -263,8 +259,8 @@ module token_bridge::bridge_state {
       dynamic_set::add<treasury::CoinStore<T>>(&mut state.id, treasury_coin_store);
    }
 
-   public(friend) fun store_consumed_vaa(bridge_state: &mut BridgeState, vaa: vector<u8>, ctx: &mut TxContext) {
-      object_table::add<vector<u8>, Unit>(&mut bridge_state.consumed_vaas, vaa, Unit{id: object::new(ctx)});
+   public(friend) fun store_consumed_vaa(bridge_state: &mut BridgeState, vaa: vector<u8>) {
+      set::add(&mut bridge_state.consumed_vaas, vaa);
    }
 
    public(friend) fun register_wrapped_asset<CoinType>(bridge_state: &mut BridgeState, wrapped_asset_info: WrappedAssetInfo<CoinType>) {
@@ -331,8 +327,8 @@ module token_bridge::test_bridge_state{
          let state = take_shared<BridgeState>(&test);
 
          // test store consumed vaa
-         bridge_state::store_consumed_vaa(&mut state, x"1234", ctx(&mut test));
-         assert!(bridge_state::vaa_is_consumed(&state, x"1234") == true, 0);
+         bridge_state::store_consumed_vaa(&mut state, x"1234");
+         assert!(bridge_state::vaa_is_consumed(&state, x"1234"), 0);
 
          // TODO - test store coin store
          // TODO - test store treasury cap
