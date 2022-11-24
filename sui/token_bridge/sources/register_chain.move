@@ -54,11 +54,9 @@ module token_bridge::register_chain {
         RegisterChain { emitter_chain_id, emitter_address }
     }
 
-    // TODO - make this an entry fun?
     public entry fun submit_vaa(wormhole_state: &mut WormholeState, bridge_state: &mut BridgeState, vaa: vector<u8>, ctx: &mut TxContext) {
-        let vaa = corevaa::parse_and_verify(wormhole_state, vaa, ctx);
-        corevaa::assert_governance(wormhole_state, &vaa); // not tested
-        token_bridge_vaa::replay_protect(bridge_state, &vaa, ctx);
+        let vaa = token_bridge_vaa::parse_verify_and_replay_protect(wormhole_state, bridge_state, vaa, ctx);
+        corevaa::assert_governance(wormhole_state, &vaa);
 
         let RegisterChain { emitter_chain_id, emitter_address } = parse_payload(corevaa::destroy(vaa));
 
