@@ -65,34 +65,31 @@ module token_bridge::bridge_state {
 
    /// OriginInfo is a non-Sui object that stores info about a tokens native token
    /// chain and address
-   // TODO(csongor): should this take a phantom CoinType argument too? If it
-   // does, then create_origin_info needs to be private
-   struct OriginInfo has store, copy, drop {
+   struct OriginInfo<phantom CoinType> has store, copy, drop {
       token_chain: U16,
       token_address: ExternalAddress,
    }
 
-   // TODO(csongor): why is this not (friend)? it is on aptos...
-   public fun create_origin_info(token_chain: U16, token_address: ExternalAddress): OriginInfo {
+   public(friend) fun create_origin_info<CoinType>(token_chain: U16, token_address: ExternalAddress): OriginInfo<CoinType> {
       return OriginInfo {
          token_chain,
          token_address
       }
    }
 
-   public fun get_token_chain_from_origin_info(origin_info: &OriginInfo): U16 {
+   public fun get_token_chain_from_origin_info<CoinType>(origin_info: &OriginInfo<CoinType>): U16 {
       return origin_info.token_chain
    }
 
-   public fun get_token_address_from_origin_info(origin_info: &OriginInfo): ExternalAddress {
+   public fun get_token_address_from_origin_info<CoinType>(origin_info: &OriginInfo<CoinType>): ExternalAddress {
       return origin_info.token_address
    }
 
-   public fun get_origin_info_from_wrapped_asset_info<CoinType>(wrapped_asset_info: &WrappedAssetInfo<CoinType>): OriginInfo {
+   public fun get_origin_info_from_wrapped_asset_info<CoinType>(wrapped_asset_info: &WrappedAssetInfo<CoinType>): OriginInfo<CoinType> {
       create_origin_info(wrapped_asset_info.token_chain, wrapped_asset_info.token_address)
    }
 
-   public fun get_origin_info_from_native_asset_info<CoinType>(native_asset_info: &NativeAssetInfo<CoinType>): OriginInfo {
+   public fun get_origin_info_from_native_asset_info<CoinType>(native_asset_info: &NativeAssetInfo<CoinType>): OriginInfo<CoinType> {
       create_origin_info(native_asset_info.token_chain, native_asset_info.token_address)
    }
 
@@ -236,13 +233,13 @@ module token_bridge::bridge_state {
       dynamic_set::exists_<NativeAssetInfo<CoinType>>(&bridge_state.id)
    }
 
-   public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo {
+   public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo<CoinType> {
       assert!(is_wrapped_asset<CoinType>(bridge_state), E_IS_NOT_WRAPPED_ASSET);
       let wrapped_asset_info = dynamic_set::borrow<WrappedAssetInfo<CoinType>>(&bridge_state.id);
       get_origin_info_from_wrapped_asset_info(wrapped_asset_info)
    }
 
-   public fun get_registered_native_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo {
+   public fun get_registered_native_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo<CoinType> {
       assert!(is_wrapped_asset<CoinType>(bridge_state), E_IS_NOT_REGISTERED_NATIVE_ASSET);
       let native_asset_info = dynamic_set::borrow<NativeAssetInfo<CoinType>>(&bridge_state.id);
       get_origin_info_from_native_asset_info(native_asset_info)
