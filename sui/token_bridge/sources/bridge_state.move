@@ -4,12 +4,11 @@ module token_bridge::bridge_state {
    use sui::object::{Self, UID};
    use sui::vec_map::{Self, VecMap};
    use sui::tx_context::{TxContext};
-   use sui::coin::{Coin};
+   use sui::coin::{Self, Coin, TreasuryCap};
    use sui::transfer::{Self};
    use sui::tx_context::{Self};
    use sui::sui::SUI;
 
-   use token_bridge::treasury::{Self, CoinStore, TreasuryCapStore};
    use token_bridge::string32::{String32};
    use token_bridge::dynamic_set;
 
@@ -44,6 +43,7 @@ module token_bridge::bridge_state {
       id: UID,
       token_chain: U16,
       token_address: ExternalAddress,
+      treasury_cap: TreasuryCap<CoinType>,
       // TODO: add the following when coin metadata is on 'devnet'
       // coin_meta: CoinMetadata<CoinType>,
    }
@@ -53,6 +53,7 @@ module token_bridge::bridge_state {
       // Even though we can look up token_chain at any time from wormhole state,
       // it can be more efficient to store it here locally so we don't have to do lookups.
       token_chain: U16,
+      custody: Coin<CoinType>,
       // We assign a unique identifier token_address to a Sui-native token
       // in the form of a 32-byte ExternalAddress
       token_address: ExternalAddress,
@@ -91,11 +92,17 @@ module token_bridge::bridge_state {
       create_origin_info(native_asset_info.token_chain, native_asset_info.token_address)
    }
 
-   public(friend) fun create_wrapped_asset_info<CoinType>(token_chain: U16, token_address: ExternalAddress, ctx: &mut TxContext): WrappedAssetInfo<CoinType> {
+   public(friend) fun create_wrapped_asset_info<CoinType>(
+      token_chain: U16,
+      token_address: ExternalAddress,
+      treasury_cap: TreasuryCap<CoinType>,
+      ctx: &mut TxContext
+   ): WrappedAssetInfo<CoinType> {
       return WrappedAssetInfo {
          id: object::new(ctx),
          token_chain: token_chain,
-         token_address: token_address
+         token_address: token_address,
+         treasury_cap,
       }
    }
 
@@ -148,18 +155,10 @@ module token_bridge::bridge_state {
    public(friend) fun deposit<CoinType>(
       bridge_state: &mut BridgeState,
       coin: Coin<CoinType>,
-      ctx: &mut TxContext
    ) {
-      if (!dynamic_set::exists_<CoinStore<CoinType>>(&mut bridge_state.id)) {
-
-         // If coin_store<CoinType> does not exist as a dynamic object field of bridge_state,
-         // we create a new one and attach it to bridge_state as a dynamic field
-         let coin_store = treasury::create_coin_store<CoinType>(ctx);
-         store_coin_store<CoinType>(bridge_state, coin_store)
-
-      };
-      let coin_store = dynamic_set::borrow_mut<CoinStore<CoinType>>(&mut bridge_state.id);
-      treasury::deposit<CoinType>(coin_store, coin);
+      // TODO: create custom errors for each dynamic_set::borrow_mut
+      let native_asset = dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(&mut bridge_state.id);
+      coin::join<CoinType>(&mut native_asset.custody, coin);
    }
 
    public(friend) fun withdraw<CoinType>(
@@ -167,9 +166,8 @@ module token_bridge::bridge_state {
       value: u64,
       ctx: &mut TxContext
    ): Coin<CoinType> {
-      let coin_store = dynamic_set::borrow_mut<CoinStore<CoinType>>(&mut bridge_state.id);
-      let coins = treasury::withdraw<CoinType>(coin_store, value, ctx);
-      return coins
+      let native_asset = dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(&mut bridge_state.id);
+      coin::split<CoinType>(&mut native_asset.custody, value, ctx)
    }
 
    public(friend) fun mint<CoinType>(
@@ -177,18 +175,16 @@ module token_bridge::bridge_state {
       value: u64,
       ctx: &mut TxContext,
    ): Coin<CoinType> {
-      // TODO: what if the treasury cap store does not exist as a dynamic field of Bridge State ?
-      let treasury_cap_store = dynamic_set::borrow_mut<TreasuryCapStore<CoinType>>(&mut bridge_state.id);
-      let coins = treasury::mint<CoinType>(treasury_cap_store, value, ctx);
-      return coins
+      let wrapped_info = dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(&mut bridge_state.id);
+      coin::mint<CoinType>(&mut wrapped_info.treasury_cap, value, ctx)
    }
 
    public(friend) fun burn<CoinType>(
       bridge_state: &mut BridgeState,
       coin: Coin<CoinType>,
    ) {
-      let treasury_cap_store = dynamic_set::borrow_mut<TreasuryCapStore<CoinType>>(&mut bridge_state.id);
-      treasury::burn<CoinType>(treasury_cap_store, coin);
+      let wrapped_info = dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(&mut bridge_state.id);
+      coin::burn<CoinType>(&mut wrapped_info.treasury_cap, coin);
    }
 
    public(friend) fun publish_message(
@@ -229,6 +225,15 @@ module token_bridge::bridge_state {
       dynamic_set::exists_<NativeAssetInfo<CoinType>>(&bridge_state.id)
    }
 
+    /// Returns the origin information for a CoinType
+   public fun origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo<CoinType> {
+      if (is_wrapped_asset<CoinType>(bridge_state)) {
+         get_wrapped_asset_origin_info<CoinType>(bridge_state)
+      } else {
+         get_registered_native_asset_origin_info(bridge_state)
+      }
+   }
+
    public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo<CoinType> {
       assert!(is_wrapped_asset<CoinType>(bridge_state), E_IS_NOT_WRAPPED_ASSET);
       let wrapped_asset_info = dynamic_set::borrow<WrappedAssetInfo<CoinType>>(&bridge_state.id);
@@ -248,16 +253,6 @@ module token_bridge::bridge_state {
    }
 
    /// dynamic ops
-
-   public(friend) fun store_treasury_cap<T>(state: &mut BridgeState, treasury_cap_store: treasury::TreasuryCapStore<T>) {
-       // store the treasury_cap_store as a dynamic field of bridge state
-      dynamic_set::add<treasury::TreasuryCapStore<T>>(&mut state.id, treasury_cap_store);
-   }
-
-   public(friend) fun store_coin_store<T>(state: &mut BridgeState, treasury_coin_store: treasury::CoinStore<T>) {
-      // store the coin store as a dynamic field of bridge state
-      dynamic_set::add<treasury::CoinStore<T>>(&mut state.id, treasury_coin_store);
-   }
 
    public(friend) fun store_consumed_vaa(bridge_state: &mut BridgeState, vaa: vector<u8>) {
       set::add(&mut bridge_state.consumed_vaas, vaa);

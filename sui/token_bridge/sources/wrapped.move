@@ -8,7 +8,6 @@ module token_bridge::wrapped {
 
     use token_bridge::bridge_state::{Self, BridgeState};
     use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::treasury::{Self};
 
     use wormhole::state::{Self as state, State as WormholeState};
     use wormhole::myvaa::{parse_and_get_payload};
@@ -97,16 +96,20 @@ module token_bridge::wrapped {
         // TODO (pending Mysten Labs uniform token standard) -  extract and store token metadata
 
         let metadata = asset_meta::parse(payload);
-        let t_cap_store = treasury::create_treasury_cap_store<CoinType>(treasury_cap, ctx);
         let origin_chain = asset_meta::get_token_chain(&metadata);
         let external_address = asset_meta::get_token_address(&metadata);
-        let wrapped_asset_info = bridge_state::create_wrapped_asset_info(origin_chain, external_address, ctx);
+        let wrapped_asset_info =
+            bridge_state::create_wrapped_asset_info(
+                origin_chain,
+                external_address,
+                treasury_cap,
+                ctx
+            );
 
         assert!(origin_chain != state::get_chain_id(state), E_WRAPPING_NATIVE_COIN);
         assert!(!bridge_state::is_registered_native_asset<CoinType>(bridge_state), E_WRAPPING_REGISTERED_NATIVE_COIN);
         assert!(!bridge_state::is_wrapped_asset<CoinType>(bridge_state), E_WRAPPED_COIN_ALREADY_INITIALIZED);
 
         bridge_state::register_wrapped_asset<CoinType>(bridge_state, wrapped_asset_info);
-        bridge_state::store_treasury_cap<CoinType>(bridge_state, t_cap_store);
     }
 }
