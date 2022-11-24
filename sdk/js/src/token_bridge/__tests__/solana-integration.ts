@@ -4,6 +4,7 @@ import { describe, expect, jest, test } from "@jest/globals";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
+  NATIVE_MINT,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
@@ -26,8 +27,10 @@ import {
   parseSequenceFromLogSolana,
   redeemOnEth,
   transferFromSolana,
+  transferNativeSol,
   tryNativeToHexString,
   tryNativeToUint8Array,
+  WSOL_ADDRESS,
 } from "../..";
 import { TokenImplementation__factory } from "../../ethers-contracts";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
@@ -255,6 +258,182 @@ describe("Solana to Ethereum", () => {
           }
         }
         expect(initialSolanaBalance - finalSolanaBalance).toBeCloseTo(1);
+
+        // Get the final balance on Eth
+        const finalBalOnEth = await token.balanceOf(await signer.getAddress());
+        const finalBalOnEthFormatted = formatUnits(finalBalOnEth._hex, 9);
+        expect(
+          parseInt(finalBalOnEthFormatted) -
+            parseInt(initialBalOnEthFormatted) ===
+            1
+        ).toBe(true);
+        provider.destroy();
+        done();
+      } catch (e) {
+        console.error(e);
+        done("An error occurred while trying to send from Solana to Ethereum");
+      }
+    })();
+  });
+  test("Attest Native SOL to Ethereum", (done) => {
+    (async () => {
+      try {
+        // create a keypair for Solana
+        const keypair = Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
+        const payerAddress = keypair.publicKey.toString();
+        // attest the test token
+        const connection = new Connection(SOLANA_HOST, "confirmed");
+        const transaction = await attestFromSolana(
+          connection,
+          CONTRACTS.DEVNET.solana.core,
+          CONTRACTS.DEVNET.solana.token_bridge,
+          payerAddress,
+          NATIVE_MINT
+        );
+        // sign, send, and confirm transaction
+        transaction.partialSign(keypair);
+        const txid = await connection.sendRawTransaction(
+          transaction.serialize()
+        );
+        await connection.confirmTransaction(txid);
+        const info = await connection.getTransaction(txid);
+        if (!info) {
+          throw new Error(
+            "An error occurred while fetching the transaction info"
+          );
+        }
+        // get the sequence from the logs (needed to fetch the vaa)
+        const sequence = parseSequenceFromLogSolana(info);
+        const emitterAddress = await getEmitterAddressSolana(
+          CONTRACTS.DEVNET.solana.token_bridge
+        );
+        // poll until the guardian(s) witness and sign the vaa
+        const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+          WORMHOLE_RPC_HOSTS,
+          CHAIN_ID_SOLANA,
+          emitterAddress,
+          sequence,
+          {
+            transport: NodeHttpTransport(),
+          }
+        );
+        // create a signer for Eth
+        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const signer = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
+        try {
+          await createWrappedOnEth(
+            CONTRACTS.DEVNET.ethereum.token_bridge,
+            signer,
+            signedVAA
+          );
+        } catch (e) {
+          // this could fail because the token is already attested (in an unclean env)
+        }
+        provider.destroy();
+        done();
+      } catch (e) {
+        console.error(e);
+        done(
+          "An error occurred while trying to attest from Solana to Ethereum"
+        );
+      }
+    })();
+  });
+  test("Send Native SOL to Ethereum", (done) => {
+    (async () => {
+      try {
+        // create a signer for Eth
+        const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+        const signer = new ethers.Wallet(ETH_PRIVATE_KEY3, provider);
+        const targetAddress = await signer.getAddress();
+        // create a keypair for Solana
+        const keypair = Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
+        const payerAddress = keypair.publicKey.toString();
+        const connection = new Connection(SOLANA_HOST, "confirmed");
+
+        // Get the initial wallet balance on Eth
+        const originAssetHex = tryNativeToHexString(
+          WSOL_ADDRESS,
+          CHAIN_ID_SOLANA
+        );
+        if (!originAssetHex) {
+          throw new Error("originAssetHex is null");
+        }
+        const foreignAsset = await getForeignAssetEth(
+          CONTRACTS.DEVNET.ethereum.token_bridge,
+          provider,
+          CHAIN_ID_SOLANA,
+          hexToUint8Array(originAssetHex)
+        );
+        if (!foreignAsset) {
+          throw new Error("foreignAsset is null");
+        }
+        const token = TokenImplementation__factory.connect(
+          foreignAsset,
+          signer
+        );
+        const initialBalOnEth = await token.balanceOf(
+          await signer.getAddress()
+        );
+        const initialBalOnEthFormatted = formatUnits(initialBalOnEth._hex, 9);
+
+        // transfer sol
+        const amount = parseUnits("1", 9).toBigInt();
+        const transaction = await transferNativeSol(
+          connection,
+          CONTRACTS.DEVNET.solana.core,
+          CONTRACTS.DEVNET.solana.token_bridge,
+          payerAddress,
+          amount,
+          tryNativeToUint8Array(targetAddress, CHAIN_ID_ETH),
+          CHAIN_ID_ETH
+        );
+        // sign, send, and confirm transaction
+        transaction.partialSign(keypair);
+        const txid = await connection.sendRawTransaction(
+          transaction.serialize()
+        );
+        await connection.confirmTransaction(txid);
+        const info = await connection.getTransaction(txid);
+        if (!info) {
+          throw new Error(
+            "An error occurred while fetching the transaction info"
+          );
+        }
+        // get the sequence from the logs (needed to fetch the vaa)
+        const sequence = parseSequenceFromLogSolana(info);
+        const emitterAddress = await getEmitterAddressSolana(
+          CONTRACTS.DEVNET.solana.token_bridge
+        );
+        // poll until the guardian(s) witness and sign the vaa
+        const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+          WORMHOLE_RPC_HOSTS,
+          CHAIN_ID_SOLANA,
+          emitterAddress,
+          sequence,
+          {
+            transport: NodeHttpTransport(),
+          }
+        );
+        expect(
+          await getIsTransferCompletedEth(
+            CONTRACTS.DEVNET.ethereum.token_bridge,
+            provider,
+            signedVAA
+          )
+        ).toBe(false);
+        await redeemOnEth(
+          CONTRACTS.DEVNET.ethereum.token_bridge,
+          signer,
+          signedVAA
+        );
+        expect(
+          await getIsTransferCompletedEth(
+            CONTRACTS.DEVNET.ethereum.token_bridge,
+            provider,
+            signedVAA
+          )
+        ).toBe(true);
 
         // Get the final balance on Eth
         const finalBalOnEth = await token.balanceOf(await signer.getAddress());

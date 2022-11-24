@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
+	"github.com/certusone/wormhole/node/pkg/watchers/sui"
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -60,7 +61,8 @@ var (
 
 	nodeKeyPath *string
 
-	adminSocketPath *string
+	adminSocketPath      *string
+	publicGRPCSocketPath *string
 
 	dataDir *string
 
@@ -142,6 +144,11 @@ var (
 	aptosAccount *string
 	aptosHandle  *string
 
+	suiRPC     *string
+	suiWS      *string
+	suiAccount *string
+	suiPackage *string
+
 	solanaRPC *string
 
 	pythnetContract *string
@@ -194,6 +201,7 @@ func init() {
 	nodeKeyPath = NodeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
 	adminSocketPath = NodeCmd.Flags().String("adminSocket", "", "Admin gRPC service UNIX domain socket path")
+	publicGRPCSocketPath = NodeCmd.Flags().String("publicGRPCSocket", "", "Public gRPC service UNIX domain socket path")
 
 	dataDir = NodeCmd.Flags().String("dataDir", "", "Data directory")
 
@@ -272,6 +280,11 @@ func init() {
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
+
+	suiRPC = NodeCmd.Flags().String("suiRPC", "", "sui RPC URL")
+	suiWS = NodeCmd.Flags().String("suiWS", "", "sui WS URL")
+	suiAccount = NodeCmd.Flags().String("suiAccount", "", "sui account")
+	suiPackage = NodeCmd.Flags().String("suiPackage", "", "sui package")
 
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
 
@@ -467,6 +480,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *adminSocketPath == "" {
 		logger.Fatal("Please specify --adminSocket")
 	}
+	if *adminSocketPath == *publicGRPCSocketPath {
+		logger.Fatal("--adminSocket must not equal --publicGRPCSocket")
+	}
+	if (*publicRPC != "" || *publicWeb != "") && *publicGRPCSocketPath == "" {
+		logger.Fatal("If either --publicRPC or --publicWeb is specified, --publicGRPCSocket must also be specified")
+	}
 	if *dataDir == "" {
 		logger.Fatal("Please specify --dataDir")
 	}
@@ -570,6 +589,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *aptosHandle == "" {
 			logger.Fatal("If --aptosRPC is specified, then --aptosHandle must be specified")
+		}
+	}
+	if *suiRPC != "" {
+		if *suiWS == "" {
+			logger.Fatal("If --suiRPC is specified, then --suiWS must be specified")
+		}
+		if *suiAccount == "" {
+			logger.Fatal("If --suiRPC is specified, then --suiAccount must be specified")
+		}
+		if *suiPackage == "" && !*unsafeDevMode {
+			logger.Fatal("If --suiRPC is specified, then --suiPackage must be specified")
 		}
 	}
 
@@ -880,22 +910,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Info("chain governor is disabled")
 	}
 
-	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst, gov)
-
-	if err != nil {
-		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
-	}
-
 	// local admin service socket
 	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst, gov)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
-	}
-
-	publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *adminSocketPath, publicrpcServer,
-		*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
-	if err != nil {
-		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
 
 	// Run supervisor.
@@ -1129,6 +1147,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		if shouldStart(suiRPC) {
+			logger.Info("Starting Sui watcher")
+			readiness.RegisterComponent(common.ReadinessSuiSyncing)
+			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "suiwatch",
+				sui.NewWatcher(*suiRPC, *suiWS, *suiAccount, *suiPackage, *unsafeDevMode, lockC, chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
+				return err
+			}
+		}
+
 		var solanaFinalizedWatcher *solana.SolanaWatcher
 		if shouldStart(solanaRPC) {
 			logger.Info("Starting Solana watcher")
@@ -1217,14 +1245,39 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err := supervisor.Run(ctx, "admin", adminService); err != nil {
 			return err
 		}
-		if *publicRPC != "" {
-			if err := supervisor.Run(ctx, "publicrpc", publicrpcService); err != nil {
+
+		if shouldStart(publicGRPCSocketPath) {
+
+			// local public grpc service socket
+			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, *publicGRPCSocketPath, db, gst, gov)
+			if err != nil {
+				logger.Fatal("failed to create publicrpc service socket", zap.Error(err))
+			}
+
+			if err := supervisor.Run(ctx, "publicrpcsocket", publicrpcUnixService); err != nil {
 				return err
 			}
-		}
-		if *publicWeb != "" {
-			if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
-				return err
+
+			if shouldStart(publicRPC) {
+				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, db, gst, gov)
+				if err != nil {
+					log.Fatal("failed to create publicrpc tcp service", zap.Error(err))
+				}
+				if err := supervisor.Run(ctx, "publicrpc", publicrpcService); err != nil {
+					return err
+				}
+			}
+
+			if shouldStart(publicWeb) {
+				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
+					*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
+				if err != nil {
+					log.Fatal("failed to create publicrpc web service", zap.Error(err))
+				}
+
+				if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
+					return err
+				}
 			}
 		}
 

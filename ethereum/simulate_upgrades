@@ -28,17 +28,23 @@ ANVIL_PID=$!
 # Sleep for 10 seconds here to give some time for the fork to complete.
 sleep 10
 
-echo "========================= Updating core contract #1 ============================"
+echo "========================= Updating core contract ============================"
 ./simulate_upgrade -m bridge -c $chain -d
-echo "========================= Updating core contract #2 ============================"
+echo "========================= Shutting down core contract ======================="
+./simulate_upgrade -m bridge -c $chain -d -s
+echo "========================= Re-enabling core contract ========================="
 ./simulate_upgrade -m bridge -c $chain -d
 
-echo "===================== Updating token bridge contract #1 ========================"
+echo "===================== Updating token bridge contract ========================"
 ./simulate_upgrade -m token_bridge -c $chain -d
-echo "===================== Updating token bridge contract #2 ========================"
+echo "===================== Shutting down token bridge contract ==================="
+./simulate_upgrade -m token_bridge -c $chain -d -s
+echo "===================== Re-enabling token bridge contract ====================="
 ./simulate_upgrade -m token_bridge -c $chain -d
 
-echo "====================== Updating NFT bridge contract #1 ========================="
+echo "====================== Updating NFT bridge contract ========================="
 ./simulate_upgrade -m nft_bridge -c $chain -d
-echo "====================== Updating NFT bridge contract #2 ========================="
+echo "====================== Shutting down NFT bridge contract ===================="
+./simulate_upgrade -m nft_bridge -c $chain -d -s
+echo "====================== Re-enabling NFT bridge contract ======================"
 ./simulate_upgrade -m nft_bridge -c $chain -d
