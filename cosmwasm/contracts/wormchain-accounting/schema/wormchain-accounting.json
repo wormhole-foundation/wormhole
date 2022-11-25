@@ -386,9 +386,58 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "validate_transfer"
+        ],
+        "properties": {
+          "validate_transfer": {
+            "type": "object",
+            "required": [
+              "transfer"
+            ],
+            "properties": {
+              "transfer": {
+                "$ref": "#/definitions/Transfer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
+      "Data": {
+        "type": "object",
+        "required": [
+          "amount",
+          "recipient_chain",
+          "token_address",
+          "token_chain"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint256"
+          },
+          "recipient_chain": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "token_address": {
+            "$ref": "#/definitions/TokenAddress"
+          },
+          "token_chain": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
       "Key": {
         "type": "object",
         "required": [
@@ -414,6 +463,26 @@
         "additionalProperties": false
       },
       "TokenAddress": {
+        "type": "string"
+      },
+      "Transfer": {
+        "type": "object",
+        "required": [
+          "data",
+          "key"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/definitions/Data"
+          },
+          "key": {
+            "$ref": "#/definitions/Key"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint256": {
+        "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
         "type": "string"
       }
     }
@@ -1026,6 +1095,12 @@
           "type": "string"
         }
       }
+    },
+    "validate_transfer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Empty",
+      "description": "An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.\n\nIt is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)",
+      "type": "object"
     }
   }
 }

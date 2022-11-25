@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use accounting::{
     query_balance, query_modification, query_transfer,
     state::{account, transfer, Modification, TokenAddress, Transfer},
+    validate_transfer,
 };
 use anyhow::{ensure, Context};
 #[cfg(not(feature = "library"))]
@@ -351,6 +352,13 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::AllModifications { start_after, limit } => {
             query_all_modifications(deps, start_after, limit).and_then(|resp| to_binary(&resp))
         }
+        QueryMsg::ValidateTransfer { transfer } => validate_transfer(deps, &transfer)
+            .map_err(|e| {
+                e.downcast().unwrap_or_else(|e| StdError::GenericErr {
+                    msg: format!("{e:#}"),
+                })
+            })
+            .and_then(|()| to_binary(&Empty {})),
     }
 }
 

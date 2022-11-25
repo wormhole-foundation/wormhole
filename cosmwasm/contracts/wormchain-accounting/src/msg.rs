@@ -122,6 +122,8 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
+    #[returns(cosmwasm_std::Empty)]
+    ValidateTransfer { transfer: Transfer },
 }
 
 #[cw_serde]
