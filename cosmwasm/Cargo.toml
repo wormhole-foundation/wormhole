@@ -10,6 +10,10 @@ members = [
     "packages/wormhole-bindings",
 ]
 
+# Needed to prevent unwanted feature unification between normal builds and dev builds.  See
+# https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions for more details.
+resolver = "2"
+
 [profile.release]
 opt-level = 3
 debug = false
