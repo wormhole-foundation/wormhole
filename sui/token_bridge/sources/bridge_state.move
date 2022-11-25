@@ -312,9 +312,8 @@ module token_bridge::bridge_state {
       set::add(&mut bridge_state.consumed_vaas, vaa);
    }
 
-   public(friend) fun register_wrapped_asset<CoinType>(bridge_state: &mut BridgeState, wrapped_asset_info: WrappedAssetInfo<CoinType>, ctx: &mut TxContext) {
+   public(friend) fun register_wrapped_asset<CoinType>(bridge_state: &mut BridgeState, wrapped_asset_info: WrappedAssetInfo<CoinType>) {
       dynamic_set::add<WrappedAssetInfo<CoinType>>(&mut bridge_state.id, wrapped_asset_info);
-      assign_coin_type_bytes_address<CoinType>(bridge_state, ctx);
    }
 
     public(friend) fun register_native_asset<CoinType>(bridge_state: &mut BridgeState, native_asset_info: NativeAssetInfo<CoinType>, ctx: &mut TxContext) {
