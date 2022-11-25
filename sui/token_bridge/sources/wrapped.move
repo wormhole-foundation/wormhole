@@ -113,6 +113,6 @@ module token_bridge::wrapped {
         assert!(!bridge_state::is_registered_native_asset<CoinType>(bridge_state), E_WRAPPING_REGISTERED_NATIVE_COIN);
         assert!(!bridge_state::is_wrapped_asset<CoinType>(bridge_state), E_WRAPPED_COIN_ALREADY_INITIALIZED);
 
-        bridge_state::register_wrapped_asset<CoinType>(bridge_state, wrapped_asset_info, ctx);
+        bridge_state::register_wrapped_asset<CoinType>(bridge_state, wrapped_asset_info);
     }
 }
