@@ -8,9 +8,10 @@ module token_bridge::wrapped {
 
     use token_bridge::bridge_state::{Self, BridgeState};
     use token_bridge::asset_meta::{Self, AssetMeta};
+    use token_bridge::vaa;
 
     use wormhole::state::{Self as state, State as WormholeState};
-    use wormhole::myvaa::{parse_and_get_payload};
+    use wormhole::myvaa as core_vaa;
 
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
     const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
@@ -58,7 +59,7 @@ module token_bridge::wrapped {
         coin_witness: CoinType,
         ctx: &mut TxContext
     ): NewWrappedCoin<CoinType> {
-        let payload = parse_and_get_payload(vaa_bytes);
+        let payload = core_vaa::parse_and_get_payload(vaa_bytes);
         let asset_meta: AssetMeta = asset_meta::parse(payload);
 
         // The amounts in the token bridge payload are truncated to 8 decimals
@@ -87,7 +88,15 @@ module token_bridge::wrapped {
         let NewWrappedCoin { id, vaa_bytes, treasury_cap } = new_wrapped_coin;
         object::delete(id);
 
-        let payload = parse_and_get_payload(vaa_bytes);
+        let vaa = vaa::parse_verify_and_replay_protect(
+            state,
+            bridge_state,
+            vaa_bytes,
+            ctx
+        );
+        let payload = core_vaa::destroy(vaa);
+
+        // TODO (pending Mysten Labs uniform token standard) -  extract and store token metadata
 
         let metadata = asset_meta::parse(payload);
         let origin_chain = asset_meta::get_token_chain(&metadata);
