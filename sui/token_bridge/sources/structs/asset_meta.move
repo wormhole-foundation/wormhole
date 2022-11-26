@@ -9,7 +9,7 @@ module token_bridge::asset_meta {
 
     use token_bridge::string32::{Self, String32};
 
-    //friend token_bridge::attest_token;
+    friend token_bridge::bridge_state;
     friend token_bridge::wrapped;
 
     //#[test_only]

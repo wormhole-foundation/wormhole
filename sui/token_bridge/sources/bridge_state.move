@@ -9,8 +9,9 @@ module token_bridge::bridge_state {
    use sui::tx_context::{Self};
    use sui::sui::SUI;
 
-   use token_bridge::string32::{Self, String32};
+   use token_bridge::string32;
    use token_bridge::dynamic_set;
+   use token_bridge::asset_meta::{Self, AssetMeta};
 
    use wormhole::external_address::{Self, ExternalAddress};
    use wormhole::myu16::{U16};
@@ -55,14 +56,8 @@ module token_bridge::bridge_state {
       id: UID,
       // Even though we can look up token_chain at any time from wormhole state,
       // it can be more efficient to store it here locally so we don't have to do lookups.
-      token_chain: U16,
       custody: Coin<CoinType>,
-      // We assign a unique identifier token_address to a Sui-native token
-      // in the form of a 32-byte ExternalAddress
-      token_address: ExternalAddress,
-      symbol: String32,
-      name: String32,
-      decimals: u64,
+      asset_meta: AssetMeta,
    }
 
    /// OriginInfo is a non-Sui object that stores info about a tokens native token
@@ -92,7 +87,10 @@ module token_bridge::bridge_state {
    }
 
    public fun get_origin_info_from_native_asset_info<CoinType>(native_asset_info: &NativeAssetInfo<CoinType>): OriginInfo<CoinType> {
-      create_origin_info(native_asset_info.token_chain, native_asset_info.token_address)
+      let asset_meta = &native_asset_info.asset_meta;
+      let token_chain = asset_meta::get_token_chain(asset_meta);
+      let token_address = asset_meta::get_token_address(asset_meta);
+      create_origin_info(token_chain, token_address)
    }
 
    public(friend) fun create_wrapped_asset_info<CoinType>(
@@ -290,19 +288,23 @@ module token_bridge::bridge_state {
       wormhole_state: &WormholeState,
       bridge_state: &mut BridgeState,
       ctx: &mut TxContext
-   ) {
-      assert!(!is_wrapped_asset<CoinType>(bridge_state), 0); // TODO: introdduce better error for this (and test)
+   ): AssetMeta {
+      assert!(!is_wrapped_asset<CoinType>(bridge_state), 0); // TODO: introduce better error for this (and test)
+      let asset_meta = asset_meta::create(
+         next_native_id(&mut bridge_state.native_id_registry),
+         wormhole_state::get_chain_id(wormhole_state), // TODO: should we just hardcode this?
+         // TODO: get these from CoinMetadata
+         8, // decimals
+         string32::from_bytes(b"TODO"), // symbol
+         string32::from_bytes(b"TODO"), // name
+      );
       let native_asset_info = NativeAssetInfo<CoinType> {
          id: object::new(ctx),
-         token_chain: wormhole_state::get_chain_id(wormhole_state), // TODO: should we just hardcode this?
          custody: coin::zero(ctx),
-         token_address: next_native_id(&mut bridge_state.native_id_registry),
-         // TODO: get these from CoinMetadata
-         symbol: string32::from_bytes(b"TODO"),
-         name: string32::from_bytes(b"TODO"),
-         decimals: 8,
+         asset_meta,
       };
       dynamic_set::add<NativeAssetInfo<CoinType>>(&mut bridge_state.id, native_asset_info);
+      asset_meta
    }
 
 }
