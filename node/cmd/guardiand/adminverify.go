@@ -3,8 +3,8 @@ package guardiand
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -27,7 +27,7 @@ var AdminClientGovernanceVAAVerifyCmd = &cobra.Command{
 func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 	path := args[0]
 
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}

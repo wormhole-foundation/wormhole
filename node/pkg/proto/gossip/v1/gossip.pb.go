@@ -26,6 +26,7 @@ type GossipMessage struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Message:
+	//
 	//	*GossipMessage_SignedObservation
 	//	*GossipMessage_SignedHeartbeat
 	//	*GossipMessage_SignedVaaWithQuorum

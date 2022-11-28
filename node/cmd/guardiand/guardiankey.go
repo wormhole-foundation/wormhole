@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 
@@ -70,7 +70,7 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("invalid block type: %s", p.Type)
 	}
 
-	b, err := ioutil.ReadAll(p.Body)
+	b, err := io.ReadAll(p.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}

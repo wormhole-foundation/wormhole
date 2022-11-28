@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/diamondburned/arikawa/v3/api"
@@ -12,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type DiscordNotifier struct {
@@ -138,6 +139,7 @@ func (d *DiscordNotifier) MissingSignaturesOnObservation(o Observation, hasSigs,
 	}
 
 	for _, cn := range d.chans {
+		caser := cases.Title(language.English)
 		if _, err := d.c.SendMessage(cn.ID, messageText,
 			discord.Embed{
 				Title: "Message with missing signatures",
@@ -145,7 +147,7 @@ func (d *DiscordNotifier) MissingSignaturesOnObservation(o Observation, hasSigs,
 					{Name: "Message ID", Value: wrapCode(o.MessageID()), Inline: true},
 					{Name: "Digest", Value: wrapCode(hex.EncodeToString(o.SigningMsg().Bytes())), Inline: true},
 					{Name: "Quorum", Value: quorumText, Inline: true},
-					{Name: "Source Chain", Value: strings.Title(o.GetEmitterChain().String()), Inline: false},
+					{Name: "Source Chain", Value: caser.String(o.GetEmitterChain().String()), Inline: false},
 					{Name: "Missing Guardians", Value: missingText.String(), Inline: false},
 				},
 			},

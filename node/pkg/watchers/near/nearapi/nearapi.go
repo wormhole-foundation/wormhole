@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"time"
@@ -84,7 +84,7 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 
 			if err == nil {
 				defer resp.Body.Close()
-				result, err := ioutil.ReadAll(resp.Body)
+				result, err := io.ReadAll(resp.Body)
 				if resp.StatusCode == 200 {
 					return result, err
 				}

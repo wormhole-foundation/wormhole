@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -190,7 +190,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 				continue
 			}
-			blocksBody, err := ioutil.ReadAll(resp.Body)
+			blocksBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
 				errC <- err
@@ -237,7 +237,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					logger.Error("query tx response error", zap.String("network", networkName), zap.Error(err))
 					continue
 				}
-				txBody, err := ioutil.ReadAll(resp.Body)
+				txBody, err := io.ReadAll(resp.Body)
 				if err != nil {
 					logger.Error("query tx response read error", zap.String("network", networkName), zap.Error(err))
 					resp.Body.Close()

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -179,7 +179,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}

@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -80,7 +80,7 @@ func getSequencesForTxhash(txhash string, fcd string, contractAddressLogKey stri
 		return []uint64{}, fmt.Errorf("failed to get message: %w", err)
 	}
 	defer resp.Body.Close()
-	txBody, err := ioutil.ReadAll(resp.Body)
+	txBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []uint64{}, fmt.Errorf("failed to read message: %w", err)
 	}
@@ -349,7 +349,7 @@ func main() {
 		}
 		defer resp.Body.Close()
 
-		blocksBody, err := ioutil.ReadAll(resp.Body)
+		blocksBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Fatalf("failed to read log: %v", err)
 			continue
