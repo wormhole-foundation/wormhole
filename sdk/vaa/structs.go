@@ -116,6 +116,7 @@ type (
 
 const (
 	ConsistencyLevelPublishImmediately = uint8(200)
+	ConsistencyLevelSafe               = uint8(201)
 )
 
 func (a Address) MarshalJSON() ([]byte, error) {
