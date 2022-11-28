@@ -1,6 +1,7 @@
 module token_bridge::complete_transfer {
     use sui::tx_context::{TxContext};
     use sui::transfer::{Self as transfer_object};
+    use sui::coin;
 
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
@@ -16,7 +17,7 @@ module token_bridge::complete_transfer {
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         vaa: vector<u8>,
-        _fee_recipient: address,
+        fee_recipient: address,
         ctx: &mut TxContext
     ) {
 
@@ -33,7 +34,7 @@ module token_bridge::complete_transfer {
             &transfer,
             wormhole_state,
             bridge_state,
-            _fee_recipient,
+            fee_recipient,
             ctx
         );
     }
@@ -42,7 +43,7 @@ module token_bridge::complete_transfer {
         transfer: &Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
-        _fee_recipient: address,
+        fee_recipient: address,
         ctx: &mut TxContext
     ) {
         let to_chain = transfer::get_to_chain(transfer);
@@ -57,7 +58,9 @@ module token_bridge::complete_transfer {
 
         // TODO - figure out actual number of decimal places to denormalize by
         //        Where to store or how to find out #decimals for coin?
-        let amount = denormalize(transfer::get_amount(transfer), 0);
+        let decimals = 0;
+        let amount = denormalize(transfer::get_amount(transfer), decimals);
+        let fee_amount = denormalize(transfer::get_fee(transfer), decimals);
 
         let recipient_coins;
         if (token_chain==this_chain){
@@ -73,7 +76,11 @@ module token_bridge::complete_transfer {
                 ctx
             );
         };
+
+        // take out fee from the recipient's coins. `extract` will revert
+        // if fee > amount
+        let fee_coins = coin::split(&mut recipient_coins, fee_amount, ctx);
         transfer_object::transfer(recipient_coins, recipient);
+        transfer_object::transfer(fee_coins, fee_recipient);
     }
-    //TODO: send fee to fee_recipient
 }
