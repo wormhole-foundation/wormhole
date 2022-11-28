@@ -98,17 +98,18 @@ type (
 	observationMap map[string]*state
 
 	// batchMap holds observed BatchMessages, keyed by BatchID.
-	// The batches held in state are the observations (from watchers) of transactions
-	// with multiple messages. This observation data is the reference for which messages a Batch
+	// The batches held in state are the observations (from watchers) of transactions.
+	// This observation data is the reference for which message(s) a Batch
 	// needs to include to be considered fully observed - ready to sign and broadcast.
 	// This map is checked as quorum is reached for individual VAAs in the batch.
 	batchMap map[vaa.BatchID][]*common.MessagePublication
 
-	// observationsByBatchID maps the batchID to the messageIDs within the transaction.
-	// This map collects observations seen by the guardian, by the message's BatchID, in order
-	// to identify transactions that have multiple messages. As messages get observed they are
-	// filed into this map, and when a BatchID has >= 2 messages, the transaction is flagged to
-	// be watched and tracked to produce BatchVAAs. Stale items are periodically freed from memory.
+	// observationsByBatchID maps the BatchID to the MessageID(s) within the transaction.
+	// This map collects observations seen by the guardian, by BatchID, in order
+	// to map messages to the transaction that produced them. As messages get observed they are
+	// filed into this map. When a new transaction is seen the transaction is flagged to
+	// be watched and tracked for progress toward producing a BatchVAA.
+	// Stale items are periodically freed from memory via the cleanup process in batch_cleanup.go.
 	observationsByBatchID map[vaa.BatchID]map[string]*state
 
 	// batchObservationMap collects SignedBatchObservation gossip toward BatchVAA quorum.

@@ -18,7 +18,7 @@ var (
 	aggregationBatchStateEntries = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_aggregation_batch_state_entries",
-			Help: "Current number of BatchVaa aggregation state entries (including unexpired succeed ones)",
+			Help: "Current number of BatchVAA aggregation state entries (including unexpired succeed ones)",
 		})
 	aggregationBatchStateExpiration = promauto.NewCounter(
 		prometheus.CounterOpts{

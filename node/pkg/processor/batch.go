@@ -89,15 +89,8 @@ func (p *Processor) handleBatchMessage(ctx context.Context, k *common.Transactio
 			continue
 		}
 
-		if len(group) >= 2 {
-			// Should produce a Batch for this group of messages.
-			// Check if we've seen this BatchID before
-			// Add the Batch to p.state and consider progress toward "finality"
-			// (all the individual parts independently reaching quorum).
-
-			// add the Batch to Processor state, start tracking it's progress
-			p.considerBatchForTracking(&batchID, group)
-		}
+		// Should produce a Batch for this group.
+		p.considerBatchForTracking(&batchID, group)
 	}
 }
 
@@ -237,13 +230,6 @@ func (p *Processor) handleBatchPart(o Observation) {
 	}
 	// take the state from the observation, add it to the map by batchID/messageID
 	p.state.batchMessages[*batchID][messageID] = msgState
-
-	// if this is the first message we've seen for the Batch, bail out, no need
-	// to check if this message completes the Batch.
-	if len(p.state.batchMessages[*batchID]) == 1 {
-		return
-	}
-	// We have more than 1 message for this Batch, so check on the progress toward completion.
 
 	// Step 2) check state for the Batch this Observation belongs to
 
