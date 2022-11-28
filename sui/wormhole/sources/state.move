@@ -230,8 +230,8 @@ module wormhole::test_state{
             let deployer = take_from_address<DeployerCapability>(&test, admin);
             state::init_and_share_state(
                 deployer,
-                2, // chain id (arbitrarily picked)
-                1, // governance chain - Solana?
+                21,
+                1, // governance chain
                 x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
                 vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardian(s)
                 ctx(&mut test));
