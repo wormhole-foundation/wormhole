@@ -1,4 +1,3 @@
 ganache.log
-# TEMP - to allow removing the submodule already checked into lib/forge-std
-# lib/*
+lib/*
 !lib/README.md
