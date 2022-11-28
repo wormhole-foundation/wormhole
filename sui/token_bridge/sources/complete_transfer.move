@@ -6,7 +6,7 @@ module token_bridge::complete_transfer {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
-    use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
+    use token_bridge::bridge_state::{Self, BridgeState, VerifiedCoinType};
     use token_bridge::vaa::{Self};
     use token_bridge::transfer::{Self, Transfer};
     use token_bridge::normalized_amount::{denormalize};
@@ -30,7 +30,16 @@ module token_bridge::complete_transfer {
 
         let transfer = transfer::parse(wormhole::myvaa::destroy(vaa));
 
+        let token_chain = transfer::get_token_chain(&transfer);
+        let token_address = transfer::get_token_address(&transfer);
+        let verified_coin_witness = bridge_state::verify_coin_type<CoinType>(
+            bridge_state,
+            token_chain,
+            token_address
+        );
+
         complete_transfer<CoinType>(
+            verified_coin_witness,
             &transfer,
             wormhole_state,
             bridge_state,
@@ -40,6 +49,7 @@ module token_bridge::complete_transfer {
     }
 
     fun complete_transfer<CoinType>(
+        verified_coin_witness: VerifiedCoinType<CoinType>,
         transfer: &Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
@@ -50,10 +60,6 @@ module token_bridge::complete_transfer {
         let this_chain = wormhole::state::get_chain_id(wormhole_state);
         assert!(to_chain == this_chain, E_INVALID_TARGET);
 
-        let token_chain = transfer::get_token_chain(transfer);
-        //let token_address = transfer::get_token_address(transfer);
-        //let _origin_info = bridge_state::create_origin_info(token_chain, token_address);
-
         let recipient = external_address::to_address(&transfer::get_to(transfer));
 
         // TODO - figure out actual number of decimal places to denormalize by
@@ -63,14 +69,16 @@ module token_bridge::complete_transfer {
         let fee_amount = denormalize(transfer::get_fee(transfer), decimals);
 
         let recipient_coins;
-        if (token_chain==this_chain){
-            recipient_coins = bridge_state::withdraw<CoinType>(
+        if (bridge_state::is_wrapped_asset<CoinType>(bridge_state)) {
+            recipient_coins = bridge_state::mint<CoinType>(
+                verified_coin_witness,
                 bridge_state,
                 amount,
                 ctx
-            )
-        } else{
-            recipient_coins = bridge_state::mint<CoinType>(
+            );
+        } else {
+            recipient_coins = bridge_state::withdraw<CoinType>(
+                verified_coin_witness,
                 bridge_state,
                 amount,
                 ctx
