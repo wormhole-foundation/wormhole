@@ -53,7 +53,7 @@ module token_bridge::complete_transfer {
         //let token_address = transfer::get_token_address(transfer);
         //let _origin_info = bridge_state::create_origin_info(token_chain, token_address);
 
-        let recipient = external_address::to_address(external_address::get_bytes(&transfer::get_to(transfer)));
+        let recipient = external_address::to_address(&transfer::get_to(transfer));
 
         // TODO - figure out actual number of decimal places to denormalize by
         //        Where to store or how to find out #decimals for coin?
