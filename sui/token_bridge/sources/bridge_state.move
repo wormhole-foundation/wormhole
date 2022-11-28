@@ -24,6 +24,8 @@ module token_bridge::bridge_state {
     const E_IS_NOT_REGISTERED_NATIVE_ASSET: u64 = 1;
     const E_COIN_TYPE_HAS_NO_REGISTERED_INTEGER_ADDRESS: u64 = 2;
     const E_COIN_TYPE_HAS_REGISTERED_INTEGER_ADDRESS: u64 = 3;
+    const E_ORIGIN_CHAIN_MISMATCH: u64 = 4;
+    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 5;
 
     friend token_bridge::vaa;
     friend token_bridge::register_chain;
@@ -67,13 +69,6 @@ module token_bridge::bridge_state {
         token_address: ExternalAddress,
     }
 
-    public(friend) fun create_origin_info<CoinType>(token_chain: U16, token_address: ExternalAddress): OriginInfo<CoinType> {
-        return OriginInfo {
-            token_chain,
-            token_address
-        }
-    }
-
     public fun get_token_chain_from_origin_info<CoinType>(origin_info: &OriginInfo<CoinType>): U16 {
         return origin_info.token_chain
     }
@@ -83,14 +78,14 @@ module token_bridge::bridge_state {
     }
 
     public fun get_origin_info_from_wrapped_asset_info<CoinType>(wrapped_asset_info: &WrappedAssetInfo<CoinType>): OriginInfo<CoinType> {
-        create_origin_info(wrapped_asset_info.token_chain, wrapped_asset_info.token_address)
+        OriginInfo { token_chain: wrapped_asset_info.token_chain, token_address: wrapped_asset_info.token_address }
     }
 
     public fun get_origin_info_from_native_asset_info<CoinType>(native_asset_info: &NativeAssetInfo<CoinType>): OriginInfo<CoinType> {
         let asset_meta = &native_asset_info.asset_meta;
         let token_chain = asset_meta::get_token_chain(asset_meta);
         let token_address = asset_meta::get_token_address(asset_meta);
-        create_origin_info(token_chain, token_address)
+        OriginInfo { token_chain, token_address }
     }
 
     public(friend) fun create_wrapped_asset_info<CoinType>(
@@ -184,6 +179,7 @@ module token_bridge::bridge_state {
     }
 
     public(friend) fun withdraw<CoinType>(
+        _verified_coin_witness: VerifiedCoinType<CoinType>,
         bridge_state: &mut BridgeState,
         value: u64,
         ctx: &mut TxContext
@@ -193,6 +189,7 @@ module token_bridge::bridge_state {
     }
 
     public(friend) fun mint<CoinType>(
+        _verified_coin_witness: VerifiedCoinType<CoinType>,
         bridge_state: &mut BridgeState,
         value: u64,
         ctx: &mut TxContext,
@@ -254,6 +251,43 @@ module token_bridge::bridge_state {
         } else {
             get_registered_native_asset_origin_info(bridge_state)
         }
+    }
+
+    /// A value of type `VerifiedCoinType<T>` witnesses the fact that the type
+    /// `T` has been verified to correspond to a particular chain id and token
+    /// address (may be either a wrapped or native asset).
+    /// The verification is performed by `verify_coin_type`.
+    ///
+    /// This is important because the coin type is an input to several
+    /// functions, and is thus untrusted. Most coin-related functionality
+    /// requires passing in a coin type generic argument.
+    /// When transferring tokens *out*, that type instantiation determines the
+    /// token bridge's behaviour, and thus we just take whatever was supplied.
+    /// When transferring tokens *in*, it's the transfer VAA that determines
+    /// which coin should be used via the origin chain and origin address
+    /// fields.
+    ///
+    /// For technical reasons, the latter case still requires a type argument to
+    /// be passed in (since Move does not support existential types, so we must
+    /// rely on old school universal quantification). We must thus verify that
+    /// the supplied type corresponds to the origin info in the VAA.
+    ///
+    /// Accordingly, the `mint` and `withdraw` operations are gated by this
+    /// witness type, since these two operations require a VAA to supply the
+    /// token information. This ensures that those two functions can't be called
+    /// without first verifying the `CoinType`.
+    struct VerifiedCoinType<phantom CoinType> has copy, drop {}
+
+    /// See the documentation for `VerifiedCoinType` above.
+    public fun verify_coin_type<CoinType>(
+        bridge_state: &BridgeState,
+        token_chain: U16,
+        token_address: ExternalAddress
+    ): VerifiedCoinType<CoinType> {
+        let coin_origin = origin_info<CoinType>(bridge_state);
+        assert!(coin_origin.token_chain == token_chain, E_ORIGIN_CHAIN_MISMATCH);
+        assert!(coin_origin.token_address == token_address, E_ORIGIN_ADDRESS_MISMATCH);
+        VerifiedCoinType {}
     }
 
     public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo<CoinType> {
