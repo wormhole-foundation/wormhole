@@ -626,10 +626,8 @@ func (v *BatchVAA) signingBody() []byte {
 	// add the VAA version
 	MustWrite(buf, binary.BigEndian, v.Version)
 
-	// create the hash array from the Observations of the BatchVAA
-	hashes := v.ObsvHashArray()
-
-	MustWrite(buf, binary.BigEndian, hashes)
+	// add the hash of the Observations
+	MustWrite(buf, binary.BigEndian, v.ObsvHash().Bytes())
 
 	return buf.Bytes()
 }
@@ -661,6 +659,21 @@ func (v *BatchVAA) ObsvHashArray() []common.Hash {
 	}
 
 	return hashes
+}
+
+// ObsvHash creates a Keccak256Hash of the hashed Observations in the BatchVAA.
+// This hash is part of the SigningBody of the VAA.
+func (v *BatchVAA) ObsvHash() common.Hash {
+	// create the hash array from the Observations of the BatchVAA
+	hashes := v.ObsvHashArray()
+
+	// transform the hash array to a byte array
+	hashesBuf := new(bytes.Buffer)
+	MustWrite(hashesBuf, binary.BigEndian, hashes)
+	hashesBytes := hashesBuf.Bytes()
+
+	// take the bytes of all the hashes, and hash them
+	return crypto.Keccak256Hash(hashesBytes)
 }
 
 func VerifySignatures(data []byte, signatures []*Signature, addresses []common.Address) bool {
