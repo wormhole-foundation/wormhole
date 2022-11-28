@@ -1,7 +1,7 @@
-import {ethers} from "ethers";
-import {describe, expect, test} from "@jest/globals";
-import {NodeHttpTransport} from "@improbable-eng/grpc-web-node-http-transport";
-import {CHAIN_ID_ETH, CHAIN_ID_BSC, getSignedBatchVAAWithRetry} from "../..";
+import { ethers } from "ethers";
+import { describe, expect, test } from "@jest/globals";
+import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
+import { CHAIN_ID_ETH, CHAIN_ID_BSC, getSignedBatchVAAWithRetry } from "../..";
 import {
   ETH_NODE_URL,
   BSC_NODE_URL,
@@ -10,7 +10,7 @@ import {
   MOCK_BATCH_VAA_SENDER_ADDRESS,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
-import {parseWormholeEventsFromReceipt, getSignedVaaFromReceiptOnEth} from "./utils";
+import { parseWormholeEventsFromReceipt, getSignedVaaFromReceiptOnEth } from "./utils";
 
 describe("Batch VAAs", () => {
   // The following tests rely on the payloads in batchVAAPayloads.
@@ -66,16 +66,26 @@ describe("Batch VAAs", () => {
           expect(messageEvents[i].args.consistencyLevel).toEqual(batchVAAConsistencyLevels[i]);
         }
 
+        // convert the hex string transactionHash to a byte array
+        const transactionBytes = ethers.utils.arrayify(receipt.transactionHash)
+
         // fetch the batch VAA from the guardian
         const batchVaaRes = await getSignedBatchVAAWithRetry(
           WORMHOLE_RPC_HOSTS,
           CHAIN_ID_ETH,
-          receipt.transactionHash,
+          transactionBytes,
+          nonce,
           {
             transport: NodeHttpTransport(),
           }
         );
-        encodedBatchVAAFromEth = batchVaaRes.batchVaaBytes;
+        // the Proto response type allows an empty response, so check for it
+        if (!batchVaaRes.signedBatchVaa || !batchVaaRes.signedBatchVaa.batchVaa) {
+          const err = new Error("received empty response from guardian for ETH batch.")
+          console.error(err)
+          throw err
+        }
+        encodedBatchVAAFromEth = batchVaaRes.signedBatchVaa.batchVaa;
 
         // destory the provider and end the test
         provider.destroy();
@@ -87,7 +97,7 @@ describe("Batch VAAs", () => {
     })();
   });
 
-  test("Should Verify a Batch VAA From a Contract on BSC", (done) => {
+  test("Should Verify a Batch VAA From a Contract, on BSC", (done) => {
     (async () => {
       try {
         // create a signer for BSC
@@ -132,12 +142,12 @@ describe("Batch VAAs", () => {
         done();
       } catch (e) {
         console.error(e);
-        done("An error occurred while trying to generate a batch VAA on ethereum");
+        done("An error occurred while trying to verify a batch VAA on BSC");
       }
     })();
   });
 
-  test("Should Generate a Single VAA (a Batch and Legacy VAA) From a Contract on BSC", (done) => {
+  test("Should Generate a VAAs (a Batch and Legacy VAA) on BSC", (done) => {
     (async () => {
       try {
         // create a signer for BSC
@@ -172,16 +182,26 @@ describe("Batch VAAs", () => {
         expect(messageEvents[0].args.payload).toEqual(singleVAAPayload);
         expect(messageEvents[0].args.consistencyLevel).toEqual(consistencyLevel);
 
+        // convert the hex string transactionHash to a byte array
+        const transactionBytes = ethers.utils.arrayify(receipt.transactionHash)
+
         // fetch the batch VAA from the guardian
         const batchVaaRes = await getSignedBatchVAAWithRetry(
           WORMHOLE_RPC_HOSTS,
           CHAIN_ID_BSC,
-          receipt.transactionHash,
+          transactionBytes,
+          nonce,
           {
             transport: NodeHttpTransport(),
           }
         );
-        encodedBatchVAAFromBsc = batchVaaRes.batchVaaBytes;
+        // the Proto response type allows an empty response, so check for it
+        if (!batchVaaRes.signedBatchVaa || !batchVaaRes.signedBatchVaa.batchVaa) {
+          const err = new Error("received empty response from guardian for BSC batch.")
+          console.error(err)
+          throw err
+        }
+        encodedBatchVAAFromBsc = batchVaaRes.signedBatchVaa.batchVaa;
 
         // fetch the legacy VAA for the observation in the batch
         legacyVAAFromBSC = await getSignedVaaFromReceiptOnEth(receipt, CHAIN_ID_BSC, MOCK_BATCH_VAA_SENDER_ADDRESS);
@@ -191,12 +211,12 @@ describe("Batch VAAs", () => {
         done();
       } catch (e) {
         console.error(e);
-        done("An error occurred while trying to generate a batch VAA on ethereum");
+        done("An error occurred while trying to generate a legacy VAA & batch VAA on BSC");
       }
     })();
   });
 
-  test("Should Verify a Batch VAA (With a Single Observation) From a Contract on Ethereum", (done) => {
+  test("Should Verify a Batch VAA (With a Single Observation) From a Contract, on Ethereum", (done) => {
     (async () => {
       try {
         // create a signer for ETH
@@ -232,12 +252,12 @@ describe("Batch VAAs", () => {
         done();
       } catch (e) {
         console.error(e);
-        done("An error occurred while trying to generate a batch VAA on ethereum");
+        done("An error occurred while trying to verify a batch VAA with single observation on ethereum");
       }
     })();
   });
 
-  test("Should Verify a Legacy VAA From a Contract on Ethereum", (done) => {
+  test("Should Verify a Legacy VAA From a Contract, on Ethereum", (done) => {
     (async () => {
       try {
         // create a signer for ETH
@@ -287,7 +307,7 @@ describe("Batch VAAs", () => {
         done();
       } catch (e) {
         console.error(e);
-        done("An error occurred while trying to generate a batch VAA on ethereum");
+        done("An error occurred while trying to verify a legacy VAA on ethereum");
       }
     })();
   });
