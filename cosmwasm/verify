@@ -3,19 +3,40 @@
 set -euo pipefail
 
 usage="Usage:
-  $(basename "$0") [-h] [-n network] <.wasm file> <code id> -- Verify that the deployed on-chain bytecode matches the local object file
+  $(basename "$0") [-h] [-n network] [-c chain] [-w .wasm file] [-i code id || -a contract address] -- Verify that the deployed on-chain bytecode matches the local object file
 
   where:
       -h  show this help text
-      -n  set the network (mainnet, testnet, devnet. defaults to \$NETWORK if set)"
+      -n  set the network (mainnet, testnet, devnet. defaults to \$NETWORK if set)
+      -c  set the chain (terra, terra2, injective, xpla)
+      -w  set the .wasm file to verify against
+      -i  set the code id of the stored wasm contract on chain
+      -a  set the on chain address of the contract to verify"
 
-network=$NETWORK
-while getopts ':hn:' option; do
+chain=""
+network=""
+wasm=""
+code_id=""
+contract_addr=""
+
+if [[ ! -z "${NETWORK+x}" ]]; then
+  network=$NETWORK
+fi
+
+while getopts ':hn:c:i:w:a:' option; do
   case "$option" in
     h) echo "$usage"
        exit
        ;;
     n) network=$OPTARG
+       ;;
+    c) chain=$OPTARG
+       ;;
+    w) wasm=$OPTARG
+       ;;
+    i) code_id=$OPTARG
+       ;;
+    a) contract_addr=$OPTARG
        ;;
     :) printf "missing argument for -%s\n" "$OPTARG" >&2
        echo "$usage" >&2
@@ -29,28 +50,102 @@ while getopts ':hn:' option; do
 done
 shift $((OPTIND - 1))
 
+if [[ -z $code_id && -z $contract_addr ]]; then
+  printf "Need one of the -i and -a parameters to be specified.\n" >&2
+  echo "$usage" >&2
+  exit 1
+fi
 
+if [[ ! -z $code_id && ! -z $contract_addr ]]; then
+  printf "Both of the -i and -a parameters cannot be specified.\n" >&2
+  echo "$usage" >&2
+  exit 1
+fi
+
+if [[ -z $chain || -z $network || -z $wasm ]]; then
+  printf "The -c, -n, and -w parameters are required.\n" >&2
+  echo "$usage" >&2
+  exit 1
+fi
+
+url=""
+jq_cmd=""
+code_id_url=""
+code_id_jq=""
+# Fill in the above values based on network and chain
 case "$network" in
-  mainnet) url="https://lcd.terra.dev";;
-  testnet) url="https://bombay-lcd.terra.dev";;
-  devnet)  url="http://localhost:1317";;
+  mainnet) 
+    case "$chain" in
+      terra) url="https://columbus-lcd.terra.dev/terra/wasm/v1beta1/codes/"
+        jq_cmd="jq '.code_info.code_hash' -r | base64 -d | hexdump -v -e '/1 \"%02x\" '"
+        code_id_url="https://columbus-lcd.terra.dev/terra/wasm/v1beta1/contracts/"
+        code_id_jq="jq '.contract_info.code_id' -r "
+        ;;
+      terra2) url="https://phoenix-lcd.terra.dev/wasm/code/"
+        jq_cmd="jq '.result.data_hash' -r "
+        code_id_url="https://phoenix-lcd.terra.dev/wasm/contract/"
+        code_id_jq="jq '.result.code_id' -r "
+        ;;
+      xpla) url="https://dimension-lcd.xpla.dev/cosmwasm/wasm/v1/code/"
+        jq_cmd="jq '.code_info.data_hash' -r "
+        code_id_url="https://dimension-lcd.xpla.dev/cosmwasm/wasm/v1/contract/"
+        code_id_jq="jq '.contract_info.code_id' -r"
+        ;;
+    esac ;;
+  testnet) 
+    case "$chain" in
+      terra2) url="https://pisco-lcd.terra.dev/wasm/code/"
+        jq_cmd="jq '.result.data_hash' -r "
+        code_id_url="https://pisco-lcd.terra.dev/wasm/contract/"
+        code_id_jq="jq '.result.code_id' -r "
+        ;;
+      injective) url="https://k8s.testnet.exchange.grpc-web.injective.network/api/explorer/v1/wasm/codes/"
+        jq_cmd="jq '.checksum.hash' -r | cut -d 'x' -f2"
+        code_id_url="https://k8s.testnet.lcd.injective.network/cosmwasm/wasm/v1/contract/"
+        code_id_jq="jq '.contract_info.code_id' -r"
+        ;;
+      xpla) url="https://cube-lcd.xpla.dev/cosmwasm/wasm/v1/code/"
+        jq_cmd="jq '.code_info.data_hash' -r "
+        code_id_url="https://cube-lcd.xpla.dev/cosmwasm/wasm/v1/contract/"
+        code_id_jq="jq '.contract_info.code_id' -r "
+        ;;
+    esac ;;
+  devnet)  
+    case "$chain" in
+      terra) url="http://localhost:1317/terra/wasm/v1beta1/codes/"
+        jq_cmd="jq '.code_info.code_hash' -r | base64 -d | hexdump -v -e '/1 \"%02x\" '"
+        ;;
+      terra2) url="http://localhost:1318/terra/wasm/v1beta1/codes/"
+        jq_cmd="jq '.code_info.code_hash' -r | base64 -d | hexdump -v -e '/1 \"%02x\" '"
+        ;;
+    esac ;;
   *) printf "Network not set. Specify with -n\n" >&2
      echo "$usage" >&2
      exit 1
      ;;
 esac
 
-[ $# -ne 2 ] && { echo "$usage" >&2; exit 1; }
-obj_file=$1
-code_id=$2
+if [[ -z $url ]]; then
+  printf "The combination of $network and $chain is not supported.\n" >&2
+  exit 1
+fi
 
+if [[ ! -z $contract_addr && -z $code_id_url ]]; then
+  printf "There is no contract to code_id conversion for the combination of $network and $chain.\n" >&2
+  exit 1
+fi
 
-hash1=`curl "$url"/terra/wasm/v1beta1/codes/"$code_id" --silent | jq '.code_info.code_hash' -r | base64 -d | hexdump -v -e '/1 "%02x" '`
-hash2=`sha256sum $obj_file | cut -f1 -d' '`
+if [[ ! -z $contract_addr ]]; then
+  code_id=`curl "$code_id_url$contract_addr" --silent | eval $code_id_jq`
+  printf "Found code_id $code_id\n"
+fi
+
+hash1=`curl "$url$code_id" --silent | eval $jq_cmd`
+hash2=`sha256sum $wasm | cut -f1 -d' '`
 
 echo "Deployed bytecode hash (on $network):"
 echo $hash1
-echo "$obj_file hash:"
+echo "$wasm hash:"
 echo $hash2
 
 if [ "$hash1" == "$hash2" ]; then
@@ -61,3 +156,26 @@ else
   exit 1;
 fi
 
+# Test Cases:
+# Terra:
+#   Mainnet: wormhole code id = 557, tokenBridge code id = 6097
+#   Mainnet: wormhole contract address = terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5 
+#   Mainnet: tokenBridge contract Address = terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf
+# Terra2:
+#   Mainnet: wormhole code id = 146, tokenBridge code id = 151
+#   Mainnet: wormhole contract address = terra12mrnzvhx3rpej6843uge2yyfppfyd3u9c3uq223q8sl48huz9juqffcnhp
+#   Mainnet: tokenBridge contract address = terra153366q50k7t8nn7gec00hg66crnhkdggpgdtaxltaq6xrutkkz3s992fw9
+#   Testnet: wormhole code id = 890, tokenBridge code id = 4773
+#   Testnet: wormhole contract address = terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0
+#   Testnet: tokenBridge contract address = terra1c02vds4uhgtrmcw7ldlg75zumdqxr8hwf7npseuf2h58jzhpgjxsgmwkvk
+# Injective:
+#   Testnet: wormhole code id = 126, tokenBridge code id = 124
+#   Testnet: wormhole contract address = inj1xx3aupmgv3ce537c0yce8zzd3sz567syuyedpg
+#   Testnet: tokenBridge contract address = inj1q0e70vhrv063eah90mu97sazhywmeegp7myvnh
+# Xpla:
+#   Mainnet: wormhole code id = 10, tokenBridge code id = 13
+#   Mainnet: wormhole contract address = xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w
+#   Mainnet: tokenBridge contract address = xpla137w0wfch2dfmz7jl2ap8pcmswasj8kg06ay4dtjzw7tzkn77ufxqfw7acv
+#   Testnet: wormhole code id = 53, tokenBridge code id = 135
+#   Testnet: wormhole contract address = xpla1upkjn4mthr0047kahvn0llqx4qpqfn75lnph4jpxfn8walmm8mqsanyy35
+#   Testnet: tokenBridge contract address = xpla1kek6zgdaxcsu35nqfsyvs2t9vs87dqkkq6hjdgczacysjn67vt8sern93x
