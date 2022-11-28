@@ -3,7 +3,7 @@ module token_bridge::vaa {
     use std::option;
     use sui::tx_context::{TxContext};
 
-    use wormhole::myvaa::{Self as vaa, VAA};
+    use wormhole::myvaa::{Self as corevaa, VAA};
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{ExternalAddress};
 
@@ -26,16 +26,16 @@ module token_bridge::vaa {
     /// the first time around.
     public(friend) fun replay_protect(bridge_state: &mut BridgeState, vaa: &VAA) {
         // this calls set::add which aborts if the element already exists
-        bridge_state::store_consumed_vaa(bridge_state, vaa::get_hash(vaa));
+        bridge_state::store_consumed_vaa(bridge_state, corevaa::get_hash(vaa));
     }
 
     /// Asserts that the VAA is from a known token bridge.
     public fun assert_known_emitter(state: &BridgeState, vm: &VAA) {
-        let maybe_emitter = bridge_state::get_registered_emitter(state, &vaa::get_emitter_chain(vm));
+        let maybe_emitter = bridge_state::get_registered_emitter(state, &corevaa::get_emitter_chain(vm));
         assert!(option::is_some<ExternalAddress>(&maybe_emitter), E_UNKNOWN_CHAIN);
 
         let emitter = option::extract(&mut maybe_emitter);
-        assert!(emitter == vaa::get_emitter_address(vm), E_UNKNOWN_EMITTER);
+        assert!(emitter == corevaa::get_emitter_address(vm), E_UNKNOWN_EMITTER);
     }
 
     /// Parses, verifies, and replay protects a token bridge VAA.
@@ -57,7 +57,7 @@ module token_bridge::vaa {
     /// Parses, and verifies a token bridge VAA.
     /// Aborts if the VAA is not from a known token bridge emitter.
     public fun parse_and_verify(wormhole_state: &mut WormholeState, bridge_state: &BridgeState, vaa: vector<u8>, ctx:&mut TxContext): VAA {
-        let vaa = vaa::parse_and_verify(wormhole_state, vaa, ctx);
+        let vaa = corevaa::parse_and_verify(wormhole_state, vaa, ctx);
         assert_known_emitter(bridge_state, &vaa);
         vaa
     }

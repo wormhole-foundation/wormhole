@@ -26,6 +26,7 @@ module token_bridge::bridge_state {
     const E_COIN_TYPE_HAS_REGISTERED_INTEGER_ADDRESS: u64 = 3;
     const E_ORIGIN_CHAIN_MISMATCH: u64 = 4;
     const E_ORIGIN_ADDRESS_MISMATCH: u64 = 5;
+    const E_IS_WRAPPED_ASSET: u64 = 6;
 
     friend token_bridge::vaa;
     friend token_bridge::register_chain;
@@ -304,6 +305,9 @@ module token_bridge::bridge_state {
     /// setters
 
     public(friend) fun set_registered_emitter(state: &mut BridgeState, chain_id: U16, emitter: ExternalAddress) {
+        if (vec_map::contains<U16, ExternalAddress>(&mut state.registered_emitters, &chain_id)){
+            vec_map::remove<U16, ExternalAddress>(&mut state.registered_emitters, &chain_id);
+        };
         vec_map::insert<U16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
     }
 
@@ -323,7 +327,7 @@ module token_bridge::bridge_state {
         bridge_state: &mut BridgeState,
         ctx: &mut TxContext
     ): AssetMeta {
-        assert!(!is_wrapped_asset<CoinType>(bridge_state), 0); // TODO: introduce better error for this (and test)
+        assert!(!is_wrapped_asset<CoinType>(bridge_state), E_IS_WRAPPED_ASSET); // TODO - test
         let asset_meta = asset_meta::create(
             next_native_id(&mut bridge_state.native_id_registry),
             wormhole_state::get_chain_id(wormhole_state), // TODO: should we just hardcode this?
@@ -483,7 +487,5 @@ module token_bridge::test_bridge_state{
         };
         test_scenario::end(test);
     }
-
-    // TODO - Test deposit and withdraw from the token bridge off-chain
 
 }
