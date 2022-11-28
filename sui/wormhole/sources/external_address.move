@@ -50,8 +50,8 @@ module wormhole::external_address {
         serialize::serialize_vector(buf, e.external_address)
     }
 
-    public fun to_address(e: vector<u8>): address {
-        let b = bcs::new(e);
+    public fun to_address(e: &ExternalAddress): address {
+        let b = bcs::new(e.external_address);
         let a = bcs::peel_address(&mut b);
         return a
     }
