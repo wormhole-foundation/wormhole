@@ -107,6 +107,8 @@ interface IWormhole {
 
     function verifySignatures(bytes32 hash, Signature[] memory signatures, GuardianSet memory guardianSet) external pure returns (bool valid, string memory reason);
 
+    function verifiedHashCached(bytes32 hash) external view returns (bool);
+
     function clearBatchCache(bytes32[] memory hashesToClear) external;
 
     function parseVM(bytes memory encodedVM) external pure returns (VM memory vm);
