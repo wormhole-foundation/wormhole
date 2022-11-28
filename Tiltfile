@@ -54,6 +54,7 @@ config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guard
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("secondWormchain", False, "Enable a second wormchain node with different validator keys")
+config.define_bool("guardiand_batch_VAA", False, "Enable BatchVAA generation in guardiand")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -78,6 +79,7 @@ node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 secondWormchain = cfg.get("secondWormchain", False)
 btc = cfg.get("btc", False)
+guardiand_batch_VAA = cfg.get("guardiand_batch_VAA", False)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -179,7 +181,7 @@ def build_node_yaml():
                 container["command"] += [
                     "--suiRPC",
                     "http://sui:9002",
-# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to 
+# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to
 # event traffic purely based on the account since that is the only thing that is deterministic.
 #                    "--suiPackage",
 #                    "0x.....",
@@ -259,6 +261,11 @@ def build_node_yaml():
                     "ws://guardian-validator:26657/websocket",
                     "--wormchainLCD",
                     "http://guardian-validator:1317"
+                ]
+
+            if guardiand_batch_VAA:
+                container["command"] += [
+                    "--batchVAAEnabled"
                 ]
 
     return encode_yaml_stream(node_yaml)

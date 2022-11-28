@@ -143,8 +143,9 @@ spec:
             - /tmp/publicrpc.sock
             - --dataDir
             - /tmp/data
-          # - --chainGovernorEnabled=true
-          #            - --logLevel=debug
+            # - --chainGovernorEnabled=true
+            # - --batchVAAEnabled
+            # - --logLevel=debug
           securityContext:
             capabilities:
               add:
