@@ -10,6 +10,13 @@ Build and install wormchain.  You will need golang version 1.16+ installed.
 make build/wormchaind
 ```
 
+To enable ledger support, use this recipe instead.  You do not need ledger support for a validating node.
+You should only use a ledger-enabled `wormchaind` when interacting with Wormchain as a client.
+
+```
+make build/wormchaind-ledger
+```
+
 ## Develop
 
 See [development.md](./development.md)

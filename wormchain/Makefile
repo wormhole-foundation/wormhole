@@ -43,6 +43,9 @@ validators:
 build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
 	go build -v $(BUILD_FLAGS) -o $@ $<
 
+build/wormchaind-ledger: cmd/wormchaind/main.go $(GO_FILES)
+	go build -tags "ledger" -v $(BUILD_FLAGS) -o $@ $<
+
 check-ignite:
 	@ if [ "$(shell ignite version | awk '/Ignite CLI version:/ { print $$4 }')" != "$(IGNITE_EXPECTED_VERSION)" ] ; then echo "Expected ignite version $(IGNITE_EXPECTED_VERSION)" && exit 1 ; fi
 
