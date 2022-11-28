@@ -484,6 +484,11 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *n
 		pk = gs.Keys[idx]
 	}
 
+	// SECURITY: see whitepapers/0009_guardian_key.md
+	if len(signedObservationRequestPrefix)+len(s.ObservationRequest) < 34 {
+		return nil, fmt.Errorf("invalid observation request: too short")
+	}
+
 	digest := signedObservationRequestDigest(s.ObservationRequest)
 
 	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
