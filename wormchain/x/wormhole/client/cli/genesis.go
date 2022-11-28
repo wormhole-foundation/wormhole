@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
+	wormholesdk "github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -55,7 +56,7 @@ func GetGenesisCmd() *cobra.Command {
 	cmd.AddCommand(CmdGenerateVaa())
 	cmd.AddCommand(CmdGenerateGovernanceVaa())
 	cmd.AddCommand(CmdGenerateGuardianSetUpdatea())
-	cmd.AddCommand(CmdSignAddress())
+	cmd.AddCommand(CmdTestSignAddress())
 
 	return cmd
 }
@@ -406,10 +407,10 @@ func CmdGenerateGuardianSetUpdatea() *cobra.Command {
 	return cmd
 }
 
-func CmdSignAddress() *cobra.Command {
+func CmdTestSignAddress() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "sign-address",
-		Short: "sign the validator address to use for registering as a guardian.  read guardian key as hex in $GUARDIAN_KEY env variable. use --from to indicate address to sign.",
+		Use:   "test-sign-address",
+		Short: "Test method sign the validator address to use for registering as a guardian.  Use guardiand for production, not this method.  Read guardian key as hex in $GUARDIAN_KEY env variable. use --from to indicate address to sign.",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -427,7 +428,7 @@ func CmdSignAddress() *cobra.Command {
 				return err
 			}
 			addr := info.GetAddress()
-			addrHash := crypto.Keccak256Hash(addr)
+			addrHash := crypto.Keccak256Hash(wormholesdk.SignedWormchainAddressPrefix, addr)
 			sig, err := crypto.Sign(addrHash[:], key)
 			if err != nil {
 				return err
