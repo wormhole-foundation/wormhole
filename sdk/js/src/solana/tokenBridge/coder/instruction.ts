@@ -52,7 +52,7 @@ export class TokenBridgeInstructionCoder implements InstructionCoder {
 
 /** Solitaire enum of existing the Token Bridge's instructions.
  *
- * https://github.com/certusone/wormhole/blob/dev.v2/solana/modules/token_bridge/program/src/lib.rs#L100
+ * https://github.com/certusone/wormhole/blob/main/solana/modules/token_bridge/program/src/lib.rs#L100
  */
 export enum TokenBridgeInstruction {
   Initialize,

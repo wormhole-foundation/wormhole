@@ -6,7 +6,7 @@ on:
     types: [published]
   push:
     branches:
-      - dev.v2
+      - main
 
 env:
   REGISTRY: ghcr.io

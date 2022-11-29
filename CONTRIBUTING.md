@@ -9,7 +9,7 @@ and code reviews are our most important tools to accomplish that.
 - All new features must first be discussed in a GitHub issue before starting to implement them. For
   complex features, it can be useful to submit a [formal design document](design/template.md).
 
-- Development happens on a long-lived development branch (`dev.v2` and `dev.v1`).
+- Development happens on a long-lived development branch (`main` and `dev.v1`).
   Every change going into a development branch is reviewed individually (see below). Release branches may be used
   to support in-the-wild releases of Wormhole. We aim to support at most two release
   branches at the same time. Changes can be cherry-picked from the development branch to release branches, but
