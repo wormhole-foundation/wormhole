@@ -29,7 +29,7 @@ func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, ch
 
 // recursivelyReadFinalizedBlocks walks back the blockchain from the startBlock (inclusive)
 // until it reaches a block of height stopHeight or less (exclusive). Chunks from all these blocks are put
-// into e.chunkProcessingQueque with the chunks from the oldest block first
+// into e.chunkProcessingqueue with the chunks from the oldest block first
 // if there is an error while walking back the chain, no chunks will be returned
 func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context.Context, startBlock nearapi.Block, stopHeight uint64, chunkSink chan<- nearapi.ChunkHeader, recursionDepth uint) error {
 
@@ -75,7 +75,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	return nil
 }
 
-// readFinalChunksSince polls the NEAR blockchain for new blocks with height > startHeight, parses out the chunks and places
+// ReadFinalChunksSince polls the NEAR blockchain for new blocks with height > startHeight, parses out the chunks and places
 // them into `chunkSink` in the order they were recorded on the blockchain
 // returns the height of the latest final block
 func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, startHeight uint64, chunkSink chan<- nearapi.ChunkHeader) (newestFinalHeight uint64, err error) {

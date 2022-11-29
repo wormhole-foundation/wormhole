@@ -21,7 +21,7 @@ var (
 
 	// how long to initially wait between observing a transaction and attempting to process the transaction.
 	// To successfully process the transaction, all receipts need to be finalized, which typically only occurs two blocks later or so.
-	// transaction processing will be retried with exponential backoff, i.e. transaction may stay in the queque for ca. initialTxProcDelay^(txProcRetry+2) time.
+	// transaction processing will be retried with exponential backoff, i.e. transaction may stay in the queue for ca. initialTxProcDelay^(txProcRetry+2) time.
 	initialTxProcDelay = time.Second * 3
 
 	blockPollInterval = time.Millisecond * 200
@@ -33,9 +33,9 @@ var (
 	// such that they can all be fetched in parallel.
 	// We're currently seeing ~10 chunks/block, so setting this to 20 conservatively.
 	workerChunkFetching int = 20
-	quequeSize          int = 10_000 // size of the queques for chunk processing as well as transaction processing
+	queueSize           int = 10_000 // size of the queues for chunk processing as well as transaction processing
 
-	// if watcher falls behind this many blocks, start over. This should be set proportional to `quequeSize`
+	// if watcher falls behind this many blocks, start over. This should be set proportional to `queueSize`
 	// such that all transactions from `maxFallBehindBlocks` can easily fit into the queue
 	maxFallBehindBlocks uint = 200
 
@@ -71,7 +71,7 @@ type (
 		msgC     chan<- *common.MessagePublication   // validated (SECURITY: and only validated!) observations go into this channel
 		obsvReqC <-chan *gossipv1.ObservationRequest // observation requests are coming from this channel
 
-		// internal queques
+		// internal queues
 		transactionProcessingQueueCounter atomic.Int64
 		transactionProcessingQueue        chan *transactionProcessingJob
 		chunkProcessingQueue              chan nearapi.ChunkHeader
@@ -102,7 +102,7 @@ func NewWatcher(
 		msgC:                          msgC,
 		obsvReqC:                      obsvReqC,
 		transactionProcessingQueue:    make(chan *transactionProcessingJob),
-		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, quequeSize),
+		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, queueSize),
 		eventChanBlockProcessedHeight: make(chan uint64, 10),
 		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
 		eventChan:                     make(chan eventType, 10),
@@ -298,6 +298,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
+// schedule pushes a job to workers after delay. It is context aware and will not execute the job if the context
+// is cancelled before delay has passed and the job is picked up by a worker.
 func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, delay time.Duration) {
 	go func() {
 		timer := time.NewTimer(delay)
