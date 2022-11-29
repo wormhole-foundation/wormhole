@@ -84,11 +84,11 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 			return ctx.Err()
 		case <-metricsIntervalTimer.C:
 			// compute and publish periodic metrics
-			l1 := e.transactionProcessingQueue.Len()
+			l1 := e.transactionProcessingQueueCounter.Load()
 			l2 := len(e.chunkProcessingQueue)
 			txQuequeLen.Set(float64(l1))
 			chunkQuequeLen.Set(float64(l2))
-			logger.Info("metrics", zap.Int("txQuequeLen", l1), zap.Int("chunkQuequeLen", l2))
+			logger.Info("metrics", zap.Int64("txQuequeLen", l1), zap.Int("chunkQuequeLen", l2))
 
 		case height := <-e.eventChanBlockProcessedHeight:
 			if highestBlockHeightProcessed < height {

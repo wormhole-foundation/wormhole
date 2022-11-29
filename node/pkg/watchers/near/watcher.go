@@ -3,6 +3,7 @@ package near
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -11,7 +12,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
-	"github.com/certusone/wormhole/node/pkg/watchers/near/timerqueue"
 	"github.com/mr-tron/base58"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -72,8 +72,9 @@ type (
 		obsvReqC <-chan *gossipv1.ObservationRequest // observation requests are coming from this channel
 
 		// internal queques
-		transactionProcessingQueue timerqueue.Timerqueue
-		chunkProcessingQueue       chan nearapi.ChunkHeader
+		transactionProcessingQueueCounter atomic.Int64
+		transactionProcessingQueue        chan *transactionProcessingJob
+		chunkProcessingQueue              chan nearapi.ChunkHeader
 
 		// events channels
 		eventChanBlockProcessedHeight chan uint64 // whenever a block is processed, post the height here
@@ -100,7 +101,7 @@ func NewWatcher(
 		nearRPC:                       nearRPC,
 		msgC:                          msgC,
 		obsvReqC:                      obsvReqC,
-		transactionProcessingQueue:    *timerqueue.New(),
+		transactionProcessingQueue:    make(chan *transactionProcessingJob),
 		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, quequeSize),
 		eventChanBlockProcessedHeight: make(chan uint64, 10),
 		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
@@ -108,8 +109,8 @@ func NewWatcher(
 	}
 }
 
-func newTransactionProcessingJob(txHash string, senderAccountId string) transactionProcessingJob {
-	return transactionProcessingJob{
+func newTransactionProcessingJob(txHash string, senderAccountId string) *transactionProcessingJob {
+	return &transactionProcessingJob{
 		txHash,
 		senderAccountId,
 		time.Now(),
@@ -166,17 +167,8 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				continue
 			}
-			for i := 0; i < len(newJobs); i++ {
-				if e.transactionProcessingQueue.Len() > quequeSize {
-					logger.Warn(
-						"NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.",
-						zap.String("log_msg_type", "tx_proc_queue_full"),
-						zap.String("chunk_id", chunkHeader.Hash),
-					)
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-					break
-				}
-				e.transactionProcessingQueue.Schedule(newJobs[i], time.Now().Add(newJobs[i].delay))
+			for _, job := range newJobs {
+				e.schedule(ctx, job, job.delay)
 			}
 		}
 	}
@@ -205,7 +197,7 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 			// Guardians currently run nodes for all shards and the API seems to be returning the correct results independent of the set senderAccountId but this could change in the future.
 			// Fixing this would require adding the transaction sender account ID to the observation request.
 			job := newTransactionProcessingJob(txHash, e.wormholeAccount)
-			e.transactionProcessingQueue.Schedule(job, time.Now().Add(-time.Nanosecond))
+			e.schedule(ctx, job, time.Nanosecond)
 		}
 	}
 }
@@ -213,66 +205,51 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 func (e *Watcher) runTxProcessor(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
-
-	timer := time.NewTimer(time.Millisecond)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 
-		case <-timer.C:
-			for {
-				j, _, err := e.transactionProcessingQueue.PopFirstIfReady()
-				if err != nil {
-					timer.Reset(time.Millisecond)
-					break
+		case job := <-e.transactionProcessingQueue:
+			err := e.processTx(logger, ctx, job)
+			if err != nil {
+				// transaction processing unsuccessful. Retry if retry_counter not exceeded.
+				if job.retryCounter < txProcRetry {
+					// Log and retry with exponential backoff
+					logger.Info(
+						"near.processTx",
+						zap.String("log_msg_type", "tx_processing_retry"),
+						zap.String("tx_hash", job.txHash),
+						zap.String("error", err.Error()),
+					)
+					job.retryCounter++
+					job.delay *= 2
+					e.schedule(ctx, job, job.delay)
+				} else {
+					// Warn and do not retry
+					logger.Warn(
+						"near.processTx",
+						zap.String("log_msg_type", "tx_processing_retries_exceeded"),
+						zap.String("tx_hash", job.txHash),
+						zap.String("error", err.Error()),
+					)
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				}
-
-				job := j.(transactionProcessingJob)
-
-				err = e.processTx(logger, ctx, &job)
-				if err != nil {
-					// transaction processing unsuccessful. Retry if retry_counter not exceeded.
-
-					if job.retryCounter < txProcRetry {
-						// Log and retry with exponential backoff
-						logger.Info(
-							"near.processTx",
-							zap.String("log_msg_type", "tx_processing_retry"),
-							zap.String("tx_hash", job.txHash),
-							zap.String("error", err.Error()),
-						)
-						job.retryCounter++
-						job.delay *= 2
-						e.transactionProcessingQueue.Schedule(job, time.Now().Add(job.delay))
-					} else {
-						// Warn and do not retry
-						logger.Warn(
-							"near.processTx",
-							zap.String("log_msg_type", "tx_processing_retries_exceeded"),
-							zap.String("tx_hash", job.txHash),
-							zap.String("error", err.Error()),
-						)
-						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-					}
-				}
-
-				if job.hasWormholeMsg {
-					// report how long it took to process this transaction
-					e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
-				}
-
-				// tell everyone about successful processing
-				e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
 			}
 
+			if job.hasWormholeMsg {
+				// report how long it took to process this transaction
+				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
+			}
+
+			// tell everyone about successful processing
+			e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
 		}
+
 	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-
 	logger := supervisor.Logger(ctx)
 
 	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC))
@@ -319,4 +296,26 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, delay time.Duration) {
+	go func() {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+
+		e.transactionProcessingQueueCounter.Add(1)
+		defer e.transactionProcessingQueueCounter.Add(-1)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			// Don't block on processing if the context is cancelled
+			select {
+			case <-ctx.Done():
+				return
+			case e.transactionProcessingQueue <- job:
+			}
+		}
+	}()
 }

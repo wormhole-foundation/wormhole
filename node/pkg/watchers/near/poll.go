@@ -9,10 +9,10 @@ import (
 )
 
 // fetchAndParseChunk goes through all transactions in a chunk and returns a list of transactionProcessingJob
-func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, chunkHeader nearapi.ChunkHeader) ([]transactionProcessingJob, error) {
+func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, chunkHeader nearapi.ChunkHeader) ([]*transactionProcessingJob, error) {
 	logger.Debug("near.fetchAndParseChunk", zap.String("chunk_hash", chunkHeader.Hash))
 
-	result := []transactionProcessingJob{}
+	var result []*transactionProcessingJob
 
 	chunk, err := e.nearAPI.GetChunk(ctx, chunkHeader)
 	if err != nil {
