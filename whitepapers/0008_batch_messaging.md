@@ -20,7 +20,7 @@ Extend Wormhole with the core-primitives needed to build better composability pa
 
 ## Non-Goals
 
-This design document focuses only on the extension of the current implementation of Wormhole’s generic message passing ([0001_generic_message_passing.md](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/whitepapers/0001_generic_message_passing.md)) and does not attempt to solve the following problems, leaving them for future design iterations:
+This design document focuses only on the extension of the current implementation of Wormhole’s generic message passing ([0001_generic_message_passing.md](https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0001_generic_message_passing.md)) and does not attempt to solve the following problems, leaving them for future design iterations:
 
 - Replacing VAAv1s with batch VAAs (VAAv2) containing only a single observation.
 - Ensuring backwards compatibility of batch VAAs (VAAv2) with only a single observation using the existing Wormhole APIs.

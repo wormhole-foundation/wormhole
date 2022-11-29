@@ -89,7 +89,7 @@ The Wormhole project wants to lower the bar for White-hat hackers to find securi
 
 Here's a list of strategies that are helpful for getting started on Wormhole:
 
-- Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/CONTRIBUTING.md)) and see what is already being testing for.
+- Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/wormhole-foundation/wormhole/blob/main/CONTRIBUTING.md)) and see what is already being testing for.
   - Check out places where there might be missing test coverage entirely. This could be a ripe spot to look for something we missed.
   - Check out places where there are unit/integration tests, but they lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
 - Review different smart contract implementations (eg. Solana, EVM, CosmWasm, Move) and attempt to understand how and why they are different.
@@ -104,7 +104,7 @@ It's important to remember this is an iterative process and to stay positive. If
 
 ## Chain Integrators
 
-As the list of chains connected to Wormhole increases, so does the risk that a given connected could introduce risks to the Wormhole network. As a result, Wormhole does have built-in safety features (e.g.: [Governor white-paper](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/whitepapers/0007_governor.md)) to reduce the "blast radius" of such case. That said, a defense in depth strategy is required to do as much as possible to secure the network. As part of this methodology, the Wormhole project recommends that all connected chains current and future implement robust security programs of their own to do their part in managing chain compromise risk to the wormhole network.
+As the list of chains connected to Wormhole increases, so does the risk that a given connected could introduce risks to the Wormhole network. As a result, Wormhole does have built-in safety features (e.g.: [Governor white-paper](https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0007_governor.md)) to reduce the "blast radius" of such case. That said, a defense in depth strategy is required to do as much as possible to secure the network. As part of this methodology, the Wormhole project recommends that all connected chains current and future implement robust security programs of their own to do their part in managing chain compromise risk to the wormhole network.
 
 Here are a few ways in which connected chains can maintain high security standards:
 
@@ -114,7 +114,7 @@ For source code ensure relevant bits are:
 - Audited by an independent third party with public audit reports
 - Included in a public bug bounty program. The bounty rewards should be sufficiently large to incentivize white-hat mindshare in finding security bugs and responsibly disclosing them
 - Version control systems contain adequate access controls and mandatory code review (e.g.: In github, use of branch protection and a minimum of one independent reviewer to merge code)
-- Maintaining a [SECURITY.md](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/SECURITY.md) in the root of the repository (like this one) to offer guidance and transparency on security relevant topics
+- Maintaining a [SECURITY.md](https://github.com/wormhole-foundation/wormhole/blob/main/SECURITY.md) in the root of the repository (like this one) to offer guidance and transparency on security relevant topics
 - Includes sufficient unit and integration test coverage (including negative tests), which are run on every commit via continuous integration. Ensure that the results of those test runs are visible to the public
 
 Additionally, ensure:

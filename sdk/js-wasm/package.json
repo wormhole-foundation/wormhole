@@ -8,7 +8,7 @@
   "files": [
     "lib/"
   ],
-  "repository": "https://github.com/certusone/wormhole/tree/dev.v2/sdk/js-wasm",
+  "repository": "https://github.com/wormhole-foundation/wormhole/tree/main/sdk/js-wasm",
   "scripts": {
     "build-deps": "cd ../.. && DOCKER_BUILDKIT=1 docker build -f solana/Dockerfile.wasm -o type=local,dest=. solana",
     "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyWasm.js",

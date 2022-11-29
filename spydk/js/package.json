@@ -8,7 +8,7 @@
   "files": [
     "lib/"
   ],
-  "repository": "https://github.com/certusone/wormhole/tree/dev.v2/spydk/js",
+  "repository": "https://github.com/wormhole-foundation/wormhole/tree/main/spydk/js",
   "scripts": {
     "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
     "build-all": "npm run build-lib",
