@@ -1,0 +1,6 @@
+###############################################################################################
+# Configuration file, for automatically running multiple instances
+###############################################################################################
+swirld, hedera
+app, HederaNode.jar
+address, n0, node0, 1, network-node, 50111, network-node, 50111, 0.0.3

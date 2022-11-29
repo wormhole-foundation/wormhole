@@ -40,6 +40,7 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 # Components
 config.define_bool("near", False, "Enable Near component")
 config.define_bool("sui", False, "Enable Sui component")
+config.define_bool("hedera", False, "Enable Hedera component")
 config.define_bool("btc", False, "Enable BTC component")
 config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
@@ -66,6 +67,7 @@ algorand = cfg.get("algorand", ci)
 near = cfg.get("near", ci)
 aptos = cfg.get("aptos", ci)
 sui = cfg.get("sui", False)
+hedera = cfg.get("hedera", False)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 terra_classic = cfg.get("terra_classic", ci)
@@ -751,6 +753,24 @@ if wormchain:
             labels = ["wormchain"],
             trigger_mode = trigger_mode,
         )
+
+if hedera:
+   docker_compose("./hedera/hedera-local-node/docker-compose.yml", env_file="./hedera/hedera-local-node/.env")
+   dc_resource('grpc', labels=["hedera"])
+   dc_resource('minio', labels=["hedera"])
+   dc_resource('db', labels=["hedera"])
+   dc_resource('envoy', labels=["hedera"])
+   dc_resource('explorer', labels=["hedera"])
+   dc_resource('haveged', labels=["hedera"])
+   dc_resource('network-node', labels=["hedera"])
+   dc_resource('rest', labels=["hedera"])
+   dc_resource('relay', labels=["hedera"])
+   dc_resource('web3', labels=["hedera"])
+   dc_resource('monitor', labels=["hedera"])
+   dc_resource('importer', labels=["hedera"])
+   dc_resource('record-streams-uploader', labels=["hedera"])
+   dc_resource('record-sidecar-uploader', labels=["hedera"])
+   dc_resource('account-balances-uploader', labels=["hedera"])
 
 if btc:
     k8s_yaml_with_ns("devnet/btc-localnet.yaml")

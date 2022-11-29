@@ -1,0 +1,411 @@
+version: "2.4"
+services:
+  haveged:
+    image: "${HAVEGED_IMAGE_PREFIX}network-node-haveged:${HAVEGED_IMAGE_TAG}"
+    container_name: haveged
+    restart: always
+    mem_swappiness: 0
+    privileged: true
+    network_mode: none
+
+  network-node:
+    image: "${NETWORK_NODE_IMAGE_PREFIX}${NETWORK_NODE_IMAGE_NAME}:${NETWORK_NODE_IMAGE_TAG}"
+    container_name: network-node
+    user: root
+    mem_swappiness: 0
+    mem_limit: "${NETWORK_NODE_MEM_LIMIT}"
+    memswap_limit: "${NETWORK_NODE_MEM_LIMIT}"
+    environment:
+      JAVA_HEAP_MIN: "${PLATFORM_JAVA_HEAP_MIN}"
+      JAVA_HEAP_MAX: "${PLATFORM_JAVA_HEAP_MAX}"
+      JAVA_OPTS: "${PLATFORM_JAVA_OPTS}"
+    healthcheck:
+      test: ["CMD", "grep", "ServicesMain - Now current platform status = ACTIVE", "/opt/hgcapp/services-hedera/HapiApp2.0/output/hgcaa.log"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      haveged:
+        condition: service_started
+      record-streams-uploader:
+        condition: service_started
+    networks:
+      network-node-bridge:
+        ipv4_address: 172.27.0.3
+    ports:
+      - "50211:50211"
+      - "50212:50212"
+    volumes:
+      - "${NETWORK_NODE_LOGS_ROOT_PATH}/accountBalances:/opt/hgcapp/accountBalances"
+      - "${NETWORK_NODE_LOGS_ROOT_PATH}/recordStreams:/opt/hgcapp/recordStreams"
+      - "${APPLICATION_CONFIG_PATH}:/opt/hgcapp/services-hedera/HapiApp2.0/data/config"
+      - "${NETWORK_NODE_LOGS_ROOT_PATH}/logs:/opt/hgcapp/services-hedera/HapiApp2.0/output"
+      - "${APPLICATION_ROOT_PATH}/data/keys:/opt/hgcapp/services-hedera/HapiApp2.0/data/keys"
+      - "${APPLICATION_ROOT_PATH}/data/onboard:/opt/hgcapp/services-hedera/HapiApp2.0/data/onboard"
+      - "${NETWORK_NODE_LOGS_ROOT_PATH}/stats:/opt/hgcapp/services-hedera/HapiApp2.0/data/stats"
+      - "${APPLICATION_ROOT_PATH}/config.txt:/opt/hgcapp/services-hedera/HapiApp2.0/config.txt"
+      - "${APPLICATION_ROOT_PATH}/settings.txt:/opt/hgcapp/services-hedera/HapiApp2.0/settings.txt"
+      - "${APPLICATION_ROOT_PATH}/log4j2.xml:/opt/hgcapp/services-hedera/HapiApp2.0/log4j2.xml"
+      - "${APPLICATION_ROOT_PATH}/hedera.crt:/opt/hgcapp/services-hedera/HapiApp2.0/hedera.crt"
+      - "${APPLICATION_ROOT_PATH}/hedera.key:/opt/hgcapp/services-hedera/HapiApp2.0/hedera.key"
+      - "${RECORD_PARSER_ROOT_PATH}:/opt/hgcapp/recordParser"
+
+  record-streams-uploader:
+    image: "${UPLOADER_IMAGE_PREFIX}uploader-mirror:${UPLOADER_IMAGE_TAG}"
+    container_name: record-streams-uploader
+    user: root
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_started
+    networks:
+      - cloud-storage
+    environment:
+      DEBUG: "true"
+      REAPER_ENABLE: "true"
+      REAPER_MIN_KEEP: "1"
+      REAPER_INTERVAL: "5"
+      S3_ENABLE: "true"
+      GCS_ENABLE: "false"
+      SIG_REQUIRE: "true"
+      SIG_PRIORITIZE: "true"
+      SIG_EXTENSION: "rcd_sig"
+      STREAM_EXTENSION: "${STREAM_EXTENSION}"
+      BUCKET_NAME: "hedera-streams"
+      BUCKET_PATH: "recordstreams/record0.0.3"
+      S3_ACCESS_KEY: "minioadmin"
+      S3_SECRET_KEY: "minioadmin"
+    volumes:
+      - "${NETWORK_NODE_LOGS_ROOT_PATH}/recordStreams/record0.0.3:/records"
+    command:
+      - /usr/bin/env
+      - ${PYTHON_VERSION}
+      - /usr/local/bin/mirror.py
+      - --linux
+      - --watch-directory
+      - /records
+      - --s3-endpoint
+      - http://minio:9000
+      - --debug
+
+  account-balances-uploader:
+    image: "${UPLOADER_IMAGE_PREFIX}uploader-mirror:${UPLOADER_IMAGE_TAG}"
+    container_name: account-balances-uploader
+    user: root
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_started
+    networks:
+      - cloud-storage
+    environment:
+      DEBUG: "true"
+      REAPER_ENABLE: "true"
+      REAPER_MIN_KEEP: "1"
+      REAPER_INTERVAL: "5"
+      S3_ENABLE: "true"
+      GCS_ENABLE: "false"
+      SIG_REQUIRE: "true"
+      SIG_PRIORITIZE: "true"
+      SIG_EXTENSION: "pb_sig"
+      STREAM_EXTENSION: "pb"
+      BUCKET_NAME: "hedera-streams"
+      BUCKET_PATH: "accountBalances/balance0.0.3"
+      S3_ACCESS_KEY: "minioadmin"
+      S3_SECRET_KEY: "minioadmin"
+    volumes:
+      - "${NETWORK_NODE_LOGS_ROOT_PATH}/accountBalances/balance0.0.3:/balances"
+    command:
+      - /usr/bin/env
+      - ${PYTHON_VERSION}
+      - /usr/local/bin/mirror.py
+      - --linux
+      - --watch-directory
+      - /balances
+      - --s3-endpoint
+      - http://minio:9000
+      - --debug
+      
+  record-sidecar-uploader:
+    image: "${UPLOADER_IMAGE_PREFIX}uploader-mirror:${UPLOADER_IMAGE_TAG}"
+    container_name: record-sidecar-uploader
+    user: root
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_started
+    networks:
+      - cloud-storage
+    environment:
+      DEBUG: "true"
+      REAPER_ENABLE: "true"
+      REAPER_MIN_KEEP: "1"
+      REAPER_INTERVAL: "5"
+      S3_ENABLE: "true"
+      GCS_ENABLE: "false"
+      SIG_REQUIRE: "false"
+      SIG_PRIORITIZE: "false"
+      STREAM_EXTENSION: "rcd.gz"
+      BUCKET_NAME: "hedera-streams"
+      BUCKET_PATH: "recordstreams/record0.0.3/sidecar"
+      S3_ACCESS_KEY: "minioadmin"
+      S3_SECRET_KEY: "minioadmin"
+    volumes:
+      - "${NETWORK_NODE_LOGS_ROOT_PATH}/recordStreams/record0.0.3/sidecar:/sidecar-files"
+    command:
+      - /usr/bin/env
+      - ${PYTHON_VERSION}
+      - /usr/local/bin/mirror.py
+      - --linux
+      - --watch-directory
+      - /sidecar-files
+      - --s3-endpoint
+      - http://minio:9000
+      - --debug
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    entrypoint: sh
+    command: -c 'mkdir -p /data/hedera-streams && minio server /data --console-address ":9001"'
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    networks:
+      - cloud-storage
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - "minio-data:/data"
+
+  db:
+    image: "${MIRROR_POSTGRES_IMAGE}"
+    container_name: mirror-node-db
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      GRPC_PASSWORD: mirror_grpc_pass
+      IMPORTER_PASSWORD: mirror_importer_pass
+      OWNER_PASSWORD: mirror_node_pass
+      POSTGRES_PASSWORD: postgres_password
+      REST_PASSWORD: mirror_api_pass
+      ROSETTA_PASSWORD: mirror_rosetta_pass
+    networks:
+      - mirror-node
+    expose:
+      - "5432"
+    restart: unless-stopped
+    stop_grace_period: 2m
+    stop_signal: SIGTERM
+    tty: true
+    volumes:
+      - ./compose-network/mirror-node/init.sh:/docker-entrypoint-initdb.d/init.sh
+      - type: volume
+        source: mirror-node-postgres
+        target: /var/lib/postgresql/data
+
+  grpc:
+    image: "${MIRROR_IMAGE_PREFIX}hedera-mirror-grpc:${MIRROR_IMAGE_TAG}"
+    container_name: mirror-node-grpc
+    restart: unless-stopped
+    mem_swappiness: 0
+    mem_limit: "${MIRROR_GRPC_MEM_LIMIT}"
+    memswap_limit: "${MIRROR_GRPC_MEM_LIMIT}"
+    depends_on:
+      network-node:
+        condition: service_started
+      db:
+        condition: service_started
+    environment:
+      HEDERA_MIRROR_GRPC_DB_HOST: db
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-grpc/
+    networks:
+      - mirror-node
+    ports:
+      - "5600:5600"
+    volumes:
+      - ./compose-network/mirror-node/application.yml:/usr/etc/hedera-mirror-grpc/application.yml
+
+  importer:
+    image: "${MIRROR_IMAGE_PREFIX}hedera-mirror-importer:${MIRROR_IMAGE_TAG}"
+    container_name: mirror-node-importer
+    restart: unless-stopped
+    mem_swappiness: 0
+    mem_limit: "${MIRROR_IMPORTER_MEM_LIMIT}"
+    memswap_limit: "${MIRROR_IMPORTER_MEM_LIMIT}"
+    depends_on:
+      minio:
+        condition: service_started
+      db:
+        condition: service_started
+    environment:
+      HEDERA_MIRROR_IMPORTER_DB_HOST: db
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hedera-mirror-importer/
+    networks:
+      - cloud-storage
+      - mirror-node
+    volumes:
+      - ./compose-network/mirror-node/application.yml:/usr/etc/hedera-mirror-importer/application.yml
+      - ./compose-network/mirror-node/addressBook.bin:/usr/etc/hedera-mirror-importer/local-dev-1-node.addressbook.f102.json.bin
+
+  rest:
+    image: "${MIRROR_IMAGE_PREFIX}hedera-mirror-rest:${MIRROR_IMAGE_TAG}"
+    container_name: mirror-node-rest
+    mem_swappiness: 0
+    mem_limit: "${MIRROR_REST_MEM_LIMIT}"
+    memswap_limit: "${MIRROR_REST_MEM_LIMIT}"
+    depends_on:
+      importer:
+        condition: service_started
+      db:
+        condition: service_started
+    environment:
+      HEDERA_MIRROR_REST_DB_HOST: db
+    networks:
+      - mirror-node
+    ports:
+      - "5551:5551"
+    restart: unless-stopped
+    tty: false
+
+  explorer:
+    container_name:  hedera-explorer
+    image: "${MIRROR_NODE_EXPLORER_IMAGE_PREFIX}hedera-mirror-node-explorer:${MIRROR_NODE_EXPLORER_IMAGE_TAG}"
+    restart: "unless-stopped"
+    ports:
+      - "9090:80"
+
+  web3:
+    image: "${MIRROR_IMAGE_PREFIX}hedera-mirror-web3:${MIRROR_IMAGE_TAG}"
+    container_name: mirror-node-web3
+    mem_swappiness: 0
+    mem_limit: "${MIRROR_WEB3_MEM_LIMIT}"
+    memswap_limit: "${MIRROR_WEB3_MEM_LIMIT}"
+    depends_on:
+      importer:
+        condition: service_started
+      db:
+        condition: service_started
+    networks:
+      - mirror-node
+    environment:
+      HEDERA_MIRROR_WEB3_DB_HOST: db
+    ports:
+      - "8545:8545"
+    restart: unless-stopped
+    tty: true
+
+  monitor:
+    image: "${MIRROR_IMAGE_PREFIX}hedera-mirror-monitor:${MIRROR_IMAGE_TAG}"
+    container_name: mirror-node-monitor
+    mem_swappiness: 0
+    mem_limit: "${MIRROR_MONITOR_MEM_LIMIT}"
+    memswap_limit: "${MIRROR_MONITOR_MEM_LIMIT}"
+    depends_on:
+      grpc:
+        condition: service_started
+      rest:
+        condition: service_started
+      network-node:
+        condition: service_healthy
+    networks:
+      - mirror-node
+      - network-node-bridge
+    environment:
+      SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hedera-mirror-monitor/"
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+    tty: true
+    volumes:
+      - ./compose-network/mirror-node/application.yml:/usr/etc/hedera-mirror-monitor/application.yml
+
+  relay:
+    image: "${RELAY_IMAGE_PREFIX}hedera-json-rpc-relay:${RELAY_IMAGE_TAG}"
+    container_name: json-rpc-relay
+    mem_swappiness: 0
+    mem_limit: "${RELAY_MEM_LIMIT}"
+    memswap_limit: "${RELAY_MEM_LIMIT}"
+    depends_on:
+      rest:
+        condition: service_started
+      network-node:
+        condition: service_started
+    networks:
+      - json-rpc-relay
+      - mirror-node
+      - network-node-bridge
+    environment:
+      HEDERA_NETWORK: "${RELAY_HEDERA_NETWORK}"
+      OPERATOR_ID_MAIN: "${RELAY_OPERATOR_ID_MAIN}"
+      OPERATOR_KEY_MAIN: "${RELAY_OPERATOR_KEY_MAIN}"
+      CHAIN_ID: "${RELAY_CHAIN_ID}"
+      MIRROR_NODE_URL: "${RELAY_MIRROR_NODE_URL}"
+      LOCAL_NODE: "${RELAY_LOCAL_NODE}"
+      SERVER_PORT: "${RELAY_SERVER_PORT}"
+      E2E_RELAY_HOST: "${RELAY_E2E_HOST}"
+      FEE_HISTORY_MAX_RESULTS: "${FEE_HISTORY_MAX_RESULTS}"
+      DEFAULT_RATE_LIMIT: "${DEFAULT_RATE_LIMIT}"
+      TIER_1_RATE_LIMIT: "${TIER_1_RATE_LIMIT}"
+      TIER_2_RATE_LIMIT: "${TIER_2_RATE_LIMIT}"
+      TIER_3_RATE_LIMIT: "${TIER_3_RATE_LIMIT}"
+      LIMIT_DURATION: "${LIMIT_DURATION}"
+      HBAR_RATE_LIMIT_TINYBAR: "${HBAR_RATE_LIMIT_TINYBAR}"
+      HBAR_RATE_LIMIT_DURATION: "${HBAR_RATE_LIMIT_DURATION}"
+      ETH_GET_LOGS_BLOCK_RANGE_LIMIT: "${ETH_GET_LOGS_BLOCK_RANGE_LIMIT}"
+      RATE_LIMIT_DISABLED: "${RELAY_RATE_LIMIT_DISABLED}"
+      DEV_MODE: "${DEV_MODE}"
+    ports:
+      - "7546:7546"
+    restart: unless-stopped
+    tty: false
+
+  envoy:
+    image: "${ENVOY_IMAGE_PREFIX}envoy:${ENVOY_IMAGE_TAG}"
+    container_name: envoy-proxy
+    ports:
+      - "50213:50213"
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml
+    networks:
+      - network-node-bridge
+
+networks:
+  network-node-bridge:
+    name: network-node-bridge
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.27.0.0/16
+          ip_range: 172.27.0.0/24
+          gateway: 172.27.0.254
+  mirror-node:
+    name: mirror-node
+    driver: bridge
+  cloud-storage:
+    name: cloud-storage
+    driver: bridge
+  json-rpc-relay:
+    name: json-rpc-relay
+    driver: bridge
+
+volumes:
+  network-node-postgres:
+    name: network-node-postgres
+  mirror-node-postgres:
+    name: mirror-node-postgres
+  network-node-event-streams:
+    name: network-node-event-streams
+  network-node-record-streams:
+    name: network-node-record-streams
+  network-node-account-balances:
+    name: network-node-account-balances
+  network-node-stats:
+    name: network-node-stats
+  minio-data:
+    name: minio-data

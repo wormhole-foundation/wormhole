@@ -1,0 +1,57 @@
+hedera:
+  mirror:
+    grpc:
+      listener:
+        type: SHARED_POLL
+    importer:
+      parser:
+        record:
+          entity:
+            redis:
+              enabled: false
+          sidecar:
+            enabled: false
+      downloader:
+        accessKey: minioadmin
+        cloudProvider: "S3"
+        secretKey: minioadmin
+        bucketName: hedera-streams
+        endpointOverride: http://minio:9000
+      initialAddressBook: "/usr/etc/hedera-mirror-importer/local-dev-1-node.addressbook.f102.json.bin"
+      network: OTHER
+    monitor:
+      mirrorNode:
+        grpc:
+          host: mirror-node-grpc
+          port: 5600
+        rest:
+          host: mirror-node-rest
+          port: 5551
+      publish:
+        scenarios:
+          pinger:
+            properties:
+              amount: 1
+              maxTransactionFee: 10000
+              senderAccountId: 0.0.2
+              recipientAccountId: 0.0.55
+              transferTypes:
+                - CRYPTO
+            receiptPercent: 1.0
+            tps: 1.0
+            type: CRYPTO_TRANSFER
+      subscribe:
+        grpc:
+          hcs:
+            enabled: false
+        rest:
+          transactionId:
+            enabled: true
+            samplePercent: 1.0
+      network: OTHER
+      nodes:
+        - accountId: 0.0.3
+          host: network-node
+      operator:
+        accountId: 0.0.2
+        privateKey: 302e020100300506032b65700422042091132178e72057a1d7528025956fe39b0b847f200ab59b2fdd367017f3087137
