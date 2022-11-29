@@ -1,13 +1,13 @@
+import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { BCS, FaucetClient } from "aptos";
-import { ethers } from "ethers";
-import yargs from "yargs";
-import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
 import { spawnSync } from 'child_process';
-import { config } from '../config';
+import { ethers } from "ethers";
 import fs from 'fs';
 import sha3 from 'js-sha3';
+import yargs from "yargs";
+import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
+import { config } from '../config';
 import { NETWORKS } from "../networks";
-import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
 
@@ -346,7 +346,7 @@ exports.builder = function(y: typeof yargs) {
           account = argv.account as string;
         }
         const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
-        const coins = 20000000;
+        const coins = 40000000;
         await faucetClient.fundAccount(account, coins);
         console.log(`Funded ${account} with ${coins} coins`);
       })
