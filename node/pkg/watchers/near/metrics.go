@@ -44,16 +44,16 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 			Help: "Average duration it takes for a wormhole message to be processed in milliseconds",
 		})
 
-	txQuequeLen := promauto.With(reg).NewGauge(
+	txqueueLen := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
-			Name: "wormhole_near_tx_queque",
-			Help: "Current Near transaction processing queque length",
+			Name: "wormhole_near_tx_queue",
+			Help: "Current Near transaction processing queue length",
 		})
 
-	chunkQuequeLen := promauto.With(reg).NewGauge(
+	chunkqueueLen := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
-			Name: "wormhole_near_chunk_queque",
-			Help: "Current Near chunk processing queque length",
+			Name: "wormhole_near_chunk_queue",
+			Help: "Current Near chunk processing queue length",
 		})
 
 	nearMessagesConfirmed := promauto.With(reg).NewCounter(
@@ -86,9 +86,9 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 			// compute and publish periodic metrics
 			l1 := e.transactionProcessingQueueCounter.Load()
 			l2 := len(e.chunkProcessingQueue)
-			txQuequeLen.Set(float64(l1))
-			chunkQuequeLen.Set(float64(l2))
-			logger.Info("metrics", zap.Int64("txQuequeLen", l1), zap.Int("chunkQuequeLen", l2))
+			txqueueLen.Set(float64(l1))
+			chunkqueueLen.Set(float64(l2))
+			logger.Info("metrics", zap.Int64("txqueueLen", l1), zap.Int("chunkqueueLen", l2))
 
 		case height := <-e.eventChanBlockProcessedHeight:
 			if highestBlockHeightProcessed < height {

@@ -96,7 +96,7 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	// SECURITY CRITICAL: Check that block has been finalized.
 	outcomeBlockHeader, isFinalized := e.finalizer.isFinalized(logger, ctx, outcomeBlockHash.String())
 	if !isFinalized {
-		// If it has not, we return an error such that this transaction can be put back into the queque.
+		// If it has not, we return an error such that this transaction can be put back into the queue.
 		return errors.New("block not finalized yet")
 	}
 
