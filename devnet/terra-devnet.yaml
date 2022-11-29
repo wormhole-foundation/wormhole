@@ -68,10 +68,21 @@ spec:
           ports:
             - containerPort: 26657
             - containerPort: 1317
+          startupProbe:
+            httpGet:
+              port: 26657
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             httpGet:
               port: 26657
+            failureThreshold: 2
+            periodSeconds: 1
           resources: {}
+          resources:
+            limits:
+              memory: "2Gi"
         - name: terra-contracts
           image: terra-contracts
           command:
@@ -84,8 +95,12 @@ spec:
                 - test
                 - -e
                 - "/app/tools/success"
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 30
+            periodSeconds: 1
+            failureThreshold: 300
+          resources:
+            limits:
+              memory: "200Mi"
       restartPolicy: Always
   serviceName: terra-terrad
 ---
@@ -118,6 +133,9 @@ spec:
               value: dev
             - name: POSTGRES_DB
               value: fcd
+          resources:
+            limits:
+              memory: "50Mi"
       restartPolicy: Always
   serviceName: terra-fcd
 ---
@@ -170,13 +188,15 @@ spec:
               value: "false"
             - name: TYPEORM_ENTITIES
               value: "src/orm/*Entity.ts"
+          resources:
+            limits:
+              memory: "500Mi"
         - image: terramoney/fcd:bombay
           name: fcd-api
           command:
             - sh
             - -c
             - "sed -i \"s/level: \\'info\\'/level: \\'warn\\'/g\" src/lib/logger.ts && ./entrypoint.sh start"
-          resources: {}
           ports:
             - containerPort: 3060
           env:
@@ -204,5 +224,8 @@ spec:
               value: "false"
             - name: TYPEORM_ENTITIES
               value: "src/orm/*Entity.ts"
+          resources:
+            limits:
+              memory: "200Mi"
       restartPolicy: Always
   serviceName: terra-fcd

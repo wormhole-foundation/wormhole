@@ -41,7 +41,7 @@ const fetch = require("node-fetch");
 const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
 const nearAPI = require("near-api-js");
 
-export const ETH_NODE_URL = "ws://localhost:8545";
+export const ETH_NODE_URL = "ws://eth-devnet:8545";
 export const ETH_PRIVATE_KEY =
   "0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1"; // account 1
 export const ETH_CORE_BRIDGE_ADDRESS =
@@ -137,7 +137,7 @@ function getConfig(env: any) {
     case "local":
       return {
         networkId: "sandbox",
-        nodeUrl: "http://localhost:3030",
+        nodeUrl: "http://near:3030",
         masterAccount: "test.near",
         wormholeAccount: "wormhole.test.near",
         tokenAccount: "token.test.near",
@@ -157,7 +157,7 @@ async function testNearSDK() {
   let config = getConfig(process.env.NEAR_ENV || "sandbox");
 
   // Retrieve the validator key directly in the Tilt environment
-  const response = await fetch("http://localhost:3031/validator_key.json");
+  const response = await fetch("http://near:3031/validator_key.json");
 
   const keyFile = await response.json();
 

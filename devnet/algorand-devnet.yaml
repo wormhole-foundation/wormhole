@@ -43,7 +43,6 @@ spec:
           name: algorand-postgres
           ports:
             - containerPort: 5432
-          resources: {}
           env:
             - name: POSTGRES_USER
               value: algorand
@@ -51,6 +50,15 @@ spec:
               value: algorand
             - name: POSTGRES_DB
               value: indexer_db
+          resources:
+            limits:
+              memory: "80Mi"
+          readinessProbe:
+            exec:
+              command:
+                - /usr/local/bin/pg_isready
+            failureThreshold: 2
+            periodSeconds: 5
         - name: algorand-algod
           image: algorand-algod
           command:
@@ -64,9 +72,20 @@ spec:
             - containerPort: 4002
               name: kmd
               protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: 4001
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             tcpSocket:
               port: 4001
+            failureThreshold: 2
+            periodSeconds: 1
+          resources:
+            limits:
+              memory: "1000Mi"
         - name: algorand-indexer
           image: algorand-indexer
           command:
@@ -80,18 +99,25 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 8980
+          resources:
+            limits:
+              memory: "100Mi"
         - name: algorand-contracts
           image: algorand-contracts
           command:
             - /bin/sh
             - -c
             - "sh deploy.sh && touch success && sleep infinity"
-          readinessProbe:
+          startupProbe:
             exec:
               command:
                 - test
                 - -e
                 - "success"
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            failureThreshold: 300
+            initialDelaySeconds: 30
+            periodSeconds: 1
+          resources:
+            limits:
+              memory: "200Mi"
       restartPolicy: Always

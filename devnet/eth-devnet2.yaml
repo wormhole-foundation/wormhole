@@ -47,24 +47,47 @@ spec:
             - containerPort: 8545
               name: rpc
               protocol: TCP
-          readinessProbe:
+          startupProbe:
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
             tcpSocket:
               port: rpc
-        - name: tests
-          image: eth-node
-          stdin: true
-          command:
-            - /bin/sh
-            - -c
-            - "sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_solana_chain.js && npx truffle exec scripts/register_terra_chain.js && npx truffle exec scripts/register_terra2_chain.js && npx truffle exec scripts/register_eth_chain.js && npx truffle exec scripts/register_algo_chain.js && npx truffle exec scripts/register_near_chain.js && npx truffle exec scripts/register_worm_chain.js && npx truffle exec scripts/register_aptos_chain.js && nc -lkp 2000 0.0.0.0"
           readinessProbe:
+            failureThreshold: 2
             periodSeconds: 1
-            failureThreshold: 300
             tcpSocket:
-              port: 2000
+              port: rpc
+          resources:
+            limits:
+              memory: "500Mi"
         - name: mine
           image: eth-node
           command:
             - /bin/sh
             - -c
             - "npx truffle exec mine.js"
+          resources:
+            limits:
+              memory: "300Mi"
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: eth-deploy2
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: tests
+          image: eth-node
+          stdin: true
+          command:
+            - /bin/sh
+            - -c
+            - "sed -i 's/host: \"127.0.0.1\"/host: \"eth-devnet2\"/g' truffle-config.js && sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x4/g;s/EVM_CHAIN_ID=1/EVM_CHAIN_ID=1397/g' .env && npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_solana_chain.js && npx truffle exec scripts/register_terra_chain.js && npx truffle exec scripts/register_terra2_chain.js && npx truffle exec scripts/register_eth_chain.js && npx truffle exec scripts/register_algo_chain.js && npx truffle exec scripts/register_near_chain.js && npx truffle exec scripts/register_worm_chain.js && npx truffle exec scripts/register_aptos_chain.js"
+          resources:
+            limits:
+              memory: "1Gi"

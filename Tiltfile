@@ -179,7 +179,7 @@ def build_node_yaml():
                 container["command"] += [
                     "--suiRPC",
                     "http://sui:9002",
-# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to 
+# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to
 # event traffic purely based on the account since that is the only thing that is deterministic.
 #                    "--suiPackage",
 #                    "0x.....",
@@ -265,13 +265,13 @@ def build_node_yaml():
 
 k8s_yaml_with_ns(build_node_yaml())
 
-guardian_resource_deps = ["eth-devnet"]
+guardian_resource_deps = ["eth-deploy"]
 if evm2:
-    guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
+    guardian_resource_deps = guardian_resource_deps + ["eth-deploy2"]
 if solana:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
 if near:
-    guardian_resource_deps = guardian_resource_deps + ["near"]
+    guardian_resource_deps = guardian_resource_deps + ["near-deploy"]
 if terra_classic:
     guardian_resource_deps = guardian_resource_deps + ["terra-terrad"]
 if terra2:
@@ -498,6 +498,13 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
+k8s_resource(
+    "eth-deploy",
+    resource_deps = ["eth-devnet"],
+    labels = ["evm"],
+    trigger_mode = trigger_mode,
+)
+
 if evm2:
     k8s_yaml_with_ns("devnet/eth-devnet2.yaml")
 
@@ -507,6 +514,13 @@ if evm2:
             port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
         ],
         resource_deps = ["const-gen"],
+        labels = ["evm"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_resource(
+        "eth-deploy2",
+        resource_deps = ["eth-devnet2"],
         labels = ["evm"],
         trigger_mode = trigger_mode,
     )
@@ -712,6 +726,13 @@ if near:
             port_forward(3031, name = "webserver [:3031]", host = webHost),
         ],
         resource_deps = ["const-gen"],
+        labels = ["near"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_resource(
+        "near-deploy",
+        resource_deps = ["near"],
         labels = ["near"],
         trigger_mode = trigger_mode,
     )

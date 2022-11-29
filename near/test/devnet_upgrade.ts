@@ -19,7 +19,7 @@ function getConfig(env: any) {
     case "local":
       return {
         networkId: "sandbox",
-        nodeUrl: "http://localhost:3030",
+        nodeUrl: "http://near:3030",
         masterAccount: "test.near",
         wormholeAccount: "wormhole.test.near",
         tokenAccount: "token.test.near",
@@ -38,7 +38,7 @@ async function testDeploy() {
   let config = getConfig(process.env.NEAR_ENV || "sandbox");
 
   // Retrieve the validator key directly in the Tilt environment
-  const response = await fetch("http://localhost:3031/validator_key.json");
+  const response = await fetch("http://near:3031/validator_key.json");
 
   const keyFile = await response.json();
 

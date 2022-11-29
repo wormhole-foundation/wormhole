@@ -29,7 +29,7 @@ function getConfig(env: any) {
     case "local":
       return {
         networkId: "sandbox",
-        nodeUrl: "http://localhost:3030",
+        nodeUrl: "http://near:3030",
         masterAccount: "test.near",
         wormholeAccount:
           Math.floor(Math.random() * 10000).toString() + "wormhole.test.near",
@@ -90,7 +90,7 @@ async function initNear() {
   config = getConfig(process.env.NEAR_ENV || "sandbox");
 
   // Retrieve the validator key directly in the Tilt environment
-  const response = await fetch("http://localhost:3031/validator_key.json");
+  const response = await fetch("http://near:3031/validator_key.json");
 
   const keyFile = await response.json();
 
@@ -559,7 +559,7 @@ async function test() {
 
   console.log("npm i -g near-cli");
   console.log(
-    "near --nodeUrl http://localhost:3030 view " +
+    "near --nodeUrl http://near:3030 view " +
       tname +
       ' ft_balance_of \'{"account_id": "' +
       tokenUseContract.account.accountId +
@@ -653,7 +653,7 @@ async function test() {
   });
 
   console.log(
-    "near --nodeUrl http://localhost:3030 view " +
+    "near --nodeUrl http://near:3030 view " +
       randoToken +
       ' ft_balance_of \'{"account_id": "' +
       tokenUseContract.account.accountId +
@@ -802,7 +802,7 @@ async function test() {
                 receiver_id: config.tokenAccount,
                 amount: "3210000000",
                 msg: JSON.stringify(
-                    { 
+                    {
                         receiver: "33445566",
                         chain: 1,
                         fee: 0,
@@ -884,7 +884,7 @@ async function test() {
 //        let out = []
 //        for (const idx in result.receipts_outcome) {
 //            let r = result.receipts_outcome[idx];
-//            out.push({ 
+//            out.push({
 //                executor: r.outcome.executor_id,
 //                gas: r.outcome.gas_burnt,
 //                token: r.outcome.tokens_burnt,

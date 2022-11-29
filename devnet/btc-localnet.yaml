@@ -40,6 +40,17 @@ spec:
             - containerPort: 18556
               name: node
               protocol: TCP
-          readinessProbe:
+          startupProbe:
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
             tcpSocket:
               port: 18557
+          readinessProbe:
+            failureThreshold: 2
+            periodSeconds: 1
+            tcpSocket:
+              port: 18557
+          resources:
+            limits:
+              memory: "350Mi"

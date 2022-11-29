@@ -52,20 +52,34 @@ spec:
             - containerPort: 8081
               name: faucet
               protocol: TCP
-          readinessProbe:
+          startupProbe:
             tcpSocket:
-              port: 8081
+              port: 8080
+            failureThreshold: 60
+            periodSeconds: 10
+          readinessProbe:
+            periodSeconds: 1
+            tcpSocket:
+              port: 8080
+          resources:
+            limits:
+              memory: "500Mi"
         - name: aptos-contracts
           image: aptos-node
           command: ["/bin/bash", "-c"]
           args:
             [
-              "cd /tmp/scripts && ./wait_for_devnet && ./deploy devnet && ./register_devnet && touch success && sleep infinity",
+              "cd /tmp/scripts && ./wait_for_devnet && ./deploy devnet && ./register_devnet && touch /tmp/scripts/success && sleep infinity",
             ]
-          readinessProbe:
-            periodSeconds: 1
+          startupProbe:
             failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
             exec:
               command:
-                - cat
-                - /tmp/scripts/success
+                - test
+                - -e
+                - "/tmp/scripts/success"
+          resources:
+            limits:
+              memory: "300Mi"

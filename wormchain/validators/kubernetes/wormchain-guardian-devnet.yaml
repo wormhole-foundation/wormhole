@@ -59,5 +59,8 @@ spec:
               port: 26657
               path: /
             periodSeconds: 1
+          resources:
+            limits:
+              memory: "1000Mi"
       restartPolicy: Always
   serviceName: guardian-validator

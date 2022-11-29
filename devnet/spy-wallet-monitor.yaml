@@ -48,8 +48,17 @@ spec:
               name: prometheus
               protocol: TCP
           tty: true
+          startupProbe:
+            tcpSocket:
+              port: 2000
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             tcpSocket:
               port: 2000
+            failureThreshold: 2
             periodSeconds: 1
-            failureThreshold: 300
+          resources:
+            limits:
+              memory: "100Mi"

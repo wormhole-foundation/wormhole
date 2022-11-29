@@ -9,6 +9,9 @@ spec:
     - name: node
       port: 3030
       targetPort: node
+    - name: webserver
+      port: 3031
+      targetPort: webserver
   selector:
     app: near
 ---
@@ -49,18 +52,37 @@ spec:
               name: webserver
               protocol: TCP
           readinessProbe:
+          startupProbe:
             tcpSocket:
               port: 3030
-        - name: near-deploy
-          image: near-deploy
-          command:
-            - /bin/sh
-            - -c
-            - "sh /app/devnet_deploy.sh && touch success && sleep infinity"
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             tcpSocket:
               port: 3030
+            failureThreshold: 2
             periodSeconds: 1
-            initialDelaySeconds: 15
-
-      restartPolicy: Always
+          resources:
+            limits:
+              memory: "1000Mi"
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: near-deploy
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: near-deploy
+          image: near-deploy
+          stdin: true
+          command:
+            - /bin/sh
+            - /app/devnet_deploy.sh
+          resources:
+            limits:
+              memory: "500Mi"

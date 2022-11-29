@@ -58,7 +58,7 @@ function getConfig(env: any) {
     case "local":
       return {
         networkId: "sandbox",
-        nodeUrl: "http://localhost:3030",
+        nodeUrl: "http://near:3030",
         masterAccount: "test.near",
         wormholeAccount: "wormhole.test.near",
         tokenAccount: "token.test.near",
@@ -100,7 +100,7 @@ async function testNearSDK() {
   let config = getConfig(process.env.NEAR_ENV || "sandbox");
 
   // Retrieve the validator key directly in the Tilt environment
-  const response = await fetch("http://localhost:3031/validator_key.json");
+  const response = await fetch("http://near:3031/validator_key.json");
 
   const keyFile = await response.json();
 
@@ -282,7 +282,7 @@ async function testNearSDK() {
     }
 
     const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
-      ["http://localhost:7071"],
+      ["http://near:7071"],
       CHAIN_ID_NEAR,
       getEmitterAddressNear(token_bridge),
       sequence,
@@ -360,7 +360,7 @@ async function testNearSDK() {
     const txSid = parseSequenceFromLogAlgorand(transferResult);
     transferAlgoToNearP3 = (
       await getSignedVAAWithRetry(
-        ["http://localhost:7071"],
+        ["http://near:7071"],
         CHAIN_ID_ALGORAND,
         emitterAddr,
         txSid,
@@ -404,7 +404,7 @@ async function testNearSDK() {
     const txSid = parseSequenceFromLogAlgorand(transferResult);
     transferAlgoToNearRandoP3 = (
       await getSignedVAAWithRetry(
-        ["http://localhost:7071"],
+        ["http://near:7071"],
         CHAIN_ID_ALGORAND,
         emitterAddr,
         txSid,

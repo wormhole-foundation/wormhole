@@ -18,7 +18,7 @@ function getConfig(env: any) {
     case "local":
       return {
         networkId: "sandbox",
-        nodeUrl: "http://localhost:3030",
+        nodeUrl: "http://near:3030",
         masterAccount: "test.near",
         wormholeAccount: "wormhole.test.near",
         tokenAccount: "token.test.near",

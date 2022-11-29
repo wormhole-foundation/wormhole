@@ -54,7 +54,22 @@ spec:
             - containerPort: 6060
               name: status
               protocol: TCP
+          startupProbe:
+            httpGet:
+              port: 6060
+              path: /metrics
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             httpGet:
               port: 6060
               path: /metrics
+            failureThreshold: 2
+            periodSeconds: 1
+          resources:
+            limits:
+              memory: "120Mi" # don't forget to change memory resource limit below accordingly
+          env:
+          - name: GOMEMLIMIT
+            value: 120MiB # don't forget to change memory resource limit above accordingly

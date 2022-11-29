@@ -12,7 +12,7 @@ function getConfig(env: any) {
     case "local":
       return {
         networkId: "sandbox",
-        nodeUrl: "http://localhost:3030",
+        nodeUrl: "http://near:3030",
         masterAccount: "test.near",
         contractAccount: Math.floor(Math.random() * 10000).toString() + "wormhole2.test.near",
       };
@@ -34,7 +34,7 @@ async function initNear() {
   config = getConfig(process.env.NEAR_ENV || "sandbox");
 
   // Retrieve the validator key directly in the Tilt environment
-  const response = await fetch('http://localhost:3031/validator_key.json');
+  const response = await fetch('http://near:3031/validator_key.json');
   const keyFile = await response.json();
 
   masterKey = nearAPI.utils.KeyPair.fromString(
@@ -69,7 +69,7 @@ async function createContractUser(
     new BN(10).pow(new BN(25))
   );
   console.log("accountId: " + JSON.stringify(resp))
-    
+
   keyStore.setKey(config.networkId, accountId, masterKey);
   const account = new nearAPI.Account(near.connection, accountId);
   const accountUseContract = new nearAPI.Contract(
@@ -110,7 +110,7 @@ async function test() {
     // The actual hash function here doesn't matter that much but this happens to be the hash function used by wormhole
     const hash = web3Utils.keccak256(web3Utils.keccak256("0x" + message)).substr(2);
 
-    
+
     const ec = new elliptic.ec("secp256k1");
     const key = ec.keyFromPrivate(guardianPrivKeys);
     const signature = key.sign(hash, { canonical: true });

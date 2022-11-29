@@ -39,7 +39,7 @@ spec:
       labels:
         app: guardian
     spec:
-      terminationGracePeriodSeconds: 0
+      terminationGracePeriodSeconds: 2
       volumes:
         # mount shared between containers for runtime state
         - name: node-rundir
@@ -150,10 +150,20 @@ spec:
               add:
                 # required for syscall.Mlockall
                 - IPC_LOCK
+          startupProbe:
+            httpGet:
+              port: 6060
+              path: /readyz
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             httpGet:
               port: 6060
               path: /readyz
+            failureThreshold: 2
+            periodSeconds: 1
+
           ports:
             - containerPort: 8999
               name: p2p
@@ -170,3 +180,16 @@ spec:
             - containerPort: 2345
               name: debugger
               protocol: TCP
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - kill guardiand
+          resources:
+            limits:
+              memory: "3300Mi" # don't forget to change GOMEMLIMIT below
+          env:
+          - name: GOMEMLIMIT
+            value: 3300MiB # don't forget to change memory resource limit above accordingly

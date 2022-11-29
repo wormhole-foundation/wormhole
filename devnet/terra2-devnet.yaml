@@ -68,10 +68,21 @@ spec:
           ports:
             - containerPort: 26657
             - containerPort: 1317
+          startupProbe:
+            httpGet:
+              port: 26657
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             httpGet:
               port: 26657
+            failureThreshold: 2
+            periodSeconds: 1
           resources: {}
+          resources:
+            limits:
+              memory: "2Gi"
         - name: terra2-contracts
           image: terra2-contracts
           command:
@@ -86,6 +97,9 @@ spec:
                 - "/app/tools/success"
             initialDelaySeconds: 5
             periodSeconds: 5
+          resources:
+            limits:
+              memory: "200Mi"
       restartPolicy: Always
   serviceName: terra2-terrad
 ---
@@ -118,6 +132,9 @@ spec:
               value: dev
             - name: POSTGRES_DB
               value: fcd
+          resources:
+            limits:
+              memory: "50Mi"
       restartPolicy: Always
   serviceName: terra2-fcd
 ---
@@ -170,6 +187,9 @@ spec:
               value: "false"
             - name: TYPEORM_ENTITIES
               value: "src/orm/*Entity.ts"
+          resources:
+            limits:
+              memory: "500Mi"
         - image: terramoney/fcd:2.0.5
           name: fcd-api
           command:
@@ -204,5 +224,8 @@ spec:
               value: "false"
             - name: TYPEORM_ENTITIES
               value: "src/orm/*Entity.ts"
+          resources:
+            limits:
+              memory: "200Mi"
       restartPolicy: Always
   serviceName: terra2-fcd

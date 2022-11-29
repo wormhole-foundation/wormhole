@@ -44,11 +44,17 @@ spec:
             - /app
             - tilt_listener
           tty: true
+          startupProbe:
+            tcpSocket:
+              port: 2000
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             tcpSocket:
               port: 2000
+            failureThreshold: 2
             periodSeconds: 1
-            failureThreshold: 300
           ports:
             - containerPort: 4201
               name: rest
@@ -56,3 +62,6 @@ spec:
             - containerPort: 8082
               name: prometheus
               protocol: TCP
+          resources:
+            limits:
+              memory: "150Mi"
