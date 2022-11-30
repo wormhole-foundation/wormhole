@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,6 +22,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -162,6 +164,49 @@ func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, timestamp tim
 	return v, nil
 }
 
+// wormchainStoreCode converts a nodev1.WormchainStoreCode to its canonical VAA representation
+// Returns an error if the data is invalid
+func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	// validate the length of the hex passed in
+	b, err := hex.DecodeString(req.WasmHash)
+	if err != nil {
+		return nil, errors.New("invalid cosmwasm bytecode hash (expected hex)")
+	}
+
+	if len(b) != 32 {
+		return nil, errors.New("invalid cosmwasm bytecode hash (expected 32 bytes)")
+	}
+
+	wasmHash := [32]byte{}
+	copy(wasmHash[:], b)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyWormchainStoreCode{
+			WasmHash: wasmHash,
+		}.Serialize())
+
+	return v, nil
+}
+
+// wormchainInstantiateContract converts a nodev1.WormchainInstantiateContract to its canonical VAA representation
+// Returns an error if the data is invalid
+func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	// calculate sha3.Sum(BigEndian(CodeID) || Label || Msg)
+	var instantiationParamsHash [32]byte
+	keccak := sha3.NewLegacyKeccak256()
+	binary.Write(keccak, binary.BigEndian, req.CodeId)
+	keccak.Write([]byte(req.Label))
+	keccak.Write([]byte(req.InstantiationMsg))
+	keccak.Sum(instantiationParamsHash[:0])
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyWormchainInstantiateContract{
+			InstantiationParamsHash: instantiationParamsHash,
+		}.Serialize())
+
+	return v, nil
+}
+
 func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
 	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
 
@@ -184,6 +229,10 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
 			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormchainStoreCode:
+			v, err = wormchainStoreCode(payload.WormchainStoreCode, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormchainInstantiateContract:
+			v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}
