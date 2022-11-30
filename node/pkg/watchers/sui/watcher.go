@@ -28,7 +28,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -92,6 +91,15 @@ type (
 		Result  struct {
 			Data       []SuiResult `json:"data"`
 			NextCursor interface{} `json:"nextCursor"`
+		} `json:"result"`
+		ID int `json:"id"`
+	}
+
+	SuiCommitteeInfo struct {
+		Jsonrpc string `json:"jsonrpc"`
+		Result  struct {
+			Epoch         int             `json:"epoch"`
+			CommitteeInfo [][]interface{} `json:"committee_info"`
 		} `json:"result"`
 		ID int `json:"id"`
 	}
@@ -380,27 +388,25 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error(fmt.Sprintf("sui_getCommitteeInfo: %s", err.Error()))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				break
-
 			}
 			resp.Body.Close()
-			if !gjson.Valid(string(body)) {
-				logger.Error("sui_getCommitteeInfo: " + string(body))
+
+			var res SuiCommitteeInfo
+			err = json.Unmarshal(body, &res)
+			if err != nil {
+				logger.Error(e.suiRPC, zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
-				break
+				continue
+
 			}
-			epoch := gjson.ParseBytes(body).Get("result.epoch")
-			if !epoch.Exists() {
-				logger.Error("sui_getCommitteeInfo: " + string(body))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
-				break
-			}
-			// Epoch is currently not ticking in 0.15.0.  They also
+
+			// Epoch is currently not ticking in 0.16.0.  They also
 			// might release another API that gives a
 			// proper block height as we traditionally
 			// understand it...
-			currentSuiHeight.Set(float64(epoch.Uint()))
+			currentSuiHeight.Set(float64(res.Result.Epoch))
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
-				Height:          int64(epoch.Uint()),
+				Height:          int64(res.Result.Epoch),
 				ContractAddress: e.suiAccount,
 			})
 
