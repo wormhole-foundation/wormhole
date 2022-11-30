@@ -22,7 +22,8 @@ contract Messages is Getters, Setters {
     /**
      * @dev parseAndVerifyBatchVM serves to parse an encodedVM2 that includes a batch of observations
      * and wholy validate the batch for consumption
-     * it saves the hash of each observation in a cache when `cache` is set to true
+     * - it saves the hash of each observation in a cache when `cache` is set to true
+     * - it will only parse and verify batches that contain less than 256 observations
      */
     function parseAndVerifyBatchVM(bytes calldata encodedVM2, bool cache) public returns (Structs.VM2 memory vm, bool valid, string memory reason) {
         vm = parseBatchVM(encodedVM2);
@@ -31,8 +32,8 @@ contract Messages is Getters, Setters {
 
     /**
      * @dev clearBatchCache serves to reduce gas costs by clearing VM hashes from storage
-     * it must be called in the same transaction as parseAndVerifyBatchVM to reduce gas usage
-     * it only removes hashes from storage that are provided in the hashesToClear argument
+     * - it must be called in the same transaction as parseAndVerifyBatchVM to reduce gas usage
+     * - it only removes hashes from storage that are provided in the hashesToClear argument
      */
     function clearBatchCache(bytes32[] memory hashesToClear) public {
         uint256 hashesLen = hashesToClear.length;
@@ -341,7 +342,10 @@ contract Messages is Getters, Setters {
 
     /**
      * @dev parseVM2 serves to parse an encodedVM into a VM2 struct
-     *  - it intentionally performs no validation functions, it simply parses raw into a struct
+     * - it intentionally performs no validation functions, it simply parses raw into a struct
+     * - it will only parse batches that contain less than 256 observations. The number of
+     *   observations in a batch is constrained by the `observationsLen` variable which is
+     *   encoded in the batchVM by the guardians.
      */
     function parseBatchVM(bytes memory encodedVM2) public pure virtual returns (Structs.VM2 memory vm2) {
         uint256 index = 0;
