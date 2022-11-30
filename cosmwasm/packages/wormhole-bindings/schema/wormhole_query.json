@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WormholeQuery",
+  "oneOf": [
+    {
+      "description": "Verifies that `data` has been signed by a quorum of guardians from `guardian_set_index`.",
+      "type": "object",
+      "required": [
+        "verify_quorum"
+      ],
+      "properties": {
+        "verify_quorum": {
+          "type": "object",
+          "required": [
+            "data",
+            "guardian_set_index",
+            "signatures"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "signatures": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Signature"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Verifies that `data` has been signed by a guardian from `guardian_set_index`.",
+      "type": "object",
+      "required": [
+        "verify_signature"
+      ],
+      "properties": {
+        "verify_signature": {
+          "type": "object",
+          "required": [
+            "data",
+            "guardian_set_index",
+            "signature"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Signature"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns the number of signatures necessary for quorum for the given guardian set index.",
+      "type": "object",
+      "required": [
+        "calculate_quorum"
+      ],
+      "properties": {
+        "calculate_quorum": {
+          "type": "object",
+          "required": [
+            "guardian_set_index"
+          ],
+          "properties": {
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+      "type": "string"
+    },
+    "Signature": {
+      "type": "object",
+      "required": [
+        "index",
+        "signature"
+      ],
+      "properties": {
+        "index": {
+          "description": "The index of the guardian in the guardian set.",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "signature": {
+          "description": "The signature, which should be exactly 65 bytes with the following layout:\n\n```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

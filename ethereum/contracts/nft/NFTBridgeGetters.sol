@@ -1,4 +1,4 @@
-// contracts/Getters.sol
+// contracts/NFTBridgeGetters.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;

@@ -10,7 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -102,7 +102,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 		}
 	}()
 
-	responseData, err := ioutil.ReadAll(response.Body)
+	responseData, err := io.ReadAll(response.Body)
 	if err != nil {
 		gov.logger.Error("cgov: failed to parse coin gecko response, reverting to configured prices", zap.Error(err))
 		gov.revertAllPrices()

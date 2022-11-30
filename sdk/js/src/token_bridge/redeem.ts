@@ -1,9 +1,9 @@
 import {
-  AccountLayout,
+  ACCOUNT_SIZE,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
   createTransferInstruction,
-  getMinimumBalanceForRentExemptMint,
+  getMinimumBalanceForRentExemptAccount,
   getMint,
   NATIVE_MINT,
   TOKEN_PROGRAM_ID,
@@ -135,7 +135,10 @@ export async function redeemAndUnwrapOnSolana(
     (info) =>
       parsed.amount * BigInt(Math.pow(10, info.decimals - MAX_VAA_DECIMALS))
   );
-  const rentBalance = await getMinimumBalanceForRentExemptMint(connection);
+  const rentBalance = await getMinimumBalanceForRentExemptAccount(
+    connection,
+    commitment
+  );
   if (Buffer.compare(parsed.tokenAddress, NATIVE_MINT.toBuffer()) != 0) {
     return Promise.reject("tokenAddress != NATIVE_MINT");
   }
@@ -154,12 +157,12 @@ export async function redeemAndUnwrapOnSolana(
     fromPubkey: payerPublicKey,
     newAccountPubkey: ancillaryKeypair.publicKey,
     lamports: rentBalance, //spl token accounts need rent exemption
-    space: AccountLayout.span,
+    space: ACCOUNT_SIZE,
     programId: TOKEN_PROGRAM_ID,
   });
 
   //Initialize the account as a WSOL account, with the original payerAddress as owner
-  const initAccountIx = await createInitializeAccountInstruction(
+  const initAccountIx = createInitializeAccountInstruction(
     ancillaryKeypair.publicKey,
     NATIVE_MINT,
     payerPublicKey

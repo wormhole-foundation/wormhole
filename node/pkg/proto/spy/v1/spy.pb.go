@@ -210,6 +210,7 @@ type FilterEntry struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Filter:
+	//
 	//	*FilterEntry_EmitterFilter
 	//	*FilterEntry_BatchFilter
 	//	*FilterEntry_BatchTransactionFilter
@@ -450,6 +451,7 @@ type SubscribeSignedVAAByTypeResponse struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to VaaType:
+	//
 	//	*SubscribeSignedVAAByTypeResponse_SignedVaa
 	//	*SubscribeSignedVAAByTypeResponse_SignedBatchVaa
 	VaaType isSubscribeSignedVAAByTypeResponse_VaaType `protobuf_oneof:"vaa_type"`

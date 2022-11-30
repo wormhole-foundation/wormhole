@@ -1,4 +1,4 @@
-// contracts/BridgeSetup.sol
+// contracts/NFTBridgeSetup.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
@@ -33,5 +33,9 @@ contract NFTBridgeSetup is NFTBridgeSetters, ERC1967Upgrade {
         setEvmChainId(evmChainId);
 
         _upgradeTo(implementation);
+
+        // See https://github.com/wormhole-foundation/wormhole/issues/1930 for
+        // why we set this here
+        setInitialized(implementation);
     }
 }

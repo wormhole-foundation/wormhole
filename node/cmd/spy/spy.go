@@ -440,7 +440,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 
 		go func() {
 			logger.Info("status server listening on [::]:6060")
-			logger.Error("status server crashed", zap.Error(http.ListenAndServe(*statusAddr, router)))
+			logger.Error("status server crashed", zap.Error(http.ListenAndServe(*statusAddr, router))) // #nosec G114 local status server not vulnerable to DoS attack
 		}()
 	}
 

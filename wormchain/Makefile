@@ -11,7 +11,8 @@ ldflags = \
     -X github.com/cosmos/cosmos-sdk/version.Name=wormchain\
 	-X github.com/cosmos/cosmos-sdk/version.ServerName=wormchaind\
 	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) 
+	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+	-X "github.com/cosmos/cosmos-sdk/version.BuildTags=ledger"
 BUILD_FLAGS := -ldflags '$(ldflags)'
 
 .PHONY: all
@@ -41,7 +42,7 @@ validators:
 	cp build/keyring-test/* validators/second_validator/keyring-test/
 
 build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
-	go build -v $(BUILD_FLAGS) -o $@ $<
+	go build -v $(BUILD_FLAGS) -tags ledger -o $@ $<
 
 check-ignite:
 	@ if [ "$(shell ignite version | awk '/Ignite CLI version:/ { print $$4 }')" != "$(IGNITE_EXPECTED_VERSION)" ] ; then echo "Expected ignite version $(IGNITE_EXPECTED_VERSION)" && exit 1 ; fi

@@ -443,6 +443,11 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_
 
 	digest := heartbeatDigest(s.Heartbeat)
 
+	// SECURITY: see whitepapers/0009_guardian_key.md
+	if len(heartbeatMessagePrefix)+len(s.Heartbeat) < 34 {
+		return nil, fmt.Errorf("invalid message: too short")
+	}
+
 	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
 	if err != nil {
 		return nil, errors.New("failed to recover public key")
@@ -477,6 +482,11 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *n
 		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
 	} else {
 		pk = gs.Keys[idx]
+	}
+
+	// SECURITY: see whitepapers/0009_guardian_key.md
+	if len(signedObservationRequestPrefix)+len(s.ObservationRequest) < 34 {
+		return nil, fmt.Errorf("invalid observation request: too short")
 	}
 
 	digest := signedObservationRequestDigest(s.ObservationRequest)

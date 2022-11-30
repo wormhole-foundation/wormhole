@@ -1,8 +1,8 @@
 import {
-  AccountLayout,
+  ACCOUNT_SIZE,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
-  getMinimumBalanceForRentExemptMint,
+  getMinimumBalanceForRentExemptAccount,
   NATIVE_MINT,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
@@ -43,7 +43,6 @@ import {
   Bridge__factory,
   TokenImplementation__factory,
 } from "../ethers-contracts";
-import { createBridgeFeeTransferInstruction } from "../solana";
 import {
   createApproveAuthoritySignerInstruction,
   createTransferNativeInstruction,
@@ -452,8 +451,10 @@ export async function transferNativeSol(
   payload: Uint8Array | Buffer | null = null,
   commitment?: Commitment
 ) {
-  const rentBalance = await getMinimumBalanceForRentExemptMint(connection);
-  const mintPublicKey = NATIVE_MINT;
+  const rentBalance = await getMinimumBalanceForRentExemptAccount(
+    connection,
+    commitment
+  );
   const payerPublicKey = new PublicKey(payerAddress);
   const ancillaryKeypair = Keypair.generate();
 
@@ -462,30 +463,24 @@ export async function transferNativeSol(
     fromPubkey: payerPublicKey,
     newAccountPubkey: ancillaryKeypair.publicKey,
     lamports: rentBalance, //spl token accounts need rent exemption
-    space: AccountLayout.span,
+    space: ACCOUNT_SIZE,
     programId: TOKEN_PROGRAM_ID,
   });
 
   //Send in the amount of SOL which we want converted to wSOL
   const initialBalanceTransferIx = SystemProgram.transfer({
     fromPubkey: payerPublicKey,
-    lamports: Number(amount),
+    lamports: amount,
     toPubkey: ancillaryKeypair.publicKey,
   });
   //Initialize the account as a WSOL account, with the original payerAddress as owner
-  const initAccountIx = await createInitializeAccountInstruction(
+  const initAccountIx = createInitializeAccountInstruction(
     ancillaryKeypair.publicKey,
-    mintPublicKey,
+    NATIVE_MINT,
     payerPublicKey
   );
 
   //Normal approve & transfer instructions, except that the wSOL is sent from the ancillary account.
-  const nonce = createNonce().readUInt32LE(0);
-  const transferIx = await createBridgeFeeTransferInstruction(
-    connection,
-    bridgeAddress,
-    payerAddress
-  );
   const approvalIx = createApproveAuthoritySignerInstruction(
     tokenBridgeAddress,
     ancillaryKeypair.publicKey,
@@ -494,6 +489,7 @@ export async function transferNativeSol(
   );
 
   const message = Keypair.generate();
+  const nonce = createNonce().readUInt32LE(0);
   const tokenBridgeTransferIx =
     payload !== null
       ? createTransferNativeWithPayloadInstruction(
@@ -538,7 +534,6 @@ export async function transferNativeSol(
     createAncillaryAccountIx,
     initialBalanceTransferIx,
     initAccountIx,
-    transferIx,
     approvalIx,
     tokenBridgeTransferIx,
     closeAccountIx
@@ -571,11 +566,6 @@ export async function transferFromSolana(
     fromOwnerAddress = payerAddress;
   }
   const nonce = createNonce().readUInt32LE(0);
-  const transferIx = await createBridgeFeeTransferInstruction(
-    connection,
-    bridgeAddress,
-    payerAddress
-  );
   const approvalIx = createApproveAuthoritySignerInstruction(
     tokenBridgeAddress,
     fromAddress,
@@ -650,7 +640,6 @@ export async function transferFromSolana(
         coalesceChainId(targetChain)
       );
   const transaction = new SolanaTransaction().add(
-    transferIx,
     approvalIx,
     tokenBridgeTransferIx
   );

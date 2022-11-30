@@ -6,6 +6,7 @@ members = [
     "contracts/token-bridge",
     "contracts/shutdown-token-bridge",
     "contracts/mock-bridge-integration",
+    "packages/wormhole-bindings",
 ]
 
 [profile.release]
@@ -22,5 +23,6 @@ overflow-checks = true
 [patch.crates-io]
 cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
 token-bridge-terra-2 = { path = "contracts/token-bridge" }
+wormhole-bindings = { path = "packages/wormhole-bindings" }
 wormhole-bridge-terra-2 = { path = "contracts/wormhole" }
 
