@@ -1,4 +1,4 @@
-import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId, CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { BCS, FaucetClient } from "aptos";
 import { spawnSync } from 'child_process';
 import { ethers } from "ethers";
@@ -55,24 +55,17 @@ function assertNetwork(n: string): asserts n is Network {
 }
 
 exports.command = 'aptos';
-exports.desc = 'Aptos utilities ';
+exports.desc = 'Aptos utilities';
 exports.builder = function(y: typeof yargs) {
   return y
     .command("init-token-bridge", "Init token bridge contract", (yargs) => {
       return yargs
         .option("network", network_options)
         .option("rpc", rpc_description)
-        // TODO(csongor): once the sdk has this, just use it from there
-        .option("contract-address", {
-          alias: "a",
-          required: true,
-          describe: "Address where the wormhole module is deployed",
-          type: "string",
-        })
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
-      const contract_address = evm_address(argv["contract-address"]);
+      const contract_address = evm_address(CONTRACTS[network].aptos.core);
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(network, rpc, `${contract_address}::token_bridge`, "init", [], []);
     })
@@ -228,11 +221,14 @@ exports.builder = function(y: typeof yargs) {
         })
         .option("network", network_options)
     }, async (argv) => {
-      // TODO(csongor): this should be pulled in from the sdk.
-      let token_bridge_address = Buffer.from("576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f", "hex");
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      let address = CONTRACTS[network].aptos.token_bridge;
+      if (address.startsWith("0x")) address = address.substring(2);
+      const token_bridge_address = Buffer.from(address, "hex");
       assertChain(argv["chain"]);
-      let chain = coalesceChainId(argv["chain"]);
-      let origin_address = Buffer.from(evm_address(argv["origin-address"]), "hex");
+      const chain = coalesceChainId(argv["chain"]);
+      const origin_address = Buffer.from(evm_address(argv["origin-address"]), "hex");
       console.log(deriveWrappedAssetAddress(token_bridge_address, chain, origin_address))
     })
     .command("hash-contracts <package-dir>", "Hash contract bytecodes for upgrade", (yargs) => {
@@ -255,14 +251,6 @@ exports.builder = function(y: typeof yargs) {
         .positional("package-dir", {
           type: "string"
         })
-        // TODO(csongor): once the sdk has the addresses, just look that up
-        // based on the module
-        .option("contract-address", {
-          alias: "a",
-          required: true,
-          describe: "Address where the wormhole module is deployed",
-          type: "string",
-        })
         .option("network", network_options)
         .option("rpc", rpc_description)
         .option("named-addresses", named_addresses)
@@ -277,7 +265,7 @@ exports.builder = function(y: typeof yargs) {
       const hash = await callEntryFunc(
         network,
         rpc,
-        `${argv["contract-address"]}::contract_upgrade`,
+        `${CONTRACTS[network].aptos.core}::contract_upgrade`,
         "upgrade",
         [],
         [
@@ -289,14 +277,6 @@ exports.builder = function(y: typeof yargs) {
     })
     .command("migrate", "Perform migration after contract upgrade", (_yargs) => {
       return yargs
-        // TODO(csongor): once the sdk has the addresses, just look that up
-        // based on the module
-        .option("contract-address", {
-          alias: "a",
-          required: true,
-          describe: "Address where the wormhole module is deployed",
-          type: "string",
-        })
         .option("network", network_options)
         .option("rpc", rpc_description)
     }, async (argv) => {
@@ -308,7 +288,7 @@ exports.builder = function(y: typeof yargs) {
       const hash = await callEntryFunc(
         network,
         rpc,
-        `${argv["contract-address"]}::contract_upgrade`,
+        `${CONTRACTS[network].aptos.core}::contract_upgrade`,
         "migrate",
         [],
         [])

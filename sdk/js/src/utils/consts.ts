@@ -54,8 +54,7 @@ export type EVMChainName =
   | "neon"
   | "arbitrum"
   | "optimism"
-  | "gnosis"
-  ;
+  | "gnosis";
 
 /**
  *
@@ -787,6 +786,11 @@ export function assertEVMChain(
 export const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
 export const WSOL_DECIMALS = 9;
 export const MAX_VAA_DECIMALS = 8;
+
+export const APTOS_DEPLOYER_ADDRESS =
+  "0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b";
+export const APTOS_DEPLOYER_ADDRESS_DEVNET =
+  "277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
 export const APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS =
   "0000000000000000000000000000000000000000000000000000000000000001";
 
