@@ -321,7 +321,7 @@ exports.builder = function(y: typeof yargs) {
         let NODE_URL = "http://0.0.0.0:8080/v1";
         let FAUCET_URL = "http://0.0.0.0:8081";
         let account = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
-        let amount = 20000000;
+        let amount = 40000000;
 
         if (argv.faucet != undefined) {
           FAUCET_URL = argv.faucet as string;
