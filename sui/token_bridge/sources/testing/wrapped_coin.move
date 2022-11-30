@@ -33,7 +33,7 @@ module token_bridge::coin_witness_test {
     use wormhole::external_address::{Self};
 
     use token_bridge::bridge_state::{BridgeState, is_wrapped_asset, is_registered_native_asset, origin_info, get_token_chain_from_origin_info, get_token_address_from_origin_info};
-    use token_bridge::test_bridge_state::{set_up_wormhole_core_and_token_bridges};
+    use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
     use token_bridge::wrapped::{NewWrappedCoin, register_wrapped_coin};
     use token_bridge::register_chain::{submit_vaa};
 

@@ -119,7 +119,7 @@ module token_bridge::complete_transfer {
 }
 
 #[test_only]
-module token_bridge::test_complete_transfer {
+module token_bridge::complete_transfer_test {
     use std::bcs::{Self};
 
     use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, ctx, take_from_address, return_to_address};
@@ -135,7 +135,7 @@ module token_bridge::test_complete_transfer {
     use token_bridge::coin_witness_test::{test_register_wrapped_};
     use token_bridge::complete_transfer::{Self};
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
-    use token_bridge::test_bridge_state::{set_up_wormhole_core_and_token_bridges};
+    use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
 
     use wormhole::state::{Self as wormhole_state, State};
 
@@ -143,7 +143,7 @@ module token_bridge::test_complete_transfer {
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     #[test]
-    fun complete_native_transfer_test(){
+    fun test_complete_native_transfer(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);

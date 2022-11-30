@@ -72,7 +72,7 @@ module token_bridge::register_chain {
 }
 
 #[test_only]
-module token_bridge::test_register_chain {
+module token_bridge::register_chain_test {
     use std::option::{Self};
 
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared, return_shared};
@@ -87,7 +87,7 @@ module token_bridge::test_register_chain {
 
     use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
     use token_bridge::register_chain::{Self, submit_vaa};
-    use token_bridge::test_bridge_state::{set_up_wormhole_core_and_token_bridges};
+    use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
