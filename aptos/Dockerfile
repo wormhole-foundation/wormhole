@@ -1,3 +1,9 @@
+FROM node:lts-alpine@sha256:2ae9624a39ce437e7f58931a5747fdc60224c6e40f8980db90728de58e22af7c as worm-cli
+
+COPY clients/js  /tmp/clients/js
+WORKDIR /tmp/clients/js
+RUN make install
+
 FROM ghcr.io/wormhole-foundation/aptos:1.1.0@sha256:9240135c950207e0bbe70d188999343b59d50d506dcc67c1b5586c1dd57b443c as aptos
 
 # Support additional root CAs
