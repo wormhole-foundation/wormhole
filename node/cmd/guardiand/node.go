@@ -1082,8 +1082,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			if ethWatcher == nil {
 				log.Fatalf("if optimism is enabled then ethereum must also be enabled.")
 			}
-			if *optimismCtcRpc == "" || *optimismCtcContractAddress == "" {
-				log.Fatalf("--optimismCtcRpc and --optimismCtcContractAddress both need to be set.")
+			if !*unsafeDevMode {
+				if *optimismCtcRpc == "" || *optimismCtcContractAddress == "" {
+					log.Fatalf("--optimismCtcRpc and --optimismCtcContractAddress both need to be set.")
+				}
 			}
 			logger.Info("Starting Optimism watcher")
 			readiness.RegisterComponent(common.ReadinessOptimismSyncing)
