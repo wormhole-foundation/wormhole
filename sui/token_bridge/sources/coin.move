@@ -59,7 +59,12 @@ module token_bridge::coin_witness_test {
     #[test]
     fun test_register_wrapped() {
         let (admin, _, _) = people();
-        let test = scenario();
+        let scenario = scenario();
+        let test = test_register_wrapped_(admin, scenario);
+        test_scenario::end(test);
+    }
+
+    public fun test_register_wrapped_(admin: address, test: Scenario): Scenario {
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         // create and transfer new wrapped coin to sender
         next_tx(&mut test, admin); {
@@ -101,6 +106,6 @@ module token_bridge::coin_witness_test {
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
         };
-        test_scenario::end(test);
+        return test
     }
 }
