@@ -23,7 +23,6 @@ type NodePrivilegedServiceClient interface {
 	//
 	// A consensus majority of nodes on the network will have to inject the VAA within the
 	// VAA timeout window for it to reach consensus.
-	//
 	InjectGovernanceVAA(ctx context.Context, in *InjectGovernanceVAARequest, opts ...grpc.CallOption) (*InjectGovernanceVAAResponse, error)
 	// FindMissingMessages will detect message sequence gaps in the local VAA store for a
 	// specific emitter chain and address. Start and end slots are the lowest and highest
@@ -147,7 +146,6 @@ type NodePrivilegedServiceServer interface {
 	//
 	// A consensus majority of nodes on the network will have to inject the VAA within the
 	// VAA timeout window for it to reach consensus.
-	//
 	InjectGovernanceVAA(context.Context, *InjectGovernanceVAARequest) (*InjectGovernanceVAAResponse, error)
 	// FindMissingMessages will detect message sequence gaps in the local VAA store for a
 	// specific emitter chain and address. Start and end slots are the lowest and highest

@@ -33,6 +33,25 @@
 
 The terra testnet can be used just like a normal localterra network (can be selected in finder and station).
 
+### Algorand
+
+The `admin.py` deployment tool can be used to generate a set of five prefunded accounts using the `--fundDevAccounts` option, with the following addresses  and mnemonics:
+
+DEV7AREMQSPWWDDFFJ3A5OIMMDCZN4YT5U2MQBN76Y4J5ERQQ3MWPIHUYA 800M ALGO
+provide warfare better filter glory civil help jacket alpha penalty van fiber code upgrade web more curve sauce merit bike satoshi blame orphan absorb modify
+
+DEVBE5BIDJV6SWV7E3XPLB5DXZG2JYCWHGXBAQH6WNBZA3G7SQQ5HUJQII 
+album neglect very nasty input trick annual arctic spray task candy unfold letter drill glove sword flock omit dial rather session mesh slow abandon slab
+
+DEV3AURNEWR5TRFXIOBP2VTCTZIS52Q3XJHNJ57M4IZLMNZ5ABQ6M7AL6E
+blue spring teach silent cheap grace desk crack agree leave tray lady chair reopen midnight lottery glove congress lounge arrow fine junior mirror above purchase
+
+DEVKKFRWGS4EX2GP5PLMFOXAH5TBBSWFD6G2D564FHVDXH55QSPXJKAHIU
+front rifle urge write push dynamic oil vital section blast protect suffer shoulder base address teach sight trap trial august mechanic border leaf absorb attract
+
+DEVKPY5JA6IJED3KBS7Z6J2ZXAUVWIJLABNAYVVLOXXIVSBH32FA2Z4BWY
+fat pet option agree father glue range ancient curtain pottery search raven club save crane sting gift seven butter decline image toward kidney above balance
+
 ### devnet guardian addresses
 
 see [../scripts/devnet-consts.json](../scripts/devnet-consts.json)

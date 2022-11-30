@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -82,7 +83,8 @@ func publicwebServiceRunnable(
 		})))
 
 		srv := &http.Server{
-			Handler: mux,
+			Handler:           mux,
+			ReadHeaderTimeout: 3 * time.Second,
 		}
 
 		// TLS setup

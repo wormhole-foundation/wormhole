@@ -23,19 +23,24 @@ type PollFinalizer interface {
 // finalizer which will be used to only return finalized blocks on subscriptions.
 type BlockPollConnector struct {
 	Connector
-	Delay        time.Duration
-	useFinalized bool
-	finalizer    PollFinalizer
-	blockFeed    ethEvent.Feed
-	errFeed      ethEvent.Feed
+	Delay             time.Duration
+	useFinalized      bool
+	publishSafeBlocks bool
+	finalizer         PollFinalizer
+	blockFeed         ethEvent.Feed
+	errFeed           ethEvent.Feed
 }
 
-func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finalizer PollFinalizer, delay time.Duration, useFinalized bool) (*BlockPollConnector, error) {
+func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finalizer PollFinalizer, delay time.Duration, useFinalized bool, publishSafeBlocks bool) (*BlockPollConnector, error) {
+	if publishSafeBlocks && !useFinalized {
+		return nil, fmt.Errorf("publishSafeBlocks may only be enabled if useFinalized is enabled")
+	}
 	connector := &BlockPollConnector{
-		Connector:    baseConnector,
-		Delay:        delay,
-		useFinalized: useFinalized,
-		finalizer:    finalizer,
+		Connector:         baseConnector,
+		Delay:             delay,
+		useFinalized:      useFinalized,
+		publishSafeBlocks: publishSafeBlocks,
+		finalizer:         finalizer,
 	}
 	err := supervisor.Run(ctx, "blockPoller", connector.run)
 	if err != nil {
@@ -47,9 +52,17 @@ func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finaliz
 func (b *BlockPollConnector) run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx).With(zap.String("eth_network", b.Connector.NetworkName()))
 
-	lastBlock, err := b.getBlock(ctx, logger, nil)
+	lastBlock, err := b.getBlock(ctx, logger, nil, false)
 	if err != nil {
 		return err
+	}
+
+	var lastSafeBlock *NewBlock
+	if b.publishSafeBlocks {
+		lastSafeBlock, err = b.getBlock(ctx, logger, nil, true)
+		if err != nil {
+			return err
+		}
 	}
 
 	timer := time.NewTimer(time.Millisecond) // Start immediately.
@@ -62,15 +75,28 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 			return ctx.Err()
 		case <-timer.C:
 			for count := 0; count < 3; count++ {
-				lastBlock, err = b.pollBlocks(ctx, logger, lastBlock)
+				lastBlock, err = b.pollBlocks(ctx, logger, lastBlock, false)
 				if err == nil {
 					break
 				}
-				logger.Error("polling encountered an error", zap.Error(err))
+				logger.Error("polling of block encountered an error", zap.Error(err))
 
 				// Wait an interval before trying again. We stay in this loop so that we
 				// try up to three times before causing the watcher to restart.
 				time.Sleep(b.Delay)
+			}
+
+			if err == nil && b.publishSafeBlocks {
+				for count := 0; count < 3; count++ {
+					lastSafeBlock, err = b.pollBlocks(ctx, logger, lastSafeBlock, true)
+					if err == nil {
+						break
+					}
+					logger.Error("polling of safe block encountered an error", zap.Error(err))
+
+					// Same wait as above.
+					time.Sleep(b.Delay)
+				}
 			}
 
 			if err != nil {
@@ -81,7 +107,7 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 	}
 }
 
-func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger, lastBlock *NewBlock) (lastPublishedBlock *NewBlock, retErr error) {
+func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger, lastBlock *NewBlock, safe bool) (lastPublishedBlock *NewBlock, retErr error) {
 	// Some of the testnet providers (like the one we are using for Arbitrum) limit how many transactions we can do. When that happens, the call hangs.
 	// Use a timeout so that the call will fail and the runable will get restarted. This should not happen in mainnet, but if it does, we will need to
 	// investigate why the runable is dying and fix the underlying problem.
@@ -94,7 +120,7 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 	// Fetch the latest block on the chain
 	// We could do this on every iteration such that if a new block is created while this function is being executed,
 	// it would automatically fetch new blocks but in order to reduce API load this will be done on the next iteration.
-	latestBlock, err := b.getBlock(timeout, logger, nil)
+	latestBlock, err := b.getBlock(timeout, logger, nil, safe)
 	if err != nil {
 		logger.Error("failed to look up latest block",
 			zap.Uint64("lastSeenBlock", lastBlock.Number.Uint64()), zap.Error(err))
@@ -108,7 +134,7 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 
 		// Try to fetch the next block between lastBlock and latestBlock
 		nextBlockNumber := new(big.Int).Add(lastPublishedBlock.Number, big.NewInt(1))
-		block, err := b.getBlock(timeout, logger, nextBlockNumber)
+		block, err := b.getBlock(timeout, logger, nextBlockNumber, safe)
 		if err != nil {
 			logger.Error("failed to fetch next block",
 				zap.Uint64("block", nextBlockNumber.Uint64()), zap.Error(err))
@@ -164,17 +190,21 @@ func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, sink chan<-
 	return sub, nil
 }
 
-func (b *BlockPollConnector) getBlock(ctx context.Context, logger *zap.Logger, number *big.Int) (*NewBlock, error) {
-	return getBlock(ctx, logger, b.Connector, number, b.useFinalized)
+func (b *BlockPollConnector) getBlock(ctx context.Context, logger *zap.Logger, number *big.Int, safe bool) (*NewBlock, error) {
+	return getBlock(ctx, logger, b.Connector, number, b.useFinalized, safe)
 }
 
 // getBlock is a free function that can be called from other connectors to get a single block.
-func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, number *big.Int, useFinalized bool) (*NewBlock, error) {
+func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, number *big.Int, useFinalized bool, safe bool) (*NewBlock, error) {
 	var numStr string
 	if number != nil {
 		numStr = ethHexUtils.EncodeBig(number)
 	} else if useFinalized {
-		numStr = "finalized"
+		if safe {
+			numStr = "safe"
+		} else {
+			numStr = "finalized"
+		}
 	} else {
 		numStr = "latest"
 	}
@@ -213,5 +243,6 @@ func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, number *b
 		Number:        &n,
 		Hash:          m.Hash,
 		L1BlockNumber: l1bn,
+		Safe:          safe,
 	}, nil
 }

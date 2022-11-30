@@ -327,7 +327,7 @@
         "guardian_set_expiration": 86400
       },
       "consensusGuardianSetIndex": {
-        "index": 0
+        "index": 1
       },
       "guardianSetList": [
         {
@@ -335,6 +335,38 @@
           "index": 0,
           "keys": [
             "WMw65cCXshPOPIGXnhuflXB0aqU="
+          ]
+        },
+        {
+          "expirationTime": 0,
+          "index": 1,
+          "keys": [
+            "WMw65cCXshPOPIGXnhuflXB0aqU="
+          ]
+        },
+        {
+          "expirationTime": 0,
+          "index": 2,
+          "keys": [
+            "0sw3pNwDao0jK0j2LN1HMUEvSJA=",
+            "WMw65cCXshPOPIGXnhuflXB0aqU=",
+            "VM5bTTSPt0uVjolm4uw9vUlYp80=",
+            "EHoAhrMtegl3kmogUTHYcx05y+s=",
+            "gZK25zh8zXaCd8F9qxt6UCfAs88=",
+            "caob4dNsr+OGeRD5nAnjR4mcGcM=",
+            "EU3oRgGTvfOi/PgfhqCXZfR2L9E=",
+            "dKO/kTlT1pUmDYi8GqJaTu42PvA=",
+            "ZrlZDhxB4LImk3v5IX0dZ/1OkfU=",
+            "EbOXVsBCRBvm2GULabVOvnFeI0M=",
+            "jIKy/YL67ScR1Zrw8kmdFucm9rI=",
+            "2nmPaJajMx9ktIwS0dV/2cvnCBE=",
+            "r0XO0Ta52eJJA0ZK6In1yKcj/BQ=",
+            "+TEkt8c4hDy7iehkyGLDjN3Mz5U=",
+            "/2y5Ulib3oYsJe9DkhMvudSkIVc=",
+            "b768iY9APkdz6V/rFegMmpnINI0=",
+            "AArAB2cns1++otrCj+5cyw/qdo4=",
+            "F44hrS53rgZxFUnPux+cep2Alug=",
+            "XhSH81UV0CqSdTUEqNdUcbn0nts="
           ]
         }
       ],

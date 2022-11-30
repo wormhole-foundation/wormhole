@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
 
@@ -21,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/status-im/keycard-go/hexutils"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -61,6 +63,7 @@ func init() {
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
 	AdminCmd.AddCommand(AdminClientListNodes)
+	AdminCmd.AddCommand(AdminClientSignWormchainAddress)
 	AdminCmd.AddCommand(DumpVAAByMessageID)
 	AdminCmd.AddCommand(SendObservationRequest)
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
@@ -74,6 +77,13 @@ func init() {
 var AdminCmd = &cobra.Command{
 	Use:   "admin",
 	Short: "Guardian node admin commands",
+}
+
+var AdminClientSignWormchainAddress = &cobra.Command{
+	Use:   "sign-wormchain-address [/path/to/guardianKey] [wormchain-validator-address]",
+	Short: "Sign a wormchain validator address.  Only sign the address that you control the key for and will be for your validator.",
+	RunE:  runSignWormchainValidatorAddress,
+	Args:  cobra.ExactArgs(2),
 }
 
 var AdminClientInjectGuardianSetUpdateCmd = &cobra.Command{
@@ -168,6 +178,30 @@ func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientCo
 	return conn, c, err
 }
 
+func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
+	guardianKeyPath := args[0]
+	wormchainAddress := args[1]
+	if !strings.HasPrefix(wormchainAddress, "wormhole") || strings.HasPrefix(wormchainAddress, "wormholeval") {
+		return fmt.Errorf("must provide a bech32 address that has 'wormhole' prefix")
+	}
+	gk, err := loadGuardianKey(guardianKeyPath)
+	if err != nil {
+		return fmt.Errorf("failed to load guardian key: %w", err)
+	}
+	addr, err := getFromBech32(wormchainAddress, "wormhole")
+	if err != nil {
+		return fmt.Errorf("failed to decode wormchain address: %w", err)
+	}
+	// Hash and sign address
+	addrHash := crypto.Keccak256Hash(sdk.SignedWormchainAddressPrefix, addr)
+	sig, err := crypto.Sign(addrHash[:], gk)
+	if err != nil {
+		return fmt.Errorf("failed to sign wormchain address: %w", err)
+	}
+	fmt.Println(hex.EncodeToString(sig))
+	return nil
+}
+
 func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	path := args[0]
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -179,7 +213,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}

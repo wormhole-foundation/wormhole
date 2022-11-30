@@ -147,7 +147,7 @@ func (c *PolygonConnector) postBlock(ctx context.Context, blockNum *big.Int, sin
 		return fmt.Errorf("blockNum is nil")
 	}
 
-	block, err := getBlock(ctx, c.logger, c.Connector, blockNum, false)
+	block, err := getBlock(ctx, c.logger, c.Connector, blockNum, false, false)
 	if err != nil {
 		return fmt.Errorf("failed to get block %s: %w", blockNum.String(), err)
 	}

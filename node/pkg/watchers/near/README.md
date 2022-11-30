@@ -7,16 +7,16 @@ Responsibility: Observe finalized `publishMessage` event emissions from the Worm
 There are multiple supervised runners:
 * *BlockPoll*: Polls the NEAR RPC API for finalized blocks and generates transactionProcessingJobs for every single transaction
 * *ChunkFetcher*: Fetches chunks for each block in parallel
-* *TxProcessor*: Processes `transactionProcessingJob`, going through all receipt outcomes, searching for Wormhole messages, and checking that they have been finalized. If there are Wormhole messages in any receipts from this transaction but those receipts are not in finalized blocks, the `transactionProcessingJob` will be put in the back of the queque.
+* *TxProcessor*: Processes `transactionProcessingJob`, going through all receipt outcomes, searching for Wormhole messages, and checking that they have been finalized. If there are Wormhole messages in any receipts from this transaction but those receipts are not in finalized blocks, the `transactionProcessingJob` will be put in the back of the queue.
 * *ObsvReqProcessor*: Process observation requests. An observation request is a way of kindly asking the Guardian to go back in time and look at a particular transaction and try to identify wormhole events in it. Observation requests are received from other Guardians or injected through the admin API. Eventhough they are signed, they should not be trusted.
 
 
 * chunkProcessingQueue gets new chunk hashes.
 	These are processed once we think that the transactions in it are likely to be completed.
 * transactionProcessingQueue is a priority queue and gets all the transactions from the chunks.
-	These are constantly processed and put back to the end of the queque if processing fails.
+	These are constantly processed and put back to the end of the queue if processing fails.
 	If processing a transaction fails, most likely because not all receipts have been finalized, it is retried with an exponential backoff and eventually it is dropped.
-* multiple workers process both types of jobs from these two queques
+* multiple workers process both types of jobs from these two queues
 
 Determining finality of blocks:
 * There is a lru cache, finalizedBlocksCache, that keeps track of blocks hashes of blocks that are known to be finalized

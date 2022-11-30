@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -53,7 +52,7 @@ func serveCache(w http.ResponseWriter, req *http.Request, cacheDir string) (stri
 	if err != nil {
 		return "", errors.New("error reading request")
 	}
-	req.Body = ioutil.NopCloser(bytes.NewReader(reqBody))
+	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	hashBytes := sha256.Sum256(reqBody)
 	hashHex := hex.EncodeToString(hashBytes[:])
@@ -76,7 +75,7 @@ func returnFile(w http.ResponseWriter, fileName string) {
 func (s *ForwardingCachingServer) ProxyReq(logger *zap.Logger, req *http.Request) *http.Request {
 	reqBody, err := io.ReadAll(req.Body)
 	check(err)
-	req.Body = ioutil.NopCloser(bytes.NewReader(reqBody))
+	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	url := fmt.Sprintf("%s%s", s.upstreamHost, req.RequestURI)
 	proxyReq, _ := http.NewRequest(req.Method, url, bytes.NewReader(reqBody))
@@ -123,7 +122,7 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 	}
 
 	reqBody := s.RewriteReq(origReqBody)
-	req.Body = ioutil.NopCloser(bytes.NewReader(reqBody))
+	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	cache_status := ""
 

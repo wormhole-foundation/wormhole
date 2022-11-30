@@ -18,4 +18,5 @@ fi
 
 sleep 2
 
-pipenv run python3 admin.py --devnet --boot
+pipenv run python3 admin.py --devnet --boot --fundDevAccounts
+

@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
@@ -22,7 +21,7 @@ func TestGetOrCreateNodeKeyWithNewPath(t *testing.T) {
 	assert.NotNil(t, privKey1)
 
 	// Re-read the generated privKey file back into memory
-	b, _ := ioutil.ReadFile(path)
+	b, _ := os.ReadFile(path)
 	privKey2, _ := crypto.UnmarshalPrivateKey(b)
 
 	// Make sure we got the same key

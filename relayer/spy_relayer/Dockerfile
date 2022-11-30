@@ -24,7 +24,7 @@ RUN npm run build && npm prune --production
 
 FROM base AS application
 
-LABEL org.opencontainers.image.source="https://github.com/wormhole-foundation/wormhole/tree/dev.v2/relayer/spy_relayer#readme"
+LABEL org.opencontainers.image.source="https://github.com/wormhole-foundation/wormhole/tree/main/relayer/spy_relayer#readme"
 
 COPY --from=builder /app/node_modules node_modules
 COPY --from=builder /app/lib lib

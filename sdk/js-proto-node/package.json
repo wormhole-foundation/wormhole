@@ -8,7 +8,7 @@
   "files": [
     "lib/"
   ],
-  "repository": "https://github.com/certusone/wormhole/tree/dev.v2/sdk/js-proto-node",
+  "repository": "https://github.com/wormhole-foundation/wormhole/tree/main/sdk/js-proto-node",
   "scripts": {
     "build-deps": "cd ../.. && DOCKER_BUILDKIT=1 docker build --target node-export -f Dockerfile.proto -o type=local,dest=. .",
     "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",

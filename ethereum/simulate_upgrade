@@ -15,7 +15,7 @@ function usage() {
 cat <<EOF >&2
 Usage:
 
-  $(basename "$0") [-h] [-m s] [-c s] [-x] [-k] [-d] [-a s] [-l s] -- Simulate an upgrade on a fork of mainnet, and check for any errors.
+  $(basename "$0") [-h] [-m s] [-c s] [-x] [-k] [-d] [-a s] [-l s] [-s] -- Simulate an upgrade on a fork of mainnet, and check for any errors.
 
   where:
     -h  show this help text
@@ -24,8 +24,9 @@ Usage:
     -x  run anvil
     -d  don't compile contract first
     -k  keep anvil alive
-    -l  file to loge to (by default creates a new tmp file)
+    -l  file to log to (by default creates a new tmp file)
     -a  new code address (by default it builds the most recent contract in the repository)
+    -s  shutdown
 EOF
 exit 1
 }
@@ -40,8 +41,9 @@ chain_name=""
 run_anvil=false
 skip_compile=false
 keepalive_anvil=false
+shutdown=false
 anvil_out=$(mktemp)
-while getopts ':hm:c:a:xkdl:' option; do
+while getopts ':hm:c:a:xkdl:s' option; do
   case "$option" in
     h) usage
        ;;
@@ -59,6 +61,8 @@ while getopts ':hm:c:a:xkdl:' option; do
        ;;
     k) keepalive_anvil=true
        run_anvil=true
+       ;;
+    s) shutdown=true
        ;;
     :) printf "missing argument for -%s\n" "$OPTARG" >&2
        usage
@@ -111,15 +115,27 @@ SCRIPT=""
 case "$module" in
     bridge|core)
         MODULE=Core
-        SCRIPT="scripts/deploy_core_bridge.js"
+        if [[ $shutdown = true ]]; then
+            SCRIPT="scripts/deploy_core_bridge_shutdown.js"
+        else
+            SCRIPT="scripts/deploy_core_bridge.js"
+        fi
         ;;
     token_bridge)
         MODULE=TokenBridge
-        SCRIPT="scripts/deploy_token_bridge.js"
+        if [[ $shutdown = true ]]; then
+            SCRIPT="scripts/deploy_token_bridge_shutdown.js"
+        else
+            SCRIPT="scripts/deploy_token_bridge.js"
+        fi
         ;;
     nft_bridge)
         MODULE=NFTBridge
-        SCRIPT="scripts/deploy_nft_bridge.js"
+        if [[ $shutdown = true ]]; then
+            SCRIPT="scripts/deploy_nft_bridge_shutdown.js"
+        else
+            SCRIPT="scripts/deploy_nft_bridge.js"
+        fi
         ;;
     *) echo "unknown module $module" >&2
        usage

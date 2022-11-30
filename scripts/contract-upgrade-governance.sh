@@ -462,7 +462,7 @@ elif [ "$chain_name" = "terra" ]; then
 
 	\`\`\`shell
 	# $module
-	wormhole/terra$ ./verify -n mainnet $(terra_artifact) $terra_code_id
+	wormhole/terra$ ./verify -n mainnet -c $chain_name -w $(terra_artifact) -i $terra_code_id
 	\`\`\`
 EOF
 else

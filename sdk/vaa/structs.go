@@ -116,6 +116,7 @@ type (
 
 const (
 	ConsistencyLevelPublishImmediately = uint8(200)
+	ConsistencyLevelSafe               = uint8(201)
 )
 
 func (a Address) MarshalJSON() ([]byte, error) {
@@ -631,6 +632,9 @@ func (v *BatchVAA) ObsvHashArray() []common.Hash {
 }
 
 func VerifySignatures(data []byte, signatures []*Signature, addresses []common.Address) bool {
+	if len(addresses) < len(signatures) {
+		return false
+	}
 
 	last_index := -1
 	signing_addresses := []common.Address{}
@@ -673,20 +677,12 @@ func VerifySignatures(data []byte, signatures []*Signature, addresses []common.A
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
-	if len(addresses) < len(v.Signatures) {
-		return false
-	}
-
 	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
 }
 
 // VerifySignatures verifies the signature of the BatchVAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
 func (v *BatchVAA) VerifySignatures(addresses []common.Address) bool {
-	if len(addresses) < len(v.Signatures) {
-		return false
-	}
-
 	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
 }
 

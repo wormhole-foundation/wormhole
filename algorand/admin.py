@@ -205,23 +205,19 @@ class PortalCore:
                 kmd.release_wallet_handle(walletHandle)
     
         return self.kmdAccounts
-    
-    def getTemporaryAccount(self, client: AlgodClient) -> Account:
-        if len(self.accountList) == 0:
-            sks = [account.generate_account()[0] for i in range(3)]
-            self.accountList = [Account(sk) for sk in sks]
-    
+
+
+    def _fundFromGenesis(self, accountList, fundingAmt, client):        
             genesisAccounts = self.getGenesisAccounts()
             suggestedParams = client.suggested_params()
-    
             txns: List[transaction.Transaction] = []
-            for i, a in enumerate(self.accountList):
+            for i, a in enumerate(accountList):
                 fundingAccount = genesisAccounts[i % len(genesisAccounts)]
                 txns.append(
                     transaction.PaymentTxn(
                         sender=fundingAccount.getAddress(),
                         receiver=a.getAddress(),
-                        amt=self.FUNDING_AMOUNT,
+                        amt=fundingAmt,
                         sp=suggestedParams,
                     )
                 )
@@ -233,10 +229,35 @@ class PortalCore:
             ]
     
             client.send_transactions(signedTxns)
-    
             self.waitForTransaction(client, signedTxns[0].get_txid())
+
+    def getTemporaryAccount(self, client: AlgodClient) -> Account:
+        if len(self.accountList) == 0:
+            sks = [account.generate_account()[0] for i in range(3)]
+            self.accountList = [Account(sk) for sk in sks]
+            self._fundFromGenesis(self.accountList, self.FUNDING_AMOUNT, client)
     
         return self.accountList.pop()
+
+    def fundDevAccounts(self, client: AlgodClient):
+        devAcctsMnemonics = [
+            "provide warfare better filter glory civil help jacket alpha penalty van fiber code upgrade web more curve sauce merit bike satoshi blame orphan absorb modify",
+            "album neglect very nasty input trick annual arctic spray task candy unfold letter drill glove sword flock omit dial rather session mesh slow abandon slab",
+            "blue spring teach silent cheap grace desk crack agree leave tray lady chair reopen midnight lottery glove congress lounge arrow fine junior mirror above purchase",
+            "front rifle urge write push dynamic oil vital section blast protect suffer shoulder base address teach sight trap trial august mechanic border leaf absorb attract",
+            "fat pet option agree father glue range ancient curtain pottery search raven club save crane sting gift seven butter decline image toward kidney above balance"
+        ]
+
+        accountList = []
+        accountFunding = 400000000000000 # 400M algos
+
+        for mnemo in devAcctsMnemonics:
+            acc = Account.FromMnemonic(mnemo)
+            print('Funding dev account {} with {} uALGOs'.format(acc.addr, accountFunding))
+            accountList.append(acc)
+
+        self._fundFromGenesis(accountList, accountFunding, client)
+
     
     def getAlgodClient(self) -> AlgodClient:
         return AlgodClient(self.ALGOD_TOKEN, self.ALGOD_ADDRESS)
@@ -1412,6 +1433,8 @@ class PortalCore:
         parser.add_argument('--kmd_password', type=str, help='kmd wallet password', default="")
 
         parser.add_argument('--mnemonic', type=str, help='account mnemonic', default="")
+        
+        parser.add_argument('--fundDevAccounts', action='store_true', help='Fund predetermined set of devnet accounts')
 
         parser.add_argument('--core_approve', type=str, help='core approve teal', default="teal/core_approve.teal")
         parser.add_argument('--core_clear', type=str, help='core clear teal', default="teal/core_clear.teal")
@@ -1480,7 +1503,7 @@ class PortalCore:
 
         if args.genTeal or args.boot:
             self.genTeal()
-
+        
         # Generate the upgrade payload we need the guardians to sign
         if args.upgradePayload:
             print(self.genUpgradePayload())
@@ -1508,7 +1531,7 @@ class PortalCore:
 
         if args.mnemonic:
             self.foundation = Account.FromMnemonic(args.mnemonic)
-
+        
         if args.devnet and self.foundation == None:
             print("Generating the foundation account...")
             self.foundation = self.getTemporaryAccount(self.client)
@@ -1591,6 +1614,13 @@ class PortalCore:
             response = self.bootGuardians(vaa, self.client, self.foundation, self.coreid)
             pprint.pprint(response.__dict__)
 
+        if args.fundDevAccounts:
+            if not args.devnet:
+                print("Missing required parameter: --devnet")
+                sys.exit(0)
+            
+            self.fundDevAccounts(self.client)
+            
 if __name__ == "__main__":
     core = PortalCore()
     core.main()
