@@ -1,13 +1,13 @@
+import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { BCS, FaucetClient } from "aptos";
-import { ethers } from "ethers";
-import yargs from "yargs";
-import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
 import { spawnSync } from 'child_process';
-import { config } from '../config';
+import { ethers } from "ethers";
 import fs from 'fs';
 import sha3 from 'js-sha3';
+import yargs from "yargs";
+import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
+import { config } from '../config';
 import { NETWORKS } from "../networks";
-import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
 
@@ -32,13 +32,13 @@ const network_options = {
 
 const rpc_description = {
   alias: "r",
-  describe: "override default rpc endpoint url",
+  describe: "Override default rpc endpoint url",
   type: "string",
   required: false,
 } as const;
 
 const named_addresses = {
-  describe: "named addresses in the format addr1=0x0,addr2=0x1,...",
+  describe: "Named addresses in the format addr1=0x0,addr2=0x1,...",
   type: "string",
   require: false
 } as const;
@@ -321,13 +321,19 @@ exports.builder = function(y: typeof yargs) {
         .option("faucet", {
           alias: "f",
           required: false,
-          describe: "faucet url",
+          describe: "Faucet url",
           type: "string",
+        })
+        .option("amount", {
+          alias: "m",
+          required: false,
+          describe: "Amount to request",
+          type: "number",
         })
         .option("account", {
           alias: "a",
           required: false,
-          describe: "account to fund",
+          describe: "Account to fund",
           type: "string",
         })
     },
@@ -335,6 +341,7 @@ exports.builder = function(y: typeof yargs) {
         let NODE_URL = "http://0.0.0.0:8080/v1";
         let FAUCET_URL = "http://0.0.0.0:8081";
         let account = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
+        let amount = 20000000;
 
         if (argv.faucet != undefined) {
           FAUCET_URL = argv.faucet as string;
@@ -342,13 +349,15 @@ exports.builder = function(y: typeof yargs) {
         if (argv.rpc != undefined) {
           NODE_URL = argv.rpc as string;
         }
+        if (argv.amount != undefined) {
+          amount = argv.amount as number;
+        }
         if (argv.account != undefined) {
           account = argv.account as string;
         }
         const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
-        const coins = 20000000;
-        await faucetClient.fundAccount(account, coins);
-        console.log(`Funded ${account} with ${coins} coins`);
+        await faucetClient.fundAccount(account, amount);
+        console.log(`Funded ${account} with ${amount} coins`);
       })
     .strict().demandCommand();
 }
