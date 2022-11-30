@@ -16,8 +16,8 @@ module token_bridge::transfer {
 
     friend token_bridge::transfer_tokens;
 
-    //#[test_only]
-    //friend token_bridge::complete_transfer_test;
+    #[test_only]
+    friend token_bridge::test_complete_transfer;
     #[test_only]
     friend token_bridge::transfer_test;
 
