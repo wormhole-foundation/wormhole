@@ -1,3 +1,4 @@
+#[test_only]
 module token_bridge::coin_witness {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
