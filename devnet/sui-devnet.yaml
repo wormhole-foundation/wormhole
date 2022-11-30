@@ -7,7 +7,7 @@ metadata:
 spec:
   ports:
     - name: node
-      port: 9002
+      port: 9000
       targetPort: node
     - name: ws
       port: 9001
@@ -46,7 +46,7 @@ spec:
             - -c 
             - /tmp/start_node.sh
           ports:
-            - containerPort: 9002
+            - containerPort: 9000
               name: node
               protocol: TCP
             - containerPort: 9001
@@ -60,6 +60,6 @@ spec:
               protocol: TCP
           readinessProbe:
             tcpSocket:
-              port: 9002
+              port: 9000
 
       restartPolicy: Always
