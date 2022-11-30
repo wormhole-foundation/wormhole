@@ -144,7 +144,7 @@ module token_bridge::test_complete_transfer {
     // the following test is for the "beefface" token from ethereum (chain id = 2)
     #[test]
     fun complete_transfer_test(){
-        let (admin, _, _) = people();
+        let (admin, fee_recipient_person, _) = people();
         let scenario = scenario();
         // First register foreign chain, create wrapped asset, register wrapped asset.
         let test = test_register_wrapped_(admin, scenario);
@@ -153,15 +153,15 @@ module token_bridge::test_complete_transfer {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
 
-            let to = @0x12;
+            let to = admin;
             //let fee_recipient = @0x32;
             let amount = 1000000000;
-            let fee_amount = 1000000000;
+            let fee_amount = 100000000;
             let decimals = 8;
-
             let token_address = external_address::from_bytes(x"beefface");
             let token_chain = u16::from_u64(2);
             let to_chain = wormhole_state::get_chain_id(&worm_state);
+
             let transfer: Transfer = transfer::create(
                 normalized_amount::normalize(amount, decimals),
                 token_address,
@@ -175,7 +175,7 @@ module token_bridge::test_complete_transfer {
                 &transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                admin, // fee recipient
+                fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
@@ -185,10 +185,12 @@ module token_bridge::test_complete_transfer {
         // check balances
         next_tx(&mut test, admin);{
             let coins = take_from_address<Coin<COIN_WITNESS>>(&test, admin);
-            // the wrapped asset has 8 decimals (see wrapped_test::init_wrapped_token)
-            assert!(coin::value<COIN_WITNESS>(&coins) == 1000000000, 0);
-            //assert!(coin::balance<COIN_WITNESS>(fee_recipient) == 4, 0);
+            assert!(coin::value<COIN_WITNESS>(&coins) == 900000000, 0);
             return_to_address<Coin<COIN_WITNESS>>(admin, coins);
+
+            let fee_coins = take_from_address<Coin<COIN_WITNESS>>(&test, fee_recipient_person);
+            assert!(coin::value<COIN_WITNESS>(&fee_coins) == 100000000, 0);
+            return_to_address<Coin<COIN_WITNESS>>(fee_recipient_person, fee_coins);
         };
         test_scenario::end(test);
     }
