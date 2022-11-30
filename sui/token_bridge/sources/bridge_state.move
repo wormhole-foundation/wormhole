@@ -35,9 +35,9 @@ module token_bridge::bridge_state {
     friend token_bridge::transfer_tokens;
     friend token_bridge::attest_token;
     #[test_only]
-    friend token_bridge::test_bridge_state;
+    friend token_bridge::bridge_state_test;
     #[test_only]
-    friend token_bridge::test_complete_transfer;
+    friend token_bridge::complete_transfer_test;
     #[test_only]
     friend token_bridge::token_bridge_vaa_test;
 
@@ -350,7 +350,7 @@ module token_bridge::bridge_state {
 }
 
 #[test_only]
-module token_bridge::test_bridge_state{
+module token_bridge::bridge_state_test{
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
 
     use wormhole::state::{State};

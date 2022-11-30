@@ -74,7 +74,7 @@ module token_bridge::token_bridge_vaa_test{
 
     use token_bridge::bridge_state::{Self, BridgeState};
     use token_bridge::vaa::{Self};
-    use token_bridge::test_bridge_state::{set_up_wormhole_core_and_token_bridges};
+    use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
