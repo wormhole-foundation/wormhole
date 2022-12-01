@@ -1,43 +1,76 @@
-## Guardiand node
+# Default
 
-# Fallback
+* @evan-gray @hendrikhofstadt
+
+# Chains
+
+/algorand/ @jumpsiegel
+/aptos/ @kcsongor
+/bitcoin/ @conorpp @jumpsiegel
+/cosmwasm/ @jynnantonix @kcsongor
+/ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
+/near/ @jumpsiegel
+/solana/ @hendrikhofstadt @jynnantonix @kcsongor
+/sui/ @kcsongor
+/terra/ @jynnantonix @kcsongor
+/wormchain/ @conorpp @hendrikhofstadt
+
+# Utilities
+
+/clients/ @kcsongor @kev1n-peters
+/lp_ui/ @evan-gray @kev1n-peters
+/relayer/ @evan-gray @kev1n-peters
+/scripts/ @evan-gray @kcsongor
+/sdk/ @bruce-riley @evan-gray @jynnantonix
+/sdk/js-proto-node/ @evan-gray @kev1n-peters
+/sdk/js-proto-web/ @evan-gray @kev1n-peters
+/sdk/js-wasm/ @evan-gray @kev1n-peters
+/sdk/js/ @evan-gray @kev1n-peters
+/sdk/rust/ @hendrikhofstadt @jynnantonix
+/sdk/vaa/ @bruce-riley @hendrikhofstadt
+/spydk/ @evan-gray
+/testing/ @a5-pickle @evan-gray
+
+# Guardiand node
+
+## Fallback
 /node/ @leoluk @hendrikhofstadt
 
-# Entrypoint / RPC
+## Entrypoint / RPC
 /node/cmd/ @bruce-riley @jynnantonix
 
-# DB
+## DB
 /node/pkg/db/ @bruce-riley
 
-# Governor
+## Governor
 /node/pkg/governor/ @bruce-riley @claudijd
 
-# P2P
+## P2P
 /node/pkg/p2p/ @leoluk @hendrikhofstadt
 
-# Consensus / Processor
+## Consensus / Processor
 /node/pkg/processor/ @jynnantonix @hendrikhofstadt
 
-# Public RPC
+## Public RPC
 /node/pkg/publicrpc/ @bruce-riley
 
-# Supervisor Framework
+## Supervisor Framework
 /node/pkg/supervisor/ @hendrikhofstadt @leoluk
 
-# Watcher - Algorand
+## Watcher - Algorand
 /node/pkg/watchers/algorand/ @evan-gray @jumpsiegel
 
-# Watcher - Aptos
+## Watcher - Aptos
 /node/pkg/watchers/aptos/ @jumpsiegel
 
-# Watcher - Cosmwasm
+## Watcher - Cosmwasm
 /node/pkg/watchers/cosmwasm/ @evan-gray @hendrikhofstadt
 
-# Watcher - EVM
+## Watcher - EVM
 /node/pkg/watchers/evm/ @bruce-riley @hendrikhofstadt
 
-# Watcher - NEAR
+## Watcher - NEAR
 /node/pkg/watchers/near/ @jumpsiegel
 
-# Watcher - Solana
+## Watcher - Solana
 /node/pkg/watchers/solana/ @hendrikhofstadt

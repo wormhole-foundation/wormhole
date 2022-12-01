@@ -259,7 +259,7 @@ const TESTNET = {
   terra2: {
     rpc: "https://pisco-lcd.terra.dev",
     chain_id: "pisco-1",
-    key: get_env_var("TERRA_MNEMONIC"),
+    key: get_env_var("TERRA_MNEMONIC_TESTNET"),
   },
   arbitrum: {
     rpc: "https://goerli-rollup.arbitrum.io/rpc",
