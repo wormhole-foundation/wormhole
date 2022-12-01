@@ -91,11 +91,11 @@ func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
 }
 
 func (r BodyWormchainStoreCode) Serialize() []byte {
-	return serializeBridgeGovernanceVaa("WasmdModule", 1, 3104, r.WasmHash)
+	return serializeBridgeGovernanceVaa("WasmdModule", 1, ChainIDWormchain, r.WasmHash)
 }
 
 func (r BodyWormchainInstantiateContract) Serialize() []byte {
-	return serializeBridgeGovernanceVaa("WasmdModule", 2, 3104, r.InstantiationParamsHash)
+	return serializeBridgeGovernanceVaa("WasmdModule", 2, ChainIDWormchain, r.InstantiationParamsHash)
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId uint8, chainId ChainID, payload [32]byte) []byte {

@@ -168,11 +168,11 @@ func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, gua
 	// validate the length of the hex passed in
 	b, err := hex.DecodeString(req.WasmHash)
 	if err != nil {
-		return nil, errors.New("invalid cosmwasm bytecode hash (expected hex)")
+		return nil, fmt.Errorf("invalid cosmwasm bytecode hash (expected hex): %w", err)
 	}
 
 	if len(b) != 32 {
-		return nil, errors.New("invalid cosmwasm bytecode hash (expected 32 bytes)")
+		return nil, fmt.Errorf("invalid cosmwasm bytecode hash (expected 32 bytes but received %d bytes)", len(b))
 	}
 
 	wasmHash := [32]byte{}
