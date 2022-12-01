@@ -34,7 +34,7 @@ type OptimismFinalizer struct {
 	logger                 *zap.Logger
 	connector              connectors.Connector
 	l1Finalizer            interfaces.L1Finalizer
-	latestFinalizedL2Block big.Int
+	latestFinalizedL2Block *big.Int
 
 	// finalizerMapping is a array of RollupInfo structs with the L2 block number that has been verified and its corresponding L1 block number
 	finalizerMapping []RollupInfo
@@ -74,7 +74,7 @@ func NewOptimismFinalizer(
 		logger:                 logger,
 		connector:              connector,
 		l1Finalizer:            l1Finalizer,
-		latestFinalizedL2Block: *big.NewInt(0),
+		latestFinalizedL2Block: big.NewInt(0),
 		finalizerMapping:       make([]RollupInfo, 0),
 		ctcRawClient:           ctcRawClient,
 		ctcClient:              ctcClient,
@@ -89,25 +89,25 @@ func NewOptimismFinalizer(
 // The L1 block number is a uint40 in the abi.  So, safe to convert to Uint64.
 // The L2 block number is a uint256 in the abi.  So, this is never converted to anything else.
 type RollupInfo struct {
-	l2Block big.Int
-	l1Block big.Int
+	l2Block *big.Int
+	l1Block *big.Int
 }
 
 func (f *OptimismFinalizer) GetRollupInfo(ctx context.Context) (RollupInfo, error) {
 	// Get the current latest blocks.
 	opts := &ethBind.CallOpts{Context: ctx}
 	var entry RollupInfo
-	l1Block, err := f.ctcCaller.GetLastBlockNumber(opts)
-	if err != nil {
-		return entry, fmt.Errorf("failed to get L1 block: %w", err)
-	}
 	l2Block, err := f.ctcCaller.GetTotalElements(opts)
 	if err != nil {
 		return entry, fmt.Errorf("failed to get L2 block: %w", err)
 	}
-	entry.l1Block = *l1Block
-	entry.l2Block = *l2Block
-	f.logger.Debug("GetRollupInfo", zap.String("l1Block", entry.l1Block.String()), zap.String("l2Block", entry.l2Block.String()))
+	l1Block, err := f.ctcCaller.GetLastBlockNumber(opts)
+	if err != nil {
+		return entry, fmt.Errorf("failed to get L1 block: %w", err)
+	}
+	entry.l1Block = l1Block
+	entry.l2Block = l2Block
+	f.logger.Debug("GetRollupInfo", zap.Stringer("l1Block", entry.l1Block), zap.Stringer("l2Block", entry.l2Block))
 
 	return entry, nil
 }
@@ -132,11 +132,11 @@ func (f *OptimismFinalizer) IsBlockFinalized(ctx context.Context, block *connect
 	// Look at the last element of the array and see if we need to add this entry
 	// The assumption here is that every subsequent call moves forward (or stays the same).  It is an error if verifiedIndex goes backwards
 	finalizerMappingSize := len(f.finalizerMapping)
-	if finalizerMappingSize != 0 && f.finalizerMapping[finalizerMappingSize-1].l2Block.Cmp(&rInfo.l2Block) > 0 {
+	if finalizerMappingSize != 0 && f.finalizerMapping[finalizerMappingSize-1].l2Block.Cmp(rInfo.l2Block) > 0 {
 		// This is the error case where the RPC call is not working as expected.
 		return false, fmt.Errorf("The received verified index just went backwards. Received %s. Last number in array is %s", rInfo.l2Block.String(), f.finalizerMapping[finalizerMappingSize-1].l2Block.String())
 	}
-	if finalizerMappingSize == 0 || f.finalizerMapping[finalizerMappingSize-1].l2Block.Cmp(&rInfo.l2Block) < 0 {
+	if finalizerMappingSize == 0 || f.finalizerMapping[finalizerMappingSize-1].l2Block.Cmp(rInfo.l2Block) < 0 {
 		// New information.  Append it to the array.
 		f.finalizerMapping = append(f.finalizerMapping, rInfo)
 		f.logger.Info("Appending new entry.", zap.Int("finalizerMap size", len(f.finalizerMapping)), zap.String("L2 block number", rInfo.l2Block.String()), zap.String("L1 block number", rInfo.l1Block.String()))
@@ -162,7 +162,7 @@ func (f *OptimismFinalizer) IsBlockFinalized(ctx context.Context, block *connect
 		f.logger.Debug("Pruning finalizerMapping", zap.Int("Pruning from index", pruneIdx), zap.Int("new array size", len(f.finalizerMapping)))
 	}
 
-	isFinalized := block.Number.Cmp(&f.latestFinalizedL2Block) <= 0
+	isFinalized := block.Number.Cmp(f.latestFinalizedL2Block) <= 0
 
 	f.logger.Debug("got rollup info",
 		zap.Uint64("l1_blockNumber", rInfo.l1Block.Uint64()),
