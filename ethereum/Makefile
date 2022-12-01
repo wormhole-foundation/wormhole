@@ -1,5 +1,20 @@
 SOURCE_FILES:=$(shell find contracts -name "*.sol")
 
+# List of files to flatten. These are typically the 'leaves' of the
+# dependendency tree, i.e. the contracts that actually get deployed on-chain.
+# Proxies and implementations.
+FLATTEN_FILES:= contracts/Implementation.sol \
+                contracts/Wormhole.sol \
+                contracts/bridge/BridgeImplementation.sol \
+                contracts/bridge/TokenBridge.sol \
+                contracts/bridge/token/TokenImplementation.sol \
+                contracts/bridge/token/Token.sol \
+                contracts/nft/NFTBridgeImplementation.sol \
+                contracts/nft/NFTBridgeEntrypoint.sol \
+                contracts/nft/token/NFT.sol \
+                contracts/nft/token/NFTImplementation.sol \
+                contracts/nft/token/NFT.sol
+
 .PHONY: dependencies test clean all
 
 all: build
@@ -29,6 +44,16 @@ build: node_modules ${SOURCE_FILES}
 	touch -m build
 	npm run build
 
+flattened/%.sol: contracts/%.sol node_modules
+	@mkdir -p $(dir $@)
+    # We remove the license (SPDX) lines and ABIEncoderV2 lines because they
+    # break compilation in the flattened file if there are multiple conflicting
+    # declarations.
+	npx truffle-flattener $< | grep -v SPDX | grep -v ABIEncoderV2 > $@
+
+.PHONY: flattened
+flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
+
 .env: .env.test
 	cp $< $@
 
@@ -54,4 +79,4 @@ test-forge: dependencies
 	forge test
 
 clean:
-	rm -rf ganache.log .env node_modules build
+	rm -rf ganache.log .env node_modules build flattened
