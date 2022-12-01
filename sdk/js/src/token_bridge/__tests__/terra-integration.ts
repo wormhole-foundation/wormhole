@@ -42,6 +42,7 @@ import {
   TERRA_GAS_PRICES_URL,
   TERRA_NODE_URL,
   TERRA_PRIVATE_KEY,
+  TERRA_PUBLIC_KEY,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
@@ -301,8 +302,7 @@ describe("Terra Integration Tests", () => {
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY4, provider);
           const amount = parseUnits("1", 18);
           const ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";
-          const TerraWalletAddress: string =
-            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
+          const TerraWalletAddress: string = TERRA_PUBLIC_KEY;
           interface Erc20Balance {
             balance: string;
           }
@@ -482,8 +482,7 @@ describe("Terra Integration Tests", () => {
           });
           const wallet = lcd.wallet(mk);
           const Asset: string = "uluna";
-          const TerraWalletAddress: string =
-            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
+          const TerraWalletAddress: string = TERRA_PUBLIC_KEY;
           const msg = await attestFromTerra(
             CONTRACTS.DEVNET.terra.token_bridge,
             TerraWalletAddress,
@@ -843,8 +842,7 @@ describe("Terra Integration Tests", () => {
           const Asset: string = "uluna";
           const FeeAsset: string = "uusd";
           const Amount: string = "1000000";
-          const TerraWalletAddress: string =
-            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
+          const TerraWalletAddress: string = TERRA_PUBLIC_KEY;
 
           interface Cw20Balance {
             balance: string;
