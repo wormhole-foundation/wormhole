@@ -4,7 +4,7 @@ module token_bridge::bridge_state {
     use sui::object::{Self, UID};
     use sui::vec_map::{Self, VecMap};
     use sui::tx_context::{TxContext};
-    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::coin::{Self, Coin, TreasuryCap, CoinMetadata};
     use sui::transfer::{Self};
     use sui::tx_context::{Self};
     use sui::sui::SUI;
@@ -45,16 +45,17 @@ module token_bridge::bridge_state {
     /// module is deployed
     struct DeployerCapability has key, store {id: UID}
 
-    /// WrappedAssetInfo is a Sui object (has key ability) that functions as a Value
-    /// in a dynamic object mapping that maps Names => Values. It stores metadata about
-    /// a particular CoinType, or equivalently a CoinTypeWrapper.
+    /// WrappedAssetInfo<CoinType> stores all the metadata about a wrapped asset
     struct WrappedAssetInfo<phantom CoinType> has key, store {
         id: UID,
         token_chain: U16,
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<CoinType>,
-        // TODO: add the following when coin metadata is on 'devnet'
-        // coin_meta: CoinMetadata<CoinType>,
+        coin_metadata: CoinMetadata<CoinType>,
+    }
+
+    public fun get_coin_metadata<CoinType>(state: &BridgeState): &CoinMetadata<CoinType> {
+        &dynamic_set::borrow<WrappedAssetInfo<CoinType>>(&state.id).coin_metadata
     }
 
     struct NativeAssetInfo<phantom CoinType> has key, store {
@@ -95,13 +96,15 @@ module token_bridge::bridge_state {
         token_chain: U16,
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<CoinType>,
+        coin_metadata: CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): WrappedAssetInfo<CoinType> {
         return WrappedAssetInfo {
             id: object::new(ctx),
-            token_chain: token_chain,
-            token_address: token_address,
-            treasury_cap,
+            token_chain,
+            token_address,
+            coin_metadata,
+            treasury_cap
         }
     }
 
