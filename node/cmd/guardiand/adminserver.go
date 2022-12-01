@@ -3,7 +3,6 @@ package guardiand
 import (
 	"context"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -22,7 +21,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
-	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -191,17 +189,11 @@ func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, gua
 // wormchainInstantiateContract converts a nodev1.WormchainInstantiateContract to its canonical VAA representation
 // Returns an error if the data is invalid
 func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	// calculate sha3.Sum(BigEndian(CodeID) || Label || Msg)
-	var instantiationParamsHash [32]byte
-	keccak := sha3.NewLegacyKeccak256()
-	binary.Write(keccak, binary.BigEndian, req.CodeId)
-	keccak.Write([]byte(req.Label))
-	keccak.Write([]byte(req.InstantiationMsg))
-	keccak.Sum(instantiationParamsHash[:0])
+	instantiationParams_hash := vaa.CreateInstatiateCosmwasmContractHash(req.CodeId, req.Label, []byte(req.InstantiationMsg))
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyWormchainInstantiateContract{
-			InstantiationParamsHash: instantiationParamsHash,
+			InstantiationParamsHash: instantiationParams_hash,
 		}.Serialize())
 
 	return v, nil
