@@ -44,8 +44,8 @@ export async function query_contract_evm(
       }
       result.guardianSetExpiry = await core.getGuardianSetExpiry()
       result.chainId = await core.chainId()
-      result.evmChainId = await core.evmChainId()
-      result.isFork = await core.isFork()
+      result.evmChainId = (await maybeUnsupported(core.evmChainId())).toString()
+      result.isFork = await maybeUnsupported(core.isFork())
       result.governanceChainId = await core.governanceChainId()
       result.governanceContract = await core.governanceContract()
       result.messageFee = await core.messageFee()
@@ -65,8 +65,8 @@ export async function query_contract_evm(
       result.tokenImplementation = await tb.tokenImplementation()
       result.chainId = await tb.chainId()
       result.finality = await tb.finality()
-      result.evmChainId = (await tb.evmChainId()).toString()
-      result.isFork = await tb.isFork()
+      result.evmChainId = (await maybeUnsupported(tb.evmChainId())).toString()
+      result.isFork = await maybeUnsupported(tb.isFork())
       result.governanceChainId = await tb.governanceChainId()
       result.governanceContract = await tb.governanceContract()
       result.WETH = await tb.WETH()
@@ -91,8 +91,8 @@ export async function query_contract_evm(
       result.tokenImplementation = await nb.tokenImplementation()
       result.chainId = await nb.chainId()
       result.finality = await nb.finality()
-      result.evmChainId = (await nb.evmChainId()).toString()
-      result.isFork = await nb.isFork()
+      result.evmChainId = (await maybeUnsupported(nb.evmChainId())).toString()
+      result.isFork = await maybeUnsupported(nb.isFork())
       result.governanceChainId = await nb.governanceChainId()
       result.governanceContract = await nb.governanceContract()
       result.registrations = {}
@@ -488,4 +488,15 @@ export async function setStorageAt(rpc: string, contract_address: string, storag
       val,
     ],
   })).data
+}
+
+async function maybeUnsupported<T>(query: Promise<T>): Promise<T> {
+  try {
+    return await query
+  } catch (e) {
+    if (e.reason === "unsupported") {
+      return e.reason
+    }
+    throw e
+  }
 }
