@@ -31,12 +31,7 @@ func createWasmInstantiatePayload(code_id uint64, label string, json_msg string)
 	// - code_id (big endian)
 	// - label
 	// - json_msg
-	var expected_hash [32]byte
-	keccak := sha3.NewLegacyKeccak256()
-	binary.Write(keccak, binary.BigEndian, code_id)
-	keccak.Write([]byte(label))
-	keccak.Write([]byte(json_msg))
-	keccak.Sum(expected_hash[:0])
+	expected_hash := vaa.CreateInstatiateCosmwasmContractHash(code_id, label, []byte(json_msg))
 
 	var payload bytes.Buffer
 	payload.Write(keeper.WasmdModule[:])
