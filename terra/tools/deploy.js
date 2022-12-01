@@ -200,6 +200,10 @@ addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
       address: wallet.key.accAddress,
       amount: "100000000",
     },
+    {
+      address: "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9",
+      amount: "100000000",
+    },
   ],
   mint: null,
 });
