@@ -295,7 +295,7 @@ services:
     environment:
       HEDERA_MIRROR_WEB3_DB_HOST: db
     ports:
-      - "8545:8545"
+      - "8546:8545"
     restart: unless-stopped
     tty: true
 
