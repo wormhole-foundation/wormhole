@@ -35,22 +35,22 @@ func CreateInstatiateCosmwasmContractHash(codeId uint64, label string, msg []byt
 
 	// hash(BigEndian(CodeID))
 	var codeId_hash [32]byte
-	codeIdKeccak := sha3.NewLegacyKeccak256()
-	binary.Write(codeIdKeccak, binary.BigEndian, codeId)
-	codeIdKeccak.Sum(codeId_hash[:0])
+	keccak := sha3.NewLegacyKeccak256()
+	binary.Write(keccak, binary.BigEndian, codeId)
+	keccak.Sum(codeId_hash[:0])
+	keccak.Reset()
 
 	// hash(hash(BigEndian(CodeID)), Label)
 	var codeIdLabel_hash [32]byte
-	codeIdLabelKeccak := sha3.NewLegacyKeccak256()
-	codeIdLabelKeccak.Write(codeId_hash[:])
-	codeIdLabelKeccak.Write([]byte(label))
-	codeIdLabelKeccak.Sum(codeIdLabel_hash[:0])
+	keccak.Write(codeId_hash[:])
+	keccak.Write([]byte(label))
+	keccak.Sum(codeIdLabel_hash[:0])
+	keccak.Reset()
 
 	// hash(hash(hash(BigEndian(CodeID)), Label), Msg)
-	codeIdLabelMsgKeccak := sha3.NewLegacyKeccak256()
-	codeIdLabelMsgKeccak.Write(codeIdLabel_hash[:])
-	codeIdLabelMsgKeccak.Write(msg)
-	codeIdLabelMsgKeccak.Sum(expected_hash[:0])
+	keccak.Write(codeIdLabel_hash[:])
+	keccak.Write(msg)
+	keccak.Sum(expected_hash[:0])
 
 	return expected_hash
 }
