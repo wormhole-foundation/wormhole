@@ -118,7 +118,7 @@ docker_build(
     context = ".",
     dockerfile = "Dockerfile.node",
     target = "build",
-    ignore=["./sdk/js"]
+    ignore=["./sdk/js", "hedera"]
 )
 
 def command_with_dlv(argv):
