@@ -395,7 +395,6 @@ if solana:
         port_forwards = [
             port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
             port_forward(8900, name = "Solana WS [:8900]", host = webHost),
-            port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
         ],
         resource_deps = ["const-gen"],
         labels = ["solana"],
@@ -680,7 +679,7 @@ if sui:
         "sui",
         port_forwards = [
             port_forward(9001, name = "WS [:9001]", host = webHost),
-            port_forward(9002, name = "RPC [:9002]", host = webHost),
+            port_forward(9000, 9002, name = "RPC [:9000]", host = webHost),
             port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
