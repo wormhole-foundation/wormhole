@@ -159,8 +159,10 @@ var (
 	arbitrumRPC      *string
 	arbitrumContract *string
 
-	optimismRPC      *string
-	optimismContract *string
+	optimismRPC                *string
+	optimismContract           *string
+	optimismCtcRpc             *string
+	optimismCtcContractAddress *string
 
 	logLevel *string
 
@@ -298,6 +300,8 @@ func init() {
 
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
+	optimismCtcRpc = NodeCmd.Flags().String("optimismCtcRpc", "", "Optimism CTC RPC")
+	optimismCtcContractAddress = NodeCmd.Flags().String("optimismCtcContractAddress", "", "Optimism CTC contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -1078,11 +1082,19 @@ func runNode(cmd *cobra.Command, args []string) {
 			if ethWatcher == nil {
 				log.Fatalf("if optimism is enabled then ethereum must also be enabled.")
 			}
+			if !*unsafeDevMode {
+				if *optimismCtcRpc == "" || *optimismCtcContractAddress == "" {
+					log.Fatalf("--optimismCtcRpc and --optimismCtcContractAddress both need to be set.")
+				}
+			}
 			logger.Info("Starting Optimism watcher")
 			readiness.RegisterComponent(common.ReadinessOptimismSyncing)
 			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			optimismWatcher := evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", common.ReadinessOptimismSyncing, vaa.ChainIDOptimism, lockC, nil, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode)
 			optimismWatcher.SetL1Finalizer(ethWatcher)
+			if err := optimismWatcher.SetRootChainParams(*optimismCtcRpc, *optimismCtcContractAddress); err != nil {
+				return err
+			}
 			if err := supervisor.Run(ctx, "optimismwatch", optimismWatcher.Run); err != nil {
 				return err
 			}
