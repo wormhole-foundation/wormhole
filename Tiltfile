@@ -178,7 +178,7 @@ def build_node_yaml():
             if sui:
                 container["command"] += [
                     "--suiRPC",
-                    "http://sui:9000",
+                    "http://sui:9002",
 # In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to
 # event traffic purely based on the account since that is the only thing that is deterministic.
 #                    "--suiPackage",
@@ -395,6 +395,7 @@ if solana:
         port_forwards = [
             port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
             port_forward(8900, name = "Solana WS [:8900]", host = webHost),
+            port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
         ],
         resource_deps = ["const-gen"],
         labels = ["solana"],
@@ -678,8 +679,8 @@ if sui:
     k8s_resource(
         "sui",
         port_forwards = [
-            port_forward(9000, name = "RPC [:9000]", host = webHost),
             port_forward(9001, name = "WS [:9001]", host = webHost),
+            port_forward(9002, name = "RPC [:9002]", host = webHost),
             port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
