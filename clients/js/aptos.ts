@@ -34,6 +34,8 @@ export async function execute_aptos(
           console.log("Upgrading core contract")
           await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa_entry", [], [bcsVAA]);
           break
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on aptos")
         default:
           impossible(payload)
       }
@@ -48,6 +50,8 @@ export async function execute_aptos(
           console.log("Upgrading contract")
           await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa_entry", [], [bcsVAA]);
           break
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on aptos")
         case "RegisterChain":
           console.log("Registering chain")
           await callEntryFunc(network, rpc, `${contract}::register_chain`, "submit_vaa_entry", [], [bcsVAA]);
@@ -57,6 +61,8 @@ export async function execute_aptos(
           await callEntryFunc(network, rpc, `${contract}::complete_transfer`, "submit_vaa_entry", [], [bcsVAA]);
           break
         }
+        default:
+          impossible(payload)
       }
       break
     case "TokenBridge":
@@ -69,6 +75,8 @@ export async function execute_aptos(
           console.log("Upgrading contract")
           await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa_entry", [], [bcsVAA]);
           break
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on aptos")
         case "RegisterChain":
           console.log("Registering chain")
           await callEntryFunc(network, rpc, `${contract}::register_chain`, "submit_vaa_entry", [], [bcsVAA]);

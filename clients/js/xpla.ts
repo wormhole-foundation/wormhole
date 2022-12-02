@@ -48,6 +48,8 @@ export async function execute_xpla(
         case "ContractUpgrade":
           console.log("Upgrading core contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on XPLA")
         default:
           impossible(payload);
       }
@@ -57,7 +59,7 @@ export async function execute_xpla(
         // NOTE: this code can safely be removed once the terra NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
-        throw new Error("NFT bridge not supported yet for terra");
+        throw new Error("NFT bridge not supported yet for XPLA");
       }
       target_contract = contracts.nft_bridge;
       execute_msg = {
@@ -69,6 +71,8 @@ export async function execute_xpla(
         case "ContractUpgrade":
           console.log("Upgrading contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on XPLA")
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -90,6 +94,8 @@ export async function execute_xpla(
         case "ContractUpgrade":
           console.log("Upgrading contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on XPLA")
         case "RegisterChain":
           console.log("Registering chain");
           break;

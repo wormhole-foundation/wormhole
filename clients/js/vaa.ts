@@ -70,11 +70,19 @@ export type Payload =
     | TokenBridgeTransferWithPayload
     | TokenBridgeAttestMeta
     | NFTBridgeTransfer
+    | CoreContractRecoverChainId
+    | PortalContractRecoverChainId<"TokenBridge">
+    | PortalContractRecoverChainId<"NFTBridge">
 
 export type ContractUpgrade =
     CoreContractUpgrade
     | PortalContractUpgrade<"TokenBridge">
     | PortalContractUpgrade<"NFTBridge">
+
+export type RecoverChainId =
+    CoreContractRecoverChainId
+    | PortalContractRecoverChainId<"TokenBridge">
+    | PortalContractRecoverChainId<"NFTBridge">
 
 export function parse(buffer: Buffer): VAA<Payload | Other> {
     const vaa = parseEnvelope(buffer)
@@ -88,6 +96,9 @@ export function parse(buffer: Buffer): VAA<Payload | Other> {
         .or(tokenBridgeTransferWithPayloadParser())
         .or(tokenBridgeAttestMetaParser())
         .or(nftBridgeTransferParser())
+        .or(coreContractRecoverChainId())
+        .or(portalContractRecoverChainId("TokenBridge"))
+        .or(portalContractRecoverChainId("NFTBridge"))
     let payload : Payload | Other | null = parser.parse(vaa.payload)
     if (payload === null) {
         payload = {type: "Other", hex: Buffer.from(vaa.payload).toString("hex"), ascii: Buffer.from(vaa.payload).toString('utf8')}
@@ -192,6 +203,9 @@ function vaaBody(vaa: VAA<Payload | Other>) {
                     case "ContractUpgrade":
                         payload_str = serialiseCoreContractUpgrade(payload)
                         break
+                    case "RecoverChainId":
+                        payload_str = serialiseCoreContractRecoverChainId(payload)
+                        break
                     default:
                         impossible(payload)
                         break
@@ -201,6 +215,9 @@ function vaaBody(vaa: VAA<Payload | Other>) {
                 switch (payload.type) {
                     case "ContractUpgrade":
                         payload_str = serialisePortalContractUpgrade(payload)
+                        break
+                    case "RecoverChainId":
+                        payload_str = serialisePortalContractRecoverChainId(payload)
                         break
                     case "RegisterChain":
                         payload_str = serialisePortalRegisterChain(payload)
@@ -217,6 +234,9 @@ function vaaBody(vaa: VAA<Payload | Other>) {
                 switch (payload.type) {
                     case "ContractUpgrade":
                         payload_str = serialisePortalContractUpgrade(payload)
+                        break
+                    case "RecoverChainId":
+                        payload_str = serialisePortalContractRecoverChainId(payload)
                         break
                     case "RegisterChain":
                         payload_str = serialisePortalRegisterChain(payload)
@@ -464,6 +484,95 @@ function serialisePortalRegisterChain<Module extends "NFTBridge" | "TokenBridge"
         encode("uint16", payload.chain),
         encode("uint16", payload.emitterChain),
         encode("bytes32", payload.emitterAddress)
+    ]
+    return body.join("")
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// RecoverChainId
+
+export interface CoreContractRecoverChainId {
+    module: "Core"
+    type: "RecoverChainId"
+    evmChainId: bigint
+    newChainId: number
+}
+
+// Parse a core contract recoverChainId payload
+function coreContractRecoverChainId(): P<CoreContractRecoverChainId> {
+    return new P(new Parser()
+        .endianess("big")
+        .string("module", {
+            length: 32,
+            encoding: "hex",
+            assert: Buffer.from("Core").toString("hex").padStart(64, "0"),
+            formatter: (_str) => "Core"
+        })
+        .uint8("type", {
+            assert: 5,
+            formatter: (_action) => "RecoverChainId"
+        })
+        .array("evmChainId", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (bytes) => BigNumber.from(bytes).toBigInt()
+        })
+        .uint16("newChainId")
+        .string("end", {
+            greedy: true,
+            assert: str => str === ""
+        }))
+}
+
+function serialiseCoreContractRecoverChainId(payload: CoreContractRecoverChainId): string {
+    const body = [
+        encode("bytes32", encodeString(payload.module)),
+        encode("uint8", 5),
+        encode("uint256", payload.evmChainId),
+        encode("uint16", payload.newChainId)
+    ]
+    return body.join("")
+}
+
+export interface PortalContractRecoverChainId<Module extends "NFTBridge" | "TokenBridge"> {
+    module: Module
+    type: "RecoverChainId"
+    evmChainId: bigint
+    newChainId: number
+}
+
+// Parse a portal contract recoverChainId payload
+function portalContractRecoverChainId<Module extends "NFTBridge" | "TokenBridge">(module: Module): P<PortalContractRecoverChainId<Module>> {
+    return new P(new Parser()
+        .endianess("big")
+        .string("module", {
+            length: 32,
+            encoding: "hex",
+            assert: Buffer.from(module).toString("hex").padStart(64, "0"),
+            formatter: (_str: string) => module
+        })
+        .uint8("type", {
+            assert: 3,
+            formatter: (_action: number) => "RecoverChainId"
+        })
+        .array("evmChainId", {
+            type: "uint8",
+            lengthInBytes: 32,
+            formatter: (bytes) => BigNumber.from(bytes).toBigInt()
+        })
+        .uint16("newChainId")
+        .string("end", {
+            greedy: true,
+            assert: str => str === ""
+        }))
+}
+
+function serialisePortalContractRecoverChainId<Module extends "NFTBridge" | "TokenBridge">(payload: PortalContractRecoverChainId<Module>): string {
+    const body = [
+        encode("bytes32", encodeString(payload.module)),
+        encode("uint8", 3),
+        encode("uint256", payload.evmChainId),
+        encode("uint16", payload.newChainId)
     ]
     return body.join("")
 }

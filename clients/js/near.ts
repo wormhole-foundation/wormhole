@@ -131,6 +131,8 @@ export async function execute_near(
         case "ContractUpgrade":
           console.log("Upgrading core contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on near")
         default:
           impossible(payload);
       }
@@ -145,6 +147,8 @@ export async function execute_near(
         case "ContractUpgrade":
           console.log("Upgrading contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on near")
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -165,6 +169,8 @@ export async function execute_near(
         case "ContractUpgrade":
           console.log("Upgrading contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on near")
         case "RegisterChain":
           console.log("Registering chain");
           break;
