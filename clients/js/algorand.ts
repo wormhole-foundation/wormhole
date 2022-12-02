@@ -45,6 +45,8 @@ export async function execute_algorand(
         case "ContractUpgrade":
           console.log("Upgrading core contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on algorand")
         default:
           impossible(payload);
       }
@@ -61,6 +63,8 @@ export async function execute_algorand(
         case "ContractUpgrade":
           console.log("Upgrading contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on algorand")
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -80,6 +84,8 @@ export async function execute_algorand(
         case "ContractUpgrade":
           console.log("Upgrading contract");
           break;
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on algorand")
         case "RegisterChain":
           console.log("Registering chain");
           break;

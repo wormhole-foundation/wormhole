@@ -283,6 +283,10 @@ export async function execute_evm(
           console.log("Upgrading core contract")
           console.log("Hash: " + (await cb.submitContractUpgrade(vaa, overrides)).hash)
           break
+        case "RecoverChainId":
+          console.log("Recovering chain ID")
+          console.log("Hash: " + (await cb.submitRecoverChainId(vaa, overrides)).hash)
+          break
         default:
           impossible(payload)
       }
@@ -299,6 +303,10 @@ export async function execute_evm(
           console.log("Upgrading contract")
           console.log("Hash: " + (await nb.upgrade(vaa, overrides)).hash)
           console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
+          break
+        case "RecoverChainId":
+          console.log("Recovering chain ID")
+          console.log("Hash: " + (await nb.submitRecoverChainId(vaa, overrides)).hash)
           break
         case "RegisterChain":
           console.log("Registering chain")
@@ -325,6 +333,10 @@ export async function execute_evm(
           console.log("Upgrading contract")
           console.log("Hash: " + (await tb.upgrade(vaa, overrides)).hash)
           console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
+          break
+        case "RecoverChainId":
+          console.log("Recovering chain ID")
+          console.log("Hash: " + (await tb.submitRecoverChainId(vaa, overrides)).hash)
           break
         case "RegisterChain":
           console.log("Registering chain")
@@ -567,7 +579,7 @@ export async function setStorageAt(rpc: string, contract_address: string, storag
   })).data
 }
 
-async function maybeUnsupported<T>(query: Promise<T>): Promise<T> {
+async function maybeUnsupported<T>(query: Promise<T>): Promise<T | "unsupported"> {
   try {
     return await query
   } catch (e) {
