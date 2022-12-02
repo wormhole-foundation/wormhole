@@ -34,7 +34,7 @@
 # Guardiand node
 
 ## Fallback
-/node/ @leoluk @hendrikhofstadt
+/node/ @bruce-riley @leoluk @hendrikhofstadt
 
 ## Entrypoint / RPC
 /node/cmd/ @bruce-riley @jynnantonix
