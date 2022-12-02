@@ -56,6 +56,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/test-go/testify v1.1.4
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-00010101000000-000000000000
+	golang.org/x/text v0.4.0
 )
 
 require (
@@ -222,7 +223,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
