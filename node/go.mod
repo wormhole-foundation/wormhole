@@ -48,7 +48,7 @@ require (
 require (
 	cloud.google.com/go/logging v1.4.2
 	cloud.google.com/go/pubsub v1.25.1
-	github.com/algorand/go-algorand-sdk v1.15.0
+	github.com/algorand/go-algorand-sdk v1.23.0
 	github.com/benbjohnson/clock v1.3.0
 	github.com/blendle/zapdriver v1.3.1
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
