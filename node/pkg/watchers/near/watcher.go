@@ -147,6 +147,13 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 			if err != nil {
 				logger.Warn("NEAR poll error", zap.String("log_msg_type", "block_poll_error"), zap.String("error", err.Error()))
 			}
+
+			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
+				Height:          int64(highestFinalBlockHeightObserved),
+				ContractAddress: e.wormholeAccount,
+			})
+			readiness.SetReady(common.ReadinessNearSyncing)
+
 			timer.Reset(blockPollInterval)
 		}
 	}
@@ -291,7 +298,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 		}
 	}
 
-	readiness.SetReady(common.ReadinessNearSyncing)
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	<-ctx.Done()
