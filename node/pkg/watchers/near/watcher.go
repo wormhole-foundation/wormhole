@@ -58,7 +58,7 @@ type (
 		delay           time.Duration
 
 		// set during processing
-		hasWormholeMsg         bool   // set during processing; whether this transaction emitted a Wormhole message
+		hasWormholeMsg bool // set during processing; whether this transaction emitted a Wormhole message
 	}
 
 	Watcher struct {
@@ -76,8 +76,8 @@ type (
 		chunkProcessingQueue              chan nearapi.ChunkHeader
 
 		// events channels
-		eventChanTxProcessedDuration  chan time.Duration
-		eventChan                     chan eventType // whenever a messages is confirmed, post true in here
+		eventChanTxProcessedDuration chan time.Duration
+		eventChan                    chan eventType // whenever a messages is confirmed, post true in here
 
 		// sub-components
 		finalizer Finalizer
@@ -94,15 +94,15 @@ func NewWatcher(
 	mainnet bool,
 ) *Watcher {
 	return &Watcher{
-		mainnet:                       mainnet,
-		wormholeAccount:               wormholeContract,
-		nearRPC:                       nearRPC,
-		msgC:                          msgC,
-		obsvReqC:                      obsvReqC,
-		transactionProcessingQueue:    make(chan *transactionProcessingJob),
-		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, queueSize),
-		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
-		eventChan:                     make(chan eventType, 10),
+		mainnet:                      mainnet,
+		wormholeAccount:              wormholeContract,
+		nearRPC:                      nearRPC,
+		msgC:                         msgC,
+		obsvReqC:                     obsvReqC,
+		transactionProcessingQueue:   make(chan *transactionProcessingJob),
+		chunkProcessingQueue:         make(chan nearapi.ChunkHeader, queueSize),
+		eventChanTxProcessedDuration: make(chan time.Duration, 10),
+		eventChan:                    make(chan eventType, 10),
 	}
 }
 
