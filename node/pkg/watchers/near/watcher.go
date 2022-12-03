@@ -59,7 +59,6 @@ type (
 
 		// set during processing
 		hasWormholeMsg         bool   // set during processing; whether this transaction emitted a Wormhole message
-		wormholeMsgBlockHeight uint64 // highest block height of a wormhole message in this transaction
 	}
 
 	Watcher struct {
@@ -77,7 +76,6 @@ type (
 		chunkProcessingQueue              chan nearapi.ChunkHeader
 
 		// events channels
-		eventChanBlockProcessedHeight chan uint64 // whenever a block is processed, post the height here
 		eventChanTxProcessedDuration  chan time.Duration
 		eventChan                     chan eventType // whenever a messages is confirmed, post true in here
 
@@ -103,7 +101,6 @@ func NewWatcher(
 		obsvReqC:                      obsvReqC,
 		transactionProcessingQueue:    make(chan *transactionProcessingJob),
 		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, queueSize),
-		eventChanBlockProcessedHeight: make(chan uint64, 10),
 		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
 		eventChan:                     make(chan eventType, 10),
 	}
@@ -117,7 +114,6 @@ func newTransactionProcessingJob(txHash string, senderAccountId string) *transac
 		0,
 		initialTxProcDelay,
 		false,
-		0,
 	}
 }
 
@@ -248,9 +244,6 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 				// report how long it took to process this transaction
 				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
 			}
-
-			// tell everyone about successful processing
-			e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
 		}
 
 	}
