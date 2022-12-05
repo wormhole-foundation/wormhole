@@ -58,8 +58,7 @@ type (
 		delay           time.Duration
 
 		// set during processing
-		hasWormholeMsg         bool   // set during processing; whether this transaction emitted a Wormhole message
-		wormholeMsgBlockHeight uint64 // highest block height of a wormhole message in this transaction
+		hasWormholeMsg bool // set during processing; whether this transaction emitted a Wormhole message
 	}
 
 	Watcher struct {
@@ -77,9 +76,8 @@ type (
 		chunkProcessingQueue              chan nearapi.ChunkHeader
 
 		// events channels
-		eventChanBlockProcessedHeight chan uint64 // whenever a block is processed, post the height here
-		eventChanTxProcessedDuration  chan time.Duration
-		eventChan                     chan eventType // whenever a messages is confirmed, post true in here
+		eventChanTxProcessedDuration chan time.Duration
+		eventChan                    chan eventType // whenever a messages is confirmed, post true in here
 
 		// sub-components
 		finalizer Finalizer
@@ -96,16 +94,15 @@ func NewWatcher(
 	mainnet bool,
 ) *Watcher {
 	return &Watcher{
-		mainnet:                       mainnet,
-		wormholeAccount:               wormholeContract,
-		nearRPC:                       nearRPC,
-		msgC:                          msgC,
-		obsvReqC:                      obsvReqC,
-		transactionProcessingQueue:    make(chan *transactionProcessingJob),
-		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, queueSize),
-		eventChanBlockProcessedHeight: make(chan uint64, 10),
-		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
-		eventChan:                     make(chan eventType, 10),
+		mainnet:                      mainnet,
+		wormholeAccount:              wormholeContract,
+		nearRPC:                      nearRPC,
+		msgC:                         msgC,
+		obsvReqC:                     obsvReqC,
+		transactionProcessingQueue:   make(chan *transactionProcessingJob),
+		chunkProcessingQueue:         make(chan nearapi.ChunkHeader, queueSize),
+		eventChanTxProcessedDuration: make(chan time.Duration, 10),
+		eventChan:                    make(chan eventType, 10),
 	}
 }
 
@@ -117,7 +114,6 @@ func newTransactionProcessingJob(txHash string, senderAccountId string) *transac
 		0,
 		initialTxProcDelay,
 		false,
-		0,
 	}
 }
 
@@ -147,6 +143,13 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 			if err != nil {
 				logger.Warn("NEAR poll error", zap.String("log_msg_type", "block_poll_error"), zap.String("error", err.Error()))
 			}
+
+			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
+				Height:          int64(highestFinalBlockHeightObserved),
+				ContractAddress: e.wormholeAccount,
+			})
+			readiness.SetReady(common.ReadinessNearSyncing)
+
 			timer.Reset(blockPollInterval)
 		}
 	}
@@ -241,9 +244,6 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 				// report how long it took to process this transaction
 				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
 			}
-
-			// tell everyone about successful processing
-			e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
 		}
 
 	}
@@ -291,7 +291,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 		}
 	}
 
-	readiness.SetReady(common.ReadinessNearSyncing)
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	<-ctx.Done()

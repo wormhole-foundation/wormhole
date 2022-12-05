@@ -245,9 +245,6 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, ctx context.Context, jo
 
 	// tell everyone about it
 	job.hasWormholeMsg = true
-	if pubEvent.BlockHeight > job.wormholeMsgBlockHeight {
-		job.wormholeMsgBlockHeight = pubEvent.BlockHeight
-	}
 
 	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED
 
