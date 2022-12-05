@@ -126,7 +126,7 @@ func (a Address) MarshalJSON() ([]byte, error) {
 // Standard marshal stores the Address like this: "[0,0,0,0,0,0,0,0,0,0,0,0,2,144,251,22,114,8,175,69,91,177,55,120,1,99,183,183,169,161,12,22]"
 // The above MarshalJSON stores it like this (66 bytes): ""0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16""
 func (a *Address) UnmarshalJSON(data []byte) error {
-	addr, err := StringToAddress("0x" + string(data[1:65]))
+	addr, err := StringToAddress(strings.Trim(string(data), `"`))
 	if err != nil {
 		return err
 	}
