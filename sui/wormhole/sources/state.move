@@ -86,7 +86,7 @@ module wormhole::state {
             governance_contract: external_address::from_bytes(governance_contract),
             guardian_set_index: u32::from_u64(0),
             guardian_sets: vec_map::empty<U32, GuardianSet>(),
-            guardian_set_expiry: u32::from_u64(0),
+            guardian_set_expiry: u32::from_u64(2), // TODO - what is the right #epochs to set this to?
             consumed_governance_actions: set::new(ctx),
             emitter_registry: emitter::init_emitter_registry(),
             message_fee: 0,
@@ -214,7 +214,7 @@ module wormhole::state {
 
 #[test_only]
 module wormhole::test_state{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};//, take_shared};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
 
     use wormhole::state::{Self, test_init, State, DeployerCapability};
     use wormhole::myu16::{Self as u16};
