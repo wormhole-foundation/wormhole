@@ -98,12 +98,17 @@ module wormhole::guardian_set_upgrade {
 
 #[test_only]
 module wormhole::guardian_set_upgrade_test {
-    use wormhole::guardian_set_upgrade;
-    //use wormhole::wormhole;
-    //use wormhole::state;
-    use 0x1::vector;
+    use std::vector;
+
     use wormhole::structs::{create_guardian};
-    //use wormhole::myu32::{Self as u32};
+    use wormhole::guardian_set_upgrade;
+    use wormhole::myu32::{Self as u32};
+
+    use sui::test_scenario::{Self, Scenario, next_tx, take_shared, return_shared, ctx};
+    use sui::tx_context::{increment_epoch_number};
+
+    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     #[test]
     public fun test_parse_guardian_set_upgrade() {
@@ -137,6 +142,47 @@ module wormhole::guardian_set_upgrade_test {
         assert!(expected == guardians, 0);
     }
 
-    // TODO: test guardian set expiry
+    #[test]
+    public fun test_guardian_set_expiry() {
+        use wormhole::state::{State, Self as worm_state};
+        use wormhole::test_state::{init_wormhole_state};
+
+        let (admin, _, _) = people();
+        let test = init_wormhole_state(scenario(), admin);
+
+        next_tx(&mut test, admin);{
+            let state = take_shared<State>(&test);
+            let first_index = worm_state::get_current_guardian_set_index(&state);
+            let guardian_set = worm_state::get_guardian_set(&state, first_index);
+            // make sure guardian set is active
+            assert!(worm_state::guardian_set_is_active(&state, &guardian_set, ctx(&mut test)), 0);
+
+            // do an upgrade
+            guardian_set_upgrade::do_upgrade_test(
+                &mut state,
+                u32::from_u64(1),
+                vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")], // new guardian set
+                ctx(&mut test),
+            );
+
+            // make sure old guardian set is still active
+            guardian_set = worm_state::get_guardian_set(&state, first_index);
+            assert!(worm_state::guardian_set_is_active(&state, &guardian_set, ctx(&mut test)), 0);
+
+            // fast forward time beyond expiration
+
+            // increment by 3 epochs
+            increment_epoch_number(ctx(&mut test));
+            increment_epoch_number(ctx(&mut test));
+            increment_epoch_number(ctx(&mut test));
+
+            // make sure old guardian set is no longer active
+            assert!(!worm_state::guardian_set_is_active(&state, &guardian_set, ctx(&mut test)), 0);
+
+            return_shared<State>(state);
+        };
+
+        test_scenario::end(test);
+    }
 
 }
