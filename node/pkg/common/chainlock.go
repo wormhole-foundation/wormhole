@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -104,6 +105,33 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	msg.Payload = payload[:n]
 
 	return msg, nil
+}
+
+// The standard json Marshal / Unmarshal of time.Time gets confused between local and UTC time.
+func (msg *MessagePublication) MarshalJSON() ([]byte, error) {
+	type Alias MessagePublication
+	return json.Marshal(&struct {
+		Timestamp int64
+		*Alias
+	}{
+		Timestamp: msg.Timestamp.Unix(),
+		Alias:     (*Alias)(msg),
+	})
+}
+
+func (msg *MessagePublication) UnmarshalJSON(data []byte) error {
+	type Alias MessagePublication
+	aux := &struct {
+		Timestamp int64
+		*Alias
+	}{
+		Alias: (*Alias)(msg),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	msg.Timestamp = time.Unix(aux.Timestamp, 0)
+	return nil
 }
 
 func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
