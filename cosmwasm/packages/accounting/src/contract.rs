@@ -45,7 +45,7 @@ pub fn instantiate<C: CustomQuery>(deps: DepsMut<C>, init: Instantiate) -> anyho
 }
 
 #[derive(ThisError, Debug)]
-pub enum CommitTransferError {
+pub enum TransferError {
     #[error("transfer already committed")]
     DuplicateTransfer,
     #[error("insufficient balance in destination account")]
@@ -59,7 +59,7 @@ pub enum CommitTransferError {
 }
 
 /// Commits a transfer to the on-chain state.  If an error occurs that is not due to the underlying
-/// cosmwasm framework, the returned error will be downcastable to `CommitTransferError`.
+/// cosmwasm framework, the returned error will be downcastable to `TransferError`.
 ///
 /// # Examples
 ///
@@ -68,7 +68,7 @@ pub enum CommitTransferError {
 /// #     use accounting::{
 /// #         commit_transfer,
 /// #         state::{transfer, Transfer},
-/// #         CommitTransferError,
+/// #         TransferError,
 /// #     };
 /// #     use cosmwasm_std::{testing::mock_dependencies, Uint256};
 /// #
@@ -88,8 +88,8 @@ pub enum CommitTransferError {
 ///       // Repeating the transfer should return an error.
 ///       let err = commit_transfer(deps.as_mut(), tx)
 ///           .expect_err("successfully committed duplicate transfer");
-///       if let Some(e) = err.downcast_ref::<CommitTransferError>() {
-///           assert!(matches!(e, CommitTransferError::DuplicateTransfer));
+///       if let Some(e) = err.downcast_ref::<TransferError>() {
+///           assert!(matches!(e, TransferError::DuplicateTransfer));
 ///       } else {
 ///           println!("framework error: {err:#}");
 ///       }
@@ -101,7 +101,7 @@ pub enum CommitTransferError {
 /// ```
 pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow::Result<Event> {
     if TRANSFERS.has(deps.storage, t.key.clone()) {
-        bail!(CommitTransferError::DuplicateTransfer);
+        bail!(TransferError::DuplicateTransfer);
     }
 
     let mut src = {
@@ -118,7 +118,7 @@ pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow:
             None => {
                 ensure!(
                     key.chain_id() == key.token_chain(),
-                    CommitTransferError::MissingWrappedAccount
+                    TransferError::MissingWrappedAccount
                 );
 
                 Balance::zero()
@@ -141,7 +141,7 @@ pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow:
             None => {
                 ensure!(
                     key.chain_id() != key.token_chain(),
-                    CommitTransferError::MissingNativeAccount,
+                    TransferError::MissingNativeAccount,
                 );
 
                 Balance::zero()
@@ -151,9 +151,9 @@ pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow:
     };
 
     src.lock_or_burn(t.data.amount)
-        .context(CommitTransferError::InsufficientSourceBalance)?;
+        .context(TransferError::InsufficientSourceBalance)?;
     dst.unlock_or_mint(t.data.amount)
-        .context(CommitTransferError::InsufficientDestinationBalance)?;
+        .context(TransferError::InsufficientDestinationBalance)?;
 
     ACCOUNTS
         .save(deps.storage, src.key, &src.balance)
@@ -495,7 +495,7 @@ mod tests {
             .expect_err("successfully committed duplicate transfer");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::DuplicateTransfer
+            TransferError::DuplicateTransfer
         ));
 
         let src = account::Key::new(
@@ -577,7 +577,7 @@ mod tests {
             .expect_err("successfully committed transfer with missing wrapped account");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::MissingWrappedAccount
+            TransferError::MissingWrappedAccount
         ));
     }
 
@@ -611,7 +611,7 @@ mod tests {
             .expect_err("successfully committed transfer with missing native account");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::MissingNativeAccount
+            TransferError::MissingNativeAccount
         ));
     }
 
@@ -741,7 +741,7 @@ mod tests {
             .expect_err("successfully transferred more tokens than available");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::InsufficientSourceBalance
+            TransferError::InsufficientSourceBalance
         ));
     }
 
@@ -793,7 +793,7 @@ mod tests {
             .expect_err("successfully transferred more tokens than available");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::InsufficientDestinationBalance
+            TransferError::InsufficientDestinationBalance
         ));
     }
 
