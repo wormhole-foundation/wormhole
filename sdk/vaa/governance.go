@@ -2,6 +2,7 @@ package vaa
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"golang.org/x/crypto/sha3"
@@ -36,7 +37,9 @@ func CreateInstatiateCosmwasmContractHash(codeId uint64, label string, msg []byt
 	// hash(BigEndian(CodeID))
 	var codeId_hash [32]byte
 	keccak := sha3.NewLegacyKeccak256()
-	binary.Write(keccak, binary.BigEndian, codeId)
+	if err := binary.Write(keccak, binary.BigEndian, codeId); err != nil {
+		panic(fmt.Errorf("failed to write binary data: %d", codeId).Error())
+	}
 	keccak.Sum(codeId_hash[:0])
 	keccak.Reset()
 
