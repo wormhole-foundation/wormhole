@@ -36,6 +36,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/certusone/wormhole/node/pkg/accounting"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -141,6 +142,9 @@ var (
 
 	wormchainWS  *string
 	wormchainLCD *string
+
+	accountingContract     *string
+	accountingCheckEnabled *bool
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -280,6 +284,9 @@ func init() {
 
 	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormchaind root for websocket connection")
 	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
+
+	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
+	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -902,6 +909,48 @@ func runNode(cmd *cobra.Command, args []string) {
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
 	attestationEvents := reporter.EventListener(logger)
 
+	// Set up accounting. If the accounting smart contract is configured, we will instantiate accounting and VAAs
+	// will be passed to it for processing. It will forward all token bridge transfers to the accounting contract.
+	// If accountingCheckEnabled is set to true, token bridge transfers will not be signed and published until they
+	// are approved by the accounting smart contract.
+
+	// TODO: Use this once PR #1931 is merged.
+	//acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
+	acctChan := make(chan *common.MessagePublication)
+	var acctReadC <-chan *common.MessagePublication = acctChan
+	var acctWriteC chan<- *common.MessagePublication = acctChan
+
+	var acct *accounting.Accounting
+	if *accountingContract != "" {
+		if *wormchainWS == "" || *wormchainLCD == "" {
+			logger.Fatal("accountingContract may only be specified if wormchain is enabled")
+		}
+		if *accountingCheckEnabled {
+			logger.Info("accounting is enabled and will be enforced")
+		} else {
+			logger.Info("accounting is enabled but will not be enforced")
+		}
+		env := accounting.MainNetMode
+		if *testnetMode {
+			env = accounting.TestNetMode
+		} else if *unsafeDevMode {
+			env = accounting.DevNetMode
+		}
+		acct = accounting.NewAccounting(
+			logger,
+			db,
+			*accountingContract,
+			*wormchainWS,
+			*wormchainLCD,
+			*accountingCheckEnabled,
+			// TODO: Add the key.
+			acctWriteC,
+			env,
+		)
+	} else {
+		logger.Info("accounting is disabled")
+	}
+
 	var gov *governor.ChainGovernor
 	if *chainGovernorEnabled {
 		logger.Info("chain governor is enabled")
@@ -1252,6 +1301,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			attestationEvents,
 			notifier,
 			gov,
+			acct,
+			acctReadC,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
