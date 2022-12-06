@@ -211,6 +211,29 @@ func (p *Processor) Run(ctx context.Context) error {
 				zap.Uint32("index", p.gs.Index))
 			p.gst.Set(p.gs)
 		case k := <-p.lockC:
+			if p.acct != nil {
+				shouldPub, err := p.acct.SubmitObservation(k)
+				if err != nil {
+					return fmt.Errorf("accounting failed to process message `%s`: %w", k.MessageIDString(), err)
+				}
+				if !shouldPub {
+					continue
+				}
+			}
+			if p.governor != nil {
+				if !p.governor.ProcessMsg(k) {
+					continue
+				}
+			}
+			p.handleMessage(ctx, k)
+
+		case k := <-p.acctReadC:
+			if p.acct == nil {
+				return fmt.Errorf("received an accounting event when accounting is not configured")
+			}
+			if !p.acct.FinalizeObservation(k) {
+				continue
+			}
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
 					continue

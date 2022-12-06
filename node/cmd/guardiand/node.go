@@ -152,6 +152,9 @@ var (
 	accountantWS           *string
 	accountantCheckEnabled *bool
 
+	accountingContract     *string
+	accountingCheckEnabled *bool
+
 	aptosRPC     *string
 	aptosAccount *string
 	aptosHandle  *string
@@ -298,6 +301,9 @@ func init() {
 	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
 	accountantCheckEnabled = NodeCmd.Flags().Bool("accountantCheckEnabled", false, "Should accountant be enforced on transfers")
+
+	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
+	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
