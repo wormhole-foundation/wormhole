@@ -31,9 +31,11 @@ FROM scratch as export
 
 # guardiand can't (easily) be statically linked due to the C dependencies, so we
 # have to copy all the dynamic libraries
-COPY --from=build /bin/* /bin/
 COPY --from=build /lib/* /lib/
 COPY --from=build /lib64/* /lib64/
+
+# Copy the shells as entrypoints, but no utilities are necessary
+COPY --from=build /bin/bash /bin/dash /bin/sh /bin/
 
 # finally copy the guardian executable
 COPY --from=build /guardiand .
