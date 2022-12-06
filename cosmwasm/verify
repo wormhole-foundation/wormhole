@@ -91,6 +91,12 @@ case "$network" in
         code_id_url="https://dimension-lcd.xpla.dev/cosmwasm/wasm/v1/contract/"
         code_id_jq="jq '.contract_info.code_id' -r"
         ;;
+      injective)
+        url="https://k8s.mainnet.lcd.injective.network/cosmwasm/wasm/v1/code/"
+        jq_cmd="jq '.code_info.data_hash' -r | cut -d 'x' -f2"
+        code_id_url="https://k8s.mainnet.lcd.injective.network/cosmwasm/wasm/v1/contract/"
+        code_id_jq="jq '.contract_info.code_id' -r"
+        ;;
     esac ;;
   testnet) 
     case "$chain" in
@@ -140,15 +146,15 @@ if [[ ! -z $contract_addr ]]; then
   printf "Found code_id $code_id\n"
 fi
 
-hash1=`curl "$url$code_id" --silent | eval $jq_cmd`
-hash2=`sha256sum $wasm | cut -f1 -d' '`
+hash1=`curl "$url$code_id" --silent | eval $jq_cmd | tr '[:upper:]' '[:lower:]'`
+hash2=`sha256sum $wasm | cut -f1 -d' ' | tr '[:upper:]' '[:lower:]'`
 
 echo "Deployed bytecode hash (on $network):"
 echo $hash1
 echo "$wasm hash:"
 echo $hash2
 
-if [ "$hash1" == "$hash2" ]; then
+if [[ "$hash1" == "$hash2" ]]; then
   printf "\033[0;32mSuccessfully verified\033[0m\n";
   exit 0;
 else
