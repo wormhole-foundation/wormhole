@@ -269,8 +269,10 @@ func (acct *Accounting) addPendingTransfer(pk *pendingKey, msg *common.MessagePu
 
 // deletePendingTransfer deletes the transfer from both the map and the database. It assumes the caller holds the lock.
 func (acct *Accounting) deletePendingTransfer(pk *pendingKey, msgId string) {
-	delete(acct.pendingTransfers, *pk)
-	transfersOutstanding.Dec()
+	if _, exists := acct.pendingTransfers[*pk]; exists {
+		transfersOutstanding.Dec()
+		delete(acct.pendingTransfers, *pk)
+	}
 	if err := acct.db.AcctDeletePendingTransfer(msgId); err != nil {
 		acct.logger.Error("acct: failed to delete pending transfer from the db", zap.String("msgId", msgId), zap.Error(err))
 		// Ignore this error and keep going.
