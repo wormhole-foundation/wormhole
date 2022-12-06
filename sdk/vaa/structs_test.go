@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"reflect"
 	"testing"
@@ -106,6 +107,59 @@ func TestAddress_MarshalJSON(t *testing.T) {
 	marshalJsonAddress, err := addr.MarshalJSON()
 	assert.Equal(t, hex.EncodeToString(marshalJsonAddress), expected)
 	assert.NoError(t, err)
+}
+
+func TestAddress_UnmarshalJSON(t *testing.T) {
+	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+
+	b, err := addr.MarshalJSON()
+	require.NoError(t, err)
+
+	var unmarshalAddr Address
+	err = unmarshalAddr.UnmarshalJSON(b)
+	require.NoError(t, err)
+
+	assert.Equal(t, addr, unmarshalAddr)
+}
+
+func TestAddress_Unmarshal(t *testing.T) {
+	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+
+	b, err := json.Marshal(addr)
+	require.NoError(t, err)
+
+	var unmarshalAddr Address
+	err = json.Unmarshal(b, &unmarshalAddr)
+	require.NoError(t, err)
+
+	assert.Equal(t, addr, unmarshalAddr)
+}
+
+func TestAddress_UnmarshalEmptyBuffer(t *testing.T) {
+	b := []byte{}
+
+	var unmarshalAddr Address
+	err := json.Unmarshal(b, &unmarshalAddr)
+	require.Error(t, err)
+}
+
+func TestAddress_UnmarshalBufferTooShort(t *testing.T) {
+	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+
+	b, err := json.Marshal(addr)
+	require.NoError(t, err)
+
+	var unmarshalAddr Address
+
+	// Lop off the first byte, and it should fail.
+	b1 := b[1:]
+	err = json.Unmarshal(b1, &unmarshalAddr)
+	assert.Error(t, err)
+
+	// Lop off the last byte, and it should fail.
+	b2 := b[0 : len(b)-1]
+	err = json.Unmarshal(b2, &unmarshalAddr)
+	assert.Error(t, err)
 }
 
 func TestAddress_String(t *testing.T) {
