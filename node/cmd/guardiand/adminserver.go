@@ -162,6 +162,43 @@ func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, timestamp tim
 	return v, nil
 }
 
+// wormchainStoreCode converts a nodev1.WormchainStoreCode to its canonical VAA representation
+// Returns an error if the data is invalid
+func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	// validate the length of the hex passed in
+	b, err := hex.DecodeString(req.WasmHash)
+	if err != nil {
+		return nil, fmt.Errorf("invalid cosmwasm bytecode hash (expected hex): %w", err)
+	}
+
+	if len(b) != 32 {
+		return nil, fmt.Errorf("invalid cosmwasm bytecode hash (expected 32 bytes but received %d bytes)", len(b))
+	}
+
+	wasmHash := [32]byte{}
+	copy(wasmHash[:], b)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyWormchainStoreCode{
+			WasmHash: wasmHash,
+		}.Serialize())
+
+	return v, nil
+}
+
+// wormchainInstantiateContract converts a nodev1.WormchainInstantiateContract to its canonical VAA representation
+// Returns an error if the data is invalid
+func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	instantiationParams_hash := vaa.CreateInstatiateCosmwasmContractHash(req.CodeId, req.Label, []byte(req.InstantiationMsg))
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyWormchainInstantiateContract{
+			InstantiationParamsHash: instantiationParams_hash,
+		}.Serialize())
+
+	return v, nil
+}
+
 func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
 	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
 
@@ -184,6 +221,10 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
 			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormchainStoreCode:
+			v, err = wormchainStoreCode(payload.WormchainStoreCode, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormchainInstantiateContract:
+			v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}

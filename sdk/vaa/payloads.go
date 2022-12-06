@@ -36,6 +36,16 @@ type (
 		TargetChainID ChainID
 		NewContract   Address
 	}
+
+	// BodyWormchainStoreCode is a governance message to upload a new cosmwasm contract to wormchain
+	BodyWormchainStoreCode struct {
+		WasmHash [32]byte
+	}
+
+	// BodyWormchainInstantiateContract is a governance message to instantiate a cosmwasm contract on wormchain
+	BodyWormchainInstantiateContract struct {
+		InstantiationParamsHash [32]byte
+	}
 )
 
 func (b BodyContractUpgrade) Serialize() []byte {
@@ -73,47 +83,39 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 }
 
 func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
-	if len(r.Module) > 32 {
-		panic("module longer than 32 byte")
-	}
-
-	buf := &bytes.Buffer{}
-
-	// Write token bridge header
-	for i := 0; i < (32 - len(r.Module)); i++ {
-		buf.WriteByte(0x00)
-	}
-	buf.Write([]byte(r.Module))
-	// Write action ID
-	MustWrite(buf, binary.BigEndian, uint8(1))
-	// Write target chain (0 = universal)
-	MustWrite(buf, binary.BigEndian, uint16(0))
-	// Write chain to be registered
-	MustWrite(buf, binary.BigEndian, r.ChainID)
-	// Write emitter address of chain to be registered
-	buf.Write(r.EmitterAddress[:])
-
-	return buf.Bytes()
+	return serializeBridgeGovernanceVaa(r.Module, 1, r.ChainID, r.EmitterAddress)
 }
 
 func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
-	if len(r.Module) > 32 {
+	return serializeBridgeGovernanceVaa(r.Module, 2, r.TargetChainID, r.NewContract)
+}
+
+func (r BodyWormchainStoreCode) Serialize() []byte {
+	return serializeBridgeGovernanceVaa("WasmdModule", 1, ChainIDWormchain, r.WasmHash)
+}
+
+func (r BodyWormchainInstantiateContract) Serialize() []byte {
+	return serializeBridgeGovernanceVaa("WasmdModule", 2, ChainIDWormchain, r.InstantiationParamsHash)
+}
+
+func serializeBridgeGovernanceVaa(module string, actionId uint8, chainId ChainID, payload [32]byte) []byte {
+	if len(module) > 32 {
 		panic("module longer than 32 byte")
 	}
 
 	buf := &bytes.Buffer{}
 
 	// Write token bridge header
-	for i := 0; i < (32 - len(r.Module)); i++ {
+	for i := 0; i < (32 - len(module)); i++ {
 		buf.WriteByte(0x00)
 	}
-	buf.Write([]byte(r.Module))
+	buf.Write([]byte(module))
 	// Write action ID
-	MustWrite(buf, binary.BigEndian, uint8(2))
+	MustWrite(buf, binary.BigEndian, actionId)
 	// Write target chain
-	MustWrite(buf, binary.BigEndian, r.TargetChainID)
+	MustWrite(buf, binary.BigEndian, chainId)
 	// Write emitter address of chain to be registered
-	buf.Write(r.NewContract[:])
+	buf.Write(payload[:])
 
 	return buf.Bytes()
 }
