@@ -7,34 +7,14 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/prometheus/client_golang/prometheus/promauto"
-
-	"github.com/prometheus/client_golang/prometheus"
-
 	eth_common "github.com/ethereum/go-ethereum/common"
 
 	"github.com/gorilla/websocket"
 	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-)
 
-var (
-	connectionErrors = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_accounting_connection_errors_total",
-			Help: "Total number of connection errors on accounting",
-		})
-	messagesConfirmed = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_accounting_messages_confirmed_total",
-			Help: "Total number of verified messages found on accounting",
-		})
-	queryLatency = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name: "wormhole_accounting_query_latency",
-			Help: "Latency histogram for RPC calls on accounting",
-		})
+	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
 type clientRequest struct {
@@ -84,6 +64,8 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 	}
 	acct.logger.Info("acct: successfully subscribed to events")
 
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
 	go func() {
 		defer close(errC)
 
@@ -120,7 +102,7 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 				if exists {
 					acct.logger.Info("acct: pending transfer has been approved", zap.Stringer("emitterChainId", pk.emitterChainId), zap.Stringer("txHash", pk.txHash))
 					acct.publishTransfer(pe)
-					messagesConfirmed.Inc()
+					transfersApproved.Inc()
 				} else {
 					acct.logger.Info("acct: unknown transfer has been approved, ignoring it", zap.Stringer("emitterChainId", pk.emitterChainId), zap.Stringer("txHash", pk.txHash))
 				}
@@ -276,6 +258,7 @@ func (acct *Accounting) EventsToTransfers(txHash string, events []gjson.Result) 
 
 		pendingTransfer := &pendingKey{emitterChainId: emitterChainId, txHash: xferTxHash}
 		pendingTransfers = append(pendingTransfers, pendingTransfer)
+		eventsReceived.Inc()
 	}
 
 	return pendingTransfers
