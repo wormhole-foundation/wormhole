@@ -620,30 +620,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *neonContract == "" {
 			logger.Fatal("Please specify --neonContract")
 		}
-		if *injectiveWS == "" {
-			logger.Fatal("Please specify --injectiveWS")
-		}
-		if *injectiveLCD == "" {
-			logger.Fatal("Please specify --injectiveLCD")
-		}
-		if *injectiveContract == "" {
-			logger.Fatal("Please specify --injectiveContract")
-		}
 	} else {
 		if *neonRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonRPC")
 		}
 		if *neonContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonContract")
-		}
-		if *injectiveWS != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --injectiveWS")
-		}
-		if *injectiveLCD != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --injectiveLCD")
-		}
-		if *injectiveContract != "" && !*unsafeDevMode {
-			logger.Fatal("Please do not specify --injectiveContract")
 		}
 	}
 	if *nodeName == "" {
@@ -698,6 +680,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *pythnetRPC == "" {
 			logger.Fatal("Please specify --pythnetRPC")
+		}
+
+		if *injectiveWS == "" {
+			logger.Fatal("Please specify --injectiveWS")
+		}
+		if *injectiveLCD == "" {
+			logger.Fatal("Please specify --injectiveLCD")
+		}
+		if *injectiveContract == "" {
+			logger.Fatal("Please specify --injectiveContract")
 		}
 	}
 
@@ -1208,6 +1200,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		if shouldStart(injectiveWS) {
+			logger.Info("Starting Injective watcher")
+			readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
+			chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "injectivewatch",
+				cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, lockC, chainObsvReqC[vaa.ChainIDInjective], common.ReadinessInjectiveSyncing, vaa.ChainIDInjective).Run); err != nil {
+				return err
+			}
+		}
+
 		if *testnetMode {
 			if shouldStart(neonRPC) {
 				if solanaFinalizedWatcher == nil {
@@ -1219,15 +1221,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				neonWatcher := evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, lockC, nil, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode)
 				neonWatcher.SetL1Finalizer(solanaFinalizedWatcher)
 				if err := supervisor.Run(ctx, "neonwatch", neonWatcher.Run); err != nil {
-					return err
-				}
-			}
-			if shouldStart(injectiveWS) {
-				logger.Info("Starting Injective watcher")
-				readiness.RegisterComponent(common.ReadinessInjectiveSyncing)
-				chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				if err := supervisor.Run(ctx, "injectivewatch",
-					cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, lockC, chainObsvReqC[vaa.ChainIDInjective], common.ReadinessInjectiveSyncing, vaa.ChainIDInjective).Run); err != nil {
 					return err
 				}
 			}
