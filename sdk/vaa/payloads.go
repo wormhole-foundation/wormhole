@@ -10,6 +10,22 @@ import (
 // CoreModule is the identifier of the Core module (which is used for governance messages)
 var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x43, 0x6f, 0x72, 0x65}
 
+// WasmdModule is the identifier of the Wormchain Wasmd module (which is used for governance messages)
+var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
+var WasmdModuleStr = string(WasmdModule[:])
+
+type GovernanceAction uint8
+
+var (
+	// Wormhole governance actions
+	ActionContractUpgrade   GovernanceAction = 1
+	ActionGuardianSetUpdate GovernanceAction = 2
+
+	// Wormchain cosmwasm governance actions
+	ActionStoreCode           GovernanceAction = 1
+	ActionInstantiateContract GovernanceAction = 2
+)
+
 type (
 	// BodyContractUpgrade is a governance message to perform a contract upgrade of the core module
 	BodyContractUpgrade struct {
@@ -54,7 +70,7 @@ func (b BodyContractUpgrade) Serialize() []byte {
 	// Module
 	buf.Write(CoreModule)
 	// Action
-	MustWrite(buf, binary.BigEndian, uint8(1))
+	MustWrite(buf, binary.BigEndian, ActionContractUpgrade)
 	// ChainID
 	MustWrite(buf, binary.BigEndian, uint16(b.ChainID))
 
@@ -69,7 +85,7 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 	// Module
 	buf.Write(CoreModule)
 	// Action
-	MustWrite(buf, binary.BigEndian, uint8(2))
+	MustWrite(buf, binary.BigEndian, ActionGuardianSetUpdate)
 	// ChainID - 0 for universal
 	MustWrite(buf, binary.BigEndian, uint16(0))
 
@@ -91,14 +107,14 @@ func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
 }
 
 func (r BodyWormchainStoreCode) Serialize() []byte {
-	return serializeBridgeGovernanceVaa("WasmdModule", 1, ChainIDWormchain, r.WasmHash)
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionStoreCode, ChainIDWormchain, r.WasmHash)
 }
 
 func (r BodyWormchainInstantiateContract) Serialize() []byte {
-	return serializeBridgeGovernanceVaa("WasmdModule", 2, ChainIDWormchain, r.InstantiationParamsHash)
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionInstantiateContract, ChainIDWormchain, r.InstantiationParamsHash)
 }
 
-func serializeBridgeGovernanceVaa(module string, actionId uint8, chainId ChainID, payload [32]byte) []byte {
+func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload [32]byte) []byte {
 	if len(module) > 32 {
 		panic("module longer than 32 byte")
 	}

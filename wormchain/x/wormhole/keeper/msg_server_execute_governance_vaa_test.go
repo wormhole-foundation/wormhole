@@ -26,7 +26,7 @@ func createExecuteGovernanceVaaPayload(k *keeper.Keeper, ctx sdk.Context, num_gu
 	// governance message with sha3 of wasmBytes as the payload
 	module := [32]byte{}
 	copy(module[:], vaa.CoreModule)
-	gov_msg := types.NewGovernanceMessage(module, byte(keeper.ActionGuardianSetUpdate), uint16(vaa.ChainIDWormchain), set_update)
+	gov_msg := types.NewGovernanceMessage(module, byte(vaa.ActionGuardianSetUpdate), uint16(vaa.ChainIDWormchain), set_update)
 
 	return gov_msg.MarshalBinary(), privateKeys
 }
