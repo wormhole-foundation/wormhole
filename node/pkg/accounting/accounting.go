@@ -101,7 +101,7 @@ func (acct *Accounting) Run(ctx context.Context) error {
 	emitterMap := &sdk.KnownTokenbridgeEmitters
 	if acct.env == TestNetMode {
 		emitterMap = &sdk.KnownTestnetTokenbridgeEmitters
-	} else if acct.env == DevNetMode {
+	} else if acct.env == DevNetMode || acct.env == GoTestMode {
 		emitterMap = &sdk.KnownDevnetTokenbridgeEmitters
 	}
 
@@ -129,8 +129,10 @@ func (acct *Accounting) Run(ctx context.Context) error {
 	}
 
 	// Start the watcher to listen to transfer events from the smart contract.
-	if err := supervisor.Run(ctx, "acctwatcher", acct.watcher); err != nil {
-		return fmt.Errorf("failed to start watcher: %w", err)
+	if acct.env != GoTestMode {
+		if err := supervisor.Run(ctx, "acctwatcher", acct.watcher); err != nil {
+			return fmt.Errorf("failed to start watcher: %w", err)
+		}
 	}
 
 	return nil
@@ -177,7 +179,10 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 	acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msg.MessageIDString()), zap.Bool("canPublish", !acct.enforceFlag))
 
 	// This transaction may take a while. Run it as a go routine so we don't block the processor.
-	go acct.submitObservationToContract(msg)
+	if acct.env != GoTestMode {
+		go acct.submitObservationToContract(msg)
+		transfersSubmitted.Inc()
+	}
 
 	// If we are not enforcing accounting, the event can be published. Otherwise we have to wait to hear back from the contract.
 	return !acct.enforceFlag, nil
@@ -195,7 +200,7 @@ func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool
 		return false
 	}
 
-	acct.logger.Info("acct: deleteing pending transfer", zap.String("msgID", msg.MessageIDString()))
+	acct.logger.Info("acct: deleting pending transfer", zap.String("msgID", msg.MessageIDString()))
 	acct.deletePendingTransfer(&pk, msg.MessageIDString())
 
 	// If we are enforcing accounting, publish it now. If we are not enforcing accounting, it should already have been published.
@@ -213,6 +218,7 @@ func (acct *Accounting) transferAlreadyApproved(msg *common.MessagePublication) 
 // It should be called from a go routine because it can block.
 func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication) {
 	// TODO: How do we this?
+	submitFailures.Inc()
 }
 
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
@@ -221,9 +227,8 @@ func (acct *Accounting) AuditPendingTransfers() {
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
-	now := time.Now()
 	for pk, pe := range acct.pendingTransfers {
-		if now.After(pe.updTime.Add(auditInterval)) {
+		if time.Since(pe.updTime) > auditInterval {
 			alreadySeen, err := acct.transferAlreadyApproved(pe.msg)
 			if err != nil {
 				acct.logger.Error("failed to query status of pending transfer", zap.String("msgId", pe.msg.MessageIDString()), zap.Error(err))
@@ -258,12 +263,14 @@ func (acct *Accounting) addPendingTransfer(pk *pendingKey, msg *common.MessagePu
 
 	pe := &pendingEntry{msg: msg, updTime: time.Now()}
 	acct.pendingTransfers[*pk] = pe
+	transfersOutstanding.Inc()
 	return nil
 }
 
 // deletePendingTransfer deletes the transfer from both the map and the database. It assumes the caller holds the lock.
 func (acct *Accounting) deletePendingTransfer(pk *pendingKey, msgId string) {
 	delete(acct.pendingTransfers, *pk)
+	transfersOutstanding.Dec()
 	if err := acct.db.AcctDeletePendingTransfer(msgId); err != nil {
 		acct.logger.Error("acct: failed to delete pending transfer from the db", zap.String("msgId", msgId), zap.Error(err))
 		// Ignore this error and keep going.
@@ -283,6 +290,7 @@ func (acct *Accounting) loadPendingTransfers() error {
 		pk := pendingKey{emitterChainId: msg.EmitterChain, txHash: msg.TxHash}
 		pe := &pendingEntry{msg: msg} // Leave the updTime unset so we will query this on the first audit interval.
 		acct.pendingTransfers[pk] = pe
+		transfersOutstanding.Inc()
 	}
 
 	if len(acct.pendingTransfers) != 0 {
