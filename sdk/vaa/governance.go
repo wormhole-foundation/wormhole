@@ -38,7 +38,7 @@ func CreateInstatiateCosmwasmContractHash(codeId uint64, label string, msg []byt
 	var codeId_hash [32]byte
 	keccak := sha3.NewLegacyKeccak256()
 	if err := binary.Write(keccak, binary.BigEndian, codeId); err != nil {
-		panic(fmt.Errorf("failed to write binary data: %d", codeId).Error())
+		panic(fmt.Sprintf("failed to write binary data (%d): %v", codeId, err))
 	}
 	keccak.Sum(codeId_hash[:0])
 	keccak.Reset()
