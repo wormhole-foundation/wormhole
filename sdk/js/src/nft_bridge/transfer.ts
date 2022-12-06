@@ -38,12 +38,53 @@ export async function transferFromEth(
   recipientAddress: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
+  // TODO: should we check if token attestation exists on the target chain
+  const approveTx = await approveForTransferTx(
+    nftBridgeAddress,
+    signer,
+    tokenAddress,
+    tokenID,
+    overrides
+  );
+  await (await signer.sendTransaction(approveTx)).wait();
+
+  const transferTx = await transferFromEthTx(
+    nftBridgeAddress,
+    signer,
+    tokenAddress,
+    tokenID,
+    recipientChain,
+    recipientAddress,
+    overrides
+  );
+  const v = await signer.sendTransaction(transferTx);
+  const receipt = await v.wait();
+  return receipt;
+}
+
+export async function approveForTransferTx(
+  nftBridgeAddress: string,
+  signer: ethers.Signer,
+  tokenAddress: string,
+  tokenID: ethers.BigNumberish,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
+): Promise<ethers.PopulatedTransaction> {
+  const tokenContract = NFTImplementation__factory.connect(tokenAddress, signer);
+  return tokenContract.populateTransaction.approve(nftBridgeAddress, tokenID, overrides);
+}
+
+export async function transferFromEthTx(
+  nftBridgeAddress: string,
+  signer: ethers.Signer,
+  tokenAddress: string,
+  tokenID: ethers.BigNumberish,
+  recipientChain: ChainId | ChainName,
+  recipientAddress: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
+): Promise<ethers.PopulatedTransaction> {
   const recipientChainId = coalesceChainId(recipientChain);
-  //TODO: should we check if token attestation exists on the target chain
-  const token = NFTImplementation__factory.connect(tokenAddress, signer);
-  await (await token.approve(nftBridgeAddress, tokenID, overrides)).wait();
   const bridge = NFTBridge__factory.connect(nftBridgeAddress, signer);
-  const v = await bridge.transferNFT(
+  return bridge.populateTransaction.transferNFT(
     tokenAddress,
     tokenID,
     recipientChainId,
@@ -51,8 +92,6 @@ export async function transferFromEth(
     createNonce(),
     overrides
   );
-  const receipt = await v.wait();
-  return receipt;
 }
 
 export async function transferFromSolana(

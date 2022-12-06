@@ -55,11 +55,21 @@ export async function redeemOnEth(
   signer: ethers.Signer,
   signedVAA: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
-) {
-  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.completeTransfer(signedVAA, overrides);
+): Promise<ethers.ContractReceipt> {
+  const tx = await redeeomOnEthTx(tokenBridgeAddress, signer, signedVAA, overrides);
+  const v = await signer.sendTransaction(tx);
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function redeeomOnEthTx(
+  tokenBridgeAddress: string,
+  signer: ethers.Signer,
+  signedVAA: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
+): Promise<ethers.PopulatedTransaction> {
+  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
+  return bridge.populateTransaction.completeTransfer(signedVAA, overrides);
 }
 
 export async function redeemOnEthNative(
@@ -67,11 +77,21 @@ export async function redeemOnEthNative(
   signer: ethers.Signer,
   signedVAA: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
-) {
-  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.completeTransferAndUnwrapETH(signedVAA, overrides);
+): Promise<ethers.ContractReceipt> {
+  const tx = await redeemOnEthNativeTx(tokenBridgeAddress, signer, signedVAA, overrides);
+  const v = await signer.sendTransaction(tx);
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function redeemOnEthNativeTx(
+  tokenBridgeAddress: string,
+  signer: ethers.Signer,
+  signedVAA: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
+): Promise<ethers.PopulatedTransaction> {
+  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
+  return bridge.populateTransaction.completeTransferAndUnwrapETH(signedVAA, overrides);
 }
 
 export async function redeemOnTerra(

@@ -35,10 +35,20 @@ export async function createWrappedOnEth(
   signedVAA: Uint8Array,
   overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
-  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.createWrapped(signedVAA, overrides);
+  const tx = await createWrappedOnEthTx(tokenBridgeAddress, signer, signedVAA, overrides)
+  const v = await signer.sendTransaction(tx);
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function createWrappedOnEthTx(
+  tokenBridgeAddress: string,
+  signer: ethers.Signer,
+  signedVAA: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
+): Promise<ethers.PopulatedTransaction> {
+  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
+  return bridge.populateTransaction.createWrapped(signedVAA, overrides);
 }
 
 export async function createWrappedOnTerra(

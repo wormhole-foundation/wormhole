@@ -49,10 +49,20 @@ export async function attestFromEth(
   tokenAddress: string,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
-  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.attestToken(tokenAddress, createNonce(), overrides);
+  const tx = await attestFromEthTx(tokenBridgeAddress, signer, tokenAddress, overrides);
+  const v = await signer.sendTransaction(tx);
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function attestFromEthTx(
+  tokenBridgeAddress: string,
+  signer: ethers.Signer,
+  tokenAddress: string,
+  overrides: PayableOverrides & { from?: string | Promise<string> } = {}
+): Promise<ethers.PopulatedTransaction> {
+  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
+  return bridge.populateTransaction.attestToken(tokenAddress, createNonce(), overrides);
 }
 
 export async function attestFromTerra(

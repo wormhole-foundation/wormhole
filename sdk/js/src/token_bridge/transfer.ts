@@ -90,14 +90,44 @@ export async function approveEth(
   signer: ethers.Signer,
   amount: ethers.BigNumberish,
   overrides: Overrides & { from?: string | Promise<string> } = {}
-) {
+): Promise<ethers.ContractReceipt> {
+  const tx = await approveEthTx(tokenBridgeAddress, tokenAddress, signer, amount, overrides);
+  const v = await signer.sendTransaction(tx);
+  const receipt = v.wait();
+  return receipt;
+}
+
+export async function approveEthTx(
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  signer: ethers.Signer,
+  amount: ethers.BigNumberish,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
+): Promise<ethers.PopulatedTransaction> {
   const token = TokenImplementation__factory.connect(tokenAddress, signer);
-  return await (
-    await token.approve(tokenBridgeAddress, amount, overrides)
-  ).wait();
+  return token.populateTransaction.approve(tokenBridgeAddress, amount, overrides);
 }
 
 export async function transferFromEth(
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  amount: ethers.BigNumberish,
+  recipientChain: ChainId | ChainName,
+  recipientAddress: Uint8Array,
+  signer: ethers.Signer,
+  relayerFee: ethers.BigNumberish = 0,
+  overrides: PayableOverrides & { from?: string | Promise<string> } = {},
+  payload: Uint8Array | null = null
+): Promise<ethers.ContractReceipt> {
+  const tx = await transferFromEthTx(tokenBridgeAddress, signer, tokenAddress, amount, recipientChain,
+    recipientAddress, relayerFee, overrides, payload);
+  const v = await signer.sendTransaction(tx);
+  const receipt = await v.wait();
+  return receipt;
+}
+
+
+export async function transferFromEthTx(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
   tokenAddress: string,
@@ -107,12 +137,11 @@ export async function transferFromEth(
   relayerFee: ethers.BigNumberish = 0,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {},
   payload: Uint8Array | null = null
-) {
+): Promise<ethers.PopulatedTransaction> {
   const recipientChainId = coalesceChainId(recipientChain);
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v =
-    payload === null
-      ? await bridge.transferTokens(
+  return payload === null
+      ? await bridge.populateTransaction.transferTokens(
           tokenAddress,
           amount,
           recipientChainId,
@@ -121,7 +150,7 @@ export async function transferFromEth(
           createNonce(),
           overrides
         )
-      : await bridge.transferTokensWithPayload(
+      : await bridge.populateTransaction.transferTokensWithPayload(
           tokenAddress,
           amount,
           recipientChainId,
@@ -130,8 +159,6 @@ export async function transferFromEth(
           payload,
           overrides
         );
-  const receipt = await v.wait();
-  return receipt;
 }
 
 export async function transferFromEthNative(
@@ -143,12 +170,28 @@ export async function transferFromEthNative(
   relayerFee: ethers.BigNumberish = 0,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {},
   payload: Uint8Array | null = null
-) {
+): Promise<ethers.ContractReceipt> {
+  const tx = await transferFromEthNativeTx(tokenBridgeAddress, signer, amount, recipientChain,
+    recipientAddress, relayerFee, overrides, payload);
+  const v = await signer.sendTransaction(tx);
+  const receipt = await v.wait();
+  return receipt;
+}
+
+export async function transferFromEthNativeTx(
+  tokenBridgeAddress: string,
+  signer: ethers.Signer,
+  amount: ethers.BigNumberish,
+  recipientChain: ChainId | ChainId,
+  recipientAddress: Uint8Array,
+  relayerFee: ethers.BigNumberish = 0,
+  overrides: PayableOverrides & { from?: string | Promise<string> } = {},
+  payload: Uint8Array | null = null
+): Promise<ethers.PopulatedTransaction> {
   const recipientChainId = coalesceChainId(recipientChain);
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v =
-    payload === null
-      ? await bridge.wrapAndTransferETH(
+  return payload === null
+      ? await bridge.populateTransaction.wrapAndTransferETH(
           recipientChainId,
           recipientAddress,
           relayerFee,
@@ -158,7 +201,7 @@ export async function transferFromEthNative(
             value: amount,
           }
         )
-      : await bridge.wrapAndTransferETHWithPayload(
+      : await bridge.populateTransaction.wrapAndTransferETHWithPayload(
           recipientChainId,
           recipientAddress,
           createNonce(),
@@ -168,8 +211,6 @@ export async function transferFromEthNative(
             value: amount,
           }
         );
-  const receipt = await v.wait();
-  return receipt;
 }
 
 export async function transferFromTerra(
