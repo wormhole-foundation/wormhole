@@ -160,8 +160,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   injective: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "inj17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9l2q74d",
+    token_bridge: "inj1ghd753shjuwexxywmgs4xz7x2q732vcnxxynfn",
     nft_bridge: undefined,
   },
   osmosis: {

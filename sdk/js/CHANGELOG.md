@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.5
+
+### Added
+
+injective mainnet addresses
+
 ## 0.9.4
 
 ## Changed
