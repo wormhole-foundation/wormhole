@@ -8,8 +8,8 @@ module wormhole::emitter {
     friend wormhole::state;
     friend wormhole::wormhole;
 
-    //#[test_only]
-    //friend wormhole::emitter_test;
+    #[test_only]
+    friend wormhole::emitter_test;
 
     struct EmitterRegistry has store {
         next_id: u64
@@ -26,10 +26,17 @@ module wormhole::emitter {
         let EmitterRegistry { next_id: _ } = registry;
     }
 
-    public(friend) fun new_emitter(registry: &mut EmitterRegistry, ctx: &mut TxContext): EmitterCapability {
+    public(friend) fun new_emitter(
+        registry: &mut EmitterRegistry,
+        ctx: &mut TxContext
+    ): EmitterCapability {
         let emitter = registry.next_id;
         registry.next_id = emitter + 1;
-        EmitterCapability {id: object::new(ctx), emitter: emitter, sequence: 0 }
+        EmitterCapability {
+            id: object::new(ctx),
+            emitter: emitter,
+            sequence: 0
+        }
     }
 
     struct EmitterCapability has key, store {
@@ -69,21 +76,24 @@ module wormhole::emitter {
     }
 }
 
-// #[test_only]
-// module wormhole::emitter_test {
-//     use wormhole::emitter;
+#[test_only]
+module wormhole::emitter_test {
+    use wormhole::emitter;
+    use sui::tx_context;
 
-//     #[test]
-//     public fun test_increasing_emitters() {
-//         let registry = emitter::init_emitter_registry();
-//         let emitter1 = emitter::new_emitter(&mut registry);
-//         let emitter2 = emitter::new_emitter(&mut registry);
+    #[test]
+    public fun test_increasing_emitters() {
+        let ctx = tx_context::dummy();
 
-//         assert!(emitter::get_emitter(&emitter1) == 0, 0);
-//         assert!(emitter::get_emitter(&emitter2) == 1, 0);
+        let registry = emitter::init_emitter_registry();
+        let emitter1 = emitter::new_emitter(&mut registry, &mut ctx);
+        let emitter2 = emitter::new_emitter(&mut registry, &mut ctx);
 
-//         emitter::destroy_emitter_cap(emitter1);
-//         emitter::destroy_emitter_cap(emitter2);
-//         emitter::destroy_emitter_registry(registry);
-//     }
-// }
+        assert!(emitter::get_emitter(&emitter1) == 1, 0);
+        assert!(emitter::get_emitter(&emitter2) == 2, 0);
+
+        emitter::destroy_emitter_cap(emitter1);
+        emitter::destroy_emitter_cap(emitter2);
+        emitter::destroy_emitter_registry(registry);
+    }
+}
