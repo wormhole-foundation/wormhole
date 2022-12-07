@@ -130,7 +130,7 @@ Behind the scenes, these scripts exercise the whole contract upgrade code path
 (see below), including generating and verifying a signed governance action, and
 the Move bytecode verifier checking ABI compatibility. If an upgrade here fails
 due to incompatibility, it will likely on mainnet too. (TODO: add CI action to
-simulate upgrades against dev.v2 when there's a stable version)
+simulate upgrades against main when there's a stable version)
 
 # Implementation notes / coding practices
 

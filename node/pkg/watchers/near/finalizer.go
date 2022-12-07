@@ -20,7 +20,7 @@ type Finalizer struct {
 }
 
 func newFinalizer(eventChan chan eventType, nearAPI nearapi.NearApi, mainnet bool) Finalizer {
-	finalizedBlocksCache, _ := lru.New(workerCountTxProcessing * quequeSize)
+	finalizedBlocksCache, _ := lru.New(workerCountTxProcessing * queueSize)
 
 	return Finalizer{
 		finalizedBlocksCache,

@@ -40,7 +40,7 @@ export class WormholeInstructionCoder implements InstructionCoder {
 
 /** Solitaire enum of existing the Core Bridge's instructions.
  *
- * https://github.com/certusone/wormhole/blob/dev.v2/solana/bridge/program/src/lib.rs#L92
+ * https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/lib.rs#L92
  */
 export enum WormholeInstruction {
   Initialize,

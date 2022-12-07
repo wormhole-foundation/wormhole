@@ -160,8 +160,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   injective: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "inj17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9l2q74d",
+    token_bridge: "inj1ghd753shjuwexxywmgs4xz7x2q732vcnxxynfn",
     nft_bridge: undefined,
   },
   osmosis: {
@@ -342,9 +342,9 @@ const TESTNET = {
     nft_bridge: "0x98A0F4B96972b32Fcb3BD03cAeB66A44a6aB9Edb",
   },
   neon: {
-    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
-    token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
-    nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
+    core: "0x268557122Ffd64c85750d630b716471118F323c8",
+    token_bridge: "0xEe3dB83916Ccdc3593b734F7F2d16D630F39F1D0",
+    nft_bridge: "0x66E5BcFD45D2F3f166c567ADa663f9d2ffb292B4",
   },
   terra2: {
     core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",

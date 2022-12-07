@@ -8,7 +8,7 @@ services:
       - redis-data:/data
 
   guardian-spy:
-    image: ghcr.io/wormhole-foundation/guardiand:dev.v2
+    image: ghcr.io/wormhole-foundation/guardiand:main
     entrypoint: /guardiand
     command: ${GUARDIAN_SPY_COMMAND:-spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt}
 
@@ -16,7 +16,7 @@ services:
     build:
       context: .
       target: application
-    image: wormhole-relayer:dev.v2
+    image: wormhole-relayer:main
     command: ${SPY_RELAYER_COMMAND:-npm run spy_relay}
     environment:
       - SPY_RELAY_CONFIG=/app/.env.docker.sample

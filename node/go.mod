@@ -48,7 +48,7 @@ require (
 require (
 	cloud.google.com/go/logging v1.4.2
 	cloud.google.com/go/pubsub v1.25.1
-	github.com/algorand/go-algorand-sdk v1.15.0
+	github.com/algorand/go-algorand-sdk v1.23.0
 	github.com/benbjohnson/clock v1.3.0
 	github.com/blendle/zapdriver v1.3.1
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
@@ -56,6 +56,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/test-go/testify v1.1.4
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-00010101000000-000000000000
+	golang.org/x/text v0.4.0
 )
 
 require (
@@ -222,7 +223,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

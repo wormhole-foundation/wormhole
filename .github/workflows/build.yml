@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - dev.v2
+      - main
 jobs:
   # Run the full Tilt build and wait for it to converge
   tilt:

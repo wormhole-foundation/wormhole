@@ -21,7 +21,7 @@ import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../../../vaa";
  * `signatureSet` is a {@link web3.Keypair} generated outside of this method, which was used
  * to write signatures and the message hash to.
  *
- * https://github.com/certusone/wormhole/blob/dev.v2/solana/bridge/program/src/api/post_vaa.rs
+ * https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/api/post_vaa.rs
  *
  * @param {PublicKeyInitData} wormholeProgramId - wormhole program address
  * @param {PublicKeyInitData} payer - transaction signer address

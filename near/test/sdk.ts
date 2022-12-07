@@ -51,7 +51,7 @@ import {
   transferFromAlgorand,
   transferNearFromNear,
   transferTokenFromNear,
-} from "@certusone/wormhole-sdk";
+} from "@certusone/wormhole-sdk/src";
 
 import { parseSequenceFromLogAlgorand } from "@certusone/wormhole-sdk/lib/cjs/bridge";
 

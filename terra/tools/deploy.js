@@ -15,7 +15,13 @@ function sleep(ms) {
 }
 
 async function broadcastAndWait(terra, tx) {
-  return await terra.tx.broadcast(tx);
+  const response = await terra.tx.broadcast(tx);
+  let currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
+  while (currentHeight <= response.height) {
+    await sleep(100);
+    currentHeight = (await terra.tendermint.blockInfo()).block.header.height;
+  }
+  return response;
 }
 
 /*
@@ -192,6 +198,10 @@ addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
   initial_balances: [
     {
       address: wallet.key.accAddress,
+      amount: "100000000",
+    },
+    {
+      address: "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9",
       amount: "100000000",
     },
   ],
