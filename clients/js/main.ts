@@ -29,10 +29,7 @@ import { NETWORKS } from "./networks";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import { isOutdated } from "./cmds/update";
-import { setDefaultWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { assertChain, assertEVMChain, ChainName, CHAINS, CONTRACTS as SDK_CONTRACTS, isCosmWasmChain, isEVMChain, isTerraChain, toChainId, toChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-
-setDefaultWasm("node");
 
 if (isOutdated()) {
   console.error(
@@ -886,6 +883,8 @@ yargs(hideBin(process.argv))
         );
       } else if (chain === "wormchain") {
         throw Error("Wormchain is not supported yet");
+      } else if (chain === "btc") {
+        throw Error("BTC is not supported yet")
       } else {
         // If you get a type error here, hover over `chain`'s type and it tells you
         // which cases are not handled
@@ -931,6 +930,8 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "wormchain") {
     const sdk = require("@certusone/wormhole-sdk/lib/cjs/utils/array")
     return "0x" + sdk.tryNativeToHexString(address, chain);
+  } else if (chain == "btc") {
+    throw Error("BTC is not supported yet")
   } else {
     impossible(chain);
   }
