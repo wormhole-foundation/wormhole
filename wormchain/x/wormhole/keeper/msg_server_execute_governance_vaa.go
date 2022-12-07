@@ -9,13 +9,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-type GovernanceAction uint8
-
-var (
-	ActionContractUpgrade   GovernanceAction = 1
-	ActionGuardianSetUpdate GovernanceAction = 2
-)
-
 func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExecuteGovernanceVAA) (*types.MsgExecuteGovernanceVAAResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -34,8 +27,8 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 	}
 
 	// Execute action
-	switch GovernanceAction(action) {
-	case ActionGuardianSetUpdate:
+	switch vaa.GovernanceAction(action) {
+	case vaa.ActionGuardianSetUpdate:
 		if len(payload) < 5 {
 			return nil, types.ErrInvalidGovernancePayloadLength
 		}

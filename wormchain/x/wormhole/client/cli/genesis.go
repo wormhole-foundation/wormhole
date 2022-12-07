@@ -20,7 +20,6 @@ import (
 	// "github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	wormholesdk "github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -378,7 +377,7 @@ func CmdGenerateGuardianSetUpdatea() *cobra.Command {
 				set_update = append(set_update, pubkey...)
 			}
 
-			action := keeper.ActionGuardianSetUpdate
+			action := vaa.ActionGuardianSetUpdate
 			chain := 3104
 			module := [32]byte{}
 			copy(module[:], vaa.CoreModule)

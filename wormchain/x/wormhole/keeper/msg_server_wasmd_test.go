@@ -22,7 +22,7 @@ func createWasmStoreCodePayload(wasmBytes []byte) []byte {
 	keccak.Write(wasmBytes)
 	keccak.Sum(hashWasm[:0])
 
-	gov_msg := types.NewGovernanceMessage(keeper.WasmdModule, byte(keeper.ActionStoreCode), uint16(vaa.ChainIDWormchain), hashWasm[:])
+	gov_msg := types.NewGovernanceMessage(vaa.WasmdModule, byte(vaa.ActionStoreCode), uint16(vaa.ChainIDWormchain), hashWasm[:])
 	return gov_msg.MarshalBinary()
 }
 
@@ -34,8 +34,8 @@ func createWasmInstantiatePayload(code_id uint64, label string, json_msg string)
 	expected_hash := vaa.CreateInstatiateCosmwasmContractHash(code_id, label, []byte(json_msg))
 
 	var payload bytes.Buffer
-	payload.Write(keeper.WasmdModule[:])
-	payload.Write([]byte{byte(keeper.ActionInstantiateContract)})
+	payload.Write(vaa.WasmdModule[:])
+	payload.Write([]byte{byte(vaa.ActionInstantiateContract)})
 	binary.Write(&payload, binary.BigEndian, uint16(vaa.ChainIDWormchain))
 	// custom payload
 	payload.Write(expected_hash[:])
