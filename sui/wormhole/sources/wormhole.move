@@ -8,17 +8,13 @@ module wormhole::wormhole {
     use wormhole::state::{Self, State};
     use wormhole::emitter::{Self};
 
-    // use wormhole::myu16 as u16;
-    // use wormhole::myu32::{Self as u32, U32};
-    // use wormhole::external_address::{Self};
-
     const E_INSUFFICIENT_FEE: u64 = 0;
 
 // -----------------------------------------------------------------------------
 // Sending messages
     public fun publish_message(
         emitter_cap: &mut emitter::EmitterCapability,
-        state: &mut State,
+        state: &State,
         nonce: u64,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
@@ -45,28 +41,12 @@ module wormhole::wormhole {
 
     public entry fun publish_message_entry(
         emitter_cap: &mut emitter::EmitterCapability,
-        state: &mut State,
+        state: &State,
         nonce: u64,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ) {
-        // ensure that provided fee is sufficient to cover message fees
-        let expected_fee = state::get_message_fee(state);
-        assert!(expected_fee <= coin::value(&message_fee), E_INSUFFICIENT_FEE);
-
-        // deposit the fees into the wormhole account
-        transfer::transfer(message_fee, @wormhole);
-
-        // get sequence number
-        let sequence = emitter::use_sequence(emitter_cap);
-
-        // emit event
-        state::publish_event(
-            emitter::get_emitter(emitter_cap),
-            sequence,
-            nonce,
-            payload,
-        );
+        publish_message(emitter_cap, state, nonce, payload, message_fee);
     }
 
     public entry fun publish_message_free(
