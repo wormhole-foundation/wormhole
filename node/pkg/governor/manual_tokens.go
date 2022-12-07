@@ -15,6 +15,7 @@ func manualTokenList() []tokenConfigEntry {
 		tokenConfigEntry{chain: 13, addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", symbol: "WEMIX", coinGeckoId: "wemix-token", decimals: 8, price: 1.74},
 		tokenConfigEntry{chain: 13, addr: "0000000000000000000000005c74070fdea071359b86082bd9f9b3deaafbe32b", symbol: "KDAI", coinGeckoId: "dai", decimals: 8, price: 1.00},
 		tokenConfigEntry{chain: 15, addr: "0000000000000000000000000000000000000000000000000000000000000000", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 3.85},
+		tokenConfigEntry{chain: 19, addr: "017038850bf3af746c36803cce35009268f00d22ae2b55ffb59ac5f2a6add40b", symbol: "INJ", coinGeckoId: "injective-protocol", decimals: 8, price: 1.64},
 		tokenConfigEntry{chain: 24, addr: "0000000000000000000000004200000000000000000000000000000000000042", symbol: "OP", coinGeckoId: "optimism", decimals: 8, price: 1.31},
 	}
 }
