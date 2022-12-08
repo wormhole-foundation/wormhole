@@ -79,7 +79,7 @@ contract Messages is Getters {
             address signatory = ecrecover(hash, sig.v, sig.r, sig.s);
             // ecrecover returns 0 for invalid signatures. We explicitly require valid signatures to avoid unexpected
             // behaviour due to the default storage slot value also being 0.
-            require(signatory != address(0));
+            require(signatory != address(0), "ecrecover failed with signature");
 
             /// Ensure that provided signature indices are ascending only
             require(i == 0 || sig.guardianIndex > lastIndex, "signature indices must be ascending");
