@@ -41,7 +41,7 @@ mod governance_packet_impl {
     use std::fmt;
 
     use serde::{
-        de::{Error, MapAccess, SeqAccess, Unexpected, Visitor},
+        de::{Error, MapAccess, SeqAccess, Visitor},
         ser::SerializeStruct,
         Deserialize, Deserializer, Serialize, Serializer,
     };
@@ -79,8 +79,9 @@ mod governance_packet_impl {
             if arr == MODULE {
                 Ok(Module)
             } else {
-                let expected = format!("{MODULE:?}");
-                Err(Error::invalid_value(Unexpected::Bytes(&arr), &&*expected))
+                Err(Error::custom(
+                    "invalid governance module, expected \"Core\"",
+                ))
             }
         }
     }
@@ -215,10 +216,9 @@ mod governance_packet_impl {
                     Action::TransferFee { amount, recipient }
                 }
                 v => {
-                    return Err(Error::invalid_value(
-                        Unexpected::Unsigned(v.into()),
-                        &"one of 1, 2, 3, 4",
-                    ))
+                    return Err(Error::custom(format_args!(
+                        "invaliid value {v}, expected one of 1, 2, 3, 4"
+                    )))
                 }
             };
 

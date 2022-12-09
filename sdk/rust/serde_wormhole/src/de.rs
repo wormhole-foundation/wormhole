@@ -2,7 +2,7 @@ use std::{convert::TryFrom, mem::size_of};
 
 use serde::de::{
     self, DeserializeSeed, EnumAccess, Error as DeError, IntoDeserializer, MapAccess, SeqAccess,
-    Unexpected, VariantAccess, Visitor,
+    VariantAccess, Visitor,
 };
 
 use crate::error::Error;
@@ -68,10 +68,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         match v {
             0 => visitor.visit_bool(false),
             1 => visitor.visit_bool(true),
-            v => Err(Error::invalid_value(
-                Unexpected::Unsigned(v.into()),
-                &"a 0 or 1",
-            )),
+            v => Err(Error::custom(format_args!(
+                "invalid value: {v}, expected a 0 or 1"
+            ))),
         }
     }
 
@@ -165,7 +164,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let v = deserialize_be_number!(self, u32);
         char::try_from(v)
-            .map_err(|_| Error::invalid_value(Unexpected::Unsigned(v.into()), &"a `char`"))
+            .map_err(|e| Error::custom(format_args!("invalid value {v}: {e}")))
             .and_then(|v| visitor.visit_char(v))
     }
 
@@ -183,7 +182,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.input = rem;
 
         std::str::from_utf8(data)
-            .map_err(|_| Error::invalid_value(Unexpected::Bytes(data), &"a UTF-8 string"))
+            .map_err(Error::custom)
             .and_then(|s| visitor.visit_borrowed_str(s))
     }
 
