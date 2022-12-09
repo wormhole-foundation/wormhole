@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
 	"github.com/certusone/wormhole/node/pkg/watchers/aptos"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
+	"github.com/certusone/wormhole/node/pkg/watchers/hedera"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
@@ -162,6 +163,10 @@ var (
 	optimismRPC      *string
 	optimismContract *string
 
+	// hederaWS       *string
+	hederaREST     *string
+	hederaContract *string
+
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -298,6 +303,9 @@ func init() {
 
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
+
+	hederaREST = NodeCmd.Flags().String("hederaREST", "", "Hedera REST URL")
+	hederaContract = NodeCmd.Flags().String("hederaContract", "", "Hedera contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -469,6 +477,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*neonContract = unsafeDevModeEvmContractAddress(*neonContract)
 		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
+		*hederaContract = unsafeDevModeEvmContractAddress(*hederaContract)
 	}
 
 	// Verify flags
@@ -1163,6 +1172,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "suiwatch",
 				sui.NewWatcher(*suiRPC, *suiWS, *suiAccount, *suiPackage, *unsafeDevMode, lockC, chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
+				return err
+			}
+		}
+
+		if shouldStart(hederaREST) {
+			logger.Info("Starting Hedera watcher")
+			readiness.RegisterComponent(common.ReadinessHederaSyncing)
+			chainObsvReqC[vaa.ChainIDHedera] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "hederawatch",
+				hedera.NewWatcher(*hederaREST, *hederaContract, lockC, chainObsvReqC[vaa.ChainIDHedera], common.ReadinessHederaSyncing, vaa.ChainIDHedera).Run); err != nil {
 				return err
 			}
 		}
