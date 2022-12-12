@@ -17,7 +17,7 @@ COPY clients/js/package.json clients/js/package-lock.json ./
 # mount the buildkit cache on npm's cache dir, install dependencies
 
 # Commenting out npm cache due to heisenbug with github build machines
-# RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm 
+# RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm
 
 RUN npm ci
 
@@ -41,7 +41,7 @@ FROM scratch AS const-export
 COPY --from=const-build /scripts/.env.0x ethereum/.env
 COPY --from=const-build /scripts/.env.hex solana/.env
 COPY --from=const-build /scripts/.env.hex terra/tools/.env
-COPY --from=const-build /scripts/.env.hex cosmwasm/tools/.env
+COPY --from=const-build /scripts/.env.hex cosmwasm/deployment/terra2/tools/.env
 COPY --from=const-build /scripts/.env.hex algorand/.env
 COPY --from=const-build /scripts/.env.hex near/.env
 COPY --from=const-build /scripts/.env.hex aptos/.env

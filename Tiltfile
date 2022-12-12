@@ -612,17 +612,25 @@ if terra_classic:
         trigger_mode = trigger_mode,
     )
 
+if terra2 or wormchain:
+    docker_build(
+        ref = "cosmwasm_artifacts",
+        context = ".",
+        dockerfile = "./cosmwasm/Dockerfile",
+        target = "artifacts",
+    )
+
 if terra2:
     docker_build(
         ref = "terra2-image",
-        context = "./cosmwasm/devnet",
-        dockerfile = "cosmwasm/devnet/Dockerfile",
+        context = "./cosmwasm/deployment/terra2/devnet",
+        dockerfile = "./cosmwasm/deployment/terra2/devnet/Dockerfile",
     )
 
     docker_build(
-        ref = "terra2-contracts",
-        context = ".",
-        dockerfile = "./cosmwasm/Dockerfile",
+        ref = "terra2-deploy",
+        context = "./cosmwasm/deployment/terra2",
+        dockerfile = "./cosmwasm/Dockerfile.deploy",
     )
 
     k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
