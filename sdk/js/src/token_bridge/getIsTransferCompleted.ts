@@ -9,7 +9,7 @@ import { fromUint8Array } from "js-base64";
 import { redeemOnTerra } from ".";
 import {
   ensureHexPrefix,
-  parseSmartContractStateResponse,
+  parseSmartContractStateResponse, parseVaaV1,
   TERRA_REDEEMED_CHECK_WALLET_ADDRESS,
 } from "..";
 import { getClaim } from "../solana/wormhole";
@@ -155,7 +155,7 @@ export async function getIsTransferCompletedSolana(
   connection: Connection,
   commitment?: Commitment
 ): Promise<boolean> {
-  const parsed = parseVaa(signedVAA);
+  const parsed = parseVaaV1(signedVAA);
   return getClaim(
     connection,
     tokenBridgeAddress,

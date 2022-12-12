@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import { CONTRACTS } from "./consts";
 import { Implementation__factory } from "../ethers-contracts";
-import { parseVaa, GuardianSignature } from "../vaa";
+import {GuardianSignature, parseVaaV1} from "../vaa";
 import { hexToUint8Array } from "./array";
 import { keccak256 } from "../utils";
 
@@ -50,7 +50,7 @@ export function repairVaa(
   const minNumSignatures =
     Math.floor((2.0 * currentGuardianSet.length) / 3.0) + 1;
   const version = vaaHex.slice(0, 2);
-  const parsedVaa = parseVaa(hexToUint8Array(vaaHex));
+  const parsedVaa = parseVaaV1(hexToUint8Array(vaaHex));
   const numSignatures = parsedVaa.guardianSignatures.length;
   const digest = keccak256(parsedVaa.hash).toString("hex");
 

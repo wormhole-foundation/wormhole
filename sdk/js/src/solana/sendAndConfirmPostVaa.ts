@@ -18,7 +18,7 @@ import {
   createPostVaaInstruction,
   createVerifySignaturesInstructions,
 } from "./wormhole";
-import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../vaa/wormhole";
+import {isBytes, ParsedVaaV1, parseVaaV1, SignedVaa} from "../vaa/wormhole";
 
 export async function postVaaWithRetry(
   connection: Connection,
@@ -131,10 +131,10 @@ export async function createPostSignedVaaTransactions(
   connection: Connection,
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  vaa: SignedVaa | ParsedVaa,
+  vaa: SignedVaa | ParsedVaaV1,
   commitment?: Commitment
 ): Promise<PreparedTransactions> {
-  const parsed = isBytes(vaa) ? parseVaa(vaa) : vaa;
+  const parsed = isBytes(vaa) ? parseVaaV1(vaa) : vaa;
   const signatureSet = Keypair.generate();
 
   const verifySignaturesInstructions = await createVerifySignaturesInstructions(

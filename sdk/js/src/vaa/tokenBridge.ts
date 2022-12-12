@@ -1,6 +1,6 @@
 import { BN } from "@project-serum/anchor";
 import { ParsedGovernanceVaa, parseGovernanceVaa } from "./governance";
-import { ParsedVaa, parseVaa, SignedVaa } from "./wormhole";
+import {ParsedVaaV1, parseVaa, parseVaaV1, SignedVaa} from "./wormhole";
 
 export enum TokenBridgePayload {
   Transfer = 1,
@@ -59,10 +59,10 @@ export function parseTokenTransferPayload(payload: Buffer): TokenTransfer {
   };
 }
 
-export interface ParsedTokenTransferVaa extends ParsedVaa, TokenTransfer {}
+export interface ParsedTokenTransferVaa extends ParsedVaaV1, TokenTransfer {}
 
 export function parseTokenTransferVaa(vaa: SignedVaa): ParsedTokenTransferVaa {
-  const parsed = parseVaa(vaa);
+  const parsed = parseVaaV1(vaa);
   return {
     ...parsed,
     ...parseTokenTransferPayload(parsed.payload),
@@ -98,11 +98,11 @@ export function parseAttestMetaPayload(payload: Buffer): AssetMeta {
   };
 }
 
-export interface ParsedAssetMetaVaa extends ParsedVaa, AssetMeta {}
+export interface ParsedAssetMetaVaa extends ParsedVaaV1, AssetMeta {}
 export type ParsedAttestMetaVaa = ParsedAssetMetaVaa;
 
 export function parseAttestMetaVaa(vaa: SignedVaa): ParsedAssetMetaVaa {
-  const parsed = parseVaa(vaa);
+  const parsed = parseVaaV1(vaa);
   return {
     ...parsed,
     ...parseAttestMetaPayload(parsed.payload),

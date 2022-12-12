@@ -5,7 +5,7 @@ import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import axios from "axios";
 import { redeemOnTerra } from ".";
-import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
+import {parseVaaV1, TERRA_REDEEMED_CHECK_WALLET_ADDRESS} from "..";
 import { getClaim } from "../solana/wormhole";
 import { parseVaa, SignedVaa } from "../vaa/wormhole";
 
@@ -63,7 +63,7 @@ export async function getIsTransferCompletedSolana(
   connection: Connection,
   commitment?: Commitment
 ) {
-  const parsed = parseVaa(signedVAA);
+  const parsed = parseVaaV1(signedVAA);
   return getClaim(
     connection,
     nftBridgeAddress,

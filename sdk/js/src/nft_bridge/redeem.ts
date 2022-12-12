@@ -8,7 +8,7 @@ import {
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
-import { CHAIN_ID_SOLANA } from "..";
+import {CHAIN_ID_SOLANA, parseVaaV1} from "..";
 import { Bridge__factory } from "../ethers-contracts";
 import {
   createCompleteTransferNativeInstruction,
@@ -32,7 +32,7 @@ export async function redeemOnEth(
 export async function isNFTVAASolanaNative(
   signedVAA: Uint8Array
 ): Promise<boolean> {
-  return parseVaa(signedVAA).payload.readUInt16BE(33) === CHAIN_ID_SOLANA;
+  return parseVaaV1(signedVAA).payload.readUInt16BE(33) === CHAIN_ID_SOLANA;
 }
 
 export async function redeemOnSolana(

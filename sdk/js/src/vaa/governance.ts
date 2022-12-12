@@ -1,4 +1,4 @@
-import { ParsedVaa, parseVaa, SignedVaa } from "./wormhole";
+import {ParsedVaaV1, parseVaa, parseVaaV1, SignedVaa} from "./wormhole";
 
 export interface Governance {
   module: string;
@@ -7,10 +7,10 @@ export interface Governance {
   orderPayload: Buffer;
 }
 
-export interface ParsedGovernanceVaa extends ParsedVaa, Governance {}
+export interface ParsedGovernanceVaa extends ParsedVaaV1, Governance {}
 
 export function parseGovernanceVaa(vaa: SignedVaa): ParsedGovernanceVaa {
-  const parsed = parseVaa(vaa);
+  const parsed = parseVaaV1(vaa);
   return {
     ...parsed,
     ...parseGovernancePayload(parsed.payload),

@@ -6,7 +6,7 @@ import {
   TokenBridgeRegisterChain,
   TokenBridgeUpgradeContract,
 } from "./tokenBridge";
-import { ParsedVaa, parseVaa, SignedVaa } from "./wormhole";
+import {ParsedVaaV1, parseVaaV1, SignedVaa} from "./wormhole";
 
 export enum NftBridgePayload {
   Transfer = 1,
@@ -57,10 +57,10 @@ export function parseNftTransferPayload(payload: Buffer): NftTransfer {
   };
 }
 
-export interface ParsedNftTransferVaa extends ParsedVaa, NftTransfer {}
+export interface ParsedNftTransferVaa extends ParsedVaaV1, NftTransfer {}
 
 export function parseNftTransferVaa(vaa: SignedVaa): ParsedNftTransferVaa {
-  const parsed = parseVaa(vaa);
+  const parsed = parseVaaV1(vaa);
   return {
     ...parsed,
     ...parseNftTransferPayload(parsed.payload),

@@ -14,7 +14,7 @@ import {
   deriveGuardianSetKey,
   getWormholeBridgeData,
 } from "../accounts";
-import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../../../vaa";
+import {isBytes, ParsedVaaV1, parseVaa, parseVaaV1, SignedVaa} from "../../../vaa";
 import { createReadOnlyWormholeProgramInterface } from "../program";
 
 const MAX_LEN_GUARDIAN_KEYS = 19;
@@ -36,7 +36,7 @@ const MAX_LEN_GUARDIAN_KEYS = 19;
  * @param {Connection} connection - Solana web3 connection
  * @param {PublicKeyInitData} wormholeProgramId - wormhole program address
  * @param {PublicKeyInitData} payer - transaction signer address
- * @param {SignedVaa | ParsedVaa} vaa - either signed VAA bytes or parsed VAA (use {@link parseVaa} on signed VAA)
+ * @param {SignedVaa | ParsedVaaV1} vaa - either signed VAA bytes or parsed VAA (use {@link parseVaa} on signed VAA)
  * @param {PublicKeyInitData} signatureSet - address to account of verified signatures
  * @param {web3.ConfirmOptions} [options] - Solana confirmation options
  */
@@ -44,11 +44,11 @@ export async function createVerifySignaturesInstructions(
   connection: Connection,
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  vaa: SignedVaa | ParsedVaa,
+  vaa: SignedVaa | ParsedVaaV1,
   signatureSet: PublicKeyInitData,
   commitment?: Commitment
 ): Promise<TransactionInstruction[]> {
-  const parsed = isBytes(vaa) ? parseVaa(vaa) : vaa;
+  const parsed = isBytes(vaa) ? parseVaaV1(vaa) : vaa;
   const guardianSetIndex = parsed.guardianSetIndex;
   const info = await getWormholeBridgeData(connection, wormholeProgramId);
   if (guardianSetIndex != info.guardianSetIndex) {
@@ -111,7 +111,7 @@ export async function createVerifySignaturesInstructions(
  *
  * @param {PublicKeyInitData} wormholeProgramId - wormhole program address
  * @param {PublicKeyInitData} payer - transaction signer address
- * @param {SignedVaa | ParsedVaa} vaa - either signed VAA (Buffer) or parsed VAA (use {@link parseVaa} on signed VAA)
+ * @param {SignedVaa | ParsedVaaV1} vaa - either signed VAA (Buffer) or parsed VAA (use {@link parseVaa} on signed VAA)
  * @param {PublicKeyInitData} signatureSet - key for signature set account
  * @param {Buffer} signatureStatus - array of guardian indices
  *
@@ -119,7 +119,7 @@ export async function createVerifySignaturesInstructions(
 function createVerifySignaturesInstruction(
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  vaa: SignedVaa | ParsedVaa,
+  vaa: SignedVaa | ParsedVaaV1,
   signatureSet: PublicKeyInitData,
   signatureStatus: Buffer
 ): TransactionInstruction {
@@ -155,9 +155,9 @@ export function getVerifySignatureAccounts(
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
   signatureSet: PublicKeyInitData,
-  vaa: SignedVaa | ParsedVaa
+  vaa: SignedVaa | ParsedVaaV1
 ): VerifySignatureAccounts {
-  const parsed = isBytes(vaa) ? parseVaa(vaa) : vaa;
+  const parsed = isBytes(vaa) ? parseVaaV1(vaa) : vaa;
   return {
     payer: new PublicKey(payer),
     guardianSet: deriveGuardianSetKey(

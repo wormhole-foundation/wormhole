@@ -12,7 +12,7 @@ import {
   deriveGuardianSetKey,
   derivePostedVaaKey,
 } from "../accounts";
-import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../../../vaa";
+import {isBytes, ParsedVaaV1, parseVaa, parseVaaV1, SignedVaa} from "../../../vaa";
 
 /**
  * Make {@link TransactionInstruction} for `post_vaa` instruction.
@@ -25,16 +25,16 @@ import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../../../vaa";
  *
  * @param {PublicKeyInitData} wormholeProgramId - wormhole program address
  * @param {PublicKeyInitData} payer - transaction signer address
- * @param {SignedVaa | ParsedVaa} vaa - either signed VAA bytes or parsed VAA (use {@link parseVaa} on signed VAA)
+ * @param {SignedVaa | ParsedVaaV1} vaa - either signed VAA bytes or parsed VAA (use {@link parseVaa} on signed VAA)
  * @param {PublicKeyInitData} signatureSet - key for signature set account
  */
 export function createPostVaaInstruction(
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  vaa: SignedVaa | ParsedVaa,
+  vaa: SignedVaa | ParsedVaaV1,
   signatureSet: PublicKeyInitData
 ): TransactionInstruction {
-  const parsed = isBytes(vaa) ? parseVaa(vaa) : vaa;
+  const parsed = isBytes(vaa) ? parseVaaV1(vaa) : vaa;
   const methods = createReadOnlyWormholeProgramInterface(
     wormholeProgramId
   ).methods.postVaa(
@@ -79,9 +79,9 @@ export function getPostVaaAccounts(
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
   signatureSet: PublicKeyInitData,
-  vaa: SignedVaa | ParsedVaa
+  vaa: SignedVaa | ParsedVaaV1
 ): PostVaaAccounts {
-  const parsed = isBytes(vaa) ? parseVaa(vaa) : vaa;
+  const parsed = isBytes(vaa) ? parseVaaV1(vaa) : vaa;
   return {
     guardianSet: deriveGuardianSetKey(
       wormholeProgramId,
