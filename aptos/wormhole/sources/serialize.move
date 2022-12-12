@@ -44,7 +44,7 @@ module wormhole::serialize {
         vector::append(buf, v);
     }
 
-    public fun serialize_vector(buf: &mut vector<u8>, v: vector<u8>){
+    public fun serialize_vector(buf: &mut vector<u8>, v: vector<u8>) {
         vector::append(buf, v)
     }
 }
@@ -60,7 +60,7 @@ module wormhole::test_serialize {
     use std::vector;
 
     #[test]
-    fun test_serialize_u8(){
+    fun test_serialize_u8() {
         let u = 0x12;
         let s = vector::empty();
         serialize::serialize_u8(&mut s, u);
@@ -71,7 +71,7 @@ module wormhole::test_serialize {
     }
 
     #[test]
-    fun test_serialize_u16(){
+    fun test_serialize_u16() {
         let u = u16::from_u64((0x1234 as u64));
         let s = vector::empty();
         serialize::serialize_u16(&mut s, u);
@@ -82,7 +82,7 @@ module wormhole::test_serialize {
     }
 
     #[test]
-    fun test_serialize_u32(){
+    fun test_serialize_u32() {
         let u = u32::from_u64((0x12345678 as u64));
         let s = vector::empty();
         serialize::serialize_u32(&mut s, u);
@@ -93,7 +93,7 @@ module wormhole::test_serialize {
     }
 
     #[test]
-    fun test_serialize_u64(){
+    fun test_serialize_u64() {
         let u = 0x1234567812345678;
         let s = vector::empty();
         serialize::serialize_u64(&mut s, u);
@@ -104,7 +104,7 @@ module wormhole::test_serialize {
     }
 
      #[test]
-    fun test_serialize_u128(){
+    fun test_serialize_u128() {
         let u = 0x12345678123456781234567812345678;
         let s = vector::empty();
         serialize::serialize_u128(&mut s, u);
@@ -115,7 +115,7 @@ module wormhole::test_serialize {
     }
 
     #[test]
-    fun test_serialize_u256(){
+    fun test_serialize_u256() {
         let u = u256::add(u256::shl(u256::from_u128(0x47386917590997937461700473756125), 128), u256::from_u128(0x9876));
         let s = vector::empty();
         serialize::serialize_u256(&mut s, u);
@@ -124,7 +124,7 @@ module wormhole::test_serialize {
     }
 
     #[test]
-    fun test_serialize_vector(){
+    fun test_serialize_vector() {
         let x = vector::empty<u8>();
         let y = vector::empty<u8>();
         vector::push_back<u8>(&mut x, 0x12);

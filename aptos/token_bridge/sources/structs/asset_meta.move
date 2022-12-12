@@ -98,7 +98,7 @@ module token_bridge::asset_meta {
 
     // Construct a seed using AssetMeta fields for creating a new resource account
     // N.B. seed is a product of coin native chain and native address
-    public(friend) fun create_seed(asset_meta: &AssetMeta): vector<u8>{
+    public(friend) fun create_seed(asset_meta: &AssetMeta): vector<u8> {
         let token_chain = get_token_chain(asset_meta);
         let token_address = get_token_address(asset_meta);
         let seed = vector::empty<u8>();
