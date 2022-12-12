@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"sync"
 	"time"
@@ -60,6 +61,7 @@ type Accounting struct {
 	contract         string
 	wsUrl            string
 	lcdUrl           string
+	key              *ecdsa.PrivateKey
 	enforceFlag      bool
 	msgChan          chan<- *common.MessagePublication
 	mutex            sync.Mutex
@@ -75,6 +77,7 @@ func NewAccounting(
 	contract string, // the address of the smart contract on wormchain
 	wsUrl string, // the URL of the wormchain websocket interface
 	lcdUrl string, // the URL of the wormchain LCD interface
+	key *ecdsa.PrivateKey, // key used to communicate with the smart contract
 	enforceFlag bool, // whether or not accounting should be enforced
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accounting runnable should be published
 	env int, // Controls the set of token bridges to be monitored
@@ -85,6 +88,7 @@ func NewAccounting(
 		contract:         contract,
 		wsUrl:            wsUrl,
 		lcdUrl:           lcdUrl,
+		key:              key,
 		enforceFlag:      enforceFlag,
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
