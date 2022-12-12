@@ -99,22 +99,26 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 }
 
 func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(r.Module, 1, r.ChainID, r.EmitterAddress)
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, r.ChainID)
+	payload.Write(r.EmitterAddress[:])
+	// target chain 0 = universal
+	return serializeBridgeGovernanceVaa(r.Module, 1, 0, payload.Bytes())
 }
 
 func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(r.Module, 2, r.TargetChainID, r.NewContract)
+	return serializeBridgeGovernanceVaa(r.Module, 2, r.TargetChainID, r.NewContract[:])
 }
 
 func (r BodyWormchainStoreCode) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionStoreCode, ChainIDWormchain, r.WasmHash)
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionStoreCode, ChainIDWormchain, r.WasmHash[:])
 }
 
 func (r BodyWormchainInstantiateContract) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionInstantiateContract, ChainIDWormchain, r.InstantiationParamsHash)
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionInstantiateContract, ChainIDWormchain, r.InstantiationParamsHash[:])
 }
 
-func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload [32]byte) []byte {
+func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
 	if len(module) > 32 {
 		panic("module longer than 32 byte")
 	}
