@@ -154,6 +154,7 @@ var (
 
 	accountingContract     *string
 	accountingCheckEnabled *bool
+	accountingKeyPath      *string
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -304,6 +305,7 @@ func init() {
 
 	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
 	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
+	accountingKeyPath = NodeCmd.Flags().String("accountingKeyPath", "", "Path to accounting key file")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -794,6 +796,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *guardianKeyPath, true)
 		if err != nil {
 			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
+		}
+
+		if *accountingKeyPath == "" {
+			accountingKeyPath = guardianKeyPath
 		}
 	}
 
