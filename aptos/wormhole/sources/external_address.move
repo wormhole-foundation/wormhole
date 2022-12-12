@@ -17,12 +17,12 @@ module wormhole::external_address {
         e.external_address
     }
 
-    public fun pad_left_32(input: &vector<u8>): vector<u8>{
+    public fun pad_left_32(input: &vector<u8>): vector<u8> {
         let len = vector::length<u8>(input);
         assert!(len <= 32, E_VECTOR_TOO_LONG);
         let ret = vector::empty<u8>();
         let zeros_remaining = 32 - len;
-        while (zeros_remaining > 0){
+        while (zeros_remaining > 0) {
             vector::push_back<u8>(&mut ret, 0);
             zeros_remaining = zeros_remaining - 1;
         };

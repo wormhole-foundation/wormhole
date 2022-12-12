@@ -191,7 +191,7 @@ module token_bridge::state {
 
         let state = borrow_global_mut<State>(@token_bridge);
         let native_infos = &mut state.native_infos;
-        if (table::contains(native_infos, token_address)){
+        if (table::contains(native_infos, token_address)) {
             //TODO: throw error, because we should only be able to set native asset type info once?
             table::remove(native_infos, token_address);
         };
