@@ -99,7 +99,28 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 }
 
 func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(r.Module, 1, r.ChainID, r.EmitterAddress)
+	// This is a separate case because it adds two extra bytes of zeroes for the target chain.
+	if len(r.Module) > 32 {
+		panic("module longer than 32 byte")
+	}
+
+	buf := &bytes.Buffer{}
+
+	// Write token bridge header
+	for i := 0; i < (32 - len(r.Module)); i++ {
+		buf.WriteByte(0x00)
+	}
+	buf.Write([]byte(r.Module))
+	// Write action ID
+	MustWrite(buf, binary.BigEndian, uint8(1))
+	// Write target chain (0 = universal)
+	MustWrite(buf, binary.BigEndian, uint16(0))
+	// Write chain to be registered
+	MustWrite(buf, binary.BigEndian, r.ChainID)
+	// Write emitter address of chain to be registered
+	buf.Write(r.EmitterAddress[:])
+
+	return buf.Bytes()
 }
 
 func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
