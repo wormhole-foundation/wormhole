@@ -145,6 +145,7 @@ var (
 
 	accountingContract     *string
 	accountingCheckEnabled *bool
+	accountingKeyPath      *string
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -287,6 +288,7 @@ func init() {
 
 	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
 	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
+	accountingKeyPath = NodeCmd.Flags().String("accountingKeyPath", "", "Path to accounting key file")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -777,6 +779,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
 		}
+
+		if *accountingKeyPath == "" {
+			accountingKeyPath = guardianKeyPath
+		}
 	}
 
 	// Database
@@ -925,6 +931,13 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *wormchainWS == "" || *wormchainLCD == "" {
 			logger.Fatal("accountingContract may only be specified if wormchain is enabled")
 		}
+		if *accountingKeyPath == "" {
+			logger.Fatal("accountingKeyPath is required if accounting is enabled")
+		}
+		accountingKey, err := loadGuardianKey(*accountingKeyPath)
+		if err != nil {
+			logger.Fatal("failed to load accounting key", zap.String("accountingKeyPath", *accountingKeyPath), zap.Error(err))
+		}
 		if *accountingCheckEnabled {
 			logger.Info("accounting is enabled and will be enforced")
 		} else {
@@ -942,8 +955,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			*accountingContract,
 			*wormchainWS,
 			*wormchainLCD,
+			accountingKey,
 			*accountingCheckEnabled,
-			// TODO: Add the key.
 			acctWriteC,
 			env,
 		)
