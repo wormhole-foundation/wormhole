@@ -23,7 +23,7 @@ module token_bridge::normalized_amount {
     public fun normalize(amount: u64, decimals: u8): NormalizedAmount {
          if (decimals > 8) {
             let n = decimals - 8;
-            while (n > 0){
+            while (n > 0) {
                 amount = amount / 10;
                 n = n - 1;
             }
@@ -35,7 +35,7 @@ module token_bridge::normalized_amount {
         let NormalizedAmount { amount } = amount;
          if (decimals > 8) {
             let n = decimals - 8;
-            while (n > 0){
+            while (n > 0) {
                 amount = amount * 10;
                 n = n - 1;
             }

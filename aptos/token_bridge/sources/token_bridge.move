@@ -18,7 +18,7 @@ module token_bridge::token_bridge {
         init_internal(signer_cap);
     }
 
-    fun init_internal(signer_cap: SignerCapability){
+    fun init_internal(signer_cap: SignerCapability) {
         let emitter_cap = wormhole::register_emitter();
         init_token_bridge_state(signer_cap, emitter_cap);
     }
