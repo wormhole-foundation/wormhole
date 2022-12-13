@@ -123,7 +123,7 @@ function encodePostVaa({
   serialized.writeUInt32LE(nonce, 9);
   serialized.writeUInt16LE(emitterChain, 13);
   serialized.write(emitterAddress.toString("hex"), 15, "hex");
-  serialized.writeBigInt64LE(sequence, 47);
+  serialized.writeBigUInt64LE(sequence, 47);
   serialized.writeUInt8(consistencyLevel, 55);
   serialized.writeUInt32LE(payload.length, 56);
   serialized.write(payload.toString("hex"), 60, "hex");
