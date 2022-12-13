@@ -340,23 +340,24 @@ export interface CompleteTransferNativeWithPayloadCpiAccounts
  * you only need to pass your `toTokenAccount` into the complete transfer
  * instruction for the `toFeesTokenAccount`.
  *
- * @param cpiProgramId
  * @param tokenBridgeProgramId
  * @param wormholeProgramId
  * @param payer
  * @param vaa
+ * @param toTokenAccount
  * @returns
  */
 export function getCompleteTransferNativeWithPayloadCpiAccounts(
-  cpiProgramId: PublicKeyInitData,
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  vaa: SignedVaa | ParsedTokenTransferVaa
+  vaa: SignedVaa | ParsedTokenTransferVaa,
+  toTokenAccount: PublicKeyInitData
 ): CompleteTransferNativeWithPayloadCpiAccounts {
   const parsed = isBytes(vaa) ? parseTokenTransferVaa(vaa) : vaa;
   const mint = new PublicKey(parsed.tokenAddress);
-  const toTokenAccount = new PublicKey(parsed.to);
+  const cpiProgramId = new PublicKey(parsed.to);
+
   return {
     payer: new PublicKey(payer),
     tokenBridgeConfig: deriveTokenBridgeConfigKey(tokenBridgeProgramId),
@@ -372,9 +373,9 @@ export function getCompleteTransferNativeWithPayloadCpiAccounts(
       parsed.emitterChain,
       parsed.emitterAddress
     ),
-    toTokenAccount,
+    toTokenAccount: new PublicKey(toTokenAccount),
     tokenBridgeRedeemer: deriveRedeemerAccountKey(cpiProgramId),
-    toFeesTokenAccount: toTokenAccount,
+    toFeesTokenAccount: new PublicKey(toTokenAccount),
     tokenBridgeCustody: deriveCustodyKey(tokenBridgeProgramId, mint),
     mint,
     tokenBridgeCustodySigner: deriveCustodySignerKey(tokenBridgeProgramId),
@@ -435,11 +436,11 @@ export interface CompleteTransferWrappedWithPayloadCpiAccounts
  * @returns
  */
 export function getCompleteTransferWrappedWithPayloadCpiAccounts(
-  cpiProgramId: PublicKeyInitData,
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  vaa: SignedVaa | ParsedTokenTransferVaa
+  vaa: SignedVaa | ParsedTokenTransferVaa,
+  toTokenAccount: PublicKeyInitData
 ): CompleteTransferWrappedWithPayloadCpiAccounts {
   const parsed = isBytes(vaa) ? parseTokenTransferVaa(vaa) : vaa;
   const mint = deriveWrappedMintKey(
@@ -447,7 +448,7 @@ export function getCompleteTransferWrappedWithPayloadCpiAccounts(
     parsed.tokenChain,
     parsed.tokenAddress
   );
-  const toTokenAccount = new PublicKey(parsed.to);
+  const cpiProgramId = new PublicKey(parsed.to);
   return {
     payer: new PublicKey(payer),
     tokenBridgeConfig: deriveTokenBridgeConfigKey(tokenBridgeProgramId),
@@ -463,9 +464,9 @@ export function getCompleteTransferWrappedWithPayloadCpiAccounts(
       parsed.emitterChain,
       parsed.emitterAddress
     ),
-    toTokenAccount,
+    toTokenAccount: new PublicKey(toTokenAccount),
     tokenBridgeRedeemer: deriveRedeemerAccountKey(cpiProgramId),
-    toFeesTokenAccount: toTokenAccount,
+    toFeesTokenAccount: new PublicKey(toTokenAccount),
     tokenBridgeWrappedMint: mint,
     tokenBridgeWrappedMeta: deriveWrappedMetaKey(tokenBridgeProgramId, mint),
     tokenBridgeMintAuthority: deriveMintAuthorityKey(tokenBridgeProgramId),
