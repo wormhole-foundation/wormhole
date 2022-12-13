@@ -519,7 +519,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = 1, location = Self)]
     fun test_get_d_overflow() {
         let a = DU256 {
             v0: 1,
@@ -568,7 +568,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = 1, location = Self)]
     fun test_put_d_overflow() {
         let a = DU256 {
             v0: 1,
@@ -631,7 +631,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = 1, location = Self)]
     fun test_get_aborts() {
         let _ = get(&zero(), 4);
     }
@@ -656,7 +656,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = 1, location = Self)]
     fun test_put_overflow() {
         let a = zero();
         put(&mut a, 6, 255);
@@ -688,7 +688,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = 2, location = Self)]
     fun test_add_overflow() {
         let max = (U64_MAX as u64);
 
@@ -712,7 +712,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = 2, location = Self)]
     fun test_sub_overflow() {
         let a = from_u128(0);
         let b = from_u128(1);
@@ -721,7 +721,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location = Self)]
     fun test_too_big_to_cast_to_u128() {
         let a = from_u128(U128_MAX);
         let b = from_u128(U128_MAX);
@@ -798,7 +798,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = 2, location = Self)]
     fun test_mul_overflow() {
         let max = (U64_MAX as u64);
 
@@ -880,7 +880,7 @@ module wormhole::u256 {
     }
 
     #[test]
-    #[expected_failure(abort_code=0)]
+    #[expected_failure(abort_code=0, location = Self)]
     fun test_as_u64_overflow() {
         let _ = as_u64(from_u128(U128_MAX));
     }

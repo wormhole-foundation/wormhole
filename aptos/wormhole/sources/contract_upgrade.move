@@ -189,7 +189,7 @@ module wormhole::contract_upgrade_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x6407)]
+    #[expected_failure(abort_code = 0x6407, location = 0x1::table)]
     public fun test_contract_upgrade_double() {
         setup();
 
@@ -199,7 +199,7 @@ module wormhole::contract_upgrade_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = 4, location = contract_upgrade)]
     public fun test_contract_upgrade_wrong_chain() {
         setup();
 

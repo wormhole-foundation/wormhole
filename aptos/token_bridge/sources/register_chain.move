@@ -124,7 +124,7 @@ module token_bridge::register_chain_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location = token_bridge::register_chain)]
     public fun test_parse_fail() {
         let vaa = vaa::parse_test(ETHEREUM_NFT_REG);
         // this should fail because it's an NFT registration
@@ -142,7 +142,7 @@ module token_bridge::register_chain_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 25607)]
+    #[expected_failure(abort_code = 25607, location = 0x1::table)]
     public fun test_replay_protect(deployer: &signer) {
         setup(deployer);
 

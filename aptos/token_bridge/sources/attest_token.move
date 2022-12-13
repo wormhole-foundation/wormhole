@@ -118,7 +118,7 @@ module token_bridge::attest_token_test {
     }
 
     #[test(token_bridge=@token_bridge, deployer=@deployer)]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = 1, location=token_bridge::attest_token)]
     fun test_attest_wrapped_token(token_bridge: &signer, deployer: &signer) {
         setup(token_bridge, deployer);
         wrapped_test::init_wrapped_token();
