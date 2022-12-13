@@ -6,6 +6,9 @@ import { IdlField, IdlStateMethod } from "../../anchor";
 import * as borsh from "@coral-xyz/borsh";
 import { IdlCoder } from "./idl";
 
+// Inspired by  coral-xyz/anchor
+//
+// https://github.com/coral-xyz/anchor/blob/master/ts/packages/anchor/src/coder/borsh/instruction.ts
 export class WormholeInstructionCoder implements InstructionCoder {
   private ixLayout: Map<string, Layout>;
 
