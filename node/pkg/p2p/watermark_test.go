@@ -1,0 +1,188 @@
+package p2p
+
+import (
+	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"fmt"
+	"github.com/certusone/wormhole/node/pkg/accountant"
+	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/governor"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/ethereum/go-ethereum/crypto"
+	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
+	p2ppeer "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	"go.uber.org/zap"
+	"testing"
+	"time"
+)
+
+type G struct {
+	// arguments passed to p2p.New
+	obsvC                  chan *gossipv1.SignedObservation
+	obsvReqC               chan *gossipv1.ObservationRequest
+	obsvReqSendC           chan *gossipv1.ObservationRequest
+	sendC                  chan []byte
+	signedInC              chan *gossipv1.SignedVAAWithQuorum
+	priv                   p2pcrypto.PrivKey
+	gk                     *ecdsa.PrivateKey
+	gst                    *node_common.GuardianSetState
+	port                   uint
+	networkID              string
+	bootstrapPeers         string
+	nodeName               string
+	disableHeartbeatVerify bool
+	rootCtxCancel          context.CancelFunc
+	gov                    *governor.ChainGovernor
+	acct                   *accountant.Accountant
+	signedGovCfg           chan *gossipv1.SignedChainGovernorConfig
+	signedGovSt            chan *gossipv1.SignedChainGovernorStatus
+	watermarks             *Watermarks
+	features               *Features
+}
+
+func NewG(nodeName string) *G {
+	cs := 20
+	p2ppriv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
+	if err != nil {
+		panic(err)
+	}
+
+	guardianpriv, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	g := &G{
+		obsvC:                  make(chan *gossipv1.SignedObservation, cs),
+		obsvReqC:               make(chan *gossipv1.ObservationRequest, cs),
+		obsvReqSendC:           make(chan *gossipv1.ObservationRequest, cs),
+		sendC:                  make(chan []byte, cs),
+		signedInC:              make(chan *gossipv1.SignedVAAWithQuorum, cs),
+		priv:                   p2ppriv,
+		gk:                     guardianpriv,
+		gst:                    node_common.NewGuardianSetState(nil),
+		nodeName:               nodeName,
+		disableHeartbeatVerify: false,
+		rootCtxCancel:          nil,
+		gov:                    nil,
+		signedGovCfg:           make(chan *gossipv1.SignedChainGovernorConfig, cs),
+		signedGovSt:            make(chan *gossipv1.SignedChainGovernorStatus, cs),
+		features:               DefaultFeatures(),
+	}
+
+	// Consume all output channels
+	go func() {
+		name := g.nodeName
+		fmt.Printf("[%s] consuming\n", name)
+		select {
+		case <-g.obsvC:
+			fmt.Printf("[%s] g.obsvC\n", name)
+		case <-g.obsvReqC:
+			fmt.Printf("[%s] g.obsvReqC\n", name)
+		case <-g.signedInC:
+			fmt.Printf("[%s] g.signedInC\n", name)
+		case <-g.signedGovCfg:
+			fmt.Printf("[%s] g.signedGovCfg\n", name)
+		case <-g.signedGovSt:
+			fmt.Printf("[%s] g.signedGovSt\n", name)
+		case <-g.sendC:
+			fmt.Printf("[%s] g.sendC\n", name)
+		}
+	}()
+
+	return g
+}
+
+func TestWatermark(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create 4 nodes
+	var guardianset = &node_common.GuardianSet{}
+	var gs [4]*G
+	for i, _ := range gs {
+		gs[i] = NewG(fmt.Sprintf("n%d", i))
+		gs[i].port = uint(11000 + i)
+		gs[i].networkID = "/wormhole/localdev"
+
+		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].gk.PublicKey))
+
+		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
+		if err != nil {
+			panic(err)
+		}
+
+		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/11000/quic/p2p/%s", id.String())
+		gs[i].gst.Set(guardianset)
+
+		gs[i].features.ConnectionManager, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
+		gs[i].features.ListeningAddresses = []string{
+			// Listen on QUIC only.
+			// https://github.com/libp2p/go-libp2p/issues/688
+			fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic", gs[i].port),
+			fmt.Sprintf("/ip6/::1/udp/%d/quic", gs[i].port),
+		}
+	}
+
+	// The 4th guardian does not put its libp2p key in the heartbeat
+	gs[3].features.P2PIDInHeartbeat = false
+
+	// Start the nodes
+	for _, g := range gs {
+		startGuardian(ctx, g)
+	}
+
+	// Wait ~10s to let the nodes gossip.
+	time.Sleep(20 * time.Second)
+
+	// It's expected to have the 3 first nodes protected on every node
+	for gi, g := range gs {
+		for g1i, g1 := range gs {
+			g1addr, err := p2ppeer.IDFromPublicKey(g1.priv.GetPublic())
+			if err != nil {
+				panic(err)
+			}
+			result := g.features.ConnectionManager.IsProtected(g1addr, "heartbeat")
+
+			// A node cannot be protected on itself as one's own heartbeats are dropped
+			if gi == g1i {
+				continue
+			}
+
+			if result && g1i == 3 {
+				// The 4th node should not be protected
+				t.Fatalf("node at index 3 should not be protected on node %d but was", gi)
+			}
+			if !result && g1i != 3 {
+				t.Fatalf("node at index %d should be protected on node %d but is not", g1i, gi)
+			}
+		}
+	}
+}
+
+func startGuardian(ctx context.Context, g *G) {
+	supervisor.New(ctx, zap.L(),
+		Run(g.obsvC,
+			g.obsvReqC,
+			g.obsvReqSendC,
+			g.sendC,
+			g.signedInC,
+			g.priv,
+			g.gk,
+			g.gst,
+			g.port,
+			g.networkID,
+			g.bootstrapPeers,
+			g.nodeName,
+			g.disableHeartbeatVerify,
+			g.rootCtxCancel,
+			g.acct,
+			g.gov,
+			g.signedGovCfg,
+			g.signedGovSt,
+			g.watermarks,
+			g.features))
+}

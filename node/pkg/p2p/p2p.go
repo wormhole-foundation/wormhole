@@ -68,6 +68,42 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
+type Features struct {
+	// P2PIDInHeartbeat determines if the guardian will put it's libp2p node ID in the authenticated heartbeat payload
+	P2PIDInHeartbeat   bool
+	ConnectionManager  *connmgr.BasicConnMgr
+	ListeningAddresses []string
+}
+
+func DefaultFeatures() *Features {
+	mgr, err := connmgr.NewConnManager(
+		100, // LowWater
+		400, // HighWater,
+		connmgr.WithGracePeriod(time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	return &Features{
+		P2PIDInHeartbeat:  true,
+		ConnectionManager: mgr,
+		ListeningAddresses: []string{
+			// Listen on QUIC only.
+			// https://github.com/libp2p/go-libp2p/issues/688
+			fmt.Sprintf("/0.0.0.0/udp/8999/quic"),
+			fmt.Sprintf("/ip6/::/udp/8999/quic"),
+		},
+	}
+}
+
+type Watermarks struct {
+	High int
+	Low  int
+}
+
+var DefaultWatermarks = Watermarks{Low: 100, High: 400}
+
 func Run(
 	obsvC chan<- *gossipv1.SignedObservation,
 	obsvReqC chan<- *gossipv1.ObservationRequest,
@@ -87,18 +123,20 @@ func Run(
 	gov *governor.ChainGovernor,
 	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
+	watermarks *Watermarks,
+	featuresConfig *Features,
 ) func(ctx context.Context) error {
+	if watermarks == nil {
+		watermarks = &DefaultWatermarks
+	}
+
+	if featuresConfig == nil {
+		featuresConfig = DefaultFeatures()
+	}
+
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
-
-		mgr, err := connmgr.NewConnManager(
-			100, // LowWater
-			400, // HighWater,
-			connmgr.WithGracePeriod(time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create p2p connection manager: %w", err)
-		}
+		mgr := featuresConfig.ConnectionManager
 
 		h, err := libp2p.New(
 			// Use the keypair we generated
@@ -106,10 +144,7 @@ func Run(
 
 			// Multiple listen addresses
 			libp2p.ListenAddrStrings(
-				// Listen on QUIC only.
-				// https://github.com/libp2p/go-libp2p/issues/688
-				fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", port),
-				fmt.Sprintf("/ip6/::/udp/%d/quic", port),
+				featuresConfig.ListeningAddresses...,
 			),
 
 			// Enable TLS security as the only security protocol.
@@ -165,6 +200,11 @@ func Run(
 			logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
 			rootCtxCancel()
 		}()
+
+		nodeIdBytes, err := h.ID().Marshal()
+		if err != nil {
+			panic(err)
+		}
 
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
@@ -243,6 +283,10 @@ func Run(
 						GuardianAddr:  DefaultRegistry.guardianAddress,
 						BootTimestamp: bootTime.UnixNano(),
 						Features:      features,
+					}
+
+					if featuresConfig.P2PIDInHeartbeat {
+						heartbeat.P2PNodeId = nodeIdBytes
 					}
 
 					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
@@ -397,6 +441,23 @@ func Run(
 					logger.Debug("valid signed heartbeat received",
 						zap.Any("value", heartbeat),
 						zap.String("from", envelope.GetFrom().String()))
+
+					if len(heartbeat.P2PNodeId) != 0 {
+						var peerId peer.ID
+						if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
+							logger.Error("p2p_node_id_in_heartbeat_invalid",
+								zap.Any("payload", msg.Message),
+								zap.Any("value", s),
+								zap.Binary("raw", envelope.Data),
+								zap.String("from", envelope.GetFrom().String()))
+						} else {
+							mgr.Protect(peerId, "heartbeat")
+						}
+					} else {
+						logger.Debug("p2p_node_id_not_in_heartbeat",
+							zap.Error(err),
+							zap.Any("payload", heartbeat.NodeName))
+					}
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation
