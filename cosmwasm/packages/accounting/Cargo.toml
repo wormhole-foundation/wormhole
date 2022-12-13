@@ -16,7 +16,7 @@ library = []
 [dependencies]
 anyhow = "1"
 base64 = "0.13"
-cosmwasm-schema = "1"
+cosmwasm-schema = { version = "1.1.9" }
 cosmwasm-std = "1"
 cw-storage-plus = "0.13.2"
 hex = "0.4.3"
