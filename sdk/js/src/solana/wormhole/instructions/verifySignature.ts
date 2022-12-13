@@ -125,7 +125,7 @@ function createVerifySignaturesInstruction(
 ): TransactionInstruction {
   const methods = createReadOnlyWormholeProgramInterface(
     wormholeProgramId
-  ).methods.verifySignatures(signatureStatus as any);
+  ).methods.verifySignatures([...signatureStatus]);
 
   // @ts-ignore
   return methods._ixFn(...methods._args, {

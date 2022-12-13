@@ -43,7 +43,7 @@ export function createPostVaaInstruction(
     parsed.timestamp,
     parsed.nonce,
     parsed.emitterChain,
-    parsed.emitterAddress as any,
+    [...parsed.emitterAddress],
     parsed.sequence as any,
     parsed.consistencyLevel,
     parsed.payload
