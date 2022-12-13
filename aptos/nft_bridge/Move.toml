@@ -1,0 +1,28 @@
+[package]
+name = "NFTBridge"
+version = "0.0.1"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "mainnet" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "mainnet" }
+AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "mainnet" }
+AptosToken = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-token/", rev = "mainnet" }
+Wormhole = { local = "../wormhole/" }
+TokenBridge = { local = "../token_bridge/" }
+Deployer = { local = "../deployer/" }
+
+# only included in testing
+[dev-dependencies]
+WrappedCoin = { local = "../coin/" }
+
+[dev-addresses]
+# derived address from sha3_256(deployer | "nft_bridge" | 0xFF) by running
+# worm aptos derive-resource-account 0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b nft_bridge
+nft_bridge = "46da3d4c569388af61f951bdd1153f4c875f90c2991f6b2d0a38e2161a40852c"
+token_bridge = "84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
+deployer = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"
+wrapped_coin = "0xf4f53cc591e5190eddbc43940746e2b5deea6e0e1562b2bba765d488504842c7"
+wormhole = "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017"
+
+[addresses]
+nft_bridge = "_"

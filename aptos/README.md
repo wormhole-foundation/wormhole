@@ -11,6 +11,7 @@ The project is laid out as follows:
 
 - [wormhole](./wormhole) the core messaging layer
 - [token_bridge](./token_bridge) the asset transfer layer
+- [nft_bridge](./nft_bridge) NFT transfer layer
 - [examples](./examples) various example contracts
 
 To see a minimal example of how to integrate with wormhole, check out

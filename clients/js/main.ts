@@ -42,7 +42,6 @@ const GOVERNANCE_CHAIN = 1;
 const GOVERNANCE_EMITTER =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
-// TODO: remove this once the aptos SDK changes are merged in
 const OVERRIDES = {
   MAINNET: {
     aptos: {
@@ -63,6 +62,7 @@ const OVERRIDES = {
       token_bridge:
         "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
       core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
+      nft_bridge: "0x46da3d4c569388af61f951bdd1153f4c875f90c2991f6b2d0a38e2161a40852c"
     },
   },
 };
