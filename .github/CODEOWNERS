@@ -7,7 +7,7 @@
 /algorand/ @jumpsiegel
 /aptos/ @kcsongor
 /bitcoin/ @conorpp @jumpsiegel
-/cosmwasm/ @jynnantonix @kcsongor
+/cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
 /near/ @jumpsiegel
 /solana/ @hendrikhofstadt @jynnantonix @kcsongor
@@ -17,7 +17,7 @@
 
 # Utilities
 
-/clients/ @kcsongor @kev1n-peters
+/clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
 /relayer/ @evan-gray @kev1n-peters
 /scripts/ @evan-gray @kcsongor
