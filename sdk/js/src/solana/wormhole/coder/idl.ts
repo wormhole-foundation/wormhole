@@ -22,7 +22,7 @@ export class IdlCoder {
           return borsh.u8(fieldName);
         }
         case "i8": {
-          return borsh.u8(fieldName);
+          return borsh.i8(fieldName);
         }
         case "u16": {
           return borsh.u16(fieldName);
