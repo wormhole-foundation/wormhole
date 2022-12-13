@@ -65,7 +65,7 @@ function encodePostVaaData(account: PostVAAData): Buffer {
   serialized.writeUInt32LE(account.nonce, 9);
   serialized.writeUInt16LE(account.emitterChain, 13);
   serialized.write(account.emitterAddress.toString("hex"), 15, "hex");
-  serialized.writeBigInt64LE(account.sequence, 47);
+  serialized.writeBigUInt64LE(account.sequence, 47);
   serialized.writeUInt8(account.consistencyLevel, 55);
   serialized.writeUInt32LE(payload.length, 56);
   serialized.write(payload.toString("hex"), 60, "hex");
