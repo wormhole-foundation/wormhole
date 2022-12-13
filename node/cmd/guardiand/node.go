@@ -957,6 +957,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			*wormchainLCD,
 			accountingKey,
 			*accountingCheckEnabled,
+			gk,
+			gst,
 			acctWriteC,
 			env,
 		)
