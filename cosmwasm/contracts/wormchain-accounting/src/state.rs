@@ -4,7 +4,7 @@ use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
 use thiserror::Error;
 use tinyvec::TinyVec;
-use wormhole_bindings::Signature;
+use wormhole::vaa::Signature;
 
 use crate::msg::Observation;
 

@@ -29,7 +29,7 @@ thiserror = { version = "1.0.31" }
 tinyvec = { version = "1.6", default-features = false, features = ["alloc", "serde"]}
 tokenbridge = { package = "token-bridge-terra-2", version = "0.1.0", features = ["library"] }
 wormhole-bindings = "0.1.0"
-wormhole-core = "0.1.0"
+wormhole-core = { version = "0.1.0", features = ["schemars"] }
 
 [dev-dependencies]
 anyhow = { version = "1", features = ["backtrace"] }

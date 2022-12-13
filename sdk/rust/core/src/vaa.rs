@@ -24,9 +24,11 @@ use crate::{Address, Chain, GuardianAddress};
 /// 64 .. 65: Recovery ID (ECDSA)
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Signature {
     pub index: u8,
     #[serde(with = "crate::serde_array")]
+    #[schemars(with = "schemars_array::Array<u8, 65>")]
     pub signature: [u8; 65],
 }
 
@@ -35,6 +37,42 @@ impl Default for Signature {
         Self {
             index: 0,
             signature: [0; 65],
+        }
+    }
+}
+
+// This is a workaround for the fact that trait impls for arrays only go up to 32 elements.
+#[cfg(feature = "schemars")]
+mod schemars_array {
+    use schemars::{
+        gen::SchemaGenerator,
+        schema::{ArrayValidation, InstanceType, Schema, SchemaObject},
+        JsonSchema,
+    };
+
+    pub struct Array<T, const N: usize>(pub [T; N]);
+
+    impl<T: JsonSchema, const N: usize> JsonSchema for Array<T, N> {
+        fn is_referenceable() -> bool {
+            false
+        }
+
+        fn schema_name() -> String {
+            format!("Array_size_{N}_of_{}", T::schema_name())
+        }
+
+        fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+            SchemaObject {
+                instance_type: Some(InstanceType::Array.into()),
+                array: Some(Box::new(ArrayValidation {
+                    items: Some(gen.subschema_for::<T>().into()),
+                    max_items: Some(N as u32),
+                    min_items: Some(N as u32),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            }
+            .into()
         }
     }
 }

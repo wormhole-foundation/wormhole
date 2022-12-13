@@ -6,9 +6,14 @@ edition = "2021"
 [lib]
 name = "wormhole"
 
+[features]
+schemars = ["dep:schemars"]
+default = ["schemars"]
+
 [dependencies]
 anyhow = "1"
 bstr = { version = "1", features = ["serde"] }
+schemars = { version = "0.8.8", optional = true }
 serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
 serde_wormhole = "0.1.0"
 sha3 = "0.10.4"

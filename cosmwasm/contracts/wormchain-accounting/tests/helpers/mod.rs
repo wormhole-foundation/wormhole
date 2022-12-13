@@ -15,6 +15,7 @@ use wormchain_accounting::{
     },
     state,
 };
+use wormhole::vaa::Signature;
 use wormhole_bindings::{fake, WormholeQuery};
 
 mod fake_tokenbridge;
@@ -41,7 +42,7 @@ impl Contract {
         &mut self,
         observations: Binary,
         guardian_set_index: u32,
-        signature: wormhole_bindings::Signature,
+        signature: Signature,
     ) -> anyhow::Result<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(USER),
@@ -59,7 +60,7 @@ impl Contract {
         &mut self,
         modification: Binary,
         guardian_set_index: u32,
-        signatures: Vec<wormhole_bindings::Signature>,
+        signatures: Vec<Signature>,
     ) -> anyhow::Result<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(USER),
@@ -77,7 +78,7 @@ impl Contract {
         &mut self,
         upgrade: Binary,
         guardian_set_index: u32,
-        signatures: Vec<wormhole_bindings::Signature>,
+        signatures: Vec<Signature>,
     ) -> anyhow::Result<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(ADMIN),

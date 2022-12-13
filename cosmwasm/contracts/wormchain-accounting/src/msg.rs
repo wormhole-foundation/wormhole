@@ -1,7 +1,7 @@
 use accounting::state::{account, transfer, Account, Modification, Transfer};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
-use wormhole_bindings::Signature;
+use wormhole::vaa::Signature;
 
 use crate::state::{self, PendingTransfer};
 

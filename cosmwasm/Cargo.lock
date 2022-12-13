@@ -1038,6 +1038,7 @@ dependencies = [
  "ecdsa 0.12.4",
  "elliptic-curve 0.10.6",
  "sha2",
+ "sha3 0.9.1",
 ]
 
 [[package]]
@@ -2263,6 +2264,7 @@ dependencies = [
  "k256 0.9.6",
  "schemars",
  "serde",
+ "wormhole-core",
 ]
 
 [[package]]
@@ -2292,6 +2294,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bstr",
+ "schemars",
  "serde",
  "serde_wormhole",
  "sha3 0.10.6",

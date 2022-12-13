@@ -1,19 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CustomQuery, Empty};
-
-#[cw_serde]
-pub struct Signature {
-    /// The index of the guardian in the guardian set.
-    pub index: u8,
-
-    /// The signature, which should be exactly 65 bytes with the following layout:
-    ///
-    /// ```markdown
-    /// 0  .. 64: Signature   (ECDSA)
-    /// 64 .. 65: Recovery ID (ECDSA)
-    /// ```
-    pub signature: Binary,
-}
+use wormhole::vaa::Signature;
 
 #[cw_serde]
 #[derive(QueryResponses)]
