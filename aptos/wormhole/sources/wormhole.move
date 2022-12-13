@@ -194,7 +194,7 @@ module wormhole::wormhole_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x0)]
+    #[expected_failure(abort_code = 0x0, location = wormhole::wormhole)]
     public fun test_publish_message_insufficient_fee() {
         setup(100);
         let emitter_cap = wormhole::register_emitter();
