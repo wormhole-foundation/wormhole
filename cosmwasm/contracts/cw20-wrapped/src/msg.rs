@@ -2,8 +2,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Addr, Binary, Uint128};
-use cw20::Expiration;
+use cw20::{AllowanceResponse, BalanceResponse, Expiration, TokenInfoResponse};
 
 type HumanAddr = String;
 
@@ -94,19 +95,21 @@ pub enum ExecuteMsg {
     UpdateMetadata { name: String, symbol: String },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, QueryResponses)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    // Generic information about the wrapped asset
+    /// Generic information about the wrapped asset
+    #[returns(WrappedAssetInfoResponse)]
     WrappedAssetInfo {},
     /// Implements CW20. Returns the current balance of the given address, 0 if unset.
-    Balance {
-        address: HumanAddr,
-    },
+    #[returns(BalanceResponse)]
+    Balance { address: HumanAddr },
     /// Implements CW20. Returns metadata on the contract - name, decimals, supply, etc.
+    #[returns(TokenInfoResponse)]
     TokenInfo {},
     /// Implements CW20 "allowance" extension.
     /// Returns how much spender can use from owner account, 0 if unset.
+    #[returns(AllowanceResponse)]
     Allowance {
         owner: HumanAddr,
         spender: HumanAddr,

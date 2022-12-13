@@ -1,3 +1,4 @@
+use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -72,13 +73,18 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, QueryResponses)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    #[returns(WrappedRegistryResponse)]
     WrappedRegistry { chain: u16, address: Binary },
+    #[returns(TransferInfoResponse)]
     TransferInfo { vaa: Binary },
+    #[returns(ExternalIdResponse)]
     ExternalId { external_id: Binary },
+    #[returns(IsVaaRedeemedResponse)]
     IsVaaRedeemed { vaa: Binary },
+    #[returns(ChainRegistrationResponse)]
     ChainRegistration { chain: u16 },
 }
 

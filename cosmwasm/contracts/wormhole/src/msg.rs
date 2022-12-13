@@ -1,8 +1,9 @@
+use cosmwasm_schema::QueryResponses;
 use cosmwasm_std::{Binary, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::state::{GuardianAddress, GuardianSetInfo};
+use crate::state::{GuardianAddress, GuardianSetInfo, ParsedVAA};
 
 type HumanAddr = String;
 
@@ -32,12 +33,16 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, QueryResponses)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    #[returns(GuardianSetInfoResponse)]
     GuardianSetInfo {},
+    #[returns(ParsedVAA)]
     VerifyVAA { vaa: Binary, block_time: u64 },
+    #[returns(GetStateResponse)]
     GetState {},
+    #[returns(GetAddressHexResponse)]
     QueryAddressHex { address: HumanAddr },
 }
 
