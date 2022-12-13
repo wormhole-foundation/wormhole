@@ -1,17 +1,14 @@
 use std::{cell::RefCell, collections::BTreeSet, fmt::Debug, rc::Rc};
 
-use anyhow::{anyhow, bail, ensure};
+use anyhow::{anyhow, bail, ensure, Context};
 use cosmwasm_std::{to_binary, Addr, Api, Binary, BlockInfo, CustomQuery, Empty, Querier, Storage};
 use cw_multi_test::{AppResponse, CosmosRouter, Module};
-use k256::ecdsa::{
-    self,
-    signature::{Signature as SigT, Signer, Verifier},
-    SigningKey,
-};
+use k256::ecdsa::{recoverable, signature::Signer, SigningKey};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
+use wormhole::vaa::{digest, Signature};
 
-use crate::{Signature, WormholeQuery};
+use crate::WormholeQuery;
 
 #[derive(Debug)]
 struct Inner {
@@ -70,15 +67,14 @@ impl WormholeKeeper {
     }
 
     pub fn sign(&self, msg: &[u8]) -> Vec<Signature> {
+        let d = digest(msg).unwrap();
         self.0
             .borrow()
             .guardians
             .iter()
             .map(|g| {
-                <SigningKey as Signer<ecdsa::Signature>>::sign(g, msg)
-                    .as_bytes()
-                    .to_vec()
-                    .into()
+                let sig: recoverable::Signature = g.sign(&d.hash[..]);
+                sig.as_ref().try_into().unwrap()
             })
             .enumerate()
             .map(|(idx, sig)| Signature {
@@ -122,12 +118,18 @@ impl WormholeKeeper {
             "guardian set expired"
         );
 
+        let d = digest(data).context("failed to calculate digest for data")?;
         if let Some(g) = this.guardians.get(sig.index as usize) {
-            let s = ecdsa::Signature::try_from(&*sig.signature).unwrap();
-            g.verifying_key()
-                .verify(data, &s)
-                .map(|()| Empty {})
-                .map_err(From::from)
+            let s = recoverable::Signature::try_from(&sig.signature[..])
+                .context("failed to decode signature")?;
+            let verifying_key = s
+                .recover_verify_key_from_digest_bytes(&d.secp256k_hash.into())
+                .context("failed to recover verifying key")?;
+            ensure!(
+                g.verifying_key() == verifying_key,
+                "failed to verify signature"
+            );
+            Ok(Empty {})
         } else {
             Err(anyhow!("invalid guardian index"))
         }

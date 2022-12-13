@@ -141,9 +141,7 @@ fn duplicates() {
         .unwrap() as usize;
 
     for (i, s) in signatures.iter().take(quorum).cloned().enumerate() {
-        contract
-            .submit_observations(obs.clone(), index, s.clone())
-            .unwrap();
+        contract.submit_observations(obs.clone(), index, s).unwrap();
         let err = contract
             .submit_observations(obs.clone(), index, s)
             .expect_err("successfully submitted duplicate observations");

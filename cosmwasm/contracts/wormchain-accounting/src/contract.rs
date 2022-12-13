@@ -15,8 +15,8 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use tinyvec::{Array, TinyVec};
-use wormhole::token::Message;
-use wormhole_bindings::{Signature, WormholeQuery};
+use wormhole::{token::Message, vaa::Signature};
+use wormhole_bindings::WormholeQuery;
 
 use crate::{
     bail,
@@ -119,7 +119,7 @@ fn submit_observations(
             &WormholeQuery::VerifySignature {
                 data: observations.clone(),
                 guardian_set_index,
-                signature: signature.clone(),
+                signature,
             }
             .into(),
         )
@@ -140,15 +140,7 @@ fn submit_observations(
 
     let events = observations
         .into_iter()
-        .map(|o| {
-            handle_observation(
-                deps.branch(),
-                o,
-                guardian_set_index,
-                quorum,
-                signature.clone(),
-            )
-        })
+        .map(|o| handle_observation(deps.branch(), o, guardian_set_index, quorum, signature))
         .filter_map(Result::transpose)
         .collect::<anyhow::Result<Vec<_>>>()
         .context("failed to handle `Observation`")?;

@@ -34,6 +34,7 @@
         "type": "string"
       },
       "Signature": {
+        "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
         "type": "object",
         "required": [
           "index",
@@ -41,21 +42,21 @@
         ],
         "properties": {
           "index": {
-            "description": "The index of the guardian in the guardian set.",
             "type": "integer",
-            "format": "uint16",
+            "format": "uint8",
             "minimum": 0.0
           },
           "signature": {
-            "description": "The signature, which should be exactly 65 bytes with the following layout:\n\n```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
-            "allOf": [
-              {
-                "$ref": "#/definitions/Binary"
-              }
-            ]
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "maxItems": 65,
+            "minItems": 65
           }
-        },
-        "additionalProperties": false
+        }
       }
     }
   },
@@ -169,6 +170,7 @@
         "type": "string"
       },
       "Signature": {
+        "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
         "type": "object",
         "required": [
           "index",
@@ -176,21 +178,21 @@
         ],
         "properties": {
           "index": {
-            "description": "The index of the guardian in the guardian set.",
             "type": "integer",
-            "format": "uint16",
+            "format": "uint8",
             "minimum": 0.0
           },
           "signature": {
-            "description": "The signature, which should be exactly 65 bytes with the following layout:\n\n```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
-            "allOf": [
-              {
-                "$ref": "#/definitions/Binary"
-              }
-            ]
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "maxItems": 65,
+            "minItems": 65
           }
-        },
-        "additionalProperties": false
+        }
       }
     }
   },
@@ -750,6 +752,7 @@
           "additionalProperties": false
         },
         "Signature": {
+          "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
           "type": "object",
           "required": [
             "index",
@@ -757,21 +760,21 @@
           ],
           "properties": {
             "index": {
-              "description": "The index of the guardian in the guardian set.",
               "type": "integer",
-              "format": "uint16",
+              "format": "uint8",
               "minimum": 0.0
             },
             "signature": {
-              "description": "The signature, which should be exactly 65 bytes with the following layout:\n\n```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/Binary"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              },
+              "maxItems": 65,
+              "minItems": 65
             }
-          },
-          "additionalProperties": false
+          }
         },
         "TokenAddress": {
           "type": "string"
@@ -1029,6 +1032,7 @@
           "additionalProperties": false
         },
         "Signature": {
+          "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
           "type": "object",
           "required": [
             "index",
@@ -1036,21 +1040,21 @@
           ],
           "properties": {
             "index": {
-              "description": "The index of the guardian in the guardian set.",
               "type": "integer",
-              "format": "uint16",
+              "format": "uint8",
               "minimum": 0.0
             },
             "signature": {
-              "description": "The signature, which should be exactly 65 bytes with the following layout:\n\n```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/Binary"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              },
+              "maxItems": 65,
+              "minItems": 65
             }
-          },
-          "additionalProperties": false
+          }
         },
         "TokenAddress": {
           "type": "string"
