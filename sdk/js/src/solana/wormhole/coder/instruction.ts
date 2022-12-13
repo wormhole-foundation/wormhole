@@ -1,16 +1,15 @@
 import { Idl, Instruction, InstructionCoder } from "@project-serum/anchor";
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { Layout } from "buffer-layout";
-import { camelCase } from "lodash";
+import { camelCase, upperFirst } from "lodash";
 import { IdlField, IdlStateMethod } from "../../anchor";
-import * as borsh from "@coral-xyz/borsh"
+import * as borsh from "@coral-xyz/borsh";
 import { IdlCoder } from "./idl";
-  
+
 export class WormholeInstructionCoder implements InstructionCoder {
+  private ixLayout: Map<string, Layout>;
 
-  private ixLayout : Map<string, Layout>;
-
-  constructor(idl : Idl) {
+  constructor(idl: Idl) {
     this.ixLayout = WormholeInstructionCoder.parseIxLayout(idl);
   }
 
@@ -52,39 +51,12 @@ export class WormholeInstructionCoder implements InstructionCoder {
     }
     const len = layout.encode(ix, buffer);
     const data = buffer.slice(0, len);
-    
-        switch (ixName) {
-      case "initialize": {
-        return encodeWormholeInstructionData(WormholeInstruction.Initialize, data);
-      }
-      case "postMessage": {
-        return encodeWormholeInstructionData(WormholeInstruction.PostMessage, data);
-      }
-      case "postVaa": {
-        return encodeWormholeInstructionData(WormholeInstruction.PostVAA, data);
-      }
-      case "setFees": {
-        return encodeWormholeInstructionData(WormholeInstruction.SetFees, data);
-      }
-      case "transferFees": {
-        return encodeWormholeInstructionData(WormholeInstruction.TransferFees, data);
-      }
-      case "upgradeContract": {
-        return encodeWormholeInstructionData(WormholeInstruction.UpgradeContract, data);
-      }
-      case "upgradeGuardianSet": {
-        return encodeWormholeInstructionData(WormholeInstruction.UpgradeGuardianSet, data);
-      }
-      case "verifySignatures": {
-        return encodeWormholeInstructionData(WormholeInstruction.VerifySignatures, data);
-      }
-      default: {
-        throw new Error(`Invalid instruction: ${ixName}`);
-      }
-    }
 
+    return encodeWormholeInstructionData(
+      (WormholeInstruction as any)[upperFirst(methodName)],
+      data
+    );
   }
-
 
   encodeState(_ixName: string, _ix: any): Buffer {
     throw new Error("Wormhole program does not have state");
@@ -100,16 +72,14 @@ export class WormholeInstructionCoder implements InstructionCoder {
     let discriminator = ix.slice(0, 1).readInt8();
     let data = ix.slice(1);
 
-    let name = camelCase(WormholeInstruction[discriminator])
-    let layout = this.ixLayout.get(name)
-    
+    let name = camelCase(WormholeInstruction[discriminator]);
+    let layout = this.ixLayout.get(name);
+
     if (!layout) {
-      return null
+      return null;
     }
-    return { data: 
-        this.ixLayout.get(name)?.decode(data),
-      name }
-    }
+    return { data: this.ixLayout.get(name)?.decode(data), name };
+  }
 }
 
 /** Solitaire enum of existing the Core Bridge's instructions.
@@ -119,7 +89,7 @@ export class WormholeInstructionCoder implements InstructionCoder {
 export enum WormholeInstruction {
   Initialize,
   PostMessage,
-  PostVAA,
+  PostVaa,
   SetFees,
   TransferFees,
   UpgradeContract,
@@ -129,13 +99,13 @@ export enum WormholeInstruction {
 }
 
 function encodeWormholeInstructionData(
-  instructionType: WormholeInstruction,
+  discriminator: number,
   data?: Buffer
 ): Buffer {
   const instructionData = Buffer.alloc(
     1 + (data === undefined ? 0 : data.length)
   );
-  instructionData.writeUInt8(instructionType, 0);
+  instructionData.writeUInt8(discriminator, 0);
   if (data !== undefined) {
     instructionData.write(data.toString("hex"), 1, "hex");
   }
