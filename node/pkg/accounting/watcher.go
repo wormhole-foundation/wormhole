@@ -83,14 +83,14 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 
 			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
 			if !txHashRaw.Exists() {
-				acct.logger.Warn("message does not have tx hash", zap.String("payload", json))
+				acct.logger.Warn("acct: message does not have tx hash", zap.String("payload", json))
 				continue
 			}
 			txHash := txHashRaw.String()
 
 			events := gjson.Get(json, "result.data.value.TxResult.result.events")
 			if !events.Exists() {
-				acct.logger.Warn("message has no events", zap.String("payload", json))
+				acct.logger.Warn("acct: message has no events", zap.String("payload", json))
 				continue
 			}
 
@@ -130,7 +130,7 @@ func (acct *Accounting) EventsToTransfers(txHash string, events []gjson.Result) 
 	for _, event := range events {
 		// TODO This parsing code was lifted from the cosmwasm watcher. If it works here, we should factor it out and share it.
 		if !event.IsObject() {
-			acct.logger.Warn("event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
+			acct.logger.Warn("acct: event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			continue
 		}
 		eventType := gjson.Get(event.String(), "type")
@@ -140,39 +140,43 @@ func (acct *Accounting) EventsToTransfers(txHash string, events []gjson.Result) 
 
 		attributes := gjson.Get(event.String(), "attributes")
 		if !attributes.Exists() {
-			acct.logger.Warn("message event has no attributes", zap.String("tx_hash", txHash), zap.String("event", event.String()))
+			acct.logger.Warn("acct: message event has no attributes", zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			continue
 		}
 		mappedAttributes := map[string]string{}
 		for _, attribute := range attributes.Array() {
 			if !attribute.IsObject() {
-				acct.logger.Warn("event attribute is invalid", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				acct.logger.Warn("acct: event attribute is invalid", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 			keyBase := gjson.Get(attribute.String(), "key")
 			if !keyBase.Exists() {
-				acct.logger.Warn("event attribute does not have key", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				acct.logger.Warn("acct: event attribute does not have key", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 			valueBase := gjson.Get(attribute.String(), "value")
 			if !valueBase.Exists() {
-				acct.logger.Warn("event attribute does not have value", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				acct.logger.Warn("acct: event attribute does not have value", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 
 			key, err := base64.StdEncoding.DecodeString(keyBase.String())
 			if err != nil {
-				acct.logger.Warn("event key attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
+				acct.logger.Warn("acct: event key attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
 				continue
 			}
 			value, err := base64.StdEncoding.DecodeString(valueBase.String())
 			if err != nil {
-				acct.logger.Warn("event value attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+				acct.logger.Warn("acct: event value attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
 				continue
 			}
 
 			if _, ok := mappedAttributes[string(key)]; ok {
-				acct.logger.Debug("duplicate key in events", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+				acct.logger.Debug("acct: duplicate key in events",
+					zap.String("tx_hash", txHash),
+					zap.String("key", keyBase.String()),
+					zap.String("value", valueBase.String()),
+				)
 				continue
 			}
 
@@ -181,7 +185,7 @@ func (acct *Accounting) EventsToTransfers(txHash string, events []gjson.Result) 
 
 		contractAddress, ok := mappedAttributes["_contract_address"]
 		if !ok {
-			acct.logger.Warn("wasm event without contract address field set", zap.String("event", event.String()))
+			acct.logger.Warn("acct: wasm event without contract address field set", zap.String("event", event.String()))
 			continue
 		}
 

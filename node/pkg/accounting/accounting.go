@@ -3,6 +3,9 @@ package accounting
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -14,6 +17,14 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+
+	// sdk "github.com/cosmos/cosmos-sdk/types"
+
+	// sdk "github.com/cosmos/cosmos-sdk/types"
+	// "github.com/cosmos/cosmos-sdk/client"
+	// "github.com/cosmos/cosmos-sdk/key"
+	// "github.com/cosmos/cosmos-sdk/msg"
 
 	"go.uber.org/zap"
 )
@@ -49,6 +60,8 @@ type (
 	// pendingEntry is the payload for each pending transfer
 	pendingEntry struct {
 		msg        *common.MessagePublication
+		v          *vaa.VAA
+		digest     string
 		updTime    time.Time
 		retryCount int
 	}
@@ -61,7 +74,9 @@ type Accounting struct {
 	contract         string
 	wsUrl            string
 	lcdUrl           string
+	gk               *ecdsa.PrivateKey
 	key              *ecdsa.PrivateKey
+	gst              *common.GuardianSetState
 	enforceFlag      bool
 	msgChan          chan<- *common.MessagePublication
 	mutex            sync.Mutex
@@ -79,6 +94,8 @@ func NewAccounting(
 	lcdUrl string, // the URL of the wormchain LCD interface
 	key *ecdsa.PrivateKey, // key used to communicate with the smart contract
 	enforceFlag bool, // whether or not accounting should be enforced
+	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
+	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accounting runnable should be published
 	env int, // Controls the set of token bridges to be monitored
 ) *Accounting {
@@ -88,8 +105,10 @@ func NewAccounting(
 		contract:         contract,
 		wsUrl:            wsUrl,
 		lcdUrl:           lcdUrl,
+		gk:               gk,
 		key:              key,
 		enforceFlag:      enforceFlag,
+		gst:              gst,
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
 		pendingTransfers: make(map[pendingKey]*pendingEntry),
@@ -167,15 +186,33 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
+	gs := acct.gst.Get()
+	if gs == nil {
+		acct.logger.Error("acct: failed to look up guardian set, blocking publishing", zap.String("msgID", msg.MessageIDString()))
+		return false, nil
+	}
+
+	v := msg.CreateVAA(gs.Index)
+	db := v.SigningMsg()
+	digest := hex.EncodeToString(db.Bytes())
+
 	// If this is already pending, don't send it again.
 	pk := pendingKey{emitterChainId: msg.EmitterChain, txHash: msg.TxHash}
-	if _, exists := acct.pendingTransfers[pk]; exists {
-		acct.logger.Info("acct: blocking previously pending transfer", zap.String("msgID", msg.MessageIDString()))
+	if oldPk, exists := acct.pendingTransfers[pk]; exists {
+		if oldPk.digest != digest {
+			acct.logger.Error("acct: digest in pending transfer has changed",
+				zap.String("msgID", msg.MessageIDString()),
+				zap.String("oldDigest", oldPk.digest),
+				zap.String("newDigest", digest),
+			)
+		} else {
+			acct.logger.Info("acct: blocking previously pending transfer", zap.String("msgID", msg.MessageIDString()))
+		}
 		return false, nil
 	}
 
 	// Add it to the pending map and the database.
-	if err := acct.addPendingTransfer(&pk, msg); err != nil {
+	if err := acct.addPendingTransfer(&pk, msg, v, digest); err != nil {
 		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
@@ -184,7 +221,7 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 
 	// This transaction may take a while. Run it as a go routine so we don't block the processor.
 	if acct.env != GoTestMode {
-		go acct.submitObservationToContract(msg)
+		go acct.submitObservationToContract(msg, gs.Index)
 		transfersSubmitted.Inc()
 	}
 
@@ -211,18 +248,149 @@ func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool
 	return acct.enforceFlag
 }
 
+type (
+	submitObservations struct {
+		// A serialized `Vec<Observation>`. Multiple observations can be submitted together to reduce  transaction overhead.
+		Observations []byte
+
+		// The index of the guardian set used to sign the observations.
+		GuardianSetIndex uint32
+
+		// A signature for `observations`.
+		Signature []byte
+	}
+
+	observation struct {
+		// The key that uniquely identifies the observation.
+		Key transferKey
+
+		// The nonce for the transfer.
+		Nonce uint32
+
+		// The hash of the transaction on the emitter chain in which the transfer
+		// was performed.
+		TxHash ethCommon.Hash
+
+		// The serialized tokenbridge payload.
+		Payload []byte
+	}
+
+	transferKey struct {
+		// The chain id of the chain on which this transfer originated.
+		EmitterChain uint16
+
+		// The address on the emitter chain that created this transfer.
+		EmitterAddress vaa.Address
+
+		// The sequence number of the transfer.
+		Sequence uint64
+	}
+)
+
+// submitObservationToContract makes a call to the smart contract to submit an observation request.
+// It should be called from a go routine because it can block.
+func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
+	obs := []observation{
+		observation{
+			Key:     transferKey{EmitterChain: uint16(msg.EmitterChain), EmitterAddress: msg.EmitterAddress, Sequence: msg.Sequence},
+			Nonce:   msg.Nonce,
+			TxHash:  msg.TxHash,
+			Payload: msg.Payload,
+		},
+	}
+
+	bytes, err := json.Marshal(obs)
+	if err != nil {
+		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
+		panic(err)
+	}
+
+	b64Bytes := []byte(base64.StdEncoding.EncodeToString(bytes))
+
+	digest := ethCrypto.Keccak256Hash(ethCrypto.Keccak256Hash([]byte(b64Bytes)).Bytes())
+
+	sig, err := ethCrypto.Sign(digest.Bytes(), acct.gk)
+	if err != nil {
+		err = fmt.Errorf("acct: failed to sign accounting observation request: %w", err)
+		panic(err)
+	}
+
+	_ = submitObservations{Observations: b64Bytes, GuardianSetIndex: gsIndex, Signature: sig}
+
+	// Should allow TransferError::DuplicateTransfer - Just publish it.
+	// Should handle DuplicateSignatureError - Need to do the query and see if it reached quorum.
+
+	//submit_observations(obs.clone(), index, s)
+
+	// https://github.com/certusone/wormhole-chain-merged/blob/6be70c3d17805b1408e82bb04c2dba0900273379/node/pkg/terra/sender.go
+	// https://github.com/terra-money/terra.go
+
+	submitFailures.Inc()
+
+	/*
+	   	From sender.go
+
+	   // Derive Raw Private Key
+
+	   	privKey, err := key.DerivePrivKeyBz(feePayer, key.CreateHDPath(0, 0))
+	   	if err != nil {
+	   		return nil, err
+	   	}
+
+	   	// Generate StdPrivKey
+	   	tmKey, err := key.PrivKeyGen(privKey)
+	   	if err != nil {
+	   		return nil, err
+	   	}
+
+	   	// Generate Address from Public Key
+	   	addr := msg.AccAddress(tmKey.PubKey().Address())
+
+	   	// Create LCDClient
+	   	LCDClient := client.NewLCDClient(
+	   		urlLCD,
+	   		chainID,
+	   		msg.NewDecCoinFromDec("uusd", msg.NewDecFromIntWithPrec(msg.NewInt(15), 2)), // 0.15uusd
+	   		msg.NewDecFromIntWithPrec(msg.NewInt(15), 1), tmKey, time.Second*15,
+	   	)
+
+	   	contract, err := msg.AccAddressFromBech32(contractAddress)
+	   	if err != nil {
+	   		return nil, err
+	   	}
+
+	   	// Create tx
+	   	contractCall, err := json.Marshal(submitVAAMsg{
+	   		Params: submitVAAParams{
+	   			VAA: vaaBytes,
+	   		}})
+
+	   	if err != nil {
+	   		return nil, err
+	   	}
+
+	   	executeContract := msg.NewMsgExecuteContract(addr, contract, contractCall, msg.NewCoins())
+
+	   	transaction, err := LCDClient.CreateAndSignTx(ctx, client.CreateTxOptions{
+	   		Msgs: []msg.Msg{
+	   			executeContract,
+	   		},
+	   		FeeAmount: msg.NewCoins(),
+	   	})
+	   	if err != nil {
+	   		return nil, err
+	   	}
+
+	   	// Broadcast
+	   	return LCDClient.Broadcast(ctx, transaction)
+	*/
+}
+
 // transferAlreadyApproved queries the contract to see if a transfer has previously been approved. It assumes the caller holds the lock.
 func (acct *Accounting) transferAlreadyApproved(msg *common.MessagePublication) (bool, error) {
 	// TODO: How do we this?
 	// Do we use QueryMsg::Transfer?
 	return false, nil
-}
-
-// submitObservationToContract makes a call to the smart contract to submit an observation request.
-// It should be called from a go routine because it can block.
-func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication) {
-	// TODO: How do we this?
-	submitFailures.Inc()
 }
 
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
@@ -231,24 +399,28 @@ func (acct *Accounting) AuditPendingTransfers() {
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
+	if len(acct.pendingTransfers) == 0 {
+		return
+	}
+
+	gs := acct.gst.Get()
+	if gs == nil {
+		acct.logger.Error("acct: failed to look up guardian set, unable to audit pending transfers", zap.Int("numPending", len(acct.pendingTransfers)))
+		return
+	}
+
 	for pk, pe := range acct.pendingTransfers {
 		if time.Since(pe.updTime) > auditInterval {
-			alreadySeen, err := acct.transferAlreadyApproved(pe.msg)
-			if err != nil {
-				acct.logger.Error("failed to query status of pending transfer", zap.String("msgId", pe.msg.MessageIDString()), zap.Error(err))
-				continue
+			pe.retryCount += 1
+			if pe.retryCount > maxRetries {
+				acct.logger.Error("acct: stuck pending transfer has reached the retry limit, dropping it", zap.String("msgId", pe.msg.MessageIDString()))
+				acct.deletePendingTransfer(&pk, pe.msg.MessageIDString())
 			}
 
-			if alreadySeen {
-				acct.logger.Info("acct: pending transfer has previously been approved, dropping it", zap.String("msgId", pe.msg.MessageIDString()))
-				acct.publishTransfer(pe)
-			} else {
-				pe.retryCount += 1
-				if pe.retryCount > maxRetries {
-					acct.logger.Error("acct: stuck pending transfer has reached the retry limit, dropping it", zap.String("msgId", pe.msg.MessageIDString()))
-					acct.deletePendingTransfer(&pk, pe.msg.MessageIDString())
-				}
-			}
+			acct.logger.Error("acct: resubmitting pending transfer", zap.String("msgId", pe.msg.MessageIDString()), zap.Stringer("lastUpdateTime", pe.updTime))
+			pe.updTime = time.Now()
+			go acct.submitObservationToContract(pe.msg, gs.Index)
+			transfersSubmitted.Inc()
 		}
 	}
 }
@@ -260,12 +432,12 @@ func (acct *Accounting) publishTransfer(pe *pendingEntry) {
 }
 
 // addPendingTransfer adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
-func (acct *Accounting) addPendingTransfer(pk *pendingKey, msg *common.MessagePublication) error {
+func (acct *Accounting) addPendingTransfer(pk *pendingKey, msg *common.MessagePublication, v *vaa.VAA, digest string) error {
 	if err := acct.db.AcctStorePendingTransfer(msg); err != nil {
 		return err
 	}
 
-	pe := &pendingEntry{msg: msg, updTime: time.Now()}
+	pe := &pendingEntry{msg: msg, v: v, digest: digest, updTime: time.Now()}
 	acct.pendingTransfers[*pk] = pe
 	transfersOutstanding.Inc()
 	return nil
@@ -294,7 +466,12 @@ func (acct *Accounting) loadPendingTransfers() error {
 	for _, msg := range pendingTransfers {
 		acct.logger.Info("acct: reloaded pending transfer", zap.String("msgID", msg.MessageIDString()))
 		pk := pendingKey{emitterChainId: msg.EmitterChain, txHash: msg.TxHash}
-		pe := &pendingEntry{msg: msg} // Leave the updTime unset so we will query this on the first audit interval.
+
+		v := msg.CreateVAA(0) // TODO: Need to persist the gsIndex!
+		db := v.SigningMsg()
+		digest := hex.EncodeToString(db.Bytes())
+
+		pe := &pendingEntry{msg: msg, v: v, digest: digest} // Leave the updTime unset so we will query this on the first audit interval.
 		acct.pendingTransfers[pk] = pe
 		transfersOutstanding.Inc()
 	}
@@ -306,8 +483,8 @@ func (acct *Accounting) loadPendingTransfers() error {
 	return nil
 }
 
-// notifyOperator sends a notification to the on call / guardian operator in the case of a serious error.
-func (acct *Accounting) notifyOperator(err error) {
-	// TODO Do something more useful here.
-	acct.logger.Error("acct: encountered an error", zap.Error(err))
-}
+/* TODO:
+- Pending map key should include the digest.
+- Peg a metric on accounting failures.
+- Add accounting to the feature list in the heartbeat message.
+*/
