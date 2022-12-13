@@ -1,4 +1,4 @@
-CONTRACT_DIRS := deployer wormhole token_bridge examples coin
+CONTRACT_DIRS := deployer wormhole token_bridge nft_bridge examples coin
 
 TARGETS := build test
 
