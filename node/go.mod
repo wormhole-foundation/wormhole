@@ -52,6 +52,7 @@ require (
 	github.com/benbjohnson/clock v1.3.0
 	github.com/blendle/zapdriver v1.3.1
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
+	github.com/cosmos/cosmos-sdk v0.45.9
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/test-go/testify v1.1.4
