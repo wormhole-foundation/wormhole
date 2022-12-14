@@ -725,6 +725,12 @@ if wormchain:
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
     )
 
+    docker_build(
+        ref = "wormchain-contracts",
+        context = ".",
+        dockerfile = "./Dockerfile.cosmwasm",
+    )
+
     k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-guardian-devnet.yaml")
 
     k8s_resource(

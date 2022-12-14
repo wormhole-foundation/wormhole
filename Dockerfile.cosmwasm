@@ -41,4 +41,7 @@ COPY ./cosmwasm/artifacts/cw20_base.wasm /app/artifacts/
 COPY ./cosmwasm/tools/package.json ./cosmwasm/tools/package-lock.json /app/tools/
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci
+COPY ./cosmwasm/tools/wormchain/package.json ./cosmwasm/tools/wormchain/package-lock.json /app/tools/wormchain/
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci --prefix wormchain
 COPY ./cosmwasm/tools /app/tools
