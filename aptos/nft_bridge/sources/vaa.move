@@ -112,7 +112,7 @@ module nft_bridge::vaa_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 25607, location = nft_bridge::vaa)] // add_box error
+    #[expected_failure(abort_code = 25607, location = 0x1::table)] // add_box error
     public fun test_replay_protect(deployer: &signer) {
         setup(deployer);
         state::set_registered_emitter(

@@ -87,14 +87,11 @@ module nft_bridge::register_chain_test {
     use nft_bridge::nft_bridge;
     use nft_bridge::state;
 
-    /// Registration VAA for the aptos nft bridge 0xdeadbeef
-    const APTOS_NFT_REG: vector<u8> = x"01000000000100e1baf4b10a956ad4474c986b8b82349607a32318272e0f9a83171022e71f49ef254844c665ec97b6f48dd11ecb456c6acf70c8e02c65ca90deb9426bd76a94970000000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016dc9990000000000000000000000000000000000000000000000004e4654427269646765010000001600000000000000000000000000000000000000000000000000000000deadbeef";
-
-    /// Another registration VAA for the aptos nft bridge, 0xbeefface
-    const APTOS_NFT_REG_2:vector<u8> = x"01000000000100442250fd827f69b9d346dff1fa30150bf5eaa8a10e53409a4dda711efd22b44e08469d3c7be6091a87c86dd6f0d3177e0da8a8f3b0cc08b2c47f083491f04e2f0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000055e51ec0000000000000000000000000000000000000000000000004e4654427269646765010000001600000000000000000000000000000000000000000000000000000000beefface";
-
     /// Registration VAA for the etheruem NFT bridge 0xdeadbeef
     const ETHEREUM_NFT_REG: vector<u8> = x"0100000000010062e307224ed7a222234012fe1cd38450076ef30eb488a1cfac75ec16476d750959c9851e7549aeb16a99c73d381a9c416657567ae6ae46613b9236d511a8a5b601000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000162f5340000000000000000000000000000000000000000000000004e4654427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+
+    /// Registration VAA for the etheruem NFT bridge 0xbeefface
+    const ETHEREUM_NFT_REG_2: vector<u8> = x"01000000000100d7984b0abd82cbf9e39b74d16ada7cb43c9476fd4b9656a02f40eca2d1ffa560049dc5265946a88e7f643f8321cd5417e388b86580ed4c3a03f73d5599d4a9ed010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000000312bca0000000000000000000000000000000000000000000000004e4654427269646765010000000200000000000000000000000000000000000000000000000000000000beefface";
 
     /// Registration VAA for the etheruem token bridge 0xdeadbeef
     const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
@@ -138,7 +135,7 @@ module nft_bridge::register_chain_test {
     public fun test_registration(deployer: &signer) {
         setup(deployer);
 
-        register_chain::submit_vaa(APTOS_NFT_REG);
+        register_chain::submit_vaa(ETHEREUM_NFT_REG);
         let address = state::get_registered_emitter(u16::from_u64(ETH_ID));
         assert!(address == option::some(external_address::from_bytes(x"deadbeef")), 0);
     }
@@ -153,15 +150,15 @@ module nft_bridge::register_chain_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 0, location = nft_bridge::register_chain)]
+//    #[expected_failure(abort_code = 0, location = nft_bridge::register_chain)]
     public fun test_re_registration(deployer: &signer) {
         test_registration(deployer);
 
-        // TODO(csongor): we register ethereum again, which overrides the
+        // TODO(csongor): we register aptos again, which overrides the
         // previous one. This deviates from other chains (where this is
         // rejected), but I think this is the right behaviour.
         // Easy to change, should be discussed.
-        register_chain::submit_vaa(APTOS_NFT_REG_2);
+        register_chain::submit_vaa(ETHEREUM_NFT_REG_2);
         let address = state::get_registered_emitter(u16::from_u64(ETH_ID));
         assert!(address == option::some(external_address::from_bytes(x"beefface")), 0);
     }
