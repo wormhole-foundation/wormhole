@@ -40,8 +40,6 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
-    "@injectivelabs/networks": "^1.0.37",
-    "@injectivelabs/tx-ts": "^1.0.43",
     "@openzeppelin/contracts": "^4.2.0",
     "@typechain/ethers-v5": "^7.0.1",
     "@types/elliptic": "^6.4.14",
@@ -63,7 +61,9 @@
   "dependencies": {
     "@certusone/wormhole-sdk-proto-web": "0.0.6",
     "@certusone/wormhole-sdk-wasm": "^0.0.1",
-    "@injectivelabs/sdk-ts": "^1.0.211",
+    "@injectivelabs/networks": "^1.0.52",
+    "@injectivelabs/sdk-ts": "1.0.289",
+    "@injectivelabs/utils": "1.0.45",
     "@project-serum/anchor": "^0.25.0",
     "@solana/spl-token": "^0.3.5",
     "@solana/web3.js": "^1.66.2",
