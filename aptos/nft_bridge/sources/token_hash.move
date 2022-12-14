@@ -17,7 +17,7 @@ module nft_bridge::token_hash {
         hash: vector<u8>,
     }
 
-    /// Hash of (creator || collection name || name || property version), which
+    /// Hash of (creator || collection name || token name || property version), which
     /// uniquely identifies a token on Aptos
     struct TokenHash has drop, copy, store {
         // 32 bytes
