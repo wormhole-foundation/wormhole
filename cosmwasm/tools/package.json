@@ -6,7 +6,10 @@
   "scripts": {
     "client-gen": "ts-node-esm ./client_gen.ts && npm run fix-invalid-TokenBridge.client.ts",
     "note": "TEMP: the command below adds a // @ts-nocheck to ./client/TokenBridge.client.ts, because the TS is invalid",
-    "fix-invalid-TokenBridge.client.ts": "echo \"$(echo -n '// @ts-nocheck\n'; cat client/TokenBridge.client.ts)\" > client/TokenBridge.client.ts"
+    "fix-invalid-TokenBridge.client.ts": "echo \"$(echo -n '// @ts-nocheck\n'; cat client/TokenBridge.client.ts)\" > client/TokenBridge.client.ts",
+    "deploy-wormchain": "ts-node deploy_wormchain.ts",
+    "deploy-accounting": "ts-node deploy_accounting.ts",
+    "test-wormchain": "ts-node test_wormchain.ts"
   },
   "author": "",
   "license": "ISC",
@@ -14,7 +17,9 @@
     "@cosmjs/cosmwasm-stargate": "^0.29.5",
     "cosmwasm": "^1.1.1",
     "dotenv": "^16.0.0",
+    "elliptic": "^6.5.4",
     "ethers": "^5.4.4",
+    "web3-eth-abi": "^1.8.1",
     "yargs": "^17.0.1"
   },
   "devDependencies": {
