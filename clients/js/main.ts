@@ -45,28 +45,12 @@ const GOVERNANCE_CHAIN = 1;
 const GOVERNANCE_EMITTER =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
-// TODO: remove this once the aptos SDK changes are merged in
 const OVERRIDES = {
   MAINNET: {
-    aptos: {
-      token_bridge:
-        "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
-      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
-    },
   },
   TESTNET: {
-    aptos: {
-      token_bridge:
-        "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
-      core: "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
-    },
   },
   DEVNET: {
-    aptos: {
-      token_bridge:
-        "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
-      core: "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
-    },
   },
 };
 

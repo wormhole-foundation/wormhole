@@ -61,7 +61,7 @@ module nft_bridge::contract_upgrade {
         assert!(target_module == NFT_BRIDGE, E_INVALID_MODULE);
 
         let action = deserialize::deserialize_u8(&mut cur);
-        assert!(action == 0x02, E_INVALID_ACTION);
+        assert!(action == 0x2, E_INVALID_ACTION);
 
         let chain = deserialize::deserialize_u16(&mut cur);
         assert!(chain == core::get_chain_id(), E_INVALID_TARGET);
@@ -167,11 +167,11 @@ module nft_bridge::contract_upgrade_test {
     use nft_bridge::contract_upgrade;
     use nft_bridge::nft_bridge;
 
-    /// A token bridge upgrade VAA that upgrades to 0x10263f154c466b139fda0bf2caa08fd9819d8ded3810446274a99399f886fc76
-    const UPGRADE_VAA: vector<u8> = x"01000000000100b5ebfcccb84d740684429622f2fbc16638fb01222e4a580a6d2049227f37a31a7162d32770f72398fe10d160a968c94256eae9225a3da9c69ab7a41d7b307ede010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000001f96c9900000000000000000000000000000000000000000000546f6b656e42726964676502001610263f154c466b139fda0bf2caa08fd9819d8ded3810446274a99399f886fc76";
+    /// A nft bridge upgrade VAA that upgrades to 0x10263f154c466b139fda0bf2caa08fd9819d8ded3810446274a99399f886fc76
+    const UPGRADE_VAA: vector<u8> = x"0100000000010017876a4ed8cbe1bb0485b836414a271fbfc8ed9e61368645111ccd3dce1020a03417e943829e5e4a67d91a55913b2bcacd3bf066239b07ccf2261ef1b9b22eca000000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000002e0d5010000000000000000000000000000000000000000000000004e465442726964676502001610263f154c466b139fda0bf2caa08fd9819d8ded3810446274a99399f886fc76";
 
-    /// A token bridge upgrade VAA that targets ethereum
-    const ETH_UPGRADE: vector<u8> = x"0100000000010090014add41120b33eb4a03c5dce613815071d18b69a185bf322f327cc79cc52d7d133a59515d13ccfb030f9cc26a86b2bcd4dbe34d8ca6c4cc83299efb3e9b430100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000030a9ea600000000000000000000000000000000000000000000546f6b656e42726964676502000210263f154c466b139fda0bf2caa08fd9819d8ded3810446274a99399f886fc76";
+    /// A nft bridge upgrade VAA that targets ethereum
+    const ETH_UPGRADE: vector<u8> = x"010000000001004898e22dbdfd1d3d3b671414d06d8e0656cf20316f636f710bc54d80e34a0b3b781a034976e20982a19d06864c8d939651f1b4fd2d109fe469bd49f8bd2125b301000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000110ba0c0000000000000000000000000000000000000000000000004e465442726964676502000210263f154c466b139fda0bf2caa08fd9819d8ded3810446274a99399f886fc76";
 
     fun setup(deployer: &signer) {
         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
@@ -197,7 +197,7 @@ module nft_bridge::contract_upgrade_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 0x6407, location = Self)]
+    #[expected_failure(abort_code = 0x6407, location = 0x1::table)]
     public fun test_contract_upgrade_double(deployer: &signer) {
         setup(deployer);
 

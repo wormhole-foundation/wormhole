@@ -87,14 +87,17 @@ module nft_bridge::register_chain_test {
     use nft_bridge::nft_bridge;
     use nft_bridge::state;
 
-    /// Registration VAA for the etheruem token bridge 0xdeadbeef
-    const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+    /// Registration VAA for the aptos nft bridge 0xdeadbeef
+    const APTOS_NFT_REG: vector<u8> = x"01000000000100e1baf4b10a956ad4474c986b8b82349607a32318272e0f9a83171022e71f49ef254844c665ec97b6f48dd11ecb456c6acf70c8e02c65ca90deb9426bd76a94970000000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016dc9990000000000000000000000000000000000000000000000004e4654427269646765010000001600000000000000000000000000000000000000000000000000000000deadbeef";
 
-    /// Another registration VAA for the ethereum token bridge, 0xbeefface
-    const ETHEREUM_TOKEN_REG_2:vector<u8> = x"01000000000100c2157fa1c14957dff26d891e4ad0d993ad527f1d94f603e3d2bb1e37541e2fbe45855ffda1efc7eb2eb24009a1585fa25a267815db97e4a9d4a5eb31987b5fb40100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000017ca43300000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000beefface";
+    /// Another registration VAA for the aptos nft bridge, 0xbeefface
+    const APTOS_NFT_REG_2:vector<u8> = x"01000000000100442250fd827f69b9d346dff1fa30150bf5eaa8a10e53409a4dda711efd22b44e08469d3c7be6091a87c86dd6f0d3177e0da8a8f3b0cc08b2c47f083491f04e2f0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000055e51ec0000000000000000000000000000000000000000000000004e4654427269646765010000001600000000000000000000000000000000000000000000000000000000beefface";
 
     /// Registration VAA for the etheruem NFT bridge 0xdeadbeef
-    const ETHEREUM_NFT_REG: vector<u8> = x"0100000000010066cce2cb12d88c97d4975cba858bb3c35d6430003e97fced46a158216f3ca01710fd16cc394441a08fef978108ed80c653437f43bb2ca039226974d9512298b10000000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000018483540000000000000000000000000000000000000000000000004e4654427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+    const ETHEREUM_NFT_REG: vector<u8> = x"0100000000010062e307224ed7a222234012fe1cd38450076ef30eb488a1cfac75ec16476d750959c9851e7549aeb16a99c73d381a9c416657567ae6ae46613b9236d511a8a5b601000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000162f5340000000000000000000000000000000000000000000000004e4654427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+
+    /// Registration VAA for the etheruem token bridge 0xdeadbeef
+    const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
 
     const ETH_ID: u64 = 2;
 
@@ -112,9 +115,8 @@ module nft_bridge::register_chain_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0, location = nft_bridge::register_chain)]
     public fun test_parse() {
-        let vaa = vaa::parse_test(ETHEREUM_TOKEN_REG);
+        let vaa = vaa::parse_test(ETHEREUM_NFT_REG);
         let register_chain = register_chain::parse_payload_test(vaa::destroy(vaa));
         let chain = register_chain::get_emitter_chain_id(&register_chain);
         let address = register_chain::get_emitter_address(&register_chain);
@@ -127,17 +129,16 @@ module nft_bridge::register_chain_test {
     #[test]
     #[expected_failure(abort_code = 0, location = nft_bridge::register_chain)]
     public fun test_parse_fail() {
-        let vaa = vaa::parse_test(ETHEREUM_NFT_REG);
-        // this should fail because it's an NFT registration
+        let vaa = vaa::parse_test(ETHEREUM_TOKEN_REG);
+        // this should fail because it's an token registration
         let _register_chain = register_chain::parse_payload_test(vaa::destroy(vaa));
-
     }
 
     #[test(deployer = @deployer)]
     public fun test_registration(deployer: &signer) {
         setup(deployer);
 
-        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+        register_chain::submit_vaa(APTOS_NFT_REG);
         let address = state::get_registered_emitter(u16::from_u64(ETH_ID));
         assert!(address == option::some(external_address::from_bytes(x"deadbeef")), 0);
     }
@@ -160,7 +161,7 @@ module nft_bridge::register_chain_test {
         // previous one. This deviates from other chains (where this is
         // rejected), but I think this is the right behaviour.
         // Easy to change, should be discussed.
-        register_chain::submit_vaa(ETHEREUM_TOKEN_REG_2);
+        register_chain::submit_vaa(APTOS_NFT_REG_2);
         let address = state::get_registered_emitter(u16::from_u64(ETH_ID));
         assert!(address == option::some(external_address::from_bytes(x"beefface")), 0);
     }
