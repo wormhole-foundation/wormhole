@@ -1,0 +1,29 @@
+name: Publish flattened EVM contracts as an artifact for verification purposes
+
+on:
+  # The action can be triggered manually or whenever a tag with the name 'evm-*'
+  # is pushed
+  workflow_dispatch:
+  push:
+    tags:
+      - 'evm-*'
+
+jobs:
+  publish-artifacts:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Flatten contracts
+        run: cd ethereum && make flattened
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: flattened-contracts
+          path: ethereum/flattened

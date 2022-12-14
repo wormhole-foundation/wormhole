@@ -30,6 +30,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDOptimism:  "000000000000000000000000C7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
 	vaa.ChainIDNeon:      "000000000000000000000000c7a204bdbfe983fcd8d8e61d02b475d4073ff97e",
 	vaa.ChainIDXpla:      "b66da121bd3621c8d2604c08c82965640fe682d606af26a302ee09094f5e62cf",
+	vaa.ChainIDInjective: "00000000000000000000000003f3e7b2e363f51cf6e57ef85f43a2b91dbce501",
 }
 
 // KnownTestnetNFTBridgeEmitters is a map  of known NFT emitters on the various L1 testnets.
