@@ -1,6 +1,7 @@
 module nft_bridge::complete_transfer {
     use std::signer;
     use std::vector;
+    use std::bcs;
     use std::string::{Self, String};
     use aptos_std::from_bcs;
     use aptos_token::token;
@@ -10,6 +11,7 @@ module nft_bridge::complete_transfer {
     use nft_bridge::state;
     use nft_bridge::wrapped;
     use nft_bridge::token_hash;
+    use nft_bridge::uri;
 
     use token_bridge::string32;
 
@@ -36,7 +38,6 @@ module nft_bridge::complete_transfer {
         submit_vaa(vaa);
     }
 
-
     #[test_only]
     public fun test(transfer: &Transfer) {
         complete_transfer(transfer)
@@ -49,6 +50,7 @@ module nft_bridge::complete_transfer {
         let token_chain = transfer::get_token_chain(transfer);
         let token_address = transfer::get_token_address(transfer);
         let token_id = transfer::get_token_id(transfer);
+        let uri = transfer::get_uri(transfer);
         let origin_info = state::create_origin_info(token_chain, token_address, token_id);
 
         let recipient = from_bcs::to_address(external_address::get_bytes(&transfer::get_to(transfer)));
@@ -63,14 +65,43 @@ module nft_bridge::complete_transfer {
             // decimal, as most chains use decimal numbers for token ids.
             let name = render_hex(external_address::get_bytes(&token_id));
             let creator = state::get_wrapped_asset_signer(origin_info);
+            // set token data, including property keys (set token burnability to true)
+            //token:address_of
+            let nft_bridge = state::nft_bridge_signer();
+
+            let token_mut_config = token::create_token_mutability_config(
+                &vector[
+                    true, // TOKEN_MAX_MUTABLE
+                    true, // TOKEN_URI_MUTABLE
+                    true, // TOKEN_ROYALTY_MUTABLE_IND
+                    true, // TOKEN_DESCRIPTION_MUTABLE_IND
+                    true  // TOKEN_PROPERTY_MUTABLE_IND
+                ]
+            );
+            let token_data_id = token::create_tokendata(
+                &nft_bridge,
+                collection, // token collection name
+                name, // token name
+                string::utf8(b""), //empty description
+                1, //supply cap 1
+                uri::to_string(&uri),
+                signer::address_of(&creator),
+                0, // royalty_points_denominator
+                0, // royalty_points_numerator
+                token_mut_config, // see above
+                vector<String>[string::utf8(b"TOKEN_BURNABLE_BY_OWNER")],
+                vector<vector<u8>>[bcs::to_bytes<bool>(&true)],
+                vector<String>[string::utf8(b"bool")],
+            );
             token::mint_token_to(
                 &creator,
                 recipient,
-                token::create_token_data_id(
-                    signer::address_of(&creator),
-                    collection,
-                    name
-                ),
+                // token::create_token_data_id(
+                //     signer::address_of(&creator),
+                //     collection,
+                //     name
+                // ),
+                token_data_id,
                 1
             );
         } else {
