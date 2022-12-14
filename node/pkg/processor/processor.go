@@ -201,6 +201,9 @@ func (p *Processor) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			if p.acct != nil {
+				p.acct.Close()
+			}
 			return ctx.Err()
 		case p.gs = <-p.setC:
 			p.logger.Info("guardian set updated",

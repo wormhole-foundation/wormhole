@@ -13,18 +13,15 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/wormchain"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
-	// sdk "github.com/cosmos/cosmos-sdk/types"
-
-	// sdk "github.com/cosmos/cosmos-sdk/types"
-	// "github.com/cosmos/cosmos-sdk/client"
-	// "github.com/cosmos/cosmos-sdk/key"
-	// "github.com/cosmos/cosmos-sdk/msg"
+	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
 	"go.uber.org/zap"
 )
@@ -69,15 +66,16 @@ type (
 
 // Accounting is the object that manages the interface to the wormchain accounting smart contract.
 type Accounting struct {
+	ctx              context.Context
 	logger           *zap.Logger
 	db               db.AccountingDB
 	contract         string
 	wsUrl            string
 	lcdUrl           string
-	gk               *ecdsa.PrivateKey
-	key              *ecdsa.PrivateKey
-	gst              *common.GuardianSetState
+	wormchainConn    *wormchain.ClientConn
 	enforceFlag      bool
+	gk               *ecdsa.PrivateKey
+	gst              *common.GuardianSetState
 	msgChan          chan<- *common.MessagePublication
 	mutex            sync.Mutex
 	tokenBridges     map[tokenBridgeKey]*tokenBridgeEntry
@@ -87,12 +85,13 @@ type Accounting struct {
 
 // NewAccounting creates a new instance of the Accounting object.
 func NewAccounting(
+	ctx context.Context,
 	logger *zap.Logger,
 	db db.AccountingDB,
 	contract string, // the address of the smart contract on wormchain
 	wsUrl string, // the URL of the wormchain websocket interface
 	lcdUrl string, // the URL of the wormchain LCD interface
-	key *ecdsa.PrivateKey, // key used to communicate with the smart contract
+	wormchainConn *wormchain.ClientConn, // used for communicating with the smart contract
 	enforceFlag bool, // whether or not accounting should be enforced
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
@@ -100,14 +99,15 @@ func NewAccounting(
 	env int, // Controls the set of token bridges to be monitored
 ) *Accounting {
 	return &Accounting{
+		ctx:              ctx,
 		logger:           logger,
 		db:               db,
 		contract:         contract,
 		wsUrl:            wsUrl,
 		lcdUrl:           lcdUrl,
-		gk:               gk,
-		key:              key,
+		wormchainConn:    wormchainConn,
 		enforceFlag:      enforceFlag,
+		gk:               gk,
 		gst:              gst,
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
@@ -159,6 +159,16 @@ func (acct *Accounting) Run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (acct *Accounting) Close() {
+	acct.mutex.Lock()
+	defer acct.mutex.Unlock()
+
+	if acct.wormchainConn != nil {
+		acct.wormchainConn.Close()
+		acct.wormchainConn = nil
+	}
 }
 
 // SubmitObservation will submit token bridge transfers to the accounting smart contract. This is called from the processor
@@ -249,15 +259,19 @@ func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool
 }
 
 type (
-	submitObservations struct {
+	submitObservationsMsg struct {
+		Params submitObservationsParams `json:"submit_observations"`
+	}
+
+	submitObservationsParams struct {
 		// A serialized `Vec<Observation>`. Multiple observations can be submitted together to reduce  transaction overhead.
-		Observations []byte
+		Observations []byte `json:"observations"`
 
 		// The index of the guardian set used to sign the observations.
-		GuardianSetIndex uint32
+		GuardianSetIndex uint32 `json:"guardian_set_index"`
 
 		// A signature for `observations`.
-		Signature []byte
+		Signature []byte `json:"signature"`
 	}
 
 	observation struct {
@@ -267,8 +281,7 @@ type (
 		// The nonce for the transfer.
 		Nonce uint32
 
-		// The hash of the transaction on the emitter chain in which the transfer
-		// was performed.
+		// The hash of the transaction on the emitter chain in which the transfer was performed.
 		TxHash ethCommon.Hash
 
 		// The serialized tokenbridge payload.
@@ -315,82 +328,35 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 		panic(err)
 	}
 
-	_ = submitObservations{Observations: b64Bytes, GuardianSetIndex: gsIndex, Signature: sig}
+	msgData := submitObservationsMsg{
+		Params: submitObservationsParams{
+			Observations:     b64Bytes,
+			GuardianSetIndex: gsIndex,
+			Signature:        sig,
+		},
+	}
 
-	// Should allow TransferError::DuplicateTransfer - Just publish it.
-	// Should handle DuplicateSignatureError - Need to do the query and see if it reached quorum.
+	msgBytes, err := json.Marshal(msgData)
+	if err != nil {
+		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
+		panic(err)
+	}
 
-	//submit_observations(obs.clone(), index, s)
+	subMsg := wasmdtypes.MsgExecuteContract{
+		Sender:   acct.wormchainConn.PublicKey(),
+		Contract: acct.contract,
+		Msg:      msgBytes,
+		Funds:    sdktypes.Coins{},
+	}
 
-	// https://github.com/certusone/wormhole-chain-merged/blob/6be70c3d17805b1408e82bb04c2dba0900273379/node/pkg/terra/sender.go
-	// https://github.com/terra-money/terra.go
-
-	submitFailures.Inc()
-
-	/*
-	   	From sender.go
-
-	   // Derive Raw Private Key
-
-	   	privKey, err := key.DerivePrivKeyBz(feePayer, key.CreateHDPath(0, 0))
-	   	if err != nil {
-	   		return nil, err
-	   	}
-
-	   	// Generate StdPrivKey
-	   	tmKey, err := key.PrivKeyGen(privKey)
-	   	if err != nil {
-	   		return nil, err
-	   	}
-
-	   	// Generate Address from Public Key
-	   	addr := msg.AccAddress(tmKey.PubKey().Address())
-
-	   	// Create LCDClient
-	   	LCDClient := client.NewLCDClient(
-	   		urlLCD,
-	   		chainID,
-	   		msg.NewDecCoinFromDec("uusd", msg.NewDecFromIntWithPrec(msg.NewInt(15), 2)), // 0.15uusd
-	   		msg.NewDecFromIntWithPrec(msg.NewInt(15), 1), tmKey, time.Second*15,
-	   	)
-
-	   	contract, err := msg.AccAddressFromBech32(contractAddress)
-	   	if err != nil {
-	   		return nil, err
-	   	}
-
-	   	// Create tx
-	   	contractCall, err := json.Marshal(submitVAAMsg{
-	   		Params: submitVAAParams{
-	   			VAA: vaaBytes,
-	   		}})
-
-	   	if err != nil {
-	   		return nil, err
-	   	}
-
-	   	executeContract := msg.NewMsgExecuteContract(addr, contract, contractCall, msg.NewCoins())
-
-	   	transaction, err := LCDClient.CreateAndSignTx(ctx, client.CreateTxOptions{
-	   		Msgs: []msg.Msg{
-	   			executeContract,
-	   		},
-	   		FeeAmount: msg.NewCoins(),
-	   	})
-	   	if err != nil {
-	   		return nil, err
-	   	}
-
-	   	// Broadcast
-	   	return LCDClient.Broadcast(ctx, transaction)
-	*/
-}
-
-// transferAlreadyApproved queries the contract to see if a transfer has previously been approved. It assumes the caller holds the lock.
-func (acct *Accounting) transferAlreadyApproved(msg *common.MessagePublication) (bool, error) {
-	// TODO: How do we this?
-	// Do we use QueryMsg::Transfer?
-	return false, nil
+	err = acct.wormchainConn.SignAndBroadcastTx(acct.ctx, &subMsg)
+	if err != nil {
+		// Should allow TransferError::DuplicateTransfer - Just publish it (probably reobservation).
+		// Should handle DuplicateSignatureError - Don't publish it, just keep waiting.
+		acct.logger.Error("acct: failed to broadcast observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
+		submitFailures.Inc()
+		return
+	}
 }
 
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
@@ -484,7 +450,8 @@ func (acct *Accounting) loadPendingTransfers() error {
 }
 
 /* TODO:
-- Pending map key should include the digest.
+- Pending map key should include the digest? Or not, still being debated.
 - Peg a metric on accounting failures.
 - Add accounting to the feature list in the heartbeat message.
+- Should persist the guardian set index for pending transfers.
 */
