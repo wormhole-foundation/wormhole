@@ -1,12 +1,12 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
+import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
-  MsgExecuteContract,
-  DEFAULT_STD_FEE,
-  privateKeyToPublicKeyBase64,
-  ChainRestAuthApi,
   PrivateKey,
+  TxGrpcClient,
+  ChainRestAuthApi,
+  createTransaction,
+  MsgExecuteContract,
 } from "@injectivelabs/sdk-ts";
-import { createTransaction, MsgArg, TxGrpcClient } from "@injectivelabs/tx-ts";
 import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
@@ -31,11 +31,9 @@ export async function execute_injective(
 
   const network = getNetworkInfo(endPoint);
   const walletPKHash = n.key;
-  const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
+  const walletPK = PrivateKey.fromHex(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
-  const walletPublicKey = privateKeyToPublicKeyBase64(
-    Buffer.from(walletPKHash, "hex")
-  );
+  const walletPublicKey = walletPK.toPublicKey().toBase64();
 
   let target_contract: string;
   let action: string;
@@ -130,10 +128,10 @@ export async function execute_injective(
   const transaction = MsgExecuteContract.fromJSON({
     sender: walletInjAddr,
     contractAddress: target_contract,
-    msg: {
+    exec: {
+      action,
       ...execute_msg[action],
     },
-    action,
   });
   console.log("transaction:", transaction);
 
@@ -143,7 +141,10 @@ export async function execute_injective(
   const { signBytes, txRaw } = createTransaction({
     message: transaction.toDirectSign(),
     memo: "",
-    fee: DEFAULT_STD_FEE,
+    fee: {
+      ...DEFAULT_STD_FEE,
+      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
+    },
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -186,7 +187,7 @@ export async function execute_injective(
     console.log(`Transaction failed: ${txResponse.rawLog}`);
   } else {
     console.log(
-      `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+      `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
     );
   }
 }

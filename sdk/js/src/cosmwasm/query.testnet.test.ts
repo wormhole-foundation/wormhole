@@ -1,12 +1,13 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
+import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
+  PrivateKey,
+  TxGrpcClient,
   ChainGrpcWasmApi,
   ChainRestAuthApi,
-  DEFAULT_STD_FEE,
-  privateKeyToPublicKeyBase64,
+  createTransaction,
+  MsgArg,
 } from "@injectivelabs/sdk-ts";
-import { createTransaction, MsgArg, TxGrpcClient } from "@injectivelabs/tx-ts";
-import { PrivateKey } from "@injectivelabs/sdk-ts";
 import { expect, test } from "@jest/globals";
 import {
   attestFromAlgorand,
@@ -147,25 +148,26 @@ test.skip("testnet - injective attest native asset", async () => {
 
   // Set up Inj wallet
   const walletPKHash: string = process.env.ETH_KEY || "";
-  const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
+  const walletPK = PrivateKey.fromHex(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
-  const walletPublicKey = privateKeyToPublicKeyBase64(
-    Buffer.from(walletPKHash, "hex")
-  );
+  const walletPublicKey = walletPK.toPublicKey().toBase64();
   const accountDetails = await new ChainRestAuthApi(
     network.sentryHttpApi
   ).fetchAccount(walletInjAddr);
 
   // Attest native inj
   const result = await attestFromInjective(tba, walletInjAddr, "inj");
-  console.log("token", JSON.stringify(result.params.msg));
+  console.log("token", JSON.stringify(result.params.exec));
 
   // Create the transaction
   console.log("creating transaction...");
   const { signBytes, txRaw } = createTransaction({
     message: result.toDirectSign(),
     memo: "",
-    fee: DEFAULT_STD_FEE,
+    fee: {
+      ...DEFAULT_STD_FEE,
+      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
+    },
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -194,7 +196,7 @@ test.skip("testnet - injective attest native asset", async () => {
   /** Broadcast transaction */
   const txResponse = await txService.broadcast(txRaw);
   console.log(
-    `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+    `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
   );
 
   // Need to get the VAA and parse it.
@@ -238,14 +240,13 @@ test.skip("testnet - injective attest foreign asset", async () => {
   const wallet = "inj13un2qqjaenrvlsr605u82c5q5y8zjkkhdgcetq";
   const foreignAssetAddress = "inj13772jvadyx4j0hrlfh4jzk0v39k8uyfxrfs540";
   const result = await attestFromInjective(tba, wallet, foreignAssetAddress);
-  console.log("token", JSON.stringify(result.params.msg));
+  console.log("token", JSON.stringify(result.params.exec));
   console.log("json", result.toJSON());
   const walletPKHash = process.env.ETH_KEY || "";
   const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
-  const walletPublicKey = privateKeyToPublicKeyBase64(
-    Buffer.from(walletPKHash, "hex")
-  );
+  const walletPublicKey = walletPK.toPublicKey().toBase64();
+
   const network = getNetworkInfo(getEndPoint());
   /** Account Details **/
   const accountDetails = await new ChainRestAuthApi(
@@ -254,7 +255,10 @@ test.skip("testnet - injective attest foreign asset", async () => {
   const { signBytes, txRaw } = createTransaction({
     message: result.toDirectSign(),
     memo: "",
-    fee: DEFAULT_STD_FEE,
+    fee: {
+      ...DEFAULT_STD_FEE,
+      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
+    },
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -281,7 +285,7 @@ test.skip("testnet - injective attest foreign asset", async () => {
   /** Broadcast transaction */
   const txResponse = await txService.broadcast(txRaw);
   console.log(
-    `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+    `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
   );
 
   // expect(result?.fee?.denom).toEqual("inj");
@@ -390,9 +394,8 @@ test.skip("testnet - injective submit a vaa", async () => {
     const walletPKHash = process.env.ETH_KEY || "";
     const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
     const walletInjAddr = walletPK.toBech32();
-    const walletPublicKey = privateKeyToPublicKeyBase64(
-      Buffer.from(walletPKHash, "hex")
-    );
+    const walletPublicKey = walletPK.toPublicKey().toBase64();
+
     const network = getNetworkInfo(getEndPoint());
     const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
     console.log("Getting account details...");
@@ -403,7 +406,7 @@ test.skip("testnet - injective submit a vaa", async () => {
     const msg = await createWrappedOnInjective(tba, walletInjAddr, vaaBytes);
     console.log("cr", msg);
 
-    console.log("submit_vaa", JSON.stringify(msg.params.msg));
+    console.log("submit_vaa", JSON.stringify(msg.params.exec));
     /** Prepare the Transaction **/
     console.log("create transaction...");
     const txFee = DEFAULT_STD_FEE;
@@ -450,7 +453,7 @@ test.skip("testnet - injective submit a vaa", async () => {
       console.log(`Transaction failed: ${txResponse.rawLog}`);
     } else {
       console.log(
-        `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+        `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
       );
     }
     const contract = pvaa.Contract || "0";
@@ -545,7 +548,7 @@ test.skip("testnet - injective submit a vaa", async () => {
         console.log(`Transaction failed: ${txResponse.rawLog}`);
       } else {
         console.log(
-          `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+          `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
         );
       }
     }
@@ -620,9 +623,8 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
   const walletPKHash: string = process.env.ETH_KEY || "";
   const walletPK = PrivateKey.fromPrivateKey(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
-  const walletPublicKey = privateKeyToPublicKeyBase64(
-    Buffer.from(walletPKHash, "hex")
-  );
+  const walletPublicKey = walletPK.toPublicKey().toBase64();
+
   const network = getNetworkInfo(getEndPoint());
   console.log("create transaction...");
   const txFee = DEFAULT_STD_FEE;
@@ -679,7 +681,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     console.log(`Transaction failed: ${txResponse.rawLog}`);
   } else {
     console.log(
-      `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+      `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
     );
   }
   console.log("txResponse", JSON.stringify(txResponse.rawLog));
@@ -804,7 +806,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
       console.log(`Transaction failed: ${txResponse.rawLog}`);
     } else {
       console.log(
-        `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+        `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
       );
     }
     console.log("txResponse", JSON.stringify(txResponse));
