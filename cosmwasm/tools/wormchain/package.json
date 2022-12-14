@@ -9,7 +9,8 @@
     "fix-invalid-TokenBridge.client.ts": "echo \"$(echo -n '// @ts-nocheck\n'; cat client/TokenBridge.client.ts)\" > client/TokenBridge.client.ts",
     "deploy-wormchain": "ts-node deploy_wormchain.ts",
     "deploy-accounting": "ts-node deploy_accounting.ts",
-    "test-wormchain": "ts-node test_wormchain.ts"
+    "test-wormchain": "ts-node test_wormchain.ts",
+    "test-accounting": "ts-node test_accounting.ts"
   },
   "author": "",
   "license": "ISC",
