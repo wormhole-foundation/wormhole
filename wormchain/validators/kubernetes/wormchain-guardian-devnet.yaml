@@ -59,5 +59,19 @@ spec:
               port: 26657
               path: /
             periodSeconds: 1
+        - name: wormchain-contracts
+          image: wormchain-contracts
+          command:
+            - /bin/sh
+            - -c
+            - "sh /app/tools/wormchain/deploy.sh && touch /app/tools/success && sleep infinity"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/tools/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
       restartPolicy: Always
   serviceName: guardian-validator

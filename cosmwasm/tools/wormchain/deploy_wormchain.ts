@@ -30,7 +30,7 @@ const artifacts: ContractName[] = [
 ];
 
 const WORMCHAIN_ID = 3104
-const ARTIFACTS_PATH = "../artifacts/"
+const ARTIFACTS_PATH = "../../artifacts/"
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
 
 const actual_artifacts = readdirSync(ARTIFACTS_PATH).filter((a) =>
