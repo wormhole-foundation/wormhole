@@ -22,6 +22,8 @@ module nft_bridge::transfer {
     friend nft_bridge::complete_transfer_test;
     #[test_only]
     friend nft_bridge::transfer_test;
+    #[test_only]
+    friend nft_bridge::wrapped_test;
 
     const E_INVALID_ACTION: u64 = 0;
 
