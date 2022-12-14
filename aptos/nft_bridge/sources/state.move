@@ -31,6 +31,8 @@ module nft_bridge::state {
     friend nft_bridge::wrapped_test;
     #[test_only]
     friend nft_bridge::vaa_test;
+    #[test_only]
+    friend nft_bridge::transfer_nft_test;
 
     const E_ORIGIN_CHAIN_MISMATCH: u64 = 0;
     const E_ORIGIN_ADDRESS_MISMATCH: u64 = 1;

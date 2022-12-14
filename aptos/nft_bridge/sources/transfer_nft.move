@@ -154,11 +154,64 @@ module nft_bridge::transfer_nft {
             uri,
         )
     }
-
-
 }
 
 #[test_only]
 module nft_bridge::transfer_nft_test {
-    //TODO(csongor): test
+    use std::signer;
+    use std::string::{Self};
+    use std::coin::{Self};
+    use std::aptos_coin::{AptosCoin};
+
+    use aptos_token::token::{Self};
+
+    use wormhole::external_address::{Self};
+    use wormhole::u16::{Self};
+
+    use token_bridge::string32::{Self};
+
+    use nft_bridge::state::{Self as nft_state};
+    use nft_bridge::wrapped_test::{Self};
+    use nft_bridge::transfer_nft::{Self};
+
+    // test transfer wrapped NFT to another chain
+    #[test(deployer=@deployer)]
+    fun test_transfer_wrapped_nft(deployer: &signer) {
+        // mint 99 NFTs to deployer
+        wrapped_test::test_create_wrapped_nft_collection(deployer);
+
+        // withdraw a token from account
+        let token_address = external_address::from_bytes(x"0000");
+        let token_chain = u16::from_u64(14);
+        let token_id = external_address::from_bytes(x"0001");
+        let token_name =  string32::from_bytes(x"aa");
+
+        let origin_info = nft_state::create_origin_info(
+            token_chain,
+            token_address,
+            token_id,
+        );
+        let my_signer = nft_state::get_wrapped_asset_signer(origin_info);
+
+        let my_token_data_id = token::create_token_data_id(
+            signer::address_of(&my_signer),
+            string32::to_string(&token_name),
+            string::utf8(x"01"),
+        );
+        let my_token_id = token::create_token_id(my_token_data_id, 0);
+        let my_token = token::withdraw_token(
+            &my_signer,
+            my_token_id,
+            1,
+        );
+
+        // transfer nft
+        transfer_nft::transfer_nft(
+            my_token,
+            coin::zero<AptosCoin>(),
+            u16::from_u64(2), // to chain
+            external_address::from_bytes(x"0101010101010101"),
+            0
+        );
+    }
 }

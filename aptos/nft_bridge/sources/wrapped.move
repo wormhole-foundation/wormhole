@@ -102,7 +102,7 @@ module nft_bridge::wrapped_test {
     use std::account::{Self};
     use std::signer;
     use std::string::{Self, String};
-    use std::vector;
+    use std::bcs;
 
     use aptos_token::token::{Self};
 
@@ -120,7 +120,7 @@ module nft_bridge::wrapped_test {
 
     // test that wrapped NFT collection can be created from transfer object
     #[test(deployer=@deployer)]
-    fun test_create_wrapped_nft_collection(deployer: &signer) {
+    public fun test_create_wrapped_nft_collection(deployer: &signer) {
         // init wormhole state
         wormhole_test::setup(0);
 
@@ -165,8 +165,8 @@ module nft_bridge::wrapped_test {
 
         let token_data_id = token::create_tokendata(
             &my_signer,
-            string32::to_string(&token_name), // token name
-            string::utf8(x"01"),
+            string32::to_string(&token_name), // token collection name
+            string::utf8(x"01"), // token name
             string::utf8(b"a description"),
             100,
             string::utf8(b"a uri"),
@@ -174,9 +174,9 @@ module nft_bridge::wrapped_test {
             4,
             1,
             token_mut_config,
-            vector::empty<String>(),
-            vector::empty<vector<u8>>(),
-            vector::empty<String>(),
+            vector<String>[string::utf8(b"TOKEN_BURNABLE_BY_OWNER")],
+            vector<vector<u8>>[bcs::to_bytes<bool>(&true)],
+            vector<String>[string::utf8(b"bool")],
         );
 
         // test mint token using signer
