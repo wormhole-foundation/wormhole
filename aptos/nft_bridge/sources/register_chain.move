@@ -112,6 +112,7 @@ module nft_bridge::register_chain_test {
     }
 
     #[test]
+    #[expected_failure(abort_code = 0, location = nft_bridge::register_chain)]
     public fun test_parse() {
         let vaa = vaa::parse_test(ETHEREUM_TOKEN_REG);
         let register_chain = register_chain::parse_payload_test(vaa::destroy(vaa));
@@ -124,7 +125,7 @@ module nft_bridge::register_chain_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location = nft_bridge::register_chain)]
     public fun test_parse_fail() {
         let vaa = vaa::parse_test(ETHEREUM_NFT_REG);
         // this should fail because it's an NFT registration
@@ -142,15 +143,16 @@ module nft_bridge::register_chain_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 25607)]
+    #[expected_failure(abort_code = 25607, location = 0x1::table)]
     public fun test_replay_protect(deployer: &signer) {
         setup(deployer);
 
-        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
-        register_chain::submit_vaa(ETHEREUM_TOKEN_REG);
+        register_chain::submit_vaa(ETHEREUM_NFT_REG);
+        register_chain::submit_vaa(ETHEREUM_NFT_REG);
     }
 
     #[test(deployer = @deployer)]
+    #[expected_failure(abort_code = 0, location = nft_bridge::register_chain)]
     public fun test_re_registration(deployer: &signer) {
         test_registration(deployer);
 
@@ -162,5 +164,4 @@ module nft_bridge::register_chain_test {
         let address = state::get_registered_emitter(u16::from_u64(ETH_ID));
         assert!(address == option::some(external_address::from_bytes(x"beefface")), 0);
     }
-
 }

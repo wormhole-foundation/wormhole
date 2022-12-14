@@ -8,6 +8,7 @@ WORKDIR /tmp
 
 COPY wormhole/ wormhole
 COPY token_bridge/ token_bridge
+COPY nft_bridge/ nft_bridge
 COPY deployer/ deployer
 COPY coin/ coin
 COPY examples/ examples

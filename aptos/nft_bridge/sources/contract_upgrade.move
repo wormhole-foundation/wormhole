@@ -197,7 +197,7 @@ module nft_bridge::contract_upgrade_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 0x6407)]
+    #[expected_failure(abort_code = 0x6407, location = Self)]
     public fun test_contract_upgrade_double(deployer: &signer) {
         setup(deployer);
 
@@ -207,7 +207,7 @@ module nft_bridge::contract_upgrade_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = 4, location = nft_bridge::contract_upgrade)]
     public fun test_contract_upgrade_wrong_chain(deployer: &signer) {
         setup(deployer);
 

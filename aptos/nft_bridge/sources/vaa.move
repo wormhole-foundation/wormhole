@@ -81,7 +81,7 @@ module nft_bridge::vaa_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 0)] // E_UNKNOWN_CHAIN
+    #[expected_failure(abort_code = 0, location = nft_bridge::vaa)] // E_UNKNOWN_CHAIN
     public fun test_unknown_chain(deployer: &signer) {
         setup(deployer);
         let vaa = vaa::parse_verify_and_replay_protect(VAA);
@@ -89,7 +89,7 @@ module nft_bridge::vaa_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 1)] // E_UNKNOWN_EMITTER
+    #[expected_failure(abort_code = 1, location = nft_bridge::vaa)] // E_UNKNOWN_EMITTER
     public fun test_unknown_emitter(deployer: &signer) {
         setup(deployer);
         state::set_registered_emitter(
@@ -112,7 +112,7 @@ module nft_bridge::vaa_test {
     }
 
     #[test(deployer = @deployer)]
-    #[expected_failure(abort_code = 25607)] // add_box error
+    #[expected_failure(abort_code = 25607, location = nft_bridge::vaa)] // add_box error
     public fun test_replay_protect(deployer: &signer) {
         setup(deployer);
         state::set_registered_emitter(
