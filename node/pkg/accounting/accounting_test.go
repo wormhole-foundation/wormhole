@@ -3,8 +3,6 @@ package accounting
 import (
 	"context"
 	"encoding/binary"
-	// "fmt"
-	// "math"
 	"math/big"
 	"testing"
 	"time"
