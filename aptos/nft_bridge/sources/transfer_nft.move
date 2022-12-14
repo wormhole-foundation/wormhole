@@ -213,5 +213,7 @@ module nft_bridge::transfer_nft_test {
             external_address::from_bytes(x"0101010101010101"),
             0
         );
+
+        // TODO - what shall we assert here?
     }
 }
