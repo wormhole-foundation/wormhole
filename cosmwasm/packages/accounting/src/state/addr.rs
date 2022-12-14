@@ -125,7 +125,7 @@ impl<'de> de::Visitor<'de> for Base64Visitor {
         E: de::Error,
     {
         base64::decode(v)
-            .map_err(|_| E::invalid_value(de::Unexpected::Str(v), &self))
+            .map_err(E::custom)
             .and_then(|b| {
                 b.try_into()
                     .map_err(|b: Vec<u8>| E::invalid_length(b.len(), &self))

@@ -1,3 +1,5 @@
+#[cfg(feature = "fake")]
+pub mod fake;
 mod query;
 
 pub use query::*;

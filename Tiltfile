@@ -599,8 +599,8 @@ if terra2:
 
     docker_build(
         ref = "terra2-contracts",
-        context = "./cosmwasm",
-        dockerfile = "./cosmwasm/Dockerfile",
+        context = ".",
+        dockerfile = "./Dockerfile.cosmwasm",
     )
 
     k8s_yaml_with_ns("devnet/terra2-devnet.yaml")

@@ -22,7 +22,7 @@ ifndef VALID_$(NETWORK)
 endif
 
 $(WASMS) artifacts/checksums.txt: $(SOURCE_FILES)
-	DOCKER_BUILDKIT=1 docker build --target artifacts -o artifacts .
+	DOCKER_BUILDKIT=1 docker build --target artifacts -o artifacts -f ../Dockerfile.cosmwasm ../
 
 payer-$(NETWORK).json:
 	$(error Missing private key in payer-$(NETWORK).json)

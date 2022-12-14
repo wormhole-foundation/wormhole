@@ -22,6 +22,7 @@ const artifacts = [
   "mock_bridge_integration_2.wasm",
   "shutdown_core_bridge_cosmwasm.wasm",
   "shutdown_token_bridge_cosmwasm.wasm",
+  "wormchain_accounting.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
