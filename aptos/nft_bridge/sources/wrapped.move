@@ -99,5 +99,61 @@ module nft_bridge::wrapped {
 
 #[test_only]
 module nft_bridge::wrapped_test {
-    // TODO(csongor): test
+    use std::account::{Self};
+    use std::signer;
+
+    use aptos_token::token::{Self};
+
+    use wormhole::external_address::{Self};
+    use wormhole::u16::{Self};
+    use wormhole::wormhole::{Self};
+    use wormhole::wormhole_test::{Self};
+
+    use token_bridge::string32::{Self};
+
+    use nft_bridge::transfer::{Self};
+    use nft_bridge::uri::{Self};
+    use nft_bridge::wrapped::{Self};
+    use nft_bridge::state::{Self as nft_state};
+
+    // test that wrapped NFT collection can be created from transfer object
+    #[test(deployer=@deployer)]
+    fun test_create_wrapped_nft_collection(deployer: &signer) {
+        // init wormhole state
+        wormhole_test::setup(0);
+
+        // init nft state
+        let (_nft_bridge, signer_cap) = account::create_resource_account(deployer, b"nft_bridge");
+        let emitter_cap = wormhole::register_emitter();
+        nft_state::init_nft_bridge_state(
+            signer_cap,
+            emitter_cap
+        );
+        let token_address = external_address::from_bytes(x"0000");
+        let token_chain = u16::from_u64(14);
+        let token_id = external_address::from_bytes(x"0001");
+        let token_symbol = string32::from_bytes(x"aa");
+        let token_name =  string32::from_bytes(x"aa");
+        let t = transfer::create(
+            token_address, // token address
+            token_chain, // token chain
+            token_symbol, // symbol
+            token_name, // name
+            token_id, // token id
+            uri::from_bytes(x"0000aa"),
+            external_address::from_bytes(x"0000"),
+            u16::from_u64(1)
+        );
+        wrapped::create_wrapped_nft_collection(&t);
+
+        let origin_info = nft_state::create_origin_info(
+            token_chain,
+            token_address,
+            token_id,
+        );
+
+        // assert that collection was indeed created
+        let my_signer = nft_state::get_wrapped_asset_signer(origin_info);
+        assert!(token::check_collection_exists(signer::address_of(&my_signer), string32::to_string(&token_name)), 0);
+    }
 }
