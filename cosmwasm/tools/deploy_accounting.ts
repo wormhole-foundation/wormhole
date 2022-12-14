@@ -178,37 +178,6 @@ async function main() {
     // throw err
   }
 
-  // this fails with:
-  // Error parsing into type wormchain_accounting::msg::InstantiateMsg: Invalid type
-
-  // try leaving it as an object, rather than serializing parts.
-  const acctInstRaw = {
-    guardian_set_index: 0,
-    instantiate: instantiateBody,
-    signatures: [{
-      index: 0,
-      signature: Array.from(signed)
-    }]
-  }
-  try {
-    const accountingAddress = await instantiate(
-      accountingCodeId,
-      acctInstRaw,
-      "wormchainAccountingRaw"
-    );
-    console.log("done deployting Accounting! ", accountingAddress)
-  } catch (err: any) {
-    if (err?.message) {
-      console.error(err.message)
-    }
-    // throw err
-  }
-
-
-
-
-
-
   function zeroPadBytes(value: string, length: number) {
     while (value.length < 2 * length) {
       value = "0" + value;
