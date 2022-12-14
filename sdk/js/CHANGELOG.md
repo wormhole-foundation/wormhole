@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.5
+
+### Added
+
+injective mainnet addresses
+
+## 0.9.4
+
+## Changed
+
+Neon testnet addresses
+
 ## 0.9.3
 
 Fix `transferFromSolana`, `transferNativeSol` and `redeemOnSolana` for Token Bridge.

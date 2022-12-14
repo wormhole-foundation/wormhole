@@ -108,6 +108,8 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *
 		return nil, fmt.Errorf("failed to get initial block: %w", err)
 	}
 
+	c.logger.Info("queried initial block", zap.Uint64("initialBlock", initialBlock.Uint64()))
+
 	if err = c.postBlock(ctx, initialBlock, sink); err != nil {
 		return nil, fmt.Errorf("failed to post initial block: %w", err)
 	}
@@ -133,6 +135,7 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *
 var bigOne = big.NewInt(1)
 
 func (c *PolygonConnector) processCheckpoint(ctx context.Context, sink chan<- *NewBlock, checkpoint *rootAbi.AbiRootChainNewHeaderBlock) error {
+	c.logger.Info("processing checkpoint", zap.Uint64("start", checkpoint.Start.Uint64()), zap.Uint64("end", checkpoint.End.Uint64()))
 	for blockNum := checkpoint.Start; blockNum.Cmp(checkpoint.End) <= 0; blockNum.Add(blockNum, bigOne) {
 		if err := c.postBlock(ctx, blockNum, sink); err != nil {
 			return fmt.Errorf("failed to post block %s: %w", blockNum.String(), err)

@@ -3,21 +3,13 @@ package keeper
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 
 	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"golang.org/x/crypto/sha3"
-)
-
-// WasmdModule is the identifier of the Wasmd module (which is used for governance messages)
-var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
-
-var (
-	ActionStoreCode           GovernanceAction = 1
-	ActionInstantiateContract GovernanceAction = 2
 )
 
 // Simple wrapper of x/wasmd StoreCode that requires a VAA
@@ -33,12 +25,12 @@ func (k msgServer) StoreCode(goCtx context.Context, msg *types.MsgStoreCode) (*t
 		return nil, err
 	}
 	// Verify VAA
-	action, payload, err := k.VerifyGovernanceVAA(ctx, v, WasmdModule)
+	action, payload, err := k.VerifyGovernanceVAA(ctx, v, vaa.WasmdModule)
 	if err != nil {
 		return nil, err
 	}
 
-	if GovernanceAction(action) != ActionStoreCode {
+	if vaa.GovernanceAction(action) != vaa.ActionStoreCode {
 		return nil, types.ErrUnknownGovernanceAction
 	}
 
@@ -83,25 +75,19 @@ func (k msgServer) InstantiateContract(goCtx context.Context, msg *types.MsgInst
 	}
 
 	// Verify VAA
-	action, payload, err := k.VerifyGovernanceVAA(ctx, v, WasmdModule)
+	action, payload, err := k.VerifyGovernanceVAA(ctx, v, vaa.WasmdModule)
 	if err != nil {
 		return nil, err
 	}
 
-	if GovernanceAction(action) != ActionInstantiateContract {
+	if vaa.GovernanceAction(action) != vaa.ActionInstantiateContract {
 		return nil, types.ErrUnknownGovernanceAction
 	}
 
-	// Need to verify the msg contents by checking sha3.Sum(BigEndian(CodeID) || Label || Msg)
-	// The vaa governance payload must contain this hash.
+	// Need to verify the instatiation arguments
+	// The vaa governance payload must contain the hash of the expected args.
 
-	var expected_hash [32]byte
-	keccak := sha3.NewLegacyKeccak256()
-	binary.Write(keccak, binary.BigEndian, msg.CodeID)
-	keccak.Write([]byte(msg.Label))
-	keccak.Write([]byte(msg.Msg))
-	keccak.Sum(expected_hash[:0])
-
+	expected_hash := vaa.CreateInstatiateCosmwasmContractHash(msg.CodeID, msg.Label, msg.Msg)
 	if !bytes.Equal(payload, expected_hash[:]) {
 		return nil, types.ErrInvalidHash
 	}

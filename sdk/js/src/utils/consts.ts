@@ -54,8 +54,7 @@ export type EVMChainName =
   | "neon"
   | "arbitrum"
   | "optimism"
-  | "gnosis"
-  ;
+  | "gnosis";
 
 /**
  *
@@ -160,8 +159,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   injective: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "inj17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9l2q74d",
+    token_bridge: "inj1ghd753shjuwexxywmgs4xz7x2q732vcnxxynfn",
     nft_bridge: undefined,
   },
   osmosis: {
@@ -342,9 +341,9 @@ const TESTNET = {
     nft_bridge: "0x98A0F4B96972b32Fcb3BD03cAeB66A44a6aB9Edb",
   },
   neon: {
-    core: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
-    token_bridge: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
-    nft_bridge: "0x23908A62110e21C04F3A4e011d24F901F911744A",
+    core: "0x268557122Ffd64c85750d630b716471118F323c8",
+    token_bridge: "0xEe3dB83916Ccdc3593b734F7F2d16D630F39F1D0",
+    nft_bridge: "0x66E5BcFD45D2F3f166c567ADa663f9d2ffb292B4",
   },
   terra2: {
     core: "terra19nv3xr5lrmmr7egvrk2kqgw4kcn43xrtd5g0mpgwwvhetusk4k7s66jyv0",
@@ -787,6 +786,11 @@ export function assertEVMChain(
 export const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
 export const WSOL_DECIMALS = 9;
 export const MAX_VAA_DECIMALS = 8;
+
+export const APTOS_DEPLOYER_ADDRESS =
+  "0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b";
+export const APTOS_DEPLOYER_ADDRESS_DEVNET =
+  "277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
 export const APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS =
   "0000000000000000000000000000000000000000000000000000000000000001";
 

@@ -218,7 +218,7 @@ module token_bridge::complete_transfer_test {
         deployer = @deployer,
         token_bridge = @token_bridge,
     )]
-    #[expected_failure(abort_code = 65542)] // EINSUFFICIENT_BALANCE
+    #[expected_failure(abort_code = 65542, location = 0000000000000000000000000000000000000000000000000000000000000001::coin)] // EINSUFFICIENT_BALANCE
     public fun test_native_too_much_fee(
         deployer: &signer,
         token_bridge: &signer
@@ -249,7 +249,7 @@ module token_bridge::complete_transfer_test {
         deployer = @deployer,
         token_bridge = @token_bridge,
     )]
-    #[expected_failure(abort_code = 1)] // E_ORIGIN_ADDRESS_MISMATCH
+    #[expected_failure(abort_code = 1, location = token_bridge::state)] // E_ORIGIN_ADDRESS_MISMATCH
     public fun test_native_wrong_coin(
         deployer: &signer,
         token_bridge: &signer
@@ -281,7 +281,7 @@ module token_bridge::complete_transfer_test {
         deployer = @deployer,
         token_bridge = @token_bridge,
     )]
-    #[expected_failure(abort_code = 0)] // E_ORIGIN_CHAIN_MISMATCH
+    #[expected_failure(abort_code = 0, location = token_bridge::state)] // E_ORIGIN_CHAIN_MISMATCH
     public fun test_native_wrong_origin_address(
         deployer: &signer,
         token_bridge: &signer

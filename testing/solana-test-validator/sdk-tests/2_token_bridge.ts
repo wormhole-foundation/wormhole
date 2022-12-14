@@ -731,6 +731,7 @@ describe("Token Bridge", () => {
         nonce,
         timestamp
       );
+      expect(message[51]).to.equal(3);
 
       const signedVaa = guardians.addSignatures(
         message,
@@ -751,7 +752,7 @@ describe("Token Bridge", () => {
         "GnQ6fGttTRnJpAJuy2XEg5TLgEMtbyU4HDJnBWmojsTv"
       );
       expect(accounts.vaa.toString()).to.equal(
-        "4qSDmrTmsUziHvKjjcCpLpfZNaRuxpKcuE95T6875jb1"
+        "9jdun7HMoJp7KL1jRYF7MT9pjRLVM3RPDbDgf6qXNBR4"
       );
       expect(accounts.tokenBridgeClaim.toString()).to.equal(
         "HzjTihvhEx7BbKnB2KHATNBwGFCEm2nnMG6c4Pwx6pPE"
@@ -803,6 +804,7 @@ describe("Token Bridge", () => {
         nonce,
         timestamp
       );
+      expect(message[51]).to.equal(3);
 
       const signedVaa = guardians.addSignatures(
         message,
@@ -823,7 +825,7 @@ describe("Token Bridge", () => {
         "GnQ6fGttTRnJpAJuy2XEg5TLgEMtbyU4HDJnBWmojsTv"
       );
       expect(accounts.vaa.toString()).to.equal(
-        "A51Qrypowzrj4LgSRadTJ8p6ZnXH52oxFG6Su5u2zLPB"
+        "3czQYHVjwCNBAaQAAoMcmtLwXkF16UG1E1wU4RM9tje7"
       );
       expect(accounts.tokenBridgeClaim.toString()).to.equal(
         "7Ae57QxvZMwCrknoDWpeaMTLbMP3LBeCJee6KaLEwxP6"

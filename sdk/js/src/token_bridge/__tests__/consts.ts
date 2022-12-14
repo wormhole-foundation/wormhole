@@ -46,8 +46,11 @@ export const TERRA_GAS_PRICES_URL = ci
 export const TERRA2_GAS_PRICES_URL = ci
   ? "http://terra2-fcd:3060/v1/txs/gas_prices"
   : "http://localhost:3061/v1/txs/gas_prices";
+// NOTE: test1 is used by getIsTransferCompletedTerra, so avoid using it in the integration tests
+// Accounts from https://github.com/terra-money/LocalTerra/blob/main/README.md#accounts
+export const TERRA_PUBLIC_KEY = "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9"; // test7
 export const TERRA_PRIVATE_KEY =
-  "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"; // test1
+  "noble width taxi input there patrol clown public spell aunt wish punch moment will misery eight excess arena pen turtle minimum grain vague inmate"; // test7
 export const TERRA_PRIVATE_KEY2 =
   "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty"; // test2
 export const TERRA2_PRIVATE_KEY =

@@ -43,7 +43,7 @@ export class NftBridgeInstructionCoder implements InstructionCoder {
 
 /** Solitaire enum of existing the NFT Bridge's instructions.
  *
- * https://github.com/certusone/wormhole/blob/dev.v2/solana/modules/nft_bridge/program/src/lib.rs#L74
+ * https://github.com/certusone/wormhole/blob/main/solana/modules/nft_bridge/program/src/lib.rs#L74
  */
 export enum NftBridgeInstruction {
   Initialize,

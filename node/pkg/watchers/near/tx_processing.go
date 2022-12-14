@@ -96,7 +96,7 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	// SECURITY CRITICAL: Check that block has been finalized.
 	outcomeBlockHeader, isFinalized := e.finalizer.isFinalized(logger, ctx, outcomeBlockHash.String())
 	if !isFinalized {
-		// If it has not, we return an error such that this transaction can be put back into the queque.
+		// If it has not, we return an error such that this transaction can be put back into the queue.
 		return errors.New("block not finalized yet")
 	}
 
@@ -245,9 +245,6 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, ctx context.Context, jo
 
 	// tell everyone about it
 	job.hasWormholeMsg = true
-	if pubEvent.BlockHeight > job.wormholeMsgBlockHeight {
-		job.wormholeMsgBlockHeight = pubEvent.BlockHeight
-	}
 
 	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED
 

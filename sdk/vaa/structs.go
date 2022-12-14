@@ -123,6 +123,17 @@ func (a Address) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
 
+// Standard marshal stores the Address like this: "[0,0,0,0,0,0,0,0,0,0,0,0,2,144,251,22,114,8,175,69,91,177,55,120,1,99,183,183,169,161,12,22]"
+// The above MarshalJSON stores it like this (66 bytes): ""0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16""
+func (a *Address) UnmarshalJSON(data []byte) error {
+	addr, err := StringToAddress(strings.Trim(string(data), `"`))
+	if err != nil {
+		return err
+	}
+	*a = addr
+	return nil
+}
+
 func (a Address) String() string {
 	return hex.EncodeToString(a[:])
 }
@@ -632,6 +643,9 @@ func (v *BatchVAA) ObsvHashArray() []common.Hash {
 }
 
 func VerifySignatures(data []byte, signatures []*Signature, addresses []common.Address) bool {
+	if len(addresses) < len(signatures) {
+		return false
+	}
 
 	last_index := -1
 	signing_addresses := []common.Address{}
@@ -674,20 +688,12 @@ func VerifySignatures(data []byte, signatures []*Signature, addresses []common.A
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
-	if len(addresses) < len(v.Signatures) {
-		return false
-	}
-
 	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
 }
 
 // VerifySignatures verifies the signature of the BatchVAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
 func (v *BatchVAA) VerifySignatures(addresses []common.Address) bool {
-	if len(addresses) < len(v.Signatures) {
-		return false
-	}
-
 	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
 }
 

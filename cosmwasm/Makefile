@@ -63,7 +63,7 @@ unit-test:
 
 .PHONY: test
 ## Run unit and integration tests
-test: artifacts test/node_modules LocalTerra unit-test
+test: artifacts test/node_modules LocalTerra
 	@if pgrep terrad; then echo "Error: terrad already running. Stop it before running tests"; exit 1; fi
 	cd LocalTerra && docker-compose up --detach
 	sleep 5

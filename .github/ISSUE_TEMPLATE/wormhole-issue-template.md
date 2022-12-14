@@ -6,7 +6,7 @@ labels: ""
 assignees: ""
 ---
 
-Github issues are **ONLY** for reporting bugs. Before contributing new features (such as a new chain) please first read the [contribution frequently asked questions](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/CONTRIBUTING.md#contributions-faq).
+Github issues are **ONLY** for reporting bugs. Before contributing new features (such as a new chain) please first read the [contribution frequently asked questions](https://github.com/wormhole-foundation/wormhole/blob/main/CONTRIBUTING.md#contributions-faq).
 
 For user support questions such as VAA not found, please use the [Wormhole Official Discord](https://discord.gg/wormholecrypto). Do not give your wallet private key or mnemonic words to anyone.
 

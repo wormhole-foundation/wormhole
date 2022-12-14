@@ -24,7 +24,7 @@ Bridge security is incredibly high stakes — beyond core trust assumptions and 
 
 Each individual Guardian within the Guardian network should employ a set of strategies to verify the validity of a VAA. The Governor is designed to check VAAs that transfer tokens by enforcing limits on the notional value that can be transferred from a given chain over a specific period of time.
 
-The current implementation works on two classes of transaction (large and small) and current configuration can be found [here](https://github.com/wormhole-foundation/wormhole/blob/dev.v2/node/pkg/governor/mainnet_chains.go):
+The current implementation works on two classes of transaction (large and small) and current configuration can be found [here](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/mainnet_chains.go):
 
 - **Large Transactions**
   - A transaction is large if it is greater than or equal to the `bigTransactionSize` for a given origin chain.

@@ -269,7 +269,7 @@ module token_bridge::transfer_tokens_test {
     }
 
     #[test(aptos_framework = @aptos_framework, token_bridge=@token_bridge, deployer=@deployer)]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location = token_bridge::transfer_tokens)]
     fun test_transfer_wrapped_token_too_much_relayer_fee(
         aptos_framework: &signer,
         token_bridge: &signer,

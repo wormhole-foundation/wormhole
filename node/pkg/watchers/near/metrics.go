@@ -4,10 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -32,28 +29,22 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 	wormholeMsgCounter := 0
 	var wormholeMsgTotalTime time.Duration = 0
 
-	currentNearHeight := promauto.With(reg).NewGauge(
-		prometheus.GaugeOpts{
-			Name: "wormhole_near_current_height",
-			Help: "Height of the highest block that has been processed. (Transactions from prior blocks may still be waiting).",
-		})
-
 	wormholeTxAvgDuration := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_near_tx_avg_duration",
 			Help: "Average duration it takes for a wormhole message to be processed in milliseconds",
 		})
 
-	txQuequeLen := promauto.With(reg).NewGauge(
+	txqueueLen := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
-			Name: "wormhole_near_tx_queque",
-			Help: "Current Near transaction processing queque length",
+			Name: "wormhole_near_tx_queue",
+			Help: "Current Near transaction processing queue length",
 		})
 
-	chunkQuequeLen := promauto.With(reg).NewGauge(
+	chunkqueueLen := promauto.With(reg).NewGauge(
 		prometheus.GaugeOpts{
-			Name: "wormhole_near_chunk_queque",
-			Help: "Current Near chunk processing queque length",
+			Name: "wormhole_near_chunk_queue",
+			Help: "Current Near chunk processing queue length",
 		})
 
 	nearMessagesConfirmed := promauto.With(reg).NewCounter(
@@ -74,8 +65,6 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 			Help: "NEAR RPC Error Counter",
 		})
 
-	var highestBlockHeightProcessed uint64 = 0
-
 	metricsIntervalTimer := time.NewTicker(metricsInterval) // this is just one ms for the first iteration.
 
 	for {
@@ -84,25 +73,12 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 			return ctx.Err()
 		case <-metricsIntervalTimer.C:
 			// compute and publish periodic metrics
-			l1 := e.transactionProcessingQueue.Len()
+			l1 := e.transactionProcessingQueueCounter.Load()
 			l2 := len(e.chunkProcessingQueue)
-			txQuequeLen.Set(float64(l1))
-			chunkQuequeLen.Set(float64(l2))
-			logger.Info("metrics", zap.Int("txQuequeLen", l1), zap.Int("chunkQuequeLen", l2))
+			txqueueLen.Set(float64(l1))
+			chunkqueueLen.Set(float64(l2))
+			logger.Info("metrics", zap.Int64("txqueueLen", l1), zap.Int("chunkqueueLen", l2))
 
-		case height := <-e.eventChanBlockProcessedHeight:
-			if highestBlockHeightProcessed < height {
-				highestBlockHeightProcessed = height
-
-				currentNearHeight.Set(float64(height))
-				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
-					Height:          int64(height),
-					ContractAddress: e.wormholeAccount,
-				})
-				readiness.SetReady(common.ReadinessNearSyncing)
-
-				logger.Info("newHeight", zap.String("log_msg_type", "height"), zap.Uint64("height", height))
-			}
 		case event := <-e.eventChan:
 			switch event {
 			case EVENT_FINALIZED_CACHE_MISS:

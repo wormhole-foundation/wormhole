@@ -30,7 +30,7 @@ const MAX_LEN_GUARDIAN_KEYS = 19;
  *
  * There are at most three pairs of instructions created.
  *
- * https://github.com/certusone/wormhole/blob/dev.v2/solana/bridge/program/src/api/verify_signature.rs
+ * https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/api/verify_signature.rs
  *
  *
  * @param {Connection} connection - Solana web3 connection
@@ -107,7 +107,7 @@ export async function createVerifySignaturesInstructions(
  * `signatureSet` is a {@link web3.Keypair} generated outside of this method, used
  * for writing signatures and the message hash to.
  *
- * https://github.com/certusone/wormhole/blob/dev.v2/solana/bridge/program/src/api/verify_signature.rs
+ * https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/api/verify_signature.rs
  *
  * @param {PublicKeyInitData} wormholeProgramId - wormhole program address
  * @param {PublicKeyInitData} payer - transaction signer address

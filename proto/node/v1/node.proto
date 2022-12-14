@@ -80,6 +80,11 @@ message GovernanceMessage {
 
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
+
+    // Wormchain
+
+    WormchainStoreCode wormchain_store_code = 14;
+    WormchainInstantiateContract wormchain_instantiate_contract = 15;
   }
 }
 
@@ -140,6 +145,22 @@ message BridgeUpgradeContract {
 
   // Hex-encoded address (without leading 0x) of the new program/contract.
   string new_contract = 3;
+}
+
+message WormchainStoreCode {
+  // payload is the hex string of the sha3 256 hash of the wasm binary being uploaded
+  string wasm_hash = 1;
+}
+
+message WormchainInstantiateContract {
+  // CodeID is the reference to the stored WASM code
+  uint64 code_id = 1;
+
+  // Label is optional metadata to be stored with a contract instance.
+  string label = 2;
+
+  // Json encoded message to be passed to the contract on instantiation
+  string instantiation_msg = 3;
 }
 
 message FindMissingMessagesRequest {

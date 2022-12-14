@@ -3,6 +3,7 @@ package near
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -11,7 +12,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
-	"github.com/certusone/wormhole/node/pkg/watchers/near/timerqueue"
 	"github.com/mr-tron/base58"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -21,7 +21,7 @@ var (
 
 	// how long to initially wait between observing a transaction and attempting to process the transaction.
 	// To successfully process the transaction, all receipts need to be finalized, which typically only occurs two blocks later or so.
-	// transaction processing will be retried with exponential backoff, i.e. transaction may stay in the queque for ca. initialTxProcDelay^(txProcRetry+2) time.
+	// transaction processing will be retried with exponential backoff, i.e. transaction may stay in the queue for ca. initialTxProcDelay^(txProcRetry+2) time.
 	initialTxProcDelay = time.Second * 3
 
 	blockPollInterval = time.Millisecond * 200
@@ -33,9 +33,9 @@ var (
 	// such that they can all be fetched in parallel.
 	// We're currently seeing ~10 chunks/block, so setting this to 20 conservatively.
 	workerChunkFetching int = 20
-	quequeSize          int = 10_000 // size of the queques for chunk processing as well as transaction processing
+	queueSize           int = 10_000 // size of the queues for chunk processing as well as transaction processing
 
-	// if watcher falls behind this many blocks, start over. This should be set proportional to `quequeSize`
+	// if watcher falls behind this many blocks, start over. This should be set proportional to `queueSize`
 	// such that all transactions from `maxFallBehindBlocks` can easily fit into the queue
 	maxFallBehindBlocks uint = 200
 
@@ -58,8 +58,7 @@ type (
 		delay           time.Duration
 
 		// set during processing
-		hasWormholeMsg         bool   // set during processing; whether this transaction emitted a Wormhole message
-		wormholeMsgBlockHeight uint64 // highest block height of a wormhole message in this transaction
+		hasWormholeMsg bool // set during processing; whether this transaction emitted a Wormhole message
 	}
 
 	Watcher struct {
@@ -71,14 +70,14 @@ type (
 		msgC     chan<- *common.MessagePublication   // validated (SECURITY: and only validated!) observations go into this channel
 		obsvReqC <-chan *gossipv1.ObservationRequest // observation requests are coming from this channel
 
-		// internal queques
-		transactionProcessingQueue timerqueue.Timerqueue
-		chunkProcessingQueue       chan nearapi.ChunkHeader
+		// internal queues
+		transactionProcessingQueueCounter atomic.Int64
+		transactionProcessingQueue        chan *transactionProcessingJob
+		chunkProcessingQueue              chan nearapi.ChunkHeader
 
 		// events channels
-		eventChanBlockProcessedHeight chan uint64 // whenever a block is processed, post the height here
-		eventChanTxProcessedDuration  chan time.Duration
-		eventChan                     chan eventType // whenever a messages is confirmed, post true in here
+		eventChanTxProcessedDuration chan time.Duration
+		eventChan                    chan eventType // whenever a messages is confirmed, post true in here
 
 		// sub-components
 		finalizer Finalizer
@@ -95,28 +94,26 @@ func NewWatcher(
 	mainnet bool,
 ) *Watcher {
 	return &Watcher{
-		mainnet:                       mainnet,
-		wormholeAccount:               wormholeContract,
-		nearRPC:                       nearRPC,
-		msgC:                          msgC,
-		obsvReqC:                      obsvReqC,
-		transactionProcessingQueue:    *timerqueue.New(),
-		chunkProcessingQueue:          make(chan nearapi.ChunkHeader, quequeSize),
-		eventChanBlockProcessedHeight: make(chan uint64, 10),
-		eventChanTxProcessedDuration:  make(chan time.Duration, 10),
-		eventChan:                     make(chan eventType, 10),
+		mainnet:                      mainnet,
+		wormholeAccount:              wormholeContract,
+		nearRPC:                      nearRPC,
+		msgC:                         msgC,
+		obsvReqC:                     obsvReqC,
+		transactionProcessingQueue:   make(chan *transactionProcessingJob),
+		chunkProcessingQueue:         make(chan nearapi.ChunkHeader, queueSize),
+		eventChanTxProcessedDuration: make(chan time.Duration, 10),
+		eventChan:                    make(chan eventType, 10),
 	}
 }
 
-func newTransactionProcessingJob(txHash string, senderAccountId string) transactionProcessingJob {
-	return transactionProcessingJob{
+func newTransactionProcessingJob(txHash string, senderAccountId string) *transactionProcessingJob {
+	return &transactionProcessingJob{
 		txHash,
 		senderAccountId,
 		time.Now(),
 		0,
 		initialTxProcDelay,
 		false,
-		0,
 	}
 }
 
@@ -146,6 +143,13 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 			if err != nil {
 				logger.Warn("NEAR poll error", zap.String("log_msg_type", "block_poll_error"), zap.String("error", err.Error()))
 			}
+
+			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
+				Height:          int64(highestFinalBlockHeightObserved),
+				ContractAddress: e.wormholeAccount,
+			})
+			readiness.SetReady(common.ReadinessNearSyncing)
+
 			timer.Reset(blockPollInterval)
 		}
 	}
@@ -166,17 +170,8 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				continue
 			}
-			for i := 0; i < len(newJobs); i++ {
-				if e.transactionProcessingQueue.Len() > quequeSize {
-					logger.Warn(
-						"NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.",
-						zap.String("log_msg_type", "tx_proc_queue_full"),
-						zap.String("chunk_id", chunkHeader.Hash),
-					)
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-					break
-				}
-				e.transactionProcessingQueue.Schedule(newJobs[i], time.Now().Add(newJobs[i].delay))
+			for _, job := range newJobs {
+				e.schedule(ctx, job, job.delay)
 			}
 		}
 	}
@@ -205,7 +200,7 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 			// Guardians currently run nodes for all shards and the API seems to be returning the correct results independent of the set senderAccountId but this could change in the future.
 			// Fixing this would require adding the transaction sender account ID to the observation request.
 			job := newTransactionProcessingJob(txHash, e.wormholeAccount)
-			e.transactionProcessingQueue.Schedule(job, time.Now().Add(-time.Nanosecond))
+			e.schedule(ctx, job, time.Nanosecond)
 		}
 	}
 }
@@ -213,66 +208,48 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 func (e *Watcher) runTxProcessor(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
-
-	timer := time.NewTimer(time.Millisecond)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 
-		case <-timer.C:
-			for {
-				j, _, err := e.transactionProcessingQueue.PopFirstIfReady()
-				if err != nil {
-					timer.Reset(time.Millisecond)
-					break
+		case job := <-e.transactionProcessingQueue:
+			err := e.processTx(logger, ctx, job)
+			if err != nil {
+				// transaction processing unsuccessful. Retry if retry_counter not exceeded.
+				if job.retryCounter < txProcRetry {
+					// Log and retry with exponential backoff
+					logger.Info(
+						"near.processTx",
+						zap.String("log_msg_type", "tx_processing_retry"),
+						zap.String("tx_hash", job.txHash),
+						zap.String("error", err.Error()),
+					)
+					job.retryCounter++
+					job.delay *= 2
+					e.schedule(ctx, job, job.delay)
+				} else {
+					// Warn and do not retry
+					logger.Warn(
+						"near.processTx",
+						zap.String("log_msg_type", "tx_processing_retries_exceeded"),
+						zap.String("tx_hash", job.txHash),
+						zap.String("error", err.Error()),
+					)
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				}
-
-				job := j.(transactionProcessingJob)
-
-				err = e.processTx(logger, ctx, &job)
-				if err != nil {
-					// transaction processing unsuccessful. Retry if retry_counter not exceeded.
-
-					if job.retryCounter < txProcRetry {
-						// Log and retry with exponential backoff
-						logger.Info(
-							"near.processTx",
-							zap.String("log_msg_type", "tx_processing_retry"),
-							zap.String("tx_hash", job.txHash),
-							zap.String("error", err.Error()),
-						)
-						job.retryCounter++
-						job.delay *= 2
-						e.transactionProcessingQueue.Schedule(job, time.Now().Add(job.delay))
-					} else {
-						// Warn and do not retry
-						logger.Warn(
-							"near.processTx",
-							zap.String("log_msg_type", "tx_processing_retries_exceeded"),
-							zap.String("tx_hash", job.txHash),
-							zap.String("error", err.Error()),
-						)
-						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-					}
-				}
-
-				if job.hasWormholeMsg {
-					// report how long it took to process this transaction
-					e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
-				}
-
-				// tell everyone about successful processing
-				e.eventChanBlockProcessedHeight <- job.wormholeMsgBlockHeight
 			}
 
+			if job.hasWormholeMsg {
+				// report how long it took to process this transaction
+				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
+			}
 		}
+
 	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-
 	logger := supervisor.Logger(ctx)
 
 	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC))
@@ -314,9 +291,32 @@ func (e *Watcher) Run(ctx context.Context) error {
 		}
 	}
 
-	readiness.SetReady(common.ReadinessNearSyncing)
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+// schedule pushes a job to workers after delay. It is context aware and will not execute the job if the context
+// is cancelled before delay has passed and the job is picked up by a worker.
+func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, delay time.Duration) {
+	go func() {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+
+		e.transactionProcessingQueueCounter.Add(1)
+		defer e.transactionProcessingQueueCounter.Add(-1)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			// Don't block on processing if the context is cancelled
+			select {
+			case <-ctx.Done():
+				return
+			case e.transactionProcessingQueue <- job:
+			}
+		}
+	}()
 }
