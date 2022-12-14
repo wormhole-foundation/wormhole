@@ -31,15 +31,21 @@ func newAccountingForTest(
 ) *Accounting {
 	logger := zap.NewNop()
 	var db db.MockAccountingDB
+	gst := common.NewGuardianSetState(nil)
+	gs := &common.GuardianSet{}
+	gst.Set(gs)
 
 	acct := NewAccounting(
+		ctx,
 		logger,
 		&db,
-		"0xdeadbeef",
-		"none",
-		"none",
+		"0xdeadbeef", // accountingContract
+		"none",       // wormchainWS
+		"none",       // wormchainLCD
+		nil,          // wormchainConn
 		accountingCheckEnabled,
-		// TODO: Add the key.
+		nil, // gk
+		gst,
 		acctWriteC,
 		GoTestMode,
 	)

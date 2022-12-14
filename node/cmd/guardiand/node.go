@@ -47,6 +47,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	cosmoscrypto "github.com/cosmos/cosmos-sdk/crypto/types"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -141,12 +142,14 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	wormchainWS  *string
-	wormchainLCD *string
+	wormchainWS      *string
+	wormchainLCD     *string
+	wormchainRPC     *string
+	wormchainAddress *string
+	wormchainKeyPath *string
 
 	accountingContract     *string
 	accountingCheckEnabled *bool
-	accountingKeyPath      *string
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -286,10 +289,12 @@ func init() {
 
 	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormchaind root for websocket connection")
 	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
+	wormchainRPC = NodeCmd.Flags().String("wormchainRPC", "", "wormhole-chain RPC URL")
+	wormchainAddress = NodeCmd.Flags().String("wormchainAddress", "", "wormhole-chain Address for signing transactions")
+	wormchainKeyPath = NodeCmd.Flags().String("wormchainKey", "", "path to wormhole-chain private key for signing transactions")
 
 	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
 	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
-	accountingKeyPath = NodeCmd.Flags().String("accountingKeyPath", "", "Path to accounting key file")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -780,10 +785,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
 		}
-
-		if *accountingKeyPath == "" {
-			accountingKeyPath = guardianKeyPath
-		}
 	}
 
 	// Database
@@ -958,14 +959,37 @@ func runNode(cmd *cobra.Command, args []string) {
 	var acct *accounting.Accounting
 	if *accountingContract != "" {
 		if *wormchainWS == "" {
-			logger.Fatal("acct: if accountingContract is specified, wormchainWS is required")
+			logger.Fatal("if accountingContract is specified, wormchainWS is required")
 		}
 		if *wormchainLCD == "" {
-			logger.Fatal("acct: if accountingContract is specified, wormchainLCD is required")
+			logger.Fatal("if accountingContract is specified, wormchainLCD is required")
 		}
-		if wormchainConn == nil {
-			logger.Fatal("acct: if accountingContract is specified, the wormchain sending connection must be enabled")
+		if *wormchainRPC == "" {
+			logger.Fatal("if accountingContract is specified, wormchainRPC is required")
 		}
+		if *wormchainAddress == "" {
+			logger.Fatal("if accountingContract is specified, wormchainAddress is required")
+		}
+		if *wormchainKeyPath == "" {
+			logger.Fatal("if accountingContract is specified, wormchainKeyPath is required")
+		}
+
+		// Wormhole-chain private key.
+		var wormchainKey cosmoscrypto.PrivKey
+		if *unsafeDevMode {
+			wormchainKey, err = devnet.LoadWormchainPrivKey(*wormchainKeyPath)
+			if err != nil {
+				logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
+			}
+		} else {
+			logger.Fatal("non-devnet wormchain key not yet supported")
+		}
+
+		wormchainConn, err := wormconn.NewConn(rootCtx, *wormchainRPC, *wormchainAddress, wormchainKey)
+		if err != nil {
+			logger.Fatal("acct: failed to connect to wormchain", zap.Error(err))
+		}
+
 		if *accountingCheckEnabled {
 			logger.Info("acct: accounting is enabled and will be enforced")
 		} else {
@@ -978,12 +1002,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			env = accounting.DevNetMode
 		}
 		acct = accounting.NewAccounting(
+			rootCtx,
 			logger,
 			db,
 			*accountingContract,
 			*wormchainWS,
 			*wormchainLCD,
-			accountingKey,
+			wormchainConn,
 			*accountingCheckEnabled,
 			gk,
 			gst,
