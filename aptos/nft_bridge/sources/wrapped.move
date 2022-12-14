@@ -101,6 +101,8 @@ module nft_bridge::wrapped {
 module nft_bridge::wrapped_test {
     use std::account::{Self};
     use std::signer;
+    use std::string::{Self, String};
+    use std::vector;
 
     use aptos_token::token::{Self};
 
@@ -155,5 +157,37 @@ module nft_bridge::wrapped_test {
         // assert that collection was indeed created
         let my_signer = nft_state::get_wrapped_asset_signer(origin_info);
         assert!(token::check_collection_exists(signer::address_of(&my_signer), string32::to_string(&token_name)), 0);
+
+        // set token metadata
+        let token_mut_config = token::create_token_mutability_config(
+            &vector[true, true, true, true, true]
+        );
+
+        let token_data_id = token::create_tokendata(
+            &my_signer,
+            string32::to_string(&token_name), // token name
+            string::utf8(x"01"),
+            string::utf8(b"a description"),
+            100,
+            string::utf8(b"a uri"),
+            signer::address_of(&my_signer),
+            4,
+            1,
+            token_mut_config,
+            vector::empty<String>(),
+            vector::empty<vector<u8>>(),
+            vector::empty<String>(),
+        );
+
+        // test mint token using signer
+        token::initialize_token_store(&my_signer);
+        token::opt_in_direct_transfer(&my_signer, true);
+
+        token::mint_token_to(
+            &my_signer,
+            signer::address_of(&my_signer),
+            token_data_id,
+            99 // mint 99 NFTs
+        );
     }
 }
