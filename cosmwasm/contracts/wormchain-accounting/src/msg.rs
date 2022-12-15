@@ -93,9 +93,8 @@ pub enum ExecuteMsg {
         signatures: Vec<Signature>,
     },
 
-    /// Submit one or more signed token transfer VAAs to update the on-chain state.  If committing
-    /// any of the transfers returns an error, the entire transaction is aborted and none of the
-    /// transfers are committed.
+    /// Submit one or more signed VAAs to update the on-chain state.  If processing any of the VAAs
+    /// returns an error, the entire transaction is aborted and none of the VAAs are committed.
     SubmitVAAs {
         /// One or more VAAs to be submitted.  Each VAA should be encoded in the standard wormhole
         /// wire format.
@@ -139,6 +138,8 @@ pub enum QueryMsg {
     },
     #[returns(cosmwasm_std::Empty)]
     ValidateTransfer { transfer: Transfer },
+    #[returns(ChainRegistrationResponse)]
+    ChainRegistration { chain: u16 },
 }
 
 #[cw_serde]
@@ -159,4 +160,9 @@ pub struct AllPendingTransfersResponse {
 #[cw_serde]
 pub struct AllModificationsResponse {
     pub modifications: Vec<Modification>,
+}
+
+#[cw_serde]
+pub struct ChainRegistrationResponse {
+    pub address: Binary,
 }

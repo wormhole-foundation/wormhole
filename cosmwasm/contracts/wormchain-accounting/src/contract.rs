@@ -15,10 +15,10 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use tinyvec::{Array, TinyVec};
-use tokenbridge::msg::ChainRegistrationResponse;
 use wormhole::{
-    token::Message,
+    token::{Action, GovernancePacket, Message},
     vaa::{Body, Header, Signature},
+    Chain,
 };
 use wormhole_bindings::WormholeQuery;
 
@@ -27,10 +27,13 @@ use crate::{
     error::{AnyError, ContractError},
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ExecuteMsg, Instantiate, InstantiateMsg, MigrateMsg, Observation,
-        QueryMsg, Upgrade,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, Instantiate, InstantiateMsg,
+        MigrateMsg, Observation, QueryMsg, Upgrade,
     },
-    state::{self, Data, PendingTransfer, PENDING_TRANSFERS, TOKENBRIDGE_ADDR},
+    state::{
+        self, Data, PendingTransfer, CHAIN_REGISTRATIONS, GOVERNANCE_VAAS, PENDING_TRANSFERS,
+        TOKENBRIDGE_ADDR,
+    },
 };
 
 // version info for migration info
@@ -221,21 +224,10 @@ fn handle_observation(
 
     let emitter_chain = o.key.emitter_chain();
 
-    let tokenbridge_addr = TOKENBRIDGE_ADDR
-        .load(deps.storage)
-        .context("failed to load tokenbridge addr")?;
-
-    let ChainRegistrationResponse {
-        address: registered_emitter,
-    } = deps
-        .querier
-        .query_wasm_smart(
-            tokenbridge_addr,
-            &tokenbridge::msg::QueryMsg::ChainRegistration {
-                chain: emitter_chain,
-            },
-        )
-        .context("failed to query chain registration")?;
+    let registered_emitter = CHAIN_REGISTRATIONS
+        .may_load(deps.storage, emitter_chain)
+        .context("failed to load chain registration")?
+        .ok_or_else(|| ContractError::MissingChainRegistration(emitter_chain.into()))?;
     ensure!(
         *registered_emitter == **o.key.emitter_address(),
         "unknown emitter address"
@@ -343,7 +335,7 @@ fn submit_vaas(
         .add_events(evts))
 }
 
-fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event> {
+fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event> {
     let (header, data) = serde_wormhole::from_slice_with_payload::<Header>(&vaa)
         .context("failed to parse VAA header")?;
 
@@ -359,10 +351,67 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
             .into(),
         )
         .context(ContractError::VerifyQuorum)?;
-
-    let (body, _) = serde_wormhole::from_slice_with_payload::<Body<Message>>(data)
+    let (body, payload) = serde_wormhole::from_slice_with_payload::<Body<()>>(data)
         .context("failed to parse VAA body")?;
 
+    if body.emitter_chain == Chain::Solana && body.emitter_address == wormhole::GOVERNANCE_EMITTER {
+        let govpacket =
+            serde_wormhole::from_slice(payload).context("failed to parse governance packet")?;
+        handle_governance_vaa(deps, body.with_payload(govpacket))
+    } else {
+        let (msg, _) = serde_wormhole::from_slice_with_payload(payload)
+            .context("failed to parse tokenbridge message")?;
+        handle_tokenbridge_vaa(deps, body.with_payload(msg))
+    }
+}
+
+fn handle_governance_vaa(
+    deps: DepsMut<WormholeQuery>,
+    body: Body<GovernancePacket>,
+) -> anyhow::Result<Event> {
+    ensure!(
+        body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
+        "this governance VAA is for another chain"
+    );
+
+    let digest = body
+        .digest()
+        .context("failed to calculate digest for governance VAA body")?;
+
+    let key = GOVERNANCE_VAAS.key(digest.secp256k_hash.to_vec());
+    if key.has(deps.storage) {
+        bail!(ContractError::DuplicateGovernanceVaa);
+    }
+
+    let evt = match body.payload.action {
+        Action::RegisterChain {
+            chain,
+            emitter_address,
+        } => {
+            CHAIN_REGISTRATIONS
+                .save(
+                    deps.storage,
+                    chain.into(),
+                    &emitter_address.0.to_vec().into(),
+                )
+                .context("failed to save chain registration")?;
+            Event::new("RegisterChain")
+                .add_attribute("chain", chain.to_string())
+                .add_attribute("emitter_address", emitter_address.to_string())
+        }
+        _ => bail!("unsupported governance action"),
+    };
+
+    key.save(deps.storage, &())
+        .context("failed to save governance VAA digest")?;
+
+    Ok(evt)
+}
+
+fn handle_tokenbridge_vaa(
+    mut deps: DepsMut<WormholeQuery>,
+    body: Body<Message>,
+) -> anyhow::Result<Event> {
     let data = match body.payload {
         Message::Transfer {
             amount,
@@ -434,6 +483,9 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
                 })
             })
             .and_then(|()| to_binary(&Empty {})),
+        QueryMsg::ChainRegistration { chain } => {
+            query_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
+        }
     }
 }
 
@@ -541,4 +593,13 @@ fn query_all_modifications(
             .collect::<StdResult<Vec<_>>>()
             .map(|modifications| AllModificationsResponse { modifications })
     }
+}
+
+fn query_chain_registration(
+    deps: Deps<WormholeQuery>,
+    chain: u16,
+) -> StdResult<ChainRegistrationResponse> {
+    CHAIN_REGISTRATIONS
+        .load(deps.storage, chain)
+        .map(|address| ChainRegistrationResponse { address })
 }

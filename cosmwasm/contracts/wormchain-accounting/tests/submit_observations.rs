@@ -8,7 +8,11 @@ use cosmwasm_std::{to_binary, Binary, Event, Uint256};
 use cw_multi_test::AppResponse;
 use helpers::*;
 use wormchain_accounting::msg::Observation;
-use wormhole::{token::Message, Address, Amount};
+use wormhole::{
+    token::{Action, GovernancePacket, Message},
+    vaa::Body,
+    Address, Amount, Chain,
+};
 use wormhole_bindings::fake;
 
 fn set_up(count: usize) -> (Vec<Message>, Vec<Observation>) {
@@ -37,12 +41,36 @@ fn set_up(count: usize) -> (Vec<Message>, Vec<Observation>) {
     (txs, observations)
 }
 
+fn register_emitters(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {
+    for i in 0..count {
+        let body = Body {
+            timestamp: i as u32,
+            nonce: i as u32,
+            emitter_chain: Chain::Solana,
+            emitter_address: wormhole::GOVERNANCE_EMITTER,
+            sequence: i as u64,
+            consistency_level: 0,
+            payload: GovernancePacket {
+                chain: Chain::Any,
+                action: Action::RegisterChain {
+                    chain: (i as u16).into(),
+                    emitter_address: Address([i as u8; 32]),
+                },
+            },
+        };
+
+        let (_, data) = sign_vaa_body(wh, body);
+        contract.submit_vaas(vec![data]).unwrap();
+    }
+}
+
 #[test]
 fn batch() {
     const COUNT: usize = 5;
 
     let (txs, observations) = set_up(COUNT);
     let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, COUNT);
 
     let index = wh.guardian_set_index();
 
@@ -132,6 +160,7 @@ fn duplicates() {
 
     let (txs, observations) = set_up(COUNT);
     let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, COUNT);
     let index = wh.guardian_set_index();
 
     let obs = to_binary(&observations).unwrap();
@@ -234,6 +263,7 @@ fn transfer_tokens(
 #[test]
 fn round_trip() {
     let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -489,6 +519,7 @@ fn repeated() {
     const ITERATIONS: usize = 10;
 
     let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, 3);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -553,6 +584,7 @@ fn wrapped_to_wrapped() {
         Vec::new(),
         Vec::new(),
     );
+    register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -631,6 +663,7 @@ fn unknown_emitter() {
 #[test]
 fn different_observations() {
     let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, 3);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -711,6 +744,8 @@ fn different_observations() {
 #[test]
 fn emit_event_with_quorum() {
     let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, 3);
+
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
