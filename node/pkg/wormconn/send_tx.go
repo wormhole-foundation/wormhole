@@ -1,4 +1,4 @@
-package wormchain
+package wormconn
 
 import (
 	"context"

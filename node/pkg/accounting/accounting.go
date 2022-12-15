@@ -13,7 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/wormchain"
+	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -72,7 +72,7 @@ type Accounting struct {
 	contract         string
 	wsUrl            string
 	lcdUrl           string
-	wormchainConn    *wormchain.ClientConn
+	wormchainConn    *wormconn.ClientConn
 	enforceFlag      bool
 	gk               *ecdsa.PrivateKey
 	gst              *common.GuardianSetState
@@ -91,7 +91,7 @@ func NewAccounting(
 	contract string, // the address of the smart contract on wormchain
 	wsUrl string, // the URL of the wormchain websocket interface
 	lcdUrl string, // the URL of the wormchain LCD interface
-	wormchainConn *wormchain.ClientConn, // used for communicating with the smart contract
+	wormchainConn *wormconn.ClientConn, // used for communicating with the smart contract
 	enforceFlag bool, // whether or not accounting should be enforced
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
