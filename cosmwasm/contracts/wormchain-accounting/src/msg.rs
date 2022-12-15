@@ -7,7 +7,6 @@ use crate::state::{self, PendingTransfer};
 
 #[cw_serde]
 pub struct Instantiate {
-    pub tokenbridge_addr: String,
     pub accounts: Vec<Account>,
     pub transfers: Vec<Transfer>,
     pub modifications: Vec<Modification>,

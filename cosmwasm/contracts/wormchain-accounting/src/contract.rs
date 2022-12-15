@@ -30,10 +30,7 @@ use crate::{
         AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, Instantiate, InstantiateMsg,
         MigrateMsg, Observation, QueryMsg, Upgrade,
     },
-    state::{
-        self, Data, PendingTransfer, CHAIN_REGISTRATIONS, GOVERNANCE_VAAS, PENDING_TRANSFERS,
-        TOKENBRIDGE_ADDR,
-    },
+    state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, GOVERNANCE_VAAS, PENDING_TRANSFERS},
 };
 
 // version info for migration info
@@ -64,15 +61,6 @@ pub fn instantiate(
 
     let init: Instantiate =
         from_binary(&msg.instantiate).context("failed to parse `Instantiate` message")?;
-
-    let tokenbridge_addr = deps
-        .api
-        .addr_validate(&init.tokenbridge_addr)
-        .context("failed to validate tokenbridge address")?;
-
-    TOKENBRIDGE_ADDR
-        .save(deps.storage, &tokenbridge_addr)
-        .context("failed to save tokenbridge address")?;
 
     let event =
         accounting::instantiate(deps, init.into()).context("failed to instantiate accounting")?;
