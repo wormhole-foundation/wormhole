@@ -125,8 +125,8 @@ module nft_bridge::transfer_nft {
         // tldr; first deposit token into nft bridge by convention, then if it is wrapped,
         // then load the creator signer from nft bridge state and burn it using `burn_by_creator`.
         // Disallow `burn` (by owner) to avoid edge cases
-        let origin_info = state::get_origin_info(&token_id);
         token::deposit_token(&nft_bridge, token);
+        let origin_info = state::get_origin_info(&token_id);
         if (state::is_wrapped_asset(&token_id)) {
             // burn the wrapped token to remove it from circulation
             let creator_signer = state::get_wrapped_asset_signer(origin_info);
@@ -157,11 +157,13 @@ module nft_bridge::transfer_nft {
 #[test_only]
 module nft_bridge::transfer_nft_test {
     use std::signer;
-    use std::string::{Self};
+    use std::string::{Self, String};
     use std::coin::{Self};
+    use std::bcs::{Self};
     use std::aptos_coin::{AptosCoin};
+    use std::account::{Self};
 
-    use aptos_token::token::{Self};
+    use aptos_token::token::{Self, TokenId};
 
     use wormhole::external_address::{Self};
     use wormhole::u16::{Self};
@@ -174,7 +176,7 @@ module nft_bridge::transfer_nft_test {
 
     // test transfer wrapped NFT to another chain
     #[test(deployer=@deployer)]
-    fun test_transfer_wrapped_nft(deployer: &signer) {
+    public fun test_transfer_wrapped_nft(deployer: &signer): TokenId {
         // mint 99 NFTs to deployer
         wrapped_test::test_create_wrapped_nft_collection(deployer);
 
@@ -207,11 +209,92 @@ module nft_bridge::transfer_nft_test {
         transfer_nft::transfer_nft(
             my_token,
             coin::zero<AptosCoin>(),
-            u16::from_u64(2), // to chain
-            external_address::from_bytes(x"0101010101010101"),
+            u16::from_u64(13), // to chain
+            external_address::from_bytes(x"277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"),
             0
         );
-
         // TODO - what shall we assert here?
+        my_token_id
+    }
+
+    // test transfer native NFT to another chain
+    // this function is called in complete_transfer::complete_transfer_test
+    #[test(deployer=@deployer, recipient=@0x123456)]
+    public fun test_transfer_native_nft(deployer: &signer, recipient: &signer): TokenId {
+        wrapped_test::init_worm_and_nft_state(deployer);
+        account::create_account_for_test(signer::address_of(recipient));
+
+        // create new aptos-native nft collection unseen by the nft bridge
+        let mutate_setting = vector[
+                true, // TOKEN_MAX_MUTABLE
+                true, // TOKEN_URI_MUTABLE
+                true, // TOKEN_ROYALTY_MUTABLE_IND
+                true, // TOKEN_DESCRIPTION_MUTABLE_IND
+                true  // TOKEN_PROPERTY_MUTABLE_IND
+        ];
+        let token_mut_config = token::create_token_mutability_config(
+            &mutate_setting
+        );
+        let collection_name = string::utf8(b"beef vault");
+        token::create_collection(
+            deployer,
+            collection_name, // collection name
+            string::utf8(b"beeeeef"), //description
+            string::utf8(b"beef.com"), //uri
+            10,
+            mutate_setting
+        );
+        let token_name = string::utf8(b"beef token 1");
+        let token_uri = string::utf8(b"beef.com/token_1");
+
+        let token_data_id = token::create_tokendata(
+            deployer,
+            collection_name, // token collection name
+            token_name, // token name
+            string::utf8(b"beeff"), // description
+            1, //supply cap 1
+            token_uri,
+            signer::address_of(deployer),
+            0, // royalty_points_denominator
+            0, // royalty_points_numerator
+            token_mut_config, // see above
+            vector<String>[string::utf8(b"TOKEN_BURNABLE_BY_CREATOR")],
+            vector<vector<u8>>[bcs::to_bytes<bool>(&true)],
+            vector<String>[string::utf8(b"bool")],
+        );
+
+        // have recipient register for a token store and enable direct deposit
+        token::initialize_token_store(recipient);
+        token::opt_in_direct_transfer(recipient, true);
+
+        token::mint_token_to(
+            deployer,
+            signer::address_of(recipient),
+            token_data_id,
+            1
+        );
+
+        // withdraw a token from account
+        let my_token_data_id = token::create_token_data_id(
+            signer::address_of(deployer),
+            collection_name,
+            token_name,
+        );
+        let my_token_id = token::create_token_id(my_token_data_id, 0);
+        let my_token = token::withdraw_token(
+            recipient,
+            my_token_id,
+            1,
+        );
+
+        // transfer
+        transfer_nft::transfer_nft(
+            my_token, // the aptos-native NFT
+            coin::zero<AptosCoin>(),
+            u16::from_u64(22), // Aptos chain ID
+            external_address::from_bytes(x"277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"),
+            0
+        );
+        my_token_id
     }
 }

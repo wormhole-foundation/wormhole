@@ -39,7 +39,7 @@ module nft_bridge::wrapped {
             let (new_signer, new_cap) = account::create_resource_account(&nft_bridge_signer, seed);
             state::set_wrapped_asset_signer_capability(origin_info, new_cap);
             init_wrapped_nft(&new_signer, transfer);
-        }
+        };
     }
 
     fun init_wrapped_nft(
@@ -118,12 +118,10 @@ module nft_bridge::wrapped_test {
     use nft_bridge::wrapped::{Self};
     use nft_bridge::state::{Self as nft_state};
 
-    // test that wrapped NFT collection can be created from transfer object
     #[test(deployer=@deployer)]
-    public fun test_create_wrapped_nft_collection(deployer: &signer) {
+    public fun init_worm_and_nft_state(deployer: &signer){
         // init wormhole state
         wormhole_test::setup(0);
-
         // init nft state
         let (_nft_bridge, signer_cap) = account::create_resource_account(deployer, b"nft_bridge");
         let emitter_cap = wormhole::register_emitter();
@@ -131,6 +129,12 @@ module nft_bridge::wrapped_test {
             signer_cap,
             emitter_cap
         );
+    }
+
+    // test that wrapped NFT collection can be created from transfer object
+    #[test(deployer=@deployer)]
+    public fun test_create_wrapped_nft_collection(deployer: &signer) {
+        init_worm_and_nft_state(deployer);
         let token_address = external_address::from_bytes(x"0000");
         let token_chain = u16::from_u64(14);
         let token_id = external_address::from_bytes(x"0001");

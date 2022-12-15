@@ -24,6 +24,11 @@ module nft_bridge::token_hash {
         hash: vector<u8>,
     }
 
+    #[test_only]
+    public fun get_token_hash_bytes(x: &TokenHash): vector<u8>{
+        return x.hash
+    }
+
     public fun get_collection_external_address(a: &CollectionHash): ExternalAddress {
         external_address::from_bytes(a.hash)
     }

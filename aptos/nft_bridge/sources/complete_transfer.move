@@ -55,8 +55,7 @@ module nft_bridge::complete_transfer {
 
         let recipient = from_bcs::to_address(external_address::get_bytes(&transfer::get_to(transfer)));
 
-        let is_wrapped_asset: bool = token_chain == wormhole_state::get_chain_id();
-
+        let is_wrapped_asset: bool = token_chain != wormhole_state::get_chain_id();
         if (is_wrapped_asset) {
             wrapped::create_wrapped_nft_collection(transfer);
             let collection = string32::to_string(&transfer::get_name(transfer));
@@ -67,7 +66,8 @@ module nft_bridge::complete_transfer {
             let creator = state::get_wrapped_asset_signer(origin_info);
             // set token data, including property keys (set token burnability to true)
             //token:address_of
-            let nft_bridge = state::nft_bridge_signer();
+            //let nft_bridge = state::nft_bridge_signer();
+            let creator_signer = state::get_wrapped_asset_signer(origin_info);
 
             let token_mut_config = token::create_token_mutability_config(
                 &vector[
@@ -79,7 +79,7 @@ module nft_bridge::complete_transfer {
                 ]
             );
             let token_data_id = token::create_tokendata(
-                &nft_bridge,
+                &creator_signer,
                 collection, // token collection name
                 name, // token name
                 string::utf8(b""), //empty description
@@ -96,11 +96,6 @@ module nft_bridge::complete_transfer {
             token::mint_token_to(
                 &creator,
                 recipient,
-                // token::create_token_data_id(
-                //     signer::address_of(&creator),
-                //     collection,
-                //     name
-                // ),
                 token_data_id,
                 1
             );
@@ -142,13 +137,94 @@ module nft_bridge::complete_transfer {
 
 #[test_only]
 module nft_bridge::complete_transfer_test {
-    // TODO(csongor): test
+    use aptos_token::token::{Self};
 
-    use std::string;
-    use nft_bridge::complete_transfer;
+    use std::string::{Self};
+
+    use wormhole::external_address::{Self};
+    use wormhole::u16::{Self};
+
+    use token_bridge::string32::{Self};
+
+    use nft_bridge::transfer::{Self};
+    use nft_bridge::uri::{Self};
+    use nft_bridge::wrapped_test::{init_worm_and_nft_state};
+    use nft_bridge::complete_transfer::{Self};
+    use nft_bridge::transfer_nft_test::{test_transfer_native_nft};
+    use nft_bridge::token_hash::{Self};
 
     #[test]
     fun render_hex_test() {
         assert!(complete_transfer::render_hex(x"beefcafe") == string::utf8(b"beefcafe"), 0);
     }
+
+    // test that complete_transfer for wrapped token works
+    #[test(deployer=@deployer)]
+    public fun test_complete_transfer_wrapped_asset(deployer: &signer) {
+        init_worm_and_nft_state(deployer);
+        let token_address = external_address::from_bytes(x"0000");
+        let token_chain = u16::from_u64(14);
+        let token_id = external_address::from_bytes(x"0001");
+        let token_symbol = string32::from_bytes(x"aa");
+        let token_name =  string32::from_bytes(x"aa");
+        let t = transfer::create(
+            token_address, // token address
+            token_chain, // token chain
+            token_symbol, // symbol
+            token_name, // name
+            token_id, // token id
+            uri::from_bytes(x"0000aa"),
+            external_address::from_bytes(x"277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"), // to
+            u16::from_u64(22) // to chain
+        );
+        // have recipient (in our case deployer) register for a token store and enable direct deposit
+        token::initialize_token_store(deployer);
+        token::opt_in_direct_transfer(deployer, true);
+
+        // complete transfer using transfer object above
+        complete_transfer::test(&t);
+    }
+
+    // create native aptos nft, use wormhole to transfer it to a native address (the nft gets
+    // locked in nft_bridge), and finally call complete_transfer to complete the loop and transfer
+    // nft to intended recipient
+    #[test(deployer=@deployer, recipient=@0x123456)]
+    public fun test_complete_transfer_native_token_full_loop(deployer: &signer, recipient: &signer) {
+        // Transfer Aptos-native NFT to a recipient on Aptos
+        // In effect, this gives the nft to nft_bridge, where it is locked up until complete_transfer is called
+        let token_id = test_transfer_native_nft(deployer, recipient); // id of token that was transferred
+
+        // do some hacking and get what the token id should be
+        let (_collection_hash, token_hash) = token_hash::derive(&token_id);
+        let token_hash_bytes = token_hash::get_token_hash_bytes(&token_hash);
+
+        // token info to be passed into complete_transfer
+        // in a production setting, this would be parsed from a valid transfer nft VAA
+        let token_address = external_address::from_bytes(x"0000"); // arbitrarily set for now
+        let token_chain = u16::from_u64(22);
+        let token_id = external_address::from_bytes(token_hash_bytes); // arbitrarily set for now
+        let token_symbol = string32::from_bytes(x"bb");
+        let token_name = string32::from_bytes(b"beef token 1");
+        let token_uri = b"beef.com/token_1";
+
+        let t = transfer::create(
+            token_address, // token address
+            token_chain, // token chain
+            token_symbol, // symbol
+            token_name, // name
+            token_id, // token id
+            uri::from_bytes(token_uri), // uri
+            external_address::from_bytes(x"277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b"), // to
+            u16::from_u64(22) // to chain
+        );
+
+        // have recipient (in our case deployer) register for a token store and enable direct deposit
+        token::initialize_token_store(deployer);
+        token::opt_in_direct_transfer(deployer, true);
+
+        // complete transfer using transfer object above
+        complete_transfer::test(&t);
+    }
+
+    // TODO - failure test cases
 }
