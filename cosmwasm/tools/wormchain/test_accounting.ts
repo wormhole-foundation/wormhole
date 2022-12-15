@@ -5,17 +5,13 @@ import "dotenv/config";
 
 // generated types
 import {
-  Account,
   ExecuteMsg,
-  InstantiateMsg,
-  Modification,
-  Signature,
-  Transfer,
   Observation,
+  Signature,
 } from "./client/WormchainAccounting.types";
 
 import { keccak256 } from "@cosmjs/crypto";
-import { Bech32, fromBase64 } from "@cosmjs/encoding";
+import { fromBase64 } from "@cosmjs/encoding";
 import * as elliptic from "elliptic";
 import { zeroPad } from "ethers/lib/utils.js";
 
@@ -56,6 +52,8 @@ async function main() {
   // From the logs of deploy_accounting.ts
   const accountingAddress =
     "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh";
+
+  // Test empty observation
 
   const observations: Observation[] = [];
 
@@ -124,11 +122,98 @@ async function main() {
     // throw err
   }
 
-  function zeroPadBytes(value: string, length: number) {
-    while (value.length < 2 * length) {
-      value = "0" + value;
+  // Test 1 (fake) observation
+  {
+    const observations: Observation[] = [
+      {
+        key: {
+          emitter_chain: 2,
+          emitter_address: Buffer.from(
+            "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
+            "hex"
+          ).toString("base64"),
+          sequence: 0,
+        },
+        nonce: 0,
+        payload: Buffer.from(
+          "010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000",
+          "hex"
+        ).toString("base64"),
+        tx_hash:
+          "82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b",
+      },
+    ];
+
+    // object to json string, then to base64 (serde binary)
+    const observationsBinaryString = toBinary(observations);
+
+    // base64 string to Uint8Array,
+    // so we have bytes to work with for signing, though not sure 100% that's correct.
+    const observationsBytes = fromBase64(observationsBinaryString);
+
+    // create the "digest" for signing.
+    // The contract will calculate the digest of the "data",
+    // then use that with the signature to ec recover the publickey that signed.
+    const digest = keccak256(keccak256(observationsBytes));
+
+    const ec = new elliptic.ec("secp256k1");
+
+    // create key from the devnet guardian0's private key
+    const key = ec.keyFromPrivate(Buffer.from(TEST_SIGNER_PK, "hex"));
+
+    // check the key
+    const { result, reason } = key.validate();
+    console.log("key validate result, reason, ", result, reason);
+
+    // sign the digest
+    const signature = key.sign(digest, { canonical: true });
+
+    // create 65 byte signature (64 + 1)
+    const signedParts = [
+      zeroPad(signature.r.toBuffer(), 32),
+      zeroPad(signature.s.toBuffer(), 32),
+      encodeUint8(signature.recoveryParam || 0),
+    ];
+
+    // combine parts to be Uint8Array with length 65
+    const signed = concatArrays(signedParts);
+    console.log("signed.len ", signed.length);
+    console.log("signed");
+    console.log(signed);
+
+    // try sending the instantiate message in a few different formats:
+
+    // the message type is accepted, but the signature verificaton fails. error:
+    // failed to execute message; message index: 0: failed to verify quorum:
+    // Generic error: Querier contract error: codespace: wormhole, code: 1102: instantiate wasm contract failed
+
+    // send the instantiate object as described by the generated TS client types
+    const executeMsg: ExecuteMsg = {
+      submit_observations: {
+        observations: observationsBinaryString,
+        guardian_set_index: 0,
+        signature: {
+          index: 0,
+          signature: Array.from(signed) as Signature["signature"],
+        },
+      },
+    };
+    console.log(executeMsg);
+    try {
+      let inst = await cwc.execute(
+        signer,
+        accountingAddress,
+        executeMsg,
+        "auto"
+      );
+      let txHash = inst.transactionHash;
+      console.log(`executed contract txHash: ${txHash}`);
+    } catch (err: any) {
+      if (err?.message) {
+        console.error(err.message);
+      }
+      // throw err
     }
-    return value;
   }
 
   function concatArrays(arrays: Uint8Array[]): Uint8Array {
