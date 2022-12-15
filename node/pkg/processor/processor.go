@@ -208,17 +208,17 @@ func (p *Processor) Run(ctx context.Context) error {
 				zap.Uint32("index", p.gs.Index))
 			p.gst.Set(p.gs)
 		case k := <-p.lockC:
-			if p.acct != nil {
-				shouldPub, err := p.acct.SubmitObservation(k)
-				if err != nil {
-					return fmt.Errorf("accounting failed to process message `%s`: %w", k.MessageIDString(), err)
-				}
-				if !shouldPub {
+			if p.governor != nil {
+				if !p.governor.ProcessMsg(k) {
 					continue
 				}
 			}
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
+			if p.acct != nil {
+				shouldPub, err := p.acct.SubmitObservation(k)
+				if err != nil {
+					return fmt.Errorf("acct: failed to process message `%s`: %w", k.MessageIDString(), err)
+				}
+				if !shouldPub {
 					continue
 				}
 			}
@@ -226,16 +226,16 @@ func (p *Processor) Run(ctx context.Context) error {
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
-				return fmt.Errorf("received an accounting event when accounting is not configured")
+				return fmt.Errorf("acct: received an accounting event when accounting is not configured")
 			}
 			if !p.acct.FinalizeObservation(k) {
 				continue
 			}
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
-					continue
-				}
-			}
+			// TODO:
+			// if p.governor != nil {
+			//  ApplyTransfer() would check to see if the transfer is still in the governor cache, and if not reapply it. It is not allowed to block it.
+			// 	p.governor.ApplyTransfer(k)
+			// }
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)
@@ -253,10 +253,22 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 				if len(toBePublished) != 0 {
 					for _, k := range toBePublished {
+						if p.acct != nil {
+							shouldPub, err := p.acct.SubmitObservation(k)
+							if err != nil {
+								return fmt.Errorf("acct: failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
+							}
+							if !shouldPub {
+								continue
+							}
+						}
 						p.handleMessage(ctx, k)
 					}
 				}
 				govTimer = time.NewTimer(time.Minute)
+			}
+			if p.acct != nil {
+				p.acct.AuditPendingTransfers()
 			}
 		}
 	}
