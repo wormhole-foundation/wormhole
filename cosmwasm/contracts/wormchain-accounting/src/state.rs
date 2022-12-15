@@ -1,6 +1,6 @@
 use accounting::state::transfer;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Binary};
 use cw_storage_plus::{Item, Map};
 use thiserror::Error;
 use tinyvec::TinyVec;
@@ -10,6 +10,8 @@ use crate::msg::Observation;
 
 pub const TOKENBRIDGE_ADDR: Item<Addr> = Item::new("tokenbride_addr");
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
+pub const CHAIN_REGISTRATIONS: Map<u16, Binary> = Map::new("chain_registrations");
+pub const GOVERNANCE_VAAS: Map<Vec<u8>, ()> = Map::new("governance_vaas");
 
 #[cw_serde]
 pub struct PendingTransfer {
