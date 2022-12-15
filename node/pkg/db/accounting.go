@@ -31,8 +31,6 @@ func (d *MockAccountingDB) AcctGetData(logger *zap.Logger) ([]*common.MessagePub
 	return nil, nil
 }
 
-// Need to persist the gsIndex.
-
 const acctPendingTransfer = "ACCT:PXFER:"
 const acctPendingTransferLen = len(acctPendingTransfer)
 
