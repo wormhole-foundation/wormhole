@@ -218,6 +218,21 @@ impl Header {
     }
 }
 
+impl<P> Body<P> {
+    /// Replace the payload of the body.  Useful when parsing the payload needs to be delayed.
+    pub fn with_payload<U>(self, p: U) -> Body<U> {
+        Body {
+            timestamp: self.timestamp,
+            nonce: self.nonce,
+            emitter_chain: self.emitter_chain,
+            emitter_address: self.emitter_address,
+            sequence: self.sequence,
+            consistency_level: self.consistency_level,
+            payload: p,
+        }
+    }
+}
+
 impl<P: Serialize> Body<P> {
     /// Body Digest Components.
     ///
