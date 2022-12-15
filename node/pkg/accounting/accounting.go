@@ -171,6 +171,13 @@ func (acct *Accounting) Close() {
 	}
 }
 
+func (acct *Accounting) FeatureString() string {
+	if !acct.enforceFlag {
+		return "acct:logonly"
+	}
+	return "acct:enforced"
+}
+
 // SubmitObservation will submit token bridge transfers to the accounting smart contract. This is called from the processor
 // loop when a local observation is received from a watcher. It returns true if the observation can be published immediately,
 // false if not (because it has been submitted to accounting).
