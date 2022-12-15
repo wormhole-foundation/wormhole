@@ -78,5 +78,9 @@ test-forge: dependencies
 	./compare-method-identifiers.sh contracts/nft/NFTBridgeImplementation.sol:NFTBridgeImplementation contracts/nft/interfaces/INFTBridge.sol:INFTBridge
 	forge test
 
+.PHONY:
+test-forge-gas: dependencies
+	forge snapshot --match-contract MessagesGasBenchmark
+
 clean:
 	rm -rf ganache.log .env node_modules build flattened
