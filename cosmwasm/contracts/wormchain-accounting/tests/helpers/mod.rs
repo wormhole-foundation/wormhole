@@ -23,8 +23,6 @@ use wormhole::{
 };
 use wormhole_bindings::{fake, WormholeQuery};
 
-mod fake_tokenbridge;
-
 pub struct Contract {
     addr: Addr,
     app: FakeApp,
@@ -260,32 +258,13 @@ pub fn proper_instantiate(
     let wh = fake::WormholeKeeper::new();
     let mut app = fake_app(wh.clone());
 
-    let tokenbridge_id = app.store_code(Box::new(ContractWrapper::new_with_empty(
-        fake_tokenbridge::execute,
-        fake_tokenbridge::instantiate,
-        fake_tokenbridge::query,
-    )));
-
     let accounting_id = app.store_code(Box::new(ContractWrapper::new(
         wormchain_accounting::contract::execute,
         wormchain_accounting::contract::instantiate,
         wormchain_accounting::contract::query,
     )));
 
-    let tokenbridge_addr = app
-        .instantiate_contract(
-            tokenbridge_id,
-            Addr::unchecked(ADMIN),
-            &Empty {},
-            &[],
-            "tokenbridge",
-            None,
-        )
-        .unwrap()
-        .into();
-
     let instantiate = to_binary(&Instantiate {
-        tokenbridge_addr,
         accounts,
         transfers,
         modifications,
@@ -323,7 +302,7 @@ pub fn proper_instantiate(
             &msg,
             &[],
             "accounting",
-            Some("contract1".into()),
+            Some("contract0".into()),
         )
         .unwrap();
 
