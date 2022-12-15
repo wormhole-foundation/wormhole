@@ -15,6 +15,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use tinyvec::{Array, TinyVec};
+use tokenbridge::msg::ChainRegistrationResponse;
 use wormhole::{
     token::Message,
     vaa::{Body, Header, Signature},
@@ -224,7 +225,9 @@ fn handle_observation(
         .load(deps.storage)
         .context("failed to load tokenbridge addr")?;
 
-    let registered_emitter: Vec<u8> = deps
+    let ChainRegistrationResponse {
+        address: registered_emitter,
+    } = deps
         .querier
         .query_wasm_smart(
             tokenbridge_addr,
