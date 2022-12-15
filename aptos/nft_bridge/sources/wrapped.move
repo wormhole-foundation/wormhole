@@ -174,7 +174,7 @@ module nft_bridge::wrapped_test {
             4,
             1,
             token_mut_config,
-            vector<String>[string::utf8(b"TOKEN_BURNABLE_BY_OWNER")],
+            vector<String>[string::utf8(b"TOKEN_BURNABLE_BY_CREATOR")],
             vector<vector<u8>>[bcs::to_bytes<bool>(&true)],
             vector<String>[string::utf8(b"bool")],
         );

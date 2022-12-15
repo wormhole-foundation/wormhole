@@ -110,33 +110,31 @@ module nft_bridge::transfer_nft {
         let (creator, collection, name, property_version)
             = token::get_token_id_fields(&token_id);
 
-        // First we deposit the token into the nft bridge signer account.
-        // We do this irrespective of whether the token is a wrapped NFT or an
-        // aptos-native NFT, even though in the former case we're going to burn the token anyway.
+        // By convention, we deposit the token into the nft bridge signer account.address,
+        // regardless of whether it is a wrapped or native token. (In the wrapped case, it
+        // will be burned later by the creator resource account, which is stored in the NFT
+        // bridge state and which can be looked up using `get_wrapped_asset_signer`).
         //
-        // The reason is that the aptos standard library doesn't expose
-        // functionality to directly burn an NFT, the only two methods are
-        // `burn` which allows the owner to burn a token, and `burn_by_creator`
-        // which allows the creator to burn a token, given that it knows its
-        // owner.
+        // The standard library does not expose methods to directly burn an NFT. The only
+        // two methods are `burn` which allows the owner to burn a token, and `burn_by_creator`
+        // which allows the creator to burn a token. Whether a token can be burned at all, burned
+        // by owner, or burned by creator is set in the property keys field when calling
+        // token::create_tokendata. We only allow `burn_by_creator` to avoid an edge case whereby
+        // a user burns a wrapped token and can no longer bridge it back to the origin chain.
         //
-        // For wrapped assets, the nft bridge is the creator, but at this point
-        // in the control flow we don't know who the owner is, so we just burn directly.
-        //
-        // tldr; we burn wrapped tokens by first depositing them into the nft
-        // bridge, due to poor design decisions in the aptos token standard
+        // tldr; first deposit token into nft bridge by convention, then if it is wrapped,
+        // then load the creator signer from nft bridge state and burn it using `burn_by_creator`.
+        // Disallow `burn` (by owner) to avoid edge cases
+        let origin_info = state::get_origin_info(&token_id);
         token::deposit_token(&nft_bridge, token);
-
         if (state::is_wrapped_asset(&token_id)) {
-            // now we burn the wrapped token to remove it from circulation
-            token::burn(&nft_bridge, creator, collection, name, property_version, 1);
+            // burn the wrapped token to remove it from circulation
+            let creator_signer = state::get_wrapped_asset_signer(origin_info);
+            token::burn_by_creator(&creator_signer, creator, collection, name, property_version, 1);
         } else {
             // if we're seeing this native token for the first time, store its token id
             state::set_native_asset_info(token_id);
         };
-
-        let origin_info = state::get_origin_info(&token_id);
-
         let token_chain = state::get_origin_info_token_chain(&origin_info);
         let token_address = state::get_origin_info_token_address(&origin_info);
         let token_id = state::get_origin_info_token_id(&origin_info);
