@@ -4,12 +4,14 @@ use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
 use thiserror::Error;
 use tinyvec::TinyVec;
-use wormhole::vaa::Signature;
+use wormhole::{vaa::Signature, Address};
 
 use crate::msg::Observation;
 
 pub const TOKENBRIDGE_ADDR: Item<Addr> = Item::new("tokenbride_addr");
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
+pub const CHAIN_REGISTRATIONS: Map<u16, Address> = Map::new("chain_registrations");
+pub const GOVERNANCE_VAAS: Map<Vec<u8>, ()> = Map::new("governance_vaas");
 
 #[cw_serde]
 pub struct PendingTransfer {

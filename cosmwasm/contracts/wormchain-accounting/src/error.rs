@@ -3,11 +3,16 @@ use std::ops::{Deref, DerefMut};
 use anyhow::anyhow;
 use cosmwasm_std::StdError;
 use thiserror::Error;
+use wormhole::Chain;
 
 #[derive(Error, Debug)]
 pub enum ContractError {
     #[error("failed to verify quorum")]
     VerifyQuorum,
+    #[error("no registered emitter for chain {0}")]
+    MissingChainRegistration(Chain),
+    #[error("governance VAA already executed")]
+    DuplicateGovernanceVaa,
 }
 
 // This is a workaround for the fact that `cw_multi_test::ContractWrapper` doesn't support contract

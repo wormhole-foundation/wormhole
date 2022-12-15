@@ -8,14 +8,19 @@ use cosmwasm_std::{
 use cw_multi_test::{
     App, AppBuilder, AppResponse, BankKeeper, ContractWrapper, Executor, WasmKeeper,
 };
+use serde::Serialize;
 use wormchain_accounting::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ExecuteMsg, Instantiate, InstantiateMsg, QueryMsg,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, Instantiate, InstantiateMsg,
+        QueryMsg,
     },
     state,
 };
-use wormhole::vaa::Signature;
+use wormhole::{
+    vaa::{Body, Header, Signature},
+    Vaa,
+};
 use wormhole_bindings::{fake, WormholeQuery};
 
 mod fake_tokenbridge;
@@ -165,6 +170,12 @@ impl Contract {
             self.addr(),
             &QueryMsg::AllModifications { start_after, limit },
         )
+    }
+
+    pub fn query_chain_registration(&self, chain: u16) -> StdResult<ChainRegistrationResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.addr(), &QueryMsg::ChainRegistration { chain })
     }
 }
 
@@ -317,4 +328,20 @@ pub fn proper_instantiate(
         .unwrap();
 
     (wh, Contract { addr, app })
+}
+
+pub fn sign_vaa_body<P: Serialize>(wh: &fake::WormholeKeeper, body: Body<P>) -> (Vaa<P>, Binary) {
+    let data = serde_wormhole::to_vec(&body).unwrap();
+    let signatures = wh.sign(&data);
+
+    let header = Header {
+        version: 1,
+        guardian_set_index: wh.guardian_set_index(),
+        signatures,
+    };
+
+    let v = (header, body).into();
+    let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
+
+    (v, data)
 }

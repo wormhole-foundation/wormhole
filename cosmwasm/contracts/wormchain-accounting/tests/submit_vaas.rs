@@ -42,22 +42,6 @@ fn create_vaa_body(i: usize) -> Body<Message> {
     }
 }
 
-fn sign_vaa_body(wh: &WormholeKeeper, body: Body<Message>) -> (Vaa<Message>, Binary) {
-    let data = serde_wormhole::to_vec(&body).unwrap();
-    let signatures = wh.sign(&data);
-
-    let header = Header {
-        version: 1,
-        guardian_set_index: wh.guardian_set_index(),
-        signatures,
-    };
-
-    let v = (header, body).into();
-    let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
-
-    (v, data)
-}
-
 fn transfer_data_from_token_message(msg: Message) -> transfer::Data {
     match msg {
         Message::Transfer {
