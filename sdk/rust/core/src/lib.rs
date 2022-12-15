@@ -11,6 +11,8 @@
 #![deny(warnings)]
 #![deny(unused_results)]
 
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 mod arraystring;
@@ -41,6 +43,16 @@ pub struct GuardianAddress(pub [u8; 20]);
     Serialize, Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash,
 )]
 pub struct Address(pub [u8; 32]);
+
+impl fmt::Display for Address {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for b in self.0 {
+            write!(f, "{b:02x}")?;
+        }
+
+        Ok(())
+    }
+}
 
 /// Wormhole specifies an amount as a uint256 encoded in big-endian order.
 #[derive(
