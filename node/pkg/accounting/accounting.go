@@ -453,5 +453,4 @@ func (acct *Accounting) loadPendingTransfers() error {
 - Pending map key should include the digest? Or not, still being debated.
 - Peg a metric on accounting failures.
 - Add accounting to the feature list in the heartbeat message.
-- Should persist the guardian set index for pending transfers.
 */
