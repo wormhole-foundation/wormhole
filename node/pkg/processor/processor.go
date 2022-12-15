@@ -211,17 +211,17 @@ func (p *Processor) Run(ctx context.Context) error {
 				zap.Uint32("index", p.gs.Index))
 			p.gst.Set(p.gs)
 		case k := <-p.lockC:
-			if p.acct != nil {
-				shouldPub, err := p.acct.SubmitObservation(k)
-				if err != nil {
-					return fmt.Errorf("accounting failed to process message `%s`: %w", k.MessageIDString(), err)
-				}
-				if !shouldPub {
+			if p.governor != nil {
+				if !p.governor.ProcessMsg(k) {
 					continue
 				}
 			}
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
+			if p.acct != nil {
+				shouldPub, err := p.acct.SubmitObservation(k)
+				if err != nil {
+					return fmt.Errorf("acct: failed to process message `%s`: %w", k.MessageIDString(), err)
+				}
+				if !shouldPub {
 					continue
 				}
 			}
@@ -229,7 +229,7 @@ func (p *Processor) Run(ctx context.Context) error {
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
-				return fmt.Errorf("received an accounting event when accounting is not configured")
+				return fmt.Errorf("acct: received an accounting event when accounting is not configured")
 			}
 			if !p.acct.FinalizeObservation(k) {
 				continue
@@ -289,6 +289,9 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 			if (p.governor != nil) || (p.acct != nil) {
 				govTimer = time.NewTimer(time.Minute)
+			}
+			if p.acct != nil {
+				p.acct.AuditPendingTransfers()
 			}
 		}
 	}
