@@ -23,7 +23,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
-	wormconn "github.com/certusone/wormhole/node/pkg/wormchain"
+	"github.com/certusone/wormhole/node/pkg/wormconn"
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -917,6 +917,34 @@ func runNode(cmd *cobra.Command, args []string) {
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
 	attestationEvents := reporter.EventListener(logger)
 
+	// If the wormchain sending info is configured, connect to it.
+	var wormchainKey cosmoscrypto.PrivKey
+	var wormchainConn *wormconn.ClientConn
+	if *wormchainRPC != "" {
+		if *wormchainAddress == "" {
+			logger.Fatal("if accountingContract is specified, wormchainAddress is required")
+		}
+		if *wormchainKeyPath == "" {
+			logger.Fatal("if accountingContract is specified, wormchainKeyPath is required")
+		}
+
+		// Load the wormchain key.
+		if *unsafeDevMode {
+			wormchainKey, err = devnet.LoadWormchainPrivKey(*wormchainKeyPath)
+			if err != nil {
+				logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
+			}
+		} else {
+			logger.Fatal("non-devnet wormchain key not yet supported")
+		}
+
+		// Connect to wormchain.
+		wormchainConn, err = wormconn.NewConn(rootCtx, *wormchainRPC, *wormchainAddress, wormchainKey)
+		if err != nil {
+			logger.Fatal("failed to connect to wormchain", zap.Error(err))
+		}
+	}
+
 	// Set up accounting. If the accounting smart contract is configured, we will instantiate accounting and VAAs
 	// will be passed to it for processing. It will forward all token bridge transfers to the accounting contract.
 	// If accountingCheckEnabled is set to true, token bridge transfers will not be signed and published until they
@@ -931,41 +959,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	var acct *accounting.Accounting
 	if *accountingContract != "" {
 		if *wormchainWS == "" {
-			logger.Fatal("if accountingContract is specified, wormchainWS is required")
+			logger.Fatal("acct: if accountingContract is specified, wormchainWS is required")
 		}
 		if *wormchainLCD == "" {
-			logger.Fatal("if accountingContract is specified, wormchainLCD is required")
+			logger.Fatal("acct: if accountingContract is specified, wormchainLCD is required")
 		}
-		if *wormchainRPC == "" {
-			logger.Fatal("if accountingContract is specified, wormchainRPC is required")
+		if wormchainConn == nil {
+			logger.Fatal("acct: if accountingContract is specified, the wormchain sending connection must be enabled")
 		}
-		if *wormchainAddress == "" {
-			logger.Fatal("if accountingContract is specified, wormchainAddress is required")
-		}
-		if *wormchainKeyPath == "" {
-			logger.Fatal("if accountingContract is specified, wormchainKeyPath is required")
-		}
-
-		// Wormhole-chain private key.
-		var wormchainKey cosmoscrypto.PrivKey
-		if *unsafeDevMode {
-			wormchainKey, err = devnet.LoadWormchainPrivKey(*wormchainKeyPath)
-			if err != nil {
-				logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
-			}
-		} else {
-			logger.Fatal("non-devnet wormchain key not yet supported")
-		}
-
-		wormchainConn, err := wormconn.NewConn(rootCtx, *wormchainRPC, *wormchainAddress, wormchainKey)
-		if err != nil {
-			logger.Fatal("acct: failed to connect to wormchain", zap.Error(err))
-		}
-
 		if *accountingCheckEnabled {
-			logger.Info("accounting is enabled and will be enforced")
+			logger.Info("acct: accounting is enabled and will be enforced")
 		} else {
-			logger.Info("accounting is enabled but will not be enforced")
+			logger.Info("acct: accounting is enabled but will not be enforced")
 		}
 		env := accounting.MainNetMode
 		if *testnetMode {
@@ -988,7 +993,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			env,
 		)
 	} else {
-		logger.Info("accounting is disabled")
+		logger.Info("acct: accounting is disabled")
 	}
 
 	var gov *governor.ChainGovernor
