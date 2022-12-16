@@ -327,4 +327,34 @@ mod test {
 
         assert_eq!(&buf[..123], &serde_wormhole::to_vec(&vaa).unwrap());
     }
+
+    #[test]
+    fn digest_from_raw_parts() {
+        let body = Body {
+            timestamp: 1_656_354_705,
+            nonce: 0,
+            emitter_chain: Chain::Ethereum,
+            emitter_address: Address([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x9a,
+                0x2a, 0x01, 0xb7, 0x05, 0x19, 0xf6, 0x7a, 0xdb, 0x30, 0x9a, 0x99, 0x4e, 0xc8, 0xc6,
+                0x9a, 0x96, 0x7e, 0x8b,
+            ]),
+            sequence: 0,
+            consistency_level: 1,
+            payload: "From: evm0\\nMsg: Hello World!",
+        };
+
+        let d1 = body.digest().unwrap();
+
+        let data = serde_wormhole::to_vec(&body).unwrap();
+        let d2 = digest(&data).unwrap();
+
+        assert_eq!(d1, d2);
+
+        let (partial, payload) =
+            serde_wormhole::from_slice_with_payload::<Body<()>>(&data).unwrap();
+        let d3 = partial.digest_with_payload(payload).unwrap();
+
+        assert_eq!(d1, d3);
+    }
 }
