@@ -38,7 +38,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger,
 	if err := builder.SetMsgs(msg); err != nil {
 		return fmt.Errorf("failed to add message to builder: %w", err)
 	}
-	builder.SetGasLimit(200000) // TODO: Maybe simulate and use the result
+	builder.SetGasLimit(2000000) // TODO: Maybe simulate and use the result
 
 	// The tx needs to be signed in 2 passes: first we populate the SignerInfo
 	// inside the TxBuilder and then sign the payload.
@@ -99,7 +99,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger,
 	if err != nil {
 		logger.Error("failed to marshal BroadcastTx response", zap.Any("response", txResp), zap.Error(err))
 	} else {
-		logger.Info("Broadcasted CommitTransfer message", zap.String("response", string(out)))
+		logger.Info("Sent broadcast", zap.String("response", string(out)))
 	}
 
 	return nil
