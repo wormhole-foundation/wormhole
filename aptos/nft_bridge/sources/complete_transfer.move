@@ -64,11 +64,8 @@ module nft_bridge::complete_transfer {
             // decimal, as most chains use decimal numbers for token ids.
             let name = render_hex(external_address::get_bytes(&token_id));
             let creator = state::get_wrapped_asset_signer(origin_info);
-            // set token data, including property keys (set token burnability to true)
-            //token:address_of
-            //let nft_bridge = state::nft_bridge_signer();
-            let creator_signer = state::get_wrapped_asset_signer(origin_info);
 
+            // set token data, including property keys (set token burnability to true)
             let token_mut_config = token::create_token_mutability_config(
                 &vector[
                     true, // TOKEN_MAX_MUTABLE
@@ -79,7 +76,7 @@ module nft_bridge::complete_transfer {
                 ]
             );
             let token_data_id = token::create_tokendata(
-                &creator_signer,
+                &creator,
                 collection, // token collection name
                 name, // token name
                 string::utf8(b""), //empty description
