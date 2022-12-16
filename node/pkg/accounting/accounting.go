@@ -278,6 +278,11 @@ type (
 		GuardianSetIndex uint32 `json:"guardian_set_index"`
 
 		// A signature for `observations`.
+		Signature SignatureType `json:"signature"`
+	}
+
+	SignatureType struct {
+		Index     uint32 `json:"index"`
 		Signature []byte `json:"signature"`
 	}
 
@@ -289,10 +294,10 @@ type (
 		Nonce uint32
 
 		// The hash of the transaction on the emitter chain in which the transfer was performed.
-		TxHash ethCommon.Hash
+		TxHash string
 
 		// The serialized tokenbridge payload.
-		Payload []byte
+		Payload string
 	}
 
 	TransferKey struct {
@@ -300,7 +305,7 @@ type (
 		EmitterChain uint16
 
 		// The address on the emitter chain that created this transfer.
-		EmitterAddress vaa.Address
+		EmitterAddress string
 
 		// The sequence number of the transfer.
 		Sequence uint64
@@ -310,15 +315,36 @@ type (
 // submitObservationToContract makes a call to the smart contract to submit an observation request.
 // It should be called from a go routine because it can block.
 func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
-	obs := []Observation{
-		Observation{
-			Key:     TransferKey{EmitterChain: uint16(msg.EmitterChain), EmitterAddress: msg.EmitterAddress, Sequence: msg.Sequence},
-			Nonce:   msg.Nonce,
-			TxHash:  msg.TxHash,
-			Payload: msg.Payload,
-		},
-	}
+	submitFailures.Inc() /*
+		obs := []Observation{
+			Observation{
+				Key:     TransferKey{EmitterChain: uint16(msg.EmitterChain), EmitterAddress: msg.EmitterAddress, Sequence: msg.Sequence},
+				Nonce:   msg.Nonce,
+				TxHash:  msg.TxHash,
+				Payload: msg.Payload,
+			},
+		}
 
+		if err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, acct.wormchainConn, acct.contract, obs); err != nil {
+			// Should allow TransferError::DuplicateTransfer - Just publish it (probably reobservation).
+			// Should handle DuplicateSignatureError - Don't publish it, just keep waiting.
+			acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
+			submitFailures.Inc()
+			return
+		}
+	*/
+}
+
+// SubmitObservationToContract is a free function to make a call to the smart contract to submit an observation request.
+func SubmitObservationToContract(
+	ctx context.Context,
+	logger *zap.Logger,
+	gk *ecdsa.PrivateKey,
+	gsIndex uint32,
+	wormchainConn *wormconn.ClientConn,
+	contract string,
+	obs []Observation,
+) error {
 	bytes, err := json.Marshal(obs)
 	if err != nil {
 		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
@@ -326,17 +352,20 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 	}
 
 	b64String := base64.StdEncoding.EncodeToString(bytes)
+	logger.Info("Test", zap.String("b64String", b64String))
+	//Me:  W3siS2V5Ijp7IkVtaXR0ZXJDaGFpbiI6MiwiRW1pdHRlckFkZHJlc3MiOiJBQUFBQUFBQUFBQUFBQUFBQXBEN0ZuSUlyMFZic1RkNEFXTzN0Nm1oREJZPSIsIlNlcXVlbmNlIjowfSwiTm9uY2UiOjAsIlR4SGFzaCI6IjgyZWEyNTM2YzVkMTY3MTgzMGNiNDkxMjBmOTQ0NzllMzRiNTQ1OTZhOGRkMzY5ZmJjMjY2NjY2N2E3NjVmNGIiLCJQYXlsb2FkIjoiQVFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQTNndHJPblpBQUFBQUFBQUFBQUFBQUFBQUFBTFl2bXZ3dXFkT0NwQndGbWVjcnBHUTZBM1FvQUFnQUFBQUFBQUFBQUFBQUFBTUVJSUpnL00wVnM1NzZ6b0ViMXFEK2pUd0o5RENBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQT09In1d
+	//Evan:W3sia2V5Ijp7ImVtaXR0ZXJfY2hhaW4iOjIsImVtaXR0ZXJfYWRkcmVzcyI6IkFBQUFBQUFBQUFBQUFBQUFBcEQ3Rm5JSXIwVmJzVGQ0QVdPM3Q2bWhEQlk9Iiwic2VxdWVuY2UiOjB9LCJub25jZSI6MCwicGF5bG9hZCI6IkFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEzZ3RyT25aQUFBQUFBQUFBQUFBQUFBQUFBQUxZdm12d3VxZE9DcEJ3Rm1lY3JwR1E2QTNRb0FBZ0FBQUFBQUFBQUFBQUFBQU1FSUlKZy9NMFZzNTc2em9FYjFxRCtqVHdKOURDQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE9PSIsInR4X2hhc2giOiI4MmVhMjUzNmM1ZDE2NzE4MzBjYjQ5MTIwZjk0NDc5ZTM0YjU0NTk2YThkZDM2OWZiYzI2NjY2NjdhNzY1ZjRiIn1d
 	b64Bytes := []byte(b64String)
 
 	digest := ethCrypto.Keccak256Hash(ethCrypto.Keccak256Hash([]byte(b64Bytes)).Bytes())
 
-	sig, err := ethCrypto.Sign(digest.Bytes(), acct.gk)
+	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
 		err = fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
 		panic(err)
 	}
 
-	// Build signType (see line 195 in test_accounting.ts), pass that into msgData.
+	sig := SignatureType{Index: 0, Signature: sigBytes}
 
 	msgData := SubmitObservationsMsg{
 		Params: SubmitObservationsParams{
@@ -353,20 +382,13 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 	}
 
 	subMsg := wasmdtypes.MsgExecuteContract{
-		Sender:   acct.wormchainConn.PublicKey(),
-		Contract: acct.contract,
+		Sender:   wormchainConn.PublicKey(),
+		Contract: contract,
 		Msg:      msgBytes,
 		Funds:    sdktypes.Coins{},
 	}
 
-	err = acct.wormchainConn.SignAndBroadcastTx(acct.ctx, &subMsg)
-	if err != nil {
-		// Should allow TransferError::DuplicateTransfer - Just publish it (probably reobservation).
-		// Should handle DuplicateSignatureError - Don't publish it, just keep waiting.
-		acct.logger.Error("acct: failed to broadcast observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
-		submitFailures.Inc()
-		return
-	}
+	return wormchainConn.SignAndBroadcastTx(ctx, logger, &subMsg)
 }
 
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
