@@ -145,7 +145,6 @@ var (
 	wormchainWS      *string
 	wormchainLCD     *string
 	wormchainRPC     *string
-	wormchainAddress *string
 	wormchainKeyPath *string
 
 	accountingContract     *string
@@ -290,7 +289,6 @@ func init() {
 	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormchaind root for websocket connection")
 	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
 	wormchainRPC = NodeCmd.Flags().String("wormchainRPC", "", "wormhole-chain RPC URL")
-	wormchainAddress = NodeCmd.Flags().String("wormchainAddress", "", "wormhole-chain Address for signing transactions")
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKey", "", "path to wormhole-chain private key for signing transactions")
 
 	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
@@ -921,11 +919,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	var wormchainKey cosmoscrypto.PrivKey
 	var wormchainConn *wormconn.ClientConn
 	if *wormchainRPC != "" {
-		if *wormchainAddress == "" {
-			logger.Fatal("if accountingContract is specified, wormchainAddress is required")
-		}
 		if *wormchainKeyPath == "" {
-			logger.Fatal("if accountingContract is specified, wormchainKeyPath is required")
+			logger.Fatal("if wormchainRPC is specified, wormchainKeyPath is required")
 		}
 
 		// Load the wormchain key.
@@ -939,7 +934,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		// Connect to wormchain.
-		wormchainConn, err = wormconn.NewConn(rootCtx, *wormchainRPC, *wormchainAddress, wormchainKey)
+		wormchainConn, err = wormconn.NewConn(rootCtx, *wormchainRPC, wormchainKey)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err))
 		}
@@ -1343,6 +1338,12 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
+
+		if acct != nil {
+			if err := acct.Run(ctx); err != nil {
+				logger.Fatal("acct: failed to start accounting", zap.Error(err))
+			}
+		}
 
 		if gov != nil {
 			err := gov.Run(ctx)

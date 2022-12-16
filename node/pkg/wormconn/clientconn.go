@@ -93,7 +93,6 @@ var moduleBasics = module.NewBasicManager(
 // to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ClientConn struct {
 	c          *grpc.ClientConn
-	addr       string
 	encCfg     EncodingConfig
 	privateKey cryptotypes.PrivKey
 	publicKey  string
@@ -101,7 +100,7 @@ type ClientConn struct {
 }
 
 // NewConn creates a new connection to the wormhole-chain instance at `target`.
-func NewConn(ctx context.Context, target string, addr string, privateKey cryptotypes.PrivKey) (*ClientConn, error) {
+func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey) (*ClientConn, error) {
 	c, err := grpc.DialContext(
 		ctx,
 		target,
@@ -113,7 +112,7 @@ func NewConn(ctx context.Context, target string, addr string, privateKey cryptot
 
 	encCfg := MakeEncodingConfig(moduleBasics)
 
-	return &ClientConn{c: c, addr: addr, encCfg: encCfg, privateKey: privateKey, publicKey: privateKey.PubKey().Address().String()}, nil
+	return &ClientConn{c: c, encCfg: encCfg, privateKey: privateKey, publicKey: privateKey.PubKey().Address().String()}, nil
 }
 
 func (c *ClientConn) PublicKey() string {

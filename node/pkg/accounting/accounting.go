@@ -266,13 +266,13 @@ func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool
 }
 
 type (
-	submitObservationsMsg struct {
-		Params submitObservationsParams `json:"submit_observations"`
+	SubmitObservationsMsg struct {
+		Params SubmitObservationsParams `json:"submit_observations"`
 	}
 
-	submitObservationsParams struct {
+	SubmitObservationsParams struct {
 		// A serialized `Vec<Observation>`. Multiple observations can be submitted together to reduce  transaction overhead.
-		Observations []byte `json:"observations"`
+		Observations string `json:"observations"`
 
 		// The index of the guardian set used to sign the observations.
 		GuardianSetIndex uint32 `json:"guardian_set_index"`
@@ -281,9 +281,9 @@ type (
 		Signature []byte `json:"signature"`
 	}
 
-	observation struct {
-		// The key that uniquely identifies the observation.
-		Key transferKey
+	Observation struct {
+		// The key that uniquely identifies the Observation.
+		Key TransferKey
 
 		// The nonce for the transfer.
 		Nonce uint32
@@ -295,7 +295,7 @@ type (
 		Payload []byte
 	}
 
-	transferKey struct {
+	TransferKey struct {
 		// The chain id of the chain on which this transfer originated.
 		EmitterChain uint16
 
@@ -310,9 +310,9 @@ type (
 // submitObservationToContract makes a call to the smart contract to submit an observation request.
 // It should be called from a go routine because it can block.
 func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
-	obs := []observation{
-		observation{
-			Key:     transferKey{EmitterChain: uint16(msg.EmitterChain), EmitterAddress: msg.EmitterAddress, Sequence: msg.Sequence},
+	obs := []Observation{
+		Observation{
+			Key:     TransferKey{EmitterChain: uint16(msg.EmitterChain), EmitterAddress: msg.EmitterAddress, Sequence: msg.Sequence},
 			Nonce:   msg.Nonce,
 			TxHash:  msg.TxHash,
 			Payload: msg.Payload,
@@ -325,19 +325,22 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 		panic(err)
 	}
 
-	b64Bytes := []byte(base64.StdEncoding.EncodeToString(bytes))
+	b64String := base64.StdEncoding.EncodeToString(bytes)
+	b64Bytes := []byte(b64String)
 
 	digest := ethCrypto.Keccak256Hash(ethCrypto.Keccak256Hash([]byte(b64Bytes)).Bytes())
 
 	sig, err := ethCrypto.Sign(digest.Bytes(), acct.gk)
 	if err != nil {
-		err = fmt.Errorf("acct: failed to sign accounting observation request: %w", err)
+		err = fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
 		panic(err)
 	}
 
-	msgData := submitObservationsMsg{
-		Params: submitObservationsParams{
-			Observations:     b64Bytes,
+	// Build signType (see line 195 in test_accounting.ts), pass that into msgData.
+
+	msgData := SubmitObservationsMsg{
+		Params: SubmitObservationsParams{
+			Observations:     b64String,
 			GuardianSetIndex: gsIndex,
 			Signature:        sig,
 		},
