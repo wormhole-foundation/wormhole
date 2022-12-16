@@ -10,7 +10,7 @@ use crate::msg::Observation;
 
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
 pub const CHAIN_REGISTRATIONS: Map<u16, Binary> = Map::new("chain_registrations");
-pub const GOVERNANCE_VAAS: Map<Vec<u8>, ()> = Map::new("governance_vaas");
+pub const DIGESTS: Map<(u16, Vec<u8>, u64), Binary> = Map::new("digests");
 
 #[cw_serde]
 pub struct PendingTransfer {

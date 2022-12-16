@@ -760,14 +760,35 @@
         "Observation": {
           "type": "object",
           "required": [
-            "key",
+            "consistency_level",
+            "emitter_address",
+            "emitter_chain",
             "nonce",
             "payload",
+            "sequence",
+            "timestamp",
             "tx_hash"
           ],
           "properties": {
-            "key": {
-              "$ref": "#/definitions/Key"
+            "consistency_level": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "emitter_address": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              },
+              "maxItems": 32,
+              "minItems": 32
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
             },
             "nonce": {
               "type": "integer",
@@ -776,6 +797,16 @@
             },
             "payload": {
               "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "timestamp": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             },
             "tx_hash": {
               "$ref": "#/definitions/Binary"
@@ -1052,41 +1083,38 @@
           "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
           "type": "string"
         },
-        "Key": {
+        "Observation": {
           "type": "object",
           "required": [
+            "consistency_level",
             "emitter_address",
             "emitter_chain",
-            "sequence"
+            "nonce",
+            "payload",
+            "sequence",
+            "timestamp",
+            "tx_hash"
           ],
           "properties": {
+            "consistency_level": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
             "emitter_address": {
-              "$ref": "#/definitions/TokenAddress"
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              },
+              "maxItems": 32,
+              "minItems": 32
             },
             "emitter_chain": {
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
-            },
-            "sequence": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        "Observation": {
-          "type": "object",
-          "required": [
-            "key",
-            "nonce",
-            "payload",
-            "tx_hash"
-          ],
-          "properties": {
-            "key": {
-              "$ref": "#/definitions/Key"
             },
             "nonce": {
               "type": "integer",
@@ -1095,6 +1123,16 @@
             },
             "payload": {
               "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "timestamp": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             },
             "tx_hash": {
               "$ref": "#/definitions/Binary"
@@ -1126,9 +1164,6 @@
               "minItems": 65
             }
           }
-        },
-        "TokenAddress": {
-          "type": "string"
         }
       }
     },

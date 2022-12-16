@@ -1,7 +1,10 @@
 use accounting::state::{account, transfer, Account, Modification, Transfer};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
-use wormhole::vaa::Signature;
+use wormhole::{
+    vaa::{Body, Signature},
+    Address,
+};
 
 use crate::state::{self, PendingTransfer};
 
@@ -35,18 +38,51 @@ pub struct InstantiateMsg {
 #[cw_serde]
 #[derive(Default)]
 pub struct Observation {
-    // The key that uniquely identifies the observation.
-    pub key: transfer::Key,
+    // The hash of the transaction on the emitter chain in which the transfer was performed.
+    pub tx_hash: Binary,
+
+    // Seconds since UNIX epoch.
+    pub timestamp: u32,
 
     // The nonce for the transfer.
     pub nonce: u32,
 
-    // The hash of the transaction on the emitter chain in which the transfer
-    // was performed.
-    pub tx_hash: Binary,
+    // The source chain from which this observation was created.
+    pub emitter_chain: u16,
+
+    // The address on the source chain that emitted this message.
+    pub emitter_address: [u8; 32],
+
+    // The sequence number of this observation.
+    pub sequence: u64,
+
+    // The consistency level requested by the emitter.
+    pub consistency_level: u8,
 
     // The serialized tokenbridge payload.
     pub payload: Binary,
+}
+
+impl Observation {
+    // Calculate a digest of the observation that can be used for de-duplication.
+    pub fn digest(&self) -> anyhow::Result<Binary> {
+        // We don't know the actual type of `self.payload` so we create a body with a 0-sized
+        // payload and then just append it when calculating the digest.
+
+        let body = Body {
+            timestamp: self.timestamp,
+            nonce: self.nonce,
+            emitter_chain: self.emitter_chain.into(),
+            emitter_address: Address(self.emitter_address),
+            sequence: self.sequence,
+            consistency_level: self.consistency_level,
+            payload: (),
+        };
+
+        let digest = body.digest_with_payload(&self.payload)?;
+
+        Ok(digest.secp256k_hash.to_vec().into())
+    }
 }
 
 #[cw_serde]
