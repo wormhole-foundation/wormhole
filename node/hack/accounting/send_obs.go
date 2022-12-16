@@ -7,7 +7,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -18,13 +18,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	// "github.com/wormhole-foundation/cosmos-sdk/crypto/secp256k1"
-
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
-
-	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
 
 	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
@@ -36,13 +30,10 @@ func main() {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	wormchainRPC := string("http://localhost:26659")
+	wormchainRPC := string("localhost:9090")
 	wormchainKeyPath := string("./dev.wormchain.key")
 	contract := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
 	guardianKeyPath := string("./dev.guardian.key")
-
-	// mnemonic := "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
-	// wormchainKey := secp256k1.GenPrivKeyFromSecret([]byte(mnemonic))
 
 	wormchainKey, err := devnet.LoadWormchainPrivKey(wormchainKeyPath)
 	if err != nil {
@@ -64,14 +55,22 @@ func main() {
 	}
 	logger.Info("Loaded guardian key")
 
-	EmitterChain := 2
-	EmitterAddress, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
-	Sequence := uint64(1)
-	Nonce := uint32(123456)
-	TxHash := ethCommon.HexToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
-	Payload := []byte("010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000")
+	EmitterChain := uint16(2)
+	emitterAddress, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	EmitterAddress := base64.StdEncoding.EncodeToString(emitterAddress.Bytes())
+	Sequence := uint64(0)
+	Nonce := uint32(0)
+	TxHash := "82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b"
+	payload, _ := hex.DecodeString("010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000")
+	Payload := base64.StdEncoding.EncodeToString(payload)
 	gsIndex := uint32(0)
 
+	logger.Info("DEBUG", zap.Uint16("EmitterChain", EmitterChain))
+	logger.Info("DEBUG", zap.String("EmitterAddress", EmitterAddress))
+	logger.Info("DEBUG", zap.Uint64("Sequence", Sequence))
+	logger.Info("DEBUG", zap.Uint32("Nonce", Nonce))
+	logger.Info("DEBUG", zap.String("Payload", Payload))
+	logger.Info("DEBUG", zap.String("TxHash", TxHash))
 	obs := []accounting.Observation{
 		accounting.Observation{
 			Key:     accounting.TransferKey{EmitterChain: uint16(EmitterChain), EmitterAddress: EmitterAddress, Sequence: Sequence},
@@ -81,50 +80,8 @@ func main() {
 		},
 	}
 
-	bytes, err := json.Marshal(obs)
+	err = accounting.SubmitObservationToContract(ctx, logger, gk, gsIndex, wormchainConn, contract, obs)
 	if err != nil {
-		err = fmt.Errorf("acct: failed to marshal accounting Observation request: %w", err)
-		panic(err)
-	}
-
-	b64String := base64.StdEncoding.EncodeToString(bytes)
-	b64Bytes := []byte(b64String)
-
-	digest := ethCrypto.Keccak256Hash(ethCrypto.Keccak256Hash([]byte(b64Bytes)).Bytes())
-
-	sig, err := ethCrypto.Sign(digest.Bytes(), gk)
-	if err != nil {
-		err = fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
-		panic(err)
-	}
-
-	// Build sigType (see line 195 in test_accounting.ts), pass that into msgData.
-
-	msgData := accounting.SubmitObservationsMsg{
-		Params: accounting.SubmitObservationsParams{
-			Observations:     b64String,
-			GuardianSetIndex: gsIndex,
-			Signature:        sig,
-		},
-	}
-
-	msgBytes, err := json.Marshal(msgData)
-	if err != nil {
-		err = fmt.Errorf("acct: failed to marshal accounting Observation request: %w", err)
-		panic(err)
-	}
-
-	subMsg := wasmdtypes.MsgExecuteContract{
-		Sender:   wormchainConn.PublicKey(),
-		Contract: contract,
-		Msg:      msgBytes,
-		Funds:    sdktypes.Coins{},
-	}
-
-	err = wormchainConn.SignAndBroadcastTx(ctx, &subMsg)
-	if err != nil {
-		// Should allow TransferError::DuplicateTransfer - Just publish it (probably reobservation).
-		// Should handle DuplicateSignatureError - Don't publish it, just keep waiting.
 		logger.Error("acct: failed to broadcast Observation request", zap.Error(err))
 		return
 	}
@@ -170,3 +127,16 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 
 	return gk, nil
 }
+
+/*
+DEBUG: obs: {
+  key: {
+    emitter_chain: 2,
+    emitter_address: 'AAAAAAAAAAAAAAAAApD7FnIIr0VbsTd4AWO3t6mhDBY=',
+    sequence: 0
+  },
+  nonce: 0,
+  payload: 'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
+  tx_hash: '82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b'
+}
+*/
