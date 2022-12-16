@@ -17,8 +17,8 @@ use cw_storage_plus::Bound;
 use tinyvec::{Array, TinyVec};
 use wormhole::{
     token::{Action, GovernancePacket, Message},
-    vaa::{Body, Header, Signature},
-    Chain,
+    vaa::{self, Body, Header, Signature},
+    Address, Chain,
 };
 use wormhole_bindings::WormholeQuery;
 
@@ -30,7 +30,7 @@ use crate::{
         AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, Instantiate, InstantiateMsg,
         MigrateMsg, Observation, QueryMsg, Upgrade,
     },
-    state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, GOVERNANCE_VAAS, PENDING_TRANSFERS},
+    state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
 
 // version info for migration info
@@ -154,11 +154,22 @@ fn handle_observation(
     quorum: usize,
     sig: Signature,
 ) -> anyhow::Result<Option<Event>> {
-    if accounting::has_transfer(deps.as_ref(), o.key.clone()) {
-        bail!("transfer for key \"{}\" already committed", o.key);
+    let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
+    if let Some(saved_digest) = digest_key
+        .may_load(deps.storage)
+        .context("failed to load transfer digest")?
+    {
+        let digest = o.digest().context(ContractError::ObservationDigest)?;
+        if saved_digest != digest {
+            bail!(ContractError::DigestMismatch);
+        }
+
+        bail!(ContractError::DuplicateMessage);
     }
 
-    let key = PENDING_TRANSFERS.key(o.key.clone());
+    let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+
+    let key = PENDING_TRANSFERS.key(tx_key.clone());
     let mut pending = key
         .may_load(deps.storage)
         .map(Option::unwrap_or_default)
@@ -210,36 +221,44 @@ fn handle_observation(
         _ => bail!("Unknown tokenbridge payload"),
     };
 
-    let emitter_chain = o.key.emitter_chain();
-
     let registered_emitter = CHAIN_REGISTRATIONS
-        .may_load(deps.storage, emitter_chain)
+        .may_load(deps.storage, o.emitter_chain)
         .context("failed to load chain registration")?
-        .ok_or_else(|| ContractError::MissingChainRegistration(emitter_chain.into()))?;
+        .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
+
     ensure!(
-        *registered_emitter == **o.key.emitter_address(),
+        *registered_emitter == o.emitter_address,
         "unknown emitter address"
     );
 
     accounting::commit_transfer(
         deps.branch(),
         Transfer {
-            key: o.key.clone(),
+            key: tx_key,
             data: tx_data,
         },
     )
     .context("failed to commit transfer")?;
+
+    // Save the digest of the observation so that we can check for duplicate transfer keys with
+    // mismatched data.
+    let digest = o.digest().context(ContractError::ObservationDigest)?;
+    digest_key
+        .save(deps.storage, &digest)
+        .context("failed to save transfer digest")?;
 
     // Now that the transfer has been committed, we don't need to keep it in the pending list.
     key.remove(deps.storage);
 
     Ok(Some(
         Event::new("Transfer")
-            .add_attribute("emitter_chain", o.key.emitter_chain().to_string())
-            .add_attribute("emitter_address", o.key.emitter_address().to_string())
-            .add_attribute("sequence", o.key.sequence().to_string())
-            .add_attribute("nonce", o.nonce.to_string())
             .add_attribute("tx_hash", o.tx_hash.to_base64())
+            .add_attribute("timestamp", o.timestamp.to_string())
+            .add_attribute("nonce", o.nonce.to_string())
+            .add_attribute("emitter_chain", o.emitter_chain.to_string())
+            .add_attribute("emitter_address", Address(o.emitter_address).to_string())
+            .add_attribute("sequence", o.sequence.to_string())
+            .add_attribute("consistency_level", o.consistency_level.to_string())
             .add_attribute("payload", o.payload.to_base64()),
     ))
 }
@@ -323,7 +342,7 @@ fn submit_vaas(
         .add_events(evts))
 }
 
-fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event> {
+fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event> {
     let (header, data) = serde_wormhole::from_slice_with_payload::<Header>(&vaa)
         .context("failed to parse VAA header")?;
 
@@ -339,18 +358,48 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
             .into(),
         )
         .context(ContractError::VerifyQuorum)?;
+
+    let digest = vaa::digest(data)
+        .map(|d| d.secp256k_hash.to_vec().into())
+        .context("failed to calculate digest for VAA body")?;
+
     let (body, payload) = serde_wormhole::from_slice_with_payload::<Body<()>>(data)
         .context("failed to parse VAA body")?;
 
-    if body.emitter_chain == Chain::Solana && body.emitter_address == wormhole::GOVERNANCE_EMITTER {
+    let digest_key = DIGESTS.key((
+        body.emitter_chain.into(),
+        body.emitter_address.0.to_vec(),
+        body.sequence,
+    ));
+
+    if let Some(saved_digest) = digest_key
+        .may_load(deps.storage)
+        .context("failed to load transfer digest")?
+    {
+        if saved_digest != digest {
+            bail!(ContractError::DigestMismatch);
+        }
+
+        bail!(ContractError::DuplicateMessage);
+    }
+
+    let evt = if body.emitter_chain == Chain::Solana
+        && body.emitter_address == wormhole::GOVERNANCE_EMITTER
+    {
         let govpacket =
             serde_wormhole::from_slice(payload).context("failed to parse governance packet")?;
-        handle_governance_vaa(deps, body.with_payload(govpacket))
+        handle_governance_vaa(deps.branch(), body.with_payload(govpacket))?
     } else {
         let (msg, _) = serde_wormhole::from_slice_with_payload(payload)
             .context("failed to parse tokenbridge message")?;
-        handle_tokenbridge_vaa(deps, body.with_payload(msg))
-    }
+        handle_tokenbridge_vaa(deps.branch(), body.with_payload(msg))?
+    };
+
+    digest_key
+        .save(deps.storage, &digest)
+        .context("failed to save message digest")?;
+
+    Ok(evt)
 }
 
 fn handle_governance_vaa(
@@ -362,16 +411,7 @@ fn handle_governance_vaa(
         "this governance VAA is for another chain"
     );
 
-    let digest = body
-        .digest()
-        .context("failed to calculate digest for governance VAA body")?;
-
-    let key = GOVERNANCE_VAAS.key(digest.secp256k_hash.to_vec());
-    if key.has(deps.storage) {
-        bail!(ContractError::DuplicateGovernanceVaa);
-    }
-
-    let evt = match body.payload.action {
+    match body.payload.action {
         Action::RegisterChain {
             chain,
             emitter_address,
@@ -383,17 +423,12 @@ fn handle_governance_vaa(
                     &emitter_address.0.to_vec().into(),
                 )
                 .context("failed to save chain registration")?;
-            Event::new("RegisterChain")
+            Ok(Event::new("RegisterChain")
                 .add_attribute("chain", chain.to_string())
-                .add_attribute("emitter_address", emitter_address.to_string())
+                .add_attribute("emitter_address", emitter_address.to_string()))
         }
         _ => bail!("unsupported governance action"),
-    };
-
-    key.save(deps.storage, &())
-        .context("failed to save governance VAA digest")?;
-
-    Ok(evt)
+    }
 }
 
 fn handle_tokenbridge_vaa(

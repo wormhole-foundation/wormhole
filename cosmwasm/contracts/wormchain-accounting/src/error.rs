@@ -11,8 +11,12 @@ pub enum ContractError {
     VerifyQuorum,
     #[error("no registered emitter for chain {0}")]
     MissingChainRegistration(Chain),
-    #[error("governance VAA already executed")]
-    DuplicateGovernanceVaa,
+    #[error("failed to calculate digest of observation")]
+    ObservationDigest,
+    #[error("message already processed")]
+    DuplicateMessage,
+    #[error("digest mismatch for processed message")]
+    DigestMismatch,
 }
 
 // This is a workaround for the fact that `cw_multi_test::ContractWrapper` doesn't support contract

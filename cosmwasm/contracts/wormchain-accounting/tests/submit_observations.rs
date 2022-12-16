@@ -10,7 +10,7 @@ use helpers::*;
 use wormchain_accounting::msg::Observation;
 use wormhole::{
     token::{Action, GovernancePacket, Message},
-    vaa::Body,
+    vaa::{Body, Header},
     Address, Amount, Chain,
 };
 use wormhole_bindings::fake;
@@ -19,7 +19,6 @@ fn set_up(count: usize) -> (Vec<Message>, Vec<Observation>) {
     let mut txs = Vec::with_capacity(count);
     let mut observations = Vec::with_capacity(count);
     for i in 0..count {
-        let key = transfer::Key::new(i as u16, [i as u8; 32].into(), i as u64);
         let tx = Message::Transfer {
             amount: Amount(Uint256::from(500u128).to_be_bytes()),
             token_address: Address([(i + 1) as u8; 32]),
@@ -31,9 +30,13 @@ fn set_up(count: usize) -> (Vec<Message>, Vec<Observation>) {
         let payload = serde_wormhole::to_vec(&tx).map(Binary::from).unwrap();
         txs.push(tx);
         observations.push(Observation {
-            key,
-            nonce: i as u32,
             tx_hash: vec![(i + 4) as u8; 20].into(),
+            timestamp: i as u32,
+            nonce: i as u32,
+            emitter_chain: i as u16,
+            emitter_address: [i as u8; 32],
+            sequence: i as u64,
+            consistency_level: 0,
             payload,
         });
     }
@@ -87,18 +90,22 @@ fn batch() {
             // Once there is a quorum the pending transfers are removed.
             if i < quorum - 1 {
                 for o in &observations {
-                    let data = contract.query_pending_transfer(o.key.clone()).unwrap();
+                    let key =
+                        transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+                    let data = contract.query_pending_transfer(key.clone()).unwrap();
                     assert_eq!(o, data[0].observation());
 
                     // Make sure the transfer hasn't yet been committed.
                     contract
-                        .query_transfer(o.key.clone())
+                        .query_transfer(key)
                         .expect_err("transfer committed without quorum");
                 }
             } else {
                 for o in &observations {
+                    let key =
+                        transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
                     contract
-                        .query_pending_transfer(o.key.clone())
+                        .query_pending_transfer(key)
                         .expect_err("found pending transfer for observation with quorum");
                 }
             }
@@ -128,13 +135,13 @@ fn batch() {
             panic!("unexpected tokenbridge payload");
         };
 
-        let emitter_chain = o.key.emitter_chain();
-        let actual = contract.query_transfer(o.key).unwrap();
+        let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+        let actual = contract.query_transfer(key).unwrap();
         assert_eq!(expected, actual);
 
         let src = contract
             .query_balance(account::Key::new(
-                emitter_chain,
+                o.emitter_chain,
                 expected.token_chain,
                 expected.token_address,
             ))
@@ -200,13 +207,13 @@ fn duplicates() {
             panic!("unexpected tokenbridge payload");
         };
 
-        let emitter_chain = o.key.emitter_chain();
-        let actual = contract.query_transfer(o.key).unwrap();
+        let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+        let actual = contract.query_transfer(key).unwrap();
         assert_eq!(expected, actual);
 
         let src = contract
             .query_balance(account::Key::new(
-                emitter_chain,
+                o.emitter_chain,
                 expected.token_chain,
                 expected.token_address,
             ))
@@ -242,9 +249,13 @@ fn transfer_tokens(
 ) -> anyhow::Result<(Observation, Vec<AppResponse>)> {
     let payload = serde_wormhole::to_vec(&msg).map(Binary::from).unwrap();
     let o = Observation {
-        key,
-        nonce: 0x4343b191,
         tx_hash: vec![0xd8u8; 20].into(),
+        timestamp: 0xec8d03d6,
+        nonce: 0x4343b191,
+        emitter_chain: key.emitter_chain(),
+        emitter_address: **key.emitter_address(),
+        sequence: key.sequence(),
+        consistency_level: 0,
         payload,
     };
 
@@ -413,12 +424,14 @@ fn no_quorum() {
         .unwrap() as usize;
 
     let emitter_chain = 2;
+    let emitter_address = [emitter_chain as u8; 32];
+    let sequence = 37;
     let amount = Amount(Uint256::from(500u128).to_be_bytes());
     let token_address = Address([0xccu8; 32]);
     let token_chain = 2.into();
     let recipient_chain = 14.into();
 
-    let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
+    let key = transfer::Key::new(emitter_chain, emitter_address.into(), sequence);
     let msg = Message::Transfer {
         amount,
         token_address,
@@ -439,7 +452,9 @@ fn no_quorum() {
     .unwrap();
 
     let data = contract.query_pending_transfer(key.clone()).unwrap();
-    assert_eq!(key, data[0].observation().key);
+    assert_eq!(emitter_chain, data[0].observation().emitter_chain);
+    assert_eq!(emitter_address, data[0].observation().emitter_address);
+    assert_eq!(sequence, data[0].observation().sequence);
 
     let actual = serde_wormhole::from_slice(&data[0].observation().payload).unwrap();
     assert_eq!(msg, actual);
@@ -770,11 +785,13 @@ fn emit_event_with_quorum() {
     let (o, responses) = transfer_tokens(&wh, &mut contract, key, msg, index, quorum).unwrap();
 
     let expected = Event::new("wasm-Transfer")
-        .add_attribute("emitter_chain", o.key.emitter_chain().to_string())
-        .add_attribute("emitter_address", o.key.emitter_address().to_string())
-        .add_attribute("sequence", o.key.sequence().to_string())
-        .add_attribute("nonce", o.nonce.to_string())
         .add_attribute("tx_hash", o.tx_hash.to_base64())
+        .add_attribute("timestamp", o.timestamp.to_string())
+        .add_attribute("nonce", o.nonce.to_string())
+        .add_attribute("emitter_chain", o.emitter_chain.to_string())
+        .add_attribute("emitter_address", Address(o.emitter_address).to_string())
+        .add_attribute("sequence", o.sequence.to_string())
+        .add_attribute("consistency_level", o.consistency_level.to_string())
         .add_attribute("payload", o.payload.to_base64());
 
     assert_eq!(responses.len(), quorum);
@@ -785,4 +802,118 @@ fn emit_event_with_quorum() {
             r.assert_event(&expected);
         }
     }
+}
+
+#[test]
+fn duplicate_vaa() {
+    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, 3);
+
+    let index = wh.guardian_set_index();
+    let quorum = wh
+        .calculate_quorum(index, contract.app().block_info().height)
+        .unwrap() as usize;
+
+    let emitter_chain = 2;
+    let amount = Amount(Uint256::from(500u128).to_be_bytes());
+    let token_address = Address([0xccu8; 32]);
+    let token_chain = 2.into();
+    let recipient_chain = 14.into();
+
+    let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
+    let msg = Message::Transfer {
+        amount,
+        token_address,
+        token_chain,
+        recipient: Address([0xb9u8; 32]),
+        recipient_chain,
+        fee: Amount([0u8; 32]),
+    };
+
+    let (o, _) = transfer_tokens(&wh, &mut contract, key, msg, index, quorum).unwrap();
+
+    // Now try to submit a VAA for this transfer.  This should fail since the transfer is already
+    // processed.
+    let body = Body {
+        timestamp: o.timestamp,
+        nonce: o.nonce,
+        emitter_chain: o.emitter_chain.into(),
+        emitter_address: Address(o.emitter_address),
+        sequence: o.sequence,
+        consistency_level: o.consistency_level,
+        payload: (),
+    };
+
+    let mut body_data = serde_wormhole::to_vec(&body).unwrap();
+    body_data.extend_from_slice(&o.payload);
+
+    let mut data = serde_wormhole::to_vec(&Header {
+        version: 1,
+        guardian_set_index: index,
+        signatures: wh.sign(&body_data),
+    })
+    .unwrap();
+    data.extend_from_slice(&body_data);
+
+    let err = contract
+        .submit_vaas(vec![data.into()])
+        .expect_err("successfully submitted duplicate VAA for committed transfer");
+    assert!(format!("{err:#}").contains("message already processed"));
+}
+
+#[test]
+fn digest_mismatch() {
+    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    register_emitters(&wh, &mut contract, 3);
+
+    let index = wh.guardian_set_index();
+    let quorum = wh
+        .calculate_quorum(index, contract.app().block_info().height)
+        .unwrap() as usize;
+
+    let emitter_chain = 2;
+    let amount = Amount(Uint256::from(500u128).to_be_bytes());
+    let token_address = Address([0xccu8; 32]);
+    let token_chain = 2.into();
+    let recipient_chain = 14.into();
+
+    let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
+    let msg = Message::Transfer {
+        amount,
+        token_address,
+        token_chain,
+        recipient: Address([0xb9u8; 32]),
+        recipient_chain,
+        fee: Amount([0u8; 32]),
+    };
+
+    let (o, _) = transfer_tokens(&wh, &mut contract, key, msg, index, quorum).unwrap();
+
+    // Now try submitting a VAA with the same (chain, address, sequence) tuple but with
+    // different details.
+    let body = Body {
+        timestamp: o.timestamp,
+        nonce: o.nonce ^ u32::MAX,
+        emitter_chain: o.emitter_chain.into(),
+        emitter_address: Address(o.emitter_address),
+        sequence: o.sequence,
+        consistency_level: o.consistency_level,
+        payload: (),
+    };
+
+    let mut body_data = serde_wormhole::to_vec(&body).unwrap();
+    body_data.extend_from_slice(&o.payload);
+
+    let mut data = serde_wormhole::to_vec(&Header {
+        version: 1,
+        guardian_set_index: index,
+        signatures: wh.sign(&body_data),
+    })
+    .unwrap();
+    data.extend_from_slice(&body_data);
+
+    let err = contract
+        .submit_vaas(vec![data.into()])
+        .expect_err("successfully submitted duplicate VAA for committed transfer");
+    assert!(format!("{err:#}").contains("digest mismatch"));
 }

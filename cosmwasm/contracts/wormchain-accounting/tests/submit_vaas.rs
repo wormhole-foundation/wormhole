@@ -3,6 +3,7 @@ mod helpers;
 use accounting::state::{transfer, TokenAddress};
 use cosmwasm_std::{to_binary, Binary, Event, Uint256};
 use helpers::*;
+use wormchain_accounting::msg::Observation;
 use wormhole::{
     token::Message,
     vaa::{Body, Header, Vaa},
@@ -262,4 +263,70 @@ fn unsupported_version() {
     contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA with unsupported version");
+}
+
+#[test]
+fn reobservation() {
+    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+
+    let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
+    contract
+        .submit_vaas(vec![data])
+        .expect("failed to submit VAA");
+
+    // Now try submitting the same transfer as an observation.  This can happen when a guardian
+    // re-observes a tx.
+    let o = Observation {
+        tx_hash: vec![0x55u8; 20].into(),
+        timestamp: v.timestamp,
+        nonce: v.nonce,
+        emitter_chain: v.emitter_chain.into(),
+        emitter_address: v.emitter_address.0,
+        sequence: v.sequence,
+        consistency_level: v.consistency_level,
+        payload: serde_wormhole::to_vec(&v.payload).unwrap().into(),
+    };
+
+    let obs = to_binary(&vec![o]).unwrap();
+    let index = wh.guardian_set_index();
+    let signatures = wh.sign(&obs);
+    for s in signatures {
+        let err = contract
+            .submit_observations(obs.clone(), index, s)
+            .expect_err("successfully submitted observation for processed VAA");
+        assert!(format!("{err:#}").contains("message already processed"));
+    }
+}
+
+#[test]
+fn digest_mismatch() {
+    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+
+    let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
+    contract
+        .submit_vaas(vec![data])
+        .expect("failed to submit VAA");
+
+    // Now try submitting an observation with the same (chain, address, sequence) tuple but with
+    // different details.
+    let o = Observation {
+        tx_hash: vec![0x55u8; 20].into(),
+        timestamp: v.timestamp,
+        nonce: v.nonce ^ u32::MAX,
+        emitter_chain: v.emitter_chain.into(),
+        emitter_address: v.emitter_address.0,
+        sequence: v.sequence,
+        consistency_level: v.consistency_level,
+        payload: serde_wormhole::to_vec(&v.payload).unwrap().into(),
+    };
+
+    let obs = to_binary(&vec![o]).unwrap();
+    let index = wh.guardian_set_index();
+    let signatures = wh.sign(&obs);
+    for s in signatures {
+        let err = contract
+            .submit_observations(obs.clone(), index, s)
+            .expect_err("successfully submitted different observation for processed VAA");
+        assert!(format!("{err:#}").contains("digest mismatch"));
+    }
 }
