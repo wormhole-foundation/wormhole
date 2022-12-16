@@ -731,6 +731,7 @@ if wormchain:
         "guardian-validator",
         port_forwards = [
             port_forward(1319, container_port = 1317, name = "REST [:1319]", host = webHost),
+            port_forward(9090, container_port = 9090, name = "GRPC", host = webHost),
             port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
         ],
         resource_deps = [],
