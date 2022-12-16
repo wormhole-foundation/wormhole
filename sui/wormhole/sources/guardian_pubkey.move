@@ -2,7 +2,7 @@
 /// That is, they are computed by taking the last 20 bytes of the keccak256
 /// hash of their 64 byte secp256k1 public key.
 module wormhole::guardian_pubkey {
-    use sui::ecdsa;
+    use sui::ecdsa_k1::{Self as ecdsa};
     use std::vector;
     use wormhole::keccak256::keccak256;
 

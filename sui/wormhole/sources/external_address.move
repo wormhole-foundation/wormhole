@@ -100,7 +100,7 @@ module wormhole::external_address_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location=wormhole::external_address)]
     public fun test_left_pad_vector_too_long() {
         let v = x"123456789123456789123456789123451234567891234567891234567891234500"; //33 bytes
         let res = external_address::left_pad(&v);
@@ -119,7 +119,7 @@ module wormhole::external_address_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location=wormhole::external_address)]
     public fun test_from_bytes_over_32_bytes() {
         let v = x"00000000000000000000000000000000000000000000000000000000000000001234";
         let ea = external_address::from_bytes(v);
@@ -141,14 +141,14 @@ module wormhole::external_address_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location=wormhole::external_address)]
     fun test_pad_left_long() {
         let v = x"665555555555555555555555555555555555555555555555555555555555555555";
         external_address::pad_left_32(&v);
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = 1, location=wormhole::external_address)]
     public fun test_to_address_too_long() {
         // non-0 bytes in first 12 bytes
         let v = x"0000010000000000000000000000000000000000000000000000000000001234";

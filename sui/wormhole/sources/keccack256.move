@@ -1,5 +1,5 @@
 module wormhole::keccak256 {
-    use sui::ecdsa;
+    use sui::ecdsa_k1::{Self as ecdsa};
 
     spec module {
         pragma verify=false;

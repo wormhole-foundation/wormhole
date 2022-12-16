@@ -111,7 +111,7 @@ module token_bridge::register_chain_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location=token_bridge::register_chain)]
     fun test_parse_fail(){
         test_parse_fail_(scenario())
     }
@@ -122,7 +122,7 @@ module token_bridge::register_chain_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
     fun test_replay_protect(){
         test_replay_protect_(scenario())
     }
