@@ -1,4 +1,4 @@
-FROM ghcr.io/wormhole-foundation/sui:0.17.0@sha256:70ce60378c268fad1ca275b79353c71ff149119736cda43ac9a5f435613621da as sui
+FROM ghcr.io/wormhole-foundation/sui:0.19.0@sha256:8181f3b2cc64fdb51de8f112eede3a829ae687d5fc62d9e37e96e3bb4665494a as sui
 
 RUN dnf -y install make git
 

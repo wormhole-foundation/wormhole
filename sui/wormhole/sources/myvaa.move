@@ -322,7 +322,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 3)] // E_GUARDIAN_SET_EXPIRED
+    #[expected_failure(abort_code = vaa::E_GUARDIAN_SET_EXPIRED)]
     /// Ensures that the GOV_VAA can no longer be verified after the guardian set
     /// upgrade after expiry
     public fun test_guardian_set_expired() {
@@ -353,7 +353,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 8)] // E_OLD_GUARDIAN_SET_GOVERNANCE
+    #[expected_failure(abort_code = vaa::E_OLD_GUARDIAN_SET_GOVERNANCE)]
     /// Ensures that governance GOV_VAAs can only be verified by the latest guardian
     /// set, even if the signer hasn't expired yet
     public fun test_governance_guardian_set_latest() {
@@ -388,7 +388,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 5)] // E_INVALID_GOVERNANCE_EMITTER
+    #[expected_failure(abort_code = vaa::E_INVALID_GOVERNANCE_EMITTER)]
     /// Ensures that governance GOV_VAAs can only be sent from the correct governance emitter
     public fun test_invalid_governance_emitter() {
         let (admin, _, _) = people();
@@ -412,7 +412,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)] // E_INVALID_GOVERNANCE_CHAIN
+    #[expected_failure(abort_code = vaa::E_INVALID_GOVERNANCE_CHAIN)]
     /// Ensures that governance GOV_VAAs can only be sent from the correct governance chain
     public fun test_invalid_governance_chain() {
         let (admin, _, _) = people();
@@ -462,7 +462,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)] // NO_QUORUM
+    #[expected_failure(abort_code = vaa::E_NO_QUORUM)]
     public fun test_no_quorum() {
         let (admin, _, _) = people();
         let test = init_wormhole_state(scenario(), admin);
@@ -490,7 +490,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 7)] // E_NON_INCREASING_SIGNERS
+    #[expected_failure(abort_code = vaa::E_NON_INCREASING_SIGNERS)]  
     public fun test_double_signed() {
         let (admin, _, _) = people();
         let test = init_wormhole_state(scenario(), admin);
@@ -518,7 +518,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)] // E_INVALID_SIGNATURE
+    #[expected_failure(abort_code = vaa::E_INVALID_SIGNATURE)]
     public fun test_out_of_order_signers() {
         let (admin, _, _) = people();
         let test = init_wormhole_state(scenario(), admin);

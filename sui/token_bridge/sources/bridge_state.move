@@ -380,7 +380,7 @@ module token_bridge::bridge_state_test{
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
     fun test_coin_type_addressing_failure_case(){
         test_coin_type_addressing_failure_case_(scenario())
     }

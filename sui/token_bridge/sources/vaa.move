@@ -83,7 +83,7 @@ module token_bridge::token_bridge_vaa_test{
     const VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
     #[test]
-    #[expected_failure(abort_code = 0)] // E_UNKNOWN_CHAIN
+    #[expected_failure(abort_code = vaa::E_UNKNOWN_CHAIN)]
     fun test_unknown_chain() {
         let (admin, _, _) = people();
         let test = scenario();
@@ -101,7 +101,7 @@ module token_bridge::token_bridge_vaa_test{
 
 
     #[test]
-    #[expected_failure(abort_code = 1)] // E_UNKNOWN_EMITTER
+    #[expected_failure(abort_code = vaa::E_UNKNOWN_EMITTER)]
     fun test_unknown_emitter() {
         let (admin, _, _) = people();
         let test = scenario();
@@ -156,7 +156,7 @@ module token_bridge::token_bridge_vaa_test{
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
     fun test_replay_protection_works() {
         let (admin, _, _) = people();
         let test = scenario();
