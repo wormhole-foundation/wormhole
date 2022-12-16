@@ -2,6 +2,8 @@ package wormconn
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"sync"
 
 	// bookkeepingmodule "github.com/certusone/wormhole/wormchain/x/bookkeeping"
@@ -30,6 +32,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
+
+	"github.com/btcsuite/btcutil/bech32"
 
 	// These are causing a duplicate error panic on start up.
 	// "github.com/cosmos/ibc-go/modules/apps/transfer"
@@ -112,7 +116,12 @@ func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey)
 
 	encCfg := MakeEncodingConfig(moduleBasics)
 
-	return &ClientConn{c: c, encCfg: encCfg, privateKey: privateKey, publicKey: privateKey.PubKey().Address().String()}, nil
+	publicKey, err := generatePublicKey(privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ClientConn{c: c, encCfg: encCfg, privateKey: privateKey, publicKey: publicKey}, nil
 }
 
 func (c *ClientConn) PublicKey() string {
@@ -124,4 +133,24 @@ func (c *ClientConn) Close() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.c.Close()
+}
+
+// generatePublicKey creates the public key from the private key. It is based on https://pkg.go.dev/github.com/btcsuite/btcutil/bech32#Encode
+func generatePublicKey(privateKey cryptotypes.PrivKey) (string, error) {
+	data, err := hex.DecodeString(privateKey.PubKey().Address().String())
+	if err != nil {
+		return "", fmt.Errorf("failed to generate public key, failed to hex decode string: %w", err)
+	}
+
+	conv, err := bech32.ConvertBits(data, 8, 5, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate public key, failed to convert bits: %w", err)
+	}
+
+	encoded, err := bech32.Encode("wormhole", conv)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate public key, bech32 encode failed: %w", err)
+	}
+
+	return encoded, nil
 }

@@ -6,7 +6,6 @@ import (
 
 	// bookkeeping "github.com/certusone/wormhole-chain/x/bookkeeping/types"
 
-	"github.com/certusone/wormhole/node/pkg/supervisor"
 	txclient "github.com/cosmos/cosmos-sdk/client/tx"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -16,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) error {
+func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger, msg sdktypes.Msg) error {
 	// Lock to protect the wallet sequence number.
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -57,7 +56,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) e
 	}
 
 	signerData := authsigning.SignerData{
-		ChainID:       "wormholechain",
+		ChainID:       "wormchain",
 		AccountNumber: account.GetAccountNumber(),
 		Sequence:      sequence,
 	}
@@ -96,7 +95,6 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) e
 		return fmt.Errorf("failed to broadcast tx: %w", err)
 	}
 
-	logger := supervisor.Logger(ctx)
 	out, err := c.encCfg.Marshaler.MarshalJSON(txResp)
 	if err != nil {
 		logger.Error("failed to marshal BroadcastTx response", zap.Any("response", txResp), zap.Error(err))
