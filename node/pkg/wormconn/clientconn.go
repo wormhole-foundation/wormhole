@@ -13,6 +13,7 @@ import (
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
@@ -133,6 +134,15 @@ func (c *ClientConn) Close() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.c.Close()
+}
+
+func (c *ClientConn) BroadcastTxResponseToString(txResp *sdktx.BroadcastTxResponse) (string, error) {
+	out, err := c.encCfg.Marshaler.MarshalJSON(txResp)
+	if err != nil {
+		return "", err
+	}
+
+	return string(out), nil
 }
 
 // generatePublicKey creates the public key from the private key. It is based on https://pkg.go.dev/github.com/btcsuite/btcutil/bech32#Encode
