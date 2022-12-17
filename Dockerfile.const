@@ -17,9 +17,8 @@ COPY clients/js/package.json clients/js/package-lock.json ./
 # mount the buildkit cache on npm's cache dir, install dependencies
 
 # Commenting out npm cache due to heisenbug with github build machines
-# RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm 
-
-RUN npm ci
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci
 
 # copy the rest of the source files, as a layer on top of the deps
 COPY clients/js ./
