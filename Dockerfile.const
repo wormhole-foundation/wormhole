@@ -16,6 +16,8 @@ WORKDIR /clients/js
 COPY clients/js/package.json clients/js/package-lock.json ./
 # mount the buildkit cache on npm's cache dir, install dependencies
 
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
 # Commenting out npm cache due to heisenbug with github build machines
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci
