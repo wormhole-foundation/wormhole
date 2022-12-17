@@ -16,7 +16,7 @@ brew install cmake
 
    % sui client addresses
    Showing 1 results.
-   0x2acab6bb0e4722e528291bc6ca4f097e18ce9331
+   0x13b3cb89cf3226d3b860294fc75dc6c91f0c5ecf
 
 # Give yourself some money
 
@@ -24,7 +24,7 @@ brew install cmake
 
 # Looking at the prefunded address
 
-   % sui client objects --address 0x2acab6bb0e4722e528291bc6ca4f097e18ce9331
+   % sui client objects --address 0x13b3cb89cf3226d3b860294fc75dc6c91f0c5ecf
 
 === Boot tilt
 
@@ -46,15 +46,15 @@ brew install cmake
 
 ``` sh
   % rm -rf $HOME/.sui
-  % sui keytool import "daughter exclude wheat pudding police weapon giggle taste space whip satoshi occur" secp256k1
+  % sui keytool import "daughter exclude wheat pudding police weapon giggle taste space whip satoshi occur" ed25519
   % sui client
 ```
-     point it at http://localhost:9002.  The key you create doesn't matter.
+     point it at http://localhost:9000.  The key you create doesn't matter.
 
 # edit $HOME/.sui/sui_config/client.yaml
 
 ``` sh
-   sed -i -e 's/active_address.*/active_address: "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331"/' ~/.sui/sui_config/client.yaml 
+   sed -i -e 's/active_address.*/active_address: "0x13b3cb89cf3226d3b860294fc75dc6c91f0c5ecf"/' ~/.sui/sui_config/client.yaml 
 ```
 
 
