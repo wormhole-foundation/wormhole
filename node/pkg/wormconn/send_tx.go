@@ -12,10 +12,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"go.uber.org/zap"
 )
 
-func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger, msg sdktypes.Msg) error {
+func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (*sdktx.BroadcastTxResponse, error) {
 	// Lock to protect the wallet sequence number.
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -26,17 +25,17 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger,
 	}
 	resp, err := authClient.Account(ctx, accountQuery)
 	if err != nil {
-		return fmt.Errorf("failed to fetch account: %w", err)
+		return nil, fmt.Errorf("failed to fetch account: %w", err)
 	}
 
 	var account auth.AccountI
 	if err := c.encCfg.InterfaceRegistry.UnpackAny(resp.Account, &account); err != nil {
-		return fmt.Errorf("failed to unmarshal account info: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal account info: %w", err)
 	}
 
 	builder := c.encCfg.TxConfig.NewTxBuilder()
 	if err := builder.SetMsgs(msg); err != nil {
-		return fmt.Errorf("failed to add message to builder: %w", err)
+		return nil, fmt.Errorf("failed to add message to builder: %w", err)
 	}
 	builder.SetGasLimit(2000000) // TODO: Maybe simulate and use the result
 
@@ -52,7 +51,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger,
 		Sequence: sequence,
 	}
 	if err := builder.SetSignatures(sig); err != nil {
-		return fmt.Errorf("failed to set SignerInfo: %w", err)
+		return nil, fmt.Errorf("failed to set SignerInfo: %w", err)
 	}
 
 	signerData := authsigning.SignerData{
@@ -70,15 +69,15 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger,
 		sequence,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to sign tx: %w", err)
+		return nil, fmt.Errorf("failed to sign tx: %w", err)
 	}
 	if err := builder.SetSignatures(sig); err != nil {
-		return fmt.Errorf("failed to update tx signature: %w", err)
+		return nil, fmt.Errorf("failed to update tx signature: %w", err)
 	}
 
 	txBytes, err := c.encCfg.TxConfig.TxEncoder()(builder.GetTx())
 	if err != nil {
-		return fmt.Errorf("failed to marshal tx: %w", err)
+		return nil, fmt.Errorf("failed to marshal tx: %w", err)
 	}
 
 	client := sdktx.NewServiceClient(c.c)
@@ -92,15 +91,8 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, logger *zap.Logger,
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to broadcast tx: %w", err)
+		return nil, fmt.Errorf("failed to broadcast tx: %w", err)
 	}
 
-	out, err := c.encCfg.Marshaler.MarshalJSON(txResp)
-	if err != nil {
-		logger.Error("failed to marshal BroadcastTx response", zap.Any("response", txResp), zap.Error(err))
-	} else {
-		logger.Info("Sent broadcast", zap.String("response", string(out)))
-	}
-
-	return nil
+	return txResp, nil
 }
