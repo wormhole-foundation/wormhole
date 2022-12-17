@@ -23,6 +23,7 @@ import (
 
 	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"go.uber.org/zap"
 )
@@ -341,7 +342,7 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 		},
 	}
 
-	if err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, acct.wormchainConn, acct.contract, obs); err != nil {
+	if _, err := SubmitObservationToContract(acct.ctx, acct.gk, gsIndex, acct.wormchainConn, acct.contract, obs); err != nil {
 		// Should allow TransferError::DuplicateTransfer - Just publish it (probably reobservation).
 		// Should handle DuplicateSignatureError - Don't publish it, just keep waiting.
 		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
@@ -353,13 +354,12 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 // SubmitObservationToContract is a free function to make a call to the smart contract to submit an observation request.
 func SubmitObservationToContract(
 	ctx context.Context,
-	logger *zap.Logger,
 	gk *ecdsa.PrivateKey,
 	gsIndex uint32,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	obs []Observation,
-) error {
+) (*sdktx.BroadcastTxResponse, error) {
 	bytes, err := json.Marshal(obs)
 	if err != nil {
 		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
@@ -399,7 +399,7 @@ func SubmitObservationToContract(
 		Funds:    sdktypes.Coins{},
 	}
 
-	return wormchainConn.SignAndBroadcastTx(ctx, logger, &subMsg)
+	return wormchainConn.SignAndBroadcastTx(ctx, &subMsg)
 }
 
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
