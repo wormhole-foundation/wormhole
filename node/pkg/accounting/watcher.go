@@ -62,7 +62,7 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		connectionErrors.Inc()
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
-	acct.logger.Info("acct: successfully subscribed to events")
+	acct.logger.Info("acct: successfully subscribed to events", zap.String("contract", acct.contract))
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 

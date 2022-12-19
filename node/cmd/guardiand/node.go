@@ -289,7 +289,7 @@ func init() {
 	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormchaind root for websocket connection")
 	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
-	wormchainKeyPath = NodeCmd.Flags().String("wormchainKey", "", "path to wormhole-chain private key for signing transactions")
+	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 
 	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
 	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
@@ -920,7 +920,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	var wormchainConn *wormconn.ClientConn
 	if *wormchainURL != "" {
 		if *wormchainKeyPath == "" {
-			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required")
+			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required", zap.String("wormchainKeyPath", *wormchainKeyPath))
 		}
 
 		// Load the wormchain key.
@@ -934,6 +934,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		// Connect to wormchain.
+		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("wormchainKeyPath", *wormchainKeyPath))
 		wormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err))

@@ -15,6 +15,9 @@ spec:
     - name: rest
       port: 1317
       protocol: TCP
+    - name: cosmos-rpc
+      port: 9090
+      protocol: TCP
   selector:
     app: guardian-validator
 ---
@@ -53,6 +56,9 @@ spec:
               protocol: TCP
             - containerPort: 1317
               name: rest
+              protocol: TCP
+            - containerPort: 9090
+              name: cosmos-rpc
               protocol: TCP
           readinessProbe:
             httpGet:
