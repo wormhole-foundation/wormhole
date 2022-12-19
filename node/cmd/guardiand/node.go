@@ -932,7 +932,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	var wormchainConn *wormconn.ClientConn
 	if *wormchainURL != "" {
 		if *wormchainKeyPath == "" {
-			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required")
+			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required", zap.String("wormchainKeyPath", *wormchainKeyPath))
 		}
 
 		if *wormchainKeyPassPhrase == "" {

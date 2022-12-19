@@ -6,20 +6,23 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accounting"
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
@@ -58,49 +61,94 @@ func main() {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
 
-	EmitterChain := uint16(2)
-	EmitterAddress, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
-	Sequence := uint64(0)
-	Nonce := uint32(0)
+	sequence := uint64(time.Now().Unix())
+
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, 0, "Submit should succeed") {
+		return
+	}
+
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, 1, "Duplicate transfer should succeed but not publish") {
+		return
+	}
+
+	sequence += 1
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", sequence, -1, "Bad emitter address should fail") {
+		return
+	}
+}
+
+func testSubmit(
+	ctx context.Context,
+	logger *zap.Logger,
+	gk *ecdsa.PrivateKey,
+	wormchainConn *wormconn.ClientConn,
+	contract string,
+	emitterAddressStr string,
+	sequence uint64,
+	expectedResult int,
+	tag string,
+) bool {
+	EmitterAddress, _ := vaa.StringToAddress(emitterAddressStr)
 	TxHash, _ := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
 	Payload, _ := hex.DecodeString("010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000")
 	gsIndex := uint32(0)
 
-	obs := []accounting.Observation{
-		accounting.Observation{
-			Key: accounting.TransferKey{
-				EmitterChain:   uint16(EmitterChain),
-				EmitterAddress: base64.StdEncoding.EncodeToString(EmitterAddress.Bytes()),
-				Sequence:       Sequence,
-			},
-			Nonce:   Nonce,
-			TxHash:  strings.Trim(string(TxHash.String()), `0x`),
-			Payload: base64.StdEncoding.EncodeToString(Payload),
-		},
+	msg := common.MessagePublication{
+		TxHash:           TxHash,
+		Timestamp:        time.Now(),
+		Nonce:            uint32(0),
+		Sequence:         sequence,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   EmitterAddress,
+		ConsistencyLevel: uint8(15),
+		Payload:          Payload,
 	}
 
-	txResp, err := accounting.SubmitObservationToContract(ctx, gk, gsIndex, wormchainConn, contract, obs)
+	txResp, err := accounting.SubmitObservationToContract(ctx, gk, gsIndex, wormchainConn, contract, &msg)
 	if err != nil {
 		logger.Error("acct: failed to broadcast Observation request", zap.Error(err))
-		return
+		return false
 	}
 
-	out, err := wormchainConn.BroadcastTxResponseToString(txResp)
-	if err != nil {
-		logger.Error("acct: failed to parse broadcast response", zap.Error(err))
-		return
+	// out, err := wormchainConn.BroadcastTxResponseToString(txResp)
+	// if err != nil {
+	// 	logger.Error("acct: failed to parse broadcast response", zap.Error(err))
+	// 	return false
+	// }
+
+	result := CheckSubmitObservationResult(txResp)
+	if result != expectedResult {
+		out, err := wormchainConn.BroadcastTxResponseToString(txResp)
+		if err != nil {
+			logger.Error("acct: failed to parse broadcast response", zap.Error(err))
+			return false
+		}
+
+		logger.Info("test failed", zap.String("test", tag), zap.Uint64("seqNo", sequence), zap.Int("result", result), zap.String("response", out))
+		return false
 	}
 
+	logger.Info("test succeeded", zap.String("test", tag))
+	return true
+}
+
+// checkResult() returns zero if the observation was submitted and the transfer should be queued up, a positive value
+// if the transfer can be published immediately, and a negative value if an error occurred.
+func CheckSubmitObservationResult(txResp *sdktx.BroadcastTxResponse) int {
 	if strings.Contains(txResp.TxResponse.RawLog, "execute wasm contract failed") {
 		if strings.Contains(txResp.TxResponse.RawLog, "already committed") {
-			logger.Info("Tranfer already committed")
-		} else {
-			logger.Error("Tranfer failed", zap.String("resp", out))
+			return 1
+
 		}
-	} else {
-		logger.Info("Tranfer submitted", zap.String("resp", out))
+
+		return -1
 	}
 
+	if strings.Contains(txResp.TxResponse.RawLog, "failed to execute message") {
+		return -1
+	}
+
+	return 0
 }
 
 /*
