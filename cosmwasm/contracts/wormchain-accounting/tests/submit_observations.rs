@@ -134,7 +134,8 @@ fn batch() {
 
         let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
         let actual = contract.query_transfer(key).unwrap();
-        assert_eq!(expected, actual);
+        assert_eq!(expected, actual.data);
+        assert_eq!(o.digest().unwrap(), actual.digest);
 
         let src = contract
             .query_balance(account::Key::new(
@@ -206,7 +207,8 @@ fn duplicates() {
 
         let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
         let actual = contract.query_transfer(key).unwrap();
-        assert_eq!(expected, actual);
+        assert_eq!(expected, actual.data);
+        assert_eq!(o.digest().unwrap(), actual.digest);
 
         let src = contract
             .query_balance(account::Key::new(
@@ -293,7 +295,7 @@ fn round_trip() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
+    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
 
     let expected = transfer::Data {
         amount: Uint256::new(amount.0),
@@ -302,7 +304,8 @@ fn round_trip() {
         recipient_chain: recipient_chain.into(),
     };
     let actual = contract.query_transfer(key).unwrap();
-    assert_eq!(expected, actual);
+    assert_eq!(expected, actual.data);
+    assert_eq!(o.digest().unwrap(), actual.digest);
 
     // Now send the tokens back.
     let key = transfer::Key::new(
@@ -318,7 +321,7 @@ fn round_trip() {
         recipient_chain: emitter_chain.into(),
         fee: Amount([0u8; 32]),
     };
-    transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
+    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
 
     let expected = transfer::Data {
         amount: Uint256::new(amount.0),
@@ -327,7 +330,8 @@ fn round_trip() {
         recipient_chain: emitter_chain,
     };
     let actual = contract.query_transfer(key).unwrap();
-    assert_eq!(expected, actual);
+    assert_eq!(expected, actual.data);
+    assert_eq!(o.digest().unwrap(), actual.digest);
 
     // Now both balances should be zero.
     let src = contract
@@ -624,7 +628,7 @@ fn wrapped_to_wrapped() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
+    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
 
     let expected = transfer::Data {
         amount: Uint256::new(amount.0),
@@ -633,7 +637,8 @@ fn wrapped_to_wrapped() {
         recipient_chain,
     };
     let actual = contract.query_transfer(key).unwrap();
-    assert_eq!(expected, actual);
+    assert_eq!(expected, actual.data);
+    assert_eq!(o.digest().unwrap(), actual.digest);
 
     let src = contract
         .query_balance(account::Key::new(
@@ -729,7 +734,7 @@ fn different_observations() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key.clone(), real, index, quorum).unwrap();
+    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), real, index, quorum).unwrap();
 
     contract
         .query_pending_transfer(key.clone())
@@ -742,7 +747,8 @@ fn different_observations() {
         recipient_chain: real_recipient_chain.into(),
     };
     let actual = contract.query_transfer(key).unwrap();
-    assert_eq!(expected, actual);
+    assert_eq!(expected, actual.data);
+    assert_eq!(o.digest().unwrap(), actual.digest);
 
     let src = contract
         .query_balance(account::Key::new(

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use accounting::{
-    query_balance, query_modification, query_transfer,
+    query_balance, query_modification,
     state::{account, transfer, Modification, TokenAddress, Transfer},
     validate_transfer,
 };
@@ -28,7 +28,7 @@ use crate::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
         AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg, Observation,
-        QueryMsg, Upgrade,
+        QueryMsg, TransferResponse, Upgrade,
     },
     state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -514,6 +514,21 @@ fn query_all_accounts(
     }
 }
 
+fn query_transfer(deps: Deps<WormholeQuery>, key: transfer::Key) -> StdResult<TransferResponse> {
+    let digest = DIGESTS.load(
+        deps.storage,
+        (
+            key.emitter_chain(),
+            key.emitter_address().to_vec(),
+            key.sequence(),
+        ),
+    )?;
+
+    let data = accounting::query_transfer(deps, key)?;
+
+    Ok(TransferResponse { data, digest })
+}
+
 fn query_all_transfers(
     deps: Deps<WormholeQuery>,
     start_after: Option<transfer::Key>,
@@ -524,11 +539,39 @@ fn query_all_transfers(
             .try_into()
             .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
         accounting::query_all_transfers(deps, start_after)
+            .map(|res| {
+                res.and_then(|t| {
+                    let digest = DIGESTS.load(
+                        deps.storage,
+                        (
+                            t.key.emitter_chain(),
+                            t.key.emitter_address().to_vec(),
+                            t.key.sequence(),
+                        ),
+                    )?;
+
+                    Ok((t, digest))
+                })
+            })
             .take(l)
             .collect::<StdResult<Vec<_>>>()
             .map(|transfers| AllTransfersResponse { transfers })
     } else {
         accounting::query_all_transfers(deps, start_after)
+            .map(|res| {
+                res.and_then(|t| {
+                    let digest = DIGESTS.load(
+                        deps.storage,
+                        (
+                            t.key.emitter_chain(),
+                            t.key.emitter_address().to_vec(),
+                            t.key.sequence(),
+                        ),
+                    )?;
+
+                    Ok((t, digest))
+                })
+            })
             .collect::<StdResult<Vec<_>>>()
             .map(|transfers| AllTransfersResponse { transfers })
     }

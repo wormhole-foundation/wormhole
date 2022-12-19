@@ -822,12 +822,26 @@
         "transfers": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/Transfer"
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/Transfer"
+              },
+              {
+                "$ref": "#/definitions/Binary"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
           }
         }
       },
       "additionalProperties": false,
       "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
         "Data": {
           "type": "object",
           "required": [
@@ -1117,34 +1131,54 @@
     },
     "transfer": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Data",
+      "title": "TransferResponse",
       "type": "object",
       "required": [
-        "amount",
-        "recipient_chain",
-        "token_address",
-        "token_chain"
+        "data",
+        "digest"
       ],
       "properties": {
-        "amount": {
-          "$ref": "#/definitions/Uint256"
+        "data": {
+          "$ref": "#/definitions/Data"
         },
-        "recipient_chain": {
-          "type": "integer",
-          "format": "uint16",
-          "minimum": 0.0
-        },
-        "token_address": {
-          "$ref": "#/definitions/TokenAddress"
-        },
-        "token_chain": {
-          "type": "integer",
-          "format": "uint16",
-          "minimum": 0.0
+        "digest": {
+          "$ref": "#/definitions/Binary"
         }
       },
       "additionalProperties": false,
       "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
+        "Data": {
+          "type": "object",
+          "required": [
+            "amount",
+            "recipient_chain",
+            "token_address",
+            "token_chain"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint256"
+            },
+            "recipient_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "token_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "token_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
         "TokenAddress": {
           "type": "string"
         },

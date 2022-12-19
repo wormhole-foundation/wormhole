@@ -84,8 +84,12 @@ fn basic() {
             TokenAddress::new(v.emitter_address.0),
             v.sequence,
         );
-        let data = transfer_data_from_token_message(v.payload);
-        assert_eq!(data, contract.query_transfer(key.clone()).unwrap());
+        let (_, body) = v.into();
+        let digest = body.digest().unwrap().secp256k_hash;
+        let data = transfer_data_from_token_message(body.payload);
+        let tx = contract.query_transfer(key.clone()).unwrap();
+        assert_eq!(data, tx.data);
+        assert_eq!(&digest[..], &*tx.digest);
         resp.assert_event(
             &Event::new("wasm-CommitTransfer")
                 .add_attribute("key", key.to_string())
@@ -239,8 +243,12 @@ fn transfer_with_payload() {
         TokenAddress::new(v.emitter_address.0),
         v.sequence,
     );
-    let data = transfer_data_from_token_message(v.payload);
-    assert_eq!(data, contract.query_transfer(key.clone()).unwrap());
+    let (_, body) = v.into();
+    let digest = body.digest_with_payload(&payload).unwrap().secp256k_hash;
+    let data = transfer_data_from_token_message(body.payload);
+    let tx = contract.query_transfer(key.clone()).unwrap();
+    assert_eq!(data, tx.data);
+    assert_eq!(&digest[..], &*tx.digest);
     resp.assert_event(
         &Event::new("wasm-CommitTransfer")
             .add_attribute("key", key.to_string())

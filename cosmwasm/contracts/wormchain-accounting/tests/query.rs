@@ -232,7 +232,7 @@ fn transfer_data() {
         let key = transfer::Key::new(i as u16, [i as u8; 32].into(), i as u64);
         let actual = contract.query_transfer(key).unwrap();
 
-        assert_eq!(expected, actual);
+        assert_eq!(expected, actual.data);
     }
 }
 
@@ -263,7 +263,7 @@ fn all_transfer_data() {
     let found = resp
         .transfers
         .into_iter()
-        .map(|acc| (acc.key, acc.data))
+        .map(|(acc, _)| (acc.key, acc.data))
         .collect::<BTreeMap<_, _>>();
     assert_eq!(found.len(), count);
 
@@ -286,7 +286,7 @@ fn all_transfer_data_sub_range() {
             let found = resp
                 .transfers
                 .into_iter()
-                .map(|acc| (acc.key, acc.data))
+                .map(|(acc, _)| (acc.key, acc.data))
                 .collect::<BTreeMap<_, _>>();
             assert_eq!(found.len(), l);
 
