@@ -14,7 +14,6 @@ const terra2TokenBridgeVAA = process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA;
 const bscTokenBridgeVAA = process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA;
 const algoTokenBridgeVAA = process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA;
 const nearTokenBridgeVAA = process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA;
-const wormchainTokenBridgeVAA = process.env.REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA;
 const aptosTokenBridgeVAA = process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA;
 
 module.exports = async function(callback) {
@@ -90,16 +89,6 @@ module.exports = async function(callback) {
       from: accounts[0],
       gasLimit: 2000000,
     });
-
-    // Register the wormhole token bridge endpoint
-    console.log("Registering Wormchain...");
-    await tokenBridge.methods
-      .registerChain("0x" + wormchainTokenBridgeVAA)
-      .send({
-        value: 0,
-        from: accounts[0],
-        gasLimit: 2000000,
-      });
 
     // Register the APTOS endpoint
     console.log("Registering Aptos...");

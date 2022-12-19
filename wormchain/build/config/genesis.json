@@ -65,7 +65,11 @@
           "coins": [
             {
               "denom": "utest",
-              "amount": "10000"
+              "amount": "100000000"
+            },
+            {
+              "denom": "uworm",
+              "amount": "1000000000"
             }
           ]
         },
@@ -74,7 +78,11 @@
           "coins": [
             {
               "denom": "utest",
-              "amount": "20000"
+              "amount": "100000000000"
+            },
+            {
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
