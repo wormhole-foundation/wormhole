@@ -12,7 +12,7 @@ use serde::Serialize;
 use wormchain_accounting::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, QueryMsg,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, QueryMsg, TransferResponse,
     },
     state,
 };
@@ -119,7 +119,7 @@ impl Contract {
             .query_wasm_smart(self.addr(), &QueryMsg::AllAccounts { start_after, limit })
     }
 
-    pub fn query_transfer(&self, key: transfer::Key) -> StdResult<transfer::Data> {
+    pub fn query_transfer(&self, key: transfer::Key) -> StdResult<TransferResponse> {
         self.app
             .wrap()
             .query_wasm_smart(self.addr(), &QueryMsg::Transfer(key))

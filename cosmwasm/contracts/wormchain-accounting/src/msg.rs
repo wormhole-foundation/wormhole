@@ -123,7 +123,7 @@ pub enum QueryMsg {
         start_after: Option<account::Key>,
         limit: Option<u32>,
     },
-    #[returns(transfer::Data)]
+    #[returns(TransferResponse)]
     Transfer(transfer::Key),
     #[returns(AllTransfersResponse)]
     AllTransfers {
@@ -157,7 +157,8 @@ pub struct AllAccountsResponse {
 
 #[cw_serde]
 pub struct AllTransfersResponse {
-    pub transfers: Vec<Transfer>,
+    // A tuple of the transfer details and the digest.
+    pub transfers: Vec<(Transfer, Binary)>,
 }
 
 #[cw_serde]
@@ -173,4 +174,10 @@ pub struct AllModificationsResponse {
 #[cw_serde]
 pub struct ChainRegistrationResponse {
     pub address: Binary,
+}
+
+#[cw_serde]
+pub struct TransferResponse {
+    pub data: transfer::Data,
+    pub digest: Binary,
 }
