@@ -1,10 +1,11 @@
 use cosmwasm_schema::write_api;
 
-use wormchain_accounting::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use cosmwasm_std::Empty;
+use wormchain_accounting::msg::{ExecuteMsg, QueryMsg};
 
 fn main() {
     write_api! {
-        instantiate: InstantiateMsg,
+        instantiate: Empty,
         execute: ExecuteMsg,
         query: QueryMsg,
     }

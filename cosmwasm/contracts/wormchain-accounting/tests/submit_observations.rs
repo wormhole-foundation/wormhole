@@ -1,9 +1,6 @@
 mod helpers;
 
-use accounting::state::{
-    account::{self, Balance},
-    transfer, Account, TokenAddress,
-};
+use accounting::state::{account, transfer, Kind, Modification, TokenAddress};
 use cosmwasm_std::{to_binary, Binary, Event, Uint256};
 use cw_multi_test::AppResponse;
 use helpers::*;
@@ -72,7 +69,7 @@ fn batch() {
     const COUNT: usize = 5;
 
     let (txs, observations) = set_up(COUNT);
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, COUNT);
 
     let index = wh.guardian_set_index();
@@ -166,7 +163,7 @@ fn duplicates() {
     const COUNT: usize = 5;
 
     let (txs, observations) = set_up(COUNT);
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, COUNT);
     let index = wh.guardian_set_index();
 
@@ -273,7 +270,7 @@ fn transfer_tokens(
 
 #[test]
 fn round_trip() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
     let quorum = wh
@@ -356,7 +353,7 @@ fn round_trip() {
 
 #[test]
 fn missing_guardian_set() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -384,7 +381,7 @@ fn missing_guardian_set() {
 
 #[test]
 fn expired_guardian_set() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let mut block = contract.app().block_info();
 
@@ -417,7 +414,7 @@ fn expired_guardian_set() {
 
 #[test]
 fn no_quorum() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -467,7 +464,7 @@ fn no_quorum() {
 
 #[test]
 fn missing_wrapped_account() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -501,19 +498,25 @@ fn missing_native_account() {
     let token_address = [0xccu8; 32];
     let token_chain = 2;
 
-    // We need to set up a fake wrapped account so that the initial check succeeds.
-    let (wh, mut contract) = proper_instantiate(
-        vec![Account {
-            key: account::Key::new(emitter_chain, token_chain, token_address.into()),
-            balance: Balance::new(Uint256::new(amount.0)),
-        }],
-        Vec::new(),
-        Vec::new(),
-    );
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
+
+    // We need to set up a fake wrapped account so that the initial check succeeds.
+    let m = to_binary(&Modification {
+        sequence: 0,
+        chain_id: emitter_chain,
+        token_chain,
+        token_address: token_address.into(),
+        kind: Kind::Add,
+        amount: Uint256::new(amount.0),
+        reason: "fake wrapped balance for testing".into(),
+    })
+    .unwrap();
+    let signatures = wh.sign(&m);
+    contract.modify_balance(m, index, signatures).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
     let msg = Message::Transfer {
@@ -533,7 +536,7 @@ fn missing_native_account() {
 fn repeated() {
     const ITERATIONS: usize = 10;
 
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 3);
     let index = wh.guardian_set_index();
     let quorum = wh
@@ -590,20 +593,26 @@ fn wrapped_to_wrapped() {
     let token_address = [0xccu8; 32];
     let token_chain = 5;
 
-    // We need an initial fake wrapped account.
-    let (wh, mut contract) = proper_instantiate(
-        vec![Account {
-            key: account::Key::new(emitter_chain, token_chain, token_address.into()),
-            balance: Balance::new(Uint256::new(amount.0)),
-        }],
-        Vec::new(),
-        Vec::new(),
-    );
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
+
+    // We need an initial fake wrapped account.
+    let m = to_binary(&Modification {
+        sequence: 0,
+        chain_id: emitter_chain,
+        token_chain,
+        token_address: token_address.into(),
+        kind: Kind::Add,
+        amount: Uint256::new(amount.0),
+        reason: "fake wrapped balance for testing".into(),
+    })
+    .unwrap();
+    let signatures = wh.sign(&m);
+    contract.modify_balance(m, index, signatures).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
     let msg = Message::Transfer {
@@ -649,7 +658,7 @@ fn wrapped_to_wrapped() {
 
 #[test]
 fn unknown_emitter() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -677,7 +686,7 @@ fn unknown_emitter() {
 
 #[test]
 fn different_observations() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 3);
     let index = wh.guardian_set_index();
     let quorum = wh
@@ -758,7 +767,7 @@ fn different_observations() {
 
 #[test]
 fn emit_event_with_quorum() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 3);
 
     let index = wh.guardian_set_index();
@@ -806,7 +815,7 @@ fn emit_event_with_quorum() {
 
 #[test]
 fn duplicate_vaa() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 3);
 
     let index = wh.guardian_set_index();
@@ -863,7 +872,7 @@ fn duplicate_vaa() {
 
 #[test]
 fn digest_mismatch() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 3);
 
     let index = wh.guardian_set_index();

@@ -72,7 +72,7 @@ fn transfer_data_from_token_message(msg: Message) -> transfer::Data {
 fn basic() {
     const COUNT: usize = 7;
 
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let (vaas, payloads) = create_transfer_vaas(&wh, COUNT);
 
@@ -99,7 +99,7 @@ fn basic() {
 
 #[test]
 fn invalid_transfer() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body(1);
     match body.payload {
@@ -124,7 +124,7 @@ fn invalid_transfer() {
 
 #[test]
 fn no_quorum() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -142,7 +142,7 @@ fn no_quorum() {
 
 #[test]
 fn bad_serialization() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let (v, _) = sign_vaa_body(&wh, create_vaa_body(3));
 
@@ -156,7 +156,7 @@ fn bad_serialization() {
 
 #[test]
 fn bad_signature() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let (mut v, _) = sign_vaa_body(&wh, create_vaa_body(3));
 
     // Flip a bit in the first signature so it becomes invalid.
@@ -170,7 +170,7 @@ fn bad_signature() {
 
 #[test]
 fn non_transfer_message() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let body = Body {
         timestamp: 2,
         nonce: 2,
@@ -199,7 +199,7 @@ fn non_transfer_message() {
 
 #[test]
 fn transfer_with_payload() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let body = Body {
         timestamp: 2,
         nonce: 2,
@@ -253,7 +253,7 @@ fn transfer_with_payload() {
 
 #[test]
 fn unsupported_version() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let (mut v, _) = sign_vaa_body(&wh, create_vaa_body(6));
     v.version = 0;
@@ -267,7 +267,7 @@ fn unsupported_version() {
 
 #[test]
 fn reobservation() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
     contract
@@ -300,7 +300,7 @@ fn reobservation() {
 
 #[test]
 fn digest_mismatch() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
     contract

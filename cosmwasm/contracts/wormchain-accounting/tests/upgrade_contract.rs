@@ -35,7 +35,7 @@ pub fn query(_deps: Deps, _env: Env, _msg: Empty) -> StdResult<Binary> {
 
 #[test]
 fn upgrade() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let new_code_id = contract.app_mut().store_code(Box::new(
         ContractWrapper::new_with_empty(execute, instantiate, query).with_migrate_empty(migrate),

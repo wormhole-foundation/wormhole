@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-use accounting::state::{account, transfer, Account, Kind, Modification, Transfer};
+use accounting::state::{account, transfer, Modification};
 use cosmwasm_std::{
     testing::{MockApi, MockStorage},
-    to_binary, Addr, Binary, Coin, Empty, StdResult, Uint128, Uint256,
+    Addr, Binary, Coin, Empty, StdResult, Uint128,
 };
 use cw_multi_test::{
     App, AppBuilder, AppResponse, BankKeeper, ContractWrapper, Executor, WasmKeeper,
@@ -12,8 +12,7 @@ use serde::Serialize;
 use wormchain_accounting::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, Instantiate, InstantiateMsg,
-        QueryMsg,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, QueryMsg,
     },
     state,
 };
@@ -202,59 +201,7 @@ fn fake_app(wh: fake::WormholeKeeper) -> FakeApp {
         })
 }
 
-pub fn create_accounts(count: usize) -> Vec<Account> {
-    let mut out = Vec::with_capacity(count * count);
-    for i in 0..count {
-        for j in 0..count {
-            let key = account::Key::new(i as u16, j as u16, [i as u8; 32].into());
-            let balance = Uint256::from(j as u128).into();
-            out.push(Account { key, balance });
-        }
-    }
-
-    out
-}
-
-pub fn create_transfers(count: usize) -> Vec<Transfer> {
-    let mut out = Vec::with_capacity(count);
-    for i in 0..count {
-        let key = transfer::Key::new(i as u16, [i as u8; 32].into(), i as u64);
-        let data = transfer::Data {
-            amount: Uint256::from(i as u128),
-            token_chain: i as u16,
-            token_address: [i as u8; 32].into(),
-            recipient_chain: i as u16,
-        };
-
-        out.push(Transfer { key, data });
-    }
-
-    out
-}
-
-pub fn create_modifications(count: usize) -> Vec<Modification> {
-    let mut out = Vec::with_capacity(count);
-    for i in 0..count {
-        let m = Modification {
-            sequence: i as u64,
-            chain_id: i as u16,
-            token_chain: i as u16,
-            token_address: [i as u8; 32].into(),
-            kind: if i % 2 == 0 { Kind::Add } else { Kind::Sub },
-            amount: Uint256::from(i as u128),
-            reason: format!("{i}"),
-        };
-        out.push(m);
-    }
-
-    out
-}
-
-pub fn proper_instantiate(
-    accounts: Vec<Account>,
-    transfers: Vec<Transfer>,
-    modifications: Vec<Modification>,
-) -> (fake::WormholeKeeper, Contract) {
+pub fn proper_instantiate() -> (fake::WormholeKeeper, Contract) {
     let wh = fake::WormholeKeeper::new();
     let mut app = fake_app(wh.clone());
 
@@ -263,20 +210,6 @@ pub fn proper_instantiate(
         wormchain_accounting::contract::instantiate,
         wormchain_accounting::contract::query,
     )));
-
-    let instantiate = to_binary(&Instantiate {
-        accounts,
-        transfers,
-        modifications,
-    })
-    .unwrap();
-
-    let signatures = wh.sign(&instantiate);
-    let msg = InstantiateMsg {
-        instantiate,
-        guardian_set_index: wh.guardian_set_index(),
-        signatures,
-    };
 
     // We want the contract to be able to upgrade itself, which means we have to set the contract
     // as its own admin.  So we have a bit of a catch-22 where we need to know the contract
@@ -299,7 +232,7 @@ pub fn proper_instantiate(
         .instantiate_contract(
             accounting_id,
             Addr::unchecked(ADMIN),
-            &msg,
+            &Empty {},
             &[],
             "accounting",
             Some("contract0".into()),

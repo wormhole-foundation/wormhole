@@ -27,8 +27,8 @@ use crate::{
     error::{AnyError, ContractError},
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, Instantiate, InstantiateMsg,
-        MigrateMsg, Observation, QueryMsg, Upgrade,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg, Observation,
+        QueryMsg, Upgrade,
     },
     state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -42,33 +42,15 @@ pub fn instantiate(
     deps: DepsMut<WormholeQuery>,
     _env: Env,
     info: MessageInfo,
-    msg: InstantiateMsg,
+    _msg: Empty,
 ) -> Result<Response, AnyError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
         .context("failed to set contract version")?;
 
-    let _: Empty = deps
-        .querier
-        .query(
-            &WormholeQuery::VerifyQuorum {
-                data: msg.instantiate.clone(),
-                guardian_set_index: msg.guardian_set_index,
-                signatures: msg.signatures,
-            }
-            .into(),
-        )
-        .context(ContractError::VerifyQuorum)?;
-
-    let init: Instantiate =
-        from_binary(&msg.instantiate).context("failed to parse `Instantiate` message")?;
-
-    let event =
-        accounting::instantiate(deps, init.into()).context("failed to instantiate accounting")?;
-
     Ok(Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("owner", info.sender)
-        .add_event(event))
+        .add_attribute("version", CONTRACT_VERSION))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
