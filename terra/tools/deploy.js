@@ -274,8 +274,6 @@ const contract_registrations = {
     process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA,
     // NEAR
     process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
-    // Wormhole Chain
-    process.env.REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA,
     // APTOS
     process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA,
   ],
