@@ -538,8 +538,8 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   wormchain: {
-    core: "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
-    token_bridge: "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
+    core: "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
+    token_bridge: "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj",
     nft_bridge: undefined,
   },
 };

@@ -756,6 +756,12 @@ if wormchain:
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
     )
 
+    docker_build(
+        ref = "wormchain-deploy",
+        context = "./wormchain/contracts",
+        dockerfile = "./cosmwasm/Dockerfile.deploy",
+    )
+
     def build_wormchain_yaml(yaml_path, num_instances):
         wormchain_yaml = read_yaml_stream(yaml_path)
 
@@ -795,6 +801,7 @@ if wormchain:
     else:
         k8s_yaml_with_ns(wormchain_path)
 
+
     k8s_resource(
         "wormchain",
         port_forwards = [
@@ -802,7 +809,14 @@ if wormchain:
             port_forward(9090, container_port = 9090, name = "GRPC", host = webHost),
             port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
         ],
-        resource_deps = [],
+        resource_deps = ["const-gen"],
+        labels = ["wormchain"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_resource(
+        "wormchain-deploy",
+        resource_deps = ["wormchain"],
         labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )
@@ -823,7 +837,7 @@ if ibc_relayer:
         port_forwards = [
             port_forward(7597, name = "HTTPDEBUG [:7597]", host = webHost),
         ],
-        resource_deps = ["guardian-validator", "terra2-terrad"],
+        resource_deps = ["wormchain", "terra2-terrad"],
         labels = ["ibc-relayer"],
         trigger_mode = trigger_mode,
     )
