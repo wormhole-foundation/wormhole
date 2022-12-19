@@ -6,7 +6,7 @@ use helpers::*;
 
 #[test]
 fn simple_modify() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let index = wh.guardian_set_index();
     let m = Modification {
@@ -51,7 +51,7 @@ fn simple_modify() {
 
 #[test]
 fn duplicate_modify() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let index = wh.guardian_set_index();
     let m = Modification {
@@ -77,7 +77,7 @@ fn duplicate_modify() {
 
 #[test]
 fn round_trip() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let index = wh.guardian_set_index();
     let mut m = Modification {
@@ -126,7 +126,7 @@ fn round_trip() {
 
 #[test]
 fn missing_guardian_set() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let index = wh.guardian_set_index();
     let m = Modification {
@@ -148,7 +148,7 @@ fn missing_guardian_set() {
 
 #[test]
 fn expired_guardian_set() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let index = wh.guardian_set_index();
     let mut block = contract.app().block_info();
@@ -175,7 +175,7 @@ fn expired_guardian_set() {
 
 #[test]
 fn no_quorum() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let index = wh.guardian_set_index();
     let m = Modification {
@@ -205,7 +205,7 @@ fn no_quorum() {
 fn repeat() {
     const ITERATIONS: usize = 10;
 
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let index = wh.guardian_set_index();
     let mut m = Modification {

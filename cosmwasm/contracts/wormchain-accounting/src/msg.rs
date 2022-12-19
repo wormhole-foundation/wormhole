@@ -9,33 +9,6 @@ use wormhole::{
 use crate::state::{self, PendingTransfer};
 
 #[cw_serde]
-pub struct Instantiate {
-    pub accounts: Vec<Account>,
-    pub transfers: Vec<Transfer>,
-    pub modifications: Vec<Modification>,
-}
-
-impl From<Instantiate> for accounting::msg::Instantiate {
-    fn from(i: Instantiate) -> Self {
-        Self {
-            accounts: i.accounts,
-            transfers: i.transfers,
-            modifications: i.modifications,
-        }
-    }
-}
-
-#[cw_serde]
-pub struct InstantiateMsg {
-    // A serialized `Instantiate` message.
-    pub instantiate: Binary,
-    // The index of the guardian set used to sign this message.
-    pub guardian_set_index: u32,
-    // A quorum of signatures for `instantiate`.
-    pub signatures: Vec<Signature>,
-}
-
-#[cw_serde]
 #[derive(Default)]
 pub struct Observation {
     // The hash of the transaction on the emitter chain in which the transfer was performed.

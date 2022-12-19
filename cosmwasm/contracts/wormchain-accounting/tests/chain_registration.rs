@@ -33,7 +33,7 @@ fn create_vaa_body() -> Body<GovernancePacket> {
 
 #[test]
 fn any_target() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let body = create_vaa_body();
 
@@ -57,7 +57,7 @@ fn any_target() {
 
 #[test]
 fn wormchain_target() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body();
     body.payload.chain = Chain::Wormchain;
@@ -82,7 +82,7 @@ fn wormchain_target() {
 
 #[test]
 fn wrong_target() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body();
     body.payload.chain = Chain::Oasis;
@@ -95,7 +95,7 @@ fn wrong_target() {
 
 #[test]
 fn non_governance_chain() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body();
     body.emitter_chain = Chain::Fantom;
@@ -108,7 +108,7 @@ fn non_governance_chain() {
 
 #[test]
 fn non_governance_emitter() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body();
     body.emitter_address = Address([0x88; 32]);
@@ -121,7 +121,7 @@ fn non_governance_emitter() {
 
 #[test]
 fn duplicate() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let (_, data) = sign_vaa_body(&wh, create_vaa_body());
     contract
@@ -135,7 +135,7 @@ fn duplicate() {
 
 #[test]
 fn no_quorum() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -153,7 +153,7 @@ fn no_quorum() {
 
 #[test]
 fn bad_signature() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
     let (mut v, _) = sign_vaa_body(&wh, create_vaa_body());
 
     // Flip a bit in the first signature so it becomes invalid.
@@ -167,7 +167,7 @@ fn bad_signature() {
 
 #[test]
 fn bad_serialization() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let (v, _) = sign_vaa_body(&wh, create_vaa_body());
 
@@ -181,7 +181,7 @@ fn bad_serialization() {
 
 #[test]
 fn non_chain_registration() {
-    let (wh, mut contract) = proper_instantiate(Vec::new(), Vec::new(), Vec::new());
+    let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body();
     body.payload.action = Action::ContractUpgrade {
