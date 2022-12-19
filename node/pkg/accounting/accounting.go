@@ -184,6 +184,7 @@ func (acct *Accounting) FeatureString() string {
 // loop when a local observation is received from a watcher. It returns true if the observation can be published immediately,
 // false if not (because it has been submitted to accounting).
 func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool, error) {
+	acct.logger.Info("acct: debug: in SubmitObservation", zap.String("msgID", msg.MessageIDString()))
 	// We only care about token bridges.
 	tbk := tokenBridgeKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}
 	if _, exists := acct.tokenBridges[tbk]; !exists {
@@ -251,6 +252,7 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 // FinalizeObservation deletes a pending transfer received on the accounting channel. This is called from the processor loop
 // when a message is received on the accounting channel. It returns true if the observation should be published, false if not.
 func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool {
+	acct.logger.Info("acct: debug: in FinalizeObservation", zap.String("msgID", msg.MessageIDString()))
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
@@ -329,20 +331,8 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 // submitObservationToContract makes a call to the smart contract to submit an observation request.
 // It should be called from a go routine because it can block.
 func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
-	obs := []Observation{
-		Observation{
-			Key: TransferKey{
-				EmitterChain:   uint16(msg.EmitterChain),
-				EmitterAddress: base64.StdEncoding.EncodeToString(msg.EmitterAddress.Bytes()),
-				Sequence:       msg.Sequence,
-			},
-			Nonce:   msg.Nonce,
-			TxHash:  strings.Trim(string(msg.TxHash.String()), `0x`),
-			Payload: base64.StdEncoding.EncodeToString(msg.Payload),
-		},
-	}
-
-	if _, err := SubmitObservationToContract(acct.ctx, acct.gk, gsIndex, acct.wormchainConn, acct.contract, obs); err != nil {
+	acct.logger.Info("acct: debug: in submitObservationToContract", zap.String("msgID", msg.MessageIDString()))
+	if _, err := SubmitObservationToContract(acct.ctx, acct.gk, gsIndex, acct.wormchainConn, acct.contract, msg); err != nil {
 		// Should allow TransferError::DuplicateTransfer - Just publish it (probably reobservation).
 		// Should handle DuplicateSignatureError - Don't publish it, just keep waiting.
 		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
@@ -358,8 +348,21 @@ func SubmitObservationToContract(
 	gsIndex uint32,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
-	obs []Observation,
+	msg *common.MessagePublication,
 ) (*sdktx.BroadcastTxResponse, error) {
+	obs := []Observation{
+		Observation{
+			Key: TransferKey{
+				EmitterChain:   uint16(msg.EmitterChain),
+				EmitterAddress: base64.StdEncoding.EncodeToString(msg.EmitterAddress.Bytes()),
+				Sequence:       msg.Sequence,
+			},
+			Nonce:   msg.Nonce,
+			TxHash:  strings.Trim(string(msg.TxHash.String()), `0x`),
+			Payload: base64.StdEncoding.EncodeToString(msg.Payload),
+		},
+	}
+
 	bytes, err := json.Marshal(obs)
 	if err != nil {
 		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
@@ -405,6 +408,7 @@ func SubmitObservationToContract(
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
 // each timer interval. Any transfers that can be released will be forwarded to the accounting message channel.
 func (acct *Accounting) AuditPendingTransfers() {
+	acct.logger.Info("acct: debug: in AuditPendingTransfers")
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
@@ -419,6 +423,7 @@ func (acct *Accounting) AuditPendingTransfers() {
 	}
 
 	for pk, pe := range acct.pendingTransfers {
+		acct.logger.Info("acct: debug: evaluating pending transfer", zap.String("msgID", pe.msg.MessageIDString()), zap.Stringer("updTime", pe.updTime))
 		if time.Since(pe.updTime) > auditInterval {
 			pe.retryCount += 1
 			if pe.retryCount > maxRetries {
@@ -426,7 +431,12 @@ func (acct *Accounting) AuditPendingTransfers() {
 				acct.deletePendingTransfer(&pk, pe.msg.MessageIDString())
 			}
 
-			acct.logger.Error("acct: resubmitting pending transfer", zap.String("msgId", pe.msg.MessageIDString()), zap.Stringer("lastUpdateTime", pe.updTime))
+			acct.logger.Error("acct: resubmitting pending transfer",
+				zap.String("msgId", pe.msg.MessageIDString()),
+				zap.Stringer("lastUpdateTime", pe.updTime),
+				zap.Int("retryCount", pe.retryCount),
+			)
+
 			pe.updTime = time.Now()
 			go acct.submitObservationToContract(pe.msg, gs.Index)
 			transfersSubmitted.Inc()
