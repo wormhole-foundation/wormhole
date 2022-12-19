@@ -42,6 +42,7 @@
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@openzeppelin/contracts": "^4.2.0",
     "@typechain/ethers-v5": "^7.0.1",
+    "@types/bs58": "4.0.1",
     "@types/elliptic": "^6.4.14",
     "@types/jest": "^27.0.2",
     "@types/long": "^4.0.1",
@@ -75,6 +76,7 @@
     "axios": "^0.24.0",
     "bech32": "^2.0.0",
     "binary-parser": "^2.2.1",
+    "bs58": "^4.0.1",
     "elliptic": "^6.5.4",
     "js-base64": "^3.6.1",
     "near-api-js": "^1.0.0"
