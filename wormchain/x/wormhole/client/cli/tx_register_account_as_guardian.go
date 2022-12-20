@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"encoding/hex"
-	"encoding/json"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -18,16 +17,11 @@ var _ = strconv.Itoa(0)
 
 func CmdRegisterAccountAsGuardian() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "register-account-as-guardian [guardian-pubkey] [signature]",
+		Use:   "register-account-as-guardian [signature]",
 		Short: "Register a guardian public key with a wormhole chain address.",
-		Args:  cobra.ExactArgs(2),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			argGuardianPubkey := new(types.GuardianKey)
-			err = json.Unmarshal([]byte(args[0]), argGuardianPubkey)
-			if err != nil {
-				return err
-			}
-			argSignature, err := hex.DecodeString(args[1])
+			argSignature, err := hex.DecodeString(args[0])
 			if err != nil {
 				return fmt.Errorf("malformed signature: %w", err)
 			}
@@ -39,7 +33,6 @@ func CmdRegisterAccountAsGuardian() *cobra.Command {
 
 			msg := types.NewMsgRegisterAccountAsGuardian(
 				clientCtx.GetFromAddress().String(),
-				argGuardianPubkey,
 				argSignature,
 			)
 			if err := msg.ValidateBasic(); err != nil {

@@ -9,11 +9,10 @@ const TypeMsgRegisterAccountAsGuardian = "register_account_as_guardian"
 
 var _ sdk.Msg = &MsgRegisterAccountAsGuardian{}
 
-func NewMsgRegisterAccountAsGuardian(signer string, guardianPubkey *GuardianKey, signature []byte) *MsgRegisterAccountAsGuardian {
+func NewMsgRegisterAccountAsGuardian(signer string, signature []byte) *MsgRegisterAccountAsGuardian {
 	return &MsgRegisterAccountAsGuardian{
-		Signer:         signer,
-		GuardianPubkey: guardianPubkey,
-		Signature:      signature,
+		Signer:    signer,
+		Signature: signature,
 	}
 }
 

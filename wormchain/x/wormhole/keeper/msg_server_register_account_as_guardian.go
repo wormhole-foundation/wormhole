@@ -34,13 +34,7 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	// hash the public key, and take the last 20 bytes of the hash
 	// (according to
 	// https://ethereum.org/en/developers/docs/accounts/#account-creation)
-	guardianKeyAddrFromSignature := common.BytesToAddress(crypto.Keccak256(guardianKey[1:])[12:])
-	guardianKeyAddr := common.BytesToAddress(msg.GuardianPubkey.Key)
-
-	// check the recovered guardian key matches the one in the message
-	if guardianKeyAddrFromSignature != guardianKeyAddr {
-		return nil, types.ErrGuardianSignatureMismatch
-	}
+	guardianKeyAddr := common.BytesToAddress(crypto.Keccak256(guardianKey[1:])[12:])
 
 	// next we check if this guardian key is in the most recent guardian set.
 	// we don't allow registration of arbitrary public keys, since that would
