@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"time"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 
@@ -32,7 +33,7 @@ type clientRequest struct {
 func (acct *Accounting) watcher(ctx context.Context) error {
 	errC := make(chan error)
 
-	acct.logger.Info("acct: connecting to websocket", zap.String("url", acct.wsUrl))
+	acct.logger.Info("acctwatch: creating watcher", zap.String("url", acct.wsUrl), zap.String("contract", acct.contract))
 
 	c, _, err := websocket.DefaultDialer.DialContext(ctx, acct.wsUrl, nil)
 	if err != nil {
@@ -62,7 +63,6 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		connectionErrors.Inc()
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
-	acct.logger.Info("acct: successfully subscribed to events", zap.String("contract", acct.contract))
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
@@ -70,27 +70,33 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		defer close(errC)
 
 		for {
+			acct.logger.Error("acctwatch: tick")
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				connectionErrors.Inc()
-				acct.logger.Error("acct: error reading watcher channel", zap.Error(err))
+				acct.logger.Error("acctwatch: error reading watcher channel", zap.Error(err))
+				time.Sleep(100 * time.Millisecond)
+				acct.logger.Error("acctwatch: posting error", zap.Error(err))
+				time.Sleep(100 * time.Millisecond)
 				errC <- err
+				acct.logger.Error("acctwatch: posted error", zap.Error(err))
 				return
 			}
 
 			// Received a message from the smart contract.
+			acct.logger.Error("acctwatch: tock")
 			json := string(message)
 
 			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
 			if !txHashRaw.Exists() {
-				acct.logger.Warn("acct: message does not have tx hash", zap.String("payload", json))
+				acct.logger.Warn("acctwatch: message does not have tx hash", zap.String("payload", json))
 				continue
 			}
 			txHash := txHashRaw.String()
 
 			events := gjson.Get(json, "result.data.value.TxResult.result.events")
 			if !events.Exists() {
-				acct.logger.Warn("acct: message has no events", zap.String("payload", json))
+				acct.logger.Warn("acctwatch: message has no events", zap.String("payload", json))
 				continue
 			}
 
@@ -100,27 +106,35 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 			for _, pk := range pendingTransfers {
 				pe, exists := acct.pendingTransfers[*pk]
 				if exists {
-					acct.logger.Info("acct: pending transfer has been approved", zap.Stringer("emitterChainId", pk.emitterChainId), zap.Stringer("txHash", pk.txHash))
+					acct.logger.Info("acctwatch: pending transfer has been approved", zap.Stringer("emitterChainId", pk.emitterChainId), zap.Stringer("txHash", pk.txHash))
 					acct.publishTransfer(pe)
 					transfersApproved.Inc()
 				} else {
-					acct.logger.Info("acct: unknown transfer has been approved, ignoring it", zap.Stringer("emitterChainId", pk.emitterChainId), zap.Stringer("txHash", pk.txHash))
+					acct.logger.Info("acctwatch: unknown transfer has been approved, ignoring it", zap.Stringer("emitterChainId", pk.emitterChainId), zap.Stringer("txHash", pk.txHash))
 				}
 			}
 			acct.mutex.Unlock()
 		}
+
+		acct.logger.Error("acctwatch: exiting go func")
 	}()
 
 	select {
 	case <-ctx.Done():
 		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		if err != nil {
-			acct.logger.Error("acct: error closing watcher socket ", zap.Error(err))
+			acct.logger.Error("acctwatch: error closing watcher socket", zap.Error(err))
 		}
+		acct.logger.Error("acctwatch: exiting watcher 1")
 		return ctx.Err()
 	case err := <-errC:
+		acct.logger.Error("acctwatch: watcher encountered an error", zap.Error(err))
+		acct.logger.Error("acctwatch: exiting watcher 2")
 		return err
 	}
+
+	acct.logger.Error("acctwatch: exiting watcher 3")
+	return nil
 }
 
 // TODO: Need to see what events from the contract really look like, and implement this properly.
@@ -130,49 +144,52 @@ func (acct *Accounting) EventsToTransfers(txHash string, events []gjson.Result) 
 	for _, event := range events {
 		// TODO This parsing code was lifted from the cosmwasm watcher. If it works here, we should factor it out and share it.
 		if !event.IsObject() {
-			acct.logger.Warn("acct: event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
+			acct.logger.Warn("acctwatch: event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			continue
 		}
 		eventType := gjson.Get(event.String(), "type")
-		if eventType.String() != "wasm" {
-			continue
-		}
+		// TODO When development is complete, uncomment this. We just want to log everything for now.
+		// if eventType.String() != "wasm-Transfer" {
+		// 	acct.logger.Info("acctwatch: debug: ignoring event", zap.String("eventType", eventType.String()), zap.String("event", event.String()))
+		// 	continue
+		// }
 
 		attributes := gjson.Get(event.String(), "attributes")
 		if !attributes.Exists() {
-			acct.logger.Warn("acct: message event has no attributes", zap.String("tx_hash", txHash), zap.String("event", event.String()))
+			acct.logger.Warn("acctwatch: message event has no attributes", zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			continue
 		}
 		mappedAttributes := map[string]string{}
 		for _, attribute := range attributes.Array() {
 			if !attribute.IsObject() {
-				acct.logger.Warn("acct: event attribute is invalid", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				acct.logger.Warn("acctwatch: event attribute is invalid", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 			keyBase := gjson.Get(attribute.String(), "key")
 			if !keyBase.Exists() {
-				acct.logger.Warn("acct: event attribute does not have key", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				acct.logger.Warn("acctwatch: event attribute does not have key", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 			valueBase := gjson.Get(attribute.String(), "value")
 			if !valueBase.Exists() {
-				acct.logger.Warn("acct: event attribute does not have value", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+				acct.logger.Warn("acctwatch: event attribute does not have value", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
 				continue
 			}
 
 			key, err := base64.StdEncoding.DecodeString(keyBase.String())
 			if err != nil {
-				acct.logger.Warn("acct: event key attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
+				acct.logger.Warn("acctwatch: event key attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
 				continue
 			}
 			value, err := base64.StdEncoding.DecodeString(valueBase.String())
 			if err != nil {
-				acct.logger.Warn("acct: event value attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+				acct.logger.Warn("acctwatch: event value attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
 				continue
 			}
 
 			if _, ok := mappedAttributes[string(key)]; ok {
-				acct.logger.Debug("acct: duplicate key in events",
+				acct.logger.Debug("acctwatch: duplicate key in events",
+					zap.String("eventType", eventType.String()),
 					zap.String("tx_hash", txHash),
 					zap.String("key", keyBase.String()),
 					zap.String("value", valueBase.String()),
@@ -180,83 +197,84 @@ func (acct *Accounting) EventsToTransfers(txHash string, events []gjson.Result) 
 				continue
 			}
 
+			acct.logger.Info("acctwatch: debug: parsing event", zap.String("eventType", eventType.String()), zap.String("key", string(key)), zap.String("value", string(value)))
 			mappedAttributes[string(key)] = string(value)
+		}
+
+		// TODO When we get rid of the above todo, we can delete this.
+		if eventType.String() != "wasm-Transfer" {
+			continue
 		}
 
 		contractAddress, ok := mappedAttributes["_contract_address"]
 		if !ok {
-			acct.logger.Warn("acct: wasm event without contract address field set", zap.String("event", event.String()))
+			acct.logger.Warn("acctwatch: wasm event without contract address field set", zap.String("event", event.String()))
 			continue
 		}
 
 		// This event is not from the accounting contract.
 		if contractAddress != acct.contract {
+			acct.logger.Info("acctwatch: debug: ignoring event for different contract", zap.String("contractAddress", contractAddress), zap.String("expected", acct.contract))
 			continue
 		}
 
-		/*
-			This is what a transfer event looks like. I'm not sure what the tags will actually be though. . .
-			Ok(Some(
-				Event::new("Transfer")
-					.add_attribute("emitter_chain", o.key.emitter_chain().to_string())
-					.add_attribute("emitter_address", o.key.emitter_address().to_string())
-					.add_attribute("sequence", o.key.sequence().to_string())
-					.add_attribute("nonce", o.nonce.to_string())
-					.add_attribute("tx_hash", o.tx_hash.to_base64())
-					.add_attribute("payload", o.payload.to_base64()),
-			))
-		*/
-
-		emitterChainStr, ok := mappedAttributes["Transfer.emitter_chain"]
+		emitterChainStr, ok := mappedAttributes["emitter_chain"]
 		if !ok {
-			acct.logger.Error("acct: transfer event does not have the emitter_chain field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		emitterAddrStr, ok := mappedAttributes["Transfer.emitter_address"]
-		if !ok {
-			acct.logger.Error("acct: transfer event does not have the emitter_address field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		sequenceStr, ok := mappedAttributes["Transfer.sequence"]
-		if !ok {
-			acct.logger.Error("acct: transfer event does not have the sequence field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		nonceStr, ok := mappedAttributes["Transfer.nonce"]
-		if !ok {
-			acct.logger.Error("acct: transfer event does not have the nonce field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		xferTxHashStr, ok := mappedAttributes["Transfer.tx_hash"]
-		if !ok {
-			acct.logger.Error("acct: transfer event does not have the tx_hash field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		payloadStr, ok := mappedAttributes["Transfer.payload"]
-		if !ok {
-			acct.logger.Error("acct: transfer event does not have the payload field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			acct.logger.Error("acctwatch: transfer event does not have the emitter_chain field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
 
-		acct.logger.Info("acct: transfer event detected on cosmwasm",
+		emitterAddrStr, ok := mappedAttributes["emitter_address"]
+		if !ok {
+			acct.logger.Error("acctwatch: transfer event does not have the emitter_address field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			continue
+		}
+		sequenceStr, ok := mappedAttributes["sequence"]
+		if !ok {
+			acct.logger.Error("acctwatch: transfer event does not have the sequence field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			continue
+		}
+		nonceStr, ok := mappedAttributes["nonce"]
+		if !ok {
+			acct.logger.Error("acctwatch: transfer event does not have the nonce field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			continue
+		}
+		xferTxHashStr, ok := mappedAttributes["tx_hash"]
+		if !ok {
+			acct.logger.Error("acctwatch: transfer event does not have the tx_hash field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			continue
+		}
+		payloadStr, ok := mappedAttributes["payload"]
+		if !ok {
+			acct.logger.Error("acctwatch: transfer event does not have the payload field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+			continue
+		}
+
+		payloadBytes, err := base64.StdEncoding.DecodeString(payloadStr)
+		if err != nil {
+			acct.logger.Warn("acctwatch: payload is not in base64", zap.String("tx_hash", txHash), zap.String("payload", payloadStr))
+		}
+
+		acct.logger.Info("acctwatch: transfer event detected",
 			zap.String("emitter_chain", emitterChainStr),
 			zap.String("emitter_address", emitterAddrStr),
 			zap.String("sequence", sequenceStr),
 			zap.String("nonce", nonceStr),
 			zap.String("tx_hash", xferTxHashStr),
 			zap.String("payload", payloadStr),
+			zap.String("payloadBytes", hex.EncodeToString(payloadBytes)),
 		)
 
 		emitterChainInt, err := strconv.ParseUint(emitterChainStr, 10, 16)
 		if err != nil {
-			acct.logger.Error("acct: emitter_chain in transfer cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", emitterChainStr))
+			acct.logger.Error("acctwatch: emitter_chain in transfer cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", emitterChainStr))
 			continue
 		}
 		emitterChainId := vaa.ChainID(emitterChainInt)
 
 		xferTxHash, err := StringToHash(xferTxHashStr)
 		if err != nil {
-			acct.logger.Error("acct: tx_hash in transfer cannot decode tx hash hex", zap.String("tx_hash", txHash), zap.String("value", xferTxHashStr))
+			acct.logger.Error("acctwatch: tx_hash in transfer cannot decode tx hash hex", zap.String("tx_hash", txHash), zap.String("value", xferTxHashStr))
 			continue
 		}
 

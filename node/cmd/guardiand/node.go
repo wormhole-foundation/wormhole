@@ -925,7 +925,13 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Load the wormchain key.
 		if *unsafeDevMode {
-			wormchainKey, err = devnet.LoadWormchainPrivKey(*wormchainKeyPath)
+			idx, err := devnet.GetDevnetIndex()
+			if err != nil {
+				logger.Fatal("failed to get devnet index", zap.Error(err))
+			}
+			wormchainKeyPathName := fmt.Sprint(*wormchainKeyPath, idx)
+			logger.Info("acct: loading key file", zap.String("key path", wormchainKeyPathName))
+			wormchainKey, err = devnet.LoadWormchainPrivKey(wormchainKeyPathName)
 			if err != nil {
 				logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
 			}
