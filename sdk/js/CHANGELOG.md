@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.7
+
+## Added
+
+solana instruction decoder
+
 ## 0.9.6
 
 ## Changed
