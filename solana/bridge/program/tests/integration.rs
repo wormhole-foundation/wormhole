@@ -99,7 +99,6 @@ async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
     common::initialize(&mut client, program, &payer, &context.public, 500)
         .await
         .unwrap();
-    common::sync(&mut client, &payer).await;
 
     // Verify the initial bridge state is as expected.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
@@ -189,7 +188,6 @@ async fn bridge_messages() {
         common::post_vaa(client, program, payer, signature_set, vaa)
             .await
             .unwrap();
-        common::sync(client, payer).await;
 
         // Fetch chain accounts to verify state.
         let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
@@ -278,7 +276,6 @@ async fn bridge_messages() {
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
         .unwrap();
-    common::sync(client, payer).await;
 
     // Fetch chain accounts to verify state.
     let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
@@ -373,7 +370,6 @@ async fn test_bridge_messages_unreliable() {
             },
             program,
         );
-        common::sync(client, payer).await;
 
         // Fetch chain accounts to verify state.
         let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
@@ -523,8 +519,6 @@ async fn bridge_works_after_transfer_fees() {
         )
         .await
         .unwrap();
-
-        common::sync(client, payer).await;
     }
 
     // Ensure that the account has the same amount of money as we started with
@@ -752,7 +746,6 @@ async fn guardian_set_change() {
     )
     .await
     .unwrap();
-    common::sync(client, payer).await;
 
     // Derive keys for accounts we want to check.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
@@ -831,7 +824,6 @@ async fn guardian_set_change() {
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
         .unwrap();
-    common::sync(client, payer).await;
 
     // Fetch chain accounts to verify state.
     let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
@@ -954,7 +946,6 @@ async fn set_fees() {
     )
     .await
     .unwrap();
-    common::sync(client, payer).await;
 
     // Fetch Bridge to check on-state value.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
@@ -979,7 +970,6 @@ async fn set_fees() {
     )
     .await
     .is_err());
-    common::sync(client, payer).await;
 
     assert_eq!(
         common::get_account_balance(client, fee_collector).await,
@@ -1019,7 +1009,6 @@ async fn set_fees() {
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
         .unwrap();
-    common::sync(client, payer).await;
 
     // Verify that the fee collector was paid.
     assert_eq!(
@@ -1108,7 +1097,6 @@ async fn set_fees_fails() {
     )
     .await
     .is_err());
-    common::sync(client, payer).await;
 }
 
 #[tokio::test]
@@ -1157,7 +1145,6 @@ async fn free_fees() {
     )
     .await
     .unwrap();
-    common::sync(client, payer).await;
 
     // Fetch Bridge to check on-state value.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
@@ -1199,7 +1186,6 @@ async fn free_fees() {
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
         .unwrap();
-    common::sync(client, payer).await;
 
     // Verify that the fee collector was paid.
     assert_eq!(
@@ -1294,7 +1280,6 @@ async fn transfer_fees() {
     )
     .await
     .unwrap();
-    common::sync(client, payer).await;
     assert_eq!(
         common::get_account_balance(client, fee_collector).await,
         previous_balance - 100
@@ -1356,7 +1341,6 @@ async fn transfer_fees_fails() {
     )
     .await
     .is_err());
-    common::sync(client, payer).await;
     assert_eq!(
         common::get_account_balance(client, fee_collector).await,
         previous_balance
@@ -1417,7 +1401,6 @@ async fn transfer_too_much() {
     )
     .await
     .is_err());
-    common::sync(client, payer).await;
     assert_eq!(
         common::get_account_balance(client, fee_collector).await,
         previous_balance
@@ -1451,7 +1434,6 @@ async fn foreign_bridge_messages() {
     common::post_vaa(client, program, payer, signature_set, vaa)
         .await
         .unwrap();
-    common::sync(client, payer).await;
 
     // Fetch chain accounts to verify state.
     let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
@@ -1485,7 +1467,6 @@ async fn transfer_total_fails() {
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Be sure any previous tests have fully committed.
-    common::sync(client, payer).await;
 
     let fee_collector = FeeCollector::key(None, program);
     let account_balance = common::get_account_balance(client, fee_collector).await;
@@ -1533,7 +1514,6 @@ async fn transfer_total_fails() {
     )
     .await
     .is_err());
-    common::sync(client, payer).await;
 
     // The fee should have been paid, but other than that the balance should be exactly the same,
     // I.E non-zero.
@@ -1597,5 +1577,4 @@ async fn upgrade_contract() {
     )
     .await
     .unwrap();
-    common::sync(client, payer).await;
 }

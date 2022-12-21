@@ -86,21 +86,6 @@ mod helpers {
         (client, payer, program)
     }
 
-    /// Wait for a single transaction to fully finalize, guaranteeing chain state has been
-    /// confirmed. Useful for consistently fetching data during state checks.
-    pub async fn sync(client: &mut BanksClient, payer: &Keypair) {
-        let payer_key = payer.pubkey();
-        execute(
-            client,
-            payer,
-            &[payer],
-            &[system_instruction::transfer(&payer_key, &payer_key, 1)],
-            CommitmentLevel::Confirmed,
-        )
-        .await
-        .unwrap();
-    }
-
     /// Fetch account data, the loop is there to re-attempt until data is available.
     pub async fn get_account_data<T: BorshDeserialize>(
         client: &mut BanksClient,
