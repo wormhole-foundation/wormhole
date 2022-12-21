@@ -268,10 +268,12 @@ func (p *Processor) Run(ctx context.Context) error {
 						p.handleMessage(ctx, k)
 					}
 				}
-				govTimer = time.NewTimer(time.Minute)
 			}
 			if p.acct != nil {
 				p.acct.AuditPendingTransfers()
+			}
+			if (p.governor != nil) || (p.acct != nil) {
+				govTimer = time.NewTimer(time.Minute)
 			}
 		}
 	}
