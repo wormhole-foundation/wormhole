@@ -38,7 +38,7 @@ export function deriveWrappedMintKey(
         return buf;
       })(),
       tokenAddress,
-      new BN(tokenId.toString()).toBuffer("be", 32),
+      new BN(tokenId.toString()).toArrayLike(Buffer, "be", 32),
     ],
     tokenBridgeProgramId
   );
