@@ -15,7 +15,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.7",
     "@cosmjs/cosmwasm-stargate": "^0.29.5",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "cosmwasm": "^1.1.1",
     "dotenv": "^16.0.0",
     "elliptic": "^6.5.4",
