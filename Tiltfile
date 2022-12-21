@@ -114,7 +114,7 @@ if bigTableKeyPath != "":
 docker_build(
     ref = "guardiand-image",
     context = ".",
-    dockerfile = "Dockerfile.node",
+    dockerfile = "node/Dockerfile",
     target = "build",
     ignore=["./sdk/js"]
 )
@@ -371,7 +371,7 @@ if solana:
         ref = "bridge-client",
         context = ".",
         only = ["./proto", "./solana", "./clients"],
-        dockerfile = "Dockerfile.client",
+        dockerfile = "solana/Dockerfile.client",
         # Ignore target folders from local (non-container) development.
         ignore = ["./solana/*/target"],
     )
@@ -600,7 +600,7 @@ if terra2:
     docker_build(
         ref = "terra2-contracts",
         context = ".",
-        dockerfile = "./Dockerfile.cosmwasm",
+        dockerfile = "./cosmwasm/Dockerfile",
     )
 
     k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
@@ -720,7 +720,7 @@ if wormchain:
     docker_build(
         ref = "wormchaind-image",
         context = ".",
-        dockerfile = "./Dockerfile.wormchain",
+        dockerfile = "./wormchain/Dockerfile",
         only = [],
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
     )
