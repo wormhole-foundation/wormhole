@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accounting"
@@ -22,8 +21,6 @@ import (
 
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-
 	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
 
@@ -33,6 +30,23 @@ import (
 func main() {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
+
+	// data, err := hex.DecodeString("C3AE4256EAA0BA6D01041585F63AE7CAA69D6D33")
+	// if err != nil {
+	// 	logger.Fatal("failed to hex decode string", zap.Error(err))
+	// }
+
+	// conv, err := bech32.ConvertBits(data, 8, 5, true)
+	// if err != nil {
+	// 	logger.Fatal("failed to convert bits", zap.Error(err))
+	// }
+
+	// encoded, err := bech32.Encode("wormhole", conv)
+	// if err != nil {
+	// 	logger.Fatal("bech32 encode failed", zap.Error(err))
+	// }
+	// logger.Info("encoded", zap.String("str", encoded))
+	// return
 
 	wormchainURL := string("localhost:9090")
 	wormchainKeyPath := string("./dev.wormchain.key")
@@ -63,16 +77,16 @@ func main() {
 
 	sequence := uint64(time.Now().Unix())
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, 0, "Submit should succeed") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, false, false, "Submit should succeed") {
 		return
 	}
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, 1, "Duplicate transfer should succeed but not publish") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, true, false, "Already commited should succeed") {
 		return
 	}
 
 	sequence += 1
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", sequence, -1, "Bad emitter address should fail") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", sequence, false, true, "Bad emitter address should fail") {
 		return
 	}
 }
@@ -85,7 +99,8 @@ func testSubmit(
 	contract string,
 	emitterAddressStr string,
 	sequence uint64,
-	expectedResult int,
+	expectedResult bool,
+	errorExpected bool,
 	tag string,
 ) bool {
 	EmitterAddress, _ := vaa.StringToAddress(emitterAddressStr)
@@ -104,7 +119,7 @@ func testSubmit(
 		Payload:          Payload,
 	}
 
-	txResp, err := accounting.SubmitObservationToContract(ctx, gk, gsIndex, wormchainConn, contract, &msg)
+	txResp, err := accounting.SubmitObservationToContract(ctx, logger, gk, gsIndex, wormchainConn, contract, &msg)
 	if err != nil {
 		logger.Error("acct: failed to broadcast Observation request", zap.Error(err))
 		return false
@@ -116,49 +131,30 @@ func testSubmit(
 	// 	return false
 	// }
 
-	result := CheckSubmitObservationResult(txResp)
-	if result != expectedResult {
+	alreadyCommitted, err := accounting.CheckSubmitObservationResult(txResp)
+	if err != nil {
+		if !errorExpected {
+			logger.Error("acct: unexpected error", zap.Error(err))
+			return false
+		}
+
+		logger.Info("test succeeded, expected error returned", zap.Error(err))
+		return true
+	}
+	if alreadyCommitted != expectedResult {
 		out, err := wormchainConn.BroadcastTxResponseToString(txResp)
 		if err != nil {
 			logger.Error("acct: failed to parse broadcast response", zap.Error(err))
 			return false
 		}
 
-		logger.Info("test failed", zap.String("test", tag), zap.Uint64("seqNo", sequence), zap.Int("result", result), zap.String("response", out))
+		logger.Info("test failed", zap.String("test", tag), zap.Uint64("seqNo", sequence), zap.Bool("alreadyCommitted", alreadyCommitted), zap.String("response", out))
 		return false
 	}
 
 	logger.Info("test succeeded", zap.String("test", tag))
 	return true
 }
-
-// checkResult() returns zero if the observation was submitted and the transfer should be queued up, a positive value
-// if the transfer can be published immediately, and a negative value if an error occurred.
-func CheckSubmitObservationResult(txResp *sdktx.BroadcastTxResponse) int {
-	if strings.Contains(txResp.TxResponse.RawLog, "execute wasm contract failed") {
-		if strings.Contains(txResp.TxResponse.RawLog, "already committed") {
-			return 1
-
-		}
-
-		return -1
-	}
-
-	if strings.Contains(txResp.TxResponse.RawLog, "failed to execute message") {
-		return -1
-	}
-
-	return 0
-}
-
-/*
-Already Committed error:
-2022-12-17T00:10:04.584Z        INFO    accounting/send_obs.go:94       Sent observation request to wormchain   {"resp": "{\"tx_response\":{\"height\":\"1280\",\"txhash\":\"5417A62D3830C6C128298404A1D7734082F3B52717F7824CC8D4DCB5A3E9EDF8\",\"codespace\":\"wasm\",\"code\":5,\"data\":\"\",\"raw_log\":\"failed to execute message; message index: 0: failed to handle `Observation`: transfer for key \\\"00002/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0000000000000000\\\" already committed: execute wasm contract failed\",\"logs\":[],\"info\":\"\",\"gas_wanted\":\"2000000\",\"gas_used\":\"117488\",\"tx\":null,\"timestamp\":\"\",\"events\":[{\"type\":\"tx\",\"attributes\":[{\"key\":\"ZmVl\",\"value\":null,\"index\":true},{\"key\":\"ZmVlX3BheWVy\",\"value\":\"d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=\",\"index\":true}]},{\"type\":\"tx\",\"attributes\":[{\"key\":\"YWNjX3NlcQ==\",\"value\":\"d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHEvMjA=\",\"index\":true}]},{\"type\":\"tx\",\"attributes\":[{\"key\":\"c2lnbmF0dXJl\",\"value\":\"cFRTVnVFYXIwYjBqSFJ2QXpPc2ZSanVHWVh4aURkT1JDenF4RmdqTXlFODdmbkJ1YytSNjl1NTVrYlVJZ2pWclhNcEgwV2hlVDN0N3B3Z1ZXUDlQK0E9PQ==\",\"index\":true}]}]}}"}
-
-Success:
-2022-12-17T00:09:19.103Z        INFO    accounting/send_obs.go:94       Sent observation request to wormchain   {"resp": "{\"tx_response\":{\"height\":\"1239\",\"txhash\":\"B39041E2CC3896CD76605C8CB2EA6037B6A007AEC424A6BC532FBE6ED017DF9D\",\"codespace\":\"\",\"code\":0,\"data\":\"0A260A242F636F736D7761736D2E7761736D2E76312E4D736745786563757465436F6E7472616374\",\"raw_log\":\"[{\\\"events\\\":[{\\\"type\\\":\\\"execute\\\",\\\"attributes\\\":[{\\\"key\\\":\\\"_contract_address\\\",\\\"value\\\":\\\"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh\\\"}]},{\\\"type\\\":\\\"message\\\",\\\"attributes\\\":[{\\\"key\\\":\\\"action\\\",\\\"value\\\":\\\"/cosmwasm.wasm.v1.MsgExecuteContract\\\"},{\\\"key\\\":\\\"module\\\",\\\"value\\\":\\\"wasm\\\"},{\\\"key\\\":\\\"sender\\\",\\\"value\\\":\\\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\\\"}]},{\\\"type\\\":\\\"wasm\\\",\\\"attributes\\\":[{\\\"key\\\":\\\"_contract_address\\\",\\\"value\\\":\\\"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh\\\"},{\\\"key\\\":\\\"action\\\",\\\"value\\\":\\\"submit_observations\\\"},{\\\"key\\\":\\\"owner\\\",\\\"value\\\":\\\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\\\"}]},{\\\"type\\\":\\\"wasm-Transfer\\\",\\\"attributes\\\":[{\\\"key\\\":\\\"_contract_address\\\",\\\"value\\\":\\\"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh\\\"},{\\\"key\\\":\\\"emitter_chain\\\",\\\"value\\\":\\\"2\\\"},{\\\"key\\\":\\\"emitter_address\\\",\\\"value\\\":\\\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\\\"},{\\\"key\\\":\\\"sequence\\\",\\\"value\\\":\\\"0\\\"},{\\\"key\\\":\\\"nonce\\\",\\\"value\\\":\\\"0\\\"},{\\\"key\\\":\\\"tx_hash\\\",\\\"value\\\":\\\"82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b\\\"},{\\\"key\\\":\\\"payload\\\",\\\"value\\\":\\\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\\\"}]}]}]\",\"logs\":[{\"msg_index\":0,\"log\":\"\",\"events\":[{\"type\":\"execute\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh\"}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"/cosmwasm.wasm.v1.MsgExecuteContract\"},{\"key\":\"module\",\"value\":\"wasm\"},{\"key\":\"sender\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh\"},{\"key\":\"action\",\"value\":\"submit_observations\"},{\"key\":\"owner\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm-Transfer\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh\"},{\"key\":\"emitter_chain\",\"value\":\"2\"},{\"key\":\"emitter_address\",\"value\":\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\"},{\"key\":\"sequence\",\"value\":\"0\"},{\"key\":\"nonce\",\"value\":\"0\"},{\"key\":\"tx_hash\",\"value\":\"82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b\"},{\"key\":\"payload\",\"value\":\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"}]}]}],\"info\":\"\",\"gas_wanted\":\"2000000\",\"gas_used\":\"210944\",\"tx\":null,\"timestamp\":\"\",\"events\":[{\"type\":\"tx\",\"attributes\":[{\"key\":\"ZmVl\",\"value\":null,\"index\":true},{\"key\":\"ZmVlX3BheWVy\",\"value\":\"d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=\",\"index\":true}]},{\"type\":\"tx\",\"attributes\":[{\"key\":\"YWNjX3NlcQ==\",\"value\":\"d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHEvMTk=\",\"index\":true}]},{\"type\":\"tx\",\"attributes\":[{\"key\":\"c2lnbmF0dXJl\",\"value\":\"anNQSEhGZURnaE8vSjhzVXJKQmtuQko2aGhJb2lzdkRPWVVYY1lFZ1FYRnRyOVpXQnRBbzV0T3hhUktrNVhXaVEvanF6UXA1TUJyMFFZMjJwMjlLT2c9PQ==\",\"index\":true}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"YWN0aW9u\",\"value\":\"L2Nvc213YXNtLndhc20udjEuTXNnRXhlY3V0ZUNvbnRyYWN0\",\"index\":true}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"bW9kdWxl\",\"value\":\"d2FzbQ==\",\"index\":true},{\"key\":\"c2VuZGVy\",\"value\":\"d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=\",\"index\":true}]},{\"type\":\"execute\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true}]},{\"type\":\"wasm\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true},{\"key\":\"YWN0aW9u\",\"value\":\"c3VibWl0X29ic2VydmF0aW9ucw==\",\"index\":true},{\"key\":\"b3duZXI=\",\"value\":\"d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=\",\"index\":true}]},{\"type\":\"wasm-Transfer\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true},{\"key\":\"ZW1pdHRlcl9jaGFpbg==\",\"value\":\"Mg==\",\"index\":true},{\"key\":\"ZW1pdHRlcl9hZGRyZXNz\",\"value\":\"MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDI5MGZiMTY3MjA4YWY0NTViYjEzNzc4MDE2M2I3YjdhOWExMGMxNg==\",\"index\":true},{\"key\":\"c2VxdWVuY2U=\",\"value\":\"MA==\",\"index\":true},{\"key\":\"bm9uY2U=\",\"value\":\"MA==\",\"index\":true},{\"key\":\"dHhfaGFzaA==\",\"value\":\"ODJlYTI1MzZjNWQxNjcxODMwY2I0OTEyMGY5NDQ3OWUzNGI1NDU5NmE4ZGQzNjlmYmMyNjY2NjY3YTc2NWY0Yg==\",\"index\":true},{\"key\":\"cGF5bG9hZA==\",\"value\":\"QVFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQTNndHJPblpBQUFBQUFBQUFBQUFBQUFBQUFBTFl2bXZ3dXFkT0NwQndGbWVjcnBHUTZBM1FvQUFnQUFBQUFBQUFBQUFBQUFBTUVJSUpnL00wVnM1NzZ6b0ViMXFEK2pUd0o5RENBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQT09\",\"index\":true}]}]}}"}
-
-*/
 
 const (
 	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
