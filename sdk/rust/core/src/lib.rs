@@ -73,11 +73,49 @@ pub struct GuardianSetInfo {
 
 impl GuardianSetInfo {
     pub fn quorum(&self) -> usize {
-        // allow quorum of 0 for testing purposes...
-        if self.addresses.is_empty() {
-            0
-        } else {
-            ((self.addresses.len() * 10 / 3) * 2) / 10 + 1
+        (self.addresses.len() * 2) / 3 + 1
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn quorum() {
+        let tests = [
+            (0, 1),
+            (1, 1),
+            (2, 2),
+            (3, 3),
+            (4, 3),
+            (5, 4),
+            (6, 5),
+            (7, 5),
+            (8, 6),
+            (9, 7),
+            (10, 7),
+            (11, 8),
+            (12, 9),
+            (13, 9),
+            (14, 10),
+            (15, 11),
+            (16, 11),
+            (17, 12),
+            (18, 13),
+            (19, 13),
+            (50, 34),
+            (100, 67),
+            (1000, 667),
+        ];
+
+        for (count, quorum) in tests {
+            let gs = GuardianSetInfo {
+                addresses: vec![Default::default(); count],
+                expiration_time: 0,
+            };
+
+            assert_eq!(quorum, gs.quorum());
         }
     }
 }
