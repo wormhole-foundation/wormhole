@@ -3,11 +3,8 @@ package accounting
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,11 +16,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
-
-	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"go.uber.org/zap"
 )
@@ -59,7 +51,6 @@ type (
 	// pendingEntry is the payload for each pending transfer
 	pendingEntry struct {
 		msg        *common.MessagePublication
-		v          *vaa.VAA
 		digest     string
 		updTime    time.Time
 		retryCount int
@@ -197,9 +188,7 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
-		if msg.EmitterChain != vaa.ChainIDPythNet {
-			acct.logger.Info("acct: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
-		}
+		acct.logger.Info("acct: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
 		return true, nil
 	}
 
@@ -226,7 +215,7 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 				zap.String("newDigest", digest),
 			)
 		} else {
-			acct.logger.Info("acct: blocking previously pending transfer", zap.String("msgID", msg.MessageIDString()))
+			acct.logger.Info("acct: blocking transfer because it is already outstanding", zap.String("msgID", msg.MessageIDString()))
 		}
 		return false, nil
 	}
@@ -236,6 +225,19 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
+
+	/////////////////////////////////////////////////////////////////////////////
+	data, err := hex.DecodeString("0000000000000000000000000000000000002386F26FC100002386F26FC10000")
+	if err != nil {
+		acct.logger.Error("acct: debug: failed to decode bogus amount", zap.Error(err))
+	} else {
+		acct.logger.Info("acct: debug: old payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
+		newPayload := append(msg.Payload[0:1], data...)
+		newPayload = append(newPayload, msg.Payload[33:]...)
+		msg.Payload = newPayload
+		acct.logger.Info("acct: debug: new payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
+	}
+	/////////////////////////////////////////////////////////////////////////////
 
 	acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msg.MessageIDString()), zap.Bool("canPublish", !acct.enforceFlag))
 
@@ -269,142 +271,6 @@ func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool
 	return acct.enforceFlag
 }
 
-type (
-	SubmitObservationsMsg struct {
-		Params SubmitObservationsParams `json:"submit_observations"`
-	}
-
-	SubmitObservationsParams struct {
-		// A serialized `Vec<Observation>`. Multiple observations can be submitted together to reduce  transaction overhead.
-		Observations string `json:"observations"`
-
-		// The index of the guardian set used to sign the observations.
-		GuardianSetIndex uint32 `json:"guardian_set_index"`
-
-		// A signature for `observations`.
-		Signature SignatureType `json:"signature"`
-	}
-
-	SignatureType struct {
-		Index     uint32         `json:"index"`
-		Signature SignatureBytes `json:"signature"`
-	}
-
-	SignatureBytes []uint8
-
-	Observation struct {
-		// The key that uniquely identifies the Observation.
-		Key TransferKey `json:"key"`
-
-		// The nonce for the transfer.
-		Nonce uint32 `json:"nonce"`
-
-		// The serialized tokenbridge payload.
-		Payload string `json:"payload"`
-
-		// The hash of the transaction on the emitter chain in which the transfer was performed.
-		TxHash string `json:"tx_hash"`
-	}
-
-	TransferKey struct {
-		// The chain id of the chain on which this transfer originated.
-		EmitterChain uint16 `json:"emitter_chain"`
-
-		// The address on the emitter chain that created this transfer.
-		EmitterAddress string `json:"emitter_address"`
-
-		// The sequence number of the transfer.
-		Sequence uint64 `json:"sequence"`
-	}
-)
-
-func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
-	var result string
-	if sb == nil {
-		result = "null"
-	} else {
-		result = strings.Join(strings.Fields(fmt.Sprintf("%d", sb)), ",")
-	}
-	return []byte(result), nil
-}
-
-// submitObservationToContract makes a call to the smart contract to submit an observation request.
-// It should be called from a go routine because it can block.
-func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
-	acct.logger.Info("acct: debug: in submitObservationToContract", zap.String("msgID", msg.MessageIDString()))
-	if _, err := SubmitObservationToContract(acct.ctx, acct.gk, gsIndex, acct.wormchainConn, acct.contract, msg); err != nil {
-		// Should allow TransferError::DuplicateTransfer - Just publish it (probably reobservation).
-		// Should handle DuplicateSignatureError - Don't publish it, just keep waiting.
-		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
-		submitFailures.Inc()
-		return
-	}
-}
-
-// SubmitObservationToContract is a free function to make a call to the smart contract to submit an observation request.
-func SubmitObservationToContract(
-	ctx context.Context,
-	gk *ecdsa.PrivateKey,
-	gsIndex uint32,
-	wormchainConn *wormconn.ClientConn,
-	contract string,
-	msg *common.MessagePublication,
-) (*sdktx.BroadcastTxResponse, error) {
-	obs := []Observation{
-		Observation{
-			Key: TransferKey{
-				EmitterChain:   uint16(msg.EmitterChain),
-				EmitterAddress: base64.StdEncoding.EncodeToString(msg.EmitterAddress.Bytes()),
-				Sequence:       msg.Sequence,
-			},
-			Nonce:   msg.Nonce,
-			TxHash:  strings.Trim(string(msg.TxHash.String()), `0x`),
-			Payload: base64.StdEncoding.EncodeToString(msg.Payload),
-		},
-	}
-
-	bytes, err := json.Marshal(obs)
-	if err != nil {
-		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
-		panic(err)
-	}
-
-	b64String := base64.StdEncoding.EncodeToString(bytes)
-
-	digest := vaa.SigningMsg(bytes)
-
-	SignatureBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
-	if err != nil {
-		err = fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
-		panic(err)
-	}
-
-	sig := SignatureType{Index: 0, Signature: SignatureBytes}
-
-	msgData := SubmitObservationsMsg{
-		Params: SubmitObservationsParams{
-			Observations:     b64String,
-			GuardianSetIndex: gsIndex,
-			Signature:        sig,
-		},
-	}
-
-	msgBytes, err := json.Marshal(msgData)
-	if err != nil {
-		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
-		panic(err)
-	}
-
-	subMsg := wasmdtypes.MsgExecuteContract{
-		Sender:   wormchainConn.PublicKey(),
-		Contract: contract,
-		Msg:      msgBytes,
-		Funds:    sdktypes.Coins{},
-	}
-
-	return wormchainConn.SignAndBroadcastTx(ctx, &subMsg)
-}
-
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
 // each timer interval. Any transfers that can be released will be forwarded to the accounting message channel.
 func (acct *Accounting) AuditPendingTransfers() {
@@ -413,6 +279,7 @@ func (acct *Accounting) AuditPendingTransfers() {
 	defer acct.mutex.Unlock()
 
 	if len(acct.pendingTransfers) == 0 {
+		acct.logger.Info("acct: debug: leaving AuditPendingTransfers, no pending transfers")
 		return
 	}
 
@@ -442,21 +309,25 @@ func (acct *Accounting) AuditPendingTransfers() {
 			transfersSubmitted.Inc()
 		}
 	}
+
+	acct.logger.Info("acct: debug: leaving AuditPendingTransfers")
 }
 
 // publishTransfer publishes a pending transfer to the accounting channel and updates the timestamp. It assumes the caller holds the lock.
 func (acct *Accounting) publishTransfer(pe *pendingEntry) {
+	acct.logger.Info("acct: debug: publishTransfer", zap.String("msgId", pe.msg.MessageIDString()))
 	acct.msgChan <- pe.msg
 	pe.updTime = time.Now()
 }
 
 // addPendingTransfer adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
 func (acct *Accounting) addPendingTransfer(pk *pendingKey, msg *common.MessagePublication, v *vaa.VAA, digest string) error {
+	acct.logger.Info("acct: debug: addPendingTransfer", zap.String("msgId", msg.MessageIDString()))
 	if err := acct.db.AcctStorePendingTransfer(msg); err != nil {
 		return err
 	}
 
-	pe := &pendingEntry{msg: msg, v: v, digest: digest, updTime: time.Now()}
+	pe := &pendingEntry{msg: msg, digest: digest, updTime: time.Now()}
 	acct.pendingTransfers[*pk] = pe
 	transfersOutstanding.Inc()
 	return nil
@@ -464,6 +335,7 @@ func (acct *Accounting) addPendingTransfer(pk *pendingKey, msg *common.MessagePu
 
 // deletePendingTransfer deletes the transfer from both the map and the database. It assumes the caller holds the lock.
 func (acct *Accounting) deletePendingTransfer(pk *pendingKey, msgId string) {
+	acct.logger.Info("acct: debug: deletePendingTransfer", zap.String("msgId", msgId))
 	if _, exists := acct.pendingTransfers[*pk]; exists {
 		transfersOutstanding.Dec()
 		delete(acct.pendingTransfers, *pk)
@@ -490,7 +362,7 @@ func (acct *Accounting) loadPendingTransfers() error {
 		db := v.SigningMsg()
 		digest := hex.EncodeToString(db.Bytes())
 
-		pe := &pendingEntry{msg: msg, v: v, digest: digest} // Leave the updTime unset so we will query this on the first audit interval.
+		pe := &pendingEntry{msg: msg, digest: digest} // Leave the updTime unset so we will query this on the first audit interval.
 		acct.pendingTransfers[pk] = pe
 		transfersOutstanding.Inc()
 	}
@@ -501,8 +373,3 @@ func (acct *Accounting) loadPendingTransfers() error {
 
 	return nil
 }
-
-/* TODO:
-- Pending map key should include the digest? Or not, still being debated.
-- Peg a metric on accounting failures.
-*/
