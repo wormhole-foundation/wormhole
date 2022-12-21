@@ -286,4 +286,5 @@ dependencies = [
  "serde_json",
  "serde_wormhole",
  "sha3",
+ "thiserror",
 ]
