@@ -3,6 +3,7 @@
 use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Chain {
@@ -159,8 +160,12 @@ impl fmt::Display for Chain {
     }
 }
 
+#[derive(Debug, Error)]
+#[error("invalid chain: {0}")]
+pub struct InvalidChainError(String);
+
 impl FromStr for Chain {
-    type Err = String;
+    type Err = InvalidChainError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -194,7 +199,19 @@ impl FromStr for Chain {
             "Xpla" | "xpla" | "XPLA" => Ok(Chain::Xpla),
             "Ropsten" | "ropsten" | "ROPSTEN" => Ok(Chain::Ropsten),
             "Wormchain" | "wormchain" | "WORMCHAIN" => Ok(Chain::Wormchain),
-            _ => Err(format!("invalid chain: {s}")),
+            _ => {
+                let mut parts = s.split(&['(', ')']);
+                let _ = parts
+                    .next()
+                    .filter(|name| name.eq_ignore_ascii_case("unknown"))
+                    .ok_or_else(|| InvalidChainError(s.into()))?;
+
+                parts
+                    .next()
+                    .and_then(|v| v.parse::<u16>().ok())
+                    .map(Chain::from)
+                    .ok_or_else(|| InvalidChainError(s.into()))
+            }
         }
     }
 }
@@ -220,5 +237,25 @@ impl<'de> Deserialize<'de> for Chain {
         D: Deserializer<'de>,
     {
         <u16 as Deserialize>::deserialize(deserializer).map(Self::from)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn isomorphic_from() {
+        for i in 0u16..=u16::MAX {
+            assert_eq!(i, u16::from(Chain::from(i)));
+        }
+    }
+
+    #[test]
+    fn isomorphic_display() {
+        for i in 0u16..=u16::MAX {
+            let c = Chain::from(i);
+            assert_eq!(c, c.to_string().parse().unwrap());
+        }
     }
 }
