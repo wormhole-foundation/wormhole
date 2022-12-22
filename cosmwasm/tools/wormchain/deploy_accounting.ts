@@ -40,6 +40,61 @@ const WORMCHAIN_ID = 3104
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
 
+function signBinary(key: elliptic.ec.KeyPair, binary: string): Uint8Array {
+  // base64 string to Uint8Array,
+  // so we have bytes to work with for signing, though not sure 100% that's correct.
+  const bytes = fromBase64(binary);
+
+  // create the "digest" for signing.
+  // The contract will calculate the digest of the "data",
+  // then use that with the signature to ec recover the publickey that signed.
+  const digest = keccak256(keccak256(bytes));
+
+  // sign the digest
+  const signature = key.sign(digest, { canonical: true });
+
+  // create 65 byte signature (64 + 1)
+  const signedParts = [
+    zeroPad(signature.r.toBuffer(), 32),
+    zeroPad(signature.s.toBuffer(), 32),
+    encodeUint8(signature.recoveryParam || 0),
+  ];
+
+  // combine parts to be Uint8Array with length 65
+  const signed = concatArrays(signedParts);
+
+  return signed
+}
+
+
+function concatArrays(arrays: Uint8Array[]): Uint8Array {
+  const totalLength = arrays.reduce((accum, x) => accum + x.length, 0);
+  const result = new Uint8Array(totalLength);
+
+  for (let i = 0, offset = 0; i < arrays.length; i++) {
+    result.set(arrays[i], offset);
+    offset += arrays[i].length;
+  }
+
+  return result;
+}
+function encodeUint8(value: number): Uint8Array {
+  if (value >= 2 ** 8 || value < 0) {
+    throw new Error(`Out of bound value in Uint8: ${value}`);
+  }
+
+  return new Uint8Array([value]);
+}
+
+function zeroPadBytes(value: string, length: number) {
+  while (value.length < 2 * length) {
+    value = "0" + value;
+  }
+  return value;
+}
+
+
+
 async function main() {
 
   /* Set up cosmos client & wallet */
@@ -83,6 +138,18 @@ async function main() {
     return addr
   }
 
+  const init_guardians: string[] = String(process.env.INIT_SIGNERS_KEYS_CSV).split(',');
+  if (!init_guardians || init_guardians.length === 0) {
+    throw "failed to get initial guardians from .env file.";
+  }
+
+  const ec = new elliptic.ec("secp256k1");
+
+  // create key from the devnet guardian0's private key
+  const key = ec.keyFromPrivate(Buffer.from(TEST_SIGNER_PK, "hex"));
+
+  const keys = init_guardians.map(k => ec.keyFromPrivate(Buffer.from(k, "hex")))
+
 
 
   // not sure what format the token bridge address should be in before it the entire message
@@ -121,16 +188,6 @@ async function main() {
   const digest = keccak256(keccak256(instantiateBodyBytes))
 
 
-
-  const ec = new elliptic.ec("secp256k1");
-
-  // create key from the devnet guardian0's private key
-  const key = ec.keyFromPrivate(Buffer.from(TEST_SIGNER_PK, "hex"));
-
-  // check the key
-  const { result, reason } = key.validate()
-  console.log("key validate result, reason, ", result, reason)
-
   // sign the digest
   const signature = key.sign(digest, { canonical: true });
 
@@ -147,6 +204,7 @@ async function main() {
   console.log("signed")
   console.log(signed)
 
+  const sigs = keys.map(k => signBinary(k, instantiateBodyBinaryString))
 
   // try sending the instantiate message in a few different formats:
 
@@ -159,10 +217,10 @@ async function main() {
   const instantiateMsg: InstantiateMsg = {
     guardian_set_index: 0,
     instantiate: instantiateBodyBinaryString,
-    signatures: [{
-      index: 0,
-      signature: Array.from(signed) as Signature["signature"]
-    }]
+    signatures: sigs.map((sig, i) => ({
+      index: i,
+      signature: Array.from(sig) as Signature["signature"]
+    }))
   }
   try {
     const accountingAddress = await instantiate(
