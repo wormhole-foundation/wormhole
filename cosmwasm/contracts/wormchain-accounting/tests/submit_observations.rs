@@ -6,9 +6,9 @@ use cw_multi_test::AppResponse;
 use helpers::*;
 use wormchain_accounting::msg::Observation;
 use wormhole::{
-    token::{Action, GovernancePacket, Message},
+    token::Message,
     vaa::{Body, Header},
-    Address, Amount, Chain,
+    Address, Amount,
 };
 use wormhole_bindings::fake;
 
@@ -39,29 +39,6 @@ fn set_up(count: usize) -> (Vec<Message>, Vec<Observation>) {
     }
 
     (txs, observations)
-}
-
-fn register_emitters(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {
-    for i in 0..count {
-        let body = Body {
-            timestamp: i as u32,
-            nonce: i as u32,
-            emitter_chain: Chain::Solana,
-            emitter_address: wormhole::GOVERNANCE_EMITTER,
-            sequence: i as u64,
-            consistency_level: 0,
-            payload: GovernancePacket {
-                chain: Chain::Any,
-                action: Action::RegisterChain {
-                    chain: (i as u16).into(),
-                    emitter_address: Address([i as u8; 32]),
-                },
-            },
-        };
-
-        let (_, data) = sign_vaa_body(wh, body);
-        contract.submit_vaas(vec![data]).unwrap();
-    }
 }
 
 #[test]
