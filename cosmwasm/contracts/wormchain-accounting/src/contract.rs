@@ -27,8 +27,9 @@ use crate::{
     error::{AnyError, ContractError},
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg, Observation,
-        QueryMsg, TransferResponse, Upgrade,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg,
+        MissingObservation, MissingObservationsResponse, Observation, QueryMsg, TransferResponse,
+        Upgrade,
     },
     state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -491,6 +492,12 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::ChainRegistration { chain } => {
             query_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
         }
+        QueryMsg::MissingObservations {
+            guardian_set,
+            index,
+        } => {
+            query_missing_observations(deps, guardian_set, index).and_then(|resp| to_binary(&resp))
+        }
     }
 }
 
@@ -650,4 +657,26 @@ fn query_chain_registration(
     CHAIN_REGISTRATIONS
         .load(deps.storage, chain)
         .map(|address| ChainRegistrationResponse { address })
+}
+
+fn query_missing_observations(
+    deps: Deps<WormholeQuery>,
+    guardian_set: u32,
+    index: u8,
+) -> StdResult<MissingObservationsResponse> {
+    let mut missing = Vec::new();
+    for pending in PENDING_TRANSFERS.range(deps.storage, None, None, Order::Ascending) {
+        let (_, v) = pending?;
+        for data in v {
+            if data.guardian_set_index() == guardian_set && !data.has_signature(index) {
+                let o = data.observation();
+                missing.push(MissingObservation {
+                    chain_id: o.emitter_chain,
+                    tx_hash: o.tx_hash.clone(),
+                });
+            }
+        }
+    }
+
+    Ok(MissingObservationsResponse { missing })
 }
