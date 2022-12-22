@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.8
+
+## Changed
+
+Use BN.toArrayLike for compatibility with browserify and similar tools
+
 ## 0.9.7
 
 ## Added
