@@ -2,7 +2,6 @@ package hedera
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -102,7 +101,7 @@ type (
 		// contractAddressLogKey string
 
 		// URL to get the latest block info from
-		latestBlockURL string
+		// latestBlockURL string
 	}
 )
 
@@ -120,9 +119,6 @@ func NewWatcher(
 	// contractAddressFilterKey := "execute._contract_address"
 	// contractAddressLogKey := "_contract_address"
 
-	// Do not add a leading slash
-	latestBlockURL := "api/v1/blocks"
-
 	return &Watcher{
 		// urlWS:     urlWS,
 		urlLCD:    urlLCD,
@@ -133,15 +129,17 @@ func NewWatcher(
 		chainID:   chainID,
 		// contractAddressFilterKey: contractAddressFilterKey,
 		// contractAddressLogKey:    contractAddressLogKey,
-		latestBlockURL: latestBlockURL,
+		// latestBlockURL: latestBlockURL,
 	}
 }
 
-func (e *Watcher) Run(ctx context.Context) error {
-	networkName := vaa.ChainID(e.chainID).String()
+const TOPIC_LOG_MSG = "0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2"
 
-	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
-		ContractAddress: e.contract,
+func (watcher *Watcher) Run(ctx context.Context) error {
+	networkName := vaa.ChainID(watcher.chainID).String()
+
+	p2p.DefaultRegistry.SetNetworkStats(watcher.chainID, &gossipv1.Heartbeat_Network{
+		ContractAddress: watcher.contract,
 	})
 
 	errC := make(chan error)
@@ -159,20 +157,23 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("subscribed to new transaction events", zap.String("network", networkName))
 
-	readiness.SetReady(e.readiness)
+	readiness.SetReady(watcher.readiness)
 
+	// This function/thread queries and reports the current block height every interval
 	go func() {
-		t := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(5 * time.Second)
 		client := &http.Client{
 			Timeout: time.Second * 5,
 		}
 
+		// Do not add a leading slash
+		latestBlockURL := "api/v1/blocks"
+
 		for {
-			<-t.C
-			// msm := time.Now()
+			<-ticker.C
 			// Query and report height and set currentSlotHeight
-			logger.Info("Checking the following", zap.String("urlLCD", e.urlLCD), zap.String("latestBlockURL", e.latestBlockURL))
-			resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
+			logger.Info("Checking the following", zap.String("urlLCD", watcher.urlLCD), zap.String("latestBlockURL", latestBlockURL))
+			resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlLCD, latestBlockURL))
 			if err != nil {
 				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 				continue
@@ -182,27 +183,29 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
 				errC <- err
 				resp.Body.Close()
-				continue
+				// When this thread goes away due to error, shouldn't the other threads go away, too?
+				break
 			}
 			resp.Body.Close()
 
 			blockJSON := string(blocksBody)
 			latestBlock := gjson.Get(blockJSON, "blocks.0.number")
 			logger.Info("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
-			p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
+			p2p.DefaultRegistry.SetNetworkStats(watcher.chainID, &gossipv1.Heartbeat_Network{
 				Height:          latestBlock.Int(),
-				ContractAddress: e.contract,
+				ContractAddress: watcher.contract,
 			})
 		}
 	}()
 
+	// This function is for reobservations
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != e.chainID {
+			case r := <-watcher.obsvReqC:
+				if vaa.ChainID(r.ChainId) != watcher.chainID {
 					panic("invalid chain ID")
 				}
 
@@ -215,7 +218,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				// Query for tx by hash
-				resp, err := client.Get(fmt.Sprintf("%s/api/v1/blocks/%s", e.urlLCD, tx))
+				hashString := "api/v1/contracts/results/" + tx
+				resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlLCD, hashString))
 				if err != nil {
 					logger.Error("query tx response error", zap.String("network", networkName), zap.Error(err))
 					continue
@@ -229,46 +233,36 @@ func (e *Watcher) Run(ctx context.Context) error {
 				resp.Body.Close()
 
 				txJSON := string(txBody)
+				logger.Info("RO: txJSON", zap.String("txJSON", txJSON))
 
-				txHashRaw := gjson.Get(txJSON, "block.hash")
-				if !txHashRaw.Exists() {
-					logger.Error("block does not have a hash", zap.String("network", networkName), zap.String("payload", txJSON))
-					continue
-				}
-				txHash := txHashRaw.String()
+				events, err := TxMessageToEvent(logger, txJSON)
 
-				events := gjson.Get(txJSON, "tx_response.events")
-				if !events.Exists() {
-					logger.Error("tx has no events", zap.String("network", networkName), zap.String("payload", txJSON))
-					continue
-				}
-
-				// msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
-				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, "")
-				for _, msg := range msgs {
-					e.msgChan <- msg
+				for _, ev := range events {
+					watcher.msgChan <- ev
 					// messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 			}
 		}
 	}()
 
+	// This function is for normal watcher operations
 	go func() {
 		defer close(errC)
 		t := time.NewTicker(5 * time.Second)
 		client := &http.Client{
 			Timeout: time.Second * 5,
 		}
-		// const contractId = "0.0.47982756"
+		var beginningTS = "1234567890.000000400" // TODO:  Should this be Time.now()?
 		// var logString = "api/v1/contracts/" + contractId + "/results/logs?order=asc&timestamp=gte%3A1234567890.000000400"
-		var logString = "api/v1/contracts/" + e.contract + "/results/logs?order=asc&timestamp=gte%3A1234567890.000000400"
-
-		const TOPIC_LOG_MSG = "0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2"
+		// var logString = "api/v1/contracts/" + watcher.contract + "/results/logs?order=asc&timestamp=gte%3A" + beginningTS
 
 		for {
 			<-t.C
+			logString := "api/v1/contracts/" + watcher.contract + "/results/logs?order=asc&timestamp=gt%3A" + beginningTS
+			// logString := "api/v1/contracts/" + watcher.contract + "/results/logs?order=asc" + "&topic0=" + TOPIC_LOG_MSG + "&timestamp=[gt%3A&" + beginningTS + "][lt%3A&1671140260.000000400]"
+			logger.Info("current logString", zap.String("string", logString))
 			// Query and report height and set currentSlotHeight
-			resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, logString))
+			resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlLCD, logString))
 			if err != nil {
 				logger.Error("query latest logs response error", zap.String("network", networkName), zap.Error(err))
 				continue
@@ -288,26 +282,34 @@ func (e *Watcher) Run(ctx context.Context) error {
 			logs := gjson.Get(logJSON, "logs")
 			// logger.Info("after gjson.get", zap.Stringer("logs", logs))
 			logs.ForEach(func(logKey, logValue gjson.Result) bool {
-				// logger.Info("YIKES..............", zap.Stringer("topics", gjson.Get(value.String(), "topics")))
+				// logger.Info("YIKES..............", zap.Stringer("topics", gjson.Get(logValue.String(), "topics")))
 				topics := gjson.Get(logValue.String(), "topics")
 				topics.ForEach(func(topicKey, topicValue gjson.Result) bool {
 					if topicValue.String() == TOPIC_LOG_MSG {
-						event, err := LogMessageToEvent(ctx, logValue.String())
+						event, err := LogMessageToEvent(logger, logValue.String())
 						// Check for event being nil
 						if err == nil {
 							events = append(events, event)
 							blockNum := gjson.Get(logValue.String(), "block_number")
 							logger.Info("Found True Log Msg", zap.Stringer("block Number", blockNum))
 						}
-						return false
+						return false // break out of the ForEach() loop
 					}
-					return true
+					return true // continue ForEach() loop
 				})
-				return true
+				// update timestamp
+				timeStampBase := gjson.Get(logValue.String(), "timestamp")
+				if !timeStampBase.Exists() {
+					logger.Error("Message has no timestamp field")
+					return true // continue ForEach() loop
+				}
+				beginningTS = timeStampBase.String()
+				logger.Info("Updating beginningTS", zap.String("beginningTS", beginningTS))
+				return true // continue ForEach() loop
 			})
 
 			for _, ev := range events {
-				e.msgChan <- ev
+				watcher.msgChan <- ev
 				// messagesConfirmed.WithLabelValues(networkName).Inc()
 			}
 		}
@@ -343,8 +345,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 // \"transaction_hash\":\"0xa26603e164b550ae964dea97dc496a3d63268ed5df538dac5323a32c5be46519\",
 // \"transaction_index\":5},
 // and converts it to a MessagePublication
-func LogMessageToEvent(ctx context.Context, logMsg string) (*common.MessagePublication, error) {
-	logger := supervisor.Logger(ctx)
+func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublication, error) {
 
 	ethAbi, err := abi2.JSON(strings.NewReader(ethabi.AbiABI))
 	if err != nil {
@@ -357,34 +358,32 @@ func LogMessageToEvent(ctx context.Context, logMsg string) (*common.MessagePubli
 	if !txHashBase.Exists() {
 		return nil, errors.New("Message has no transaction hash")
 	}
+	txhash := txHashBase.String()
 	logDataBase := gjson.Get(logMsg, "data")
 	if !logDataBase.Exists() {
-		return nil, fmt.Errorf("Message has no data field for txhash %s", txHashBase.String())
+		return nil, fmt.Errorf("Message has no data field for txhash %s", txhash)
 	}
 	timeStampBase := gjson.Get(logMsg, "timestamp")
 	if !timeStampBase.Exists() {
-		return nil, fmt.Errorf("Message has no timestamp field for txhash %s", txHashBase.String())
+		return nil, fmt.Errorf("Message has no timestamp field for txhash %s", txhash)
 	}
 	emitterBase := gjson.Get(logMsg, "address")
 	if !emitterBase.Exists() {
-		return nil, fmt.Errorf("Message has no address field for txhash %s", txHashBase.String())
+		return nil, fmt.Errorf("Message has no address field for txhash %s", txhash)
 	}
 
-	txHashString := txHashBase.String()
-	txHash := eth_common.HexToHash(txHashString)
+	txHash := eth_common.HexToHash(txhash)
 	// txHash, err := StringToHash(txHashString)
 	// if err != nil {
 	// logger.Error("cannot decode txHashHex", zap.String("txHash", txHashString))
 	// return nil, fmt.Errorf("Could not decode txhash %s", txHashBase.String())
 	// }
 
-	timeStamp := timeStampBase.Int()
-
 	emitter := emitterBase.String()
 	emitterAddr, err := vaa.StringToAddress(emitter)
 	if err != nil {
 		logger.Fatal("failed to unpack emitter address", zap.Error(err))
-		return nil, fmt.Errorf("Emitter field could not be converted for txhash %s, value[%s]", txHashBase.String(), emitter)
+		return nil, fmt.Errorf("Emitter field could not be converted for txhash %s, value[%s]", txhash)
 	}
 
 	// Get the other values from the Data value
@@ -393,36 +392,65 @@ func LogMessageToEvent(ctx context.Context, logMsg string) (*common.MessagePubli
 	logDataBytes, err := hex.DecodeString(logDataString)
 	if err != nil {
 		logger.Fatal("failed to unpack log data", zap.Error(err))
-		return nil, fmt.Errorf("Data field could not be converted for txhash %s, value[%s]", txHashBase.String(), &logDataString)
+		return nil, fmt.Errorf("Data field could not be converted for txhash %s, value[%s]", txhash)
 	}
 
 	unpackedMsg, err := ethAbi.Unpack("LogMessagePublished", logDataBytes)
 	if err != nil {
 		logger.Fatal("failed to unpack log data", zap.Error(err))
-		return nil, fmt.Errorf("Log Data field could not be unpacked for txhash %s", txHashBase.String())
+		return nil, fmt.Errorf("Log Data field could not be unpacked for txhash %s", txhash)
 	}
+
+	// // AbiLogMessagePublished represents a LogMessagePublished event raised by the Abi contract.
+	// type AbiLogMessagePublished struct {
+	// 	Sender           common.Address
+	// 	Sequence         uint64
+	// 	Nonce            uint32
+	// 	Payload          []byte
+	// 	ConsistencyLevel uint8
+	// 	Raw              types.Log // Blockchain specific contextual infos
+	// }
 
 	seq := unpackedMsg[0].(uint64)
 	nonce := unpackedMsg[1].(uint32)
 	payload := unpackedMsg[2].([]byte)
 	cLevel := unpackedMsg[3].(uint8)
-	logger.Info("unpackedMsg", zap.Int("Length of unpackedMsg", len(unpackedMsg)), zap.Uint64("0", seq), zap.Uint32("2", nonce), zap.Uint8("4", cLevel))
-	var chainID vaa.ChainID
+	logger.Info("unpackedMsg",
+		zap.Int("Length of unpackedMsg", len(unpackedMsg)),
+		zap.Uint64("Sequence", seq),
+		zap.Uint32("Nonce", nonce),
+		zap.Uint8("consistencyLevel", cLevel))
+	var chainID vaa.ChainID = 27
+
+	// Convert timestamp
+	timeVals := strings.Split(timeStampBase.String(), ".")
+	timeValSeconds, err := strconv.ParseInt(timeVals[0], 10, 64)
+	if err != nil {
+		logger.Error("Failed to convert seconds", zap.String("sec", timeVals[0]))
+		return nil, fmt.Errorf("Failed to convert time seconds %s", timeVals[0])
+	}
+	timeValNS, err := strconv.ParseInt(timeVals[1], 10, 64)
+	if err != nil {
+		logger.Error("Failed to convert nanoseconds", zap.String("nanosec", timeVals[1]))
+		return nil, fmt.Errorf("Failed to convert time nanoseconds %s", timeVals[1])
+	}
+	unixTS := time.Unix(timeValSeconds, timeValNS)
+	logger.Info("timestamps", zap.Stringer("base", timeStampBase), zap.String("slice0", timeVals[0]), zap.String("slice1", timeVals[1]), zap.Stringer("unix", unixTS))
 
 	messagePublication := &common.MessagePublication{
-		TxHash:           txHash,                  // In log
-		Timestamp:        time.Unix(timeStamp, 0), // In log
-		Nonce:            nonce,                   // In log data
-		Sequence:         seq,                     // In log data
-		EmitterChain:     chainID,                 // Don't know where to get this
-		EmitterAddress:   emitterAddr,             // In log
-		Payload:          payload,                 // In log data
-		ConsistencyLevel: cLevel,                  // In log data
+		TxHash:           txHash,      // In log
+		Timestamp:        unixTS,      // In log
+		Nonce:            nonce,       // In log data
+		Sequence:         seq,         // In log data
+		EmitterChain:     chainID,     // Don't know where to get this
+		EmitterAddress:   emitterAddr, // In log
+		Payload:          payload,     // In log data
+		ConsistencyLevel: cLevel,      // In log data
 	}
 
 	logger.Info("messagePublication",
 		zap.Stringer("txHash", txHash),
-		zap.Int64("timestamp", timeStamp),
+		zap.Stringer("timestamp", unixTS),
 		zap.Uint32("nonce", nonce),
 		zap.Uint64("sequence", seq),
 		zap.Stringer("EmitterAddr", emitterAddr),
@@ -432,155 +460,133 @@ func LogMessageToEvent(ctx context.Context, logMsg string) (*common.MessagePubli
 	return messagePublication, nil
 }
 
-func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
-	networkName := vaa.ChainID(chainID).String()
-	msgs := make([]*common.MessagePublication, 0, len(events))
-	for _, event := range events {
-		if !event.IsObject() {
-			logger.Warn("event is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
-			continue
-		}
-		eventType := gjson.Get(event.String(), "type")
-		if eventType.String() != "wasm" {
-			continue
-		}
+// TxMessageToEvent a JSON structured "contracts" output and converts it into an event
+func TxMessageToEvent(logger *zap.Logger, msg string) ([]*common.MessagePublication, error) {
 
-		attributes := gjson.Get(event.String(), "attributes")
-		if !attributes.Exists() {
-			logger.Warn("message event has no attributes", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
-			continue
-		}
-		mappedAttributes := map[string]string{}
-		for _, attribute := range attributes.Array() {
-			if !attribute.IsObject() {
-				logger.Warn("event attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
-				continue
-			}
-			keyBase := gjson.Get(attribute.String(), "key")
-			if !keyBase.Exists() {
-				logger.Warn("event attribute does not have key", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
-				continue
-			}
-			valueBase := gjson.Get(attribute.String(), "value")
-			if !valueBase.Exists() {
-				logger.Warn("event attribute does not have value", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
-				continue
-			}
-
-			key, err := base64.StdEncoding.DecodeString(keyBase.String())
-			if err != nil {
-				logger.Warn("event key attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
-				continue
-			}
-			value, err := base64.StdEncoding.DecodeString(valueBase.String())
-			if err != nil {
-				logger.Warn("event value attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
-				continue
-			}
-
-			if _, ok := mappedAttributes[string(key)]; ok {
-				logger.Debug("duplicate key in events", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
-				continue
-			}
-
-			mappedAttributes[string(key)] = string(value)
-		}
-
-		contractAddress, ok := mappedAttributes[contractAddressKey]
-		if !ok {
-			logger.Warn("wasm event without contract address field set", zap.String("network", networkName), zap.String("event", event.String()))
-			continue
-		}
-		// This is not a wormhole message
-		if contractAddress != contract {
-			continue
-		}
-
-		payload, ok := mappedAttributes["message.message"]
-		if !ok {
-			logger.Error("wormhole event does not have a message field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		sender, ok := mappedAttributes["message.sender"]
-		if !ok {
-			logger.Error("wormhole event does not have a sender field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		chainId, ok := mappedAttributes["message.chain_id"]
-		if !ok {
-			logger.Error("wormhole event does not have a chain_id field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		nonce, ok := mappedAttributes["message.nonce"]
-		if !ok {
-			logger.Error("wormhole event does not have a nonce field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		sequence, ok := mappedAttributes["message.sequence"]
-		if !ok {
-			logger.Error("wormhole event does not have a sequence field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		blockTime, ok := mappedAttributes["message.block_time"]
-		if !ok {
-			logger.Error("wormhole event does not have a block_time field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-
-		logger.Info("new message detected on cosmwasm",
-			zap.String("network", networkName),
-			zap.String("chainId", chainId),
-			zap.String("txHash", txHash),
-			zap.String("sender", sender),
-			zap.String("nonce", nonce),
-			zap.String("sequence", sequence),
-			zap.String("blockTime", blockTime),
-		)
-
-		senderAddress, err := StringToAddress(sender)
-		if err != nil {
-			logger.Error("cannot decode emitter hex", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", sender))
-			continue
-		}
-		txHashValue, err := StringToHash(txHash)
-		if err != nil {
-			logger.Error("cannot decode tx hash hex", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", txHash))
-			continue
-		}
-		payloadValue, err := hex.DecodeString(payload)
-		if err != nil {
-			logger.Error("cannot decode payload", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", payload))
-			continue
-		}
-
-		blockTimeInt, err := strconv.ParseInt(blockTime, 10, 64)
-		if err != nil {
-			logger.Error("blocktime cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
-			continue
-		}
-		nonceInt, err := strconv.ParseUint(nonce, 10, 32)
-		if err != nil {
-			logger.Error("nonce cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
-			continue
-		}
-		sequenceInt, err := strconv.ParseUint(sequence, 10, 64)
-		if err != nil {
-			logger.Error("sequence cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
-			continue
-		}
-		messagePublication := &common.MessagePublication{
-			TxHash:           txHashValue,                // In log
-			Timestamp:        time.Unix(blockTimeInt, 0), // In log
-			Nonce:            uint32(nonceInt),           // In decoded log event
-			Sequence:         sequenceInt,                // In decoded log event
-			EmitterChain:     chainID,                    // Don't know where to get this
-			EmitterAddress:   senderAddress,              // In decoded log event
-			Payload:          payloadValue,               // In decoded log event
-			ConsistencyLevel: 0,                          // In decoded log event
-		}
-		msgs = append(msgs, messagePublication)
+	ethAbi, err := abi2.JSON(strings.NewReader(ethabi.AbiABI))
+	if err != nil {
+		logger.Fatal("failed to parse Eth ABI", zap.Error(err))
+		return nil, err
 	}
-	return msgs
+
+	// Check existence of required values in outer scope
+	txHashBase := gjson.Get(msg, "hash")
+	if !txHashBase.Exists() {
+		return nil, errors.New("Message has no transaction hash")
+	}
+	txhash := txHashBase.String()
+	txHash := eth_common.HexToHash(txhash)
+
+	timeStampBase := gjson.Get(msg, "timestamp")
+	if !timeStampBase.Exists() {
+		return nil, fmt.Errorf("Message has no timestamp field for txhash %s", txhash)
+	}
+
+	// Convert timestamp
+	timeVals := strings.Split(timeStampBase.String(), ".")
+	timeValSeconds, err := strconv.ParseInt(timeVals[0], 10, 64)
+	if err != nil {
+		logger.Error("Failed to convert seconds", zap.String("sec", timeVals[0]))
+		return nil, fmt.Errorf("Failed to convert time seconds %s", timeVals[0])
+	}
+	timeValNS, err := strconv.ParseInt(timeVals[1], 10, 64)
+	if err != nil {
+		logger.Error("Failed to convert nanoseconds", zap.String("nanosec", timeVals[1]))
+		return nil, fmt.Errorf("Failed to convert time nanoseconds %s", timeVals[1])
+	}
+	unixTS := time.Unix(timeValSeconds, timeValNS)
+	logger.Info("timestamps", zap.Stringer("base", timeStampBase), zap.String("slice0", timeVals[0]), zap.String("slice1", timeVals[1]), zap.Stringer("unix", unixTS))
+
+	var events []*common.MessagePublication
+
+	// Get the logs array and process it
+	logs := gjson.Get(msg, "logs")
+	logger.Info("RO: after gjson.get", zap.Stringer("logs", logs))
+	logs.ForEach(func(logKey, logValue gjson.Result) bool {
+		logger.Info("RO: YIKES..............", zap.Stringer("topics", gjson.Get(logValue.String(), "topics")))
+		logString := logValue.String()
+		topics := gjson.Get(logString, "topics")
+		topics.ForEach(func(topicKey, topicValue gjson.Result) bool {
+			if topicValue.String() == TOPIC_LOG_MSG {
+				logger.Info("RO:  Found topic")
+
+				// data is inside the logs object
+				logDataBase := gjson.Get(logString, "data")
+				if !logDataBase.Exists() {
+					logger.Error("Message has no data field", zap.String("txhash", txhash))
+					return false
+				}
+				// use the address inside the logs object
+				emitterBase := gjson.Get(logString, "address")
+				if !emitterBase.Exists() {
+					logger.Error("Message has no address field", zap.String("txhash", txhash))
+					return false
+				}
+
+				emitter := emitterBase.String()
+				emitterAddr, err := vaa.StringToAddress(emitter)
+				if err != nil {
+					logger.Fatal("failed to unpack emitter address", zap.Error(err))
+					return false
+				}
+
+				// Get the other values from the Data value
+				logDataString := logDataBase.String()
+				logDataString = logDataString[2:] // remove the leading 0x
+				logDataBytes, err := hex.DecodeString(logDataString)
+				if err != nil {
+					logger.Fatal("failed to unpack log data", zap.Error(err))
+					return false
+				}
+
+				unpackedMsg, err := ethAbi.Unpack("LogMessagePublished", logDataBytes)
+				if err != nil {
+					logger.Fatal("failed to unpack log data", zap.Error(err))
+					return false
+				}
+
+				seq := unpackedMsg[0].(uint64)
+				nonce := unpackedMsg[1].(uint32)
+				payload := unpackedMsg[2].([]byte)
+				cLevel := unpackedMsg[3].(uint8)
+				logger.Info("unpackedMsg",
+					zap.Int("Length of unpackedMsg", len(unpackedMsg)),
+					zap.Uint64("Sequence", seq),
+					zap.Uint32("Nonce", nonce),
+					zap.Uint8("consistencyLevel", cLevel))
+				var chainID vaa.ChainID = 27
+
+				messagePublication := &common.MessagePublication{
+					TxHash:           txHash,      // In log
+					Timestamp:        unixTS,      // In log
+					Nonce:            nonce,       // In log data
+					Sequence:         seq,         // In log data
+					EmitterChain:     chainID,     // Don't know where to get this
+					EmitterAddress:   emitterAddr, // In log
+					Payload:          payload,     // In log data
+					ConsistencyLevel: cLevel,      // In log data
+				}
+
+				logger.Info("messagePublication",
+					zap.Stringer("txHash", txHash),
+					zap.Stringer("timestamp", unixTS),
+					zap.Uint32("nonce", nonce),
+					zap.Uint64("sequence", seq),
+					zap.Stringer("EmitterAddr", emitterAddr),
+					zap.Uint8("ConsistenceLevel", cLevel),
+				)
+
+				events = append(events, messagePublication)
+				blockNum := gjson.Get(msg, "block_number")
+				logger.Info("RO: Found True Log Msg", zap.Stringer("block Number", blockNum))
+				return false // break out of the ForEach() loop
+			}
+			return true // continue inner ForEach() loop
+		})
+		return true // continue outer ForEach() loop
+	})
+
+	return events, nil
 }
 
 // StringToAddress convert string into address
