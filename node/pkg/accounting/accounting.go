@@ -111,6 +111,7 @@ func NewAccounting(
 
 // Run initializes the accounting module and starts the watcher runnable.
 func (acct *Accounting) Run(ctx context.Context) error {
+	acct.logger.Info("acct: debug: entering run", zap.String("pubKey", acct.wormchainConn.PublicKey()))
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
@@ -220,24 +221,26 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 		return false, nil
 	}
 
+	/////////////////////////////////////////////////////////////////////////////
+	// if msg.EmitterChain == vaa.ChainIDBSC {
+	// 	data, err := hex.DecodeString("0000000000000000000000000000000000002386F26FC100002386F26FC10000")
+	// 	if err != nil {
+	// 		acct.logger.Error("acct: debug: failed to decode bogus amount", zap.Error(err))
+	// 	} else {
+	// 		acct.logger.Info("acct: debug: old payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
+	// 		newPayload := append(msg.Payload[0:1], data...)
+	// 		newPayload = append(newPayload, msg.Payload[33:]...)
+	// 		msg.Payload = newPayload
+	// 		acct.logger.Info("acct: debug: new payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
+	// 	}
+	// }
+	/////////////////////////////////////////////////////////////////////////////
+
 	// Add it to the pending map and the database.
 	if err := acct.addPendingTransfer(&pk, msg, v, digest); err != nil {
 		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
 		return false, err
 	}
-
-	/////////////////////////////////////////////////////////////////////////////
-	data, err := hex.DecodeString("0000000000000000000000000000000000002386F26FC100002386F26FC10000")
-	if err != nil {
-		acct.logger.Error("acct: debug: failed to decode bogus amount", zap.Error(err))
-	} else {
-		acct.logger.Info("acct: debug: old payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
-		newPayload := append(msg.Payload[0:1], data...)
-		newPayload = append(newPayload, msg.Payload[33:]...)
-		msg.Payload = newPayload
-		acct.logger.Info("acct: debug: new payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
-	}
-	/////////////////////////////////////////////////////////////////////////////
 
 	acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msg.MessageIDString()), zap.Bool("canPublish", !acct.enforceFlag))
 
@@ -296,6 +299,7 @@ func (acct *Accounting) AuditPendingTransfers() {
 			if pe.retryCount > maxRetries {
 				acct.logger.Error("acct: stuck pending transfer has reached the retry limit, dropping it", zap.String("msgId", pe.msg.MessageIDString()))
 				acct.deletePendingTransfer(&pk, pe.msg.MessageIDString())
+				continue
 			}
 
 			acct.logger.Error("acct: resubmitting pending transfer",
