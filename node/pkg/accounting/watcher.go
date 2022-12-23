@@ -70,21 +70,21 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		defer close(errC)
 
 		for {
-			acct.logger.Error("acctwatch: tick")
+			acct.logger.Info("acctwatch: tick")
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				connectionErrors.Inc()
 				acct.logger.Error("acctwatch: error reading watcher channel", zap.Error(err))
 				time.Sleep(100 * time.Millisecond)
-				acct.logger.Error("acctwatch: posting error", zap.Error(err))
+				acct.logger.Info("acctwatch: posting error", zap.Error(err))
 				time.Sleep(100 * time.Millisecond)
 				errC <- err
-				acct.logger.Error("acctwatch: posted error", zap.Error(err))
+				acct.logger.Info("acctwatch: posted error", zap.Error(err))
 				return
 			}
 
 			// Received a message from the smart contract.
-			acct.logger.Error("acctwatch: tock")
+			acct.logger.Info("acctwatch: tock")
 			json := string(message)
 
 			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
@@ -125,15 +125,15 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		if err != nil {
 			acct.logger.Error("acctwatch: error closing watcher socket", zap.Error(err))
 		}
-		acct.logger.Error("acctwatch: exiting watcher 1")
+		acct.logger.Info("acctwatch: exiting watcher 1")
 		return ctx.Err()
 	case err := <-errC:
 		acct.logger.Error("acctwatch: watcher encountered an error", zap.Error(err))
-		acct.logger.Error("acctwatch: exiting watcher 2")
+		acct.logger.Info("acctwatch: exiting watcher 2")
 		return err
 	}
 
-	acct.logger.Error("acctwatch: exiting watcher 3")
+	acct.logger.Info("acctwatch: exiting watcher 3")
 	return nil
 }
 
@@ -284,17 +284,6 @@ func (acct *Accounting) EventsToTransfers(txHash string, events []gjson.Result) 
 	}
 
 	return pendingTransfers
-}
-
-// StringToAddress convert string into address
-func StringToAddress(value string) (vaa.Address, error) {
-	var address vaa.Address
-	res, err := hex.DecodeString(value)
-	if err != nil {
-		return address, err
-	}
-	copy(address[:], res)
-	return address, nil
 }
 
 // StringToHash convert string into transaction hash

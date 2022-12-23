@@ -920,27 +920,27 @@ func runNode(cmd *cobra.Command, args []string) {
 	var wormchainConn *wormconn.ClientConn
 	if *wormchainURL != "" {
 		if *wormchainKeyPath == "" {
-			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required", zap.String("wormchainKeyPath", *wormchainKeyPath))
+			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required")
 		}
 
 		// Load the wormchain key.
+		wormchainKeyPathName := *wormchainKeyPath
 		if *unsafeDevMode {
 			idx, err := devnet.GetDevnetIndex()
 			if err != nil {
 				logger.Fatal("failed to get devnet index", zap.Error(err))
 			}
-			wormchainKeyPathName := fmt.Sprint(*wormchainKeyPath, idx)
-			logger.Info("acct: loading key file", zap.String("key path", wormchainKeyPathName))
-			wormchainKey, err = devnet.LoadWormchainPrivKey(wormchainKeyPathName)
-			if err != nil {
-				logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
-			}
-		} else {
-			logger.Fatal("non-devnet wormchain key not yet supported")
+			wormchainKeyPathName = fmt.Sprint(*wormchainKeyPath, idx)
+		}
+
+		logger.Info("acct: debug: loading key file", zap.String("key path", wormchainKeyPathName))
+		wormchainKey, err = devnet.LoadWormchainPrivKey(wormchainKeyPathName)
+		if err != nil {
+			logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
 		}
 
 		// Connect to wormchain.
-		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("wormchainKeyPath", *wormchainKeyPath))
+		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("wormchainKeyPath", wormchainKeyPathName))
 		wormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err))
