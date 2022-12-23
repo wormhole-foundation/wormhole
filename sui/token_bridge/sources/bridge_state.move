@@ -1,5 +1,6 @@
 module token_bridge::bridge_state {
     use std::option::{Self, Option};
+    use std::ascii::{Self};
 
     use sui::object::{Self, UID};
     use sui::vec_map::{Self, VecMap};
@@ -326,20 +327,19 @@ module token_bridge::bridge_state {
         dynamic_set::add<WrappedAssetInfo<CoinType>>(&mut bridge_state.id, wrapped_asset_info);
     }
 
-    // TODO: this function should take a CoinMetadata once that's on devnet
     public(friend) fun register_native_asset<CoinType>(
         wormhole_state: &WormholeState,
         bridge_state: &mut BridgeState,
+        coin_meta: &CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): AssetMeta {
         assert!(!is_wrapped_asset<CoinType>(bridge_state), E_IS_WRAPPED_ASSET); // TODO - test
         let asset_meta = asset_meta::create(
             next_native_id(&mut bridge_state.native_id_registry),
             wormhole_state::get_chain_id(wormhole_state), // TODO: should we just hardcode this?
-            // TODO: get these from CoinMetadata
-            8, // decimals
-            string32::from_bytes(b"TODO"), // symbol
-            string32::from_bytes(b"TODO"), // name
+            coin::get_decimals<CoinType>(coin_meta), // decimals
+            string32::from_bytes(ascii::into_bytes(coin::get_symbol<CoinType>(coin_meta))), // symbol
+            string32::from_string(&coin::get_name<CoinType>(coin_meta)) // name
         );
         let native_asset_info = NativeAssetInfo<CoinType> {
             id: object::new(ctx),
@@ -355,6 +355,7 @@ module token_bridge::bridge_state {
 #[test_only]
 module token_bridge::bridge_state_test{
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
+    use sui::coin::{CoinMetadata};
 
     use wormhole::state::{State};
     use wormhole::test_state::{init_wormhole_state};
@@ -362,6 +363,8 @@ module token_bridge::bridge_state_test{
     use wormhole::external_address::{Self};
 
     use token_bridge::bridge_state::{Self as state, BridgeState, DeployerCapability};
+    use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
+    use token_bridge::native_coin_witness_v2::{Self, NATIVE_COIN_WITNESS_V2};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -439,58 +442,79 @@ module token_bridge::bridge_state_test{
 
         //test coin type addressing
         next_tx(&mut test, admin); {
+            native_coin_witness::test_init(ctx(&mut test));
+            native_coin_witness_v2::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin); {
             let wormhole_state = take_shared<State>(&test);
             let bridge_state = take_shared<BridgeState>(&test);
-            state::register_native_asset<MyCoinType1>(
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut wormhole_state,
                 &mut bridge_state,
+                &coin_meta,
                 ctx(&mut test)
             );
-            let origin_info = state::origin_info<MyCoinType1>(&bridge_state);
+            let origin_info = state::origin_info<NATIVE_COIN_WITNESS>(&bridge_state);
             let address = state::get_token_address_from_origin_info(&origin_info);
             assert!(address == external_address::from_bytes(x"01"), 0);
 
-            state::register_native_asset<MyCoinType2>(
+            let coin_meta_v2 = take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
+            state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
                 &mut wormhole_state,
                 &mut bridge_state,
+                &coin_meta_v2,
                 ctx(&mut test)
             );
-            let origin_info = state::origin_info<MyCoinType2>(&bridge_state);
+            let origin_info = state::origin_info<NATIVE_COIN_WITNESS_V2>(&bridge_state);
             let address = state::get_token_address_from_origin_info(&origin_info);
             assert!(address == external_address::from_bytes(x"02"), 0);
 
             return_shared<State>(wormhole_state);
             return_shared<BridgeState>(bridge_state);
+            return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta_v2);
+            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         test_scenario::end(test);
     }
+
 
     fun test_coin_type_addressing_failure_case_(test: Scenario) {
         let (admin, _, _) = people();
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
+        //test coin type addressing
+        next_tx(&mut test, admin); {
+            native_coin_witness::test_init(ctx(&mut test));
+            native_coin_witness_v2::test_init(ctx(&mut test));
+        };
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<State>(&test);
             let bridge_state = take_shared<BridgeState>(&test);
-
-            state::register_native_asset<MyCoinType1>(
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut wormhole_state,
                 &mut bridge_state,
+                &coin_meta,
                 ctx(&mut test)
             );
-            // aborts because trying to re-register native coin (TODO: we should
-            // probably allow this, but only override the meta, and not the rest)
-            state::register_native_asset<MyCoinType1>(
+            let origin_info = state::origin_info<NATIVE_COIN_WITNESS>(&bridge_state);
+            let address = state::get_token_address_from_origin_info(&origin_info);
+            assert!(address == external_address::from_bytes(x"01"), 0);
+
+            // aborts because trying to re-register native coin
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut wormhole_state,
                 &mut bridge_state,
+                &coin_meta,
                 ctx(&mut test)
             );
 
             return_shared<State>(wormhole_state);
             return_shared<BridgeState>(bridge_state);
+            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         test_scenario::end(test);
     }
-
 }

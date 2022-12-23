@@ -1,7 +1,7 @@
 module token_bridge::complete_transfer {
     use sui::tx_context::{TxContext};
     use sui::transfer::{Self as transfer_object};
-    use sui::coin;
+    use sui::coin::{Self};
 
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
@@ -123,7 +123,7 @@ module token_bridge::complete_transfer_test {
     use std::bcs::{Self};
 
     use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, ctx, take_from_address, return_to_address};
-    use sui::coin::{Self, Coin};
+    use sui::coin::{Self, Coin, CoinMetadata};
 
     use wormhole::myu16::{Self as u16};
     use wormhole::external_address::{Self};
@@ -149,16 +149,21 @@ module token_bridge::complete_transfer_test {
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
+            native_coin_witness::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin);{
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
+                &coin_meta,
                 ctx(&mut test)
             );
-            native_coin_witness::test_init(ctx(&mut test));
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
+            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
