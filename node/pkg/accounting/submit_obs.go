@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -45,28 +46,29 @@ type (
 	SignatureBytes []uint8
 
 	Observation struct {
-		// The key that uniquely identifies the Observation.
-		Key TransferKey `json:"key"`
+		// The hash of the transaction on the emitter chain in which the transfer was performed.
+		TxHash string `json:"tx_hash"`
+
+		// Seconds since UNIX epoch.
+		Timestamp uint32 `json:"timestamp"`
 
 		// The nonce for the transfer.
 		Nonce uint32 `json:"nonce"`
 
-		// The serialized tokenbridge payload.
-		Payload string `json:"payload"`
-
-		// The hash of the transaction on the emitter chain in which the transfer was performed.
-		TxHash string `json:"tx_hash"`
-	}
-
-	TransferKey struct {
-		// The chain id of the chain on which this transfer originated.
+		// The source chain from which this observation was created.
 		EmitterChain uint16 `json:"emitter_chain"`
 
-		// The address on the emitter chain that created this transfer.
+		// The address on the source chain that emitted this message.
 		EmitterAddress string `json:"emitter_address"`
 
-		// The sequence number of the transfer.
+		// The sequence number of this observation.
 		Sequence uint64 `json:"sequence"`
+
+		// The consistency level requested by the emitter.
+		ConsistencyLevel uint8 `json:"consistency_level"`
+
+		// The serialized tokenbridge payload.
+		Payload string `json:"payload"`
 	}
 )
 
@@ -125,14 +127,14 @@ func SubmitObservationToContract(
 ) (*sdktx.BroadcastTxResponse, error) {
 	obs := []Observation{
 		Observation{
-			Key: TransferKey{
-				EmitterChain:   uint16(msg.EmitterChain),
-				EmitterAddress: base64.StdEncoding.EncodeToString(msg.EmitterAddress.Bytes()),
-				Sequence:       msg.Sequence,
-			},
-			Nonce:   msg.Nonce,
-			TxHash:  strings.Trim(string(msg.TxHash.String()), `0x`),
-			Payload: base64.StdEncoding.EncodeToString(msg.Payload),
+			TxHash:           base64.StdEncoding.EncodeToString([]byte(strings.Trim(string(msg.TxHash.String()), `0x`))),
+			Timestamp:        uint32(msg.Timestamp.Unix()),
+			Nonce:            msg.Nonce,
+			EmitterChain:     uint16(msg.EmitterChain),
+			EmitterAddress:   base64.StdEncoding.EncodeToString(msg.EmitterAddress.Bytes()),
+			Sequence:         msg.Sequence,
+			ConsistencyLevel: msg.ConsistencyLevel,
+			Payload:          base64.StdEncoding.EncodeToString(msg.Payload),
 		},
 	}
 
@@ -175,7 +177,18 @@ func SubmitObservationToContract(
 		Funds:    sdktypes.Coins{},
 	}
 
-	logger.Info("acct: debug: in SubmitObservationToContract, sending broadcast")
+	logger.Info("acct: debug: in SubmitObservationToContract, sending broadcast",
+		zap.Stringer("txHash", msg.TxHash), zap.String("encTxHash", obs[0].TxHash),
+		zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[0].Timestamp),
+		zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[0].Nonce),
+		zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[0].EmitterChain),
+		zap.Stringer("emitterAddress", msg.EmitterAddress), zap.String("encEmitterAddress", obs[0].EmitterAddress),
+		zap.Uint64("squence", msg.Sequence), zap.Uint64("encSequence", obs[0].Sequence),
+		zap.Uint8("consistencyLevel", msg.ConsistencyLevel), zap.Uint8("encConsistencyLevel", obs[0].ConsistencyLevel),
+		zap.String("payload", hex.EncodeToString(msg.Payload)), zap.String("encPayload", obs[0].Payload),
+		zap.String("b64String", b64String),
+	)
+
 	txResp, err := wormchainConn.SignAndBroadcastTx(ctx, &subMsg)
 	if err != nil {
 		logger.Error("acct: SubmitObservationToContract failed to send broadcast", zap.Error(err))
