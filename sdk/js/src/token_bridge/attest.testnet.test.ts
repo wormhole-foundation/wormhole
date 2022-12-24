@@ -3,7 +3,7 @@ import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
   TxClient,
   PrivateKey,
-  TxGrpcClient,
+  TxGrpcApi,
   ChainRestAuthApi,
   createTransaction,
   MsgExecuteContract,
@@ -83,7 +83,7 @@ test.skip("testnet - injective attest native token", async () => {
   console.log("Calculate hash");
   console.log(`Transaction Hash: ${await TxClient.hash(txRaw)}`);
 
-  const txService = new TxGrpcClient(network.sentryGrpcApi);
+  const txService = new TxGrpcApi(network.sentryGrpcApi);
 
   /** Simulate transaction */
   console.log("Simulate transaction");
