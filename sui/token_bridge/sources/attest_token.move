@@ -108,4 +108,39 @@ module token_bridge::attest_token_test{
         };
         test_scenario::end(test);
     }
+
+    #[test]
+    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
+    fun test_attest_token_twice_fails(){
+        let test = scenario();
+        let (admin, _, _) = people();
+
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+
+        next_tx(&mut test, admin); {
+            native_coin_witness::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<State>(&test);
+            let bridge_state = take_shared<BridgeState>(&test);
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+
+            let _asset_meta_1 = test_attest_token_internal<NATIVE_COIN_WITNESS>(
+                &mut wormhole_state,
+                &mut bridge_state,
+                &coin_meta,
+                ctx(&mut test)
+            );
+            let _asset_meta_2 = test_attest_token_internal<NATIVE_COIN_WITNESS>(
+                &mut wormhole_state,
+                &mut bridge_state,
+                &coin_meta,
+                ctx(&mut test)
+            );
+            return_shared<State>(wormhole_state);
+            return_shared<BridgeState>(bridge_state);
+            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+        };
+        test_scenario::end(test);
+    }
 }
