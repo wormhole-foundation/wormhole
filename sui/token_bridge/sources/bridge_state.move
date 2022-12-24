@@ -369,9 +369,6 @@ module token_bridge::bridge_state_test{
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    struct MyCoinType1 {}
-    struct MyCoinType2 {}
-
     #[test]
     fun test_state_setters() {
         test_state_setters_(scenario())
