@@ -308,7 +308,6 @@ mod tests {
     struct GuardianSetInfo<'a> {
         #[serde(borrow)]
         addresses: Cow<'a, [GuardianAddress<'a>]>,
-        expiration_time: u64,
     }
 
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]

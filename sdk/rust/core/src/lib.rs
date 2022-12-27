@@ -65,10 +65,6 @@ pub struct Amount(pub [u8; 32]);
 pub struct GuardianSetInfo {
     /// The set of guardians public keys, in Ethereum's compressed format.
     pub addresses: Vec<GuardianAddress>,
-
-    /// How long after a GuardianSet change before this set is expired.
-    #[serde(skip)]
-    pub expiration_time: u64,
 }
 
 impl GuardianSetInfo {
@@ -112,7 +108,6 @@ mod test {
         for (count, quorum) in tests {
             let gs = GuardianSetInfo {
                 addresses: vec![Default::default(); count],
-                expiration_time: 0,
             };
 
             assert_eq!(quorum, gs.quorum());

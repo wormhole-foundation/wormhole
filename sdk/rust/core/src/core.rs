@@ -541,7 +541,6 @@ mod test {
                                 0xeb, 0x15, 0xe8, 0x0c, 0x9a, 0x99, 0xc8, 0x34, 0x8d,
                             ]),
                         ],
-                        expiration_time: 0,
                     },
                 },
             },
