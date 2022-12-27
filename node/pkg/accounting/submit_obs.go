@@ -59,7 +59,7 @@ type (
 		EmitterChain uint16 `json:"emitter_chain"`
 
 		// The address on the source chain that emitted this message.
-		EmitterAddress string `json:"emitter_address"`
+		EmitterAddress [32]byte `json:"emitter_address"`
 
 		// The sequence number of this observation.
 		Sequence uint64 `json:"sequence"`
@@ -85,32 +85,40 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 // submitObservationToContract makes a call to the smart contract to submit an observation request.
 // It should be called from a go routine because it can block.
 func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
-	acct.logger.Info("acct: debug: in submitObservationToContract", zap.String("msgID", msg.MessageIDString()))
+	msgId := msg.MessageIDString()
+	acct.logger.Info("acct: debug: in submitObservationToContract", zap.String("msgID", msgId))
 	txResp, err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, acct.wormchainConn, acct.contract, msg)
 	if err != nil {
-		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
+		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msgId), zap.Error(err))
 		submitFailures.Inc()
 		return
 	}
 
 	alreadyCommitted, err := CheckSubmitObservationResult(txResp)
 	if err != nil {
-		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msg.MessageIDString()), zap.Error(err))
 		submitFailures.Inc()
+		if strings.Contains(err.Error(), "insufficient balance") {
+			balanceErrors.Inc()
+			acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.Error(err))
+			acct.mutex.Lock()
+			defer acct.mutex.Unlock()
+			acct.deletePendingTransfer(msgId)
+		} else {
+			acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msgId), zap.Error(err))
+		}
 		return
 	}
 
 	if alreadyCommitted {
 		acct.mutex.Lock()
 		defer acct.mutex.Unlock()
-		pk := pendingKey{emitterChainId: msg.EmitterChain, txHash: msg.TxHash}
-		pe, exists := acct.pendingTransfers[pk]
+		pe, exists := acct.pendingTransfers[msgId]
 		if exists {
-			acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msg.MessageIDString()))
+			acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msgId))
 			acct.publishTransfer(pe)
 			transfersApproved.Inc()
 		} else {
-			acct.logger.Info("acct: debug: transfer has already been committed, and it is no longer in our map", zap.String("msgId", msg.MessageIDString()))
+			acct.logger.Info("acct: debug: transfer has already been committed, and it is no longer in our map", zap.String("msgId", msgId))
 		}
 	}
 }
@@ -125,13 +133,21 @@ func SubmitObservationToContract(
 	contract string,
 	msg *common.MessagePublication,
 ) (*sdktx.BroadcastTxResponse, error) {
+	txHashStr := msg.TxHash.String()
+	if strings.Index(txHashStr, "0x") == 0 {
+		txHashStr = txHashStr[2:]
+	}
+	txHashBytes, err := hex.DecodeString(txHashStr)
+	if err != nil {
+		return nil, fmt.Errorf("acct: failed to decode tx_hash '%s': %w", msg.TxHash.String(), err)
+	}
 	obs := []Observation{
 		Observation{
-			TxHash:           base64.StdEncoding.EncodeToString([]byte(strings.Trim(string(msg.TxHash.String()), `0x`))),
+			TxHash:           base64.StdEncoding.EncodeToString(txHashBytes),
 			Timestamp:        uint32(msg.Timestamp.Unix()),
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
-			EmitterAddress:   base64.StdEncoding.EncodeToString(msg.EmitterAddress.Bytes()),
+			EmitterAddress:   msg.EmitterAddress,
 			Sequence:         msg.Sequence,
 			ConsistencyLevel: msg.ConsistencyLevel,
 			Payload:          base64.StdEncoding.EncodeToString(msg.Payload),
@@ -140,8 +156,7 @@ func SubmitObservationToContract(
 
 	bytes, err := json.Marshal(obs)
 	if err != nil {
-		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
-		panic(err)
+		return nil, fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
 	}
 
 	b64String := base64.StdEncoding.EncodeToString(bytes)
@@ -150,8 +165,7 @@ func SubmitObservationToContract(
 
 	SignatureBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
-		err = fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
-		panic(err)
+		return nil, fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
 	}
 
 	sig := SignatureType{Index: 0, Signature: SignatureBytes}
@@ -166,8 +180,7 @@ func SubmitObservationToContract(
 
 	msgBytes, err := json.Marshal(msgData)
 	if err != nil {
-		err = fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
-		panic(err)
+		return nil, fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
 	}
 
 	subMsg := wasmdtypes.MsgExecuteContract{
@@ -178,11 +191,11 @@ func SubmitObservationToContract(
 	}
 
 	logger.Info("acct: debug: in SubmitObservationToContract, sending broadcast",
-		zap.Stringer("txHash", msg.TxHash), zap.String("encTxHash", obs[0].TxHash),
+		zap.String("txHash", txHashStr), zap.String("encTxHash", obs[0].TxHash),
 		zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[0].Timestamp),
 		zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[0].Nonce),
 		zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[0].EmitterChain),
-		zap.Stringer("emitterAddress", msg.EmitterAddress), zap.String("encEmitterAddress", obs[0].EmitterAddress),
+		zap.Stringer("emitterAddress", msg.EmitterAddress), zap.String("encEmitterAddress", hex.EncodeToString(obs[0].EmitterAddress[:])),
 		zap.Uint64("squence", msg.Sequence), zap.Uint64("encSequence", obs[0].Sequence),
 		zap.Uint8("consistencyLevel", msg.ConsistencyLevel), zap.Uint8("encConsistencyLevel", obs[0].ConsistencyLevel),
 		zap.String("payload", hex.EncodeToString(msg.Payload)), zap.String("encPayload", obs[0].Payload),
@@ -222,7 +235,7 @@ func CheckSubmitObservationResult(txResp *sdktx.BroadcastTxResponse) (bool, erro
 		}
 
 		// TODO Need to test this, requires multiple guardians.
-		if strings.Contains(txResp.TxResponse.RawLog, "cannot submit duplicate signatures for the same observation") {
+		if strings.Contains(txResp.TxResponse.RawLog, "duplicate signature") {
 			return false, nil
 		}
 

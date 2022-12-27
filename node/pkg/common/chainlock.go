@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -147,4 +148,10 @@ func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
 		Sequence:         msg.Sequence,
 		ConsistencyLevel: msg.ConsistencyLevel,
 	}
+}
+
+func (msg *MessagePublication) CreateDigest() string {
+	v := msg.CreateVAA(0) // The guardian set index is not part of the digest, so we can pass in zero.
+	db := v.SigningMsg()
+	return hex.EncodeToString(db.Bytes())
 }
