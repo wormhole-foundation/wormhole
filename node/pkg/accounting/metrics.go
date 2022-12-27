@@ -22,15 +22,25 @@ var (
 			Name: "wormhole_accounting_transfer_vaas_submitted_and_approved",
 			Help: "Total number of accounting transfer vaas that were submitted and approved",
 		})
+	eventsReceived = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_accounting_events_received",
+			Help: "Total number of accounting events received from the smart contract",
+		})
 	submitFailures = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_accounting_submit_failures",
 			Help: "Total number of accounting transfer vaas submit failures",
 		})
-	eventsReceived = promauto.NewCounter(
+	balanceErrors = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "wormhole_accounting_events_received",
-			Help: "Total number of accounting events received",
+			Name: "wormhole_accounting_total_balance_errors",
+			Help: "Total number of balance errors detected by accounting",
+		})
+	digestMismatches = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_accounting_total_digest_mismatches",
+			Help: "Total number of digest mismatches on accounting",
 		})
 	connectionErrors = promauto.NewCounter(
 		prometheus.CounterOpts{

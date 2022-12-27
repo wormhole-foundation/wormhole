@@ -1,9 +1,14 @@
+// The accounting package manages the interface to the accounting smart contract on wormchain. It is passed all VAAs before
+// they are signed and published. It determines if the VAA is for a token bridge transfer, and if it is, it submits an observation
+// request to the accounting contract. When that happens, the VAA is queued up until the accounting contract responds indicating
+// that the VAA has been approved. If the VAA is approved, this module will forward the VAA back to the processor loop to be signed
+// and published.
+
 package accounting
 
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
@@ -14,8 +19,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
-	ethCommon "github.com/ethereum/go-ethereum/common"
 
 	"go.uber.org/zap"
 )
@@ -42,15 +45,10 @@ type (
 	tokenBridgeEntry struct {
 	}
 
-	// pendingKey is the key to the map of pending transfers
-	pendingKey struct {
-		emitterChainId vaa.ChainID
-		txHash         ethCommon.Hash
-	}
-
 	// pendingEntry is the payload for each pending transfer
 	pendingEntry struct {
 		msg        *common.MessagePublication
+		msgId      string
 		digest     string
 		updTime    time.Time
 		retryCount int
@@ -72,7 +70,7 @@ type Accounting struct {
 	msgChan          chan<- *common.MessagePublication
 	mutex            sync.Mutex
 	tokenBridges     map[tokenBridgeKey]*tokenBridgeEntry
-	pendingTransfers map[pendingKey]*pendingEntry
+	pendingTransfers map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
 	env              int
 }
 
@@ -104,7 +102,7 @@ func NewAccounting(
 		gst:              gst,
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
-		pendingTransfers: make(map[pendingKey]*pendingEntry),
+		pendingTransfers: make(map[string]*pendingEntry),
 		env:              env,
 	}
 }
@@ -176,12 +174,13 @@ func (acct *Accounting) FeatureString() string {
 // loop when a local observation is received from a watcher. It returns true if the observation can be published immediately,
 // false if not (because it has been submitted to accounting).
 func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool, error) {
-	acct.logger.Info("acct: debug: in SubmitObservation", zap.String("msgID", msg.MessageIDString()))
+	msgId := msg.MessageIDString()
+	acct.logger.Info("acct: debug: in SubmitObservation", zap.String("msgID", msgId))
 	// We only care about token bridges.
 	tbk := tokenBridgeKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}
 	if _, exists := acct.tokenBridges[tbk]; !exists {
 		if msg.EmitterChain != vaa.ChainIDPythNet {
-			acct.logger.Info("acct: ignoring vaa because it is not a token bridge", zap.String("msgID", msg.MessageIDString()))
+			acct.logger.Info("acct: ignoring vaa because it is not a token bridge", zap.String("msgID", msgId))
 		}
 
 		return true, nil
@@ -189,7 +188,7 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
-		acct.logger.Info("acct: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
+		acct.logger.Info("acct: ignoring vaa because it is not a transfer", zap.String("msgID", msgId))
 		return true, nil
 	}
 
@@ -198,30 +197,29 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 
 	gs := acct.gst.Get()
 	if gs == nil {
-		acct.logger.Error("acct: failed to look up guardian set, blocking publishing", zap.String("msgID", msg.MessageIDString()))
+		acct.logger.Error("acct: failed to look up guardian set, blocking publishing", zap.String("msgID", msgId))
 		return false, nil
 	}
 
-	v := msg.CreateVAA(gs.Index)
-	db := v.SigningMsg()
-	digest := hex.EncodeToString(db.Bytes())
+	digest := msg.CreateDigest()
 
 	// If this is already pending, don't send it again.
-	pk := pendingKey{emitterChainId: msg.EmitterChain, txHash: msg.TxHash}
-	if oldPk, exists := acct.pendingTransfers[pk]; exists {
-		if oldPk.digest != digest {
-			acct.logger.Error("acct: digest in pending transfer has changed",
-				zap.String("msgID", msg.MessageIDString()),
-				zap.String("oldDigest", oldPk.digest),
+	if oldEntry, exists := acct.pendingTransfers[msgId]; exists {
+		if oldEntry.digest != digest {
+			digestMismatches.Inc()
+			acct.logger.Error("acct: digest in pending transfer has changed, dropping it",
+				zap.String("msgID", msgId),
+				zap.String("oldDigest", oldEntry.digest),
 				zap.String("newDigest", digest),
 			)
 		} else {
-			acct.logger.Info("acct: blocking transfer because it is already outstanding", zap.String("msgID", msg.MessageIDString()))
+			acct.logger.Info("acct: blocking transfer because it is already outstanding", zap.String("msgID", msgId))
 		}
 		return false, nil
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
+	// WETH on BSC is 0x3D9E7a12DAa29a8B2b1BFaA9DC97ce018853Ab31
 	// if msg.EmitterChain == vaa.ChainIDBSC {
 	// 	data, err := hex.DecodeString("0000000000000000000000000000000000002386F26FC100002386F26FC10000")
 	// 	if err != nil {
@@ -237,12 +235,12 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 	/////////////////////////////////////////////////////////////////////////////
 
 	// Add it to the pending map and the database.
-	if err := acct.addPendingTransfer(&pk, msg, v, digest); err != nil {
-		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+	if err := acct.addPendingTransfer(msgId, msg, digest); err != nil {
+		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msgId), zap.Error(err))
 		return false, err
 	}
 
-	acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msg.MessageIDString()), zap.Bool("canPublish", !acct.enforceFlag))
+	acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
 
 	// This transaction may take a while. Run it as a go routine so we don't block the processor.
 	if acct.env != GoTestMode {
@@ -257,18 +255,18 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 // FinalizeObservation deletes a pending transfer received on the accounting channel. This is called from the processor loop
 // when a message is received on the accounting channel. It returns true if the observation should be published, false if not.
 func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool {
-	acct.logger.Info("acct: debug: in FinalizeObservation", zap.String("msgID", msg.MessageIDString()))
+	msgId := msg.MessageIDString()
+	acct.logger.Info("acct: debug: in FinalizeObservation", zap.String("msgID", msgId))
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
-	pk := pendingKey{emitterChainId: msg.EmitterChain, txHash: msg.TxHash}
-	if _, exists := acct.pendingTransfers[pk]; !exists {
-		acct.logger.Info("acct: dropping pending transfer because it is no longer in the map", zap.String("msgID", msg.MessageIDString()))
+	if _, exists := acct.pendingTransfers[msgId]; !exists {
+		acct.logger.Info("acct: dropping pending transfer because it is no longer in the map", zap.String("msgID", msgId))
 		return false
 	}
 
-	acct.logger.Info("acct: deleting pending transfer", zap.String("msgID", msg.MessageIDString()))
-	acct.deletePendingTransfer(&pk, msg.MessageIDString())
+	acct.logger.Info("acct: deleting pending transfer", zap.String("msgID", msgId))
+	acct.deletePendingTransfer(msgId)
 
 	// If we are enforcing accounting, publish it now. If we are not enforcing accounting, it should already have been published.
 	return acct.enforceFlag
@@ -292,18 +290,18 @@ func (acct *Accounting) AuditPendingTransfers() {
 		return
 	}
 
-	for pk, pe := range acct.pendingTransfers {
-		acct.logger.Info("acct: debug: evaluating pending transfer", zap.String("msgID", pe.msg.MessageIDString()), zap.Stringer("updTime", pe.updTime))
+	for msgId, pe := range acct.pendingTransfers {
+		acct.logger.Info("acct: debug: evaluating pending transfer", zap.String("msgID", msgId), zap.Stringer("updTime", pe.updTime))
 		if time.Since(pe.updTime) > auditInterval {
 			pe.retryCount += 1
 			if pe.retryCount > maxRetries {
-				acct.logger.Error("acct: stuck pending transfer has reached the retry limit, dropping it", zap.String("msgId", pe.msg.MessageIDString()))
-				acct.deletePendingTransfer(&pk, pe.msg.MessageIDString())
+				acct.logger.Error("acct: stuck pending transfer has reached the retry limit, dropping it", zap.String("msgId", msgId))
+				acct.deletePendingTransfer(msgId)
 				continue
 			}
 
 			acct.logger.Error("acct: resubmitting pending transfer",
-				zap.String("msgId", pe.msg.MessageIDString()),
+				zap.String("msgId", msgId),
 				zap.Stringer("lastUpdateTime", pe.updTime),
 				zap.Int("retryCount", pe.retryCount),
 			)
@@ -319,30 +317,30 @@ func (acct *Accounting) AuditPendingTransfers() {
 
 // publishTransfer publishes a pending transfer to the accounting channel and updates the timestamp. It assumes the caller holds the lock.
 func (acct *Accounting) publishTransfer(pe *pendingEntry) {
-	acct.logger.Info("acct: debug: publishTransfer", zap.String("msgId", pe.msg.MessageIDString()))
+	acct.logger.Info("acct: debug: publishTransfer", zap.String("msgId", pe.msgId))
 	acct.msgChan <- pe.msg
 	pe.updTime = time.Now()
 }
 
 // addPendingTransfer adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
-func (acct *Accounting) addPendingTransfer(pk *pendingKey, msg *common.MessagePublication, v *vaa.VAA, digest string) error {
-	acct.logger.Info("acct: debug: addPendingTransfer", zap.String("msgId", msg.MessageIDString()))
+func (acct *Accounting) addPendingTransfer(msgId string, msg *common.MessagePublication, digest string) error {
+	acct.logger.Info("acct: debug: addPendingTransfer", zap.String("msgId", msgId))
 	if err := acct.db.AcctStorePendingTransfer(msg); err != nil {
 		return err
 	}
 
-	pe := &pendingEntry{msg: msg, digest: digest, updTime: time.Now()}
-	acct.pendingTransfers[*pk] = pe
+	pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest, updTime: time.Now()}
+	acct.pendingTransfers[msgId] = pe
 	transfersOutstanding.Inc()
 	return nil
 }
 
 // deletePendingTransfer deletes the transfer from both the map and the database. It assumes the caller holds the lock.
-func (acct *Accounting) deletePendingTransfer(pk *pendingKey, msgId string) {
+func (acct *Accounting) deletePendingTransfer(msgId string) {
 	acct.logger.Info("acct: debug: deletePendingTransfer", zap.String("msgId", msgId))
-	if _, exists := acct.pendingTransfers[*pk]; exists {
+	if _, exists := acct.pendingTransfers[msgId]; exists {
 		transfersOutstanding.Dec()
-		delete(acct.pendingTransfers, *pk)
+		delete(acct.pendingTransfers, msgId)
 	}
 	if err := acct.db.AcctDeletePendingTransfer(msgId); err != nil {
 		acct.logger.Error("acct: failed to delete pending transfer from the db", zap.String("msgId", msgId), zap.Error(err))
@@ -359,15 +357,12 @@ func (acct *Accounting) loadPendingTransfers() error {
 	}
 
 	for _, msg := range pendingTransfers {
-		acct.logger.Info("acct: reloaded pending transfer", zap.String("msgID", msg.MessageIDString()))
-		pk := pendingKey{emitterChainId: msg.EmitterChain, txHash: msg.TxHash}
+		msgId := msg.MessageIDString()
+		acct.logger.Info("acct: reloaded pending transfer", zap.String("msgID", msgId))
 
-		v := msg.CreateVAA(0) // TODO: Need to persist the gsIndex!
-		db := v.SigningMsg()
-		digest := hex.EncodeToString(db.Bytes())
-
-		pe := &pendingEntry{msg: msg, digest: digest} // Leave the updTime unset so we will query this on the first audit interval.
-		acct.pendingTransfers[pk] = pe
+		digest := msg.CreateDigest()
+		pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest} // Leave the updTime unset so we will query this on the first audit interval.
+		acct.pendingTransfers[msgId] = pe
 		transfersOutstanding.Inc()
 	}
 

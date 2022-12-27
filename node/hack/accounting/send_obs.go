@@ -76,8 +76,9 @@ func main() {
 	}
 
 	sequence := uint64(time.Now().Unix())
+	timestamp := time.Now()
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, false, false, "Submit should succeed") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, false, false, "Submit should succeed") {
 		return
 	}
 
@@ -98,6 +99,7 @@ func testSubmit(
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	emitterAddressStr string,
+	timestamp time.Time,
 	sequence uint64,
 	expectedResult bool,
 	errorExpected bool,
@@ -110,7 +112,7 @@ func testSubmit(
 
 	msg := common.MessagePublication{
 		TxHash:           TxHash,
-		Timestamp:        time.Now(),
+		Timestamp:        timestamp,
 		Nonce:            uint32(0),
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -121,7 +123,7 @@ func testSubmit(
 
 	txResp, err := accounting.SubmitObservationToContract(ctx, logger, gk, gsIndex, wormchainConn, contract, &msg)
 	if err != nil {
-		logger.Error("acct: failed to broadcast Observation request", zap.Error(err))
+		logger.Error("acct: failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
 		return false
 	}
 
@@ -134,17 +136,17 @@ func testSubmit(
 	alreadyCommitted, err := accounting.CheckSubmitObservationResult(txResp)
 	if err != nil {
 		if !errorExpected {
-			logger.Error("acct: unexpected error", zap.Error(err))
+			logger.Error("acct: unexpected error", zap.String("test", tag), zap.Error(err))
 			return false
 		}
 
-		logger.Info("test succeeded, expected error returned", zap.Error(err))
+		logger.Info("test succeeded, expected error returned", zap.String("test", tag), zap.Error(err))
 		return true
 	}
 	if alreadyCommitted != expectedResult {
 		out, err := wormchainConn.BroadcastTxResponseToString(txResp)
 		if err != nil {
-			logger.Error("acct: failed to parse broadcast response", zap.Error(err))
+			logger.Error("acct: failed to parse broadcast response", zap.String("test", tag), zap.Error(err))
 			return false
 		}
 
