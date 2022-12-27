@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use accounting::{
     query_balance, query_modification,
     state::{account, transfer, Modification, TokenAddress, Transfer},
-    validate_transfer,
+    validate_transfer, TransferError,
 };
 use anyhow::{ensure, Context};
 #[cfg(not(feature = "library"))]
@@ -147,7 +147,7 @@ fn handle_observation(
             bail!(ContractError::DigestMismatch);
         }
 
-        bail!(ContractError::DuplicateMessage);
+        bail!(TransferError::DuplicateTransfer);
     }
 
     let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);

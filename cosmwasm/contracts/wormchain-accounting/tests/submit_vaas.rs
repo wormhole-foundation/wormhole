@@ -302,7 +302,7 @@ fn reobservation() {
         let err = contract
             .submit_observations(obs.clone(), index, s)
             .expect_err("successfully submitted observation for processed VAA");
-        assert!(format!("{err:#}").contains("message already processed"));
+        assert!(format!("{err:#}").contains("transfer already committed"));
     }
 }
 
