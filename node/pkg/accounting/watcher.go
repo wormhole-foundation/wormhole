@@ -307,7 +307,7 @@ func (acct *Accounting) parseEvents(txHash string, events []gjson.Result) []*com
 		}
 		emitterChain := vaa.ChainID(emitterChainInt)
 
-		//////////////////// EmitterChain
+		//////////////////// EmitterAddress
 		emitterAddressStr, ok := mappedAttributes["emitter_address"]
 		if !ok {
 			acct.logger.Error("acctwatch: transfer event does not contain the emitter_address field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
