@@ -234,11 +234,6 @@ func (p *Processor) Run(ctx context.Context) error {
 			if !p.acct.FinalizeObservation(k) {
 				continue
 			}
-			// TODO:
-			// if p.governor != nil {
-			//  ApplyTransfer() would check to see if the transfer is still in the governor cache, and if not reapply it. It is not allowed to block it.
-			// 	p.governor.ApplyTransfer(k)
-			// }
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)

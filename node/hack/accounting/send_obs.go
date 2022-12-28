@@ -82,12 +82,12 @@ func main() {
 		return
 	}
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", sequence, true, false, "Already commited should succeed") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, false, "Already commited should succeed") {
 		return
 	}
 
 	sequence += 1
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", sequence, false, true, "Bad emitter address should fail") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", timestamp, sequence, false, true, "Bad emitter address should fail") {
 		return
 	}
 }

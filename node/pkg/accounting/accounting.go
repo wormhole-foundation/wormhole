@@ -348,8 +348,7 @@ func (acct *Accounting) deletePendingTransfer(msgId string) {
 	}
 }
 
-// loadPendingTransfers loads any pending transfers that are present in the database. Before adding it to the map, it queries
-// the smart contract to see if it has already been processed. If so, it drops it. This method assumes the caller holds the lock.
+// loadPendingTransfers loads any pending transfers that are present in the database. This method assumes the caller holds the lock.
 func (acct *Accounting) loadPendingTransfers() error {
 	pendingTransfers, err := acct.db.AcctGetData(acct.logger)
 	if err != nil {

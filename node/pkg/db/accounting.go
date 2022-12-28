@@ -44,7 +44,7 @@ func acctIsPendingTransfer(keyBytes []byte) bool {
 	return (len(keyBytes) >= acctPendingTransferLen+acctMinMsgIdLen) && (string(keyBytes[0:acctPendingTransferLen]) == acctPendingTransfer)
 }
 
-// This is called by the account module on start up to reload pending transfers.
+// This is called by the accounting module on start up to reload pending transfers.
 func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error) {
 	pendingTransfers := []*common.MessagePublication{}
 	prefixBytes := []byte(acctPendingTransfer)
