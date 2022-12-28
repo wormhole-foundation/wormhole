@@ -71,21 +71,15 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		defer close(errC)
 
 		for {
-			acct.logger.Info("acctwatch: tick")
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				connectionErrors.Inc()
 				acct.logger.Error("acctwatch: error reading watcher channel", zap.Error(err))
-				time.Sleep(100 * time.Millisecond)
-				acct.logger.Info("acctwatch: posting error", zap.Error(err))
-				time.Sleep(100 * time.Millisecond)
 				errC <- err
-				acct.logger.Info("acctwatch: posted error", zap.Error(err))
 				return
 			}
 
 			// Received a message from the smart contract.
-			acct.logger.Info("acctwatch: tock")
 			json := string(message)
 
 			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
@@ -129,8 +123,6 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 			}
 			acct.mutex.Unlock()
 		}
-
-		acct.logger.Error("acctwatch: exiting go func")
 	}()
 
 	select {
@@ -139,16 +131,11 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		if err != nil {
 			acct.logger.Error("acctwatch: error closing watcher socket", zap.Error(err))
 		}
-		acct.logger.Info("acctwatch: exiting watcher 1")
 		return ctx.Err()
 	case err := <-errC:
 		acct.logger.Error("acctwatch: watcher encountered an error", zap.Error(err))
-		acct.logger.Info("acctwatch: exiting watcher 2")
 		return err
 	}
-
-	acct.logger.Info("acctwatch: exiting watcher 3")
-	return nil
 }
 
 // TODO: Need to handle errors like CommitTransferError (and any others).
