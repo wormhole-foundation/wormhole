@@ -109,7 +109,7 @@ func NewAccounting(
 
 // Run initializes the accounting module and starts the watcher runnable.
 func (acct *Accounting) Run(ctx context.Context) error {
-	acct.logger.Info("acct: debug: entering run", zap.String("pubKey", acct.wormchainConn.PublicKey()))
+	acct.logger.Info("acct: debug: entering run")
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
