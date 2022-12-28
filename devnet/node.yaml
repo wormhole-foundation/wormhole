@@ -103,17 +103,17 @@ spec:
             - ws://eth-devnet:8545
             - --neonRPC
             - ws://eth-devnet:8545
-            - --wormchainWS
-            - ws://guardian-validator:26657/websocket
-            - --wormchainLCD
-            - http://guardian-validator:1317
-            - --wormchainURL
-            - guardian-validator:9090
-            - --wormchainKeyPath
-            - /tmp/mounted-keys/wormchain/wormchainKey
-            - --accountingContract
-            - wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh    
-            - --accountingCheckEnabled=true
+            # - --wormchainWS
+            # - ws://guardian-validator:26657/websocket
+            # - --wormchainLCD
+            # - http://guardian-validator:1317
+            # - --wormchainURL
+            # - guardian-validator:9090
+            # - --wormchainKeyPath
+            # - /tmp/mounted-keys/wormchain/wormchainKey
+            # - --accountingContract
+            # - wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh    
+            # - --accountingCheckEnabled=true
             # - --terraWS
             # - ws://terra-terrad:26657/websocket
             # - --terraLCD
