@@ -48,6 +48,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "arbitrum", output: ChainIDArbitrum},
 		{input: "xpla", output: ChainIDXpla},
 		{input: "btc", output: ChainIDBtc},
+		{input: "hedera", output: ChainIDHedera},
 
 		{input: "Solana", output: ChainIDSolana},
 		{input: "Ethereum", output: ChainIDEthereum},
@@ -76,6 +77,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "BTC", output: ChainIDBtc},
 		{input: "Wormchain", output: ChainIDWormchain},
 		{input: "wormchain", output: ChainIDWormchain},
+		{input: "Hedera", output: ChainIDHedera},
 	}
 
 	// Negative Test Cases
@@ -170,6 +172,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 22, output: "aptos"},
 		{input: 23, output: "arbitrum"},
 		{input: 24, output: "optimism"},
+		{input: 27, output: "hedera"},
 		{input: 28, output: "xpla"},
 		{input: 29, output: "btc"},
 		{input: 3104, output: "wormchain"},

@@ -64,9 +64,11 @@ const {
 
   //Sign with the client operator private key to pay for the transaction and submit the query to a Hedera network
   const txResponse = await transaction.execute(client);
+  console.log("txResponse", txResponse);
 
   //Request the receipt of the transaction
   const receipt = await txResponse.getReceipt(client);
+  console.log("receipt", receipt);
 
   //Get the transaction consensus status
   const transactionStatus = receipt.status;

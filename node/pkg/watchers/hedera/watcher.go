@@ -12,10 +12,13 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
-	abi2 "github.com/ethereum/go-ethereum/accounts/abi"
+	eth_abi "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/hashgraph/hedera-sdk-go/v2"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 
@@ -25,6 +28,34 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+)
+
+var (
+	messagesObserved = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_hedera_messages_observed_total",
+			Help: "Total number of Hedera messages observed (pre-confirmation)",
+		}, []string{"hedera_network"})
+	messagesOrphaned = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_hedera_messages_orphaned_total",
+			Help: "Total number of Hedera messages dropped (orphaned)",
+		}, []string{"hedera_network", "reason"})
+	messagesConfirmed = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_hedera_messages_confirmed_total",
+			Help: "Total number of Hedera messages verified (post-confirmation)",
+		}, []string{"hedera_network"})
+	currentHeight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "wormhole_hedera_current_height",
+			Help: "Current Hedera block height",
+		}, []string{"hedera_network"})
+	queryLatency = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "wormhole_hedera_query_latency",
+			Help: "Latency histogram for Hedera calls (note that most interactions are streaming queries, NOT calls, and we cannot measure latency for those",
+		}, []string{"hedera_network", "operation"})
 )
 
 // HCS Mirror Node gRPC Endpoints (urlWS):
@@ -79,10 +110,9 @@ import (
 // },
 
 type (
-	// Watcher is responsible for looking over a cosmwasm blockchain and reporting new transactions to the contract
+	// Watcher is responsible for looking over the hedera blockchain and reporting new transactions to the contract
 	Watcher struct {
-		// urlWS    string // gRPC websocket URL
-		urlLCD   string // REST URL
+		urlRest  string // REST URL
 		contract string // topic
 
 		msgChan chan *common.MessagePublication
@@ -95,41 +125,33 @@ type (
 		readiness readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
-		// // Key for contract address in the wasm logs
-		// contractAddressFilterKey string
-		// // Key for contract address in the wasm logs
-		// contractAddressLogKey string
-
-		// URL to get the latest block info from
-		// latestBlockURL string
 	}
 )
 
 // NewWatcher creates a new hedera watcher
 func NewWatcher(
-	// urlWS string,
-	urlLCD string,
+	urlRest string,
 	contract string,
 	lockEvents chan *common.MessagePublication,
 	obsvReqC chan *gossipv1.ObservationRequest,
 	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
 
-	// // CosmWasm 1.0.0
-	// contractAddressFilterKey := "execute._contract_address"
-	// contractAddressLogKey := "_contract_address"
+	// The contract is in solidity format.  Needs to be converted to Hedera format.
+	solToAcct, err := hedera.AccountIDFromSolidityAddress(contract)
+	if err != nil {
+		fmt.Println("Failed to convert sol to acct")
+	} else {
+		fmt.Println("solToAcct", solToAcct)
+	}
 
 	return &Watcher{
-		// urlWS:     urlWS,
-		urlLCD:    urlLCD,
+		urlRest:   urlRest,
 		contract:  contract,
 		msgChan:   lockEvents,
 		obsvReqC:  obsvReqC,
 		readiness: readiness,
 		chainID:   chainID,
-		// contractAddressFilterKey: contractAddressFilterKey,
-		// contractAddressLogKey:    contractAddressLogKey,
-		// latestBlockURL: latestBlockURL,
 	}
 }
 
@@ -145,18 +167,6 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	// logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
-
-	// c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
-	// if err != nil {
-	// 	p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-	// 	// connectionErrors.WithLabelValues(networkName, "websocket_dial_error").Inc()
-	// 	return fmt.Errorf("websocket dial failed: %w", err)
-	// }
-	// defer c.Close()
-
-	logger.Info("subscribed to new transaction events", zap.String("network", networkName))
-
 	readiness.SetReady(watcher.readiness)
 
 	// This function/thread queries and reports the current block height every interval
@@ -171,9 +181,10 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 
 		for {
 			<-ticker.C
-			// Query and report height and set currentSlotHeight
-			logger.Info("Checking the following", zap.String("urlLCD", watcher.urlLCD), zap.String("latestBlockURL", latestBlockURL))
-			resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlLCD, latestBlockURL))
+			// Query and report latest block
+			logger.Info("Checking the following", zap.String("urlRest", watcher.urlRest), zap.String("latestBlockURL", latestBlockURL))
+			latency := time.Now()
+			resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlRest, latestBlockURL))
 			if err != nil {
 				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 				continue
@@ -188,9 +199,17 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 			}
 			resp.Body.Close()
 
+			// Update the prometheus metrics with how long the http request took to the rest api
+			queryLatency.WithLabelValues(networkName, "block_latest").Observe(time.Since(latency).Seconds())
+
 			blockJSON := string(blocksBody)
 			latestBlock := gjson.Get(blockJSON, "blocks.0.number")
+			if !latestBlock.Exists() {
+				logger.Error("Failed to query for the latest block.  Could not parse json.")
+				continue
+			}
 			logger.Info("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
+			currentHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
 			p2p.DefaultRegistry.SetNetworkStats(watcher.chainID, &gossipv1.Heartbeat_Network{
 				Height:          latestBlock.Int(),
 				ContractAddress: watcher.contract,
@@ -219,7 +238,8 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 
 				// Query for tx by hash
 				hashString := "api/v1/contracts/results/" + tx
-				resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlLCD, hashString))
+				latency := time.Now()
+				resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlRest, hashString))
 				if err != nil {
 					logger.Error("query tx response error", zap.String("network", networkName), zap.Error(err))
 					continue
@@ -232,6 +252,9 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 				}
 				resp.Body.Close()
 
+				// Update the prometheus metrics with how long the http request took to the rest api
+				queryLatency.WithLabelValues(networkName, "block_latest").Observe(time.Since(latency).Seconds())
+
 				txJSON := string(txBody)
 				logger.Info("RO: txJSON", zap.String("txJSON", txJSON))
 
@@ -239,7 +262,7 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 
 				for _, ev := range events {
 					watcher.msgChan <- ev
-					// messagesConfirmed.WithLabelValues(networkName).Inc()
+					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 			}
 		}
@@ -252,17 +275,16 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 		client := &http.Client{
 			Timeout: time.Second * 5,
 		}
-		var beginningTS = "1234567890.000000400" // TODO:  Should this be Time.now()?
-		// var logString = "api/v1/contracts/" + contractId + "/results/logs?order=asc&timestamp=gte%3A1234567890.000000400"
-		// var logString = "api/v1/contracts/" + watcher.contract + "/results/logs?order=asc&timestamp=gte%3A" + beginningTS
+		// var beginningTS = time.Now().String()
+		var beginningTS = "1234567890.000000400"
 
 		for {
 			<-t.C
 			logString := "api/v1/contracts/" + watcher.contract + "/results/logs?order=asc&timestamp=gt%3A" + beginningTS
-			// logString := "api/v1/contracts/" + watcher.contract + "/results/logs?order=asc" + "&topic0=" + TOPIC_LOG_MSG + "&timestamp=[gt%3A&" + beginningTS + "][lt%3A&1671140260.000000400]"
 			logger.Info("current logString", zap.String("string", logString))
+			latency := time.Now()
 			// Query and report height and set currentSlotHeight
-			resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlLCD, logString))
+			resp, err := client.Get(fmt.Sprintf("%s/%s", watcher.urlRest, logString))
 			if err != nil {
 				logger.Error("query latest logs response error", zap.String("network", networkName), zap.Error(err))
 				continue
@@ -276,13 +298,16 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 			}
 			resp.Body.Close()
 
+			// Update the prometheus metrics with how long the http request took to the rest api
+			queryLatency.WithLabelValues(networkName, "block_latest").Observe(time.Since(latency).Seconds())
+
 			var events []*common.MessagePublication
 			logJSON := string(logsBody)
 			// logger.Info("logJSON", zap.String("logJSON", logJSON))
 			logs := gjson.Get(logJSON, "logs")
-			// logger.Info("after gjson.get", zap.Stringer("logs", logs))
+			logger.Info("after gjson.get", zap.Stringer("logs", logs))
 			logs.ForEach(func(logKey, logValue gjson.Result) bool {
-				// logger.Info("YIKES..............", zap.Stringer("topics", gjson.Get(logValue.String(), "topics")))
+				logger.Info("YIKES..............", zap.Stringer("topics", gjson.Get(logValue.String(), "topics")))
 				topics := gjson.Get(logValue.String(), "topics")
 				topics.ForEach(func(topicKey, topicValue gjson.Result) bool {
 					if topicValue.String() == TOPIC_LOG_MSG {
@@ -291,9 +316,10 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 						if err == nil {
 							events = append(events, event)
 							blockNum := gjson.Get(logValue.String(), "block_number")
+							messagesObserved.WithLabelValues(networkName).Inc()
 							logger.Info("Found True Log Msg", zap.Stringer("block Number", blockNum))
 						}
-						return false // break out of the ForEach() loop
+						return false // Found topic. Break out of the inner ForEach() loop
 					}
 					return true // continue ForEach() loop
 				})
@@ -310,7 +336,7 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 
 			for _, ev := range events {
 				watcher.msgChan <- ev
-				// messagesConfirmed.WithLabelValues(networkName).Inc()
+				messagesConfirmed.WithLabelValues(networkName).Inc()
 			}
 		}
 	}()
@@ -347,7 +373,7 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 // and converts it to a MessagePublication
 func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublication, error) {
 
-	ethAbi, err := abi2.JSON(strings.NewReader(ethabi.AbiABI))
+	ethAbi, err := eth_abi.JSON(strings.NewReader(ethabi.AbiABI))
 	if err != nil {
 		logger.Fatal("failed to parse Eth ABI", zap.Error(err))
 		return nil, err
@@ -373,11 +399,6 @@ func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublic
 	}
 
 	txHash := eth_common.HexToHash(txhash)
-	// txHash, err := StringToHash(txHashString)
-	// if err != nil {
-	// logger.Error("cannot decode txHashHex", zap.String("txHash", txHashString))
-	// return nil, fmt.Errorf("Could not decode txhash %s", txHashBase.String())
-	// }
 
 	emitter := emitterBase.String()
 	emitterAddr, err := vaa.StringToAddress(emitter)
@@ -400,6 +421,11 @@ func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublic
 		logger.Fatal("failed to unpack log data", zap.Error(err))
 		return nil, fmt.Errorf("Log Data field could not be unpacked for txhash %s", txhash)
 	}
+	// Make sure unpackedMsg has enough elements
+	if len(unpackedMsg) < 4 {
+		logger.Fatal("LogMessagePublished does not have enough elements", zap.Int("number of log elements", len(unpackedMsg)))
+		return nil, fmt.Errorf("LogMessagePublish does not have enough elements for txhash %s", txhash)
+	}
 
 	// // AbiLogMessagePublished represents a LogMessagePublished event raised by the Abi contract.
 	// type AbiLogMessagePublished struct {
@@ -420,32 +446,23 @@ func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublic
 		zap.Uint64("Sequence", seq),
 		zap.Uint32("Nonce", nonce),
 		zap.Uint8("consistencyLevel", cLevel))
-	var chainID vaa.ChainID = 27
 
 	// Convert timestamp
-	timeVals := strings.Split(timeStampBase.String(), ".")
-	timeValSeconds, err := strconv.ParseInt(timeVals[0], 10, 64)
+	unixTS, err := TimeStringToUnixTime(timeStampBase.String())
 	if err != nil {
-		logger.Error("Failed to convert seconds", zap.String("sec", timeVals[0]))
-		return nil, fmt.Errorf("Failed to convert time seconds %s", timeVals[0])
+		logger.Error("Failed to convert timestamp to Unix time", zap.Error(err))
+		return nil, fmt.Errorf("Failed to convert timestamp for txhash %s", txhash)
 	}
-	timeValNS, err := strconv.ParseInt(timeVals[1], 10, 64)
-	if err != nil {
-		logger.Error("Failed to convert nanoseconds", zap.String("nanosec", timeVals[1]))
-		return nil, fmt.Errorf("Failed to convert time nanoseconds %s", timeVals[1])
-	}
-	unixTS := time.Unix(timeValSeconds, timeValNS)
-	logger.Info("timestamps", zap.Stringer("base", timeStampBase), zap.String("slice0", timeVals[0]), zap.String("slice1", timeVals[1]), zap.Stringer("unix", unixTS))
 
 	messagePublication := &common.MessagePublication{
-		TxHash:           txHash,      // In log
-		Timestamp:        unixTS,      // In log
-		Nonce:            nonce,       // In log data
-		Sequence:         seq,         // In log data
-		EmitterChain:     chainID,     // Don't know where to get this
-		EmitterAddress:   emitterAddr, // In log
-		Payload:          payload,     // In log data
-		ConsistencyLevel: cLevel,      // In log data
+		TxHash:           txHash,            // In log
+		Timestamp:        unixTS,            // In log
+		Nonce:            nonce,             // In log data
+		Sequence:         seq,               // In log data
+		EmitterChain:     vaa.ChainIDHedera, // constant
+		EmitterAddress:   emitterAddr,       // In log
+		Payload:          payload,           // In log data
+		ConsistencyLevel: cLevel,            // In log data
 	}
 
 	logger.Info("messagePublication",
@@ -454,16 +471,16 @@ func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublic
 		zap.Uint32("nonce", nonce),
 		zap.Uint64("sequence", seq),
 		zap.Stringer("EmitterAddr", emitterAddr),
-		zap.Uint8("ConsistenceLevel", cLevel),
+		zap.Uint8("ConsistencyLevel", cLevel),
 	)
 
 	return messagePublication, nil
 }
 
-// TxMessageToEvent a JSON structured "contracts" output and converts it into an event
+// TxMessageToEvent takes a JSON structured "contracts" output and converts it into an event
 func TxMessageToEvent(logger *zap.Logger, msg string) ([]*common.MessagePublication, error) {
 
-	ethAbi, err := abi2.JSON(strings.NewReader(ethabi.AbiABI))
+	ethAbi, err := eth_abi.JSON(strings.NewReader(ethabi.AbiABI))
 	if err != nil {
 		logger.Fatal("failed to parse Eth ABI", zap.Error(err))
 		return nil, err
@@ -483,19 +500,11 @@ func TxMessageToEvent(logger *zap.Logger, msg string) ([]*common.MessagePublicat
 	}
 
 	// Convert timestamp
-	timeVals := strings.Split(timeStampBase.String(), ".")
-	timeValSeconds, err := strconv.ParseInt(timeVals[0], 10, 64)
+	unixTS, err := TimeStringToUnixTime(timeStampBase.String())
 	if err != nil {
-		logger.Error("Failed to convert seconds", zap.String("sec", timeVals[0]))
-		return nil, fmt.Errorf("Failed to convert time seconds %s", timeVals[0])
+		logger.Error("Failed to convert timestamp to Unix time", zap.Error(err))
+		return nil, fmt.Errorf("Failed to convert timestamp for txhash %s", txhash)
 	}
-	timeValNS, err := strconv.ParseInt(timeVals[1], 10, 64)
-	if err != nil {
-		logger.Error("Failed to convert nanoseconds", zap.String("nanosec", timeVals[1]))
-		return nil, fmt.Errorf("Failed to convert time nanoseconds %s", timeVals[1])
-	}
-	unixTS := time.Unix(timeValSeconds, timeValNS)
-	logger.Info("timestamps", zap.Stringer("base", timeStampBase), zap.String("slice0", timeVals[0]), zap.String("slice1", timeVals[1]), zap.Stringer("unix", unixTS))
 
 	var events []*common.MessagePublication
 
@@ -554,17 +563,16 @@ func TxMessageToEvent(logger *zap.Logger, msg string) ([]*common.MessagePublicat
 					zap.Uint64("Sequence", seq),
 					zap.Uint32("Nonce", nonce),
 					zap.Uint8("consistencyLevel", cLevel))
-				var chainID vaa.ChainID = 27
 
 				messagePublication := &common.MessagePublication{
-					TxHash:           txHash,      // In log
-					Timestamp:        unixTS,      // In log
-					Nonce:            nonce,       // In log data
-					Sequence:         seq,         // In log data
-					EmitterChain:     chainID,     // Don't know where to get this
-					EmitterAddress:   emitterAddr, // In log
-					Payload:          payload,     // In log data
-					ConsistencyLevel: cLevel,      // In log data
+					TxHash:           txHash,            // In log
+					Timestamp:        unixTS,            // In log
+					Nonce:            nonce,             // In log data
+					Sequence:         seq,               // In log data
+					EmitterChain:     vaa.ChainIDHedera, // Constant
+					EmitterAddress:   emitterAddr,       // In log
+					Payload:          payload,           // In log data
+					ConsistencyLevel: cLevel,            // In log data
 				}
 
 				logger.Info("messagePublication",
@@ -609,4 +617,18 @@ func StringToHash(value string) (eth_common.Hash, error) {
 	}
 	copy(hash[:], res)
 	return hash, nil
+}
+
+func TimeStringToUnixTime(value string) (time.Time, error) {
+	timeVals := strings.Split(value, ".")
+	timeValSeconds, err := strconv.ParseInt(timeVals[0], 10, 64)
+	if err != nil {
+		return time.Now(), fmt.Errorf("Failed to convert time seconds %s", timeVals[0])
+	}
+	timeValNS, err := strconv.ParseInt(timeVals[1], 10, 64)
+	if err != nil {
+		return time.Now(), fmt.Errorf("Failed to convert time nanoseconds %s", timeVals[1])
+	}
+	unixTS := time.Unix(timeValSeconds, timeValNS)
+	return unixTS, nil
 }

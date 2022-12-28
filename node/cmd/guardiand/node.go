@@ -163,7 +163,6 @@ var (
 	optimismRPC      *string
 	optimismContract *string
 
-	// hederaWS       *string
 	hederaREST     *string
 	hederaContract *string
 
