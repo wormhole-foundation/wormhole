@@ -1,7 +1,9 @@
 package guardiand
 
 import (
+	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -12,7 +14,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
+
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/exp/slices"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -32,12 +39,16 @@ import (
 
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
-	db           *db.Database
-	injectC      chan<- *vaa.VAA
-	obsvReqSendC chan *gossipv1.ObservationRequest
-	logger       *zap.Logger
-	signedInC    chan *gossipv1.SignedVAAWithQuorum
-	governor     *governor.ChainGovernor
+	db              *db.Database
+	injectC         chan<- *vaa.VAA
+	obsvReqSendC    chan *gossipv1.ObservationRequest
+	logger          *zap.Logger
+	signedInC       chan *gossipv1.SignedVAAWithQuorum
+	governor        *governor.ChainGovernor
+	evmConnector    connectors.Connector
+	gsCache         sync.Map
+	gk              *ecdsa.PrivateKey
+	guardianAddress ethcommon.Address
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -387,7 +398,7 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 }
 
 func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, signedInC chan *gossipv1.SignedVAAWithQuorum, obsvReqSendC chan *gossipv1.ObservationRequest,
-	db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
+	db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor, gk *ecdsa.PrivateKey, ethRpc *string, ethContract *string) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -419,13 +430,28 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 
 	logger.Info("admin server listening on", zap.String("path", socketPath))
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	var evmConnector connectors.Connector
+	if ethRPC != nil && ethContract != nil {
+		contract := ethcommon.HexToAddress(*ethContract)
+		evmConnector, err = connectors.NewEthereumConnector(ctx, "eth", *ethRpc, contract, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connecto to ethereum")
+		}
+	}
+
 	nodeService := &nodePrivilegedService{
-		injectC:      injectC,
-		obsvReqSendC: obsvReqSendC,
-		db:           db,
-		logger:       logger.Named("adminservice"),
-		signedInC:    signedInC,
-		governor:     gov,
+		db:              db,
+		injectC:         injectC,
+		obsvReqSendC:    obsvReqSendC,
+		logger:          logger.Named("adminservice"),
+		signedInC:       signedInC,
+		governor:        gov,
+		gk:              gk,
+		guardianAddress: ethcrypto.PubkeyToAddress(gk.PublicKey),
+		evmConnector:    evmConnector,
 	}
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
@@ -538,4 +564,117 @@ func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev
 	return &nodev1.PurgePythNetVaasResponse{
 		Response: resp,
 	}, nil
+}
+
+func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1.SignExistingVAARequest) (*nodev1.SignExistingVAAResponse, error) {
+	v, err := vaa.Unmarshal(req.Vaa)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal VAA: %w", err)
+	}
+
+	if req.NewGuardianSetIndex <= v.GuardianSetIndex {
+		return nil, errors.New("new guardian set index must be higher than provided VAA")
+	}
+
+	if s.evmConnector == nil {
+		return nil, errors.New("the node needs to have an Ethereum connection configured to sign existing VAAs")
+	}
+
+	var gs *common.GuardianSet
+	if cachedGs, exists := s.gsCache.Load(v.GuardianSetIndex); exists {
+		gs = cachedGs.(*common.GuardianSet)
+	} else {
+		evmGs, err := s.evmConnector.GetGuardianSet(ctx, v.GuardianSetIndex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load guardian set [%d]: %w", v.GuardianSetIndex, err)
+		}
+		gs = &common.GuardianSet{
+			Keys:  evmGs.Keys,
+			Index: v.GuardianSetIndex,
+		}
+		s.gsCache.Store(v.GuardianSetIndex, gs)
+	}
+
+	if slices.Index(gs.Keys, s.guardianAddress) != -1 {
+		return nil, fmt.Errorf("local guardian is already on the old set")
+	}
+
+	// Verify VAA
+	err = v.Verify(gs.Keys)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify existing VAA: %w", err)
+	}
+
+	if len(req.NewGuardianAddrs) > 255 {
+		return nil, errors.New("new guardian set has too many guardians")
+	}
+	newGS := make([]ethcommon.Address, len(req.NewGuardianAddrs))
+	for i, guardianString := range req.NewGuardianAddrs {
+		guardianAddress := ethcommon.HexToAddress(guardianString)
+		newGS[i] = guardianAddress
+	}
+
+	// Make sure there are no duplicates. Compact needs to take a sorted slice to remove all duplicates.
+	newGSSorted := slices.Clone(newGS)
+	slices.SortFunc(newGSSorted, func(a, b ethcommon.Address) bool {
+		return bytes.Compare(a[:], b[:]) < 0
+	})
+	newGsLen := len(newGSSorted)
+	if len(slices.Compact(newGSSorted)) != newGsLen {
+		return nil, fmt.Errorf("duplicate guardians in the guardian set")
+	}
+
+	localGuardianIndex := slices.Index(newGS, s.guardianAddress)
+	if localGuardianIndex == -1 {
+		return nil, fmt.Errorf("local guardian is not a member of the new guardian set")
+	}
+
+	newVAA := &vaa.VAA{
+		Version: v.Version,
+		// Set the new guardian set index
+		GuardianSetIndex: req.NewGuardianSetIndex,
+		// Signatures will be repopulated
+		Signatures:       nil,
+		Timestamp:        v.Timestamp,
+		Nonce:            v.Nonce,
+		Sequence:         v.Sequence,
+		ConsistencyLevel: v.ConsistencyLevel,
+		EmitterChain:     v.EmitterChain,
+		EmitterAddress:   v.EmitterAddress,
+		Payload:          v.Payload,
+	}
+
+	// Copy original VAA signatures
+	for _, sig := range v.Signatures {
+		signerAddress := gs.Keys[sig.Index]
+		newIndex := slices.Index(newGS, signerAddress)
+		// Guardian is not part of the new set
+		if newIndex == -1 {
+			continue
+		}
+		newVAA.Signatures = append(newVAA.Signatures, &vaa.Signature{
+			Index:     uint8(newIndex),
+			Signature: sig.Signature,
+		})
+	}
+
+	// Add our own signature only if the new guardian set would reach quorum
+	if vaa.CalculateQuorum(len(newGS)) > len(newVAA.Signatures)+1 {
+		return nil, errors.New("cannot reach quorum on new guardian set with the local signature")
+	}
+
+	// Add local signature
+	newVAA.AddSignature(s.gk, uint8(localGuardianIndex))
+
+	// Sort VAA signatures by guardian ID
+	slices.SortFunc(newVAA.Signatures, func(a, b *vaa.Signature) bool {
+		return a.Index < b.Index
+	})
+
+	newVAABytes, err := newVAA.Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal new VAA: %w", err)
+	}
+
+	return &nodev1.SignExistingVAAResponse{Vaa: newVAABytes}, nil
 }

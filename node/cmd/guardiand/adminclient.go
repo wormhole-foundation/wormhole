@@ -2,6 +2,7 @@ package guardiand
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -9,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	ethcommon "github.com/ethereum/go-ethereum/common"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -58,6 +61,8 @@ func init() {
 	ClientChainGovernorReleasePendingVAACmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorResetReleaseTimerCmd.Flags().AddFlagSet(pf)
 	PurgePythNetVaasCmd.Flags().AddFlagSet(pf)
+	SignExistingVaaCmd.Flags().AddFlagSet(pf)
+	SignExistingVaasFromCSVCmd.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
@@ -72,6 +77,8 @@ func init() {
 	AdminCmd.AddCommand(ClientChainGovernorReleasePendingVAACmd)
 	AdminCmd.AddCommand(ClientChainGovernorResetReleaseTimerCmd)
 	AdminCmd.AddCommand(PurgePythNetVaasCmd)
+	AdminCmd.AddCommand(SignExistingVaaCmd)
+	AdminCmd.AddCommand(SignExistingVaasFromCSVCmd)
 }
 
 var AdminCmd = &cobra.Command{
@@ -154,6 +161,20 @@ var PurgePythNetVaasCmd = &cobra.Command{
 	Short: "Deletes PythNet VAAs from the database that are more than [DAYS_OLD] days only (if logonly is specified, doesn't delete anything)",
 	Run:   runPurgePythNetVaas,
 	Args:  cobra.RangeArgs(1, 2),
+}
+
+var SignExistingVaaCmd = &cobra.Command{
+	Use:   "sign-existing-vaa [VAA] [NEW_GUARDIANS] [NEW_GUARDIAN_SET_INDEX]",
+	Short: "Signs an existing VAA for a new guardian set using the local guardian key. This only works if the new VAA would have quorum.",
+	Run:   runSignExistingVaa,
+	Args:  cobra.ExactArgs(3),
+}
+
+var SignExistingVaasFromCSVCmd = &cobra.Command{
+	Use:   "sign-existing-vaas-csv [IN_FILE] [OUT_FILE] [NEW_GUARDIANS] [NEW_GUARDIAN_SET_INDEX]",
+	Short: "Signs a CSV [VAA_ID,VAA_HEX] of existing VAAs for a new guardian set using the local guardian key and writes it to a new CSV. VAAs that don't have quorum on the new set will be dropped.",
+	Run:   runSignExistingVaasFromCSV,
+	Args:  cobra.ExactArgs(4),
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
@@ -490,4 +511,104 @@ func runPurgePythNetVaas(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(resp.Response)
+}
+
+func runSignExistingVaa(cmd *cobra.Command, args []string) {
+	existingVAA := ethcommon.Hex2Bytes(args[0])
+	if len(existingVAA) == 0 {
+		log.Fatalf("vaa hex invalid")
+	}
+
+	newGsStrings := strings.Split(args[1], ",")
+
+	newGsIndex, err := strconv.ParseUint(args[2], 10, 32)
+	if err != nil {
+		log.Fatalf("invalid new guardian set index")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.SignExistingVAARequest{
+		Vaa:                 existingVAA,
+		NewGuardianAddrs:    newGsStrings,
+		NewGuardianSetIndex: uint32(newGsIndex),
+	}
+	resp, err := c.SignExistingVAA(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run SignExistingVAA RPC: %s", err)
+	}
+
+	fmt.Println(hex.EncodeToString(resp.Vaa))
+}
+
+func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
+	oldVAAFile, err := os.Open(args[0])
+	if err != nil {
+		log.Fatalf("failed to read old VAA db: %v", err)
+	}
+	defer oldVAAFile.Close()
+	oldVAAReader := csv.NewReader(oldVAAFile)
+
+	oldVAATable, err := oldVAAReader.ReadAll()
+	if err != nil {
+		log.Fatalf("failed to parse old VAA db: %v", err)
+	}
+
+	newVAAFile, err := os.OpenFile(args[1], os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		log.Fatalf("failed to create new VAA db: %v", err)
+	}
+	defer newVAAFile.Close()
+	newVAAWriter := csv.NewWriter(newVAAFile)
+
+	newGsStrings := strings.Split(args[2], ",")
+
+	newGsIndex, err := strconv.Atoi(args[3])
+	if err != nil {
+		log.Fatalf("invalid new guardian set index")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	counter := 0
+	for i, row := range oldVAATable {
+		if len(row) != 2 {
+			log.Fatalf("row [%d] does not have 2 elements", i)
+		}
+
+		vaaBytes := ethcommon.Hex2Bytes(row[1])
+		msg := nodev1.SignExistingVAARequest{
+			Vaa:                 vaaBytes,
+			NewGuardianAddrs:    newGsStrings,
+			NewGuardianSetIndex: uint32(newGsIndex),
+		}
+		resp, err := c.SignExistingVAA(ctx, &msg)
+		if err != nil {
+			log.Printf("signing VAA (%s)[%d] failed - skipping: %v", row[0], i, err)
+			continue
+		}
+		err = newVAAWriter.Write([]string{row[0], hex.EncodeToString(resp.Vaa)})
+		if err != nil {
+			log.Fatalf("failed to write new VAA to out db: %v", err)
+		}
+		counter++
+	}
+
+	log.Printf("Successfully signed %d out of %d VAAs", counter, len(oldVAATable))
+
+	newVAAWriter.Flush()
 }
