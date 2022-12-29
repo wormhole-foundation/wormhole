@@ -70,10 +70,34 @@ func TestBodyGuardianSetUpdateSerialize(t *testing.T) {
 func TestBodyTokenBridgeRegisterChainSerialize(t *testing.T) {
 	module := "test"
 	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-	bodyTokenBridgeRegisterChain := BodyTokenBridgeRegisterChain{Module: module, ChainID: 1, EmitterAddress: addr}
-	expected := "000000000000000000000000000000000000000000000000000000007465737401000000010000000000000000000000000000000000000000000000000000000000000004"
-	serializedBodyTokenBridgeRegisterChain := bodyTokenBridgeRegisterChain.Serialize()
-	assert.Equal(t, expected, hex.EncodeToString(serializedBodyTokenBridgeRegisterChain))
+	tests := []struct {
+		name     string
+		expected string
+		object   BodyTokenBridgeRegisterChain
+		panic    bool
+	}{
+		{
+			name:     "working_as_expected",
+			panic:    false,
+			object:   BodyTokenBridgeRegisterChain{Module: module, ChainID: 1, EmitterAddress: addr},
+			expected: "000000000000000000000000000000000000000000000000000000007465737401000000010000000000000000000000000000000000000000000000000000000000000004",
+		},
+		{
+			name:     "panic_at_the_disco!",
+			panic:    true,
+			object:   BodyTokenBridgeRegisterChain{Module: "123456789012345678901234567890123", ChainID: 1, EmitterAddress: addr},
+			expected: "module longer than 32 byte",
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			if testCase.panic {
+				assert.PanicsWithValue(t, testCase.expected, func() { testCase.object.Serialize() })
+			} else {
+				assert.Equal(t, testCase.expected, hex.EncodeToString(testCase.object.Serialize()))
+			}
+		})
+	}
 }
 
 func TestBodyTokenBridgeUpgradeContractSerialize(t *testing.T) {
