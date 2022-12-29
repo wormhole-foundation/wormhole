@@ -244,9 +244,11 @@ func TestChainId_String(t *testing.T) {
 		{input: 22, output: "aptos"},
 		{input: 23, output: "arbitrum"},
 		{input: 24, output: "optimism"},
+		{input: 26, output: "pythnet"},
 		{input: 28, output: "xpla"},
 		{input: 29, output: "btc"},
 		{input: 3104, output: "wormchain"},
+		{input: 10000, output: "unknown chain ID: 10000"},
 	}
 
 	for _, tc := range tests {
