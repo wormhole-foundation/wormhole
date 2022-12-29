@@ -8,13 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var addr = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
 func TestCoreModule(t *testing.T) {
 	hexifiedCoreModule := "00000000000000000000000000000000000000000000000000000000436f7265"
 	assert.Equal(t, hex.EncodeToString(CoreModule), hexifiedCoreModule)
 }
 
 func TestBodyContractUpgrade(t *testing.T) {
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	test := BodyContractUpgrade{ChainID: 1, NewContract: addr}
 	assert.Equal(t, test.ChainID, ChainID(1))
 	assert.Equal(t, test.NewContract, addr)
@@ -32,7 +33,6 @@ func TestBodyGuardianSetUpdate(t *testing.T) {
 
 func TestBodyTokenBridgeRegisterChain(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	test := BodyTokenBridgeRegisterChain{Module: module, ChainID: 1, EmitterAddress: addr}
 	assert.Equal(t, test.Module, module)
 	assert.Equal(t, test.ChainID, ChainID(1))
@@ -41,7 +41,6 @@ func TestBodyTokenBridgeRegisterChain(t *testing.T) {
 
 func TestBodyTokenBridgeUpgradeContract(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	test := BodyTokenBridgeUpgradeContract{Module: module, TargetChainID: 1, NewContract: addr}
 	assert.Equal(t, test.Module, module)
 	assert.Equal(t, test.TargetChainID, ChainID(1))
@@ -49,7 +48,6 @@ func TestBodyTokenBridgeUpgradeContract(t *testing.T) {
 }
 
 func TestBodyContractUpgradeSerialize(t *testing.T) {
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	bodyContractUpgrade := BodyContractUpgrade{ChainID: 1, NewContract: addr}
 	expected := "00000000000000000000000000000000000000000000000000000000436f72650100010000000000000000000000000000000000000000000000000000000000000004"
 	serializedBodyContractUpgrade := bodyContractUpgrade.Serialize()
@@ -69,7 +67,6 @@ func TestBodyGuardianSetUpdateSerialize(t *testing.T) {
 
 func TestBodyTokenBridgeRegisterChainSerialize(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	tests := []struct {
 		name     string
 		expected string
@@ -102,7 +99,6 @@ func TestBodyTokenBridgeRegisterChainSerialize(t *testing.T) {
 
 func TestBodyTokenBridgeUpgradeContractSerialize(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	bodyTokenBridgeUpgradeContract := BodyTokenBridgeUpgradeContract{Module: module, TargetChainID: 1, NewContract: addr}
 	expected := "00000000000000000000000000000000000000000000000000000000746573740200010000000000000000000000000000000000000000000000000000000000000004"
 	serializedBodyTokenBridgeUpgradeContract := bodyTokenBridgeUpgradeContract.Serialize()
