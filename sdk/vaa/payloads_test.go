@@ -9,6 +9,7 @@ import (
 )
 
 var addr = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+var dummyBytes = [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
 func TestCoreModule(t *testing.T) {
 	hexifiedCoreModule := "00000000000000000000000000000000000000000000000000000000436f7265"
@@ -107,8 +108,12 @@ func TestBodyTokenBridgeUpgradeContractSerialize(t *testing.T) {
 
 func TestBodyWormchainStoreCodeSerialize(t *testing.T) {
 	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65010c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
-	bodyWormchainStoreCode := BodyWormchainStoreCode{
-		WasmHash: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-	}
+	bodyWormchainStoreCode := BodyWormchainStoreCode{WasmHash: dummyBytes}
 	assert.Equal(t, expected, hex.EncodeToString(bodyWormchainStoreCode.Serialize()))
+}
+
+func TestBodyWormchainInstantiateContractSerialize(t *testing.T) {
+	actual := BodyWormchainInstantiateContract{InstantiationParamsHash: dummyBytes}
+	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65020c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+	assert.Equal(t, expected, hex.EncodeToString(actual.Serialize()))
 }
