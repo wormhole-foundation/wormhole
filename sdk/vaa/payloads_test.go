@@ -104,3 +104,11 @@ func TestBodyTokenBridgeUpgradeContractSerialize(t *testing.T) {
 	serializedBodyTokenBridgeUpgradeContract := bodyTokenBridgeUpgradeContract.Serialize()
 	assert.Equal(t, expected, hex.EncodeToString(serializedBodyTokenBridgeUpgradeContract))
 }
+
+func TestBodyWormchainStoreCodeSerialize(t *testing.T) {
+	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65010c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+	bodyWormchainStoreCode := BodyWormchainStoreCode{
+		WasmHash: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+	}
+	assert.Equal(t, expected, hex.EncodeToString(bodyWormchainStoreCode.Serialize()))
+}
