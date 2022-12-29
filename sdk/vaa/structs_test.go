@@ -110,16 +110,33 @@ func TestAddress_MarshalJSON(t *testing.T) {
 }
 
 func TestAddress_UnmarshalJSON(t *testing.T) {
-	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-
-	b, err := addr.MarshalJSON()
-	require.NoError(t, err)
-
-	var unmarshalAddr Address
-	err = unmarshalAddr.UnmarshalJSON(b)
-	require.NoError(t, err)
-
-	assert.Equal(t, addr, unmarshalAddr)
+	tests := []struct {
+		name        string
+		address     Address
+		addressJSON string
+		err         error
+	}{
+		{
+			name:        "working",
+			addressJSON: "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
+			address:     Address{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x90, 0xfb, 0x16, 0x72, 0x8, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78, 0x1, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0xc, 0x16},
+			err:         nil,
+		},
+		{
+			name:        "failure",
+			addressJSON: "derp",
+			address:     Address{},
+			err:         hex.InvalidByteError(0x72),
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			var unmarshalAddr Address
+			err := unmarshalAddr.UnmarshalJSON([]byte(testCase.addressJSON))
+			require.Equal(t, testCase.err, err)
+			assert.Equal(t, testCase.address, unmarshalAddr)
+		})
+	}
 }
 
 func TestAddress_Unmarshal(t *testing.T) {
