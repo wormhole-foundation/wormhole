@@ -32,21 +32,28 @@ func TestBlockPoller(t *testing.T) {
 	// Set the starting block.
 	mockConnector.SetBlockNumber(0x309a0c)
 
+	// The go routines will post results here.
+	var mutex sync.Mutex
+	var block *NewBlock
+	var err error
+	var pollerStatus int
+
 	// Start the poller running.
 	go func() {
+		mutex.Lock()
+		pollerStatus = 1
+		mutex.Unlock()
 		err := poller.run(ctx, logger)
 		require.NoError(t, err)
+		mutex.Lock()
+		pollerStatus = 2
+		mutex.Unlock()
 	}()
 
 	// Subscribe for events to be processed by our go routine.
 	headSink := make(chan *NewBlock, 2)
 	headerSubscription, suberr := poller.SubscribeForBlocks(ctx, headSink)
 	require.NoError(t, suberr)
-
-	// The go routine will post results here.
-	var mutex sync.Mutex
-	var block *NewBlock
-	var err error
 
 	go func() {
 		for {
@@ -69,17 +76,17 @@ func TestBlockPoller(t *testing.T) {
 	// First sleep a bit and make sure there were no start up errors.
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	assert.Nil(t, block)
 	mutex.Unlock()
 
 	// Post the first new block and verify we get it.
-	mutex.Lock()
 	mockConnector.SetBlockNumber(0x309a0d)
-	mutex.Unlock()
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a0d), block.Number.Uint64())
@@ -91,6 +98,7 @@ func TestBlockPoller(t *testing.T) {
 	mockConnector.SetBlockNumber(0x309a0d)
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.Nil(t, block)
 	mutex.Unlock()
@@ -99,6 +107,7 @@ func TestBlockPoller(t *testing.T) {
 	mockConnector.SetBlockNumber(0x309a0e)
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a0e), block.Number.Uint64())
@@ -114,6 +123,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.Nil(t, block)
 	mutex.Unlock()
@@ -125,6 +135,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a0f), block.Number.Uint64())
@@ -133,12 +144,12 @@ func TestBlockPoller(t *testing.T) {
 	mutex.Unlock()
 
 	// An RPC error should be returned to us.
-	mutex.Lock()
 	err = nil
 	mockConnector.SetError(fmt.Errorf("RPC failed"))
-	mutex.Unlock()
+
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	assert.Error(t, err)
 	assert.Nil(t, block)
 	mockConnector.SetError(nil)
@@ -146,12 +157,11 @@ func TestBlockPoller(t *testing.T) {
 	mutex.Unlock()
 
 	// Post the next block and verify we get it (so we survived the RPC error).
-	mutex.Lock()
 	mockConnector.SetBlockNumber(0x309a10)
-	mutex.Unlock()
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a10), block.Number.Uint64())
@@ -160,23 +170,21 @@ func TestBlockPoller(t *testing.T) {
 	mutex.Unlock()
 
 	// Post an old block and we should not hear about it.
-	mutex.Lock()
 	mockConnector.SetBlockNumber(0x309a0c)
-	mutex.Unlock()
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.Nil(t, block)
 	mutex.Unlock()
 
 	// But we should keep going when we get a new one.
-	mutex.Lock()
 	mockConnector.SetBlockNumber(0x309a11)
-	mutex.Unlock()
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a11), block.Number.Uint64())
@@ -185,12 +193,11 @@ func TestBlockPoller(t *testing.T) {
 	mutex.Unlock()
 
 	// If there's a gap in the blocks, we should keep going.
-	mutex.Lock()
 	mockConnector.SetBlockNumber(0x309a13)
-	mutex.Unlock()
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a13), block.Number.Uint64())
@@ -199,13 +206,12 @@ func TestBlockPoller(t *testing.T) {
 	mutex.Unlock()
 
 	// Should retry on a transient error and be able to continue.
-	mutex.Lock()
 	mockConnector.SetSingleError(fmt.Errorf("RPC failed"))
 	mockConnector.SetBlockNumber(0x309a14)
-	mutex.Unlock()
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
+	require.Equal(t, 1, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a14), block.Number.Uint64())

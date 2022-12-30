@@ -29,8 +29,8 @@ type MockConnector struct {
 	blockNumber     uint64
 }
 
-// SetResults takes an array of json results strings. Each time a test makes an RPC call, it uses the first
-// element in the array as the response, and the discards it. If the array is empty, an error will be returned.
+// SetResults takes an array of json results strings. Each time a test makes an RPC call, it uses the first element in
+// the array as the response, and the discards it. If the array is empty, the call will block until more results are stored.
 func (m *MockConnector) SetResults(results []string) {
 	m.mutex.Lock()
 	m.results = results
