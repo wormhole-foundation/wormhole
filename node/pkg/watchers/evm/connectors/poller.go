@@ -55,6 +55,7 @@ func (b *BlockPollConnector) runFromSupervisor(ctx context.Context) error {
 	return b.run(ctx, logger)
 }
 
+func (b *BlockPollConnector) run(ctx context.Context, logger *zap.Logger) error {
 	lastBlock, err := b.getBlock(ctx, logger, nil, false)
 	if err != nil {
 		return err
