@@ -231,26 +231,6 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 	return !acct.enforceFlag, nil
 }
 
-// FinalizeObservation deletes a pending transfer received on the accounting channel. This is called from the processor loop
-// when a message is received on the accounting channel. It returns true if the observation should be published, false if not.
-func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool {
-	msgId := msg.MessageIDString()
-	acct.logger.Debug("acct: in FinalizeObservation", zap.String("msgID", msgId))
-	acct.pendingTransfersLock.Lock()
-	defer acct.pendingTransfersLock.Unlock()
-
-	if _, exists := acct.pendingTransfers[msgId]; !exists {
-		acct.logger.Info("acct: dropping pending transfer because it is no longer in the map", zap.String("msgID", msgId))
-		return false
-	}
-
-	acct.logger.Info("acct: deleting pending transfer", zap.String("msgID", msgId))
-	acct.deletePendingTransfer(msgId)
-
-	// If we are enforcing accounting, publish it now. If we are not enforcing accounting, it should already have been published.
-	return acct.enforceFlag
-}
-
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
 // each timer interval. Any transfers that can be released will be forwarded to the accounting message channel.
 func (acct *Accounting) AuditPendingTransfers() {
@@ -289,9 +269,12 @@ func (acct *Accounting) AuditPendingTransfers() {
 
 // publishTransfer publishes a pending transfer to the accounting channel and updates the timestamp. It assumes the caller holds the lock.
 func (acct *Accounting) publishTransfer(pe *pendingEntry) {
-	acct.logger.Debug("acct: publishTransfer", zap.String("msgId", pe.msgId))
-	acct.msgChan <- pe.msg
-	pe.updTime = time.Now()
+	if acct.enforceFlag {
+		acct.logger.Debug("acct: publishTransfer: notifying the processor", zap.String("msgId", pe.msgId))
+		acct.msgChan <- pe.msg
+	}
+
+	acct.deletePendingTransfer(pe.msgId)
 }
 
 // addPendingTransfer adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
