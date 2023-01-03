@@ -206,6 +206,13 @@ func SubmitObservationToContract(
 	if err != nil {
 		logger.Error("acct: SubmitObservationToContract failed to send broadcast", zap.Error(err))
 	} else {
+		if txResp.TxResponse == nil {
+			return txResp, fmt.Errorf("txResp.TxResponse is nil")
+		}
+		if strings.Contains(txResp.TxResponse.RawLog, "out of gas") {
+			return txResp, fmt.Errorf("out of gas: %s", txResp.TxResponse.RawLog)
+		}
+
 		out, err := wormchainConn.BroadcastTxResponseToString(txResp)
 		if err != nil {
 			logger.Error("acct: SubmitObservationToContract failed to parse broadcast response", zap.Error(err))
