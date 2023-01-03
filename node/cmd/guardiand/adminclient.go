@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -554,12 +555,6 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to read old VAA db: %v", err)
 	}
 	defer oldVAAFile.Close()
-	oldVAAReader := csv.NewReader(oldVAAFile)
-
-	oldVAATable, err := oldVAAReader.ReadAll()
-	if err != nil {
-		log.Fatalf("failed to parse old VAA db: %v", err)
-	}
 
 	newVAAFile, err := os.OpenFile(args[1], os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
@@ -570,7 +565,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 
 	newGsStrings := strings.Split(args[2], ",")
 
-	newGsIndex, err := strconv.Atoi(args[3])
+	newGsIndex, err := strconv.ParseUint(args[3], 10, 32)
 	if err != nil {
 		log.Fatalf("invalid new guardian set index")
 	}
@@ -584,10 +579,46 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
-	counter := 0
-	for i, row := range oldVAATable {
+	// Scan the CSV once to make sure it won't fail while reading unless raced
+	oldVAAReader := csv.NewReader(oldVAAFile)
+	numOldVAAs := 0
+	for {
+		row, err := oldVAAReader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalf("failed to parse VAA CSV: %v", err)
+		}
+		if len(row) != 2 {
+			log.Fatalf("row [%d] does not have 2 elements", numOldVAAs)
+		}
+		numOldVAAs++
+	}
+
+	// Reset reader
+	_, err = oldVAAFile.Seek(0, io.SeekStart)
+	if err != nil {
+		log.Fatalf("failed to seek back in CSV file: %v", err)
+	}
+	oldVAAReader = csv.NewReader(oldVAAFile)
+
+	counter, i := 0, 0
+	for {
+		row, err := oldVAAReader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalf("failed to parse VAA CSV: %v", err)
+		}
 		if len(row) != 2 {
 			log.Fatalf("row [%d] does not have 2 elements", i)
+		}
+		i++
+
+		if i%10 == 0 {
+			log.Printf("Processing VAA %d/%d", i, numOldVAAs)
 		}
 
 		vaaBytes := ethcommon.Hex2Bytes(row[1])
@@ -608,7 +639,6 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 		counter++
 	}
 
-	log.Printf("Successfully signed %d out of %d VAAs", counter, len(oldVAATable))
-
+	log.Printf("Successfully signed %d out of %d VAAs", counter, numOldVAAs)
 	newVAAWriter.Flush()
 }
