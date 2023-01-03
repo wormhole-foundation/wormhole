@@ -71,6 +71,7 @@ type Accounting struct {
 	mutex            sync.Mutex
 	tokenBridges     map[tokenBridgeKey]*tokenBridgeEntry
 	pendingTransfers map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
+	subChan          chan *common.MessagePublication
 	env              int
 }
 
@@ -103,6 +104,7 @@ func NewAccounting(
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
 		pendingTransfers: make(map[string]*pendingEntry),
+		subChan:          make(chan *common.MessagePublication),
 		env:              env,
 	}
 }
@@ -145,6 +147,10 @@ func (acct *Accounting) Start(ctx context.Context) error {
 
 	// Start the watcher to listen to transfer events from the smart contract.
 	if acct.env != GoTestMode {
+		if err := supervisor.Run(ctx, "acctworker", acct.worker); err != nil {
+			return fmt.Errorf("failed to start submit observation worker: %w", err)
+		}
+
 		if err := supervisor.Run(ctx, "acctwatcher", acct.watcher); err != nil {
 			return fmt.Errorf("failed to start watcher: %w", err)
 		}
@@ -195,12 +201,6 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
-	gs := acct.gst.Get()
-	if gs == nil {
-		acct.logger.Error("acct: failed to look up guardian set, blocking publishing", zap.String("msgID", msgId))
-		return false, nil
-	}
-
 	digest := msg.CreateDigest()
 
 	// If this is already pending, don't send it again.
@@ -224,12 +224,10 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 		return false, err
 	}
 
-	acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
-
-	// This transaction may take a while. Run it as a go routine so we don't block the processor.
+	// This transaction may take a while. Pass it off to the worker so we don't block the processor.
 	if acct.env != GoTestMode {
-		go acct.submitObservationToContract(msg, gs.Index)
-		transfersSubmitted.Inc()
+		acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
+		acct.subChan <- msg
 	}
 
 	// If we are not enforcing accounting, the event can be published. Otherwise we have to wait to hear back from the contract.
@@ -268,12 +266,6 @@ func (acct *Accounting) AuditPendingTransfers() {
 		return
 	}
 
-	gs := acct.gst.Get()
-	if gs == nil {
-		acct.logger.Error("acct: failed to look up guardian set, unable to audit pending transfers", zap.Int("numPending", len(acct.pendingTransfers)))
-		return
-	}
-
 	for msgId, pe := range acct.pendingTransfers {
 		acct.logger.Debug("acct: evaluating pending transfer", zap.String("msgID", msgId), zap.Stringer("updTime", pe.updTime))
 		if time.Since(pe.updTime) > auditInterval {
@@ -291,8 +283,7 @@ func (acct *Accounting) AuditPendingTransfers() {
 			)
 
 			pe.updTime = time.Now()
-			go acct.submitObservationToContract(pe.msg, gs.Index)
-			transfersSubmitted.Inc()
+			acct.subChan <- pe.msg
 		}
 	}
 
