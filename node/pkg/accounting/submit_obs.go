@@ -22,6 +22,24 @@ import (
 	"go.uber.org/zap"
 )
 
+func (acct *Accounting) worker(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case msg := <-acct.subChan:
+			gs := acct.gst.Get()
+			if gs == nil {
+				acct.logger.Error("acct: unable to send observation request: failed to look up guardian set", zap.String("msgID", msg.MessageIDString()))
+				continue
+			}
+
+			go acct.submitObservationToContract(msg, gs.Index)
+			transfersSubmitted.Inc()
+		}
+	}
+}
+
 type (
 	SubmitObservationsMsg struct {
 		Params SubmitObservationsParams `json:"submit_observations"`
