@@ -96,32 +96,9 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 			}
 
 			pendingTransfers := acct.parseEvents(txHash, events.Array())
-
-			acct.mutex.Lock()
-			for _, msg := range pendingTransfers {
-				msgId := msg.MessageIDString()
-				pe, exists := acct.pendingTransfers[msgId]
-				if exists {
-					digest := msg.CreateDigest()
-					if pe.digest != digest {
-						digestMismatches.Inc()
-						acct.logger.Error("acctwatch: digest mismatch, dropping transfer",
-							zap.String("msgID", msgId),
-							zap.String("oldDigest", pe.digest),
-							zap.String("newDigest", digest),
-						)
-
-						acct.deletePendingTransfer(msgId)
-						continue
-					}
-					acct.logger.Info("acctwatch: pending transfer has been approved", zap.String("msgId", msgId))
-					acct.publishTransfer(pe)
-					transfersApproved.Inc()
-				} else {
-					acct.logger.Info("acctwatch: unknown transfer has been approved, ignoring it", zap.String("msgId", msgId))
-				}
+			if len(pendingTransfers) > 0 {
+				acct.processPendingTransfers(pendingTransfers)
 			}
-			acct.mutex.Unlock()
 		}
 	}()
 
@@ -135,6 +112,35 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 	case err := <-errC:
 		acct.logger.Error("acctwatch: watcher encountered an error", zap.Error(err))
 		return err
+	}
+}
+
+func (acct *Accounting) processPendingTransfers(pendingTransfers []*common.MessagePublication) {
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
+
+	for _, msg := range pendingTransfers {
+		msgId := msg.MessageIDString()
+		pe, exists := acct.pendingTransfers[msgId]
+		if exists {
+			digest := msg.CreateDigest()
+			if pe.digest != digest {
+				digestMismatches.Inc()
+				acct.logger.Error("acctwatch: digest mismatch, dropping transfer",
+					zap.String("msgID", msgId),
+					zap.String("oldDigest", pe.digest),
+					zap.String("newDigest", digest),
+				)
+
+				acct.deletePendingTransfer(msgId)
+				continue
+			}
+			acct.logger.Info("acctwatch: pending transfer has been approved", zap.String("msgId", msgId))
+			acct.publishTransfer(pe)
+			transfersApproved.Inc()
+		} else {
+			acct.logger.Info("acctwatch: unknown transfer has been approved, ignoring it", zap.String("msgId", msgId))
+		}
 	}
 }
 

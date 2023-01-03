@@ -118,8 +118,8 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 		if strings.Contains(err.Error(), "insufficient balance") {
 			balanceErrors.Inc()
 			acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.Error(err))
-			acct.mutex.Lock()
-			defer acct.mutex.Unlock()
+			acct.pendingTransfersLock.Lock()
+			defer acct.pendingTransfersLock.Unlock()
 			acct.deletePendingTransfer(msgId)
 		} else {
 			acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msgId), zap.Error(err))
@@ -128,8 +128,8 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 	}
 
 	if alreadyCommitted {
-		acct.mutex.Lock()
-		defer acct.mutex.Unlock()
+		acct.pendingTransfersLock.Lock()
+		defer acct.pendingTransfersLock.Unlock()
 		pe, exists := acct.pendingTransfers[msgId]
 		if exists {
 			acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msgId))
