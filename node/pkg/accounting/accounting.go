@@ -218,22 +218,6 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 		return false, nil
 	}
 
-	/////////////////////////////////////////////////////////////////////////////
-	// WETH on BSC is 0x3D9E7a12DAa29a8B2b1BFaA9DC97ce018853Ab31
-	// if msg.EmitterChain == vaa.ChainIDBSC {
-	// 	data, err := hex.DecodeString("0000000000000000000000000000000000002386F26FC100002386F26FC10000")
-	// 	if err != nil {
-	// 		acct.logger.Error("acct: debug: failed to decode bogus amount", zap.Error(err))
-	// 	} else {
-	// 		acct.logger.Info("acct: debug: old payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
-	// 		newPayload := append(msg.Payload[0:1], data...)
-	// 		newPayload = append(newPayload, msg.Payload[33:]...)
-	// 		msg.Payload = newPayload
-	// 		acct.logger.Info("acct: debug: new payload", zap.String("bytes", hex.EncodeToString(msg.Payload)))
-	// 	}
-	// }
-	/////////////////////////////////////////////////////////////////////////////
-
 	// Add it to the pending map and the database.
 	if err := acct.addPendingTransfer(msgId, msg, digest); err != nil {
 		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msgId), zap.Error(err))
