@@ -67,7 +67,23 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-	go func() {
+	go acct.handleEvents(c, errC)
+
+	select {
+	case <-ctx.Done():
+		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		if err != nil {
+			acct.logger.Error("acctwatch: error closing watcher socket", zap.Error(err))
+		}
+		return ctx.Err()
+	case err := <-errC:
+		acct.logger.Error("acctwatch: watcher encountered an error", zap.Error(err))
+		return err
+	}
+}
+
+func (acct *Accounting) handleEvents(c *websocket.Conn, errC chan error) {
+	func() {
 		defer close(errC)
 
 		for {
@@ -101,18 +117,6 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 			}
 		}
 	}()
-
-	select {
-	case <-ctx.Done():
-		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		if err != nil {
-			acct.logger.Error("acctwatch: error closing watcher socket", zap.Error(err))
-		}
-		return ctx.Err()
-	case err := <-errC:
-		acct.logger.Error("acctwatch: watcher encountered an error", zap.Error(err))
-		return err
-	}
 }
 
 func (acct *Accounting) processPendingTransfers(pendingTransfers []*common.MessagePublication) {
