@@ -57,22 +57,22 @@ type (
 
 // Accounting is the object that manages the interface to the wormchain accounting smart contract.
 type Accounting struct {
-	ctx              context.Context
-	logger           *zap.Logger
-	db               db.AccountingDB
-	contract         string
-	wsUrl            string
-	lcdUrl           string
-	wormchainConn    *wormconn.ClientConn
-	enforceFlag      bool
-	gk               *ecdsa.PrivateKey
-	gst              *common.GuardianSetState
-	msgChan          chan<- *common.MessagePublication
-	mutex            sync.Mutex
-	tokenBridges     map[tokenBridgeKey]*tokenBridgeEntry
-	pendingTransfers map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
-	subChan          chan *common.MessagePublication
-	env              int
+	ctx                  context.Context
+	logger               *zap.Logger
+	db                   db.AccountingDB
+	contract             string
+	wsUrl                string
+	lcdUrl               string
+	wormchainConn        *wormconn.ClientConn
+	enforceFlag          bool
+	gk                   *ecdsa.PrivateKey
+	gst                  *common.GuardianSetState
+	msgChan              chan<- *common.MessagePublication
+	tokenBridges         map[tokenBridgeKey]*tokenBridgeEntry
+	pendingTransfersLock sync.Mutex
+	pendingTransfers     map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
+	subChan              chan *common.MessagePublication
+	env                  int
 }
 
 // NewAccounting creates a new instance of the Accounting object.
@@ -112,8 +112,8 @@ func NewAccounting(
 // Run initializes the accounting module and starts the watcher runnable.
 func (acct *Accounting) Start(ctx context.Context) error {
 	acct.logger.Debug("acct: entering run")
-	acct.mutex.Lock()
-	defer acct.mutex.Unlock()
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
 
 	emitterMap := &sdk.KnownTokenbridgeEmitters
 	if acct.env == TestNetMode {
@@ -160,9 +160,6 @@ func (acct *Accounting) Start(ctx context.Context) error {
 }
 
 func (acct *Accounting) Close() {
-	acct.mutex.Lock()
-	defer acct.mutex.Unlock()
-
 	if acct.wormchainConn != nil {
 		acct.wormchainConn.Close()
 		acct.wormchainConn = nil
@@ -198,10 +195,10 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 		return true, nil
 	}
 
-	acct.mutex.Lock()
-	defer acct.mutex.Unlock()
-
 	digest := msg.CreateDigest()
+
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
 
 	// If this is already pending, don't send it again.
 	if oldEntry, exists := acct.pendingTransfers[msgId]; exists {
@@ -239,8 +236,8 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool {
 	msgId := msg.MessageIDString()
 	acct.logger.Debug("acct: in FinalizeObservation", zap.String("msgID", msgId))
-	acct.mutex.Lock()
-	defer acct.mutex.Unlock()
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
 
 	if _, exists := acct.pendingTransfers[msgId]; !exists {
 		acct.logger.Info("acct: dropping pending transfer because it is no longer in the map", zap.String("msgID", msgId))
@@ -258,8 +255,8 @@ func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool
 // each timer interval. Any transfers that can be released will be forwarded to the accounting message channel.
 func (acct *Accounting) AuditPendingTransfers() {
 	acct.logger.Debug("acct: in AuditPendingTransfers")
-	acct.mutex.Lock()
-	defer acct.mutex.Unlock()
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
 
 	if len(acct.pendingTransfers) == 0 {
 		acct.logger.Debug("acct: leaving AuditPendingTransfers, no pending transfers")
