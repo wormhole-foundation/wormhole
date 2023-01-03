@@ -86,7 +86,7 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 // It should be called from a go routine because it can block.
 func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
 	msgId := msg.MessageIDString()
-	acct.logger.Info("acct: debug: in submitObservationToContract", zap.String("msgID", msgId))
+	acct.logger.Debug("acct: in submitObservationToContract", zap.String("msgID", msgId))
 	txResp, err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, acct.wormchainConn, acct.contract, msg)
 	if err != nil {
 		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msgId), zap.Error(err))
@@ -118,7 +118,7 @@ func (acct *Accounting) submitObservationToContract(msg *common.MessagePublicati
 			acct.publishTransfer(pe)
 			transfersApproved.Inc()
 		} else {
-			acct.logger.Info("acct: debug: transfer has already been committed, and it is no longer in our map", zap.String("msgId", msgId))
+			acct.logger.Debug("acct: transfer has already been committed, and it is no longer in our map", zap.String("msgId", msgId))
 		}
 	}
 }
@@ -190,7 +190,7 @@ func SubmitObservationToContract(
 		Funds:    sdktypes.Coins{},
 	}
 
-	logger.Info("acct: debug: in SubmitObservationToContract, sending broadcast",
+	logger.Debug("acct: in SubmitObservationToContract, sending broadcast",
 		zap.String("txHash", txHashStr), zap.String("encTxHash", obs[0].TxHash),
 		zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[0].Timestamp),
 		zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[0].Nonce),
@@ -210,7 +210,7 @@ func SubmitObservationToContract(
 		if err != nil {
 			logger.Error("acct: SubmitObservationToContract failed to parse broadcast response", zap.Error(err))
 		} else {
-			logger.Info("acct: debug: in SubmitObservationToContract, done sending broadcast", zap.String("resp", out))
+			logger.Debug("acct: in SubmitObservationToContract, done sending broadcast", zap.String("resp", out))
 		}
 	}
 	return txResp, err

@@ -933,7 +933,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			wormchainKeyPathName = fmt.Sprint(*wormchainKeyPath, idx)
 		}
 
-		logger.Info("acct: debug: loading key file", zap.String("key path", wormchainKeyPathName))
+		logger.Debug("acct: loading key file", zap.String("key path", wormchainKeyPathName))
 		wormchainKey, err = devnet.LoadWormchainPrivKey(wormchainKeyPathName)
 		if err != nil {
 			logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
@@ -1324,7 +1324,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
 		if acct != nil {
-			if err := acct.Run(ctx); err != nil {
+			if err := acct.Start(ctx); err != nil {
 				logger.Fatal("acct: failed to start accounting", zap.Error(err))
 			}
 		}

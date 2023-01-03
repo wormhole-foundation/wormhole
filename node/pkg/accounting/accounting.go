@@ -108,8 +108,8 @@ func NewAccounting(
 }
 
 // Run initializes the accounting module and starts the watcher runnable.
-func (acct *Accounting) Run(ctx context.Context) error {
-	acct.logger.Info("acct: debug: entering run")
+func (acct *Accounting) Start(ctx context.Context) error {
+	acct.logger.Debug("acct: entering run")
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
@@ -175,12 +175,12 @@ func (acct *Accounting) FeatureString() string {
 // false if not (because it has been submitted to accounting).
 func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool, error) {
 	msgId := msg.MessageIDString()
-	acct.logger.Info("acct: debug: in SubmitObservation", zap.String("msgID", msgId))
+	acct.logger.Debug("acct: in SubmitObservation", zap.String("msgID", msgId))
 	// We only care about token bridges.
 	tbk := tokenBridgeKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}
 	if _, exists := acct.tokenBridges[tbk]; !exists {
 		if msg.EmitterChain != vaa.ChainIDPythNet {
-			acct.logger.Info("acct: ignoring vaa because it is not a token bridge", zap.String("msgID", msgId))
+			acct.logger.Debug("acct: ignoring vaa because it is not a token bridge", zap.String("msgID", msgId))
 		}
 
 		return true, nil
@@ -240,7 +240,7 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 // when a message is received on the accounting channel. It returns true if the observation should be published, false if not.
 func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool {
 	msgId := msg.MessageIDString()
-	acct.logger.Info("acct: debug: in FinalizeObservation", zap.String("msgID", msgId))
+	acct.logger.Debug("acct: in FinalizeObservation", zap.String("msgID", msgId))
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
@@ -259,12 +259,12 @@ func (acct *Accounting) FinalizeObservation(msg *common.MessagePublication) bool
 // AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
 // each timer interval. Any transfers that can be released will be forwarded to the accounting message channel.
 func (acct *Accounting) AuditPendingTransfers() {
-	acct.logger.Info("acct: debug: in AuditPendingTransfers")
+	acct.logger.Debug("acct: in AuditPendingTransfers")
 	acct.mutex.Lock()
 	defer acct.mutex.Unlock()
 
 	if len(acct.pendingTransfers) == 0 {
-		acct.logger.Info("acct: debug: leaving AuditPendingTransfers, no pending transfers")
+		acct.logger.Debug("acct: leaving AuditPendingTransfers, no pending transfers")
 		return
 	}
 
@@ -275,7 +275,7 @@ func (acct *Accounting) AuditPendingTransfers() {
 	}
 
 	for msgId, pe := range acct.pendingTransfers {
-		acct.logger.Info("acct: debug: evaluating pending transfer", zap.String("msgID", msgId), zap.Stringer("updTime", pe.updTime))
+		acct.logger.Debug("acct: evaluating pending transfer", zap.String("msgID", msgId), zap.Stringer("updTime", pe.updTime))
 		if time.Since(pe.updTime) > auditInterval {
 			pe.retryCount += 1
 			if pe.retryCount > maxRetries {
@@ -296,19 +296,19 @@ func (acct *Accounting) AuditPendingTransfers() {
 		}
 	}
 
-	acct.logger.Info("acct: debug: leaving AuditPendingTransfers")
+	acct.logger.Debug("acct: leaving AuditPendingTransfers")
 }
 
 // publishTransfer publishes a pending transfer to the accounting channel and updates the timestamp. It assumes the caller holds the lock.
 func (acct *Accounting) publishTransfer(pe *pendingEntry) {
-	acct.logger.Info("acct: debug: publishTransfer", zap.String("msgId", pe.msgId))
+	acct.logger.Debug("acct: publishTransfer", zap.String("msgId", pe.msgId))
 	acct.msgChan <- pe.msg
 	pe.updTime = time.Now()
 }
 
 // addPendingTransfer adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
 func (acct *Accounting) addPendingTransfer(msgId string, msg *common.MessagePublication, digest string) error {
-	acct.logger.Info("acct: debug: addPendingTransfer", zap.String("msgId", msgId))
+	acct.logger.Debug("acct: addPendingTransfer", zap.String("msgId", msgId))
 	if err := acct.db.AcctStorePendingTransfer(msg); err != nil {
 		return err
 	}
@@ -321,7 +321,7 @@ func (acct *Accounting) addPendingTransfer(msgId string, msg *common.MessagePubl
 
 // deletePendingTransfer deletes the transfer from both the map and the database. It assumes the caller holds the lock.
 func (acct *Accounting) deletePendingTransfer(msgId string) {
-	acct.logger.Info("acct: debug: deletePendingTransfer", zap.String("msgId", msgId))
+	acct.logger.Debug("acct: deletePendingTransfer", zap.String("msgId", msgId))
 	if _, exists := acct.pendingTransfers[msgId]; exists {
 		transfersOutstanding.Dec()
 		delete(acct.pendingTransfers, msgId)

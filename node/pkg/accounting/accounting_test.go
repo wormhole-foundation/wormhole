@@ -50,7 +50,7 @@ func newAccountingForTest(
 		GoTestMode,
 	)
 
-	err := acct.Run(ctx)
+	err := acct.Start(ctx)
 	require.NoError(t, err)
 	return acct
 }

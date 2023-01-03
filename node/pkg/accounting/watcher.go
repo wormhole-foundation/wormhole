@@ -149,7 +149,7 @@ func (acct *Accounting) parseEvents(txHash string, events []gjson.Result) []*com
 		eventType := gjson.Get(event.String(), "type")
 		// TODO When development is complete, uncomment this. We just want to log everything for now.
 		// if eventType.String() != "wasm-Transfer" {
-		// 	acct.logger.Info("acctwatch: debug: ignoring event", zap.String("eventType", eventType.String()), zap.String("event", event.String()))
+		// 	acct.logger.Debug("acctwatch: ignoring event", zap.String("eventType", eventType.String()), zap.String("event", event.String()))
 		// 	continue
 		// }
 
@@ -199,7 +199,7 @@ func (acct *Accounting) parseEvents(txHash string, events []gjson.Result) []*com
 				continue
 			}
 
-			acct.logger.Info("acctwatch: debug: parsing event", zap.String("eventType", eventType.String()), zap.String("key", string(key)), zap.String("value", string(value)), zap.String("valueBase", valueBase.String()))
+			acct.logger.Debug("acctwatch: parsing event", zap.String("eventType", eventType.String()), zap.String("key", string(key)), zap.String("value", string(value)), zap.String("valueBase", valueBase.String()))
 			mappedAttributes[string(key)] = string(value)
 		}
 
@@ -216,7 +216,7 @@ func (acct *Accounting) parseEvents(txHash string, events []gjson.Result) []*com
 
 		// This event is not from the accounting contract.
 		if contractAddress != acct.contract {
-			acct.logger.Info("acctwatch: debug: ignoring event for different contract", zap.String("contractAddress", contractAddress), zap.String("expected", acct.contract))
+			acct.logger.Debug("acctwatch: ignoring event for different contract", zap.String("contractAddress", contractAddress), zap.String("expected", acct.contract))
 			continue
 		}
 
