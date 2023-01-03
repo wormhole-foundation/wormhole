@@ -231,9 +231,6 @@ func (p *Processor) Run(ctx context.Context) error {
 			if p.acct == nil {
 				return fmt.Errorf("acct: received an accounting event when accounting is not configured")
 			}
-			if !p.acct.FinalizeObservation(k) {
-				continue
-			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)

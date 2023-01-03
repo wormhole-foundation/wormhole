@@ -96,7 +96,7 @@ func buildMockTransferPayloadBytes(
 
 func TestVaaFromUninterestingEmitter(t *testing.T) {
 	ctx := context.Background()
-	acctChan := make(chan *common.MessagePublication)
+	acctChan := make(chan *common.MessagePublication, 10)
 	acct := newAccountingForTest(t, ctx, enforceAccounting, acctChan)
 	require.NotNil(t, acct)
 
@@ -122,7 +122,7 @@ func TestVaaFromUninterestingEmitter(t *testing.T) {
 
 func TestVaaForUninterestingPayloadType(t *testing.T) {
 	ctx := context.Background()
-	acctChan := make(chan *common.MessagePublication)
+	acctChan := make(chan *common.MessagePublication, 10)
 	acct := newAccountingForTest(t, ctx, enforceAccounting, acctChan)
 	require.NotNil(t, acct)
 
@@ -148,7 +148,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 
 func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccounting(t *testing.T) {
 	ctx := context.Background()
-	acctChan := make(chan *common.MessagePublication)
+	acctChan := make(chan *common.MessagePublication, 10)
 	acct := newAccountingForTest(t, ctx, dontEnforceAccounting, acctChan)
 	require.NotNil(t, acct)
 
@@ -178,17 +178,19 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccounting(t *test
 
 	// The transfer should not be blocked, but it should be in the pending map.
 	assert.Equal(t, true, shouldPublish)
-	assert.Equal(t, 1, len(acct.pendingTransfers))
+	pe, exists := acct.pendingTransfers[msg.MessageIDString()]
+	require.Equal(t, true, exists)
+	require.NotNil(t, pe)
 
-	// Finalize should say that we should not publish it but it should remove it from the map.
-	shouldPublish = acct.FinalizeObservation(&msg)
-	assert.Equal(t, false, shouldPublish)
+	// PublishTransfer should not publish to the channel but it should remove it from the map.
+	acct.publishTransfer(pe)
+	assert.Equal(t, 0, len(acct.msgChan))
 	assert.Equal(t, 0, len(acct.pendingTransfers))
 }
 
 func TestInterestingTransferShouldBeBlockedWhenEnforcingAccounting(t *testing.T) {
 	ctx := context.Background()
-	acctChan := make(chan *common.MessagePublication)
+	acctChan := make(chan *common.MessagePublication, 10)
 	acct := newAccountingForTest(t, ctx, enforceAccounting, acctChan)
 	require.NotNil(t, acct)
 
@@ -217,21 +219,20 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccounting(t *testing.T)
 	require.NoError(t, err)
 	assert.Equal(t, false, shouldPublish)
 	assert.Equal(t, 1, len(acct.pendingTransfers))
+	assert.Equal(t, 0, len(acct.msgChan))
 
 	// The same message a second time should still be blocked, but the pending map should not change.
 	msg2 := msg
 	shouldPublish, err = acct.SubmitObservation(&msg2)
 	require.NoError(t, err)
 	assert.Equal(t, false, shouldPublish)
-	assert.Equal(t, 1, len(acct.pendingTransfers))
+	assert.Equal(t, 0, len(acct.msgChan))
+	pe, exists := acct.pendingTransfers[msg.MessageIDString()]
+	require.Equal(t, true, exists)
+	require.NotNil(t, pe)
 
-	// Finalize should say that we should publish it and remove it from the map.
-	shouldPublish = acct.FinalizeObservation(&msg)
-	assert.Equal(t, true, shouldPublish)
-	assert.Equal(t, 0, len(acct.pendingTransfers))
-
-	// Doing finalize again should tell us not to publish.
-	shouldPublish = acct.FinalizeObservation(&msg)
-	assert.Equal(t, false, shouldPublish)
+	// PublishTransfer should publish to the channel and remove it from the map.
+	acct.publishTransfer(pe)
+	assert.Equal(t, 1, len(acct.msgChan))
 	assert.Equal(t, 0, len(acct.pendingTransfers))
 }
