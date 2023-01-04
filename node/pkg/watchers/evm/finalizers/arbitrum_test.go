@@ -20,10 +20,6 @@ type mockL1Finalizer struct {
 	LatestFinalizedBlockNumber uint64
 }
 
-func (m *mockL1Finalizer) setLatestFinalizedBlockNumber(latestFinalizedBlockNumber uint64) {
-	m.LatestFinalizedBlockNumber = latestFinalizedBlockNumber
-}
-
 func (m *mockL1Finalizer) GetLatestFinalizedBlockNumber() uint64 {
 	return m.LatestFinalizedBlockNumber
 }
