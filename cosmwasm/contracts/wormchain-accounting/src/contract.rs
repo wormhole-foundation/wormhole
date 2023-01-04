@@ -119,7 +119,11 @@ fn submit_observations(
 
     let events = observations
         .into_iter()
-        .map(|o| handle_observation(deps.branch(), o, guardian_set_index, quorum, signature))
+        .map(|o| {
+            let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+            handle_observation(deps.branch(), o, guardian_set_index, quorum, signature)
+                .with_context(|| format!("failed to handle observation for key {key}"))
+        })
         .filter_map(Result::transpose)
         .collect::<anyhow::Result<Vec<_>>>()
         .context("failed to handle `Observation`")?;
