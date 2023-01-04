@@ -28,7 +28,7 @@ func RunWithScissors(ctx context.Context, errC chan error, name string, runnable
 				default:
 					errC <- fmt.Errorf("%s: %v", name, x)
 				}
-				ScissorsErrors.WithLabelValues("scissors",  name).Inc()
+				ScissorsErrors.WithLabelValues("scissors", name).Inc()
 
 			}
 		}()
@@ -49,7 +49,7 @@ func WrapWithScissors(runnable supervisor.Runnable, name string) supervisor.Runn
 				default:
 					result = fmt.Errorf("%s: %v", name, x)
 				}
-				ScissorsErrors.WithLabelValues("scissors",  name).Inc()
+				ScissorsErrors.WithLabelValues("scissors", name).Inc()
 			}
 		}()
 
