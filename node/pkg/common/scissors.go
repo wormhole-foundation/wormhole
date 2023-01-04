@@ -38,29 +38,20 @@ func RunWithScissors(ctx context.Context, errC chan error, name string, runnable
 	}()
 }
 
-type (
-	Scissors struct {
-		runnable supervisor.Runnable
-	}
-)
-
 func WrapWithScissors(runnable supervisor.Runnable) supervisor.Runnable {
-	s := Scissors{runnable: runnable}
-	return s.Run
-}
-
-func (e *Scissors) Run(ctx context.Context) (result error) {
-	defer func() {
-		if r := recover(); r != nil {
-			switch x := r.(type) {
-			case error:
-				result = x
-			default:
-				result = fmt.Errorf("%v", x)
+	return func(ctx context.Context) (result error) {
+		defer func() {
+			if r := recover(); r != nil {
+				switch x := r.(type) {
+				case error:
+					result = x
+				default:
+					result = fmt.Errorf("%v", x)
+				}
+				ScissorsErrors.Inc()
 			}
-			ScissorsErrors.Inc()
-		}
-	}()
+		}()
 
-	return e.runnable(ctx)
+		return runnable(ctx)
+	}
 }
