@@ -12,9 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.uber.org/zap"
-)
 
-import (
 	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	ethereum "github.com/ethereum/go-ethereum"
