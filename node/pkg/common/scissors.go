@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	ScissorsErrors = promauto.NewCounter(
+	ScissorsErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "scissor_errors_caught",
 			Help: "Total number of unhandled errors caught",
-		})
+		}, []string{"scissors", "name"})
 )
 
 // Start a go routine with recovering from any panic by sending an error to a error channel
@@ -28,7 +28,8 @@ func RunWithScissors(ctx context.Context, errC chan error, name string, runnable
 				default:
 					errC <- fmt.Errorf("%s: %v", name, x)
 				}
-				ScissorsErrors.Inc()
+				ScissorsErrors.WithLabelValues("scissors",  name).Inc()
+
 			}
 		}()
 		err := runnable(ctx)
@@ -38,17 +39,17 @@ func RunWithScissors(ctx context.Context, errC chan error, name string, runnable
 	}()
 }
 
-func WrapWithScissors(runnable supervisor.Runnable) supervisor.Runnable {
+func WrapWithScissors(runnable supervisor.Runnable, name string) supervisor.Runnable {
 	return func(ctx context.Context) (result error) {
 		defer func() {
 			if r := recover(); r != nil {
 				switch x := r.(type) {
 				case error:
-					result = x
+					result = fmt.Errorf("%s: %w", name, x)
 				default:
-					result = fmt.Errorf("%v", x)
+					result = fmt.Errorf("%s: %v", name, x)
 				}
-				ScissorsErrors.Inc()
+				ScissorsErrors.WithLabelValues("scissors",  name).Inc()
 			}
 		}()
 
