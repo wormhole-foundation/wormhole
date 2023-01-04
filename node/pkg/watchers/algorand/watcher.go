@@ -5,6 +5,7 @@ import (
 	"encoding/base32"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -141,7 +142,20 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 	}
 }
 
-func (e *Watcher) Run(ctx context.Context) error {
+func (e *Watcher) Run(ctx context.Context) (result error) {
+	defer func() {
+		if r := recover(); r != nil {
+			switch x := r.(type) {
+			case string:
+				result = errors.New(x)
+			case error:
+				result = x
+			default:
+				result = errors.New("unknown panic in Watcher.Run")
+			}
+		}
+	}()
+
 	// an odd thing to broadcast...
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
 		ContractAddress: fmt.Sprintf("%d", e.appid),
