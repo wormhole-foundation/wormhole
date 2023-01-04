@@ -18,8 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// MockConnector implements the connector interface for testing purposes.
-type MockConnector struct {
+// mockConnector implements the connector interface for testing purposes.
+type mockConnector struct {
 	address         ethCommon.Address
 	client          *ethClient.Client
 	mutex           sync.Mutex
@@ -29,73 +29,73 @@ type MockConnector struct {
 	blockNumber     uint64
 }
 
-// SetResults takes an array of json results strings. Each time a test makes an RPC call, it uses the first element in
+// setResults takes an array of json results strings. Each time a test makes an RPC call, it uses the first element in
 // the array as the response, and the discards it. If the array is empty, the call will block until more results are stored.
-func (m *MockConnector) SetResults(results []string) {
+func (m *mockConnector) setResults(results []string) {
 	m.mutex.Lock()
 	m.results = results
 	m.mutex.Unlock()
 }
 
-// SetError takes an error which will be returned on the next RPC call. The error will persist until cleared.
-func (m *MockConnector) SetError(err error) {
+// setError takes an error which will be returned on the next RPC call. The error will persist until cleared.
+func (m *mockConnector) setError(err error) {
 	m.mutex.Lock()
 	m.err = err
 	m.persistentError = true
 	m.mutex.Unlock()
 }
 
-// SetSingleError takes an error which will be returned on the next RPC call. After that, the error is reset to nil.
-func (m *MockConnector) SetSingleError(err error) {
+// setSingleError takes an error which will be returned on the next RPC call. After that, the error is reset to nil.
+func (m *mockConnector) setSingleError(err error) {
 	m.mutex.Lock()
 	m.err = err
 	m.persistentError = false
 	m.mutex.Unlock()
 }
 
-func NewMockConnector(ctx context.Context, networkName, rawUrl string, address ethCommon.Address, logger *zap.Logger) (*MockConnector, error) {
+func newMockConnector(ctx context.Context, networkName, rawUrl string, address ethCommon.Address, logger *zap.Logger) (*mockConnector, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) NetworkName() string {
-	return "MockConnector"
+func (e *mockConnector) NetworkName() string {
+	return "mockConnector"
 }
 
-func (e *MockConnector) ContractAddress() ethCommon.Address {
+func (e *mockConnector) ContractAddress() ethCommon.Address {
 	return e.address
 }
 
-func (e *MockConnector) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
+func (e *mockConnector) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {
 	return 0, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
+func (e *mockConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
 	return ethAbi.StructsGuardianSet{}, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *mockConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	var s ethEvent.Subscription
 	return s, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
+func (e *mockConnector) TransactionReceipt(ctx context.Context, txHash ethCommon.Hash) (*ethTypes.Receipt, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
+func (e *mockConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
 	return 0, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
+func (e *mockConnector) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.AbiLogMessagePublished, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+func (e *mockConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	var s ethEvent.Subscription
 	return s, fmt.Errorf("not implemented")
 }
 
-func (e *MockConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) (err error) {
+func (e *mockConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) (err error) {
 	if method == "eth_getBlockByNumber" {
 		return e.getBlockByNumber(ctx, result, args...)
 	}
@@ -127,17 +127,17 @@ func (e *MockConnector) RawCallContext(ctx context.Context, result interface{}, 
 	return
 }
 
-func (e *MockConnector) SetBlockNumber(blockNumber uint64) {
+func (e *mockConnector) setBlockNumber(blockNumber uint64) {
 	e.mutex.Lock()
 	e.blockNumber = blockNumber
 	e.mutex.Unlock()
 }
 
-func (e *MockConnector) ExpectedHash() ethCommon.Hash {
+func (e *mockConnector) expectedHash() ethCommon.Hash {
 	return ethCommon.HexToHash("0xfc8b62a31110121c57cfcccfaf2b147cc2c13b6d01bde4737846cefd29f045cf")
 }
 
-func (e *MockConnector) getBlockByNumber(ctx context.Context, result interface{}, args ...interface{}) (err error) {
+func (e *mockConnector) getBlockByNumber(ctx context.Context, result interface{}, args ...interface{}) (err error) {
 	e.mutex.Lock()
 	// If they set the error, return that immediately.
 	if e.err != nil {
@@ -153,26 +153,26 @@ func (e *MockConnector) getBlockByNumber(ctx context.Context, result interface{}
 	return
 }
 
-func (e *MockConnector) Client() *ethClient.Client {
+func (e *mockConnector) Client() *ethClient.Client {
 	return e.client
 }
 
-type MockFinalizer struct {
+type mockFinalizer struct {
 	mutex     sync.Mutex
 	finalized bool
 }
 
-func NewMockFinalizer(initialState bool) *MockFinalizer {
-	return &MockFinalizer{finalized: initialState}
+func newMockFinalizer(initialState bool) *mockFinalizer {
+	return &mockFinalizer{finalized: initialState}
 }
 
-func (f *MockFinalizer) SetFinalized(finalized bool) {
+func (f *mockFinalizer) setFinalized(finalized bool) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	f.finalized = finalized
 }
 
-func (f *MockFinalizer) IsBlockFinalized(ctx context.Context, block *NewBlock) (bool, error) {
+func (f *mockFinalizer) IsBlockFinalized(ctx context.Context, block *NewBlock) (bool, error) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	return f.finalized, nil
