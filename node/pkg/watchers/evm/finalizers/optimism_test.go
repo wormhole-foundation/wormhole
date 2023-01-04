@@ -113,7 +113,7 @@ func NewOptimismFinalizerForTest(
 func TestOptimismErrorReturnedIfBlockIsNil(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 	ctcCaller := &mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, ctcCaller)
@@ -126,7 +126,7 @@ func TestOptimismErrorReturnedIfBlockIsNil(t *testing.T) {
 func TestOptimismNotFinalizedIfNoFinalizedL1BlockYet(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{}
+	l1Finalizer := mockL1Finalizer{}
 	ctcCaller := mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, &ctcCaller)
@@ -145,7 +145,7 @@ func TestOptimismNotFinalizedIfNoFinalizedL1BlockYet(t *testing.T) {
 func TestOptimismNotFinalizedWhenFinalizedL1IsLessThanTargetL1(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 7954401}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 7954401}
 	ctcCaller := mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, &ctcCaller)
@@ -167,7 +167,7 @@ func TestOptimismNotFinalizedWhenFinalizedL1IsLessThanTargetL1(t *testing.T) {
 func TestOptimismNotFinalizedWhenFinalizedL1IsEqualsTargetL1(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 7954402}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 7954402}
 	ctcCaller := mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, &ctcCaller)
@@ -189,7 +189,7 @@ func TestOptimismNotFinalizedWhenFinalizedL1IsEqualsTargetL1(t *testing.T) {
 func TestOptimismIsFinalizedWhenFinalizedL1IsGreaterThanTargetL1(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 7954403}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 7954403}
 	ctcCaller := mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, &ctcCaller)
@@ -211,7 +211,7 @@ func TestOptimismIsFinalizedWhenFinalizedL1IsGreaterThanTargetL1(t *testing.T) {
 func TestOptimismL2BlockNumberMustNotGoBackwards(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 7954400}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 7954400}
 	ctcCaller := mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, &ctcCaller)
@@ -236,7 +236,7 @@ func TestOptimismL2BlockNumberMustNotGoBackwards(t *testing.T) {
 func TestOptimismGetTotalElementsRpcError(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 	ctcCaller := mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, &ctcCaller)
@@ -257,7 +257,7 @@ func TestOptimismGetTotalElementsRpcError(t *testing.T) {
 func TestOptimismGetLastBlockNumberRpcError(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 	ctcCaller := mockCtcCaller{}
 
 	finalizer := NewOptimismFinalizerForTest(ctx, logger, &l1Finalizer, &ctcCaller)

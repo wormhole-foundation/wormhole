@@ -18,7 +18,7 @@ import (
 func TestNeonErrorReturnedIfBlockIsNil(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 
 	finalizer := NewNeonFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -30,7 +30,7 @@ func TestNeonErrorReturnedIfBlockIsNil(t *testing.T) {
 func TestNeonNotFinalizedIfNoFinalizedL1BlockYet(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{}
+	l1Finalizer := mockL1Finalizer{}
 
 	finalizer := NewNeonFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -49,7 +49,7 @@ func TestNeonNotFinalizedIfNoFinalizedL1BlockYet(t *testing.T) {
 func TestNeonNotFinalizedWhenL1IsLessThanL2(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 
 	finalizer := NewNeonFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -68,7 +68,7 @@ func TestNeonNotFinalizedWhenL1IsLessThanL2(t *testing.T) {
 func TestNeonIsFinalizedWhenL1EqualsL2(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 
 	finalizer := NewNeonFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -87,7 +87,7 @@ func TestNeonIsFinalizedWhenL1EqualsL2(t *testing.T) {
 func TestNeonIsFinalizedWhenL1GreaterThanL2(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 127}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 127}
 
 	finalizer := NewNeonFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)

@@ -15,23 +15,23 @@ import (
 	"go.uber.org/zap"
 )
 
-// MockL1Finalizer implements the L1Finalizer interface for testing purposes.
-type MockL1Finalizer struct {
+// mockL1Finalizer implements the L1Finalizer interface for testing purposes.
+type mockL1Finalizer struct {
 	LatestFinalizedBlockNumber uint64
 }
 
-func (m *MockL1Finalizer) SetLatestFinalizedBlockNumber(latestFinalizedBlockNumber uint64) {
+func (m *mockL1Finalizer) setLatestFinalizedBlockNumber(latestFinalizedBlockNumber uint64) {
 	m.LatestFinalizedBlockNumber = latestFinalizedBlockNumber
 }
 
-func (m *MockL1Finalizer) GetLatestFinalizedBlockNumber() uint64 {
+func (m *mockL1Finalizer) GetLatestFinalizedBlockNumber() uint64 {
 	return m.LatestFinalizedBlockNumber
 }
 
 func TestArbitrumErrorReturnedIfBlockIsNil(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 
 	finalizer := NewArbitrumFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -43,7 +43,7 @@ func TestArbitrumErrorReturnedIfBlockIsNil(t *testing.T) {
 func TestArbitrumErrorReturnedIfL1BlockIsNil(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 125}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 125}
 
 	finalizer := NewArbitrumFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -61,7 +61,7 @@ func TestArbitrumErrorReturnedIfL1BlockIsNil(t *testing.T) {
 func TestArbitrumNotFinalizedIfNoFinalizedL1BlockYet(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{}
+	l1Finalizer := mockL1Finalizer{}
 
 	finalizer := NewArbitrumFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -80,7 +80,7 @@ func TestArbitrumNotFinalizedIfNoFinalizedL1BlockYet(t *testing.T) {
 func TestArbitrumNotFinalizedWhenFinalizedL1IsLessThanTargetL1(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 225}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 225}
 
 	finalizer := NewArbitrumFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -99,7 +99,7 @@ func TestArbitrumNotFinalizedWhenFinalizedL1IsLessThanTargetL1(t *testing.T) {
 func TestArbitrumIsFinalizedWhenFinalizedL1IsEqualsTargetL1(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 225}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 225}
 
 	finalizer := NewArbitrumFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
@@ -118,7 +118,7 @@ func TestArbitrumIsFinalizedWhenFinalizedL1IsEqualsTargetL1(t *testing.T) {
 func TestArbitrumIsFinalizedWhenFinalizedL1IsGreaterThanTargetL1(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
-	l1Finalizer := MockL1Finalizer{LatestFinalizedBlockNumber: 227}
+	l1Finalizer := mockL1Finalizer{LatestFinalizedBlockNumber: 227}
 
 	finalizer := NewArbitrumFinalizer(logger, &l1Finalizer)
 	assert.NotNil(t, finalizer)
