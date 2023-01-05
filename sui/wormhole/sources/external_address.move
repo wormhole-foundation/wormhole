@@ -3,7 +3,7 @@
 module wormhole::external_address {
     use std::vector;
 
-    use sui::object;
+    use sui::address;
 
     use wormhole::cursor::Cursor;
     use wormhole::deserialize;
@@ -70,7 +70,7 @@ module wormhole::external_address {
         };
         // reverse back to original order
         vector::reverse(&mut vec);
-        object::address_from_bytes(vec)
+        address::from_bytes(vec)
     }
 
 }
