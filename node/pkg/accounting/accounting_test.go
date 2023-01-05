@@ -40,8 +40,7 @@ func newAccountingForTest(
 		logger,
 		&db,
 		"0xdeadbeef", // accountingContract
-		"none",       // wormchainWS
-		"none",       // wormchainLCD
+		"none",       // accountingWS
 		nil,          // wormchainConn
 		accountingCheckEnabled,
 		nil, // gk
