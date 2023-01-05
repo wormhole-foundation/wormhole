@@ -33,6 +33,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[September 2022 - Trail of Bits](https://storage.googleapis.com/wormhole-audits/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _CosmWasm Contracts_
 - **[October 2022 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_OtterSec_Aptos_2022-10.pdf)**: _Aptos Contracts_
 - **[October 2022 - Hacken](https://storage.googleapis.com/wormhole-audits/Wormhole_dApp_NEAR_AuditReport_Hacken_2022-10-25.pdf)**: _NEAR Integration_
+- **[November 2022 - Zellic](https://storage.googleapis.com/wormhole-audits/Wormhole_Aptos_Audit_Report_Zellic_2022-11.pdf)**: _Aptos Integration_
 - **Q4 2022 - Halborn (DRAFT)**: _Wormchain_
 - **Q4 2022 - Halborn (DRAFT)**: _Accounting_
 - **Q4 2022 - Certik (DRAFT)**: _Ethereum Contracts_
