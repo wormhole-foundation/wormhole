@@ -111,6 +111,8 @@ spec:
             # - guardian-validator:9090
             # - --wormchainKeyPath
             # - /tmp/mounted-keys/wormchain/wormchainKey
+            # - --accountingWS
+            # - http://guardian-validator:26657
             # - --accountingContract
             # - wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh    
             # - --accountingCheckEnabled=true

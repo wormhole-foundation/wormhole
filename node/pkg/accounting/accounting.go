@@ -62,7 +62,6 @@ type Accounting struct {
 	db                   db.AccountingDB
 	contract             string
 	wsUrl                string
-	lcdUrl               string
 	wormchainConn        *wormconn.ClientConn
 	enforceFlag          bool
 	gk                   *ecdsa.PrivateKey
@@ -82,7 +81,6 @@ func NewAccounting(
 	db db.AccountingDB,
 	contract string, // the address of the smart contract on wormchain
 	wsUrl string, // the URL of the wormchain websocket interface
-	lcdUrl string, // the URL of the wormchain LCD interface
 	wormchainConn *wormconn.ClientConn, // used for communicating with the smart contract
 	enforceFlag bool, // whether or not accounting should be enforced
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
@@ -96,7 +94,6 @@ func NewAccounting(
 		db:               db,
 		contract:         contract,
 		wsUrl:            wsUrl,
-		lcdUrl:           lcdUrl,
 		wormchainConn:    wormchainConn,
 		enforceFlag:      enforceFlag,
 		gk:               gk,

@@ -148,6 +148,7 @@ var (
 	wormchainKeyPath *string
 
 	accountingContract     *string
+	accountingWS           *string
 	accountingCheckEnabled *bool
 
 	aptosRPC     *string
@@ -291,6 +292,7 @@ func init() {
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 
+	accountingWS = NodeCmd.Flags().String("accountingWS", "", "Websocket used to listen to the accounting smart contract on wormchain")
 	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
 	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
 
@@ -960,8 +962,8 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	var acct *accounting.Accounting
 	if *accountingContract != "" {
-		if *wormchainWS == "" {
-			logger.Fatal("acct: if accountingContract is specified, wormchainWS is required")
+		if *accountingWS == "" {
+			logger.Fatal("acct: if accountingContract is specified, accountingWS is required")
 		}
 		if *wormchainLCD == "" {
 			logger.Fatal("acct: if accountingContract is specified, wormchainLCD is required")
@@ -985,8 +987,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger,
 			db,
 			*accountingContract,
-			*wormchainWS,
-			*wormchainLCD,
+			*accountingWS,
 			wormchainConn,
 			*accountingCheckEnabled,
 			gk,
