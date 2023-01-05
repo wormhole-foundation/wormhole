@@ -186,7 +186,7 @@ func SubmitObservationToContract(
 		return nil, fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
 	}
 
-	sig := SignatureType{Index: 0, Signature: sigBytes}
+	sig := SignatureType{Index: gsIndex, Signature: sigBytes}
 
 	msgData := SubmitObservationsMsg{
 		Params: SubmitObservationsParams{
