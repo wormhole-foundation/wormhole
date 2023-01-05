@@ -181,12 +181,12 @@ func SubmitObservationToContract(
 
 	digest := vaa.SigningMsg(bytes)
 
-	SignatureBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
+	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
 		return nil, fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
 	}
 
-	sig := SignatureType{Index: 0, Signature: SignatureBytes}
+	sig := SignatureType{Index: 0, Signature: sigBytes}
 
 	msgData := SubmitObservationsMsg{
 		Params: SubmitObservationsParams{
