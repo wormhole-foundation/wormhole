@@ -112,15 +112,15 @@ func (acct *Accounting) Start(ctx context.Context) error {
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
-	emitterMap := &sdk.KnownTokenbridgeEmitters
+	emitterMap := sdk.KnownTokenbridgeEmitters
 	if acct.env == TestNetMode {
-		emitterMap = &sdk.KnownTestnetTokenbridgeEmitters
+		emitterMap = sdk.KnownTestnetTokenbridgeEmitters
 	} else if acct.env == DevNetMode || acct.env == GoTestMode {
-		emitterMap = &sdk.KnownDevnetTokenbridgeEmitters
+		emitterMap = sdk.KnownDevnetTokenbridgeEmitters
 	}
 
 	// Build the map of token bridges to be monitored.
-	for chainId, emitterAddrBytes := range *emitterMap {
+	for chainId, emitterAddrBytes := range emitterMap {
 		emitterAddr, err := vaa.BytesToAddress(emitterAddrBytes)
 		if err != nil {
 			return fmt.Errorf("failed to convert emitter address for chain: %v", chainId)
@@ -228,8 +228,9 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 	return !acct.enforceFlag, nil
 }
 
-// AuditPending audits the set of pending transfers for any that can be released, or ones that are stuck. This is called from the processor loop
-// each timer interval. Any transfers that can be released will be forwarded to the accounting message channel.
+// AuditPending audits the set of pending transfers for any that have been in the pending state too long. This is called from the processor loop
+// each timer interval. Any transfers that have been in the pending state too long will be resubmitted. Any that has been retried too many times
+// will be logged and dropped.
 func (acct *Accounting) AuditPendingTransfers() {
 	acct.logger.Debug("acct: in AuditPendingTransfers")
 	acct.pendingTransfersLock.Lock()
@@ -319,6 +320,8 @@ func (acct *Accounting) loadPendingTransfers() error {
 
 	if len(acct.pendingTransfers) != 0 {
 		acct.logger.Info("acct: reloaded pending transfers", zap.Int("total", len(acct.pendingTransfers)))
+	} else {
+		acct.logger.Info("acct: no pending transfers to be reloaded")
 	}
 
 	return nil
