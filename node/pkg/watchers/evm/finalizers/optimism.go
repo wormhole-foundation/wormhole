@@ -32,7 +32,6 @@ import (
 
 type OptimismFinalizer struct {
 	logger                 *zap.Logger
-	connector              connectors.Connector
 	l1Finalizer            interfaces.L1Finalizer
 	latestFinalizedL2Block *big.Int
 
@@ -44,13 +43,17 @@ type OptimismFinalizer struct {
 	ctcClient    *ethClient.Client
 
 	// This is used to grab the rollup information from the ctc contract
-	ctcCaller *ctcAbi.OptimismCtcAbiCaller
+	ctcCaller ctcCallerIntf
+}
+
+type ctcCallerIntf interface {
+	GetTotalElements(opts *ethBind.CallOpts) (*big.Int, error)
+	GetLastBlockNumber(opts *ethBind.CallOpts) (*big.Int, error)
 }
 
 func NewOptimismFinalizer(
 	ctx context.Context,
 	logger *zap.Logger,
-	connector connectors.Connector,
 	l1Finalizer interfaces.L1Finalizer,
 	ctcChainUrl string,
 	ctcChainAddress string,
@@ -72,7 +75,6 @@ func NewOptimismFinalizer(
 
 	finalizer := &OptimismFinalizer{
 		logger:                 logger,
-		connector:              connector,
 		l1Finalizer:            l1Finalizer,
 		latestFinalizedL2Block: big.NewInt(0),
 		finalizerMapping:       make([]RollupInfo, 0),
@@ -113,6 +115,10 @@ func (f *OptimismFinalizer) GetRollupInfo(ctx context.Context) (RollupInfo, erro
 }
 
 func (f *OptimismFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
+	if block == nil {
+		return false, fmt.Errorf("block is nil")
+	}
+
 	finalizedL1Block := f.l1Finalizer.GetLatestFinalizedBlockNumber() // Uint64
 	if finalizedL1Block == 0 {
 		// This happens on start up.
