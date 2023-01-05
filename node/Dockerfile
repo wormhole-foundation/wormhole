@@ -18,6 +18,7 @@ RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
 
 COPY node node
 COPY sdk sdk
+COPY wormchain wormchain
 
 ARG GO_BUILD_ARGS=-race
 
