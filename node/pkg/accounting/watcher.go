@@ -27,14 +27,17 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 	acct.logger.Info("acctwatch: creating watcher", zap.String("url", acct.wsUrl), zap.String("contract", acct.contract))
 	tmConn, err := tmHttp.New(acct.wsUrl, "/websocket")
 	if err != nil {
+		connectionErrors.Inc()
 		return fmt.Errorf("failed to establish tendermint connection: %w", err)
 	}
 
 	if err := tmConn.Start(); err != nil {
+		connectionErrors.Inc()
 		return fmt.Errorf("failed to start tendermint connection: %w", err)
 	}
 	defer func() {
 		if err := tmConn.Stop(); err != nil {
+			connectionErrors.Inc()
 			acct.logger.Error("acctwatch: failed to stop tendermint connection", zap.Error(err))
 		}
 	}()
