@@ -6,86 +6,14 @@ import (
 	"fmt"
 	"sync"
 
-	// bookkeepingmodule "github.com/certusone/wormhole/wormchain/x/bookkeeping"
-	// tokenbridgemodule "github.com/certusone/wormhole/wormchain/x/tokenbridge"
-	// wormholemodule "github.com/wormhole-foundation/wormhole/wormchain/x/wormhole"
-	// wormholeclient "github.com/wormhole-foundation/wormhole/wormchain/x/wormhole/client"
-
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/cosmos/cosmos-sdk/types/module"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-	"github.com/cosmos/cosmos-sdk/x/auth"
-
-	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
-	"github.com/cosmos/cosmos-sdk/x/bank"
-	"github.com/cosmos/cosmos-sdk/x/capability"
-
-	"github.com/cosmos/cosmos-sdk/x/crisis"
-	distr "github.com/cosmos/cosmos-sdk/x/distribution"
-
-	"github.com/cosmos/cosmos-sdk/x/evidence"
-	feegrantmodule "github.com/cosmos/cosmos-sdk/x/feegrant/module"
-	"github.com/cosmos/cosmos-sdk/x/genutil"
-	"github.com/cosmos/cosmos-sdk/x/mint"
-
-	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/slashing"
-	"github.com/cosmos/cosmos-sdk/x/staking"
-
-	"github.com/cosmos/cosmos-sdk/x/upgrade"
 
 	"github.com/btcsuite/btcutil/bech32"
-
-	// These are causing a duplicate error panic on start up.
-	// "github.com/cosmos/ibc-go/modules/apps/transfer"
-	// ibc "github.com/cosmos/ibc-go/modules/core"
+	wormchain "github.com/wormhole-foundation/wormchain/app"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-)
-
-// This is copied from wormhole_chain/app/app.go because the cosmos-sdk version
-// used by wormhole-chain conflicts with the one used by terra so we can't use
-// it directly.
-// func getGovProposalHandlers() []govclient.ProposalHandler {
-// 	var govProposalHandlers []govclient.ProposalHandler
-
-// 	govProposalHandlers = append(govProposalHandlers,
-// 		paramsclient.ProposalHandler,
-// 		distrclient.ProposalHandler,
-// 		upgradeclient.ProposalHandler,
-// 		upgradeclient.CancelProposalHandler,
-// 		wormholeclient.GuardianSetUpdateProposalHandler,
-// 		wormholeclient.WormholeGovernanceMessageProposalHandler,
-// 	)
-
-// 	return govProposalHandlers
-// }
-
-// This is copied from wormhole_chain/app/app.go because the cosmos-sdk version
-// used by wormhole-chain conflicts with the one used by terra so we can't use
-// it directly.
-var moduleBasics = module.NewBasicManager(
-	auth.AppModuleBasic{},
-	genutil.AppModuleBasic{},
-	bank.AppModuleBasic{},
-	capability.AppModuleBasic{},
-	staking.AppModuleBasic{},
-	mint.AppModuleBasic{},
-	distr.AppModuleBasic{},
-	// gov.NewAppModuleBasic(getGovProposalHandlers()...),
-	params.AppModuleBasic{},
-	crisis.AppModuleBasic{},
-	slashing.AppModuleBasic{},
-	feegrantmodule.AppModuleBasic{},
-	// ibc.AppModuleBasic{},
-	upgrade.AppModuleBasic{},
-	evidence.AppModuleBasic{},
-	// transfer.AppModuleBasic{},
-	vesting.AppModuleBasic{},
-	// wormholemodule.AppModuleBasic{},
-	// tokenbridgemodule.AppModuleBasic{},
-	// bookkeepingmodule.AppModuleBasic{},
 )
 
 // ClienConn represents a connection to a wormhole-chain endpoint, encapsulating
@@ -115,7 +43,7 @@ func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey)
 		return nil, err
 	}
 
-	encCfg := MakeEncodingConfig(moduleBasics)
+	encCfg := MakeEncodingConfig(wormchain.ModuleBasics)
 
 	publicKey, err := generatePublicKey(privateKey)
 	if err != nil {
