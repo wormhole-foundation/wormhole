@@ -239,14 +239,17 @@ fn handle_observation(
 
     Ok(Some(
         Event::new("Transfer")
-            .add_attribute("tx_hash", o.tx_hash.to_base64())
+            .add_attribute("tx_hash", format!("\"{}\"", o.tx_hash))
             .add_attribute("timestamp", o.timestamp.to_string())
             .add_attribute("nonce", o.nonce.to_string())
             .add_attribute("emitter_chain", o.emitter_chain.to_string())
-            .add_attribute("emitter_address", Address(o.emitter_address).to_string())
+            .add_attribute(
+                "emitter_address",
+                format!("\"{}\"", Address(o.emitter_address)),
+            )
             .add_attribute("sequence", o.sequence.to_string())
             .add_attribute("consistency_level", o.consistency_level.to_string())
-            .add_attribute("payload", o.payload.to_base64()),
+            .add_attribute("payload", format!("\"{}\"", o.payload)),
     ))
 }
 
