@@ -66,7 +66,7 @@ func main() {
 	logger.Info("Connected to wormchain",
 		zap.String("wormchainURL", wormchainURL),
 		zap.String("wormchainKeyPath", wormchainKeyPath),
-		zap.String("publicKey", wormchainConn.PublicKey()),
+		zap.String("senderAddress", wormchainConn.SenderAddress()),
 	)
 
 	logger.Info("Loading guardian key", zap.String("guardianKeyPath", guardianKeyPath))
