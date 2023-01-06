@@ -14,7 +14,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/accounting"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/devnet"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -53,7 +52,7 @@ func main() {
 	contract := "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh"
 	guardianKeyPath := string("./dev.guardian.key")
 
-	wormchainKey, err := devnet.LoadWormchainPrivKey(wormchainKeyPath)
+	wormchainKey, err := wormconn.LoadWormchainPrivKey(wormchainKeyPath, "test0000")
 	if err != nil {
 		logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
 	}

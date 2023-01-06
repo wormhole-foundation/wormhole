@@ -142,10 +142,11 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	wormchainWS      *string
-	wormchainLCD     *string
-	wormchainURL     *string
-	wormchainKeyPath *string
+	wormchainWS            *string
+	wormchainLCD           *string
+	wormchainURL           *string
+	wormchainKeyPath       *string
+	wormchainKeyPassPhrase *string // TODO Is there a better way to do this??
 
 	accountingContract     *string
 	accountingWS           *string
@@ -291,6 +292,7 @@ func init() {
 	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
+	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
 
 	accountingWS = NodeCmd.Flags().String("accountingWS", "", "Websocket used to listen to the accounting smart contract on wormchain")
 	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
@@ -925,6 +927,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required")
 		}
 
+		if *wormchainKeyPassPhrase == "" {
+			logger.Fatal("if wormchainURL is specified, wormchainKeyPassPhrase is required")
+		}
+
 		// Load the wormchain key.
 		wormchainKeyPathName := *wormchainKeyPath
 		if *unsafeDevMode {
@@ -936,7 +942,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		logger.Debug("acct: loading key file", zap.String("key path", wormchainKeyPathName))
-		wormchainKey, err = devnet.LoadWormchainPrivKey(wormchainKeyPathName)
+		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *wormchainKeyPassPhrase)
 		if err != nil {
 			logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
 		}

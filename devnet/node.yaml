@@ -111,6 +111,8 @@ spec:
             # - guardian-validator:9090
             # - --wormchainKeyPath
             # - /tmp/mounted-keys/wormchain/wormchainKey
+            # - --wormchainKeyPassPhrase
+            # - test0000
             # - --accountingWS
             # - http://guardian-validator:26657
             # - --accountingContract
