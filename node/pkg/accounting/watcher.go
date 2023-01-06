@@ -2,7 +2,6 @@ package accounting
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
 
 	tmAbci "github.com/tendermint/tendermint/abci/types"
 	tmHttp "github.com/tendermint/tendermint/rpc/client/http"
@@ -103,7 +104,7 @@ func (acct *Accounting) handleEvents(ctx context.Context, evts <-chan tmCoreType
 
 // WasmTransfer represents a transfer event from the smart contract.
 type WasmTransfer struct {
-	TxHash           string      `json:"tx_hash"`
+	TxHashBytes      []byte      `json:"tx_hash"`
 	Timestamp        uint32      `json:"timestamp"`
 	Nonce            uint32      `json:"nonce"`
 	EmitterChain     uint16      `json:"emitter_chain"`
@@ -141,26 +142,13 @@ func parseWasmTransfer(logger *zap.Logger, event tmAbci.Event, contractAddress s
 		return nil, fmt.Errorf("failed to unmarshal WasmTransfer event: %w", err)
 	}
 
-	// TODO: The TxHash is double base64 encoded, so we need to decode it one more time. Is this intentional?
-	txHashBytes, err := base64.StdEncoding.DecodeString(evt.TxHash)
-	if err != nil {
-		return nil, fmt.Errorf("failed to base64 decode TxHash: %s: %w", evt.TxHash, err)
-	}
-	evt.TxHash = hex.EncodeToString(txHashBytes)
-
 	return evt, nil
 }
 
 // processPendingTransfer takes a WasmTransfer event, determines if we are expecting it, and if so, publishes it.
 func (acct *Accounting) processPendingTransfer(xfer *WasmTransfer) {
-	txHash, err := vaa.StringToHash(xfer.TxHash)
-	if err != nil {
-		acct.logger.Error("acctwatch: tx_hash in transfer cannot decode tx hash hex", zap.String("value", xfer.TxHash))
-		return
-	}
-
 	acct.logger.Info("acctwatch: transfer event detected",
-		zap.Stringer("tx_hash", txHash),
+		zap.String("tx_hash", hex.EncodeToString(xfer.TxHashBytes)),
 		zap.Uint32("timestamp", xfer.Timestamp),
 		zap.Uint32("nonce", xfer.Nonce),
 		zap.Stringer("emitter_chain", vaa.ChainID(xfer.EmitterChain)),
@@ -171,7 +159,7 @@ func (acct *Accounting) processPendingTransfer(xfer *WasmTransfer) {
 	)
 
 	msg := &common.MessagePublication{
-		TxHash:           txHash,
+		TxHash:           ethCommon.BytesToHash(xfer.TxHashBytes),
 		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,

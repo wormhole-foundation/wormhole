@@ -27,6 +27,9 @@ func TestParseWasmTransferFromTestTool(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, xfer)
 
+	expectedTxHash, err := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
+	require.NoError(t, err)
+
 	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
@@ -34,7 +37,7 @@ func TestParseWasmTransferFromTestTool(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResult := WasmTransfer{
-		TxHash:           "82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b",
+		TxHashBytes:      expectedTxHash.Bytes(),
 		Timestamp:        1672932998,
 		Nonce:            0,
 		EmitterChain:     uint16(vaa.ChainIDEthereum),
@@ -58,6 +61,9 @@ func TestParseWasmTransferFromPortalBridge(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, xfer)
 
+	expectedTxHash, err := vaa.StringToHash("67fdcbba7211f80659ed0bd88ca1861f431e3b1dd91df4ee1efccbd35be84abe")
+	require.NoError(t, err)
+
 	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
@@ -65,7 +71,7 @@ func TestParseWasmTransferFromPortalBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResult := WasmTransfer{
-		TxHash:           "67fdcbba7211f80659ed0bd88ca1861f431e3b1dd91df4ee1efccbd35be84abe",
+		TxHashBytes:      expectedTxHash.Bytes(),
 		Timestamp:        9507,
 		Nonce:            554303744,
 		EmitterChain:     uint16(vaa.ChainIDEthereum),
