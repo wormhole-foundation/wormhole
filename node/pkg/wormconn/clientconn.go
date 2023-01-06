@@ -25,11 +25,11 @@ import (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer
 // to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ClientConn struct {
-	c          *grpc.ClientConn
-	encCfg     EncodingConfig
-	privateKey cryptotypes.PrivKey
-	publicKey  string
-	mutex      sync.Mutex // Protects the account / sequence number
+	c             *grpc.ClientConn
+	encCfg        EncodingConfig
+	privateKey    cryptotypes.PrivKey
+	senderAddress string
+	mutex         sync.Mutex // Protects the account / sequence number
 }
 
 // NewConn creates a new connection to the wormhole-chain instance at `target`.
@@ -45,16 +45,16 @@ func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey)
 
 	encCfg := MakeEncodingConfig(wormchain.ModuleBasics)
 
-	publicKey, err := generatePublicKey(privateKey)
+	senderAddress, err := generateSenderAddress(privateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ClientConn{c: c, encCfg: encCfg, privateKey: privateKey, publicKey: publicKey}, nil
+	return &ClientConn{c: c, encCfg: encCfg, privateKey: privateKey, senderAddress: senderAddress}, nil
 }
 
-func (c *ClientConn) PublicKey() string {
-	return c.publicKey
+func (c *ClientConn) SenderAddress() string {
+	return c.senderAddress
 }
 
 // Close terminates the connection and frees up resources.
@@ -73,8 +73,8 @@ func (c *ClientConn) BroadcastTxResponseToString(txResp *sdktx.BroadcastTxRespon
 	return string(out), nil
 }
 
-// generatePublicKey creates the public key from the private key. It is based on https://pkg.go.dev/github.com/btcsuite/btcutil/bech32#Encode
-func generatePublicKey(privateKey cryptotypes.PrivKey) (string, error) {
+// generateSenderAddress creates the sender address from the private key. It is based on https://pkg.go.dev/github.com/btcsuite/btcutil/bech32#Encode
+func generateSenderAddress(privateKey cryptotypes.PrivKey) (string, error) {
 	data, err := hex.DecodeString(privateKey.PubKey().Address().String())
 	if err != nil {
 		return "", fmt.Errorf("failed to generate public key, failed to hex decode string: %w", err)

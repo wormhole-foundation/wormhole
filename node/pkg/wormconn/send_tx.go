@@ -21,7 +21,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 
 	authClient := auth.NewQueryClient(c.c)
 	accountQuery := &auth.QueryAccountRequest{
-		Address: c.publicKey,
+		Address: c.senderAddress,
 	}
 	resp, err := authClient.Account(ctx, accountQuery)
 	if err != nil {

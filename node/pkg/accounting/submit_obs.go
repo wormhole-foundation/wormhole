@@ -202,7 +202,7 @@ func SubmitObservationToContract(
 	}
 
 	subMsg := wasmdtypes.MsgExecuteContract{
-		Sender:   wormchainConn.PublicKey(),
+		Sender:   wormchainConn.SenderAddress(),
 		Contract: contract,
 		Msg:      msgBytes,
 		Funds:    sdktypes.Coins{},
