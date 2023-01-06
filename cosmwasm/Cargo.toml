@@ -9,6 +9,7 @@ members = [
     "packages/accounting",
     "contracts/wormchain-accounting",
     "packages/wormhole-bindings",
+    "packages/cw_transcode",
 ]
 
 # Needed to prevent unwanted feature unification between normal builds and dev builds.  See
@@ -28,6 +29,7 @@ overflow-checks = true
 
 [patch.crates-io]
 accounting = { path = "packages/accounting" }
+cw_transcode = { path = "packages/cw_transcode" }
 cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
 serde_wormhole = { path = "../sdk/rust/serde_wormhole" }
 token-bridge-terra-2 = { path = "contracts/token-bridge" }
