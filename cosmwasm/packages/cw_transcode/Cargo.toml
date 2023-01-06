@@ -1,0 +1,15 @@
+[package]
+name = "cw_transcode"
+version = "0.1.0"
+authors = ["Wormhole Project Contributors"]
+edition = "2021"
+
+[dependencies]
+cosmwasm-std = "1"
+serde = { version = "1", default-features = false }
+serde-json-wasm = "0.4"
+thiserror = "1"
+
+[dev-dependencies]
+hex = { version = "0.4", features = ["serde"] }
+serde_bytes = "0.11"
