@@ -44,6 +44,13 @@
           "pub_key": null,
           "account_number": "0",
           "sequence": "0"
+        },
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "address": "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
+          "pub_key": null,
+          "account_number": "0",
+          "sequence": "0"
         }
       ]
     },
@@ -64,6 +71,15 @@
         },
         {
           "address": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
+          "coins": [
+            {
+              "denom": "utest",
+              "amount": "20000"
+            }
+          ]
+        },
+        {
+          "address": "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
           "coins": [
             {
               "denom": "utest",
