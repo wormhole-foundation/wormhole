@@ -2,11 +2,10 @@ package finalizers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
-
-	ethClient "github.com/ethereum/go-ethereum/ethclient"
 
 	"go.uber.org/zap"
 )
@@ -16,20 +15,22 @@ import (
 // Neon team on 11/12/2022. Also confirmed that they do not have a websocket interface so we need to poll for log events.
 type NeonFinalizer struct {
 	logger      *zap.Logger
-	connector   connectors.Connector
 	l1Finalizer interfaces.L1Finalizer
 }
 
-func NewNeonFinalizer(logger *zap.Logger, connector connectors.Connector, client *ethClient.Client, l1Finalizer interfaces.L1Finalizer) *NeonFinalizer {
+func NewNeonFinalizer(logger *zap.Logger, l1Finalizer interfaces.L1Finalizer) *NeonFinalizer {
 	return &NeonFinalizer{
 		logger:      logger,
-		connector:   connector,
 		l1Finalizer: l1Finalizer,
 	}
 }
 
 // IsBlockFinalized compares the number of the Neon block with the latest finalized block on Solana.
 func (f *NeonFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
+	if block == nil {
+		return false, fmt.Errorf("block is nil")
+	}
+
 	latestL1Block := f.l1Finalizer.GetLatestFinalizedBlockNumber()
 	if latestL1Block == 0 {
 		// This happens on start up.

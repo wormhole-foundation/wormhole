@@ -42,16 +42,20 @@ func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finaliz
 		publishSafeBlocks: publishSafeBlocks,
 		finalizer:         finalizer,
 	}
-	err := supervisor.Run(ctx, "blockPoller", connector.run)
+	err := supervisor.Run(ctx, "blockPoller", connector.runFromSupervisor)
 	if err != nil {
 		return nil, err
 	}
 	return connector, nil
 }
 
-func (b *BlockPollConnector) run(ctx context.Context) error {
+func (b *BlockPollConnector) runFromSupervisor(ctx context.Context) error {
 	logger := supervisor.Logger(ctx).With(zap.String("eth_network", b.Connector.NetworkName()))
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
+	return b.run(ctx, logger)
+}
 
+func (b *BlockPollConnector) run(ctx context.Context, logger *zap.Logger) error {
 	lastBlock, err := b.getBlock(ctx, logger, nil, false)
 	if err != nil {
 		return err
@@ -66,7 +70,6 @@ func (b *BlockPollConnector) run(ctx context.Context) error {
 	}
 
 	timer := time.NewTimer(time.Millisecond) // Start immediately.
-	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	for {
 		select {

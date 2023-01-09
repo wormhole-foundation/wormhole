@@ -12,13 +12,15 @@ use serde::Serialize;
 use wormchain_accounting::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, QueryMsg, TransferResponse,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MissingObservationsResponse,
+        QueryMsg, TransferResponse,
     },
     state,
 };
 use wormhole::{
+    token::{Action, GovernancePacket},
     vaa::{Body, Header, Signature},
-    Vaa,
+    Address, Chain, Vaa,
 };
 use wormhole_bindings::{fake, WormholeQuery};
 
@@ -174,6 +176,20 @@ impl Contract {
             .wrap()
             .query_wasm_smart(self.addr(), &QueryMsg::ChainRegistration { chain })
     }
+
+    pub fn query_missing_observations(
+        &self,
+        guardian_set: u32,
+        index: u8,
+    ) -> StdResult<MissingObservationsResponse> {
+        self.app.wrap().query_wasm_smart(
+            self.addr(),
+            &QueryMsg::MissingObservations {
+                guardian_set,
+                index,
+            },
+        )
+    }
 }
 
 const USER: &str = "USER";
@@ -256,4 +272,27 @@ pub fn sign_vaa_body<P: Serialize>(wh: &fake::WormholeKeeper, body: Body<P>) -> 
     let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
 
     (v, data)
+}
+
+pub fn register_emitters(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {
+    for i in 0..count {
+        let body = Body {
+            timestamp: i as u32,
+            nonce: i as u32,
+            emitter_chain: Chain::Solana,
+            emitter_address: wormhole::GOVERNANCE_EMITTER,
+            sequence: i as u64,
+            consistency_level: 0,
+            payload: GovernancePacket {
+                chain: Chain::Any,
+                action: Action::RegisterChain {
+                    chain: (i as u16).into(),
+                    emitter_address: Address([i as u8; 32]),
+                },
+            },
+        };
+
+        let (_, data) = sign_vaa_body(wh, body);
+        contract.submit_vaas(vec![data]).unwrap();
+    }
 }

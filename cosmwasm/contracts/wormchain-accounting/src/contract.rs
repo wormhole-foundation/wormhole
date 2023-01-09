@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use accounting::{
     query_balance, query_modification,
     state::{account, transfer, Modification, TokenAddress, Transfer},
-    validate_transfer,
+    validate_transfer, TransferError,
 };
 use anyhow::{ensure, Context};
 #[cfg(not(feature = "library"))]
@@ -27,8 +27,9 @@ use crate::{
     error::{AnyError, ContractError},
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg, Observation,
-        QueryMsg, TransferResponse, Upgrade,
+        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg,
+        MissingObservation, MissingObservationsResponse, Observation, QueryMsg, TransferResponse,
+        Upgrade,
     },
     state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -118,7 +119,11 @@ fn submit_observations(
 
     let events = observations
         .into_iter()
-        .map(|o| handle_observation(deps.branch(), o, guardian_set_index, quorum, signature))
+        .map(|o| {
+            let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+            handle_observation(deps.branch(), o, guardian_set_index, quorum, signature)
+                .with_context(|| format!("failed to handle observation for key {key}"))
+        })
         .filter_map(Result::transpose)
         .collect::<anyhow::Result<Vec<_>>>()
         .context("failed to handle `Observation`")?;
@@ -146,7 +151,7 @@ fn handle_observation(
             bail!(ContractError::DigestMismatch);
         }
 
-        bail!(ContractError::DuplicateMessage);
+        bail!(TransferError::DuplicateTransfer);
     }
 
     let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
@@ -491,6 +496,12 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::ChainRegistration { chain } => {
             query_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
         }
+        QueryMsg::MissingObservations {
+            guardian_set,
+            index,
+        } => {
+            query_missing_observations(deps, guardian_set, index).and_then(|resp| to_binary(&resp))
+        }
     }
 }
 
@@ -650,4 +661,26 @@ fn query_chain_registration(
     CHAIN_REGISTRATIONS
         .load(deps.storage, chain)
         .map(|address| ChainRegistrationResponse { address })
+}
+
+fn query_missing_observations(
+    deps: Deps<WormholeQuery>,
+    guardian_set: u32,
+    index: u8,
+) -> StdResult<MissingObservationsResponse> {
+    let mut missing = Vec::new();
+    for pending in PENDING_TRANSFERS.range(deps.storage, None, None, Order::Ascending) {
+        let (_, v) = pending?;
+        for data in v {
+            if data.guardian_set_index() == guardian_set && !data.has_signature(index) {
+                let o = data.observation();
+                missing.push(MissingObservation {
+                    chain_id: o.emitter_chain,
+                    tx_hash: o.tx_hash.clone(),
+                });
+            }
+        }
+    }
+
+    Ok(MissingObservationsResponse { missing })
 }

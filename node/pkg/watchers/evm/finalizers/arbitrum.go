@@ -7,8 +7,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 
-	ethClient "github.com/ethereum/go-ethereum/ethclient"
-
 	"go.uber.org/zap"
 )
 
@@ -17,20 +15,22 @@ import (
 
 type ArbitrumFinalizer struct {
 	logger      *zap.Logger
-	connector   connectors.Connector
 	l1Finalizer interfaces.L1Finalizer
 }
 
-func NewArbitrumFinalizer(logger *zap.Logger, connector connectors.Connector, client *ethClient.Client, l1Finalizer interfaces.L1Finalizer) *ArbitrumFinalizer {
+func NewArbitrumFinalizer(logger *zap.Logger, l1Finalizer interfaces.L1Finalizer) *ArbitrumFinalizer {
 	return &ArbitrumFinalizer{
 		logger:      logger,
-		connector:   connector,
 		l1Finalizer: l1Finalizer,
 	}
 }
 
 // IsBlockFinalized compares the number of the L1 block containing the Arbitrum block with the latest finalized block on Ethereum.
 func (a *ArbitrumFinalizer) IsBlockFinalized(ctx context.Context, block *connectors.NewBlock) (bool, error) {
+	if block == nil {
+		return false, fmt.Errorf("block is nil")
+	}
+
 	if block.L1BlockNumber == nil {
 		return false, fmt.Errorf("l1 block number is nil")
 	}

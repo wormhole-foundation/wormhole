@@ -2298,6 +2298,7 @@ dependencies = [
  "serde",
  "serde_wormhole",
  "sha3 0.10.6",
+ "thiserror",
 ]
 
 [[package]]

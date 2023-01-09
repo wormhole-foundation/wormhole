@@ -1,11 +1,15 @@
 package vaa
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -47,6 +51,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "terra2", output: ChainIDTerra2},
 		{input: "injective", output: ChainIDInjective},
 		{input: "arbitrum", output: ChainIDArbitrum},
+		{input: "pythnet", output: ChainIDPythNet},
+		{input: "optimism", output: ChainIDOptimism},
 		{input: "xpla", output: ChainIDXpla},
 		{input: "btc", output: ChainIDBtc},
 
@@ -73,6 +79,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Injective", output: ChainIDInjective},
 		{input: "Arbitrum", output: ChainIDArbitrum},
 		{input: "Optimism", output: ChainIDOptimism},
+		{input: "Pythnet", output: ChainIDPythNet},
 		{input: "XPLA", output: ChainIDXpla},
 		{input: "BTC", output: ChainIDBtc},
 		{input: "Wormchain", output: ChainIDWormchain},
@@ -110,16 +117,33 @@ func TestAddress_MarshalJSON(t *testing.T) {
 }
 
 func TestAddress_UnmarshalJSON(t *testing.T) {
-	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-
-	b, err := addr.MarshalJSON()
-	require.NoError(t, err)
-
-	var unmarshalAddr Address
-	err = unmarshalAddr.UnmarshalJSON(b)
-	require.NoError(t, err)
-
-	assert.Equal(t, addr, unmarshalAddr)
+	tests := []struct {
+		name        string
+		address     Address
+		addressJSON string
+		err         error
+	}{
+		{
+			name:        "working",
+			addressJSON: "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
+			address:     Address{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x90, 0xfb, 0x16, 0x72, 0x8, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78, 0x1, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0xc, 0x16},
+			err:         nil,
+		},
+		{
+			name:        "failure",
+			addressJSON: "derp",
+			address:     Address{},
+			err:         hex.InvalidByteError(0x72),
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			var unmarshalAddr Address
+			err := unmarshalAddr.UnmarshalJSON([]byte(testCase.addressJSON))
+			require.Equal(t, testCase.err, err)
+			assert.Equal(t, testCase.address, unmarshalAddr)
+		})
+	}
 }
 
 func TestAddress_Unmarshal(t *testing.T) {
@@ -224,9 +248,11 @@ func TestChainId_String(t *testing.T) {
 		{input: 22, output: "aptos"},
 		{input: 23, output: "arbitrum"},
 		{input: 24, output: "optimism"},
+		{input: 26, output: "pythnet"},
 		{input: 28, output: "xpla"},
 		{input: 29, output: "btc"},
 		{input: 3104, output: "wormchain"},
+		{input: 10000, output: "unknown chain ID: 10000"},
 	}
 
 	for _, tc := range tests {
@@ -822,6 +848,147 @@ func TestIsTransfer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(string(tc.label), func(t *testing.T) {
 			assert.Equal(t, tc.result, IsTransfer(tc.payload))
+		})
+	}
+}
+
+func TestUnmarshalBody(t *testing.T) {
+	addr, _ := StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	testPayload := []byte("Hi")
+	tests := []struct {
+		name        string
+		data        []byte
+		vaa         *VAA
+		err         error
+		expectedVAA *VAA
+		dataFunc    func() []byte
+	}{
+		{
+			name: "invalid_timestamp",
+			dataFunc: func() []byte {
+				return []byte("Hi")
+			},
+			err: fmt.Errorf("failed to read timestamp: %w", errors.New("unexpected EOF")),
+		},
+		{
+			name: "invalid_nonce",
+			err:  fmt.Errorf("failed to read nonce: %w", errors.New("EOF")),
+			vaa:  &VAA{},
+			dataFunc: func() []byte {
+				buf := new(bytes.Buffer)
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				return buf.Bytes()
+			},
+		},
+		{
+			name: "invalid_emmitter_chain",
+			err:  fmt.Errorf("failed to read emitter chain: %w", errors.New("EOF")),
+			vaa:  &VAA{},
+			dataFunc: func() []byte {
+				buf := new(bytes.Buffer)
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(123))
+				return buf.Bytes()
+			},
+		},
+		{
+			name: "invalid_emmitter_address",
+			err:  fmt.Errorf("failed to read emitter address [0]: %w", errors.New("EOF")),
+			vaa:  &VAA{},
+			dataFunc: func() []byte {
+				buf := new(bytes.Buffer)
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(123))
+				MustWrite(buf, binary.BigEndian, ChainIDPythNet)
+				return buf.Bytes()
+			},
+		},
+		{
+			name: "invalid_sequence_number",
+			err:  fmt.Errorf("failed to read sequence: %w", errors.New("EOF")),
+			vaa:  &VAA{},
+			dataFunc: func() []byte {
+				buf := new(bytes.Buffer)
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(123))
+				MustWrite(buf, binary.BigEndian, ChainIDBSC)
+				buf.Write(addr[:])
+				return buf.Bytes()
+			},
+		},
+		{
+			name: "invalid_consistency_level",
+			err:  fmt.Errorf("failed to read commitment: %w", errors.New("EOF")),
+			vaa:  &VAA{},
+			dataFunc: func() []byte {
+				buf := new(bytes.Buffer)
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(123))
+				MustWrite(buf, binary.BigEndian, ChainIDBSC)
+				buf.Write(addr[:])
+				MustWrite(buf, binary.BigEndian, uint64(42))
+				return buf.Bytes()
+			},
+		},
+		{
+			name: "has_payload",
+			err:  nil,
+			vaa:  &VAA{},
+			expectedVAA: &VAA{
+				Nonce:            uint32(123),
+				Sequence:         uint64(42),
+				ConsistencyLevel: uint8(1),
+				EmitterChain:     ChainIDBSC,
+				Timestamp:        time.Unix(0, 0),
+				EmitterAddress:   addr,
+				Payload:          testPayload,
+			},
+			dataFunc: func() []byte {
+				buf := new(bytes.Buffer)
+				MustWrite(buf, binary.BigEndian, uint32(0))
+				MustWrite(buf, binary.BigEndian, uint32(123))
+				MustWrite(buf, binary.BigEndian, ChainIDBSC)
+				buf.Write(addr[:])
+				MustWrite(buf, binary.BigEndian, uint64(42))
+				MustWrite(buf, binary.BigEndian, uint8(1))
+				buf.Write(testPayload)
+				return buf.Bytes()
+			},
+		},
+		{
+			name: "has_empty_payload",
+			err:  nil,
+			vaa:  &VAA{},
+			expectedVAA: &VAA{
+				Nonce:            uint32(123),
+				Sequence:         uint64(42),
+				ConsistencyLevel: uint8(1),
+				EmitterChain:     ChainIDBSC,
+				Timestamp:        time.Unix(0, 0),
+				EmitterAddress:   addr,
+				Payload:          []byte{},
+			},
+			dataFunc: func() []byte {
+				buf := new(bytes.Buffer)
+				MustWrite(buf, binary.BigEndian, uint32(0))
+				MustWrite(buf, binary.BigEndian, uint32(123))
+				MustWrite(buf, binary.BigEndian, ChainIDBSC)
+				buf.Write(addr[:])
+				MustWrite(buf, binary.BigEndian, uint64(42))
+				MustWrite(buf, binary.BigEndian, uint8(1))
+				buf.Write([]byte{})
+				return buf.Bytes()
+			},
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			testBytes := testCase.dataFunc()
+			body, err := UnmarshalBody(testCase.data, bytes.NewReader(testBytes), testCase.vaa)
+			require.Equal(t, testCase.err, err)
+			if err == nil {
+				assert.Equal(t, testCase.expectedVAA, body)
+			}
 		})
 	}
 }

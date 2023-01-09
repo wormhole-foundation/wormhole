@@ -53,6 +53,13 @@ impl Data {
         &self.signatures
     }
 
+    /// Returns true if there is a signature associated with `index` in this `Data`.
+    pub fn has_signature(&self, index: u8) -> bool {
+        self.signatures
+            .binary_search_by_key(&index, |s| s.index)
+            .is_ok()
+    }
+
     /// Adds `sig` to the list of signatures for this transfer data.  Returns true if `sig`
     /// was successfully added or false if `sig` was already in the signature list.
     pub fn add_signature(&mut self, sig: Signature) -> Result<(), DuplicateSignatureError> {

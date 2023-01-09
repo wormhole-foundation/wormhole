@@ -148,6 +148,8 @@ pub enum QueryMsg {
     ValidateTransfer { transfer: Transfer },
     #[returns(ChainRegistrationResponse)]
     ChainRegistration { chain: u16 },
+    #[returns(MissingObservationsResponse)]
+    MissingObservations { guardian_set: u32, index: u8 },
 }
 
 #[cw_serde]
@@ -180,4 +182,15 @@ pub struct ChainRegistrationResponse {
 pub struct TransferResponse {
     pub data: transfer::Data,
     pub digest: Binary,
+}
+
+#[cw_serde]
+pub struct MissingObservationsResponse {
+    pub missing: Vec<MissingObservation>,
+}
+
+#[cw_serde]
+pub struct MissingObservation {
+    pub chain_id: u16,
+    pub tx_hash: Binary,
 }
