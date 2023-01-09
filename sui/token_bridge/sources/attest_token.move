@@ -98,7 +98,7 @@ module token_bridge::attest_token_test{
                 ctx(&mut test)
             );
 
-            assert!(asset_meta::get_decimals(&asset_meta)==5, 0);
+            assert!(asset_meta::get_decimals(&asset_meta)==10, 0);
             assert!(asset_meta::get_symbol(&asset_meta)==string32::from_bytes(x"00"), 0);
             assert!(asset_meta::get_name(&asset_meta)==string32::from_bytes(x"11"), 0);
 

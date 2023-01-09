@@ -100,7 +100,6 @@ module token_bridge::wrapped {
         state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         new_wrapped_coin: NewWrappedCoin<CoinType>,
-        //coin_metadata: CoinMetadata<CoinType>,
         ctx: &mut TxContext,
     ) {
         let NewWrappedCoin { id, vaa_bytes, treasury_cap, coin_metadata } = new_wrapped_coin;
@@ -113,8 +112,6 @@ module token_bridge::wrapped {
             ctx
         );
         let payload = core_vaa::destroy(vaa);
-
-        // TODO (pending Mysten Labs uniform token standard) -  extract and store token metadata
 
         let metadata = asset_meta::parse(payload);
         let origin_chain = asset_meta::get_token_chain(&metadata);

@@ -14,7 +14,7 @@ module token_bridge::native_coin_witness {
     fun init(coin_witness: NATIVE_COIN_WITNESS, ctx: &mut TxContext) {
         let (treasury_cap, coin_metadata) = coin::create_currency<NATIVE_COIN_WITNESS>(
             coin_witness,
-            5,
+            10,
             x"00",
             x"11",
             x"22",
