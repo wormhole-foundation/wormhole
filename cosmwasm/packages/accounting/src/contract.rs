@@ -45,7 +45,7 @@ pub fn instantiate<C: CustomQuery>(deps: DepsMut<C>, init: Instantiate) -> anyho
 }
 
 #[derive(ThisError, Debug)]
-pub enum CommitTransferError {
+pub enum TransferError {
     #[error("transfer already committed")]
     DuplicateTransfer,
     #[error("insufficient balance in destination account")]
@@ -58,8 +58,15 @@ pub enum CommitTransferError {
     MissingWrappedAccount,
 }
 
+/// Validates a transfer without committing it to the on-chain state.  If an error occurs that is
+/// not due to the underlying cosmwasm framework, the returned error will be downcastable to
+/// `TransferError`.
+pub fn validate_transfer<C: CustomQuery>(deps: Deps<C>, t: &Transfer) -> anyhow::Result<()> {
+    transfer(deps, t).map(drop)
+}
+
 /// Commits a transfer to the on-chain state.  If an error occurs that is not due to the underlying
-/// cosmwasm framework, the returned error will be downcastable to `CommitTransferError`.
+/// cosmwasm framework, the returned error will be downcastable to `TransferError`.
 ///
 /// # Examples
 ///
@@ -68,7 +75,7 @@ pub enum CommitTransferError {
 /// #     use accounting::{
 /// #         commit_transfer,
 /// #         state::{transfer, Transfer},
-/// #         CommitTransferError,
+/// #         TransferError,
 /// #     };
 /// #     use cosmwasm_std::{testing::mock_dependencies, Uint256};
 /// #
@@ -88,8 +95,8 @@ pub enum CommitTransferError {
 ///       // Repeating the transfer should return an error.
 ///       let err = commit_transfer(deps.as_mut(), tx)
 ///           .expect_err("successfully committed duplicate transfer");
-///       if let Some(e) = err.downcast_ref::<CommitTransferError>() {
-///           assert!(matches!(e, CommitTransferError::DuplicateTransfer));
+///       if let Some(e) = err.downcast_ref::<TransferError>() {
+///           assert!(matches!(e, TransferError::DuplicateTransfer));
 ///       } else {
 ///           println!("framework error: {err:#}");
 ///       }
@@ -100,8 +107,34 @@ pub enum CommitTransferError {
 /// # example().unwrap();
 /// ```
 pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow::Result<Event> {
+    let (src, dst) = transfer(deps.as_ref(), &t)?;
+
+    ACCOUNTS
+        .save(deps.storage, src.key, &src.balance)
+        .context("failed to save updated source account")?;
+    ACCOUNTS
+        .save(deps.storage, dst.key, &dst.balance)
+        .context("failed to save updated destination account")?;
+
+    let evt = Event::new("CommitTransfer")
+        .add_attribute("key", t.key.to_string())
+        .add_attribute("amount", t.data.amount.to_string())
+        .add_attribute("token_chain", t.data.token_chain.to_string())
+        .add_attribute("token_address", t.data.token_address.to_string())
+        .add_attribute("recipient_chain", t.data.recipient_chain.to_string());
+
+    TRANSFERS
+        .save(deps.storage, t.key, &t.data)
+        .context("failed to save `transfer::Data`")?;
+
+    Ok(evt)
+}
+
+// Carries out the transfer described by `t` and returns the updated source and destination
+// accounts.
+fn transfer<C: CustomQuery>(deps: Deps<C>, t: &Transfer) -> anyhow::Result<(Account, Account)> {
     if TRANSFERS.has(deps.storage, t.key.clone()) {
-        bail!(CommitTransferError::DuplicateTransfer);
+        bail!(TransferError::DuplicateTransfer);
     }
 
     let mut src = {
@@ -118,7 +151,7 @@ pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow:
             None => {
                 ensure!(
                     key.chain_id() == key.token_chain(),
-                    CommitTransferError::MissingWrappedAccount
+                    TransferError::MissingWrappedAccount
                 );
 
                 Balance::zero()
@@ -141,7 +174,7 @@ pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow:
             None => {
                 ensure!(
                     key.chain_id() != key.token_chain(),
-                    CommitTransferError::MissingNativeAccount,
+                    TransferError::MissingNativeAccount,
                 );
 
                 Balance::zero()
@@ -151,29 +184,11 @@ pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow:
     };
 
     src.lock_or_burn(t.data.amount)
-        .context(CommitTransferError::InsufficientSourceBalance)?;
+        .context(TransferError::InsufficientSourceBalance)?;
     dst.unlock_or_mint(t.data.amount)
-        .context(CommitTransferError::InsufficientDestinationBalance)?;
+        .context(TransferError::InsufficientDestinationBalance)?;
 
-    ACCOUNTS
-        .save(deps.storage, src.key, &src.balance)
-        .context("failed to save updated source account")?;
-    ACCOUNTS
-        .save(deps.storage, dst.key, &dst.balance)
-        .context("failed to save updated destination account")?;
-
-    let evt = Event::new("CommitTransfer")
-        .add_attribute("key", t.key.to_string())
-        .add_attribute("amount", t.data.amount.to_string())
-        .add_attribute("token_chain", t.data.token_chain.to_string())
-        .add_attribute("token_address", t.data.token_address.to_string())
-        .add_attribute("recipient_chain", t.data.recipient_chain.to_string());
-
-    TRANSFERS
-        .save(deps.storage, t.key, &t.data)
-        .context("failed to save `transfer::Data`")?;
-
-    Ok(evt)
+    Ok((src, dst))
 }
 
 #[derive(ThisError, Debug)]
@@ -439,6 +454,7 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &tx).unwrap();
         let evt = commit_transfer(deps.as_mut(), tx.clone()).unwrap();
 
         let src = account::Key::new(
@@ -488,14 +504,21 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &tx).unwrap();
         commit_transfer(deps.as_mut(), tx.clone()).unwrap();
 
         // Repeating the transfer should return an error and should not change the balances.
+        let e = validate_transfer(deps.as_ref(), &tx).unwrap_err();
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::DuplicateTransfer
+        ));
+
         let e = commit_transfer(deps.as_mut(), tx.clone())
             .expect_err("successfully committed duplicate transfer");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::DuplicateTransfer
+            TransferError::DuplicateTransfer
         ));
 
         let src = account::Key::new(
@@ -528,6 +551,7 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &tx).unwrap();
         commit_transfer(deps.as_mut(), tx.clone()).unwrap();
 
         let rx = Transfer {
@@ -540,6 +564,7 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &rx).unwrap();
         commit_transfer(deps.as_mut(), rx.clone()).unwrap();
 
         let src = account::Key::new(
@@ -573,11 +598,16 @@ mod tests {
             },
         };
 
+        let e = validate_transfer(deps.as_ref(), &tx).unwrap_err();
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::MissingWrappedAccount
+        ));
         let e = commit_transfer(deps.as_mut(), tx)
             .expect_err("successfully committed transfer with missing wrapped account");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::MissingWrappedAccount
+            TransferError::MissingWrappedAccount
         ));
     }
 
@@ -607,11 +637,17 @@ mod tests {
             )
             .unwrap();
 
+        let e = validate_transfer(deps.as_ref(), &tx).unwrap_err();
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::MissingNativeAccount
+        ));
+
         let e = commit_transfer(deps.as_mut(), tx)
             .expect_err("successfully committed transfer with missing native account");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::MissingNativeAccount
+            TransferError::MissingNativeAccount
         ));
     }
 
@@ -634,6 +670,7 @@ mod tests {
                 data: data.clone(),
             };
 
+            validate_transfer(deps.as_ref(), &tx).unwrap();
             commit_transfer(deps.as_mut(), tx).unwrap();
         }
 
@@ -665,6 +702,7 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &tx).unwrap();
         commit_transfer(deps.as_mut(), tx.clone()).unwrap();
 
         // Now transfer some of the wrapped tokens to a new chain.
@@ -678,6 +716,7 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &wrapped).unwrap();
         commit_transfer(deps.as_mut(), wrapped.clone()).unwrap();
 
         // The balance on the original chain should not have changed.
@@ -724,6 +763,7 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &tx).unwrap();
         commit_transfer(deps.as_mut(), tx.clone()).unwrap();
 
         // Now try to transfer back more tokens than were originally sent.
@@ -737,11 +777,17 @@ mod tests {
             },
         };
 
+        let e = validate_transfer(deps.as_ref(), &rx).unwrap_err();
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::InsufficientSourceBalance
+        ));
+
         let e = commit_transfer(deps.as_mut(), rx)
             .expect_err("successfully transferred more tokens than available");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::InsufficientSourceBalance
+            TransferError::InsufficientSourceBalance
         ));
     }
 
@@ -758,6 +804,7 @@ mod tests {
             },
         };
 
+        validate_transfer(deps.as_ref(), &tx).unwrap();
         commit_transfer(deps.as_mut(), tx.clone()).unwrap();
 
         // Artificially increase the wrapped balance so that the check for wrapped tokens passes.
@@ -789,11 +836,17 @@ mod tests {
             },
         };
 
+        let e = validate_transfer(deps.as_ref(), &rx).unwrap_err();
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::InsufficientDestinationBalance
+        ));
+
         let e = commit_transfer(deps.as_mut(), rx)
             .expect_err("successfully transferred more tokens than available");
         assert!(matches!(
             e.downcast().unwrap(),
-            CommitTransferError::InsufficientDestinationBalance
+            TransferError::InsufficientDestinationBalance
         ));
     }
 

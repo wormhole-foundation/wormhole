@@ -43,7 +43,7 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
-          file: ./Dockerfile.node
+          file: ./node/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           target: export

@@ -12,6 +12,7 @@ import {
   deriveGuardianSetKey,
   deriveWormholeBridgeDataKey,
 } from "../accounts";
+import BN from "bn.js";
 
 export function createInitializeInstruction(
   wormholeProgramId: PublicKeyInitData,
@@ -24,8 +25,8 @@ export function createInitializeInstruction(
     wormholeProgramId
   ).methods.initialize(
     guardianSetExpirationTime,
-    fee as any,
-    initialGuardians as any
+    new BN(fee.toString()),
+    [...initialGuardians]
   );
 
   // @ts-ignore

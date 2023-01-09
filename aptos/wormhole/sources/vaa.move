@@ -286,7 +286,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 3)] // E_GUARDIAN_SET_EXPIRED
+    #[expected_failure(abort_code = 3, location = wormhole::vaa)] // E_GUARDIAN_SET_EXPIRED
     /// Ensures that the GOV_VAA can no longer be verified after the guardian set
     /// upgrade after expiry
     public fun test_guardian_set_expired() {
@@ -305,7 +305,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 8)] // E_OLD_GUARDIAN_SET_GOVERNANCE
+    #[expected_failure(abort_code = 8, location = wormhole::vaa)] // E_OLD_GUARDIAN_SET_GOVERNANCE
     /// Ensures that governance GOV_VAAs can only be verified by the latest guardian
     /// set, even if the signer hasn't expired yet
     public fun test_governance_guardian_set_latest() {
@@ -328,7 +328,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 5)] // E_INVALID_GOVERNANCE_EMITTER
+    #[expected_failure(abort_code = 5, location = wormhole::vaa)] // E_INVALID_GOVERNANCE_EMITTER
     /// Ensures that governance GOV_VAAs can only be sent from the correct governance emitter
     public fun test_invalid_governance_emitter() {
         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
@@ -351,7 +351,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)] // E_INVALID_GOVERNANCE_CHAIN
+    #[expected_failure(abort_code = 4, location = wormhole::vaa)] // E_INVALID_GOVERNANCE_CHAIN
     /// Ensures that governance GOV_VAAs can only be sent from the correct governance chain
     public fun test_invalid_governance_chain() {
         let aptos_framework = std::account::create_account_for_test(@aptos_framework);
@@ -389,7 +389,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)] // NO_QUORUM
+    #[expected_failure(abort_code = 0, location = wormhole::vaa)] // NO_QUORUM
     public fun test_no_quorum() {
        setup();
         // do an upgrade
@@ -406,7 +406,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 7)] // E_NON_INCREASING_SIGNERS
+    #[expected_failure(abort_code = 7, location = wormhole::vaa)] // E_NON_INCREASING_SIGNERS
     public fun test_double_signed() {
        setup();
         // do an upgrade
@@ -423,7 +423,7 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)] // E_INVALID_SIGNATURE
+    #[expected_failure(abort_code = 2, location = wormhole::vaa)] // E_INVALID_SIGNATURE
     public fun test_out_of_order_signers() {
        setup();
         // do an upgrade

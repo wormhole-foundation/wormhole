@@ -79,6 +79,9 @@ type (
 		eventChanTxProcessedDuration chan time.Duration
 		eventChan                    chan eventType // whenever a messages is confirmed, post true in here
 
+		// Error channel
+		errC chan error
+
 		// sub-components
 		finalizer Finalizer
 		nearAPI   nearapi.NearApi
@@ -129,8 +132,6 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 
 	highestFinalBlockHeightObserved := finalBlock.Header.Height - 1 // minues one because we still want to process this block, just no blocks before it
 
-	supervisor.Signal(ctx, supervisor.SignalHealthy)
-
 	timer := time.NewTimer(time.Nanosecond) // this is just for the first iteration.
 
 	for {
@@ -180,8 +181,6 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	supervisor.Signal(ctx, supervisor.SignalHealthy)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -207,7 +206,7 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 
 func (e *Watcher) runTxProcessor(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
-	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -252,6 +251,8 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 func (e *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
+	e.errC = make(chan error)
+
 	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC))
 	e.finalizer = newFinalizer(e.eventChan, e.nearAPI, e.mainnet)
 
@@ -262,61 +263,52 @@ func (e *Watcher) Run(ctx context.Context) error {
 	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
 
 	// start metrics reporter
-	err := supervisor.Run(ctx, "metrics", e.runMetrics)
-	if err != nil {
-		return err
-	}
+	common.RunWithScissors(ctx, e.errC, "metrics", e.runMetrics)
 	// start one poller
-	err = supervisor.Run(ctx, "blockPoll", e.runBlockPoll)
-	if err != nil {
-		return err
-	}
+	common.RunWithScissors(ctx, e.errC, "blockPoll", e.runBlockPoll)
 	// start one obsvReqC runner
-	err = supervisor.Run(ctx, "obsvReqProcessor", e.runObsvReqProcessor)
-	if err != nil {
-		return err
-	}
+	common.RunWithScissors(ctx, e.errC, "obsvReqProcessor", e.runObsvReqProcessor)
 	// start `workerCount` many chunkFetcher runners
 	for i := 0; i < workerChunkFetching; i++ {
-		err := supervisor.Run(ctx, fmt.Sprintf("chunk_fetcher_%d", i), e.runChunkFetcher)
-		if err != nil {
-			return err
-		}
+		common.RunWithScissors(ctx, e.errC, fmt.Sprintf("chunk_fetcher_%d", i), e.runChunkFetcher)
 	}
 	// start `workerCount` many transactionProcessing runners
 	for i := 0; i < workerCountTxProcessing; i++ {
-		err := supervisor.Run(ctx, fmt.Sprintf("txProcessor_%d", i), e.runTxProcessor)
-		if err != nil {
-			return err
-		}
+		common.RunWithScissors(ctx, e.errC, fmt.Sprintf("txProcessor_%d", i), e.runTxProcessor)
 	}
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-	<-ctx.Done()
-	return ctx.Err()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-e.errC:
+		return err
+	}
 }
 
 // schedule pushes a job to workers after delay. It is context aware and will not execute the job if the context
 // is cancelled before delay has passed and the job is picked up by a worker.
 func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, delay time.Duration) {
-	go func() {
-		timer := time.NewTimer(delay)
-		defer timer.Stop()
+	common.RunWithScissors(ctx, e.errC, "scheduledThread",
+		func(ctx context.Context) error {
+			timer := time.NewTimer(delay)
+			defer timer.Stop()
 
-		e.transactionProcessingQueueCounter.Add(1)
-		defer e.transactionProcessingQueueCounter.Add(-1)
+			e.transactionProcessingQueueCounter.Add(1)
+			defer e.transactionProcessingQueueCounter.Add(-1)
 
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			// Don't block on processing if the context is cancelled
 			select {
 			case <-ctx.Done():
-				return
-			case e.transactionProcessingQueue <- job:
+				return nil
+			case <-timer.C:
+				// Don't block on processing if the context is cancelled
+				select {
+				case <-ctx.Done():
+					return nil
+				case e.transactionProcessingQueue <- job:
+				}
 			}
-		}
-	}()
+			return nil
+		})
 }

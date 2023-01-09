@@ -20,7 +20,7 @@ export function deriveClaimKey(
     throw Error("address.length != 32");
   }
   const sequenceSerialized = Buffer.alloc(8);
-  sequenceSerialized.writeBigInt64BE(
+  sequenceSerialized.writeBigUInt64BE(
     typeof sequence == "number" ? BigInt(sequence) : sequence
   );
   return deriveAddress(

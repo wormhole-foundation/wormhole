@@ -3,7 +3,6 @@ package wormhole_foundation.wormchain.wormhole;
 
 import "gogoproto/gogo.proto";
 // this line is used by starport scaffolding # proto/tx/import
-import "wormhole/guardian_key.proto";
 
 option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
@@ -30,7 +29,6 @@ message MsgExecuteGovernanceVAAResponse {
 
 message MsgRegisterAccountAsGuardian {
   string signer = 1;
-  GuardianKey guardianPubkey = 2;
   bytes signature = 3;
 }
 

@@ -200,7 +200,7 @@ module token_bridge::wrapped_test {
 
 
     #[test(deployer=@deployer)]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = 0, location = token_bridge::vaa)]
     fun test_create_wrapped_coin_unregistered(deployer: &signer) {
         setup(deployer);
 
@@ -216,7 +216,7 @@ module token_bridge::wrapped_test {
     // This upgrade policy is not enabled in the VM as of writing, but that
     // might well change in the future, so we future proof ourselves here.
     #[test(deployer=@deployer)]
-    #[expected_failure(abort_code = 65537)] // ECOIN_INFO_ADDRESS_MISMATCH
+    #[expected_failure(abort_code = 65537, location = 0000000000000000000000000000000000000000000000000000000000000001::coin)] // ECOIN_INFO_ADDRESS_MISMATCH
     fun test_create_wrapped_coin_bad_type(deployer: &signer) {
         setup(deployer);
         register_chain::submit_vaa(ETHEREUM_TOKEN_REG);

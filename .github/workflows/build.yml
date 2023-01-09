@@ -122,12 +122,16 @@ jobs:
           toolchain: ${{ steps.toolchain.outputs.version }}
           components: "clippy,rustfmt"
 
-      - name: Cache rust packages
+      - name: Cache rust packages / build cache
         uses: actions/cache@v3
         env:
           cache-name: solana-rust-packages
         with:
-          path: ~/.cargo/registry
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git/db
+            solana/target
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('solana/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-

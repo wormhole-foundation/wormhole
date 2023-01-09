@@ -8,13 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var addr = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+var dummyBytes = [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+
 func TestCoreModule(t *testing.T) {
 	hexifiedCoreModule := "00000000000000000000000000000000000000000000000000000000436f7265"
 	assert.Equal(t, hex.EncodeToString(CoreModule), hexifiedCoreModule)
 }
 
 func TestBodyContractUpgrade(t *testing.T) {
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	test := BodyContractUpgrade{ChainID: 1, NewContract: addr}
 	assert.Equal(t, test.ChainID, ChainID(1))
 	assert.Equal(t, test.NewContract, addr)
@@ -32,7 +34,6 @@ func TestBodyGuardianSetUpdate(t *testing.T) {
 
 func TestBodyTokenBridgeRegisterChain(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	test := BodyTokenBridgeRegisterChain{Module: module, ChainID: 1, EmitterAddress: addr}
 	assert.Equal(t, test.Module, module)
 	assert.Equal(t, test.ChainID, ChainID(1))
@@ -41,7 +42,6 @@ func TestBodyTokenBridgeRegisterChain(t *testing.T) {
 
 func TestBodyTokenBridgeUpgradeContract(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	test := BodyTokenBridgeUpgradeContract{Module: module, TargetChainID: 1, NewContract: addr}
 	assert.Equal(t, test.Module, module)
 	assert.Equal(t, test.TargetChainID, ChainID(1))
@@ -49,7 +49,6 @@ func TestBodyTokenBridgeUpgradeContract(t *testing.T) {
 }
 
 func TestBodyContractUpgradeSerialize(t *testing.T) {
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	bodyContractUpgrade := BodyContractUpgrade{ChainID: 1, NewContract: addr}
 	expected := "00000000000000000000000000000000000000000000000000000000436f72650100010000000000000000000000000000000000000000000000000000000000000004"
 	serializedBodyContractUpgrade := bodyContractUpgrade.Serialize()
@@ -69,18 +68,52 @@ func TestBodyGuardianSetUpdateSerialize(t *testing.T) {
 
 func TestBodyTokenBridgeRegisterChainSerialize(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-	bodyTokenBridgeRegisterChain := BodyTokenBridgeRegisterChain{Module: module, ChainID: 1, EmitterAddress: addr}
-	expected := "000000000000000000000000000000000000000000000000000000007465737401000000010000000000000000000000000000000000000000000000000000000000000004"
-	serializedBodyTokenBridgeRegisterChain := bodyTokenBridgeRegisterChain.Serialize()
-	assert.Equal(t, expected, hex.EncodeToString(serializedBodyTokenBridgeRegisterChain))
+	tests := []struct {
+		name     string
+		expected string
+		object   BodyTokenBridgeRegisterChain
+		panic    bool
+	}{
+		{
+			name:     "working_as_expected",
+			panic:    false,
+			object:   BodyTokenBridgeRegisterChain{Module: module, ChainID: 1, EmitterAddress: addr},
+			expected: "000000000000000000000000000000000000000000000000000000007465737401000000010000000000000000000000000000000000000000000000000000000000000004",
+		},
+		{
+			name:     "panic_at_the_disco!",
+			panic:    true,
+			object:   BodyTokenBridgeRegisterChain{Module: "123456789012345678901234567890123", ChainID: 1, EmitterAddress: addr},
+			expected: "module longer than 32 byte",
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			if testCase.panic {
+				assert.PanicsWithValue(t, testCase.expected, func() { testCase.object.Serialize() })
+			} else {
+				assert.Equal(t, testCase.expected, hex.EncodeToString(testCase.object.Serialize()))
+			}
+		})
+	}
 }
 
 func TestBodyTokenBridgeUpgradeContractSerialize(t *testing.T) {
 	module := "test"
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	bodyTokenBridgeUpgradeContract := BodyTokenBridgeUpgradeContract{Module: module, TargetChainID: 1, NewContract: addr}
 	expected := "00000000000000000000000000000000000000000000000000000000746573740200010000000000000000000000000000000000000000000000000000000000000004"
 	serializedBodyTokenBridgeUpgradeContract := bodyTokenBridgeUpgradeContract.Serialize()
 	assert.Equal(t, expected, hex.EncodeToString(serializedBodyTokenBridgeUpgradeContract))
+}
+
+func TestBodyWormchainStoreCodeSerialize(t *testing.T) {
+	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65010c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+	bodyWormchainStoreCode := BodyWormchainStoreCode{WasmHash: dummyBytes}
+	assert.Equal(t, expected, hex.EncodeToString(bodyWormchainStoreCode.Serialize()))
+}
+
+func TestBodyWormchainInstantiateContractSerialize(t *testing.T) {
+	actual := BodyWormchainInstantiateContract{InstantiationParamsHash: dummyBytes}
+	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65020c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+	assert.Equal(t, expected, hex.EncodeToString(actual.Serialize()))
 }

@@ -137,7 +137,7 @@ impl ParsedVAA {
         // Load 4 bytes starting from index 1
         let guardian_set_index: u32 = data.get_u32(Self::GUARDIAN_SET_INDEX_POS);
         let len_signers = data.get_u8(Self::LEN_SIGNER_POS) as usize;
-        let body_offset: usize = Self::HEADER_LEN + Self::SIGNATURE_LEN * len_signers as usize;
+        let body_offset: usize = Self::HEADER_LEN + Self::SIGNATURE_LEN * len_signers;
 
         // Hash the body
         if body_offset >= data.len() {

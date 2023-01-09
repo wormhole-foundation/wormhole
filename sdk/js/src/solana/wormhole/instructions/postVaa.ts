@@ -13,6 +13,7 @@ import {
   derivePostedVaaKey,
 } from "../accounts";
 import { isBytes, ParsedVaa, parseVaa, SignedVaa } from "../../../vaa";
+import BN from "bn.js";
 
 /**
  * Make {@link TransactionInstruction} for `post_vaa` instruction.
@@ -43,8 +44,8 @@ export function createPostVaaInstruction(
     parsed.timestamp,
     parsed.nonce,
     parsed.emitterChain,
-    parsed.emitterAddress as any,
-    parsed.sequence as any,
+    [...parsed.emitterAddress],
+    new BN(parsed.sequence.toString()),
     parsed.consistencyLevel,
     parsed.payload
   );

@@ -1,13 +1,13 @@
+import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId, CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { BCS, FaucetClient } from "aptos";
-import { ethers } from "ethers";
-import yargs from "yargs";
-import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
 import { spawnSync } from 'child_process';
-import { config } from '../config';
+import { ethers } from "ethers";
 import fs from 'fs';
 import sha3 from 'js-sha3';
+import yargs from "yargs";
+import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
+import { config } from '../config';
 import { NETWORKS } from "../networks";
-import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
 
@@ -32,13 +32,13 @@ const network_options = {
 
 const rpc_description = {
   alias: "r",
-  describe: "override default rpc endpoint url",
+  describe: "Override default rpc endpoint url",
   type: "string",
   required: false,
 } as const;
 
 const named_addresses = {
-  describe: "named addresses in the format addr1=0x0,addr2=0x1,...",
+  describe: "Named addresses in the format addr1=0x0,addr2=0x1,...",
   type: "string",
   require: false
 } as const;
@@ -55,24 +55,17 @@ function assertNetwork(n: string): asserts n is Network {
 }
 
 exports.command = 'aptos';
-exports.desc = 'Aptos utilities ';
+exports.desc = 'Aptos utilities';
 exports.builder = function(y: typeof yargs) {
   return y
     .command("init-token-bridge", "Init token bridge contract", (yargs) => {
       return yargs
         .option("network", network_options)
         .option("rpc", rpc_description)
-        // TODO(csongor): once the sdk has this, just use it from there
-        .option("contract-address", {
-          alias: "a",
-          required: true,
-          describe: "Address where the wormhole module is deployed",
-          type: "string",
-        })
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
-      const contract_address = evm_address(argv["contract-address"]);
+      const contract_address = evm_address(CONTRACTS[network].aptos.core);
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(network, rpc, `${contract_address}::token_bridge`, "init", [], []);
     })
@@ -228,11 +221,14 @@ exports.builder = function(y: typeof yargs) {
         })
         .option("network", network_options)
     }, async (argv) => {
-      // TODO(csongor): this should be pulled in from the sdk.
-      let token_bridge_address = Buffer.from("576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f", "hex");
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      let address = CONTRACTS[network].aptos.token_bridge;
+      if (address.startsWith("0x")) address = address.substring(2);
+      const token_bridge_address = Buffer.from(address, "hex");
       assertChain(argv["chain"]);
-      let chain = coalesceChainId(argv["chain"]);
-      let origin_address = Buffer.from(evm_address(argv["origin-address"]), "hex");
+      const chain = coalesceChainId(argv["chain"]);
+      const origin_address = Buffer.from(evm_address(argv["origin-address"]), "hex");
       console.log(deriveWrappedAssetAddress(token_bridge_address, chain, origin_address))
     })
     .command("hash-contracts <package-dir>", "Hash contract bytecodes for upgrade", (yargs) => {
@@ -255,14 +251,6 @@ exports.builder = function(y: typeof yargs) {
         .positional("package-dir", {
           type: "string"
         })
-        // TODO(csongor): once the sdk has the addresses, just look that up
-        // based on the module
-        .option("contract-address", {
-          alias: "a",
-          required: true,
-          describe: "Address where the wormhole module is deployed",
-          type: "string",
-        })
         .option("network", network_options)
         .option("rpc", rpc_description)
         .option("named-addresses", named_addresses)
@@ -277,7 +265,7 @@ exports.builder = function(y: typeof yargs) {
       const hash = await callEntryFunc(
         network,
         rpc,
-        `${argv["contract-address"]}::contract_upgrade`,
+        `${CONTRACTS[network].aptos.core}::contract_upgrade`,
         "upgrade",
         [],
         [
@@ -289,14 +277,6 @@ exports.builder = function(y: typeof yargs) {
     })
     .command("migrate", "Perform migration after contract upgrade", (_yargs) => {
       return yargs
-        // TODO(csongor): once the sdk has the addresses, just look that up
-        // based on the module
-        .option("contract-address", {
-          alias: "a",
-          required: true,
-          describe: "Address where the wormhole module is deployed",
-          type: "string",
-        })
         .option("network", network_options)
         .option("rpc", rpc_description)
     }, async (argv) => {
@@ -308,7 +288,7 @@ exports.builder = function(y: typeof yargs) {
       const hash = await callEntryFunc(
         network,
         rpc,
-        `${argv["contract-address"]}::contract_upgrade`,
+        `${CONTRACTS[network].aptos.core}::contract_upgrade`,
         "migrate",
         [],
         [])
@@ -321,13 +301,19 @@ exports.builder = function(y: typeof yargs) {
         .option("faucet", {
           alias: "f",
           required: false,
-          describe: "faucet url",
+          describe: "Faucet url",
           type: "string",
+        })
+        .option("amount", {
+          alias: "m",
+          required: false,
+          describe: "Amount to request",
+          type: "number",
         })
         .option("account", {
           alias: "a",
           required: false,
-          describe: "account to fund",
+          describe: "Account to fund",
           type: "string",
         })
     },
@@ -335,6 +321,7 @@ exports.builder = function(y: typeof yargs) {
         let NODE_URL = "http://0.0.0.0:8080/v1";
         let FAUCET_URL = "http://0.0.0.0:8081";
         let account = "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
+        let amount = 40000000;
 
         if (argv.faucet != undefined) {
           FAUCET_URL = argv.faucet as string;
@@ -342,13 +329,15 @@ exports.builder = function(y: typeof yargs) {
         if (argv.rpc != undefined) {
           NODE_URL = argv.rpc as string;
         }
+        if (argv.amount != undefined) {
+          amount = argv.amount as number;
+        }
         if (argv.account != undefined) {
           account = argv.account as string;
         }
         const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
-        const coins = 20000000;
-        await faucetClient.fundAccount(account, coins);
-        console.log(`Funded ${account} with ${coins} coins`);
+        await faucetClient.fundAccount(account, amount);
+        console.log(`Funded ${account} with ${amount} coins`);
       })
     .strict().demandCommand();
 }

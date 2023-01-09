@@ -29,6 +29,7 @@ import {
   deriveCustodyKey,
   deriveEndpointKey,
   deriveMintAuthorityKey,
+  deriveRedeemerAccountKey,
   deriveWrappedMintKey,
   getAttestTokenAccounts,
   getCompleteTransferNativeAccounts,
@@ -714,7 +715,8 @@ describe("Token Bridge", () => {
 
     it("getCompleteTransferNativeWithPayloadCpiAccounts", () => {
       const mint = NATIVE_MINT;
-      const mintAta = getAssociatedTokenAddressSync(mint, cpiProgramId, true);
+      const redeemer = deriveRedeemerAccountKey(cpiProgramId);
+      const mintAta = getAssociatedTokenAddressSync(mint, redeemer, true);
 
       const amountEncoded = 42069n;
 
@@ -725,12 +727,13 @@ describe("Token Bridge", () => {
         1,
         amountEncoded,
         1,
-        mintAta.toBuffer().toString("hex"),
+        cpiProgramId.toBuffer().toString("hex"),
         Buffer.alloc(32, 0),
         Buffer.from("All your base are belong to us"),
         nonce,
         timestamp
       );
+      expect(message[51]).to.equal(3);
 
       const signedVaa = guardians.addSignatures(
         message,
@@ -738,11 +741,11 @@ describe("Token Bridge", () => {
       );
 
       const accounts = getCompleteTransferNativeWithPayloadCpiAccounts(
-        cpiProgramId,
         TOKEN_BRIDGE_ADDRESS,
         CORE_BRIDGE_ADDRESS,
         payer,
-        signedVaa
+        signedVaa,
+        mintAta
       );
 
       // verify accounts
@@ -751,7 +754,7 @@ describe("Token Bridge", () => {
         "GnQ6fGttTRnJpAJuy2XEg5TLgEMtbyU4HDJnBWmojsTv"
       );
       expect(accounts.vaa.toString()).to.equal(
-        "4qSDmrTmsUziHvKjjcCpLpfZNaRuxpKcuE95T6875jb1"
+        "GtiCPc4mxBVsrPQVgYnuVUzhuvh24A54KaDZhcP4mhDa"
       );
       expect(accounts.tokenBridgeClaim.toString()).to.equal(
         "HzjTihvhEx7BbKnB2KHATNBwGFCEm2nnMG6c4Pwx6pPE"
@@ -786,7 +789,8 @@ describe("Token Bridge", () => {
         tokenChain,
         tokenAddress
       );
-      const mintAta = getAssociatedTokenAddressSync(mint, cpiProgramId, true);
+      const redeemer = deriveRedeemerAccountKey(cpiProgramId);
+      const mintAta = getAssociatedTokenAddressSync(mint, redeemer, true);
 
       const amount = 4206942069n;
       const recipientChain = 1;
@@ -797,12 +801,13 @@ describe("Token Bridge", () => {
         tokenChain,
         amount,
         recipientChain,
-        mintAta.toBuffer().toString("hex"),
+        cpiProgramId.toBuffer().toString("hex"),
         Buffer.alloc(32, 0),
         Buffer.from("All your base are belong to us"),
         nonce,
         timestamp
       );
+      expect(message[51]).to.equal(3);
 
       const signedVaa = guardians.addSignatures(
         message,
@@ -810,11 +815,11 @@ describe("Token Bridge", () => {
       );
 
       const accounts = getCompleteTransferWrappedWithPayloadCpiAccounts(
-        cpiProgramId,
         TOKEN_BRIDGE_ADDRESS,
         CORE_BRIDGE_ADDRESS,
         payer,
-        signedVaa
+        signedVaa,
+        mintAta
       );
 
       // verify accounts
@@ -823,7 +828,7 @@ describe("Token Bridge", () => {
         "GnQ6fGttTRnJpAJuy2XEg5TLgEMtbyU4HDJnBWmojsTv"
       );
       expect(accounts.vaa.toString()).to.equal(
-        "A51Qrypowzrj4LgSRadTJ8p6ZnXH52oxFG6Su5u2zLPB"
+        "9nFMaAfuXmE4FdJe8koZ4ScvYcJ5znoJPDgT29aVZM1x"
       );
       expect(accounts.tokenBridgeClaim.toString()).to.equal(
         "7Ae57QxvZMwCrknoDWpeaMTLbMP3LBeCJee6KaLEwxP6"

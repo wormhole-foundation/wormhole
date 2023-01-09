@@ -317,35 +317,47 @@ export async function transferFromInjective(
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
-          msg: {},
-          action: "deposit_tokens",
+          exec: {
+            msg: {},
+            action: "deposit_tokens",
+          },
           funds: { denom: tokenAddress, amount },
         }),
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
-          msg: mk_initiate_transfer({ native_token: { denom: tokenAddress } }),
-          action: mk_action,
+          exec: {
+            msg: mk_initiate_transfer({
+              native_token: { denom: tokenAddress },
+            }),
+            action: mk_action,
+          },
         }),
       ]
     : [
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenAddress,
           sender: walletAddress,
-          msg: {
-            spender: tokenBridgeAddress,
-            amount,
-            expires: {
-              never: {},
+          exec: {
+            msg: {
+              spender: tokenBridgeAddress,
+              amount,
+              expires: {
+                never: {},
+              },
             },
+            action: "increase_allowance",
           },
-          action: "increase_allowance",
         }),
         MsgExecuteContractInjective.fromJSON({
           contractAddress: tokenBridgeAddress,
           sender: walletAddress,
-          msg: mk_initiate_transfer({ token: { contract_addr: tokenAddress } }),
-          action: mk_action,
+          exec: {
+            msg: mk_initiate_transfer({
+              token: { contract_addr: tokenAddress },
+            }),
+            action: mk_action,
+          },
         }),
       ];
 }

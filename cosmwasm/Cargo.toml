@@ -7,8 +7,13 @@ members = [
     "contracts/shutdown-token-bridge",
     "contracts/mock-bridge-integration",
     "packages/accounting",
+    "contracts/wormchain-accounting",
     "packages/wormhole-bindings",
 ]
+
+# Needed to prevent unwanted feature unification between normal builds and dev builds.  See
+# https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions for more details.
+resolver = "2"
 
 [profile.release]
 opt-level = 3
@@ -24,6 +29,9 @@ overflow-checks = true
 [patch.crates-io]
 accounting = { path = "packages/accounting" }
 cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
+serde_wormhole = { path = "../sdk/rust/serde_wormhole" }
 token-bridge-terra-2 = { path = "contracts/token-bridge" }
+wormchain-accounting = { path = "contracts/wormchain-accounting" }
 wormhole-bindings = { path = "packages/wormhole-bindings" }
 wormhole-bridge-terra-2 = { path = "contracts/wormhole" }
+wormhole-core = { path = "../sdk/rust/core" }

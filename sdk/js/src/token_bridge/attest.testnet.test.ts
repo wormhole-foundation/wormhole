@@ -1,16 +1,13 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
+import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
-  ChainRestAuthApi,
-  DEFAULT_STD_FEE,
-  MsgExecuteContract,
-  PrivateKey,
-  privateKeyToPublicKeyBase64,
-} from "@injectivelabs/sdk-ts";
-import {
-  createTransaction,
   TxClient,
+  PrivateKey,
   TxGrpcClient,
-} from "@injectivelabs/tx-ts";
+  ChainRestAuthApi,
+  createTransaction,
+  MsgExecuteContract,
+} from "@injectivelabs/sdk-ts";
 import { test } from "@jest/globals";
 import { CONTRACTS } from "..";
 
@@ -18,12 +15,10 @@ test.skip("testnet - injective attest native token", async () => {
   const network = getNetworkInfo(Network.TestnetK8s);
   console.log("Using network:", network);
   const privateKeyHash = process.env.ETH_KEY || "";
-  const privateKey = PrivateKey.fromPrivateKey(privateKeyHash);
+  const privateKey = PrivateKey.fromHex(privateKeyHash);
   const injectiveAddress = privateKey.toBech32();
   console.log("Using wallet:", injectiveAddress);
-  const publicKey = privateKeyToPublicKeyBase64(
-    Buffer.from(privateKeyHash, "hex")
-  );
+  const publicKey = privateKey.toPublicKey().toBase64();
   const isNativeAsset = true;
   const asset = "inj";
   const nonce = 69;
@@ -41,19 +36,21 @@ test.skip("testnet - injective attest native token", async () => {
   const msg = MsgExecuteContract.fromJSON({
     contractAddress: CONTRACTS.TESTNET.injective.token_bridge,
     sender: injectiveAddress,
-    msg: {
-      asset_info: isNativeAsset
-        ? {
-            native_token: { denom: asset },
-          }
-        : {
-            token: {
-              contract_addr: asset,
+    exec: {
+      msg: {
+        asset_info: isNativeAsset
+          ? {
+              native_token: { denom: asset },
+            }
+          : {
+              token: {
+                contract_addr: asset,
+              },
             },
-          },
-      nonce: nonce,
+        nonce: nonce,
+      },
+      action: "create_asset_meta",
     },
-    action: "create_asset_meta",
   });
 
   /** Prepare the Transaction **/
@@ -61,7 +58,10 @@ test.skip("testnet - injective attest native token", async () => {
   const { signBytes, txRaw } = createTransaction({
     message: msg.toDirectSign(),
     memo: "",
-    fee: DEFAULT_STD_FEE,
+    fee: {
+      ...DEFAULT_STD_FEE,
+      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
+    },
     pubKey: publicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -98,7 +98,7 @@ test.skip("testnet - injective attest native token", async () => {
   console.log("Broadcast transaction");
   const txResponse = await txService.broadcast(txRaw);
   console.log(
-    `Broadcasted transaction hash: ${JSON.stringify(txResponse.txhash)}`
+    `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
   );
 
   console.log(txResponse);

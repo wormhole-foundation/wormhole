@@ -74,7 +74,7 @@ export class MockTokenBridge extends MockEmitter {
     fromAddress?: Buffer
   ) {
     const serialized = Buffer.alloc(133);
-    serialized.writeUInt8(1, 0);
+    serialized.writeUInt8(withPayload ? 3 : 1, 0);
     const amountBytes = new BN(amount.toString()).toBuffer();
     serialized.write(
       amountBytes.toString("hex"),

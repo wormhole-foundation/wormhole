@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.8
+
+## Changed
+
+Use BN.toArrayLike for compatibility with browserify and similar tools
+
+## 0.9.7
+
+## Added
+
+solana instruction decoder
+
+## 0.9.6
+
+## Changed
+
+injective dependencies updated
+
+solana token bridge cpi account fixes
+
+solana account and instruction serialization fixes
+
 ## 0.9.5
 
 ### Added

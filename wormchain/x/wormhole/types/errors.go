@@ -30,4 +30,5 @@ var (
 	ErrSignerAlreadyRegistered        = sdkerrors.Register(ModuleName, 1121, "transaction signer already registered as a guardian validator")
 	ErrConsensusSetNotUpdatable       = sdkerrors.Register(ModuleName, 1122, "cannot make changes to active consensus guardian set")
 	ErrInvalidHash                    = sdkerrors.Register(ModuleName, 1123, "could not verify the hash in governance action")
+	ErrGuardianIndexOutOfBounds       = sdkerrors.Register(ModuleName, 1124, "guardian index out of bounds for the guardian set")
 )
