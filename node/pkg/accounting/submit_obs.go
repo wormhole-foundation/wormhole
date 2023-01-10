@@ -159,17 +159,9 @@ func SubmitObservationToContract(
 	contract string,
 	msg *common.MessagePublication,
 ) (*sdktx.BroadcastTxResponse, error) {
-	txHashStr := msg.TxHash.String()
-	if strings.Index(txHashStr, "0x") == 0 {
-		txHashStr = txHashStr[2:]
-	}
-	txHashBytes, err := hex.DecodeString(txHashStr)
-	if err != nil {
-		return nil, fmt.Errorf("acct: failed to decode tx_hash '%s': %w", msg.TxHash.String(), err)
-	}
 	obs := []Observation{
 		Observation{
-			TxHash:           base64.StdEncoding.EncodeToString(txHashBytes),
+			TxHash:           base64.StdEncoding.EncodeToString(msg.TxHash[:]),
 			Timestamp:        uint32(msg.Timestamp.Unix()),
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
@@ -217,7 +209,7 @@ func SubmitObservationToContract(
 	}
 
 	logger.Debug("acct: in SubmitObservationToContract, sending broadcast",
-		zap.String("txHash", txHashStr), zap.String("encTxHash", obs[0].TxHash),
+		zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", obs[0].TxHash),
 		zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[0].Timestamp),
 		zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[0].Nonce),
 		zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[0].EmitterChain),
