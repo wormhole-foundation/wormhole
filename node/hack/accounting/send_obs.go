@@ -108,6 +108,7 @@ func testSubmit(
 	TxHash, _ := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
 	Payload, _ := hex.DecodeString("010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000")
 	gsIndex := uint32(0)
+	guardianIndex := uint32(0)
 
 	msg := common.MessagePublication{
 		TxHash:           TxHash,
@@ -120,7 +121,7 @@ func testSubmit(
 		Payload:          Payload,
 	}
 
-	txResp, err := accounting.SubmitObservationToContract(ctx, logger, gk, gsIndex, wormchainConn, contract, &msg)
+	txResp, err := accounting.SubmitObservationToContract(ctx, logger, gk, gsIndex, guardianIndex, wormchainConn, contract, &msg)
 	if err != nil {
 		logger.Error("acct: failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
 		return false

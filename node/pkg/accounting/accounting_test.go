@@ -11,9 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -31,6 +33,9 @@ func newAccountingForTest(
 ) *Accounting {
 	logger := zap.NewNop()
 	var db db.MockAccountingDB
+
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+
 	gst := common.NewGuardianSetState(nil)
 	gs := &common.GuardianSet{}
 	gst.Set(gs)
@@ -43,7 +48,7 @@ func newAccountingForTest(
 		"none",       // accountingWS
 		nil,          // wormchainConn
 		accountingCheckEnabled,
-		nil, // gk
+		gk,
 		gst,
 		acctWriteC,
 		GoTestMode,

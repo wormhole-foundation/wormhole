@@ -34,7 +34,14 @@ func (acct *Accounting) worker(ctx context.Context) error {
 				continue
 			}
 
-			go acct.submitObservationToContract(msg, gs.Index)
+			guardianIndex, found := gs.KeyIndex(acct.guardianAddr)
+			if !found {
+				acct.logger.Error("acct: unable to send observation request: failed to look up guardian index",
+					zap.String("msgID", msg.MessageIDString()), zap.Stringer("guardianAddr", acct.guardianAddr))
+				continue
+			}
+
+			go acct.submitObservationToContract(msg, gs.Index, uint32(guardianIndex))
 			transfersSubmitted.Inc()
 		}
 	}
@@ -102,10 +109,10 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 
 // submitObservationToContract makes a call to the smart contract to submit an observation request.
 // It should be called from a go routine because it can block.
-func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32) {
+func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
 	msgId := msg.MessageIDString()
 	acct.logger.Debug("acct: in submitObservationToContract", zap.String("msgID", msgId))
-	txResp, err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, acct.wormchainConn, acct.contract, msg)
+	txResp, err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msg)
 	if err != nil {
 		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msgId), zap.Error(err))
 		submitFailures.Inc()
@@ -147,6 +154,7 @@ func SubmitObservationToContract(
 	logger *zap.Logger,
 	gk *ecdsa.PrivateKey,
 	gsIndex uint32,
+	guardianIndex uint32,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
 	msg *common.MessagePublication,
@@ -186,7 +194,7 @@ func SubmitObservationToContract(
 		return nil, fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
 	}
 
-	sig := SignatureType{Index: gsIndex, Signature: sigBytes}
+	sig := SignatureType{Index: guardianIndex, Signature: sigBytes}
 
 	msgData := SubmitObservationsMsg{
 		Params: SubmitObservationsParams{
@@ -218,6 +226,7 @@ func SubmitObservationToContract(
 		zap.Uint8("consistencyLevel", msg.ConsistencyLevel), zap.Uint8("encConsistencyLevel", obs[0].ConsistencyLevel),
 		zap.String("payload", hex.EncodeToString(msg.Payload)), zap.String("encPayload", obs[0].Payload),
 		zap.String("b64String", b64String),
+		zap.Uint32("gsIndex", gsIndex), zap.Uint32("guardianIndex", guardianIndex),
 	)
 
 	txResp, err := wormchainConn.SignAndBroadcastTx(ctx, &subMsg)

@@ -20,6 +20,9 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+
 	"go.uber.org/zap"
 )
 
@@ -66,6 +69,7 @@ type Accounting struct {
 	enforceFlag          bool
 	gk                   *ecdsa.PrivateKey
 	gst                  *common.GuardianSetState
+	guardianAddr         ethCommon.Address
 	msgChan              chan<- *common.MessagePublication
 	tokenBridges         map[tokenBridgeKey]*tokenBridgeEntry
 	pendingTransfersLock sync.Mutex
@@ -98,6 +102,7 @@ func NewAccounting(
 		enforceFlag:      enforceFlag,
 		gk:               gk,
 		gst:              gst,
+		guardianAddr:     ethCrypto.PubkeyToAddress(gk.PublicKey),
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
 		pendingTransfers: make(map[string]*pendingEntry),
