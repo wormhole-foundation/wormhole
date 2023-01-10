@@ -3,7 +3,6 @@ package accounting
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -54,7 +53,7 @@ type (
 
 	SubmitObservationsParams struct {
 		// A serialized `Vec<Observation>`. Multiple observations can be submitted together to reduce  transaction overhead.
-		Observations string `json:"observations"`
+		Observations []byte `json:"observations"`
 
 		// The index of the guardian set used to sign the observations.
 		GuardianSetIndex uint32 `json:"guardian_set_index"`
@@ -72,7 +71,7 @@ type (
 
 	Observation struct {
 		// The hash of the transaction on the emitter chain in which the transfer was performed.
-		TxHash string `json:"tx_hash"`
+		TxHash []byte `json:"tx_hash"`
 
 		// Seconds since UNIX epoch.
 		Timestamp uint32 `json:"timestamp"`
@@ -93,7 +92,7 @@ type (
 		ConsistencyLevel uint8 `json:"consistency_level"`
 
 		// The serialized tokenbridge payload.
-		Payload string `json:"payload"`
+		Payload []byte `json:"payload"`
 	}
 )
 
@@ -161,14 +160,14 @@ func SubmitObservationToContract(
 ) (*sdktx.BroadcastTxResponse, error) {
 	obs := []Observation{
 		Observation{
-			TxHash:           base64.StdEncoding.EncodeToString(msg.TxHash[:]),
+			TxHash:           msg.TxHash.Bytes(),
 			Timestamp:        uint32(msg.Timestamp.Unix()),
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
 			EmitterAddress:   msg.EmitterAddress,
 			Sequence:         msg.Sequence,
 			ConsistencyLevel: msg.ConsistencyLevel,
-			Payload:          base64.StdEncoding.EncodeToString(msg.Payload),
+			Payload:          msg.Payload,
 		},
 	}
 
@@ -176,8 +175,6 @@ func SubmitObservationToContract(
 	if err != nil {
 		return nil, fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
 	}
-
-	b64String := base64.StdEncoding.EncodeToString(bytes)
 
 	digest := vaa.SigningMsg(bytes)
 
@@ -190,7 +187,7 @@ func SubmitObservationToContract(
 
 	msgData := SubmitObservationsMsg{
 		Params: SubmitObservationsParams{
-			Observations:     b64String,
+			Observations:     bytes,
 			GuardianSetIndex: gsIndex,
 			Signature:        sig,
 		},
@@ -209,15 +206,15 @@ func SubmitObservationToContract(
 	}
 
 	logger.Debug("acct: in SubmitObservationToContract, sending broadcast",
-		zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", obs[0].TxHash),
+		zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", hex.EncodeToString(obs[0].TxHash[:])),
 		zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[0].Timestamp),
 		zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[0].Nonce),
 		zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[0].EmitterChain),
 		zap.Stringer("emitterAddress", msg.EmitterAddress), zap.String("encEmitterAddress", hex.EncodeToString(obs[0].EmitterAddress[:])),
 		zap.Uint64("squence", msg.Sequence), zap.Uint64("encSequence", obs[0].Sequence),
 		zap.Uint8("consistencyLevel", msg.ConsistencyLevel), zap.Uint8("encConsistencyLevel", obs[0].ConsistencyLevel),
-		zap.String("payload", hex.EncodeToString(msg.Payload)), zap.String("encPayload", obs[0].Payload),
-		zap.String("b64String", b64String),
+		zap.String("payload", hex.EncodeToString(msg.Payload)), zap.String("encPayload", hex.EncodeToString(obs[0].Payload)),
+		zap.String("observations", string(bytes)),
 		zap.Uint32("gsIndex", gsIndex), zap.Uint32("guardianIndex", guardianIndex),
 	)
 
