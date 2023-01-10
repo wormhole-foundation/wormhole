@@ -297,7 +297,7 @@ module token_bridge::complete_transfer_test {
             let to = admin;
             let amount = 1000000000;
             let fee_amount = 100000000;
-            let decimals = 8;
+            let decimals = 10;
             let token_address = external_address::from_bytes(x"01");
             let token_chain = wormhole_state::get_chain_id(&worm_state);
             let to_chain = wormhole_state::get_chain_id(&worm_state);
@@ -380,7 +380,8 @@ module token_bridge::complete_transfer_test {
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
             let to = admin;
-            let amount = 1000000000; // dust at the end gets rounded to nothing
+            // dust at the end gets rounded to nothing, since 10-8=2 digits are lopped off
+            let amount = 1000000079;
             let fee_amount = 100000000;
             let decimals = 10;
             let token_address = external_address::from_bytes(x"01");
