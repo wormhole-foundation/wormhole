@@ -20,8 +20,9 @@ cosmwasm-schema = "1"
 cosmwasm-std = "1"
 cosmwasm-storage = "1"
 cw-storage-plus = "0.13.2"
+cw_transcode = "0.1.0"
 cw2 = "0.13.2"
-hex = "0.4.3"
+hex = { version = "0.4.3", features = ["serde"] }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 serde_wormhole = "0.1.0"
@@ -34,4 +35,5 @@ wormhole-core = { version = "0.1.0", features = ["schemars"] }
 [dev-dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 cw-multi-test = "0.13.2"
+serde-json-wasm = "0.4"
 wormhole-bindings = { version = "0.1", features = ["fake"] }

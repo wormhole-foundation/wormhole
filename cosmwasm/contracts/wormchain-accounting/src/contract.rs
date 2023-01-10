@@ -18,7 +18,7 @@ use tinyvec::{Array, TinyVec};
 use wormhole::{
     token::{Action, GovernancePacket, Message},
     vaa::{self, Body, Header, Signature},
-    Address, Chain,
+    Chain,
 };
 use wormhole_bindings::WormholeQuery;
 
@@ -237,17 +237,9 @@ fn handle_observation(
     // Now that the transfer has been committed, we don't need to keep it in the pending list.
     key.remove(deps.storage);
 
-    Ok(Some(
-        Event::new("Transfer")
-            .add_attribute("tx_hash", o.tx_hash.to_base64())
-            .add_attribute("timestamp", o.timestamp.to_string())
-            .add_attribute("nonce", o.nonce.to_string())
-            .add_attribute("emitter_chain", o.emitter_chain.to_string())
-            .add_attribute("emitter_address", Address(o.emitter_address).to_string())
-            .add_attribute("sequence", o.sequence.to_string())
-            .add_attribute("consistency_level", o.consistency_level.to_string())
-            .add_attribute("payload", o.payload.to_base64()),
-    ))
+    cw_transcode::to_event(&o)
+        .map(Some)
+        .context("failed to transcode `Observation` to `Event`")
 }
 
 fn modify_balance(

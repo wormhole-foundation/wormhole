@@ -24,6 +24,8 @@ pub struct Observation {
     pub emitter_chain: u16,
 
     // The address on the source chain that emitted this message.
+    #[serde(with = "hex")]
+    #[schemars(with = "String")]
     pub emitter_address: [u8; 32],
 
     // The sequence number of this observation.
