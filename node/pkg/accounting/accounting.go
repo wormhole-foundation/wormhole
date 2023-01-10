@@ -78,6 +78,8 @@ type Accounting struct {
 	env                  int
 }
 
+const subChanSize = 50
+
 // NewAccounting creates a new instance of the Accounting object.
 func NewAccounting(
 	ctx context.Context,
@@ -106,7 +108,7 @@ func NewAccounting(
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
 		pendingTransfers: make(map[string]*pendingEntry),
-		subChan:          make(chan *common.MessagePublication),
+		subChan:          make(chan *common.MessagePublication, subChanSize),
 		env:              env,
 	}
 }
@@ -226,7 +228,7 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 	// This transaction may take a while. Pass it off to the worker so we don't block the processor.
 	if acct.env != GoTestMode {
 		acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
-		acct.subChan <- msg
+		acct.submitObservation(msg)
 	}
 
 	// If we are not enforcing accounting, the event can be published. Otherwise we have to wait to hear back from the contract.
@@ -263,7 +265,7 @@ func (acct *Accounting) AuditPendingTransfers() {
 			)
 
 			pe.updTime = time.Now()
-			acct.subChan <- pe.msg
+			acct.submitObservation(pe.msg)
 		}
 	}
 
@@ -330,4 +332,22 @@ func (acct *Accounting) loadPendingTransfers() error {
 	}
 
 	return nil
+}
+
+// submitObservation sends an observation request to the worker so it can be submited to the contract.
+// If writing to the channel would block, this function resets the timestamp on the entry so it will be
+// retried next audit interval. This method assumes the caller holds the lock.
+func (acct *Accounting) submitObservation(msg *common.MessagePublication) {
+	if len(acct.subChan) < cap(acct.subChan) {
+		acct.subChan <- msg
+	} else {
+		msgId := msg.MessageIDString()
+		acct.logger.Error("acct: unable to submit observation because the channel is full, will try next interval", zap.String("msgId", msgId))
+		pe, exists := acct.pendingTransfers[msgId]
+		if exists {
+			pe.updTime = time.Time{}
+		} else {
+			acct.logger.Error("acct: failed to look up pending transfer", zap.String("msgId", msgId))
+		}
+	}
 }

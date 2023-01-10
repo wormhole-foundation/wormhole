@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	// bookkeeping "github.com/certusone/wormhole-chain/x/bookkeeping/types"
-
 	txclient "github.com/cosmos/cosmos-sdk/client/tx"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
