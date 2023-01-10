@@ -41,7 +41,7 @@ func (acct *Accounting) worker(ctx context.Context) error {
 				continue
 			}
 
-			go acct.submitObservationToContract(msg, gs.Index, uint32(guardianIndex))
+			acct.submitObservationToContract(msg, gs.Index, uint32(guardianIndex))
 			transfersSubmitted.Inc()
 		}
 	}
