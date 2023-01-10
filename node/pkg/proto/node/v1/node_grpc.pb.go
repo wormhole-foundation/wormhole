@@ -46,6 +46,8 @@ type NodePrivilegedServiceClient interface {
 	ChainGovernorResetReleaseTimer(ctx context.Context, in *ChainGovernorResetReleaseTimerRequest, opts ...grpc.CallOption) (*ChainGovernorResetReleaseTimerResponse, error)
 	// PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
 	PurgePythNetVaas(ctx context.Context, in *PurgePythNetVaasRequest, opts ...grpc.CallOption) (*PurgePythNetVaasResponse, error)
+	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
+	SignExistingVAA(ctx context.Context, in *SignExistingVAARequest, opts ...grpc.CallOption) (*SignExistingVAAResponse, error)
 }
 
 type nodePrivilegedServiceClient struct {
@@ -137,6 +139,15 @@ func (c *nodePrivilegedServiceClient) PurgePythNetVaas(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *nodePrivilegedServiceClient) SignExistingVAA(ctx context.Context, in *SignExistingVAARequest, opts ...grpc.CallOption) (*SignExistingVAAResponse, error) {
+	out := new(SignExistingVAAResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/SignExistingVAA", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodePrivilegedServiceServer is the server API for NodePrivilegedService service.
 // All implementations must embed UnimplementedNodePrivilegedServiceServer
 // for forward compatibility
@@ -169,6 +180,8 @@ type NodePrivilegedServiceServer interface {
 	ChainGovernorResetReleaseTimer(context.Context, *ChainGovernorResetReleaseTimerRequest) (*ChainGovernorResetReleaseTimerResponse, error)
 	// PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
 	PurgePythNetVaas(context.Context, *PurgePythNetVaasRequest) (*PurgePythNetVaasResponse, error)
+	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
+	SignExistingVAA(context.Context, *SignExistingVAARequest) (*SignExistingVAAResponse, error)
 	mustEmbedUnimplementedNodePrivilegedServiceServer()
 }
 
@@ -202,6 +215,9 @@ func (UnimplementedNodePrivilegedServiceServer) ChainGovernorResetReleaseTimer(c
 }
 func (UnimplementedNodePrivilegedServiceServer) PurgePythNetVaas(context.Context, *PurgePythNetVaasRequest) (*PurgePythNetVaasResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PurgePythNetVaas not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) SignExistingVAA(context.Context, *SignExistingVAARequest) (*SignExistingVAAResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignExistingVAA not implemented")
 }
 func (UnimplementedNodePrivilegedServiceServer) mustEmbedUnimplementedNodePrivilegedServiceServer() {}
 
@@ -378,6 +394,24 @@ func _NodePrivilegedService_PurgePythNetVaas_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodePrivilegedService_SignExistingVAA_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignExistingVAARequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).SignExistingVAA(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/SignExistingVAA",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).SignExistingVAA(ctx, req.(*SignExistingVAARequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NodePrivilegedService_ServiceDesc is the grpc.ServiceDesc for NodePrivilegedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -420,6 +454,10 @@ var NodePrivilegedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PurgePythNetVaas",
 			Handler:    _NodePrivilegedService_PurgePythNetVaas_Handler,
+		},
+		{
+			MethodName: "SignExistingVAA",
+			Handler:    _NodePrivilegedService_SignExistingVAA_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
