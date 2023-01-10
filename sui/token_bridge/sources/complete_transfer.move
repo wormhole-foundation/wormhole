@@ -424,6 +424,90 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
+    fun test_complete_native_transfer_4_decimals(){
+        let (admin, fee_recipient_person, _) = people();
+        let test = scenario();
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+        next_tx(&mut test, admin);{
+            native_coin_witness_v2::test_init(ctx(&mut test));
+        };
+        // register native asset type with the token bridge
+        next_tx(&mut test, admin);{
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
+            let bridge_state = take_shared<BridgeState>(&test);
+            let worm_state = take_shared<State>(&test);
+            bridge_state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
+                &mut worm_state,
+                &mut bridge_state,
+                &coin_meta,
+                ctx(&mut test)
+            );
+            return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta);
+            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(worm_state);
+        };
+        // create a treasury cap for the native asset type, mint some tokens,
+        // and deposit the native tokens into the token bridge
+        next_tx(&mut test, admin); {
+            let bridge_state = take_shared<BridgeState>(&test);
+            let worm_state = take_shared<State>(&test);
+            let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS_V2>>(&test);
+            let coins = coin::mint<NATIVE_COIN_WITNESS_V2>(&mut t_cap, 10000000000, ctx(&mut test));
+            bridge_state::deposit<NATIVE_COIN_WITNESS_V2>(&mut bridge_state, coins);
+            return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS_V2>>(t_cap);
+            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(worm_state);
+        };
+        // complete transfer, sending native tokens to a recipient address
+        next_tx(&mut test, admin); {
+            let bridge_state = take_shared<BridgeState>(&test);
+            let worm_state = take_shared<State>(&test);
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
+
+            let to = admin;
+            let amount = 100;
+            let fee_amount = 40;
+            let decimals = 4;
+            let token_address = external_address::from_bytes(x"01");
+            let token_chain = wormhole_state::get_chain_id(&worm_state);
+            let to_chain = wormhole_state::get_chain_id(&worm_state);
+
+            let transfer: Transfer = transfer::create(
+                normalized_amount::normalize(amount, decimals),
+                token_address,
+                token_chain,
+                external_address::from_bytes(bcs::to_bytes(&to)),
+                to_chain,
+                normalized_amount::normalize(fee_amount, decimals),
+            );
+
+            complete_transfer::test_complete_transfer_native<NATIVE_COIN_WITNESS_V2>(
+                &transfer,
+                &mut worm_state,
+                &mut bridge_state,
+                &coin_meta,
+                fee_recipient_person,
+                ctx(&mut test)
+            );
+            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(worm_state);
+            return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta);
+        };
+
+        // check balances after
+        next_tx(&mut test, admin);{
+            let coins = take_from_address<Coin<NATIVE_COIN_WITNESS_V2>>(&test, admin);
+            assert!(coin::value<NATIVE_COIN_WITNESS_V2>(&coins) == 60, 0);
+            return_to_address<Coin<NATIVE_COIN_WITNESS_V2>>(admin, coins);
+
+            let fee_coins = take_from_address<Coin<NATIVE_COIN_WITNESS_V2>>(&test, fee_recipient_person);
+            assert!(coin::value<NATIVE_COIN_WITNESS_V2>(&fee_coins) == 40, 0);
+            return_to_address<Coin<NATIVE_COIN_WITNESS_V2>>(fee_recipient_person, fee_coins);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
     #[expected_failure(abort_code = 4, location=0000000000000000000000000000000000000000::bridge_state)] // E_ORIGIN_CHAIN_MISMATCH
     fun test_complete_native_transfer_wrong_origin_chain(){
         let (admin, fee_recipient_person, _) = people();
