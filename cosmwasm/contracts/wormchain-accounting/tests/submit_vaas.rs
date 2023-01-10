@@ -91,12 +91,9 @@ fn basic() {
         assert_eq!(data, tx.data);
         assert_eq!(&digest[..], &*tx.digest);
         resp.assert_event(
-            &Event::new("wasm-CommitTransfer")
-                .add_attribute("key", key.to_string())
-                .add_attribute("amount", data.amount.to_string())
-                .add_attribute("token_chain", data.token_chain.to_string())
-                .add_attribute("token_address", data.token_address.to_string())
-                .add_attribute("recipient_chain", data.recipient_chain.to_string()),
+            &Event::new("wasm-Transfer")
+                .add_attribute("key", serde_json_wasm::to_string(&key).unwrap())
+                .add_attribute("data", serde_json_wasm::to_string(&data).unwrap()),
         );
     }
 }
@@ -250,12 +247,9 @@ fn transfer_with_payload() {
     assert_eq!(data, tx.data);
     assert_eq!(&digest[..], &*tx.digest);
     resp.assert_event(
-        &Event::new("wasm-CommitTransfer")
-            .add_attribute("key", key.to_string())
-            .add_attribute("amount", data.amount.to_string())
-            .add_attribute("token_chain", data.token_chain.to_string())
-            .add_attribute("token_address", data.token_address.to_string())
-            .add_attribute("recipient_chain", data.recipient_chain.to_string()),
+        &Event::new("wasm-Transfer")
+            .add_attribute("key", serde_json_wasm::to_string(&key).unwrap())
+            .add_attribute("data", serde_json_wasm::to_string(&data).unwrap()),
     );
 }
 

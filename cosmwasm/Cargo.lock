@@ -11,9 +11,11 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
+ "cw_transcode",
  "hex",
  "schemars",
  "serde",
+ "serde-json-wasm",
  "thiserror",
 ]
 
@@ -2257,9 +2259,11 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus",
  "cw2",
+ "cw_transcode",
  "hex",
  "schemars",
  "serde",
+ "serde-json-wasm",
  "serde_wormhole",
  "thiserror",
  "tinyvec",

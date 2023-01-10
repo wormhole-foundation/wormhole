@@ -116,12 +116,7 @@ pub fn commit_transfer<C: CustomQuery>(deps: DepsMut<C>, t: Transfer) -> anyhow:
         .save(deps.storage, dst.key, &dst.balance)
         .context("failed to save updated destination account")?;
 
-    let evt = Event::new("CommitTransfer")
-        .add_attribute("key", t.key.to_string())
-        .add_attribute("amount", t.data.amount.to_string())
-        .add_attribute("token_chain", t.data.token_chain.to_string())
-        .add_attribute("token_address", t.data.token_address.to_string())
-        .add_attribute("recipient_chain", t.data.recipient_chain.to_string());
+    let evt = cw_transcode::to_event(&t).context("failed to transcode `Transfer` to `Event`")?;
 
     TRANSFERS
         .save(deps.storage, t.key, &t.data)
@@ -269,14 +264,7 @@ pub fn modify_balance<C: CustomQuery>(
         .save(deps.storage, msg.sequence, &msg)
         .context("failed to store `Modification`")?;
 
-    Ok(Event::new("ModifyBalance")
-        .add_attribute("sequence", msg.sequence.to_string())
-        .add_attribute("chain_id", msg.chain_id.to_string())
-        .add_attribute("token_chain", msg.token_chain.to_string())
-        .add_attribute("token_address", msg.token_address.to_string())
-        .add_attribute("kind", msg.kind.to_string())
-        .add_attribute("amount", msg.amount)
-        .add_attribute("reason", msg.reason))
+    cw_transcode::to_event(&msg).context("failed to transcode `Modification` to `Event`")
 }
 
 /// Query the balance for the account associated with `key`.
@@ -471,22 +459,10 @@ mod tests {
         );
         assert_eq!(tx.data.amount, *query_balance(deps.as_ref(), dst).unwrap());
 
-        assert_eq!(evt.ty, "CommitTransfer");
-        assert_eq!(evt.attributes.len(), 5);
-
-        let attrs = evt
-            .attributes
-            .into_iter()
-            .map(|attr| (attr.key, attr.value))
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(attrs["key"], tx.key.to_string());
-        assert_eq!(attrs["amount"], tx.data.amount.to_string());
-        assert_eq!(attrs["token_chain"], tx.data.token_chain.to_string());
-        assert_eq!(attrs["token_address"], tx.data.token_address.to_string());
-        assert_eq!(
-            attrs["recipient_chain"],
-            tx.data.recipient_chain.to_string()
-        );
+        let expected = Event::new("Transfer")
+            .add_attribute("key", serde_json_wasm::to_string(&tx.key).unwrap())
+            .add_attribute("data", serde_json_wasm::to_string(&tx.data).unwrap());
+        assert_eq!(expected, evt);
 
         assert_eq!(tx.data, query_transfer(deps.as_ref(), tx.key).unwrap());
     }
@@ -870,21 +846,21 @@ mod tests {
 
         assert_eq!(m, query_modification(deps.as_ref(), m.sequence).unwrap());
 
-        assert_eq!(evt.ty, "ModifyBalance");
-        assert_eq!(evt.attributes.len(), 7);
-
-        let attrs = evt
-            .attributes
-            .into_iter()
-            .map(|attr| (attr.key, attr.value))
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(attrs["sequence"], m.sequence.to_string());
-        assert_eq!(attrs["chain_id"], m.chain_id.to_string());
-        assert_eq!(attrs["token_chain"], m.token_chain.to_string());
-        assert_eq!(attrs["token_address"], m.token_address.to_string());
-        assert_eq!(attrs["kind"], m.kind.to_string());
-        assert_eq!(attrs["amount"], m.amount.to_string());
-        assert_eq!(attrs["reason"], m.reason);
+        let expected = Event::new("Modification")
+            .add_attribute("sequence", serde_json_wasm::to_string(&m.sequence).unwrap())
+            .add_attribute("chain_id", serde_json_wasm::to_string(&m.chain_id).unwrap())
+            .add_attribute(
+                "token_chain",
+                serde_json_wasm::to_string(&m.token_chain).unwrap(),
+            )
+            .add_attribute(
+                "token_address",
+                serde_json_wasm::to_string(&m.token_address).unwrap(),
+            )
+            .add_attribute("kind", serde_json_wasm::to_string(&m.kind).unwrap())
+            .add_attribute("amount", serde_json_wasm::to_string(&m.amount).unwrap())
+            .add_attribute("reason", serde_json_wasm::to_string(&m.reason).unwrap());
+        assert_eq!(expected, evt);
     }
 
     #[test]
