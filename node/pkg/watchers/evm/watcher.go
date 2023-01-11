@@ -325,10 +325,12 @@ func (w *Watcher) Run(ctx context.Context) error {
 		}
 	}
 
+	errC := make(chan error)
+
 	// Subscribe to new message publications. We don't use a timeout here because the LogPollConnector
 	// will keep running. Other connectors will use a timeout internally if appropriate.
 	messageC := make(chan *ethabi.AbiLogMessagePublished, 2)
-	messageSub, err := w.ethConn.WatchLogMessagePublished(ctx, messageC)
+	messageSub, err := w.ethConn.WatchLogMessagePublished(ctx, errC, messageC)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "subscribe_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -341,35 +343,33 @@ func (w *Watcher) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to request guardian set: %v", err)
 	}
 
-	errC := make(chan error)
-
 	// Poll for guardian set.
-	go func() {
+	common.RunWithScissors(ctx, errC, "evm_fetch_guardian_set", func(ctx context.Context) error {
 		t := time.NewTicker(15 * time.Second)
 		defer t.Stop()
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case <-t.C:
 				if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
 					errC <- fmt.Errorf("failed to request guardian set: %v", err)
-					return
+					return nil
 				}
 			}
 		}
-	}()
+	})
 
 	// Track the current block numbers so we can compare it to the block number of
 	// the message publication for observation requests.
 	var currentBlockNumber uint64
 	var currentSafeBlockNumber uint64
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "evm_fetch_objs_req", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case r := <-w.obsvReqC:
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
@@ -492,18 +492,18 @@ func (w *Watcher) Run(ctx context.Context) error {
 				}
 			}
 		}
-	}()
+	})
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case err := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing message publication subscription: %w", err)
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return
+				return nil
 			case ev := <-messageC:
 				// Request timestamp for block
 				msm := time.Now()
@@ -517,7 +517,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
 						ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
-					return
+					return nil
 				}
 
 				message := &common.MessagePublication{
@@ -572,27 +572,27 @@ func (w *Watcher) Run(ctx context.Context) error {
 				w.pendingMu.Unlock()
 			}
 		}
-	}()
+	})
 
 	// Watch headers
 	headSink := make(chan *connectors.NewBlock, 2)
-	headerSubscription, err := w.ethConn.SubscribeForBlocks(ctx, headSink)
+	headerSubscription, err := w.ethConn.SubscribeForBlocks(ctx, errC, headSink)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "header_subscribe_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "evm_fetch_headers", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case err := <-headerSubscription.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing header subscription: %w", err)
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return
+				return nil
 			case ev := <-headSink:
 				// These two pointers should have been checked before the event was placed on the channel, but just being safe.
 				if ev == nil {
@@ -767,7 +767,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.String("eth_network", w.networkName))
 			}
 		}
-	}()
+	})
 
 	// Now that the init is complete, peg readiness. That will also happen when we process a new head, but chains
 	// that wait for finality may take a while to receive the first block and we don't want to hold up the init.

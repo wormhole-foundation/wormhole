@@ -6,12 +6,14 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethHexUtils "github.com/ethereum/go-ethereum/common/hexutil"
+
 	"go.uber.org/zap"
 )
 
@@ -164,7 +166,7 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 	return
 }
 
-func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	sub := NewPollSubscription()
 	blockSub := b.blockFeed.Subscribe(sink)
 
@@ -173,23 +175,23 @@ func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, sink chan<-
 	innerErrSink := make(chan string, 10)
 	innerErrSub := b.errFeed.Subscribe(innerErrSink)
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "block_poll_subscribe_for_blocks", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
 				blockSub.Unsubscribe()
 				innerErrSub.Unsubscribe()
-				return
+				return nil
 			case <-sub.quit:
 				blockSub.Unsubscribe()
 				innerErrSub.Unsubscribe()
 				sub.unsubDone <- struct{}{}
-				return
+				return nil
 			case v := <-innerErrSink:
 				sub.err <- fmt.Errorf(v)
 			}
 		}
-	}()
+	})
 	return sub, nil
 }
 

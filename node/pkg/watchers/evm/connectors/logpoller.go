@@ -14,6 +14,7 @@ import (
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
 )
 
@@ -43,7 +44,9 @@ func (l *LogPollConnector) run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx).With(zap.String("eth_network", l.Connector.NetworkName()))
 
 	blockChan := make(chan *NewBlock)
-	sub, err := l.SubscribeForBlocks(ctx, blockChan)
+	errC := make(chan error)
+
+	sub, err := l.SubscribeForBlocks(ctx, errC, blockChan)
 	if err != nil {
 		return err
 	}
@@ -56,6 +59,8 @@ func (l *LogPollConnector) run(ctx context.Context) error {
 			return ctx.Err()
 		case err := <-sub.Err():
 			return err
+		case err := <-errC:
+			return err
 		case block := <-blockChan:
 			if err := l.processBlock(ctx, logger, block); err != nil {
 				l.errFeed.Send(err.Error())
@@ -64,7 +69,7 @@ func (l *LogPollConnector) run(ctx context.Context) error {
 	}
 }
 
-func (l *LogPollConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (l *LogPollConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	sub := NewPollSubscription()
 	messageSub := l.messageFeed.Subscribe(sink)
 
@@ -73,23 +78,23 @@ func (l *LogPollConnector) WatchLogMessagePublished(ctx context.Context, sink ch
 	innerErrSink := make(chan string, 10)
 	innerErrSub := l.errFeed.Subscribe(innerErrSink)
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "log_poll_watch_log", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
 				messageSub.Unsubscribe()
 				innerErrSub.Unsubscribe()
-				return
+				return nil
 			case <-sub.quit:
 				messageSub.Unsubscribe()
 				innerErrSub.Unsubscribe()
 				sub.unsubDone <- struct{}{}
-				return
+				return nil
 			case v := <-innerErrSink:
 				sub.err <- fmt.Errorf(v)
 			}
 		}
-	}()
+	})
 	return sub, nil
 }
 
