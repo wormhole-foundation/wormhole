@@ -43,7 +43,7 @@ func (m mockEVMConnector) ContractAddress() common.Address {
 	panic("unimplemented")
 }
 
-func (m mockEVMConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethabi.AbiLogMessagePublished) (event.Subscription, error) {
+func (m mockEVMConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethabi.AbiLogMessagePublished) (event.Subscription, error) {
 	panic("unimplemented")
 }
 
@@ -59,7 +59,7 @@ func (m mockEVMConnector) ParseLogMessagePublished(log types.Log) (*ethabi.AbiLo
 	panic("unimplemented")
 }
 
-func (m mockEVMConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *connectors.NewBlock) (ethereum.Subscription, error) {
+func (m mockEVMConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *connectors.NewBlock) (ethereum.Subscription, error) {
 	panic("unimplemented")
 }
 

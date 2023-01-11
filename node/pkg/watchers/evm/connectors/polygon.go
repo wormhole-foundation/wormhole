@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	rootAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/polygonabi"
 
@@ -89,7 +90,7 @@ func NewPolygonConnector(
 	return connector, nil
 }
 
-func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	sub := NewPollSubscription()
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -114,11 +115,11 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *
 		return nil, fmt.Errorf("failed to post initial block: %w", err)
 	}
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "polygon_subscribe_for_block", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case err := <-messageSub.Err():
 				sub.err <- err
 			case checkpoint := <-messageC:
@@ -127,7 +128,7 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *
 				}
 			}
 		}
-	}()
+	})
 
 	return sub, nil
 }

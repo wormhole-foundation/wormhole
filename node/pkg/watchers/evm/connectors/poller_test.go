@@ -64,7 +64,7 @@ func (e *mockConnectorForPoller) GetGuardianSet(ctx context.Context, index uint3
 	return ethAbi.StructsGuardianSet{}, fmt.Errorf("not implemented")
 }
 
-func (e *mockConnectorForPoller) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *mockConnectorForPoller) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	var s ethEvent.Subscription
 	return s, fmt.Errorf("not implemented")
 }
@@ -81,7 +81,7 @@ func (e *mockConnectorForPoller) ParseLogMessagePublished(log ethTypes.Log) (*et
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (e *mockConnectorForPoller) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+func (e *mockConnectorForPoller) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	var s ethEvent.Subscription
 	return s, fmt.Errorf("not implemented")
 }
@@ -181,7 +181,9 @@ func TestBlockPoller(t *testing.T) {
 
 	// Subscribe for events to be processed by our go routine.
 	headSink := make(chan *NewBlock, 2)
-	headerSubscription, suberr := poller.SubscribeForBlocks(ctx, headSink)
+	errC := make(chan error)
+
+	headerSubscription, suberr := poller.SubscribeForBlocks(ctx, errC, headSink)
 	require.NoError(t, suberr)
 
 	go func() {
@@ -189,6 +191,10 @@ func TestBlockPoller(t *testing.T) {
 			select {
 			case <-ctx.Done():
 				return
+			case thisErr := <-errC:
+				mutex.Lock()
+				err = thisErr
+				mutex.Unlock()
 			case thisErr := <-headerSubscription.Err():
 				mutex.Lock()
 				err = thisErr

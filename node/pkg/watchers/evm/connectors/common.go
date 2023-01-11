@@ -27,11 +27,11 @@ type Connector interface {
 	ContractAddress() common.Address
 	GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error)
 	GetGuardianSet(ctx context.Context, index uint32) (ethabi.StructsGuardianSet, error)
-	WatchLogMessagePublished(ctx context.Context, sink chan<- *ethabi.AbiLogMessagePublished) (event.Subscription, error)
+	WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethabi.AbiLogMessagePublished) (event.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	TimeOfBlockByHash(ctx context.Context, hash common.Hash) (uint64, error)
 	ParseLogMessagePublished(log types.Log) (*ethabi.AbiLogMessagePublished, error)
-	SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error)
+	SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error)
 	RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error
 }
 

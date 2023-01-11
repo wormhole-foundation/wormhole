@@ -943,7 +943,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			ethWatcher = evm.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC, chainObsvReqC[vaa.ChainIDEthereum], *unsafeDevMode)
 			if err := supervisor.Run(ctx, "ethwatch",
-				ethWatcher.Run); err != nil {
+				common.WrapWithScissors(ethWatcher.Run, "ethwatch")); err != nil {
 				return err
 			}
 		}
@@ -954,7 +954,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			bscWatcher := evm.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil, chainObsvReqC[vaa.ChainIDBSC], *unsafeDevMode)
 			bscWatcher.SetWaitForConfirmations(true)
-			if err := supervisor.Run(ctx, "bscwatch", bscWatcher.Run); err != nil {
+			if err := supervisor.Run(ctx, "bscwatch", common.WrapWithScissors(bscWatcher.Run, "bscwatch")); err != nil {
 				return err
 			}
 		}
@@ -973,7 +973,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			if err := polygonWatcher.SetRootChainParams(*polygonRootChainRpc, *polygonRootChainContractAddress); err != nil {
 				return err
 			}
-			if err := supervisor.Run(ctx, "polygonwatch", polygonWatcher.Run); err != nil {
+			if err := supervisor.Run(ctx, "polygonwatch", common.WrapWithScissors(polygonWatcher.Run, "polygonwatch")); err != nil {
 				return err
 			}
 		}
@@ -982,7 +982,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 			chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "avalanchewatch",
-				evm.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil, chainObsvReqC[vaa.ChainIDAvalanche], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil, chainObsvReqC[vaa.ChainIDAvalanche], *unsafeDevMode).Run, "avalanchewatch")); err != nil {
 				return err
 			}
 		}
@@ -990,7 +990,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Info("Starting Oasis watcher")
 			chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "oasiswatch",
-				evm.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, chainObsvReqC[vaa.ChainIDOasis], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, chainObsvReqC[vaa.ChainIDOasis], *unsafeDevMode).Run, "oasiswatch")); err != nil {
 				return err
 			}
 		}
@@ -999,7 +999,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessAuroraSyncing)
 			chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "aurorawatch",
-				evm.NewEthWatcher(*auroraRPC, auroraContractAddr, "aurora", common.ReadinessAuroraSyncing, vaa.ChainIDAurora, lockC, nil, chainObsvReqC[vaa.ChainIDAurora], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*auroraRPC, auroraContractAddr, "aurora", common.ReadinessAuroraSyncing, vaa.ChainIDAurora, lockC, nil, chainObsvReqC[vaa.ChainIDAurora], *unsafeDevMode).Run, "aurorawatch")); err != nil {
 				return err
 			}
 		}
@@ -1008,7 +1008,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessFantomSyncing)
 			chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "fantomwatch",
-				evm.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", common.ReadinessFantomSyncing, vaa.ChainIDFantom, lockC, nil, chainObsvReqC[vaa.ChainIDFantom], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", common.ReadinessFantomSyncing, vaa.ChainIDFantom, lockC, nil, chainObsvReqC[vaa.ChainIDFantom], *unsafeDevMode).Run, "fantomwatch")); err != nil {
 				return err
 			}
 		}
@@ -1017,7 +1017,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 			chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "karurawatch",
-				evm.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", common.ReadinessKaruraSyncing, vaa.ChainIDKarura, lockC, nil, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", common.ReadinessKaruraSyncing, vaa.ChainIDKarura, lockC, nil, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run, "karurawatch")); err != nil {
 				return err
 			}
 		}
@@ -1026,7 +1026,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 			chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "acalawatch",
-				evm.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", common.ReadinessAcalaSyncing, vaa.ChainIDAcala, lockC, nil, chainObsvReqC[vaa.ChainIDAcala], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", common.ReadinessAcalaSyncing, vaa.ChainIDAcala, lockC, nil, chainObsvReqC[vaa.ChainIDAcala], *unsafeDevMode).Run, "acalawatch")); err != nil {
 				return err
 			}
 		}
@@ -1035,7 +1035,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
 			chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "klaytnwatch",
-				evm.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", common.ReadinessKlaytnSyncing, vaa.ChainIDKlaytn, lockC, nil, chainObsvReqC[vaa.ChainIDKlaytn], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", common.ReadinessKlaytnSyncing, vaa.ChainIDKlaytn, lockC, nil, chainObsvReqC[vaa.ChainIDKlaytn], *unsafeDevMode).Run, "klaytnwatch")); err != nil {
 				return err
 			}
 		}
@@ -1044,7 +1044,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessCeloSyncing)
 			chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "celowatch",
-				evm.NewEthWatcher(*celoRPC, celoContractAddr, "celo", common.ReadinessCeloSyncing, vaa.ChainIDCelo, lockC, nil, chainObsvReqC[vaa.ChainIDCelo], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*celoRPC, celoContractAddr, "celo", common.ReadinessCeloSyncing, vaa.ChainIDCelo, lockC, nil, chainObsvReqC[vaa.ChainIDCelo], *unsafeDevMode).Run, "celowatch")); err != nil {
 				return err
 			}
 		}
@@ -1053,7 +1053,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			readiness.RegisterComponent(common.ReadinessMoonbeamSyncing)
 			chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "moonbeamwatch",
-				evm.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", common.ReadinessMoonbeamSyncing, vaa.ChainIDMoonbeam, lockC, nil, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", common.ReadinessMoonbeamSyncing, vaa.ChainIDMoonbeam, lockC, nil, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run, "moonbeamwatch")); err != nil {
 				return err
 			}
 		}
@@ -1066,7 +1066,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			arbitrumWatcher := evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", common.ReadinessArbitrumSyncing, vaa.ChainIDArbitrum, lockC, nil, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode)
 			arbitrumWatcher.SetL1Finalizer(ethWatcher)
-			if err := supervisor.Run(ctx, "arbitrumwatch", arbitrumWatcher.Run); err != nil {
+			if err := supervisor.Run(ctx, "arbitrumwatch", common.WrapWithScissors(arbitrumWatcher.Run, "arbitrumwatch")); err != nil {
 				return err
 			}
 		}
@@ -1087,7 +1087,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			if err := optimismWatcher.SetRootChainParams(*optimismCtcRpc, *optimismCtcContractAddress); err != nil {
 				return err
 			}
-			if err := supervisor.Run(ctx, "optimismwatch", optimismWatcher.Run); err != nil {
+			if err := supervisor.Run(ctx, "optimismwatch", common.WrapWithScissors(optimismWatcher.Run, "optimismwatch")); err != nil {
 				return err
 			}
 		}
@@ -1220,7 +1220,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				neonWatcher := evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, lockC, nil, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode)
 				neonWatcher.SetL1Finalizer(solanaFinalizedWatcher)
-				if err := supervisor.Run(ctx, "neonwatch", neonWatcher.Run); err != nil {
+				if err := supervisor.Run(ctx, "neonwatch", common.WrapWithScissors(neonWatcher.Run, "neonwatch")); err != nil {
 					return err
 				}
 			}
