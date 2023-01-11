@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.9
+
+## Changed
+
+Use BN.toArrayLike for compatibility with browserify and similar tools in `tokenIdToMint` function
+
 ## 0.9.8
 
 ## Changed

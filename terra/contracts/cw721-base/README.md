@@ -48,7 +48,7 @@ ls -l cw721_base.wasm
 sha256sum cw721_base.wasm
 ```
 
-Or for a production-ready (optimized) build, run a build command in the
+Or for a production-ready (optimized) build, run a build command in 
 the repository root: https://github.com/CosmWasm/cw-plus#compiling.
 
 ## Importing this contract

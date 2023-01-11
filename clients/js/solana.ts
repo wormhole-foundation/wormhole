@@ -172,7 +172,6 @@ export async function execute_solana(
     bridgeId,
     from.publicKey,
     vaa,
-    5
   );
 
   // Then do the actual thing
