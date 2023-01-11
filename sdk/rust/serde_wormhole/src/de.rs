@@ -1,8 +1,11 @@
-use std::{convert::TryFrom, mem::size_of};
+use std::{
+    convert::TryFrom,
+    mem::{self, size_of},
+};
 
 use serde::de::{
-    self, DeserializeSeed, EnumAccess, Error as DeError, IntoDeserializer, MapAccess, SeqAccess,
-    VariantAccess, Visitor,
+    self, value::BorrowedBytesDeserializer, DeserializeSeed, EnumAccess, Error as DeError,
+    IntoDeserializer, MapAccess, SeqAccess, VariantAccess, Visitor,
 };
 
 use crate::error::Error;
@@ -250,13 +253,18 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     #[inline]
     fn deserialize_newtype_struct<V>(
         self,
-        _name: &'static str,
+        name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_newtype_struct(self)
+        if name == crate::raw::TOKEN {
+            let rem = mem::take(&mut self.input);
+            visitor.visit_newtype_struct(BorrowedBytesDeserializer::new(rem))
+        } else {
+            visitor.visit_newtype_struct(self)
+        }
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>

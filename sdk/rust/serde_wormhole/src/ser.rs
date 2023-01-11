@@ -1,6 +1,9 @@
 use std::{convert::TryFrom, fmt::Display, io::Write};
 
-use serde::{ser, Serialize};
+use serde::{
+    ser::{self, Impossible},
+    Serialize,
+};
 
 use crate::Error;
 
@@ -149,16 +152,19 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
         self.writer.write_all(&[v]).map_err(Error::from)
     }
 
-    #[inline]
     fn serialize_newtype_struct<T: ?Sized>(
         self,
-        _name: &'static str,
+        name: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: Serialize,
     {
-        value.serialize(self)
+        if name == crate::raw::TOKEN {
+            value.serialize(RawMessageSerializer(&mut self.writer))
+        } else {
+            value.serialize(self)
+        }
     }
 
     fn serialize_newtype_variant<T: ?Sized>(
@@ -416,6 +422,190 @@ impl<'a, W: Write> ser::SerializeMap for &'a mut Serializer<W> {
     #[inline]
     fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(())
+    }
+}
+
+struct RawMessageSerializer<W>(W);
+
+impl<W: Write> ser::Serializer for RawMessageSerializer<W> {
+    type Ok = ();
+    type Error = Error;
+
+    type SerializeSeq = Impossible<Self::Ok, Self::Error>;
+    type SerializeTuple = Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleStruct = Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = Impossible<Self::Ok, Self::Error>;
+    type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
+
+    fn serialize_bool(self, _v: bool) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_i8(self, _v: i8) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_i16(self, _v: i16) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_i32(self, _v: i32) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_i64(self, _v: i64) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_i128(self, _v: i128) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_u8(self, _v: u8) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_u16(self, _v: u16) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_u32(self, _v: u32) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_u64(self, _v: u64) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_u128(self, _v: u128) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_f64(self, _v: f64) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_char(self, _v: char) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_str(self, _v: &str) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_bytes(mut self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
+        self.0.write_all(v)?;
+        Ok(())
+    }
+
+    fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<Self::Ok, Self::Error>
+    where
+        T: Serialize,
+    {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+    ) -> Result<Self::Ok, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_newtype_struct<T: ?Sized>(
+        self,
+        _name: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        T: Serialize,
+    {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_newtype_variant<T: ?Sized>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        T: Serialize,
+    {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn serialize_struct_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeStructVariant, Self::Error> {
+        Err(ser::Error::custom("expected RawMessage"))
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 }
 
