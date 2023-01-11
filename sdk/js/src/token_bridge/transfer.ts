@@ -16,7 +16,7 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
   Algodv2,
   bigIntToBytes,

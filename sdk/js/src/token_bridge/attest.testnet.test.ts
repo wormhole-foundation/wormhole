@@ -6,7 +6,7 @@ import {
   TxGrpcApi,
   ChainRestAuthApi,
   createTransaction,
-  MsgExecuteContract,
+  MsgExecuteContractCompat,
 } from "@injectivelabs/sdk-ts";
 import { test } from "@jest/globals";
 import { CONTRACTS } from "..";
@@ -33,7 +33,7 @@ test.skip("testnet - injective attest native token", async () => {
 
   /** Prepare the Message */
   console.log("Prepare the message");
-  const msg = MsgExecuteContract.fromJSON({
+  const msg = MsgExecuteContractCompat.fromJSON({
     contractAddress: CONTRACTS.TESTNET.injective.token_bridge,
     sender: injectiveAddress,
     exec: {
