@@ -29,7 +29,7 @@ Then build & deploy the contracts
 At this point you can send messages by running
 
 ``` shell
-ts-node publish_wormhole_message.ts
+worm send-example-message "hi mom"
 ```
 
 ### Upgrades
