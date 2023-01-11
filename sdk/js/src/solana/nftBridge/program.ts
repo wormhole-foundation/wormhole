@@ -35,7 +35,7 @@ export function coder(): NftBridgeCoder {
 }
 
 export function tokenIdToMint(tokenId: bigint) {
-  return new PublicKey(new BN(tokenId.toString()).toBuffer());
+  return new PublicKey(new BN(tokenId.toString()).toArrayLike(Buffer));
 }
 
 export function mintToTokenId(mint: PublicKeyInitData) {
