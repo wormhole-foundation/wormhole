@@ -97,6 +97,7 @@ solNFTBridge=$(jq --raw-output '.chains."1".contracts.nftBridgeEmitterAddress' $
 ethNFTBridge=$(jq --raw-output '.chains."2".contracts.nftBridgeEmitterAddress' $addressesJson)
 terraNFTBridge=$(jq --raw-output '.chains."3".contracts.nftBridgeEmitterAddress' $addressesJson)
 nearNFTBridge=$(jq --raw-output '.chains."15".contracts.nftBridgeEmitterAddress' $addressesJson)
+aptosNFTBridge=$(jq --raw-output '.chains."22".contracts.nftBridgeEmitterAddress' $addressesJson)
 
 # 4) create token bridge registration VAAs
 # invoke CLI commands to create registration VAAs
@@ -117,6 +118,7 @@ solNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBr
 ethNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
 terraNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c terra -a ${terraNFTBridge} -g ${guardiansPrivateCSV})
 nearNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c near -a ${nearNFTBridge} -g ${guardiansPrivateCSV})
+aptosNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c aptos -a ${aptosNFTBridge} -g ${guardiansPrivateCSV})
 
 
 # 6) write the registration VAAs to env files
@@ -136,6 +138,7 @@ solNFTBridge="REGISTER_SOL_NFT_BRIDGE_VAA"
 ethNFTBridge="REGISTER_ETH_NFT_BRIDGE_VAA"
 terraNFTBridge="REGISTER_TERRA_NFT_BRIDGE_VAA"
 nearNFTBridge="REGISTER_NEAR_NFT_BRIDGE_VAA"
+aptosNFTBridge="REGISTER_APTOS_NFT_BRIDGE_VAA"
 
 
 # solana token bridge
@@ -177,6 +180,10 @@ upsert_env_file $envFile $terra2TokenBridge $terra2TokenBridgeVAA
 # aptos token bridge
 upsert_env_file $ethFile $aptosTokenBridge $aptosTokenBridgeVAA
 upsert_env_file $envFile $aptosTokenBridge $aptosTokenBridgeVAA
+
+# aptos nft bridge
+upsert_env_file $ethFile $aptosNFTBridge $aptosNFTBridgeVAA
+upsert_env_file $envFile $aptosNFTBridge $aptosNFTBridgeVAA
 
 # near token bridge
 upsert_env_file $ethFile $nearTokenBridge $nearTokenBridgeVAA

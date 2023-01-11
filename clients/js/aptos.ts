@@ -43,6 +43,21 @@ export async function execute_aptos(
       if (contract === undefined) {
         throw Error("nft bridge contract is undefined")
       }
+      switch (payload.type) {
+        case "ContractUpgrade":
+          console.log("Upgrading contract")
+          await callEntryFunc(network, rpc, `${contract}::contract_upgrade`, "submit_vaa_entry", [], [bcsVAA]);
+          break
+        case "RegisterChain":
+          console.log("Registering chain")
+          await callEntryFunc(network, rpc, `${contract}::register_chain`, "submit_vaa_entry", [], [bcsVAA]);
+          break
+        case "Transfer": {
+          console.log("Completing transfer")
+          await callEntryFunc(network, rpc, `${contract}::complete_transfer`, "submit_vaa_entry", [], [bcsVAA]);
+          break
+        }
+      }
       break
     case "TokenBridge":
       contract = contract ?? CONTRACTS[network][chain]["token_bridge"];

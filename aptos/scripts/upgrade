@@ -30,8 +30,9 @@ fi
 
 WORMHOLE_ADDR=$(worm contract "$NETWORK" aptos Core)
 TOKEN_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos TokenBridge)
+NFT_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos NFTBridge)
 
-NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR"
+NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR,nft_bridge=$NFT_BRIDGE_ADDR"
 
 case "$MODULE" in
     Core)
@@ -39,6 +40,9 @@ case "$MODULE" in
     ;;
     TokenBridge)
         DIR="../token_bridge"
+    ;;
+    NFTBridge)
+        DIR="../nft_bridge"
     ;;
     *) echo "unsupported module $MODULE" >&2
        usage
