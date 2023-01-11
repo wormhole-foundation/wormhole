@@ -1649,8 +1649,10 @@ dependencies = [
 name = "serde_wormhole"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "itoa",
  "serde",
+ "serde_bytes",
  "thiserror",
 ]
 

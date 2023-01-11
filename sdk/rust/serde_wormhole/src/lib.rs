@@ -127,9 +127,11 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod de;
 mod error;
+mod raw;
 mod ser;
 
 pub use error::Error;
+pub use raw::{to_raw_message, RawMessage};
 
 /// Deserialize an instance of type `T` from the provided reader.
 pub fn from_reader<R: Read, T: DeserializeOwned>(mut r: R) -> Result<T, Error> {
