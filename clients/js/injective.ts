@@ -1,5 +1,5 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
-import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
+import { getStdFee, DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
   PrivateKey,
   TxGrpcApi,
@@ -141,10 +141,7 @@ export async function execute_injective(
   const { signBytes, txRaw } = createTransaction({
     message: transaction.toDirectSign(),
     memo: "",
-    fee: {
-      ...DEFAULT_STD_FEE,
-      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
-    },
+    fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
