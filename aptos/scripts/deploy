@@ -38,22 +38,27 @@ fi
 
 WORMHOLE_ADDR=$(worm contract "$NETWORK" aptos Core)
 TOKEN_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos TokenBridge)
+NFT_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos NFTBridge)
 
-NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR"
+NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR,nft_bridge=$NFT_BRIDGE_ADDR"
 
-echo "[1/5] Deploying deployer contract for creating resource accounts..."
+echo "[1/6] Deploying deployer contract for creating resource accounts..."
 worm aptos deploy --network "$NETWORK" ../deployer --named-addresses "$NAMED_ADDRS"
 
-echo "[2/5] Deploying wormhole contract at $WORMHOLE_ADDR..."
+echo "[2/6] Deploying wormhole contract at $WORMHOLE_ADDR..."
 worm aptos deploy-resource wormhole --network "$NETWORK" ../wormhole --named-addresses "$NAMED_ADDRS"
 
-echo "[3/5] Initialising wormhole with guardian(s) $GUARDIAN_ADDR..."
-worm aptos init-wormhole --network "$NETWORK" -g $GUARDIAN_ADDR --contract-address "$WORMHOLE_ADDR"
+echo "[3/6] Initialising wormhole with guardian(s) $GUARDIAN_ADDR..."
+worm aptos init-wormhole --network "$NETWORK" -g $GUARDIAN_ADDR
 
-echo "[4/5] Deploying token bridge contract at $TOKEN_BRIDGE_ADDR..."
+echo "[4/6] Deploying token bridge contract at $TOKEN_BRIDGE_ADDR..."
 worm aptos deploy-resource token_bridge --network "$NETWORK" ../token_bridge --named-addresses "$NAMED_ADDRS"
-echo "[5/5] Initialising token bridge..."
-worm aptos init-token-bridge --network "$NETWORK" --contract-address "$TOKEN_BRIDGE_ADDR"
+
+echo "[5/6] Initialising token bridge..."
+worm aptos init-token-bridge --network "$NETWORK"
+
+echo "[6/6] Deploying (& initialising) NFT bridge contract at $NFT_BRIDGE_ADDR..."
+worm aptos deploy-resource nft_bridge --network "$NETWORK" ../nft_bridge --named-addresses "$NAMED_ADDRS"
 
 if [ "$NETWORK" = devnet ]; then
     echo "[+1] Deploying example contract..."

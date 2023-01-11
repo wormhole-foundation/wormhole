@@ -58,6 +58,9 @@ exports.command = 'aptos';
 exports.desc = 'Aptos utilities';
 exports.builder = function(y: typeof yargs) {
   return y
+  // NOTE: there's no init-nft-bridge, because the native module initialiser
+  // functionality has stabilised on mainnet, so we just use that one (which
+  // gets called automatically)
     .command("init-token-bridge", "Init token bridge contract", (yargs) => {
       return yargs
         .option("network", network_options)
@@ -65,7 +68,7 @@ exports.builder = function(y: typeof yargs) {
     }, async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
-      const contract_address = evm_address(CONTRACTS[network].aptos.core);
+      const contract_address = evm_address(CONTRACTS[network].aptos.token_bridge);
       const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
       await callEntryFunc(network, rpc, `${contract_address}::token_bridge`, "init", [], []);
     })
@@ -91,13 +94,6 @@ exports.builder = function(y: typeof yargs) {
           default: "0x0000000000000000000000000000000000000000000000000000000000000004",
           required: false
         })
-        // TODO(csongor): once the sdk has this, just use it from there
-        .option("contract-address", {
-          alias: "a",
-          required: true,
-          describe: "Address where the wormhole module is deployed",
-          type: "string",
-        })
         .option("guardian-address", {
           alias: "g",
           required: true,
@@ -108,7 +104,7 @@ exports.builder = function(y: typeof yargs) {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
 
-      const contract_address = evm_address(argv["contract-address"]);
+      const contract_address = evm_address(CONTRACTS[network].aptos.core);
       const guardian_addresses = argv["guardian-address"].split(",").map(address => evm_address(address).substring(24));
       const chain_id = argv["chain-id"];
       const governance_address = evm_address(argv["governance-address"]);
@@ -251,6 +247,14 @@ exports.builder = function(y: typeof yargs) {
         .positional("package-dir", {
           type: "string"
         })
+        // TODO(csongor): once the sdk has the addresses, just look that up
+        // based on the module
+        .option("contract-address", {
+          alias: "a",
+          required: true,
+          describe: "Address where the wormhole module is deployed",
+          type: "string",
+        })
         .option("network", network_options)
         .option("rpc", rpc_description)
         .option("named-addresses", named_addresses)
@@ -265,7 +269,7 @@ exports.builder = function(y: typeof yargs) {
       const hash = await callEntryFunc(
         network,
         rpc,
-        `${CONTRACTS[network].aptos.core}::contract_upgrade`,
+        `${argv["contract-address"]}::contract_upgrade`,
         "upgrade",
         [],
         [
@@ -277,6 +281,14 @@ exports.builder = function(y: typeof yargs) {
     })
     .command("migrate", "Perform migration after contract upgrade", (_yargs) => {
       return yargs
+        // TODO(csongor): once the sdk has the addresses, just look that up
+        // based on the module
+        .option("contract-address", {
+          alias: "a",
+          required: true,
+          describe: "Address where the wormhole module is deployed",
+          type: "string",
+        })
         .option("network", network_options)
         .option("rpc", rpc_description)
     }, async (argv) => {
@@ -288,7 +300,7 @@ exports.builder = function(y: typeof yargs) {
       const hash = await callEntryFunc(
         network,
         rpc,
-        `${CONTRACTS[network].aptos.core}::contract_upgrade`,
+        `${argv["contract-address"]}::contract_upgrade`,
         "migrate",
         [],
         [])
