@@ -21,10 +21,12 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/gorilla/websocket"
+
 	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
 
 type (
@@ -141,13 +143,18 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
-	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
+	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "websocket_dial_error").Inc()
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
-	defer c.Close()
+	defer c.Close(websocket.StatusNormalClosure, "")
+
+	// During testing, I got a message larger then the default
+	// 32768.  Increasing this limit effects an internal buffer that is used
+	// to as part of the zero alloc/copy design.
+	c.SetReadLimit(524288)
 
 	// Subscribe to smart contract transactions
 	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", e.contractAddressFilterKey, e.contract)}
@@ -157,7 +164,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		Params:  params,
 		ID:      1,
 	}
-	err = c.WriteJSON(command)
+	err = wsjson.Write(ctx, c, command)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "websocket_subscription_error").Inc()
@@ -165,7 +172,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 
 	// Wait for the success response
-	_, _, err = c.ReadMessage()
+	_, _, err = c.Read(ctx)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "event_subscription_error").Inc()
@@ -175,49 +182,53 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	readiness.SetReady(e.readiness)
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "cosmwasm_block_height", func(ctx context.Context) error {
 		t := time.NewTicker(5 * time.Second)
 		client := &http.Client{
 			Timeout: time.Second * 5,
 		}
 
 		for {
-			<-t.C
-			msm := time.Now()
-			// Query and report height and set currentSlotHeight
-			resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
-			if err != nil {
-				logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
-				continue
-			}
-			blocksBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
-				errC <- err
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-t.C:
+				msm := time.Now()
+				// Query and report height and set currentSlotHeight
+				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
+				if err != nil {
+					logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
+					continue
+				}
+				blocksBody, err := io.ReadAll(resp.Body)
+				if err != nil {
+					logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
+					errC <- err
+					resp.Body.Close()
+					continue
+				}
 				resp.Body.Close()
-				continue
+
+				// Update the prom metrics with how long the http request took to the rpc
+				queryLatency.WithLabelValues(networkName, "block_latest").Observe(time.Since(msm).Seconds())
+
+				blockJSON := string(blocksBody)
+				latestBlock := gjson.Get(blockJSON, "block.header.height")
+				logger.Info("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
+				currentSlotHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
+				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
+					Height:          latestBlock.Int(),
+					ContractAddress: e.contract,
+				})
 			}
-			resp.Body.Close()
-
-			// Update the prom metrics with how long the http request took to the rpc
-			queryLatency.WithLabelValues(networkName, "block_latest").Observe(time.Since(msm).Seconds())
-
-			blockJSON := string(blocksBody)
-			latestBlock := gjson.Get(blockJSON, "block.header.height")
-			logger.Info("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
-			currentSlotHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
-			p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
-				Height:          latestBlock.Int(),
-				ContractAddress: e.contract,
-			})
 		}
-	}()
+	})
 
-	go func() {
+	common.RunWithScissors(ctx, errC, "cosmwasm_objs_req", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case r := <-e.obsvReqC:
 				if vaa.ChainID(r.ChainId) != e.chainID {
 					panic("invalid chain ID")
@@ -267,53 +278,52 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 			}
 		}
-	}()
+	})
 
-	go func() {
-		defer close(errC)
-
+	common.RunWithScissors(ctx, errC, "cosmwasm_data_pump", func(ctx context.Context) error {
 		for {
-			_, message, err := c.ReadMessage()
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				connectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
-				logger.Error("error reading channel", zap.String("network", networkName), zap.Error(err))
-				errC <- err
-				return
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				_, message, err := c.Read(ctx)
+				if err != nil {
+					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+					connectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
+					logger.Error("error reading channel", zap.String("network", networkName), zap.Error(err))
+					errC <- err
+					return nil
+				}
+
+				// Received a message from the blockchain
+				json := string(message)
+
+				txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
+				if !txHashRaw.Exists() {
+					logger.Warn("message does not have tx hash", zap.String("network", networkName), zap.String("payload", json))
+					continue
+				}
+				txHash := txHashRaw.String()
+
+				events := gjson.Get(json, "result.data.value.TxResult.result.events")
+				if !events.Exists() {
+					logger.Warn("message has no events", zap.String("network", networkName), zap.String("payload", json))
+					continue
+				}
+
+				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
+				for _, msg := range msgs {
+					e.msgChan <- msg
+					messagesConfirmed.WithLabelValues(networkName).Inc()
+				}
+
+				// We do not send guardian changes to the processor - ETH guardians are the source of truth.
 			}
-
-			// Received a message from the blockchain
-			json := string(message)
-
-			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
-			if !txHashRaw.Exists() {
-				logger.Warn("message does not have tx hash", zap.String("network", networkName), zap.String("payload", json))
-				continue
-			}
-			txHash := txHashRaw.String()
-
-			events := gjson.Get(json, "result.data.value.TxResult.result.events")
-			if !events.Exists() {
-				logger.Warn("message has no events", zap.String("network", networkName), zap.String("payload", json))
-				continue
-			}
-
-			msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
-			for _, msg := range msgs {
-				e.msgChan <- msg
-				messagesConfirmed.WithLabelValues(networkName).Inc()
-			}
-
-			// We do not send guardian changes to the processor - ETH guardians are the source of truth.
 		}
-	}()
+	})
 
 	select {
 	case <-ctx.Done():
-		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		if err != nil {
-			logger.Error("error on closing socket ", zap.String("network", networkName), zap.Error(err))
-		}
 		return ctx.Err()
 	case err := <-errC:
 		return err
