@@ -76,6 +76,10 @@ contract Messages is Getters {
         uint256 guardianCount = guardianSet.keys.length;
         for (uint i = 0; i < signatures.length; i++) {
             Structs.Signature memory sig = signatures[i];
+            address signatory = ecrecover(hash, sig.v, sig.r, sig.s);
+            // ecrecover returns 0 for invalid signatures. We explicitly require valid signatures to avoid unexpected
+            // behaviour due to the default storage slot value also being 0.
+            require(signatory != address(0), "ecrecover failed with signature");
 
             /// Ensure that provided signature indices are ascending only
             require(i == 0 || sig.guardianIndex > lastIndex, "signature indices must be ascending");
@@ -90,7 +94,7 @@ contract Messages is Getters {
             require(sig.guardianIndex < guardianCount, "guardian index out of bounds");
 
             /// Check to see if the signer of the signature does not match a specific Guardian key at the provided index
-            if(ecrecover(hash, sig.v, sig.r, sig.s) != guardianSet.keys[sig.guardianIndex]){
+            if(signatory != guardianSet.keys[sig.guardianIndex]){
                 return (false, "VM signature invalid");
             }
         }
