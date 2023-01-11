@@ -238,7 +238,9 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: "1.19.3"
-      - run: curl https://get.ignite.com/cli@v0.23.0 | bash && mv ignite /usr/local/bin/
+      - run: wget https://github.com/ignite/cli/releases/download/v0.23.0/ignite_0.23.0_linux_amd64.tar.gz
+      - run: tar xzf ignite_0.23.0_linux_amd64.tar.gz
+      - run : mv ./ignite /usr/local/bin/
       - run: cd wormchain && make proto -B && make test
 
   # Verify go sdk unit tests
