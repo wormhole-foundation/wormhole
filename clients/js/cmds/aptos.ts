@@ -8,8 +8,7 @@ import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from 
 import { config } from '../config';
 import { NETWORKS } from "../networks";
 import { evm_address, hex } from "../consts";
-
-type Network = "MAINNET" | "TESTNET" | "DEVNET"
+import {Network, assertNetwork} from "../utils";
 
 interface Package {
   meta_file: string,
@@ -42,17 +41,6 @@ const named_addresses = {
   type: "string",
   require: false
 } as const;
-
-// TODO(csongor): this could be useful elsewhere
-function assertNetwork(n: string): asserts n is Network {
-  if (
-    n !== "MAINNET" &&
-    n !== "TESTNET" &&
-    n !== "DEVNET"
-  ) {
-    throw Error(`Unknown network: ${n}`);
-  }
-}
 
 exports.command = 'aptos';
 exports.desc = 'Aptos utilities';
