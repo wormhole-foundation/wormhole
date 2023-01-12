@@ -338,9 +338,10 @@ func (acct *Accounting) loadPendingTransfers() error {
 // If writing to the channel would block, this function resets the timestamp on the entry so it will be
 // retried next audit interval. This method assumes the caller holds the lock.
 func (acct *Accounting) submitObservation(msg *common.MessagePublication) {
-	if len(acct.subChan) < cap(acct.subChan) {
-		acct.subChan <- msg
-	} else {
+	select {
+	case acct.subChan <- msg:
+		acct.logger.Debug("acct: submitted observation to channel", zap.String("msgId", msg.MessageIDString()))
+	default:
 		msgId := msg.MessageIDString()
 		acct.logger.Error("acct: unable to submit observation because the channel is full, will try next interval", zap.String("msgId", msgId))
 		pe, exists := acct.pendingTransfers[msgId]
