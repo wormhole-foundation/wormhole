@@ -224,18 +224,6 @@
       {
         "type": "object",
         "required": [
-          "transfer"
-        ],
-        "properties": {
-          "transfer": {
-            "$ref": "#/definitions/Key"
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
           "all_transfers"
         ],
         "properties": {
@@ -262,18 +250,6 @@
               }
             },
             "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "pending_transfer"
-        ],
-        "properties": {
-          "pending_transfer": {
-            "$ref": "#/definitions/Key"
           }
         },
         "additionalProperties": false
@@ -434,6 +410,33 @@
               }
             },
             "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "transfer_status"
+        ],
+        "properties": {
+          "transfer_status": {
+            "$ref": "#/definitions/Key"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "batch_transfer_status"
+        ],
+        "properties": {
+          "batch_transfer_status": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Key"
+            }
           }
         },
         "additionalProperties": false
@@ -963,6 +966,229 @@
         }
       }
     },
+    "batch_transfer_status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BatchTransferStatusResponse",
+      "type": "object",
+      "required": [
+        "details"
+      ],
+      "properties": {
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TransferDetails"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+          "type": "string"
+        },
+        "Data": {
+          "type": "object",
+          "required": [
+            "guardian_set_index",
+            "observation",
+            "signatures"
+          ],
+          "properties": {
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "observation": {
+              "$ref": "#/definitions/Observation"
+            },
+            "signatures": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Signature"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "Key": {
+          "type": "object",
+          "required": [
+            "emitter_address",
+            "emitter_chain",
+            "sequence"
+          ],
+          "properties": {
+            "emitter_address": {
+              "$ref": "#/definitions/TokenAddress"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "Observation": {
+          "type": "object",
+          "required": [
+            "consistency_level",
+            "emitter_address",
+            "emitter_chain",
+            "nonce",
+            "payload",
+            "sequence",
+            "timestamp",
+            "tx_hash"
+          ],
+          "properties": {
+            "consistency_level": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "emitter_address": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              },
+              "maxItems": 32,
+              "minItems": 32
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "nonce": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "payload": {
+              "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "timestamp": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "tx_hash": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Signature": {
+          "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
+          "type": "object",
+          "required": [
+            "index",
+            "signature"
+          ],
+          "properties": {
+            "index": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "signature": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              },
+              "maxItems": 65,
+              "minItems": 65
+            }
+          }
+        },
+        "TokenAddress": {
+          "type": "string"
+        },
+        "TransferDetails": {
+          "type": "object",
+          "required": [
+            "key"
+          ],
+          "properties": {
+            "key": {
+              "$ref": "#/definitions/Key"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/TransferStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "TransferStatus": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "pending"
+              ],
+              "properties": {
+                "pending": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Data"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "committed"
+              ],
+              "properties": {
+                "committed": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "digest"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/Data"
+                    },
+                    "digest": {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
     "chain_registration": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ChainRegistrationResponse",
@@ -1084,36 +1310,80 @@
         }
       }
     },
-    "pending_transfer": {
+    "transfer_status": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Data",
-      "type": "object",
-      "required": [
-        "guardian_set_index",
-        "observation",
-        "signatures"
-      ],
-      "properties": {
-        "guardian_set_index": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
+      "title": "TransferStatus",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "pending"
+          ],
+          "properties": {
+            "pending": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Data"
+              }
+            }
+          },
+          "additionalProperties": false
         },
-        "observation": {
-          "$ref": "#/definitions/Observation"
-        },
-        "signatures": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Signature"
-          }
+        {
+          "type": "object",
+          "required": [
+            "committed"
+          ],
+          "properties": {
+            "committed": {
+              "type": "object",
+              "required": [
+                "data",
+                "digest"
+              ],
+              "properties": {
+                "data": {
+                  "$ref": "#/definitions/Data"
+                },
+                "digest": {
+                  "$ref": "#/definitions/Binary"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
-      },
-      "additionalProperties": false,
+      ],
       "definitions": {
         "Binary": {
           "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
           "type": "string"
+        },
+        "Data": {
+          "type": "object",
+          "required": [
+            "guardian_set_index",
+            "observation",
+            "signatures"
+          ],
+          "properties": {
+            "guardian_set_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "observation": {
+              "$ref": "#/definitions/Observation"
+            },
+            "signatures": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Signature"
+              }
+            }
+          },
+          "additionalProperties": false
         },
         "Observation": {
           "type": "object",
@@ -1196,65 +1466,6 @@
               "minItems": 65
             }
           }
-        }
-      }
-    },
-    "transfer": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "TransferResponse",
-      "type": "object",
-      "required": [
-        "data",
-        "digest"
-      ],
-      "properties": {
-        "data": {
-          "$ref": "#/definitions/Data"
-        },
-        "digest": {
-          "$ref": "#/definitions/Binary"
-        }
-      },
-      "additionalProperties": false,
-      "definitions": {
-        "Binary": {
-          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
-          "type": "string"
-        },
-        "Data": {
-          "type": "object",
-          "required": [
-            "amount",
-            "recipient_chain",
-            "token_address",
-            "token_chain"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint256"
-            },
-            "recipient_chain": {
-              "type": "integer",
-              "format": "uint16",
-              "minimum": 0.0
-            },
-            "token_address": {
-              "$ref": "#/definitions/TokenAddress"
-            },
-            "token_chain": {
-              "type": "integer",
-              "format": "uint16",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        "TokenAddress": {
-          "type": "string"
-        },
-        "Uint256": {
-          "description": "An implementation of u256 that is using strings for JSON encoding/decoding, such that the full u256 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances out of primitive uint types or `new` to provide big endian bytes:\n\n``` # use cosmwasm_std::Uint256; let a = Uint256::from(258u128); let b = Uint256::new([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, ]); assert_eq!(a, b); ```",
-          "type": "string"
         }
       }
     },
