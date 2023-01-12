@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 
 use accounting::state::{account, transfer, Modification};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     testing::{MockApi, MockStorage},
-    Addr, Binary, Coin, Empty, StdResult, Uint128,
+    Addr, Binary, Coin, Empty, StdError, StdResult, Uint128,
 };
 use cw_multi_test::{
     App, AppBuilder, AppResponse, BankKeeper, ContractWrapper, Executor, WasmKeeper,
@@ -12,8 +13,8 @@ use serde::Serialize;
 use wormchain_accounting::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MissingObservationsResponse,
-        QueryMsg, TransferResponse,
+        AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
+        MissingObservationsResponse, QueryMsg, TransferStatus,
     },
     state,
 };
@@ -23,6 +24,12 @@ use wormhole::{
     Address, Chain, Vaa,
 };
 use wormhole_bindings::{fake, WormholeQuery};
+
+#[cw_serde]
+pub struct TransferResponse {
+    pub data: transfer::Data,
+    pub digest: Binary,
+}
 
 pub struct Contract {
     addr: Addr,
@@ -121,10 +128,29 @@ impl Contract {
             .query_wasm_smart(self.addr(), &QueryMsg::AllAccounts { start_after, limit })
     }
 
-    pub fn query_transfer(&self, key: transfer::Key) -> StdResult<TransferResponse> {
+    pub fn query_transfer_status(&self, key: transfer::Key) -> StdResult<TransferStatus> {
         self.app
             .wrap()
-            .query_wasm_smart(self.addr(), &QueryMsg::Transfer(key))
+            .query_wasm_smart(self.addr(), &QueryMsg::TransferStatus(key))
+    }
+
+    pub fn query_batch_transfer_status(
+        &self,
+        keys: Vec<transfer::Key>,
+    ) -> StdResult<BatchTransferStatusResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.addr(), &QueryMsg::BatchTransferStatus(keys))
+    }
+
+    pub fn query_transfer(&self, key: transfer::Key) -> StdResult<TransferResponse> {
+        self.query_transfer_status(key.clone()).and_then(|status| {
+            if let TransferStatus::Committed { data, digest } = status {
+                Ok(TransferResponse { data, digest })
+            } else {
+                Err(StdError::not_found(format!("transfer for key {key}")))
+            }
+        })
     }
 
     pub fn query_all_transfers(
@@ -138,9 +164,15 @@ impl Contract {
     }
 
     pub fn query_pending_transfer(&self, key: transfer::Key) -> StdResult<Vec<state::Data>> {
-        self.app
-            .wrap()
-            .query_wasm_smart(self.addr(), &QueryMsg::PendingTransfer(key))
+        self.query_transfer_status(key.clone()).and_then(|status| {
+            if let TransferStatus::Pending(state) = status {
+                Ok(state)
+            } else {
+                Err(StdError::not_found(format!(
+                    "pending transfer for key {key}"
+                )))
+            }
+        })
     }
 
     pub fn query_all_pending_transfers(

@@ -27,11 +27,11 @@ use crate::{
     error::{AnyError, ContractError},
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg,
-        MissingObservation, MissingObservationsResponse, Observation, QueryMsg, TransferResponse,
-        Upgrade,
+        AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
+        MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, QueryMsg,
+        TransferDetails, TransferStatus, Upgrade,
     },
-    state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
+    state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
 
 // version info for migration info
@@ -470,12 +470,8 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::AllAccounts { start_after, limit } => {
             query_all_accounts(deps, start_after, limit).and_then(|resp| to_binary(&resp))
         }
-        QueryMsg::Transfer(req) => query_transfer(deps, req).and_then(|resp| to_binary(&resp)),
         QueryMsg::AllTransfers { start_after, limit } => {
             query_all_transfers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
-        }
-        QueryMsg::PendingTransfer(req) => {
-            query_pending_transfer(deps, req).and_then(|resp| to_binary(&resp))
         }
         QueryMsg::AllPendingTransfers { start_after, limit } => {
             query_all_pending_transfers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
@@ -502,6 +498,12 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         } => {
             query_missing_observations(deps, guardian_set, index).and_then(|resp| to_binary(&resp))
         }
+        QueryMsg::TransferStatus(key) => {
+            query_transfer_status(deps, &key).and_then(|resp| to_binary(&resp))
+        }
+        QueryMsg::BatchTransferStatus(keys) => {
+            query_batch_transfer_status(deps, keys).and_then(|resp| to_binary(&resp))
+        }
     }
 }
 
@@ -523,21 +525,6 @@ fn query_all_accounts(
             .collect::<StdResult<Vec<_>>>()
             .map(|accounts| AllAccountsResponse { accounts })
     }
-}
-
-fn query_transfer(deps: Deps<WormholeQuery>, key: transfer::Key) -> StdResult<TransferResponse> {
-    let digest = DIGESTS.load(
-        deps.storage,
-        (
-            key.emitter_chain(),
-            key.emitter_address().to_vec(),
-            key.sequence(),
-        ),
-    )?;
-
-    let data = accounting::query_transfer(deps, key)?;
-
-    Ok(TransferResponse { data, digest })
 }
 
 fn query_all_transfers(
@@ -594,15 +581,6 @@ fn tinyvec_to_vec<A: Array>(tv: TinyVec<A>) -> Vec<A::Item> {
         TinyVec::Inline(mut arr) => arr.drain_to_vec(),
         TinyVec::Heap(v) => v,
     }
-}
-
-fn query_pending_transfer(
-    deps: Deps<WormholeQuery>,
-    key: transfer::Key,
-) -> StdResult<Vec<state::Data>> {
-    PENDING_TRANSFERS
-        .load(deps.storage, key)
-        .map(tinyvec_to_vec)
 }
 
 fn query_all_pending_transfers(
@@ -683,4 +661,42 @@ fn query_missing_observations(
     }
 
     Ok(MissingObservationsResponse { missing })
+}
+
+fn query_transfer_status(
+    deps: Deps<WormholeQuery>,
+    key: &transfer::Key,
+) -> StdResult<TransferStatus> {
+    if let Some(digest) = DIGESTS.may_load(
+        deps.storage,
+        (
+            key.emitter_chain(),
+            key.emitter_address().to_vec(),
+            key.sequence(),
+        ),
+    )? {
+        let data = accounting::query_transfer(deps, key.clone())?;
+        Ok(TransferStatus::Committed { data, digest })
+    } else if let Some(data) = PENDING_TRANSFERS.may_load(deps.storage, key.clone())? {
+        Ok(TransferStatus::Pending(tinyvec_to_vec(data)))
+    } else {
+        Err(StdError::not_found(format!("transfer with key {key}")))
+    }
+}
+
+fn query_batch_transfer_status(
+    deps: Deps<WormholeQuery>,
+    keys: Vec<transfer::Key>,
+) -> StdResult<BatchTransferStatusResponse> {
+    keys.into_iter()
+        .map(|key| {
+            let status = match query_transfer_status(deps, &key) {
+                Ok(s) => Some(s),
+                Err(e) if matches!(e, StdError::NotFound { .. }) => None,
+                Err(e) => return Err(e),
+            };
+            Ok(TransferDetails { key, status })
+        })
+        .collect::<StdResult<Vec<_>>>()
+        .map(|details| BatchTransferStatusResponse { details })
 }
