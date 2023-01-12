@@ -154,10 +154,11 @@ module token_bridge::bridge_state {
     // and pass it into various functions
     public entry fun init_and_share_state(
         deployer: DeployerCapability,
-        emitter_cap: EmitterCapability,
+        worm_state: &mut WormholeState,
         ctx: &mut TxContext
     ) {
         let DeployerCapability{ id } = deployer;
+        let emitter_cap = wormhole::register_emitter(worm_state, ctx);
         object::delete(id);
         let state = BridgeState {
             id: object::new(ctx),
@@ -367,7 +368,6 @@ module token_bridge::bridge_state_test{
 
     use wormhole::state::{State};
     use wormhole::test_state::{init_wormhole_state};
-    use wormhole::wormhole::{Self};
     use wormhole::external_address::{Self};
 
     use token_bridge::bridge_state::{Self as state, BridgeState, DeployerCapability};
@@ -407,9 +407,8 @@ module token_bridge::bridge_state_test{
         // register for emitter cap and init_and_share token bridge
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<State>(&test);
-            let my_emitter = wormhole::register_emitter(&mut wormhole_state, ctx(&mut test));
             let deployer = take_from_address<DeployerCapability>(&test, admin);
-            state::init_and_share_state(deployer, my_emitter, ctx(&mut test));
+            state::init_and_share_state(deployer, &mut wormhole_state, ctx(&mut test));
             return_shared<State>(wormhole_state);
         };
 

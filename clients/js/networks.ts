@@ -233,8 +233,8 @@ const TESTNET = {
     key: get_env_var("APTOS_TESTNET"),
   },
   sui: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://fullnode.devnet.sui.io:443",
+    key: get_env_var("SUI_KEY_TESTNET"),
   },
   pythnet: {
     rpc: "https://api.pythtest.pyth.network/",
@@ -383,8 +383,8 @@ const DEVNET = {
     key: "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d",
   },
   sui: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://0.0.0.0:9000",
+    key: get_env_var("SUI_KEY_DEVNET"),
   },
   moonbeam: {
     rpc: undefined,
