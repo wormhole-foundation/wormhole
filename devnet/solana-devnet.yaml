@@ -34,7 +34,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-        - name: devnet
+        - name: solana-devnet
           image: solana-contract
           command:
             - /root/.local/share/solana/install/active_release/bin/solana-test-validator
@@ -89,17 +89,37 @@ spec:
             - containerPort: 9900
               name: faucet
               protocol: TCP
+          startupProbe:
+            httpGet:
+              port: rpc
+              path: /health
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             httpGet:
               port: rpc
               path: /health
+            failureThreshold: 2
             periodSeconds: 1
-        - name: setup
+          resources:
+            limits:
+              memory: "3000Mi"
+        - name: solana-setup
           image: bridge-client
           command:
             - /usr/src/solana/devnet_setup.sh
+          startupProbe:
+            tcpSocket:
+              port: 2000
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             tcpSocket:
               port: 2000
+            failureThreshold: 2
             periodSeconds: 1
-            failureThreshold: 300
+          resources:
+            limits:
+              memory: "1Gi"

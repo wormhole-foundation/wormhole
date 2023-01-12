@@ -45,26 +45,47 @@ spec:
             - containerPort: 8545
               name: rpc
               protocol: TCP
-          readinessProbe:
+          startupProbe:
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
             tcpSocket:
               port: rpc
-        - name: tests
+          readinessProbe:
+            failureThreshold: 2
+            periodSeconds: 1
+            tcpSocket:
+              port: rpc
+          resources:
+            limits:
+              memory: "500Mi"
+        - name: eth-deploy
           image: eth-node
           stdin: true
           command:
             - /bin/sh
             - -c
             - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npm run deploy-batched-vaa-sender && npx truffle exec scripts/register_all_chains.js && nc -lkp 2000 0.0.0.0"
-          readinessProbe:
-            periodSeconds: 1
+          startupProbe:
             failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
             tcpSocket:
               port: 2000
-        - name: mine
+          readinessProbe:
+            failureThreshold: 1
+            periodSeconds: 1
+            tcpSocket:
+              port: 2000
+          resources:
+            limits:
+              memory: "1Gi"
+        - name: eth-mine
           image: eth-node
           command:
             - /bin/sh
             - -c
             - "npx truffle exec mine.js"
----
-
+          resources:
+            limits:
+              memory: "300Mi"

@@ -48,9 +48,20 @@ spec:
             - containerPort: 3031
               name: webserver
               protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: 3030
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             tcpSocket:
               port: 3030
+            failureThreshold: 2
+            periodSeconds: 1
+          resources:
+            limits:
+              memory: "1000Mi"
         - name: near-deploy
           image: near-deploy
           command:
@@ -62,5 +73,7 @@ spec:
               port: 3030
             periodSeconds: 1
             initialDelaySeconds: 15
-
+          resources:
+            limits:
+              memory: "500Mi"
       restartPolicy: Always

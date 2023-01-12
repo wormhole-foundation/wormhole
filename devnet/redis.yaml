@@ -33,12 +33,22 @@ spec:
       containers:
         - name: redis
           image: redis
+          startupProbe:
+            tcpSocket:
+              port: 6379
+            failureThreshold: 300
+            initialDelaySeconds: 20
+            periodSeconds: 1
           readinessProbe:
             tcpSocket:
               port: 6379
+            failureThreshold: 2
             periodSeconds: 1
-            failureThreshold: 300
+
           ports:
             - containerPort: 6379
               name: redis
               protocol: TCP
+          resources:
+            limits:
+              memory: "100Mi"

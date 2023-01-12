@@ -12,16 +12,10 @@ spec:
           image: sdk-test-image
           command:
             - /bin/sh
-            - -c
-            - "sh /app/testing/sdk.sh && touch /app/testing/success"
-          readinessProbe:
-            exec:
-              command:
-                - test
-                - -e
-                - "/app/testing/success"
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            - /app/testing/sdk.sh
+          resources:
+            limits:
+              memory: "20Gi"
 ---
 kind: Job
 apiVersion: batch/v1
@@ -37,13 +31,7 @@ spec:
           image: spydk-test-image
           command:
             - /bin/sh
-            - -c
-            - "sh /app/testing/spydk.sh && touch /app/testing/success"
-          readinessProbe:
-            exec:
-              command:
-                - test
-                - -e
-                - "/app/testing/success"
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            - /app/testing/spydk.sh
+          resources:
+            limits:
+              memory: "1000Mi"
