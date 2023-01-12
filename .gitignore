@@ -31,3 +31,4 @@ bigtable-writer.json
 /solana/artifacts-mainnet/
 /ethereum/out/
 /ethereum/cache/
+sui.log.*
