@@ -33,7 +33,7 @@ type LogPollConnector struct {
 func NewLogPollConnector(ctx context.Context, baseConnector Connector, client *ethClient.Client) (*LogPollConnector, error) {
 	connector := &LogPollConnector{Connector: baseConnector, client: client}
 	// The supervisor will keep the poller running
-	err := supervisor.Run(ctx, "logPoller", connector.run)
+	err := supervisor.Run(ctx, "logPoller", common.WrapWithScissors(connector.run, "logPoller"))
 	if err != nil {
 		return nil, err
 	}

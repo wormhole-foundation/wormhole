@@ -44,7 +44,7 @@ func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finaliz
 		publishSafeBlocks: publishSafeBlocks,
 		finalizer:         finalizer,
 	}
-	err := supervisor.Run(ctx, "blockPoller", connector.runFromSupervisor)
+	err := supervisor.Run(ctx, "blockPoller", common.WrapWithScissors(connector.runFromSupervisor, "blockPoller"))
 	if err != nil {
 		return nil, err
 	}
