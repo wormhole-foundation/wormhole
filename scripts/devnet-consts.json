@@ -236,7 +236,7 @@
             }
         },
         "3104": {
-            "rpcUrlTilt": "http://guardian-validator:1317",
+            "rpcUrlTilt": "http://wormchain:1317",
             "rpcUrlLocal": "http://localhost:1319",
             "rpcPort": "1319",
             "contracts": {
