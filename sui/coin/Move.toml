@@ -1,0 +1,11 @@
+[package]
+name = "Coin"
+version = "0.0.1"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework", rev = "devnet" }
+TokenBridge = { local = "../token_bridge"}
+Wormhole = { local = "../wormhole"}
+
+[addresses]
+coin="0x0"
