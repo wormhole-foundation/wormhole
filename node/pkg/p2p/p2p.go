@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/accounting"
+	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -83,7 +83,7 @@ func Run(
 	nodeName string,
 	disableHeartbeatVerify bool,
 	rootCtxCancel context.CancelFunc,
-	acct *accounting.Accounting,
+	acct *accountant.Accountant,
 	gov *governor.ChainGovernor,
 	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,

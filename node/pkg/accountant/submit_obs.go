@@ -1,4 +1,4 @@
-package accounting
+package accountant
 
 import (
 	"context"
@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (acct *Accounting) worker(ctx context.Context) error {
+func (acct *Accountant) worker(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -108,7 +108,7 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 
 // submitObservationToContract makes a call to the smart contract to submit an observation request.
 // It should be called from a go routine because it can block.
-func (acct *Accounting) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
+func (acct *Accountant) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
 	msgId := msg.MessageIDString()
 	acct.logger.Debug("acct: in submitObservationToContract", zap.String("msgID", msgId))
 	txResp, err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msg)
@@ -173,14 +173,14 @@ func SubmitObservationToContract(
 
 	bytes, err := json.Marshal(obs)
 	if err != nil {
-		return nil, fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
+		return nil, fmt.Errorf("acct: failed to marshal accountant observation request: %w", err)
 	}
 
 	digest := vaa.SigningMsg(bytes)
 
 	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
-		return nil, fmt.Errorf("acct: failed to sign accounting Observation request: %w", err)
+		return nil, fmt.Errorf("acct: failed to sign accountant Observation request: %w", err)
 	}
 
 	sig := SignatureType{Index: guardianIndex, Signature: sigBytes}
@@ -195,7 +195,7 @@ func SubmitObservationToContract(
 
 	msgBytes, err := json.Marshal(msgData)
 	if err != nil {
-		return nil, fmt.Errorf("acct: failed to marshal accounting observation request: %w", err)
+		return nil, fmt.Errorf("acct: failed to marshal accountant observation request: %w", err)
 	}
 
 	subMsg := wasmdtypes.MsgExecuteContract{

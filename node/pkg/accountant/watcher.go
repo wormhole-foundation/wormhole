@@ -1,4 +1,4 @@
-package accounting
+package accountant
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 )
 
 // watcher reads transaction events from the smart contract and publishes them.
-func (acct *Accounting) watcher(ctx context.Context) error {
+func (acct *Accountant) watcher(ctx context.Context) error {
 	errC := make(chan error)
 
 	acct.logger.Info("acctwatch: creating watcher", zap.String("url", acct.wsUrl), zap.String("contract", acct.contract))
@@ -51,7 +51,7 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 		64, // channel capacity
 	)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to accounting events: %w", err)
+		return fmt.Errorf("failed to subscribe to accountant events: %w", err)
 	}
 	defer func() {
 		if err := tmConn.UnsubscribeAll(ctx, "guardiand"); err != nil {
@@ -70,7 +70,7 @@ func (acct *Accounting) watcher(ctx context.Context) error {
 }
 
 // handleEvents handles events from the tendermint client library.
-func (acct *Accounting) handleEvents(ctx context.Context, evts <-chan tmCoreTypes.ResultEvent, errC chan error) {
+func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreTypes.ResultEvent, errC chan error) {
 	defer close(errC)
 
 	for {
@@ -146,7 +146,7 @@ func parseWasmTransfer(logger *zap.Logger, event tmAbci.Event, contractAddress s
 }
 
 // processPendingTransfer takes a WasmTransfer event, determines if we are expecting it, and if so, publishes it.
-func (acct *Accounting) processPendingTransfer(xfer *WasmTransfer) {
+func (acct *Accountant) processPendingTransfer(xfer *WasmTransfer) {
 	acct.logger.Info("acctwatch: transfer event detected",
 		zap.String("tx_hash", hex.EncodeToString(xfer.TxHashBytes)),
 		zap.Uint32("timestamp", xfer.Timestamp),

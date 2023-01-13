@@ -37,7 +37,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/certusone/wormhole/node/pkg/accounting"
+	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -146,11 +146,11 @@ var (
 	wormchainLCD           *string
 	wormchainURL           *string
 	wormchainKeyPath       *string
-	wormchainKeyPassPhrase *string // TODO Is there a better way to do this??
+	wormchainKeyPassPhrase *string
 
-	accountingContract     *string
-	accountingWS           *string
-	accountingCheckEnabled *bool
+	accountantContract     *string
+	accountantWS           *string
+	accountantCheckEnabled *bool
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -294,9 +294,9 @@ func init() {
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
 
-	accountingWS = NodeCmd.Flags().String("accountingWS", "", "Websocket used to listen to the accounting smart contract on wormchain")
-	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
-	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
+	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
+	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
+	accountantCheckEnabled = NodeCmd.Flags().Bool("accountantCheckEnabled", false, "Should accountant be enforced on transfers")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -955,10 +955,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Set up accounting. If the accounting smart contract is configured, we will instantiate accounting and VAAs
-	// will be passed to it for processing. It will forward all token bridge transfers to the accounting contract.
-	// If accountingCheckEnabled is set to true, token bridge transfers will not be signed and published until they
-	// are approved by the accounting smart contract.
+	// Set up the accountant. If the accountant smart contract is configured, we will instantiate the accountant and VAAs
+	// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
+	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
+	// are approved by the accountant smart contract.
 
 	// TODO: Use this once PR #1931 is merged.
 	//acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
@@ -966,43 +966,43 @@ func runNode(cmd *cobra.Command, args []string) {
 	var acctReadC <-chan *common.MessagePublication = acctChan
 	var acctWriteC chan<- *common.MessagePublication = acctChan
 
-	var acct *accounting.Accounting
-	if *accountingContract != "" {
-		if *accountingWS == "" {
-			logger.Fatal("acct: if accountingContract is specified, accountingWS is required")
+	var acct *accountant.Accountant
+	if *accountantContract != "" {
+		if *accountantWS == "" {
+			logger.Fatal("acct: if accountantContract is specified, accountantWS is required")
 		}
 		if *wormchainLCD == "" {
-			logger.Fatal("acct: if accountingContract is specified, wormchainLCD is required")
+			logger.Fatal("acct: if accountantContract is specified, wormchainLCD is required")
 		}
 		if wormchainConn == nil {
-			logger.Fatal("acct: if accountingContract is specified, the wormchain sending connection must be enabled")
+			logger.Fatal("acct: if accountantContract is specified, the wormchain sending connection must be enabled")
 		}
-		if *accountingCheckEnabled {
-			logger.Info("acct: accounting is enabled and will be enforced")
+		if *accountantCheckEnabled {
+			logger.Info("acct: accountant is enabled and will be enforced")
 		} else {
-			logger.Info("acct: accounting is enabled but will not be enforced")
+			logger.Info("acct: accountant is enabled but will not be enforced")
 		}
-		env := accounting.MainNetMode
+		env := accountant.MainNetMode
 		if *testnetMode {
-			env = accounting.TestNetMode
+			env = accountant.TestNetMode
 		} else if *unsafeDevMode {
-			env = accounting.DevNetMode
+			env = accountant.DevNetMode
 		}
-		acct = accounting.NewAccounting(
+		acct = accountant.NewAccountant(
 			rootCtx,
 			logger,
 			db,
-			*accountingContract,
-			*accountingWS,
+			*accountantContract,
+			*accountantWS,
 			wormchainConn,
-			*accountingCheckEnabled,
+			*accountantCheckEnabled,
 			gk,
 			gst,
 			acctWriteC,
 			env,
 		)
 	} else {
-		logger.Info("acct: accounting is disabled")
+		logger.Info("acct: accountant is disabled")
 	}
 
 	var gov *governor.ChainGovernor
@@ -1332,7 +1332,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
-				logger.Fatal("acct: failed to start accounting", zap.Error(err))
+				logger.Fatal("acct: failed to start accountant", zap.Error(err))
 			}
 		}
 
