@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use accounting::{
     query_balance, query_modification,
     state::{account, transfer, Modification, TokenAddress, Transfer},
-    validate_transfer, TransferError,
+    validate_transfer,
 };
 use anyhow::{ensure, Context};
 #[cfg(not(feature = "library"))]
@@ -29,8 +29,9 @@ use crate::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, QueryMsg,
-        TransferDetails, TransferStatus, Upgrade,
+        MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, ObservationError,
+        ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
+        Upgrade,
     },
     state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -118,20 +119,39 @@ fn submit_observations(
     let observations: Vec<Observation> =
         from_binary(&observations).context("failed to parse `Observations`")?;
 
-    let events = observations
-        .into_iter()
-        .map(|o| {
-            let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
-            handle_observation(deps.branch(), o, guardian_set_index, quorum, signature)
-                .with_context(|| format!("failed to handle observation for key {key}"))
-        })
-        .filter_map(Result::transpose)
-        .collect::<anyhow::Result<Vec<_>>>()
-        .context("failed to handle `Observation`")?;
+    let mut responses = Vec::with_capacity(observations.len());
+    let mut events = Vec::with_capacity(observations.len());
+    for o in observations {
+        let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+        match handle_observation(deps.branch(), o, guardian_set_index, quorum, signature) {
+            Ok((status, event)) => {
+                responses.push(SubmitObservationResponse { key, status });
+                if let Some(evt) = event {
+                    events.push(evt);
+                }
+            }
+            Err(e) => {
+                let err = ObservationError {
+                    key,
+                    error: format!("{e:#}"),
+                };
+                let evt = cw_transcode::to_event(&err)
+                    .context("failed to transcode observation error")?;
+                events.push(evt);
+                responses.push(SubmitObservationResponse {
+                    key: err.key,
+                    status: ObservationStatus::Error(err.error),
+                });
+            }
+        }
+    }
+
+    let data = to_binary(&responses).context("failed to serialize transfer details")?;
 
     Ok(Response::new()
         .add_attribute("action", "submit_observations")
         .add_attribute("owner", info.sender)
+        .set_data(data)
         .add_events(events))
 }
 
@@ -141,8 +161,10 @@ fn handle_observation(
     guardian_set_index: u32,
     quorum: usize,
     sig: Signature,
-) -> anyhow::Result<Option<Event>> {
+) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
+    let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+
     if let Some(saved_digest) = digest_key
         .may_load(deps.storage)
         .context("failed to load transfer digest")?
@@ -152,10 +174,8 @@ fn handle_observation(
             bail!(ContractError::DigestMismatch);
         }
 
-        bail!(TransferError::DuplicateTransfer);
+        return Ok((ObservationStatus::Committed, None));
     }
-
-    let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
 
     let key = PENDING_TRANSFERS.key(tx_key.clone());
     let mut pending = key
@@ -181,7 +201,7 @@ fn handle_observation(
         key.save(deps.storage, &pending)
             .context("failed to save pending transfers")?;
 
-        return Ok(None);
+        return Ok((ObservationStatus::Pending, None));
     }
 
     let msg = serde_wormhole::from_slice::<Message<&RawMessage>>(&o.payload)
@@ -238,9 +258,11 @@ fn handle_observation(
     // Now that the transfer has been committed, we don't need to keep it in the pending list.
     key.remove(deps.storage);
 
-    cw_transcode::to_event(&o)
+    let event = cw_transcode::to_event(&o)
         .map(Some)
-        .context("failed to transcode `Observation` to `Event`")
+        .context("failed to transcode `Observation` to `Event`")?;
+
+    Ok((ObservationStatus::Committed, event))
 }
 
 fn modify_balance(
