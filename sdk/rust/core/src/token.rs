@@ -68,7 +68,6 @@ pub enum Message {
     /// ```
     /// # fn example() -> anyhow::Result<()> {
     /// #     use wormhole::{Address, Amount, Chain, vaa::Signature, GOVERNANCE_EMITTER};
-    ///       use wormhole::{token::Message, Vaa};
     /// #
     /// #     let data = [
     /// #         0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xb0, 0x72, 0x50, 0x5b, 0x5b, 0x99, 0x9c, 0x1d,
@@ -94,10 +93,12 @@ pub enum Message {
     /// #         0xfa, 0x5e, 0x70, 0xea, 0x36, 0xa2, 0x82, 0x37, 0x1d, 0x46, 0x81, 0x94, 0x10, 0x34, 0xb1,
     /// #         0xad, 0x0f, 0x4b, 0xc9, 0x17, 0x1e, 0x91, 0x25, 0x11,
     /// #     ];
+    ///       use serde_wormhole::RawMessage;
+    ///       use wormhole::{token::Message, Vaa};
     ///
-    ///       let (msg, payload) = serde_wormhole::from_slice_with_payload::<Vaa<Message>>(&data)?;
+    ///       let (msg, payload) = serde_wormhole::from_slice::<(Vaa<Message>, &RawMessage)>(&data)?;
     ///       assert!(matches!(msg.payload, Message::TransferWithPayload { .. }));
-    ///       assert_eq!(&data[256..], payload);
+    ///       assert_eq!(&data[256..], payload.get());
     /// #
     /// #     Ok(())
     /// # }
@@ -458,6 +459,8 @@ mod governance_packet_impl {
 
 #[cfg(test)]
 mod test {
+    use serde_wormhole::RawMessage;
+
     use crate::{vaa::Signature, Vaa, GOVERNANCE_EMITTER};
 
     use super::*;
@@ -585,9 +588,9 @@ mod test {
         };
 
         assert_eq!(&payload[..133], &serde_wormhole::to_vec(&msg).unwrap());
-        let (actual, data) = serde_wormhole::from_slice_with_payload(&payload).unwrap();
+        let (actual, data) = serde_wormhole::from_slice::<(_, &RawMessage)>(&payload).unwrap();
         assert_eq!(msg, actual);
-        assert_eq!(&payload[133..], data);
+        assert_eq!(&payload[133..], data.get());
 
         let mut encoded = serde_json::to_vec(&msg).unwrap();
         encoded.extend_from_slice(&payload[133..]);

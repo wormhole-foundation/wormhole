@@ -143,19 +143,6 @@ pub fn from_reader<R: Read, T: DeserializeOwned>(mut r: R) -> Result<T, Error> {
     from_slice(&buf)
 }
 
-/// Like `from_reader` but also returns any trailing data in the input buffer after
-/// deserialization.
-pub fn from_reader_with_payload<R: Read, T: DeserializeOwned>(
-    mut r: R,
-) -> Result<(T, Vec<u8>), Error> {
-    // We can do something smarter here by making the deserializer generic over the reader (see
-    // serde_json::Deserializer) but for now this is probably good enough.
-    let mut buf = Vec::with_capacity(128);
-    r.read_to_end(&mut buf)?;
-
-    from_slice_with_payload(&buf).map(|(v, p)| (v, p.to_vec()))
-}
-
 /// Deserialize an instance of type `T` from a byte slice.
 pub fn from_slice<'a, T: Deserialize<'a>>(buf: &'a [u8]) -> Result<T, Error> {
     let mut deserializer = de::Deserializer::new(buf);
@@ -167,15 +154,6 @@ pub fn from_slice<'a, T: Deserialize<'a>>(buf: &'a [u8]) -> Result<T, Error> {
     } else {
         Err(Error::TrailingData)
     }
-}
-
-/// Like `from_slice` but also returns any trailing data in the input buffer after deserialization.
-pub fn from_slice_with_payload<'a, T: Deserialize<'a>>(
-    buf: &'a [u8],
-) -> Result<(T, &'a [u8]), Error> {
-    let mut deserializer = de::Deserializer::new(buf);
-
-    T::deserialize(&mut deserializer).map(|v| (v, deserializer.end()))
 }
 
 /// Serialize `T` into a byte vector.
@@ -286,7 +264,7 @@ mod tests {
     }
 
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-    struct Vaa<'s> {
+    struct Vaa<'s, P> {
         header: Header,
         #[serde(borrow)]
         signatures: Cow<'s, [Signature]>,
@@ -297,7 +275,7 @@ mod tests {
         sequence: u64,
         consistency_level: u8,
         map: BTreeMap<u32, u32>,
-        payload: GovernancePacket,
+        payload: P,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -348,10 +326,11 @@ mod tests {
     }
 
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-    struct GovernancePacket {
+    struct GovernancePacket<P> {
         module: [u8; 32],
         action: Action,
         chain: Chain,
+        payload: P,
     }
 
     #[test]
@@ -404,21 +383,20 @@ mod tests {
                 ],
                 action: Action::ContractUpgrade,
                 chain: Chain::Solana,
+                payload: RawMessage::new(&[0x3d, 0xab, 0x45, 0xaf, 0x7a, 0x6e, 0x9f, 0x7b]),
             },
         };
-        let payload = &[0x3d, 0xab, 0x45, 0xaf, 0x7a, 0x6e, 0x9f, 0x7b];
 
-        let mut buf = to_vec(&vaa).unwrap();
-        buf.extend_from_slice(payload);
+        let buf = to_vec(&vaa).unwrap();
 
-        let (actual, governance_payload) = from_slice_with_payload(&buf).unwrap();
+        let actual = from_slice(&buf).unwrap();
 
         assert_eq!(vaa, actual);
 
         match actual.payload.action {
             Action::ContractUpgrade => {
                 let expected = 0x3dab_45af_7a6e_9f7b;
-                let msg: ContractUpgrade = from_slice(governance_payload).unwrap();
+                let msg: ContractUpgrade = from_slice(actual.payload.payload).unwrap();
                 assert_eq!(expected, msg.new_contract);
             }
             _ => panic!("Unexpected action: {:?}", actual.payload.action),

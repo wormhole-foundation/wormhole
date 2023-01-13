@@ -277,6 +277,8 @@ impl<P: Serialize> Body<P> {
 
 #[cfg(test)]
 mod test {
+    use serde_wormhole::RawMessage;
+
     use super::*;
 
     #[test]
@@ -318,14 +320,11 @@ mod test {
             ]),
             sequence: 0,
             consistency_level: 1,
-            payload: (),
+            payload: RawMessage::new(&buf[123..]),
         };
 
-        let (actual, payload) = serde_wormhole::from_slice_with_payload(&buf).unwrap();
-        assert_eq!(vaa, actual);
-        assert_eq!(bstr::B("From: evm0\\nMsg: Hello World!"), payload);
-
-        assert_eq!(&buf[..123], &serde_wormhole::to_vec(&vaa).unwrap());
+        assert_eq!(vaa, serde_wormhole::from_slice(&buf).unwrap());
+        assert_eq!(&buf[..], &serde_wormhole::to_vec(&vaa).unwrap());
     }
 
     #[test]
@@ -351,9 +350,8 @@ mod test {
 
         assert_eq!(d1, d2);
 
-        let (partial, payload) =
-            serde_wormhole::from_slice_with_payload::<Body<()>>(&data).unwrap();
-        let d3 = partial.digest_with_payload(payload).unwrap();
+        let partial = serde_wormhole::from_slice::<Body<&RawMessage>>(&data).unwrap();
+        let d3 = partial.digest().unwrap();
 
         assert_eq!(d1, d3);
     }
