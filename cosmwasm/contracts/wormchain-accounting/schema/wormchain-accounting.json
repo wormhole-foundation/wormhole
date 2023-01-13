@@ -756,14 +756,7 @@
               "minimum": 0.0
             },
             "emitter_address": {
-              "type": "array",
-              "items": {
-                "type": "integer",
-                "format": "uint8",
-                "minimum": 0.0
-              },
-              "maxItems": 32,
-              "minItems": 32
+              "type": "string"
             },
             "emitter_chain": {
               "type": "integer",
@@ -1055,14 +1048,7 @@
               "minimum": 0.0
             },
             "emitter_address": {
-              "type": "array",
-              "items": {
-                "type": "integer",
-                "format": "uint8",
-                "minimum": 0.0
-              },
-              "maxItems": 32,
-              "minItems": 32
+              "type": "string"
             },
             "emitter_chain": {
               "type": "integer",
@@ -1404,14 +1390,7 @@
               "minimum": 0.0
             },
             "emitter_address": {
-              "type": "array",
-              "items": {
-                "type": "integer",
-                "format": "uint8",
-                "minimum": 0.0
-              },
-              "maxItems": 32,
-              "minItems": 32
+              "type": "string"
             },
             "emitter_chain": {
               "type": "integer",

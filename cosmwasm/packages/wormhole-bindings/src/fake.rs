@@ -183,6 +183,10 @@ impl WormholeKeeper {
     pub fn set_index(&self, index: u32) {
         self.0.borrow_mut().index = index;
     }
+
+    pub fn num_guardians(&self) -> usize {
+        self.0.borrow().guardians.len()
+    }
 }
 
 impl Default for WormholeKeeper {

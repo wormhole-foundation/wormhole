@@ -1,10 +1,12 @@
 mod helpers;
 
+use std::collections::BTreeMap;
+
 use accounting::state::{account, transfer, Kind, Modification, TokenAddress};
-use cosmwasm_std::{to_binary, Binary, Event, Uint256};
+use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
 use cw_multi_test::AppResponse;
 use helpers::*;
-use wormchain_accounting::msg::Observation;
+use wormchain_accounting::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use wormhole::{
     token::Message,
     vaa::{Body, Header},
@@ -58,9 +60,15 @@ fn batch() {
         .unwrap() as usize;
 
     for (i, s) in signatures.into_iter().enumerate() {
-        if i < quorum {
-            contract.submit_observations(obs.clone(), index, s).unwrap();
+        let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
 
+        let status = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap())
+            .unwrap()
+            .into_iter()
+            .map(|resp| (resp.key, resp.status))
+            .collect::<BTreeMap<_, _>>();
+
+        if i < quorum {
             // Once there is a quorum the pending transfers are removed.
             if i < quorum - 1 {
                 for o in &observations {
@@ -70,6 +78,7 @@ fn batch() {
                     assert_eq!(o, data[0].observation());
 
                     // Make sure the transfer hasn't yet been committed.
+                    assert!(matches!(status[&key], ObservationStatus::Pending));
                     contract
                         .query_transfer(key)
                         .expect_err("transfer committed without quorum");
@@ -78,15 +87,19 @@ fn batch() {
                 for o in &observations {
                     let key =
                         transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+                    assert!(matches!(status[&key], ObservationStatus::Committed));
                     contract
                         .query_pending_transfer(key)
                         .expect_err("found pending transfer for observation with quorum");
                 }
             }
         } else {
-            contract
-                .submit_observations(obs.clone(), index, s)
-                .expect_err("successfully submitted observation for committed transfer");
+            // Submitting observations for committed transfers is not an error as long as the
+            // digests match.
+            for o in &observations {
+                let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+                assert!(matches!(status[&key], ObservationStatus::Committed));
+            }
         }
     }
 
@@ -151,15 +164,34 @@ fn duplicates() {
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
 
-    for (i, s) in signatures.iter().take(quorum).cloned().enumerate() {
+    for (i, s) in signatures.into_iter().enumerate() {
         contract.submit_observations(obs.clone(), index, s).unwrap();
-        let err = contract
-            .submit_observations(obs.clone(), index, s)
-            .expect_err("successfully submitted duplicate observations");
+        let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
+        let status = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap())
+            .unwrap()
+            .into_iter()
+            .map(|details| (details.key, details.status))
+            .collect::<BTreeMap<_, _>>();
         if i < quorum - 1 {
-            // Sadly we can't match on the exact error type in an integration test because the
-            // test frameworks converts it into a string before it reaches this point.
-            assert!(format!("{err:#}").contains("duplicate signatures"));
+            // Resubmitting the same signature without quorum will return an error.
+            for o in &observations {
+                let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+                if let ObservationStatus::Error(ref err) = status[&key] {
+                    assert!(err.contains("duplicate signatures"));
+                } else {
+                    panic!(
+                        "unexpected status for duplicate signature: {:?}",
+                        status[&key]
+                    );
+                }
+            }
+        } else {
+            // Submitting a signature for a committed transfer is not an error as long as the
+            // digests match.
+            for o in &observations {
+                let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
+                assert!(matches!(status[&key], ObservationStatus::Committed));
+            }
         }
     }
 
@@ -207,12 +239,6 @@ fn duplicates() {
 
         assert_eq!(expected.amount, *dst);
     }
-
-    for s in signatures {
-        contract
-            .submit_observations(obs.clone(), index, s)
-            .expect_err("successfully submitted observation for committed transfer");
-    }
 }
 
 fn transfer_tokens(
@@ -221,7 +247,7 @@ fn transfer_tokens(
     key: transfer::Key,
     msg: Message,
     index: u32,
-    quorum: usize,
+    num_signatures: usize,
 ) -> anyhow::Result<(Observation, Vec<AppResponse>)> {
     let payload = serde_wormhole::to_vec(&msg).map(Binary::from).unwrap();
     let o = Observation {
@@ -240,7 +266,7 @@ fn transfer_tokens(
 
     let responses = signatures
         .into_iter()
-        .take(quorum)
+        .take(num_signatures)
         .map(|s| contract.submit_observations(obs.clone(), index, s))
         .collect::<anyhow::Result<Vec<_>>>()?;
 
@@ -252,9 +278,7 @@ fn round_trip() {
     let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
-    let quorum = wh
-        .calculate_quorum(index, contract.app().block_info().height)
-        .unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     let emitter_chain = 2;
     let amount = Amount(Uint256::from(500u128).to_be_bytes());
@@ -272,7 +296,8 @@ fn round_trip() {
         fee: Amount([0u8; 32]),
     };
 
-    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
+    let (o, _) =
+        transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
 
     let expected = transfer::Data {
         amount: Uint256::new(amount.0),
@@ -298,7 +323,8 @@ fn round_trip() {
         recipient_chain: emitter_chain.into(),
         fee: Amount([0u8; 32]),
     };
-    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
+    let (o, _) =
+        transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
 
     let expected = transfer::Data {
         amount: Uint256::new(amount.0),
@@ -336,9 +362,7 @@ fn round_trip() {
 fn missing_guardian_set() {
     let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
-    let quorum = wh
-        .calculate_quorum(index, contract.app().block_info().height)
-        .unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     let emitter_chain = 2;
     let amount = Amount(Uint256::from(500u128).to_be_bytes());
@@ -356,7 +380,7 @@ fn missing_guardian_set() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key, msg, index + 1, quorum)
+    transfer_tokens(&wh, &mut contract, key, msg, index + 1, num_guardians)
         .expect_err("successfully submitted observations with invalid guardian set");
 }
 
@@ -366,7 +390,7 @@ fn expired_guardian_set() {
     let index = wh.guardian_set_index();
     let mut block = contract.app().block_info();
 
-    let quorum = wh.calculate_quorum(index, block.height).unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     let emitter_chain = 2;
     let amount = Amount(Uint256::from(500u128).to_be_bytes());
@@ -389,7 +413,7 @@ fn expired_guardian_set() {
     block.height += 1;
     contract.app_mut().set_block(block);
 
-    transfer_tokens(&wh, &mut contract, key, msg, index, quorum)
+    transfer_tokens(&wh, &mut contract, key, msg, index, num_guardians)
         .expect_err("successfully submitted observations with expired guardian set");
 }
 
@@ -446,7 +470,9 @@ fn no_quorum() {
 #[test]
 fn missing_wrapped_account() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
+    let num_guardians = wh.num_guardians();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
@@ -467,8 +493,27 @@ fn missing_wrapped_account() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key, msg, index, quorum)
-        .expect_err("successfully burned wrapped tokens without a wrapped amount");
+    let (_, responses) =
+        transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
+    for mut resp in responses.into_iter().skip(quorum - 1) {
+        let r = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
+        assert_eq!(key, r[0].key);
+        if let ObservationStatus::Error(ref err) = r[0].status {
+            assert!(
+                err.contains("cannot burn wrapped tokens without an existing wrapped account"),
+                "{err}"
+            );
+            resp.assert_event(
+                &Event::new("wasm-ObservationError")
+                    .add_attribute("key", serde_json_wasm::to_string(&key).unwrap()),
+            );
+        } else {
+            panic!(
+                "unexpected response for transfer with missing wrapped account {:?}",
+                r[0]
+            );
+        }
+    }
 }
 
 #[test]
@@ -480,7 +525,9 @@ fn missing_native_account() {
     let token_chain = 2;
 
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
+    let num_guardians = wh.num_guardians();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
@@ -509,8 +556,27 @@ fn missing_native_account() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key, msg, index, quorum)
-        .expect_err("successfully unlocked native tokens without a native account");
+    let (_, responses) =
+        transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
+    for mut resp in responses.into_iter().skip(quorum - 1) {
+        let r = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
+        assert_eq!(key, r[0].key);
+        if let ObservationStatus::Error(ref err) = r[0].status {
+            assert!(
+                err.contains("cannot unlock native tokens without an existing native account"),
+                "{err}"
+            );
+            resp.assert_event(
+                &Event::new("wasm-ObservationError")
+                    .add_attribute("key", serde_json_wasm::to_string(&key).unwrap()),
+            );
+        } else {
+            panic!(
+                "unexpected response for transfer with missing native account {:?}",
+                r[0]
+            );
+        }
+    }
 }
 
 #[test]
@@ -520,9 +586,7 @@ fn repeated() {
     let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 3);
     let index = wh.guardian_set_index();
-    let quorum = wh
-        .calculate_quorum(index, contract.app().block_info().height)
-        .unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     let emitter_chain = 2;
     let recipient_chain = 14;
@@ -541,7 +605,15 @@ fn repeated() {
 
     for i in 0..ITERATIONS {
         let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), i as u64);
-        transfer_tokens(&wh, &mut contract, key.clone(), msg.clone(), index, quorum).unwrap();
+        transfer_tokens(
+            &wh,
+            &mut contract,
+            key.clone(),
+            msg.clone(),
+            index,
+            num_guardians,
+        )
+        .unwrap();
     }
 
     let expected = Uint256::new(amount.0) * Uint256::from(ITERATIONS as u128);
@@ -577,9 +649,7 @@ fn wrapped_to_wrapped() {
     let (wh, mut contract) = proper_instantiate();
     register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
-    let quorum = wh
-        .calculate_quorum(index, contract.app().block_info().height)
-        .unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     // We need an initial fake wrapped account.
     let m = to_binary(&Modification {
@@ -605,7 +675,8 @@ fn wrapped_to_wrapped() {
         fee: Amount([0u8; 32]),
     };
 
-    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum).unwrap();
+    let (o, _) =
+        transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
 
     let expected = transfer::Data {
         amount: Uint256::new(amount.0),
@@ -642,6 +713,7 @@ fn wrapped_to_wrapped() {
 fn unknown_emitter() {
     let (wh, mut contract) = proper_instantiate();
     let index = wh.guardian_set_index();
+    let num_guardians = wh.num_guardians();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
@@ -662,8 +734,24 @@ fn unknown_emitter() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key, msg, index, quorum)
-        .expect_err("successfully transfered tokens with an invalid emitter address");
+    let (_, responses) =
+        transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
+    for mut resp in responses.into_iter().skip(quorum - 1) {
+        let r = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
+        assert_eq!(key, r[0].key);
+        if let ObservationStatus::Error(ref err) = r[0].status {
+            assert!(err.contains("no registered emitter"));
+            resp.assert_event(
+                &Event::new("wasm-ObservationError")
+                    .add_attribute("key", serde_json_wasm::to_string(&key).unwrap()),
+            );
+        } else {
+            panic!(
+                "unexpected response for transfer with unknown emitter address {:?}",
+                r[0]
+            );
+        }
+    }
 }
 
 #[test]
@@ -757,6 +845,7 @@ fn emit_event_with_quorum() {
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     let emitter_chain = 2;
     let amount = Amount(Uint256::from(500u128).to_be_bytes());
@@ -774,7 +863,8 @@ fn emit_event_with_quorum() {
         fee: Amount([0u8; 32]),
     };
 
-    let (o, responses) = transfer_tokens(&wh, &mut contract, key, msg, index, quorum).unwrap();
+    let (o, responses) =
+        transfer_tokens(&wh, &mut contract, key, msg, index, num_guardians).unwrap();
 
     let expected = Event::new("wasm-Observation")
         .add_attribute("tx_hash", serde_json_wasm::to_string(&o.tx_hash).unwrap())
@@ -798,9 +888,9 @@ fn emit_event_with_quorum() {
         )
         .add_attribute("payload", serde_json_wasm::to_string(&o.payload).unwrap());
 
-    assert_eq!(responses.len(), quorum);
+    assert_eq!(responses.len(), num_guardians);
     for (i, r) in responses.into_iter().enumerate() {
-        if i < quorum - 1 {
+        if i < quorum - 1 || i >= quorum {
             assert!(!r.has_event(&expected));
         } else {
             r.assert_event(&expected);
@@ -814,9 +904,7 @@ fn duplicate_vaa() {
     register_emitters(&wh, &mut contract, 3);
 
     let index = wh.guardian_set_index();
-    let quorum = wh
-        .calculate_quorum(index, contract.app().block_info().height)
-        .unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     let emitter_chain = 2;
     let amount = Amount(Uint256::from(500u128).to_be_bytes());
@@ -834,7 +922,7 @@ fn duplicate_vaa() {
         fee: Amount([0u8; 32]),
     };
 
-    let (o, _) = transfer_tokens(&wh, &mut contract, key, msg, index, quorum).unwrap();
+    let (o, _) = transfer_tokens(&wh, &mut contract, key, msg, index, num_guardians).unwrap();
 
     // Now try to submit a VAA for this transfer.  This should fail since the transfer is already
     // processed.
@@ -871,9 +959,7 @@ fn digest_mismatch() {
     register_emitters(&wh, &mut contract, 3);
 
     let index = wh.guardian_set_index();
-    let quorum = wh
-        .calculate_quorum(index, contract.app().block_info().height)
-        .unwrap() as usize;
+    let num_guardians = wh.num_guardians();
 
     let emitter_chain = 2;
     let amount = Amount(Uint256::from(500u128).to_be_bytes());
@@ -891,7 +977,7 @@ fn digest_mismatch() {
         fee: Amount([0u8; 32]),
     };
 
-    let (o, _) = transfer_tokens(&wh, &mut contract, key, msg, index, quorum).unwrap();
+    let (o, _) = transfer_tokens(&wh, &mut contract, key, msg, index, num_guardians).unwrap();
 
     // Now try submitting a VAA with the same (chain, address, sequence) tuple but with
     // different details.

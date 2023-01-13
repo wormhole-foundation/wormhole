@@ -58,6 +58,32 @@ impl Observation {
     }
 }
 
+// The default externally-tagged serde representation of enums is awkward in JSON when the
+// enum contains unit variants mixed with newtype variants.  We can't use the internally-tagged
+// representation because it only supports newtype variants that contain structs or maps.  So use
+// the adjacently tagged variant representation here: the enum is always encoded as an object with
+// a "type" field that indicates the variant and an optional "data" field that contains the data for
+// the variant, if any.
+#[cw_serde]
+#[serde(tag = "type", content = "data")]
+pub enum ObservationStatus {
+    Pending,
+    Committed,
+    Error(String),
+}
+
+#[cw_serde]
+pub struct SubmitObservationResponse {
+    pub key: transfer::Key,
+    pub status: ObservationStatus,
+}
+
+#[cw_serde]
+pub struct ObservationError {
+    pub key: transfer::Key,
+    pub error: String,
+}
+
 #[cw_serde]
 pub struct Upgrade {
     pub new_addr: [u8; 32],
