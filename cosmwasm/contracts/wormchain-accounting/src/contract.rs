@@ -14,6 +14,7 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
+use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole::{
     token::{Action, GovernancePacket, Message},
@@ -183,7 +184,7 @@ fn handle_observation(
         return Ok(None);
     }
 
-    let (msg, _) = serde_wormhole::from_slice_with_payload(&o.payload)
+    let (msg, _) = serde_wormhole::from_slice::<(Message, &RawMessage)>(&o.payload)
         .context("failed to parse observation payload")?;
     let tx_data = match msg {
         Message::Transfer {
@@ -322,7 +323,7 @@ fn submit_vaas(
 }
 
 fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event> {
-    let (header, data) = serde_wormhole::from_slice_with_payload::<Header>(&vaa)
+    let (header, data) = serde_wormhole::from_slice::<(Header, &RawMessage)>(&vaa)
         .context("failed to parse VAA header")?;
 
     ensure!(header.version == 1, "unsupported VAA version");
@@ -342,7 +343,7 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
         .map(|d| d.secp256k_hash.to_vec().into())
         .context("failed to calculate digest for VAA body")?;
 
-    let (body, payload) = serde_wormhole::from_slice_with_payload::<Body<()>>(data)
+    let body = serde_wormhole::from_slice::<Body<&RawMessage>>(data)
         .context("failed to parse VAA body")?;
 
     let digest_key = DIGESTS.key((
@@ -365,11 +366,11 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
     let evt = if body.emitter_chain == Chain::Solana
         && body.emitter_address == wormhole::GOVERNANCE_EMITTER
     {
-        let govpacket =
-            serde_wormhole::from_slice(payload).context("failed to parse governance packet")?;
+        let govpacket = serde_wormhole::from_slice(body.payload)
+            .context("failed to parse governance packet")?;
         handle_governance_vaa(deps.branch(), body.with_payload(govpacket))?
     } else {
-        let (msg, _) = serde_wormhole::from_slice_with_payload(payload)
+        let (msg, _) = serde_wormhole::from_slice::<(_, &RawMessage)>(body.payload)
             .context("failed to parse tokenbridge message")?;
         handle_tokenbridge_vaa(deps.branch(), body.with_payload(msg))?
     };
