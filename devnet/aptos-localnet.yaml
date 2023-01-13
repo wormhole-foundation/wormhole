@@ -60,7 +60,7 @@ spec:
           command: ["/bin/bash", "-c"]
           args:
             [
-              "cd /tmp/scripts && ./wait_for_devnet && ./deploy devnet && ./register_devnet && touch success && sleep infinity",
+              "cd /tmp/scripts && ./wait_for_devnet && ./deploy devnet && ./register_devnet && touch /tmp/scripts/success && sleep infinity",
             ]
           readinessProbe:
             periodSeconds: 1
