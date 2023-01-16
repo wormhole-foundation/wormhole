@@ -7,12 +7,21 @@
 
 use bstr::BString;
 use serde::{Deserialize, Serialize};
+use serde_wormhole::RawMessage;
 
 use crate::{Address, Amount, Chain};
 
 /// Represents a non-governance action targeted at the token bridge.
+///
+/// The generic parameter `P` indicates the type of the payload for the `TransferWithPayload`
+/// variant.  This defaults to `Box<RawMessage>` as that provides the most flexibility when
+/// deserializing the payload and avoids leaking lifetime parameters higher up the stack.  However,
+/// users who are serializing to or deserializing from the serde_wormhole data format may want to
+/// use a `&RawMessage` to avoid unnecessary memory allocations.  When the type of the payload is
+/// known and is serialized in the same data format as the rest of the message, that type can be
+/// used as the generic parameter to deserialize the message and the payload together.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Message {
+pub enum Message<P = Box<RawMessage>> {
     /// The Transfer message contains specifics detailing a token lock up on a sending chain. Chains
     /// that are attempting to initiate a transfer must lock up tokens in some manner, such as in a
     /// custody account or via burning, before emitting this message.
@@ -58,8 +67,7 @@ pub enum Message {
         name: BString,
     },
 
-    /// Similar to `Transfer` but also includes an arbitrary payload that is appended to the end of
-    /// the message.
+    /// Similar to `Transfer` but also includes an arbitrary payload.
     ///
     /// # Examples
     ///
@@ -96,9 +104,17 @@ pub enum Message {
     ///       use serde_wormhole::RawMessage;
     ///       use wormhole::{token::Message, Vaa};
     ///
-    ///       let (msg, payload) = serde_wormhole::from_slice::<(Vaa<Message>, &RawMessage)>(&data)?;
-    ///       assert!(matches!(msg.payload, Message::TransferWithPayload { .. }));
-    ///       assert_eq!(&data[256..], payload.get());
+    ///       let msg = serde_wormhole::from_slice::<Vaa<Message<&RawMessage>>>(&data)?;
+    ///       match msg.payload {
+    ///           Message::TransferWithPayload { payload, .. } => {
+    ///               // Handle the payload.
+    /// #             assert_eq!(&data[256..], payload.get())
+    ///           }
+    ///           _ => {
+    ///               // Handle other message types.    
+    /// #             panic!("unexpected message type")
+    ///           }
+    ///       }
     /// #
     /// #     Ok(())
     /// # }
@@ -110,9 +126,13 @@ pub enum Message {
     ///
     /// ```
     /// # fn example() -> anyhow::Result<()> {
+    /// #     use serde_wormhole::RawMessage;
     /// #     use wormhole::{Address, Amount, Chain, vaa::Signature, GOVERNANCE_EMITTER};
-    ///       use anyhow::anyhow;
-    ///       use wormhole::{token::Message, Vaa};
+    /// #     let tx_payload = [
+    /// #         0x93, 0xd7, 0xc0, 0x9e, 0xe8, 0x87, 0xae, 0x16, 0xbf, 0xfa, 0x5e, 0x70, 0xea, 0x36, 0xa2,
+    /// #         0x82, 0x37, 0x1d, 0x46, 0x81, 0x94, 0x10, 0x34, 0xb1, 0xad, 0x0f, 0x4b, 0xc9,
+    /// #     ];
+    /// #
     /// #     let vaa = Vaa {
     /// #         version: 1,
     /// #         guardian_set_index: 0,
@@ -130,25 +150,27 @@ pub enum Message {
     /// #             recipient: Address([0x19; 32]),
     /// #             recipient_chain: Chain::Osmosis,
     /// #             sender_address: Address([0xfe; 32]),
+    /// #             payload: <Box<RawMessage>>::from(tx_payload.to_vec()),
     /// #         },
     /// #     };
     /// #
-    /// #     let payload = [
-    /// #         0x93, 0xd7, 0xc0, 0x9e, 0xe8, 0x87, 0xae, 0x16, 0xbf, 0xfa, 0x5e, 0x70, 0xea, 0x36, 0xa2,
-    /// #         0x82, 0x37, 0x1d, 0x46, 0x81, 0x94, 0x10, 0x34, 0xb1, 0xad, 0x0f, 0x4b, 0xc9,
-    /// #     ];
-    /// #
-    /// #     let mut data = serde_json::to_vec(&vaa)?;
-    /// #     data.extend_from_slice(&payload);
+    /// #     let data = serde_json::to_vec(&vaa)?;
+    ///       use anyhow::anyhow;
+    ///       use wormhole::{token::Message, Vaa};
     ///
-    ///       let mut stream = serde_json::Deserializer::from_slice(&data).into_iter();
-    ///       let msg: Vaa<Message> = stream
-    ///           .next()
-    ///           .ok_or_else(|| anyhow!("missing token message"))??;
-    ///       assert!(matches!(msg.payload, Message::TransferWithPayload { .. }));
-    ///       assert_eq!(&data[stream.byte_offset()..], payload);
-    /// #
+    ///       let msg = serde_json::from_slice::<Vaa<Message>>(&data)?;
     /// #     assert_eq!(vaa, msg);
+    ///       match msg.payload {
+    ///           Message::TransferWithPayload { payload, .. } => {
+    ///               // Handle the payload.
+    /// #             assert_eq!(&tx_payload[..], payload.get())
+    ///           }
+    ///           _ => {
+    ///               // Handle other message types.    
+    /// #             panic!("unexpected message type")
+    ///           }
+    ///       }
+    /// #
     /// #     Ok(())
     /// # }
     /// #
@@ -173,7 +195,9 @@ pub enum Message {
 
         /// The identity of the sender sending the payload.
         sender_address: Address,
-        // The actual payload is appended to the end of the message.
+
+        /// The payload to be included with the transfer.
+        payload: P,
     },
 }
 
@@ -479,7 +503,9 @@ mod test {
             0x3b, 0xd0, 0x0a, 0x2f, 0xdd, 0x02, 0xe8, 0xef, 0xfc, 0x7a, 0xfe, 0x3d, 0xd6, 0x73,
             0x2c, 0x5d, 0xa0, 0x6b, 0x08, 0x98, 0x6c,
         ];
-        let msg = Message::Transfer {
+        // Need to explicity annotate the type here so that the compiler will use the default type
+        // parameter.
+        let msg: Message = Message::Transfer {
             amount: Amount([
                 0xfa, 0x22, 0x8b, 0x3d, 0xf3, 0x59, 0x21, 0xa1, 0xc9, 0x39, 0xad, 0x9c, 0x54, 0xe1,
                 0x2f, 0x87, 0xc6, 0x27, 0x25, 0xd1, 0xaf, 0x7c, 0x7b, 0x6a, 0xea, 0xbf, 0x48, 0x14,
@@ -524,7 +550,9 @@ mod test {
             0x65, 0x6e,
         ];
 
-        let msg = Message::AssetMeta {
+        // Need to explicity annotate the type here so that the compiler will use the default type
+        // parameter.
+        let msg: Message = Message::AssetMeta {
             token_address: Address([
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -562,6 +590,9 @@ mod test {
             0xa2, 0x82, 0x37, 0x1d, 0x46, 0x81, 0x94, 0x10, 0x34, 0xb1, 0xad, 0x0f, 0x4b, 0xc9,
             0x17, 0x1e, 0x91, 0x25, 0x11,
         ];
+
+        // No need to annotate the type here as the compiler can infer the generic parameter via the
+        // `TransferWithPayload` variant.
         let msg = Message::TransferWithPayload {
             amount: Amount([
                 0x99, 0x30, 0x29, 0x01, 0x67, 0xf3, 0x48, 0x6a, 0xf6, 0x4c, 0xdd, 0x07, 0x64, 0xa1,
@@ -585,19 +616,14 @@ mod test {
                 0x41, 0xcf, 0x74, 0x24, 0xff, 0xa4, 0x02, 0x35, 0xbe, 0xb1, 0x7c, 0x47, 0x16, 0xba,
                 0xbc, 0xaa, 0xbe, 0x99,
             ]),
+            payload: <Box<RawMessage>>::from(payload[133..].to_vec()),
         };
 
-        assert_eq!(&payload[..133], &serde_wormhole::to_vec(&msg).unwrap());
-        let (actual, data) = serde_wormhole::from_slice::<(_, &RawMessage)>(&payload).unwrap();
-        assert_eq!(msg, actual);
-        assert_eq!(&payload[133..], data.get());
+        assert_eq!(&payload[..], &serde_wormhole::to_vec(&msg).unwrap());
+        assert_eq!(msg, serde_wormhole::from_slice(&payload).unwrap());
 
-        let mut encoded = serde_json::to_vec(&msg).unwrap();
-        encoded.extend_from_slice(&payload[133..]);
-
-        let mut stream = serde_json::Deserializer::from_slice(&encoded).into_iter();
-        assert_eq!(msg, stream.next().unwrap().unwrap());
-        assert_eq!(payload[133..], encoded[stream.byte_offset()..]);
+        let encoded = serde_json::to_vec(&msg).unwrap();
+        assert_eq!(msg, serde_json::from_slice(&encoded).unwrap());
     }
 
     #[test]

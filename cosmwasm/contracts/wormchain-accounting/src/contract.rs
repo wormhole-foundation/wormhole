@@ -184,7 +184,7 @@ fn handle_observation(
         return Ok(None);
     }
 
-    let (msg, _) = serde_wormhole::from_slice::<(Message, &RawMessage)>(&o.payload)
+    let msg = serde_wormhole::from_slice::<Message<&RawMessage>>(&o.payload)
         .context("failed to parse observation payload")?;
     let tx_data = match msg {
         Message::Transfer {
@@ -370,7 +370,7 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
             .context("failed to parse governance packet")?;
         handle_governance_vaa(deps.branch(), body.with_payload(govpacket))?
     } else {
-        let (msg, _) = serde_wormhole::from_slice::<(_, &RawMessage)>(body.payload)
+        let msg = serde_wormhole::from_slice(body.payload)
             .context("failed to parse tokenbridge message")?;
         handle_tokenbridge_vaa(deps.branch(), body.with_payload(msg))?
     };
@@ -413,7 +413,7 @@ fn handle_governance_vaa(
 
 fn handle_tokenbridge_vaa(
     mut deps: DepsMut<WormholeQuery>,
-    body: Body<Message>,
+    body: Body<Message<&RawMessage>>,
 ) -> anyhow::Result<Event> {
     let data = match body.payload {
         Message::Transfer {

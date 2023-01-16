@@ -246,17 +246,10 @@ impl<P: Serialize> Body<P> {
     /// and hashing the result using on-chain primitives.
     #[inline]
     pub fn digest(&self) -> anyhow::Result<Digest> {
-        self.digest_with_payload(&[])
-    }
-
-    /// Like `digest` but allows specifying an additional payload to include in the body hash.
-    pub fn digest_with_payload(&self, payload: &[u8]) -> anyhow::Result<Digest> {
         // The `body` of the VAA is hashed to produce a `digest` of the VAA.
         let hash: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
             serde_wormhole::to_writer(&mut h, self).context("failed to serialize body")?;
-            h.write_all(payload)
-                .context("failed to hash extra payload")?;
             h.finalize().into()
         };
 
