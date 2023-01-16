@@ -1,6 +1,7 @@
 use accounting::state::{account, transfer, Account, Modification, Transfer};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
+use serde_wormhole::RawMessage;
 use wormhole::{
     vaa::{Body, Signature},
     Address,
@@ -41,9 +42,6 @@ pub struct Observation {
 impl Observation {
     // Calculate a digest of the observation that can be used for de-duplication.
     pub fn digest(&self) -> anyhow::Result<Binary> {
-        // We don't know the actual type of `self.payload` so we create a body with a 0-sized
-        // payload and then just append it when calculating the digest.
-
         let body = Body {
             timestamp: self.timestamp,
             nonce: self.nonce,
@@ -51,10 +49,10 @@ impl Observation {
             emitter_address: Address(self.emitter_address),
             sequence: self.sequence,
             consistency_level: self.consistency_level,
-            payload: (),
+            payload: RawMessage::new(&self.payload),
         };
 
-        let digest = body.digest_with_payload(&self.payload)?;
+        let digest = body.digest()?;
 
         Ok(digest.secp256k_hash.to_vec().into())
     }

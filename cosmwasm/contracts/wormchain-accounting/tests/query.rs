@@ -53,7 +53,7 @@ fn create_transfers(
         let recipient_chain = emitter_chain + 1;
         let amount = Uint256::from(i as u128);
 
-        let body = Body {
+        let body: Body<Message> = Body {
             timestamp: i as u32,
             nonce: i as u32,
             emitter_chain: emitter_chain.into(),

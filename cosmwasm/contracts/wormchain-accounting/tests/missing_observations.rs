@@ -7,7 +7,7 @@ use wormchain_accounting::msg::Observation;
 use wormhole::{token::Message, Address, Amount, Chain};
 
 fn create_observation() -> Observation {
-    let msg = Message::Transfer {
+    let msg: Message = Message::Transfer {
         amount: Amount(Uint256::from(500u128).to_be_bytes()),
         token_address: Address([0x02; 32]),
         token_chain: Chain::Ethereum,
@@ -106,7 +106,7 @@ fn different_observations() {
     }
 
     // Create a new observation with a different tx hash and payload.
-    let msg = Message::Transfer {
+    let msg: Message = Message::Transfer {
         amount: Amount(Uint256::from(900u128).to_be_bytes()),
         token_address: Address([0x02; 32]),
         token_chain: Chain::Ethereum,
