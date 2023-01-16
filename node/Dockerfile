@@ -18,12 +18,15 @@ RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
 
 COPY node node
 COPY sdk sdk
+COPY wormchain wormchain
 
 ARG GO_BUILD_ARGS=-race
 
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   cd node && \
-  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node
+  go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \
+  go get github.com/CosmWasm/wasmvm@v1.0.0 && \
+  cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.0.0/api/libwasmvm.x86_64.so /usr/lib/  
 
 # Only export the final binary (+ shared objects). This reduces the image size
 # from ~1GB to ~150MB.
@@ -33,6 +36,7 @@ FROM scratch as export
 # have to copy all the dynamic libraries
 COPY --from=build /lib/* /lib/
 COPY --from=build /lib64/* /lib64/
+COPY --from=build /usr/lib/libwasmvm.x86_64.so /usr/lib/
 
 # Copy the shells as entrypoints, but no utilities are necessary
 COPY --from=build /bin/bash /bin/dash /bin/sh /bin/

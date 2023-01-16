@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/accounting"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -67,8 +68,26 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc, gov *governor.ChainGovernor, signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
-	signedGovSt chan *gossipv1.SignedChainGovernorStatus) func(ctx context.Context) error {
+func Run(
+	obsvC chan *gossipv1.SignedObservation,
+	obsvReqC chan *gossipv1.ObservationRequest,
+	obsvReqSendC chan *gossipv1.ObservationRequest,
+	sendC chan []byte,
+	signedInC chan *gossipv1.SignedVAAWithQuorum,
+	priv crypto.PrivKey,
+	gk *ecdsa.PrivateKey,
+	gst *node_common.GuardianSetState,
+	port uint,
+	networkID string,
+	bootstrapPeers string,
+	nodeName string,
+	disableHeartbeatVerify bool,
+	rootCtxCancel context.CancelFunc,
+	acct *accounting.Accounting,
+	gov *governor.ChainGovernor,
+	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
+	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
+) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -210,6 +229,9 @@ func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.Observa
 					features := make([]string, 0)
 					if gov != nil {
 						features = append(features, "governor")
+					}
+					if acct != nil {
+						features = append(features, acct.FeatureString())
 					}
 
 					heartbeat := &gossipv1.Heartbeat{

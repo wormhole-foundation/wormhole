@@ -23,6 +23,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
+	"github.com/certusone/wormhole/node/pkg/wormconn"
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -36,6 +37,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/certusone/wormhole/node/pkg/accounting"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -45,6 +47,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	cosmoscrypto "github.com/cosmos/cosmos-sdk/crypto/types"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -139,8 +142,15 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	wormchainWS  *string
-	wormchainLCD *string
+	wormchainWS            *string
+	wormchainLCD           *string
+	wormchainURL           *string
+	wormchainKeyPath       *string
+	wormchainKeyPassPhrase *string // TODO Is there a better way to do this??
+
+	accountingContract     *string
+	accountingWS           *string
+	accountingCheckEnabled *bool
 
 	aptosRPC     *string
 	aptosAccount *string
@@ -280,6 +290,13 @@ func init() {
 
 	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormchaind root for websocket connection")
 	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
+	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
+	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
+	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
+
+	accountingWS = NodeCmd.Flags().String("accountingWS", "", "Websocket used to listen to the accounting smart contract on wormchain")
+	accountingContract = NodeCmd.Flags().String("accountingContract", "", "Address of the accounting smart contract on wormchain")
+	accountingCheckEnabled = NodeCmd.Flags().Bool("accountingCheckEnabled", false, "Should accounting be enforced on transfers")
 
 	aptosRPC = NodeCmd.Flags().String("aptosRPC", "", "aptos RPC URL")
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -902,6 +919,92 @@ func runNode(cmd *cobra.Command, args []string) {
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
 	attestationEvents := reporter.EventListener(logger)
 
+	// If the wormchain sending info is configured, connect to it.
+	var wormchainKey cosmoscrypto.PrivKey
+	var wormchainConn *wormconn.ClientConn
+	if *wormchainURL != "" {
+		if *wormchainKeyPath == "" {
+			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required")
+		}
+
+		if *wormchainKeyPassPhrase == "" {
+			logger.Fatal("if wormchainURL is specified, wormchainKeyPassPhrase is required")
+		}
+
+		// Load the wormchain key.
+		wormchainKeyPathName := *wormchainKeyPath
+		if *unsafeDevMode {
+			idx, err := devnet.GetDevnetIndex()
+			if err != nil {
+				logger.Fatal("failed to get devnet index", zap.Error(err))
+			}
+			wormchainKeyPathName = fmt.Sprint(*wormchainKeyPath, idx)
+		}
+
+		logger.Debug("acct: loading key file", zap.String("key path", wormchainKeyPathName))
+		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *wormchainKeyPassPhrase)
+		if err != nil {
+			logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
+		}
+
+		// Connect to wormchain.
+		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("wormchainKeyPath", wormchainKeyPathName))
+		wormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey)
+		if err != nil {
+			logger.Fatal("failed to connect to wormchain", zap.Error(err))
+		}
+	}
+
+	// Set up accounting. If the accounting smart contract is configured, we will instantiate accounting and VAAs
+	// will be passed to it for processing. It will forward all token bridge transfers to the accounting contract.
+	// If accountingCheckEnabled is set to true, token bridge transfers will not be signed and published until they
+	// are approved by the accounting smart contract.
+
+	// TODO: Use this once PR #1931 is merged.
+	//acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
+	acctChan := make(chan *common.MessagePublication)
+	var acctReadC <-chan *common.MessagePublication = acctChan
+	var acctWriteC chan<- *common.MessagePublication = acctChan
+
+	var acct *accounting.Accounting
+	if *accountingContract != "" {
+		if *accountingWS == "" {
+			logger.Fatal("acct: if accountingContract is specified, accountingWS is required")
+		}
+		if *wormchainLCD == "" {
+			logger.Fatal("acct: if accountingContract is specified, wormchainLCD is required")
+		}
+		if wormchainConn == nil {
+			logger.Fatal("acct: if accountingContract is specified, the wormchain sending connection must be enabled")
+		}
+		if *accountingCheckEnabled {
+			logger.Info("acct: accounting is enabled and will be enforced")
+		} else {
+			logger.Info("acct: accounting is enabled but will not be enforced")
+		}
+		env := accounting.MainNetMode
+		if *testnetMode {
+			env = accounting.TestNetMode
+		} else if *unsafeDevMode {
+			env = accounting.DevNetMode
+		}
+		acct = accounting.NewAccounting(
+			rootCtx,
+			logger,
+			db,
+			*accountingContract,
+			*accountingWS,
+			wormchainConn,
+			*accountingCheckEnabled,
+			gk,
+			gst,
+			acctWriteC,
+			env,
+		)
+	} else {
+		logger.Info("acct: accounting is disabled")
+	}
+
 	var gov *governor.ChainGovernor
 	if *chainGovernorEnabled {
 		logger.Info("chain governor is enabled")
@@ -925,7 +1028,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, gov, nil, nil)); err != nil {
+			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, acct, gov, nil, nil)); err != nil {
 			return err
 		}
 
@@ -1227,6 +1330,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqC, chainObsvReqC)
 
+		if acct != nil {
+			if err := acct.Start(ctx); err != nil {
+				logger.Fatal("acct: failed to start accounting", zap.Error(err))
+			}
+		}
+
 		if gov != nil {
 			err := gov.Run(ctx)
 			if err != nil {
@@ -1252,6 +1361,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			attestationEvents,
 			notifier,
 			gov,
+			acct,
+			acctReadC,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err

@@ -44,21 +44,32 @@ spec:
         # mount shared between containers for runtime state
         - name: node-rundir
           emptyDir: {}
-        - name: node-keysdir
+        - name: node-bigtable-key
           secret:
             secretName: node-bigtable-key
             optional: true
             items:
               - key: bigtable-key.json
                 path: bigtable-key.json
+        - name: node-wormchain-key
+          secret:
+            secretName: node-wormchain-key
+            optional: false
+            items:
+              - key: wormchainKey0
+                path: wormchainKey0
+              - key: wormchainKey1
+                path: wormchainKey1               
       containers:
         - name: guardiand
           image: guardiand-image
           volumeMounts:
             - mountPath: /run/node
               name: node-rundir
-            - mountPath: /tmp/mounted-keys
-              name: node-keysdir
+            - mountPath: /tmp/mounted-keys/bigtable
+              name: node-bigtable-key
+            - mountPath: /tmp/mounted-keys/wormchain
+              name: node-wormchain-key
           command:
             - /guardiand
             - node
@@ -96,6 +107,17 @@ spec:
             # - ws://guardian-validator:26657/websocket
             # - --wormchainLCD
             # - http://guardian-validator:1317
+            # - --wormchainURL
+            # - guardian-validator:9090
+            # - --wormchainKeyPath
+            # - /tmp/mounted-keys/wormchain/wormchainKey
+            # - --wormchainKeyPassPhrase
+            # - test0000
+            # - --accountingWS
+            # - http://guardian-validator:26657
+            # - --accountingContract
+            # - wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh    
+            # - --accountingCheckEnabled=true
             # - --terraWS
             # - ws://terra-terrad:26657/websocket
             # - --terraLCD
@@ -170,3 +192,12 @@ spec:
             - containerPort: 2345
               name: debugger
               protocol: TCP
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: node-wormchain-key
+type: Opaque
+data:
+  wormchainKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc2ODc2NkE3OEZEN0ZBQjMwMUJGOTM5MUYwQ0Y2M0YKdHlwZTogc2VjcDI1NmsxCgpkbEZuN1ZqRk02RnJjYkdaVDRWeE5yRlE3SUhQS2RyVVBCRTYraW8yK0w0VFZqcis5emNIQTF3dzNubWtqNVFlCnVSekJWMjQyeUdTc3hNTTJZckI2Q1ZXdzlaWXJJY3JFeks1c0FuST0KPXB2aHkKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t 
+  wormchainKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogMjMyRTU2NDMyMjBBNTcwRkVEQjFFMTFFOTNFM0E4NEIKdHlwZTogc2VjcDI1NmsxCgpBZjJ3aXNLdlBDOW4vaExYcDZaS1k5S091aVNYZG1lb3VvSzd3QVJ3cmNtTDV3MGs0YjFDSE5xTEp3ZXU1OEFGCkdTWGJsU3oySzNuWEl1V2hJZWtSNXE5WGRuUko4cGhSRWltbFNZST0KPU1vY1QKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0tCg==

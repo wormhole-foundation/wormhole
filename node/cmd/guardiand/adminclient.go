@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	ethcommon "github.com/ethereum/go-ethereum/common"
-
+	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/davecgh/go-spew/spew"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
@@ -210,7 +210,7 @@ func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load guardian key: %w", err)
 	}
-	addr, err := getFromBech32(wormchainAddress, "wormhole")
+	addr, err := types.GetFromBech32(wormchainAddress, "wormhole")
 	if err != nil {
 		return fmt.Errorf("failed to decode wormchain address: %w", err)
 	}

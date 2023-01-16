@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/accounting"
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/reporter"
@@ -132,6 +133,8 @@ type Processor struct {
 
 	notifier    *discord.DiscordNotifier
 	governor    *governor.ChainGovernor
+	acct        *accounting.Accounting
+	acctReadC   <-chan *common.MessagePublication
 	pythnetVaas map[string]PythNetVaaEntry
 }
 
@@ -154,6 +157,8 @@ func NewProcessor(
 	attestationEvents *reporter.AttestationEventReporter,
 	notifier *discord.DiscordNotifier,
 	g *governor.ChainGovernor,
+	acct *accounting.Accounting,
+	acctReadC <-chan *common.MessagePublication,
 ) *Processor {
 
 	return &Processor{
@@ -181,6 +186,8 @@ func NewProcessor(
 		state:       &aggregationState{observationMap{}},
 		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
 		governor:    g,
+		acct:        acct,
+		acctReadC:   acctReadC,
 		pythnetVaas: make(map[string]PythNetVaaEntry),
 	}
 }
@@ -194,6 +201,9 @@ func (p *Processor) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			if p.acct != nil {
+				p.acct.Close()
+			}
 			return ctx.Err()
 		case p.gs = <-p.setC:
 			p.logger.Info("guardian set updated",
@@ -205,6 +215,21 @@ func (p *Processor) Run(ctx context.Context) error {
 				if !p.governor.ProcessMsg(k) {
 					continue
 				}
+			}
+			if p.acct != nil {
+				shouldPub, err := p.acct.SubmitObservation(k)
+				if err != nil {
+					return fmt.Errorf("acct: failed to process message `%s`: %w", k.MessageIDString(), err)
+				}
+				if !shouldPub {
+					continue
+				}
+			}
+			p.handleMessage(ctx, k)
+
+		case k := <-p.acctReadC:
+			if p.acct == nil {
+				return fmt.Errorf("acct: received an accounting event when accounting is not configured")
 			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
@@ -223,9 +248,23 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 				if len(toBePublished) != 0 {
 					for _, k := range toBePublished {
+						if p.acct != nil {
+							shouldPub, err := p.acct.SubmitObservation(k)
+							if err != nil {
+								return fmt.Errorf("acct: failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
+							}
+							if !shouldPub {
+								continue
+							}
+						}
 						p.handleMessage(ctx, k)
 					}
 				}
+			}
+			if p.acct != nil {
+				p.acct.AuditPendingTransfers()
+			}
+			if (p.governor != nil) || (p.acct != nil) {
 				govTimer = time.NewTimer(time.Minute)
 			}
 		}
