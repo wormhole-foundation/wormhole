@@ -157,6 +157,8 @@ fn handle_observation(
     quorum: u32,
     sig: Signature,
 ) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
+    let digest = o.digest().context(ContractError::ObservationDigest)?;
+
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
     let tx_key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
 
@@ -164,7 +166,6 @@ fn handle_observation(
         .may_load(deps.storage)
         .context("failed to load transfer digest")?
     {
-        let digest = o.digest().context(ContractError::ObservationDigest)?;
         if saved_digest != digest {
             bail!(ContractError::DigestMismatch);
         }
@@ -177,13 +178,19 @@ fn handle_observation(
         .may_load(deps.storage)
         .map(Option::unwrap_or_default)
         .context("failed to load `PendingTransfer`")?;
-    let data = match pending
-        .iter_mut()
-        .find(|d| d.guardian_set_index() == guardian_set_index && d.observation() == &o)
-    {
+    let data = match pending.iter_mut().find(|d| {
+        d.guardian_set_index() == guardian_set_index
+            && d.digest() == &digest
+            && d.tx_hash() == &o.tx_hash
+    }) {
         Some(d) => d,
         None => {
-            pending.push(Data::new(o.clone(), guardian_set_index));
+            pending.push(Data::new(
+                digest.clone(),
+                o.tx_hash.clone(),
+                o.emitter_chain,
+                guardian_set_index,
+            ));
             let back = pending.len() - 1;
             &mut pending[back]
         }
@@ -245,7 +252,6 @@ fn handle_observation(
 
     // Save the digest of the observation so that we can check for duplicate transfer keys with
     // mismatched data.
-    let digest = o.digest().context(ContractError::ObservationDigest)?;
     digest_key
         .save(deps.storage, &digest)
         .context("failed to save transfer digest")?;
@@ -661,10 +667,9 @@ fn query_missing_observations(
         let (_, v) = pending?;
         for data in v {
             if data.guardian_set_index() == guardian_set && !data.has_signature(index) {
-                let o = data.observation();
                 missing.push(MissingObservation {
-                    chain_id: o.emitter_chain,
-                    tx_hash: o.tx_hash.clone(),
+                    chain_id: data.emitter_chain(),
+                    tx_hash: data.tx_hash().clone(),
                 });
             }
         }

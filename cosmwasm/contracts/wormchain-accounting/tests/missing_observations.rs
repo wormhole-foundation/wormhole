@@ -43,6 +43,7 @@ fn missing_observations() {
         .unwrap() as usize;
 
     let o = create_observation();
+    let digest = o.digest().unwrap();
     let data = to_binary(&[o.clone()]).unwrap();
     let signatures = wh.sign(&data);
 
@@ -56,7 +57,7 @@ fn missing_observations() {
     // The transfer should still be pending.
     let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
     let pending = contract.query_pending_transfer(key).unwrap();
-    assert_eq!(&o, pending[0].observation());
+    assert_eq!(&digest, pending[0].digest());
 
     for (i, s) in signatures.iter().enumerate() {
         let resp = contract.query_missing_observations(index, s.index).unwrap();
