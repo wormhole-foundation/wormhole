@@ -705,10 +705,9 @@
               "$ref": "#/definitions/Observation"
             },
             "signatures": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Signature"
-              }
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false
@@ -805,31 +804,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "Signature": {
-          "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
-          "type": "object",
-          "required": [
-            "index",
-            "signature"
-          ],
-          "properties": {
-            "index": {
-              "type": "integer",
-              "format": "uint8",
-              "minimum": 0.0
-            },
-            "signature": {
-              "type": "array",
-              "items": {
-                "type": "integer",
-                "format": "uint8",
-                "minimum": 0.0
-              },
-              "maxItems": 65,
-              "minItems": 65
-            }
-          }
         },
         "TokenAddress": {
           "type": "string"
@@ -997,10 +971,9 @@
               "$ref": "#/definitions/Observation"
             },
             "signatures": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Signature"
-              }
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false
@@ -1078,31 +1051,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "Signature": {
-          "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
-          "type": "object",
-          "required": [
-            "index",
-            "signature"
-          ],
-          "properties": {
-            "index": {
-              "type": "integer",
-              "format": "uint8",
-              "minimum": 0.0
-            },
-            "signature": {
-              "type": "array",
-              "items": {
-                "type": "integer",
-                "format": "uint8",
-                "minimum": 0.0
-              },
-              "maxItems": 65,
-              "minItems": 65
-            }
-          }
         },
         "TokenAddress": {
           "type": "string"
@@ -1363,10 +1311,9 @@
               "$ref": "#/definitions/Observation"
             },
             "signatures": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Signature"
-              }
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false
@@ -1420,31 +1367,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "Signature": {
-          "description": "Signatures are typical ECDSA signatures prefixed with a Guardian position. These have the following byte layout: ```markdown 0  .. 64: Signature   (ECDSA) 64 .. 65: Recovery ID (ECDSA) ```",
-          "type": "object",
-          "required": [
-            "index",
-            "signature"
-          ],
-          "properties": {
-            "index": {
-              "type": "integer",
-              "format": "uint8",
-              "minimum": 0.0
-            },
-            "signature": {
-              "type": "array",
-              "items": {
-                "type": "integer",
-                "format": "uint8",
-                "minimum": 0.0
-              },
-              "maxItems": 65,
-              "minItems": 65
-            }
-          }
         }
       }
     },

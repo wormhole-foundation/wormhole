@@ -166,6 +166,8 @@ fn duplicates() {
 
     for (i, s) in signatures.into_iter().enumerate() {
         contract.submit_observations(obs.clone(), index, s).unwrap();
+        // Submitting a duplicate signature is not an error for pending transfers. Submitting any
+        // signature for a committed transfer is not an error as long as the digests match.
         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
         let status = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap())
             .unwrap()
@@ -176,18 +178,9 @@ fn duplicates() {
             // Resubmitting the same signature without quorum will return an error.
             for o in &observations {
                 let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
-                if let ObservationStatus::Error(ref err) = status[&key] {
-                    assert!(err.contains("duplicate signatures"));
-                } else {
-                    panic!(
-                        "unexpected status for duplicate signature: {:?}",
-                        status[&key]
-                    );
-                }
+                assert!(matches!(status[&key], ObservationStatus::Pending));
             }
         } else {
-            // Submitting a signature for a committed transfer is not an error as long as the
-            // digests match.
             for o in &observations {
                 let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
                 assert!(matches!(status[&key], ObservationStatus::Committed));
