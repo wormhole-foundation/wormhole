@@ -75,7 +75,8 @@ fn batch() {
                     let key =
                         transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
                     let data = contract.query_pending_transfer(key.clone()).unwrap();
-                    assert_eq!(o, data[0].observation());
+                    let digest = o.digest().unwrap();
+                    assert_eq!(&digest, data[0].digest());
 
                     // Make sure the transfer hasn't yet been committed.
                     assert!(matches!(status[&key], ObservationStatus::Pending));
@@ -436,23 +437,12 @@ fn no_quorum() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(
-        &wh,
-        &mut contract,
-        key.clone(),
-        msg.clone(),
-        index,
-        quorum - 1,
-    )
-    .unwrap();
+    let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), msg, index, quorum - 1).unwrap();
 
     let data = contract.query_pending_transfer(key.clone()).unwrap();
-    assert_eq!(emitter_chain, data[0].observation().emitter_chain);
-    assert_eq!(emitter_address, data[0].observation().emitter_address);
-    assert_eq!(sequence, data[0].observation().sequence);
-
-    let actual = serde_wormhole::from_slice(&data[0].observation().payload).unwrap();
-    assert_eq!(msg, actual);
+    assert_eq!(emitter_chain, data[0].emitter_chain());
+    assert_eq!(&o.digest().unwrap(), data[0].digest());
+    assert_eq!(&o.tx_hash, data[0].tx_hash());
 
     // Make sure the transfer hasn't yet been committed.
     contract

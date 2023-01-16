@@ -4,8 +4,6 @@ use cosmwasm_std::Binary;
 use cw_storage_plus::Map;
 use tinyvec::TinyVec;
 
-use crate::msg::Observation;
-
 pub const PENDING_TRANSFERS: Map<transfer::Key, TinyVec<[Data; 2]>> = Map::new("pending_transfers");
 pub const CHAIN_REGISTRATIONS: Map<u16, Binary> = Map::new("chain_registrations");
 pub const DIGESTS: Map<(u16, Vec<u8>, u64), Binary> = Map::new("digests");
@@ -19,22 +17,39 @@ pub struct PendingTransfer {
 #[cw_serde]
 #[derive(Default)]
 pub struct Data {
-    observation: Observation,
-    guardian_set_index: u32,
+    digest: Binary,
+    tx_hash: Binary,
     signatures: u128,
+    guardian_set_index: u32,
+    emitter_chain: u16,
 }
 
 impl Data {
-    pub const fn new(observation: Observation, guardian_set_index: u32) -> Self {
+    pub const fn new(
+        digest: Binary,
+        tx_hash: Binary,
+        emitter_chain: u16,
+        guardian_set_index: u32,
+    ) -> Self {
         Self {
-            observation,
-            guardian_set_index,
+            digest,
+            tx_hash,
             signatures: 0,
+            guardian_set_index,
+            emitter_chain,
         }
     }
 
-    pub fn observation(&self) -> &Observation {
-        &self.observation
+    pub fn digest(&self) -> &Binary {
+        &self.digest
+    }
+
+    pub fn tx_hash(&self) -> &Binary {
+        &self.tx_hash
+    }
+
+    pub fn emitter_chain(&self) -> u16 {
+        self.emitter_chain
     }
 
     pub fn guardian_set_index(&self) -> u32 {

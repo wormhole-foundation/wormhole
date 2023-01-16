@@ -691,23 +691,33 @@
         "Data": {
           "type": "object",
           "required": [
+            "digest",
+            "emitter_chain",
             "guardian_set_index",
-            "observation",
-            "signatures"
+            "signatures",
+            "tx_hash"
           ],
           "properties": {
+            "digest": {
+              "$ref": "#/definitions/Binary"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
             "guardian_set_index": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
-            "observation": {
-              "$ref": "#/definitions/Observation"
-            },
             "signatures": {
               "type": "integer",
               "format": "uint128",
               "minimum": 0.0
+            },
+            "tx_hash": {
+              "$ref": "#/definitions/Binary"
             }
           },
           "additionalProperties": false
@@ -732,56 +742,6 @@
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        "Observation": {
-          "type": "object",
-          "required": [
-            "consistency_level",
-            "emitter_address",
-            "emitter_chain",
-            "nonce",
-            "payload",
-            "sequence",
-            "timestamp",
-            "tx_hash"
-          ],
-          "properties": {
-            "consistency_level": {
-              "type": "integer",
-              "format": "uint8",
-              "minimum": 0.0
-            },
-            "emitter_address": {
-              "type": "string"
-            },
-            "emitter_chain": {
-              "type": "integer",
-              "format": "uint16",
-              "minimum": 0.0
-            },
-            "nonce": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "payload": {
-              "$ref": "#/definitions/Binary"
-            },
-            "sequence": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
-            },
-            "timestamp": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "tx_hash": {
-              "$ref": "#/definitions/Binary"
             }
           },
           "additionalProperties": false
@@ -957,23 +917,33 @@
         "Data": {
           "type": "object",
           "required": [
+            "digest",
+            "emitter_chain",
             "guardian_set_index",
-            "observation",
-            "signatures"
+            "signatures",
+            "tx_hash"
           ],
           "properties": {
+            "digest": {
+              "$ref": "#/definitions/Binary"
+            },
+            "emitter_chain": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
             "guardian_set_index": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
-            "observation": {
-              "$ref": "#/definitions/Observation"
-            },
             "signatures": {
               "type": "integer",
               "format": "uint128",
               "minimum": 0.0
+            },
+            "tx_hash": {
+              "$ref": "#/definitions/Binary"
             }
           },
           "additionalProperties": false
@@ -998,56 +968,6 @@
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        "Observation": {
-          "type": "object",
-          "required": [
-            "consistency_level",
-            "emitter_address",
-            "emitter_chain",
-            "nonce",
-            "payload",
-            "sequence",
-            "timestamp",
-            "tx_hash"
-          ],
-          "properties": {
-            "consistency_level": {
-              "type": "integer",
-              "format": "uint8",
-              "minimum": 0.0
-            },
-            "emitter_address": {
-              "type": "string"
-            },
-            "emitter_chain": {
-              "type": "integer",
-              "format": "uint16",
-              "minimum": 0.0
-            },
-            "nonce": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "payload": {
-              "$ref": "#/definitions/Binary"
-            },
-            "sequence": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
-            },
-            "timestamp": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "tx_hash": {
-              "$ref": "#/definitions/Binary"
             }
           },
           "additionalProperties": false
@@ -1297,69 +1217,29 @@
         "Data": {
           "type": "object",
           "required": [
-            "guardian_set_index",
-            "observation",
-            "signatures"
-          ],
-          "properties": {
-            "guardian_set_index": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "observation": {
-              "$ref": "#/definitions/Observation"
-            },
-            "signatures": {
-              "type": "integer",
-              "format": "uint128",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        "Observation": {
-          "type": "object",
-          "required": [
-            "consistency_level",
-            "emitter_address",
+            "digest",
             "emitter_chain",
-            "nonce",
-            "payload",
-            "sequence",
-            "timestamp",
+            "guardian_set_index",
+            "signatures",
             "tx_hash"
           ],
           "properties": {
-            "consistency_level": {
-              "type": "integer",
-              "format": "uint8",
-              "minimum": 0.0
-            },
-            "emitter_address": {
-              "type": "string"
+            "digest": {
+              "$ref": "#/definitions/Binary"
             },
             "emitter_chain": {
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
-            "nonce": {
+            "guardian_set_index": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
-            "payload": {
-              "$ref": "#/definitions/Binary"
-            },
-            "sequence": {
+            "signatures": {
               "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
-            },
-            "timestamp": {
-              "type": "integer",
-              "format": "uint32",
+              "format": "uint128",
               "minimum": 0.0
             },
             "tx_hash": {
