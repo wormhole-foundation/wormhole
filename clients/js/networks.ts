@@ -86,8 +86,9 @@ const MAINNET = {
       "85957f38de1768d6db9eab29bee9dd2a01462aff9c8d83daefb9bcd2506c32d2",
   },
   injective: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://sentry0.injective.network:26657",
+    chain_id: "injective-1",
+    key: get_env_var("INJECTIVE_KEY"),
   },
   osmosis: {
     rpc: undefined,
