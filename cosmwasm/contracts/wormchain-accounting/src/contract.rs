@@ -109,11 +109,6 @@ fn submit_observations(
     let quorum = deps
         .querier
         .query::<u32>(&WormholeQuery::CalculateQuorum { guardian_set_index }.into())
-        .and_then(|q| {
-            usize::try_from(q).map_err(|_| StdError::ConversionOverflow {
-                source: ConversionOverflowError::new("u32", "usize", q.to_string()),
-            })
-        })
         .context("failed to calculate quorum")?;
 
     let observations: Vec<Observation> =
@@ -159,7 +154,7 @@ fn handle_observation(
     mut deps: DepsMut<WormholeQuery>,
     o: Observation,
     guardian_set_index: u32,
-    quorum: usize,
+    quorum: u32,
     sig: Signature,
 ) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
@@ -194,9 +189,9 @@ fn handle_observation(
         }
     };
 
-    data.add_signature(sig)?;
+    data.add_signature(sig.index);
 
-    if data.signatures().len() < quorum {
+    if data.num_signatures() < quorum {
         // Still need more signatures so just save the pending transfer data and exit.
         key.save(deps.storage, &pending)
             .context("failed to save pending transfers")?;
