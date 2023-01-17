@@ -227,6 +227,10 @@ func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocke
 }
 
 func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
+	if vaa.ChainID(s.chainID) != vaa.ChainIDPythNet {
+		panic("unsupported chain id")
+	}
+
 	logger := supervisor.Logger(ctx)
 
 	err, ws := s.SetupSubscription(ctx)
@@ -748,6 +752,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(ctx context.Context, logg
 
 	if value.Account.Owner != s.rawContract {
 		// We got a message for the wrong contract on the websocket... uncomfortable...
+		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "invalid_websocket_account").Inc()
 		return errors.New("Update for account with wrong owner")
 	}
 
@@ -756,6 +761,11 @@ func (s *SolanaWatcher) processAccountSubscriptionData(ctx context.Context, logg
 		logger.Error(*s.wsUrl, zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
+	}
+
+	// ignore truncated messages
+	if len(data) < 3 {
+		return nil
 	}
 
 	// Other accounts owned by the wormhole contract seem to send updates...
