@@ -1297,10 +1297,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				solana.NewSolanaWatcher(*pythnetRPC, pythnetAddress, lockC, nil, rpc.CommitmentConfirmed, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
 				return err
 			}
-			if err := supervisor.Run(ctx, "pythwatch-finalized",
-				solana.NewSolanaWatcher(*pythnetRPC, pythnetAddress, lockC, chainObsvReqC[vaa.ChainIDPythNet], rpc.CommitmentFinalized, common.ReadinessPythNetSyncing, vaa.ChainIDPythNet).Run); err != nil {
-				return err
-			}
 		}
 
 		if shouldStart(injectiveWS) {
