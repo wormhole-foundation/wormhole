@@ -3,7 +3,6 @@
 ## prerequsites
 
 - Go >= 1.16
-- Starport: `curl https://get.starport.network/starport@v0.19.5! | sudo bash
 - nodejs >= 16
 
 ## Building the blockchain
@@ -44,7 +43,7 @@ Golang tests
 
     make test
 
-Client tests, run against the chain. Wormchain must be running via `starport chain serve`, `make run` or `tilt up`
+Client tests, run against the chain. Wormchain must be running via `make run` or `tilt up -- --wormchain`
 
     cd ./ts-sdk
     npm ci
@@ -65,24 +64,26 @@ Note the flags `--from tiltGuardian --home build`. These have to be passed
 in each time you make a transaction (the `tiltGuardian` account is created in
 `config.yml`). Queries don't need the `--from` flag.
 
-## Scaffolding stuff with starport
+## Scaffolding stuff with Ignite
 
-TODO: expand explanation here
+Wormchain was initially scaffolded using the [Ignite CLI](https://github.com/ignite) (formerly Starport). Now, we only use Ignite for generating code from protobuf definitions.
+
+To avoid system compatibility issues, we run Ignite using docker. The below commands should be run using the ignite docker container (see the Makefile recipes for examples).
 
 ```shell
-starport scaffold type guardian-key key:string --module wormhole --no-message
+ignite scaffold type guardian-key key:string --module wormhole --no-message
 ```
 
 modify `proto/wormhole/guardian_key.proto` (string -> bytes)
 
 ```shell
-starport scaffold message register-account-as-guardian guardian-pubkey:GuardianKey address-bech32:string signature:string --desc "Register a guardian public key with a wormhole chain address." --module wormhole --signer signer
+ignite scaffold message register-account-as-guardian guardian-pubkey:GuardianKey address-bech32:string signature:string --desc "Register a guardian public key with a wormhole chain address." --module wormhole --signer signer
 ```
 
 Scaffold a query:
 
 ```shell
-starport scaffold query latest_guardian_set_index --response LatestGuardianSetIndex --module wormhole
+ignite scaffold query latest_guardian_set_index --response LatestGuardianSetIndex --module wormhole
 ```
 
 (then modify "wormchain/x/wormhole/types/query.pb.go" to change the response type)

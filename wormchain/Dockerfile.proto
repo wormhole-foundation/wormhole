@@ -1,0 +1,18 @@
+FROM ignitehq/cli@sha256:1e2846f3621bc3ed2af3e59749bc02f6aec761e1260486da3a17c8fe2c8d2b6c AS base
+
+COPY --chown=tendermint:tendermint wormchain /apps/wormchain
+COPY --chown=tendermint:tendermint sdk /apps/sdk
+
+WORKDIR /apps/wormchain
+
+FROM base AS ignite-go-build
+RUN ignite generate proto-go
+
+FROM scratch AS go-export
+COPY --from=ignite-go-build /apps/wormchain/x/wormhole/types /x/wormhole/types
+
+FROM base AS ignite-vue-build
+RUN NODE_OPTIONS="" ignite generate vuex --proto-all-modules
+
+FROM scratch AS vue-export
+COPY --from=ignite-vue-build /apps/wormchain/vue/ /vue
