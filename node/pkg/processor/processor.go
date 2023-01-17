@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/node/pkg/accounting"
+	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/reporter"
@@ -133,7 +133,7 @@ type Processor struct {
 
 	notifier    *discord.DiscordNotifier
 	governor    *governor.ChainGovernor
-	acct        *accounting.Accounting
+	acct        *accountant.Accountant
 	acctReadC   <-chan *common.MessagePublication
 	pythnetVaas map[string]PythNetVaaEntry
 }
@@ -157,7 +157,7 @@ func NewProcessor(
 	attestationEvents *reporter.AttestationEventReporter,
 	notifier *discord.DiscordNotifier,
 	g *governor.ChainGovernor,
-	acct *accounting.Accounting,
+	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
 ) *Processor {
 
@@ -229,7 +229,7 @@ func (p *Processor) Run(ctx context.Context) error {
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
-				return fmt.Errorf("acct: received an accounting event when accounting is not configured")
+				return fmt.Errorf("acct: received an accountant event when accountant is not configured")
 			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:

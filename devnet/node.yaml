@@ -113,11 +113,11 @@ spec:
             # - /tmp/mounted-keys/wormchain/wormchainKey
             # - --wormchainKeyPassPhrase
             # - test0000
-            # - --accountingWS
+            # - --accountantWS
             # - http://guardian-validator:26657
-            # - --accountingContract
+            # - --accountantContract
             # - wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh    
-            # - --accountingCheckEnabled=true
+            # - --accountantCheckEnabled=true
             # - --terraWS
             # - ws://terra-terrad:26657/websocket
             # - --terraLCD

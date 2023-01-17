@@ -10,24 +10,24 @@ import (
 	"go.uber.org/zap"
 )
 
-type AccountingDB interface {
+type AccountantDB interface {
 	AcctStorePendingTransfer(msg *common.MessagePublication) error
 	AcctDeletePendingTransfer(msgId string) error
 	AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error)
 }
 
-type MockAccountingDB struct {
+type MockAccountantDB struct {
 }
 
-func (d *MockAccountingDB) AcctStorePendingTransfer(msg *common.MessagePublication) error {
+func (d *MockAccountantDB) AcctStorePendingTransfer(msg *common.MessagePublication) error {
 	return nil
 }
 
-func (d *MockAccountingDB) AcctDeletePendingTransfer(msgId string) error {
+func (d *MockAccountantDB) AcctDeletePendingTransfer(msgId string) error {
 	return nil
 }
 
-func (d *MockAccountingDB) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error) {
+func (d *MockAccountantDB) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error) {
 	return nil, nil
 }
 
@@ -44,7 +44,7 @@ func acctIsPendingTransfer(keyBytes []byte) bool {
 	return (len(keyBytes) >= acctPendingTransferLen+acctMinMsgIdLen) && (string(keyBytes[0:acctPendingTransferLen]) == acctPendingTransfer)
 }
 
-// This is called by the accounting module on start up to reload pending transfers.
+// This is called by the accountant on start up to reload pending transfers.
 func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error) {
 	pendingTransfers := []*common.MessagePublication{}
 	prefixBytes := []byte(acctPendingTransfer)
@@ -71,7 +71,7 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 
 				pendingTransfers = append(pendingTransfers, &pt)
 			} else {
-				return fmt.Errorf("unexpected accounting pending transfer key '%s'", string(key))
+				return fmt.Errorf("unexpected accountant pending transfer key '%s'", string(key))
 			}
 		}
 
@@ -92,7 +92,7 @@ func (d *Database) AcctStorePendingTransfer(msg *common.MessagePublication) erro
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to commit accounting pending transfer for tx %s: %w", msg.MessageIDString(), err)
+		return fmt.Errorf("failed to commit accountant pending transfer for tx %s: %w", msg.MessageIDString(), err)
 	}
 
 	return nil
@@ -104,7 +104,7 @@ func (d *Database) AcctDeletePendingTransfer(msgId string) error {
 		err := txn.Delete(key)
 		return err
 	}); err != nil {
-		return fmt.Errorf("failed to delete accounting pending transfer for tx %s: %w", msgId, err)
+		return fmt.Errorf("failed to delete accountant pending transfer for tx %s: %w", msgId, err)
 	}
 
 	return nil

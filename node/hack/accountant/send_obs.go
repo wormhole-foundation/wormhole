@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/accounting"
+	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
@@ -121,7 +121,7 @@ func testSubmit(
 		Payload:          Payload,
 	}
 
-	txResp, err := accounting.SubmitObservationToContract(ctx, logger, gk, gsIndex, guardianIndex, wormchainConn, contract, &msg)
+	txResp, err := accountant.SubmitObservationToContract(ctx, logger, gk, gsIndex, guardianIndex, wormchainConn, contract, &msg)
 	if err != nil {
 		logger.Error("acct: failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
 		return false
@@ -133,7 +133,7 @@ func testSubmit(
 	// 	return false
 	// }
 
-	alreadyCommitted, err := accounting.CheckSubmitObservationResult(txResp)
+	alreadyCommitted, err := accountant.CheckSubmitObservationResult(txResp)
 	if err != nil {
 		if !errorExpected {
 			logger.Error("acct: unexpected error", zap.String("test", tag), zap.Error(err))

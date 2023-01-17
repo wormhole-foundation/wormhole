@@ -1,4 +1,4 @@
-package accounting
+package accountant
 
 import (
 	"context"
@@ -21,18 +21,18 @@ import (
 )
 
 const (
-	enforceAccounting     = true
-	dontEnforceAccounting = false
+	enforceAccountant     = true
+	dontEnforceAccountant = false
 )
 
-func newAccountingForTest(
+func newAccountantForTest(
 	t *testing.T,
 	ctx context.Context,
-	accountingCheckEnabled bool,
+	accountantCheckEnabled bool,
 	acctWriteC chan<- *common.MessagePublication,
-) *Accounting {
+) *Accountant {
 	logger := zap.NewNop()
-	var db db.MockAccountingDB
+	var db db.MockAccountantDB
 
 	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
 
@@ -40,14 +40,14 @@ func newAccountingForTest(
 	gs := &common.GuardianSet{}
 	gst.Set(gs)
 
-	acct := NewAccounting(
+	acct := NewAccountant(
 		ctx,
 		logger,
 		&db,
-		"0xdeadbeef", // accountingContract
-		"none",       // accountingWS
+		"0xdeadbeef", // accountantContract
+		"none",       // accountantWS
 		nil,          // wormchainConn
-		accountingCheckEnabled,
+		accountantCheckEnabled,
 		gk,
 		gst,
 		acctWriteC,
@@ -101,7 +101,7 @@ func buildMockTransferPayloadBytes(
 func TestVaaFromUninterestingEmitter(t *testing.T) {
 	ctx := context.Background()
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountingForTest(t, ctx, enforceAccounting, acctChan)
+	acct := newAccountantForTest(t, ctx, enforceAccountant, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
@@ -127,7 +127,7 @@ func TestVaaFromUninterestingEmitter(t *testing.T) {
 func TestVaaForUninterestingPayloadType(t *testing.T) {
 	ctx := context.Background()
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountingForTest(t, ctx, enforceAccounting, acctChan)
+	acct := newAccountantForTest(t, ctx, enforceAccountant, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
@@ -150,10 +150,10 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	assert.Equal(t, 0, len(acct.pendingTransfers))
 }
 
-func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccounting(t *testing.T) {
+func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *testing.T) {
 	ctx := context.Background()
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountingForTest(t, ctx, dontEnforceAccounting, acctChan)
+	acct := newAccountantForTest(t, ctx, dontEnforceAccountant, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
@@ -192,10 +192,10 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccounting(t *test
 	assert.Equal(t, 0, len(acct.pendingTransfers))
 }
 
-func TestInterestingTransferShouldBeBlockedWhenEnforcingAccounting(t *testing.T) {
+func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T) {
 	ctx := context.Background()
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountingForTest(t, ctx, enforceAccounting, acctChan)
+	acct := newAccountantForTest(t, ctx, enforceAccountant, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")

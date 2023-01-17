@@ -1,10 +1,10 @@
-// The accounting package manages the interface to the accounting smart contract on wormchain. It is passed all VAAs before
+// The accountant package manages the interface to the accountant smart contract on wormchain. It is passed all VAAs before
 // they are signed and published. It determines if the VAA is for a token bridge transfer, and if it is, it submits an observation
-// request to the accounting contract. When that happens, the VAA is queued up until the accounting contract responds indicating
+// request to the accountant contract. When that happens, the VAA is queued up until the accountant contract responds indicating
 // that the VAA has been approved. If the VAA is approved, this module will forward the VAA back to the processor loop to be signed
 // and published.
 
-package accounting
+package accountant
 
 import (
 	"context"
@@ -58,11 +58,11 @@ type (
 	}
 )
 
-// Accounting is the object that manages the interface to the wormchain accounting smart contract.
-type Accounting struct {
+// Accountant is the object that manages the interface to the wormchain accountant smart contract.
+type Accountant struct {
 	ctx                  context.Context
 	logger               *zap.Logger
-	db                   db.AccountingDB
+	db                   db.AccountantDB
 	contract             string
 	wsUrl                string
 	wormchainConn        *wormconn.ClientConn
@@ -80,21 +80,21 @@ type Accounting struct {
 
 const subChanSize = 50
 
-// NewAccounting creates a new instance of the Accounting object.
-func NewAccounting(
+// NewAccountant creates a new instance of the Accountant object.
+func NewAccountant(
 	ctx context.Context,
 	logger *zap.Logger,
-	db db.AccountingDB,
+	db db.AccountantDB,
 	contract string, // the address of the smart contract on wormchain
 	wsUrl string, // the URL of the wormchain websocket interface
 	wormchainConn *wormconn.ClientConn, // used for communicating with the smart contract
-	enforceFlag bool, // whether or not accounting should be enforced
+	enforceFlag bool, // whether or not accountant should be enforced
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
-	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accounting runnable should be published
+	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
 	env int, // Controls the set of token bridges to be monitored
-) *Accounting {
-	return &Accounting{
+) *Accountant {
+	return &Accountant{
 		ctx:              ctx,
 		logger:           logger,
 		db:               db,
@@ -113,8 +113,8 @@ func NewAccounting(
 	}
 }
 
-// Run initializes the accounting module and starts the watcher runnable.
-func (acct *Accounting) Start(ctx context.Context) error {
+// Run initializes the accountant and starts the watcher runnable.
+func (acct *Accountant) Start(ctx context.Context) error {
 	acct.logger.Debug("acct: entering run")
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
@@ -163,24 +163,24 @@ func (acct *Accounting) Start(ctx context.Context) error {
 	return nil
 }
 
-func (acct *Accounting) Close() {
+func (acct *Accountant) Close() {
 	if acct.wormchainConn != nil {
 		acct.wormchainConn.Close()
 		acct.wormchainConn = nil
 	}
 }
 
-func (acct *Accounting) FeatureString() string {
+func (acct *Accountant) FeatureString() string {
 	if !acct.enforceFlag {
 		return "acct:logonly"
 	}
 	return "acct:enforced"
 }
 
-// SubmitObservation will submit token bridge transfers to the accounting smart contract. This is called from the processor
+// SubmitObservation will submit token bridge transfers to the accountant smart contract. This is called from the processor
 // loop when a local observation is received from a watcher. It returns true if the observation can be published immediately,
-// false if not (because it has been submitted to accounting).
-func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool, error) {
+// false if not (because it has been submitted to accountant).
+func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool, error) {
 	msgId := msg.MessageIDString()
 	acct.logger.Debug("acct: in SubmitObservation", zap.String("msgID", msgId))
 	// We only care about token bridges.
@@ -227,18 +227,18 @@ func (acct *Accounting) SubmitObservation(msg *common.MessagePublication) (bool,
 
 	// This transaction may take a while. Pass it off to the worker so we don't block the processor.
 	if acct.env != GoTestMode {
-		acct.logger.Info("acct: submitting transfer to accounting for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
+		acct.logger.Info("acct: submitting transfer to accountant for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
 		acct.submitObservation(msg)
 	}
 
-	// If we are not enforcing accounting, the event can be published. Otherwise we have to wait to hear back from the contract.
+	// If we are not enforcing accountant, the event can be published. Otherwise we have to wait to hear back from the contract.
 	return !acct.enforceFlag, nil
 }
 
 // AuditPending audits the set of pending transfers for any that have been in the pending state too long. This is called from the processor loop
 // each timer interval. Any transfers that have been in the pending state too long will be resubmitted. Any that has been retried too many times
 // will be logged and dropped.
-func (acct *Accounting) AuditPendingTransfers() {
+func (acct *Accountant) AuditPendingTransfers() {
 	acct.logger.Debug("acct: in AuditPendingTransfers")
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
@@ -272,8 +272,8 @@ func (acct *Accounting) AuditPendingTransfers() {
 	acct.logger.Debug("acct: leaving AuditPendingTransfers")
 }
 
-// publishTransfer publishes a pending transfer to the accounting channel and updates the timestamp. It assumes the caller holds the lock.
-func (acct *Accounting) publishTransfer(pe *pendingEntry) {
+// publishTransfer publishes a pending transfer to the accountant channel and updates the timestamp. It assumes the caller holds the lock.
+func (acct *Accountant) publishTransfer(pe *pendingEntry) {
 	if acct.enforceFlag {
 		acct.logger.Debug("acct: publishTransfer: notifying the processor", zap.String("msgId", pe.msgId))
 		acct.msgChan <- pe.msg
@@ -283,7 +283,7 @@ func (acct *Accounting) publishTransfer(pe *pendingEntry) {
 }
 
 // addPendingTransfer adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
-func (acct *Accounting) addPendingTransfer(msgId string, msg *common.MessagePublication, digest string) error {
+func (acct *Accountant) addPendingTransfer(msgId string, msg *common.MessagePublication, digest string) error {
 	acct.logger.Debug("acct: addPendingTransfer", zap.String("msgId", msgId))
 	if err := acct.db.AcctStorePendingTransfer(msg); err != nil {
 		return err
@@ -296,7 +296,7 @@ func (acct *Accounting) addPendingTransfer(msgId string, msg *common.MessagePubl
 }
 
 // deletePendingTransfer deletes the transfer from both the map and the database. It assumes the caller holds the lock.
-func (acct *Accounting) deletePendingTransfer(msgId string) {
+func (acct *Accountant) deletePendingTransfer(msgId string) {
 	acct.logger.Debug("acct: deletePendingTransfer", zap.String("msgId", msgId))
 	if _, exists := acct.pendingTransfers[msgId]; exists {
 		transfersOutstanding.Dec()
@@ -309,7 +309,7 @@ func (acct *Accounting) deletePendingTransfer(msgId string) {
 }
 
 // loadPendingTransfers loads any pending transfers that are present in the database. This method assumes the caller holds the lock.
-func (acct *Accounting) loadPendingTransfers() error {
+func (acct *Accountant) loadPendingTransfers() error {
 	pendingTransfers, err := acct.db.AcctGetData(acct.logger)
 	if err != nil {
 		return err
@@ -337,7 +337,7 @@ func (acct *Accounting) loadPendingTransfers() error {
 // submitObservation sends an observation request to the worker so it can be submited to the contract.
 // If writing to the channel would block, this function resets the timestamp on the entry so it will be
 // retried next audit interval. This method assumes the caller holds the lock.
-func (acct *Accounting) submitObservation(msg *common.MessagePublication) {
+func (acct *Accountant) submitObservation(msg *common.MessagePublication) {
 	select {
 	case acct.subChan <- msg:
 		acct.logger.Debug("acct: submitted observation to channel", zap.String("msgId", msg.MessageIDString()))

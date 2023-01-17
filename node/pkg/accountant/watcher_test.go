@@ -1,4 +1,4 @@
-package accounting
+package accountant
 
 import (
 	"encoding/hex"
