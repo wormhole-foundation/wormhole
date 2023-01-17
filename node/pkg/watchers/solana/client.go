@@ -30,6 +30,7 @@ type SolanaWatcher struct {
 	commitment   rpc.CommitmentType
 	messageEvent chan *common.MessagePublication
 	obsvReqC     chan *gossipv1.ObservationRequest
+	errC         chan error
 	rpcClient    *rpc.Client
 	// Readiness component
 	readiness readiness.Component
@@ -143,16 +144,16 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
-	errC := make(chan error)
+	s.errC = make(chan error)
 
-	go func() {
+	common.RunWithScissors(ctx, s.errC, "SolanaWatcher", func(ctx context.Context) error {
 		timer := time.NewTicker(time.Second * 1)
 		defer timer.Stop()
 
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case m := <-s.obsvReqC:
 				if m.ChainId != uint32(s.chainID) {
 					panic("unexpected chain id")
@@ -174,8 +175,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_slot_error").Inc()
-					errC <- err
-					return
+					s.errC <- err
+					return err
 				}
 
 				lastSlot := s.lastSlot
@@ -202,18 +203,22 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 				// Requesting each slot
 				for slot := rangeStart; slot <= rangeEnd; slot++ {
-					go s.retryFetchBlock(ctx, logger, slot, 0)
+					_slot := slot
+					common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
+						s.retryFetchBlock(ctx, logger, _slot, 0)
+						return nil
+					})
 				}
 
 				s.lastSlot = slot
 			}
 		}
-	}()
+	})
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err := <-errC:
+	case err := <-s.errC:
 		return err
 	}
 }
@@ -237,7 +242,10 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 			zap.String("commitment", string(s.commitment)),
 			zap.Uint("retry", retry))
 
-		go s.retryFetchBlock(ctx, logger, slot, retry+1)
+		common.RunWithScissors(ctx, s.errC, "retryFetchBlock", func(ctx context.Context) error {
+			s.retryFetchBlock(ctx, logger, slot, retry+1)
+			return nil
+		})
 	}
 }
 
@@ -279,10 +287,11 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 			// Schedule a single retry just in case the Solana node was confused about the block being missing.
 			if emptyRetry < maxEmptyRetry {
-				go func() {
+				common.RunWithScissors(ctx, s.errC, "delayedFetchBlock", func(ctx context.Context) error {
 					time.Sleep(retryDelay)
 					s.fetchBlock(ctx, logger, slot, emptyRetry+1)
-				}()
+					return nil
+				})
 			}
 			return true
 		} else {
@@ -465,7 +474,10 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	logger.Debug("fetching VAA account", zap.Stringer("acc", acc),
 		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
 
-	go s.retryFetchMessageAccount(ctx, logger, acc, slot, 0)
+	common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
+		s.retryFetchMessageAccount(ctx, logger, acc, slot, 0)
+		return nil
+	})
 
 	return true, nil
 }
@@ -491,7 +503,10 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, logger *za
 			zap.String("commitment", string(s.commitment)),
 			zap.Uint("retry", retry))
 
-		go s.retryFetchMessageAccount(ctx, logger, acc, slot, retry+1)
+		common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
+			s.retryFetchMessageAccount(ctx, logger, acc, slot, retry+1)
+			return nil
+		})
 	}
 }
 
