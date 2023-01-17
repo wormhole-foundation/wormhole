@@ -37,20 +37,43 @@ export async function query_contract_evm(
       const core = Implementation__factory.connect(contract_address, provider)
       result.address = contract_address
       result.currentGuardianSetIndex = await core.getCurrentGuardianSetIndex()
-      result.guardianSet = {}
-      for (let i of Array(result.currentGuardianSetIndex + 1).keys()) {
-        let guardian_set = await core.getGuardianSet(i)
-        result.guardianSet[i] = { keys: guardian_set[0], expiry: guardian_set[1] }
-      }
-      result.guardianSetExpiry = await core.getGuardianSetExpiry()
-      result.chainId = await core.chainId()
-      result.evmChainId = (await maybeUnsupported(core.evmChainId())).toString()
-      result.isFork = await maybeUnsupported(core.isFork())
-      result.governanceChainId = await core.governanceChainId()
-      result.governanceContract = await core.governanceContract()
-      result.messageFee = await core.messageFee()
-      result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+      let guardianSetsPromise = Promise.all([...Array(result.currentGuardianSetIndex + 1).keys()].map((i) => core.getGuardianSet(i)))
+      let [
+        guardianSetExpiry,
+        chainId,
+        evmChainId,
+        isFork,
+        governanceChainId,
+        governanceContract,
+        messageFee,
+        implementationSlot,
+        guardianSets
+      ] = await Promise.all([
+        core.getGuardianSetExpiry(),
+        core.chainId(),
+        maybeUnsupported(core.evmChainId()),
+        maybeUnsupported(core.isFork()),
+        core.governanceChainId(),
+        core.governanceContract(),
+        core.messageFee(),
+        getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]),
+        guardianSetsPromise
+      ])
+      result.guardianSetExpiry = guardianSetExpiry
+      result.chainId = chainId
+      result.evmChainId = evmChainId.toString()
+      result.isFork = isFork
+      result.governanceChainId = governanceChainId
+      result.governanceContract = governanceContract
+      result.messageFee = messageFee
+      result.implementation = implementationSlot[0]
       result.isInitialized = await core.isInitialized(result.implementation)
+      result.guardianSet = {}
+
+      for (let [i, guardianSet] of guardianSets.entries()) {
+        result.guardianSet[i] = { keys: guardianSet[0], expiry: guardianSet[1] }
+      }
+
       break
     case "TokenBridge":
       contract_address = contract_address ? contract_address : contracts.token_bridge;
@@ -59,23 +82,51 @@ export async function query_contract_evm(
       }
       const tb = BridgeImplementation__factory.connect(contract_address, provider)
       result.address = contract_address
-      result.wormhole = await tb.wormhole()
-      result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+      const registrationsPromise = Promise.all(
+        Object.entries(CHAINS)
+          .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
+          .map(async ([c_name, c_id]) => [c_name, await tb.bridgeContracts(c_id)])
+      )
+      let [
+        wormhole,
+        implementationSlotTb,
+        tokenImplementation,
+        chainIdTb,
+        finality,
+        evmChainIdTb,
+        isForkTb,
+        governanceChainIdTb,
+        governanceContractTb,
+        WETH,
+        registrations
+      ] = await Promise.all([
+        tb.wormhole(),
+        getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]),
+        tb.tokenImplementation(),
+        tb.chainId(),
+        tb.finality(),
+        maybeUnsupported(tb.evmChainId()),
+        maybeUnsupported(tb.isFork()),
+        tb.governanceChainId(),
+        tb.governanceContract(),
+        tb.WETH(),
+        registrationsPromise
+      ])
+      result.wormhole = wormhole
+      result.implementation = implementationSlotTb[0]
       result.isInitialized = await tb.isInitialized(result.implementation)
-      result.tokenImplementation = await tb.tokenImplementation()
-      result.chainId = await tb.chainId()
-      result.finality = await tb.finality()
-      result.evmChainId = (await maybeUnsupported(tb.evmChainId())).toString()
-      result.isFork = await maybeUnsupported(tb.isFork())
-      result.governanceChainId = await tb.governanceChainId()
-      result.governanceContract = await tb.governanceContract()
-      result.WETH = await tb.WETH()
+      result.tokenImplementation = tokenImplementation
+      result.chainId = chainIdTb
+      result.finality = finality
+      result.evmChainId = evmChainIdTb.toString()
+      result.isFork = isForkTb
+      result.governanceChainId = governanceChainIdTb
+      result.governanceContract = governanceContractTb
+      result.WETH = WETH
       result.registrations = {}
-      for (let [c_name, c_id] of Object.entries(CHAINS)) {
-        if (c_name === chain || c_name === "unset") {
-          continue
-        }
-        result.registrations[c_name] = await tb.bridgeContracts(c_id)
+
+      for (let [c_name, c] of registrations) {
+        result.registrations[c_name] = c
       }
       break
     case "NFTBridge":
@@ -85,22 +136,48 @@ export async function query_contract_evm(
       }
       const nb = NFTBridgeImplementation__factory.connect(contract_address, provider)
       result.address = contract_address
-      result.wormhole = await nb.wormhole()
-      result.implementation = (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+      const registrationsPromiseNb = Promise.all(
+        Object.entries(CHAINS)
+          .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
+          .map(async ([c_name, c_id]) => [c_name, await nb.bridgeContracts(c_id)])
+      )
+      let [
+        wormholeNb,
+        implementationSlotNb,
+        tokenImplementationNb,
+        chainIdNb,
+        finalityNb,
+        evmChainIdNb,
+        isForkNb,
+        governanceChainIdNb,
+        governanceContractNb,
+        registrationsNb
+      ] = await Promise.all([
+        nb.wormhole(),
+        getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]),
+        nb.tokenImplementation(),
+        nb.chainId(),
+        nb.finality(),
+        maybeUnsupported(nb.evmChainId()),
+        maybeUnsupported(nb.isFork()),
+        nb.governanceChainId(),
+        nb.governanceContract(),
+        registrationsPromiseNb
+      ])
+      result.wormhole = wormholeNb
+      result.implementation = implementationSlotNb[0]
       result.isInitialized = await nb.isInitialized(result.implementation)
-      result.tokenImplementation = await nb.tokenImplementation()
-      result.chainId = await nb.chainId()
-      result.finality = await nb.finality()
-      result.evmChainId = (await maybeUnsupported(nb.evmChainId())).toString()
-      result.isFork = await maybeUnsupported(nb.isFork())
-      result.governanceChainId = await nb.governanceChainId()
-      result.governanceContract = await nb.governanceContract()
+      result.tokenImplementation = tokenImplementationNb
+      result.chainId = chainIdNb
+      result.finality = finalityNb
+      result.evmChainId = evmChainIdNb.toString()
+      result.isFork = isForkNb
+      result.governanceChainId = governanceChainIdNb
+      result.governanceContract = governanceContractNb
       result.registrations = {}
-      for (let [c_name, c_id] of Object.entries(CHAINS)) {
-        if (c_name === chain || c_name === "unset") {
-          continue
-        }
-        result.registrations[c_name] = await nb.bridgeContracts(c_id)
+
+      for (let [c_name, c] of registrationsNb) {
+        result.registrations[c_name] = c
       }
       break
     default:
