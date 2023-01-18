@@ -1,6 +1,5 @@
 PROTO_FILES=$(shell find proto -name "*.proto")
 GO_FILES=$(shell find . -name "*.go")
-IGNITE_EXPECTED_VERSION:=v0.23.0
 # Address of the main tilt validator that the others should connect to
 TILT_VALADDRESS=wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8
 
@@ -16,7 +15,7 @@ ldflags = \
 BUILD_FLAGS := -ldflags '$(ldflags)'
 
 .PHONY: all
-all: client vue validators
+all: client validators
 
 .PHONY: client
 client: build/wormchaind
@@ -44,17 +43,13 @@ validators:
 build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
 	go build -v $(BUILD_FLAGS) -tags ledger -o $@ $<
 
-check-ignite:
-	@ if [ "$(shell ignite version | awk '/Ignite CLI version:/ { print $$4 }')" != "$(IGNITE_EXPECTED_VERSION)" ] ; then echo "Expected ignite version $(IGNITE_EXPECTED_VERSION)" && exit 1 ; fi
-
-proto: check-ignite $(PROTO_FILES)
-	ignite generate proto-go
-	touch proto
+proto: $(PROTO_FILES)
+	docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
 
 vue: $(GO_FILES) proto
 	mkdir -p $@
 	touch -m $@
-	NODE_OPTIONS="" ignite generate vuex --proto-all-modules
+	docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
 
 # For now this is a phony target so we just rebuild it each time instead of
 # tracking dependencies

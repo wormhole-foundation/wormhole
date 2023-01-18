@@ -238,10 +238,11 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: "1.19.3"
-      - run: wget https://github.com/ignite/cli/releases/download/v0.23.0/ignite_0.23.0_linux_amd64.tar.gz
-      - run: tar xzf ignite_0.23.0_linux_amd64.tar.gz
-      - run : mv ./ignite /usr/local/bin/
-      - run: cd wormchain && make proto -B && make test
+      - run: |
+          cd wormchain
+          make proto -B
+          git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`make proto -B\` and commit the result" >&2 && exit 1)
+          make test
 
   # Verify go sdk unit tests
   sdk_vaa:
