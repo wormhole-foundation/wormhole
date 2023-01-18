@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use accounting::state::{account, transfer, Modification};
+use accountant::state::{account, transfer, Modification};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     testing::{MockApi, MockStorage},
@@ -9,8 +9,7 @@ use cosmwasm_std::{
 use cw_multi_test::{
     App, AppBuilder, AppResponse, BankKeeper, ContractWrapper, Executor, WasmKeeper,
 };
-use serde::Serialize;
-use wormchain_accounting::{
+use global_accountant::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
@@ -18,6 +17,7 @@ use wormchain_accounting::{
     },
     state,
 };
+use serde::Serialize;
 use wormhole::{
     token::{Action, GovernancePacket},
     vaa::{Body, Header, Signature},
@@ -253,10 +253,10 @@ pub fn proper_instantiate() -> (fake::WormholeKeeper, Contract) {
     let wh = fake::WormholeKeeper::new();
     let mut app = fake_app(wh.clone());
 
-    let accounting_id = app.store_code(Box::new(ContractWrapper::new(
-        wormchain_accounting::contract::execute,
-        wormchain_accounting::contract::instantiate,
-        wormchain_accounting::contract::query,
+    let accountant_id = app.store_code(Box::new(ContractWrapper::new(
+        global_accountant::contract::execute,
+        global_accountant::contract::instantiate,
+        global_accountant::contract::query,
     )));
 
     // We want the contract to be able to upgrade itself, which means we have to set the contract
@@ -278,11 +278,11 @@ pub fn proper_instantiate() -> (fake::WormholeKeeper, Contract) {
     // can't use it here.  Maybe something to bring up with upstream.
     let addr = app
         .instantiate_contract(
-            accounting_id,
+            accountant_id,
             Addr::unchecked(ADMIN),
             &Empty {},
             &[],
-            "accounting",
+            "accountant",
             Some("contract0".into()),
         )
         .unwrap();

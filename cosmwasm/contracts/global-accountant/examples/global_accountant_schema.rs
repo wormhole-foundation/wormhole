@@ -1,7 +1,7 @@
 use cosmwasm_schema::write_api;
 
 use cosmwasm_std::Empty;
-use wormchain_accounting::msg::{ExecuteMsg, QueryMsg};
+use global_accountant::msg::{ExecuteMsg, QueryMsg};
 
 fn main() {
     write_api! {

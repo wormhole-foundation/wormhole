@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use accounting::{
+use accountant::{
     query_balance, query_modification,
     state::{account, transfer, Modification, TokenAddress, Transfer},
     validate_transfer,
@@ -37,7 +37,7 @@ use crate::{
 };
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:wormchain-accounting";
+const CONTRACT_NAME: &str = "crates.io:global-accountant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -241,7 +241,7 @@ fn handle_observation(
         "unknown emitter address"
     );
 
-    accounting::commit_transfer(
+    accountant::commit_transfer(
         deps.branch(),
         Transfer {
             key: tx_key,
@@ -287,7 +287,7 @@ fn modify_balance(
     let msg: Modification = from_binary(&modification).context("failed to parse `Modification`")?;
 
     let event =
-        accounting::modify_balance(deps, msg).context("failed to modify account balance")?;
+        accountant::modify_balance(deps, msg).context("failed to modify account balance")?;
 
     Ok(Response::new()
         .add_attribute("action", "modify_balance")
@@ -471,7 +471,7 @@ fn handle_tokenbridge_vaa(
         key: key.clone(),
         data,
     };
-    let evt = accounting::commit_transfer(deps.branch(), tx)
+    let evt = accountant::commit_transfer(deps.branch(), tx)
         .with_context(|| format!("failed to commit transfer for key {key}"))?;
 
     PENDING_TRANSFERS.remove(deps.storage, key);
@@ -532,12 +532,12 @@ fn query_all_accounts(
         let l = lim
             .try_into()
             .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
-        accounting::query_all_accounts(deps, start_after)
+        accountant::query_all_accounts(deps, start_after)
             .take(l)
             .collect::<StdResult<Vec<_>>>()
             .map(|accounts| AllAccountsResponse { accounts })
     } else {
-        accounting::query_all_accounts(deps, start_after)
+        accountant::query_all_accounts(deps, start_after)
             .collect::<StdResult<Vec<_>>>()
             .map(|accounts| AllAccountsResponse { accounts })
     }
@@ -552,7 +552,7 @@ fn query_all_transfers(
         let l = lim
             .try_into()
             .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
-        accounting::query_all_transfers(deps, start_after)
+        accountant::query_all_transfers(deps, start_after)
             .map(|res| {
                 res.and_then(|t| {
                     let digest = DIGESTS.load(
@@ -571,7 +571,7 @@ fn query_all_transfers(
             .collect::<StdResult<Vec<_>>>()
             .map(|transfers| AllTransfersResponse { transfers })
     } else {
-        accounting::query_all_transfers(deps, start_after)
+        accountant::query_all_transfers(deps, start_after)
             .map(|res| {
                 res.and_then(|t| {
                     let digest = DIGESTS.load(
@@ -637,12 +637,12 @@ fn query_all_modifications(
         let l = lim
             .try_into()
             .map_err(|_| ConversionOverflowError::new("u32", "usize", lim.to_string()))?;
-        accounting::query_all_modifications(deps, start_after)
+        accountant::query_all_modifications(deps, start_after)
             .take(l)
             .collect::<StdResult<Vec<_>>>()
             .map(|modifications| AllModificationsResponse { modifications })
     } else {
-        accounting::query_all_modifications(deps, start_after)
+        accountant::query_all_modifications(deps, start_after)
             .collect::<StdResult<Vec<_>>>()
             .map(|modifications| AllModificationsResponse { modifications })
     }
@@ -690,7 +690,7 @@ fn query_transfer_status(
             key.sequence(),
         ),
     )? {
-        let data = accounting::query_transfer(deps, key.clone())?;
+        let data = accountant::query_transfer(deps, key.clone())?;
         Ok(TransferStatus::Committed { data, digest })
     } else if let Some(data) = PENDING_TRANSFERS.may_load(deps.storage, key.clone())? {
         Ok(TransferStatus::Pending(tinyvec_to_vec(data)))

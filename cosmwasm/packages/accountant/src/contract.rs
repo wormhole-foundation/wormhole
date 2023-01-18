@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-/// Instantiate the on-chain state for accounting.  Unlike other methods in this crate,
+/// Instantiate the on-chain state for accountant.  Unlike other methods in this crate,
 /// `instantiate` does not perform any validation of the data in `init`.
 pub fn instantiate<C: CustomQuery>(deps: DepsMut<C>, init: Instantiate) -> anyhow::Result<Event> {
     let num_accounts = init.accounts.len();
@@ -72,7 +72,7 @@ pub fn validate_transfer<C: CustomQuery>(deps: Deps<C>, t: &Transfer) -> anyhow:
 ///
 /// ```
 /// # fn example() -> anyhow::Result<()> {
-/// #     use accounting::{
+/// #     use accountant::{
 /// #         commit_transfer,
 /// #         state::{transfer, Transfer},
 /// #         TransferError,
@@ -201,7 +201,7 @@ pub enum ModifyBalanceError {
 ///
 /// ```
 /// # fn example() {
-/// #     use accounting::{
+/// #     use accountant::{
 /// #         modify_balance,
 /// #         state::{Kind, Modification},
 /// #         ModifyBalanceError,
@@ -405,7 +405,7 @@ mod tests {
     }
 
     #[test]
-    fn instantiate_accounting() {
+    fn instantiate_accountant() {
         let mut deps = mock_dependencies();
         let count = 3;
         let msg = Instantiate {

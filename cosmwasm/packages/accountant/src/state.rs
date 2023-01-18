@@ -12,9 +12,9 @@ pub use account::Account;
 pub use addr::TokenAddress;
 pub use transfer::Transfer;
 
-pub const ACCOUNTS: Map<account::Key, account::Balance> = Map::new("accounting/accounts");
+pub const ACCOUNTS: Map<account::Key, account::Balance> = Map::new("accountant/accounts");
 
-pub const TRANSFERS: Map<transfer::Key, transfer::Data> = Map::new("accounting/transfers");
+pub const TRANSFERS: Map<transfer::Key, transfer::Data> = Map::new("accountant/transfers");
 
 #[cw_serde]
 #[derive(Eq, PartialOrd, Ord)]
@@ -52,4 +52,4 @@ pub struct Modification {
     pub reason: String,
 }
 
-pub const MODIFICATIONS: Map<u64, Modification> = Map::new("accounting/modifications");
+pub const MODIFICATIONS: Map<u64, Modification> = Map::new("accountant/modifications");

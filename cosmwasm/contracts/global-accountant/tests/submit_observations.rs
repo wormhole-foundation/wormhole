@@ -2,11 +2,11 @@ mod helpers;
 
 use std::collections::BTreeMap;
 
-use accounting::state::{account, transfer, Kind, Modification, TokenAddress};
+use accountant::state::{account, transfer, Kind, Modification, TokenAddress};
 use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
 use cw_multi_test::AppResponse;
+use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
-use wormchain_accounting::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use wormhole::{
     token::Message,
     vaa::{Body, Header},
