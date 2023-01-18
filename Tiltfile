@@ -187,7 +187,7 @@ def build_node_yaml():
             if sui:
                 container["command"] += [
                     "--suiRPC",
-                    "http://sui:9002",
+                    "http://sui:9000",
 # In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to
 # event traffic purely based on the account since that is the only thing that is deterministic.
 #                    "--suiPackage",
@@ -195,7 +195,7 @@ def build_node_yaml():
                     "--suiAccount",
                     "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331",
                     "--suiWS",
-                    "sui:9001",
+                    "sui:9000",
                 ]
 
             if evm2:
@@ -725,8 +725,7 @@ if sui:
     k8s_resource(
         "sui",
         port_forwards = [
-            port_forward(9000, 9002, name = "RPC [:9000]", host = webHost),
-            port_forward(9001, name = "WS [:9001]", host = webHost),
+            port_forward(9000, 9000, name = "RPC [:9000]", host = webHost),
             port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
