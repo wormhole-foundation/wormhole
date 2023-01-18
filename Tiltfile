@@ -45,6 +45,7 @@ config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
+config.define_bool("pythnet", False, "Enable PythNet component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
 config.define_bool("spy_relayer", False, "Enable spy relayer")
@@ -69,6 +70,7 @@ aptos = cfg.get("aptos", ci)
 sui = cfg.get("sui", False)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
+pythnet = cfg.get("pythnet", False)
 terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
 wormchain = cfg.get("wormchain", ci)
@@ -208,6 +210,18 @@ def build_node_yaml():
                     "http://solana-devnet:8899",
                 ]
 
+            if pythnet:
+                container["command"] += [
+                    "--pythnetRPC",
+#                    "http://solana-devnet:8899",
+                     "http://pythnet.rpcpool.com",
+                    "--pythnetWS",
+#                   "ws://solana-devnet:8900",
+                    "wss://pythnet.rpcpool.com",
+                    "--pythnetContract",
+                    "H3fxXJ86ADW2PNuDDmZJg6mzTtPxkYCpNuQUTgmJ7AjU",
+                ]
+
             if terra_classic:
                 container["command"] += [
                     "--terraWS",
@@ -270,7 +284,7 @@ k8s_yaml_with_ns(build_node_yaml())
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
     guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
-if solana:
+if solana or pythnet:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
 if near:
     guardian_resource_deps = guardian_resource_deps + ["near"]
@@ -366,7 +380,7 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-if solana:
+if solana or pythnet:
     # solana client cli (used for devnet setup)
 
     docker_build(
