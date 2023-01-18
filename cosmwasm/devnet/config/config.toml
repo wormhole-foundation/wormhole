@@ -370,7 +370,9 @@ timeout_precommit_delta = "500ms"
 # How long we wait after committing a block, before starting on the new
 # height (this gives us a chance to receive some more precommits, even
 # though we already have +2/3).
-timeout_commit = "0.5s"
+# If the timeout_commit is too fast, the chain clock will get messed up and go into the future.
+# This is important for IBC - to sync IBC headers, the clocks on each chain cannot differ by > 10 minutes.
+timeout_commit = "1s"
 
 # How many blocks to look back to check existence of the node's consensus votes before joining consensus
 # When non-zero, the node will panic upon restart

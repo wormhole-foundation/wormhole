@@ -54,6 +54,7 @@ config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guard
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("secondWormchain", False, "Enable a second wormchain node with different validator keys")
+config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -77,6 +78,7 @@ guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 secondWormchain = cfg.get("secondWormchain", False)
+ibc_relayer = cfg.get("ibc_relayer", False)
 btc = cfg.get("btc", False)
 
 if cfg.get("manual", False):
@@ -752,6 +754,26 @@ if wormchain:
             labels = ["wormchain"],
             trigger_mode = trigger_mode,
         )
+
+if ibc_relayer:
+    docker_build(
+        ref = "ibc-relayer-image",
+        context = ".",
+        dockerfile = "./wormchain/ibc-relayer/Dockerfile",
+        only = []
+    )
+
+    k8s_yaml_with_ns("devnet/ibc-relayer.yaml")
+
+    k8s_resource(
+        "ibc-relayer",
+        port_forwards = [
+            port_forward(7597, name = "HTTPDEBUG [:7597]", host = webHost),
+        ],
+        resource_deps = ["guardian-validator", "terra2-terrad"],
+        labels = ["ibc-relayer"],
+        trigger_mode = trigger_mode,
+    )
 
 if btc:
     k8s_yaml_with_ns("devnet/btc-localnet.yaml")

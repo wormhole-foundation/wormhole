@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ibc-relayer
+  name: ibc-relayer
+spec:
+  ports:
+    - name: rest
+      port: 7597
+      protocol: TCP
+  selector:
+    app: ibc-relayer
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: ibc-relayer
+  name: ibc-relayer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ibc-relayer
+  template:
+    metadata:
+      labels:
+        app: ibc-relayer
+    spec:
+      containers:
+        - name: ibc-relayer
+          image: ibc-relayer-image
+          command:
+            - rly
+            - transact
+            - link-then-start
+            - terra-wormchain
+            - --debug-addr
+            - localhost:7597
+          ports:
+            - containerPort: 7597
+              name: rest
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: 7597
+              path: /
+            periodSeconds: 1
+      restartPolicy: Always
+  serviceName: ibc-relayer
