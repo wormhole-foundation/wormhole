@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
@@ -21,12 +22,42 @@ import (
 	"go.uber.org/zap"
 )
 
+const batchSize = 10 // TODO: Arbitrary limit. What makes sense?
+
 func (acct *Accountant) worker(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case msg := <-acct.subChan:
+			// TODO: Is there a better way to read at most X items from a channel without blocking?
+
+			// Sleep for a bit until either there are no more new observations or the batch is full.
+			numToRead := len(acct.subChan)
+			for numToRead < batchSize-1 {
+				time.Sleep(100 * time.Millisecond) // TODO: Arbitrary delay. What makes sense?
+				newNumToRead := len(acct.subChan)
+				if newNumToRead == numToRead {
+					break
+				}
+
+				numToRead = newNumToRead
+			}
+
+			// Read up to the batch size.
+			if numToRead >= batchSize {
+				numToRead = batchSize - 1
+			}
+
+			msgs := make([]*common.MessagePublication, numToRead+1)
+			msgs[0] = msg
+			acct.logger.Debug("acct: submitting message to contract", zap.String("msgID", msg.MessageIDString()))
+
+			for i := 0; i < numToRead; i++ {
+				msgs[i+1] = <-acct.subChan
+				acct.logger.Debug("acct: submitting message to contract", zap.String("msgID", msg.MessageIDString()))
+			}
+
 			gs := acct.gst.Get()
 			if gs == nil {
 				acct.logger.Error("acct: unable to send observation request: failed to look up guardian set", zap.String("msgID", msg.MessageIDString()))
@@ -40,8 +71,8 @@ func (acct *Accountant) worker(ctx context.Context) error {
 				continue
 			}
 
-			acct.submitObservationToContract(msg, gs.Index, uint32(guardianIndex))
-			transfersSubmitted.Inc()
+			acct.submitObservationToContract(msgs, gs.Index, uint32(guardianIndex))
+			transfersSubmitted.Add(float64(len(msgs)))
 		}
 	}
 }
@@ -83,7 +114,7 @@ type (
 		EmitterChain uint16 `json:"emitter_chain"`
 
 		// The address on the source chain that emitted this message.
-		EmitterAddress [32]byte `json:"emitter_address"`
+		EmitterAddress vaa.Address `json:"emitter_address"`
 
 		// The sequence number of this observation.
 		Sequence uint64 `json:"sequence"`
@@ -94,7 +125,30 @@ type (
 		// The serialized tokenbridge payload.
 		Payload []byte `json:"payload"`
 	}
+
+	// These are used to parse the response data
+	ObservationResponses []ObservationResponse
+
+	ObservationResponse struct {
+		Key    ObservationKey
+		Status ObservationResponseStatus
+	}
+
+	ObservationKey struct {
+		EmitterChain   uint16 `json:"emitter_chain"`
+		EmitterAddress []byte `json:"emitter_address"` // TODO: vaa.Address doesn't parse.
+		Sequence       uint64 `json:"sequence"`
+	}
+
+	ObservationResponseStatus struct {
+		Type string `json:"type"`
+		Data string `json:"data"`
+	}
 )
+
+func (k ObservationKey) String() string {
+	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
+}
 
 func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 	var result string
@@ -106,49 +160,81 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 	return []byte(result), nil
 }
 
-// submitObservationToContract makes a call to the smart contract to submit an observation request.
+// submitObservationToContract makes a call to the smart contract to submit a batch of observation requests.
 // It should be called from a go routine because it can block.
-func (acct *Accountant) submitObservationToContract(msg *common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
-	msgId := msg.MessageIDString()
-	acct.logger.Debug("acct: in submitObservationToContract", zap.String("msgID", msgId))
-	txResp, err := SubmitObservationToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msg)
+func (acct *Accountant) submitObservationToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
+	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msgs)
 	if err != nil {
-		acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msgId), zap.Error(err))
-		submitFailures.Inc()
+		// This means the whole batch failed. They will all get retried the next audit cycle.
+		acct.logger.Error("acct: failed to submit any observations in batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
+		for idx, msg := range msgs {
+			acct.logger.Error("acct: failed to submit observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
+		}
+
+		submitFailures.Add(float64(len(msgs)))
 		return
 	}
 
-	alreadyCommitted, err := CheckSubmitObservationResult(txResp)
+	responses, err := GetObservationResponses(acct.logger, txResp, len(msgs))
 	if err != nil {
-		submitFailures.Inc()
-		if strings.Contains(err.Error(), "insufficient balance") {
-			balanceErrors.Inc()
-			acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.Error(err))
+		// This means the whole batch failed. They will all get retried the next audit cycle.
+		acct.logger.Error("acct: failed to get responses from batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
+		for idx, msg := range msgs {
+			acct.logger.Error("acct: need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
+		}
+
+		submitFailures.Add(float64(len(msgs)))
+		return
+	}
+
+	for idx, resp := range responses {
+		// Verify that the responses are in the same order as the observations.
+		msgId := msgs[idx].MessageIDString()
+		if resp.Key.String() != msgId {
+			// This will get retried next audit interval.
+			acct.logger.Error("acct: unexpected msgId in observation response", zap.Int("idx", idx), zap.String("expected", msgId), zap.String("actual", resp.Key.String()))
+			submitFailures.Inc()
+			continue
+		}
+
+		switch resp.Status.Type {
+		case "pending":
+			acct.logger.Info("acct: transfer is pending", zap.String("msgId", msgId))
+		case "committed":
 			acct.pendingTransfersLock.Lock()
 			defer acct.pendingTransfersLock.Unlock()
-			acct.deletePendingTransfer(msgId)
-		} else {
-			acct.logger.Error("acct: failed to submit observation request", zap.String("msgId", msgId), zap.Error(err))
-		}
-		return
-	}
-
-	if alreadyCommitted {
-		acct.pendingTransfersLock.Lock()
-		defer acct.pendingTransfersLock.Unlock()
-		pe, exists := acct.pendingTransfers[msgId]
-		if exists {
-			acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msgId))
-			acct.publishTransfer(pe)
-			transfersApproved.Inc()
-		} else {
-			acct.logger.Debug("acct: transfer has already been committed, and it is no longer in our map", zap.String("msgId", msgId))
+			pe, exists := acct.pendingTransfers[msgId]
+			if exists {
+				acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msgId))
+				acct.publishTransfer(pe)
+				transfersApproved.Inc()
+			} else {
+				acct.logger.Debug("acct: transfer has already been committed but it is no longer in our map", zap.String("msgId", msgId))
+			}
+		case "error":
+			submitFailures.Inc()
+			if strings.Contains(resp.Status.Data, "insufficient balance") {
+				balanceErrors.Inc()
+				acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.String("text", resp.Status.Data))
+				acct.pendingTransfersLock.Lock()
+				defer acct.pendingTransfersLock.Unlock()
+				acct.deletePendingTransfer(msgId)
+			} else {
+				// This will get retried next audit interval.
+				acct.logger.Error("acct: failed to submit observation", zap.String("msgId", msgId), zap.String("text", resp.Status.Data))
+			}
+		default:
+			// This will get retried next audit interval.
+			acct.logger.Error("acct: unexpected status response on observation", zap.String("msgId", msgId), zap.String("status", resp.Status.Type), zap.String("text", resp.Status.Data))
+			submitFailures.Inc()
 		}
 	}
 }
 
-// SubmitObservationToContract is a free function to make a call to the smart contract to submit an observation request.
-func SubmitObservationToContract(
+// SubmitObservationsToContract is a free function to make a call to the smart contract to submit an observation request.
+// If the submit fails or the result contains an error, it will return the error. If an error is returned, the caller is
+// expected to use GetFailedIndexInBatch() to see which observation in the batch failed.
+func SubmitObservationsToContract(
 	ctx context.Context,
 	logger *zap.Logger,
 	gk *ecdsa.PrivateKey,
@@ -156,10 +242,11 @@ func SubmitObservationToContract(
 	guardianIndex uint32,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
-	msg *common.MessagePublication,
+	msgs []*common.MessagePublication,
 ) (*sdktx.BroadcastTxResponse, error) {
-	obs := []Observation{
-		Observation{
+	obs := make([]Observation, len(msgs))
+	for idx, msg := range msgs {
+		obs[idx] = Observation{
 			TxHash:           msg.TxHash.Bytes(),
 			Timestamp:        uint32(msg.Timestamp.Unix()),
 			Nonce:            msg.Nonce,
@@ -168,7 +255,19 @@ func SubmitObservationToContract(
 			Sequence:         msg.Sequence,
 			ConsistencyLevel: msg.ConsistencyLevel,
 			Payload:          msg.Payload,
-		},
+		}
+
+		logger.Debug("acct: in SubmitObservationsToContract, encoding observation",
+			zap.Int("idx", idx),
+			zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
+			zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[idx].Timestamp),
+			zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[idx].Nonce),
+			zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[idx].EmitterChain),
+			zap.Stringer("emitterAddress", msg.EmitterAddress), zap.String("encEmitterAddress", hex.EncodeToString(obs[idx].EmitterAddress[:])),
+			zap.Uint64("squence", msg.Sequence), zap.Uint64("encSequence", obs[idx].Sequence),
+			zap.Uint8("consistencyLevel", msg.ConsistencyLevel), zap.Uint8("encConsistencyLevel", obs[idx].ConsistencyLevel),
+			zap.String("payload", hex.EncodeToString(msg.Payload)), zap.String("encPayload", hex.EncodeToString(obs[idx].Payload)),
+		)
 	}
 
 	bytes, err := json.Marshal(obs)
@@ -205,69 +304,73 @@ func SubmitObservationToContract(
 		Funds:    sdktypes.Coins{},
 	}
 
-	logger.Debug("acct: in SubmitObservationToContract, sending broadcast",
-		zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", hex.EncodeToString(obs[0].TxHash[:])),
-		zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[0].Timestamp),
-		zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[0].Nonce),
-		zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[0].EmitterChain),
-		zap.Stringer("emitterAddress", msg.EmitterAddress), zap.String("encEmitterAddress", hex.EncodeToString(obs[0].EmitterAddress[:])),
-		zap.Uint64("squence", msg.Sequence), zap.Uint64("encSequence", obs[0].Sequence),
-		zap.Uint8("consistencyLevel", msg.ConsistencyLevel), zap.Uint8("encConsistencyLevel", obs[0].ConsistencyLevel),
-		zap.String("payload", hex.EncodeToString(msg.Payload)), zap.String("encPayload", hex.EncodeToString(obs[0].Payload)),
+	logger.Debug("acct: in SubmitObservationsToContract, sending broadcast",
+		zap.Int("numObs", len(obs)),
 		zap.String("observations", string(bytes)),
 		zap.Uint32("gsIndex", gsIndex), zap.Uint32("guardianIndex", guardianIndex),
 	)
 
 	txResp, err := wormchainConn.SignAndBroadcastTx(ctx, &subMsg)
 	if err != nil {
-		logger.Error("acct: SubmitObservationToContract failed to send broadcast", zap.Error(err))
-	} else {
-		if txResp.TxResponse == nil {
-			return txResp, fmt.Errorf("txResp.TxResponse is nil")
-		}
-		if strings.Contains(txResp.TxResponse.RawLog, "out of gas") {
-			return txResp, fmt.Errorf("out of gas: %s", txResp.TxResponse.RawLog)
-		}
-
-		out, err := wormchainConn.BroadcastTxResponseToString(txResp)
-		if err != nil {
-			logger.Error("acct: SubmitObservationToContract failed to parse broadcast response", zap.Error(err))
-		} else {
-			logger.Debug("acct: in SubmitObservationToContract, done sending broadcast", zap.String("resp", out))
-		}
+		return txResp, fmt.Errorf("failed to send broadcast: %w", err)
 	}
-	return txResp, err
-}
 
-// CheckSubmitObservationResult() is a free function that returns true if the observation has already been committed
-// or false if we need to wait for the commit. An error is returned when appropriate.
-func CheckSubmitObservationResult(txResp *sdktx.BroadcastTxResponse) (bool, error) {
 	if txResp == nil {
-		return false, fmt.Errorf("txResp is nil")
+		return txResp, fmt.Errorf("sent broadcast but returned txResp is nil")
 	}
+
 	if txResp.TxResponse == nil {
-		return false, fmt.Errorf("txResp does not contain a TxResponse")
+		return txResp, fmt.Errorf("sent broadcast but returned txResp.TxResponse is nil")
 	}
+
 	if txResp.TxResponse.RawLog == "" {
-		return false, fmt.Errorf("RawLog is not set")
+		return txResp, fmt.Errorf("sent broadcast but raw_log is not set, unable to analyze the result")
 	}
-	if strings.Contains(txResp.TxResponse.RawLog, "execute wasm contract failed") {
-		if strings.Contains(txResp.TxResponse.RawLog, "already committed") {
-			return true, nil
 
-		}
-
-		// TODO Need to test this, requires multiple guardians.
-		if strings.Contains(txResp.TxResponse.RawLog, "duplicate signature") {
-			return false, nil
-		}
-
-		return false, fmt.Errorf(txResp.TxResponse.RawLog)
+	if strings.Contains(txResp.TxResponse.RawLog, "out of gas") {
+		return txResp, fmt.Errorf("out of gas: %s", txResp.TxResponse.RawLog)
 	}
 
 	if strings.Contains(txResp.TxResponse.RawLog, "failed to execute message") {
-		return false, fmt.Errorf(txResp.TxResponse.RawLog)
+		return txResp, fmt.Errorf("failed to submit observations: %s", txResp.TxResponse.RawLog)
 	}
 
-	return false, nil
+	logger.Debug("acct: in SubmitObservationsToContract, done sending broadcast", zap.String("resp", wormchainConn.BroadcastTxResponseToString(txResp)))
+	return txResp, nil
+}
+
+// TODO: Once the issue with the junk characters is sorted out, drop the logger parameter.
+
+// GetObservationResponses is a free function that extracts the observation responses from a transaction response.
+// It assumes the transaction response is valid (SubmitObservationsToContract() did not return an error).
+func GetObservationResponses(logger *zap.Logger, txResp *sdktx.BroadcastTxResponse, numExpected int) (ObservationResponses, error) {
+	data, err := hex.DecodeString(txResp.TxResponse.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode data: %w", err)
+	}
+
+	var msg sdktypes.TxMsgData
+	if err := msg.Unmarshal([]byte(data)); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
+	}
+
+	str := string(msg.Data[0].Data)
+
+	idx := strings.Index(str, "[")
+	if idx >= 0 {
+		logger.Info("Why does the data start with this?", zap.String("junk", str[:idx]))
+		str = str[idx:]
+	}
+
+	var responses ObservationResponses
+	err = json.Unmarshal([]byte(str), &responses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal responses: %w", err)
+	}
+
+	if len(responses) != numExpected {
+		return nil, fmt.Errorf("unexpected number of responses, expected %d, actual %d", numExpected, len(responses))
+	}
+
+	return responses, nil
 }
