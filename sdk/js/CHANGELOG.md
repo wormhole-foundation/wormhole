@@ -2,9 +2,13 @@
 
 ## 0.9.10
 
-## Added
+### Added
 
 Aptos NFT bridge support
+
+### Changed
+
+Add functions to build the nft/token bridge transactions for each Eth action through the `populateTransaction` method, adding an alternative workflow to the default sign & method behavior
 
 ## 0.9.9
 
