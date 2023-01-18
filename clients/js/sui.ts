@@ -14,7 +14,7 @@ function loadSigner(
       throw new Error("No key for Sui");
     }
     let priv_key_bytes = new Uint8Array(Buffer.from(private_key_str_base_64, 'base64'))
-    let keypair = Ed25519Keypair.fromSeed(priv_key_bytes.slice(33))
+    let keypair = Ed25519Keypair.fromSeed(priv_key_bytes.slice(1))
     if (typeof rpc != 'undefined') {
         rpc = NETWORKS[network]["sui"].rpc
     }
@@ -55,7 +55,7 @@ export async function callEntryFunc(
     module: string,
     func: string,
     type_args: Array<string>,
-    args: Array<string>,
+    args: Array<any>,
 ) {
     let signer = loadSigner(network, rpc);
     const moveCallTxn = await signer.executeMoveCall({
