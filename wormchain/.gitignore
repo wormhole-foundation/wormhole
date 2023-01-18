@@ -8,8 +8,10 @@ testing/js/node_modules
 build/wormhole-chaind
 build/wormchaind
 build/data
-validators/first_validator/keyring-test
-validators/second_validator/keyring-test
+devnet/wormchain-*/data
+devnet/wormchain-*/config/*.toml
+devnet/wormchain-*/config/addrbook.json
+devnet/wormchain-*/config/genesis.json
 ts-sdk/node_modules
 ts-sdk/lib
 
