@@ -1,4 +1,4 @@
-use accounting::state::transfer;
+use accountant::state::transfer;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use cw_storage_plus::Map;

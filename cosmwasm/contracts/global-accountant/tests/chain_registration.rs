@@ -1,8 +1,8 @@
 mod helpers;
 
 use cosmwasm_std::{to_binary, Event};
+use global_accountant::msg::ChainRegistrationResponse;
 use helpers::*;
-use wormchain_accounting::msg::ChainRegistrationResponse;
 use wormhole::{
     token::{Action, GovernancePacket},
     vaa::Body,

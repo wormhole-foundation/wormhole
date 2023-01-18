@@ -1,5 +1,5 @@
 [package]
-name = "wormchain-accounting"
+name = "global-accountant"
 version = "0.1.0"
 authors = ["Wormhole Project Contributors"]
 edition = "2021"
@@ -13,7 +13,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-accounting = "0.1.0"
+accountant = "0.1.0"
 anyhow = "1"
 base64 = "0.13"
 cosmwasm-schema = "1"

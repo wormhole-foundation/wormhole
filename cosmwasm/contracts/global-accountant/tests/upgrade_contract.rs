@@ -5,8 +5,8 @@ use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Empty, Env, Event, MessageInfo, Response, StdResult,
 };
 use cw_multi_test::ContractWrapper;
+use global_accountant::msg::Upgrade;
 use helpers::*;
-use wormchain_accounting::msg::Upgrade;
 use wormhole_bindings::WormholeQuery;
 
 pub fn instantiate(

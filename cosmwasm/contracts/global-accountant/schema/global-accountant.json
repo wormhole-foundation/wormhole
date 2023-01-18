@@ -1,5 +1,5 @@
 {
-  "contract_name": "wormchain-accounting",
+  "contract_name": "global-accountant",
   "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {

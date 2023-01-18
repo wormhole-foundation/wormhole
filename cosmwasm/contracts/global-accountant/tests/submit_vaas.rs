@@ -1,10 +1,10 @@
 mod helpers;
 
-use accounting::state::{transfer, TokenAddress};
+use accountant::state::{transfer, TokenAddress};
 use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
+use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
 use serde_wormhole::RawMessage;
-use wormchain_accounting::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use wormhole::{
     token::Message,
     vaa::{Body, Header, Vaa},

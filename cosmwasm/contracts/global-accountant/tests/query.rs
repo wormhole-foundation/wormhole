@@ -2,13 +2,13 @@ mod helpers;
 
 use std::collections::BTreeMap;
 
-use accounting::state::{
+use accountant::state::{
     account::{self, Balance},
     transfer, Kind, Modification, Transfer,
 };
 use cosmwasm_std::{to_binary, Uint256};
+use global_accountant::msg::TransferStatus;
 use helpers::*;
-use wormchain_accounting::msg::TransferStatus;
 use wormhole::{token::Message, vaa::Body, Address, Amount};
 use wormhole_bindings::fake;
 
