@@ -110,11 +110,11 @@ export async function approveEthTx(
 
 export async function transferFromEth(
   tokenBridgeAddress: string,
+  signer: ethers.Signer,
   tokenAddress: string,
   amount: ethers.BigNumberish,
   recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array,
-  signer: ethers.Signer,
   relayerFee: ethers.BigNumberish = 0,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {},
   payload: Uint8Array | null = null
