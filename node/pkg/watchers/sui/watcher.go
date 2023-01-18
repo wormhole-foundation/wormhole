@@ -401,11 +401,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			}
 
+			// curl -s -X POST -d '{"jsonrpc":"2.0", "id": 1, "method": "sui_getLatestCheckpointSequenceNumber", "params": []}' -H 'Content-Type: application/json' http://127.0.0.1:9000
 			// Epoch is currently not ticking in 0.16.0.  They also
 			// might release another API that gives a
 			// proper block height as we traditionally
 			// understand it...
 			currentSuiHeight.Set(float64(res.Result.Epoch))
+			logger.Error(fmt.Sprintf("sui_getCommitteeInfo: %d", res.Result.Epoch))
+
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
 				Height:          int64(res.Result.Epoch),
 				ContractAddress: e.suiAccount,
