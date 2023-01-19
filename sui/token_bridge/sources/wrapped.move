@@ -4,10 +4,11 @@ module token_bridge::wrapped {
     use std::option::{Self};
 
     use sui::tx_context::{TxContext};
-    use sui::coin::{TreasuryCap, CoinMetadata};
+    use sui::coin::{TreasuryCap};
     use sui::object::{Self, UID};
     use sui::coin::{Self};
     use sui::url::{Url};
+    use sui::transfer::{Self};
 
     use token_bridge::bridge_state::{Self, BridgeState};
     use token_bridge::asset_meta::{Self, AssetMeta};
@@ -43,7 +44,6 @@ module token_bridge::wrapped {
         id: UID,
         vaa_bytes: vector<u8>,
         treasury_cap: TreasuryCap<CoinType>,
-        coin_metadata: CoinMetadata<CoinType>
     }
 
     /// This function will be called from the `init` function of a module that
@@ -93,7 +93,8 @@ module token_bridge::wrapped {
             option::none<Url>(), //empty url
             ctx
         );
-        NewWrappedCoin { id: object::new(ctx), vaa_bytes, treasury_cap, coin_metadata }
+        transfer::share_object(coin_metadata);
+        NewWrappedCoin { id: object::new(ctx), vaa_bytes, treasury_cap }
     }
 
     public entry fun register_wrapped_coin<CoinType>(
@@ -102,7 +103,7 @@ module token_bridge::wrapped {
         new_wrapped_coin: NewWrappedCoin<CoinType>,
         ctx: &mut TxContext,
     ) {
-        let NewWrappedCoin { id, vaa_bytes, treasury_cap, coin_metadata } = new_wrapped_coin;
+        let NewWrappedCoin { id, vaa_bytes, treasury_cap } = new_wrapped_coin;
         object::delete(id);
 
         let vaa = vaa::parse_verify_and_replay_protect(
@@ -121,7 +122,6 @@ module token_bridge::wrapped {
                 origin_chain,
                 external_address,
                 treasury_cap,
-                coin_metadata,
                 ctx
             );
         assert!(origin_chain != state::get_chain_id(state), E_WRAPPING_NATIVE_COIN);

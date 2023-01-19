@@ -52,11 +52,6 @@ module token_bridge::bridge_state {
         token_chain: U16,
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<CoinType>,
-        coin_metadata: CoinMetadata<CoinType>,
-    }
-
-    public fun get_coin_metadata<CoinType>(state: &BridgeState): &CoinMetadata<CoinType> {
-        &dynamic_set::borrow<WrappedAssetInfo<CoinType>>(&state.id).coin_metadata
     }
 
     struct NativeAssetInfo<phantom CoinType> has key, store {
@@ -97,14 +92,12 @@ module token_bridge::bridge_state {
         token_chain: U16,
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<CoinType>,
-        coin_metadata: CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): WrappedAssetInfo<CoinType> {
         return WrappedAssetInfo {
             id: object::new(ctx),
             token_chain,
             token_address,
-            coin_metadata,
             treasury_cap
         }
     }
