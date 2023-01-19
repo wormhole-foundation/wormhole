@@ -1,14 +1,22 @@
+import { AptosAccount, AptosClient, TxnBuilderTypes, Types } from "aptos";
 import { hexZeroPad } from "ethers/lib/utils";
 import { sha3_256 } from "js-sha3";
-import { ChainId, CHAIN_ID_APTOS, ensureHexPrefix, hex } from "../utils";
-import { AptosAccount, AptosClient, TxnBuilderTypes, Types } from "aptos";
-import { State } from "../aptos/types";
+import { TokenBridgeState } from "../aptos/types";
+import {
+  ChainId,
+  ChainName,
+  CHAIN_ID_APTOS,
+  coalesceChainId,
+  ensureHexPrefix,
+  hex,
+  tryNativeToUint8Array,
+} from "../utils";
 
 /**
- * Generate, sign, and submit a transaction calling the given entry function with the given 
- * arguments. Prevents transaction submission and throws if the transaction fails. 
- * 
- * This is separated from `generateSignAndSubmitScript` because it makes use of `AptosClient`'s 
+ * Generate, sign, and submit a transaction calling the given entry function with the given
+ * arguments. Prevents transaction submission and throws if the transaction fails.
+ *
+ * This is separated from `generateSignAndSubmitScript` because it makes use of `AptosClient`'s
  * `generateTransaction` which pulls ABIs from the node and uses them to encode arguments
  * automatically.
  * @param client Client used to transfer data to/from Aptos node
@@ -46,11 +54,11 @@ export const generateSignAndSubmitEntryFunction = (
 };
 
 /**
- * Generate, sign, and submit a transaction containing given bytecode. Prevents transaction 
- * submission and throws if the transaction fails. 
- * 
- * Unlike `generateSignAndSubmitEntryFunction`, this function must construct a `RawTransaction` 
- * manually because `generateTransaction` does not have support for scripts for which there are 
+ * Generate, sign, and submit a transaction containing given bytecode. Prevents transaction
+ * submission and throws if the transaction fails.
+ *
+ * Unlike `generateSignAndSubmitEntryFunction`, this function must construct a `RawTransaction`
+ * manually because `generateTransaction` does not have support for scripts for which there are
  * no corresponding on-chain ABIs. Type/argument encoding is left to the caller.
  * @param client Client used to transfer data to/from Aptos node
  * @param sender Account that will submit transaction
@@ -97,7 +105,7 @@ export const generateSignAndSubmitScript = async (
  * @param tokenBridgeAddress Address of token bridge (32 bytes)
  * @param originChain Chain ID of chain that original asset is from
  * @param originAddress Native address of asset; if origin chain ID is 22 (Aptos), this is the
- * asset's fully qualified type 
+ * asset's fully qualified type
  * @returns The fully qualified type on Aptos for the given asset
  */
 export const getAssetFullyQualifiedType = (
@@ -144,7 +152,7 @@ export const getForeignAssetAddress = (
   }
 
   // from https://github.com/aptos-labs/aptos-core/blob/25696fd266498d81d346fe86e01c330705a71465/aptos-move/framework/aptos-framework/sources/account.move#L90-L95
-  let DERIVE_RESOURCE_ACCOUNT_SCHEME = Buffer.alloc(1);
+  const DERIVE_RESOURCE_ACCOUNT_SCHEME = Buffer.alloc(1);
   DERIVE_RESOURCE_ACCOUNT_SCHEME.writeUInt8(255);
 
   let chain: Buffer = Buffer.alloc(2);
@@ -200,7 +208,7 @@ export async function getTypeFromExternalAddress(
       tokenBridgeAddress,
       `${tokenBridgeAddress}::state::State`
     )
-  ).data as State;
+  ).data as TokenBridgeState;
   const handle = state.native_infos.handle;
 
   try {
@@ -237,6 +245,29 @@ export async function getTypeFromExternalAddress(
  */
 export const coalesceModuleAddress = (str: string): string => {
   return str.split("::")[0];
+};
+
+export const deriveResourceAccountAddress = async (
+  nftBridgeAddress: string,
+  originChain: ChainId | ChainName,
+  originAddress: string
+): Promise<string | null> => {
+  const originChainId = coalesceChainId(originChain);
+  if (originChainId === CHAIN_ID_APTOS) {
+    return null;
+  }
+
+  const chainId = Buffer.alloc(2);
+  chainId.writeUInt16BE(originChainId);
+  const seed = Buffer.concat([
+    chainId,
+    tryNativeToUint8Array(originAddress, originChain),
+  ]);
+  const resourceAccountAddress = await AptosAccount.getResourceAccountAddress(
+    nftBridgeAddress,
+    seed
+  );
+  return resourceAccountAddress.toString();
 };
 
 /**

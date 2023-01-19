@@ -5,18 +5,22 @@ import {
   PublicKeyInitData,
 } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { AptosClient } from "aptos";
 import { BigNumber, ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { WormholeWrappedInfo } from "..";
+import { OriginInfo } from "../aptos/types";
 import { canonicalAddress } from "../cosmos";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { getWrappedMeta } from "../solana/nftBridge";
 import {
+  assertChain,
   ChainId,
   ChainName,
+  CHAIN_ID_APTOS,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
   coalesceChainId,
+  hex,
 } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
@@ -176,4 +180,36 @@ export async function getOriginalAssetTerra(
     chainId: coalesceChainId(lookupChain),
     assetAddress: zeroPad(canonicalAddress(wrappedAddress), 32),
   };
+}
+
+// TODO(aki): should this also return tokenId? doesnt seem possible to implement right now
+// TODO(aki): only catch expected error
+export async function getOriginalAssetAptos(
+  client: AptosClient,
+  nftBridgeAddress: string,
+  creatorAddress: string
+): Promise<WormholeWrappedInfo> {
+  try {
+    const originInfo = (
+      await client.getAccountResource(
+        creatorAddress,
+        `${nftBridgeAddress}::state::OriginInfo`
+      )
+    ).data as OriginInfo;
+    const chainId = Number(originInfo.token_chain.number);
+    assertChain(chainId);
+    return {
+      isWrapped: true,
+      chainId: chainId,
+      assetAddress: new Uint8Array(
+        hex(originInfo.token_address.external_address)
+      ),
+    };
+  } catch {
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_APTOS,
+      assetAddress: new Uint8Array(hex(creatorAddress)),
+    };
+  }
 }

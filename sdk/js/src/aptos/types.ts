@@ -1,4 +1,4 @@
-export type State = {
+export type TokenBridgeState = {
   consumed_vaas: {
     elems: {
       handle: string;
@@ -34,5 +34,32 @@ export type OriginInfo = {
   };
   token_chain: {
     number: string; // lol
+  };
+};
+
+export type NftBridgeState = {
+  consumed_vaas: {
+    elems: {
+      handle: string;
+    };
+  };
+  emitter_cap: {
+    emitter: string;
+    sequence: string;
+  };
+  native_infos: {
+    handle: string;
+  };
+  registered_emitters: {
+    handle: string;
+  };
+  signer_cap: {
+    account: string;
+  };
+  spl_cache: {
+    handle: string;
+  };
+  wrapped_infos: {
+    handle: string;
   };
 };
