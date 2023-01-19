@@ -52,11 +52,11 @@ The Wormhole project operates two bug bounty programs to financially incentivize
 
 - [Self-Hosted Program](https://wormhole.com/bounty/)
   - **Scopes**: Guardian and Smart Contracts
-  - **Rewards**: Up to $10,000,000 USDC
+  - **Rewards**: Up to $2,500,000 USDC
   - **KYC**: Required
 - [Immunefi-Hosted Program](https://immunefi.com/bounty/wormhole/)
   - **Scopes**: Guardian and Smart Contracts
-  - **Rewards**: Up to $10,000,000 USDC
+  - **Rewards**: Up to $2,500,000 USDC
   - **KYC**: Required
 
 If you find a security issue in Wormhole, please report the issue immediately using one of the two bug bounty programs above.
