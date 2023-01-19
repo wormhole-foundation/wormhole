@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -103,16 +102,7 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 					}
 
 					errorEventsReceived.Inc()
-					msgId := evt.Key.String()
-					if strings.Contains(evt.Error, "insufficient balance") {
-						balanceErrors.Inc()
-						acct.logger.Error("acct: insufficient balance error event detected", zap.String("msgId", msgId), zap.String("text", evt.Error))
-						acct.pendingTransfersLock.Lock()
-						defer acct.pendingTransfersLock.Unlock()
-						acct.deletePendingTransfer(msgId)
-					} else {
-						acct.logger.Error("acct: observation error event detected", zap.String("msgId", msgId), zap.String("text", evt.Error))
-					}
+					acct.handleTransferError(evt.Key.String(), evt.Error)
 				} else {
 					acct.logger.Debug("acctwatcher: ignoring uninteresting event", zap.String("eventType", event.Type))
 				}
@@ -166,6 +156,9 @@ func parseWasmObservation(logger *zap.Logger, event tmAbci.Event, contractAddres
 
 // processPendingTransfer takes a WasmObservation event, determines if we are expecting it, and if so, publishes it.
 func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
+
 	acct.logger.Info("acctwatch: transfer event detected",
 		zap.String("tx_hash", hex.EncodeToString(xfer.TxHashBytes)),
 		zap.Uint32("timestamp", xfer.Timestamp),
@@ -190,9 +183,6 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
 
 	msgId := msg.MessageIDString()
 
-	acct.pendingTransfersLock.Lock()
-	defer acct.pendingTransfersLock.Unlock()
-
 	pe, exists := acct.pendingTransfers[msgId]
 	if exists {
 		digest := msg.CreateDigest()
@@ -204,11 +194,11 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
 				zap.String("newDigest", digest),
 			)
 
-			acct.deletePendingTransfer(msgId)
+			acct.deletePendingTransferAlreadyLocked(msgId)
 			return
 		}
 		acct.logger.Info("acctwatch: pending transfer has been approved", zap.String("msgId", msgId))
-		acct.publishTransfer(pe)
+		acct.publishTransferAlreadyLocked(pe)
 		transfersApproved.Inc()
 	} else {
 		// TODO: We could issue a reobservation request here since it looks like other guardians have seen this transfer but we haven't.

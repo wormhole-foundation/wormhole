@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -22,59 +23,67 @@ import (
 	"go.uber.org/zap"
 )
 
-const batchSize = 10 // TODO: Arbitrary limit. What makes sense?
+// TODO: Arbitrary values. What makes sense?
+const batchSize = 10
+const delayInMS = 100 * time.Millisecond
 
+// worker listens for observation requests from the accountant and submits them to the smart contract.
 func (acct *Accountant) worker(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case msg := <-acct.subChan:
-			// TODO: Is there a better way to read at most X items from a channel without blocking?
-
-			// Sleep for a bit until either there are no more new observations or the batch is full.
-			numToRead := len(acct.subChan)
-			for numToRead < batchSize-1 {
-				time.Sleep(100 * time.Millisecond) // TODO: Arbitrary delay. What makes sense?
-				newNumToRead := len(acct.subChan)
-				if newNumToRead == numToRead {
-					break
-				}
-
-				numToRead = newNumToRead
+		default:
+			if err := acct.handleBatch(ctx); err != nil {
+				return err
 			}
-
-			// Read up to the batch size.
-			if numToRead >= batchSize {
-				numToRead = batchSize - 1
-			}
-
-			msgs := make([]*common.MessagePublication, numToRead+1)
-			msgs[0] = msg
-			acct.logger.Debug("acct: submitting message to contract", zap.String("msgID", msg.MessageIDString()))
-
-			for i := 0; i < numToRead; i++ {
-				msgs[i+1] = <-acct.subChan
-				acct.logger.Debug("acct: submitting message to contract", zap.String("msgID", msg.MessageIDString()))
-			}
-
-			gs := acct.gst.Get()
-			if gs == nil {
-				acct.logger.Error("acct: unable to send observation request: failed to look up guardian set", zap.String("msgID", msg.MessageIDString()))
-				continue
-			}
-
-			guardianIndex, found := gs.KeyIndex(acct.guardianAddr)
-			if !found {
-				acct.logger.Error("acct: unable to send observation request: failed to look up guardian index",
-					zap.String("msgID", msg.MessageIDString()), zap.Stringer("guardianAddr", acct.guardianAddr))
-				continue
-			}
-
-			acct.submitObservationToContract(msgs, gs.Index, uint32(guardianIndex))
-			transfersSubmitted.Add(float64(len(msgs)))
 		}
 	}
+}
+
+// handleBatch reads a batch of events from the channel, either until a timeout occurs or the batch is full,
+// and submits them to the smart contract.
+func (acct *Accountant) handleBatch(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, delayInMS)
+	defer cancel()
+
+	msgs, err := readFromChannel[*common.MessagePublication](ctx, acct.subChan, batchSize)
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("failed to read messages from `acct.subChan`: %w", err)
+	}
+
+	if len(msgs) == 0 {
+		return nil
+	}
+
+	gs := acct.gst.Get()
+	if gs == nil {
+		return fmt.Errorf("failed to get guardian set: %w", err)
+	}
+
+	guardianIndex, found := gs.KeyIndex(acct.guardianAddr)
+	if !found {
+		return fmt.Errorf("failed to get guardian index")
+	}
+
+	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex))
+	transfersSubmitted.Add(float64(len(msgs)))
+	return nil
+}
+
+// readFromChannel reads events from the channel until a timeout occurs or the batch is full, and returns them.
+func readFromChannel[T any](ctx context.Context, ch <-chan T, count int) ([]T, error) {
+	out := make([]T, 0, count)
+	for len(out) < count {
+		select {
+		case <-ctx.Done():
+			return out, ctx.Err()
+		case msg := <-ch:
+			out = append(out, msg)
+		}
+	}
+
+	return out, nil
 }
 
 type (
@@ -160,9 +169,9 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 	return []byte(result), nil
 }
 
-// submitObservationToContract makes a call to the smart contract to submit a batch of observation requests.
+// submitObservationsToContract makes a call to the smart contract to submit a batch of observation requests.
 // It should be called from a go routine because it can block.
-func (acct *Accountant) submitObservationToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
+func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
 	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msgs)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
@@ -201,33 +210,43 @@ func (acct *Accountant) submitObservationToContract(msgs []*common.MessagePublic
 		case "pending":
 			acct.logger.Info("acct: transfer is pending", zap.String("msgId", msgId))
 		case "committed":
-			acct.pendingTransfersLock.Lock()
-			defer acct.pendingTransfersLock.Unlock()
-			pe, exists := acct.pendingTransfers[msgId]
-			if exists {
-				acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msgId))
-				acct.publishTransfer(pe)
-				transfersApproved.Inc()
-			} else {
-				acct.logger.Debug("acct: transfer has already been committed but it is no longer in our map", zap.String("msgId", msgId))
-			}
+			acct.handleCommittedTransfer(msgId)
 		case "error":
 			submitFailures.Inc()
-			if strings.Contains(resp.Status.Data, "insufficient balance") {
-				balanceErrors.Inc()
-				acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.String("text", resp.Status.Data))
-				acct.pendingTransfersLock.Lock()
-				defer acct.pendingTransfersLock.Unlock()
-				acct.deletePendingTransfer(msgId)
-			} else {
-				// This will get retried next audit interval.
-				acct.logger.Error("acct: failed to submit observation", zap.String("msgId", msgId), zap.String("text", resp.Status.Data))
-			}
+			acct.handleTransferError(msgId, resp.Status.Data)
 		default:
 			// This will get retried next audit interval.
 			acct.logger.Error("acct: unexpected status response on observation", zap.String("msgId", msgId), zap.String("status", resp.Status.Type), zap.String("text", resp.Status.Data))
 			submitFailures.Inc()
 		}
+	}
+}
+
+// handleCommittedTransfer updates the pending map and publishes a committed transfer. It grabs the lock.
+func (acct *Accountant) handleCommittedTransfer(msgId string) {
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
+	pe, exists := acct.pendingTransfers[msgId]
+	if exists {
+		acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msgId))
+		acct.publishTransferAlreadyLocked(pe)
+		transfersApproved.Inc()
+	} else {
+		acct.logger.Debug("acct: transfer has already been committed but it is no longer in our map", zap.String("msgId", msgId))
+	}
+}
+
+// handleTransferError is called when a transfer fails, either from a submit or an event notification. It handles insufficient balance error. It grabs the lock.
+func (acct *Accountant) handleTransferError(msgId string, errText string) {
+	if strings.Contains(errText, "insufficient balance") {
+		balanceErrors.Inc()
+		acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.String("text", errText))
+		acct.pendingTransfersLock.Lock()
+		defer acct.pendingTransfersLock.Unlock()
+		acct.deletePendingTransfer(msgId)
+	} else {
+		// This will get retried next audit interval.
+		acct.logger.Error("acct: failed to submit observation", zap.String("msgId", msgId), zap.String("text", errText))
 	}
 }
 
