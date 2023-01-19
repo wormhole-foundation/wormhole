@@ -33,6 +33,15 @@ export const WORMHOLE_RPC_HOSTS = ci
   ? ["http://guardian:7071"]
   : ["http://localhost:7071"];
 
+export const APTOS_PRIVATE_KEY =
+  "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d";
+export const APTOS_NODE_URL = ci
+  ? "http://aptos:8080/v1"
+  : "http://0.0.0.0:8080/v1";
+export const APTOS_FAUCET_URL = ci
+  ? "http://aptos:8081"
+  : "http://0.0.0.0:8081";
+
 describe("consts should exist", () => {
   it("has Solana test token", () => {
     expect.assertions(1);
