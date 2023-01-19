@@ -32,10 +32,7 @@ import {
   SOLANA_PRIVATE_KEY,
   TEST_SOLANA_TOKEN,
 } from "./consts";
-import {
-  waitUntilTransactionObservedEthereum,
-  waitUntilTransactionObservedSolana,
-} from "./utils/waitUntilTransactionObserved";
+import { getSignedVaaEthereum, getSignedVaaSolana } from "./utils/getSignedVaa";
 
 jest.setTimeout(60000);
 
@@ -59,72 +56,6 @@ afterEach(() => {
 });
 
 describe("Integration Tests", () => {
-  // TODO: figure out why this isn't working
-  // test("Send Ethereum ERC-721 to Solana and back", (done) => {
-  //   (async () => {
-  //     try {
-  //       const erc721 = await deployNFTOnEth(
-  //         "Not an APE 🐒",
-  //         "APE🐒",
-  //         "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/",
-  //         11 // mint ids 0..10 (inclusive)
-  //       );
-  //       const sol_addr = await nft_bridge.getForeignAssetSol(
-  //         CONTRACTS.DEVNET.solana.nft_bridge,
-  //         CHAIN_ID_ETH,
-  //         tryNativeToUint8Array(erc721.address, CHAIN_ID_ETH),
-  //         arrayify(BigNumber.from("10"))
-  //       );
-  //       const fromAddress = await Token.getAssociatedTokenAddress(
-  //         ASSOCIATED_TOKEN_PROGRAM_ID,
-  //         TOKEN_PROGRAM_ID,
-  //         new PublicKey(sol_addr),
-  //         keypair.publicKey
-  //       );
-  //       const transaction = await _transferFromEth(
-  //         erc721.address,
-  //         10,
-  //         fromAddress.toString(),
-  //         CHAIN_ID_SOLANA
-  //       );
-  //       let signedVAA = await waitUntilEthTxObserved(transaction);
-  //       await _redeemOnSolana(signedVAA);
-
-  //       let ownerEth = await erc721.ownerOf(10);
-  //       expect(ownerEth).not.toBe(signer.address);
-
-  //       // TODO: check wrapped balance
-
-  //       // Send back the NFT to ethereum
-  //       const transaction2 = await _transferFromSolana(
-  //         fromAddress,
-  //         sol_addr,
-  //         signer.address,
-  //         CHAIN_ID_ETH,
-  //         tryNativeToUint8Array(erc721.address, CHAIN_ID_ETH),
-  //         CHAIN_ID_ETH,
-  //         arrayify(BigNumber.from("10"))
-  //       );
-  //       signedVAA = await waitUntilSolanaTxObserved(transaction2);
-  //       (await expectReceivedOnEth(signedVAA)).toBe(false);
-  //       await _redeemOnEth(signedVAA);
-  //       (await expectReceivedOnEth(signedVAA)).toBe(true);
-
-  //       // ensure that the transaction roundtrips back to the original native asset
-  //       ownerEth = await erc721.ownerOf(10);
-  //       expect(ownerEth).toBe(signer.address);
-
-  //       // TODO: the wrapped token should no longer exist
-
-  //       done();
-  //     } catch (e) {
-  //       console.error(e);
-  //       done(
-  //         `An error occured while trying to transfer from Ethereum to Solana and back: ${e}`
-  //       );
-  //     }
-  //   })();
-  // });
   test("Send Solana SPL to Ethereum and back", (done) => {
     (async () => {
       try {
@@ -140,7 +71,7 @@ describe("Integration Tests", () => {
           signer.address,
           CHAIN_ID_ETH
         );
-        let signedVAA = await waitUntilTransactionObservedSolana(transaction1);
+        let signedVAA = await getSignedVaaSolana(transaction1);
 
         // we get the solana token id from the VAA
         const { tokenId } = parseNftTransferVaa(signedVAA);
@@ -162,7 +93,7 @@ describe("Integration Tests", () => {
           fromAddress.toString(),
           CHAIN_ID_SOLANA
         );
-        signedVAA = await waitUntilTransactionObservedEthereum(transaction3);
+        signedVAA = await getSignedVaaEthereum(transaction3);
 
         const { name, symbol } = parseNftTransferVaa(signedVAA);
 
