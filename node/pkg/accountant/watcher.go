@@ -113,16 +113,7 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 
 type (
 	// WasmObservation represents a transfer event from the smart contract.
-	WasmObservation struct {
-		TxHashBytes      []byte      `json:"tx_hash"`
-		Timestamp        uint32      `json:"timestamp"`
-		Nonce            uint32      `json:"nonce"`
-		EmitterChain     uint16      `json:"emitter_chain"`
-		EmitterAddress   vaa.Address `json:"emitter_address"`
-		Sequence         uint64      `json:"sequence"`
-		ConsistencyLevel uint8       `json:"consistency_level"`
-		Payload          []byte      `json:"payload"`
-	}
+	WasmObservation Observation
 
 	// WasmObservationError represents an error event from the smart contract.
 	WasmObservationError struct {
@@ -163,7 +154,7 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
 	defer acct.pendingTransfersLock.Unlock()
 
 	acct.logger.Info("acctwatch: transfer event detected",
-		zap.String("tx_hash", hex.EncodeToString(xfer.TxHashBytes)),
+		zap.String("tx_hash", hex.EncodeToString(xfer.TxHash)),
 		zap.Uint32("timestamp", xfer.Timestamp),
 		zap.Uint32("nonce", xfer.Nonce),
 		zap.Stringer("emitter_chain", vaa.ChainID(xfer.EmitterChain)),
@@ -174,7 +165,7 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
 	)
 
 	msg := &common.MessagePublication{
-		TxHash:           ethCommon.BytesToHash(xfer.TxHashBytes),
+		TxHash:           ethCommon.BytesToHash(xfer.TxHash),
 		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,

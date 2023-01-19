@@ -253,8 +253,6 @@ func (acct *Accountant) handleTransferError(msgId string, errText string, logTex
 	if strings.Contains(errText, "insufficient balance") {
 		balanceErrors.Inc()
 		acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.String("text", errText))
-		acct.pendingTransfersLock.Lock()
-		defer acct.pendingTransfersLock.Unlock()
 		acct.deletePendingTransfer(msgId)
 	} else {
 		// This will get retried next audit interval.

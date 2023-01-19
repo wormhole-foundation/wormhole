@@ -37,7 +37,7 @@ func TestParseWasmObservationFromTestTool(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResult := WasmObservation{
-		TxHashBytes:      expectedTxHash.Bytes(),
+		TxHash:           expectedTxHash.Bytes(),
 		Timestamp:        1672932998,
 		Nonce:            0,
 		EmitterChain:     uint16(vaa.ChainIDEthereum),
@@ -71,7 +71,7 @@ func TestParseWasmObservationFromPortalBridge(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResult := WasmObservation{
-		TxHashBytes:      expectedTxHash.Bytes(),
+		TxHash:           expectedTxHash.Bytes(),
 		Timestamp:        9507,
 		Nonce:            554303744,
 		EmitterChain:     uint16(vaa.ChainIDEthereum),
