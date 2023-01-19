@@ -23,7 +23,7 @@ func TestParseWasmObservationFromTestTool(t *testing.T) {
 	err := json.Unmarshal(eventJson, &event)
 	require.NoError(t, err)
 
-	xfer, err := parseWasmObservation(logger, event, "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh")
+	xfer, err := parseEvent[WasmObservation](logger, event, "wasm-Observation", "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh")
 	require.NoError(t, err)
 	require.NotNil(t, xfer)
 
@@ -57,7 +57,7 @@ func TestParseWasmObservationFromPortalBridge(t *testing.T) {
 	err := json.Unmarshal(eventJson, &event)
 	require.NoError(t, err)
 
-	xfer, err := parseWasmObservation(logger, event, "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh")
+	xfer, err := parseEvent[WasmObservation](logger, event, "wasm-Observation", "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh")
 	require.NoError(t, err)
 	require.NotNil(t, xfer)
 
@@ -92,7 +92,7 @@ func TestParseWasmObservationError(t *testing.T) {
 	err := json.Unmarshal(eventJson, &event)
 	require.NoError(t, err)
 
-	evt, err := parseWasmObservationError(logger, event, "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh")
+	evt, err := parseEvent[WasmObservationError](logger, event, "wasm-ObservationError", "wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh")
 	require.NoError(t, err)
 	require.NotNil(t, evt)
 

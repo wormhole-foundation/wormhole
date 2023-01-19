@@ -184,10 +184,10 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 		return
 	}
 
-	responses, err := GetObservationResponses(txResp, len(msgs))
+	responses, err := GetObservationResponses(txResp)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
-		acct.logger.Error("acct: failed to get responses from batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
+		acct.logger.Error("acct: failed to get responses from batch", zap.Error(err))
 		for idx, msg := range msgs {
 			acct.logger.Error("acct: need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
 		}
@@ -196,27 +196,39 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 		return
 	}
 
-	for idx, resp := range responses {
-		// Verify that the responses are in the same order as the observations.
-		msgId := msgs[idx].MessageIDString()
-		if resp.Key.String() != msgId {
+	if len(responses) != len(msgs) {
+		// This means the whole batch failed. They will all get retried the next audit cycle.
+		acct.logger.Error("acct: number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
+		for idx, msg := range msgs {
+			acct.logger.Error("acct: need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
+		}
+
+		submitFailures.Add(float64(len(msgs)))
+		return
+	}
+
+	for _, msg := range msgs {
+		msgId := msg.MessageIDString()
+
+		status, exists := responses[msgId]
+		if !exists {
 			// This will get retried next audit interval.
-			acct.logger.Error("acct: unexpected msgId in observation response", zap.Int("idx", idx), zap.String("expected", msgId), zap.String("actual", resp.Key.String()))
+			acct.logger.Error("acct: did not receive an observation response for message", zap.String("msgId", msgId))
 			submitFailures.Inc()
 			continue
 		}
 
-		switch resp.Status.Type {
+		switch status.Type {
 		case "pending":
 			acct.logger.Info("acct: transfer is pending", zap.String("msgId", msgId))
 		case "committed":
 			acct.handleCommittedTransfer(msgId)
 		case "error":
 			submitFailures.Inc()
-			acct.handleTransferError(msgId, resp.Status.Data)
+			acct.handleTransferError(msgId, status.Data, "acct: transfer failed")
 		default:
 			// This will get retried next audit interval.
-			acct.logger.Error("acct: unexpected status response on observation", zap.String("msgId", msgId), zap.String("status", resp.Status.Type), zap.String("text", resp.Status.Data))
+			acct.logger.Error("acct: unexpected status response on observation", zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
 			submitFailures.Inc()
 		}
 	}
@@ -237,7 +249,7 @@ func (acct *Accountant) handleCommittedTransfer(msgId string) {
 }
 
 // handleTransferError is called when a transfer fails, either from a submit or an event notification. It handles insufficient balance error. It grabs the lock.
-func (acct *Accountant) handleTransferError(msgId string, errText string) {
+func (acct *Accountant) handleTransferError(msgId string, errText string, logText string) {
 	if strings.Contains(errText, "insufficient balance") {
 		balanceErrors.Inc()
 		acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.String("text", errText))
@@ -246,7 +258,7 @@ func (acct *Accountant) handleTransferError(msgId string, errText string) {
 		acct.deletePendingTransfer(msgId)
 	} else {
 		// This will get retried next audit interval.
-		acct.logger.Error("acct: failed to submit observation", zap.String("msgId", msgId), zap.String("text", errText))
+		acct.logger.Error(logText, zap.String("msgId", msgId), zap.String("text", errText))
 	}
 }
 
@@ -360,7 +372,7 @@ func SubmitObservationsToContract(
 
 // GetObservationResponses is a free function that extracts the observation responses from a transaction response.
 // It assumes the transaction response is valid (SubmitObservationsToContract() did not return an error).
-func GetObservationResponses(txResp *sdktx.BroadcastTxResponse, numExpected int) (ObservationResponses, error) {
+func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]ObservationResponseStatus, error) {
 	data, err := hex.DecodeString(txResp.TxResponse.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode data: %w", err)
@@ -382,9 +394,10 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse, numExpected int)
 		return nil, fmt.Errorf("failed to unmarshal responses: %w", err)
 	}
 
-	if len(responses) != numExpected {
-		return nil, fmt.Errorf("unexpected number of responses, expected %d, actual %d", numExpected, len(responses))
+	out := make(map[string]ObservationResponseStatus)
+	for _, resp := range responses {
+		out[resp.Key.String()] = resp.Status
 	}
 
-	return responses, nil
+	return out, nil
 }

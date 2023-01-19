@@ -71,7 +71,7 @@ func (c *ClientConn) BroadcastTxResponseToString(txResp *sdktx.BroadcastTxRespon
 
 	out, err := c.encCfg.Marshaler.MarshalJSON(txResp)
 	if err != nil {
-		return fmt.Sprintf("failed to format txResp: %s", err)
+		panic(fmt.Sprintf("failed to format txResp: %s", err))
 	}
 
 	return string(out)

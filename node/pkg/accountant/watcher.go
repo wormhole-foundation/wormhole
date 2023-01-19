@@ -86,23 +86,23 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 
 			for _, event := range tx.Result.Events {
 				if event.Type == "wasm-Observation" {
-					xfer, err := parseWasmObservation(acct.logger, event, acct.contract)
+					evt, err := parseEvent[WasmObservation](acct.logger, event, "wasm-Observation", acct.contract)
 					if err != nil {
 						acct.logger.Error("acctwatcher: failed to parse wasm transfer event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
 						continue
 					}
 
 					eventsReceived.Inc()
-					acct.processPendingTransfer(xfer)
+					acct.processPendingTransfer(evt)
 				} else if event.Type == "wasm-ObservationError" {
-					evt, err := parseWasmObservationError(acct.logger, event, acct.contract)
+					evt, err := parseEvent[WasmObservationError](acct.logger, event, "wasm-ObservationError", acct.contract)
 					if err != nil {
 						acct.logger.Error("acctwatcher: failed to parse wasm observation error event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
 						continue
 					}
 
 					errorEventsReceived.Inc()
-					acct.handleTransferError(evt.Key.String(), evt.Error)
+					acct.handleTransferError(evt.Key.String(), evt.Error, "acct: transfer error event received")
 				} else {
 					acct.logger.Debug("acctwatcher: ignoring uninteresting event", zap.String("eventType", event.Type))
 				}
@@ -111,24 +111,27 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 	}
 }
 
-// WasmObservation represents a transfer event from the smart contract.
-type WasmObservation struct {
-	TxHashBytes      []byte      `json:"tx_hash"`
-	Timestamp        uint32      `json:"timestamp"`
-	Nonce            uint32      `json:"nonce"`
-	EmitterChain     uint16      `json:"emitter_chain"`
-	EmitterAddress   vaa.Address `json:"emitter_address"`
-	Sequence         uint64      `json:"sequence"`
-	ConsistencyLevel uint8       `json:"consistency_level"`
-	Payload          []byte      `json:"payload"`
-}
-
-// parseWasmObservation parses transfer events from the smart contract. All other event types are ignored.
-func parseWasmObservation(logger *zap.Logger, event tmAbci.Event, contractAddress string) (*WasmObservation, error) {
-	if event.Type != "wasm-Observation" {
-		return nil, fmt.Errorf("not a wasm-Observation event: %s", event.Type)
+type (
+	// WasmObservation represents a transfer event from the smart contract.
+	WasmObservation struct {
+		TxHashBytes      []byte      `json:"tx_hash"`
+		Timestamp        uint32      `json:"timestamp"`
+		Nonce            uint32      `json:"nonce"`
+		EmitterChain     uint16      `json:"emitter_chain"`
+		EmitterAddress   vaa.Address `json:"emitter_address"`
+		Sequence         uint64      `json:"sequence"`
+		ConsistencyLevel uint8       `json:"consistency_level"`
+		Payload          []byte      `json:"payload"`
 	}
 
+	// WasmObservationError represents an error event from the smart contract.
+	WasmObservationError struct {
+		Key   ObservationKey `json:"key"`
+		Error string         `json:"error"`
+	}
+)
+
+func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, contractAddress string) (*T, error) {
 	attrs := make(map[string]json.RawMessage)
 	for _, attr := range event.Attributes {
 		if string(attr.Key) == "_contract_address" {
@@ -136,7 +139,7 @@ func parseWasmObservation(logger *zap.Logger, event tmAbci.Event, contractAddres
 				return nil, fmt.Errorf("wasm-Observation event from unexpected contract: %s", string(attr.Value))
 			}
 		} else {
-			logger.Debug("acctwatcher: wasm-Observation attribute", zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
+			logger.Debug("acctwatcher: event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
 			attrs[string(attr.Key)] = attr.Value
 		}
 	}
@@ -146,7 +149,7 @@ func parseWasmObservation(logger *zap.Logger, event tmAbci.Event, contractAddres
 		return nil, fmt.Errorf("failed to marshal wasm-Observation event attributes: %w", err)
 	}
 
-	evt := new(WasmObservation)
+	evt := new(T)
 	if err := json.Unmarshal(attrBytes, evt); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal wasm-Observation event: %w", err)
 	}
@@ -204,43 +207,4 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
 		// TODO: We could issue a reobservation request here since it looks like other guardians have seen this transfer but we haven't.
 		acct.logger.Info("acctwatch: unknown transfer has been approved, ignoring it", zap.String("msgId", msgId))
 	}
-}
-
-// WasmObservationError represents an error event from the smart contract.
-type (
-	WasmObservationError struct {
-		Key   ObservationKey
-		Error string `json:"error"`
-	}
-)
-
-// parseWasmObservationError parses error events from the smart contract. All other event types are ignored.
-func parseWasmObservationError(logger *zap.Logger, event tmAbci.Event, contractAddress string) (*WasmObservationError, error) {
-	if event.Type != "wasm-ObservationError" {
-		return nil, fmt.Errorf("not a wasm-ObservationError event: %s", event.Type)
-	}
-
-	attrs := make(map[string]json.RawMessage)
-	for _, attr := range event.Attributes {
-		if string(attr.Key) == "_contract_address" {
-			if string(attr.Value) != contractAddress {
-				return nil, fmt.Errorf("wasm-ObservationError event from unexpected contract: %s", string(attr.Value))
-			}
-		} else {
-			logger.Debug("acctwatcher: wasm-ObservationError attribute", zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
-			attrs[string(attr.Key)] = attr.Value
-		}
-	}
-
-	attrBytes, err := json.Marshal(attrs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal wasm-ObservationError event attributes: %w", err)
-	}
-
-	evt := new(WasmObservationError)
-	if err := json.Unmarshal(attrBytes, evt); err != nil {
-		return nil, fmt.Errorf("failed to wasm-ObservationError unmarshal WasmObservation event: %w", err)
-	}
-
-	return evt, nil
 }
