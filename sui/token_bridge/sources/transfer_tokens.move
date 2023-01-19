@@ -1,6 +1,6 @@
 module token_bridge::transfer_tokens {
     use sui::sui::SUI;
-    use sui::coin::{Self, Coin};
+    use sui::coin::{Self, Coin, CoinMetadata};
 
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self, ExternalAddress};
@@ -19,6 +19,7 @@ module token_bridge::transfer_tokens {
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         coins: Coin<CoinType>,
+        coin_metadata: &CoinMetadata<CoinType>,
         wormhole_fee_coins: Coin<SUI>,
         recipient_chain: u64,
         recipient: vector<u8>,
@@ -28,6 +29,7 @@ module token_bridge::transfer_tokens {
         let result = transfer_tokens_internal<CoinType>(
             bridge_state,
             coins,
+            coin_metadata,
             relayer_fee,
         );
         let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
@@ -54,6 +56,7 @@ module token_bridge::transfer_tokens {
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         coins: Coin<CoinType>,
+        coin_metadata: &CoinMetadata<CoinType>,
         wormhole_fee_coins: Coin<SUI>,
         recipient_chain: U16,
         recipient: ExternalAddress,
@@ -64,6 +67,7 @@ module token_bridge::transfer_tokens {
         let result = transfer_tokens_internal<CoinType>(
             bridge_state,
             coins,
+            coin_metadata,
             relayer_fee,
         );
         let (token_chain, token_address, normalized_amount, _)
@@ -91,6 +95,7 @@ module token_bridge::transfer_tokens {
     fun transfer_tokens_internal<CoinType>(
         bridge_state: &mut BridgeState,
         coins: Coin<CoinType>,
+        coin_metadata: &CoinMetadata<CoinType>,
         relayer_fee: u64,
     ): TransferResult {
         let amount = coin::value<CoinType>(&coins);
@@ -105,14 +110,11 @@ module token_bridge::transfer_tokens {
             bridge_state::deposit<CoinType>(bridge_state, coins);
         };
 
-        // TODO - pending Mysten uniform token standard - figure out how to get normalization decimals for token and relayer fee amounts
-        //        this is harder to do for native assets. For wrapped assets, we control the treasury cap, so we can get the decimals from there
-        //        for now don't do normalization?
         let origin_info = bridge_state::origin_info<CoinType>(bridge_state);
         let token_chain = bridge_state::get_token_chain_from_origin_info(&origin_info);
         let token_address = bridge_state::get_token_address_from_origin_info(&origin_info);
 
-        let decimals = 0; // TODO: get decimals from coin meta when available
+        let decimals = coin::get_decimals(coin_metadata);
         let normalized_amount = normalized_amount::normalize(amount, decimals);
         let normalized_relayer_fee = normalized_amount::normalize(relayer_fee, decimals);
 
