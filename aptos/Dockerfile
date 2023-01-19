@@ -21,5 +21,4 @@ FROM aptos AS tests
 
 WORKDIR /tmp
 
-RUN --mount=type=cache,target=/root/.move,id=move_cache \
-    make test
+RUN    make test
