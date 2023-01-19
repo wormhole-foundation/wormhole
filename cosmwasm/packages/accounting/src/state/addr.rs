@@ -5,14 +5,18 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdError, StdResult};
 use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
-use schemars::JsonSchema;
-use serde::{de, Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, JsonSchema)]
+#[cw_serde]
+#[derive(Copy, Default, Eq, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct TokenAddress(#[schemars(with = "String")] [u8; 32]);
+pub struct TokenAddress(
+    #[serde(with = "hex")]
+    #[schemars(with = "String")]
+    [u8; 32],
+);
 
 impl TokenAddress {
     pub const fn new(addr: [u8; 32]) -> TokenAddress {
@@ -90,47 +94,6 @@ impl FromStr for TokenAddress {
         hex::decode(s)
             .context("failed to decode hex")
             .and_then(Self::try_from)
-    }
-}
-
-impl Serialize for TokenAddress {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&base64::encode(self.0))
-    }
-}
-
-impl<'de> Deserialize<'de> for TokenAddress {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(Base64Visitor)
-    }
-}
-
-struct Base64Visitor;
-
-impl<'de> de::Visitor<'de> for Base64Visitor {
-    type Value = TokenAddress;
-
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("a valid base64 encoded string of a 32-byte array")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        base64::decode(v)
-            .map_err(E::custom)
-            .and_then(|b| {
-                b.try_into()
-                    .map_err(|b: Vec<u8>| E::invalid_length(b.len(), &self))
-            })
-            .map(TokenAddress)
     }
 }
 

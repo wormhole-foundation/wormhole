@@ -15,12 +15,11 @@ library = []
 
 [dependencies]
 anyhow = "1"
-base64 = "0.13"
 cosmwasm-schema = "1"
 cosmwasm-std = "1"
 cw-storage-plus = "0.13.2"
 cw_transcode = "0.1.0"
-hex = "0.4.3"
+hex = { version = "0.4.3", features = ["serde"] }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false }
 thiserror = "1"
