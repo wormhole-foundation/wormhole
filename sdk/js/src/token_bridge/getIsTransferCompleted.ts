@@ -1,32 +1,32 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
 import { AptosClient } from "aptos";
 import axios from "axios";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
+import { Provider } from "near-api-js/lib/providers";
 import { redeemOnTerra } from ".";
 import {
   ensureHexPrefix,
   parseSmartContractStateResponse,
   TERRA_REDEEMED_CHECK_WALLET_ADDRESS,
 } from "..";
-import { getClaim } from "../solana/wormhole";
 import {
   BITS_PER_KEY,
   calcLogicSigAccount,
   MAX_BITS,
   _parseVAAAlgorand,
 } from "../algorand";
-import { callFunctionNear } from "../utils/near";
+import { TokenBridgeState } from "../aptos/types";
 import { getSignedVAAHash } from "../bridge";
 import { Bridge__factory } from "../ethers-contracts";
-import { parseVaa, SignedVaa } from "../vaa/wormhole";
+import { getClaim } from "../solana/wormhole";
 import { safeBigIntToNumber } from "../utils/bigint";
-import { Provider } from "near-api-js/lib/providers";
-import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
-import { State } from "../aptos/types";
+import { callFunctionNear } from "../utils/near";
+import { parseVaa, SignedVaa } from "../vaa/wormhole";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
@@ -279,7 +279,7 @@ export async function getIsTransferCompletedAptos(
       tokenBridgeAddress,
       `${tokenBridgeAddress}::state::State`
     )
-  ).data as State;
+  ).data as TokenBridgeState;
   const handle = state.consumed_vaas.elems.handle;
 
   // check if vaa hash is in consumed_vaas
