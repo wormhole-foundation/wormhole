@@ -7,11 +7,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
@@ -20,7 +18,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -130,9 +127,8 @@ func testSubmit(
 		logger.Error("acct: failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
 		return false
 	}
-	logStuff(logger, txResp)
 
-	responses, err := accountant.GetObservationResponses(logger, txResp, 1)
+	responses, err := accountant.GetObservationResponses(txResp, 1)
 	if err != nil {
 		logger.Error("acct: failed to get responses", zap.Error(err))
 		return false
@@ -204,9 +200,7 @@ func testBatch(
 		return false
 	}
 
-	logStuff(logger, txResp)
-
-	responses, err := accountant.GetObservationResponses(logger, txResp, 2)
+	responses, err := accountant.GetObservationResponses(txResp, 2)
 	if err != nil {
 		logger.Error("acct: failed to get responses", zap.Error(err))
 		return false
@@ -291,9 +285,7 @@ func testBatchWithcommitted(
 		return false
 	}
 
-	logStuff(logger, txResp)
-
-	responses, err := accountant.GetObservationResponses(logger, txResp, 2)
+	responses, err := accountant.GetObservationResponses(txResp, 2)
 	if err != nil {
 		logger.Error("acct: failed to get responses", zap.Error(err))
 		return false
@@ -379,7 +371,7 @@ func testBatchWithDigestError(
 		return false
 	}
 
-	responses, err := accountant.GetObservationResponses(logger, txResp, 2)
+	responses, err := accountant.GetObservationResponses(txResp, 2)
 	if err != nil {
 		logger.Error("acct: failed to get responses", zap.Error(err))
 		return false
@@ -465,43 +457,4 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 	}
 
 	return gk, nil
-}
-
-func logStuff(logger *zap.Logger, txResp *sdktx.BroadcastTxResponse) {
-	data, err := hex.DecodeString(txResp.TxResponse.Data)
-	if err != nil {
-		panic(err)
-	}
-
-	var msg sdktypes.TxMsgData
-	if err := msg.Unmarshal([]byte(data)); err != nil {
-		panic(err)
-	}
-
-	str := string(msg.Data[0].Data)
-	idx := strings.Index(str, "[")
-	if idx >= 0 {
-		logger.Info("Why does the data start with this?", zap.String("junk", str[:idx]))
-		str = str[idx:]
-	}
-
-	var responses accountant.ObservationResponses
-	err = json.Unmarshal([]byte(str), &responses)
-	if err != nil {
-		panic(err)
-	}
-
-	logger.Info("responses", zap.Int("numResponses", len(responses)))
-	for idx, resp := range responses {
-		switch resp.Status.Type {
-		case "committed":
-			logger.Info("   response is committed", zap.Int("idx", idx))
-		case "pending":
-			logger.Info("   response is pending", zap.Int("idx", idx))
-		case "error":
-			logger.Info("   response contains an error", zap.Int("idx", idx), zap.String("data", string(msg.Data[0].Data)))
-		default:
-			logger.Error("Unexpected status on response", zap.Int("idx", idx), zap.String("data", string(msg.Data[0].Data)))
-		}
-	}
 }

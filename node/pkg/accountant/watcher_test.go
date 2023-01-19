@@ -87,7 +87,7 @@ func TestParseWasmObservationFromPortalBridge(t *testing.T) {
 func TestParseWasmObservationError(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := []byte("{\"type\":\"wasm-ObservationError\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true},{\"key\":\"a2V5\",\"value\":\"eyJlbWl0dGVyX2NoYWluIjoyLCJlbWl0dGVyX2FkZHJlc3MiOiJBQUFBQUFBQUFBQUFBQUFBQXBEN0ZuSUlyMFZic1RkNEFXTzN0Nm1oREJZPSIsInNlcXVlbmNlIjoxNjc0MDcxOTQwfQ==\",\"index\":true},{\"key\":\"ZXJyb3I=\",\"value\":\"ImRpZ2VzdCBtaXNtYXRjaCBmb3IgcHJvY2Vzc2VkIG1lc3NhZ2Ui\",\"index\":true}]}")
+	eventJson := []byte("{\"type\":\"wasm-ObservationError\",\"attributes\":[{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxNDY2bmYzenV4cHlhOHE5ZW14dWtkN3ZmdGFmNmg0cHNyMGEwN3NybDV6dzc0emg4NHlqcTRseWptaA==\",\"index\":true},{\"key\":\"a2V5\",\"value\":\"eyJlbWl0dGVyX2NoYWluIjoyLCJlbWl0dGVyX2FkZHJlc3MiOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMjkwZmIxNjcyMDhhZjQ1NWJiMTM3NzgwMTYzYjdiN2E5YTEwYzE2Iiwic2VxdWVuY2UiOjE2NzQxNDQ1NDV9\",\"index\":true},{\"key\":\"ZXJyb3I=\",\"value\":\"ImRpZ2VzdCBtaXNtYXRjaCBmb3IgcHJvY2Vzc2VkIG1lc3NhZ2Ui\",\"index\":true}]}")
 	event := tmAbci.Event{}
 	err := json.Unmarshal(eventJson, &event)
 	require.NoError(t, err)
@@ -102,8 +102,8 @@ func TestParseWasmObservationError(t *testing.T) {
 	expectedResult := WasmObservationError{
 		Key: ObservationKey{
 			EmitterChain:   uint16(vaa.ChainIDEthereum),
-			EmitterAddress: expectedEmitterAddress.Bytes(),
-			Sequence:       1674071940,
+			EmitterAddress: expectedEmitterAddress,
+			Sequence:       1674144545,
 		},
 		Error: "digest mismatch for processed message",
 	}

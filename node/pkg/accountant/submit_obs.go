@@ -135,9 +135,9 @@ type (
 	}
 
 	ObservationKey struct {
-		EmitterChain   uint16 `json:"emitter_chain"`
-		EmitterAddress []byte `json:"emitter_address"` // TODO: vaa.Address doesn't parse.
-		Sequence       uint64 `json:"sequence"`
+		EmitterChain   uint16      `json:"emitter_chain"`
+		EmitterAddress vaa.Address `json:"emitter_address"`
+		Sequence       uint64      `json:"sequence"`
 	}
 
 	ObservationResponseStatus struct {
@@ -175,7 +175,7 @@ func (acct *Accountant) submitObservationToContract(msgs []*common.MessagePublic
 		return
 	}
 
-	responses, err := GetObservationResponses(acct.logger, txResp, len(msgs))
+	responses, err := GetObservationResponses(txResp, len(msgs))
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
 		acct.logger.Error("acct: failed to get responses from batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
@@ -339,11 +339,9 @@ func SubmitObservationsToContract(
 	return txResp, nil
 }
 
-// TODO: Once the issue with the junk characters is sorted out, drop the logger parameter.
-
 // GetObservationResponses is a free function that extracts the observation responses from a transaction response.
 // It assumes the transaction response is valid (SubmitObservationsToContract() did not return an error).
-func GetObservationResponses(logger *zap.Logger, txResp *sdktx.BroadcastTxResponse, numExpected int) (ObservationResponses, error) {
+func GetObservationResponses(txResp *sdktx.BroadcastTxResponse, numExpected int) (ObservationResponses, error) {
 	data, err := hex.DecodeString(txResp.TxResponse.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode data: %w", err)
@@ -354,16 +352,13 @@ func GetObservationResponses(logger *zap.Logger, txResp *sdktx.BroadcastTxRespon
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
-	str := string(msg.Data[0].Data)
-
-	idx := strings.Index(str, "[")
-	if idx >= 0 {
-		logger.Info("Why does the data start with this?", zap.String("junk", str[:idx]))
-		str = str[idx:]
+	var execContractResp wasmdtypes.MsgExecuteContractResponse
+	if err := execContractResp.Unmarshal(msg.Data[0].Data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse: %w", err)
 	}
 
 	var responses ObservationResponses
-	err = json.Unmarshal([]byte(str), &responses)
+	err = json.Unmarshal(execContractResp.Data, &responses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal responses: %w", err)
 	}

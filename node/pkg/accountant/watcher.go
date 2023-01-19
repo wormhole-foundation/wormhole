@@ -230,13 +230,6 @@ func parseWasmObservationError(logger *zap.Logger, event tmAbci.Event, contractA
 		return nil, fmt.Errorf("not a wasm-ObservationError event: %s", event.Type)
 	}
 
-	bytes, err := json.Marshal(event)
-	if err != nil {
-		logger.Info("failed to marshal wasm-ObservationError event", zap.Error(err))
-	} else {
-		logger.Info("wasm-ObservationError", zap.String("bytes", string(bytes)))
-	}
-
 	attrs := make(map[string]json.RawMessage)
 	for _, attr := range event.Attributes {
 		if string(attr.Key) == "_contract_address" {
