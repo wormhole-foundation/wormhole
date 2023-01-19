@@ -776,15 +776,27 @@ fn emit_event_with_quorum() {
 
     let (o, responses) = transfer_tokens(&wh, &mut contract, key, msg, index, quorum).unwrap();
 
-    let expected = Event::new("wasm-Transfer")
-        .add_attribute("tx_hash", o.tx_hash.to_base64())
-        .add_attribute("timestamp", o.timestamp.to_string())
-        .add_attribute("nonce", o.nonce.to_string())
-        .add_attribute("emitter_chain", o.emitter_chain.to_string())
-        .add_attribute("emitter_address", Address(o.emitter_address).to_string())
-        .add_attribute("sequence", o.sequence.to_string())
-        .add_attribute("consistency_level", o.consistency_level.to_string())
-        .add_attribute("payload", o.payload.to_base64());
+    let expected = Event::new("wasm-Observation")
+        .add_attribute("tx_hash", serde_json_wasm::to_string(&o.tx_hash).unwrap())
+        .add_attribute(
+            "timestamp",
+            serde_json_wasm::to_string(&o.timestamp).unwrap(),
+        )
+        .add_attribute("nonce", serde_json_wasm::to_string(&o.nonce).unwrap())
+        .add_attribute(
+            "emitter_chain",
+            serde_json_wasm::to_string(&o.emitter_chain).unwrap(),
+        )
+        .add_attribute(
+            "emitter_address",
+            serde_json_wasm::to_string(&hex::encode(o.emitter_address)).unwrap(),
+        )
+        .add_attribute("sequence", serde_json_wasm::to_string(&o.sequence).unwrap())
+        .add_attribute(
+            "consistency_level",
+            serde_json_wasm::to_string(&o.consistency_level).unwrap(),
+        )
+        .add_attribute("payload", serde_json_wasm::to_string(&o.payload).unwrap());
 
     assert_eq!(responses.len(), quorum);
     for (i, r) in responses.into_iter().enumerate() {

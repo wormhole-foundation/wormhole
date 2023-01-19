@@ -8,6 +8,13 @@
 load("ext://namespace", "namespace_create", "namespace_inject")
 load("ext://secret", "secret_yaml_generic")
 
+# set the replica value of a StatefulSet
+def set_replicas_in_statefulset(config_yaml, statefulset_name,  num_replicas):
+    for obj in config_yaml:
+        if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == statefulset_name:
+            obj["spec"]["replicas"] = num_replicas
+    return config_yaml
+
 allow_k8s_contexts("ci")
 
 # Disable telemetry by default
@@ -45,6 +52,7 @@ config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
+config.define_bool("pythnet", False, "Enable PythNet component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
 config.define_bool("spy_relayer", False, "Enable spy relayer")
@@ -53,7 +61,7 @@ config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand"
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
-config.define_bool("secondWormchain", False, "Enable a second wormchain node with different validator keys")
+config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -68,6 +76,7 @@ aptos = cfg.get("aptos", ci)
 sui = cfg.get("sui", False)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
+pythnet = cfg.get("pythnet", False)
 terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
 wormchain = cfg.get("wormchain", ci)
@@ -76,7 +85,7 @@ ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
-secondWormchain = cfg.get("secondWormchain", False)
+ibc_relayer = cfg.get("ibc_relayer", False)
 btc = cfg.get("btc", False)
 
 if cfg.get("manual", False):
@@ -135,9 +144,10 @@ def command_with_dlv(argv):
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
 
-    for obj in node_yaml:
+    node_yaml_with_replicas = set_replicas_in_statefulset(node_yaml, "guardian", num_guardians)
+
+    for obj in node_yaml_with_replicas:
         if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "guardian":
-            obj["spec"]["replicas"] = num_guardians
             container = obj["spec"]["template"]["spec"]["containers"][0]
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
@@ -179,7 +189,7 @@ def build_node_yaml():
                 container["command"] += [
                     "--suiRPC",
                     "http://sui:9002",
-# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to 
+# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to
 # event traffic purely based on the account since that is the only thing that is deterministic.
 #                    "--suiPackage",
 #                    "0x.....",
@@ -204,6 +214,18 @@ def build_node_yaml():
                 container["command"] += [
                     "--solanaRPC",
                     "http://solana-devnet:8899",
+                ]
+
+            if pythnet:
+                container["command"] += [
+                    "--pythnetRPC",
+#                    "http://solana-devnet:8899",
+                     "http://pythnet.rpcpool.com",
+                    "--pythnetWS",
+#                   "ws://solana-devnet:8900",
+                    "wss://pythnet.rpcpool.com",
+                    "--pythnetContract",
+                    "H3fxXJ86ADW2PNuDDmZJg6mzTtPxkYCpNuQUTgmJ7AjU",
                 ]
 
             if terra_classic:
@@ -256,19 +278,19 @@ def build_node_yaml():
             if wormchain:
                 container["command"] += [
                     "--wormchainWS",
-                    "ws://guardian-validator:26657/websocket",
+                    "ws://wormchain:26657/websocket",
                     "--wormchainLCD",
-                    "http://guardian-validator:1317"
+                    "http://wormchain:1317"
                 ]
 
-    return encode_yaml_stream(node_yaml)
+    return encode_yaml_stream(node_yaml_with_replicas)
 
 k8s_yaml_with_ns(build_node_yaml())
 
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
     guardian_resource_deps = guardian_resource_deps + ["eth-devnet2"]
-if solana:
+if solana or pythnet:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
 if near:
     guardian_resource_deps = guardian_resource_deps + ["near"]
@@ -281,7 +303,7 @@ if algorand:
 if aptos:
     guardian_resource_deps = guardian_resource_deps + ["aptos"]
 if wormchain:
-    guardian_resource_deps = guardian_resource_deps + ["guardian-validator"]
+    guardian_resource_deps = guardian_resource_deps + ["wormchain"]
 if sui:
     guardian_resource_deps = guardian_resource_deps + ["sui"]
 
@@ -364,7 +386,7 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-if solana:
+if solana or pythnet:
     # solana client cli (used for devnet setup)
 
     docker_build(
@@ -590,17 +612,25 @@ if terra_classic:
         trigger_mode = trigger_mode,
     )
 
+if terra2 or wormchain:
+    docker_build(
+        ref = "cosmwasm_artifacts",
+        context = ".",
+        dockerfile = "./cosmwasm/Dockerfile",
+        target = "artifacts",
+    )
+
 if terra2:
     docker_build(
         ref = "terra2-image",
-        context = "./cosmwasm/devnet",
-        dockerfile = "cosmwasm/devnet/Dockerfile",
+        context = "./cosmwasm/deployment/terra2/devnet",
+        dockerfile = "./cosmwasm/deployment/terra2/devnet/Dockerfile",
     )
 
     docker_build(
-        ref = "terra2-contracts",
-        context = ".",
-        dockerfile = "./cosmwasm/Dockerfile",
+        ref = "terra2-deploy",
+        context = "./cosmwasm/deployment/terra2",
+        dockerfile = "./cosmwasm/Dockerfile.deploy",
     )
 
     k8s_yaml_with_ns("devnet/terra2-devnet.yaml")
@@ -721,16 +751,55 @@ if wormchain:
         ref = "wormchaind-image",
         context = ".",
         dockerfile = "./wormchain/Dockerfile",
+        build_args = {"num_guardians": str(num_guardians)},
         only = [],
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
     )
 
-    k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-guardian-devnet.yaml")
+    def build_wormchain_yaml(yaml_path, num_instances):
+        wormchain_yaml = read_yaml_stream(yaml_path)
+
+        # set the number of replicas in the StatefulSet to be num_guardians
+        wormchain_set = set_replicas_in_statefulset(wormchain_yaml, "wormchain", num_instances)
+
+        # add a Service for each wormchain instance
+        services = []
+        for obj in wormchain_set:
+            if obj["kind"] == "Service" and obj["metadata"]["name"] == "wormchain-0":
+
+                # make a Service for each replica so we can resolve it by name from other pods.
+                # copy wormchain-0's Service then set the name and selector for the instance.
+                for instance_num in list(range(1, num_instances)):
+                    instance_name = 'wormchain-%s' % (instance_num)
+
+                    # Copy the Service's properties to a new dict, by value, three levels deep.
+                    # tl;dr - if the value is a dict, use a comprehension to copy it immutably.
+                    service = { k: ({ k2: ({ k3:v3
+                        for (k3,v3) in v2.items()} if type(v2) == "dict" else v2)
+                        for (k2,v2) in v.items()} if type(v) == "dict" else v)
+                        for (k,v) in obj.items()}
+
+                    # add the name we want to be able to resolve via k8s DNS
+                    service["metadata"]["name"] = instance_name
+                    # add the name of the pod the service should connect to
+                    service["spec"]["selector"] = { "statefulset.kubernetes.io/pod-name": instance_name }
+
+                    services.append(service)
+
+        return encode_yaml_stream(wormchain_set + services)
+
+    wormchain_path = "devnet/wormchain.yaml"
+    if num_guardians >= 2:
+        # update wormchain's k8s config to spin up multiple instances
+        k8s_yaml_with_ns(build_wormchain_yaml(wormchain_path, num_guardians))
+    else:
+        k8s_yaml_with_ns(wormchain_path)
 
     k8s_resource(
-        "guardian-validator",
+        "wormchain",
         port_forwards = [
             port_forward(1319, container_port = 1317, name = "REST [:1319]", host = webHost),
+            port_forward(9090, container_port = 9090, name = "GRPC", host = webHost),
             port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
         ],
         resource_deps = [],
@@ -738,19 +807,26 @@ if wormchain:
         trigger_mode = trigger_mode,
     )
 
-    if secondWormchain:
-        k8s_yaml_with_ns("wormchain/validators/kubernetes/wormchain-validator2-devnet.yaml")
 
-        k8s_resource(
-            "second-validator",
-            port_forwards = [
-                port_forward(1320, container_port = 1317, name = "REST [:1320]", host = webHost),
-                port_forward(26660, container_port = 26657, name = "TENDERMINT [:26660]", host = webHost)
-            ],
-            resource_deps = [],
-            labels = ["wormchain"],
-            trigger_mode = trigger_mode,
-        )
+if ibc_relayer:
+    docker_build(
+        ref = "ibc-relayer-image",
+        context = ".",
+        dockerfile = "./wormchain/ibc-relayer/Dockerfile",
+        only = []
+    )
+
+    k8s_yaml_with_ns("devnet/ibc-relayer.yaml")
+
+    k8s_resource(
+        "ibc-relayer",
+        port_forwards = [
+            port_forward(7597, name = "HTTPDEBUG [:7597]", host = webHost),
+        ],
+        resource_deps = ["guardian-validator", "terra2-terrad"],
+        labels = ["ibc-relayer"],
+        trigger_mode = trigger_mode,
+    )
 
 if btc:
     k8s_yaml_with_ns("devnet/btc-localnet.yaml")

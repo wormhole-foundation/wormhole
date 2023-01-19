@@ -24,6 +24,8 @@ pub struct Observation {
     pub emitter_chain: u16,
 
     // The address on the source chain that emitted this message.
+    #[serde(with = "hex")]
+    #[schemars(with = "String")]
     pub emitter_address: [u8; 32],
 
     // The sequence number of this observation.
@@ -123,15 +125,11 @@ pub enum QueryMsg {
         start_after: Option<account::Key>,
         limit: Option<u32>,
     },
-    #[returns(TransferResponse)]
-    Transfer(transfer::Key),
     #[returns(AllTransfersResponse)]
     AllTransfers {
         start_after: Option<transfer::Key>,
         limit: Option<u32>,
     },
-    #[returns(state::Data)]
-    PendingTransfer(transfer::Key),
     #[returns(AllPendingTransfersResponse)]
     AllPendingTransfers {
         start_after: Option<transfer::Key>,
@@ -150,6 +148,10 @@ pub enum QueryMsg {
     ChainRegistration { chain: u16 },
     #[returns(MissingObservationsResponse)]
     MissingObservations { guardian_set: u32, index: u8 },
+    #[returns(TransferStatus)]
+    TransferStatus(transfer::Key),
+    #[returns(BatchTransferStatusResponse)]
+    BatchTransferStatus(Vec<transfer::Key>),
 }
 
 #[cw_serde]
@@ -179,12 +181,6 @@ pub struct ChainRegistrationResponse {
 }
 
 #[cw_serde]
-pub struct TransferResponse {
-    pub data: transfer::Data,
-    pub digest: Binary,
-}
-
-#[cw_serde]
 pub struct MissingObservationsResponse {
     pub missing: Vec<MissingObservation>,
 }
@@ -193,4 +189,27 @@ pub struct MissingObservationsResponse {
 pub struct MissingObservation {
     pub chain_id: u16,
     pub tx_hash: Binary,
+}
+
+#[cw_serde]
+pub enum TransferStatus {
+    Pending(Vec<state::Data>),
+    Committed {
+        data: transfer::Data,
+        digest: Binary,
+    },
+}
+
+#[cw_serde]
+pub struct TransferDetails {
+    // The key for the transfer.
+    pub key: transfer::Key,
+    // The status of the transfer.  If `status` is `None`, then there is no transfer associated
+    // with `key`.
+    pub status: Option<TransferStatus>,
+}
+
+#[cw_serde]
+pub struct BatchTransferStatusResponse {
+    pub details: Vec<TransferDetails>,
 }

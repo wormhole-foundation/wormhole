@@ -14,11 +14,12 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
+use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole::{
     token::{Action, GovernancePacket, Message},
     vaa::{self, Body, Header, Signature},
-    Address, Chain,
+    Chain,
 };
 use wormhole_bindings::WormholeQuery;
 
@@ -27,11 +28,11 @@ use crate::{
     error::{AnyError, ContractError},
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
-        AllTransfersResponse, ChainRegistrationResponse, ExecuteMsg, MigrateMsg,
-        MissingObservation, MissingObservationsResponse, Observation, QueryMsg, TransferResponse,
-        Upgrade,
+        AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
+        MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, QueryMsg,
+        TransferDetails, TransferStatus, Upgrade,
     },
-    state::{self, Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
+    state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
 
 // version info for migration info
@@ -183,7 +184,7 @@ fn handle_observation(
         return Ok(None);
     }
 
-    let (msg, _) = serde_wormhole::from_slice_with_payload(&o.payload)
+    let (msg, _) = serde_wormhole::from_slice::<(Message, &RawMessage)>(&o.payload)
         .context("failed to parse observation payload")?;
     let tx_data = match msg {
         Message::Transfer {
@@ -237,17 +238,9 @@ fn handle_observation(
     // Now that the transfer has been committed, we don't need to keep it in the pending list.
     key.remove(deps.storage);
 
-    Ok(Some(
-        Event::new("Transfer")
-            .add_attribute("tx_hash", o.tx_hash.to_base64())
-            .add_attribute("timestamp", o.timestamp.to_string())
-            .add_attribute("nonce", o.nonce.to_string())
-            .add_attribute("emitter_chain", o.emitter_chain.to_string())
-            .add_attribute("emitter_address", Address(o.emitter_address).to_string())
-            .add_attribute("sequence", o.sequence.to_string())
-            .add_attribute("consistency_level", o.consistency_level.to_string())
-            .add_attribute("payload", o.payload.to_base64()),
-    ))
+    cw_transcode::to_event(&o)
+        .map(Some)
+        .context("failed to transcode `Observation` to `Event`")
 }
 
 fn modify_balance(
@@ -330,7 +323,7 @@ fn submit_vaas(
 }
 
 fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event> {
-    let (header, data) = serde_wormhole::from_slice_with_payload::<Header>(&vaa)
+    let (header, data) = serde_wormhole::from_slice::<(Header, &RawMessage)>(&vaa)
         .context("failed to parse VAA header")?;
 
     ensure!(header.version == 1, "unsupported VAA version");
@@ -350,7 +343,7 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
         .map(|d| d.secp256k_hash.to_vec().into())
         .context("failed to calculate digest for VAA body")?;
 
-    let (body, payload) = serde_wormhole::from_slice_with_payload::<Body<()>>(data)
+    let body = serde_wormhole::from_slice::<Body<&RawMessage>>(data)
         .context("failed to parse VAA body")?;
 
     let digest_key = DIGESTS.key((
@@ -373,11 +366,11 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
     let evt = if body.emitter_chain == Chain::Solana
         && body.emitter_address == wormhole::GOVERNANCE_EMITTER
     {
-        let govpacket =
-            serde_wormhole::from_slice(payload).context("failed to parse governance packet")?;
+        let govpacket = serde_wormhole::from_slice(body.payload)
+            .context("failed to parse governance packet")?;
         handle_governance_vaa(deps.branch(), body.with_payload(govpacket))?
     } else {
-        let (msg, _) = serde_wormhole::from_slice_with_payload(payload)
+        let (msg, _) = serde_wormhole::from_slice::<(_, &RawMessage)>(body.payload)
             .context("failed to parse tokenbridge message")?;
         handle_tokenbridge_vaa(deps.branch(), body.with_payload(msg))?
     };
@@ -470,12 +463,8 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         QueryMsg::AllAccounts { start_after, limit } => {
             query_all_accounts(deps, start_after, limit).and_then(|resp| to_binary(&resp))
         }
-        QueryMsg::Transfer(req) => query_transfer(deps, req).and_then(|resp| to_binary(&resp)),
         QueryMsg::AllTransfers { start_after, limit } => {
             query_all_transfers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
-        }
-        QueryMsg::PendingTransfer(req) => {
-            query_pending_transfer(deps, req).and_then(|resp| to_binary(&resp))
         }
         QueryMsg::AllPendingTransfers { start_after, limit } => {
             query_all_pending_transfers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
@@ -502,6 +491,12 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
         } => {
             query_missing_observations(deps, guardian_set, index).and_then(|resp| to_binary(&resp))
         }
+        QueryMsg::TransferStatus(key) => {
+            query_transfer_status(deps, &key).and_then(|resp| to_binary(&resp))
+        }
+        QueryMsg::BatchTransferStatus(keys) => {
+            query_batch_transfer_status(deps, keys).and_then(|resp| to_binary(&resp))
+        }
     }
 }
 
@@ -523,21 +518,6 @@ fn query_all_accounts(
             .collect::<StdResult<Vec<_>>>()
             .map(|accounts| AllAccountsResponse { accounts })
     }
-}
-
-fn query_transfer(deps: Deps<WormholeQuery>, key: transfer::Key) -> StdResult<TransferResponse> {
-    let digest = DIGESTS.load(
-        deps.storage,
-        (
-            key.emitter_chain(),
-            key.emitter_address().to_vec(),
-            key.sequence(),
-        ),
-    )?;
-
-    let data = accounting::query_transfer(deps, key)?;
-
-    Ok(TransferResponse { data, digest })
 }
 
 fn query_all_transfers(
@@ -594,15 +574,6 @@ fn tinyvec_to_vec<A: Array>(tv: TinyVec<A>) -> Vec<A::Item> {
         TinyVec::Inline(mut arr) => arr.drain_to_vec(),
         TinyVec::Heap(v) => v,
     }
-}
-
-fn query_pending_transfer(
-    deps: Deps<WormholeQuery>,
-    key: transfer::Key,
-) -> StdResult<Vec<state::Data>> {
-    PENDING_TRANSFERS
-        .load(deps.storage, key)
-        .map(tinyvec_to_vec)
 }
 
 fn query_all_pending_transfers(
@@ -683,4 +654,42 @@ fn query_missing_observations(
     }
 
     Ok(MissingObservationsResponse { missing })
+}
+
+fn query_transfer_status(
+    deps: Deps<WormholeQuery>,
+    key: &transfer::Key,
+) -> StdResult<TransferStatus> {
+    if let Some(digest) = DIGESTS.may_load(
+        deps.storage,
+        (
+            key.emitter_chain(),
+            key.emitter_address().to_vec(),
+            key.sequence(),
+        ),
+    )? {
+        let data = accounting::query_transfer(deps, key.clone())?;
+        Ok(TransferStatus::Committed { data, digest })
+    } else if let Some(data) = PENDING_TRANSFERS.may_load(deps.storage, key.clone())? {
+        Ok(TransferStatus::Pending(tinyvec_to_vec(data)))
+    } else {
+        Err(StdError::not_found(format!("transfer with key {key}")))
+    }
+}
+
+fn query_batch_transfer_status(
+    deps: Deps<WormholeQuery>,
+    keys: Vec<transfer::Key>,
+) -> StdResult<BatchTransferStatusResponse> {
+    keys.into_iter()
+        .map(|key| {
+            let status = match query_transfer_status(deps, &key) {
+                Ok(s) => Some(s),
+                Err(e) if matches!(e, StdError::NotFound { .. }) => None,
+                Err(e) => return Err(e),
+            };
+            Ok(TransferDetails { key, status })
+        })
+        .collect::<StdResult<Vec<_>>>()
+        .map(|details| BatchTransferStatusResponse { details })
 }

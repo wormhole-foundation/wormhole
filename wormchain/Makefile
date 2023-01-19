@@ -1,6 +1,5 @@
 PROTO_FILES=$(shell find proto -name "*.proto")
 GO_FILES=$(shell find . -name "*.go")
-IGNITE_EXPECTED_VERSION:=v0.23.0
 # Address of the main tilt validator that the others should connect to
 TILT_VALADDRESS=wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8
 
@@ -16,45 +15,22 @@ ldflags = \
 BUILD_FLAGS := -ldflags '$(ldflags)'
 
 .PHONY: all
-all: client vue validators
+all: client
 
 .PHONY: client
 client: build/wormchaind
 
-.PHONY: validators
-validators:
-	# These files change when the genesis file changes, so we need to make
-	# sure to copy them over
-	touch -m $@
-	./build/wormchaind --home build/ tendermint unsafe-reset-all
-	./build/wormchaind --home build/ gentx tiltGuardian "0uworm" --chain-id=wormchain --min-self-delegation="0" --keyring-dir=keyring-test
-
-	# Copy config to validators/first_validator
-	cp build/config/priv_validator_key.json validators/first_validator/config/
-	cp build/config/node_key.json validators/first_validator/config/
-	mkdir -p validators/first_validator/keyring-test
-	cp build/keyring-test/* validators/first_validator/keyring-test/
-
-	# Copy these lines for each new validator
-	# We grab the validator's address from the gentx memo that it creates.
-	sed -E "s/(persistent_peers = \")[^@]*/\1$$(grep -lR MsgCreateValidator build/config/gentx | xargs grep -l $(TILT_VALADDRESS) | xargs jq '.body.memo' -r | cut -d@ -f1)/" validators/second_validator/config/config.toml -i
-	mkdir -p validators/second_validator/keyring-test
-	cp build/keyring-test/* validators/second_validator/keyring-test/
 
 build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
 	go build -v $(BUILD_FLAGS) -tags ledger -o $@ $<
 
-check-ignite:
-	@ if [ "$(shell ignite version | awk '/Ignite CLI version:/ { print $$4 }')" != "$(IGNITE_EXPECTED_VERSION)" ] ; then echo "Expected ignite version $(IGNITE_EXPECTED_VERSION)" && exit 1 ; fi
-
-proto: check-ignite $(PROTO_FILES)
-	ignite generate proto-go
-	touch proto
+proto: $(PROTO_FILES)
+	docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
 
 vue: $(GO_FILES) proto
 	mkdir -p $@
 	touch -m $@
-	NODE_OPTIONS="" ignite generate vuex --proto-all-modules
+	docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
 
 # For now this is a phony target so we just rebuild it each time instead of
 # tracking dependencies

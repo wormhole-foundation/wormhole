@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 
 [[package]]
+name = "base64"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
+
+[[package]]
 name = "block-buffer"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -209,9 +215,11 @@ dependencies = [
 name = "serde_wormhole"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "itoa",
  "serde",
  "serde_bytes",
+ "serde_json",
  "serde_repr",
  "thiserror",
 ]

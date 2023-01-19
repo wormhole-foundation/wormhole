@@ -52,7 +52,7 @@ func (e *moonbeamMockConnector) GetGuardianSet(ctx context.Context, index uint32
 	panic("not implemented by moonbeamMockConnector")
 }
 
-func (e *moonbeamMockConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *moonbeamMockConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	panic("not implemented by moonbeamMockConnector")
 }
 
@@ -68,7 +68,7 @@ func (e *moonbeamMockConnector) ParseLogMessagePublished(log ethTypes.Log) (*eth
 	panic("not implemented by moonbeamMockConnector")
 }
 
-func (e *moonbeamMockConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *connectors.NewBlock) (ethereum.Subscription, error) {
+func (e *moonbeamMockConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *connectors.NewBlock) (ethereum.Subscription, error) {
 	panic("not implemented by moonbeamMockConnector")
 }
 

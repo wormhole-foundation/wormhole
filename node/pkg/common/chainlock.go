@@ -3,6 +3,8 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -106,6 +108,33 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	return msg, nil
 }
 
+// The standard json Marshal / Unmarshal of time.Time gets confused between local and UTC time.
+func (msg *MessagePublication) MarshalJSON() ([]byte, error) {
+	type Alias MessagePublication
+	return json.Marshal(&struct {
+		Timestamp int64
+		*Alias
+	}{
+		Timestamp: msg.Timestamp.Unix(),
+		Alias:     (*Alias)(msg),
+	})
+}
+
+func (msg *MessagePublication) UnmarshalJSON(data []byte) error {
+	type Alias MessagePublication
+	aux := &struct {
+		Timestamp int64
+		*Alias
+	}{
+		Alias: (*Alias)(msg),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	msg.Timestamp = time.Unix(aux.Timestamp, 0)
+	return nil
+}
+
 func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
 	return &vaa.VAA{
 		Version:          vaa.SupportedVAAVersion,
@@ -119,4 +148,10 @@ func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
 		Sequence:         msg.Sequence,
 		ConsistencyLevel: msg.ConsistencyLevel,
 	}
+}
+
+func (msg *MessagePublication) CreateDigest() string {
+	v := msg.CreateVAA(0) // The guardian set index is not part of the digest, so we can pass in zero.
+	db := v.SigningMsg()
+	return hex.EncodeToString(db.Bytes())
 }

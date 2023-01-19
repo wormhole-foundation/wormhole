@@ -14,8 +14,11 @@
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "16",
           "address": "wormhole1z89utvygweg5l56fsk8ak7t6hh88fd0a6wuxw2",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "ArQwoEt9mBB0R1jlSIE5Tc7UwDWaIIGdT2W7HLnlbuc0"
+          },
+          "sequence": "1"
         },
         {
           "@type": "/cosmos.auth.v1beta1.ModuleAccount",
@@ -35,15 +38,21 @@
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "8",
           "address": "wormhole1xmhvcpuhyphm3a2svwct5mv839gcugwx0j04rp",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "AkXYDy6G0yAcJ7Z28XAeEEN+DwYuZ9lqBEC987eX6jk2"
+          },
+          "sequence": "3"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "21",
           "address": "wormhole1ftlycecv4qgplcnw8f8fu4f7z7ezwdva2gxanh",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "A3TFGqcdVEIy+SqA3XvZmlq7DcI/W8XjAXnQGqsr2qEz"
+          },
+          "sequence": "1"
         },
         {
           "@type": "/cosmos.auth.v1beta1.ModuleAccount",
@@ -63,8 +72,11 @@
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "13",
           "address": "wormhole12trn2ltz4zswxqhepsc8sq5zc7g6h0xtycy93d",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "A2rhDuxEmaKhWNBBqrev0NUJdmcNdxrv5yzVGPaPfKtU"
+          },
+          "sequence": "2"
         },
         {
           "@type": "/cosmos.auth.v1beta1.ModuleAccount",
@@ -109,7 +121,7 @@
             "@type": "/cosmos.crypto.secp256k1.PubKey",
             "key": "ApwmmBARzuUvQ4trwcv63WC5pSR3rU3h7Y//6Qv0oQ64"
           },
-          "sequence": "2"
+          "sequence": "3"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
@@ -135,15 +147,21 @@
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "26",
           "address": "wormhole1000ya26q2cmh399q4c5aaacd9lmmdqp9yxhr4z",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "A0sSh9hdJ/AmahR47jRwcMRtvUE5Q582oHRduBDzLwDd"
+          },
+          "sequence": "1"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "23",
           "address": "wormhole1szfznrw4jttqxzpu3aq77frg5jf4wjw29m0k3y",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "AtBvgkLLcyhBwrB7teosVqqRqwJqClGdl4gqFEl2JFja"
+          },
+          "sequence": "1"
         },
         {
           "@type": "/cosmos.auth.v1beta1.ModuleAccount",
@@ -174,8 +192,11 @@
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "17",
           "address": "wormhole14kn8w5lcd93uhva9gxpupv0sy244dexmr2w6y4",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "Ax6Zl6H7rhaD+koK1Y1VtS5/9eNmIUUljujkRrnsQ5hu"
+          },
+          "sequence": "5"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
@@ -225,8 +246,11 @@
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
           "account_number": "9",
           "address": "wormhole1ac3ry97k843tdnv26ss7ps86w0l4mss7qeagwh",
-          "pub_key": null,
-          "sequence": "0"
+          "pub_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "AkAqcbHi4Th2LVRvJjcuFPBVm5ngzLsGF6jOJW8rYvCL"
+          },
+          "sequence": "4"
         },
         {
           "@type": "/cosmos.auth.v1beta1.ModuleAccount",
@@ -252,33 +276,6 @@
       "balances": [
         {
           "address": "wormhole1p0pg5975w37rpry7w5zjjgzg94yh0xhsuptkzg",
-          "coins": [
-            {
-              "amount": "1",
-              "denom": "utest"
-            }
-          ]
-        },
-        {
-          "address": "wormhole1z89utvygweg5l56fsk8ak7t6hh88fd0a6wuxw2",
-          "coins": [
-            {
-              "amount": "1",
-              "denom": "utest"
-            }
-          ]
-        },
-        {
-          "address": "wormhole1xmhvcpuhyphm3a2svwct5mv839gcugwx0j04rp",
-          "coins": [
-            {
-              "amount": "1",
-              "denom": "utest"
-            }
-          ]
-        },
-        {
-          "address": "wormhole1ftlycecv4qgplcnw8f8fu4f7z7ezwdva2gxanh",
           "coins": [
             {
               "amount": "1",
@@ -341,24 +338,6 @@
           ]
         },
         {
-          "address": "wormhole1000ya26q2cmh399q4c5aaacd9lmmdqp9yxhr4z",
-          "coins": [
-            {
-              "amount": "1",
-              "denom": "utest"
-            }
-          ]
-        },
-        {
-          "address": "wormhole1szfznrw4jttqxzpu3aq77frg5jf4wjw29m0k3y",
-          "coins": [
-            {
-              "amount": "1",
-              "denom": "utest"
-            }
-          ]
-        },
-        {
           "address": "wormhole1njl5dpn8eg6t0rjhznqaw3sndmyec4xagl5hk3",
           "coins": [
             {
@@ -377,19 +356,10 @@
           ]
         },
         {
-          "address": "wormhole14kn8w5lcd93uhva9gxpupv0sy244dexmr2w6y4",
-          "coins": [
-            {
-              "amount": "1",
-              "denom": "utest"
-            }
-          ]
-        },
-        {
           "address": "wormhole1cm4lqyl5j5t9ewd79vrnsrga2cnml8ca29r0sz",
           "coins": [
             {
-              "amount": "9981",
+              "amount": "9988",
               "denom": "utest"
             }
           ]
@@ -414,15 +384,6 @@
         },
         {
           "address": "wormhole1mlw6tma6pq522h50pcarrjh9gf5xryukfykszc",
-          "coins": [
-            {
-              "amount": "1",
-              "denom": "utest"
-            }
-          ]
-        },
-        {
-          "address": "wormhole1ac3ry97k843tdnv26ss7ps86w0l4mss7qeagwh",
           "coins": [
             {
               "amount": "1",
@@ -511,6 +472,24 @@
     "distribution": {
       "delegator_starting_infos": [
         {
+          "delegator_address": "wormhole1xmhvcpuhyphm3a2svwct5mv839gcugwx0j04rp",
+          "starting_info": {
+            "height": "1093266",
+            "previous_period": "1",
+            "stake": "0.000000000000000000"
+          },
+          "validator_address": "wormholevaloper1xmhvcpuhyphm3a2svwct5mv839gcugwxewsxyx"
+        },
+        {
+          "delegator_address": "wormhole12trn2ltz4zswxqhepsc8sq5zc7g6h0xtycy93d",
+          "starting_info": {
+            "height": "1065302",
+            "previous_period": "1",
+            "stake": "0.000000000000000000"
+          },
+          "validator_address": "wormholevaloper12trn2ltz4zswxqhepsc8sq5zc7g6h0xtjymkk2"
+        },
+        {
           "delegator_address": "wormhole1dqgczkwjc976lrqft0zh2zcm4m3tnhg7mm2g7k",
           "starting_info": {
             "height": "681812",
@@ -520,6 +499,15 @@
           "validator_address": "wormholevaloper1dqgczkwjc976lrqft0zh2zcm4m3tnhg7d84me3"
         },
         {
+          "delegator_address": "wormhole14kn8w5lcd93uhva9gxpupv0sy244dexmr2w6y4",
+          "starting_info": {
+            "height": "1082462",
+            "previous_period": "1",
+            "stake": "0.000000000000000000"
+          },
+          "validator_address": "wormholevaloper14kn8w5lcd93uhva9gxpupv0sy244dexm4k3frj"
+        },
+        {
           "delegator_address": "wormhole1cm4lqyl5j5t9ewd79vrnsrga2cnml8ca29r0sz",
           "starting_info": {
             "height": "0",
@@ -527,6 +515,15 @@
             "stake": "0.000000000000000000"
           },
           "validator_address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9"
+        },
+        {
+          "delegator_address": "wormhole1ac3ry97k843tdnv26ss7ps86w0l4mss7qeagwh",
+          "starting_info": {
+            "height": "1052474",
+            "previous_period": "1",
+            "stake": "0.000000000000000000"
+          },
+          "validator_address": "wormholevaloper1ac3ry97k843tdnv26ss7ps86w0l4mss7k9zmfs"
         }
       ],
       "delegator_withdraw_infos": [],
@@ -536,11 +533,27 @@
       "outstanding_rewards": [
         {
           "outstanding_rewards": [],
+          "validator_address": "wormholevaloper1xmhvcpuhyphm3a2svwct5mv839gcugwxewsxyx"
+        },
+        {
+          "outstanding_rewards": [],
+          "validator_address": "wormholevaloper12trn2ltz4zswxqhepsc8sq5zc7g6h0xtjymkk2"
+        },
+        {
+          "outstanding_rewards": [],
           "validator_address": "wormholevaloper1dqgczkwjc976lrqft0zh2zcm4m3tnhg7d84me3"
         },
         {
           "outstanding_rewards": [],
+          "validator_address": "wormholevaloper14kn8w5lcd93uhva9gxpupv0sy244dexm4k3frj"
+        },
+        {
+          "outstanding_rewards": [],
           "validator_address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9"
+        },
+        {
+          "outstanding_rewards": [],
+          "validator_address": "wormholevaloper1ac3ry97k843tdnv26ss7ps86w0l4mss7k9zmfs"
         }
       ],
       "params": {
@@ -555,13 +568,37 @@
           "accumulated": {
             "commission": []
           },
+          "validator_address": "wormholevaloper1xmhvcpuhyphm3a2svwct5mv839gcugwxewsxyx"
+        },
+        {
+          "accumulated": {
+            "commission": []
+          },
+          "validator_address": "wormholevaloper12trn2ltz4zswxqhepsc8sq5zc7g6h0xtjymkk2"
+        },
+        {
+          "accumulated": {
+            "commission": []
+          },
           "validator_address": "wormholevaloper1dqgczkwjc976lrqft0zh2zcm4m3tnhg7d84me3"
         },
         {
           "accumulated": {
             "commission": []
           },
+          "validator_address": "wormholevaloper14kn8w5lcd93uhva9gxpupv0sy244dexm4k3frj"
+        },
+        {
+          "accumulated": {
+            "commission": []
+          },
           "validator_address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9"
+        },
+        {
+          "accumulated": {
+            "commission": []
+          },
+          "validator_address": "wormholevaloper1ac3ry97k843tdnv26ss7ps86w0l4mss7k9zmfs"
         }
       ],
       "validator_current_rewards": [
@@ -570,6 +607,20 @@
             "period": "2",
             "rewards": []
           },
+          "validator_address": "wormholevaloper1xmhvcpuhyphm3a2svwct5mv839gcugwxewsxyx"
+        },
+        {
+          "rewards": {
+            "period": "2",
+            "rewards": []
+          },
+          "validator_address": "wormholevaloper12trn2ltz4zswxqhepsc8sq5zc7g6h0xtjymkk2"
+        },
+        {
+          "rewards": {
+            "period": "2",
+            "rewards": []
+          },
           "validator_address": "wormholevaloper1dqgczkwjc976lrqft0zh2zcm4m3tnhg7d84me3"
         },
         {
@@ -577,7 +628,21 @@
             "period": "2",
             "rewards": []
           },
+          "validator_address": "wormholevaloper14kn8w5lcd93uhva9gxpupv0sy244dexm4k3frj"
+        },
+        {
+          "rewards": {
+            "period": "2",
+            "rewards": []
+          },
           "validator_address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9"
+        },
+        {
+          "rewards": {
+            "period": "2",
+            "rewards": []
+          },
+          "validator_address": "wormholevaloper1ac3ry97k843tdnv26ss7ps86w0l4mss7k9zmfs"
         }
       ],
       "validator_historical_rewards": [
@@ -587,6 +652,22 @@
             "cumulative_reward_ratio": [],
             "reference_count": 2
           },
+          "validator_address": "wormholevaloper1xmhvcpuhyphm3a2svwct5mv839gcugwxewsxyx"
+        },
+        {
+          "period": "1",
+          "rewards": {
+            "cumulative_reward_ratio": [],
+            "reference_count": 2
+          },
+          "validator_address": "wormholevaloper12trn2ltz4zswxqhepsc8sq5zc7g6h0xtjymkk2"
+        },
+        {
+          "period": "1",
+          "rewards": {
+            "cumulative_reward_ratio": [],
+            "reference_count": 2
+          },
           "validator_address": "wormholevaloper1dqgczkwjc976lrqft0zh2zcm4m3tnhg7d84me3"
         },
         {
@@ -595,7 +676,23 @@
             "cumulative_reward_ratio": [],
             "reference_count": 2
           },
+          "validator_address": "wormholevaloper14kn8w5lcd93uhva9gxpupv0sy244dexm4k3frj"
+        },
+        {
+          "period": "1",
+          "rewards": {
+            "cumulative_reward_ratio": [],
+            "reference_count": 2
+          },
           "validator_address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9"
+        },
+        {
+          "period": "1",
+          "rewards": {
+            "cumulative_reward_ratio": [],
+            "reference_count": 2
+          },
+          "validator_address": "wormholevaloper1ac3ry97k843tdnv26ss7ps86w0l4mss7k9zmfs"
         }
       ],
       "validator_slash_events": []
@@ -699,7 +796,7 @@
           "address": "wormholevalcons1ppqj2ve0fdtwknz2xyzcc83xk40gd8szjrk7mc",
           "validator_signing_info": {
             "address": "wormholevalcons1ppqj2ve0fdtwknz2xyzcc83xk40gd8szjrk7mc",
-            "index_offset": "826767",
+            "index_offset": "1103268",
             "jailed_until": "1970-01-01T00:00:00Z",
             "missed_blocks_counter": "0",
             "start_height": "0",
@@ -711,18 +808,38 @@
     "staking": {
       "delegations": [
         {
+          "delegator_address": "wormhole1xmhvcpuhyphm3a2svwct5mv839gcugwx0j04rp",
+          "shares": "0.000000000000000000",
+          "validator_address": "wormholevaloper1xmhvcpuhyphm3a2svwct5mv839gcugwxewsxyx"
+        },
+        {
+          "delegator_address": "wormhole12trn2ltz4zswxqhepsc8sq5zc7g6h0xtycy93d",
+          "shares": "0.000000000000000000",
+          "validator_address": "wormholevaloper12trn2ltz4zswxqhepsc8sq5zc7g6h0xtjymkk2"
+        },
+        {
           "delegator_address": "wormhole1dqgczkwjc976lrqft0zh2zcm4m3tnhg7mm2g7k",
           "shares": "0.000000000000000000",
           "validator_address": "wormholevaloper1dqgczkwjc976lrqft0zh2zcm4m3tnhg7d84me3"
         },
         {
+          "delegator_address": "wormhole14kn8w5lcd93uhva9gxpupv0sy244dexmr2w6y4",
+          "shares": "0.000000000000000000",
+          "validator_address": "wormholevaloper14kn8w5lcd93uhva9gxpupv0sy244dexm4k3frj"
+        },
+        {
           "delegator_address": "wormhole1cm4lqyl5j5t9ewd79vrnsrga2cnml8ca29r0sz",
           "shares": "0.000000000000000000",
           "validator_address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9"
+        },
+        {
+          "delegator_address": "wormhole1ac3ry97k843tdnv26ss7ps86w0l4mss7qeagwh",
+          "shares": "0.000000000000000000",
+          "validator_address": "wormholevaloper1ac3ry97k843tdnv26ss7ps86w0l4mss7k9zmfs"
         }
       ],
       "exported": true,
-      "last_total_power": "0",
+      "last_total_power": "1",
       "last_validator_powers": [
         {
           "address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9",
@@ -742,8 +859,66 @@
         {
           "commission": {
             "commission_rates": {
-              "max_change_rate": "0.000000000000000000",
-              "max_rate": "0.000000000000000000",
+              "max_change_rate": "0.020000000000000000",
+              "max_rate": "0.200000000000000000",
+              "rate": "0.000000000000000000"
+            },
+            "update_time": "2023-01-12T04:44:34.413222977Z"
+          },
+          "consensus_pubkey": {
+            "@type": "/cosmos.crypto.ed25519.PubKey",
+            "key": "7sZuWCITVb/UGunMk4NYiWPS1co19itgzwb+H0rtccI="
+          },
+          "delegator_shares": "0.000000000000000000",
+          "description": {
+            "details": "01node Guardian",
+            "identity": "7BDD4C2E94392626",
+            "moniker": "01node",
+            "security_contact": "",
+            "website": "https://01node.com"
+          },
+          "jailed": false,
+          "min_self_delegation": "0",
+          "operator_address": "wormholevaloper1xmhvcpuhyphm3a2svwct5mv839gcugwxewsxyx",
+          "status": "BOND_STATUS_UNBONDED",
+          "tokens": "0",
+          "unbonding_height": "0",
+          "unbonding_time": "1970-01-01T00:00:00Z"
+        },
+        {
+          "commission": {
+            "commission_rates": {
+              "max_change_rate": "0.020000000000000000",
+              "max_rate": "0.200000000000000000",
+              "rate": "0.000000000000000000"
+            },
+            "update_time": "2023-01-10T13:49:24.473967270Z"
+          },
+          "consensus_pubkey": {
+            "@type": "/cosmos.crypto.ed25519.PubKey",
+            "key": "6DgL6QAcgTqYqzgBzw9MilkV40wNdcF0kv3MdjWXUiY="
+          },
+          "delegator_shares": "0.000000000000000000",
+          "description": {
+            "details": "",
+            "identity": "",
+            "moniker": "Forbole",
+            "security_contact": "",
+            "website": ""
+          },
+          "jailed": false,
+          "min_self_delegation": "0",
+          "operator_address": "wormholevaloper12trn2ltz4zswxqhepsc8sq5zc7g6h0xtjymkk2",
+          "status": "BOND_STATUS_UNBONDED",
+          "tokens": "0",
+          "unbonding_height": "0",
+          "unbonding_time": "1970-01-01T00:00:00Z"
+        },
+        {
+          "commission": {
+            "commission_rates": {
+              "max_change_rate": "0.020000000000000000",
+              "max_rate": "0.200000000000000000",
               "rate": "0.000000000000000000"
             },
             "update_time": "2022-12-16T19:09:24.250626095Z"
@@ -763,6 +938,35 @@
           "jailed": false,
           "min_self_delegation": "0",
           "operator_address": "wormholevaloper1dqgczkwjc976lrqft0zh2zcm4m3tnhg7d84me3",
+          "status": "BOND_STATUS_UNBONDED",
+          "tokens": "0",
+          "unbonding_height": "0",
+          "unbonding_time": "1970-01-01T00:00:00Z"
+        },
+        {
+          "commission": {
+            "commission_rates": {
+              "max_change_rate": "0.020000000000000000",
+              "max_rate": "0.200000000000000000",
+              "rate": "0.000000000000000000"
+            },
+            "update_time": "2023-01-11T13:42:22.290551344Z"
+          },
+          "consensus_pubkey": {
+            "@type": "/cosmos.crypto.ed25519.PubKey",
+            "key": "BDjmVVAaNa3wu3NsMKO2AtuyC+qsLIu+fMP3ZgHi/Sk="
+          },
+          "delegator_shares": "0.000000000000000000",
+          "description": {
+            "details": "",
+            "identity": "",
+            "moniker": "MCF",
+            "security_contact": "",
+            "website": ""
+          },
+          "jailed": false,
+          "min_self_delegation": "0",
+          "operator_address": "wormholevaloper14kn8w5lcd93uhva9gxpupv0sy244dexm4k3frj",
           "status": "BOND_STATUS_UNBONDED",
           "tokens": "0",
           "unbonding_height": "0",
@@ -793,6 +997,35 @@
           "min_self_delegation": "0",
           "operator_address": "wormholevaloper1cm4lqyl5j5t9ewd79vrnsrga2cnml8caueuuh9",
           "status": "BOND_STATUS_BONDED",
+          "tokens": "0",
+          "unbonding_height": "0",
+          "unbonding_time": "1970-01-01T00:00:00Z"
+        },
+        {
+          "commission": {
+            "commission_rates": {
+              "max_change_rate": "0.020000000000000000",
+              "max_rate": "0.200000000000000000",
+              "rate": "0.000000000000000000"
+            },
+            "update_time": "2023-01-09T19:58:11.864536025Z"
+          },
+          "consensus_pubkey": {
+            "@type": "/cosmos.crypto.ed25519.PubKey",
+            "key": "fKu0A+Xs8auwlPf75M5+zO6k4JpPXAHP6sl3V0jYspo="
+          },
+          "delegator_shares": "0.000000000000000000",
+          "description": {
+            "details": "",
+            "identity": "",
+            "moniker": "ChainLayer",
+            "security_contact": "",
+            "website": ""
+          },
+          "jailed": false,
+          "min_self_delegation": "0",
+          "operator_address": "wormholevaloper1ac3ry97k843tdnv26ss7ps86w0l4mss7k9zmfs",
+          "status": "BOND_STATUS_UNBONDED",
           "tokens": "0",
           "unbonding_height": "0",
           "unbonding_time": "1970-01-01T00:00:00Z"
@@ -884,8 +1117,28 @@
       ],
       "guardianValidatorList": [
         {
+          "guardianKey": "EU3oRgGTvfOi/PgfhqCXZfR2L9E=",
+          "validatorAddr": "aBGBWdLBfa+MCVvFdQsbruK53R4="
+        },
+        {
+          "guardianKey": "VM5bTTSPt0uVjolm4uw9vUlYp80=",
+          "validatorAddr": "7iIyF9Y9YrbNitQh4MD6c/9dwh4="
+        },
+        {
           "guardianKey": "WMw65cCXshPOPIGXnhuflXB0aqU=",
           "validatorAddr": "xuvwE/SVFly5visHOA0dVie/nx0="
+        },
+        {
+          "guardianKey": "dKO/kTlT1pUmDYi8GqJaTu42PvA=",
+          "validatorAddr": "Usc1fWKooOMC+QwweAKCx5GrvMs="
+        },
+        {
+          "guardianKey": "0sw3pNwDao0jK0j2LN1HMUEvSJA=",
+          "validatorAddr": "Nu7MB5cgb7j1UGOwum2HiVGOIcY="
+        },
+        {
+          "guardianKey": "2nmPaJajMx9ktIwS0dV/2cvnCBE=",
+          "validatorAddr": "raZ3U/hpY8uzpUGDwLHwIqtW5Ns="
         }
       ],
       "replayProtectionList": [],
@@ -912,7 +1165,7 @@
     "version": {}
   },
   "genesis_time": "2022-09-27T22:08:43.044644477Z",
-  "initial_height": "826769",
+  "initial_height": "1103271",
   "validators": [
     {
       "address": "084125332F4B56EB4C4A31058C1E26B55E869E02",

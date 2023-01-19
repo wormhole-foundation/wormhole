@@ -32,12 +32,13 @@ function usage() {
 cat <<EOF >&2
 Usage:
 
-  $(basename "$0") [-h] [-m s] [-c s] [-o d] -- Generate bridge registration governance proposal for a given module
+  $(basename "$0") [-h] [-m s] [-c s] [-o d] [-a s] -- Generate bridge registration governance proposal for a given module
 
   where:
     -h  show this help text
     -m  module (TokenBridge, NFTBridge)
     -c  chain name
+    -a  emitter address (optional, derived by worm CLI by default)
     -o  multi-mode output directory
 EOF
 exit 1
@@ -67,6 +68,8 @@ while getopts ':hm:c:a:o:' option; do
        ;;
     m) module=$OPTARG
        ;;
+    a) address=$OPTARG
+       ;;
     c) chain_name=$OPTARG
        ;;
     o) multi_mode=true
@@ -82,11 +85,12 @@ while getopts ':hm:c:a:o:' option; do
 done
 shift $((OPTIND - 1))
 
+
 [ -z "$chain_name" ] && usage
 [ -z "$module" ] && usage
 
 # Use the worm client to get the emitter address and wormhole chain ID.
-address=`worm contract --emitter mainnet $chain_name $module`
+[ -z "$address" ] && address=`worm contract --emitter mainnet $chain_name $module`
 [ -z "$address" ] && usage
 
 chain=`worm chain-id $chain_name`

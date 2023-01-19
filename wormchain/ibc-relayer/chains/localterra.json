@@ -1,0 +1,16 @@
+{
+  "type": "cosmos",
+  "value": {
+    "key": "default",
+    "chain-id": "localterra",
+    "rpc-addr": "http://terra2-terrad:26657",
+    "account-prefix": "terra",
+    "keyring-backend": "test",
+    "gas-adjustment": 1.2,
+    "gas-prices": "1uluna",
+    "debug": true,
+    "timeout": "20s",
+    "output-format": "json",
+    "sign-mode": "direct"
+  }
+}

@@ -49,7 +49,7 @@ module wormhole::structs {
         recovery_id: u8,
         guardian_index: u8
     ): Signature {
-        Signature{ sig, recovery_id, guardian_index }
+        Signature { sig, recovery_id, guardian_index }
     }
 
     public fun get_address(guardian: &Guardian): guardian_pubkey::Address {

@@ -15,6 +15,7 @@ import (
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
 )
 
@@ -74,7 +75,7 @@ func (e *EthereumConnector) GetGuardianSet(ctx context.Context, index uint32) (e
 	return e.caller.GetGuardianSet(&ethBind.CallOpts{Context: ctx}, index)
 }
 
-func (e *EthereumConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *EthereumConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	return e.filterer.WatchLogMessagePublished(&ethBind.WatchOpts{Context: timeout}, sink, nil)
@@ -97,7 +98,7 @@ func (e *EthereumConnector) ParseLogMessagePublished(log ethTypes.Log) (*ethAbi.
 	return e.filterer.ParseLogMessagePublished(log)
 }
 
-func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	headSink := make(chan *ethTypes.Header, 2)
 	headerSubscription, err := e.client.SubscribeNewHead(ctx, headSink)
 	if err != nil {
@@ -105,11 +106,11 @@ func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- 
 	}
 
 	// The purpose of this is to map events from the geth event channel to the new block event channel.
-	go func() {
+	common.RunWithScissors(ctx, errC, "eth_connector_subscribe_for_block", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case ev := <-headSink:
 				if ev == nil {
 					e.logger.Error("new header event is nil")
@@ -125,7 +126,7 @@ func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, sink chan<- 
 				}
 			}
 		}
-	}()
+	})
 
 	return headerSubscription, err
 }

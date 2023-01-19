@@ -25,14 +25,20 @@ fn simple_modify() {
         .modify_balance(modification, index, signatures)
         .unwrap();
 
-    let evt = Event::new("wasm-ModifyBalance")
-        .add_attribute("sequence", m.sequence.to_string())
-        .add_attribute("chain_id", m.chain_id.to_string())
-        .add_attribute("token_chain", m.token_chain.to_string())
-        .add_attribute("token_address", m.token_address.to_string())
-        .add_attribute("kind", m.kind.to_string())
-        .add_attribute("amount", m.amount)
-        .add_attribute("reason", m.reason.clone());
+    let evt = Event::new("wasm-Modification")
+        .add_attribute("sequence", serde_json_wasm::to_string(&m.sequence).unwrap())
+        .add_attribute("chain_id", serde_json_wasm::to_string(&m.chain_id).unwrap())
+        .add_attribute(
+            "token_chain",
+            serde_json_wasm::to_string(&m.token_chain).unwrap(),
+        )
+        .add_attribute(
+            "token_address",
+            serde_json_wasm::to_string(&m.token_address).unwrap(),
+        )
+        .add_attribute("kind", serde_json_wasm::to_string(&m.kind).unwrap())
+        .add_attribute("amount", serde_json_wasm::to_string(&m.amount).unwrap())
+        .add_attribute("reason", serde_json_wasm::to_string(&m.reason).unwrap());
 
     resp.assert_event(&evt);
 

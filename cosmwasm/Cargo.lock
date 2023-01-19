@@ -11,9 +11,11 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
+ "cw_transcode",
  "hex",
  "schemars",
  "serde",
+ "serde-json-wasm",
  "thiserror",
 ]
 
@@ -595,6 +597,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw_transcode"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "hex",
+ "serde",
+ "serde-json-wasm",
+ "serde_bytes",
+ "thiserror",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -967,6 +981,9 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "hmac"
@@ -1632,8 +1649,10 @@ dependencies = [
 name = "serde_wormhole"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "itoa",
  "serde",
+ "serde_bytes",
  "thiserror",
 ]
 
@@ -2242,9 +2261,11 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus",
  "cw2",
+ "cw_transcode",
  "hex",
  "schemars",
  "serde",
+ "serde-json-wasm",
  "serde_wormhole",
  "thiserror",
  "tinyvec",

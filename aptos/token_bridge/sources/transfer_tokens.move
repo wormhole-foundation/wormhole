@@ -22,7 +22,7 @@ module token_bridge::transfer_tokens {
         recipient: vector<u8>,
         relayer_fee: u64,
         nonce: u64
-        ) {
+    ) {
         let coins = coin::withdraw<CoinType>(sender, amount);
         let wormhole_fee = wormhole::state::get_message_fee();
         let wormhole_fee_coins = coin::withdraw<AptosCoin>(sender, wormhole_fee);
@@ -43,7 +43,7 @@ module token_bridge::transfer_tokens {
         recipient: ExternalAddress,
         relayer_fee: u64,
         nonce: u64
-        ): u64 {
+    ): u64 {
         let result = transfer_tokens_internal<CoinType>(coins, relayer_fee);
         let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
             = transfer_result::destroy(result);
@@ -70,7 +70,7 @@ module token_bridge::transfer_tokens {
         recipient: ExternalAddress,
         nonce: u64,
         payload: vector<u8>
-        ): u64 {
+    ): u64 {
         let result = transfer_tokens_internal<CoinType>(coins, 0);
         let (token_chain, token_address, normalized_amount, _)
             = transfer_result::destroy(result);
@@ -104,13 +104,13 @@ module token_bridge::transfer_tokens {
     fun transfer_tokens_internal<CoinType>(
         coins: Coin<CoinType>,
         relayer_fee: u64,
-        ): TransferResult {
+    ): TransferResult {
 
         // transfer coin to token_bridge
-        if (!coin::is_account_registered<CoinType>(@token_bridge)){
+        if (!coin::is_account_registered<CoinType>(@token_bridge)) {
             coin::register<CoinType>(&state::token_bridge_signer());
         };
-        if (!coin::is_account_registered<AptosCoin>(@token_bridge)){
+        if (!coin::is_account_registered<AptosCoin>(@token_bridge)) {
             coin::register<AptosCoin>(&state::token_bridge_signer());
         };
 

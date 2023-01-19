@@ -18,6 +18,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
 )
 
@@ -91,7 +92,7 @@ func (c *CeloConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAb
 	}, err
 }
 
-func (c *CeloConnector) WatchLogMessagePublished(ctx context.Context, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (c *CeloConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	messageC := make(chan *celoAbi.AbiLogMessagePublished, 2)
@@ -101,17 +102,17 @@ func (c *CeloConnector) WatchLogMessagePublished(ctx context.Context, sink chan<
 	}
 
 	// The purpose of this is to map events from the Celo log message channel to the Eth log message channel.
-	go func() {
+	common.RunWithScissors(ctx, errC, "celo_connector_watch_log", func(ctx context.Context) error {
 		for {
 			select {
 			// This will return when the subscription is unsubscribed as the error channel gets closed
 			case <-messageSub.Err():
-				return
+				return nil
 			case celoEvent := <-messageC:
 				sink <- convertCeloEventToEth(celoEvent)
 			}
 		}
-	}()
+	})
 
 	return messageSub, err
 }
@@ -143,7 +144,7 @@ func (c *CeloConnector) ParseLogMessagePublished(ethLog ethTypes.Log) (*ethAbi.A
 	return convertCeloEventToEth(celoEvent), err
 }
 
-func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	headSink := make(chan *celoTypes.Header, 2)
 	headerSubscription, err := c.client.SubscribeNewHead(ctx, headSink)
 	if err != nil {
@@ -151,11 +152,11 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *New
 	}
 
 	// The purpose of this is to map events from the Celo event channel to the new block event channel.
-	go func() {
+	common.RunWithScissors(ctx, errC, "celo_connector_subscribe_for_block", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				return nil
 			case ev := <-headSink:
 				if ev == nil {
 					c.logger.Error("new header event is nil")
@@ -171,7 +172,7 @@ func (c *CeloConnector) SubscribeForBlocks(ctx context.Context, sink chan<- *New
 				}
 			}
 		}
-	}()
+	})
 
 	return headerSubscription, err
 }

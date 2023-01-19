@@ -31,7 +31,7 @@ export async function execute_injective(
 
   const network = getNetworkInfo(endPoint);
   const walletPKHash = n.key;
-  const walletPK = PrivateKey.fromHex(walletPKHash);
+  const walletPK = PrivateKey.fromMnemonic(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
   const walletPublicKey = walletPK.toPublicKey().toBase64();
 
@@ -130,7 +130,9 @@ export async function execute_injective(
     contractAddress: target_contract,
     exec: {
       action,
-      ...execute_msg[action],
+      msg: {
+        ...execute_msg[action],
+      },
     },
   });
   console.log("transaction:", transaction);

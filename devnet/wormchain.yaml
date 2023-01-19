@@ -1,0 +1,94 @@
+# Service for pods in the StatefulSet, for RPC clients.
+# these ports are exposed to the host OS via Tiltfile config.
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: wormchain
+  name: wormchain
+spec:
+  ports:
+    - name: rpc
+      port: 26657
+      protocol: TCP
+    - name: p2p
+      port: 26656
+      protocol: TCP
+    - name: rest
+      port: 1317
+      protocol: TCP
+    - name: cosmos-rpc
+      port: 9090
+      protocol: TCP
+  selector:
+    app: wormchain
+---
+# Service for an individual pod, so other pods can resolve it by name for p2p.
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: wormchain
+  name: wormchain-0
+spec:
+  ports:
+    - name: rpc
+      port: 26657
+      protocol: TCP
+    - name: p2p
+      port: 26656
+      protocol: TCP
+    - name: rest
+      port: 1317
+      protocol: TCP
+    - name: cosmos-rpc
+      port: 9090
+      protocol: TCP
+  selector:
+    statefulset.kubernetes.io/pod-name: wormchain-0
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: wormchain
+  name: wormchain
+spec:
+  selector:
+    matchLabels:
+      app: wormchain
+  serviceName: wormchain
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: wormchain
+    spec:
+      containers:
+        - name: wormchaind
+          image: wormchaind-image
+          command:
+            - /bin/bash
+            - -c
+            - "/app/devnet/create-config.sh; /app/build/wormchaind start"
+          ports:
+            - containerPort: 26657
+              name: tendermint
+              protocol: TCP
+            - containerPort: 26656
+              name: p2p
+              protocol: TCP
+            - containerPort: 1317
+              name: rest
+              protocol: TCP
+            - containerPort: 9090
+              name: cosmos-rpc
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: 26657
+              path: /
+            periodSeconds: 5
+      restartPolicy: Always

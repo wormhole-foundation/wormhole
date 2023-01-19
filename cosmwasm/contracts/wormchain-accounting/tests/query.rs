@@ -8,6 +8,7 @@ use accounting::state::{
 };
 use cosmwasm_std::{to_binary, Uint256};
 use helpers::*;
+use wormchain_accounting::msg::TransferStatus;
 use wormhole::{token::Message, vaa::Body, Address, Amount};
 use wormhole_bindings::fake;
 
@@ -269,6 +270,24 @@ fn all_transfer_data() {
 
     for t in transfers {
         assert_eq!(found[&t.key], t.data);
+    }
+}
+
+#[test]
+fn batch_transfer_status() {
+    let count = 3;
+    let (wh, mut contract) = proper_instantiate();
+    let transfers = create_transfers(&wh, &mut contract, count);
+
+    let keys = transfers.iter().map(|t| &t.key).cloned().collect();
+    let resp = contract.query_batch_transfer_status(keys).unwrap();
+
+    for (tx, details) in transfers.into_iter().zip(resp.details) {
+        assert_eq!(tx.key, details.key);
+        match details.status {
+            Some(TransferStatus::Committed { data, .. }) => assert_eq!(tx.data, data),
+            s => panic!("unexpected transfer status: {s:?}"),
+        }
     }
 }
 
