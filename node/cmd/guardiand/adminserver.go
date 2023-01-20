@@ -41,9 +41,9 @@ type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
 	db              *db.Database
 	injectC         chan<- *vaa.VAA
-	obsvReqSendC    chan *gossipv1.ObservationRequest
+	obsvReqSendC    chan<- *gossipv1.ObservationRequest
 	logger          *zap.Logger
-	signedInC       chan *gossipv1.SignedVAAWithQuorum
+	signedInC       chan<- *gossipv1.SignedVAAWithQuorum
 	governor        *governor.ChainGovernor
 	evmConnector    connectors.Connector
 	gsCache         sync.Map
@@ -397,8 +397,19 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	}, nil
 }
 
-func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, signedInC chan *gossipv1.SignedVAAWithQuorum, obsvReqSendC chan *gossipv1.ObservationRequest,
-	db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor, gk *ecdsa.PrivateKey, ethRpc *string, ethContract *string) (supervisor.Runnable, error) {
+func adminServiceRunnable(
+	logger *zap.Logger,
+	socketPath string,
+	injectC chan<- *vaa.VAA,
+	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
+	obsvReqSendC chan<- *gossipv1.ObservationRequest,
+	db *db.Database,
+	gst *common.GuardianSetState,
+	gov *governor.ChainGovernor,
+	gk *ecdsa.PrivateKey,
+	ethRpc *string,
+	ethContract *string,
+) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {

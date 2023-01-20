@@ -77,10 +77,10 @@ type (
 		chainID vaa.ChainID
 
 		// Channel to send new messages to.
-		msgChan chan *common.MessagePublication
+		msgC chan<- *common.MessagePublication
 
 		// Channel to send guardian set changes to.
-		// setChan can be set to nil if no guardian set changes are needed.
+		// setC can be set to nil if no guardian set changes are needed.
 		//
 		// We currently only fetch the guardian set from one primary chain, which should
 		// have this flag set to true, and false on all others.
@@ -88,11 +88,11 @@ type (
 		// The current primary chain is Ethereum (a mostly arbitrary decision because it
 		// has the best API - we might want to switch the primary chain to Solana once
 		// the governance mechanism lives there),
-		setChan chan *common.GuardianSet
+		setC chan<- *common.GuardianSet
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		obsvReqC chan *gossipv1.ObservationRequest
+		obsvReqC <-chan *gossipv1.ObservationRequest
 
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
@@ -141,9 +141,9 @@ func NewEthWatcher(
 	networkName string,
 	readiness readiness.Component,
 	chainID vaa.ChainID,
-	messageEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	msgC chan<- *common.MessagePublication,
+	setC chan<- *common.GuardianSet,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -155,8 +155,8 @@ func NewEthWatcher(
 		waitForConfirmations: false,
 		maxWaitConfirmations: 60,
 		chainID:              chainID,
-		msgChan:              messageEvents,
-		setChan:              setEvents,
+		msgC:                 msgC,
+		setC:                 setC,
 		obsvReqC:             obsvReqC,
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
@@ -412,7 +412,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("observed_block", blockNumber),
 							zap.String("eth_network", w.networkName),
 						)
-						w.msgChan <- msg
+						w.msgC <- msg
 						continue
 					}
 
@@ -432,7 +432,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 								zap.Uint64("observed_block", blockNumber),
 								zap.String("eth_network", w.networkName),
 							)
-							w.msgChan <- msg
+							w.msgC <- msg
 						} else {
 							logger.Info("ignoring re-observed message publication transaction",
 								zap.Stringer("tx", msg.TxHash),
@@ -477,7 +477,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("observed_block", blockNumber),
 							zap.String("eth_network", w.networkName),
 						)
-						w.msgChan <- msg
+						w.msgC <- msg
 					} else {
 						logger.Info("ignoring re-observed message publication transaction",
 							zap.Stringer("tx", msg.TxHash),
@@ -543,7 +543,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 						zap.String("eth_network", w.networkName))
 
-					w.msgChan <- message
+					w.msgC <- message
 					ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 					continue
 				}
@@ -753,7 +753,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName))
 						delete(w.pending, key)
-						w.msgChan <- pLock.message
+						w.msgC <- pLock.message
 						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 					}
 				}
@@ -809,8 +809,8 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 
 	w.currentGuardianSet = &idx
 
-	if w.setChan != nil {
-		w.setChan <- &common.GuardianSet{
+	if w.setC != nil {
+		w.setC <- &common.GuardianSet{
 			Keys:  gs.Keys,
 			Index: idx,
 		}
