@@ -8,7 +8,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { HexString, Types } from "aptos";
+import { Types } from "aptos";
 import { ethers, Overrides } from "ethers";
 import { isBytes } from "ethers/lib/utils";
 import {
@@ -180,7 +180,6 @@ export function transferFromAptos(
   recipient: Uint8Array
 ): Types.EntryFunctionPayload {
   const recipientChainId = coalesceChainId(recipientChain);
-  console.log(HexString.fromUint8Array(recipient).hex());
   return {
     function: `${nftBridgeAddress}::transfer_nft::transfer_nft_entry`,
     type_arguments: [],

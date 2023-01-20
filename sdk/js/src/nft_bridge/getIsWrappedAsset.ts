@@ -1,5 +1,5 @@
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
-import { AptosClient } from "aptos";
+import { AptosClient, Types } from "aptos";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { getWrappedMeta } from "../solana/nftBridge";
@@ -45,7 +45,6 @@ export async function getIsWrappedAssetSolana(
 
 export const getIsWrappedAssetSol = getIsWrappedAssetSolana;
 
-// TODO(aki): only catch expected error
 export async function getIsWrappedAssetAptos(
   client: AptosClient,
   nftBridgeAddress: string,
@@ -57,7 +56,11 @@ export async function getIsWrappedAssetAptos(
       `${nftBridgeAddress}::state::OriginInfo`
     );
     return true;
-  } catch {
-    return false;
+  } catch (e) {
+    if (e instanceof Types.ApiError && e.status === 404) {
+      return false;
+    }
+
+    throw e;
   }
 }
