@@ -187,7 +187,7 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 	require.NotNil(t, pe)
 
 	// PublishTransfer should not publish to the channel but it should remove it from the map.
-	acct.publishTransfer(pe)
+	acct.publishTransferAlreadyLocked(pe)
 	assert.Equal(t, 0, len(acct.msgChan))
 	assert.Equal(t, 0, len(acct.pendingTransfers))
 }
@@ -236,7 +236,7 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T)
 	require.NotNil(t, pe)
 
 	// PublishTransfer should publish to the channel and remove it from the map.
-	acct.publishTransfer(pe)
+	acct.publishTransferAlreadyLocked(pe)
 	assert.Equal(t, 1, len(acct.msgChan))
 	assert.Equal(t, 0, len(acct.pendingTransfers))
 }

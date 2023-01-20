@@ -64,13 +64,17 @@ func (c *ClientConn) Close() {
 	c.c.Close()
 }
 
-func (c *ClientConn) BroadcastTxResponseToString(txResp *sdktx.BroadcastTxResponse) (string, error) {
-	out, err := c.encCfg.Marshaler.MarshalJSON(txResp)
-	if err != nil {
-		return "", err
+func (c *ClientConn) BroadcastTxResponseToString(txResp *sdktx.BroadcastTxResponse) string {
+	if txResp == nil {
+		return "txResp is nil"
 	}
 
-	return string(out), nil
+	out, err := c.encCfg.Marshaler.MarshalJSON(txResp)
+	if err != nil {
+		panic(fmt.Sprintf("failed to format txResp: %s", err))
+	}
+
+	return string(out)
 }
 
 // generateSenderAddress creates the sender address from the private key. It is based on https://pkg.go.dev/github.com/btcsuite/btcutil/bech32#Encode

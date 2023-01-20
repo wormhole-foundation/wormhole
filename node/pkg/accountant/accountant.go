@@ -220,7 +220,7 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	}
 
 	// Add it to the pending map and the database.
-	if err := acct.addPendingTransfer(msgId, msg, digest); err != nil {
+	if err := acct.addPendingTransferAlreadyLocked(msgId, msg, digest); err != nil {
 		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msgId), zap.Error(err))
 		return false, err
 	}
@@ -254,7 +254,7 @@ func (acct *Accountant) AuditPendingTransfers() {
 			pe.retryCount += 1
 			if pe.retryCount > maxRetries {
 				acct.logger.Error("acct: stuck pending transfer has reached the retry limit, dropping it", zap.String("msgId", msgId))
-				acct.deletePendingTransfer(msgId)
+				acct.deletePendingTransferAlreadyLocked(msgId)
 				continue
 			}
 
@@ -272,19 +272,19 @@ func (acct *Accountant) AuditPendingTransfers() {
 	acct.logger.Debug("acct: leaving AuditPendingTransfers")
 }
 
-// publishTransfer publishes a pending transfer to the accountant channel and updates the timestamp. It assumes the caller holds the lock.
-func (acct *Accountant) publishTransfer(pe *pendingEntry) {
+// publishTransferAlreadyLocked publishes a pending transfer to the accountant channel and updates the timestamp. It assumes the caller holds the lock.
+func (acct *Accountant) publishTransferAlreadyLocked(pe *pendingEntry) {
 	if acct.enforceFlag {
-		acct.logger.Debug("acct: publishTransfer: notifying the processor", zap.String("msgId", pe.msgId))
+		acct.logger.Debug("acct: publishTransferAlreadyLocked: notifying the processor", zap.String("msgId", pe.msgId))
 		acct.msgChan <- pe.msg
 	}
 
-	acct.deletePendingTransfer(pe.msgId)
+	acct.deletePendingTransferAlreadyLocked(pe.msgId)
 }
 
-// addPendingTransfer adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
-func (acct *Accountant) addPendingTransfer(msgId string, msg *common.MessagePublication, digest string) error {
-	acct.logger.Debug("acct: addPendingTransfer", zap.String("msgId", msgId))
+// addPendingTransferAlreadyLocked adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
+func (acct *Accountant) addPendingTransferAlreadyLocked(msgId string, msg *common.MessagePublication, digest string) error {
+	acct.logger.Debug("acct: addPendingTransferAlreadyLocked", zap.String("msgId", msgId))
 	if err := acct.db.AcctStorePendingTransfer(msg); err != nil {
 		return err
 	}
@@ -295,8 +295,15 @@ func (acct *Accountant) addPendingTransfer(msgId string, msg *common.MessagePubl
 	return nil
 }
 
-// deletePendingTransfer deletes the transfer from both the map and the database. It assumes the caller holds the lock.
+// deletePendingTransfer deletes the transfer from both the map and the database. It accquires the lock.
 func (acct *Accountant) deletePendingTransfer(msgId string) {
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
+	acct.deletePendingTransferAlreadyLocked(msgId)
+}
+
+// deletePendingTransferAlreadyLocked deletes the transfer from both the map and the database. It assumes the caller holds the lock.
+func (acct *Accountant) deletePendingTransferAlreadyLocked(msgId string) {
 	acct.logger.Debug("acct: deletePendingTransfer", zap.String("msgId", msgId))
 	if _, exists := acct.pendingTransfers[msgId]; exists {
 		transfersOutstanding.Dec()
