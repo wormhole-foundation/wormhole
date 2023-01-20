@@ -6,7 +6,12 @@ import { ethers } from "ethers";
 import { isBytes } from "ethers/lib/utils";
 import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
-import { CreateTokenDataEvent, NftBridgeState, TokenId } from "../aptos/types";
+import {
+  CreateTokenDataEvent,
+  NftBridgeState,
+  RawTokenId,
+  TokenId,
+} from "../aptos/types";
 import { NFTBridge__factory } from "../ethers-contracts";
 import { deriveWrappedMintKey } from "../solana/nftBridge";
 import {
@@ -15,7 +20,6 @@ import {
   CHAIN_ID_APTOS,
   coalesceChainId,
   deriveResourceAccountAddress,
-  tryNativeToUint8Array,
 } from "../utils";
 
 /**
@@ -119,14 +123,14 @@ export const getForeignAssetSol = getForeignAssetSolana;
  * @param client
  * @param nftBridgeAddress
  * @param originChain
- * @param originAddress Address of token on origin chain, or token hash if origin chain is Aptos
+ * @param originAddress External address of token on origin chain, or token hash if origin chain is Aptos
  * @returns Unique token identifier on Aptos
  */
 export async function getForeignAssetAptos(
   client: AptosClient,
   nftBridgeAddress: string,
   originChain: ChainId | ChainName,
-  originAddress: string
+  originAddress: Uint8Array
 ): Promise<TokenId | null> {
   const originChainId = coalesceChainId(originChain);
   if (originChainId === CHAIN_ID_APTOS) {
@@ -137,17 +141,19 @@ export async function getForeignAssetAptos(
       )
     ).data as NftBridgeState;
     const handle = state.native_infos.handle;
-    const value = await client.getTableItem(handle, {
+    const value = (await client.getTableItem(handle, {
       key_type: `${nftBridgeAddress}::token_hash::TokenHash`,
-      value_type: `0x1::token::TokenId`,
+      value_type: `0x3::token::TokenId`,
       key: {
-        hash: HexString.fromUint8Array(
-          tryNativeToUint8Array(originAddress, CHAIN_ID_APTOS)
-        ).hex(),
+        hash: HexString.fromUint8Array(originAddress).hex(),
       },
-    });
-    console.log("value", JSON.stringify(value, null, 2));
-    return null;
+    })) as RawTokenId;
+    return {
+      creatorAddress: value.token_data_id.creator,
+      collectionName: value.token_data_id.collection,
+      tokenName: value.token_data_id.name,
+      propertyVersion: Number(value.property_version),
+    };
   }
 
   const creatorAddress = await deriveResourceAccountAddress(

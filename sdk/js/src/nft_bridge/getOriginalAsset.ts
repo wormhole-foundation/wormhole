@@ -5,7 +5,7 @@ import {
   PublicKeyInitData,
 } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
-import { AptosClient } from "aptos";
+import { AptosClient, Types } from "aptos";
 import { BigNumber, ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { WormholeWrappedInfo } from "..";
@@ -182,8 +182,7 @@ export async function getOriginalAssetTerra(
   };
 }
 
-// TODO(aki): should this also return tokenId? doesnt seem possible to implement right now
-// TODO(aki): only catch expected error
+// TODO(aki): should this also return tokenId?
 export async function getOriginalAssetAptos(
   client: AptosClient,
   nftBridgeAddress: string,
@@ -205,11 +204,15 @@ export async function getOriginalAssetAptos(
         hex(originInfo.token_address.external_address)
       ),
     };
-  } catch {
-    return {
-      isWrapped: false,
-      chainId: CHAIN_ID_APTOS,
-      assetAddress: new Uint8Array(hex(creatorAddress)),
-    };
+  } catch (e) {
+    if (e instanceof Types.ApiError && e.status === 404) {
+      return {
+        isWrapped: false,
+        chainId: CHAIN_ID_APTOS,
+        assetAddress: new Uint8Array(hex(creatorAddress)),
+      };
+    }
+
+    throw e;
   }
 }

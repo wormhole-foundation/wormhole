@@ -1,4 +1,4 @@
-import { AptosAccount, AptosClient, TokenClient } from "aptos";
+import { AptosAccount, AptosClient, TokenClient, Types } from "aptos";
 import { ethers } from "ethers";
 import Web3 from "web3";
 import {
@@ -9,14 +9,15 @@ const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMint
 
 export const deployTestNftOnAptos = async (
   client: AptosClient,
-  account: AptosAccount
+  account: AptosAccount,
+  collectionName: string,
+  tokenName: string
 ) => {
   const tokenClient = new TokenClient(client);
-  const collectionName = "testCollection";
   const collectionHash = await tokenClient.createCollection(
     account,
     collectionName,
-    "test collection",
+    "collection description",
     "https://www.wormhole.com"
   );
   await client.waitForTransaction(collectionHash);
@@ -24,12 +25,14 @@ export const deployTestNftOnAptos = async (
   const tokenHash = await tokenClient.createToken(
     account,
     collectionName,
-    "testToken",
-    "test token",
-    1,
-    "https://wormhole.com/static/a9281881f58cc7fbe4df796a9ba684ac/90d9d/s2.webp"
+    tokenName,
+    "token description",
+    10,
+    "https://www.wormhole.com"
   );
-  await client.waitForTransaction(tokenHash);
+  return client.waitForTransactionWithResult(
+    tokenHash
+  ) as Promise<Types.UserTransaction>;
 };
 
 export async function deployTestNftOnEthereum(

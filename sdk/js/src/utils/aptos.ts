@@ -1,7 +1,7 @@
-import { AptosAccount, AptosClient, TxnBuilderTypes, Types } from "aptos";
+import { AptosAccount, AptosClient, BCS, TxnBuilderTypes, Types } from "aptos";
 import { hexZeroPad } from "ethers/lib/utils";
 import { sha3_256 } from "js-sha3";
-import { TokenBridgeState } from "../aptos/types";
+import { TokenBridgeState, TokenId } from "../aptos/types";
 import {
   ChainId,
   ChainName,
@@ -9,7 +9,6 @@ import {
   coalesceChainId,
   ensureHexPrefix,
   hex,
-  tryNativeToUint8Array,
 } from "../utils";
 
 /**
@@ -247,10 +246,19 @@ export const coalesceModuleAddress = (str: string): string => {
   return str.split("::")[0];
 };
 
+/**
+ * The NFT bridge creates resource accounts, which in turn create a collection
+ * and mint a singl token for each transferred NFT. This method derives the
+ * address of that resource account from the given origin chain and address.
+ * @param nftBridgeAddress
+ * @param originChain
+ * @param originAddress External address of NFT on origin chain
+ * @returns Address of resource account
+ */
 export const deriveResourceAccountAddress = async (
   nftBridgeAddress: string,
   originChain: ChainId | ChainName,
-  originAddress: string
+  originAddress: Uint8Array
 ): Promise<string | null> => {
   const originChainId = coalesceChainId(originChain);
   if (originChainId === CHAIN_ID_APTOS) {
@@ -259,15 +267,35 @@ export const deriveResourceAccountAddress = async (
 
   const chainId = Buffer.alloc(2);
   chainId.writeUInt16BE(originChainId);
-  const seed = Buffer.concat([
-    chainId,
-    tryNativeToUint8Array(originAddress, originChain),
-  ]);
+  const seed = Buffer.concat([chainId, Buffer.from(originAddress)]);
   const resourceAccountAddress = await AptosAccount.getResourceAccountAddress(
     nftBridgeAddress,
     seed
   );
   return resourceAccountAddress.toString();
+};
+
+/**
+ * Native tokens in Aptos are represented by a single token hash that is
+ * derived from creator address, collection name, token name, and property
+ * version, ensuring that it is unique. This method derives that token hash.
+ * @param tokenId
+ * @returns Token hash identifying the token
+ */
+export const deriveTokenHashFromTokenId = async (
+  tokenId: TokenId
+): Promise<Uint8Array> => {
+  const propertyVersion = Buffer.alloc(8);
+  propertyVersion.writeBigUInt64BE(BigInt(tokenId.propertyVersion));
+  const inputs = Buffer.concat([
+    BCS.bcsToBytes(
+      TxnBuilderTypes.AccountAddress.fromHex(tokenId.creatorAddress)
+    ),
+    Buffer.from(sha3_256(tokenId.collectionName), "hex"),
+    Buffer.from(sha3_256(tokenId.tokenName), "hex"),
+    propertyVersion,
+  ]);
+  return new Uint8Array(Buffer.from(sha3_256(inputs), "hex"));
 };
 
 /**
