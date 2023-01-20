@@ -306,23 +306,26 @@ func (watcher *Watcher) Run(ctx context.Context) error {
 			// logger.Info("logJSON", zap.String("logJSON", logJSON))
 			logs := gjson.Get(logJSON, "logs")
 			logger.Info("after gjson.get", zap.Stringer("logs", logs))
+			// Don't need to check each topic here.
+			// topic[0] = topic of interest, maybe
+			// topic[1] = emitter address
 			logs.ForEach(func(logKey, logValue gjson.Result) bool {
 				logger.Info("YIKES..............", zap.Stringer("topics", gjson.Get(logValue.String(), "topics")))
-				topics := gjson.Get(logValue.String(), "topics")
-				topics.ForEach(func(topicKey, topicValue gjson.Result) bool {
-					if topicValue.String() == TOPIC_LOG_MSG {
-						event, err := LogMessageToEvent(logger, logValue.String())
-						// Check for event being nil
-						if err == nil {
-							events = append(events, event)
-							blockNum := gjson.Get(logValue.String(), "block_number")
-							messagesObserved.WithLabelValues(networkName).Inc()
-							logger.Info("Found True Log Msg", zap.Stringer("block Number", blockNum))
-						}
-						return false // Found topic. Break out of the inner ForEach() loop
+				topic := gjson.Get(logValue.String(), "topics.0")
+				if !topic.Exists() {
+					return true // continue ForEach loop
+				}
+				if topic.String() == TOPIC_LOG_MSG {
+					event, err := LogMessageToEvent(logger, logValue.String())
+					// Check for event being nil
+					if err == nil {
+						events = append(events, event)
+						blockNum := gjson.Get(logValue.String(), "block_number")
+						messagesObserved.WithLabelValues(networkName).Inc()
+						logger.Info("Found True Log Msg", zap.Stringer("block Number", blockNum))
 					}
-					return true // continue ForEach() loop
-				})
+				}
+
 				// update timestamp
 				timeStampBase := gjson.Get(logValue.String(), "timestamp")
 				if !timeStampBase.Exists() {
@@ -393,19 +396,19 @@ func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublic
 	if !timeStampBase.Exists() {
 		return nil, fmt.Errorf("Message has no timestamp field for txhash %s", txhash)
 	}
-	emitterBase := gjson.Get(logMsg, "address")
+	emitterBase := gjson.Get(logMsg, "topics.1")
 	if !emitterBase.Exists() {
-		return nil, fmt.Errorf("Message has no address field for txhash %s", txhash)
+		return nil, fmt.Errorf("Message has no topics array for txhash %s", txhash)
 	}
-
-	txHash := eth_common.HexToHash(txhash)
-
 	emitter := emitterBase.String()
+	logger.Info("Found emitter", zap.String("hedera emitter", emitter))
 	emitterAddr, err := vaa.StringToAddress(emitter)
 	if err != nil {
 		logger.Fatal("failed to unpack emitter address", zap.Error(err))
 		return nil, fmt.Errorf("Emitter field could not be converted for txhash %s, value[%s]", txhash)
 	}
+
+	txHash := eth_common.HexToHash(txhash)
 
 	// Get the other values from the Data value
 	logDataString := logDataBase.String()
@@ -429,7 +432,7 @@ func LogMessageToEvent(logger *zap.Logger, logMsg string) (*common.MessagePublic
 
 	// // AbiLogMessagePublished represents a LogMessagePublished event raised by the Abi contract.
 	// type AbiLogMessagePublished struct {
-	// 	Sender           common.Address
+	// 	Sender           common.Address <- in topics[1]
 	// 	Sequence         uint64
 	// 	Nonce            uint32
 	// 	Payload          []byte
@@ -517,7 +520,7 @@ func TxMessageToEvent(logger *zap.Logger, msg string) ([]*common.MessagePublicat
 		topics := gjson.Get(logString, "topics")
 		topics.ForEach(func(topicKey, topicValue gjson.Result) bool {
 			if topicValue.String() == TOPIC_LOG_MSG {
-				logger.Info("RO:  Found topic")
+				logger.Info("TxMessageToEvent:  Found topic")
 
 				// data is inside the logs object
 				logDataBase := gjson.Get(logString, "data")
@@ -525,14 +528,14 @@ func TxMessageToEvent(logger *zap.Logger, msg string) ([]*common.MessagePublicat
 					logger.Error("Message has no data field", zap.String("txhash", txhash))
 					return false
 				}
-				// use the address inside the logs object
-				emitterBase := gjson.Get(logString, "address")
+
+				emitterBase := gjson.Get(logString, "topics.1")
 				if !emitterBase.Exists() {
 					logger.Error("Message has no address field", zap.String("txhash", txhash))
 					return false
 				}
-
 				emitter := emitterBase.String()
+				logger.Info("Found emitter", zap.String("hedera emitter", emitter))
 				emitterAddr, err := vaa.StringToAddress(emitter)
 				if err != nil {
 					logger.Fatal("failed to unpack emitter address", zap.Error(err))
