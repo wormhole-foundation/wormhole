@@ -103,7 +103,7 @@ spec:
               port: 8980
           resources:
             limits:
-              memory: "500Mi"
+              memory: "2Gi"
         - name: algorand-contracts
           image: algorand-contracts
           command:
