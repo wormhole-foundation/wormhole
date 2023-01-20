@@ -345,7 +345,9 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
 
-	txHash, err := hex.DecodeString(args[1])
+	// Support tx with or without leading 0x so copy / pasta
+	// from monitoring tools is easier.
+	txHash, err := hex.DecodeString(strings.TrimPrefix(args[1], "0x"))
 	if err != nil {
 		txHash, err = base58.Decode(args[1])
 		if err != nil {
