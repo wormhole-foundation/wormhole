@@ -6,24 +6,26 @@ import {
   jest,
   test,
 } from "@jest/globals";
+import { BN } from "@project-serum/anchor";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { AptosAccount, AptosClient, FaucetClient, Types } from "aptos";
 import { ethers } from "ethers";
 import Web3 from "web3";
-import { DepositEvent, TokenId } from "../../aptos/types";
+import { DepositEvent } from "../../aptos/types";
 import {
   CHAIN_ID_APTOS,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CONTRACTS,
+  deriveCollectionHashFromTokenId,
   deriveTokenHashFromTokenId,
   generateSignAndSubmitEntryFunction,
   tryNativeToHexString,
   tryNativeToUint8Array,
 } from "../../utils";
 import { parseNftTransferVaa } from "../../vaa";
-import { getForeignAssetAptos } from "../getForeignAsset";
+import { getForeignAssetAptos, getForeignAssetEth } from "../getForeignAsset";
 import { getIsTransferCompletedAptos } from "../getIsTransferCompleted";
 import { getIsWrappedAssetAptos } from "../getIsWrappedAsset";
 import { getOriginalAssetAptos } from "../getOriginalAsset";
@@ -130,35 +132,31 @@ describe("Aptos NFT SDK tests", () => {
     )) as Types.UserTransaction;
     expect(aptosRedeemTxResult.success).toBe(true);
     expect(
-      await getIsTransferCompletedAptos(
+      getIsTransferCompletedAptos(
         aptosClient,
         APTOS_NFT_BRIDGE_ADDRESS,
         ethTransferVaa
       )
-    ).toBe(true);
+    ).resolves.toBe(true);
 
     // get token data
-    const tokenData = await getForeignAssetAptos(
+    const tokenId = await getForeignAssetAptos(
       aptosClient,
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethNft.address, CHAIN_ID_ETH)
     );
-    assertIsNotNull(tokenData);
+    assertIsNotNull(tokenId);
     expect(
-      await getIsWrappedAssetAptos(
+      getIsWrappedAssetAptos(
         aptosClient,
         APTOS_NFT_BRIDGE_ADDRESS,
-        tokenData.creatorAddress
+        tokenId.token_data_id.creator
       )
-    ).toBe(true);
+    ).resolves.toBe(true);
     expect(
-      await getOriginalAssetAptos(
-        aptosClient,
-        APTOS_NFT_BRIDGE_ADDRESS,
-        tokenData.creatorAddress
-      )
-    ).toMatchObject({
+      getOriginalAssetAptos(aptosClient, APTOS_NFT_BRIDGE_ADDRESS, tokenId)
+    ).resolves.toStrictEqual({
       isWrapped: true,
       chainId: CHAIN_ID_ETH,
       assetAddress: Uint8Array.from(ethTransferVaaParsed.tokenAddress),
@@ -167,9 +165,9 @@ describe("Aptos NFT SDK tests", () => {
     // transfer NFT from Aptos back to Ethereum
     const aptosTransferPayload = await transferFromAptos(
       APTOS_NFT_BRIDGE_ADDRESS,
-      tokenData.creatorAddress,
-      tokenData.collectionName,
-      tokenData.tokenName.padStart(64, "0"),
+      tokenId.token_data_id.creator,
+      tokenId.token_data_id.collection,
+      tokenId.token_data_id.name.padStart(64, "0"),
       0,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethSigner.address, CHAIN_ID_ETH)
@@ -215,6 +213,13 @@ describe("Aptos NFT SDK tests", () => {
       APTOS_COLLECTION_NAME,
       "APE🦧"
     );
+    expect(
+      await getIsWrappedAssetAptos(
+        aptosClient,
+        APTOS_NFT_BRIDGE_ADDRESS,
+        aptosAccount.address().toString()
+      )
+    ).toBe(false);
 
     // get token data from user wallet
     const event = (
@@ -222,24 +227,18 @@ describe("Aptos NFT SDK tests", () => {
         aptosAccount.address(),
         "0x3::token::TokenStore",
         "deposit_events",
-        { limit: 1 } // most users will more than one deposit event
+        { limit: 1 }
       )
     )[0] as DepositEvent;
-    const tokenId: TokenId = {
-      creatorAddress: event.data.id.token_data_id.creator,
-      collectionName: event.data.id.token_data_id.collection,
-      tokenName: event.data.id.token_data_id.name,
-      propertyVersion: Number(event.data.id.property_version),
-    };
-    console.log(tokenId);
+    const depositTokenId = event.data.id;
 
-    // transfer NFT from Aptos to Solana
+    // transfer NFT from Aptos to Ethereum
     const aptosTransferPayload = await transferFromAptos(
       APTOS_NFT_BRIDGE_ADDRESS,
-      tokenId.creatorAddress,
-      tokenId.collectionName,
-      tokenId.tokenName,
-      tokenId.propertyVersion,
+      depositTokenId.token_data_id.creator,
+      depositTokenId.token_data_id.collection,
+      depositTokenId.token_data_id.name,
+      Number(depositTokenId.property_version),
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethSigner.address, CHAIN_ID_ETH)
     );
@@ -268,44 +267,85 @@ describe("Aptos NFT SDK tests", () => {
       ethSigner,
       aptosTransferVaa
     );
-    console.log(JSON.stringify(ethRedeemTx, null, 2));
     expect(ethRedeemTx.status).toBe(1);
 
+    // sanity check token hash and id
+    const tokenHash = await deriveTokenHashFromTokenId(depositTokenId);
+    expect(Buffer.from(tokenHash).toString("hex")).toBe(
+      new BN(aptosTransferVaaParsed.tokenId.toString())
+        .toString("hex")
+        .padStart(64, "0") // conversion to BN strips leading zeros
+    );
+
+    const foreignAssetTokenId = await getForeignAssetAptos(
+      aptosClient,
+      APTOS_NFT_BRIDGE_ADDRESS,
+      CHAIN_ID_APTOS,
+      tokenHash
+    );
+    assertIsNotNull(foreignAssetTokenId);
+    expect(foreignAssetTokenId).toStrictEqual(depositTokenId);
+
     // get token address on Ethereum
-    const tokenHash = await deriveTokenHashFromTokenId(tokenId);
+    const tokenAddressAptos = await deriveCollectionHashFromTokenId(
+      foreignAssetTokenId
+    );
+    const tokenAddressEth = await getForeignAssetEth(
+      ETH_NFT_BRIDGE_ADDRESS,
+      ethSigner,
+      CHAIN_ID_APTOS,
+      tokenAddressAptos
+    );
+    assertIsNotNull(tokenAddressEth);
+
+    // transfer NFT from Ethereum back to Aptos
+    const ethTransferTx = await transferFromEth(
+      ETH_NFT_BRIDGE_ADDRESS,
+      ethSigner,
+      tokenAddressEth,
+      tokenHash,
+      CHAIN_ID_APTOS,
+      tryNativeToUint8Array(aptosAccount.address().toString(), CHAIN_ID_APTOS)
+    );
+    expect(ethTransferTx.status).toBe(1);
+
+    // observe tx and get vaa
+    const ethTransferVaa = await getSignedVaaEthereum(ethTransferTx);
+    const ethTransferVaaParsed = parseNftTransferVaa(ethTransferVaa);
+    expect(ethTransferVaaParsed.name).toBe(APTOS_COLLECTION_NAME);
+
+    // redeem NFT on Aptos
+    const aptosRedeemTxPayload = await redeemOnAptos(
+      APTOS_NFT_BRIDGE_ADDRESS,
+      ethTransferVaa
+    );
+    const aptosRedeemTx = await generateSignAndSubmitEntryFunction(
+      aptosClient,
+      aptosAccount,
+      aptosRedeemTxPayload
+    );
+    const aptosRedeemTxResult = (await aptosClient.waitForTransactionWithResult(
+      aptosRedeemTx.hash
+    )) as Types.UserTransaction;
+    expect(aptosRedeemTxResult.success).toBe(true);
     expect(
-      await getForeignAssetAptos(
+      getIsTransferCompletedAptos(
         aptosClient,
         APTOS_NFT_BRIDGE_ADDRESS,
-        CHAIN_ID_APTOS,
-        tokenHash
+        ethTransferVaa
       )
-    ).toMatchObject(tokenId);
-    // const tokenAddress = await getForeignAssetEth(
-    //   ETH_NFT_BRIDGE_ADDRESS,
-    //   ethSigner,
-    //   CHAIN_ID_APTOS,
-    //   tokenHash
-    // );
-    // console.log(tokenAddress);
-    // assertIsNotNull(tokenAddress);
-
-    // // transfer NFT from Ethereum back to Aptos
-    // const ethTransferTx = await transferFromEth(
-    //   ETH_NFT_BRIDGE_ADDRESS,
-    //   ethSigner,
-    //   tokenAddress,
-    //   0,
-    //   CHAIN_ID_APTOS,
-    //   tryNativeToUint8Array(aptosAccount.address().toString(), CHAIN_ID_APTOS)
-    // );
-    // expect(ethTransferTx.status).toBe(1);
-
-    // // observe tx and get vaa
-
-    // // redeem NFT on Aptos
-
-    // check NFT is the same
+    ).resolves.toBe(true);
+    expect(
+      getOriginalAssetAptos(
+        aptosClient,
+        APTOS_NFT_BRIDGE_ADDRESS,
+        foreignAssetTokenId
+      )
+    ).resolves.toStrictEqual({
+      isWrapped: false,
+      chainId: CHAIN_ID_APTOS,
+      assetAddress: tokenAddressAptos,
+    });
   });
 
   test("Transfer Solana SPL to Aptos", async () => {
@@ -359,7 +399,9 @@ describe("Aptos NFT SDK tests", () => {
       new Uint8Array(solanaTransferVaaParsed.tokenAddress)
     );
     assertIsNotNull(tokenData);
-    expect(tokenData.collectionName).toBe("Wormhole Bridged Solana-NFT"); // this will change if SPL cache is deprecated in favor of separate collections
+    expect(tokenData.token_data_id.collection).toBe(
+      "Wormhole Bridged Solana-NFT" // this will change if SPL cache is deprecated in favor of separate collections
+    );
 
     // check if token is in user's account
     const events = (await aptosClient.getEventsByEventHandle(

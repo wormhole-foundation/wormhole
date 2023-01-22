@@ -1,7 +1,15 @@
-import { AptosAccount, AptosClient, BCS, TxnBuilderTypes, Types } from "aptos";
+import {
+  AptosAccount,
+  AptosClient,
+  BCS,
+  HexString,
+  TokenTypes,
+  TxnBuilderTypes,
+  Types,
+} from "aptos";
 import { hexZeroPad } from "ethers/lib/utils";
 import { sha3_256 } from "js-sha3";
-import { TokenBridgeState, TokenId } from "../aptos/types";
+import { NftBridgeState, TokenBridgeState } from "../aptos/types";
 import {
   ChainId,
   ChainName,
@@ -248,7 +256,7 @@ export const coalesceModuleAddress = (str: string): string => {
 
 /**
  * The NFT bridge creates resource accounts, which in turn create a collection
- * and mint a singl token for each transferred NFT. This method derives the
+ * and mint a single token for each transferred NFT. This method derives the
  * address of that resource account from the given origin chain and address.
  * @param nftBridgeAddress
  * @param originChain
@@ -276,26 +284,80 @@ export const deriveResourceAccountAddress = async (
 };
 
 /**
- * Native tokens in Aptos are represented by a single token hash that is
- * derived from creator address, collection name, token name, and property
- * version, ensuring that it is unique. This method derives that token hash.
+ * Get a hash that uniquely identifies a collection on Aptos.
+ * @param tokenId
+ * @returns Collection hash
+ */
+export const deriveCollectionHashFromTokenId = async (
+  tokenId: TokenTypes.TokenId
+): Promise<Uint8Array> => {
+  const inputs = Buffer.concat([
+    BCS.bcsToBytes(
+      TxnBuilderTypes.AccountAddress.fromHex(tokenId.token_data_id.creator)
+    ),
+    Buffer.from(sha3_256(tokenId.token_data_id.collection), "hex"),
+  ]);
+  return new Uint8Array(Buffer.from(sha3_256(inputs), "hex"));
+};
+
+/**
+ * Get a hash that uniquely identifies a token on Aptos.
+ *
+ * Native tokens in Aptos are uniquely identified by a hash of creator address,
+ * collection name, token name, and property version. This hash is converted to
+ * a bigint in the `tokenId` field in NFT transfer VAAs.
  * @param tokenId
  * @returns Token hash identifying the token
  */
 export const deriveTokenHashFromTokenId = async (
-  tokenId: TokenId
+  tokenId: TokenTypes.TokenId
 ): Promise<Uint8Array> => {
   const propertyVersion = Buffer.alloc(8);
-  propertyVersion.writeBigUInt64BE(BigInt(tokenId.propertyVersion));
+  propertyVersion.writeBigUInt64BE(BigInt(tokenId.property_version));
   const inputs = Buffer.concat([
-    BCS.bcsToBytes(
-      TxnBuilderTypes.AccountAddress.fromHex(tokenId.creatorAddress)
-    ),
-    Buffer.from(sha3_256(tokenId.collectionName), "hex"),
-    Buffer.from(sha3_256(tokenId.tokenName), "hex"),
+    Buffer.from(tokenId.token_data_id.creator, "hex"),
+    Buffer.from(sha3_256(tokenId.token_data_id.collection), "hex"),
+    Buffer.from(sha3_256(tokenId.token_data_id.name), "hex"),
     propertyVersion,
   ]);
   return new Uint8Array(Buffer.from(sha3_256(inputs), "hex"));
+};
+
+/**
+ * Get creator address, collection name, token name, and property version from
+ * a token hash. Note that this method is meant to be used for native tokens
+ * that have already been registered in the NFT bridge.
+ *
+ * The token hash is stored in the `tokenId` field of NFT transfer VAAs and
+ * is calculated by the operations in `deriveTokenHashFromTokenId`.
+ * @param client
+ * @param nftBridgeAddress
+ * @param tokenHash Token hash
+ * @returns Token ID
+ */
+export const getTokenIdFromTokenHash = async (
+  client: AptosClient,
+  nftBridgeAddress: string,
+  tokenHash: Uint8Array
+): Promise<TokenTypes.TokenId> => {
+  const state = (
+    await client.getAccountResource(
+      nftBridgeAddress,
+      `${nftBridgeAddress}::state::State`
+    )
+  ).data as NftBridgeState;
+  const handle = state.native_infos.handle;
+  const { token_data_id, property_version } = (await client.getTableItem(
+    handle,
+    {
+      key_type: `${nftBridgeAddress}::token_hash::TokenHash`,
+      value_type: `0x3::token::TokenId`,
+      key: {
+        hash: HexString.fromUint8Array(tokenHash).hex(),
+      },
+    }
+  )) as TokenTypes.TokenId & { __headers: unknown };
+  return { token_data_id, property_version };
 };
 
 /**
