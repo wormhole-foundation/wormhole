@@ -54,10 +54,12 @@ var BLOCKCHAIN_1 = []string{
 
 // performance config
 func TestMain(m *testing.M) {
-	blockPollInterval = BLOCK_POLL_INTERVAL
-	initialTxProcDelay = blockPollInterval*2 + time.Millisecond
-	workerCountTxProcessing = 1
-	os.Exit(m.Run())
+	if os.Getenv("SKIP_NEAR") == "" {
+		blockPollInterval = BLOCK_POLL_INTERVAL
+		initialTxProcDelay = blockPollInterval*2 + time.Millisecond
+		workerCountTxProcessing = 1
+		os.Exit(m.Run())
+	}
 }
 
 func portalEmitterAddress() vaa.Address {

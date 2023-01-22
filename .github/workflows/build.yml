@@ -303,12 +303,31 @@ jobs:
 
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
+        env:
+          SKIP_NEAR: true
         run: cd node && go test -v -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
       - name: Ensure generated proto matches
         run: |
           rm -rf node/pkg/proto
           docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
           git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`rm -rf node/pkg/proto && docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .\` and commit the result" >&2 && exit 1)
+  # The node near tests have been flaky, make them optional while they are investigated
+  node-tests-including-near:
+    # The linter is slow enough that we want to run it on the self-hosted runner
+    runs-on: tilt-kube-public
+    concurrency:
+      group: ${{ github.workflow }}-near-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Clear repository
+        run: |
+          rm -rf $GITHUB_WORKSPACE && mkdir $GITHUB_WORKSPACE
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.19.3"
+      - name: Run golang tests
+        run: cd node && go test -v -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
   # Run Rust lints and tests
   rust-lint-and-tests:
