@@ -1,3 +1,5 @@
+import { TokenTypes } from "aptos";
+
 export type TokenBridgeState = {
   consumed_vaas: {
     elems: {
@@ -74,11 +76,7 @@ export type CreateTokenDataEvent = {
   type: "0x3::token::CreateTokenDataEvent";
   data: {
     description: string;
-    id: {
-      collection: string;
-      creator: string;
-      name: string;
-    };
+    id: TokenTypes.TokenDataId;
     maximum: string;
     mutability_config: {
       description: boolean;
@@ -108,22 +106,6 @@ export type DepositEvent = {
   type: "0x3::token::DepositEvent";
   data: {
     amount: string;
-    id: RawTokenId;
+    id: TokenTypes.TokenId;
   };
-};
-
-export type RawTokenId = {
-  property_version: string;
-  token_data_id: {
-    collection: string;
-    creator: string;
-    name: string;
-  };
-};
-
-export type TokenId = {
-  creatorAddress: string;
-  collectionName: string;
-  tokenName: string;
-  propertyVersion: number;
 };

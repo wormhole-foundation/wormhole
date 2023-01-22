@@ -5,7 +5,7 @@ import {
   PublicKeyInitData,
 } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
-import { AptosClient, Types } from "aptos";
+import { AptosClient, TokenTypes, Types } from "aptos";
 import { BigNumber, ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { WormholeWrappedInfo } from "..";
@@ -20,6 +20,7 @@ import {
   CHAIN_ID_APTOS,
   CHAIN_ID_SOLANA,
   coalesceChainId,
+  deriveCollectionHashFromTokenId,
   hex,
 } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
@@ -182,16 +183,26 @@ export async function getOriginalAssetTerra(
   };
 }
 
-// TODO(aki): should this also return tokenId?
+/**
+ * Given a token ID, returns the original asset chain and address. If this is a
+ * native asset, the asset address will be the collection hash.
+ * @param client
+ * @param nftBridgeAddress
+ * @param tokenId An object containing creator address, collection name, token
+ * name, and property version, which together uniquely identify a token on
+ * Aptos. For wrapped assets, property version will be 0.
+ * @returns Object containing origin chain and Wormhole compatible 32-byte asset
+ * address.
+ */
 export async function getOriginalAssetAptos(
   client: AptosClient,
   nftBridgeAddress: string,
-  creatorAddress: string
+  tokenId: TokenTypes.TokenId
 ): Promise<WormholeWrappedInfo> {
   try {
     const originInfo = (
       await client.getAccountResource(
-        creatorAddress,
+        tokenId.token_data_id.creator,
         `${nftBridgeAddress}::state::OriginInfo`
       )
     ).data as OriginInfo;
@@ -204,15 +215,20 @@ export async function getOriginalAssetAptos(
         hex(originInfo.token_address.external_address)
       ),
     };
-  } catch (e) {
-    if (e instanceof Types.ApiError && e.status === 404) {
-      return {
-        isWrapped: false,
-        chainId: CHAIN_ID_APTOS,
-        assetAddress: new Uint8Array(hex(creatorAddress)),
-      };
+  } catch (e: any) {
+    if (
+      !(
+        (e instanceof Types.ApiError || e.errorCode === "resource_not_found") &&
+        e.status === 404
+      )
+    ) {
+      throw e;
     }
-
-    throw e;
   }
+
+  return {
+    isWrapped: false,
+    chainId: CHAIN_ID_APTOS,
+    assetAddress: await deriveCollectionHashFromTokenId(tokenId),
+  };
 }

@@ -56,8 +56,11 @@ export async function getIsWrappedAssetAptos(
       `${nftBridgeAddress}::state::OriginInfo`
     );
     return true;
-  } catch (e) {
-    if (e instanceof Types.ApiError && e.status === 404) {
+  } catch (e: any) {
+    if (
+      (e instanceof Types.ApiError || e.errorCode === "resource_not_found") &&
+      e.status === 404
+    ) {
       return false;
     }
 
