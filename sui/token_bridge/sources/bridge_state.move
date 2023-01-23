@@ -44,6 +44,8 @@ module token_bridge::bridge_state {
     friend token_bridge::token_bridge_vaa_test;
     #[test_only]
     friend token_bridge::complete_transfer_with_payload_test;
+    #[test_only]
+    friend token_bridge::transfer_token_test;
 
     /// Capability for creating a bridge state object, granted to sender when this
     /// module is deployed
@@ -207,6 +209,16 @@ module token_bridge::bridge_state {
     ) {
         let wrapped_info = dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(&mut bridge_state.id);
         coin::burn<CoinType>(&mut wrapped_info.treasury_cap, coin);
+    }
+
+    // Note: we only examine the balance of native assets, because the token bridge
+    // does not custody wrapped assets (only mints and burns them)
+    #[test_only]
+    public fun balance<CoinType>(
+        bridge_state: &mut BridgeState
+    ): u64 {
+        let native_asset = dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(&mut bridge_state.id);
+        coin::value<CoinType>(&native_asset.custody)
     }
 
     public(friend) fun publish_message(
