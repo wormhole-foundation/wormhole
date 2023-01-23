@@ -218,7 +218,6 @@ jobs:
       - name: Run tests via docker
         run: make test-docker
 
-
   terra:
     runs-on: ubuntu-20.04
     steps:
@@ -277,8 +276,8 @@ jobs:
           go-version: "1.19.3"
       - run: cd sdk/vaa && go test
 
-  # Run Go linters, Go tests and other outside-of-Tilt things.
-  lint-and-tests:
+  # Run Go linters
+  node-lint:
     # The linter is slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
@@ -300,15 +299,30 @@ jobs:
         run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.46.2
       - name: Run linters
         run: make generate && ./scripts/lint.sh -g lint
-
-      # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
-      - name: Run golang tests
-        run: cd node && go test -v -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
       - name: Ensure generated proto matches
         run: |
           rm -rf node/pkg/proto
           docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
           git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`rm -rf node/pkg/proto && docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .\` and commit the result" >&2 && exit 1)
+
+  # Run Go tests
+  node-tests:
+    # The tests are slow enough that we want to run it on the self-hosted runner
+    runs-on: tilt-kube-public
+    concurrency:
+      group: ${{ github.workflow }}-test-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Clear repository
+        run: |
+          rm -rf $GITHUB_WORKSPACE && mkdir $GITHUB_WORKSPACE
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.19.3"
+      # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
+      - name: Run golang tests
+        run: cd node && go test -v -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
   # Run Rust lints and tests
   rust-lint-and-tests:
