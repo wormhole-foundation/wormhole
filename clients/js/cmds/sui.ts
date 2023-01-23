@@ -3,11 +3,8 @@ import { callEntryFunc, publishPackage} from "../sui";
 import { spawnSync } from 'child_process';
 import { NETWORKS } from "../networks";
 import { config } from '../config';
-import { BCS, getSuiMoveConfig } from "@mysten/bcs";
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
-
-const bcs = new BCS(getSuiMoveConfig());
 
 function assertNetwork(n: string): asserts n is Network {
   if (
@@ -121,7 +118,7 @@ exports.builder = function(y: typeof yargs) {
       console.log("network: ", network)
       console.log("rpc: ", rpc)
       console.log("package id: ", package_id)
-      console.log("deployer: ", deployer)
+      console.log("deployer object id: ", deployer)
       console.log("chain-id: ", chain_id)
       console.log("governance-chain-id: ", governance_chain_id)
       console.log("governance-contract: ", governance_contract)
@@ -143,7 +140,55 @@ exports.builder = function(y: typeof yargs) {
         ],
     )
     })
-    .command("init-coin", "Publish coin contract", (yargs) => {
+    .command("init-tokenbridge", "Init token bridge contract", (yargs) => {
+      return yargs
+        .option("network", network_options)
+        .option("rpc", rpc_description)
+        .option("package-id", {
+          alias: "pid",
+          describe: "Package/module ID",
+          required: true,
+          type: "string"
+        })
+        .option("deployer-capability", {
+          alias: "d",
+          describe: "Deployer capability object ID",
+          required: true,
+          type: "string",
+        })
+        .option("emitter-capability", {
+          alias: "e",
+          describe: "Emitter capability object ID",
+          required: true,
+          type: "string",
+        })
+    }, async (argv) => {
+      const network = argv.network.toUpperCase();
+      assertNetwork(network);
+      const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
+      const package_id = argv["package-id"]
+      const deployer = argv["deployer-capability"];
+      const emitter = argv["emitter-capability"];
+      console.log("network: ", network)
+      console.log("rpc: ", rpc)
+      console.log("package id: ", package_id)
+      console.log("deployer object id: ", deployer)
+      console.log("emitter object id: ", emitter)
+
+      await callEntryFunc(
+        network,
+        rpc,
+        String(package_id),
+        "bridge_state",
+        "init_and_share_state",
+        [],
+        [
+          deployer,
+          emitter
+        ],
+    )
+    })
+    .command("publish-coin", "Publish coin contract", (yargs) => {
       return yargs
         .option("network", network_options)
         .option("rpc", rpc_description)
@@ -157,4 +202,3 @@ exports.builder = function(y: typeof yargs) {
     })
     .strict().demandCommand();
 }
-
