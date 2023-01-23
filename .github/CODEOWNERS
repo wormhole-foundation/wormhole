@@ -42,6 +42,9 @@
 ## DB
 /node/pkg/db/ @bruce-riley
 
+## Accountant
+/node/pkg/accountant/ @bruce-riley @jynnantonix
+
 ## Governor
 /node/pkg/governor/ @bruce-riley @claudijd
 
