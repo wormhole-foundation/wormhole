@@ -7,9 +7,12 @@ import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import * as fs from "fs";
 import { readdirSync, } from "fs";
 import * as util from 'util'
-import { toUtf8 } from "@cosmjs/encoding";
+import { Bech32, toHex, toUtf8, fromBase64 } from "@cosmjs/encoding";
+import { zeroPad, keccak256 } from "ethers/lib/utils.js";
+import * as elliptic from "elliptic"
 
 import * as devnetConsts from "./devnet-consts.json"
+import { concatArrays, encodeUint8 } from "./utils";
 
 if (process.env.INIT_SIGNERS === "undefined") {
   let msg = `.env is missing. run "make contracts-tools-deps" to fetch.`
@@ -19,6 +22,7 @@ if (process.env.INIT_SIGNERS === "undefined") {
 
 const readFileAsync = util.promisify(fs.readFile);
 
+
 /*
   NOTE: Only append to this array: keeping the ordering is crucial, as the
   contracts must be imported in a deterministic order so their addresses remain
@@ -26,10 +30,17 @@ const readFileAsync = util.promisify(fs.readFile);
 */
 type ContractName = string
 const artifacts: ContractName[] = [
+  "wormhole.wasm",
+  "token_bridge_terra_2.wasm",
+  "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
+  "mock_bridge_integration_2.wasm",
+  // "shutdown_core_bridge_cosmwasm.wasm",
+  // "shutdown_token_bridge_cosmwasm.wasm",
   "wormchain_accounting.wasm",
 ];
 
+const WORMCHAIN_ID = 3104
 const ARTIFACTS_PATH = "../artifacts/"
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
 
@@ -73,6 +84,7 @@ async function main() {
   const denom = devnetConsts.chains[3104].addresses.native.denom
   const mnemonic = devnetConsts.chains[3104].accounts.wormchainNodeOfGuardian0.mnemonic
   const addressPrefix = "wormhole"
+  const signerPk = String(process.env.TEST_SIGNER_PK)
 
   const w = await Secp256k1HdWallet.fromMnemonic(mnemonic, { prefix: addressPrefix })
 
@@ -115,15 +127,31 @@ async function main() {
     return accum
   }, Object())
 
-  // Instantiate contracts.
+  /* Instantiate contracts.
+   *
+   * We instantiate the core contracts here (i.e. wormhole itself and the bridge contracts).
+   * The wrapped asset contracts don't need to be instantiated here, because those
+   * will be instantiated by the on-chain bridge contracts on demand.
+   * */
+
+  // Governance constants defined by the Wormhole spec.
+  const govChain = 1;
+  const govAddress =
+    "0000000000000000000000000000000000000000000000000000000000000004";
 
   async function instantiate(code_id: number, inst_msg: any, label: string) {
-    let inst = await cwc.instantiate(signer, code_id, inst_msg, label, "auto", {})
-    let addr = inst.contractAddress
-    let txHash = inst.transactionHash
-    console.log(`deployed contract ${label}, codeID: ${code_id}, address: ${addr}, txHash: ${txHash}`)
+    try {
+      let inst = await cwc.instantiate(signer, code_id, inst_msg, label, "auto", {})
+      let addr = inst.contractAddress
+      let txHash = inst.transactionHash
+      console.log(`deployed contract ${label}, codeID: ${code_id}, address: ${addr}, txHash: ${txHash}`)
 
-    return addr
+      return addr
+    }
+    catch (e) {
+      console.error(`failed instantiating ${label}. error: `, e)
+      throw e
+    }
   }
 
   // Instantiate contracts.
@@ -136,6 +164,50 @@ async function main() {
     throw "failed to get initial guardians from .env file.";
   }
 
+  console.log("going to instantiate wormhole core")
+  addresses["wormhole.wasm"] = await instantiate(
+    codeIds["wormhole.wasm"],
+    {
+      gov_chain: govChain,
+      gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+      guardian_set_expirity: 864000000,
+      initial_guardian_set: {
+        addresses: init_guardians.map((hex: string) => {
+          return {
+            bytes: Buffer.from(hex, "hex").toString("base64"),
+          };
+        }),
+        expiration_time: 0,
+      },
+      chain_id: WORMCHAIN_ID,
+      fee_denom: "uworm",
+    },
+    "wormhole"
+  );
+  console.log("done instantiating wormhole core")
+
+  console.log("going to instantiate token bridge")
+  const tb_inst = {
+    chain_id: WORMCHAIN_ID,
+    gov_chain: govChain,
+    gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+    wormhole_contract: "", // addresses["wormhole.wasm"],
+    wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+    native_denom: "uworm",
+    native_symbol: "WORM",
+    native_decimals: 6,
+  }
+  addresses["token_bridge_terra_2.wasm"] = await instantiate(
+    codeIds["token_bridge_terra_2.wasm"],
+    tb_inst,
+    "tokenBridge"
+  );
+  console.log("Wormchain TokenBridge address in wormhole (hex) format",
+    convert_address_to_hex(addresses["token_bridge_terra_2.wasm"]))
+  console.log("done instantiating token bridge")
+
+
+  console.log("going to instantiate mock cw20")
   addresses["mock.wasm"] = await instantiate(
     codeIds["cw20_base.wasm"],
     {
@@ -152,7 +224,10 @@ async function main() {
     },
     "mock"
   );
-  console.log('instantiated cw20 MOCK token: ', addresses["mock.wasm"])
+  console.log("done instantiating mock cw20 ")
+
+
+  /* Registrations: tell the bridge contracts to know about each other */
 
 
   const registrations: { [chainName: string]: string } = {
@@ -168,14 +243,36 @@ async function main() {
   }
 
 
+  console.log("going to send token bridge registrations")
+  for (let chain in registrations) {
+    const body = { data: Buffer.from(registrations[chain], "hex").toString("base64") };
+    const msg = {
+      typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
+      value: MsgExecuteContract.fromPartial({
+        sender: signer,
+        contract: addresses["token_bridge_terra_2.wasm"],
+        msg: toUtf8(JSON.stringify({
+          submit_vaa: body
+        }))
+      })
+    }
+    const res = await cwc.signAndBroadcast(signer, [msg], "auto")
+    console.log(`sent token bridge registration for ${chain}, tx: `, res.transactionHash);
+  }
+  console.log("done sending token bridge registrations")
+
+
+  console.log("going to instantiate accounting")
   const instantiateMsg = {}
   addresses["wormchain_accounting.wasm"] = await instantiate(
     codeIds["wormchain_accounting.wasm"],
     instantiateMsg,
     "wormchainAccounting"
   )
-  console.log("instantiated accounting: ", addresses["wormchain_accounting.wasm"])
+  console.log("done instantiating accounting")
 
+
+  console.log("going to send accounting registrations")
   const accountingRegistrations = Object.values(registrations)
     .map(r => Buffer.from(r, "hex").toString("base64"))
 
@@ -193,6 +290,14 @@ async function main() {
   }
   const res = await cwc.signAndBroadcast(signer, [msg], "auto");
   console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
+  console.log("done sending accounting registrations")
+
+
+  // Terra addresses are "human-readable", but for cross-chain registrations, we
+  // want the "canonical" version
+  function convert_address_to_hex(human_addr: string) {
+    return "0x" + toHex(zeroPad(Bech32.decode(human_addr).data, 32));
+  }
 
 }
 
