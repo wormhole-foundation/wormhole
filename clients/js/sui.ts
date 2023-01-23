@@ -32,7 +32,7 @@ export async function publishPackage(
   console.log("publish package rpc: ", rpc)
   console.log("package path is: ", packagePath)
   let signer = loadSigner(network, rpc)
-  console.log("signer pubkey is: ", signer)
+  console.log("signer pubkey is: ", signer.getAddress())
   const compiledModules: string[] = JSON.parse(
   execSync(
     `sui move build --dump-bytecode-as-base64 --path ${packagePath}`,
@@ -58,13 +58,17 @@ export async function callEntryFunc(
     args: Array<any>,
 ) {
     let signer = loadSigner(network, rpc);
+    console.log("network: ", network)
+    console.log("rpc: ", rpc)
+    console.log("package object id: ", packageObjectId)
+    console.log("module: ", module)
     const moveCallTxn = await signer.executeMoveCall({
         packageObjectId: packageObjectId,
         module: module,
         function: func,
         typeArguments: type_args,
         arguments: args,
-        gasBudget: 20000,
+        gasBudget: 30000,
       });
       console.log('moveCallTxn', moveCallTxn);
 }
