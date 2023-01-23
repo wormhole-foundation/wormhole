@@ -127,3 +127,57 @@ module token_bridge::transfer_tokens {
         transfer_result
     }
 }
+
+#[test_only]
+module token_bridge::transfer_token_test {
+    // use std::bcs::{Self};
+
+    // use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, ctx, take_from_address, return_to_address};
+    // use sui::coin::{Self, Coin, CoinMetadata};
+
+    // use wormhole::myu16::{Self as u16};
+    // use wormhole::external_address::{Self};
+
+    // use token_bridge::normalized_amount::{Self};
+    // use token_bridge::transfer::{Self, Transfer};
+    // use token_bridge::bridge_state::{Self, BridgeState};
+    // use token_bridge::coin_witness::{Self, COIN_WITNESS};
+    // use token_bridge::coin_witness_test::{test_register_wrapped_};
+    // use token_bridge::complete_transfer::{Self};
+    // use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
+    // use token_bridge::native_coin_witness_v2::{Self, NATIVE_COIN_WITNESS_V2};
+    // use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
+
+    // use wormhole::state::{Self as wormhole_state, State};
+
+    // fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+    // fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+    // struct OTHER_COIN_WITNESS has drop {}
+
+    // #[test]
+    // fun test_transfer_token(){
+    //     let (admin, fee_recipient_person, _) = people();
+    //     let test = scenario();
+    //     test = set_up_wormhole_core_and_token_bridges(admin, test);
+    //     next_tx(&mut test, admin);{
+    //         native_coin_witness::test_init(ctx(&mut test));
+    //     };
+    //     // register native asset type with the token bridge
+    //     next_tx(&mut test, admin);{
+    //         let bridge_state = take_shared<BridgeState>(&test);
+    //         let worm_state = take_shared<State>(&test);
+    //         let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+    //         bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+    //             &mut worm_state,
+    //             &mut bridge_state,
+    //             &coin_meta,
+    //             ctx(&mut test)
+    //         );
+    //         return_shared<BridgeState>(bridge_state);
+    //         return_shared<State>(worm_state);
+    //         return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+    //     };
+    // }
+
+}
