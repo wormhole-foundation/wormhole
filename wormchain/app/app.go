@@ -319,8 +319,6 @@ func New(
 		app.BankKeeper,
 	)
 
-	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
-
 	stakingKeeper := stakingkeeper.NewKeeper(
 		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.WormholeKeeper, app.GetSubspace(stakingtypes.ModuleName),
 	)
@@ -414,6 +412,8 @@ func New(
 	)
 	permissionedWasmKeeper := wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
 	app.WormholeKeeper.SetWasmdKeeper(permissionedWasmKeeper)
+	// the wormhole module must be instantiated after the wasmd module
+	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
