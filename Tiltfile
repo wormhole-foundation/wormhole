@@ -756,6 +756,13 @@ if wormchain:
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
     )
 
+    docker_build(
+        ref = "vue-export",
+        context = ".",
+        dockerfile = "./wormchain/Dockerfile.proto",
+        target = "vue-export",
+    )
+
     def build_wormchain_yaml(yaml_path, num_instances):
         wormchain_yaml = read_yaml_stream(yaml_path)
 
