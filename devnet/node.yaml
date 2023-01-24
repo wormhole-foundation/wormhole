@@ -116,7 +116,7 @@ spec:
             # - --accountantWS
             # - http://wormchain:26657
             # - --accountantContract
-            # - wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
+            # - wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465
             # - --accountantCheckEnabled=true
             # - --terraWS
             # - ws://terra-terrad:26657/websocket

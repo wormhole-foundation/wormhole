@@ -11,11 +11,14 @@
   "keywords": [],
   "author": "",
   "dependencies": {
+    "@certusone/wormhole-sdk": "0.9.9",
     "@cosmjs/cosmwasm-stargate": "0.29.5",
+    "@wormhole-foundation/wormchain-sdk": "file:../../ts-sdk",
     "cosmwasm": "1.1.1",
     "dotenv": "16.0.3",
     "elliptic": "6.5.4",
     "ethers": "5.7.2",
+    "js-sha3": "0.8.0",
     "web3-eth-abi": "1.8.1",
     "yargs": "17.6.2"
   },

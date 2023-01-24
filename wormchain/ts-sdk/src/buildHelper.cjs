@@ -11,7 +11,6 @@ const CERTUS_DIRECTORY =
 const COSMOS_DIRECTORY = "../vue/src/store/generated/cosmos/cosmos-sdk/";
 const WASMD_DIRECTORY = "../vue/src/store/generated/CosmWasm/wasmd/";
 const MODULE_DIRECTORY = "../ts-sdk/src/modules/";
-const VUE_DIRECTORY = "../vue";
 
 function execWrapper(command) {
   execSync(command, (error, stdout, stderr) => {

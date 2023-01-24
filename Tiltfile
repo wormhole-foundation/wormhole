@@ -757,9 +757,16 @@ if wormchain:
     )
 
     docker_build(
+        ref = "vue-export",
+        context = ".",
+        dockerfile = "./wormchain/Dockerfile.proto",
+        target = "vue-export",
+    )
+
+    docker_build(
         ref = "wormchain-deploy",
-        context = "./wormchain/contracts",
-        dockerfile = "./cosmwasm/Dockerfile.deploy",
+        context = "./wormchain",
+        dockerfile = "./wormchain/Dockerfile.deploy",
     )
 
     def build_wormchain_yaml(yaml_path, num_instances):

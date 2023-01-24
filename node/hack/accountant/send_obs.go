@@ -34,7 +34,7 @@ func main() {
 
 	wormchainURL := string("localhost:9090")
 	wormchainKeyPath := string("./dev.wormchain.key")
-	contract := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
+	contract := "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
 	guardianKeyPath := string("./dev.guardian.key")
 
 	wormchainKey, err := wormconn.LoadWormchainPrivKey(wormchainKeyPath, "test0000")
