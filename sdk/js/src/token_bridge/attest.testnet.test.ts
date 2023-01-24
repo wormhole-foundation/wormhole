@@ -1,12 +1,12 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
-import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
+import { DEFAULT_STD_FEE, getStdFee } from "@injectivelabs/utils";
 import {
   TxClient,
   PrivateKey,
-  TxGrpcClient,
+  TxGrpcApi,
   ChainRestAuthApi,
   createTransaction,
-  MsgExecuteContract,
+  MsgExecuteContractCompat,
 } from "@injectivelabs/sdk-ts";
 import { test } from "@jest/globals";
 import { CONTRACTS } from "..";
@@ -33,7 +33,7 @@ test.skip("testnet - injective attest native token", async () => {
 
   /** Prepare the Message */
   console.log("Prepare the message");
-  const msg = MsgExecuteContract.fromJSON({
+  const msg = MsgExecuteContractCompat.fromJSON({
     contractAddress: CONTRACTS.TESTNET.injective.token_bridge,
     sender: injectiveAddress,
     exec: {
@@ -58,10 +58,7 @@ test.skip("testnet - injective attest native token", async () => {
   const { signBytes, txRaw } = createTransaction({
     message: msg.toDirectSign(),
     memo: "",
-    fee: {
-      ...DEFAULT_STD_FEE,
-      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
-    },
+    fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: publicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -83,7 +80,7 @@ test.skip("testnet - injective attest native token", async () => {
   console.log("Calculate hash");
   console.log(`Transaction Hash: ${await TxClient.hash(txRaw)}`);
 
-  const txService = new TxGrpcClient(network.sentryGrpcApi);
+  const txService = new TxGrpcApi(network.sentryGrpcApi);
 
   /** Simulate transaction */
   console.log("Simulate transaction");

@@ -37,7 +37,7 @@ import {
   callFunctionNear,
   hashLookup,
 } from "../utils";
-import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
   createCompleteTransferNativeInstruction,
   createCompleteTransferWrappedInstruction,

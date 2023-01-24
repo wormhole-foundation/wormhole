@@ -1,8 +1,8 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
-import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
+import { getStdFee, DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
   PrivateKey,
-  TxGrpcClient,
+  TxGrpcApi,
   ChainRestAuthApi,
   createTransaction,
   MsgExecuteContract,
@@ -137,12 +137,13 @@ export async function execute_injective(
   });
   console.log("transaction:", transaction);
 
-  const accountDetails = await new ChainRestAuthApi(
-    network.sentryHttpApi
-  ).fetchAccount(walletInjAddr);
+  const accountDetails = await new ChainRestAuthApi(network.rest).fetchAccount(
+    walletInjAddr
+  );
   const { signBytes, txRaw } = createTransaction({
     message: transaction.toDirectSign(),
     memo: "",
+    fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -160,7 +161,7 @@ export async function execute_injective(
   /** Append Signatures */
   txRaw.setSignaturesList([sig]);
 
-  const txService = new TxGrpcClient(network.sentryGrpcApi);
+  const txService = new TxGrpcApi(network.grpc);
 
   console.log("simulate transaction...");
   /** Simulate transaction */
