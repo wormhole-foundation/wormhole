@@ -135,8 +135,10 @@ export interface RpcStatus {
 }
 
 /**
- * ModuleVersion specifies a module and its consensus version.
- */
+* ModuleVersion specifies a module and its consensus version.
+
+Since: cosmos-sdk 0.43
+*/
 export interface V1Beta1ModuleVersion {
   name?: string;
 
@@ -207,6 +209,8 @@ export interface V1Beta1QueryCurrentPlanResponse {
 /**
 * QueryModuleVersionsResponse is the response type for the Query/ModuleVersions
 RPC method.
+
+Since: cosmos-sdk 0.43
 */
 export interface V1Beta1QueryModuleVersionsResponse {
   /** module_versions is a list of module names with their consensus versions. */
@@ -451,7 +455,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     });
 
   /**
-   * No description
+   * @description Since: cosmos-sdk 0.43
    *
    * @tags Query
    * @name QueryModuleVersions
