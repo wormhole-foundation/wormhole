@@ -155,7 +155,10 @@ fn transfer<C: CustomQuery>(deps: Deps<C>, t: &Transfer) -> anyhow::Result<(Acco
         Account { key, balance }
     };
 
-    let mut dst = {
+    let mut dst = if t.key.emitter_chain() == t.data.recipient_chain {
+        // This is a self-transfer so the source and destination accounts are the same.
+        src.clone()
+    } else {
         let key = account::Key::new(
             t.data.recipient_chain,
             t.data.token_chain,
@@ -180,8 +183,15 @@ fn transfer<C: CustomQuery>(deps: Deps<C>, t: &Transfer) -> anyhow::Result<(Acco
 
     src.lock_or_burn(t.data.amount)
         .context(TransferError::InsufficientSourceBalance)?;
-    dst.unlock_or_mint(t.data.amount)
-        .context(TransferError::InsufficientDestinationBalance)?;
+
+    // If we're doing a transfer on the same chain then apply both changes to the same account.
+    if src.key == dst.key {
+        src.unlock_or_mint(t.data.amount)
+            .context(TransferError::InsufficientDestinationBalance)?;
+    } else {
+        dst.unlock_or_mint(t.data.amount)
+            .context(TransferError::InsufficientDestinationBalance)?;
+    }
 
     Ok((src, dst))
 }
@@ -463,6 +473,120 @@ mod tests {
             .add_attribute("key", serde_json_wasm::to_string(&tx.key).unwrap())
             .add_attribute("data", serde_json_wasm::to_string(&tx.data).unwrap());
         assert_eq!(expected, evt);
+
+        assert_eq!(tx.data, query_transfer(deps.as_ref(), tx.key).unwrap());
+    }
+
+    #[test]
+    fn local_native_transfer() {
+        let mut deps = mock_dependencies();
+        let tx = Transfer {
+            key: transfer::Key::new(3, [1u8; 32].into(), 5),
+            data: transfer::Data {
+                amount: Uint256::from(400u128),
+                token_chain: 3,
+                token_address: [3u8; 32].into(),
+                recipient_chain: 3,
+            },
+        };
+
+        validate_transfer(deps.as_ref(), &tx).unwrap();
+        commit_transfer(deps.as_mut(), tx.clone()).unwrap();
+
+        // Since we transfered within the same chain, the balance should be 0.
+        let src = account::Key::new(
+            tx.key.emitter_chain(),
+            tx.data.token_chain,
+            tx.data.token_address,
+        );
+        assert_eq!(Balance::zero(), query_balance(deps.as_ref(), src).unwrap());
+
+        let dst = account::Key::new(
+            tx.data.recipient_chain,
+            tx.data.token_chain,
+            tx.data.token_address,
+        );
+        assert_eq!(Balance::zero(), query_balance(deps.as_ref(), dst).unwrap());
+
+        assert_eq!(tx.data, query_transfer(deps.as_ref(), tx.key).unwrap());
+    }
+
+    #[test]
+    fn local_wrapped_transfer() {
+        let mut deps = mock_dependencies();
+        let mut tx = Transfer {
+            key: transfer::Key::new(9, [1u8; 32].into(), 5),
+            data: transfer::Data {
+                amount: Uint256::from(400u128),
+                token_chain: 3,
+                token_address: [3u8; 32].into(),
+                recipient_chain: 9,
+            },
+        };
+
+        // A local wrapped transfer is only allowed if we've already issued wrapped tokens.
+        let e = validate_transfer(deps.as_ref(), &tx).unwrap_err();
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::MissingWrappedAccount
+        ));
+
+        let e = commit_transfer(deps.as_mut(), tx.clone())
+            .expect_err("successfully committed duplicate transfer");
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::MissingWrappedAccount
+        ));
+
+        // Issue some wrapped tokens.
+        let wrapped = tx.data.amount.checked_div(Uint256::from(2u128)).unwrap();
+        let m = Modification {
+            sequence: 1,
+            chain_id: tx.key.emitter_chain(),
+            token_chain: tx.data.token_chain,
+            token_address: tx.data.token_address,
+            kind: Kind::Add,
+            amount: wrapped,
+            reason: "test".into(),
+        };
+        modify_balance(deps.as_mut(), m).unwrap();
+
+        // The transfer should still fail because we're trying to move more wrapped tokens than
+        // were issued.
+        let e = validate_transfer(deps.as_ref(), &tx).unwrap_err();
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::InsufficientSourceBalance
+        ));
+
+        let e = commit_transfer(deps.as_mut(), tx.clone())
+            .expect_err("successfully committed duplicate transfer");
+        assert!(matches!(
+            e.downcast().unwrap(),
+            TransferError::InsufficientSourceBalance
+        ));
+
+        // Lower the amount in the transfer.
+        tx.data.amount = wrapped;
+
+        // Now the transfer should be fine.
+        validate_transfer(deps.as_ref(), &tx).unwrap();
+        commit_transfer(deps.as_mut(), tx.clone()).unwrap();
+
+        // The balance should not have changed.
+        let src = account::Key::new(
+            tx.key.emitter_chain(),
+            tx.data.token_chain,
+            tx.data.token_address,
+        );
+        assert_eq!(wrapped, *query_balance(deps.as_ref(), src).unwrap());
+
+        let dst = account::Key::new(
+            tx.data.recipient_chain,
+            tx.data.token_chain,
+            tx.data.token_address,
+        );
+        assert_eq!(wrapped, *query_balance(deps.as_ref(), dst).unwrap());
 
         assert_eq!(tx.data, query_transfer(deps.as_ref(), tx.key).unwrap());
     }
