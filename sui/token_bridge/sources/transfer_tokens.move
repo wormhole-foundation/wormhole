@@ -132,14 +132,15 @@ module token_bridge::transfer_tokens {
 module token_bridge::transfer_token_test {
     // use std::bcs::{Self};
     use sui::sui::{SUI};
-    use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, ctx};
+    use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, take_from_address, ctx};
     use sui::coin::{Self, CoinMetadata, TreasuryCap};
 
     // use token_bridge::normalized_amount::{Self};
     // use token_bridge::transfer::{Self, Transfer};
     use token_bridge::transfer_tokens::{transfer_tokens};
     use token_bridge::bridge_state::{Self, BridgeState};
-    // use token_bridge::coin_witness::{Self, COIN_WITNESS};
+    use token_bridge::coin_witness::{Self, COIN_WITNESS};
+    use token_bridge::wrapped::{Self, NewWrappedCoin};
     // use token_bridge::coin_witness_test::{test_register_wrapped_};
     // use token_bridge::complete_transfer::{Self};
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
@@ -197,6 +198,53 @@ module token_bridge::transfer_token_test {
             let cur_bal = bridge_state::balance<NATIVE_COIN_WITNESS>(&mut bridge_state);
             assert!(cur_bal==10000, 0);
             return_shared<BridgeState>(bridge_state);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
+    fun test_transfer_wrapped_token(){
+        let (admin, _, _) = people();
+        let test = scenario();
+        // set up core and token bridges
+        test = set_up_wormhole_core_and_token_bridges(admin, test);
+        // initialize the coin
+        next_tx(&mut test, admin);{
+            coin_witness::test_init(ctx(&mut test));
+        };
+        // register wrapped asset type with the token bridge, mint some coins, initiate transfer
+        next_tx(&mut test, admin);{
+            let bridge_state = take_shared<BridgeState>(&test);
+            let worm_state = take_shared<State>(&test);
+            let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
+            //let treasury_cap = take_shared<TreasuryCap<COIN_WITNESS>>(&test);
+            let new_wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
+
+            // register wrapped asset with the token bridge
+            wrapped::register_wrapped_coin<COIN_WITNESS>(
+                &mut worm_state,
+                &mut bridge_state,
+                new_wrapped_coin,
+                ctx(&mut test)
+            );
+            //let coins = coin::mint<COIN_WITNESS>(&mut treasury_cap, 10000, ctx(&mut test));
+            // TODO- use token bridge::mint to mint some wrapped coins here
+
+            transfer_tokens<COIN_WITNESS>(
+                &mut worm_state,
+                &mut bridge_state,
+                coins,
+                &coin_meta,
+                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
+                3, // recipient chain id
+                x"deadbeef0000beef", // recipient address
+                0, // relayer fee
+                0 // unused field for now
+            );
+            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(worm_state);
+            return_shared<CoinMetadata<COIN_WITNESS>>(coin_meta);
+            return_shared<TreasuryCap<COIN_WITNESS>>(treasury_cap);
         };
         test_scenario::end(test);
     }
