@@ -8,7 +8,7 @@
 //
 // The second phase consists of requesting the status from the contract for everything that is still in the temporary map. For each returned item, we do the following:
 // - If the contract indicates that the transfer has been committed, we validate the digest, then publish it and delete it from the map.
-// - If the contract indicates that the transfer is pending, we continue to wait for it.
+// - If the contract indicates that the transfer is pending, we continue to wait for it to be committed.
 // - If the contract indicates any other status (most likely meaning it does not know about it), we resubmit an observation to the contract
 //
 // Note that any time we are considering resubmitting an observation to the contract, we first check the "submit pending" flag. If that is set, we do not
@@ -34,10 +34,10 @@ import (
 
 const (
 	// auditInterval indicates how often the audit runs (given that it is invoked by the processor once per minute)
-	auditInterval = 30 * time.Second // TODO: Make this something like five minutes?
+	auditInterval = 5 * time.Minute
 
-	// maxSubmitPendingTime indicates how long a transfer can be in the pending state before the audit starts complaining about it.
-	maxSubmitPendingTime = 10 * time.Minute
+	// maxSubmitPendingTime indicates how long a transfer can be in the submit pending state before the audit starts complaining about it.
+	maxSubmitPendingTime = 30 * time.Minute
 )
 
 type (
