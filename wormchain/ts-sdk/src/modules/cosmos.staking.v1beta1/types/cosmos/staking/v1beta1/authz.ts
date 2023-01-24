@@ -5,7 +5,11 @@ import { Writer, Reader } from "protobufjs/minimal";
 
 export const protobufPackage = "cosmos.staking.v1beta1";
 
-/** AuthorizationType defines the type of staking module authorization type */
+/**
+ * AuthorizationType defines the type of staking module authorization type
+ *
+ * Since: cosmos-sdk 0.43
+ */
 export enum AuthorizationType {
   /** AUTHORIZATION_TYPE_UNSPECIFIED - AUTHORIZATION_TYPE_UNSPECIFIED specifies an unknown authorization type */
   AUTHORIZATION_TYPE_UNSPECIFIED = 0,
@@ -54,7 +58,11 @@ export function authorizationTypeToJSON(object: AuthorizationType): string {
   }
 }
 
-/** StakeAuthorization defines authorization for delegate/undelegate/redelegate. */
+/**
+ * StakeAuthorization defines authorization for delegate/undelegate/redelegate.
+ *
+ * Since: cosmos-sdk 0.43
+ */
 export interface StakeAuthorization {
   /**
    * max_tokens specifies the maximum amount of tokens can be delegate to a validator. If it is

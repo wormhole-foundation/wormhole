@@ -53,6 +53,14 @@ export interface Abciv1Beta1Result {
   events?: AbciEvent[];
 }
 
+export interface CryptoPublicKey {
+  /** @format byte */
+  ed25519?: string;
+
+  /** @format byte */
+  secp256k1?: string;
+}
+
 /**
 * `Any` contains an arbitrary serialized protocol buffer message along with a
 URL that describes the type of the serialized message.
@@ -175,6 +183,267 @@ export interface RpcStatus {
   code?: number;
   message?: string;
   details?: ProtobufAny[];
+}
+
+export interface TenderminttypesData {
+  /**
+   * Txs that will be applied by state @ block.Height+1.
+   * NOTE: not all txs here are valid.  We're just agreeing on the order first.
+   * This means that block.AppHash does not include these txs.
+   */
+  txs?: string[];
+}
+
+export interface TenderminttypesEvidence {
+  /** DuplicateVoteEvidence contains evidence of a validator signed two conflicting votes. */
+  duplicate_vote_evidence?: TypesDuplicateVoteEvidence;
+
+  /** LightClientAttackEvidence contains evidence of a set of validators attempting to mislead a light client. */
+  light_client_attack_evidence?: TypesLightClientAttackEvidence;
+}
+
+export interface TenderminttypesValidator {
+  /** @format byte */
+  address?: string;
+  pub_key?: CryptoPublicKey;
+
+  /** @format int64 */
+  voting_power?: string;
+
+  /** @format int64 */
+  proposer_priority?: string;
+}
+
+export interface TypesBlock {
+  /** Header defines the structure of a Tendermint block header. */
+  header?: TypesHeader;
+  data?: TenderminttypesData;
+  evidence?: TypesEvidenceList;
+
+  /** Commit contains the evidence that a block was committed by a set of validators. */
+  last_commit?: TypesCommit;
+}
+
+export interface TypesBlockID {
+  /** @format byte */
+  hash?: string;
+  part_set_header?: TypesPartSetHeader;
+}
+
+export enum TypesBlockIDFlag {
+  BLOCK_ID_FLAG_UNKNOWN = "BLOCK_ID_FLAG_UNKNOWN",
+  BLOCK_ID_FLAG_ABSENT = "BLOCK_ID_FLAG_ABSENT",
+  BLOCK_ID_FLAG_COMMIT = "BLOCK_ID_FLAG_COMMIT",
+  BLOCK_ID_FLAG_NIL = "BLOCK_ID_FLAG_NIL",
+}
+
+/**
+ * Commit contains the evidence that a block was committed by a set of validators.
+ */
+export interface TypesCommit {
+  /** @format int64 */
+  height?: string;
+
+  /** @format int32 */
+  round?: number;
+  block_id?: TypesBlockID;
+  signatures?: TypesCommitSig[];
+}
+
+/**
+ * CommitSig is a part of the Vote included in a Commit.
+ */
+export interface TypesCommitSig {
+  block_id_flag?: TypesBlockIDFlag;
+
+  /** @format byte */
+  validator_address?: string;
+
+  /** @format date-time */
+  timestamp?: string;
+
+  /** @format byte */
+  signature?: string;
+}
+
+/**
+ * DuplicateVoteEvidence contains evidence of a validator signed two conflicting votes.
+ */
+export interface TypesDuplicateVoteEvidence {
+  /**
+   * Vote represents a prevote, precommit, or commit vote from validators for
+   * consensus.
+   */
+  vote_a?: TypesVote;
+
+  /**
+   * Vote represents a prevote, precommit, or commit vote from validators for
+   * consensus.
+   */
+  vote_b?: TypesVote;
+
+  /** @format int64 */
+  total_voting_power?: string;
+
+  /** @format int64 */
+  validator_power?: string;
+
+  /** @format date-time */
+  timestamp?: string;
+}
+
+export interface TypesEvidenceList {
+  evidence?: TenderminttypesEvidence[];
+}
+
+/**
+ * Header defines the structure of a Tendermint block header.
+ */
+export interface TypesHeader {
+  /**
+   * Consensus captures the consensus rules for processing a block in the blockchain,
+   * including all blockchain data structures and the rules of the application's
+   * state transition machine.
+   */
+  version?: VersionConsensus;
+  chain_id?: string;
+
+  /** @format int64 */
+  height?: string;
+
+  /** @format date-time */
+  time?: string;
+  last_block_id?: TypesBlockID;
+
+  /**
+   * commit from validators from the last block
+   * @format byte
+   */
+  last_commit_hash?: string;
+
+  /** @format byte */
+  data_hash?: string;
+
+  /**
+   * validators for the current block
+   * @format byte
+   */
+  validators_hash?: string;
+
+  /** @format byte */
+  next_validators_hash?: string;
+
+  /** @format byte */
+  consensus_hash?: string;
+
+  /** @format byte */
+  app_hash?: string;
+
+  /** @format byte */
+  last_results_hash?: string;
+
+  /**
+   * evidence included in the block
+   * @format byte
+   */
+  evidence_hash?: string;
+
+  /** @format byte */
+  proposer_address?: string;
+}
+
+export interface TypesLightBlock {
+  signed_header?: TypesSignedHeader;
+  validator_set?: TypesValidatorSet;
+}
+
+/**
+ * LightClientAttackEvidence contains evidence of a set of validators attempting to mislead a light client.
+ */
+export interface TypesLightClientAttackEvidence {
+  conflicting_block?: TypesLightBlock;
+
+  /** @format int64 */
+  common_height?: string;
+  byzantine_validators?: TenderminttypesValidator[];
+
+  /** @format int64 */
+  total_voting_power?: string;
+
+  /** @format date-time */
+  timestamp?: string;
+}
+
+export interface TypesPartSetHeader {
+  /** @format int64 */
+  total?: number;
+
+  /** @format byte */
+  hash?: string;
+}
+
+export interface TypesSignedHeader {
+  /** Header defines the structure of a Tendermint block header. */
+  header?: TypesHeader;
+
+  /** Commit contains the evidence that a block was committed by a set of validators. */
+  commit?: TypesCommit;
+}
+
+/**
+* SignedMsgType is a type of signed message in the consensus.
+
+ - SIGNED_MSG_TYPE_PREVOTE: Votes
+ - SIGNED_MSG_TYPE_PROPOSAL: Proposals
+*/
+export enum TypesSignedMsgType {
+  SIGNED_MSG_TYPE_UNKNOWN = "SIGNED_MSG_TYPE_UNKNOWN",
+  SIGNED_MSG_TYPE_PREVOTE = "SIGNED_MSG_TYPE_PREVOTE",
+  SIGNED_MSG_TYPE_PRECOMMIT = "SIGNED_MSG_TYPE_PRECOMMIT",
+  SIGNED_MSG_TYPE_PROPOSAL = "SIGNED_MSG_TYPE_PROPOSAL",
+}
+
+export interface TypesValidatorSet {
+  validators?: TenderminttypesValidator[];
+  proposer?: TenderminttypesValidator;
+
+  /** @format int64 */
+  total_voting_power?: string;
+}
+
+/**
+* Vote represents a prevote, precommit, or commit vote from validators for
+consensus.
+*/
+export interface TypesVote {
+  /**
+   * SignedMsgType is a type of signed message in the consensus.
+   *
+   *  - SIGNED_MSG_TYPE_PREVOTE: Votes
+   *  - SIGNED_MSG_TYPE_PROPOSAL: Proposals
+   */
+  type?: TypesSignedMsgType;
+
+  /** @format int64 */
+  height?: string;
+
+  /** @format int32 */
+  round?: number;
+
+  /** zero if vote is nil. */
+  block_id?: TypesBlockID;
+
+  /** @format date-time */
+  timestamp?: string;
+
+  /** @format byte */
+  validator_address?: string;
+
+  /** @format int32 */
+  validator_index?: number;
+
+  /** @format byte */
+  signature?: string;
 }
 
 /**
@@ -338,6 +607,21 @@ export interface V1Beta1GasInfo {
 }
 
 /**
+* GetBlockWithTxsResponse is the response type for the Service.GetBlockWithTxs method.
+
+Since: cosmos-sdk 0.45.2
+*/
+export interface V1Beta1GetBlockWithTxsResponse {
+  /** txs are the transactions in the block. */
+  txs?: V1Beta1Tx[];
+  block_id?: TypesBlockID;
+  block?: TypesBlock;
+
+  /** pagination defines a pagination for the response. */
+  pagination?: V1Beta1PageResponse;
+}
+
+/**
  * GetTxResponse is the response type for the Service.GetTx method.
  */
 export interface V1Beta1GetTxResponse {
@@ -359,7 +643,7 @@ export interface V1Beta1GetTxsEventResponse {
   /** tx_responses is the list of queried TxResponses. */
   tx_responses?: V1Beta1TxResponse[];
 
-  /** pagination defines an pagination for the response. */
+  /** pagination defines a pagination for the response. */
   pagination?: V1Beta1PageResponse;
 }
 
@@ -395,6 +679,16 @@ export interface V1Beta1ModeInfoSingle {
    * from SIGN_MODE_DIRECT
    *  - SIGN_MODE_LEGACY_AMINO_JSON: SIGN_MODE_LEGACY_AMINO_JSON is a backwards compatibility mode which uses
    * Amino JSON and will be removed in the future
+   *  - SIGN_MODE_EIP_191: SIGN_MODE_EIP_191 specifies the sign mode for EIP 191 signing on the Cosmos
+   * SDK. Ref: https://eips.ethereum.org/EIPS/eip-191
+   *
+   * Currently, SIGN_MODE_EIP_191 is registered as a SignMode enum variant,
+   * but is not implemented on the SDK by default. To enable EIP-191, you need
+   * to pass a custom `TxConfig` that has an implementation of
+   * `SignModeHandler` for EIP-191. The SDK may decide to fully support
+   * EIP-191 in the future.
+   *
+   * Since: cosmos-sdk 0.45.2
    */
   mode?: V1Beta1SignMode;
 }
@@ -448,7 +742,11 @@ export interface V1Beta1PageRequest {
    */
   count_total?: boolean;
 
-  /** reverse is set to true if results are to be returned in the descending order. */
+  /**
+   * reverse is set to true if results are to be returned in the descending order.
+   *
+   * Since: cosmos-sdk 0.43
+   */
   reverse?: boolean;
 }
 
@@ -481,12 +779,23 @@ human-readable textual representation on top of the binary representation
 from SIGN_MODE_DIRECT
  - SIGN_MODE_LEGACY_AMINO_JSON: SIGN_MODE_LEGACY_AMINO_JSON is a backwards compatibility mode which uses
 Amino JSON and will be removed in the future
+ - SIGN_MODE_EIP_191: SIGN_MODE_EIP_191 specifies the sign mode for EIP 191 signing on the Cosmos
+SDK. Ref: https://eips.ethereum.org/EIPS/eip-191
+
+Currently, SIGN_MODE_EIP_191 is registered as a SignMode enum variant,
+but is not implemented on the SDK by default. To enable EIP-191, you need
+to pass a custom `TxConfig` that has an implementation of
+`SignModeHandler` for EIP-191. The SDK may decide to fully support
+EIP-191 in the future.
+
+Since: cosmos-sdk 0.45.2
 */
 export enum V1Beta1SignMode {
   SIGN_MODE_UNSPECIFIED = "SIGN_MODE_UNSPECIFIED",
   SIGN_MODE_DIRECT = "SIGN_MODE_DIRECT",
   SIGN_MODE_TEXTUAL = "SIGN_MODE_TEXTUAL",
   SIGN_MODE_LEGACY_AMINO_JSON = "SIGN_MODE_LEGACY_AMINO_JSON",
+  SIGNMODEEIP191 = "SIGN_MODE_EIP_191",
 }
 
 /**
@@ -526,6 +835,8 @@ export interface V1Beta1SimulateRequest {
 
   /**
    * tx_bytes is the raw transaction.
+   *
+   * Since: cosmos-sdk 0.43
    * @format byte
    */
   tx_bytes?: string;
@@ -655,6 +966,29 @@ export interface V1Beta1TxResponse {
    * it's genesis time.
    */
   timestamp?: string;
+
+  /**
+   * Events defines all the events emitted by processing a transaction. Note,
+   * these events include those emitted by processing all the messages and those
+   * emitted from the ante handler. Whereas Logs contains the events, with
+   * additional metadata, emitted only by processing the messages.
+   *
+   * Since: cosmos-sdk 0.42.11, 0.44.5, 0.45
+   */
+  events?: AbciEvent[];
+}
+
+/**
+* Consensus captures the consensus rules for processing a block in the blockchain,
+including all blockchain data structures and the rules of the application's
+state transition machine.
+*/
+export interface VersionConsensus {
+  /** @format uint64 */
+  block?: string;
+
+  /** @format uint64 */
+  app?: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -913,6 +1247,33 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       method: "POST",
       body: body,
       type: ContentType.Json,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * @description Since: cosmos-sdk 0.45.2
+   *
+   * @tags Service
+   * @name ServiceGetBlockWithTxs
+   * @summary GetBlockWithTxs fetches a block with decoded txs.
+   * @request GET:/cosmos/tx/v1beta1/txs/block/{height}
+   */
+  serviceGetBlockWithTxs = (
+    height: string,
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<V1Beta1GetBlockWithTxsResponse, RpcStatus>({
+      path: `/cosmos/tx/v1beta1/txs/block/${height}`,
+      method: "GET",
+      query: query,
       format: "json",
       ...params,
     });

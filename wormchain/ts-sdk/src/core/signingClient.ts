@@ -1,12 +1,8 @@
 import { OfflineSigner, Registry } from "@cosmjs/proto-signing";
 import {
-  defaultRegistryTypes,
   SigningStargateClient,
   SigningStargateClientOptions,
-  StargateClient,
 } from "@cosmjs/stargate";
-import { getTypeParameterOwner } from "typescript";
-import * as coreModule from "../modules/certusone.wormholechain.wormhole";
 import * as authModule from "../modules/cosmos.auth.v1beta1";
 import * as bankModule from "../modules/cosmos.bank.v1beta1";
 import * as baseModule from "../modules/cosmos.base.tendermint.v1beta1";
@@ -22,6 +18,8 @@ import * as stakingModule from "../modules/cosmos.staking.v1beta1";
 import * as txModule from "../modules/cosmos.tx.v1beta1";
 import * as upgradeModule from "../modules/cosmos.upgrade.v1beta1";
 import * as vestingModule from "../modules/cosmos.vesting.v1beta1";
+import * as wasmModule from "../modules/cosmwasm.wasm.v1";
+import * as coreModule from "../modules/wormhole_foundation.wormchain.wormhole";
 
 //protobuf isn't guaranteed to have long support, which is used by the stargate signing client,
 //so we're going to use an independent long module and shove it into the globals of protobuf
@@ -63,6 +61,8 @@ const txTypes = txModule.registry.types;
 const upgradeTypes = upgradeModule.registry.types;
 //@ts-ignore
 const vestingTypes = vestingModule.registry.types;
+//@ts-ignore
+const wasmTypes = wasmModule.registry.types;
 
 const aggregateTypes = [
   ...coreTypes,
@@ -81,6 +81,7 @@ const aggregateTypes = [
   ...txTypes,
   ...upgradeTypes,
   ...vestingTypes,
+  ...wasmTypes,
 ];
 
 export const MissingWalletError = new Error("wallet is required");
@@ -155,6 +156,10 @@ export const getWormchainSigningClient = async (
   });
 
   const vestingClient = await vestingModule.txClient(wallet, {
+    addr: tendermintAddress,
+  });
+
+  const wasmClient = await wasmModule.txClient(wallet, {
     addr: tendermintAddress,
   });
 
@@ -268,6 +273,12 @@ export const getWormchainSigningClient = async (
   };
   delete vestingShell.signAndBroadcast;
 
+  const wasmShell = {
+    ...wasmClient,
+    signAndBroadcast: undefined,
+  };
+  delete wasmShell.signAndBroadcast;
+
   type CoreType = Omit<typeof coreShell, "signAndBroadcast">;
   type AuthzType = Omit<typeof authShell, "signAndBroadcast">;
   type BankType = Omit<typeof bankShell, "signAndBroadcast">;
@@ -284,6 +295,7 @@ export const getWormchainSigningClient = async (
   type TxType = Omit<typeof txShell, "signAndBroadcast">;
   type UpgradeType = Omit<typeof upgradeShell, "signAndBroadcast">;
   type VestingType = Omit<typeof vestingShell, "signAndBroadcast">;
+  type WasmType = Omit<typeof wasmShell, "signAndBroadcast">;
   type WormholeFunctions = {
     core: CoreType;
     auth: AuthzType;
@@ -301,6 +313,7 @@ export const getWormchainSigningClient = async (
     tx: TxType;
     upgrade: UpgradeType;
     vesting: VestingType;
+    wasm: WasmType;
   };
   type WormholeSigningClient = SigningStargateClient & WormholeFunctions;
 
@@ -322,6 +335,7 @@ export const getWormchainSigningClient = async (
   output.tx = txShell;
   output.upgrade = upgradeShell;
   output.vesting = vestingShell;
+  output.wasm = wasmShell;
 
   return output;
 };
