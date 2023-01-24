@@ -52,4 +52,9 @@ var (
 			Name: "global_accountant_connection_errors_total",
 			Help: "Total number of connection errors on accountant",
 		})
+	auditErrors = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "global_accountant_audit_errors_total",
+			Help: "Total number of audit errors detected by accountant",
+		})
 )

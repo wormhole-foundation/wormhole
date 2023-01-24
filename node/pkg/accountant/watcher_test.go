@@ -100,7 +100,7 @@ func TestParseWasmObservationError(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResult := WasmObservationError{
-		Key: ObservationKey{
+		Key: TransferKey{
 			EmitterChain:   uint16(vaa.ChainIDEthereum),
 			EmitterAddress: expectedEmitterAddress,
 			Sequence:       1674144545,

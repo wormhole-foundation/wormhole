@@ -1019,6 +1019,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			rootCtx,
 			logger,
 			db,
+			obsvReqWriteC,
 			*accountantContract,
 			*accountantWS,
 			wormchainConn,
