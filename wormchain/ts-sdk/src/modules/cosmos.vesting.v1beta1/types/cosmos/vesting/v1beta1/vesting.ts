@@ -57,6 +57,8 @@ export interface PeriodicVestingAccount {
  * PermanentLockedAccount implements the VestingAccount interface. It does
  * not ever release coins, locking them indefinitely. Coins in this account can
  * still be used for delegating and for governance votes even while locked.
+ *
+ * Since: cosmos-sdk 0.43
  */
 export interface PermanentLockedAccount {
   base_vesting_account: BaseVestingAccount | undefined;

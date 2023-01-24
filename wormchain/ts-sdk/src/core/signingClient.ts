@@ -6,7 +6,7 @@ import {
   StargateClient,
 } from "@cosmjs/stargate";
 import { getTypeParameterOwner } from "typescript";
-import * as coreModule from "../modules/certusone.wormholechain.wormhole";
+import * as coreModule from "../modules/wormhole_foundation.wormchain.wormhole";
 import * as authModule from "../modules/cosmos.auth.v1beta1";
 import * as bankModule from "../modules/cosmos.bank.v1beta1";
 import * as baseModule from "../modules/cosmos.base.tendermint.v1beta1";
