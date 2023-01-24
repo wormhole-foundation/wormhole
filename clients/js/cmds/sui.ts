@@ -1,5 +1,6 @@
 import yargs, { string } from "yargs";
 import { callEntryFunc, publishPackage} from "../sui";
+import { JsonRpcProvider } from '@mysten/sui.js';
 import { spawnSync } from 'child_process';
 import { NETWORKS } from "../networks";
 import { config } from '../config';
@@ -37,6 +38,28 @@ exports.command = 'sui';
 exports.desc = 'Sui utilities ';
 exports.builder = function(y: typeof yargs) {
   return y
+    .command("get-owned-objects", "Get owned objects by owner", (yargs)=>{
+      return yargs
+        .option("network", network_options)
+        .option("rpc", rpc_description)
+        .option("owner", {
+          alias: "o",
+          describe: "Owner address",
+          required: true,
+          type: "string",
+        })
+    }, async (argv)=>{
+      const network = argv.network.toUpperCase()
+      console.log("network: ", network)
+      const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
+      const provider = new JsonRpcProvider(rpc);
+      const owner = argv.owner;
+      console.log("owner: ", owner)
+      const objects = await provider.getObjectsOwnedByAddress(
+        owner
+      );
+      console.log(objects)
+    })
     .command("publish-wormhole", "Publish Wormhole core contract", (yargs) => {
       return yargs
         .option("network", network_options)
@@ -101,8 +124,7 @@ exports.builder = function(y: typeof yargs) {
         .option("initial-guardian", {
           alias: "ig",
           required: true,
-          default: "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-          describe: "Initial guardian public keys)",
+          describe: "Initial guardian public keys",
           type: "string",
         })
     }, async (argv) => {
@@ -145,7 +167,6 @@ exports.builder = function(y: typeof yargs) {
         .option("network", network_options)
         .option("rpc", rpc_description)
         .option("package-id", {
-          alias: "pid",
           describe: "Package/module ID",
           required: true,
           type: "string"
