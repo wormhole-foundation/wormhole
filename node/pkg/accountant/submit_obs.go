@@ -52,13 +52,15 @@ func (acct *Accountant) handleBatch(ctx context.Context) error {
 		return fmt.Errorf("failed to read messages from `acct.subChan`: %w", err)
 	}
 
+	msgs = acct.removeCompleted(msgs)
+
 	if len(msgs) == 0 {
 		return nil
 	}
 
 	gs := acct.gst.Get()
 	if gs == nil {
-		return fmt.Errorf("failed to get guardian set: %w", err)
+		return fmt.Errorf("failed to get guardian set")
 	}
 
 	guardianIndex, found := gs.KeyIndex(acct.guardianAddr)
@@ -86,7 +88,26 @@ func readFromChannel[T any](ctx context.Context, ch <-chan T, count int) ([]T, e
 	return out, nil
 }
 
+// removeCompleted drops any messages that are no longer in the pending transfer map. This is to handle the case where the contract reports
+// that a transfer is committed while it is in the channel. There is no point in submitting the observation once the transfer is committed.
+func (acct *Accountant) removeCompleted(msgs []*common.MessagePublication) []*common.MessagePublication {
+	out := make([]*common.MessagePublication, 0, len(msgs))
+	for _, msg := range msgs {
+		if _, exists := acct.pendingTransfers[msg.MessageIDString()]; exists {
+			out = append(out, msg)
+		}
+	}
+
+	return out
+}
+
 type (
+	TransferKey struct {
+		EmitterChain   uint16      `json:"emitter_chain"`
+		EmitterAddress vaa.Address `json:"emitter_address"`
+		Sequence       uint64      `json:"sequence"`
+	}
+
 	SubmitObservationsMsg struct {
 		Params SubmitObservationsParams `json:"submit_observations"`
 	}
@@ -139,14 +160,8 @@ type (
 	ObservationResponses []ObservationResponse
 
 	ObservationResponse struct {
-		Key    ObservationKey
+		Key    TransferKey
 		Status ObservationResponseStatus
-	}
-
-	ObservationKey struct {
-		EmitterChain   uint16      `json:"emitter_chain"`
-		EmitterAddress vaa.Address `json:"emitter_address"`
-		Sequence       uint64      `json:"sequence"`
 	}
 
 	ObservationResponseStatus struct {
@@ -155,7 +170,7 @@ type (
 	}
 )
 
-func (k ObservationKey) String() string {
+func (k TransferKey) String() string {
 	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
 }
 
@@ -173,6 +188,7 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 // It should be called from a go routine because it can block.
 func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
 	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msgs)
+	acct.clearSubmitPendingFlags(msgs)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
 		acct.logger.Error("acct: failed to submit any observations in batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
@@ -240,11 +256,11 @@ func (acct *Accountant) handleCommittedTransfer(msgId string) {
 	defer acct.pendingTransfersLock.Unlock()
 	pe, exists := acct.pendingTransfers[msgId]
 	if exists {
-		acct.logger.Info("acct: transfer has already been committed, publishing it", zap.String("msgId", msgId))
+		acct.logger.Info("acct: transfer has been committed, publishing it", zap.String("msgId", msgId))
 		acct.publishTransferAlreadyLocked(pe)
 		transfersApproved.Inc()
 	} else {
-		acct.logger.Debug("acct: transfer has already been committed but it is no longer in our map", zap.String("msgId", msgId))
+		acct.logger.Debug("acct: transfer has been committed but it is no longer in our map", zap.String("msgId", msgId))
 	}
 }
 
@@ -339,6 +355,7 @@ func SubmitObservationsToContract(
 		zap.Uint32("gsIndex", gsIndex), zap.Uint32("guardianIndex", guardianIndex),
 	)
 
+	start := time.Now()
 	txResp, err := wormchainConn.SignAndBroadcastTx(ctx, &subMsg)
 	if err != nil {
 		return txResp, fmt.Errorf("failed to send broadcast: %w", err)
@@ -364,6 +381,7 @@ func SubmitObservationsToContract(
 		return txResp, fmt.Errorf("failed to submit observations: %s", txResp.TxResponse.RawLog)
 	}
 
+	logger.Info("acct: done sending broadcast", zap.Int("numObs", len(obs)), zap.Int64("gasUsed", txResp.TxResponse.GasUsed), zap.Stringer("elapsedTime", time.Since(start)))
 	logger.Debug("acct: in SubmitObservationsToContract, done sending broadcast", zap.String("resp", wormchainConn.BroadcastTxResponseToString(txResp)))
 	return txResp, nil
 }

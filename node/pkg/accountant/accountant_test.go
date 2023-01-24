@@ -16,6 +16,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -29,6 +30,7 @@ func newAccountantForTest(
 	t *testing.T,
 	ctx context.Context,
 	accountantCheckEnabled bool,
+	obsvReqWriteC chan<- *gossipv1.ObservationRequest,
 	acctWriteC chan<- *common.MessagePublication,
 ) *Accountant {
 	logger := zap.NewNop()
@@ -44,6 +46,7 @@ func newAccountantForTest(
 		ctx,
 		logger,
 		&db,
+		obsvReqWriteC,
 		"0xdeadbeef", // accountantContract
 		"none",       // accountantWS
 		nil,          // wormchainConn
@@ -100,8 +103,9 @@ func buildMockTransferPayloadBytes(
 
 func TestVaaFromUninterestingEmitter(t *testing.T) {
 	ctx := context.Background()
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountantForTest(t, ctx, enforceAccountant, acctChan)
+	acct := newAccountantForTest(t, ctx, enforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
@@ -126,8 +130,9 @@ func TestVaaFromUninterestingEmitter(t *testing.T) {
 
 func TestVaaForUninterestingPayloadType(t *testing.T) {
 	ctx := context.Background()
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountantForTest(t, ctx, enforceAccountant, acctChan)
+	acct := newAccountantForTest(t, ctx, enforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
@@ -152,8 +157,9 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 
 func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *testing.T) {
 	ctx := context.Background()
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountantForTest(t, ctx, dontEnforceAccountant, acctChan)
+	acct := newAccountantForTest(t, ctx, dontEnforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
@@ -194,8 +200,9 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 
 func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T) {
 	ctx := context.Background()
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
 	acctChan := make(chan *common.MessagePublication, 10)
-	acct := newAccountantForTest(t, ctx, enforceAccountant, acctChan)
+	acct := newAccountantForTest(t, ctx, enforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")

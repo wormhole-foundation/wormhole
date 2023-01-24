@@ -117,8 +117,8 @@ type (
 
 	// WasmObservationError represents an error event from the smart contract.
 	WasmObservationError struct {
-		Key   ObservationKey `json:"key"`
-		Error string         `json:"error"`
+		Key   TransferKey `json:"key"`
+		Error string      `json:"error"`
 	}
 )
 
@@ -127,7 +127,7 @@ func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, cont
 	for _, attr := range event.Attributes {
 		if string(attr.Key) == "_contract_address" {
 			if string(attr.Value) != contractAddress {
-				return nil, fmt.Errorf("wasm-Observation event from unexpected contract: %s", string(attr.Value))
+				return nil, fmt.Errorf("%s event from unexpected contract: %s", name, string(attr.Value))
 			}
 		} else {
 			logger.Debug("acctwatcher: event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
@@ -137,12 +137,12 @@ func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, cont
 
 	attrBytes, err := json.Marshal(attrs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal wasm-Observation event attributes: %w", err)
+		return nil, fmt.Errorf("failed to marshal %s event attributes: %w", name, err)
 	}
 
 	evt := new(T)
 	if err := json.Unmarshal(attrBytes, evt); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal wasm-Observation event: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal %s event: %w", name, err)
 	}
 
 	return evt, nil

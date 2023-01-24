@@ -14,14 +14,14 @@ import (
 func TestParseObservationResponseDataKey(t *testing.T) {
 	dataJson := []byte("{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\",\"sequence\":1673978163}")
 
-	var key ObservationKey
+	var key TransferKey
 	err := json.Unmarshal(dataJson, &key)
 	require.NoError(t, err)
 
 	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
-	expectedResult := ObservationKey{
+	expectedResult := TransferKey{
 		EmitterChain:   uint16(vaa.ChainIDEthereum),
 		EmitterAddress: expectedEmitterAddress,
 		Sequence:       1673978163,
@@ -40,7 +40,7 @@ func TestParseObservationResponseData(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResult0 := ObservationResponse{
-		Key: ObservationKey{
+		Key: TransferKey{
 			EmitterChain:   uint16(vaa.ChainIDEthereum),
 			EmitterAddress: expectedEmitterAddress,
 			Sequence:       1674061268,
@@ -51,7 +51,7 @@ func TestParseObservationResponseData(t *testing.T) {
 	}
 
 	expectedResult1 := ObservationResponse{
-		Key: ObservationKey{
+		Key: TransferKey{
 			EmitterChain:   uint16(vaa.ChainIDEthereum),
 			EmitterAddress: expectedEmitterAddress,
 			Sequence:       1674061267,
