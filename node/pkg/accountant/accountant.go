@@ -47,14 +47,22 @@ type (
 
 	// pendingEntry is the payload for each pending transfer
 	pendingEntry struct {
-		msg     *common.MessagePublication
-		msgId   string
-		digest  string
-		updTime time.Time
+		msg    *common.MessagePublication
+		msgId  string
+		digest string
 
-		// submitPending indicates if the observation is either in the channel waiting to be submitted or in an outstanding transaction.
-		// The audit should not resubmit anything where submitPending is set to true.
-		submitPending bool
+		// stateLock is used to protect the contents of the state struct.
+		stateLock sync.Mutex
+
+		// The state struct contains anything that can be modifed. It is protected by the state lock.
+		state struct {
+			// updTime is the time that the state struct was last updated.
+			updTime time.Time
+
+			// submitPending indicates if the observation is either in the channel waiting to be submitted or in an outstanding transaction.
+			// The audit should not resubmit anything where submitPending is set to true.
+			submitPending bool
+		}
 	}
 )
 
@@ -76,7 +84,6 @@ type Accountant struct {
 	pendingTransfersLock sync.Mutex
 	pendingTransfers     map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
 	subChan              chan *common.MessagePublication
-	lastAuditTime        time.Time
 	env                  int
 }
 
@@ -162,6 +169,10 @@ func (acct *Accountant) Start(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "acctwatcher", common.WrapWithScissors(acct.watcher, "acctwatcher")); err != nil {
 			return fmt.Errorf("failed to start watcher: %w", err)
 		}
+
+		if err := supervisor.Run(ctx, "acctaudit", common.WrapWithScissors(acct.audit, "acctaudit")); err != nil {
+			return fmt.Errorf("failed to start audit worker: %w", err)
+		}
 	}
 
 	return nil
@@ -224,7 +235,7 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	}
 
 	// Add it to the pending map and the database.
-	pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest, updTime: time.Now()}
+	pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest}
 	if err := acct.addPendingTransferAlreadyLocked(pe); err != nil {
 		acct.logger.Error("acct: failed to persist pending transfer, blocking publishing", zap.String("msgID", msgId), zap.Error(err))
 		return false, err
@@ -233,7 +244,7 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	// This transaction may take a while. Pass it off to the worker so we don't block the processor.
 	if acct.env != GoTestMode {
 		acct.logger.Info("acct: submitting transfer to accountant for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
-		acct.submitObservation(pe)
+		_ = acct.submitObservation(pe)
 	}
 
 	// If we are not enforcing accountant, the event can be published. Otherwise we have to wait to hear back from the contract.
@@ -253,6 +264,7 @@ func (acct *Accountant) publishTransferAlreadyLocked(pe *pendingEntry) {
 // addPendingTransferAlreadyLocked adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
 func (acct *Accountant) addPendingTransferAlreadyLocked(pe *pendingEntry) error {
 	acct.logger.Debug("acct: addPendingTransferAlreadyLocked", zap.String("msgId", pe.msgId))
+	pe.state.updTime = time.Now()
 	if err := acct.db.AcctStorePendingTransfer(pe.msg); err != nil {
 		return err
 	}
@@ -273,8 +285,8 @@ func (acct *Accountant) deletePendingTransfer(msgId string) {
 func (acct *Accountant) deletePendingTransferAlreadyLocked(msgId string) {
 	acct.logger.Debug("acct: deletePendingTransfer", zap.String("msgId", msgId))
 	if _, exists := acct.pendingTransfers[msgId]; exists {
-		transfersOutstanding.Set(float64(len(acct.pendingTransfers)))
 		delete(acct.pendingTransfers, msgId)
+		transfersOutstanding.Set(float64(len(acct.pendingTransfers)))
 	}
 	if err := acct.db.AcctDeletePendingTransfer(msgId); err != nil {
 		acct.logger.Error("acct: failed to delete pending transfer from the db", zap.String("msgId", msgId), zap.Error(err))
@@ -294,7 +306,8 @@ func (acct *Accountant) loadPendingTransfers() error {
 		acct.logger.Info("acct: reloaded pending transfer", zap.String("msgID", msgId))
 
 		digest := msg.CreateDigest()
-		pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest} // Leave the updTime unset so we will query this on the first audit interval.
+		pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest}
+		pe.state.updTime = time.Now()
 		acct.pendingTransfers[msgId] = pe
 	}
 
@@ -308,28 +321,55 @@ func (acct *Accountant) loadPendingTransfers() error {
 	return nil
 }
 
-// submitObservation sends an observation request to the worker so it can be submited to the contract.
-// If writing to the channel would block, this function resets the timestamp on the entry so it will be
-// retried next audit interval. This method assumes the caller holds the lock.
-func (acct *Accountant) submitObservation(pe *pendingEntry) {
-	pe.submitPending = true
+// submitObservation sends an observation request to the worker so it can be submited to the contract.  If the transfer is already
+// marked as "submit pending", this function returns false without doing anything. Otherwise it returns true. The return value can
+// be used to avoid unnecessary error logging. If writing to the channel would block, this function returns without doing anything,
+// assuming the pending transfer will be handled on the next audit interval. This function grabs the state lock.
+func (acct *Accountant) submitObservation(pe *pendingEntry) bool {
+	pe.stateLock.Lock()
+	defer pe.stateLock.Unlock()
+
+	if pe.state.submitPending {
+		return false
+	}
+
+	pe.state.submitPending = true
+	pe.state.updTime = time.Now()
+
 	select {
 	case acct.subChan <- pe.msg:
 		acct.logger.Debug("acct: submitted observation to channel", zap.String("msgId", pe.msgId))
 	default:
 		acct.logger.Error("acct: unable to submit observation because the channel is full, will try next interval", zap.String("msgId", pe.msgId))
-		pe.submitPending = false
-		pe.updTime = time.Time{}
+		pe.state.submitPending = false
 	}
+
+	return true
 }
 
 // clearSubmitPendingFlags is called after a batch is finished being submitted (success or fail). It clears the submit pending flag for everything in the batch.
+// It grabs the pending transfer and state locks.
 func (acct *Accountant) clearSubmitPendingFlags(msgs []*common.MessagePublication) {
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 	for _, msg := range msgs {
 		if pe, exists := acct.pendingTransfers[msg.MessageIDString()]; exists {
-			pe.submitPending = false
+			pe.setSubmitPending(false)
 		}
 	}
+}
+
+// setSubmitPending sets the submit pending flag on the pending transfer object to the specified value. It grabs the state lock.
+func (pe *pendingEntry) setSubmitPending(val bool) {
+	pe.stateLock.Lock()
+	defer pe.stateLock.Unlock()
+	pe.state.submitPending = val
+	pe.state.updTime = time.Now()
+}
+
+// updTime returns the last update time from the pending transfer object. It grabs the state lock.
+func (pe *pendingEntry) updTime() time.Time {
+	pe.stateLock.Lock()
+	defer pe.stateLock.Unlock()
+	return pe.state.updTime
 }

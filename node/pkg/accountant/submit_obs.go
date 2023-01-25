@@ -52,7 +52,9 @@ func (acct *Accountant) handleBatch(ctx context.Context) error {
 		return fmt.Errorf("failed to read messages from `acct.subChan`: %w", err)
 	}
 
-	msgs = acct.removeCompleted(msgs)
+	if len(msgs) != 0 {
+		msgs = acct.removeCompleted(msgs)
+	}
 
 	if len(msgs) == 0 {
 		return nil
@@ -91,6 +93,9 @@ func readFromChannel[T any](ctx context.Context, ch <-chan T, count int) ([]T, e
 // removeCompleted drops any messages that are no longer in the pending transfer map. This is to handle the case where the contract reports
 // that a transfer is committed while it is in the channel. There is no point in submitting the observation once the transfer is committed.
 func (acct *Accountant) removeCompleted(msgs []*common.MessagePublication) []*common.MessagePublication {
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
+
 	out := make([]*common.MessagePublication, 0, len(msgs))
 	for _, msg := range msgs {
 		if _, exists := acct.pendingTransfers[msg.MessageIDString()]; exists {
@@ -188,7 +193,6 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 // It should be called from a go routine because it can block.
 func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
 	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msgs)
-	acct.clearSubmitPendingFlags(msgs)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
 		acct.logger.Error("acct: failed to submit any observations in batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
@@ -197,6 +201,7 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 		}
 
 		submitFailures.Add(float64(len(msgs)))
+		acct.clearSubmitPendingFlags(msgs)
 		return
 	}
 
@@ -209,6 +214,7 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 		}
 
 		submitFailures.Add(float64(len(msgs)))
+		acct.clearSubmitPendingFlags(msgs)
 		return
 	}
 
@@ -220,6 +226,7 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 		}
 
 		submitFailures.Add(float64(len(msgs)))
+		acct.clearSubmitPendingFlags(msgs)
 		return
 	}
 
@@ -248,6 +255,8 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 			submitFailures.Inc()
 		}
 	}
+
+	acct.clearSubmitPendingFlags(msgs)
 }
 
 // handleCommittedTransfer updates the pending map and publishes a committed transfer. It grabs the lock.
