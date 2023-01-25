@@ -260,9 +260,6 @@ func (p *Processor) Run(ctx context.Context) error {
 					}
 				}
 			}
-			if p.acct != nil {
-				p.acct.AuditPendingTransfers()
-			}
 			if (p.governor != nil) || (p.acct != nil) {
 				govTimer = time.NewTimer(time.Minute)
 			}
