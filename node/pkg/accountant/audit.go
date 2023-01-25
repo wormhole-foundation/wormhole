@@ -169,7 +169,7 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 		if exists {
 			if acct.submitObservation(pe) {
 				auditErrors.Inc()
-				acct.logger.Error("acctaudit: contract reported pending observation as missing, resubmitting it", zap.String("msgID", pe.msgId))
+				acct.logger.Error("acctaudit: contract reported pending observation as missing, resubmitted it", zap.String("msgID", pe.msgId))
 			} else {
 				acct.logger.Info("acctaudit: contract reported pending observation as missing but it is queued up to be submitted, skipping it", zap.String("msgID", pe.msgId))
 			}
@@ -202,7 +202,7 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 			if !exists {
 				if acct.submitObservation(pe) {
 					auditErrors.Inc()
-					acct.logger.Error("acctaudit: query did not return status for transfer, this should not happen, resubmitting it", zap.String("msgId", pe.msgId))
+					acct.logger.Error("acctaudit: query did not return status for transfer, this should not happen, resubmitted it", zap.String("msgId", pe.msgId))
 				} else {
 					acct.logger.Info("acctaudit: query did not return status for transfer we have not submitted yet, ignoring it", zap.String("msgId", pe.msgId))
 				}
@@ -210,10 +210,16 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 				continue
 			}
 
-			if status.Committed != nil {
+			if status == nil {
+				// This is the case when the contract does not know about a transfer. Resubmit it.
+				if acct.submitObservation(pe) {
+					auditErrors.Inc()
+					acct.logger.Error("acctaudit: contract does not know about pending transfer, resubmitted it", zap.String("msgId", pe.msgId))
+				}
+			} else if status.Committed != nil {
 				digest := hex.EncodeToString(status.Committed.Digest)
 				if pe.digest == digest {
-					acct.logger.Info("acctaudit: audit determined that transfer has been committed, publishing it", zap.String("msgId", pe.msgId))
+					acct.logger.Error("acctaudit: audit determined that transfer has been committed, publishing it", zap.String("msgId", pe.msgId))
 					acct.handleCommittedTransfer(pe.msgId)
 				} else {
 					digestMismatches.Inc()
@@ -226,7 +232,12 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 				// This is the case when the contract does not know about a transfer. Resubmit it.
 				if acct.submitObservation(pe) {
 					auditErrors.Inc()
-					acct.logger.Error("acctaudit: contract does not know about pending transfer, resubmitting it", zap.String("msgId", pe.msgId))
+					bytes, err := json.Marshal(*status)
+					if err != nil {
+						acct.logger.Error("acctaudit: unknown status returned for pending transfer, resubmitted it", zap.String("msgId", pe.msgId), zap.Error(err))
+					} else {
+						acct.logger.Error("acctaudit: unknown status returned for pending transfer, resubmitted it", zap.String("msgId", pe.msgId), zap.String("status", string(bytes)))
+					}
 				}
 			}
 		}
@@ -277,7 +288,7 @@ func (acct *Accountant) queryMissingObservations() ([]MissingObservation, error)
 }
 
 // queryBatchTransferStatus queries the status of the specified transfers and returns a map keyed by transfer key (as a string) to the status.
-func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey) (map[string]TransferStatus, error) {
+func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey) (map[string]*TransferStatus, error) {
 	bytes, err := json.Marshal(keys)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal keys: %w", err)
@@ -295,9 +306,9 @@ func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey) (map[string
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	ret := make(map[string]TransferStatus)
+	ret := make(map[string]*TransferStatus)
 	for _, item := range response.Details {
-		ret[item.Key.String()] = *item.Status
+		ret[item.Key.String()] = item.Status
 	}
 
 	acct.logger.Debug("acctaudit: batch_transfer_status query response", zap.Int("numEntries", len(ret)), zap.String("result", string(respBytes)))
