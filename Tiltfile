@@ -823,7 +823,7 @@ if ibc_relayer:
         port_forwards = [
             port_forward(7597, name = "HTTPDEBUG [:7597]", host = webHost),
         ],
-        resource_deps = ["guardian-validator", "terra2-terrad"],
+        resource_deps = ["wormchain", "terra2-terrad"],
         labels = ["ibc-relayer"],
         trigger_mode = trigger_mode,
     )
