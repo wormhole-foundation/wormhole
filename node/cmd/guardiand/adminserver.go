@@ -360,6 +360,28 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 	return v, nil
 }
 
+func ibcReceiverUpdateChainConnection(
+	req *nodev1.IbcReceiverUpdateChainConnection,
+	timestamp time.Time,
+	guardianSetIndex uint32,
+	nonce uint32,
+	sequence uint64,
+) (*vaa.VAA, error) {
+	// validate parameters
+	if req.ChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid chain id, must be <= %d", math.MaxUint16)
+	}
+
+	// create governance VAA
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyIbcReceiverUpdateChainConnection{
+			ConnectionId: req.ConnectionId,
+			ChainId:      vaa.ChainID(req.ChainId),
+		}.Serialize())
+
+	return v, nil
+}
+
 func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
 	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
 
@@ -396,6 +418,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = circleIntegrationRegisterEmitterAndDomain(payload.CircleIntegrationRegisterEmitterAndDomain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation:
 			v, err = circleIntegrationUpgradeContractImplementation(payload.CircleIntegrationUpgradeContractImplementation, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_IbcReceiverUpdateChainConnection:
+			v, err = ibcReceiverUpdateChainConnection(payload.IbcReceiverUpdateChainConnection, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}

@@ -15,14 +15,13 @@ import { zeroPad } from "ethers/lib/utils.js";
   deterministic.
 */
 const artifacts = [
-  "wormhole.wasm",
+  "wormhole_ibc.wasm",
   "token_bridge_terra_2.wasm",
   "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
   "mock_bridge_integration_2.wasm",
   "shutdown_core_bridge_cosmwasm.wasm",
   "shutdown_token_bridge_cosmwasm.wasm",
-  "global_accountant.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
@@ -45,18 +44,6 @@ if (missing_artifacts.length) {
   console.log(
     "External binary blobs need to be manually added in tools/Dockerfile."
   );
-  process.exit(1);
-}
-
-const unexpected_artifacts = actual_artifacts.filter(
-  (a) => !artifacts.includes(a)
-);
-if (unexpected_artifacts.length) {
-  console.log(
-    "Error during terra deployment. The following files are not expected to be in the artifacts folder:"
-  );
-  unexpected_artifacts.forEach((file) => console.log(`  - ${file}`));
-  console.log("Hint: you might need to modify tools/deploy.js");
   process.exit(1);
 }
 
@@ -116,6 +103,8 @@ const govChain = 1;
 const govAddress =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
+const wormchainIbcReceiverAddress = "0000000000000000000000000000000000000000000000000000000000000000";
+
 async function instantiate(contract, inst_msg, label) {
   var address;
   await wallet
@@ -154,8 +143,8 @@ if (!init_guardians || init_guardians.length === 0) {
   throw "failed to get initial guardians from .env file.";
 }
 
-addresses["wormhole.wasm"] = await instantiate(
-  "wormhole.wasm",
+addresses["wormhole_ibc.wasm"] = await instantiate(
+  "wormhole_ibc.wasm",
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
@@ -171,7 +160,7 @@ addresses["wormhole.wasm"] = await instantiate(
     chain_id: 18,
     fee_denom: "uluna",
   },
-  "wormhole"
+  "wormholeIbc"
 );
 
 addresses["token_bridge_terra_2.wasm"] = await instantiate(
@@ -179,7 +168,7 @@ addresses["token_bridge_terra_2.wasm"] = await instantiate(
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-    wormhole_contract: addresses["wormhole.wasm"],
+    wormhole_contract: addresses["wormhole_ibc.wasm"],
     wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
     chain_id: 18,
     native_denom: "uluna",
@@ -251,7 +240,19 @@ for (const [contract, registrations] of Object.entries(
         memo: "",
       })
       .then((tx) => terra.tx.broadcast(tx))
-      .then((rs) => console.log(rs));
+      .then((rs) => console.log(rs))
+      .catch((error) => {
+        if (error.response) {
+          // Request made and server responded
+          console.log(error.response.data, error.response.status, error.response.headers);
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.log(error.request);
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          console.log('Error', error.message);
+        }
+      });
   }
 }
 

@@ -100,6 +100,9 @@ message GovernanceMessage {
     CircleIntegrationUpdateWormholeFinality circle_integration_update_wormhole_finality = 18;
     CircleIntegrationRegisterEmitterAndDomain circle_integration_register_emitter_and_domain = 19;
     CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
+
+    // IBC Receiver Integration
+    IbcReceiverUpdateChainConnection ibc_receiver_update_chain_connection = 21;
   }
 }
 
@@ -234,6 +237,13 @@ message CircleIntegrationRegisterEmitterAndDomain {
 message CircleIntegrationUpgradeContractImplementation {
   string new_implementation_address = 1;
   uint32 target_chain_id = 2;
+}
+
+message IbcReceiverUpdateChainConnection {
+  // IBC connection ID
+  string connection_id = 1;
+  // ChainID corresponding to the IBC connection
+  uint32 chain_id = 2;
 }
 
 message FindMissingMessagesRequest {

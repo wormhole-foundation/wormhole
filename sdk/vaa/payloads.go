@@ -23,6 +23,14 @@ var CircleIntegrationModule = [32]byte{
 }
 var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
 
+// WasmdModule is the identifier of the Wormchain ibc_receiver contract module (which is used for governance messages)
+// It is the hex representation of "IbcReceiver" left padded with zeroes.
+var IbcReceiverModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x52, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72,
+}
+var IbcReceiverModuleStr = string(IbcReceiverModule[:])
+
 type GovernanceAction uint8
 
 var (
@@ -51,6 +59,9 @@ var (
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
 	CircleIntegrationActionRegisterEmitterAndDomain      GovernanceAction = 2
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
+
+	// Ibc Receiver governance actions
+	IbcReceiverActionUpdateChainConnection GovernanceAction = 1
 )
 
 type (
@@ -126,6 +137,12 @@ type (
 	BodyCircleIntegrationUpgradeContractImplementation struct {
 		TargetChainID            ChainID
 		NewImplementationAddress [32]byte
+	}
+
+	// BodyIbcReceiverUpdateChainConnection is a governance message to update the ibc connection_id -> chain_id mapping in the ibc_receiver contract
+	BodyIbcReceiverUpdateChainConnection struct {
+		ConnectionId string
+		ChainId      ChainID
 	}
 )
 
@@ -226,6 +243,13 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewImplementationAddress[:])
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
+}
+
+func (r BodyIbcReceiverUpdateChainConnection) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write([]byte(r.ConnectionId))
+	MustWrite(payload, binary.BigEndian, r.ChainId)
+	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChainConnection, 0, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

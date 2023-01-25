@@ -23,6 +23,7 @@ pub mod nft;
 mod serde_array;
 pub mod token;
 pub mod vaa;
+pub mod ibc_receiver;
 
 pub use {chain::Chain, vaa::Vaa};
 
