@@ -15,7 +15,32 @@ import (
 )
 
 func TestParseMissingObservationsResponse(t *testing.T) {
-	//TODO: Write this test once we get a sample response.
+	responsesJson := []byte("{\"missing\":[{\"chain_id\":2,\"tx_hash\":\"y1E+jwgozWKEVbHt9dIeErgNXlHnntQwdzymYSCmBEA=\"},{\"chain_id\":4,\"tx_hash\":\"FZyF7xR5bIwtvdBIlIrDEZc+mrCkN/ixjGazgJdJdQQ=\"}]}")
+	var response MissingObservationsResponse
+	err := json.Unmarshal(responsesJson, &response)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(response.Missing))
+
+	expectedTxHash0, err := hex.DecodeString("cb513e8f0828cd628455b1edf5d21e12b80d5e51e79ed430773ca66120a60440")
+	require.NoError(t, err)
+
+	expectedTxHash1, err := hex.DecodeString("159c85ef14796c8c2dbdd048948ac311973e9ab0a437f8b18c66b38097497504")
+	require.NoError(t, err)
+
+	expectedResult := MissingObservationsResponse{
+		Missing: []MissingObservation{
+			MissingObservation{
+				ChainId: uint16(vaa.ChainIDEthereum),
+				TxHash:  expectedTxHash0,
+			},
+			MissingObservation{
+				ChainId: uint16(vaa.ChainIDBSC),
+				TxHash:  expectedTxHash1,
+			},
+		},
+	}
+
+	assert.Equal(t, expectedResult, response)
 }
 
 func TestParseBatchTransferStatusCommittedResponse(t *testing.T) {
