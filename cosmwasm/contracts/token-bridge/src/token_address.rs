@@ -92,7 +92,7 @@ impl ExternalTokenId {
                         contract_address: human_address,
                     }))
                 }
-                b => Err(StdError::generic_err(format!("Unknown marker byte: {}", b))),
+                b => Err(StdError::generic_err(format!("Unknown marker byte: {b}"))),
             }
         } else {
             Ok(TokenId::Contract(ContractId::ForeignToken {
