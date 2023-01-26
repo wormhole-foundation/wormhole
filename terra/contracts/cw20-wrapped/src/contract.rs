@@ -63,7 +63,7 @@ pub fn instantiate(
 
     if let Some(mint_info) = msg.mint {
         execute_mint(deps, env, info, mint_info.recipient, mint_info.amount)
-            .map_err(|e| StdError::generic_err(format!("{}", e)))?;
+            .map_err(|e| StdError::generic_err(format!("{e}")))?;
     }
 
     if let Some(hook) = msg.init_hook {
