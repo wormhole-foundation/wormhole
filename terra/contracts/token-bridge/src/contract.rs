@@ -405,7 +405,7 @@ fn handle_register_asset(
 
     Ok(Response::new()
         .add_attribute("action", "register_asset")
-        .add_attribute("asset_id", format!("{:?}", asset_id))
+        .add_attribute("asset_id", format!("{asset_id:?}"))
         .add_attribute("contract_addr", info.sender))
 }
 
@@ -754,7 +754,7 @@ fn handle_complete_transfer(
                 data,
                 relayer_address,
             ),
-            b => Err(StdError::generic_err(format!("Unknown marker byte: {}", b))),
+            b => Err(StdError::generic_err(format!("Unknown marker byte: {b}"))),
         }
     } else {
         handle_complete_transfer_token(
@@ -1449,7 +1449,7 @@ fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<Transfer
                 payload: info.payload,
             })
         }
-        other => Err(StdError::generic_err(format!("Invalid action: {}", other))),
+        other => Err(StdError::generic_err(format!("Invalid action: {other}"))),
     }
 }
 

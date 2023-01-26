@@ -80,8 +80,7 @@ pub fn to_external_token_id(
         U256::from_dec_str(&token_id_internal)
             .map_err(|_| {
                 StdError::generic_err(format!(
-                    "{} could not be parsed as a decimal number",
-                    token_id_internal
+                    "{token_id_internal} could not be parsed as a decimal number"
                 ))
             })?
             .to_big_endian(&mut bytes);
