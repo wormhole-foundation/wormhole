@@ -763,6 +763,12 @@ if wormchain:
         target = "vue-export",
     )
 
+    docker_build(
+        ref = "wormchain-deploy",
+        context = "./wormchain",
+        dockerfile = "./wormchain/Dockerfile.deploy",
+    )
+
     def build_wormchain_yaml(yaml_path, num_instances):
         wormchain_yaml = read_yaml_stream(yaml_path)
 
@@ -814,6 +820,12 @@ if wormchain:
         trigger_mode = trigger_mode,
     )
 
+    k8s_resource(
+        "wormchain-deploy",
+        resource_deps = ["wormchain"],
+        labels = ["wormchain"],
+        trigger_mode = trigger_mode,
+    )
 
 if ibc_relayer:
     docker_build(
