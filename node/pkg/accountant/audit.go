@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -94,12 +95,12 @@ func (mo MissingObservation) String() string {
 
 // makeAuditKey creates an audit map key from a missing observation.
 func (mo *MissingObservation) makeAuditKey() string {
-	return fmt.Sprintf("%d-%s", mo.ChainId, hex.EncodeToString(mo.TxHash[:]))
+	return fmt.Sprintf("%d-%s", mo.ChainId, strings.TrimPrefix(hex.EncodeToString(mo.TxHash[:]), "0x"))
 }
 
 // makeAuditKey creates an audit map key from a pending observation entry.
 func (pe *pendingEntry) makeAuditKey() string {
-	return fmt.Sprintf("%d-%s", pe.msg.EmitterChain, pe.msg.TxHash.String())
+	return fmt.Sprintf("%d-%s", pe.msg.EmitterChain, strings.TrimPrefix(pe.msg.TxHash.String(), "0x"))
 }
 
 // audit is the runnable that executes the audit each interval.
@@ -136,8 +137,9 @@ func (acct *Accountant) createAuditMap() map[string]*pendingEntry {
 			auditErrors.Inc()
 			acct.logger.Error("acctaudit: transfer has been in the submit pending state for too long", zap.Stringer("lastUpdateTime", pe.updTime()))
 		}
-		acct.logger.Debug("acctaudit: will audit pending transfer", zap.String("msgId", pe.msgId), zap.Stringer("lastUpdateTime", pe.updTime()))
-		tmpMap[pe.makeAuditKey()] = pe
+		key := pe.makeAuditKey()
+		acct.logger.Debug("acctaudit: will audit pending transfer", zap.String("msgId", pe.msgId), zap.String("moKey", key), zap.Bool("submitPending", pe.submitPending()), zap.Stringer("lastUpdateTime", pe.updTime()))
+		tmpMap[key] = pe
 	}
 
 	return tmpMap
@@ -248,7 +250,7 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 
 // handleMissingObservation submits a local reobservation request. It relies on the reobservation code to throttle requests.
 func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
-	acct.logger.Info("acctaudit: contract reported unknown observation as missing, requesting local reobservation", zap.Stringer("moKey", mo))
+	acct.logger.Error("acctaudit: contract reported unknown observation as missing, requesting local reobservation", zap.Stringer("moKey", mo))
 	msg := &gossipv1.ObservationRequest{ChainId: uint32(mo.ChainId), TxHash: mo.TxHash}
 
 	select {
