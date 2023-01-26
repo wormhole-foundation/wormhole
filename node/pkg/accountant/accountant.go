@@ -367,6 +367,13 @@ func (pe *pendingEntry) setSubmitPending(val bool) {
 	pe.state.updTime = time.Now()
 }
 
+// submitPending returns the "submit pending" flag from the pending transfer object. It grabs the state lock.
+func (pe *pendingEntry) submitPending() bool {
+	pe.stateLock.Lock()
+	defer pe.stateLock.Unlock()
+	return pe.state.submitPending
+}
+
 // updTime returns the last update time from the pending transfer object. It grabs the state lock.
 func (pe *pendingEntry) updTime() time.Time {
 	pe.stateLock.Lock()
