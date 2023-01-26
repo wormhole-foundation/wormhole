@@ -212,6 +212,7 @@ paths=(
     ./solana/.env
     ./terra/tools/.env
     ./cosmwasm/deployment/terra2/tools/.env
+    ./wormchain/contracts/tools/.env
 )
 
 for envDest in "${paths[@]}"; do

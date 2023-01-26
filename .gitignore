@@ -13,6 +13,8 @@ venv
 .env
 .env.hex
 .env.0x
+devnet-consts.json
+!/scripts/devnet-consts.json
 bigtable-admin.json
 bigtable-writer.json
 **/cert.pem

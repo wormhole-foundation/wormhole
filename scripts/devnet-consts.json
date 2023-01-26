@@ -238,12 +238,65 @@
         "3104": {
             "rpcUrlTilt": "http://wormchain:1317",
             "rpcUrlLocal": "http://localhost:1319",
-            "rpcPort": "1319",
+            "tendermintUrlTilt": "http://wormchain:26657",
+            "tendermintUrlLocal": "http://localhost:26659",
+            "rpcPort": "1317",
+            "tendermintPort": "26657",
             "contracts": {
                 "coreEmitterAddress": "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
                 "coreNativeAddress": "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
                 "tokenBridgeEmitterAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
-                "tokenBridgeNativeAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
+                "tokenBridgeNativeAddress": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
+                "accountingNativeAddress": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
+            },
+            "accounts": {
+                "wormchainNodeOfGuardian0": {
+                    "address": "C10820983F33456CE7BEB3A046F5A83FA34F027D",
+                    "addressBase64": "wQggmD8zRWznvrOgRvWoP6NPAn0=",
+                    "addressWormhole": "000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d",
+                    "public": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
+                    "privateHex": "48d23cc417a30674e907a2403f109f082d92e197823d02e6a423c6aeb8e41204",
+                    "cosmos.crypto.secp256k1.PubKey": "AuwYyCUBxQiBGSUWebU46c+OrlApVsyGLHd4qhSDZeiG",
+                    "tendermint/PrivKeyEd25519": "DONGe0wxovG1ZuCQ1iMbyBCW/hG5UeKz6ZFfhdZYznRSC48Lc1nwhUwXzHtXfwAOY0mO3mhTy4CMwPeYFvBZ1A==",
+                    "mnemonic": "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
+                },
+                "wormchainValidator0": {
+                    "public": "wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8",
+                    "tendermint/PubKeyEd25519": "fnfoo/C+i+Ng1J8vct6wfvrTS9JeNIG5UeO87ZHKMkY=",
+                    "tendermint/PrivKeyEd25519": "Zb3gQZSd8qNMyXUQdKmeqM/SSYeVDD80S4XPEsCAgPN+d+ij8L6L42DUny9y3rB++tNL0l40gblR47ztkcoyRg=="
+                },
+                "wormchainNodeOfGuardian1": {
+                    "address": "701C475B19A3F68D3FDEBF09591487FACEF2D636",
+                    "addressWormhole": "000000000000000000000000701c475b19a3f68d3fdebf09591487facef2d636",
+                    "addressBase64": "cBxHWxmj9o0/3r8JWRSH+s7y1jY=",
+                    "public": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr",
+                    "privateHex": "7095b73fa951fd117d54f3bca130b8088625db2d60d94d4f064791dc1a792b29",
+                    "cosmos.crypto.secp256k1.PubKey": "ApJi/CY2RGyzA5cQtDwU9c+o7T8OE+SjrgcG5PwLMjTP",
+                    "tendermint/PrivKeyEd25519": "TTdzb3XLJbSXP/5VhzPJCWysCDDH2hEXTqdvLI6RYk7rxPwzCXTprp2ZEfSCfQswYgUUQgO9JKzbAtfyeK2G1A==",
+                    "mnemonic": "maple pudding enjoy pole real rabbit soft make square city wrestle area aisle dwarf spike voice over still post lend genius bitter exit shoot"
+                },
+                "wormchainValidator1": {
+                    "public": "wormholevaloper1wqwywkce50mg6077huy4j9y8lt80943kxgr79y",
+                    "tendermint/PubKeyEd25519": "Zcujkt1sXRWWLfhgxLAm/Q+ioLn4wFim0OnGPLlCG0I=",
+                    "tendermint/PrivKeyEd25519": "SGWIYI3BgC/dxNOk1gYx6LpChAKqWGtAfZSx0SDFWuhly6OS3WxdFZYt+GDEsCb9D6KgufjAWKbQ6cY8uUIbQg=="
+                }
+            },
+            "addresses": {
+                "native": {
+                    "address": "uworm",
+                    "addressWormhole": "010c0ded78f1b69ec7b79b9ee592fbbcacebc97db1c695220a833135bfa74824",
+                    "denom": "uworm",
+                    "name": "worm",
+                    "symbol": "worm",
+                    "decimals": 0
+                },
+                "testToken": {
+                    "address": "wormhole1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqhnev3f",
+                    "addressWormhole": "003f822e9066cfea09b9ce1247e8f79a86a24dda2d8b3d76a608ae7583220411",
+                    "name": "MOCK",
+                    "symbol": "MCK",
+                    "decimals": 6
+                }
             }
         },
         "22": {
