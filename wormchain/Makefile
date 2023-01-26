@@ -43,6 +43,27 @@ ts-sdk: vue
 run: build/wormchaind
 	./$< start --home build  --log_level="debug"
 
+# get npm packages for contracts/tools
+contracts-tools-deps: contracts/tools/package-lock.json
+	npm ci --prefix=contracts/tools
+
+# get .env and devnet-consts.json for contracts/tools
+contracts-devnet-env:
+	cd .. && ./scripts/guardian-set-init.sh 1
+	cd .. && ./scripts/distribute-devnet-consts.sh
+
+# get wasm artifacts for cosmwasm contracts
+contracts-artifacts:
+	cd ../cosmwasm && $(MAKE) artifacts
+	cp -r ../cosmwasm/artifacts contracts
+
+# get everything needed to
+contracts-deploy-setup: contracts-tools-deps contracts-devnet-env contracts-artifacts
+
+# runs the contract deployment script
+contracts-deploy-local: contracts-deploy-setup
+	npm run deploy-wormchain --prefix=contracts/tools
+
 .PHONY: test
 test:
 	go test -v ./...
