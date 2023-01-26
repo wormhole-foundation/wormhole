@@ -44,7 +44,7 @@ run: build/wormchaind
 	./$< start --home build  --log_level="debug"
 
 # get npm packages for contracts/tools
-contracts-tools-deps: contracts/tools/package-lock.json
+contracts-tools-deps: ts-sdk contracts/tools/package-lock.json
 	npm ci --prefix=contracts/tools
 
 # get .env and devnet-consts.json for contracts/tools
@@ -63,6 +63,10 @@ contracts-deploy-setup: contracts-tools-deps contracts-devnet-env contracts-arti
 # runs the contract deployment script
 contracts-deploy-local: contracts-deploy-setup
 	npm run deploy-wormchain --prefix=contracts/tools
+
+# starts wormchaind in a container, deploys contracts, tests contract interaction
+contracts-deploy-test: client contracts-deploy-setup
+	./contracts/run_deploy_test.sh
 
 .PHONY: test
 test:
