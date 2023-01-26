@@ -1,5 +1,16 @@
-broadcast-mode = "block"
+# Tendermint client config
+
+###############################################################################
+###                           Client Configuration                            ###
+###############################################################################
+
+# The network chain ID
 chain-id = "wormchain"
+# The keyring's backend, where the keys are stored (os|file|kwallet|pass|test|memory)
 keyring-backend = "test"
-node = "tcp://localhost:26657"
+# CLI output format (text|json)
 output = "text"
+# <host>:<port> to Tendermint RPC interface for this chain
+node = "tcp://localhost:26657"
+# Transaction broadcasting mode (sync|async|block)
+broadcast-mode = "block"
