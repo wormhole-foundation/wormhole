@@ -1,0 +1,31 @@
+syntax = "proto3";
+package wormhole_foundation.wormchain.wormhole;
+
+option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
+
+import "gogoproto/gogo.proto";
+
+message GuardianKey {
+  bytes key = 1;
+}
+
+message GuardianValidator {
+  bytes guardianKey = 1;
+  bytes validatorAddr = 2;
+}
+
+message GuardianSet {
+  option (gogoproto.equal) = true;
+  uint32 index = 1;
+  repeated bytes keys = 2;
+  uint64 expirationTime = 3;
+}
+
+message ValidatorAllowedAddress {
+  // the validator/guardian that controls this entry
+  string validator_address = 1;
+  // the allowlisted account
+  string allowed_address = 2;
+  // human readable name
+  string name = 3;
+}

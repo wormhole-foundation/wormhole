@@ -24,6 +24,8 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdRegisterAccountAsGuardian())
 	cmd.AddCommand(CmdStoreCode())
 	cmd.AddCommand(CmdInstantiateContract())
+	cmd.AddCommand(CmdCreateAllowedAddress())
+	cmd.AddCommand(CmdDeleteAllowedAddress())
 	// this line is used by starport scaffolding # 1
 
 	return cmd
