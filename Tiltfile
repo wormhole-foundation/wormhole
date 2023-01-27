@@ -802,7 +802,7 @@ if wormchain:
             port_forward(9090, container_port = 9090, name = "GRPC", host = webHost),
             port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
         ],
-        resource_deps = [],
+        resource_deps = ["const-gen"],
         labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )

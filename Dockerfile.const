@@ -34,6 +34,9 @@ COPY ethereum/.env.test ./ethereum/.env.test
 ARG num_guardians
 ENV NUM_GUARDIANS=$num_guardians
 
+# run distribute-devnet-consts.sh to copy devnet-consts.json to chain dirs for use
+RUN ./scripts/distribute-devnet-consts.sh
+
 # run guardian-set-init.sh to create env files with the init state for NUM_GUARDIANS
 RUN ./scripts/guardian-set-init.sh $NUM_GUARDIANS
 
@@ -45,3 +48,6 @@ COPY --from=const-build /scripts/.env.hex cosmwasm/deployment/terra2/tools/.env
 COPY --from=const-build /scripts/.env.hex algorand/.env
 COPY --from=const-build /scripts/.env.hex near/.env
 COPY --from=const-build /scripts/.env.hex aptos/.env
+COPY --from=const-build /scripts/.env.hex wormchain/contracts/tools/.env
+
+COPY --from=const-build /scripts/devnet-consts.json wormchain/contracts/tools/
