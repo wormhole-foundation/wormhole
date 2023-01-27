@@ -75,14 +75,14 @@ exports.builder = function(y: typeof yargs) {
         })
     }, async (argv)=>{
       const network = argv.network.toUpperCase()
-      console.log("network: ", network)
       const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
       const provider = new JsonRpcProvider(rpc);
       const owner = argv.owner;
-      console.log("owner: ", owner)
       const objects = await provider.getObjectsOwnedByAddress(
         owner
       );
+      console.log("network: ", network)
+      console.log("owner: ", owner)
       console.log(objects)
     })
     .command("publish-wormhole", "Publish Wormhole core contract", (yargs) => {
