@@ -8,8 +8,11 @@ option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 
 // Msg defines the Msg service.
 service Msg {
-      rpc ExecuteGovernanceVAA(MsgExecuteGovernanceVAA) returns (MsgExecuteGovernanceVAAResponse);
+  rpc ExecuteGovernanceVAA(MsgExecuteGovernanceVAA) returns (MsgExecuteGovernanceVAAResponse);
   rpc RegisterAccountAsGuardian(MsgRegisterAccountAsGuardian) returns (MsgRegisterAccountAsGuardianResponse);
+
+  rpc CreateAllowlist(MsgCreateAllowlistRequest) returns (MsgAllowlistResponse);
+  rpc DeleteAllowlist(MsgDeleteAllowlistRequest) returns (MsgAllowlistResponse);
 
   // StoreCode to submit Wasm code to the system
   rpc StoreCode(MsgStoreCode) returns (MsgStoreCodeResponse);
@@ -17,6 +20,25 @@ service Msg {
   rpc InstantiateContract(MsgInstantiateContract)
       returns (MsgInstantiateContractResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
+}
+
+message MsgCreateAllowlistRequest {
+  // signer should be a guardian validator in a current set or future set.
+  string signer = 1;
+  // the address to allowlist
+  string address = 2;
+  // optional human readable name for the entry
+  string name = 3;
+}
+
+message MsgDeleteAllowlistRequest {
+  // signer should be a guardian validator in a current set or future set.
+  string signer = 1;
+  // the address allowlist to remove
+  string address = 2;
+}
+
+message MsgAllowlistResponse {
 }
 
 message MsgExecuteGovernanceVAA {

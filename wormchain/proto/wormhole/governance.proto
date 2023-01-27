@@ -1,7 +1,7 @@
 syntax = "proto3";
 package wormhole_foundation.wormchain.wormhole;
 
-import "wormhole/guardian_set.proto";
+import "wormhole/guardian.proto";
 import "gogoproto/gogo.proto";
 option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
 

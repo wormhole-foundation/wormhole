@@ -115,7 +115,8 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		supportedFeatures,
 	)
 	ctx := sdk.NewContext(stateStore, tmproto.Header{
-		Time: time.Now(),
+		Time:   time.Now(),
+		Height: 1,
 	}, false, log.NewNopLogger())
 	appapp.MountKVStores(keys)
 	appapp.MountTransientStores(tkeys)
