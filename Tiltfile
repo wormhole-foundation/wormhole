@@ -280,7 +280,19 @@ def build_node_yaml():
                     "--wormchainWS",
                     "ws://wormchain:26657/websocket",
                     "--wormchainLCD",
-                    "http://wormchain:1317"
+                    "http://wormchain:1317",
+                    "--wormchainURL",
+                    "wormchain:9090",
+                    "--wormchainKeyPath",
+                    "/tmp/mounted-keys/wormchain/wormchainKey",
+                    "--wormchainKeyPassPhrase",
+                    "test0000",
+                    "--accountantWS",
+                    "http://wormchain:26657",
+                    "--accountantContract",
+                    "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
+                    "--accountantCheckEnabled",
+                    "true"
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
@@ -303,7 +315,7 @@ if algorand:
 if aptos:
     guardian_resource_deps = guardian_resource_deps + ["aptos"]
 if wormchain:
-    guardian_resource_deps = guardian_resource_deps + ["wormchain"]
+    guardian_resource_deps = guardian_resource_deps + ["wormchain", "wormchain-deploy"]
 if sui:
     guardian_resource_deps = guardian_resource_deps + ["sui"]
 
@@ -571,6 +583,12 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/spydk.sh handles waiting for spy, not having deps gets the build earlier
     )
+    k8s_resource(
+        "accountant-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = ["const-gen"], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+    )
 
 if terra_classic:
     docker_build(
@@ -822,7 +840,7 @@ if wormchain:
 
     k8s_resource(
         "wormchain-deploy",
-        resource_deps = ["wormchain"],
+        resource_deps = ["const-gen", "wormchain"],
         labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )
