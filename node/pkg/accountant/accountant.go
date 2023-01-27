@@ -264,7 +264,7 @@ func (acct *Accountant) publishTransferAlreadyLocked(pe *pendingEntry) {
 // addPendingTransferAlreadyLocked adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
 func (acct *Accountant) addPendingTransferAlreadyLocked(pe *pendingEntry) error {
 	acct.logger.Debug("acct: addPendingTransferAlreadyLocked", zap.String("msgId", pe.msgId))
-	pe.state.updTime = time.Now()
+	pe.setUpdTime()
 	if err := acct.db.AcctStorePendingTransfer(pe.msg); err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (acct *Accountant) loadPendingTransfers() error {
 
 		digest := msg.CreateDigest()
 		pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest}
-		pe.state.updTime = time.Now()
+		pe.setUpdTime()
 		acct.pendingTransfers[msgId] = pe
 	}
 
@@ -372,6 +372,13 @@ func (pe *pendingEntry) submitPending() bool {
 	pe.stateLock.Lock()
 	defer pe.stateLock.Unlock()
 	return pe.state.submitPending
+}
+
+// setUpdTime sets the last update time on the pending transfer object to the current time. It grabs the state lock.
+func (pe *pendingEntry) setUpdTime() {
+	pe.stateLock.Lock()
+	defer pe.stateLock.Unlock()
+	pe.state.updTime = time.Now()
 }
 
 // updTime returns the last update time from the pending transfer object. It grabs the state lock.
