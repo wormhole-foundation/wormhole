@@ -21,12 +21,10 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-
+	"github.com/gorilla/websocket"
 	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 type (
@@ -143,18 +141,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
-	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
+	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "websocket_dial_error").Inc()
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
-	defer c.Close(websocket.StatusNormalClosure, "")
-
-	// During testing, I got a message larger then the default
-	// 32768.  Increasing this limit effects an internal buffer that is used
-	// to as part of the zero alloc/copy design.
-	c.SetReadLimit(524288)
+	defer c.Close()
 
 	// Subscribe to smart contract transactions
 	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", e.contractAddressFilterKey, e.contract)}
@@ -164,7 +157,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		Params:  params,
 		ID:      1,
 	}
-	err = wsjson.Write(ctx, c, command)
+	err = c.WriteJSON(command)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "websocket_subscription_error").Inc()
@@ -172,7 +165,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 
 	// Wait for the success response
-	_, _, err = c.Read(ctx)
+	_, _, err = c.ReadMessage()
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "event_subscription_error").Inc()
@@ -193,6 +186,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case <-t.C:
+
 				msm := time.Now()
 				// Query and report height and set currentSlotHeight
 				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
@@ -281,12 +275,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "cosmwasm_data_pump", func(ctx context.Context) error {
+		defer close(errC)
+
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
 			default:
-				_, message, err := c.Read(ctx)
+				_, message, err := c.ReadMessage()
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 					connectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
@@ -324,6 +320,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		if err != nil {
+			logger.Error("error on closing socket ", zap.String("network", networkName), zap.Error(err))
+		}
 		return ctx.Err()
 	case err := <-errC:
 		return err
