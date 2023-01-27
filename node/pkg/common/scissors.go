@@ -20,6 +20,7 @@ var (
 // Start a go routine with recovering from any panic by sending an error to a error channel
 func RunWithScissors(ctx context.Context, errC chan error, name string, runnable supervisor.Runnable) {
 	go func() {
+		ScissorsErrors.WithLabelValues("scissors", name).Add(0)
 		defer func() {
 			if r := recover(); r != nil {
 				switch x := r.(type) {
@@ -41,6 +42,7 @@ func RunWithScissors(ctx context.Context, errC chan error, name string, runnable
 
 func WrapWithScissors(runnable supervisor.Runnable, name string) supervisor.Runnable {
 	return func(ctx context.Context) (result error) {
+		ScissorsErrors.WithLabelValues("scissors", name).Add(0)
 		defer func() {
 			if r := recover(); r != nil {
 				switch x := r.(type) {
