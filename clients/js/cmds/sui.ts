@@ -1,5 +1,5 @@
 import yargs, { string } from "yargs";
-import { callEntryFunc, publishPackage} from "../sui";
+import { callEntryFunc, publishPackage, loadSigner} from "../sui";
 import { JsonRpcProvider } from '@mysten/sui.js';
 import { spawnSync } from 'child_process';
 import { NETWORKS } from "../networks";
@@ -15,6 +15,31 @@ function assertNetwork(n: string): asserts n is Network {
   ) {
     throw Error(`Unknown network: ${n}`);
   }
+}
+
+/*
+  Loop through a list of Sui objects and look for the DeployerCapability that should
+  have been granted upon publication of the package with package_id
+
+  The objects is in the format returned by a json-rpc call "provider.getObjectsOwnedByAddress"
+*/
+function findDeployerCapability(package_id: string, module_name: string, objects: Array<any>): string {
+      let deployer;
+      for (var obj of objects){
+        let t = obj.type;
+        // do a basic check and see if the type is as expected (has a normal package, module, type name separated by "::")
+        var count = [...t].filter(x => x === ":").length;
+        if (count==4){
+          let t_split = t.split("::") // load the package, module, type name in an array
+          if (t_split[0].toUpperCase() == package_id.toUpperCase()){
+            if (t_split[1]==module_name && t_split[2]=="DeployerCapability"){
+              deployer = obj.objectId
+              break
+            }
+          }
+        }
+      }
+      return deployer
 }
 
 const network_options = {
@@ -82,23 +107,16 @@ exports.builder = function(y: typeof yargs) {
       const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
       console.log("network: ", network)
       console.log("rpc: ", rpc)
-      await publishPackage(network, rpc, `${dir}/tokenbridge`);
+      await publishPackage(network, rpc, `${dir}/token_bridge`);
     })
     .command("init-wormhole", "Init wormhole core contract", (yargs) => {
       return yargs
         .option("network", network_options)
         .option("rpc", rpc_description)
         .option("package-id", {
-          alias: "pid",
           describe: "Package/module ID",
           required: true,
           type: "string"
-        })
-        .option("deployer", {
-          alias: "d",
-          describe: "Deployer capability object ID",
-          required: true,
-          type: "string",
         })
         .option("chain-id", {
           alias: "ci",
@@ -132,11 +150,21 @@ exports.builder = function(y: typeof yargs) {
       assertNetwork(network);
       const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
       const package_id = argv["package-id"]
-      const deployer = argv.deployer;
       const chain_id = argv["chain-id"];
       const governance_chain_id = argv["governance-chain-id"];
       const governance_contract = argv["governance-contract"];
       const initial_guardian = argv["initial-guardian"];
+      const provider = new JsonRpcProvider(rpc);
+      const signer = loadSigner(network, rpc);
+      const owner = await signer.getAddress()
+      const objects = await provider.getObjectsOwnedByAddress(
+        owner
+      );
+      const deployer = findDeployerCapability(package_id, "state", objects)
+      if (typeof deployer == 'undefined'){
+        throw new Error('Wormhole core bridge cannot be initialized because deployer capability cannot be found. Is the package published?');
+      }
+
       console.log("network: ", network)
       console.log("rpc: ", rpc)
       console.log("package id: ", package_id)
@@ -171,15 +199,9 @@ exports.builder = function(y: typeof yargs) {
           required: true,
           type: "string"
         })
-        .option("deployer-capability", {
-          alias: "d",
-          describe: "Deployer capability object ID",
-          required: true,
-          type: "string",
-        })
-        .option("emitter-capability", {
+        .option("worm-state", {
           alias: "e",
-          describe: "Emitter capability object ID",
+          describe: "Wormhole core bridge state object ID",
           required: true,
           type: "string",
         })
@@ -188,13 +210,21 @@ exports.builder = function(y: typeof yargs) {
       assertNetwork(network);
       const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
       const package_id = argv["package-id"]
-      const deployer = argv["deployer-capability"];
-      const emitter = argv["emitter-capability"];
+      const provider = new JsonRpcProvider(rpc);
+      const signer = loadSigner(network, rpc);
+      const owner = await signer.getAddress()
+      console.log("owner: ", owner)
+      const objects = await provider.getObjectsOwnedByAddress(
+        owner
+      );
+      const worm_state = argv["worm-state"]
+      const deployer = findDeployerCapability(package_id, "bridge_state", objects)
+
       console.log("network: ", network)
       console.log("rpc: ", rpc)
       console.log("package id: ", package_id)
       console.log("deployer object id: ", deployer)
-      console.log("emitter object id: ", emitter)
+      console.log("wormhole state object id: ", worm_state)
 
       await callEntryFunc(
         network,
@@ -205,7 +235,7 @@ exports.builder = function(y: typeof yargs) {
         [],
         [
           deployer,
-          emitter
+          worm_state
         ],
     )
     })

@@ -2,10 +2,11 @@ import { Ed25519Keypair, JsonRpcProvider, RawSigner} from '@mysten/sui.js';
 import { NETWORKS } from "./networks";
 import { execSync } from "child_process";
 import { impossible, Payload } from "./vaa";
+const util = require('util')
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
 
-function loadSigner(
+export function loadSigner(
     network: Network,
     rpc: string | undefined,
 ){
@@ -43,9 +44,12 @@ export async function publishPackage(
   console.log("compiled modules: ", compiledModules)
   const publishTxn = await signer.publish({
     compiledModules: compiledModules,
-    gasBudget: 20000,
+    gasBudget: 150000,
   });
   console.log('publishTxn', publishTxn);
+  console.log("effects: ", util.inspect(publishTxn["EffectsCert"]["effects"], {showHidden: false, depth: null, colors: true}))
+
+  //console.log('publishTxn effects', publishTxn["EffectsCert"]["effects"]["effects"]);
 }
 
 export async function callEntryFunc(
@@ -68,7 +72,8 @@ export async function callEntryFunc(
         function: func,
         typeArguments: type_args,
         arguments: args,
-        gasBudget: 30000,
-      });
-      console.log('moveCallTxn', moveCallTxn);
+        gasBudget: 50000,
+    });
+    console.log('moveCallTxn: ', moveCallTxn);
+    console.log("effects: ", util.inspect(moveCallTxn["EffectsCert"]["effects"], {showHidden: false, depth: null, colors: true}))
 }
