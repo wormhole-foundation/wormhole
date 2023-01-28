@@ -187,7 +187,7 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 	responses, err := GetObservationResponses(txResp)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
-		acct.logger.Error("acct: failed to get responses from batch", zap.Error(err))
+		acct.logger.Error("acct: failed to get responses from batch", zap.Error(err), zap.String("txResp", acct.wormchainConn.BroadcastTxResponseToString(txResp)))
 		for idx, msg := range msgs {
 			acct.logger.Error("acct: need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
 		}
@@ -379,6 +379,10 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	var msg sdktypes.TxMsgData
 	if err := msg.Unmarshal([]byte(data)); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
+	}
+
+	if len(msg.Data) == 0 {
+		return nil, fmt.Errorf("data field is empty")
 	}
 
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
