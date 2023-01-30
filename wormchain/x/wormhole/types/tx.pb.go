@@ -28,7 +28,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type MsgCreateAllowlistRequest struct {
+type MsgCreateAllowlistEntryRequest struct {
 	// signer should be a guardian validator in a current set or future set.
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	// the address to allowlist
@@ -37,18 +37,18 @@ type MsgCreateAllowlistRequest struct {
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 }
 
-func (m *MsgCreateAllowlistRequest) Reset()         { *m = MsgCreateAllowlistRequest{} }
-func (m *MsgCreateAllowlistRequest) String() string { return proto.CompactTextString(m) }
-func (*MsgCreateAllowlistRequest) ProtoMessage()    {}
-func (*MsgCreateAllowlistRequest) Descriptor() ([]byte, []int) {
+func (m *MsgCreateAllowlistEntryRequest) Reset()         { *m = MsgCreateAllowlistEntryRequest{} }
+func (m *MsgCreateAllowlistEntryRequest) String() string { return proto.CompactTextString(m) }
+func (*MsgCreateAllowlistEntryRequest) ProtoMessage()    {}
+func (*MsgCreateAllowlistEntryRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_55f7aa067b0c517b, []int{0}
 }
-func (m *MsgCreateAllowlistRequest) XXX_Unmarshal(b []byte) error {
+func (m *MsgCreateAllowlistEntryRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgCreateAllowlistRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgCreateAllowlistEntryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgCreateAllowlistRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgCreateAllowlistEntryRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -58,58 +58,58 @@ func (m *MsgCreateAllowlistRequest) XXX_Marshal(b []byte, deterministic bool) ([
 		return b[:n], nil
 	}
 }
-func (m *MsgCreateAllowlistRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgCreateAllowlistRequest.Merge(m, src)
+func (m *MsgCreateAllowlistEntryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgCreateAllowlistEntryRequest.Merge(m, src)
 }
-func (m *MsgCreateAllowlistRequest) XXX_Size() int {
+func (m *MsgCreateAllowlistEntryRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgCreateAllowlistRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgCreateAllowlistRequest.DiscardUnknown(m)
+func (m *MsgCreateAllowlistEntryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgCreateAllowlistEntryRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgCreateAllowlistRequest proto.InternalMessageInfo
+var xxx_messageInfo_MsgCreateAllowlistEntryRequest proto.InternalMessageInfo
 
-func (m *MsgCreateAllowlistRequest) GetSigner() string {
+func (m *MsgCreateAllowlistEntryRequest) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-func (m *MsgCreateAllowlistRequest) GetAddress() string {
+func (m *MsgCreateAllowlistEntryRequest) GetAddress() string {
 	if m != nil {
 		return m.Address
 	}
 	return ""
 }
 
-func (m *MsgCreateAllowlistRequest) GetName() string {
+func (m *MsgCreateAllowlistEntryRequest) GetName() string {
 	if m != nil {
 		return m.Name
 	}
 	return ""
 }
 
-type MsgDeleteAllowlistRequest struct {
+type MsgDeleteAllowlistEntryRequest struct {
 	// signer should be a guardian validator in a current set or future set.
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	// the address allowlist to remove
 	Address string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
 }
 
-func (m *MsgDeleteAllowlistRequest) Reset()         { *m = MsgDeleteAllowlistRequest{} }
-func (m *MsgDeleteAllowlistRequest) String() string { return proto.CompactTextString(m) }
-func (*MsgDeleteAllowlistRequest) ProtoMessage()    {}
-func (*MsgDeleteAllowlistRequest) Descriptor() ([]byte, []int) {
+func (m *MsgDeleteAllowlistEntryRequest) Reset()         { *m = MsgDeleteAllowlistEntryRequest{} }
+func (m *MsgDeleteAllowlistEntryRequest) String() string { return proto.CompactTextString(m) }
+func (*MsgDeleteAllowlistEntryRequest) ProtoMessage()    {}
+func (*MsgDeleteAllowlistEntryRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_55f7aa067b0c517b, []int{1}
 }
-func (m *MsgDeleteAllowlistRequest) XXX_Unmarshal(b []byte) error {
+func (m *MsgDeleteAllowlistEntryRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgDeleteAllowlistRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgDeleteAllowlistEntryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgDeleteAllowlistRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgDeleteAllowlistEntryRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -119,26 +119,26 @@ func (m *MsgDeleteAllowlistRequest) XXX_Marshal(b []byte, deterministic bool) ([
 		return b[:n], nil
 	}
 }
-func (m *MsgDeleteAllowlistRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgDeleteAllowlistRequest.Merge(m, src)
+func (m *MsgDeleteAllowlistEntryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgDeleteAllowlistEntryRequest.Merge(m, src)
 }
-func (m *MsgDeleteAllowlistRequest) XXX_Size() int {
+func (m *MsgDeleteAllowlistEntryRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgDeleteAllowlistRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgDeleteAllowlistRequest.DiscardUnknown(m)
+func (m *MsgDeleteAllowlistEntryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgDeleteAllowlistEntryRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgDeleteAllowlistRequest proto.InternalMessageInfo
+var xxx_messageInfo_MsgDeleteAllowlistEntryRequest proto.InternalMessageInfo
 
-func (m *MsgDeleteAllowlistRequest) GetSigner() string {
+func (m *MsgDeleteAllowlistEntryRequest) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-func (m *MsgDeleteAllowlistRequest) GetAddress() string {
+func (m *MsgDeleteAllowlistEntryRequest) GetAddress() string {
 	if m != nil {
 		return m.Address
 	}
@@ -603,8 +603,8 @@ func (m *MsgInstantiateContractResponse) GetData() []byte {
 }
 
 func init() {
-	proto.RegisterType((*MsgCreateAllowlistRequest)(nil), "wormhole_foundation.wormchain.wormhole.MsgCreateAllowlistRequest")
-	proto.RegisterType((*MsgDeleteAllowlistRequest)(nil), "wormhole_foundation.wormchain.wormhole.MsgDeleteAllowlistRequest")
+	proto.RegisterType((*MsgCreateAllowlistEntryRequest)(nil), "wormhole_foundation.wormchain.wormhole.MsgCreateAllowlistEntryRequest")
+	proto.RegisterType((*MsgDeleteAllowlistEntryRequest)(nil), "wormhole_foundation.wormchain.wormhole.MsgDeleteAllowlistEntryRequest")
 	proto.RegisterType((*MsgAllowlistResponse)(nil), "wormhole_foundation.wormchain.wormhole.MsgAllowlistResponse")
 	proto.RegisterType((*MsgExecuteGovernanceVAA)(nil), "wormhole_foundation.wormchain.wormhole.MsgExecuteGovernanceVAA")
 	proto.RegisterType((*MsgExecuteGovernanceVAAResponse)(nil), "wormhole_foundation.wormchain.wormhole.MsgExecuteGovernanceVAAResponse")
@@ -619,47 +619,48 @@ func init() {
 func init() { proto.RegisterFile("wormhole/tx.proto", fileDescriptor_55f7aa067b0c517b) }
 
 var fileDescriptor_55f7aa067b0c517b = []byte{
-	// 635 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0x41, 0x6b, 0xd4, 0x4e,
-	0x14, 0x6f, 0xba, 0xed, 0x96, 0x3e, 0xc2, 0xff, 0x5f, 0xe3, 0x52, 0xd3, 0xa5, 0xa4, 0x1a, 0xa5,
-	0x78, 0x71, 0x03, 0x2a, 0x82, 0x28, 0x4a, 0xb6, 0xd5, 0x52, 0x30, 0x1e, 0x52, 0x51, 0xf0, 0xb2,
-	0xcc, 0x26, 0xe3, 0x34, 0x90, 0xcc, 0xac, 0x99, 0x49, 0xbb, 0x7b, 0xf2, 0x23, 0x28, 0xde, 0x05,
-	0x2f, 0x9e, 0xfd, 0x1a, 0x1e, 0x7b, 0xf4, 0x54, 0x64, 0xf7, 0x8b, 0x48, 0x26, 0x26, 0xbb, 0x74,
-	0x13, 0x31, 0x6c, 0x6f, 0xef, 0xbd, 0xc9, 0xfb, 0xfd, 0x7e, 0xef, 0xe5, 0xcd, 0x1b, 0xb8, 0x72,
-	0xca, 0xe2, 0xe8, 0x98, 0x85, 0xd8, 0x12, 0xc3, 0xce, 0x20, 0x66, 0x82, 0x69, 0xbb, 0x79, 0xa8,
-	0xf7, 0x8e, 0x25, 0xd4, 0x47, 0x22, 0x60, 0xb4, 0x93, 0xc6, 0xbc, 0x63, 0x14, 0x64, 0x56, 0x7a,
-	0xda, 0x6e, 0x11, 0x46, 0x98, 0x4c, 0xb1, 0x52, 0x2b, 0xcb, 0x36, 0x11, 0x6c, 0x39, 0x9c, 0xec,
-	0xc5, 0x18, 0x09, 0x6c, 0x87, 0x21, 0x3b, 0x0d, 0x03, 0x2e, 0x5c, 0xfc, 0x3e, 0xc1, 0x5c, 0x68,
-	0x9b, 0xd0, 0xe4, 0x01, 0xa1, 0x38, 0xd6, 0x95, 0xeb, 0xca, 0xed, 0x75, 0xf7, 0x8f, 0xa7, 0xe9,
-	0xb0, 0x86, 0x7c, 0x3f, 0xc6, 0x9c, 0xeb, 0xcb, 0xf2, 0x20, 0x77, 0x35, 0x0d, 0x56, 0x28, 0x8a,
-	0xb0, 0xde, 0x90, 0x61, 0x69, 0x9b, 0x8e, 0xa4, 0xd8, 0xc7, 0x21, 0xbe, 0x0c, 0x0a, 0x73, 0x13,
-	0x5a, 0x0e, 0x27, 0x33, 0x40, 0x7c, 0xc0, 0x28, 0xc7, 0xe6, 0x1e, 0x5c, 0x73, 0x38, 0x79, 0x36,
-	0xc4, 0x5e, 0x22, 0xf0, 0x01, 0x3b, 0xc1, 0x31, 0x45, 0xd4, 0xc3, 0xaf, 0x6d, 0x5b, 0xdb, 0x80,
-	0xc6, 0x09, 0x42, 0x92, 0x41, 0x75, 0x53, 0x73, 0x86, 0x76, 0x79, 0x96, 0xd6, 0xbc, 0x01, 0x3b,
-	0x15, 0x20, 0x05, 0xcf, 0x2b, 0xd8, 0x76, 0x38, 0x71, 0x31, 0x09, 0xb8, 0xc0, 0xb1, 0xed, 0x79,
-	0x2c, 0xa1, 0xc2, 0xe6, 0x07, 0x09, 0x8a, 0xfd, 0x00, 0xd1, 0xca, 0x8a, 0xb6, 0x61, 0x3d, 0xb5,
-	0x90, 0x48, 0xe2, 0xac, 0x3f, 0xaa, 0x3b, 0x0d, 0x98, 0xbb, 0x70, 0xeb, 0x6f, 0xa8, 0x05, 0xfb,
-	0x00, 0x54, 0x87, 0x93, 0x23, 0xc1, 0x62, 0xbc, 0xc7, 0x7c, 0x5c, 0xc9, 0xf6, 0x00, 0xfe, 0x3b,
-	0x45, 0x3c, 0xea, 0xf5, 0x47, 0x02, 0xf7, 0x3c, 0xe6, 0x63, 0x59, 0xa8, 0xda, 0xdd, 0x18, 0x9f,
-	0xef, 0xa8, 0x6f, 0xec, 0x23, 0xa7, 0x3b, 0x12, 0x12, 0xc1, 0x55, 0xd3, 0xef, 0x72, 0x2f, 0x6f,
-	0x55, 0xa3, 0x68, 0x95, 0xf9, 0x48, 0xf6, 0xbb, 0x60, 0xcc, 0x95, 0x68, 0x37, 0x61, 0x2d, 0xc5,
-	0xed, 0x05, 0xbe, 0xa4, 0x5e, 0xe9, 0xc2, 0xf8, 0x7c, 0xa7, 0x99, 0x7e, 0x72, 0xb8, 0xef, 0x36,
-	0xd3, 0xa3, 0x43, 0xdf, 0xfc, 0xa8, 0xc0, 0xa6, 0xc3, 0xc9, 0x21, 0xe5, 0x02, 0x51, 0x11, 0xa0,
-	0x94, 0x85, 0x8a, 0x18, 0x79, 0xd5, 0x7f, 0x7e, 0x06, 0xb7, 0x51, 0x85, 0xab, 0xb5, 0x60, 0x35,
-	0x44, 0x7d, 0x1c, 0xea, 0x2b, 0x32, 0x37, 0x73, 0x52, 0xf1, 0x11, 0x27, 0xfa, 0x6a, 0x26, 0x3e,
-	0xe2, 0x24, 0x2f, 0xa7, 0x39, 0x2d, 0xe7, 0x25, 0x18, 0xe5, 0x82, 0x8a, 0xc2, 0x66, 0x46, 0x4f,
-	0x99, 0x9b, 0x6e, 0x1f, 0x09, 0x94, 0xb5, 0xd2, 0x95, 0xf6, 0xdd, 0x6f, 0x6b, 0xd0, 0x70, 0x38,
-	0xd1, 0xbe, 0x2a, 0xd0, 0x2a, 0x1d, 0xbe, 0xa7, 0x9d, 0x7f, 0xbb, 0xa0, 0x9d, 0x8a, 0xc1, 0x6b,
-	0x1f, 0x2c, 0x08, 0x50, 0x14, 0xf6, 0x5d, 0x81, 0xad, 0xea, 0xb9, 0xdd, 0xaf, 0x41, 0x53, 0x89,
-	0xd2, 0x7e, 0x71, 0x19, 0x28, 0x85, 0xe2, 0xcf, 0x0a, 0xfc, 0x7f, 0x61, 0x37, 0x69, 0x76, 0x0d,
-	0x86, 0xf2, 0xbd, 0xd6, 0x7e, 0x5c, 0x03, 0x62, 0x6e, 0xd1, 0x48, 0x51, 0x17, 0xb6, 0x59, 0x2d,
-	0x51, 0xe5, 0x9b, 0x70, 0x41, 0x51, 0x1f, 0x60, 0x7d, 0xba, 0x14, 0xee, 0xd7, 0x80, 0x2a, 0xb2,
-	0x6a, 0x09, 0x98, 0x5f, 0x07, 0x5f, 0x14, 0xb8, 0x5a, 0x76, 0xcd, 0x9f, 0xd4, 0x40, 0x2d, 0xc9,
-	0x6f, 0x3f, 0x5f, 0x2c, 0x3f, 0xd7, 0xd7, 0x3d, 0xfa, 0x31, 0x36, 0x94, 0xb3, 0xb1, 0xa1, 0xfc,
-	0x1a, 0x1b, 0xca, 0xa7, 0x89, 0xb1, 0x74, 0x36, 0x31, 0x96, 0x7e, 0x4e, 0x8c, 0xa5, 0xb7, 0x0f,
-	0x49, 0x20, 0x8e, 0x93, 0x7e, 0xc7, 0x63, 0x91, 0x95, 0xa3, 0xdd, 0x99, 0x72, 0x59, 0x05, 0x97,
-	0x35, 0xb4, 0xa6, 0xcf, 0xef, 0x68, 0x80, 0x79, 0xbf, 0x29, 0x1f, 0xd1, 0x7b, 0xbf, 0x03, 0x00,
-	0x00, 0xff, 0xff, 0x6a, 0x6d, 0xca, 0x8f, 0x97, 0x07, 0x00, 0x00,
+	// 642 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0xcf, 0x6e, 0xd3, 0x4e,
+	0x10, 0xae, 0x9b, 0x36, 0x55, 0x47, 0xd1, 0x4f, 0xfd, 0x99, 0xa8, 0x84, 0xa8, 0x72, 0xc1, 0xa0,
+	0x8a, 0x0b, 0x89, 0x04, 0x08, 0x09, 0x81, 0x40, 0x49, 0xff, 0xa9, 0x12, 0xe6, 0xe0, 0x22, 0x90,
+	0xb8, 0x44, 0x1b, 0x7b, 0xba, 0xb5, 0x64, 0xef, 0x86, 0xdd, 0x75, 0xdb, 0x9c, 0x78, 0x04, 0x78,
+	0x00, 0x90, 0x78, 0x03, 0xce, 0xbc, 0x01, 0xc7, 0x1e, 0x39, 0x55, 0x28, 0x7d, 0x11, 0xe4, 0x35,
+	0x76, 0x22, 0xd5, 0xae, 0xb0, 0xda, 0xdb, 0xcc, 0xac, 0xe7, 0xfb, 0xbe, 0x19, 0xcf, 0xce, 0xc2,
+	0xff, 0xc7, 0x5c, 0x44, 0x87, 0x3c, 0xc4, 0xae, 0x3a, 0xe9, 0x8c, 0x04, 0x57, 0xdc, 0xdc, 0xc8,
+	0x42, 0x83, 0x03, 0x1e, 0x33, 0x9f, 0xa8, 0x80, 0xb3, 0x4e, 0x12, 0xf3, 0x0e, 0x49, 0x90, 0x5a,
+	0xc9, 0x69, 0xbb, 0x49, 0x39, 0xe5, 0x3a, 0xa5, 0x9b, 0x58, 0x69, 0xb6, 0x7d, 0x00, 0x96, 0x23,
+	0xe9, 0xa6, 0x40, 0xa2, 0xb0, 0x17, 0x86, 0xfc, 0x38, 0x0c, 0xa4, 0xda, 0x66, 0x4a, 0x8c, 0x5d,
+	0xfc, 0x10, 0xa3, 0x54, 0xe6, 0x2a, 0xd4, 0x65, 0x40, 0x19, 0x8a, 0x96, 0x71, 0xdb, 0xb8, 0xbf,
+	0xec, 0xfe, 0xf5, 0xcc, 0x16, 0x2c, 0x11, 0xdf, 0x17, 0x28, 0x65, 0x6b, 0x5e, 0x1f, 0x64, 0xae,
+	0x69, 0xc2, 0x02, 0x23, 0x11, 0xb6, 0x6a, 0x3a, 0xac, 0x6d, 0xdb, 0xd5, 0x3c, 0x5b, 0x18, 0xe2,
+	0xb5, 0xf1, 0xd8, 0xab, 0xd0, 0x74, 0x24, 0xcd, 0xd1, 0x5c, 0x94, 0x23, 0xce, 0x24, 0xda, 0x9b,
+	0x70, 0xd3, 0x91, 0x74, 0xfb, 0x04, 0xbd, 0x58, 0xe1, 0x2e, 0x3f, 0x42, 0xc1, 0x08, 0xf3, 0xf0,
+	0x6d, 0xaf, 0x67, 0xae, 0x40, 0xed, 0x88, 0x10, 0xcd, 0xd0, 0x70, 0x13, 0x73, 0x86, 0x76, 0x7e,
+	0x96, 0xd6, 0xbe, 0x03, 0xeb, 0x25, 0x20, 0x39, 0xcf, 0x1b, 0x58, 0x73, 0x24, 0x75, 0x91, 0x06,
+	0x52, 0xa1, 0xe8, 0x79, 0x1e, 0x8f, 0x99, 0xea, 0xc9, 0xdd, 0x98, 0x08, 0x3f, 0x20, 0xac, 0xb4,
+	0xa2, 0x35, 0x58, 0x4e, 0x2c, 0xa2, 0x62, 0x91, 0x36, 0xa9, 0xe1, 0x4e, 0x03, 0xf6, 0x06, 0xdc,
+	0xbb, 0x0c, 0x35, 0x67, 0x1f, 0x41, 0xc3, 0x91, 0x74, 0x5f, 0x71, 0x81, 0x9b, 0xdc, 0xc7, 0x52,
+	0xb6, 0x27, 0xf0, 0xdf, 0x31, 0x91, 0xd1, 0x60, 0x38, 0x56, 0x38, 0xf0, 0xb8, 0x8f, 0xba, 0xd0,
+	0x46, 0x7f, 0x65, 0x72, 0xb6, 0xde, 0x78, 0xd7, 0xdb, 0x77, 0xfa, 0x63, 0xa5, 0x11, 0xdc, 0x46,
+	0xf2, 0x5d, 0xe6, 0x65, 0xad, 0xaa, 0xe5, 0xad, 0xb2, 0x9f, 0xe9, 0x7e, 0xe7, 0x8c, 0x99, 0x12,
+	0xf3, 0x2e, 0x2c, 0x25, 0xb8, 0x83, 0xc0, 0xd7, 0xd4, 0x0b, 0x7d, 0x98, 0x9c, 0xad, 0xd7, 0x93,
+	0x4f, 0xf6, 0xb6, 0xdc, 0x7a, 0x72, 0xb4, 0xe7, 0xdb, 0x9f, 0x0c, 0x58, 0x75, 0x24, 0xdd, 0x63,
+	0x52, 0x11, 0xa6, 0x02, 0x92, 0xb0, 0x30, 0x25, 0x88, 0x57, 0xfe, 0xe7, 0x67, 0x70, 0x6b, 0x65,
+	0xb8, 0x66, 0x13, 0x16, 0x43, 0x32, 0xc4, 0xb0, 0xb5, 0xa0, 0x73, 0x53, 0x27, 0x11, 0x1f, 0x49,
+	0xda, 0x5a, 0x4c, 0xc5, 0x47, 0x92, 0x66, 0xe5, 0xd4, 0xa7, 0xe5, 0xbc, 0xd6, 0x23, 0x59, 0x20,
+	0x28, 0x2f, 0x6c, 0x66, 0xf4, 0x8c, 0x0b, 0x23, 0xee, 0x13, 0x45, 0xd2, 0x56, 0xba, 0xda, 0x7e,
+	0xf8, 0x63, 0x09, 0x6a, 0x8e, 0xa4, 0xe6, 0x37, 0x03, 0x9a, 0x85, 0xc3, 0xf7, 0xb2, 0xf3, 0x6f,
+	0x57, 0xb5, 0x53, 0x32, 0x78, 0xed, 0xdd, 0x2b, 0x02, 0xe4, 0x85, 0x7d, 0x37, 0xe0, 0x56, 0xf9,
+	0xdc, 0x6e, 0x55, 0xa0, 0x29, 0x45, 0x69, 0xbf, 0xba, 0x0e, 0x94, 0x5c, 0xf1, 0x17, 0x03, 0x9a,
+	0x45, 0x5b, 0xca, 0xdc, 0xa9, 0x40, 0x73, 0xc9, 0x9a, 0x6b, 0x3f, 0xaf, 0x80, 0x73, 0x61, 0xe5,
+	0x68, 0x79, 0x45, 0xcb, 0xad, 0x92, 0xbc, 0x4b, 0xb6, 0xe3, 0x15, 0xe5, 0x7d, 0x84, 0xe5, 0xe9,
+	0xa2, 0x78, 0x5c, 0x01, 0x2a, 0xcf, 0xaa, 0x24, 0xe0, 0xe2, 0x8a, 0xf8, 0x6a, 0xc0, 0x8d, 0xa2,
+	0xab, 0xff, 0xa2, 0x02, 0x6a, 0x41, 0x7e, 0x7b, 0xe7, 0x6a, 0xf9, 0x99, 0xbe, 0xfe, 0xfe, 0xcf,
+	0x89, 0x65, 0x9c, 0x4e, 0x2c, 0xe3, 0xf7, 0xc4, 0x32, 0x3e, 0x9f, 0x5b, 0x73, 0xa7, 0xe7, 0xd6,
+	0xdc, 0xaf, 0x73, 0x6b, 0xee, 0xfd, 0x53, 0x1a, 0xa8, 0xc3, 0x78, 0xd8, 0xf1, 0x78, 0xd4, 0xcd,
+	0xd0, 0x1e, 0x4c, 0xb9, 0xba, 0x39, 0x57, 0xf7, 0xa4, 0x3b, 0x7d, 0x9c, 0xc7, 0x23, 0x94, 0xc3,
+	0xba, 0x7e, 0x62, 0x1f, 0xfd, 0x09, 0x00, 0x00, 0xff, 0xff, 0x86, 0x0b, 0xf1, 0x5c, 0xb5, 0x07,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -676,8 +677,8 @@ const _ = grpc.SupportPackageIsVersion4
 type MsgClient interface {
 	ExecuteGovernanceVAA(ctx context.Context, in *MsgExecuteGovernanceVAA, opts ...grpc.CallOption) (*MsgExecuteGovernanceVAAResponse, error)
 	RegisterAccountAsGuardian(ctx context.Context, in *MsgRegisterAccountAsGuardian, opts ...grpc.CallOption) (*MsgRegisterAccountAsGuardianResponse, error)
-	CreateAllowlist(ctx context.Context, in *MsgCreateAllowlistRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error)
-	DeleteAllowlist(ctx context.Context, in *MsgDeleteAllowlistRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error)
+	CreateAllowlistEntry(ctx context.Context, in *MsgCreateAllowlistEntryRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error)
+	DeleteAllowlistEntry(ctx context.Context, in *MsgDeleteAllowlistEntryRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error)
 	// StoreCode to submit Wasm code to the system
 	StoreCode(ctx context.Context, in *MsgStoreCode, opts ...grpc.CallOption) (*MsgStoreCodeResponse, error)
 	//  Instantiate creates a new smart contract instance for the given code id.
@@ -710,18 +711,18 @@ func (c *msgClient) RegisterAccountAsGuardian(ctx context.Context, in *MsgRegist
 	return out, nil
 }
 
-func (c *msgClient) CreateAllowlist(ctx context.Context, in *MsgCreateAllowlistRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error) {
+func (c *msgClient) CreateAllowlistEntry(ctx context.Context, in *MsgCreateAllowlistEntryRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error) {
 	out := new(MsgAllowlistResponse)
-	err := c.cc.Invoke(ctx, "/wormhole_foundation.wormchain.wormhole.Msg/CreateAllowlist", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/wormhole_foundation.wormchain.wormhole.Msg/CreateAllowlistEntry", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) DeleteAllowlist(ctx context.Context, in *MsgDeleteAllowlistRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error) {
+func (c *msgClient) DeleteAllowlistEntry(ctx context.Context, in *MsgDeleteAllowlistEntryRequest, opts ...grpc.CallOption) (*MsgAllowlistResponse, error) {
 	out := new(MsgAllowlistResponse)
-	err := c.cc.Invoke(ctx, "/wormhole_foundation.wormchain.wormhole.Msg/DeleteAllowlist", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/wormhole_foundation.wormchain.wormhole.Msg/DeleteAllowlistEntry", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -750,8 +751,8 @@ func (c *msgClient) InstantiateContract(ctx context.Context, in *MsgInstantiateC
 type MsgServer interface {
 	ExecuteGovernanceVAA(context.Context, *MsgExecuteGovernanceVAA) (*MsgExecuteGovernanceVAAResponse, error)
 	RegisterAccountAsGuardian(context.Context, *MsgRegisterAccountAsGuardian) (*MsgRegisterAccountAsGuardianResponse, error)
-	CreateAllowlist(context.Context, *MsgCreateAllowlistRequest) (*MsgAllowlistResponse, error)
-	DeleteAllowlist(context.Context, *MsgDeleteAllowlistRequest) (*MsgAllowlistResponse, error)
+	CreateAllowlistEntry(context.Context, *MsgCreateAllowlistEntryRequest) (*MsgAllowlistResponse, error)
+	DeleteAllowlistEntry(context.Context, *MsgDeleteAllowlistEntryRequest) (*MsgAllowlistResponse, error)
 	// StoreCode to submit Wasm code to the system
 	StoreCode(context.Context, *MsgStoreCode) (*MsgStoreCodeResponse, error)
 	//  Instantiate creates a new smart contract instance for the given code id.
@@ -768,11 +769,11 @@ func (*UnimplementedMsgServer) ExecuteGovernanceVAA(ctx context.Context, req *Ms
 func (*UnimplementedMsgServer) RegisterAccountAsGuardian(ctx context.Context, req *MsgRegisterAccountAsGuardian) (*MsgRegisterAccountAsGuardianResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterAccountAsGuardian not implemented")
 }
-func (*UnimplementedMsgServer) CreateAllowlist(ctx context.Context, req *MsgCreateAllowlistRequest) (*MsgAllowlistResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateAllowlist not implemented")
+func (*UnimplementedMsgServer) CreateAllowlistEntry(ctx context.Context, req *MsgCreateAllowlistEntryRequest) (*MsgAllowlistResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAllowlistEntry not implemented")
 }
-func (*UnimplementedMsgServer) DeleteAllowlist(ctx context.Context, req *MsgDeleteAllowlistRequest) (*MsgAllowlistResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteAllowlist not implemented")
+func (*UnimplementedMsgServer) DeleteAllowlistEntry(ctx context.Context, req *MsgDeleteAllowlistEntryRequest) (*MsgAllowlistResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteAllowlistEntry not implemented")
 }
 func (*UnimplementedMsgServer) StoreCode(ctx context.Context, req *MsgStoreCode) (*MsgStoreCodeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StoreCode not implemented")
@@ -821,38 +822,38 @@ func _Msg_RegisterAccountAsGuardian_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_CreateAllowlist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgCreateAllowlistRequest)
+func _Msg_CreateAllowlistEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgCreateAllowlistEntryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).CreateAllowlist(ctx, in)
+		return srv.(MsgServer).CreateAllowlistEntry(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wormhole_foundation.wormchain.wormhole.Msg/CreateAllowlist",
+		FullMethod: "/wormhole_foundation.wormchain.wormhole.Msg/CreateAllowlistEntry",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).CreateAllowlist(ctx, req.(*MsgCreateAllowlistRequest))
+		return srv.(MsgServer).CreateAllowlistEntry(ctx, req.(*MsgCreateAllowlistEntryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_DeleteAllowlist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgDeleteAllowlistRequest)
+func _Msg_DeleteAllowlistEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgDeleteAllowlistEntryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).DeleteAllowlist(ctx, in)
+		return srv.(MsgServer).DeleteAllowlistEntry(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wormhole_foundation.wormchain.wormhole.Msg/DeleteAllowlist",
+		FullMethod: "/wormhole_foundation.wormchain.wormhole.Msg/DeleteAllowlistEntry",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).DeleteAllowlist(ctx, req.(*MsgDeleteAllowlistRequest))
+		return srv.(MsgServer).DeleteAllowlistEntry(ctx, req.(*MsgDeleteAllowlistEntryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -906,12 +907,12 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Msg_RegisterAccountAsGuardian_Handler,
 		},
 		{
-			MethodName: "CreateAllowlist",
-			Handler:    _Msg_CreateAllowlist_Handler,
+			MethodName: "CreateAllowlistEntry",
+			Handler:    _Msg_CreateAllowlistEntry_Handler,
 		},
 		{
-			MethodName: "DeleteAllowlist",
-			Handler:    _Msg_DeleteAllowlist_Handler,
+			MethodName: "DeleteAllowlistEntry",
+			Handler:    _Msg_DeleteAllowlistEntry_Handler,
 		},
 		{
 			MethodName: "StoreCode",
@@ -926,7 +927,7 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	Metadata: "wormhole/tx.proto",
 }
 
-func (m *MsgCreateAllowlistRequest) Marshal() (dAtA []byte, err error) {
+func (m *MsgCreateAllowlistEntryRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -936,12 +937,12 @@ func (m *MsgCreateAllowlistRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgCreateAllowlistRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgCreateAllowlistEntryRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgCreateAllowlistRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgCreateAllowlistEntryRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -970,7 +971,7 @@ func (m *MsgCreateAllowlistRequest) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgDeleteAllowlistRequest) Marshal() (dAtA []byte, err error) {
+func (m *MsgDeleteAllowlistEntryRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -980,12 +981,12 @@ func (m *MsgDeleteAllowlistRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgDeleteAllowlistRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgDeleteAllowlistEntryRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgDeleteAllowlistRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgDeleteAllowlistEntryRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -1326,7 +1327,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgCreateAllowlistRequest) Size() (n int) {
+func (m *MsgCreateAllowlistEntryRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1347,7 +1348,7 @@ func (m *MsgCreateAllowlistRequest) Size() (n int) {
 	return n
 }
 
-func (m *MsgDeleteAllowlistRequest) Size() (n int) {
+func (m *MsgDeleteAllowlistEntryRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1509,7 +1510,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MsgCreateAllowlistRequest) Unmarshal(dAtA []byte) error {
+func (m *MsgCreateAllowlistEntryRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1532,10 +1533,10 @@ func (m *MsgCreateAllowlistRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgCreateAllowlistRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgCreateAllowlistEntryRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgCreateAllowlistRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgCreateAllowlistEntryRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1655,7 +1656,7 @@ func (m *MsgCreateAllowlistRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgDeleteAllowlistRequest) Unmarshal(dAtA []byte) error {
+func (m *MsgDeleteAllowlistEntryRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1678,10 +1679,10 @@ func (m *MsgDeleteAllowlistRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgDeleteAllowlistRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgDeleteAllowlistEntryRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgDeleteAllowlistRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgDeleteAllowlistEntryRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

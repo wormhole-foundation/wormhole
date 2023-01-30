@@ -115,7 +115,9 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		supportedFeatures,
 	)
 	ctx := sdk.NewContext(stateStore, tmproto.Header{
-		Time:   time.Now(),
+		Time: time.Now(),
+		// The height should be at least 1, because the allowlist antehandler
+		// passes everything at height 0 for gen tx's.
 		Height: 1,
 	}, false, log.NewNopLogger())
 	appapp.MountKVStores(keys)

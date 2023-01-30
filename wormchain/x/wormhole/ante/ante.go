@@ -26,43 +26,32 @@ func (wh WormholeAllowlistDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, 
 		return next(request, tx, simulate)
 	}
 
-	verified_addresses := make(map[string]bool)
-
-	// For every message we should check:
+	// We permit if there is a message with a signer satisfying either condition:
 	// 1. There is an allowlist entry for the signer(s), OR
-	// 2. The signer(s) are validators in current or future guardian set.
-	// We cache the result for performance, since this is a ante handler that runs for everything.
+	// 2. The signer is a validators in a current or future guardian set.
+	// I.e. If one message has an allowed signer, then the transaction has a signature from that address.
 	for _, msg := range tx.GetMsgs() {
 		for _, signer := range msg.GetSigners() {
 			addr := signer.String()
-			// check for an address we may have already verified
-			if ok := verified_addresses[addr]; ok {
-				// ok
-				continue
-			}
 			// check for an allowlist
 			if wh.k.HasValidatorAllowedAddress(request, addr) {
 				allowed_entry := wh.k.GetValidatorAllowedAddress(request, addr)
 				// authenticate that the validator that made the allowlist is still valid
 				if wh.k.IsAddressValidatorOrFutureValidator(request, allowed_entry.ValidatorAddress) {
 					// ok
-					verified_addresses[addr] = true
-					continue
+					return next(request, tx, simulate)
 				}
 			}
 
 			// if allowlist did not pass, check if signer is a current or future validator
 			if wh.k.IsAddressValidatorOrFutureValidator(request, addr) {
 				// ok
-				verified_addresses[addr] = true
-				continue
+				return next(request, tx, simulate)
 			}
-
-			// by this point, this signer is not allowlisted or a valid validator.
-			// not authorized!
-			return request, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "signer must be current validator or allowlisted by current validator")
 		}
 	}
 
-	return next(request, tx, simulate)
+	// By this point, there is no signer that is not allowlisted or is a validator.
+	// Not authorized!
+	return request, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "signer must be current validator or allowlisted by current validator")
 }

@@ -58,7 +58,7 @@ func getRandomAddress() string {
 	return sdk.AccAddress(validatorAddr[:]).String()
 }
 
-func TestAllowlist(t *testing.T) {
+func TestAllowlistEntry(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	guardians, _ := createNGuardianValidator(k, ctx, 10)
 	k.SetConfig(ctx, types.Config{
@@ -76,89 +76,107 @@ func TestAllowlist(t *testing.T) {
 	context := sdk.WrapSDKContext(ctx)
 	msgServer := keeper.NewMsgServerImpl(*k)
 
-	// Test creating allowlist works using a validator
-	new_address := getRandomAddress()
-	_, err := msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
-		Signer:  getSigner(&guardians[0]),
-		Address: new_address,
-	})
-	assert.NoError(t, err)
+	// Test creating AllowlistEntry works using a validator
+	new_addresses := []string{
+		getRandomAddress(),
+		getRandomAddress(),
+		getRandomAddress(),
+	}
+	for _, addr := range new_addresses {
+		_, err := msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
+			Signer:  getSigner(&guardians[0]),
+			Address: addr,
+		})
+		assert.NoError(t, err)
+	}
 	// Test creating the same address again is rejected
 	for _, g := range guardians {
-		_, err = msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
-			Signer:  getSigner(&g),
-			Address: new_address,
-		})
-		assert.Error(t, err)
+		for _, addr := range new_addresses {
+
+			_, err := msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
+				Signer:  getSigner(&g),
+				Address: addr,
+			})
+			assert.Error(t, err)
+		}
 	}
 
 	// Test address can be Deleted
-	_, err = msgServer.DeleteAllowlist(context, &types.MsgDeleteAllowlistRequest{
+	_, err := msgServer.DeleteAllowlistEntry(context, &types.MsgDeleteAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[0]),
-		Address: new_address,
+		Address: new_addresses[0],
 	})
 	assert.NoError(t, err)
 	// Can't be deleted again since it doesn't exist
-	_, err = msgServer.DeleteAllowlist(context, &types.MsgDeleteAllowlistRequest{
+	_, err = msgServer.DeleteAllowlistEntry(context, &types.MsgDeleteAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[0]),
-		Address: new_address,
+		Address: new_addresses[0],
 	})
 	assert.Error(t, err)
 	// Can be added again
-	_, err = msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
+	_, err = msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[0]),
-		Address: new_address,
+		Address: new_addresses[0],
 	})
 	assert.NoError(t, err)
 
-	// another guardian cannot delete an allowlist they did not create
+	// another guardian cannot delete an AllowlistEntry they did not create
 	for _, g := range guardians[1:] {
-		_, err = msgServer.DeleteAllowlist(context, &types.MsgDeleteAllowlistRequest{
+		_, err = msgServer.DeleteAllowlistEntry(context, &types.MsgDeleteAllowlistEntryRequest{
 			Signer:  getSigner(&g),
-			Address: new_address,
+			Address: new_addresses[0],
 		})
 		assert.Error(t, err)
 	}
 
-	// Cannot make allowlist if not a validator
-	_, err = msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
+	// Cannot make AllowlistEntry if not a validator
+	_, err = msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
 		Signer:  getRandomAddress(),
 		Address: getRandomAddress(),
 	})
 	assert.Error(t, err)
 
-	// Cannot make allowlist if the guardian set changes
+	// Cannot make AllowlistEntry if the guardian set changes
 	oldGuardian := guardians[0]
 	guardians, _ = createNGuardianValidator(k, ctx, 10)
 	createNewGuardianSet(k, ctx, guardians)
 	err = k.TrySwitchToNewConsensusGuardianSet(ctx)
 	assert.NoError(t, err)
-	_, err = msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
+	_, err = msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
 		Signer:  getSigner(&oldGuardian),
 		Address: getRandomAddress(),
 	})
 	assert.Error(t, err)
 
 	// still works with new guardian set
-	_, err = msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
+	_, err = msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[0]),
 		Address: getRandomAddress(),
 	})
 	assert.NoError(t, err)
 
-	// Anyone can remove stale allowlists
+	// Anyone can remove stale AllowlistEntrys
 	// (new_address list is now stale as it's validator is no longer in validator set)
-	_, err = msgServer.DeleteAllowlist(context, &types.MsgDeleteAllowlistRequest{
+	_, err = msgServer.DeleteAllowlistEntry(context, &types.MsgDeleteAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[9]),
-		Address: new_address,
+		Address: new_addresses[0],
 	})
 	assert.NoError(t, err)
+
+	// stale addresses will get overwritten by new validator
+	_, err = msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
+		Signer:  getSigner(&guardians[0]),
+		Address: new_addresses[1],
+	})
+	assert.NoError(t, err)
+	allowed := k.GetValidatorAllowedAddress(ctx, new_addresses[1])
+	assert.Equal(t, allowed.ValidatorAddress, getSigner(&guardians[0]))
 
 	_ = msgServer
 	_ = context
 }
 
-func TestAllowlistAnteHandler(t *testing.T) {
+func TestAllowlistEntryAnteHandler(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
 	_ = privateKeys
@@ -198,7 +216,7 @@ func TestAllowlistAnteHandler(t *testing.T) {
 	assert.Error(t, err)
 
 	// Test ante handler accepts new address when whitelisted
-	_, err = msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
+	_, err = msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[0]),
 		Address: new_address,
 	})
@@ -206,8 +224,8 @@ func TestAllowlistAnteHandler(t *testing.T) {
 	_, err = anteHandler.AnteHandle(ctx, getTxWithSigner(new_address), false, MockNext)
 	assert.NoError(t, err)
 
-	// Test ante handler rejects when allowlist is removed
-	_, err = msgServer.DeleteAllowlist(context, &types.MsgDeleteAllowlistRequest{
+	// Test ante handler rejects when AllowlistEntry is removed
+	_, err = msgServer.DeleteAllowlistEntry(context, &types.MsgDeleteAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[0]),
 		Address: new_address,
 	})
@@ -216,25 +234,14 @@ func TestAllowlistAnteHandler(t *testing.T) {
 	_, err = anteHandler.AnteHandle(ctx, getTxWithSigner(new_address), false, MockNext)
 	assert.Error(t, err)
 
-	// (add back the allowlist)
-	_, err = msgServer.CreateAllowlist(context, &types.MsgCreateAllowlistRequest{
+	// (add back the AllowlistEntry)
+	_, err = msgServer.CreateAllowlistEntry(context, &types.MsgCreateAllowlistEntryRequest{
 		Signer:  getSigner(&guardians[0]),
 		Address: new_address,
 	})
 	assert.NoError(t, err)
 	_, err = anteHandler.AnteHandle(ctx, getTxWithSigner(new_address), false, MockNext)
 	assert.NoError(t, err)
-
-	// test that the ante handler rejects when a 2nd not-allowed msg is snuck in >:)
-	_, err = anteHandler.AnteHandle(ctx, &MockTx{
-		Msgs: []sdk.Msg{
-			// good
-			getMsgWithSigner(new_address),
-			// bad
-			getMsgWithSigner(getRandomAddress()),
-		},
-	}, false, MockNext)
-	assert.Error(t, err)
 
 	// test ante handler rejects address that is no longer valid
 	// due to validator set advancing

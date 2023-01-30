@@ -54,21 +54,8 @@ func (k Keeper) GetAllAllowedAddresses(ctx sdk.Context) (list []types.ValidatorA
 // * Is in a future guardian set
 func (k Keeper) IsAddressValidatorOrFutureValidator(ctx sdk.Context, addr string) bool {
 	currentIndex, _ := k.GetConsensusGuardianSetIndex(ctx)
-	validators := k.GetAllGuardianValidator(ctx)
-	addrBz, err := sdk.AccAddressFromBech32(addr)
-	var matchedValidator *types.GuardianValidator = nil
-	if err != nil {
-		return false
-	}
-	// look up the guardian validator
-	for _, val := range validators {
-		if bytes.Equal(val.ValidatorAddr, addrBz) {
-			matchedValidator = &val
-			break
-		}
-	}
-	// if no match, no match
-	if matchedValidator == nil {
+	matchedValidator, found := k.GetGuardianValidatorByValidatorAddress(ctx, addr)
+	if !found {
 		return false
 	}
 	// check that the validator is in a current or future guardian set
@@ -83,4 +70,18 @@ func (k Keeper) IsAddressValidatorOrFutureValidator(ctx sdk.Context, addr string
 		}
 	}
 	return false
+}
+
+func (k Keeper) GetGuardianValidatorByValidatorAddress(ctx sdk.Context, addr string) (validator types.GuardianValidator, found bool) {
+	addrBz, err := sdk.AccAddressFromBech32(addr)
+	if err != nil {
+		return
+	}
+	validators := k.GetAllGuardianValidator(ctx)
+	for _, val := range validators {
+		if bytes.Equal(val.ValidatorAddr, addrBz) {
+			return val, true
+		}
+	}
+	return
 }
