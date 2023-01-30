@@ -175,6 +175,8 @@ type (
 	}
 )
 
+var submitObservationPrefix = []byte("acct_sub_obsfig_000000000000000000|")
+
 func (k TransferKey) String() string {
 	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
 }
@@ -329,7 +331,7 @@ func SubmitObservationsToContract(
 		return nil, fmt.Errorf("acct: failed to marshal accountant observation request: %w", err)
 	}
 
-	digest := vaa.SigningMsg(bytes)
+	digest := vaa.SigningMsg(append(submitObservationPrefix, bytes...))
 
 	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
