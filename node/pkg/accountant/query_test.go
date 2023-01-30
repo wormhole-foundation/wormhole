@@ -108,5 +108,19 @@ func TestParseBatchTransferStatusNotFoundResponse(t *testing.T) {
 }
 
 func TestParseBatchTransferStatusPendingResponse(t *testing.T) {
-	//TODO: Write this test once we get a sample response.
+	pendingEntryJson := []byte("{\"digest\":\"65hmAN4IbW9MBnSDzYmgoD/3ze+F8ik9NGeKR/vQ4J4=\",\"tx_hash\":\"CjHx8zExnr4JU8ewAu5/tXM6a5QyslKufGHZNSr0aE8=\",\"signatures\":\"1\",\"guardian_set_index\":0,\"emitter_chain\":2}")
+	var pendingEntryResponse TransferStatusPending
+	err := json.Unmarshal(pendingEntryJson, &pendingEntryResponse)
+	require.NoError(t, err)
+
+	pendingEntriesJson := []byte("[{\"digest\":\"65hmAN4IbW9MBnSDzYmgoD/3ze+F8ik9NGeKR/vQ4J4=\",\"tx_hash\":\"CjHx8zExnr4JU8ewAu5/tXM6a5QyslKufGHZNSr0aE8=\",\"signatures\":\"1\",\"guardian_set_index\":0,\"emitter_chain\":2}]")
+	var pendingEntriesResponse []TransferStatusPending
+	err = json.Unmarshal(pendingEntriesJson, &pendingEntriesResponse)
+	require.NoError(t, err)
+
+	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\",\"sequence\":3},\"status\":{\"pending\":[{\"digest\":\"65hmAN4IbW9MBnSDzYmgoD/3ze+F8ik9NGeKR/vQ4J4=\",\"tx_hash\":\"CjHx8zExnr4JU8ewAu5/tXM6a5QyslKufGHZNSr0aE8=\",\"signatures\":\"1\",\"guardian_set_index\":0,\"emitter_chain\":2}]}}]}")
+	var response BatchTransferStatusResponse
+	err = json.Unmarshal(responsesJson, &response)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(response.Details))
 }

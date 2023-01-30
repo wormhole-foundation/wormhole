@@ -66,7 +66,7 @@ type (
 	// TransferStatus contains the status returned for a transfer.
 	TransferStatus struct {
 		Committed *TransferStatusCommitted `json:"committed"`
-		Pending   *TransferStatusPending   `json:"pending"`
+		Pending   *[]TransferStatusPending `json:"pending"`
 	}
 
 	// TransferStatusCommitted contains the data returned for a committed transfer.
@@ -85,7 +85,11 @@ type (
 
 	// TransferStatusPending contains the data returned for a committed transfer.
 	TransferStatusPending struct {
-		// TODO: Fill this in once we get a sample.
+		Digest           []byte `json:"digest"`
+		TxHash           []byte `json:"tx_hash"`
+		Signatures       string `json:"signatures"`
+		GuardianSetIndex uint32 `json:"guardian_set_index"`
+		EmitterChain     uint16 `json:"emitter_chain"`
 	}
 )
 
@@ -277,12 +281,12 @@ func (acct *Accountant) queryMissingObservations() ([]MissingObservation, error)
 	acct.logger.Debug("acctaudit: submitting missing_observations query", zap.String("query", query))
 	respBytes, err := acct.wormchainConn.SubmitQuery(acct.ctx, acct.contract, []byte(query))
 	if err != nil {
-		return nil, fmt.Errorf("missing_observations query failed: %w", err)
+		return nil, fmt.Errorf("missing_observations query failed: %w, %s", err, query)
 	}
 
 	var ret MissingObservationsResponse
 	if err := json.Unmarshal(respBytes, &ret); err != nil {
-		return nil, fmt.Errorf("failed to parse missing_observations response: %w", err)
+		return nil, fmt.Errorf("failed to parse missing_observations response: %w, resp: %s", err, string(respBytes))
 	}
 
 	acct.logger.Debug("acctaudit: missing_observations query response", zap.Int("numEntries", len(ret.Missing)), zap.String("result", string(respBytes)))
@@ -300,12 +304,12 @@ func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey) (map[string
 	acct.logger.Debug("acctaudit: submitting batch_transfer_status query", zap.String("query", query))
 	respBytes, err := acct.wormchainConn.SubmitQuery(acct.ctx, acct.contract, []byte(query))
 	if err != nil {
-		return nil, fmt.Errorf("batch_transfer_status query failed: %w", err)
+		return nil, fmt.Errorf("batch_transfer_status query failed: %w, %s", err, query)
 	}
 
 	var response BatchTransferStatusResponse
 	if err := json.Unmarshal(respBytes, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal response: %w, resp: %s", err, string(respBytes))
 	}
 
 	ret := make(map[string]*TransferStatus)
