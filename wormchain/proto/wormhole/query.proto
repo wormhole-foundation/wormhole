@@ -85,7 +85,7 @@ message QueryAllValidatorAllowlist {
 
 // all allowlisted entries by all validators
 message QueryAllValidatorAllowlistResponse {
-	repeated ValidatorAllowedAddress allowed_address = 1;
+	repeated ValidatorAllowedAddress allowlist = 1;
 	cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
@@ -97,7 +97,7 @@ message QueryValidatorAllowlist {
 // all allowlisted entries by a specific validator
 message QueryValidatorAllowlistResponse {
 	string validator_address = 1;
-	repeated ValidatorAllowedAddress allowed_address = 2;
+	repeated ValidatorAllowedAddress allowlist = 2;
 	cosmos.base.query.v1beta1.PageResponse pagination = 3;
 }
 

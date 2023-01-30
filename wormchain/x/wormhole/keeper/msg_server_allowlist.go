@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-func (k msgServer) CreateAllowlist(goCtx context.Context, msg *types.MsgCreateAllowlistRequest) (*types.MsgAllowlistResponse, error) {
+func (k msgServer) CreateAllowlistEntry(goCtx context.Context, msg *types.MsgCreateAllowlistEntryRequest) (*types.MsgAllowlistResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	validator_address := msg.Signer
 	if !k.IsAddressValidatorOrFutureValidator(ctx, validator_address) {
@@ -32,7 +32,7 @@ func (k msgServer) CreateAllowlist(goCtx context.Context, msg *types.MsgCreateAl
 	return &types.MsgAllowlistResponse{}, nil
 }
 
-func (k msgServer) DeleteAllowlist(goCtx context.Context, msg *types.MsgDeleteAllowlistRequest) (*types.MsgAllowlistResponse, error) {
+func (k msgServer) DeleteAllowlistEntry(goCtx context.Context, msg *types.MsgDeleteAllowlistEntryRequest) (*types.MsgAllowlistResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	validator_address := msg.Signer
 	if !k.IsAddressValidatorOrFutureValidator(ctx, validator_address) {

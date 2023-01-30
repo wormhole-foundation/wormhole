@@ -20,9 +20,9 @@ func (k Keeper) AllowlistAll(c context.Context, req *types.QueryAllValidatorAllo
 	ctx := sdk.UnwrapSDKContext(c)
 
 	store := ctx.KVStore(k.storeKey)
-	sequenceCounterStore := prefix.NewStore(store, types.KeyPrefix(types.ValidatorAllowlistKey))
+	allowedStore := prefix.NewStore(store, types.KeyPrefix(types.ValidatorAllowlistKey))
 
-	pageRes, err := query.Paginate(sequenceCounterStore, req.Pagination, func(key []byte, value []byte) error {
+	pageRes, err := query.Paginate(allowedStore, req.Pagination, func(key []byte, value []byte) error {
 		var allowedAddress types.ValidatorAllowedAddress
 		if err := k.cdc.Unmarshal(value, &allowedAddress); err != nil {
 			return err
@@ -36,7 +36,7 @@ func (k Keeper) AllowlistAll(c context.Context, req *types.QueryAllValidatorAllo
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryAllValidatorAllowlistResponse{AllowedAddress: allowedAddresses, Pagination: pageRes}, nil
+	return &types.QueryAllValidatorAllowlistResponse{Allowlist: allowedAddresses, Pagination: pageRes}, nil
 }
 
 func (k Keeper) Allowlist(c context.Context, req *types.QueryValidatorAllowlist) (*types.QueryValidatorAllowlistResponse, error) {
@@ -44,29 +44,15 @@ func (k Keeper) Allowlist(c context.Context, req *types.QueryValidatorAllowlist)
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
 
-	var allowedAddresses []*types.ValidatorAllowedAddress
 	ctx := sdk.UnwrapSDKContext(c)
 
-	store := ctx.KVStore(k.storeKey)
-	sequenceCounterStore := prefix.NewStore(store, types.KeyPrefix(types.ValidatorAllowlistKey))
-
-	pageRes, err := query.Paginate(sequenceCounterStore, req.Pagination, func(key []byte, value []byte) error {
-		var allowedAddress types.ValidatorAllowedAddress
-		if err := k.cdc.Unmarshal(value, &allowedAddress); err != nil {
-			return err
+	allowedAddresses := k.GetAllAllowedAddresses(ctx)
+	allowlist := []*types.ValidatorAllowedAddress{}
+	for _, allowed := range allowedAddresses {
+		if allowed.ValidatorAddress == req.ValidatorAddress {
+			allowlist = append(allowlist, &allowed)
 		}
-		// this will cause a less then expected amount to be returned in the pagination,
-		// but the alternative is to rework how pagination works, which is complex.
-		// this lists are not expected to be long anyways and won't need pagination.
-		if allowedAddress.ValidatorAddress == req.ValidatorAddress {
-			allowedAddresses = append(allowedAddresses, &allowedAddress)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryValidatorAllowlistResponse{AllowedAddress: allowedAddresses, Pagination: pageRes, ValidatorAddress: req.ValidatorAddress}, nil
+	return &types.QueryValidatorAllowlistResponse{Allowlist: allowlist, ValidatorAddress: req.ValidatorAddress}, nil
 }

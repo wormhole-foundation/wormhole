@@ -11,8 +11,8 @@ service Msg {
   rpc ExecuteGovernanceVAA(MsgExecuteGovernanceVAA) returns (MsgExecuteGovernanceVAAResponse);
   rpc RegisterAccountAsGuardian(MsgRegisterAccountAsGuardian) returns (MsgRegisterAccountAsGuardianResponse);
 
-  rpc CreateAllowlist(MsgCreateAllowlistRequest) returns (MsgAllowlistResponse);
-  rpc DeleteAllowlist(MsgDeleteAllowlistRequest) returns (MsgAllowlistResponse);
+  rpc CreateAllowlistEntry(MsgCreateAllowlistEntryRequest) returns (MsgAllowlistResponse);
+  rpc DeleteAllowlistEntry(MsgDeleteAllowlistEntryRequest) returns (MsgAllowlistResponse);
 
   // StoreCode to submit Wasm code to the system
   rpc StoreCode(MsgStoreCode) returns (MsgStoreCodeResponse);
@@ -22,7 +22,7 @@ service Msg {
 // this line is used by starport scaffolding # proto/tx/rpc
 }
 
-message MsgCreateAllowlistRequest {
+message MsgCreateAllowlistEntryRequest {
   // signer should be a guardian validator in a current set or future set.
   string signer = 1;
   // the address to allowlist
@@ -31,7 +31,7 @@ message MsgCreateAllowlistRequest {
   string name = 3;
 }
 
-message MsgDeleteAllowlistRequest {
+message MsgDeleteAllowlistEntryRequest {
   // signer should be a guardian validator in a current set or future set.
   string signer = 1;
   // the address allowlist to remove

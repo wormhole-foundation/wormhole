@@ -5,18 +5,18 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-var _ sdk.Msg = &MsgCreateAllowlistRequest{}
-var _ sdk.Msg = &MsgDeleteAllowlistRequest{}
+var _ sdk.Msg = &MsgCreateAllowlistEntryRequest{}
+var _ sdk.Msg = &MsgDeleteAllowlistEntryRequest{}
 
-func (msg *MsgCreateAllowlistRequest) Route() string {
+func (msg *MsgCreateAllowlistEntryRequest) Route() string {
 	return RouterKey
 }
 
-func (msg *MsgCreateAllowlistRequest) Type() string {
-	return "CreateAllowlistRequest"
+func (msg *MsgCreateAllowlistEntryRequest) Type() string {
+	return "CreateAllowlistEntryRequest"
 }
 
-func (msg *MsgCreateAllowlistRequest) GetSigners() []sdk.AccAddress {
+func (msg *MsgCreateAllowlistEntryRequest) GetSigners() []sdk.AccAddress {
 	signer, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
@@ -24,12 +24,12 @@ func (msg *MsgCreateAllowlistRequest) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{signer}
 }
 
-func (msg *MsgCreateAllowlistRequest) GetSignBytes() []byte {
+func (msg *MsgCreateAllowlistEntryRequest) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }
 
-func (msg *MsgCreateAllowlistRequest) ValidateBasic() error {
+func (msg *MsgCreateAllowlistEntryRequest) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address (%s)", err)
@@ -43,15 +43,15 @@ func (msg *MsgCreateAllowlistRequest) ValidateBasic() error {
 	return nil
 }
 
-func (msg *MsgDeleteAllowlistRequest) Route() string {
+func (msg *MsgDeleteAllowlistEntryRequest) Route() string {
 	return RouterKey
 }
 
-func (msg *MsgDeleteAllowlistRequest) Type() string {
-	return "DeleteAllowlistRequest"
+func (msg *MsgDeleteAllowlistEntryRequest) Type() string {
+	return "DeleteAllowlistEntryRequest"
 }
 
-func (msg *MsgDeleteAllowlistRequest) GetSigners() []sdk.AccAddress {
+func (msg *MsgDeleteAllowlistEntryRequest) GetSigners() []sdk.AccAddress {
 	signer, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
@@ -59,15 +59,20 @@ func (msg *MsgDeleteAllowlistRequest) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{signer}
 }
 
-func (msg *MsgDeleteAllowlistRequest) GetSignBytes() []byte {
+func (msg *MsgDeleteAllowlistEntryRequest) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }
 
-func (msg *MsgDeleteAllowlistRequest) ValidateBasic() error {
+func (msg *MsgDeleteAllowlistEntryRequest) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address (%s)", err)
+	}
+
+	_, err = sdk.AccAddressFromBech32(msg.Address)
+	if err != nil {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid allowlist address (%s)", err)
 	}
 	return nil
 }

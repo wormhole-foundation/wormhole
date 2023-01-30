@@ -29,11 +29,11 @@ func NewHandler(k keeper.Keeper) sdk.Handler {
 		case *types.MsgInstantiateContract:
 			res, err := msgServer.InstantiateContract(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
-		case *types.MsgCreateAllowlistRequest:
-			res, err := msgServer.CreateAllowlist(sdk.WrapSDKContext(ctx), msg)
+		case *types.MsgCreateAllowlistEntryRequest:
+			res, err := msgServer.CreateAllowlistEntry(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
-		case *types.MsgDeleteAllowlistRequest:
-			res, err := msgServer.DeleteAllowlist(sdk.WrapSDKContext(ctx), msg)
+		case *types.MsgDeleteAllowlistEntryRequest:
+			res, err := msgServer.DeleteAllowlistEntry(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
 			// this line is used by starport scaffolding # 1
 		default:
