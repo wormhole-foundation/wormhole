@@ -108,5 +108,40 @@ func TestParseBatchTransferStatusNotFoundResponse(t *testing.T) {
 }
 
 func TestParseBatchTransferStatusPendingResponse(t *testing.T) {
-	//TODO: Write this test once we get a sample response.
+	responsesJson := []byte("{\"details\":[{\"key\":{\"emitter_chain\":2,\"emitter_address\":\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\",\"sequence\":3},\"status\":{\"pending\":[{\"digest\":\"65hmAN4IbW9MBnSDzYmgoD/3ze+F8ik9NGeKR/vQ4J4=\",\"tx_hash\":\"CjHx8zExnr4JU8ewAu5/tXM6a5QyslKufGHZNSr0aE8=\",\"signatures\":\"1\",\"guardian_set_index\":0,\"emitter_chain\":2}]}}]}")
+	var response BatchTransferStatusResponse
+	err := json.Unmarshal(responsesJson, &response)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(response.Details))
+
+	expectedEmitterAddress, err := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	expectedDigest, err := hex.DecodeString("eb986600de086d6f4c067483cd89a0a03ff7cdef85f2293d34678a47fbd0e09e")
+	require.NoError(t, err)
+
+	expectedTxHash, err := hex.DecodeString("0a31f1f331319ebe0953c7b002ee7fb5733a6b9432b252ae7c61d9352af4684f")
+	require.NoError(t, err)
+
+	expectedResult := TransferDetails{
+		Key: TransferKey{
+			EmitterChain:   uint16(vaa.ChainIDEthereum),
+			EmitterAddress: expectedEmitterAddress,
+			Sequence:       3,
+		},
+		Status: &TransferStatus{
+			Pending: &[]TransferStatusPending{
+				TransferStatusPending{
+					Digest:           expectedDigest,
+					TxHash:           expectedTxHash,
+					Signatures:       "1",
+					GuardianSetIndex: 0,
+					EmitterChain:     uint16(vaa.ChainIDEthereum),
+				},
+			},
+		},
+	}
+
+	// Use DeepEqual() because the response contains pointers.
+	assert.True(t, reflect.DeepEqual(expectedResult, response.Details[0]))
 }
