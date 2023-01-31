@@ -4,7 +4,7 @@
 
 // #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
 
-#[cfg(feature = "instructions")]
+#[cfg(any(feature = "instructions", test))]
 pub mod instructions;
 
 #[cfg(feature = "wasm")]
