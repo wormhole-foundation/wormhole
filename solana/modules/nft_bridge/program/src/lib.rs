@@ -3,7 +3,7 @@
 #![deny(unused_must_use)]
 // #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
 
-#[cfg(any(feature = "instructions", test))]
+#[cfg(feature = "instructions")]
 pub mod instructions;
 
 #[cfg(feature = "wasm")]
