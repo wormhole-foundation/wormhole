@@ -592,7 +592,7 @@ func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulek
 		if err != nil {
 			return newCtx, err
 		}
-		return whHandler.AnteHandle(ctx, tx, simulate, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		return whHandler.AnteHandle(newCtx, tx, simulate, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 			return ctx, nil
 		})
 	}
