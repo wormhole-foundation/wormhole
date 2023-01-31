@@ -20,6 +20,7 @@ import {
   CONTRACTS,
   deriveCollectionHashFromTokenId,
   deriveTokenHashFromTokenId,
+  ensureHexPrefix,
   generateSignAndSubmitEntryFunction,
   tryNativeToHexString,
   tryNativeToUint8Array,
@@ -160,6 +161,9 @@ describe("Aptos NFT SDK tests", () => {
       isWrapped: true,
       chainId: CHAIN_ID_ETH,
       assetAddress: Uint8Array.from(ethTransferVaaParsed.tokenAddress),
+      tokenId: ensureHexPrefix(
+        ethTransferVaaParsed.tokenId.toString(16).padStart(64, "0")
+      ),
     });
 
     // transfer NFT from Aptos back to Ethereum
@@ -345,6 +349,9 @@ describe("Aptos NFT SDK tests", () => {
       isWrapped: false,
       chainId: CHAIN_ID_APTOS,
       assetAddress: tokenAddressAptos,
+      tokenId: ensureHexPrefix(
+        ethTransferVaaParsed.tokenId.toString(16).padStart(64, "0")
+      ),
     });
   });
 

@@ -22,6 +22,9 @@ import {
   coalesceChainId,
   deriveCollectionHashFromTokenId,
   hex,
+  deriveTokenHashFromTokenId,
+  ensureHexPrefix,
+  uint8ArrayToHex,
 } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
@@ -198,7 +201,7 @@ export async function getOriginalAssetAptos(
   client: AptosClient,
   nftBridgeAddress: string,
   tokenId: TokenTypes.TokenId
-): Promise<WormholeWrappedInfo> {
+): Promise<WormholeWrappedNFTInfo> {
   try {
     const originInfo = (
       await client.getAccountResource(
@@ -210,10 +213,12 @@ export async function getOriginalAssetAptos(
     assertChain(chainId);
     return {
       isWrapped: true,
-      chainId: chainId,
-      assetAddress: new Uint8Array(
-        hex(originInfo.token_address.external_address)
-      ),
+      chainId,
+      assetAddress:
+        chainId === CHAIN_ID_SOLANA
+          ? arrayify(BigNumber.from(hex(tokenId.token_data_id.name)))
+          : new Uint8Array(hex(originInfo.token_address.external_address)),
+      tokenId: ensureHexPrefix(hex(tokenId.token_data_id.name).toString("hex")),
     };
   } catch (e: any) {
     if (
@@ -230,5 +235,8 @@ export async function getOriginalAssetAptos(
     isWrapped: false,
     chainId: CHAIN_ID_APTOS,
     assetAddress: await deriveCollectionHashFromTokenId(tokenId),
+    tokenId: ensureHexPrefix(
+      uint8ArrayToHex(await deriveTokenHashFromTokenId(tokenId))
+    ),
   };
 }

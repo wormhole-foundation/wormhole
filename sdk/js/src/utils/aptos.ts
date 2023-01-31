@@ -315,7 +315,9 @@ export const deriveTokenHashFromTokenId = async (
   const propertyVersion = Buffer.alloc(8);
   propertyVersion.writeBigUInt64BE(BigInt(tokenId.property_version));
   const inputs = Buffer.concat([
-    Buffer.from(tokenId.token_data_id.creator, "hex"),
+    BCS.bcsToBytes(
+      TxnBuilderTypes.AccountAddress.fromHex(tokenId.token_data_id.creator)
+    ),
     Buffer.from(sha3_256(tokenId.token_data_id.collection), "hex"),
     Buffer.from(sha3_256(tokenId.token_data_id.name), "hex"),
     propertyVersion,
