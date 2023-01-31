@@ -60,7 +60,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 			return err
 		}
 
-		logger.Info(
+		logger.Debug(
 			"block_polled",
 			zap.String("log_msg_type", "block_poll"),
 			zap.Uint64("height", startBlock.Header.Height),
@@ -90,7 +90,7 @@ func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, 
 
 	if newestFinalHeight > startHeight {
 
-		logger.Info(
+		logger.Debug(
 			"polling_attempt",
 			zap.String("log_msg_type", "polling_attempt"),
 			zap.Uint64("previous_height", startHeight),

@@ -162,13 +162,13 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 	}
 
 	if e.suiAccount != *moveEvent.Sender {
-		logger.Info("account missmatch", zap.String("e.suiAccount", e.suiAccount), zap.String("account", *moveEvent.Sender))
-		return errors.New("account missmatch")
+		logger.Info("account mismatch", zap.String("e.suiAccount", e.suiAccount), zap.String("account", *moveEvent.Sender))
+		return errors.New("account mismatch")
 	}
 
 	if !e.unsafeDevMode && e.suiPackage != *moveEvent.PackageID {
-		logger.Info("package missmatch", zap.String("e.suiPackage", e.suiPackage), zap.String("package", *moveEvent.PackageID))
-		return errors.New("package missmatch")
+		logger.Info("package mismatch", zap.String("e.suiPackage", e.suiPackage), zap.String("package", *moveEvent.PackageID))
+		return errors.New("package mismatch")
 	}
 
 	emitter := make([]byte, 8)
@@ -360,7 +360,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 			if res.ID != nil {
 				if *res.ID == e.subId {
-					logger.Info("Subscribed set to true")
+					logger.Debug("Subscribed set to true")
 					e.subscribed = true
 				}
 				continue

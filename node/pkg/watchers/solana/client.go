@@ -431,7 +431,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	if err != nil {
 		var rpcErr *jsonrpc.RPCError
 		if errors.As(err, &rpcErr) && (rpcErr.Code == -32007 /* SLOT_SKIPPED */ || rpcErr.Code == -32004 /* BLOCK_NOT_AVAILABLE */) {
-			logger.Info("empty slot", zap.Uint64("slot", slot),
+			logger.Debug("empty slot", zap.Uint64("slot", slot),
 				zap.Int("code", rpcErr.Code),
 				zap.String("commitment", string(s.commitment)))
 
