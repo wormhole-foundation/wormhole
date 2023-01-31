@@ -33,6 +33,7 @@ module token_bridge::bridge_state {
     friend token_bridge::register_chain;
     friend token_bridge::wrapped;
     friend token_bridge::complete_transfer;
+    friend token_bridge::complete_transfer_with_payload;
     friend token_bridge::transfer_tokens;
     friend token_bridge::attest_token;
     #[test_only]

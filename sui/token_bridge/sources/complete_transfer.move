@@ -13,14 +13,32 @@ module token_bridge::complete_transfer {
 
     const E_INVALID_TARGET: u64 = 0;
 
-    public entry fun submit_vaa<CoinType>(
+    public entry fun submit_vaa_entry<CoinType>(
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         coin_meta: &CoinMetadata<CoinType>,
         vaa: vector<u8>,
         fee_recipient: address,
         ctx: &mut TxContext
-    ) {
+    ){
+        submit_vaa<CoinType>(
+            wormhole_state,
+            bridge_state,
+            coin_meta,
+            vaa,
+            fee_recipient,
+            ctx
+        );
+    }
+
+    public fun submit_vaa<CoinType>(
+        wormhole_state: &mut WormholeState,
+        bridge_state: &mut BridgeState,
+        coin_meta: &CoinMetadata<CoinType>,
+        vaa: vector<u8>,
+        fee_recipient: address,
+        ctx: &mut TxContext
+    ): Transfer {
 
         let vaa = vaa::parse_verify_and_replay_protect(
             wormhole_state,
@@ -41,28 +59,28 @@ module token_bridge::complete_transfer {
 
         complete_transfer<CoinType>(
             verified_coin_witness,
-            &transfer,
+            transfer,
             wormhole_state,
             bridge_state,
             coin_meta,
             fee_recipient,
             ctx
-        );
+        )
     }
 
     // complete transfer with arbitrary Transfer request and without the VAA
     // for native tokens
     #[test_only]
     public fun test_complete_transfer<CoinType>(
-        transfer: &Transfer,
+        transfer: Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         coin_meta: &CoinMetadata<CoinType>,
         fee_recipient: address,
         ctx: &mut TxContext
-    ) {
-        let token_chain = transfer::get_token_chain(transfer);
-        let token_address = transfer::get_token_address(transfer);
+    ): Transfer {
+        let token_chain = transfer::get_token_chain(&transfer);
+        let token_address = transfer::get_token_address(&transfer);
         let verified_coin_witness = bridge_state::verify_coin_type<CoinType>(
             bridge_state,
             token_chain,
@@ -76,27 +94,27 @@ module token_bridge::complete_transfer {
             coin_meta,
             fee_recipient,
             ctx
-        );
+        )
     }
 
     fun complete_transfer<CoinType>(
         verified_coin_witness: VerifiedCoinType<CoinType>,
-        transfer: &Transfer,
+        transfer: Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
         coin_meta: &CoinMetadata<CoinType>,
         fee_recipient: address,
         ctx: &mut TxContext
-    ) {
-        let to_chain = transfer::get_to_chain(transfer);
+    ): Transfer {
+        let to_chain = transfer::get_to_chain(&transfer);
         let this_chain = wormhole::state::get_chain_id(wormhole_state);
         assert!(to_chain == this_chain, E_INVALID_TARGET);
 
-        let recipient = external_address::to_address(&transfer::get_to(transfer));
+        let recipient = external_address::to_address(&transfer::get_to(&transfer));
 
         let decimals = coin::get_decimals(coin_meta);
-        let amount = denormalize(transfer::get_amount(transfer), decimals);
-        let fee_amount = denormalize(transfer::get_fee(transfer), decimals);
+        let amount = denormalize(transfer::get_amount(&transfer), decimals);
+        let fee_amount = denormalize(transfer::get_fee(&transfer), decimals);
 
         let recipient_coins;
         if (bridge_state::is_wrapped_asset<CoinType>(bridge_state)) {
@@ -119,6 +137,7 @@ module token_bridge::complete_transfer {
         let fee_coins = coin::split(&mut recipient_coins, fee_amount, ctx);
         transfer_object::transfer(recipient_coins, recipient);
         transfer_object::transfer(fee_coins, fee_recipient);
+        transfer
     }
 }
 
@@ -208,7 +227,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -294,7 +313,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -378,7 +397,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS_V2>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -464,7 +483,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -539,7 +558,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -615,7 +634,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -693,7 +712,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS_V2>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -742,7 +761,7 @@ module token_bridge::complete_transfer_test {
             );
 
             complete_transfer::test_complete_transfer<COIN_WITNESS>(
-                &transfer,
+                transfer,
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
