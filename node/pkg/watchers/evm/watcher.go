@@ -606,7 +606,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				start := time.Now()
 				currentHash := ev.Hash
-				logger.Info("processing new header",
+				logger.Debug("processing new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Bool("is_safe_block", ev.Safe),
@@ -759,7 +759,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				}
 
 				w.pendingMu.Unlock()
-				logger.Info("processed new header",
+				logger.Debug("processed new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Bool("is_safe_block", ev.Safe),
 					zap.Stringer("current_blockhash", currentHash),
@@ -787,7 +787,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 	ethConn connectors.Connector,
 ) error {
 	msm := time.Now()
-	logger.Info("fetching guardian set")
+	logger.Debug("fetching guardian set")
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	idx, gs, err := fetchCurrentGuardianSet(timeout, ethConn)

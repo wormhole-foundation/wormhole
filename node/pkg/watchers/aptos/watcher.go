@@ -208,7 +208,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			}
 
-			logger.Info(string(health) + string(eventsJson))
+			// TODO: Make this log more useful for humans
+			logger.Debug(string(health) + string(eventsJson))
 
 			pHealth := gjson.ParseBytes(health)
 

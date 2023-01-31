@@ -214,7 +214,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				blockJSON := string(blocksBody)
 				latestBlock := gjson.Get(blockJSON, "block.header.height")
-				logger.Info("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
+				logger.Debug("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
 				currentSlotHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
 				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 					Height:          latestBlock.Int(),
