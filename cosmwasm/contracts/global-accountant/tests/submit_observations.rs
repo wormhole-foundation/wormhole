@@ -54,7 +54,7 @@ fn batch() {
     let index = wh.guardian_set_index();
 
     let obs = to_binary(&observations).unwrap();
-    let signatures = wh.sign(&obs);
+    let signatures = sign_observations(&wh, &obs);
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
@@ -160,7 +160,7 @@ fn duplicates() {
     let index = wh.guardian_set_index();
 
     let obs = to_binary(&observations).unwrap();
-    let signatures = wh.sign(&obs);
+    let signatures = sign_observations(&wh, &obs);
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
@@ -256,7 +256,7 @@ fn transfer_tokens(
     };
 
     let obs = to_binary(&vec![o.clone()]).unwrap();
-    let signatures = wh.sign(&obs);
+    let signatures = sign_observations(wh, &obs);
 
     let responses = signatures
         .into_iter()

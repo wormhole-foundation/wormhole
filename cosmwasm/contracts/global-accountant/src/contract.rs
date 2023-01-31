@@ -31,7 +31,7 @@ use crate::{
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
         MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, ObservationError,
         ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
-        Upgrade,
+        Upgrade, SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -95,10 +95,18 @@ fn submit_observations(
     guardian_set_index: u32,
     signature: Signature,
 ) -> Result<Response, AnyError> {
+    // We need to prepend an observation prefix to `observations`, which is the
+    // same prefix used by the guardians to sign these observations. This
+    // prefix specifies this type as global accountant observations.
+    let mut prepended =
+        Vec::with_capacity(SUBMITTED_OBSERVATIONS_PREFIX.len() + observations.len());
+    prepended.extend_from_slice(SUBMITTED_OBSERVATIONS_PREFIX);
+    prepended.extend_from_slice(observations.as_slice());
+
     deps.querier
         .query::<Empty>(
             &WormholeQuery::VerifySignature {
-                data: observations.clone(),
+                data: prepended.into(),
                 guardian_set_index,
                 signature,
             }
