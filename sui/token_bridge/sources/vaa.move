@@ -13,6 +13,7 @@ module token_bridge::vaa {
     friend token_bridge::register_chain;
     friend token_bridge::wrapped;
     friend token_bridge::complete_transfer;
+    friend token_bridge::complete_transfer_with_payload;
 
     #[test_only]
     friend token_bridge::token_bridge_vaa_test;
