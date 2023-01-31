@@ -13,7 +13,7 @@ use global_accountant::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MissingObservationsResponse, QueryMsg, TransferStatus,
+        MissingObservationsResponse, QueryMsg, TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state,
 };
@@ -304,6 +304,18 @@ pub fn sign_vaa_body<P: Serialize>(wh: &fake::WormholeKeeper, body: Body<P>) -> 
     let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
 
     (v, data)
+}
+
+pub fn sign_observations(wh: &fake::WormholeKeeper, observations: &[u8]) -> Vec<Signature> {
+    let mut prepended =
+        Vec::with_capacity(SUBMITTED_OBSERVATIONS_PREFIX.len() + observations.len());
+    prepended.extend_from_slice(SUBMITTED_OBSERVATIONS_PREFIX);
+    prepended.extend_from_slice(observations);
+
+    let mut signatures = wh.sign(&prepended);
+    signatures.sort_by_key(|s| s.index);
+
+    signatures
 }
 
 pub fn register_emitters(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {

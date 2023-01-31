@@ -45,7 +45,7 @@ fn missing_observations() {
     let o = create_observation();
     let digest = o.digest().unwrap();
     let data = to_binary(&[o.clone()]).unwrap();
-    let signatures = wh.sign(&data);
+    let signatures = sign_observations(&wh, &data);
 
     // Don't submit enough signatures for the transfer to reach quorum.
     for s in &signatures[..quorum - 1] {
@@ -96,8 +96,7 @@ fn different_observations() {
 
     let first = create_observation();
     let first_data = to_binary(&[first.clone()]).unwrap();
-    let mut first_signatures = wh.sign(&first_data);
-    first_signatures.sort_by_key(|s| s.index);
+    let first_signatures = sign_observations(&wh, &first_data);
 
     // Don't submit enough signatures for the transfer to reach quorum.
     for s in &first_signatures[..quorum - 1] {
@@ -124,8 +123,7 @@ fn different_observations() {
     .into();
     second.payload = serde_wormhole::to_vec(&msg).map(From::from).unwrap();
     let second_data = to_binary(&[second.clone()]).unwrap();
-    let mut second_signatures = wh.sign(&second_data);
-    second_signatures.sort_by_key(|s| s.index);
+    let second_signatures = sign_observations(&wh, &second_data);
 
     // Submit a different set of signatures for the second observation.
     for s in second_signatures.iter().rev().take(quorum - 1) {
@@ -170,7 +168,7 @@ fn guardian_set_change() {
 
     let o = create_observation();
     let data = to_binary(&[o.clone()]).unwrap();
-    let signatures = wh.sign(&data);
+    let signatures = sign_observations(&wh, &data);
 
     // Don't submit enough signatures for the transfer to reach quorum.
     for s in &signatures[..quorum - 1] {
