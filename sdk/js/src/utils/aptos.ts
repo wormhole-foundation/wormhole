@@ -38,18 +38,8 @@ export const generateSignAndSubmitEntryFunction = (
   payload: Types.EntryFunctionPayload,
   opts?: Partial<Types.SubmitTransactionRequest>
 ): Promise<Types.UserTransaction> => {
-  // overwriting `max_gas_amount` and `gas_unit_price` defaults
-  // rest of defaults are defined here: https://aptos-labs.github.io/ts-sdk-doc/classes/AptosClient.html#generateTransaction
-  const customOpts = Object.assign(
-    {
-      gas_unit_price: "100",
-      max_gas_amount: "30000",
-    },
-    opts
-  );
-
   return client
-    .generateTransaction(sender.address(), payload, customOpts)
+    .generateTransaction(sender.address(), payload, opts)
     .then(
       (rawTx) =>
         signAndSubmitTransaction(
