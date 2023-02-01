@@ -7,6 +7,9 @@ const ci = !!process.env.CI;
 export const ETH_NODE_URL = ci ? "ws://eth-devnet:8545" : "ws://localhost:8545";
 export const ETH_PRIVATE_KEY =
   "0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1"; // account 1
+export const ETH_PRIVATE_KEY8 =
+  "0x829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"; // account 8 - aptos nft tests
+
 export const SOLANA_HOST = ci
   ? "http://solana-devnet:8899"
   : "http://localhost:8899";
@@ -35,7 +38,8 @@ export const TEST_ERC721 = "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66";
 export const TERRA_CW721_CODE_ID = 7;
 export const TEST_CW721 = "terra18dt935pdcn2ka6l0syy5gt20wa48n3mktvdvjj";
 export const TEST_SOLANA_TOKEN = "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna";
-export const TEST_SOLANA_TOKEN2 = "AQJc65JzbzsT88JnGEXSqZaF8NFAXPo21fX4QUED4uRX";
+export const TEST_SOLANA_TOKEN3 =
+  "AQJc65JzbzsT88JnGEXSqZaF8NFAXPo21fX4QUED4uRX";
 export const WORMHOLE_RPC_HOSTS = ci
   ? ["http://guardian:7071"]
   : ["http://localhost:7071"];

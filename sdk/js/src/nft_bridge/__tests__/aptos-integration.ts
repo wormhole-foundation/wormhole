@@ -8,11 +8,7 @@ import {
 } from "@jest/globals";
 import { BN } from "@project-serum/anchor";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-} from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { AptosAccount, AptosClient, FaucetClient, Types } from "aptos";
 import { ethers } from "ethers";
 import Web3 from "web3";
@@ -44,10 +40,10 @@ import {
   APTOS_FAUCET_URL,
   APTOS_NODE_URL,
   ETH_NODE_URL,
-  ETH_PRIVATE_KEY,
+  ETH_PRIVATE_KEY8,
   SOLANA_HOST,
   SOLANA_PRIVATE_KEY2,
-  TEST_SOLANA_TOKEN2,
+  TEST_SOLANA_TOKEN3,
 } from "./consts";
 import {
   deployTestNftOnAptos,
@@ -74,7 +70,7 @@ let faucet: FaucetClient;
 // ethereum setup
 const web3 = new Web3(ETH_NODE_URL);
 const ethProvider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-const ethSigner = new ethers.Wallet(ETH_PRIVATE_KEY, ethProvider); // corresponds to accounts[1]
+const ethSigner = new ethers.Wallet(ETH_PRIVATE_KEY8, ethProvider);
 
 // solana setup
 const solanaConnection = new Connection(SOLANA_HOST, "confirmed");
@@ -362,7 +358,7 @@ describe("Aptos NFT SDK tests", () => {
   test("Transfer Solana SPL to Aptos", async () => {
     // transfer SPL token to Aptos
     const fromAddress = await getAssociatedTokenAddress(
-      new PublicKey(TEST_SOLANA_TOKEN2),
+      new PublicKey(TEST_SOLANA_TOKEN3),
       solanaKeypair.publicKey
     );
     const solanaTransferTx = await transferFromSolana(
@@ -371,7 +367,7 @@ describe("Aptos NFT SDK tests", () => {
       SOLANA_NFT_BRIDGE_ADDRESS,
       solanaPayerAddress,
       fromAddress.toString(),
-      TEST_SOLANA_TOKEN2,
+      TEST_SOLANA_TOKEN3,
       tryNativeToUint8Array(aptosAccount.address().toString(), CHAIN_ID_APTOS),
       CHAIN_ID_APTOS
     );
@@ -423,7 +419,7 @@ describe("Aptos NFT SDK tests", () => {
     )) as DepositEvent[];
     expect(events.length).toBe(1);
     expect(events[0].data.id.token_data_id.name).toBe(
-      tryNativeToHexString(TEST_SOLANA_TOKEN2, CHAIN_ID_SOLANA)
+      tryNativeToHexString(TEST_SOLANA_TOKEN3, CHAIN_ID_SOLANA)
     );
   });
 });
