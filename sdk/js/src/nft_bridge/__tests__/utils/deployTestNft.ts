@@ -43,15 +43,15 @@ export async function deployTestNftOnEthereum(
   uri: string,
   howMany: number
 ): Promise<NFTImplementation> {
-  const accounts = await web3.eth.getAccounts();
+  const address = await signer.getAddress();
   const nftContract = new web3.eth.Contract(ERC721.abi);
-  let nft = await nftContract
+  const nft = await nftContract
     .deploy({
       data: ERC721.bytecode,
       arguments: [name, symbol, uri],
     })
     .send({
-      from: accounts[1],
+      from: address,
       gas: 5000000,
     });
 
@@ -60,8 +60,8 @@ export async function deployTestNftOnEthereum(
   // foreign ids on terra get converted to the decimal stringified form of the
   // original id.
   for (var i = 0; i < howMany; i++) {
-    await nft.methods.mint(accounts[1]).send({
-      from: accounts[1],
+    await nft.methods.mint(address).send({
+      from: address,
       gas: 1000000,
     });
   }

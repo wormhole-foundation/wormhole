@@ -20,8 +20,6 @@ export const ETH_PRIVATE_KEY6 =
   "0xe485d098507f54e7733a205420dfddbe58db035fa577fc294ebd14db90767a52"; // account 6 - aptos tests
 export const ETH_PRIVATE_KEY7 =
   "0xa453611d9419d0e56f499079478fd72c37b251a94bfde4d19872c44cf65386e3"; // account 7 - algorand tests
-export const ETH_PRIVATE_KEY8 =
-  "0x829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"; // account 8 - unused
 export const ETH_PRIVATE_KEY9 =
   "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773"; // account 9 - accountant tests
 export const SOLANA_HOST = ci
