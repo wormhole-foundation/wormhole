@@ -93,6 +93,7 @@ import (
 
 	"github.com/wormhole-foundation/wormchain/docs"
 	wormholemodule "github.com/wormhole-foundation/wormchain/x/wormhole"
+	wormholemoduleante "github.com/wormhole-foundation/wormchain/x/wormhole/ante"
 	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 	wormholemodulekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
@@ -552,7 +553,7 @@ func New(
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 
-	anteHandler, err := ante.NewAnteHandler(
+	anteHandlerSdk, err := ante.NewAnteHandler(
 		ante.HandlerOptions{
 			AccountKeeper:   app.AccountKeeper,
 			BankKeeper:      app.BankKeeper,
@@ -564,8 +565,9 @@ func New(
 	if err != nil {
 		panic(err)
 	}
+	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper)
 
-	app.SetAnteHandler(anteHandler)
+	app.SetAnteHandler(wrappedAnteHandler)
 	app.SetEndBlocker(app.EndBlocker)
 
 	if loadLatest {
@@ -580,6 +582,20 @@ func New(
 	app.scopedWasmKeeper = scopedWasmKeeper
 
 	return app
+}
+
+// Wrap the standard cosmos-sdk antehandlers with our wormhole allowlist antehandler.
+func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper) sdk.AnteHandler {
+	whHandler := wormholemoduleante.NewWormholeAllowlistDecorator(wormKeeper)
+	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		newCtx, err := originalHandler(ctx, tx, simulate)
+		if err != nil {
+			return newCtx, err
+		}
+		return whHandler.AnteHandle(ctx, tx, simulate, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+			return ctx, nil
+		})
+	}
 }
 
 // Name returns the name of the App

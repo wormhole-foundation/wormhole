@@ -6,6 +6,7 @@
 | Test ERC20         |    ETH    |                                                            0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A | Tokens minted to Test Wallet                                                                                                                                        |
 | Test NFT           |    ETH    |                                                            0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66 | One minted to Test Wallet                                                                                                                                           |
 | Test WETH          |    ETH    |                                                            0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E | Tokens minted to Test Wallet                                                                                                                                        |
+| Test ERC20 GA      |    ETH    |                                                            0xf19A2A01B70519f67ADb309a994Ec8c69A967E8b | Tokens minted to Test Wallet 9                                                                                                                                      |
 | Bridge Core        |    ETH    |                                                            0xC89Ce4735882C9F0f0FE26686c53074E09B0D550 |                                                                                                                                                                     |
 | Token Bridge       |    ETH    |                                                            0x0290FB167208Af455bB137780163b7B7a9a10C16 |                                                                                                                                                                     |
 | NFT Bridge         |    ETH    |                                                            0x26b4afb60d6c903165150c6f0aa14f8016be4aec |                                                                                                                                                                     |
@@ -35,12 +36,12 @@ The terra testnet can be used just like a normal localterra network (can be sele
 
 ### Algorand
 
-The `admin.py` deployment tool can be used to generate a set of five prefunded accounts using the `--fundDevAccounts` option, with the following addresses  and mnemonics:
+The `admin.py` deployment tool can be used to generate a set of five prefunded accounts using the `--fundDevAccounts` option, with the following addresses and mnemonics:
 
 DEV7AREMQSPWWDDFFJ3A5OIMMDCZN4YT5U2MQBN76Y4J5ERQQ3MWPIHUYA 800M ALGO
 provide warfare better filter glory civil help jacket alpha penalty van fiber code upgrade web more curve sauce merit bike satoshi blame orphan absorb modify
 
-DEVBE5BIDJV6SWV7E3XPLB5DXZG2JYCWHGXBAQH6WNBZA3G7SQQ5HUJQII 
+DEVBE5BIDJV6SWV7E3XPLB5DXZG2JYCWHGXBAQH6WNBZA3G7SQQ5HUJQII
 album neglect very nasty input trick annual arctic spray task candy unfold letter drill glove sword flock omit dial rather session mesh slow abandon slab
 
 DEV3AURNEWR5TRFXIOBP2VTCTZIS52Q3XJHNJ57M4IZLMNZ5ABQ6M7AL6E

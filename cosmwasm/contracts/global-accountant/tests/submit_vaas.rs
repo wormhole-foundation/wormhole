@@ -292,7 +292,7 @@ fn reobservation() {
 
     let obs = to_binary(&vec![o]).unwrap();
     let index = wh.guardian_set_index();
-    let signatures = wh.sign(&obs);
+    let signatures = sign_observations(&wh, &obs);
     for s in signatures {
         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
         let mut responses: Vec<SubmitObservationResponse> =
@@ -330,7 +330,7 @@ fn digest_mismatch() {
     let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
     let obs = to_binary(&vec![o]).unwrap();
     let index = wh.guardian_set_index();
-    let signatures = wh.sign(&obs);
+    let signatures = sign_observations(&wh, &obs);
     for s in signatures {
         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
         let responses = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap()).unwrap();
