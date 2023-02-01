@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# This dev script imports and funds an account, following the steps in
+# This dev script imports and funds an account, following the steps in 
 # `sui/NOTES.md`. It also deploys the core/token bridge contracts.
 
 # Remove directory for idempotency
