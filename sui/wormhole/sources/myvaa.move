@@ -281,7 +281,7 @@ module wormhole::vaa_test {
 
     fun test_upgrade_guardian_(test: Scenario) {
         let (admin, _, _) = people();
-        test = init_wormhole_state(test, admin);
+        test = init_wormhole_state(test, admin, 0);
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&mut test);
             let new_guardians = vector[structs::create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c4")];
@@ -298,7 +298,7 @@ module wormhole::vaa_test {
     /// upgrade before expiry
     public fun test_guardian_set_not_expired() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -327,7 +327,7 @@ module wormhole::vaa_test {
     /// upgrade after expiry
     public fun test_guardian_set_expired() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -358,7 +358,7 @@ module wormhole::vaa_test {
     /// set, even if the signer hasn't expired yet
     public fun test_governance_guardian_set_latest() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -392,7 +392,7 @@ module wormhole::vaa_test {
     /// Ensures that governance GOV_VAAs can only be sent from the correct governance emitter
     public fun test_invalid_governance_emitter() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -416,7 +416,7 @@ module wormhole::vaa_test {
     /// Ensures that governance GOV_VAAs can only be sent from the correct governance chain
     public fun test_invalid_governance_chain() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -438,7 +438,7 @@ module wormhole::vaa_test {
     #[test]
     public fun test_quorum() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -465,7 +465,7 @@ module wormhole::vaa_test {
     #[expected_failure(abort_code = vaa::E_NO_QUORUM)]
     public fun test_no_quorum() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -490,10 +490,10 @@ module wormhole::vaa_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = vaa::E_NON_INCREASING_SIGNERS)]  
+    #[expected_failure(abort_code = vaa::E_NON_INCREASING_SIGNERS)]
     public fun test_double_signed() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
@@ -521,7 +521,7 @@ module wormhole::vaa_test {
     #[expected_failure(abort_code = vaa::E_INVALID_SIGNATURE)]
     public fun test_out_of_order_signers() {
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
