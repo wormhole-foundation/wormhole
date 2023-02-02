@@ -6,9 +6,11 @@ module wormhole::state {
     use sui::transfer::{Self};
     use sui::vec_map::{Self, VecMap};
     use sui::event::{Self};
+    use sui::coin::{Self, Coin};
 
     use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
+    use wormhole::dynamic_set::{Self};
     use wormhole::set::{Self, Set};
     use wormhole::structs::{Self, create_guardian, Guardian, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
@@ -29,6 +31,11 @@ module wormhole::state {
         nonce: u64,
         payload: vector<u8>,
         consistency_level: u8
+    }
+
+    struct FeeCustody<phantom CoinType> has key, store {
+        id: UID,
+        custody: Coin<CoinType>
     }
 
     struct State has key, store {
@@ -105,6 +112,14 @@ module wormhole::state {
         // permanently shares state
         transfer::share_object<State>(state);
     }
+
+    public fun deposit_fee_coins<CoinType>(state: &mut State, coin: Coin<CoinType>){
+        let fee_custody = dynamic_set::borrow_mut<FeeCustody<CoinType>>(&mut state.id);
+        coin::join<CoinType>(&mut fee_custody.custody, coin);
+    }
+
+    // TODO - later on, can perform contract upgrade and add a governance-gated withdraw function to
+    //        extract fee coins from the store
 
     #[test_only]
     public fun test_init(ctx: &mut TxContext) {
