@@ -9,22 +9,27 @@ module wormhole::wormhole {
     use wormhole::emitter::{Self};
 
     const E_INSUFFICIENT_FEE: u64 = 0;
+    const E_TOO_MUCH_FEE: u64 = 1;
 
 // -----------------------------------------------------------------------------
 // Sending messages
     public fun publish_message(
         emitter_cap: &mut emitter::EmitterCapability,
-        state: &State,
+        state: &mut State,
         nonce: u64,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
         // ensure that provided fee is sufficient to cover message fees
         let expected_fee = state::get_message_fee(state);
-        assert!(expected_fee <= coin::value(&message_fee), E_INSUFFICIENT_FEE);
+        let val = coin::value(&message_fee);
+        if (expected_fee != val){
+            assert!(expected_fee < coin::value(&message_fee), E_TOO_MUCH_FEE);
+            assert!(expected_fee > coin::value(&message_fee), E_INSUFFICIENT_FEE);
+        };
 
-        // deposit the fees into the wormhole account
-        transfer::transfer(message_fee, @wormhole);
+        // deposit the fees into wormhole
+        state::deposit_fee_coins<SUI>(state, message_fee);
 
         // get sequence number
         let sequence = emitter::use_sequence(emitter_cap);
@@ -41,7 +46,7 @@ module wormhole::wormhole {
 
     public entry fun publish_message_entry(
         emitter_cap: &mut emitter::EmitterCapability,
-        state: &State,
+        state: &mut State,
         nonce: u64,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
