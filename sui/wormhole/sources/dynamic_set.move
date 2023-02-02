@@ -3,7 +3,7 @@
 ///
 /// Under the hood, it uses dynamic object fields, but set up in a way that the
 /// key is derived from the value's type.
-module token_bridge::dynamic_set {
+module wormhole::dynamic_set {
     use sui::dynamic_object_field as ofield;
     use sui::object::{UID};
 
