@@ -24,6 +24,7 @@ var (
 	// Wormchain cosmwasm governance actions
 	ActionStoreCode           GovernanceAction = 1
 	ActionInstantiateContract GovernanceAction = 2
+	ActionMigrateContract     GovernanceAction = 3
 )
 
 type (
@@ -61,6 +62,11 @@ type (
 	// BodyWormchainInstantiateContract is a governance message to instantiate a cosmwasm contract on wormchain
 	BodyWormchainInstantiateContract struct {
 		InstantiationParamsHash [32]byte
+	}
+
+	// BodyWormchainInstantiateContract is a governance message to migrate a cosmwasm contract on wormchain
+	BodyWormchainMigrateContract struct {
+		MigrationParamsHash [32]byte
 	}
 )
 
@@ -116,6 +122,10 @@ func (r BodyWormchainStoreCode) Serialize() []byte {
 
 func (r BodyWormchainInstantiateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionInstantiateContract, ChainIDWormchain, r.InstantiationParamsHash[:])
+}
+
+func (r BodyWormchainMigrateContract) Serialize() []byte {
+	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

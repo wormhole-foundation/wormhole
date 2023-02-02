@@ -19,3 +19,12 @@ func (msg MsgStoreCode) ToWasmd() wasmdtypes.MsgStoreCode {
 		WASMByteCode: msg.WASMByteCode,
 	}
 }
+
+func (msg MsgMigrateContract) ToWasmd() wasmdtypes.MsgMigrateContract {
+	return wasmdtypes.MsgMigrateContract{
+		Sender:   msg.Signer,
+		Msg:      msg.Msg,
+		Contract: msg.Contract,
+		CodeID:   msg.CodeID,
+	}
+}
