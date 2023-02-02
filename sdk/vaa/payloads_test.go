@@ -117,3 +117,9 @@ func TestBodyWormchainInstantiateContractSerialize(t *testing.T) {
 	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65020c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
 	assert.Equal(t, expected, hex.EncodeToString(actual.Serialize()))
 }
+
+func TestBodyWormchainMigrateContractSerialize(t *testing.T) {
+	actual := BodyWormchainMigrateContract{MigrationParamsHash: dummyBytes}
+	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65030c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+	assert.Equal(t, expected, hex.EncodeToString(actual.Serialize()))
+}

@@ -19,6 +19,9 @@ service Msg {
   //  Instantiate creates a new smart contract instance for the given code id.
   rpc InstantiateContract(MsgInstantiateContract)
       returns (MsgInstantiateContractResponse);
+
+  rpc MigrateContract(MsgMigrateContract)
+    returns (MsgMigrateContractResponse);
 // this line is used by starport scaffolding # proto/tx/rpc
 }
 
@@ -70,6 +73,8 @@ message MsgStoreCode {
 message MsgStoreCodeResponse {
   // CodeID is the reference to the stored WASM code
   uint64 code_id = 1 [ (gogoproto.customname) = "CodeID" ];
+  // Checksum is the sha256 hash of the stored code
+  bytes checksum = 2;
 }
 
 // Same as from x/wasmd but with vaa auth
@@ -82,7 +87,7 @@ message MsgInstantiateContract {
   string label = 4;
   // Msg json encoded message to be passed to the contract on instantiation
   bytes msg = 5;
-  // vaa must be governance msg with payload containing sha3 256 hash of `bigEndian(code_id) || label || msg`
+  // vaa must be governance msg with payload containing keccak256 hash(hash(hash(BigEndian(CodeID)), Label), Msg)
   bytes vaa = 6;
 }
 
@@ -93,4 +98,25 @@ message MsgInstantiateContractResponse {
   bytes data = 2;
 }
 
+// MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
+message MsgMigrateContract {
+  // Sender is the that actor that signed the messages
+  string signer = 1;
+  // Contract is the address of the smart contract
+  string contract = 2;
+  // CodeID references the new WASM code
+  uint64 code_id = 3 [ (gogoproto.customname) = "CodeID" ];
+  // Msg json encoded message to be passed to the contract on migration
+  bytes msg = 4;
+
+  // vaa must be governance msg with payload containing keccak256 hash(hash(hash(BigEndian(CodeID)), Contract), Msg)
+  bytes vaa = 6;
+}
+
+// MsgMigrateContractResponse returns contract migration result data.
+message MsgMigrateContractResponse {
+  // Data contains same raw bytes returned as data from the wasm contract.
+  // (May be empty)
+  bytes data = 1;
+}
 // this line is used by starport scaffolding # proto/tx/message

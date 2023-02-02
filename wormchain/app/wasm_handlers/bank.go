@@ -28,6 +28,9 @@ func (b *BankViewKeeperHandler) GetAllBalances(ctx sdk.Context, addr sdk.AccAddr
 func (b *BankViewKeeperHandler) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) sdk.Coin {
 	return b.Keeper.GetBalance(ctx, addr, denom)
 }
+func (b *BankViewKeeperHandler) GetSupply(ctx sdk.Context, denom string) sdk.Coin {
+	return b.Keeper.GetSupply(ctx, denom)
+}
 
 func (b *BurnerHandler) BurnCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error {
 	return b.Keeper.BurnCoins(ctx, moduleName, amt)

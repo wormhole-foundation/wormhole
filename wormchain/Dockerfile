@@ -13,7 +13,7 @@ COPY ./sdk /sdk
 RUN go mod download
 
 # copy over c bindings (libwasmvm.x86_64.so, etc)
-RUN cp -r /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.0.0/api/* /usr/lib
+RUN cp -r /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/* /usr/lib
 
 COPY ./wormchain .
 
