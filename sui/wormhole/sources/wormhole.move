@@ -122,7 +122,7 @@ module wormhole::test_wormhole{
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
             let emitter = wormhole::register_emitter(&mut state, ctx(&mut test));
-            let message_fee = coin::mint_for_testing<SUI>(100000000, ctx(&mut test));
+            let message_fee = coin::mint_for_testing<SUI>(100000000, ctx(&mut test)); // fee amount == expected amount
             wormhole::publish_message(
                 &mut emitter,
                 &mut state,
