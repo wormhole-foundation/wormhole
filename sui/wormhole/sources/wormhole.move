@@ -24,6 +24,7 @@ module wormhole::wormhole {
         let expected_fee = state::get_message_fee(state);
         let val = coin::value(&message_fee);
         if (expected_fee != val){
+            // if fee amount is not exactly equal to expected_fee, then throw one of two errors
             assert!(expected_fee < coin::value(&message_fee), E_TOO_MUCH_FEE);
             assert!(expected_fee > coin::value(&message_fee), E_INSUFFICIENT_FEE);
         };
