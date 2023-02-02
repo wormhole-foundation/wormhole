@@ -11,9 +11,9 @@ module token_bridge::bridge_state {
     use sui::sui::SUI;
 
     use token_bridge::string32;
-    use token_bridge::dynamic_set;
     use token_bridge::asset_meta::{Self, AssetMeta};
 
+    use wormhole::dynamic_set;
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::myu16::{U16};
     use wormhole::wormhole::{Self};
