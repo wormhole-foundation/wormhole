@@ -397,7 +397,7 @@ module token_bridge::bridge_state_test{
 
     public fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
         // init and share wormhole core bridge
-        test =  init_wormhole_state(test, admin);
+        test =  init_wormhole_state(test, admin, 0);
 
         // call init for token bridge to get deployer cap
         next_tx(&mut test, admin); {
