@@ -7,6 +7,7 @@ module wormhole::state {
     use sui::vec_map::{Self, VecMap};
     use sui::event::{Self};
     use sui::coin::{Self, Coin};
+    use sui::sui::SUI;
 
     use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
@@ -82,6 +83,7 @@ module wormhole::state {
         governance_chain_id: u64,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
+        message_fee: u64,
         ctx: &mut TxContext
     ) {
         let DeployerCapability{id} = deployer;
@@ -96,7 +98,7 @@ module wormhole::state {
             guardian_set_expiry: u32::from_u64(2), // TODO - what is the right #epochs to set this to?
             consumed_governance_actions: set::new(ctx),
             emitter_registry: emitter::init_emitter_registry(),
-            message_fee: 0,
+            message_fee: message_fee,
         };
 
         let guardians = vector::empty<Guardian>();
@@ -108,6 +110,9 @@ module wormhole::state {
         // the initial guardian set with index 0
         let initial_index = u32::from_u64(0);
         store_guardian_set(&mut state, initial_index, structs::create_guardian_set(initial_index, guardians));
+
+        // add wormhole fee store FeeCustody<SUI> as a dynamic child of state
+        dynamic_set::add<FeeCustody<SUI>>(&mut state.id, FeeCustody<SUI>{id: object::new(ctx), custody: coin::zero<SUI>(ctx)});
 
         // permanently shares state
         transfer::share_object<State>(state);
@@ -237,7 +242,7 @@ module wormhole::test_state{
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    public fun init_wormhole_state(test: Scenario, admin: address): Scenario {
+    public fun init_wormhole_state(test: Scenario, admin: address, message_fee: u64): Scenario {
         next_tx(&mut test, admin); {
             test_init(ctx(&mut test));
         };
@@ -249,6 +254,7 @@ module wormhole::test_state{
                 1, // governance chain
                 x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
                 vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardian(s)
+                message_fee, // message fee = 0
                 ctx(&mut test));
         };
         return test
@@ -261,7 +267,7 @@ module wormhole::test_state{
 
     fun test_state_setters_(test: Scenario) {
         let (admin, _, _) = people();
-        test = init_wormhole_state(test, admin);
+        test = init_wormhole_state(test, admin, 0);
 
         // test setters
         next_tx(&mut test, admin); {
