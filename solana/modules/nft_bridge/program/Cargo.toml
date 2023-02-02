@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "nft_bridge"
 
 [features]
-no-entrypoint = ["solitaire/no-entrypoint", "instructions", "rand"]
+no-entrypoint = ["solitaire/no-entrypoint", "instructions"]
 trace = ["solitaire/trace"]
 wasm = ["no-entrypoint", "wasm-bindgen"]
 client = ["no-entrypoint"]
@@ -32,7 +32,6 @@ primitive-types = { version = "0.9.0", default-features = false }
 spl-token-metadata = { path = "../../token_bridge/token-metadata" }
 wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
-rand = { version = "0.7.3", optional = true }
 
 [dev-dependencies]
 hex = "*"
