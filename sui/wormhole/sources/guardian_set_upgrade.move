@@ -148,7 +148,7 @@ module wormhole::guardian_set_upgrade_test {
         use wormhole::test_state::{init_wormhole_state};
 
         let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin);
+        let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
