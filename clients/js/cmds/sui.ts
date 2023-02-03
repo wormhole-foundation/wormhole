@@ -4,18 +4,7 @@ import { JsonRpcProvider } from '@mysten/sui.js';
 import { spawnSync } from 'child_process';
 import { NETWORKS } from "../networks";
 import { config } from '../config';
-
-type Network = "MAINNET" | "TESTNET" | "DEVNET"
-
-function assertNetwork(n: string): asserts n is Network {
-  if (
-    n !== "MAINNET" &&
-      n !== "TESTNET" &&
-      n !== "DEVNET"
-  ) {
-    throw Error(`Unknown network: ${n}`);
-  }
-}
+import {Network, assertNetwork} from "../utils";
 
 /*
   Loop through a list of Sui objects and look for the DeployerCapability that should
@@ -23,23 +12,9 @@ function assertNetwork(n: string): asserts n is Network {
 
   The objects is in the format returned by a json-rpc call "provider.getObjectsOwnedByAddress"
 */
-function findDeployerCapability(package_id: string, module_name: string, objects: Array<any>): string {
-      let deployer;
-      for (var obj of objects){
-        let t = obj.type;
-        // do a basic check and see if the type is as expected (has a normal package, module, type name separated by "::")
-        var count = [...t].filter(x => x === ":").length;
-        if (count==4){
-          let t_split = t.split("::") // load the package, module, type name in an array
-          if (t_split[0].toUpperCase() == package_id.toUpperCase()){
-            if (t_split[1]==module_name && t_split[2]=="DeployerCapability"){
-              deployer = obj.objectId
-              break
-            }
-          }
-        }
-      }
-      return deployer
+function findDeployerCapability(packageId: string, moduleName: string, objects: any[]): string | null {
+  const type = `${packageId}::${moduleName}::DeployerCapability`;
+  return objects.find(o => o.type.toLowerCase() === type.toLowerCase())?.objectId ?? null;
 }
 
 const network_options = {
@@ -83,7 +58,7 @@ exports.builder = function(y: typeof yargs) {
       );
       console.log("network: ", network)
       console.log("owner: ", owner)
-      console.log(objects)
+      console.log("objects: ", JSON.stringify(objects))
     })
     .command("publish-wormhole", "Publish Wormhole core contract", (yargs) => {
       return yargs
@@ -97,7 +72,7 @@ exports.builder = function(y: typeof yargs) {
       console.log("rpc: ", rpc)
       await publishPackage(network, rpc, `${dir}/wormhole`);
     })
-    .command("publish-tokenbridge", "Publish Wormhole token bridge contract", (yargs) => {
+    .command("publish-token-bridge", "Publish Wormhole token bridge contract", (yargs) => {
       return yargs
         .option("network", network_options)
         .option("rpc", rpc_description)
@@ -128,7 +103,7 @@ exports.builder = function(y: typeof yargs) {
         .option("governance-chain-id", {
           alias: "gci",
           describe: "Governance chain ID",
-          default: "3",
+          default: "1", // default is chain ID of Solana
           type: "string",
           required: false
         })
@@ -190,7 +165,7 @@ exports.builder = function(y: typeof yargs) {
         ],
     )
     })
-    .command("init-tokenbridge", "Init token bridge contract", (yargs) => {
+    .command("init-token-bridge", "Init token bridge contract", (yargs) => {
       return yargs
         .option("network", network_options)
         .option("rpc", rpc_description)
