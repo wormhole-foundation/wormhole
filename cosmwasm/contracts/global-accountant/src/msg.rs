@@ -106,29 +106,6 @@ pub enum ExecuteMsg {
         signature: Signature,
     },
 
-    /// Modifies the balance of a single account.  Used to manually override the balance.
-    ModifyBalance {
-        // A serialized `Modification` message.
-        modification: Binary,
-
-        // The index of the guardian set used to sign this modification.
-        guardian_set_index: u32,
-
-        // A quorum of signatures for `modification`.
-        signatures: Vec<Signature>,
-    },
-
-    UpgradeContract {
-        // A serialized `Upgrade` message.
-        upgrade: Binary,
-
-        // The index of the guardian set used to sign this request.
-        guardian_set_index: u32,
-
-        // A quorum of signatures for `key`.
-        signatures: Vec<Signature>,
-    },
-
     /// Submit one or more signed VAAs to update the on-chain state.  If processing any of the VAAs
     /// returns an error, the entire transaction is aborted and none of the VAAs are committed.
     SubmitVAAs {
@@ -139,7 +116,17 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+pub struct MigrateMsg {
+    // Optional list modifications to apply
+    pub modifications: Vec<ModifyBalance>,
+}
+
+/// Modifies the balance of a single account.  Used to manually override the balance.
+#[cw_serde]
+pub struct ModifyBalance {
+    // A serialized `Modification` message.
+    pub modification: Binary,
+}
 
 #[cw_serde]
 #[derive(QueryResponses)]

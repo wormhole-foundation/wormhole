@@ -13,7 +13,8 @@ use global_accountant::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MissingObservationsResponse, QueryMsg, TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
+        MigrateMsg, MissingObservationsResponse, ModifyBalance, QueryMsg, TransferStatus,
+        SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state,
 };
@@ -34,6 +35,7 @@ pub struct TransferResponse {
 pub struct Contract {
     addr: Addr,
     app: FakeApp,
+    code_id: u64,
 }
 
 impl Contract {
@@ -67,39 +69,33 @@ impl Contract {
         )
     }
 
-    pub fn modify_balance(
-        &mut self,
-        modification: Binary,
-        guardian_set_index: u32,
-        signatures: Vec<Signature>,
-    ) -> anyhow::Result<AppResponse> {
-        self.app.execute_contract(
-            Addr::unchecked(USER),
+    pub fn modify_balance(&mut self, modification: Binary) -> anyhow::Result<AppResponse> {
+        let migrate_msg = MigrateMsg {
+            modifications: vec![ModifyBalance { modification }],
+        };
+        // let serialized_msg = serde_json::to_string(&migrate_msg).unwrap();
+        // let serialized_msg = migrate_msg.serialize()?;
+        // since migrate is an authenticated method, we reuse
+        // that with the same code_id to pass sensitive messages
+        // like ModifyBalance
+        self.app.migrate_contract(
+            Addr::unchecked(ADMIN),
             self.addr(),
-            &ExecuteMsg::ModifyBalance {
-                modification,
-                guardian_set_index,
-                signatures,
-            },
-            &[],
+            &migrate_msg,
+            self.code_id,
         )
     }
 
-    pub fn upgrade_contract(
-        &mut self,
-        upgrade: Binary,
-        guardian_set_index: u32,
-        signatures: Vec<Signature>,
-    ) -> anyhow::Result<AppResponse> {
-        self.app.execute_contract(
+    pub fn upgrade_contract(&mut self, code_id: u64) -> anyhow::Result<AppResponse> {
+        self.code_id = code_id;
+        let migrate_msg = MigrateMsg {
+            modifications: vec![],
+        };
+        self.app.migrate_contract(
             Addr::unchecked(ADMIN),
             self.addr(),
-            &ExecuteMsg::UpgradeContract {
-                upgrade,
-                guardian_set_index,
-                signatures,
-            },
-            &[],
+            &migrate_msg,
+            self.code_id,
         )
     }
 
@@ -253,41 +249,32 @@ pub fn proper_instantiate() -> (fake::WormholeKeeper, Contract) {
     let wh = fake::WormholeKeeper::new();
     let mut app = fake_app(wh.clone());
 
-    let accountant_id = app.store_code(Box::new(ContractWrapper::new(
-        global_accountant::contract::execute,
-        global_accountant::contract::instantiate,
-        global_accountant::contract::query,
-    )));
+    let code_id = app.store_code(Box::new(
+        ContractWrapper::new(
+            global_accountant::contract::execute,
+            global_accountant::contract::instantiate,
+            global_accountant::contract::query,
+        )
+        .with_migrate(global_accountant::contract::migrate),
+    ));
 
-    // We want the contract to be able to upgrade itself, which means we have to set the contract
-    // as its own admin.  So we have a bit of a catch-22 where we need to know the contract
-    // address to register it but we need to register it to get its address.  The hacky solution
-    // here is to rely on the internal details of the test framework to figure out what the
-    // address of the contract is going to be and then use that.
-    //
-    // TODO: Figure out a better way to do this.  One option is to do something like:
-    //
-    // ```
-    // let mut data = app.contract_data(&addr).unwrap();
-    // data.admin = Some(addr.clone());
-    // app.init_modules(|router, _, storage| router.wasm.save_contract(storage, &addr, &data))
-    //     .unwrap();
-    // ```
-    //
-    // Unfortunately, the `wasm` field of `router` is private to the `cw-multi-test` crate so we
-    // can't use it here.  Maybe something to bring up with upstream.
+    // We used to rely on the contract being able to upgrade itself,
+    // but then we decided it was easiest to rely on wrapped VAA autentication
+    // methods of the x/wormhole module.  So we do not need to worry
+    // about upgrade authentication in the contract itself.
+    // We will use a fixed admin address so the contract does remain upgradeable.
     let addr = app
         .instantiate_contract(
-            accountant_id,
+            code_id,
             Addr::unchecked(ADMIN),
             &Empty {},
             &[],
             "accountant",
-            Some("contract0".into()),
+            Some(ADMIN.into()),
         )
         .unwrap();
 
-    (wh, Contract { addr, app })
+    (wh, Contract { addr, app, code_id })
 }
 
 pub fn sign_vaa_body<P: Serialize>(wh: &fake::WormholeKeeper, body: Body<P>) -> (Vaa<P>, Binary) {

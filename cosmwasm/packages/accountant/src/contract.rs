@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use anyhow::{bail, ensure, Context};
-use cosmwasm_std::{CustomQuery, Deps, DepsMut, Event, Order, StdResult};
+use cosmwasm_std::{CustomQuery, Deps, DepsMut, Event, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
 use thiserror::Error as ThisError;
 
@@ -230,7 +230,7 @@ pub enum ModifyBalanceError {
 ///           reason: "test".into(),
 ///       };
 ///  
-///       let err = modify_balance(deps.as_mut(), m)
+///       let err = modify_balance(deps.as_mut().storage, m)
 ///           .expect_err("successfully modified account with insufficient balance");
 ///       if let Some(e) = err.downcast_ref::<ModifyBalanceError>() {
 ///           assert!(matches!(e, ModifyBalanceError::InsufficientBalance));
@@ -241,11 +241,8 @@ pub enum ModifyBalanceError {
 /// #
 /// # example();
 /// ```
-pub fn modify_balance<C: CustomQuery>(
-    deps: DepsMut<C>,
-    msg: Modification,
-) -> anyhow::Result<Event> {
-    if MODIFICATIONS.has(deps.storage, msg.sequence) {
+pub fn modify_balance(storage: &mut dyn Storage, msg: Modification) -> anyhow::Result<Event> {
+    if MODIFICATIONS.has(storage, msg.sequence) {
         bail!(ModifyBalanceError::DuplicateModification);
     }
 
@@ -256,7 +253,7 @@ pub fn modify_balance<C: CustomQuery>(
     ));
 
     let balance = key
-        .may_load(deps.storage)
+        .may_load(storage)
         .context("failed to load account")?
         .unwrap_or(Balance::zero());
 
@@ -267,11 +264,11 @@ pub fn modify_balance<C: CustomQuery>(
     .map(Balance::from)
     .context(ModifyBalanceError::InsufficientBalance)?;
 
-    key.save(deps.storage, &new_balance)
+    key.save(storage, &new_balance)
         .context("failed to save account")?;
 
     MODIFICATIONS
-        .save(deps.storage, msg.sequence, &msg)
+        .save(storage, msg.sequence, &msg)
         .context("failed to store `Modification`")?;
 
     cw_transcode::to_event(&msg).context("failed to transcode `Modification` to `Event`")
@@ -549,7 +546,7 @@ mod tests {
             amount: wrapped,
             reason: "test".into(),
         };
-        modify_balance(deps.as_mut(), m).unwrap();
+        modify_balance(deps.as_mut().storage, m).unwrap();
 
         // The transfer should still fail because we're trying to move more wrapped tokens than
         // were issued.
@@ -963,7 +960,7 @@ mod tests {
             reason: "test".into(),
         };
 
-        let evt = modify_balance(deps.as_mut(), m.clone()).unwrap();
+        let evt = modify_balance(deps.as_mut().storage, m.clone()).unwrap();
 
         let acc = account::Key::new(m.chain_id, m.token_chain, m.token_address);
         assert_eq!(m.amount, *query_balance(deps.as_ref(), acc).unwrap());
@@ -1000,10 +997,11 @@ mod tests {
             reason: "test".into(),
         };
 
-        modify_balance(deps.as_mut(), m.clone()).unwrap();
+        modify_balance(deps.as_mut().storage, m.clone()).unwrap();
 
         // Trying the same modification again should fail.
-        let e = modify_balance(deps.as_mut(), m).expect_err("successfully modified balance twice");
+        let e = modify_balance(deps.as_mut().storage, m)
+            .expect_err("successfully modified balance twice");
         assert!(matches!(
             e.downcast().unwrap(),
             ModifyBalanceError::DuplicateModification
@@ -1023,11 +1021,11 @@ mod tests {
             reason: "test".into(),
         };
 
-        modify_balance(deps.as_mut(), m.clone()).unwrap();
+        modify_balance(deps.as_mut().storage, m.clone()).unwrap();
 
         m.sequence += 1;
         m.kind = Kind::Sub;
-        modify_balance(deps.as_mut(), m.clone()).unwrap();
+        modify_balance(deps.as_mut().storage, m.clone()).unwrap();
 
         let acc = account::Key::new(m.chain_id, m.token_chain, m.token_address);
         assert_eq!(Balance::zero(), query_balance(deps.as_ref(), acc).unwrap());
@@ -1049,7 +1047,7 @@ mod tests {
 
         for i in 0..ITERATIONS {
             m.sequence = i;
-            modify_balance(deps.as_mut(), m.clone()).unwrap();
+            modify_balance(deps.as_mut().storage, m.clone()).unwrap();
         }
 
         let acc = account::Key::new(m.chain_id, m.token_chain, m.token_address);
@@ -1072,7 +1070,7 @@ mod tests {
             reason: "test".into(),
         };
 
-        let e = modify_balance(deps.as_mut(), m)
+        let e = modify_balance(deps.as_mut().storage, m)
             .expect_err("successfully modified account with insufficient balance");
         assert!(matches!(
             e.downcast().unwrap(),

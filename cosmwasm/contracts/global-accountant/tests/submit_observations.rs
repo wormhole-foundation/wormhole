@@ -526,8 +526,7 @@ fn missing_native_account() {
         reason: "fake wrapped balance for testing".into(),
     })
     .unwrap();
-    let signatures = wh.sign(&m);
-    contract.modify_balance(m, index, signatures).unwrap();
+    contract.modify_balance(m).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
     let msg = Message::Transfer {
@@ -645,8 +644,7 @@ fn wrapped_to_wrapped() {
         reason: "fake wrapped balance for testing".into(),
     })
     .unwrap();
-    let signatures = wh.sign(&m);
-    contract.modify_balance(m, index, signatures).unwrap();
+    contract.modify_balance(m).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
     let msg = Message::Transfer {

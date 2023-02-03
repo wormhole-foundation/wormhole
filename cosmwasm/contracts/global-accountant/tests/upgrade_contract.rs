@@ -5,7 +5,6 @@ use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Empty, Env, Event, MessageInfo, Response, StdResult,
 };
 use cw_multi_test::ContractWrapper;
-use global_accountant::msg::Upgrade;
 use helpers::*;
 use wormhole_bindings::WormholeQuery;
 
@@ -35,7 +34,7 @@ pub fn query(_deps: Deps, _env: Env, _msg: Empty) -> StdResult<Binary> {
 
 #[test]
 fn upgrade() {
-    let (wh, mut contract) = proper_instantiate();
+    let (_wh, mut contract) = proper_instantiate();
 
     let new_code_id = contract.app_mut().store_code(Box::new(
         ContractWrapper::new_with_empty(execute, instantiate, query).with_migrate_empty(migrate),
@@ -44,12 +43,7 @@ fn upgrade() {
     let mut new_addr = [0u8; 32];
     new_addr[24..].copy_from_slice(&new_code_id.to_be_bytes());
 
-    let upgrade = to_binary(&Upgrade { new_addr }).unwrap();
-    let signatures = wh.sign(&upgrade);
-
-    let resp = contract
-        .upgrade_contract(upgrade, wh.guardian_set_index(), signatures)
-        .unwrap();
+    let resp = contract.upgrade_contract(new_code_id).unwrap();
     resp.assert_event(&Event::new("wasm-migrate-success"));
 
     contract

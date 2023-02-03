@@ -9,8 +9,8 @@ use anyhow::{ensure, Context};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_binary, to_binary, Binary, ConversionOverflowError, CosmosMsg, Deps, DepsMut, Empty, Env,
-    Event, MessageInfo, Order, Response, StdError, StdResult, Uint256, WasmMsg,
+    from_binary, to_binary, Binary, ConversionOverflowError, Deps, DepsMut, Empty, Env, Event,
+    MessageInfo, Order, Response, StdError, StdResult, Storage, Uint256,
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
@@ -31,7 +31,7 @@ use crate::{
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
         MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, ObservationError,
         ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
-        Upgrade, SUBMITTED_OBSERVATIONS_PREFIX,
+        SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -57,14 +57,29 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut<WormholeQuery>, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    Ok(Response::default())
+pub fn migrate(
+    deps: DepsMut<WormholeQuery>,
+    _env: Env,
+    msg: MigrateMsg,
+) -> Result<Response, AnyError> {
+    let mut res = Response::new();
+
+    if !msg.modifications.is_empty() {
+        res = res.add_attribute("action", "modify_balance")
+    }
+
+    for modification in msg.modifications {
+        let event = modify_balance(deps.storage, modification.modification)?;
+        res = res.add_event(event)
+    }
+
+    Ok(res)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut<WormholeQuery>,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, AnyError> {
@@ -74,16 +89,6 @@ pub fn execute(
             guardian_set_index,
             signature,
         } => submit_observations(deps, info, observations, guardian_set_index, signature),
-        ExecuteMsg::ModifyBalance {
-            modification,
-            guardian_set_index,
-            signatures,
-        } => modify_balance(deps, info, modification, guardian_set_index, signatures),
-        ExecuteMsg::UpgradeContract {
-            upgrade,
-            guardian_set_index,
-            signatures,
-        } => upgrade_contract(deps, env, info, upgrade, guardian_set_index, signatures),
         ExecuteMsg::SubmitVAAs { vaas } => submit_vaas(deps, info, vaas),
     }
 }
@@ -274,68 +279,11 @@ fn handle_observation(
     Ok((ObservationStatus::Committed, event))
 }
 
-fn modify_balance(
-    deps: DepsMut<WormholeQuery>,
-    info: MessageInfo,
-    modification: Binary,
-    guardian_set_index: u32,
-    signatures: Vec<Signature>,
-) -> Result<Response, AnyError> {
-    deps.querier
-        .query::<Empty>(
-            &WormholeQuery::VerifyQuorum {
-                data: modification.clone(),
-                guardian_set_index,
-                signatures: signatures.into_iter().map(From::from).collect(),
-            }
-            .into(),
-        )
-        .context(ContractError::VerifyQuorum)?;
-
+fn modify_balance(storage: &mut dyn Storage, modification: Binary) -> Result<Event, AnyError> {
     let msg: Modification = from_binary(&modification).context("failed to parse `Modification`")?;
-
     let event =
-        accountant::modify_balance(deps, msg).context("failed to modify account balance")?;
-
-    Ok(Response::new()
-        .add_attribute("action", "modify_balance")
-        .add_attribute("owner", info.sender)
-        .add_event(event))
-}
-
-fn upgrade_contract(
-    deps: DepsMut<WormholeQuery>,
-    env: Env,
-    info: MessageInfo,
-    upgrade: Binary,
-    guardian_set_index: u32,
-    signatures: Vec<Signature>,
-) -> Result<Response, AnyError> {
-    deps.querier
-        .query::<Empty>(
-            &WormholeQuery::VerifyQuorum {
-                data: upgrade.clone(),
-                guardian_set_index,
-                signatures: signatures.into_iter().map(From::from).collect(),
-            }
-            .into(),
-        )
-        .context(ContractError::VerifyQuorum)?;
-
-    let Upgrade { new_addr } = from_binary(&upgrade).context("failed to parse `Upgrade`")?;
-
-    let mut buf = 0u64.to_ne_bytes();
-    buf.copy_from_slice(&new_addr[24..]);
-    let new_contract = u64::from_be_bytes(buf);
-
-    Ok(Response::new()
-        .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
-            contract_addr: env.contract.address.to_string(),
-            new_code_id: new_contract,
-            msg: to_binary(&MigrateMsg {})?,
-        }))
-        .add_attribute("action", "contract_upgrade")
-        .add_attribute("owner", info.sender))
+        accountant::modify_balance(storage, msg).context("failed to modify account balance")?;
+    Ok(event)
 }
 
 fn submit_vaas(

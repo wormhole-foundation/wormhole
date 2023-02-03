@@ -12,7 +12,7 @@ use helpers::*;
 use wormhole::{token::Message, vaa::Body, Address, Amount};
 use wormhole_bindings::fake;
 
-fn create_accounts(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {
+fn create_accounts(contract: &mut Contract, count: usize) {
     let mut s = 0;
     for i in 0..count {
         for j in 0..count {
@@ -28,10 +28,7 @@ fn create_accounts(wh: &fake::WormholeKeeper, contract: &mut Contract, count: us
             })
             .unwrap();
 
-            let signatures = wh.sign(&m);
-            contract
-                .modify_balance(m, wh.guardian_set_index(), signatures)
-                .unwrap();
+            contract.modify_balance(m).unwrap();
         }
     }
 }
@@ -87,11 +84,7 @@ fn create_transfers(
     out
 }
 
-pub fn create_modifications(
-    wh: &fake::WormholeKeeper,
-    contract: &mut Contract,
-    count: usize,
-) -> Vec<Modification> {
+pub fn create_modifications(contract: &mut Contract, count: usize) -> Vec<Modification> {
     let mut out = Vec::with_capacity(count);
     for i in 0..count {
         let m = Modification {
@@ -105,10 +98,7 @@ pub fn create_modifications(
         };
 
         let msg = to_binary(&m).unwrap();
-        let signatures = wh.sign(&msg);
-        contract
-            .modify_balance(msg, wh.guardian_set_index(), signatures)
-            .unwrap();
+        contract.modify_balance(msg).unwrap();
 
         out.push(m);
     }
@@ -119,8 +109,8 @@ pub fn create_modifications(
 #[test]
 fn account_balance() {
     let count = 2;
-    let (wh, mut contract) = proper_instantiate();
-    create_accounts(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    create_accounts(&mut contract, count);
 
     for i in 0..count {
         for j in 0..count {
@@ -134,8 +124,8 @@ fn account_balance() {
 #[test]
 fn missing_account() {
     let count = 2;
-    let (wh, mut contract) = proper_instantiate();
-    create_accounts(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    create_accounts(&mut contract, count);
 
     let missing = account::Key::new(
         (count + 1) as u16,
@@ -151,8 +141,8 @@ fn missing_account() {
 #[test]
 fn all_balances() {
     let count = 3;
-    let (wh, mut contract) = proper_instantiate();
-    create_accounts(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    create_accounts(&mut contract, count);
 
     let resp = contract.query_all_accounts(None, None).unwrap();
     let found = resp
@@ -173,8 +163,8 @@ fn all_balances() {
 #[test]
 fn all_balances_sub_range() {
     let count = 3;
-    let (wh, mut contract) = proper_instantiate();
-    create_accounts(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    create_accounts(&mut contract, count);
 
     for i in 0..count {
         for j in 0..count {
@@ -320,8 +310,8 @@ fn all_transfer_data_sub_range() {
 #[test]
 fn modification_data() {
     let count = 2;
-    let (wh, mut contract) = proper_instantiate();
-    let modifications = create_modifications(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    let modifications = create_modifications(&mut contract, count);
 
     for m in modifications {
         let actual = contract.query_modification(m.sequence).unwrap();
@@ -333,8 +323,8 @@ fn modification_data() {
 #[test]
 fn missing_modification() {
     let count = 2;
-    let (wh, mut contract) = proper_instantiate();
-    create_modifications(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    create_modifications(&mut contract, count);
 
     let missing = (count + 1) as u64;
 
@@ -346,8 +336,8 @@ fn missing_modification() {
 #[test]
 fn all_modification_data() {
     let count = 3;
-    let (wh, mut contract) = proper_instantiate();
-    let modifications = create_modifications(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    let modifications = create_modifications(&mut contract, count);
 
     let resp = contract.query_all_modifications(None, None).unwrap();
     let found = resp
@@ -365,8 +355,8 @@ fn all_modification_data() {
 #[test]
 fn all_modification_data_sub_range() {
     let count = 5;
-    let (wh, mut contract) = proper_instantiate();
-    create_modifications(&wh, &mut contract, count);
+    let (_wh, mut contract) = proper_instantiate();
+    create_modifications(&mut contract, count);
 
     for i in 0..count {
         for l in 1..count - i {

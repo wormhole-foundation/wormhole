@@ -944,6 +944,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm",
+ "serde_json",
  "serde_wormhole",
  "thiserror",
  "tinyvec",
