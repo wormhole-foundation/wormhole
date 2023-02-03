@@ -55,6 +55,7 @@ func init() {
 	AdminClientFindMissingMessagesCmd.Flags().AddFlagSet(pf)
 	AdminClientListNodes.Flags().AddFlagSet(pf)
 	DumpVAAByMessageID.Flags().AddFlagSet(pf)
+	DumpRPCs.Flags().AddFlagSet(pf)
 	SendObservationRequest.Flags().AddFlagSet(pf)
 	ClientChainGovernorStatusCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
@@ -71,6 +72,7 @@ func init() {
 	AdminCmd.AddCommand(AdminClientListNodes)
 	AdminCmd.AddCommand(AdminClientSignWormchainAddress)
 	AdminCmd.AddCommand(DumpVAAByMessageID)
+	AdminCmd.AddCommand(DumpRPCs)
 	AdminCmd.AddCommand(SendObservationRequest)
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
 	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
@@ -176,6 +178,13 @@ var SignExistingVaasFromCSVCmd = &cobra.Command{
 	Short: "Signs a CSV [VAA_ID,VAA_HEX] of existing VAAs for a new guardian set using the local guardian key and writes it to a new CSV. VAAs that don't have quorum on the new set will be dropped.",
 	Run:   runSignExistingVaasFromCSV,
 	Args:  cobra.ExactArgs(4),
+}
+
+var DumpRPCs = &cobra.Command{
+	Use:   "dump-rpcs",
+	Short: "Displays the RPCs in use by the guardian",
+	Run:   runDumpRPCs,
+	Args:  cobra.ExactArgs(0),
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
@@ -372,6 +381,26 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	})
 	if err != nil {
 		log.Fatalf("failed to send observation request: %v", err)
+	}
+}
+
+func runDumpRPCs(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	resp, err := c.DumpRPCs(ctx, &nodev1.DumpRPCsRequest{})
+	if err != nil {
+		log.Fatalf("failed to run dump-rpcs: %s", err)
+	}
+
+	for parm, rpc := range resp.Response {
+		fmt.Println(parm, " = [", rpc, "]")
 	}
 }
 

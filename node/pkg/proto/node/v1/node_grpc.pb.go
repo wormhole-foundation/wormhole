@@ -48,6 +48,8 @@ type NodePrivilegedServiceClient interface {
 	PurgePythNetVaas(ctx context.Context, in *PurgePythNetVaasRequest, opts ...grpc.CallOption) (*PurgePythNetVaasResponse, error)
 	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
 	SignExistingVAA(ctx context.Context, in *SignExistingVAARequest, opts ...grpc.CallOption) (*SignExistingVAAResponse, error)
+	// DumpRPCs returns the RPCs being used by the guardian
+	DumpRPCs(ctx context.Context, in *DumpRPCsRequest, opts ...grpc.CallOption) (*DumpRPCsResponse, error)
 }
 
 type nodePrivilegedServiceClient struct {
@@ -148,6 +150,15 @@ func (c *nodePrivilegedServiceClient) SignExistingVAA(ctx context.Context, in *S
 	return out, nil
 }
 
+func (c *nodePrivilegedServiceClient) DumpRPCs(ctx context.Context, in *DumpRPCsRequest, opts ...grpc.CallOption) (*DumpRPCsResponse, error) {
+	out := new(DumpRPCsResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/DumpRPCs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodePrivilegedServiceServer is the server API for NodePrivilegedService service.
 // All implementations must embed UnimplementedNodePrivilegedServiceServer
 // for forward compatibility
@@ -182,6 +193,8 @@ type NodePrivilegedServiceServer interface {
 	PurgePythNetVaas(context.Context, *PurgePythNetVaasRequest) (*PurgePythNetVaasResponse, error)
 	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
 	SignExistingVAA(context.Context, *SignExistingVAARequest) (*SignExistingVAAResponse, error)
+	// DumpRPCs returns the RPCs being used by the guardian
+	DumpRPCs(context.Context, *DumpRPCsRequest) (*DumpRPCsResponse, error)
 	mustEmbedUnimplementedNodePrivilegedServiceServer()
 }
 
@@ -218,6 +231,9 @@ func (UnimplementedNodePrivilegedServiceServer) PurgePythNetVaas(context.Context
 }
 func (UnimplementedNodePrivilegedServiceServer) SignExistingVAA(context.Context, *SignExistingVAARequest) (*SignExistingVAAResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SignExistingVAA not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) DumpRPCs(context.Context, *DumpRPCsRequest) (*DumpRPCsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DumpRPCs not implemented")
 }
 func (UnimplementedNodePrivilegedServiceServer) mustEmbedUnimplementedNodePrivilegedServiceServer() {}
 
@@ -412,6 +428,24 @@ func _NodePrivilegedService_SignExistingVAA_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodePrivilegedService_DumpRPCs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DumpRPCsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).DumpRPCs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/DumpRPCs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).DumpRPCs(ctx, req.(*DumpRPCsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NodePrivilegedService_ServiceDesc is the grpc.ServiceDesc for NodePrivilegedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -458,6 +492,10 @@ var NodePrivilegedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SignExistingVAA",
 			Handler:    _NodePrivilegedService_SignExistingVAA_Handler,
+		},
+		{
+			MethodName: "DumpRPCs",
+			Handler:    _NodePrivilegedService_DumpRPCs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
