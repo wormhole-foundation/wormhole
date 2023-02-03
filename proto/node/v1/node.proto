@@ -49,6 +49,9 @@ service NodePrivilegedService {
 
   // SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
   rpc SignExistingVAA (SignExistingVAARequest) returns (SignExistingVAAResponse);
+
+  // DumpRPCs returns the RPCs being used by the guardian
+  rpc DumpRPCs (DumpRPCsRequest) returns (DumpRPCsResponse);  
 }
 
 message InjectGovernanceVAARequest {
@@ -257,4 +260,10 @@ message SignExistingVAARequest {
 
 message SignExistingVAAResponse {
   bytes vaa = 1;
+}
+
+message DumpRPCsRequest {}
+
+message DumpRPCsResponse {
+  map<string, string> response = 1;
 }
