@@ -68,41 +68,51 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
-type Features struct {
+type Components struct {
 	// P2PIDInHeartbeat determines if the guardian will put it's libp2p node ID in the authenticated heartbeat payload
-	P2PIDInHeartbeat   bool
-	ConnectionManager  *connmgr.BasicConnMgr
-	ListeningAddresses []string
+	P2PIDInHeartbeat           bool
+	ListeningAddressesPatterns []string
+	Port                       uint
+	ConnMgr                    *connmgr.BasicConnMgr
 }
 
-func DefaultFeatures() *Features {
-	mgr, err := connmgr.NewConnManager(
-		100, // LowWater
-		400, // HighWater,
-		connmgr.WithGracePeriod(time.Minute),
-	)
+func (f *Components) ListeningAddresses() []string {
+	la := make([]string, 0, len(f.ListeningAddressesPatterns))
+	for _, pattern := range f.ListeningAddressesPatterns {
+		la = append(la, fmt.Sprintf(pattern, f.Port))
+	}
+	return la
+}
+
+func DefaultComponents() *Components {
+	mgr, err := DefaultConnectionManager()
 	if err != nil {
 		panic(err)
 	}
 
-	return &Features{
-		P2PIDInHeartbeat:  true,
-		ConnectionManager: mgr,
-		ListeningAddresses: []string{
+	return &Components{
+		P2PIDInHeartbeat: true,
+		ListeningAddressesPatterns: []string{
 			// Listen on QUIC only.
 			// https://github.com/libp2p/go-libp2p/issues/688
-			fmt.Sprintf("/0.0.0.0/udp/8999/quic"),
-			fmt.Sprintf("/ip6/::/udp/8999/quic"),
+			"/ip4/0.0.0.0/udp/%d/quic",
+			"/ip6/::/udp/%d/quic",
 		},
+		Port:    8999,
+		ConnMgr: mgr,
 	}
 }
 
-type Watermarks struct {
-	High int
-	Low  int
-}
+const LowWaterMarkDefault = 100
+const HighWaterMarkDefault = 400
 
-var DefaultWatermarks = Watermarks{Low: 100, High: 400}
+func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
+	return connmgr.NewConnManager(
+		LowWaterMarkDefault,
+		HighWaterMarkDefault,
+		connmgr.WithGracePeriod(time.Minute),
+	)
+}
 
 func Run(
 	obsvC chan<- *gossipv1.SignedObservation,
@@ -113,7 +123,6 @@ func Run(
 	priv crypto.PrivKey,
 	gk *ecdsa.PrivateKey,
 	gst *node_common.GuardianSetState,
-	port uint,
 	networkID string,
 	bootstrapPeers string,
 	nodeName string,
@@ -123,20 +132,14 @@ func Run(
 	gov *governor.ChainGovernor,
 	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
-	watermarks *Watermarks,
-	featuresConfig *Features,
+	components *Components,
 ) func(ctx context.Context) error {
-	if watermarks == nil {
-		watermarks = &DefaultWatermarks
-	}
-
-	if featuresConfig == nil {
-		featuresConfig = DefaultFeatures()
+	if components == nil {
+		components = DefaultComponents()
 	}
 
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
-		mgr := featuresConfig.ConnectionManager
 
 		h, err := libp2p.New(
 			// Use the keypair we generated
@@ -144,7 +147,7 @@ func Run(
 
 			// Multiple listen addresses
 			libp2p.ListenAddrStrings(
-				featuresConfig.ListeningAddresses...,
+				components.ListeningAddresses()...,
 			),
 
 			// Enable TLS security as the only security protocol.
@@ -155,7 +158,7 @@ func Run(
 
 			// Let's prevent our peer from having too many
 			// connections by attaching a connection manager.
-			libp2p.ConnectionManager(mgr),
+			libp2p.ConnectionManager(components.ConnMgr),
 
 			// Let this host use the DHT to find other hosts
 			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
@@ -285,7 +288,7 @@ func Run(
 						Features:      features,
 					}
 
-					if featuresConfig.P2PIDInHeartbeat {
+					if components.P2PIDInHeartbeat {
 						heartbeat.P2PNodeId = nodeIdBytes
 					}
 
@@ -451,7 +454,7 @@ func Run(
 								zap.Binary("raw", envelope.Data),
 								zap.String("from", envelope.GetFrom().String()))
 						} else {
-							mgr.Protect(peerId, "heartbeat")
+							components.ConnMgr.Protect(peerId, "heartbeat")
 						}
 					} else {
 						logger.Debug("p2p_node_id_not_in_heartbeat",

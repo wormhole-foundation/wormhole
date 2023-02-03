@@ -208,7 +208,7 @@ var (
 
 func init() {
 	p2pNetworkID = NodeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
-	// p2pPort = NodeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
+	p2pPort = NodeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
@@ -1047,6 +1047,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Info("chain governor is disabled")
 	}
 
+	features := p2p.DefaultComponents()
+	features.Port = *p2pPort
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
@@ -1058,7 +1061,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			priv,
 			gk,
 			gst,
-			*p2pPort,
 			*p2pNetworkID,
 			*p2pBootstrap,
 			*nodeName,
@@ -1066,7 +1068,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			rootCtxCancel,
 			acct,
 			gov,
-			nil, nil, nil, nil)); err != nil {
+			nil, nil, nil)); err != nil {
 			return err
 		}
 

@@ -29,7 +29,6 @@ type G struct {
 	priv                   p2pcrypto.PrivKey
 	gk                     *ecdsa.PrivateKey
 	gst                    *node_common.GuardianSetState
-	port                   uint
 	networkID              string
 	bootstrapPeers         string
 	nodeName               string
@@ -39,8 +38,7 @@ type G struct {
 	acct                   *accountant.Accountant
 	signedGovCfg           chan *gossipv1.SignedChainGovernorConfig
 	signedGovSt            chan *gossipv1.SignedChainGovernorStatus
-	watermarks             *Watermarks
-	features               *Features
+	features               *Components
 }
 
 func NewG(nodeName string) *G {
@@ -70,7 +68,7 @@ func NewG(nodeName string) *G {
 		gov:                    nil,
 		signedGovCfg:           make(chan *gossipv1.SignedChainGovernorConfig, cs),
 		signedGovSt:            make(chan *gossipv1.SignedChainGovernorStatus, cs),
-		features:               DefaultFeatures(),
+		features:               DefaultComponents(),
 	}
 
 	// Consume all output channels
@@ -105,7 +103,7 @@ func TestWatermark(t *testing.T) {
 	var gs [4]*G
 	for i, _ := range gs {
 		gs[i] = NewG(fmt.Sprintf("n%d", i))
-		gs[i].port = uint(11000 + i)
+		gs[i].features.Port = uint(11000 + i)
 		gs[i].networkID = "/wormhole/localdev"
 
 		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].gk.PublicKey))
@@ -118,13 +116,7 @@ func TestWatermark(t *testing.T) {
 		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/11000/quic/p2p/%s", id.String())
 		gs[i].gst.Set(guardianset)
 
-		gs[i].features.ConnectionManager, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
-		gs[i].features.ListeningAddresses = []string{
-			// Listen on QUIC only.
-			// https://github.com/libp2p/go-libp2p/issues/688
-			fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic", gs[i].port),
-			fmt.Sprintf("/ip6/::1/udp/%d/quic", gs[i].port),
-		}
+		gs[i].features.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
 	}
 
 	// The 4th guardian does not put its libp2p key in the heartbeat
@@ -145,7 +137,7 @@ func TestWatermark(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			result := g.features.ConnectionManager.IsProtected(g1addr, "heartbeat")
+			result := g.features.ConnMgr.IsProtected(g1addr, "heartbeat")
 
 			// A node cannot be protected on itself as one's own heartbeats are dropped
 			if gi == g1i {
@@ -173,7 +165,6 @@ func startGuardian(ctx context.Context, g *G) {
 			g.priv,
 			g.gk,
 			g.gst,
-			g.port,
 			g.networkID,
 			g.bootstrapPeers,
 			g.nodeName,
@@ -183,6 +174,5 @@ func startGuardian(ctx context.Context, g *G) {
 			g.gov,
 			g.signedGovCfg,
 			g.signedGovSt,
-			g.watermarks,
 			g.features))
 }
