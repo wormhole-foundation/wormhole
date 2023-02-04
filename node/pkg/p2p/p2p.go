@@ -110,7 +110,9 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 	return connmgr.NewConnManager(
 		LowWaterMarkDefault,
 		HighWaterMarkDefault,
-		connmgr.WithGracePeriod(time.Minute),
+
+		// GracePeriod set to 0 means that new peers are never protected
+		connmgr.WithGracePeriod(0),
 	)
 }
 
@@ -392,6 +394,8 @@ func Run(
 			}
 		}()
 
+		protectedPeers := make(map[common.Address]peer.ID)
+
 		for {
 			envelope, err := sub.Next(ctx)
 			if err != nil {
@@ -454,7 +458,18 @@ func Run(
 								zap.Binary("raw", envelope.Data),
 								zap.String("from", envelope.GetFrom().String()))
 						} else {
-							components.ConnMgr.Protect(peerId, "heartbeat")
+							guardianAddr := common.BytesToAddress(s.GuardianAddr)
+							prevPeerId, ok := protectedPeers[guardianAddr]
+							if ok {
+								if prevPeerId != peerId {
+									components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+									components.ConnMgr.Protect(peerId, "heartbeat")
+									protectedPeers[guardianAddr] = peerId
+								}
+							} else {
+								components.ConnMgr.Protect(peerId, "heartbeat")
+								protectedPeers[guardianAddr] = peerId
+							}
 						}
 					} else {
 						logger.Debug("p2p_node_id_not_in_heartbeat",
