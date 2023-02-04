@@ -263,29 +263,15 @@ func Run(
 					if gov != nil {
 						gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
 					}
-
-					b, err := proto.Marshal(heartbeat)
-					if err != nil {
-						panic(err)
-					}
-
 					DefaultRegistry.mu.Unlock()
 
-					// Sign the heartbeat using our node's guardian key.
-					digest := heartbeatDigest(b)
-					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
-					if err != nil {
-						panic(err)
+					msg := gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_SignedHeartbeat{
+							SignedHeartbeat: createSignedHeartbeat(gk, heartbeat),
+						},
 					}
 
-					msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedHeartbeat{
-						SignedHeartbeat: &gossipv1.SignedHeartbeat{
-							Heartbeat:    b,
-							Signature:    sig,
-							GuardianAddr: ourAddr.Bytes(),
-						}}}
-
-					b, err = proto.Marshal(&msg)
+					b, err := proto.Marshal(&msg)
 					if err != nil {
 						panic(err)
 					}
@@ -469,6 +455,28 @@ func Run(
 					zap.String("from", envelope.GetFrom().String()))
 			}
 		}
+	}
+}
+
+func createSignedHeartbeat(gk *ecdsa.PrivateKey, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
+	ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+
+	b, err := proto.Marshal(heartbeat)
+	if err != nil {
+		panic(err)
+	}
+
+	// Sign the heartbeat using our node's guardian key.
+	digest := heartbeatDigest(b)
+	sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+	if err != nil {
+		panic(err)
+	}
+
+	return &gossipv1.SignedHeartbeat{
+		Heartbeat:    b,
+		Signature:    sig,
+		GuardianAddr: ourAddr.Bytes(),
 	}
 }
 
