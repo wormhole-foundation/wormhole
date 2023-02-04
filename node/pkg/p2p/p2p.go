@@ -65,6 +65,9 @@ var heartbeatMessagePrefix = []byte("heartbeat|")
 
 var signedObservationRequestPrefix = []byte("signed_observation_request|")
 
+// heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
+var heartbeatMaxTimeDifference = time.Minute * 15
+
 func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
@@ -227,54 +230,59 @@ func Run(
 				case <-ctx.Done():
 					return
 				case <-tick.C:
-					DefaultRegistry.mu.Lock()
-					networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
-					for _, v := range DefaultRegistry.networkStats {
-						errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
-						v.ErrorCount = errCtr
-						networks = append(networks, v)
-					}
 
-					features := make([]string, 0)
-					if gov != nil {
-						features = append(features, "governor")
-					}
-					if acct != nil {
-						features = append(features, acct.FeatureString())
-					}
+					// create a heartbeat
+					b := func() []byte {
+						DefaultRegistry.mu.Lock()
+						defer DefaultRegistry.mu.Unlock()
+						networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
+						for _, v := range DefaultRegistry.networkStats {
+							errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+							v.ErrorCount = errCtr
+							networks = append(networks, v)
+						}
 
-					heartbeat := &gossipv1.Heartbeat{
-						NodeName:      nodeName,
-						Counter:       ctr,
-						Timestamp:     time.Now().UnixNano(),
-						Networks:      networks,
-						Version:       version.Version(),
-						GuardianAddr:  DefaultRegistry.guardianAddress,
-						BootTimestamp: bootTime.UnixNano(),
-						Features:      features,
-					}
+						features := make([]string, 0)
+						if gov != nil {
+							features = append(features, "governor")
+						}
+						if acct != nil {
+							features = append(features, acct.FeatureString())
+						}
 
-					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
-					if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
-						panic(err)
-					}
-					collectNodeMetrics(ourAddr, h.ID(), heartbeat)
+						heartbeat := &gossipv1.Heartbeat{
+							NodeName:      nodeName,
+							Counter:       ctr,
+							Timestamp:     time.Now().UnixNano(),
+							Networks:      networks,
+							Version:       version.Version(),
+							GuardianAddr:  DefaultRegistry.guardianAddress,
+							BootTimestamp: bootTime.UnixNano(),
+							Features:      features,
+						}
 
-					if gov != nil {
-						gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
-					}
-					DefaultRegistry.mu.Unlock()
+						ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+						if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
+							panic(err)
+						}
+						collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
-					msg := gossipv1.GossipMessage{
-						Message: &gossipv1.GossipMessage_SignedHeartbeat{
-							SignedHeartbeat: createSignedHeartbeat(gk, heartbeat),
-						},
-					}
+						if gov != nil {
+							gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
+						}
 
-					b, err := proto.Marshal(&msg)
-					if err != nil {
-						panic(err)
-					}
+						msg := gossipv1.GossipMessage{
+							Message: &gossipv1.GossipMessage_SignedHeartbeat{
+								SignedHeartbeat: createSignedHeartbeat(gk, heartbeat),
+							},
+						}
+
+						b, err := proto.Marshal(&msg)
+						if err != nil {
+							panic(err)
+						}
+						return b
+					}()
 
 					err = th.Publish(ctx, b)
 					if err != nil {
@@ -513,6 +521,14 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_
 	err = proto.Unmarshal(s.Heartbeat, &h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal heartbeat: %w", err)
+	}
+
+	if time.Until(time.Unix(0, h.Timestamp)).Abs() > heartbeatMaxTimeDifference {
+		return nil, fmt.Errorf("heartbeat is too old or too far into the future")
+	}
+
+	if h.GuardianAddr != signerAddr.String() {
+		return nil, fmt.Errorf("GuardianAddr in heartbeat does not match signerAddr")
 	}
 
 	// Store verified heartbeat in global guardian set state.
