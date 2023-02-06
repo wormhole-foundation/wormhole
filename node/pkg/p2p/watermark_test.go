@@ -104,7 +104,7 @@ func TestWatermark(t *testing.T) {
 	// Create 4 nodes
 	var guardianset = &node_common.GuardianSet{}
 	var gs [4]*G
-	for i, _ := range gs {
+	for i := range gs {
 		gs[i] = NewG(fmt.Sprintf("n%d", i))
 		gs[i].components.Port = uint(11000 + i)
 		gs[i].networkID = "/wormhole/localdev"
