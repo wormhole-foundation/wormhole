@@ -516,7 +516,7 @@ fn missing_native_account() {
         .unwrap() as usize;
 
     // We need to set up a fake wrapped account so that the initial check succeeds.
-    let m = to_binary(&Modification {
+    let m = Modification {
         sequence: 0,
         chain_id: emitter_chain,
         token_chain,
@@ -524,8 +524,7 @@ fn missing_native_account() {
         kind: Kind::Add,
         amount: Uint256::new(amount.0),
         reason: "fake wrapped balance for testing".into(),
-    })
-    .unwrap();
+    };
     contract.modify_balance(m).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
@@ -634,7 +633,7 @@ fn wrapped_to_wrapped() {
     let num_guardians = wh.num_guardians();
 
     // We need an initial fake wrapped account.
-    let m = to_binary(&Modification {
+    let m = Modification {
         sequence: 0,
         chain_id: emitter_chain,
         token_chain,
@@ -642,8 +641,7 @@ fn wrapped_to_wrapped() {
         kind: Kind::Add,
         amount: Uint256::new(amount.0),
         reason: "fake wrapped balance for testing".into(),
-    })
-    .unwrap();
+    };
     contract.modify_balance(m).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);

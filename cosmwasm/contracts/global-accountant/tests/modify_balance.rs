@@ -1,13 +1,12 @@
 mod helpers;
 
 use accountant::state::{account, Kind, Modification};
-use cosmwasm_std::{to_binary, Event, Uint256};
+use cosmwasm_std::{Event, Uint256};
+use global_accountant::msg::InstantiateMsg;
 use helpers::*;
 
 #[test]
 fn simple_modify() {
-    let (_wh, mut contract) = proper_instantiate();
-
     let m = Modification {
         sequence: 0,
         chain_id: 1,
@@ -17,38 +16,56 @@ fn simple_modify() {
         amount: Uint256::from(300u128),
         reason: "test".into(),
     };
-    let modification = to_binary(&m).unwrap();
 
-    let resp = contract.modify_balance(modification).unwrap();
+    // Test modification via both instantiate + migrate channels.
+    let instantiate_msgs = vec![
+        None,
+        Some(InstantiateMsg {
+            modifications: vec![m.clone()],
+        }),
+    ];
 
-    let evt = Event::new("wasm-Modification")
-        .add_attribute("sequence", serde_json_wasm::to_string(&m.sequence).unwrap())
-        .add_attribute("chain_id", serde_json_wasm::to_string(&m.chain_id).unwrap())
-        .add_attribute(
-            "token_chain",
-            serde_json_wasm::to_string(&m.token_chain).unwrap(),
-        )
-        .add_attribute(
-            "token_address",
-            serde_json_wasm::to_string(&m.token_address).unwrap(),
-        )
-        .add_attribute("kind", serde_json_wasm::to_string(&m.kind).unwrap())
-        .add_attribute("amount", serde_json_wasm::to_string(&m.amount).unwrap())
-        .add_attribute("reason", serde_json_wasm::to_string(&m.reason).unwrap());
+    for instantiate_msg in instantiate_msgs {
+        let (_wh, contract) = if instantiate_msg.is_some() {
+            // pass modification via instantiate
+            proper_instantiate_with(instantiate_msg.as_ref().unwrap())
+            // there is no event returned from test instantiate so we pass on checking the event for now.
+        } else {
+            let (_wh, mut contract) = proper_instantiate();
+            // pass modification via migrate after instantiate
+            let resp = contract.modify_balance(m.clone()).unwrap();
 
-    resp.assert_event(&evt);
+            let evt = Event::new("wasm-Modification")
+                .add_attribute("sequence", serde_json_wasm::to_string(&m.sequence).unwrap())
+                .add_attribute("chain_id", serde_json_wasm::to_string(&m.chain_id).unwrap())
+                .add_attribute(
+                    "token_chain",
+                    serde_json_wasm::to_string(&m.token_chain).unwrap(),
+                )
+                .add_attribute(
+                    "token_address",
+                    serde_json_wasm::to_string(&m.token_address).unwrap(),
+                )
+                .add_attribute("kind", serde_json_wasm::to_string(&m.kind).unwrap())
+                .add_attribute("amount", serde_json_wasm::to_string(&m.amount).unwrap())
+                .add_attribute("reason", serde_json_wasm::to_string(&m.reason).unwrap());
 
-    let actual = contract.query_modification(m.sequence).unwrap();
-    assert_eq!(m, actual);
+            resp.assert_event(&evt);
+            (_wh, contract)
+        };
 
-    let balance = contract
-        .query_balance(account::Key::new(
-            m.chain_id,
-            m.token_chain,
-            m.token_address,
-        ))
-        .unwrap();
-    assert_eq!(m.amount, *balance);
+        let actual = contract.query_modification(m.sequence).unwrap();
+        assert_eq!(m.clone(), actual);
+
+        let balance = contract
+            .query_balance(account::Key::new(
+                m.chain_id,
+                m.token_chain,
+                m.token_address,
+            ))
+            .unwrap();
+        assert_eq!(m.amount, *balance);
+    }
 }
 
 #[test]
@@ -64,12 +81,11 @@ fn duplicate_modify() {
         amount: Uint256::from(300u128),
         reason: "test".into(),
     };
-    let modification = to_binary(&m).unwrap();
 
-    contract.modify_balance(modification.clone()).unwrap();
+    contract.modify_balance(m.clone()).unwrap();
 
     contract
-        .modify_balance(modification)
+        .modify_balance(m)
         .expect_err("successfully submitted duplicate modification");
 }
 
@@ -86,9 +102,7 @@ fn round_trip() {
         amount: Uint256::from(300u128),
         reason: "test".into(),
     };
-    let modification = to_binary(&m).unwrap();
-
-    contract.modify_balance(modification).unwrap();
+    contract.modify_balance(m.clone()).unwrap();
 
     let actual = contract.query_modification(m.sequence).unwrap();
     assert_eq!(m, actual);
@@ -98,9 +112,7 @@ fn round_trip() {
     m.kind = Kind::Sub;
     m.reason = "reverse".into();
 
-    let modification = to_binary(&m).unwrap();
-
-    contract.modify_balance(modification).unwrap();
+    contract.modify_balance(m.clone()).unwrap();
 
     let actual = contract.query_modification(m.sequence).unwrap();
     assert_eq!(m, actual);
@@ -134,9 +146,7 @@ fn repeat() {
     for _ in 0..ITERATIONS {
         m.sequence += 1;
 
-        let modification = to_binary(&m).unwrap();
-
-        contract.modify_balance(modification).unwrap();
+        contract.modify_balance(m.clone()).unwrap();
 
         let actual = contract.query_modification(m.sequence).unwrap();
         assert_eq!(m, actual);

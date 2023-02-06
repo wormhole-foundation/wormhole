@@ -6,7 +6,7 @@ use accountant::state::{
     account::{self, Balance},
     transfer, Kind, Modification, Transfer,
 };
-use cosmwasm_std::{to_binary, Uint256};
+use cosmwasm_std::Uint256;
 use global_accountant::msg::TransferStatus;
 use helpers::*;
 use wormhole::{token::Message, vaa::Body, Address, Amount};
@@ -17,7 +17,7 @@ fn create_accounts(contract: &mut Contract, count: usize) {
     for i in 0..count {
         for j in 0..count {
             s += 1;
-            let m = to_binary(&Modification {
+            let m = Modification {
                 sequence: s,
                 chain_id: i as u16,
                 token_chain: j as u16,
@@ -25,8 +25,7 @@ fn create_accounts(contract: &mut Contract, count: usize) {
                 kind: Kind::Add,
                 amount: Uint256::from(j as u128),
                 reason: "create_accounts".into(),
-            })
-            .unwrap();
+            };
 
             contract.modify_balance(m).unwrap();
         }
@@ -97,8 +96,7 @@ pub fn create_modifications(contract: &mut Contract, count: usize) -> Vec<Modifi
             reason: format!("{i}"),
         };
 
-        let msg = to_binary(&m).unwrap();
-        contract.modify_balance(msg).unwrap();
+        contract.modify_balance(m.clone()).unwrap();
 
         out.push(m);
     }

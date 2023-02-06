@@ -116,16 +116,15 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {
+pub struct InstantiateMsg {
     // Optional list modifications to apply
-    pub modifications: Vec<ModifyBalance>,
+    pub modifications: Vec<Modification>,
 }
 
-/// Modifies the balance of a single account.  Used to manually override the balance.
 #[cw_serde]
-pub struct ModifyBalance {
-    // A serialized `Modification` message.
-    pub modification: Binary,
+pub struct MigrateMsg {
+    // Optional list modifications to apply
+    pub modifications: Vec<Modification>,
 }
 
 #[cw_serde]

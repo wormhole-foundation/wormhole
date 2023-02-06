@@ -29,9 +29,9 @@ use crate::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, ObservationError,
-        ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
-        SUBMITTED_OBSERVATIONS_PREFIX,
+        InstantiateMsg, MigrateMsg, MissingObservation, MissingObservationsResponse, Observation,
+        ObservationError, ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails,
+        TransferStatus, SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -45,15 +45,26 @@ pub fn instantiate(
     deps: DepsMut<WormholeQuery>,
     _env: Env,
     info: MessageInfo,
-    _msg: Empty,
+    msg: InstantiateMsg,
 ) -> Result<Response, AnyError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
         .context("failed to set contract version")?;
 
-    Ok(Response::new()
+    let mut res = Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("owner", info.sender)
-        .add_attribute("version", CONTRACT_VERSION))
+        .add_attribute("version", CONTRACT_VERSION);
+
+    if !msg.modifications.is_empty() {
+        res = res.add_attribute("action", "modify_balance")
+    }
+
+    for modification in msg.modifications {
+        let event = modify_balance(deps.storage, modification)?;
+        res = res.add_event(event)
+    }
+
+    Ok(res)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -69,7 +80,7 @@ pub fn migrate(
     }
 
     for modification in msg.modifications {
-        let event = modify_balance(deps.storage, modification.modification)?;
+        let event = modify_balance(deps.storage, modification)?;
         res = res.add_event(event)
     }
 
@@ -279,10 +290,12 @@ fn handle_observation(
     Ok((ObservationStatus::Committed, event))
 }
 
-fn modify_balance(storage: &mut dyn Storage, modification: Binary) -> Result<Event, AnyError> {
-    let msg: Modification = from_binary(&modification).context("failed to parse `Modification`")?;
-    let event =
-        accountant::modify_balance(storage, msg).context("failed to modify account balance")?;
+fn modify_balance(
+    storage: &mut dyn Storage,
+    modification: Modification,
+) -> Result<Event, AnyError> {
+    let event = accountant::modify_balance(storage, modification)
+        .context("failed to modify account balance")?;
     Ok(event)
 }
 

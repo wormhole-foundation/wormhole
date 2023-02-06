@@ -13,7 +13,7 @@ use global_accountant::{
     msg::{
         AllAccountsResponse, AllModificationsResponse, AllPendingTransfersResponse,
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
-        MigrateMsg, MissingObservationsResponse, ModifyBalance, QueryMsg, TransferStatus,
+        InstantiateMsg, MigrateMsg, MissingObservationsResponse, QueryMsg, TransferStatus,
         SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state,
@@ -69,15 +69,12 @@ impl Contract {
         )
     }
 
-    pub fn modify_balance(&mut self, modification: Binary) -> anyhow::Result<AppResponse> {
+    pub fn modify_balance(&mut self, modification: Modification) -> anyhow::Result<AppResponse> {
         let migrate_msg = MigrateMsg {
-            modifications: vec![ModifyBalance { modification }],
+            modifications: vec![modification],
         };
-        // let serialized_msg = serde_json::to_string(&migrate_msg).unwrap();
-        // let serialized_msg = migrate_msg.serialize()?;
-        // since migrate is an authenticated method, we reuse
-        // that with the same code_id to pass sensitive messages
-        // like ModifyBalance
+        // Since modify is a sensitive operation, we reuse migrate_contract
+        // as an authenticated channel to pass the modification.
         self.app.migrate_contract(
             Addr::unchecked(ADMIN),
             self.addr(),
@@ -245,6 +242,43 @@ fn fake_app(wh: fake::WormholeKeeper) -> FakeApp {
         })
 }
 
+// App<BankKeeper, MockApi, MemoryStorage, WormholeKeeper, WasmKeeper<Empty, WormholeQuery>>
+
+fn instantiate_with(app: &mut FakeApp, code_id: u64, msg: &InstantiateMsg) -> Addr {
+    // We used to rely on the contract being able to upgrade itself,
+    // but then we decided it was easiest to rely on wrapped VAA authentication
+    // methods of the x/wormhole module.  So we do not need to worry
+    // about upgrade authentication in the contract itself.
+    // We will use a fixed admin address so the contract does remain upgradeable.
+    app.instantiate_contract(
+        code_id,
+        Addr::unchecked(ADMIN),
+        msg,
+        &[],
+        "accountant",
+        Some(ADMIN.into()),
+    )
+    .unwrap()
+}
+
+pub fn proper_instantiate_with(msg: &InstantiateMsg) -> (fake::WormholeKeeper, Contract) {
+    let wh = fake::WormholeKeeper::new();
+    let mut app = fake_app(wh.clone());
+
+    let code_id = app.store_code(Box::new(
+        ContractWrapper::new(
+            global_accountant::contract::execute,
+            global_accountant::contract::instantiate,
+            global_accountant::contract::query,
+        )
+        .with_migrate(global_accountant::contract::migrate),
+    ));
+
+    let addr = instantiate_with(&mut app, code_id, msg);
+
+    (wh, Contract { addr, app, code_id })
+}
+
 pub fn proper_instantiate() -> (fake::WormholeKeeper, Contract) {
     let wh = fake::WormholeKeeper::new();
     let mut app = fake_app(wh.clone());
@@ -258,21 +292,13 @@ pub fn proper_instantiate() -> (fake::WormholeKeeper, Contract) {
         .with_migrate(global_accountant::contract::migrate),
     ));
 
-    // We used to rely on the contract being able to upgrade itself,
-    // but then we decided it was easiest to rely on wrapped VAA autentication
-    // methods of the x/wormhole module.  So we do not need to worry
-    // about upgrade authentication in the contract itself.
-    // We will use a fixed admin address so the contract does remain upgradeable.
-    let addr = app
-        .instantiate_contract(
-            code_id,
-            Addr::unchecked(ADMIN),
-            &Empty {},
-            &[],
-            "accountant",
-            Some(ADMIN.into()),
-        )
-        .unwrap();
+    let addr = instantiate_with(
+        &mut app,
+        code_id,
+        &InstantiateMsg {
+            modifications: vec![],
+        },
+    );
 
     (wh, Contract { addr, app, code_id })
 }
