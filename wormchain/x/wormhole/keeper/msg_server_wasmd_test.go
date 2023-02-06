@@ -316,6 +316,16 @@ func TestWasmdMigrateContract(t *testing.T) {
 			Vaa:      vBz,
 		})
 		require.NoError(t, err)
+
+		// replaying the same message should return ErrVAAAlreadyExecuted
+		_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
+			Signer:   signer.String(),
+			CodeID:   code_id,
+			Contract: instantiate.Address,
+			Msg:      []byte("{}"),
+			Vaa:      vBz,
+		})
+		require.ErrorIs(t, err, types.ErrVAAAlreadyExecuted)
 	}
 
 	// Test failure using the wrong codeid
@@ -339,8 +349,8 @@ func TestWasmdMigrateContract(t *testing.T) {
 	_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
 		Signer: signer.String(),
 		CodeID: code_ids[0],
-		// modify address
-		Contract: instantiate.Address + "a",
+		// swap contract address for the signer address
+		Contract: signer.String(),
 		Msg:      []byte("{}"),
 		Vaa:      vBz,
 	})

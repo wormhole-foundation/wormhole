@@ -100,7 +100,7 @@ message MsgInstantiateContractResponse {
 
 // MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
 message MsgMigrateContract {
-  // Sender is the that actor that signed the messages
+  // Sender is the actor that signs the messages
   string signer = 1;
   // Contract is the address of the smart contract
   string contract = 2;

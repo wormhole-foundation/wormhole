@@ -12,7 +12,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-var WASMD_CONTRACT_ADMIN = sdk.AccAddress("wormchain")
+var WASMD_CONTRACT_ADMIN = sdk.AccAddress("wormchain_wasmd_owner")
 
 // Simple wrapper of x/wasmd StoreCode that requires a VAA
 func (k msgServer) StoreCode(goCtx context.Context, msg *types.MsgStoreCode) (*types.MsgStoreCodeResponse, error) {
