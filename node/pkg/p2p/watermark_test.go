@@ -136,6 +136,7 @@ func TestWatermark(t *testing.T) {
 	// It's expected to have the 3 first nodes protected on every node
 	for gi, g := range gs {
 
+		g.components.ProtectedHostByGuardianKeyLock.Lock()
 		// expectedProtectedPeers is expected to be 2 for all nodes except the last one where 3 is expected
 		expectedProtectedPeers := 2
 		if gi == 3 {
@@ -145,6 +146,7 @@ func TestWatermark(t *testing.T) {
 		if len(g.components.ProtectedHostByGuardianKey) != expectedProtectedPeers {
 			t.Errorf("expected to have %d protected peers, got %d", expectedProtectedPeers, len(g.components.ProtectedHostByGuardianKey))
 		}
+		g.components.ProtectedHostByGuardianKeyLock.Unlock()
 
 		// check that nodes {0, 1, 2} are protected on all other nodes and that nodes {3} are not protected.
 		for g1i, g1 := range gs {

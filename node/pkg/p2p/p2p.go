@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
@@ -80,6 +81,9 @@ type Components struct {
 	ConnMgr *connmgr.BasicConnMgr
 	// ProtectedHostByGuardianKey is used to ensure that only one p2p peer can be protected by any given known guardian key
 	ProtectedHostByGuardianKey map[common.Address]peer.ID
+	// ProtectedHostByGuardianKeyLock is only useful to prevent a race condition in test as ProtectedHostByGuardianKey
+	// is only accessed by a single routine at any given time in a running Guardian.
+	ProtectedHostByGuardianKeyLock sync.Mutex
 }
 
 func (f *Components) ListeningAddresses() []string {
@@ -455,6 +459,7 @@ func Run(
 						zap.String("from", envelope.GetFrom().String()))
 
 					if len(heartbeat.P2PNodeId) != 0 {
+						components.ProtectedHostByGuardianKeyLock.Lock()
 						var peerId peer.ID
 						if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
 							logger.Error("p2p_node_id_in_heartbeat_invalid",
@@ -476,6 +481,7 @@ func Run(
 								components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 							}
 						}
+						components.ProtectedHostByGuardianKeyLock.Unlock()
 					} else {
 						logger.Debug("p2p_node_id_not_in_heartbeat",
 							zap.Error(err),
