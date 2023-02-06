@@ -111,9 +111,7 @@ func TestWatermark(t *testing.T) {
 		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].gk.PublicKey))
 
 		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
-		if err != nil {
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 
 		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/11000/quic/p2p/%s", id.String())
 		gs[i].gst.Set(guardianset)
