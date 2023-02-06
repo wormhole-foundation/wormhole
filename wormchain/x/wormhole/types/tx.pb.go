@@ -613,7 +613,7 @@ func (m *MsgInstantiateContractResponse) GetData() []byte {
 
 // MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
 type MsgMigrateContract struct {
-	// Sender is the that actor that signed the messages
+	// Sender is the actor that signs the messages
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	// Contract is the address of the smart contract
 	Contract string `protobuf:"bytes,2,opt,name=contract,proto3" json:"contract,omitempty"`

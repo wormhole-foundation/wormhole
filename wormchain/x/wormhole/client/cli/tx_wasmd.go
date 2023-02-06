@@ -147,7 +147,7 @@ func CmdInstantiateContract() *cobra.Command {
 
 func CmdMigrateContract() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "migrate [contract] [code_id_int64] [json_encoded_init_args] [vaa-hex]",
+		Use:   "migrate [contract] [code_id_uint64] [json_encoded_init_args] [vaa-hex]",
 		Short: "Migrate a wasmd contract, or just compute the hash for vaa if vaa is omitted",
 		Args:  cobra.RangeArgs(3, 4),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
@@ -181,16 +181,16 @@ func CmdMigrateContract() *cobra.Command {
 				Msg:      []byte(initMsg),
 				Vaa:      vaaBz,
 			}
-			if !hash_only {
-				if err := msg.ValidateBasic(); err != nil {
-					return err
-				}
-				return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
-			} else {
+			if hash_only {
 				hash := vaa.CreateMigrateCosmwasmContractHash(msg.CodeID, msg.Contract, msg.Msg)
 				fmt.Println(hex.EncodeToString(hash[:]))
 				return nil
 			}
+
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
 		},
 	}
 

@@ -215,8 +215,8 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 	instantiationParams_hash := vaa.CreateMigrateCosmwasmContractHash(req.CodeId, req.Contract, []byte(req.InstantiationMsg))
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyWormchainInstantiateContract{
-			InstantiationParamsHash: instantiationParams_hash,
+		vaa.BodyWormchainMigrateContract{
+			MigrationParamsHash: instantiationParams_hash,
 		}.Serialize())
 
 	return v, nil
