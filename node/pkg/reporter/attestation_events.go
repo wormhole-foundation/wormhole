@@ -66,7 +66,8 @@ func (re *AttestationEventReporter) Subscribe() *activeSubscription {
 	re.logger.Debug("Subscribe for client", zap.Int("clientId", clientId))
 	channels := &lifecycleEventChannels{
 		MessagePublicationC: make(chan *MessagePublication, 500),
-		VAAQuorumC:          make(chan *vaa.VAA, 500),
+		// TODO: This channel only needs to be this big due to Pythnet traffic. Once the explorer no longer reads these from bigtable, we can stop writing Pyth messages to this channel.
+		VAAQuorumC: make(chan *vaa.VAA, 1000),
 	}
 	re.subs[clientId] = channels
 	sub := &activeSubscription{ClientId: clientId, Channels: channels}
