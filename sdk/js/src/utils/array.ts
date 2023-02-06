@@ -63,8 +63,10 @@ export const nativeTerraHexToDenom = (h: string): string =>
 export const uint8ArrayToHex = (a: Uint8Array): string =>
   Buffer.from(a).toString("hex");
 
-export const hexToUint8Array = (h: string): Uint8Array =>
-  new Uint8Array(Buffer.from(h, "hex"));
+export const hexToUint8Array = (h: string): Uint8Array => {
+  if (h.startsWith("0x")) h = h.slice(2);
+  return new Uint8Array(Buffer.from(h, "hex"));
+}
 
 /**
  *

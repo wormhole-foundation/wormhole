@@ -1,7 +1,7 @@
 import { BN } from "@project-serum/anchor";
 import { PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
-import { AptosClient, HexString, TokenTypes } from "aptos";
+import { AptosClient, HexString, TokenTypes, Types } from "aptos";
 import { ethers } from "ethers";
 import { isBytes } from "ethers/lib/utils";
 import { fromUint8Array } from "js-base64";
@@ -15,6 +15,7 @@ import {
   CHAIN_ID_APTOS,
   coalesceChainId,
   deriveResourceAccountAddress,
+  ensureHexPrefix,
 } from "../utils";
 
 /**
@@ -120,13 +121,16 @@ export const getForeignAssetSol = getForeignAssetSolana;
  * @param originChain
  * @param originAddress External address of token on origin chain, or token hash
  * if origin chain is Aptos
+ * @param tokenId Token id of token on origin chain, unnecessary if origin
+ * chain is Aptos
  * @returns Unique token identifier on Aptos
  */
 export async function getForeignAssetAptos(
   client: AptosClient,
   nftBridgeAddress: string,
   originChain: ChainId | ChainName,
-  originAddress: Uint8Array
+  originAddress: Uint8Array,
+  tokenId?: Uint8Array
 ): Promise<TokenTypes.TokenId | null> {
   const originChainId = coalesceChainId(originChain);
   if (originChainId === CHAIN_ID_APTOS) {
@@ -150,6 +154,10 @@ export async function getForeignAssetAptos(
     return { token_data_id, property_version };
   }
 
+  if (!tokenId) {
+    throw new Error("Invalid token ID");
+  }
+
   const creatorAddress = await deriveResourceAccountAddress(
     nftBridgeAddress,
     originChainId,
@@ -159,16 +167,32 @@ export async function getForeignAssetAptos(
     throw new Error("Could not derive creator account address");
   }
 
-  // Each creator account should contain a single collection and a single token
-  // creation event. The latter contains the token id that we're looking for.
-  const event = (
-    await client.getEventsByEventHandle(
+  // Each creator account should contain a single collection that contains the
+  // token creation event with the token id that we're looking for.
+  const PAGE_SIZE = 25;
+  let curr = 0;
+  let numEvents = PAGE_SIZE;
+  let event: Types.Event | undefined = undefined;
+  while (numEvents === PAGE_SIZE && !event) {
+    const events = await client.getEventsByEventHandle(
       creatorAddress,
       "0x3::token::Collections",
       "create_token_data_events",
-      { limit: 1 }
-    )
-  )[0] as CreateTokenDataEvent;
+      { limit: PAGE_SIZE, start: curr }
+    );
+    event = events.find(
+      (e) =>
+        ensureHexPrefix((e as CreateTokenDataEvent).data.id.name) ===
+        HexString.fromUint8Array(tokenId).hex()
+    );
+    numEvents = events.length;
+    curr += numEvents;
+  }
+
+  if (!event) {
+    throw new Error("Invalid token ID");
+  }
+
   return {
     token_data_id: event.data.id,
     property_version: "0",
