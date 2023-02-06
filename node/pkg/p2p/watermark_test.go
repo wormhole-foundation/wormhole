@@ -5,6 +5,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -15,8 +18,6 @@ import (
 	p2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"go.uber.org/zap"
-	"testing"
-	"time"
 )
 
 type G struct {
