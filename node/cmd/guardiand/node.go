@@ -1047,8 +1047,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Info("chain governor is disabled")
 	}
 
-	features := p2p.DefaultComponents()
-	features.Port = *p2pPort
+	components := p2p.DefaultComponents()
+	components.Port = *p2pPort
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
@@ -1068,7 +1068,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			rootCtxCancel,
 			acct,
 			gov,
-			nil, nil, nil)); err != nil {
+			nil, nil, components)); err != nil {
 			return err
 		}
 
