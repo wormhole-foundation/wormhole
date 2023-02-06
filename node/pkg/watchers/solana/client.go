@@ -355,7 +355,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					ContractAddress: contractAddr,
 				})
 
-				if useWs {
+				if !useWs {
 					rangeStart := lastSlot + 1
 					rangeEnd := slot
 
