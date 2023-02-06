@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/test-go/testify/require"
 	"testing"
 	"time"
 
@@ -42,7 +44,9 @@ type G struct {
 	components             *Components
 }
 
-func NewG(nodeName string) *G {
+func NewG(t *testing.T, nodeName string) *G {
+	t.Helper()
+
 	cs := 20
 	p2ppriv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
 	if err != nil {
@@ -75,20 +79,14 @@ func NewG(nodeName string) *G {
 	// Consume all output channels
 	go func() {
 		name := g.nodeName
-		fmt.Printf("[%s] consuming\n", name)
+		t.Logf("[%s] consuming\n", name)
 		select {
 		case <-g.obsvC:
-			fmt.Printf("[%s] g.obsvC\n", name)
 		case <-g.obsvReqC:
-			fmt.Printf("[%s] g.obsvReqC\n", name)
 		case <-g.signedInC:
-			fmt.Printf("[%s] g.signedInC\n", name)
 		case <-g.signedGovCfg:
-			fmt.Printf("[%s] g.signedGovCfg\n", name)
 		case <-g.signedGovSt:
-			fmt.Printf("[%s] g.signedGovSt\n", name)
 		case <-g.sendC:
-			fmt.Printf("[%s] g.sendC\n", name)
 		}
 	}()
 
@@ -105,7 +103,7 @@ func TestWatermark(t *testing.T) {
 	var guardianset = &node_common.GuardianSet{}
 	var gs [4]*G
 	for i := range gs {
-		gs[i] = NewG(fmt.Sprintf("n%d", i))
+		gs[i] = NewG(t, fmt.Sprintf("n%d", i))
 		gs[i].components.Port = uint(11000 + i)
 		gs[i].networkID = "/wormhole/localdev"
 
@@ -113,7 +111,7 @@ func TestWatermark(t *testing.T) {
 
 		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		if err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/11000/quic/p2p/%s", id.String())
@@ -127,52 +125,44 @@ func TestWatermark(t *testing.T) {
 
 	// Start the nodes
 	for _, g := range gs {
-		startGuardian(ctx, g)
+		startGuardian(t, ctx, g)
 	}
 
-	// Wait ~10s to let the nodes gossip.
+	// Wait ~20s to let the nodes gossip.
 	time.Sleep(20 * time.Second)
 
 	// It's expected to have the 3 first nodes protected on every node
-	for gi, g := range gs {
+	for guardianIndex, guardian := range gs {
 
-		g.components.ProtectedHostByGuardianKeyLock.Lock()
 		// expectedProtectedPeers is expected to be 2 for all nodes except the last one where 3 is expected
-		expectedProtectedPeers := 2
-		if gi == 3 {
-			expectedProtectedPeers = 3
-		}
-
-		if len(g.components.ProtectedHostByGuardianKey) != expectedProtectedPeers {
-			t.Errorf("expected to have %d protected peers, got %d", expectedProtectedPeers, len(g.components.ProtectedHostByGuardianKey))
-		}
-		g.components.ProtectedHostByGuardianKeyLock.Unlock()
+		func() {
+			guardian.components.ProtectedHostByGuardianKeyLock.Lock()
+			guardian.components.ProtectedHostByGuardianKeyLock.Unlock()
+			expectedProtectedPeers := 2
+			if guardianIndex == 3 {
+				expectedProtectedPeers = 3
+			}
+			assert.Equal(t, expectedProtectedPeers, len(guardian.components.ProtectedHostByGuardianKey))
+		}()
 
 		// check that nodes {0, 1, 2} are protected on all other nodes and that nodes {3} are not protected.
-		for g1i, g1 := range gs {
-			g1addr, err := p2ppeer.IDFromPublicKey(g1.priv.GetPublic())
-			if err != nil {
-				panic(err)
-			}
-			result := g.components.ConnMgr.IsProtected(g1addr, "heartbeat")
+		for otherGuardianIndex, otherGuardian := range gs {
+			g1addr, err := p2ppeer.IDFromPublicKey(otherGuardian.priv.GetPublic())
+			require.NoError(t, err)
+			isProtected := guardian.components.ConnMgr.IsProtected(g1addr, "heartbeat")
 
 			// A node cannot be protected on itself as one's own heartbeats are dropped
-			if gi == g1i {
+			if guardianIndex == otherGuardianIndex {
 				continue
 			}
-
-			if result && g1i == 3 {
-				// The 4th node should not be protected
-				t.Fatalf("node at index 3 should not be protected on node %d but was", gi)
-			}
-			if !result && g1i != 3 {
-				t.Fatalf("node at index %d should be protected on node %d but is not", g1i, gi)
-			}
+			assert.Falsef(t, isProtected && otherGuardianIndex == 3, "node at index 3 should not be protected on node %d but was", guardianIndex)
+			assert.Falsef(t, !isProtected && otherGuardianIndex != 3, "node at index %d should be protected on node %d but is not", otherGuardianIndex, guardianIndex)
 		}
 	}
 }
 
-func startGuardian(ctx context.Context, g *G) {
+func startGuardian(t *testing.T, ctx context.Context, g *G) {
+	t.Helper()
 	supervisor.New(ctx, zap.L(),
 		Run(g.obsvC,
 			g.obsvReqC,
