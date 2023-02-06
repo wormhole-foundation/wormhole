@@ -38,7 +38,7 @@ type G struct {
 	acct                   *accountant.Accountant
 	signedGovCfg           chan *gossipv1.SignedChainGovernorConfig
 	signedGovSt            chan *gossipv1.SignedChainGovernorStatus
-	features               *Components
+	components             *Components
 }
 
 func NewG(nodeName string) *G {
@@ -68,7 +68,7 @@ func NewG(nodeName string) *G {
 		gov:                    nil,
 		signedGovCfg:           make(chan *gossipv1.SignedChainGovernorConfig, cs),
 		signedGovSt:            make(chan *gossipv1.SignedChainGovernorStatus, cs),
-		features:               DefaultComponents(),
+		components:             DefaultComponents(),
 	}
 
 	// Consume all output channels
@@ -94,6 +94,8 @@ func NewG(nodeName string) *G {
 	return g
 }
 
+// TestWatermark runs 4 different guardians one of which does not send its P2PID in the signed part of the heartbeat.
+// The expectation is that hosts that send this information will become "protected" by the Connection Manager.
 func TestWatermark(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -103,7 +105,7 @@ func TestWatermark(t *testing.T) {
 	var gs [4]*G
 	for i, _ := range gs {
 		gs[i] = NewG(fmt.Sprintf("n%d", i))
-		gs[i].features.Port = uint(11000 + i)
+		gs[i].components.Port = uint(11000 + i)
 		gs[i].networkID = "/wormhole/localdev"
 
 		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].gk.PublicKey))
@@ -116,11 +118,11 @@ func TestWatermark(t *testing.T) {
 		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/11000/quic/p2p/%s", id.String())
 		gs[i].gst.Set(guardianset)
 
-		gs[i].features.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
+		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
 	}
 
 	// The 4th guardian does not put its libp2p key in the heartbeat
-	gs[3].features.P2PIDInHeartbeat = false
+	gs[3].components.P2PIDInHeartbeat = false
 
 	// Start the nodes
 	for _, g := range gs {
@@ -132,12 +134,24 @@ func TestWatermark(t *testing.T) {
 
 	// It's expected to have the 3 first nodes protected on every node
 	for gi, g := range gs {
+
+		// expectedProtectedPeers is expected to be 2 for all nodes except the last one where 3 is expected
+		expectedProtectedPeers := 2
+		if gi == 3 {
+			expectedProtectedPeers = 3
+		}
+
+		if len(g.components.ProtectedHostByGuardianKey) != expectedProtectedPeers {
+			t.Errorf("expected to have %d protected peers, got %d", expectedProtectedPeers, len(g.components.ProtectedHostByGuardianKey))
+		}
+
+		// check that nodes {0, 1, 2} are protected on all other nodes and that nodes {3} are not protected.
 		for g1i, g1 := range gs {
 			g1addr, err := p2ppeer.IDFromPublicKey(g1.priv.GetPublic())
 			if err != nil {
 				panic(err)
 			}
-			result := g.features.ConnMgr.IsProtected(g1addr, "heartbeat")
+			result := g.components.ConnMgr.IsProtected(g1addr, "heartbeat")
 
 			// A node cannot be protected on itself as one's own heartbeats are dropped
 			if gi == g1i {
@@ -174,5 +188,5 @@ func startGuardian(ctx context.Context, g *G) {
 			g.gov,
 			g.signedGovCfg,
 			g.signedGovSt,
-			g.features))
+			g.components))
 }

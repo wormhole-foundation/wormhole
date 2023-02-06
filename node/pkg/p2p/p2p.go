@@ -38,6 +38,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
+const DefaultPort = 8999
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -72,8 +74,12 @@ type Components struct {
 	// P2PIDInHeartbeat determines if the guardian will put it's libp2p node ID in the authenticated heartbeat payload
 	P2PIDInHeartbeat           bool
 	ListeningAddressesPatterns []string
-	Port                       uint
-	ConnMgr                    *connmgr.BasicConnMgr
+	// Port on which the Guardian is going to bind
+	Port uint
+	// ConnMgr is the ConnectionManager that the Guardian is going to use
+	ConnMgr *connmgr.BasicConnMgr
+	// ProtectedHostByGuardianKey is used to ensure that only one p2p peer can be protected by any given known guardian key
+	ProtectedHostByGuardianKey map[common.Address]peer.ID
 }
 
 func (f *Components) ListeningAddresses() []string {
@@ -98,8 +104,9 @@ func DefaultComponents() *Components {
 			"/ip4/0.0.0.0/udp/%d/quic",
 			"/ip6/::/udp/%d/quic",
 		},
-		Port:    8999,
-		ConnMgr: mgr,
+		Port:                       DefaultPort,
+		ConnMgr:                    mgr,
+		ProtectedHostByGuardianKey: make(map[common.Address]peer.ID),
 	}
 }
 
@@ -111,7 +118,7 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 		LowWaterMarkDefault,
 		HighWaterMarkDefault,
 
-		// GracePeriod set to 0 means that new peers are never protected
+		// GracePeriod set to 0 means that new peers are not protected by a grace period
 		connmgr.WithGracePeriod(0),
 	)
 }
@@ -394,8 +401,6 @@ func Run(
 			}
 		}()
 
-		protectedPeers := make(map[common.Address]peer.ID)
-
 		for {
 			envelope, err := sub.Next(ctx)
 			if err != nil {
@@ -459,16 +464,16 @@ func Run(
 								zap.String("from", envelope.GetFrom().String()))
 						} else {
 							guardianAddr := common.BytesToAddress(s.GuardianAddr)
-							prevPeerId, ok := protectedPeers[guardianAddr]
+							prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
 							if ok {
 								if prevPeerId != peerId {
 									components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
 									components.ConnMgr.Protect(peerId, "heartbeat")
-									protectedPeers[guardianAddr] = peerId
+									components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 								}
 							} else {
 								components.ConnMgr.Protect(peerId, "heartbeat")
-								protectedPeers[guardianAddr] = peerId
+								components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 							}
 						}
 					} else {
