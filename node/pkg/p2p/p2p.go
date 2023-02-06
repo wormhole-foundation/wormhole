@@ -458,35 +458,37 @@ func Run(
 						zap.Any("value", heartbeat),
 						zap.String("from", envelope.GetFrom().String()))
 
-					if len(heartbeat.P2PNodeId) != 0 {
-						components.ProtectedHostByGuardianKeyLock.Lock()
-						var peerId peer.ID
-						if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
-							logger.Error("p2p_node_id_in_heartbeat_invalid",
-								zap.Any("payload", msg.Message),
-								zap.Any("value", s),
-								zap.Binary("raw", envelope.Data),
-								zap.String("from", envelope.GetFrom().String()))
-						} else {
-							guardianAddr := common.BytesToAddress(s.GuardianAddr)
-							prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
-							if ok {
-								if prevPeerId != peerId {
-									components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+					func() {
+						if len(heartbeat.P2PNodeId) != 0 {
+							components.ProtectedHostByGuardianKeyLock.Lock()
+							defer components.ProtectedHostByGuardianKeyLock.Unlock()
+							var peerId peer.ID
+							if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
+								logger.Error("p2p_node_id_in_heartbeat_invalid",
+									zap.Any("payload", msg.Message),
+									zap.Any("value", s),
+									zap.Binary("raw", envelope.Data),
+									zap.String("from", envelope.GetFrom().String()))
+							} else {
+								guardianAddr := common.BytesToAddress(s.GuardianAddr)
+								prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
+								if ok {
+									if prevPeerId != peerId {
+										components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+										components.ConnMgr.Protect(peerId, "heartbeat")
+										components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+									}
+								} else {
 									components.ConnMgr.Protect(peerId, "heartbeat")
 									components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 								}
-							} else {
-								components.ConnMgr.Protect(peerId, "heartbeat")
-								components.ProtectedHostByGuardianKey[guardianAddr] = peerId
 							}
+						} else {
+							logger.Debug("p2p_node_id_not_in_heartbeat",
+								zap.Error(err),
+								zap.Any("payload", heartbeat.NodeName))
 						}
-						components.ProtectedHostByGuardianKeyLock.Unlock()
-					} else {
-						logger.Debug("p2p_node_id_not_in_heartbeat",
-							zap.Error(err),
-							zap.Any("payload", heartbeat.NodeName))
-					}
+					}()
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation
