@@ -246,26 +246,32 @@ func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			default:
-				rCtx, cancel := context.WithTimeout(ctx, time.Second*300) // 5 minute
-				defer cancel()
+				if err := func() error {
 
-				if _, msg, err := ws.Read(rCtx); err != nil {
-					if errors.Is(err, context.DeadlineExceeded) {
-						// When a websocket context times out, it closes the websocket...  This means we have to re-subscribe
-						ws.Close(websocket.StatusNormalClosure, "")
-						err, ws = s.SetupSubscription(ctx)
-						if err != nil {
+					rCtx, cancel := context.WithTimeout(ctx, time.Second*300) // 5 minute
+					defer cancel()
+
+					if _, msg, err := ws.Read(rCtx); err != nil {
+						if errors.Is(err, context.DeadlineExceeded) {
+							// When a websocket context times out, it closes the websocket...  This means we have to re-subscribe
+							ws.Close(websocket.StatusNormalClosure, "")
+							err, ws = s.SetupSubscription(ctx)
+							if err != nil {
+								return err
+							}
+							return nil
+						}
+
+						logger.Error(fmt.Sprintf("ReadMessage: '%s'", err.Error()))
+						if errors.Is(err, io.EOF) {
 							return err
 						}
-						continue
+					} else {
+						s.pumpData <- msg
 					}
-
-					logger.Error(fmt.Sprintf("ReadMessage: '%s'", err.Error()))
-					if errors.Is(err, io.EOF) {
-						return err
-					}
-				} else {
-					s.pumpData <- msg
+					return nil
+				}(); err != nil {
+					return err
 				}
 			}
 		}
@@ -288,7 +294,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	s.errC = make(chan error)
 	s.pumpData = make(chan []byte)
 
-	if s.wsUrl != nil {
+	useWs := false
+	if s.wsUrl != nil && *s.wsUrl != "" {
+		useWs = true
 		err := s.SetupWebSocket(ctx)
 		if err != nil {
 			return err
@@ -347,7 +355,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					ContractAddress: contractAddr,
 				})
 
-				if s.wsUrl == nil {
+				if !useWs {
 					rangeStart := lastSlot + 1
 					rangeEnd := slot
 
