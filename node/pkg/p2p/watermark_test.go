@@ -138,7 +138,7 @@ func TestWatermark(t *testing.T) {
 		// expectedProtectedPeers is expected to be 2 for all nodes except the last one where 3 is expected
 		func() {
 			guardian.components.ProtectedHostByGuardianKeyLock.Lock()
-			guardian.components.ProtectedHostByGuardianKeyLock.Unlock()
+			defer guardian.components.ProtectedHostByGuardianKeyLock.Unlock()
 			expectedProtectedPeers := 2
 			if guardianIndex == 3 {
 				expectedProtectedPeers = 3
