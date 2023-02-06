@@ -22,6 +22,7 @@ import {
   deriveTokenHashFromTokenId,
   ensureHexPrefix,
   generateSignAndSubmitEntryFunction,
+  hexToUint8Array,
   tryNativeToHexString,
   tryNativeToUint8Array,
 } from "../../utils";
@@ -145,7 +146,8 @@ describe("Aptos NFT SDK tests", () => {
       aptosClient,
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
-      tryNativeToUint8Array(ethNft.address, CHAIN_ID_ETH)
+      tryNativeToUint8Array(ethNft.address, CHAIN_ID_ETH),
+      hexToUint8Array(BigInt(10).toString(16).padStart(64, "0"))
     );
     assertIsNotNull(tokenId);
     expect(
@@ -421,6 +423,90 @@ describe("Aptos NFT SDK tests", () => {
     expect(events[0].data.id.token_data_id.name).toBe(
       tryNativeToHexString(TEST_SOLANA_TOKEN3, CHAIN_ID_SOLANA)
     );
+  });
+
+  test.only("Transfer multiple tokens from same collection from Ethereum to Aptos", async () => {
+    const ETH_COLLECTION_NAME = "Test APE 🐒";
+
+    // create NFTs on Ethereum
+    const ethNfts = await deployTestNftOnEthereum(
+      web3,
+      ethSigner,
+      ETH_COLLECTION_NAME,
+      "APE🐒",
+      "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/",
+      2
+    );
+
+    // transfer 2 NFTs from Ethereum to Aptos
+    const ethTransferTx1 = await transferFromEth(
+      ETH_NFT_BRIDGE_ADDRESS,
+      ethSigner,
+      ethNfts.address,
+      0,
+      CHAIN_ID_APTOS,
+      aptosAccount.address().toUint8Array()
+    );
+    const ethTransferTx2 = await transferFromEth(
+      ETH_NFT_BRIDGE_ADDRESS,
+      ethSigner,
+      ethNfts.address,
+      1,
+      CHAIN_ID_APTOS,
+      aptosAccount.address().toUint8Array()
+    );
+
+    // observe txs and get vaas
+    const ethTransferVaa1 = await getSignedVaaEthereum(ethTransferTx1);
+    const ethTransferVaa2 = await getSignedVaaEthereum(ethTransferTx2);
+
+    // redeem NFTs on Aptos
+    const aptosRedeemPayload1 = await redeemOnAptos(
+      APTOS_NFT_BRIDGE_ADDRESS,
+      ethTransferVaa1
+    );
+    const aptosRedeemTx1 = await generateSignAndSubmitEntryFunction(
+      aptosClient,
+      aptosAccount,
+      aptosRedeemPayload1
+    );
+    await aptosClient.waitForTransactionWithResult(aptosRedeemTx1.hash);
+
+    const aptosRedeemPayload2 = await redeemOnAptos(
+      APTOS_NFT_BRIDGE_ADDRESS,
+      ethTransferVaa2
+    );
+    const aptosRedeemTx2 = await generateSignAndSubmitEntryFunction(
+      aptosClient,
+      aptosAccount,
+      aptosRedeemPayload2
+    );
+    await aptosClient.waitForTransactionWithResult(aptosRedeemTx2.hash);
+
+    // get token ids
+    const tokenId1 = await getForeignAssetAptos(
+      aptosClient,
+      APTOS_NFT_BRIDGE_ADDRESS,
+      CHAIN_ID_ETH,
+      tryNativeToUint8Array(ethNfts.address, CHAIN_ID_ETH),
+      hexToUint8Array(BigInt(0).toString(16).padStart(64, "0"))
+    );
+    const tokenId2 = await getForeignAssetAptos(
+      aptosClient,
+      APTOS_NFT_BRIDGE_ADDRESS,
+      CHAIN_ID_ETH,
+      tryNativeToUint8Array(ethNfts.address, CHAIN_ID_ETH),
+      hexToUint8Array(BigInt(1).toString(16).padStart(64, "0"))
+    );
+    assertIsNotNull(tokenId1);
+    assertIsNotNull(tokenId2);
+    expect(tokenId1.property_version).toBe("0");
+    expect(tokenId2.property_version).toBe("0");
+    expect(tokenId1.token_data_id.collection).toBe(
+      tokenId2.token_data_id.collection
+    );
+    expect(tokenId1.token_data_id.creator).toBe(tokenId2.token_data_id.creator);
+    expect(tokenId1.token_data_id.name).not.toBe(tokenId2.token_data_id.name);
   });
 });
 
