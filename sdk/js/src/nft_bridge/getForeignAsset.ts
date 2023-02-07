@@ -16,6 +16,7 @@ import {
   coalesceChainId,
   deriveResourceAccountAddress,
   ensureHexPrefix,
+  hexToUint8Array,
 } from "../utils";
 
 /**
@@ -130,7 +131,7 @@ export async function getForeignAssetAptos(
   nftBridgeAddress: string,
   originChain: ChainId | ChainName,
   originAddress: Uint8Array,
-  tokenId?: Uint8Array
+  tokenId?: Uint8Array | Buffer | bigint
 ): Promise<TokenTypes.TokenId | null> {
   const originChainId = coalesceChainId(originChain);
   if (originChainId === CHAIN_ID_APTOS) {
@@ -154,10 +155,6 @@ export async function getForeignAssetAptos(
     return { token_data_id, property_version };
   }
 
-  if (!tokenId) {
-    throw new Error("Invalid token ID");
-  }
-
   const creatorAddress = await deriveResourceAccountAddress(
     nftBridgeAddress,
     originChainId,
@@ -166,6 +163,16 @@ export async function getForeignAssetAptos(
   if (!creatorAddress) {
     throw new Error("Could not derive creator account address");
   }
+
+  if (typeof tokenId === "bigint") {
+    tokenId = hexToUint8Array(BigInt(tokenId).toString(16).padStart(64, "0"));
+  }
+
+  if (!tokenId) {
+    throw new Error("Invalid token ID");
+  }
+
+  const tokenIdAsUint8Array = new Uint8Array(tokenId);
 
   // Each creator account should contain a single collection that contains the
   // token creation event with the token id that we're looking for.
@@ -183,7 +190,7 @@ export async function getForeignAssetAptos(
     event = events.find(
       (e) =>
         ensureHexPrefix((e as CreateTokenDataEvent).data.id.name) ===
-        HexString.fromUint8Array(tokenId).hex()
+        HexString.fromUint8Array(tokenIdAsUint8Array).hex()
     );
     numEvents = events.length;
     curr += numEvents;
