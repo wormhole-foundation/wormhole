@@ -109,7 +109,7 @@ case "$chain_name" in
   pythnet)
     chain=26
     explorer="https://explorer.solana.com/address/"
-    extra="Be sure to set the custom RPC to https://pythnet.rpcpool.com"
+    extra="Be sure to choose \"Custom RPC\" as the cluster in the explorer and set it to https://pythnet.rpcpool.com"
     ;;
   ethereum)
     chain=2
