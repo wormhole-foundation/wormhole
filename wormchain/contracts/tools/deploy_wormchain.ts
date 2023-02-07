@@ -205,6 +205,7 @@ async function main() {
             ...ZERO_FEE,
             gas: "10000000",
         });
+        console.log(result.rawLog)
         const addr = JSON.parse(result.rawLog)[0]
             .events.find(({ type }) => type === "instantiate")
             .attributes.find(({ key }) => key === "_contract_address").value;
