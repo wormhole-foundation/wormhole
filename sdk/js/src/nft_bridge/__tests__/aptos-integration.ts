@@ -22,7 +22,6 @@ import {
   deriveTokenHashFromTokenId,
   ensureHexPrefix,
   generateSignAndSubmitEntryFunction,
-  hexToUint8Array,
   tryNativeToHexString,
   tryNativeToUint8Array,
 } from "../../utils";
@@ -147,7 +146,7 @@ describe("Aptos NFT SDK tests", () => {
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethNft.address, CHAIN_ID_ETH),
-      hexToUint8Array(BigInt(10).toString(16).padStart(64, "0"))
+      10n
     );
     assertIsNotNull(tokenId);
     expect(
@@ -405,7 +404,8 @@ describe("Aptos NFT SDK tests", () => {
       aptosClient,
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_SOLANA,
-      new Uint8Array(solanaTransferVaaParsed.tokenAddress)
+      new Uint8Array(solanaTransferVaaParsed.tokenAddress),
+      solanaTransferVaaParsed.tokenId
     );
     assertIsNotNull(tokenData);
     expect(tokenData.token_data_id.collection).toBe(
@@ -425,7 +425,7 @@ describe("Aptos NFT SDK tests", () => {
     );
   });
 
-  test.only("Transfer multiple tokens from same collection from Ethereum to Aptos", async () => {
+  test("Transfer multiple tokens from same collection from Ethereum to Aptos", async () => {
     const ETH_COLLECTION_NAME = "Test APE 🐒";
 
     // create NFTs on Ethereum
@@ -489,14 +489,14 @@ describe("Aptos NFT SDK tests", () => {
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethNfts.address, CHAIN_ID_ETH),
-      hexToUint8Array(BigInt(0).toString(16).padStart(64, "0"))
+      0n
     );
     const tokenId2 = await getForeignAssetAptos(
       aptosClient,
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethNfts.address, CHAIN_ID_ETH),
-      hexToUint8Array(BigInt(1).toString(16).padStart(64, "0"))
+      1n
     );
     assertIsNotNull(tokenId1);
     assertIsNotNull(tokenId2);
