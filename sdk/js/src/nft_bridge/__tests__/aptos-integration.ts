@@ -146,7 +146,7 @@ describe("Aptos NFT SDK tests", () => {
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethNft.address, CHAIN_ID_ETH),
-      10n
+      BigInt(10)
     );
     assertIsNotNull(tokenId);
     expect(
@@ -489,14 +489,14 @@ describe("Aptos NFT SDK tests", () => {
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethNfts.address, CHAIN_ID_ETH),
-      0n
+      BigInt(0)
     );
     const tokenId2 = await getForeignAssetAptos(
       aptosClient,
       APTOS_NFT_BRIDGE_ADDRESS,
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethNfts.address, CHAIN_ID_ETH),
-      1n
+      BigInt(1)
     );
     assertIsNotNull(tokenId1);
     assertIsNotNull(tokenId2);
