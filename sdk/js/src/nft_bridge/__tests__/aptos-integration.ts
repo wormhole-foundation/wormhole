@@ -507,6 +507,17 @@ describe("Aptos NFT SDK tests", () => {
     );
     expect(tokenId1.token_data_id.creator).toBe(tokenId2.token_data_id.creator);
     expect(tokenId1.token_data_id.name).not.toBe(tokenId2.token_data_id.name);
+
+    // check if token that does not exist correctly returns null foreign asset address
+    expect(
+      await getForeignAssetAptos(
+        aptosClient,
+        APTOS_NFT_BRIDGE_ADDRESS,
+        CHAIN_ID_ETH,
+        tryNativeToUint8Array(ethNfts.address, CHAIN_ID_ETH),
+        BigInt(2)
+      )
+    ).toBe(null);
   });
 });
 
