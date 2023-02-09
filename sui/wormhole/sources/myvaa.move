@@ -18,7 +18,7 @@ module wormhole::myvaa {
     };
     use wormhole::state::{Self, State};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::keccak256::keccak256;
+    use sui::ecdsa_k1::{keccak256};
 
     friend wormhole::guardian_set_upgrade;
     //friend wormhole::contract_upgrade;
@@ -79,7 +79,7 @@ module wormhole::myvaa {
         };
 
         let body = cursor::rest(cur);
-        let hash = keccak256(keccak256(body));
+        let hash = keccak256(&keccak256(&body));
 
         let cur = cursor::new(body);
 

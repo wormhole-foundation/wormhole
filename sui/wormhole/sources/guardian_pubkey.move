@@ -4,7 +4,7 @@
 module wormhole::guardian_pubkey {
     use sui::ecdsa_k1::{Self as ecdsa};
     use std::vector;
-    use wormhole::keccak256::keccak256;
+    use sui::ecdsa_k1::{keccak256};
 
     /// An error occurred while deserializing, for example due to wrong input size.
     const E_DESERIALIZE: u64 = 1;
@@ -23,7 +23,7 @@ module wormhole::guardian_pubkey {
     /// Computes the address from a 64 byte public key.
     public fun from_pubkey(pubkey: vector<u8>): Address {
         assert!(std::vector::length(&pubkey) == 64, E_DESERIALIZE);
-        let hash = keccak256(pubkey);
+        let hash = keccak256(&pubkey);
         let address = vector::empty<u8>();
         let i = 0;
         while (i < 20) {
