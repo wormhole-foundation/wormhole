@@ -2,9 +2,8 @@ module token_bridge::register_chain {
 
     use sui::tx_context::TxContext;
 
-    use wormhole::myu16::{Self as u16, U16};
     use wormhole::cursor;
-    use wormhole::deserialize;
+    use wormhole::bytes::{Self};
     use wormhole::myvaa::{Self as corevaa};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::state::{State as WormholeState};
@@ -21,7 +20,7 @@ module token_bridge::register_chain {
 
     struct RegisterChain has copy, drop {
         /// Chain ID
-        emitter_chain_id: U16,
+        emitter_chain_id: u16,
         /// Emitter address. Left-zero-padded if shorter than 32 bytes
         emitter_address: ExternalAddress,
     }
@@ -32,20 +31,20 @@ module token_bridge::register_chain {
     }
 
     fun parse_payload(payload: vector<u8>): RegisterChain {
-        let cur = cursor::cursor_init(payload);
-        let target_module = deserialize::deserialize_vector(&mut cur, 32);
+        let cur = cursor::new(payload);
+        let target_module = bytes::to_bytes(&mut cur, 32);
 
         assert!(target_module == TOKEN_BRIDGE, E_INVALID_MODULE);
 
-        let action = deserialize::deserialize_u8(&mut cur);
+        let action = bytes::deserialize_u8(&mut cur);
         assert!(action == 0x01, E_INVALID_ACTION);
 
         // TODO(csongor): should we also accept a VAA directly?
         // why would a registration VAA target a specific chain?
-        let target_chain = deserialize::deserialize_u16(&mut cur);
-        assert!(target_chain == u16::from_u64(0x0), E_INVALID_TARGET);
+        let target_chain = bytes::deserialize_u16_be(&mut cur);
+        assert!(target_chain == 0, E_INVALID_TARGET);
 
-        let emitter_chain_id = deserialize::deserialize_u16(&mut cur);
+        let emitter_chain_id = bytes::deserialize_u16_be(&mut cur);
 
         let emitter_address = external_address::deserialize(&mut cur);
 
@@ -62,7 +61,7 @@ module token_bridge::register_chain {
         bridge_state::set_registered_emitter(bridge_state, emitter_chain_id, emitter_address);
     }
 
-    public fun get_emitter_chain_id(a: &RegisterChain): U16 {
+    public fun get_emitter_chain_id(a: &RegisterChain): u16 {
         a.emitter_chain_id
     }
 
@@ -81,7 +80,6 @@ module token_bridge::register_chain_test {
     //use wormhole::test_state::{init_wormhole_state};
     //use wormhole::wormhole::{Self};
 
-    use wormhole::myu16::{Self as u16};
     use wormhole::external_address::{Self};
     use wormhole::myvaa::{Self as corevaa};
 
@@ -103,7 +101,7 @@ module token_bridge::register_chain_test {
     /// Registration VAA for the etheruem NFT bridge 0xdeadbeef
     const ETHEREUM_NFT_REG: vector<u8> = x"0100000000010066cce2cb12d88c97d4975cba858bb3c35d6430003e97fced46a158216f3ca01710fd16cc394441a08fef978108ed80c653437f43bb2ca039226974d9512298b10000000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000018483540000000000000000000000000000000000000000000000004e4654427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
 
-    const ETH_ID: u64 = 2;
+    const CHAIN_ID_ETH: u16 = 2;
 
     #[test]
     fun test_parse(){
@@ -140,7 +138,7 @@ module token_bridge::register_chain_test {
             let chain = register_chain::get_emitter_chain_id(&register_chain);
             let address = register_chain::get_emitter_address(&register_chain);
 
-            assert!(chain == u16::from_u64(ETH_ID), 0);
+            assert!(chain == CHAIN_ID_ETH, 0);
             assert!(address == external_address::from_bytes(x"deadbeef"), 0);
         };
         test_scenario::end(test);
@@ -168,7 +166,7 @@ module token_bridge::register_chain_test {
         };
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
-            let addr = bridge_state::get_registered_emitter(&bridge_state, &u16::from_u64(ETH_ID));
+            let addr = bridge_state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
             assert!(addr == option::some(external_address::from_bytes(x"deadbeef")), 0);
             return_shared<BridgeState>(bridge_state);
         };
@@ -203,7 +201,7 @@ module token_bridge::register_chain_test {
         };
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
-            let addr = bridge_state::get_registered_emitter(&bridge_state, &u16::from_u64(ETH_ID));
+            let addr = bridge_state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
             assert!(addr == option::some(external_address::from_bytes(x"deadbeef")), 0);
             return_shared<BridgeState>(bridge_state);
         };
@@ -215,7 +213,7 @@ module token_bridge::register_chain_test {
             // rejected), but I think this is the right behaviour.
             // Easy to change, should be discussed.
             submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG_2, ctx(&mut test));
-            let address = bridge_state::get_registered_emitter(&bridge_state, &u16::from_u64(ETH_ID));
+            let address = bridge_state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
             assert!(address == option::some(external_address::from_bytes(x"beefface")), 0);
             return_shared<State>(wormhole_state);
             return_shared<BridgeState>(bridge_state);

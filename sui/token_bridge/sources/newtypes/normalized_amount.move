@@ -8,8 +8,7 @@
 /// this type given the original amount's decimals.
 module token_bridge::normalized_amount {
     use wormhole::cursor::Cursor;
-    use wormhole::deserialize;
-    use wormhole::serialize;
+    use wormhole::bytes::{Self};
 
     struct NormalizedAmount has store, copy, drop {
         amount: u64
@@ -45,13 +44,13 @@ module token_bridge::normalized_amount {
 
     public fun deserialize(cur: &mut Cursor<u8>): NormalizedAmount {
         // in the VAA wire format, amounts are 32 bytes.
-        let amount = deserialize::deserialize_u256(cur);
+        let amount = bytes::deserialize_u256_be(cur);
         NormalizedAmount { amount: wormhole::myu256::as_u64(amount) }
     }
 
     public fun serialize(buf: &mut vector<u8>, e: NormalizedAmount) {
         let NormalizedAmount { amount } = e;
-        serialize::serialize_u256(buf, wormhole::myu256::from_u64(amount))
+        bytes::serialize_u256_be(buf, wormhole::myu256::from_u64(amount))
     }
 }
 

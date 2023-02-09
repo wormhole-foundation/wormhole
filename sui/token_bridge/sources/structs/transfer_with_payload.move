@@ -1,17 +1,16 @@
 module token_bridge::transfer_with_payload {
     use std::vector;
-    use wormhole::serialize::{
+    use wormhole::bytes::{
         serialize_u8,
-        serialize_u16,
-        serialize_vector,
+        serialize_u16_be,
+        from_bytes,
     };
-    use wormhole::deserialize::{
+    use wormhole::bytes::{
         deserialize_u8,
-        deserialize_u16,
+        deserialize_u16_be,
     };
     use wormhole::cursor;
 
-    use wormhole::myu16::U16;
     use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
@@ -28,11 +27,11 @@ module token_bridge::transfer_with_payload {
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
         /// Chain ID of the token
-        token_chain: U16,
+        token_chain: u16,
         /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
         to: ExternalAddress,
         /// Chain ID of the recipient
-        to_chain: U16,
+        to_chain: u16,
         /// Address of the message sender. Left-zero-padded if shorter than 32 bytes
         from_address: ExternalAddress,
         /// An arbitrary payload
@@ -47,7 +46,7 @@ module token_bridge::transfer_with_payload {
         a.token_address
     }
 
-    public fun get_token_chain(a: &TransferWithPayload): U16 {
+    public fun get_token_chain(a: &TransferWithPayload): u16 {
         a.token_chain
     }
 
@@ -55,7 +54,7 @@ module token_bridge::transfer_with_payload {
         a.to
     }
 
-    public fun get_to_chain(a: &TransferWithPayload): U16 {
+    public fun get_to_chain(a: &TransferWithPayload): u16 {
         a.to_chain
     }
 
@@ -70,9 +69,9 @@ module token_bridge::transfer_with_payload {
     public(friend) fun create(
         amount: NormalizedAmount,
         token_address: ExternalAddress,
-        token_chain: U16,
+        token_chain: u16,
         to: ExternalAddress,
-        to_chain: U16,
+        to_chain: u16,
         from_address: ExternalAddress,
         payload: vector<u8>
     ): TransferWithPayload {
@@ -92,23 +91,23 @@ module token_bridge::transfer_with_payload {
         serialize_u8(&mut encoded, 3);
         normalized_amount::serialize(&mut encoded, transfer.amount);
         external_address::serialize(&mut encoded, transfer.token_address);
-        serialize_u16(&mut encoded, transfer.token_chain);
+        serialize_u16_be(&mut encoded, transfer.token_chain);
         external_address::serialize(&mut encoded, transfer.to);
-        serialize_u16(&mut encoded, transfer.to_chain);
+        serialize_u16_be(&mut encoded, transfer.to_chain);
         external_address::serialize(&mut encoded, transfer.from_address);
-        serialize_vector(&mut encoded, transfer.payload);
+        from_bytes(&mut encoded, transfer.payload);
         encoded
     }
 
     public fun parse(transfer: vector<u8>): TransferWithPayload {
-        let cur = cursor::cursor_init(transfer);
+        let cur = cursor::new(transfer);
         let action = deserialize_u8(&mut cur);
         assert!(action == 3, E_INVALID_ACTION);
         let amount = normalized_amount::deserialize(&mut cur);
         let token_address = external_address::deserialize(&mut cur);
-        let token_chain = deserialize_u16(&mut cur);
+        let token_chain = deserialize_u16_be(&mut cur);
         let to = external_address::deserialize(&mut cur);
-        let to_chain = deserialize_u16(&mut cur);
+        let to_chain = deserialize_u16_be(&mut cur);
         let from_address = external_address::deserialize(&mut cur);
         let payload = cursor::rest(cur);
         TransferWithPayload {

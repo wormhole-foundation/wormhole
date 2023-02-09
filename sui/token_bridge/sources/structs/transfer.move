@@ -1,16 +1,15 @@
 module token_bridge::transfer {
     use std::vector;
-    use wormhole::serialize::{
+    use wormhole::bytes::{
         serialize_u8,
-        serialize_u16,
+        serialize_u16_be,
     };
-    use wormhole::deserialize::{
+    use wormhole::bytes::{
         deserialize_u8,
-        deserialize_u16,
+        deserialize_u16_be,
     };
     use wormhole::cursor;
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::myu16::U16;
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
@@ -29,11 +28,11 @@ module token_bridge::transfer {
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
         /// Chain ID of the token
-        token_chain: U16,
+        token_chain: u16,
         /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
         to: ExternalAddress,
         /// Chain ID of the recipient
-        to_chain: U16,
+        to_chain: u16,
         /// Amount of tokens that the user is willing to pay as relayer fee. Must be <= Amount.
         fee: NormalizedAmount,
     }
@@ -46,7 +45,7 @@ module token_bridge::transfer {
         a.token_address
     }
 
-    public fun get_token_chain(a: &Transfer): U16 {
+    public fun get_token_chain(a: &Transfer): u16 {
         a.token_chain
     }
 
@@ -54,7 +53,7 @@ module token_bridge::transfer {
         a.to
     }
 
-    public fun get_to_chain(a: &Transfer): U16 {
+    public fun get_to_chain(a: &Transfer): u16 {
         a.to_chain
     }
 
@@ -65,9 +64,9 @@ module token_bridge::transfer {
     public(friend) fun create(
         amount: NormalizedAmount,
         token_address: ExternalAddress,
-        token_chain: U16,
+        token_chain: u16,
         to: ExternalAddress,
-        to_chain: U16,
+        to_chain: u16,
         fee: NormalizedAmount,
     ): Transfer {
         Transfer {
@@ -81,14 +80,14 @@ module token_bridge::transfer {
     }
 
     public fun parse(transfer: vector<u8>): Transfer {
-        let cur = cursor::cursor_init(transfer);
+        let cur = cursor::new(transfer);
         let action = deserialize_u8(&mut cur);
         assert!(action == 1, E_INVALID_ACTION);
         let amount = normalized_amount::deserialize(&mut cur);
         let token_address = external_address::deserialize(&mut cur);
-        let token_chain = deserialize_u16(&mut cur);
+        let token_chain = deserialize_u16_be(&mut cur);
         let to = external_address::deserialize(&mut cur);
-        let to_chain = deserialize_u16(&mut cur);
+        let to_chain = deserialize_u16_be(&mut cur);
         let fee = normalized_amount::deserialize(&mut cur);
         cursor::destroy_empty(cur);
         Transfer {
@@ -106,9 +105,9 @@ module token_bridge::transfer {
         serialize_u8(&mut encoded, 1);
         normalized_amount::serialize(&mut encoded, transfer.amount);
         external_address::serialize(&mut encoded, transfer.token_address);
-        serialize_u16(&mut encoded, transfer.token_chain);
+        serialize_u16_be(&mut encoded, transfer.token_chain);
         external_address::serialize(&mut encoded, transfer.to);
-        serialize_u16(&mut encoded, transfer.to_chain);
+        serialize_u16_be(&mut encoded, transfer.to_chain);
         normalized_amount::serialize(&mut encoded, transfer.fee);
         encoded
     }
@@ -120,15 +119,14 @@ module token_bridge::transfer_test {
     use token_bridge::transfer;
     use token_bridge::normalized_amount;
     use wormhole::external_address;
-    use wormhole::myu16::{Self as u16};
 
     #[test]
     public fun parse_roundtrip() {
         let amount = normalized_amount::normalize(100, 8);
         let token_address = external_address::from_bytes(x"beef");
-        let token_chain = u16::from_u64(1);
+        let token_chain: u16 = 1;
         let to = external_address::from_bytes(x"cafe");
-        let to_chain = u16::from_u64(7);
+        let to_chain: u16 = 7;
         let fee = normalized_amount::normalize(50, 8);
         let transfer = transfer::create(
             amount,

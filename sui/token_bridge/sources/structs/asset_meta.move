@@ -1,10 +1,9 @@
 module token_bridge::asset_meta {
     use std::vector::{Self};
-    use wormhole::serialize::{serialize_u8, serialize_u16, serialize_vector};
-    use wormhole::deserialize::{deserialize_u8, deserialize_u16, deserialize_vector};
+    use wormhole::bytes::{serialize_u8, serialize_u16_be, from_bytes};
+    use wormhole::bytes::{deserialize_u8, deserialize_u16_be, to_bytes};
     use wormhole::cursor::{Self};
 
-    use wormhole::myu16::{U16};
     use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::string32::{Self, String32};
@@ -21,7 +20,7 @@ module token_bridge::asset_meta {
         /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
         /// Chain ID of the token
-        token_chain: U16,
+        token_chain: u16,
         /// Number of decimals of the token (big-endian uint256)
         decimals: u8,
         /// Symbol of the token (UTF-8)
@@ -34,7 +33,7 @@ module token_bridge::asset_meta {
         a.token_address
     }
 
-    public fun get_token_chain(a: &AssetMeta): U16 {
+    public fun get_token_chain(a: &AssetMeta): u16 {
         a.token_chain
     }
 
@@ -52,7 +51,7 @@ module token_bridge::asset_meta {
 
     public(friend) fun create(
         token_address: ExternalAddress,
-        token_chain: U16,
+        token_chain: u16,
         decimals: u8,
         symbol: String32,
         name: String32,
@@ -69,8 +68,8 @@ module token_bridge::asset_meta {
     public fun encode(meta: AssetMeta): vector<u8> {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 2);
-        serialize_vector(&mut encoded, external_address::get_bytes(&meta.token_address));
-        serialize_u16(&mut encoded, meta.token_chain);
+        from_bytes(&mut encoded, external_address::get_bytes(&meta.token_address));
+        serialize_u16_be(&mut encoded, meta.token_chain);
         serialize_u8(&mut encoded, meta.decimals);
         string32::serialize(&mut encoded, meta.symbol);
         string32::serialize(&mut encoded, meta.name);
@@ -78,11 +77,11 @@ module token_bridge::asset_meta {
     }
 
     public fun parse(meta: vector<u8>): AssetMeta {
-        let cur = cursor::cursor_init(meta);
+        let cur = cursor::new(meta);
         let action = deserialize_u8(&mut cur);
         assert!(action == 2, E_INVALID_ACTION);
-        let token_address = deserialize_vector(&mut cur, 32);
-        let token_chain = deserialize_u16(&mut cur);
+        let token_address = to_bytes(&mut cur, 32);
+        let token_chain = deserialize_u16_be(&mut cur);
         let decimals = deserialize_u8(&mut cur);
         let symbol = string32::deserialize(&mut cur);
         let name = string32::deserialize(&mut cur);

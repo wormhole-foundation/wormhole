@@ -15,7 +15,6 @@ module token_bridge::bridge_state {
 
     use wormhole::dynamic_set;
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::myu16::{U16};
     use wormhole::wormhole::{Self};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::emitter::{EmitterCapability};
@@ -54,9 +53,10 @@ module token_bridge::bridge_state {
     /// WrappedAssetInfo<CoinType> stores all the metadata about a wrapped asset
     struct WrappedAssetInfo<phantom CoinType> has key, store {
         id: UID,
-        token_chain: U16,
+        token_chain: u16,
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<CoinType>,
+        decimals: u8,
     }
 
     struct NativeAssetInfo<phantom CoinType> has key, store {
@@ -70,11 +70,11 @@ module token_bridge::bridge_state {
     /// OriginInfo is a non-Sui object that stores info about a tokens native token
     /// chain and address
     struct OriginInfo<phantom CoinType> has store, copy, drop {
-        token_chain: U16,
-        token_address: ExternalAddress,
+        token_chain: u16,
+        token_address: ExternalAddress
     }
 
-    public fun get_token_chain_from_origin_info<CoinType>(origin_info: &OriginInfo<CoinType>): U16 {
+    public fun get_token_chain_from_origin_info<CoinType>(origin_info: &OriginInfo<CoinType>): u16 {
         return origin_info.token_chain
     }
 
@@ -94,16 +94,18 @@ module token_bridge::bridge_state {
     }
 
     public(friend) fun create_wrapped_asset_info<CoinType>(
-        token_chain: U16,
+        token_chain: u16,
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<CoinType>,
+        decimals: u8,
         ctx: &mut TxContext
     ): WrappedAssetInfo<CoinType> {
         return WrappedAssetInfo {
             id: object::new(ctx),
             token_chain,
             token_address,
-            treasury_cap
+            treasury_cap,
+            decimals
         }
     }
 
@@ -115,12 +117,12 @@ module token_bridge::bridge_state {
     }
 
     fun next_native_id(registry: &mut NativeIdRegistry): ExternalAddress {
-        use wormhole::serialize::serialize_u64;
+        use wormhole::bytes::serialize_u64_be;
 
         let cur_index = registry.index;
         registry.index = cur_index + 1;
         let bytes = std::vector::empty<u8>();
-        serialize_u64(&mut bytes, cur_index);
+        serialize_u64_be(&mut bytes, cur_index);
         external_address::from_bytes(bytes)
     }
 
@@ -136,22 +138,32 @@ module token_bridge::bridge_state {
         emitter_cap: EmitterCapability,
 
         /// Mapping of bridge contracts on other chains
-        registered_emitters: VecMap<U16, ExternalAddress>,
+        registered_emitters: VecMap<u16, ExternalAddress>,
 
         native_id_registry: NativeIdRegistry,
     }
 
     fun init(ctx: &mut TxContext) {
-        transfer::transfer(DeployerCapability{id: object::new(ctx)}, tx_context::sender(ctx));
+        transfer::transfer(
+            DeployerCapability{
+                id: object::new(ctx)
+            },
+            tx_context::sender(ctx)
+        );
     }
 
     #[test_only]
     public fun test_init(ctx: &mut TxContext) {
-        transfer::transfer(DeployerCapability{id: object::new(ctx)}, tx_context::sender(ctx));
+        transfer::transfer(
+            DeployerCapability{
+                id: object::new(ctx)
+            },
+            tx_context::sender(ctx)
+        );
     }
 
-    // converts owned state object into a shared object, so that anyone can get a reference to &mut State
-    // and pass it into various functions
+    // converts owned state object into a shared object, so that anyone can get
+    // a reference to &mut State and pass it into various functions
     public entry fun init_and_share_state(
         deployer: DeployerCapability,
         worm_state: &mut WormholeState,
@@ -180,7 +192,10 @@ module token_bridge::bridge_state {
         coin: Coin<CoinType>,
     ) {
         // TODO: create custom errors for each dynamic_set::borrow_mut
-        let native_asset = dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(&mut bridge_state.id);
+        let native_asset =
+            dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(
+                &mut bridge_state.id
+            );
         coin::join<CoinType>(&mut native_asset.custody, coin);
     }
 
@@ -188,9 +203,12 @@ module token_bridge::bridge_state {
         _verified_coin_witness: VerifiedCoinType<CoinType>,
         bridge_state: &mut BridgeState,
         value: u64,
-        ctx: &mut TxContext
+       ctx: &mut TxContext
     ): Coin<CoinType> {
-        let native_asset = dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(&mut bridge_state.id);
+        let native_asset =
+            dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(
+                &mut bridge_state.id
+            );
         coin::split<CoinType>(&mut native_asset.custody, value, ctx)
     }
 
@@ -200,7 +218,10 @@ module token_bridge::bridge_state {
         value: u64,
         ctx: &mut TxContext,
     ): Coin<CoinType> {
-        let wrapped_info = dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(&mut bridge_state.id);
+        let wrapped_info =
+            dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(
+                &mut bridge_state.id
+            );
         coin::mint<CoinType>(&mut wrapped_info.treasury_cap, value, ctx)
     }
 
@@ -208,17 +229,23 @@ module token_bridge::bridge_state {
         bridge_state: &mut BridgeState,
         coin: Coin<CoinType>,
     ) {
-        let wrapped_info = dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(&mut bridge_state.id);
+        let wrapped_info =
+            dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(
+                &mut bridge_state.id
+            );
         coin::burn<CoinType>(&mut wrapped_info.treasury_cap, coin);
     }
 
-    // Note: we only examine the balance of native assets, because the token bridge
-    // does not custody wrapped assets (only mints and burns them)
+    // Note: we only examine the balance of native assets, because the token
+    // bridge does not custody wrapped assets (only mints and burns them)
     #[test_only]
     public fun balance<CoinType>(
         bridge_state: &mut BridgeState
     ): u64 {
-        let native_asset = dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(&mut bridge_state.id);
+        let native_asset =
+            dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(
+                &mut bridge_state.id
+            );
         coin::value<CoinType>(&native_asset.custody)
     }
 
@@ -244,9 +271,12 @@ module token_bridge::bridge_state {
         set::contains(&state.consumed_vaas, hash)
     }
 
-    public fun get_registered_emitter(state: &BridgeState, chain_id: &U16): Option<ExternalAddress> {
-        if (vec_map::contains(&state.registered_emitters, chain_id)) {
-            option::some(*vec_map::get(&state.registered_emitters, chain_id))
+    public fun get_registered_emitter(
+        state: &BridgeState,
+        chain_id: u16
+    ): Option<ExternalAddress> {
+        if (vec_map::contains(&state.registered_emitters, &chain_id)) {
+            option::some(*vec_map::get(&state.registered_emitters, &chain_id))
         } else {
             option::none()
         }
@@ -297,13 +327,23 @@ module token_bridge::bridge_state {
     /// See the documentation for `VerifiedCoinType` above.
     public fun verify_coin_type<CoinType>(
         bridge_state: &BridgeState,
-        token_chain: U16,
+        token_chain: u16,
         token_address: ExternalAddress
     ): VerifiedCoinType<CoinType> {
         let coin_origin = origin_info<CoinType>(bridge_state);
         assert!(coin_origin.token_chain == token_chain, E_ORIGIN_CHAIN_MISMATCH);
         assert!(coin_origin.token_address == token_address, E_ORIGIN_ADDRESS_MISMATCH);
         VerifiedCoinType {}
+    }
+
+    public fun get_wrapped_decimals<CoinType>(bridge_state: &BridgeState): u8 {
+        let wrapped_asset_info = dynamic_set::borrow<WrappedAssetInfo<CoinType>>(&bridge_state.id);
+        wrapped_asset_info.decimals
+    }
+
+    public fun get_native_decimals<CoinType>(bridge_state: &BridgeState): u8 {
+        let native_asset_info = dynamic_set::borrow<NativeAssetInfo<CoinType>>(&bridge_state.id);
+        asset_meta::get_decimals(&native_asset_info.asset_meta)
     }
 
     public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &BridgeState): OriginInfo<CoinType> {
@@ -319,11 +359,11 @@ module token_bridge::bridge_state {
 
     /// setters
 
-    public(friend) fun set_registered_emitter(state: &mut BridgeState, chain_id: U16, emitter: ExternalAddress) {
-        if (vec_map::contains<U16, ExternalAddress>(&mut state.registered_emitters, &chain_id)){
-            vec_map::remove<U16, ExternalAddress>(&mut state.registered_emitters, &chain_id);
+    public(friend) fun set_registered_emitter(state: &mut BridgeState, chain_id: u16, emitter: ExternalAddress) {
+        if (vec_map::contains<u16, ExternalAddress>(&mut state.registered_emitters, &chain_id)){
+            vec_map::remove<u16, ExternalAddress>(&mut state.registered_emitters, &chain_id);
         };
-        vec_map::insert<U16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
+        vec_map::insert<u16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
     }
 
     /// dynamic ops

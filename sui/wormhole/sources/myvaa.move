@@ -3,9 +3,8 @@ module wormhole::myvaa {
     use sui::tx_context::TxContext;
     //use 0x1::secp256k1;
 
-    use wormhole::myu16::{U16};
     use wormhole::myu32::{U32};
-    use wormhole::deserialize;
+    use wormhole::bytes::{Self};
     use wormhole::cursor;
     use wormhole::guardian_pubkey;
     use wormhole::structs::{
@@ -42,7 +41,7 @@ module wormhole::myvaa {
         /// Body
         timestamp:          U32,
         nonce:              U32,
-        emitter_chain:      U16,
+        emitter_chain:      u16,
         emitter_address:    ExternalAddress,
         sequence:           u64,
         consistency_level:  u8,
@@ -63,18 +62,18 @@ module wormhole::myvaa {
     /// object, its signatures must have been verified, because the only public
     /// function that returns a VAA is `parse_and_verify`
     fun parse(bytes: vector<u8>): VAA {
-        let cur = cursor::cursor_init(bytes);
-        let version = deserialize::deserialize_u8(&mut cur);
+        let cur = cursor::new(bytes);
+        let version = bytes::deserialize_u8(&mut cur);
         assert!(version == 1, E_WRONG_VERSION);
-        let guardian_set_index = deserialize::deserialize_u32(&mut cur);
+        let guardian_set_index = bytes::deserialize_u32_be(&mut cur);
 
-        let signatures_len = deserialize::deserialize_u8(&mut cur);
+        let signatures_len = bytes::deserialize_u8(&mut cur);
         let signatures = vector::empty<Signature>();
 
         while (signatures_len > 0) {
-            let guardian_index = deserialize::deserialize_u8(&mut cur);
-            let sig = deserialize::deserialize_vector(&mut cur, 64);
-            let recovery_id = deserialize::deserialize_u8(&mut cur);
+            let guardian_index = bytes::deserialize_u8(&mut cur);
+            let sig = bytes::to_bytes(&mut cur, 64);
+            let recovery_id = bytes::deserialize_u8(&mut cur);
             vector::push_back(&mut signatures, create_signature(sig, recovery_id, guardian_index));
             signatures_len = signatures_len - 1;
         };
@@ -82,14 +81,14 @@ module wormhole::myvaa {
         let body = cursor::rest(cur);
         let hash = keccak256(keccak256(body));
 
-        let cur = cursor::cursor_init(body);
+        let cur = cursor::new(body);
 
-        let timestamp = deserialize::deserialize_u32(&mut cur);
-        let nonce = deserialize::deserialize_u32(&mut cur);
-        let emitter_chain = deserialize::deserialize_u16(&mut cur);
+        let timestamp = bytes::deserialize_u32_be(&mut cur);
+        let nonce = bytes::deserialize_u32_be(&mut cur);
+        let emitter_chain = bytes::deserialize_u16_be(&mut cur);
         let emitter_address = external_address::deserialize(&mut cur);
-        let sequence = deserialize::deserialize_u64(&mut cur);
-        let consistency_level = deserialize::deserialize_u8(&mut cur);
+        let sequence = bytes::deserialize_u64_be(&mut cur);
+        let consistency_level = bytes::deserialize_u8(&mut cur);
 
         let payload = cursor::rest(cur);
 
@@ -123,7 +122,7 @@ module wormhole::myvaa {
          vaa.hash
     }
 
-    public fun get_emitter_chain(vaa: &VAA): U16 {
+    public fun get_emitter_chain(vaa: &VAA): u16 {
          vaa.emitter_chain
     }
 

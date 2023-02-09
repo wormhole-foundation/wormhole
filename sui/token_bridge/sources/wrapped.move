@@ -44,6 +44,7 @@ module token_bridge::wrapped {
         id: UID,
         vaa_bytes: vector<u8>,
         treasury_cap: TreasuryCap<CoinType>,
+        decimals: u8
     }
 
     /// This function will be called from the `init` function of a module that
@@ -71,10 +72,10 @@ module token_bridge::wrapped {
         // in each of the contracts when sending tokens out, so there's no
         // precision beyond 10^-8. We could preserve the original number of
         // decimals when creating wrapped assets, and "untruncate" the amounts
-        // on the way out by scaling back appropriately. This is what most other
-        // chains do, but untruncating from 8 decimals to 18 decimals loses
-        // log2(10^10) ~ 33 bits of precision, which we cannot afford on Aptos
-        // (and Solana), as the coin type only has 64bits to begin with.
+        // on the way out by scaling back appropriately. This is what most
+        // other chains do, but untruncating from 8 decimals to 18 decimals
+        // loses log2(10^10) ~ 33 bits of precision, which we cannot afford on
+        // Aptos (and Solana), as the coin type only has 64bits to begin with.
         // Contrast with Ethereum, where amounts are 256 bits.
         // So we cap the maximum decimals at 8 when creating a wrapped token.
         let max_decimals: u8 = 8;
@@ -83,7 +84,12 @@ module token_bridge::wrapped {
         let symbol = asset_meta::get_symbol(&asset_meta);
         let name = asset_meta::get_name(&asset_meta);
 
-        let decimals = if (max_decimals < parsed_decimals) max_decimals else parsed_decimals;
+        let decimals = (
+            sui::math::min(
+                (max_decimals as u64),
+                (parsed_decimals as u64)
+            ) as u8
+        );
         let (treasury_cap, coin_metadata) = coin::create_currency<CoinType>(
             coin_witness,
             decimals,
@@ -93,8 +99,14 @@ module token_bridge::wrapped {
             option::none<Url>(), //empty url
             ctx
         );
+        let decimals = coin::get_decimals<CoinType>(&coin_metadata);
         transfer::share_object(coin_metadata);
-        NewWrappedCoin { id: object::new(ctx), vaa_bytes, treasury_cap }
+        NewWrappedCoin {
+            id: object::new(ctx),
+            vaa_bytes,
+            treasury_cap,
+            decimals
+        }
     }
 
     public entry fun register_wrapped_coin<CoinType>(
@@ -103,7 +115,12 @@ module token_bridge::wrapped {
         new_wrapped_coin: NewWrappedCoin<CoinType>,
         ctx: &mut TxContext,
     ) {
-        let NewWrappedCoin { id, vaa_bytes, treasury_cap } = new_wrapped_coin;
+        let NewWrappedCoin {
+            id,
+            vaa_bytes,
+            treasury_cap,
+            decimals
+        } = new_wrapped_coin;
         object::delete(id);
 
         let vaa = vaa::parse_verify_and_replay_protect(
@@ -122,11 +139,24 @@ module token_bridge::wrapped {
                 origin_chain,
                 external_address,
                 treasury_cap,
+                decimals,
                 ctx
             );
-        assert!(origin_chain != state::get_chain_id(state), E_WRAPPING_NATIVE_COIN);
-        assert!(!bridge_state::is_registered_native_asset<CoinType>(bridge_state), E_WRAPPING_REGISTERED_NATIVE_COIN);
-        assert!(!bridge_state::is_wrapped_asset<CoinType>(bridge_state), E_WRAPPED_COIN_ALREADY_INITIALIZED);
-        bridge_state::register_wrapped_asset<CoinType>(bridge_state, wrapped_asset_info);
+        assert!(
+            origin_chain != state::get_chain_id(state),
+            E_WRAPPING_NATIVE_COIN
+        );
+        assert!(
+            !bridge_state::is_registered_native_asset<CoinType>(bridge_state),
+            E_WRAPPING_REGISTERED_NATIVE_COIN
+        );
+        assert!(
+            !bridge_state::is_wrapped_asset<CoinType>(bridge_state),
+            E_WRAPPED_COIN_ALREADY_INITIALIZED
+        );
+        bridge_state::register_wrapped_asset<CoinType>(
+            bridge_state,
+            wrapped_asset_info
+        );
     }
 }

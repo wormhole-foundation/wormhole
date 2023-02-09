@@ -9,7 +9,6 @@ module wormhole::state {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
 
-    use wormhole::myu16::{Self as u16, U16};
     use wormhole::myu32::{Self as u32, U32};
     use wormhole::dynamic_set::{Self};
     use wormhole::set::{Self, Set};
@@ -43,10 +42,10 @@ module wormhole::state {
         id: UID,
 
         /// chain id
-        chain_id: U16,
+        chain_id: u16,
 
         /// guardian chain ID
-        governance_chain_id: U16,
+        governance_chain_id: u16,
 
         /// Address of governance contract on governance chain
         governance_contract: ExternalAddress,
@@ -79,8 +78,8 @@ module wormhole::state {
     // and pass it into various functions
     public entry fun init_and_share_state(
         deployer: DeployerCapability,
-        chain_id: u64,
-        governance_chain_id: u64,
+        chain_id: u16,
+        governance_chain_id: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
         message_fee: u64,
@@ -90,9 +89,11 @@ module wormhole::state {
         object::delete(id);
         let state = State {
             id: object::new(ctx),
-            chain_id: u16::from_u64(chain_id),
-            governance_chain_id: u16::from_u64(governance_chain_id),
-            governance_contract: external_address::from_bytes(governance_contract),
+            chain_id,
+            governance_chain_id,
+            governance_contract: external_address::from_bytes(
+                governance_contract
+            ),
             guardian_set_index: u32::from_u64(0),
             guardian_sets: vec_map::empty<U32, GuardianSet>(),
             guardian_set_expiry: u32::from_u64(2), // TODO - what is the right #epochs to set this to?
@@ -152,22 +153,25 @@ module wormhole::state {
 
     // setters
 
-    public(friend) fun set_chain_id(state: &mut State, id: u64){
-        state.chain_id = u16::from_u64(id);
+    public(friend) fun set_chain_id(state: &mut State, chain_id: u16){
+        state.chain_id = chain_id;
     }
 
     #[test_only]
-    public fun test_set_chain_id(state: &mut State, id: u64) {
-        set_chain_id(state, id);
+    public fun test_set_chain_id(state: &mut State, chain_id: u16) {
+        set_chain_id(state, chain_id);
     }
 
-    public(friend) fun set_governance_chain_id(state: &mut State, id: u64){
-        state.governance_chain_id = u16::from_u64(id);
+    public(friend) fun set_governance_chain_id(
+        state: &mut State,
+        chain_id: u16
+    ) {
+        state.governance_chain_id = chain_id;
     }
 
     #[test_only]
-    public fun test_set_governance_chain_id(state: &mut State, id: u64) {
-        set_governance_chain_id(state, id);
+    public fun test_set_governance_chain_id(state: &mut State, chain_id: u16) {
+        set_governance_chain_id(state, chain_id);
     }
 
     public(friend) fun set_governance_action_consumed(state: &mut State, hash: vector<u8>){
@@ -210,7 +214,7 @@ module wormhole::state {
              u32::to_u64(structs::get_guardian_set_expiry(guardian_set)) > cur_epoch
     }
 
-    public fun get_governance_chain(state: &State): U16 {
+    public fun get_governance_chain(state: &State): u16 {
         return state.governance_chain_id
     }
 
@@ -218,7 +222,7 @@ module wormhole::state {
         return state.governance_contract
     }
 
-    public fun get_chain_id(state: &State): U16 {
+    public fun get_chain_id(state: &State): u16 {
         return state.chain_id
     }
 
@@ -237,7 +241,6 @@ module wormhole::test_state{
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
 
     use wormhole::state::{Self, test_init, State, DeployerCapability};
-    use wormhole::myu16::{Self as u16};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -275,11 +278,11 @@ module wormhole::test_state{
 
             // test set chain id
             state::test_set_chain_id(&mut state, 5);
-            assert!(state::get_chain_id(&state) == u16::from_u64(5), 0);
+            assert!(state::get_chain_id(&state) == 5, 0);
 
             // test set governance chain id
             state::test_set_governance_chain_id(&mut state, 100);
-            assert!(state::get_governance_chain(&state) == u16::from_u64(100), 0);
+            assert!(state::get_governance_chain(&state) == 100, 0);
 
             return_shared<State>(state);
         };

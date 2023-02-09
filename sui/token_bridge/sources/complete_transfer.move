@@ -148,7 +148,6 @@ module token_bridge::complete_transfer_test {
     use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, ctx, take_from_address, return_to_address};
     use sui::coin::{Self, Coin, CoinMetadata};
 
-    use wormhole::myu16::{Self as u16};
     use wormhole::external_address::{Self};
 
     use token_bridge::normalized_amount::{Self};
@@ -470,7 +469,7 @@ module token_bridge::complete_transfer_test {
             let fee_amount = 100000000;
             let decimals = 8;
             let token_address = external_address::from_bytes(x"01");
-            let token_chain = u16::from_u64(34); // wrong chain!
+            let token_chain = 34; // wrong chain!
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let transfer: Transfer = transfer::create(
@@ -748,7 +747,7 @@ module token_bridge::complete_transfer_test {
             let fee_amount = 100000000;
             let decimals = 8;
             let token_address = external_address::from_bytes(x"beefface");
-            let token_chain = u16::from_u64(2);
+            let token_chain = 2;
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let transfer: Transfer = transfer::create(
