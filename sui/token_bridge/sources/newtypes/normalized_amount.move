@@ -45,12 +45,13 @@ module token_bridge::normalized_amount {
     public fun deserialize(cur: &mut Cursor<u8>): NormalizedAmount {
         // in the VAA wire format, amounts are 32 bytes.
         let amount = bytes::deserialize_u256_be(cur);
-        NormalizedAmount { amount: wormhole::myu256::as_u64(amount) }
+        assert!(amount < (1u256 << 64), 0);
+        NormalizedAmount { amount: (amount as u64) }
     }
 
     public fun serialize(buf: &mut vector<u8>, e: NormalizedAmount) {
         let NormalizedAmount { amount } = e;
-        bytes::serialize_u256_be(buf, wormhole::myu256::from_u64(amount))
+        bytes::serialize_u256_be(buf, (amount as u256))
     }
 }
 

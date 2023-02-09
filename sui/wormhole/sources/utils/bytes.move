@@ -1,17 +1,33 @@
 module wormhole::bytes {
     use std::vector::{Self};
-    use wormhole::cursor::{Self, Cursor};
-    use wormhole::myu256::{Self as u256, U256};
-
-    // we reuse the native bcs serialiser -- it uses little-endian encoding, and
-    // we need big-endian, so the results are reversed
     use std::bcs::{Self};
+    use wormhole::cursor::{Self, Cursor};
 
     public fun serialize_u8(buf: &mut vector<u8>, v: u8) {
         vector::push_back<u8>(buf, v);
     }
 
-    public fun serialize_u16_be(buf: &mut vector<u8>, v: u16) {
+    public fun serialize_u16_be(buf: &mut vector<u8>, value: u16) {
+        serialize_reverse(buf, value);
+    }
+
+    public fun serialize_u32_be(buf: &mut vector<u8>, value: u32) {
+        serialize_reverse(buf, value);
+    }
+
+    public fun serialize_u64_be(buf: &mut vector<u8>, value: u64) {
+        serialize_reverse(buf, value);
+    }
+
+    public fun serialize_u128_be(buf: &mut vector<u8>, value: u128) {
+        serialize_reverse(buf, value);
+    }
+
+    public fun serialize_u256_be(buf: &mut vector<u8>, value: u256) {
+        serialize_reverse(buf, value);
+    }
+
+    fun serialize_reverse<T: drop>(buf: &mut vector<u8>, v: T) {
         let v = bcs::to_bytes(&v);
         let len = vector::length(&v);
         let i = 0;
@@ -21,36 +37,8 @@ module wormhole::bytes {
         };
     }
 
-    public fun serialize_u32_be(buf: &mut vector<u8>, v: u32) {
-        let v = bcs::to_bytes(&v);
-        let len = vector::length(&v);
-        let i = 0;
-        while (i < len) {
-            vector::push_back(buf, *vector::borrow(&v, len - i - 1));
-            i = i + 1;
-        };
-    }
-
-    public fun serialize_u64_be(buf: &mut vector<u8>, v: u64) {
-        let v = bcs::to_bytes(&v);
-        vector::reverse(&mut v);
-        vector::append(buf, v);
-    }
-
-    public fun serialize_u128_be(buf: &mut vector<u8>, v: u128) {
-        let v = bcs::to_bytes(&v);
-        vector::reverse(&mut v);
-        vector::append(buf, v);
-    }
-
-    public fun serialize_u256_be(buf: &mut vector<u8>, v: U256) {
-        let v = bcs::to_bytes(&v);
-        vector::reverse(&mut v);
-        vector::append(buf, v);
-    }
-
-    public fun from_bytes(buf: &mut vector<u8>, v: vector<u8>){
-        vector::append(buf, v)
+    public fun from_bytes(buf: &mut vector<u8>, other: vector<u8>){
+        vector::append(buf, other)
     }
     
     public fun deserialize_u8(cursor: &mut Cursor<u8>): u8 {
@@ -101,17 +89,23 @@ module wormhole::bytes {
         res
     }
 
-    public fun deserialize_u256_be(cursor: &mut Cursor<u8>): U256 {
-        let v0 = deserialize_u128_be(cursor);
-        let v1 = deserialize_u128_be(cursor);
-        u256::add(u256::shl(u256::from_u128(v0), 128), u256::from_u128(v1))
+    public fun deserialize_u256_be(cursor: &mut Cursor<u8>): u256 {
+        let res: u256 = 0;
+        let i = 0;
+        while (i < 32) {
+            let b = cursor::poke(cursor);
+            res = (res << 8) + (b as u256);
+            i = i + 1;
+        };
+        res
     }
 
-    public fun to_bytes(cursor: &mut Cursor<u8>, len: u64): vector<u8> {
+    public fun to_bytes(cursor: &mut Cursor<u8>, num_bytes: u64): vector<u8> {
         let result = vector::empty();
-        while (len > 0) {
+        let i = 0;
+        while (i < num_bytes) {
             vector::push_back(&mut result, cursor::poke(cursor));
-            len = len - 1;
+            i = i + 1;
         };
         result
     }
@@ -119,10 +113,9 @@ module wormhole::bytes {
 
 #[test_only]
 module wormhole::test_bytes {
+    use std::vector::{Self};
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
-    use wormhole::myu256::{Self as u256};
-    use 0x1::vector;
 
     #[test]
     fun test_serialize_u8(){
@@ -181,20 +174,23 @@ module wormhole::test_bytes {
 
     #[test]
     fun test_serialize_u256_be(){
-        let u = u256::add(u256::shl(u256::from_u128(0x47386917590997937461700473756125), 128), u256::from_u128(0x9876));
+        let u =
+            0x4738691759099793746170047375612500000000000000000000000000009876;
         let s = vector::empty();
         bytes::serialize_u256_be(&mut s, u);
-        let exp = x"4738691759099793746170047375612500000000000000000000000000009876";
-        assert!(s == exp, 0);
+        assert!(
+            s == x"4738691759099793746170047375612500000000000000000000000000009876",
+            0
+        );
     }
 
     #[test]
     fun test_from_bytes(){
-        let x = vector::empty<u8>();
-        let y = vector::empty<u8>();
-        vector::push_back<u8>(&mut x, 0x12);
-        vector::push_back<u8>(&mut x, 0x34);
-        vector::push_back<u8>(&mut x, 0x56);
+        let x = vector::empty();
+        let y = vector::empty();
+        vector::push_back(&mut x, 0x12);
+        vector::push_back(&mut x, 0x34);
+        vector::push_back(&mut x, 0x56);
         bytes::from_bytes(&mut y, x);
         assert!(y == x"123456", 0);
     }
@@ -227,7 +223,7 @@ module wormhole::test_bytes {
     fun test_deserialize_u64_be() {
         let cursor = cursor::new(x"1300000025000001");
         let u = bytes::deserialize_u64_be(&mut cursor);
-        assert!(u==0x1300000025000001, 0);
+        assert!(u == 0x1300000025000001, 0);
         cursor::destroy_empty(cursor);
     }
 
@@ -235,7 +231,7 @@ module wormhole::test_bytes {
     fun test_deserialize_u128_be() {
         let cursor = cursor::new(x"130209AB2500FA0113CD00AE25000001");
         let u = bytes::deserialize_u128_be(&mut cursor);
-        assert!(u==0x130209AB2500FA0113CD00AE25000001, 0);
+        assert!(u == 0x130209AB2500FA0113CD00AE25000001, 0);
         cursor::destroy_empty(cursor);
     }
 
