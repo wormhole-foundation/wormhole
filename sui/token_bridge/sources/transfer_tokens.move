@@ -287,8 +287,8 @@ module token_bridge::transfer_token_test {
             let (token_chain, token_address, normalized_amount, normalized_relayer_fee) = transfer_result::destroy(transfer_result);
             assert!(token_chain == 21, 0);
             assert!(token_address==external_address::from_bytes(x"01"), 0); // wormhole addresses of coins are selected from a monotonic sequence starting from 1
-            assert!(normalized_amount::get_amount(normalized_amount)==100, 0); // 10 - 8 = 2 decimals are removed from 10000, resulting in 100
-            assert!(normalized_amount::get_amount(normalized_relayer_fee)==0, 0);
+            assert!(normalized_amount::value(&normalized_amount)==100, 0); // 10 - 8 = 2 decimals are removed from 10000, resulting in 100
+            assert!(normalized_amount::value(&normalized_relayer_fee)==0, 0);
 
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
@@ -445,11 +445,11 @@ module token_bridge::transfer_token_test {
                 0
             ); // wrapped token native address
             assert!(
-                normalized_amount::get_amount(normalized_amount) == 10000000000,
+                normalized_amount::value(&normalized_amount) == 10000000000,
                 0
             ); // wrapped coin is created with maximum of 8 decimals (see wrapped.move)
             assert!(
-                normalized_amount::get_amount(normalized_relayer_fee) == 0,
+                normalized_amount::value(&normalized_relayer_fee) == 0,
                 0
             );
 

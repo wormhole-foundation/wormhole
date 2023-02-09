@@ -89,7 +89,7 @@ module token_bridge::transfer_with_payload {
     public fun encode(transfer: TransferWithPayload): vector<u8> {
         let encoded = vector::empty<u8>();
         serialize_u8(&mut encoded, 3);
-        normalized_amount::serialize(&mut encoded, transfer.amount);
+        normalized_amount::serialize_be(&mut encoded, transfer.amount);
         external_address::serialize(&mut encoded, transfer.token_address);
         serialize_u16_be(&mut encoded, transfer.token_chain);
         external_address::serialize(&mut encoded, transfer.to);
@@ -103,7 +103,7 @@ module token_bridge::transfer_with_payload {
         let cur = cursor::new(transfer);
         let action = deserialize_u8(&mut cur);
         assert!(action == 3, E_INVALID_ACTION);
-        let amount = normalized_amount::deserialize(&mut cur);
+        let amount = normalized_amount::deserialize_be(&mut cur);
         let token_address = external_address::deserialize(&mut cur);
         let token_chain = deserialize_u16_be(&mut cur);
         let to = external_address::deserialize(&mut cur);

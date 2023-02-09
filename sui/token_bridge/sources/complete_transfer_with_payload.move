@@ -238,7 +238,7 @@ module token_bridge::complete_transfer_with_payload_test {
             transfer::transfer(coins, admin);
 
             // assert payload and other fields are as expected
-            assert!(normalized_amount::get_amount(transfer_with_payload::get_amount(&transfer_res))==10000000, 0);
+            assert!(normalized_amount::value(&transfer_with_payload::get_amount(&transfer_res))==10000000, 0);
             assert!(transfer_with_payload::get_token_address(&transfer_res)==token_address, 0);
             assert!(transfer_with_payload::get_token_chain(&transfer_res) == 21, 0);
             assert!(transfer_with_payload::get_to_chain(&transfer_res) == 21, 0);
