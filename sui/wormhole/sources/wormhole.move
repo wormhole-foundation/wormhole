@@ -31,7 +31,7 @@ module wormhole::wormhole {
             }
         };
         // deposit the fees into wormhole
-        state::deposit_fee_coins<SUI>(state, message_fee);
+        state::deposit_fee_coins(state, message_fee);
 
         // get sequence number
         let sequence = emitter::use_sequence(emitter_cap);

@@ -1,16 +1,17 @@
 module wormhole::state {
     use std::vector::{Self};
 
+    use sui::dynamic_object_field::{Self};
     use sui::object::{Self, UID};
     use sui::tx_context::{Self, TxContext};
     use sui::transfer::{Self};
     use sui::vec_map::{Self, VecMap};
     use sui::event::{Self};
     use sui::coin::{Self, Coin};
-    use sui::sui::SUI;
+    use sui::sui::{SUI};
 
+    use wormhole::fee_collector::{Self};
     use wormhole::myu32::{Self as u32, U32};
-    use wormhole::dynamic_set::{Self};
     use wormhole::set::{Self, Set};
     use wormhole::structs::{Self, create_guardian, Guardian, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
@@ -112,16 +113,15 @@ module wormhole::state {
         let initial_index = u32::from_u64(0);
         store_guardian_set(&mut state, initial_index, structs::create_guardian_set(initial_index, guardians));
 
-        // add wormhole fee store FeeCustody<SUI> as a dynamic child of state
-        dynamic_set::add<FeeCustody<SUI>>(&mut state.id, FeeCustody<SUI>{id: object::new(ctx), custody: coin::zero<SUI>(ctx)});
+        // add wormhole fee collector
+        fee_collector::new(&mut state.id, ctx);
 
         // permanently shares state
         transfer::share_object<State>(state);
     }
 
-    public fun deposit_fee_coins<CoinType>(state: &mut State, coin: Coin<CoinType>){
-        let fee_custody = dynamic_set::borrow_mut<FeeCustody<CoinType>>(&mut state.id);
-        coin::join<CoinType>(&mut fee_custody.custody, coin);
+    public fun deposit_fee_coins(state: &mut State, coin: Coin<SUI>) {
+        fee_collector::deposit(&mut state.id, coin);
     }
 
     // TODO - later on, can perform contract upgrade and add a governance-gated withdraw function to
