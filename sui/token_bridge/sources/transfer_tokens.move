@@ -29,9 +29,13 @@ module token_bridge::transfer_tokens {
             coins,
             relayer_fee,
         );
-        let (token_chain, token_address, normalized_amount, normalized_relayer_fee)
-            = transfer_result::destroy(result);
-        let transfer = transfer::create(
+        let (
+            token_chain,
+            token_address,
+            normalized_amount,
+            normalized_relayer_fee
+        ) = transfer_result::destroy(result);
+        let transfer = transfer::new(
             normalized_amount,
             token_address,
             token_chain,
@@ -43,7 +47,7 @@ module token_bridge::transfer_tokens {
             wormhole_state,
             bridge_state,
             nonce,
-            transfer::encode(transfer),
+            transfer::serialize(transfer),
             wormhole_fee_coins,
         );
     }
@@ -67,7 +71,7 @@ module token_bridge::transfer_tokens {
         let (token_chain, token_address, normalized_amount, _)
             = transfer_result::destroy(result);
 
-        let transfer = transfer_with_payload::create(
+        let transfer = transfer_with_payload::new(
             normalized_amount,
             token_address,
             token_chain,
@@ -76,12 +80,11 @@ module token_bridge::transfer_tokens {
             emitter::get_external_address(emitter_cap),
             payload
         );
-        let payload = transfer_with_payload::encode(transfer);
         bridge_state::publish_message(
             wormhole_state,
             bridge_state,
             nonce,
-            payload,
+            transfer_with_payload::serialize(transfer),
             wormhole_fee_coins
         )
     }

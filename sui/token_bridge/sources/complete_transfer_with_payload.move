@@ -29,11 +29,11 @@ module token_bridge::complete_transfer_with_payload {
         );
 
         let transfer =
-            transfer_with_payload::parse(wormhole::myvaa::destroy(vaa));
+            transfer_with_payload::deserialize(wormhole::myvaa::destroy(vaa));
 
-        let token_chain = transfer_with_payload::get_token_chain(&transfer);
+        let token_chain = transfer_with_payload::token_chain(&transfer);
         let token_address =
-            transfer_with_payload::get_token_address(&transfer);
+            transfer_with_payload::token_address(&transfer);
         let verified_coin_witness =
             bridge_state::verify_coin_type<CoinType>(
                 bridge_state,
@@ -62,8 +62,8 @@ module token_bridge::complete_transfer_with_payload {
         emitter: &EmitterCapability,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload) {
-        let token_chain = transfer_with_payload::get_token_chain(&transfer);
-        let token_address = transfer_with_payload::get_token_address(&transfer);
+        let token_chain = transfer_with_payload::token_chain(&transfer);
+        let token_address = transfer_with_payload::token_address(&transfer);
         let verified_coin_witness = bridge_state::verify_coin_type<CoinType>(
             bridge_state,
             token_chain,
@@ -87,13 +87,13 @@ module token_bridge::complete_transfer_with_payload {
         emitter_cap: &EmitterCapability,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload) {
-        let to_chain = transfer_with_payload::get_to_chain(&transfer);
+        let to_chain = transfer_with_payload::recipient_chain(&transfer);
         let this_chain = wormhole::state::get_chain_id(wormhole_state);
         assert!(to_chain == this_chain, E_INVALID_TARGET);
 
         let recipient =
             external_address::to_address(
-                &transfer_with_payload::get_to(&transfer)
+                &transfer_with_payload::recipient(&transfer)
             );
 
         // payload 3 must be redeemed by the designated wormhole emitter
@@ -110,7 +110,7 @@ module token_bridge::complete_transfer_with_payload {
                 bridge_state::get_wrapped_decimals<CoinType>(bridge_state);
             let amount =
                 denormalize(
-                    transfer_with_payload::get_amount(&transfer),
+                    transfer_with_payload::amount(&transfer),
                     decimals
                 );
             recipient_coins = bridge_state::mint<CoinType>(
@@ -124,7 +124,7 @@ module token_bridge::complete_transfer_with_payload {
                 bridge_state::get_native_decimals<CoinType>(bridge_state);
             let amount = 
                 denormalize(
-                    transfer_with_payload::get_amount(&transfer),
+                    transfer_with_payload::amount(&transfer),
                     decimals
                 );
             recipient_coins = bridge_state::withdraw<CoinType>(
@@ -212,7 +212,7 @@ module token_bridge::complete_transfer_with_payload_test {
             let from_address = external_address::from_bytes(x"111122");
             let payload = x"beefbeef22";
 
-            let transfer: TransferWithPayload = transfer_with_payload::create(
+            let transfer: TransferWithPayload = transfer_with_payload::new(
                 normalized_amount::normalize(amount, decimals),
                 token_address,
                 token_chain,
@@ -238,12 +238,22 @@ module token_bridge::complete_transfer_with_payload_test {
             transfer::transfer(coins, admin);
 
             // assert payload and other fields are as expected
-            assert!(normalized_amount::value(&transfer_with_payload::get_amount(&transfer_res))==10000000, 0);
-            assert!(transfer_with_payload::get_token_address(&transfer_res)==token_address, 0);
-            assert!(transfer_with_payload::get_token_chain(&transfer_res) == 21, 0);
-            assert!(transfer_with_payload::get_to_chain(&transfer_res) == 21, 0);
-            assert!(transfer_with_payload::get_from_address(&transfer_res)==from_address, 0);
-            assert!(transfer_with_payload::get_payload(&transfer_res)==payload, 0);
+            assert!(
+                normalized_amount::value(
+                    &transfer_with_payload::amount(&transfer_res)
+                ) == 10000000,
+                0
+            );
+            assert!(
+                transfer_with_payload::token_address(
+                    &transfer_res
+                ) == token_address,
+                0
+            );
+            assert!(transfer_with_payload::token_chain(&transfer_res) == 21, 0);
+            assert!(transfer_with_payload::recipient_chain(&transfer_res) == 21, 0);
+            assert!(transfer_with_payload::sender(&transfer_res)==from_address, 0);
+            assert!(transfer_with_payload::payload(&transfer_res)==payload, 0);
 
             transfer::transfer(emitter_cap, admin);
             return_shared<BridgeState>(bridge_state);
