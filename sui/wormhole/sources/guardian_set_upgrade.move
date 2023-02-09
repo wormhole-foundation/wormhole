@@ -5,14 +5,12 @@ module wormhole::guardian_set_upgrade {
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::myvaa::{Self as vaa};
-    //use wormhole::myvaa::{Self as vaa};
     use wormhole::state::{Self, State};
     use wormhole::structs::{
         Guardian,
         create_guardian,
         create_guardian_set
     };
-    use wormhole::myu32::{Self as u32,U32};
 
     const E_WRONG_GUARDIAN_LEN: u64 = 0x0;
     const E_NO_GUARDIAN_SET: u64 = 0x1;
@@ -22,7 +20,7 @@ module wormhole::guardian_set_upgrade {
     const E_NON_INCREMENTAL_GUARDIAN_SETS: u64 = 0x5;
 
     struct GuardianSetUpgrade {
-        new_index: U32,
+        new_index: u32,
         guardians: vector<Guardian>,
     }
 
@@ -51,7 +49,7 @@ module wormhole::guardian_set_upgrade {
         } = upgrade;
 
         assert!(
-            u32::to_u64(new_index) == u32::to_u64(current_index) + 1,
+            new_index == current_index + 1,
             E_NON_INCREMENTAL_GUARDIAN_SETS
         );
 
@@ -67,7 +65,7 @@ module wormhole::guardian_set_upgrade {
     #[test_only]
     public fun do_upgrade_test(
         s: &mut State,
-        new_index: U32,
+        new_index: u32,
         guardians: vector<Guardian>,
         ctx: &mut TxContext
     ) {
@@ -107,7 +105,7 @@ module wormhole::guardian_set_upgrade {
     }
 
     #[test_only]
-    public fun split(upgrade: GuardianSetUpgrade): (U32, vector<Guardian>) {
+    public fun split(upgrade: GuardianSetUpgrade): (u32, vector<Guardian>) {
         let GuardianSetUpgrade { new_index, guardians } = upgrade;
         (new_index, guardians)
     }
@@ -118,10 +116,16 @@ module wormhole::guardian_set_upgrade_test {
     use std::vector;
 
     use wormhole::structs::{create_guardian};
-    use wormhole::guardian_set_upgrade;
-    use wormhole::myu32::{Self as u32};
+    use wormhole::guardian_set_upgrade::{Self};
 
-    use sui::test_scenario::{Self, Scenario, next_tx, take_shared, return_shared, ctx};
+    use sui::test_scenario::{
+        Self,
+        Scenario,
+        next_tx,
+        take_shared,
+        return_shared,
+        ctx
+    };
     use sui::tx_context::{increment_epoch_number};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
@@ -129,12 +133,11 @@ module wormhole::guardian_set_upgrade_test {
 
     #[test]
     public fun test_parse_guardian_set_upgrade() {
-        use wormhole::myu32::{Self as u32};
-
         let b =
             x"00000000000000000000000000000000000000000000000000000000436f7265020000000000011358cc3ae5c097b213ce3c81979e1b9f9570746aa5ff6cb952589bde862c25ef4392132fb9d4a42157114de8460193bdf3a2fcf81f86a09765f4762fd1107a0086b32d7a0977926a205131d8731d39cbeb8c82b2fd82faed2711d59af0f2499d16e726f6b211b39756c042441be6d8650b69b54ebe715e234354ce5b4d348fb74b958e8966e2ec3dbd4958a7cdeb5f7389fa26941519f0863349c223b73a6ddee774a3bf913953d695260d88bc1aa25a4eee363ef0000ac0076727b35fbea2dac28fee5ccb0fea768eaf45ced136b9d9e24903464ae889f5c8a723fc14f93124b7c738843cbb89e864c862c38cddcccf95d2cc37a4dc036a8d232b48f62cdd4731412f4890da798f6896a3331f64b48c12d1d57fd9cbe7081171aa1be1d36cafe3867910f99c09e347899c19c38192b6e7387ccd768277c17dab1b7a5027c0b3cf178e21ad2e77ae06711549cfbb1f9c7a9d8096e85e1487f35515d02a92753504a8d75471b9f49edb6fbebc898f403e4773e95feb15e80c9a99c8348d";
-        let (new_index, guardians) = guardian_set_upgrade::split(guardian_set_upgrade::parse_payload(b));
-        assert!(new_index == u32::from_u64(1), 0);
+        let (new_index, guardians) =
+            guardian_set_upgrade::split(guardian_set_upgrade::parse_payload(b));
+        assert!(new_index == 1, 0);
         assert!(vector::length(&guardians) == 19, 0);
         let expected = vector[
             create_guardian(x"58cc3ae5c097b213ce3c81979e1b9f9570746aa5"),
@@ -185,7 +188,7 @@ module wormhole::guardian_set_upgrade_test {
             // do an upgrade
             guardian_set_upgrade::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
+                1, // guardian set index
                 vector[
                     create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
                 ], // new guardian set

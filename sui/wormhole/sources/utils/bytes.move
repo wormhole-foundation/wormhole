@@ -1,7 +1,6 @@
 module wormhole::bytes {
     use std::vector::{Self};
     use wormhole::cursor::{Self, Cursor};
-    use wormhole::myu32::{Self as u32, U32};
     use wormhole::myu256::{Self as u256, U256};
 
     // we reuse the native bcs serialiser -- it uses little-endian encoding, and
@@ -22,12 +21,14 @@ module wormhole::bytes {
         };
     }
 
-    public fun serialize_u32_be(buf: &mut vector<u8>, v: U32) {
-        let (v0, v1, v2, v3) = u32::split_u8(v);
-        serialize_u8(buf, v0);
-        serialize_u8(buf, v1);
-        serialize_u8(buf, v2);
-        serialize_u8(buf, v3);
+    public fun serialize_u32_be(buf: &mut vector<u8>, v: u32) {
+        let v = bcs::to_bytes(&v);
+        let len = vector::length(&v);
+        let i = 0;
+        while (i < len) {
+            vector::push_back(buf, *vector::borrow(&v, len - i - 1));
+            i = i + 1;
+        };
     }
 
     public fun serialize_u64_be(buf: &mut vector<u8>, v: u64) {
@@ -67,7 +68,7 @@ module wormhole::bytes {
         (res as u16)
     }
 
-    public fun deserialize_u32_be(cursor: &mut Cursor<u8>): U32 {
+    public fun deserialize_u32_be(cursor: &mut Cursor<u8>): u32 {
         let res: u64 = 0;
         let i = 0;
         while (i < 4) {
@@ -75,7 +76,7 @@ module wormhole::bytes {
             res = (res << 8) + (b as u64);
             i = i + 1;
         };
-        u32::from_u64(res)
+        (res as u32)
     }
 
     public fun deserialize_u64_be(cursor: &mut Cursor<u8>): u64 {
@@ -120,7 +121,6 @@ module wormhole::bytes {
 module wormhole::test_bytes {
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
-    use wormhole::myu32::{Self as u32};
     use wormhole::myu256::{Self as u256};
     use 0x1::vector;
 
@@ -148,7 +148,7 @@ module wormhole::test_bytes {
 
     #[test]
     fun test_serialize_u32_be(){
-        let u = u32::from_u64((0x12345678 as u64));
+        let u = 0x12345678;
         let s = vector::empty();
         bytes::serialize_u32_be(&mut s, u);
         let cur = cursor::new(s);
@@ -219,7 +219,7 @@ module wormhole::test_bytes {
     fun test_deserialize_u32_be() {
         let cursor = cursor::new(x"99876543");
         let u = bytes::deserialize_u32_be(&mut cursor);
-        assert!(u == u32::from_u64(0x99876543), 0);
+        assert!(u == 0x99876543, 0);
         cursor::destroy_empty(cursor);
     }
 

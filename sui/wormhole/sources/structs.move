@@ -1,5 +1,4 @@
 module wormhole::structs {
-    use wormhole::myu32::{Self as u32, U32};
     use sui::tx_context::{Self, TxContext};
 
     friend wormhole::state;
@@ -16,9 +15,9 @@ module wormhole::structs {
     }
 
     struct GuardianSet has store, copy, drop {
-        index:     U32,
+        index: u32,
         guardians: vector<Guardian>,
-        expiration_time: U32,
+        expiration_time: u32,
     }
 
     public fun create_guardian(address: vector<u8>): Guardian {
@@ -27,16 +26,16 @@ module wormhole::structs {
         }
     }
 
-    public fun create_guardian_set(index: U32, guardians: vector<Guardian>): GuardianSet {
+    public fun create_guardian_set(index: u32, guardians: vector<Guardian>): GuardianSet {
        GuardianSet {
             index: index,
             guardians: guardians,
-            expiration_time: u32::from_u64(0),
+            expiration_time: 0,
         }
     }
 
-    public(friend) fun expire_guardian_set(guardian_set: &mut GuardianSet, delta: U32, ctx: &TxContext) {
-        guardian_set.expiration_time = u32::from_u64(tx_context::epoch(ctx) + u32::to_u64(delta));
+    public(friend) fun expire_guardian_set(guardian_set: &mut GuardianSet, delta: u32, ctx: &TxContext) {
+        guardian_set.expiration_time = (tx_context::epoch(ctx) as u32) + delta;
     }
 
     public fun unpack_signature(s: &Signature): (vector<u8>, u8, u8) {
@@ -55,7 +54,7 @@ module wormhole::structs {
         guardian.address
     }
 
-    public fun get_guardian_set_index(guardian_set: &GuardianSet): U32 {
+    public fun get_guardian_set_index(guardian_set: &GuardianSet): u32 {
         guardian_set.index
     }
 
@@ -63,7 +62,7 @@ module wormhole::structs {
         guardian_set.guardians
     }
 
-    public fun get_guardian_set_expiry(guardian_set: &GuardianSet): U32 {
+    public fun get_guardian_set_expiry(guardian_set: &GuardianSet): u32 {
         guardian_set.expiration_time
     }
 }
