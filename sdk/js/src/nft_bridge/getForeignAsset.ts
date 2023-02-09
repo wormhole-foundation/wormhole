@@ -1,12 +1,18 @@
 import { BN } from "@project-serum/anchor";
 import { PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
-import { AptosClient, HexString, TokenTypes, Types } from "aptos";
+import {
+  ApiError,
+  AptosClient,
+  HexString,
+  TokenClient,
+  TokenTypes,
+} from "aptos";
 import { ethers } from "ethers";
 import { isBytes } from "ethers/lib/utils";
 import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
-import { CreateTokenDataEvent, NftBridgeState } from "../aptos/types";
+import { CreateTokenDataEvent } from "../aptos/types";
 import { NFTBridge__factory } from "../ethers-contracts";
 import { deriveWrappedMintKey } from "../solana/nftBridge";
 import {
@@ -16,6 +22,7 @@ import {
   coalesceChainId,
   deriveResourceAccountAddress,
   ensureHexPrefix,
+  getTokenIdFromTokenHash,
   hexToUint8Array,
 } from "../utils";
 
@@ -135,24 +142,7 @@ export async function getForeignAssetAptos(
 ): Promise<TokenTypes.TokenId | null> {
   const originChainId = coalesceChainId(originChain);
   if (originChainId === CHAIN_ID_APTOS) {
-    const state = (
-      await client.getAccountResource(
-        nftBridgeAddress,
-        `${nftBridgeAddress}::state::State`
-      )
-    ).data as NftBridgeState;
-    const handle = state.native_infos.handle;
-    const { token_data_id, property_version } = (await client.getTableItem(
-      handle,
-      {
-        key_type: `${nftBridgeAddress}::token_hash::TokenHash`,
-        value_type: `0x3::token::TokenId`,
-        key: {
-          hash: HexString.fromUint8Array(originAddress).hex(),
-        },
-      }
-    )) as TokenTypes.TokenId & { __headers: unknown };
-    return { token_data_id, property_version };
+    return getTokenIdFromTokenHash(client, nftBridgeAddress, originAddress);
   }
 
   const creatorAddress = await deriveResourceAccountAddress(
@@ -175,33 +165,51 @@ export async function getForeignAssetAptos(
   const tokenIdAsUint8Array = new Uint8Array(tokenId);
 
   // Each creator account should contain a single collection that contains the
-  // token creation event with the token id that we're looking for.
+  // corresponding token creation events. Return if we find it in the first
+  // page, otherwise reconstruct the token id from the first event.
   const PAGE_SIZE = 25;
-  let curr = 0;
-  let numEvents = PAGE_SIZE;
-  let event: Types.Event | undefined = undefined;
-  while (numEvents === PAGE_SIZE && !event) {
-    const events = await client.getEventsByEventHandle(
-      creatorAddress,
-      "0x3::token::Collections",
-      "create_token_data_events",
-      { limit: PAGE_SIZE, start: curr }
-    );
-    event = events.find(
-      (e) =>
-        ensureHexPrefix((e as CreateTokenDataEvent).data.id.name) ===
-        HexString.fromUint8Array(tokenIdAsUint8Array).hex()
-    );
-    numEvents = events.length;
-    curr += numEvents;
+  const events = (await client.getEventsByEventHandle(
+    creatorAddress,
+    "0x3::token::Collections",
+    "create_token_data_events",
+    { limit: PAGE_SIZE }
+  )) as CreateTokenDataEvent[];
+  const event = events.find(
+    (e) =>
+      ensureHexPrefix((e as CreateTokenDataEvent).data.id.name) ===
+      HexString.fromUint8Array(tokenIdAsUint8Array).hex()
+  );
+  if (event) {
+    return {
+      token_data_id: event.data.id,
+      property_version: "0", // property version always "0" for wrapped tokens
+    };
   }
 
-  if (!event) {
-    throw new Error("Invalid token ID");
-  }
+  // Skip pagination, reconstruct token id, and check to see if it exists
+  try {
+    const tokenIdObj = {
+      token_data_id: {
+        ...events[0].data.id,
+        name: HexString.fromUint8Array(tokenIdAsUint8Array).noPrefix(),
+      },
+      property_version: "0",
+    };
+    await new TokenClient(client).getTokenData(
+      tokenIdObj.token_data_id.creator,
+      tokenIdObj.token_data_id.collection,
+      tokenIdObj.token_data_id.name
+    );
+    return tokenIdObj;
+  } catch (e) {
+    if (
+      e instanceof ApiError &&
+      e.status === 404 &&
+      e.errorCode === "table_item_not_found"
+    ) {
+      return null;
+    }
 
-  return {
-    token_data_id: event.data.id,
-    property_version: "0",
-  };
+    throw e;
+  }
 }
