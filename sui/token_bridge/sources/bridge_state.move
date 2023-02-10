@@ -34,6 +34,7 @@ module token_bridge::bridge_state {
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
     friend token_bridge::transfer_tokens;
+    friend token_bridge::transfer_tokens_with_payload;
     friend token_bridge::attest_token;
     #[test_only]
     friend token_bridge::bridge_state_test;
