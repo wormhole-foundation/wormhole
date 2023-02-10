@@ -8,4 +8,7 @@ subdir = "crates/sui-framework"
 rev = "0fe3e5c237f2f6410c66617cede5733015a17a36"
 
 [addresses]
-wormhole = "0x0"
+wormhole = "_"
+
+[dev-addresses]
+wormhole = "0x100"
