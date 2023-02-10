@@ -1,7 +1,7 @@
 module token_bridge::complete_transfer {
     use sui::tx_context::{TxContext};
     use sui::transfer::{Self as transfer_object};
-    use sui::coin::{Self, CoinMetadata};
+    use sui::coin::{Self};
 
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
@@ -16,7 +16,6 @@ module token_bridge::complete_transfer {
     public entry fun submit_vaa_entry<CoinType>(
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
-        coin_meta: &CoinMetadata<CoinType>,
         vaa: vector<u8>,
         fee_recipient: address,
         ctx: &mut TxContext
@@ -24,7 +23,6 @@ module token_bridge::complete_transfer {
         submit_vaa<CoinType>(
             wormhole_state,
             bridge_state,
-            coin_meta,
             vaa,
             fee_recipient,
             ctx
@@ -34,7 +32,6 @@ module token_bridge::complete_transfer {
     public fun submit_vaa<CoinType>(
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
-        coin_meta: &CoinMetadata<CoinType>,
         vaa: vector<u8>,
         fee_recipient: address,
         ctx: &mut TxContext
@@ -62,7 +59,6 @@ module token_bridge::complete_transfer {
             transfer,
             wormhole_state,
             bridge_state,
-            coin_meta,
             fee_recipient,
             ctx
         )
@@ -75,7 +71,6 @@ module token_bridge::complete_transfer {
         my_transfer: Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
-        coin_meta: &CoinMetadata<CoinType>,
         fee_recipient: address,
         ctx: &mut TxContext
     ): Transfer {
@@ -91,7 +86,6 @@ module token_bridge::complete_transfer {
             my_transfer,
             wormhole_state,
             bridge_state,
-            coin_meta,
             fee_recipient,
             ctx
         )
@@ -102,7 +96,6 @@ module token_bridge::complete_transfer {
         my_transfer: Transfer,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut BridgeState,
-        coin_meta: &CoinMetadata<CoinType>, // TODO: need to get rid of this
         fee_recipient: address,
         ctx: &mut TxContext
     ): Transfer { // TODO: why return transfer?
@@ -114,15 +107,17 @@ module token_bridge::complete_transfer {
             &transfer::recipient(&my_transfer)
         );
 
-        let decimals = coin::get_decimals(coin_meta);
-        let amount = denormalize(transfer::amount(&my_transfer), decimals);
-        let fee_amount = denormalize(
-            transfer::relayer_fee(&my_transfer),
-            decimals
-        );
-
         let recipient_coins;
+        let amount;
+        let fee_amount;
         if (bridge_state::is_wrapped_asset<CoinType>(bridge_state)) {
+            let decimals =
+                bridge_state::get_wrapped_decimals<CoinType>(bridge_state);
+            amount = denormalize(transfer::amount(&my_transfer), decimals);
+            fee_amount = denormalize(
+                transfer::relayer_fee(&my_transfer),
+                decimals
+            );
             recipient_coins = bridge_state::mint<CoinType>(
                 verified_coin_witness,
                 bridge_state,
@@ -130,6 +125,13 @@ module token_bridge::complete_transfer {
                 ctx
             );
         } else {
+            let decimals =
+                bridge_state::get_native_decimals<CoinType>(bridge_state);
+            amount = denormalize(transfer::amount(&my_transfer), decimals);
+            fee_amount = denormalize(
+                transfer::relayer_fee(&my_transfer),
+                decimals
+            );
             recipient_coins = bridge_state::withdraw<CoinType>(
                 verified_coin_witness,
                 bridge_state,
@@ -211,7 +213,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -234,13 +235,11 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
 
         // check balances after
@@ -296,7 +295,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
             let to = admin;
             // dust at the end gets rounded to nothing, since 10-8=2 digits are lopped off
@@ -320,13 +318,11 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
 
         // check balances after
@@ -381,7 +377,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
 
             let to = admin;
             let amount = 100;
@@ -404,13 +399,11 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta);
         };
 
         // check balances after
@@ -427,7 +420,7 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4, location=0000000000000000000000000000000000000000::bridge_state)] // E_ORIGIN_CHAIN_MISMATCH
+    #[expected_failure(abort_code = 4, location=token_bridge::bridge_state)] // E_ORIGIN_CHAIN_MISMATCH
     fun test_complete_native_transfer_wrong_origin_chain(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -467,7 +460,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -490,19 +482,17 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         test_scenario::end(test);
     }
 
     #[test]
-    #[expected_failure(abort_code = 5, location=0000000000000000000000000000000000000000::bridge_state)] // E_ORIGIN_ADDRESS_MISMATCH
+    #[expected_failure(abort_code = 5, location=token_bridge::bridge_state)] // E_ORIGIN_ADDRESS_MISMATCH
     fun test_complete_native_transfer_wrong_coin_address(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -542,7 +532,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -565,20 +554,18 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
 
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         test_scenario::end(test);
     }
 
     #[test]
-    #[expected_failure(abort_code = 2, location=0000000000000000000000000000000000000002::balance)] // E_TOO_MUCH_FEE
+    #[expected_failure(abort_code = 2, location=sui::balance)] // E_TOO_MUCH_FEE
     fun test_complete_native_transfer_too_much_fee(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -618,7 +605,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -641,19 +627,17 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         test_scenario::end(test);
     }
 
     #[test]
-    #[expected_failure(abort_code = 1, location=0000000000000000000000000000000000000002::dynamic_field)] // E_WRONG_COIN_TYPE
+    #[expected_failure(abort_code = 1, location=sui::dynamic_field)] // E_WRONG_COIN_TYPE
     fun test_complete_native_transfer_wrong_coin(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -696,7 +680,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -719,13 +702,11 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta);
         };
         test_scenario::end(test);
     }
@@ -745,7 +726,6 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<BridgeState>(&test);
             let worm_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -767,13 +747,11 @@ module token_bridge::complete_transfer_test {
                 my_transfer,
                 &mut worm_state,
                 &mut bridge_state,
-                &coin_meta,
                 fee_recipient_person,
                 ctx(&mut test)
             );
             return_shared<BridgeState>(bridge_state);
             return_shared<State>(worm_state);
-            return_shared<CoinMetadata<COIN_WITNESS>>(coin_meta);
         };
 
         // check balances after
